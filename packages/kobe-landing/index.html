@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="/fleet.css">
 <link rel="stylesheet" href="/fanout.css">
 <link rel="stylesheet" href="/peers.css">
+<link rel="stylesheet" href="/ssh.css">
 <style>
 :root{
   --paper:     oklch(97.8% 0.007 85);
@@ -393,13 +394,17 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
       <p data-i18n-html="s2.body2">Dropping the connection is not an interrupt: engines run in hosted PTYs behind a daemon on that machine, so the fleet keeps working with the TUI closed. SSH back in 40 minutes later and reattach. No terminal to hand? <span class="mono">rove web</span> serves the same daemon-owned tasks and live terminals in a browser tab.</p>
     </div>
     <div class="stage-vis">
-      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>detach · reattach</span></div>
-      <pre class="term-out"><span class="ps">$</span> exit
-<span class="d">Connection to devbox closed.</span>
-<span class="d">▸ 41 minutes later, from anywhere</span>
-<span class="ps">$</span> ssh devbox && rove
-<span class="ok">●</span> 3 sessions live · running 41m
-<span class="d">  attached — right where you left off</span></pre></figure>
+      <div class="sshbox" id="sshbox">
+        <div class="sh-veil" aria-hidden="true"></div>
+        <button type="button" class="fo-replay" id="shReplay">↻ replay</button>
+        <p class="sh-bar"><span class="sh-host">devbox</span><span class="sh-state" id="shState"></span></p>
+        <div class="sh-body">
+          <p class="sh-cmd"><span class="ps">$</span> <span id="shCmd"></span></p>
+          <p class="sh-out" id="shOut"></p>
+          <div class="sh-rows" id="shRows"></div>
+          <p class="sh-note" id="shNote"></p>
+        </div>
+      </div>
     </div>
   </article>
 
@@ -465,6 +470,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 </footer>
 
 <script src="/index.js"></script>
+<script src="/stages.js"></script>
 <script src="/fleet.js"></script>
 </body>
 </html>
