@@ -223,7 +223,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
   <div class="hero-inner">
     <p class="hero-kicker rise" style="animation-delay:.08s" data-i18n-html="hero.kicker">prompt engineering → context engineering → <span class="acc">graph engineering</span></p>
     <h1 class="rise" style="animation-delay:.2s" data-i18n-html="hero.title">The agent <span class="acc">multiplexer</span> in your shell.</h1>
-    <p class="hero-sub rise" style="animation-delay:.34s" data-i18n="hero.sub">One agent is a conversation. Five at once need a multiplexer: every attempt gets its own git worktree, branch and hosted engine session, they reach each other by message, and the whole fleet lives inside an SSH session you can close.</p>
+    <p class="hero-sub rise" style="animation-delay:.34s" data-i18n="hero.sub">One agent is a conversation. Five at once need a multiplexer — isolated worktrees, hosted sessions, and one SSH connection you can close.</p>
     <div class="hero-row rise" style="animation-delay:.48s">
       <button id="copyBtn" class="copy-cmd">
         <span class="ps">$</span>
@@ -358,7 +358,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <div class="stage-txt">
       <span class="stage-no" data-i18n="s1.no">1.0 · MULTIPLEX</span>
       <h2 data-i18n="s1.title">One prompt becomes N isolated attempts.</h2>
-      <p data-i18n="s1.body">A multiplexer is the whole idea: one prompt, N attempts, one call. Rove fans out every attempt into its own git worktree on its own branch, running whichever engine you point it at — claude, codex, copilot, kimi, or your own command. Independent nodes, no shared state, no agents stepping on each other's files.</p>
+      <p data-i18n="s1.body">Each attempt gets its own worktree, branch and engine. No shared state, nothing to step on.</p>
       <div class="engine-pills" id="enginePills">
         <button class="engine-pill" data-engine="claude" data-active="true">claude</button>
         <button class="engine-pill" data-engine="codex" data-active="false">codex</button>
@@ -390,8 +390,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <div class="stage-txt">
       <span class="stage-no" data-i18n="s2.no">2.0 · SSH-NATIVE</span>
       <h2 data-i18n="s2.title">It&rsquo;s a TUI. That is the whole remote story.</h2>
-      <p data-i18n="s2.body">No browser, no VNC, no desktop app, no port to forward. Rove runs where your code already lives — laptop, devbox, VPS, anything you can SSH into — with the real dependencies, services, credentials and build cache. What passes for the agent passes for you.</p>
-      <p data-i18n-html="s2.body2">Dropping the connection is not an interrupt: engines run in hosted PTYs behind a daemon on that machine, so the fleet keeps working with the TUI closed. SSH back in 40 minutes later and reattach. No terminal to hand? <span class="mono">rove web</span> serves the same daemon-owned tasks and live terminals in a browser tab.</p>
+      <p data-i18n-html="s2.body">Engines live in hosted PTYs behind a daemon — drop the connection and the fleet keeps working. No terminal to hand? <span class="mono">rove web</span>.</p>
     </div>
     <div class="stage-vis">
       <div class="sshbox" id="sshbox">
@@ -412,8 +411,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <div class="stage-txt">
       <span class="stage-no" data-i18n="s3.no">3.0 · PEERS</span>
       <h2 data-i18n="s3.title">Agents message each other. No coordinator.</h2>
-      <p data-i18n-html="s3.body">Every attempt knows who dispatched it, so one <span class="mono">rove api send</span> lands straight in that agent&rsquo;s session. It runs both ways: workers report in, the orchestrator answers back mid-flight.</p>
-      <p data-i18n="s3.body2">Five agents can keep a conversation going while you sleep. You read the thread when you get back.</p>
+      <p data-i18n-html="s3.body">One <span class="mono">rove api send</span> lands in another agent&rsquo;s session — both directions, mid-flight, while you sleep.</p>
     </div>
     <div class="stage-vis">
       <div class="peers" id="peers">
@@ -442,7 +440,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 <section id="install" class="install wrap">
   <div class="install-final">
     <h2 data-i18n="install.title">Spin it up where your code lives.</h2>
-    <p data-i18n="install.body">One line, then one command. Point it at a repo and you have a fleet — optimizing the only metric that matters: merged code per hour of your attention.</p>
+    <p data-i18n="install.body">One line, then one command. The only metric that matters: merged code per hour of your attention.</p>
     <figure class="term-frame install-term"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>install</span></div>
     <pre class="term-out"><span class="ps">$</span> curl -fsSL https://rove.sma1lboy.me/install.sh | sh
 <span class="ps">$</span> ssh devbox && cd repo
