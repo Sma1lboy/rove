@@ -7,13 +7,13 @@
 |                              |
 |  + New task               n  |
 |                              |
+| Agent Tree                   |
 | Kanban                       |
 | Routines                     |
 |                              |
 |                              |
 | No active tasks — create one |
 | above.                       |
-|                              |
 |                              |
 |                              |
 |                              |

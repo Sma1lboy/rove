@@ -9,13 +9,13 @@
 |                              |
 | /bravo█ 2/5                  |
 |                              |
+| Agent Tree                   |
 | Kanban                       |
 | Routines                     |
 |                              |
 | rove ─────────────────────── |
 |▌ feat/bravo                  |
 |  · tests                     |
-|                              |
 |                              |
 |                              |
 |                              |

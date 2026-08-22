@@ -17,7 +17,7 @@
  * the sidebar's task list selects — and has no rail row of its own: you are
  * already there, and selecting a task is how you get back.
  */
-export type SidebarNav = "terminal" | "kanban" | "automations" | "issues"
+export type SidebarNav = "terminal" | "agents" | "kanban" | "automations" | "issues"
 
 export interface SidebarNavItem {
   readonly nav: SidebarNav
@@ -31,6 +31,7 @@ export interface SidebarNavItem {
  * for the same thing — and clicking a task already returns there.
  */
 export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
+  { nav: "agents", labelKey: "tasks.nav.agents" },
   { nav: "kanban", labelKey: "tasks.nav.kanban" },
   { nav: "automations", labelKey: "tasks.nav.automations" },
   // `issues` is deliberately absent: the external-tracker page works but has

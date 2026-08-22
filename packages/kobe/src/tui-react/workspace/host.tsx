@@ -285,8 +285,10 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   const pageDeps = {
     orchestrator: orch,
+    tasks,
     selectedTask,
     worktreesOpen: pages.worktreesOpen,
+    agentsOpen: pages.agentsOpen,
     automationsOpen: pages.automationsOpen,
     workItemsOpen: pages.workItemsOpen,
     kanbanOpen: pages.kanbanOpen,
@@ -295,6 +297,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     closeAutomations: pages.closeAutomations,
     closeWorkItems: pages.closeWorkItems,
     closeKanban: pages.closeKanban,
+    closeAgents: pages.closeAgents,
     closeUpdate: pages.closeUpdate,
     activateTask: (taskId: string) => void activateTask(taskId),
     startIssueChat: issueChat.start,
@@ -302,8 +305,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     contentFocused: activePane === "workspace",
   }
 
-  // Worktrees / Update replace the whole window; the rail's pages replace only
-  // the content pane, so the sidebar stays live beside them.
+  // Full-window pages replace the frame; rail pages replace only content.
   const fullWindowPage = renderFullWindowPage(pageDeps)
   if (fullWindowPage) return fullWindowPage
   const openPage = renderContentPage(pageDeps)

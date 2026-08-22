@@ -303,11 +303,28 @@ picker so you can resume a conversation that is not already represented by a
 tab. Availability and restart behavior vary by engine; see
 [Resuming a conversation](SESSIONS.md#resuming-a-conversation).
 
-## Pages: `ctrl+a` `1` / `2` / `3`
+## Workspace pages
 
-Three pages replace the workspace pane while the sidebar stays put. `esc` or
-`q` closes a page; selecting a task in the sidebar also returns you to the
-workspace. The chords stay live, so you can hop between pages directly.
+Four pages replace the workspace pane while the sidebar stays put. Open one
+from its sidebar rail row; Kanban, Routines, and GitHub Issues also keep their
+`ctrl+a` `1` / `2` / `3` chords. `esc` or `q` closes a page, and selecting a
+task in the sidebar returns you to the workspace.
+
+### Agent Tree (sidebar rail)
+
+Agent Tree is the live topology of Rove-created collaboration. A root row is
+an owner session. A child edge comes from the task's durable
+`dispatcher.taskId`, which is also where a subagent's bare `rove api send`
+reply goes. Siblings created by one parallel `rove api add --count` or
+`--agents` call sit under a shared **ROUND** row derived from `groupId`.
+
+Each task row shows its engine-owned identity and normalized activity state;
+Rove does not parse message text to guess either one. Missing dispatcher tasks
+and corrupt cycles remain visible as ORPHAN or CYCLE roots instead of being
+dropped. `j`/`k` or the arrow keys move through task rows, `tab` cycles
+projects, and `enter` opens the selected task. The page intentionally has no
+global chord: its sidebar row is the discoverable entry, so no terminal key is
+claimed for an observability view.
 
 ### Kanban (`ctrl+a` `1`)
 

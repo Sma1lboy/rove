@@ -9,13 +9,13 @@
 |                              |
 | /review█ 2/5                 |
 |                              |
+| Agent Tree                   |
 | Kanban                       |
 | Routines                     |
 |                              |
 | rove ─────────────────────── |
 |▌ feat/alpha                  |
 |  · review                    |
-|                              |
 |                              |
 |                              |
 |                              |

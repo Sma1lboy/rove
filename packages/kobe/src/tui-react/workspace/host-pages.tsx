@@ -16,6 +16,7 @@ import { type ReactNode, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
 import type { Task } from "../../types/task"
+import { AgentTreePage } from "../component/agent-tree-page"
 import { AutomationsPage } from "../component/automations-page"
 import { KanbanPage } from "../component/kanban-page"
 import { UpdatePage } from "../component/update-page"
@@ -25,6 +26,7 @@ import type { FocusContextValue } from "../context/focus"
 
 export interface HostPageState {
   readonly worktreesOpen: boolean
+  readonly agentsOpen: boolean
   readonly automationsOpen: boolean
   readonly workItemsOpen: boolean
   readonly kanbanOpen: boolean
@@ -45,6 +47,7 @@ export interface HostPagesState extends HostPageState {
   readonly closeUpdate: () => void
   readonly openKanban: () => void
   readonly closeKanban: () => void
+  readonly closeAgents: () => void
   readonly openAutomations: () => void
   readonly closeAutomations: () => void
   readonly openWorkItems: () => void
@@ -56,7 +59,7 @@ export interface HostPagesState extends HostPageState {
  * cap) into the module that renders those surfaces.
  *
  * Settings / Worktrees / Update are full swaps with their own booleans. The
- * rail's pages (kanban/automations/issues) are ONE `nav` value — three
+ * rail's pages (agents/kanban/automations/issues) are ONE `nav` value — four
  * independent booleans allowed "kanban and automations both open", a state
  * the rail cannot represent and no key can reach.
  *
@@ -88,9 +91,11 @@ export function useHostPagesState(focus: FocusContextValue): HostPagesState {
     updateOpen,
     openUpdate: () => setUpdateOpen(true),
     closeUpdate: () => setUpdateOpen(false),
+    agentsOpen: nav === "agents",
     kanbanOpen: nav === "kanban",
     openKanban: () => goToNav("kanban"),
     closeKanban: () => goToNav("terminal"),
+    closeAgents: () => goToNav("terminal"),
     automationsOpen: nav === "automations",
     openAutomations: () => goToNav("automations"),
     closeAutomations: () => goToNav("terminal"),
@@ -102,11 +107,13 @@ export function useHostPagesState(focus: FocusContextValue): HostPagesState {
 
 export interface HostPageDeps extends HostPageState {
   readonly orchestrator: RemoteOrchestrator | null
+  readonly tasks: readonly Task[]
   readonly selectedTask: Task | undefined
   readonly closeWorktrees: () => void
   readonly closeAutomations: () => void
   readonly closeWorkItems: () => void
   readonly closeKanban: () => void
+  readonly closeAgents: () => void
   readonly closeUpdate: () => void
   readonly activateTask: (taskId: string) => void
   /** True while the content pane holds focus — rail pages share the window
@@ -138,6 +145,22 @@ export function renderFullWindowPage(deps: HostPageDeps): ReactNode | null {
  */
 export function renderContentPage(deps: HostPageDeps): ReactNode | null {
   const orch = deps.orchestrator
+
+  if (deps.agentsOpen) {
+    return (
+      <AgentTreePage
+        tasks={deps.tasks}
+        selectedTask={deps.selectedTask}
+        engineStates={deps.engineStates}
+        focused={deps.contentFocused}
+        onClose={deps.closeAgents}
+        onOpenTask={(taskId) => {
+          deps.closeAgents()
+          deps.activateTask(taskId)
+        }}
+      />
+    )
+  }
 
   if (deps.automationsOpen) {
     return (

@@ -7,6 +7,7 @@
 |                              |
 |  + New task               n  |
 |                              |
+| Agent Tree                   |
 | Kanban                       |
 | Routines                     |
 |                              |
@@ -18,7 +19,6 @@
 |  · review                    |
 |  feat/bravo                  |
 |  · tests                     |
-|                              |
 |                              |
 |                              |
 |                              |
