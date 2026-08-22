@@ -18,6 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/fleet.css">
 <link rel="stylesheet" href="/fanout.css">
+<link rel="stylesheet" href="/peers.css">
 <style>
 :root{
   --paper:     oklch(97.8% 0.007 85);
@@ -406,18 +407,26 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <div class="stage-txt">
       <span class="stage-no" data-i18n="s3.no">3.0 · PEERS</span>
       <h2 data-i18n="s3.title">Agents message each other. No coordinator.</h2>
-      <p data-i18n-html="s3.body">Every attempt Rove spawns knows who dispatched it, so a bare <span class="mono">rove api send</span> routes home to that exact engine tab — no ids to thread through, no polling, no shared scratch file. Silence is a checkpoint, never a verdict.</p>
-      <p data-i18n-html="s3.body2">Messages land tagged <span class="mono">[KOBE PEER]</span> with the sender and a tab-precise reply command attached, so the receiving agent can answer back mid-flight. One agent orchestrating five, five reporting in, peers asking each other questions. Your engine learns the verbs from a bundled skill — <span class="mono">rove skill install</span>.</p>
+      <p data-i18n-html="s3.body">Every attempt knows who dispatched it, so one <span class="mono">rove api send</span> lands straight in that agent&rsquo;s session. It runs both ways: workers report in, the orchestrator answers back mid-flight.</p>
+      <p data-i18n="s3.body2">Five agents can keep a conversation going while you sleep. You read the thread when you get back.</p>
     </div>
     <div class="stage-vis">
-      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>peer · send</span></div>
-      <pre class="term-out"><span class="d"># inside attempt b, mid-run</span>
-<span class="ps">$</span> rove api send --prompt <span class="a">"auth done — branch fix/auth-b"</span>
-<span class="ok">✓</span> delivered → orchestrator · tab-1
-<span class="d"># what the orchestrator's engine reads</span>
-<span class="a">[KOBE PEER]</span> from <span class="a">"simplify auth · b"</span>
-  auth done — branch fix/auth-b
-  <span class="d">reply: rove api send --task-id b --tab tab-2</span></pre></figure>
+      <div class="peers" id="peers">
+        <button type="button" class="fo-replay" id="pxReplay">↻ replay</button>
+        <div class="px-ends">
+          <div class="px-node" id="pxA">
+            <p class="px-name" data-i18n="px.a">orchestrator</p>
+            <p class="px-meta">claude · tab-1</p>
+          </div>
+          <div class="px-wire" aria-hidden="true"><span class="px-dot" id="pxDot"></span></div>
+          <div class="px-node" id="pxB">
+            <p class="px-name" data-i18n="px.b">attempt b</p>
+            <p class="px-meta">codex · fix/auth-b</p>
+          </div>
+        </div>
+        <div class="px-log" id="pxLog"></div>
+        <p class="px-cmd"><b>rove api send</b> <span data-i18n="px.cmd">— one verb, either direction</span></p>
+      </div>
     </div>
   </article>
 

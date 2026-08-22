@@ -1,0 +1,109 @@
+/* Peer messaging — stage 3's visual. Two agents at the ends of one wire, a
+   packet running between them, and the thread they build. Deliberately shows
+   the conversation rather than the envelope: the API is one line at the foot. */
+
+.peers {
+  position: relative; overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, oklch(25% 0.022 50), var(--well) 55%);
+  border: 1px solid oklch(33% 0.024 50);
+  box-shadow: 0 22px 52px oklch(42% 0.06 50/.2);
+  font-family: var(--font-mono);
+  color: var(--well-ink);
+  padding: 20px 20px 16px;
+}
+
+/* ---- the two ends ---- */
+.px-ends { display: grid; grid-template-columns: auto minmax(60px, 1fr) auto; align-items: center; gap: 0; }
+.px-node {
+  min-width: 0; padding: 9px 13px;
+  border: 1px solid oklch(34% 0.024 50);
+  background: oklch(28% 0.022 50/.55);
+  transition: border-color 220ms, box-shadow 220ms, background 220ms;
+}
+.px-node.hot {
+  border-color: oklch(62% 0.13 45/.55);
+  background: oklch(31% 0.032 50/.75);
+  box-shadow: 0 0 0 1px oklch(62% 0.13 45/.2), 0 0 22px oklch(70% 0.13 45/.18);
+}
+.px-name {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 700; color: oklch(88% 0.1 58); letter-spacing: .02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.px-name::before {
+  content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%;
+  background: oklch(62% 0.09 145); transition: background 200ms, box-shadow 200ms;
+}
+.px-node.hot .px-name::before {
+  background: oklch(85% 0.16 60); box-shadow: 0 0 8px 2px oklch(78% 0.15 55/.6);
+}
+.px-meta {
+  font-size: 10px; color: oklch(62% 0.025 65); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---- the wire ---- */
+.px-wire { position: relative; height: 1px; background: oklch(48% 0.04 55); }
+/* caps, so the wire reads as plugged into both agents rather than floating */
+.px-wire::before {
+  content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 5px; margin-top: -2.5px;
+  background:
+    radial-gradient(circle 2.5px at 0 50%, oklch(72% 0.11 50), transparent 100%),
+    radial-gradient(circle 2.5px at 100% 50%, oklch(72% 0.11 50), transparent 100%);
+}
+.px-wire::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(70% 0.13 45/.7), transparent);
+  opacity: 0; transition: opacity 200ms;
+}
+.peers.live .px-wire::after { opacity: 1 }
+.px-dot {
+  position: absolute; top: 50%; left: 0; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%; background: oklch(90% 0.16 60);
+  box-shadow: 0 0 12px 3px oklch(75% 0.15 50/.55);
+  opacity: 0;
+}
+.px-dot.fwd { animation: px-fwd .78s cubic-bezier(.5,0,.5,1) forwards }
+.px-dot.rev { animation: px-rev .78s cubic-bezier(.5,0,.5,1) forwards }
+@keyframes px-fwd { 0%{left:0;opacity:0} 14%{opacity:1} 86%{opacity:1} 100%{left:100%;opacity:0} }
+@keyframes px-rev { 0%{left:100%;opacity:0} 14%{opacity:1} 86%{opacity:1} 100%{left:0;opacity:0} }
+
+/* ---- the thread ---- */
+.px-log { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; min-height: 5.6em; }
+.px-line {
+  display: flex; gap: 10px; align-items: baseline;
+  font-size: 11px; line-height: 1.6;
+  opacity: 0; transform: translateY(7px);
+  transition: opacity .38s var(--ease-out), transform .38s var(--ease-out);
+}
+.px-line.in { opacity: 1; transform: none }
+.px-line .dir {
+  flex: none; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 1px 6px; border: 1px solid currentColor; opacity: .8;
+}
+.px-line.up   .dir { color: oklch(76% 0.13 145) }
+.px-line.down .dir { color: oklch(80% 0.12 50) }
+.px-line .msg { color: oklch(84% 0.02 80); min-width: 0 }
+
+/* ---- the one API line ---- */
+.px-cmd {
+  margin-top: 14px; padding-top: 12px; border-top: 1px dashed oklch(36% 0.02 50);
+  font-size: 10.5px; color: oklch(58% 0.025 70);
+}
+.px-cmd b { color: oklch(76% 0.09 55); font-weight: 400 }
+
+@media (max-width: 560px) {
+  .peers { padding: 16px 14px 13px }
+  .px-ends { gap: 8px; grid-template-columns: auto minmax(28px, 1fr) auto }
+  .px-node { padding: 7px 9px }
+  .px-name { font-size: 10.5px }
+  .px-meta { font-size: 9px }
+  .px-line { font-size: 10.5px; gap: 7px }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-dot { display: none }
+  .px-line { opacity: 1; transform: none; transition: none }
+  .px-node { transition: none }
+}

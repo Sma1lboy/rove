@@ -26,8 +26,11 @@ var KOBE_I18N = (function () {
     's2.body': '不需要浏览器、不需要 VNC、不需要桌面应用，也不用转发端口。Rove 就跑在你代码所在的那台机器上——笔记本、devbox、VPS，任何能 SSH 上去的地方——真实的依赖、服务、凭证和构建缓存。代理跑通的对你也跑通。',
     's2.body2': '断线不是中断：引擎跑在那台机器上由 daemon 托管的 PTY 里，关掉 TUI 活儿照样继续。四十分钟后 SSH 回去重新接管就行。手边没终端？<span class="mono">rove web</span> 会把同一份 daemon 托管的任务和活的终端搬到浏览器标签页里。',
     's3.no': '3.0 · 代理互通', 's3.title': '代理之间直接发消息，不需要协调器。',
-    's3.body': 'Rove 开出的每个尝试都知道是谁派发的自己，所以一句裸的 <span class="mono">rove api send</span> 就能准确发回那个引擎 tab——不用一路传 id、不用轮询、不用共享临时文件。沉默只是一个检查点，不是结论。',
-    's3.body2': '消息到达时带着 <span class="mono">[KOBE PEER]</span> 标记，附上发送方和一条精确到 tab 的回复命令，接收方代理可以当场回话。一个代理编排五个，五个向上回报，同级之间也能互相提问。你的引擎从内置技能里学会这些动词——<span class="mono">rove skill install</span>。',
+    's3.body': '每个尝试都知道是谁派发的自己，所以一句 <span class="mono">rove api send</span> 就直接落进那个 agent 的会话里。双向的：worker 往上报，编排方也能当场回话。',
+    's3.body2': '你睡觉的时候，五个 agent 可以自己把话聊下去。醒来把整条线读一遍就行。',
+    'px.a': '编排方', 'px.b': '尝试 b', 'px.cmd': '—— 一个动词，两个方向',
+    'px.m1': 'auth 简化完了 — fix/auth-b', 'px.m2': '先 rebase 到 main，再回报一次',
+    'px.m3': '已 rebase，测试全绿', 'px.you': '你', 'px.to': '→', 'px.b1': 'b',
     'install.title': '在你代码所在的地方跑起来。',
     'install.body': '一行装好，一条命令跑起来。指向一个仓库，你就有了一支舰队——优化唯一重要的指标：你每小时注意力换来的已合并代码。',
     'install.npm': '从 npm 安装 ↗', 'install.star': '去 GitHub 点个 Star ↗',
@@ -61,8 +64,11 @@ var KOBE_I18N = (function () {
     's2.body': 'No browser, no VNC, no desktop app, no port to forward. Rove runs where your code already lives — laptop, devbox, VPS, anything you can SSH into — with the real dependencies, services, credentials and build cache. What passes for the agent passes for you.',
     's2.body2': 'Dropping the connection is not an interrupt: engines run in hosted PTYs behind a daemon on that machine, so the fleet keeps working with the TUI closed. SSH back in 40 minutes later and reattach. No terminal to hand? <span class="mono">rove web</span> serves the same daemon-owned tasks and live terminals in a browser tab.',
     's3.no': '3.0 · PEERS', 's3.title': 'Agents message each other. No coordinator.',
-    's3.body': 'Every attempt Rove spawns knows who dispatched it, so a bare <span class="mono">rove api send</span> routes home to that exact engine tab — no ids to thread through, no polling, no shared scratch file. Silence is a checkpoint, never a verdict.',
-    's3.body2': 'Messages land tagged <span class="mono">[KOBE PEER]</span> with the sender and a tab-precise reply command attached, so the receiving agent can answer back mid-flight. One agent orchestrating five, five reporting in, peers asking each other questions. Your engine learns the verbs from a bundled skill — <span class="mono">rove skill install</span>.',
+    's3.body': 'Every attempt knows who dispatched it, so one <span class="mono">rove api send</span> lands straight in that agent\u2019s session. It runs both ways: workers report in, the orchestrator answers back mid-flight.',
+    's3.body2': 'Five agents can keep a conversation going while you sleep. You read the thread when you get back.',
+    'px.a': 'orchestrator', 'px.b': 'attempt b', 'px.cmd': '— one verb, either direction',
+    'px.m1': 'auth done — fix/auth-b', 'px.m2': 'rebase onto main, then report',
+    'px.m3': 'rebased · tests green', 'px.you': 'you', 'px.to': '→', 'px.b1': 'b',
     'install.title': 'Spin it up where your code lives.',
     'install.body': 'One line, then one command. Point it at a repo and you have a fleet — optimizing the only metric that matters: merged code per hour of your attention.',
     'install.npm': 'Install from npm ↗', 'install.star': 'Star on GitHub ↗',
@@ -262,6 +268,94 @@ var KOBE_I18N = (function () {
   io.observe(root);
   // never leave the graph frozen on its empty first frame
   setTimeout(start, 6000);
+})();
+
+// stage-3 peer wire: a packet crosses, then the message it carried lands in
+// the thread. Alternating direction is the whole point — there is no
+// coordinator, just two agents with one verb between them.
+(function () {
+  var root = document.getElementById('peers');
+  var dot = document.getElementById('pxDot');
+  var log = document.getElementById('pxLog');
+  var a = document.getElementById('pxA');
+  var b = document.getElementById('pxB');
+  var replay = document.getElementById('pxReplay');
+  if (!root || !dot || !log || !a || !b) return;
+
+  // up = worker reporting home, down = orchestrator answering back
+  var THREAD = [
+    { dir: 'up', key: 'px.m1' },
+    { dir: 'down', key: 'px.m2' },
+    { dir: 'up', key: 'px.m3' },
+  ];
+  var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var timers = [];
+
+  function label(step) {
+    return step.dir === 'up'
+      ? KOBE_I18N.t('px.b1') + ' ' + KOBE_I18N.t('px.to') + ' ' + KOBE_I18N.t('px.you')
+      : KOBE_I18N.t('px.you') + ' ' + KOBE_I18N.t('px.to') + ' ' + KOBE_I18N.t('px.b1');
+  }
+  function row(step) {
+    var p = document.createElement('p');
+    p.className = 'px-line ' + step.dir;
+    p.innerHTML = '<span class="dir"></span><span class="msg"></span>';
+    p.querySelector('.dir').textContent = label(step);
+    p.querySelector('.msg').textContent = KOBE_I18N.t(step.key);
+    return p;
+  }
+
+  function play() {
+    timers.forEach(clearTimeout);
+    timers = [];
+    log.innerHTML = '';
+    root.classList.remove('live');
+    a.classList.remove('hot');
+    b.classList.remove('hot');
+
+    if (still) {
+      THREAD.forEach(function (step) {
+        var p = row(step); p.classList.add('in'); log.appendChild(p);
+      });
+      return;
+    }
+    THREAD.forEach(function (step, i) {
+      var at = 500 + i * 1500;
+      timers.push(setTimeout(function () {
+        root.classList.add('live');
+        // the sender lights first, the wire carries, then the receiver lights
+        (step.dir === 'up' ? b : a).classList.add('hot');
+        dot.className = 'px-dot';
+        void dot.offsetWidth;
+        dot.className = 'px-dot ' + (step.dir === 'up' ? 'rev' : 'fwd');
+      }, at));
+      timers.push(setTimeout(function () {
+        (step.dir === 'up' ? b : a).classList.remove('hot');
+        (step.dir === 'up' ? a : b).classList.add('hot');
+        var p = row(step);
+        log.appendChild(p);
+        void p.offsetWidth;
+        p.classList.add('in');
+      }, at + 780));
+      timers.push(setTimeout(function () {
+        a.classList.remove('hot'); b.classList.remove('hot');
+        if (i === THREAD.length - 1) root.classList.remove('live');
+      }, at + 1300));
+    });
+  }
+
+  if (replay) replay.addEventListener('click', play);
+  var langBtn = document.getElementById('langToggle');
+  if (langBtn) langBtn.addEventListener('click', function () { setTimeout(play, 0); });
+
+  if (still || !window.IntersectionObserver) { play(); return; }
+  var started = false;
+  function start() { if (started) return; started = true; io.disconnect(); play(); }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) start(); });
+  }, { threshold: 0.2 });
+  io.observe(root);
+  setTimeout(start, 9000);
 })();
 
 // scroll reveal for the narrative stages. The class is added by JS so the page
