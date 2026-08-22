@@ -1,0 +1,161 @@
+/* Fan-out graph — stage 1's visual. A plain-English ask at the top, the
+   edges the skill draws under it, one lane per isolated attempt. Same dark
+   well vocabulary as .term-frame; the motion is what makes it read as a
+   fan-out rather than a diagram of one. */
+
+.fanout {
+  position: relative; overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, oklch(25% 0.022 50), var(--well) 55%);
+  border: 1px solid oklch(33% 0.024 50);
+  box-shadow: 0 22px 52px oklch(42% 0.06 50/.2);
+  font-family: var(--font-mono);
+  color: var(--well-ink);
+  padding: 20px 20px 16px;
+}
+/* a slow accent bloom behind the branch point — the only ambient motion */
+.fanout::before {
+  content: ""; position: absolute; left: 50%; top: 32%; width: 300px; height: 300px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, oklch(70% 0.13 45/.26), transparent 64%);
+  opacity: 0; pointer-events: none;
+}
+.fanout.run::before { animation: fo-bloom 5.4s var(--ease-out) .9s both; }
+@keyframes fo-bloom { 0%{opacity:0;transform:translate(-50%,-50%) scale(.4)} 35%{opacity:1} 100%{opacity:.6;transform:translate(-50%,-50%) scale(1)} }
+
+/* ---- the ask ---- */
+.fo-ask {
+  display: flex; align-items: baseline; gap: 10px;
+  font-size: 12.5px; line-height: 1.7;
+  padding-bottom: 16px;
+}
+.fo-ask .who {
+  flex: none; font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+  color: oklch(75% 0.13 50); border: 1px solid oklch(62% 0.13 45/.35);
+  padding: 2px 7px; align-self: flex-start; margin-top: 2px;
+}
+.fo-ask .txt { color: oklch(92% 0.02 80); }
+.fo-ask .cur {
+  display: inline-block; width: 7px; height: 13px; vertical-align: -2px;
+  background: oklch(75% 0.13 50); margin-left: 2px;
+}
+.fanout.run .fo-ask .cur { animation: fo-blink 1s steps(1) infinite; }
+.fanout.done .fo-ask .cur { animation: none; opacity: 0; }
+@keyframes fo-blink { 50% { opacity: 0 } }
+
+/* ---- edges ---- */
+.fo-edges { display: block; width: 100%; height: 40px; overflow: visible; }
+.fo-edges path {
+  fill: none; stroke: oklch(62% 0.13 45/.55); stroke-width: 1.25;
+  stroke-dasharray: var(--len, 200px); stroke-dashoffset: var(--len, 200px);
+}
+.fanout.run .fo-edges path { animation: fo-draw .62s var(--ease-out) forwards; }
+.fanout.run .fo-edges g:nth-child(2) path { animation-delay: .06s }
+.fanout.run .fo-edges g:nth-child(3) path { animation-delay: .12s }
+@keyframes fo-draw { to { stroke-dashoffset: 0 } }
+
+/* a signal running down each branch — the dispatch you can actually see */
+.fo-edges .pulse {
+  stroke: oklch(88% 0.16 60); stroke-width: 1.8; stroke-linecap: round;
+  stroke-dasharray: 9px var(--len, 200px); stroke-dashoffset: 9px; opacity: 0;
+  animation: none;
+}
+.fanout.run .fo-edges .pulse { animation: fo-signal 1s linear .5s 2 both; }
+.fanout.run .fo-edges g:nth-child(2) .pulse { animation-delay: .62s }
+.fanout.run .fo-edges g:nth-child(3) .pulse { animation-delay: .74s }
+@keyframes fo-signal {
+  0%   { opacity: 0; stroke-dashoffset: 9px }
+  12%  { opacity: 1 }
+  85%  { opacity: 1 }
+  100% { opacity: 0; stroke-dashoffset: calc(-1 * var(--len, 200px)) }
+}
+/* the branch point itself */
+.fo-edges circle { fill: oklch(75% 0.13 50); opacity: 0; }
+.fanout.run .fo-edges circle { animation: fo-pop .3s var(--ease-out) forwards; }
+@keyframes fo-pop { from{opacity:0} to{opacity:1} }
+
+/* ---- lanes ---- */
+.fo-lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.fo-lane {
+  min-width: 0;
+  border: 1px solid oklch(34% 0.024 50);
+  background: oklch(28% 0.022 50/.55);
+  padding: 10px 11px 11px;
+  opacity: 0; transform: translateY(10px);
+}
+.fanout.run .fo-lane { animation: fo-rise .5s var(--ease-out) forwards; }
+.fanout.run .fo-lane:nth-child(1) { animation-delay: .10s }
+.fanout.run .fo-lane:nth-child(2) { animation-delay: .22s }
+.fanout.run .fo-lane:nth-child(3) { animation-delay: .34s }
+@keyframes fo-rise { to { opacity: 1; transform: none } }
+.fo-lane.lit { border-color: oklch(62% 0.13 45/.45); background: oklch(30% 0.03 50/.7); }
+.fo-lane.ok  { border-color: oklch(58% 0.12 145/.42); box-shadow: inset 2px 0 0 oklch(72% 0.14 145/.55); }
+.fo-lane.lit { box-shadow: inset 2px 0 0 oklch(75% 0.13 50/.6); }
+
+.fo-head {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 11.5px; color: oklch(88% 0.02 80); letter-spacing: .02em;
+}
+.fo-head b { color: oklch(82% 0.1 55); font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fo-head .tag {
+  flex: none; margin-left: auto; font-size: 10px; letter-spacing: .1em;
+  color: oklch(70% 0.03 65);
+}
+.fo-wt {
+  font-size: 10.5px; color: oklch(66% 0.035 60); margin-top: 5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fo-st { font-size: 10.5px; margin-top: 7px; color: oklch(60% 0.02 70); letter-spacing: .04em; }
+.fo-st .sp { color: oklch(80% 0.12 85); }
+.fo-st.on  { color: oklch(85% 0.07 60); }
+.fo-st.ok  { color: oklch(80% 0.13 145); }
+
+/* ---- what the skill actually ran ---- */
+.fo-cmd {
+  margin-top: 14px; padding-top: 12px; border-top: 1px dashed oklch(36% 0.02 50);
+  font-size: 10.5px; line-height: 1.8; color: oklch(58% 0.025 70);
+  opacity: 0; word-break: break-word;
+}
+.fanout.run .fo-cmd { animation: fo-fade .6s var(--ease-out) 1.1s forwards; }
+@keyframes fo-fade { to { opacity: 1 } }
+.fo-cmd b { color: oklch(72% 0.06 60); font-weight: 400; }
+
+/* replay affordance */
+.fo-replay {
+  position: absolute; right: 12px; top: 12px; z-index: 2;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  background: transparent; border: 1px solid oklch(38% 0.024 50);
+  color: oklch(60% 0.02 70); padding: 4px 9px;
+  opacity: 0; transition: opacity 180ms, color 140ms, border-color 140ms;
+}
+.fanout:hover .fo-replay, .fo-replay:focus-visible { opacity: 1 }
+.fo-replay:hover { color: oklch(80% 0.12 50); border-color: oklch(62% 0.13 45/.5) }
+
+/* ---- narrow: the fan becomes a spine ---- */
+@media (max-width: 560px) {
+  .fo-edges { display: none }
+  .fo-lanes { grid-template-columns: 1fr; gap: 8px; padding-left: 16px }
+  .fo-lane { position: relative }
+  /* the spine is drawn per lane so it runs through the gaps and terminates on
+     the last lane's tick instead of guessing a percentage */
+  .fo-lane::after {
+    content: ""; position: absolute; left: -13px; top: -12px; bottom: -8px;
+    border-left: 1px solid oklch(62% 0.13 45/.45);
+  }
+  .fo-lane:last-child::after { bottom: auto; height: 30px }
+  .fo-lane::before {
+    content: ""; position: absolute; left: -13px; top: 18px;
+    width: 9px; border-top: 1px solid oklch(62% 0.13 45/.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fanout::before, .fanout .fo-edges path, .fanout .fo-edges .pulse, .fanout .fo-edges circle,
+  .fanout .fo-lane, .fanout .fo-cmd { animation: none !important }
+  .fanout .fo-edges path { stroke-dashoffset: 0 }
+  .fanout .fo-edges .pulse { display: none }
+  .fanout .fo-edges circle { opacity: 1 }
+  .fanout .fo-lane { opacity: 1; transform: none }
+  .fanout .fo-cmd { opacity: 1 }
+  .fo-replay { opacity: 1 }
+}

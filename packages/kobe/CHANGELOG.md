@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.139
+
+### Patch Changes
+
+- 5f1a103: Rove skill v30: document that peer `send` messages can carry file paths — screenshots, logs, and diffs are shared via the filesystem and opened with the receiver's Read tool.
+- 98d3000: Add an interactive Rove TUI mock to the landing page. It reproduces the product's own layout — grouped task cards carrying their terminal tabs, the workspace tab strip, side-by-side panes, and the quota/key-hint status bar — and picking a task in the rail swaps every pane. Keyboard-reachable and translated in both languages.
+
 ## 0.8.138
 
 ### Patch Changes
