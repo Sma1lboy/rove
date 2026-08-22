@@ -41,7 +41,7 @@ var KOBE_I18N = (function () {
     'final.line': '众流汇于一个 shell。',
     'footer.tagline': '终端里的编码代理多路复用器。',
     'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Fraunces、DM Sans 与 JetBrains Mono。MIT 许可。',
-    'footer.plugins': '插件', 'footer.changelog': '更新日志', 'footer.keybindings': '快捷键',
+    'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.keybindings': '快捷键',
   };
   var en = {
     'meta.title': 'Rove — the agent multiplexer in your shell',
@@ -83,7 +83,7 @@ var KOBE_I18N = (function () {
     'final.line': 'Many streams. One shell.',
     'footer.tagline': 'a terminal multiplexer for coding agents.',
     'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.',
-    'footer.plugins': 'plugins', 'footer.changelog': 'changelog', 'footer.keybindings': 'keybindings',
+    'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.keybindings': 'keybindings',
   };
   var dicts = { en: en, zh: zh };
   var lang = 'en';
