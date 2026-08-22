@@ -19,6 +19,9 @@ var KOBE_I18N = (function () {
     's1.no': '1.0 · 多路复用', 's1.title': '一条 prompt 变成 N 个隔离的尝试。',
     's1.body': '多路复用就是全部思路：一条 prompt、N 个尝试、一次调用。Rove 把每个尝试扇出到独立的 git worktree 和分支上，跑你指定的引擎——claude、codex、copilot、kimi，或你自己的命令。独立节点，没有共享状态，代理之间互不碰文件。',
     's1.ownCmd': '你自己的命令',
+    'fan.you': '你', 'fan.ask': '把 auth 流程简化一下——开三条路子并行试。',
+    'fan.starting': '启动中', 'fan.running': '进行中', 'fan.done': '已回报',
+    'fan.cmdLead': '技能替你跑的是：',
     's2.no': '2.0 · SSH 原生', 's2.title': '它是个 TUI——远程这件事就已经解决了。',
     's2.body': '不需要浏览器、不需要 VNC、不需要桌面应用，也不用转发端口。Rove 就跑在你代码所在的那台机器上——笔记本、devbox、VPS，任何能 SSH 上去的地方——真实的依赖、服务、凭证和构建缓存。代理跑通的对你也跑通。',
     's2.body2': '断线不是中断：引擎跑在那台机器上由 daemon 托管的 PTY 里，关掉 TUI 活儿照样继续。四十分钟后 SSH 回去重新接管就行。手边没终端？<span class="mono">rove web</span> 会把同一份 daemon 托管的任务和活的终端搬到浏览器标签页里。',
@@ -51,6 +54,9 @@ var KOBE_I18N = (function () {
     's1.no': '1.0 · MULTIPLEX', 's1.title': 'One prompt becomes N isolated attempts.',
     's1.body': 'A multiplexer is the whole idea: one prompt, N attempts, one call. Rove fans out every attempt into its own git worktree on its own branch, running whichever engine you point it at — claude, codex, copilot, kimi, or your own command. Independent nodes, no shared state, no agents stepping on each other\'s files.',
     's1.ownCmd': 'your own command',
+    'fan.you': 'you', 'fan.ask': 'Simplify the auth flow — try three approaches in parallel.',
+    'fan.starting': 'starting', 'fan.running': 'running', 'fan.done': 'reported',
+    'fan.cmdLead': 'what the skill ran for you:',
     's2.no': '2.0 · SSH-NATIVE', 's2.title': 'It\u2019s a TUI. That is the whole remote story.',
     's2.body': 'No browser, no VNC, no desktop app, no port to forward. Rove runs where your code already lives — laptop, devbox, VPS, anything you can SSH into — with the real dependencies, services, credentials and build cache. What passes for the agent passes for you.',
     's2.body2': 'Dropping the connection is not an interrupt: engines run in hosted PTYs behind a daemon on that machine, so the fleet keeps working with the TUI closed. SSH back in 40 minutes later and reattach. No terminal to hand? <span class="mono">rove web</span> serves the same daemon-owned tasks and live terminals in a browser tab.',
@@ -145,32 +151,138 @@ var KOBE_I18N = (function () {
     .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
 })();
 
-// engine selector → updates the stage-1 fan-out (vendor flag + spawned worktree lanes)
+// stage-1 fan-out graph: type the ask, draw the edges, walk each lane from
+// starting → running → reported. Replays on engine change, on the replay
+// chip, and once when the graph first scrolls into view.
 (function () {
-  var branchMap = {
-    'claude': 'claude', 'codex': 'codex', 'copilot': 'copilot',
-    'kimi': 'kimi', 'your own command': 'my-cli',
-  };
-  var engineEl = document.getElementById('fanEngineName');
-  var linesEl = document.getElementById('fanLines');
-  var pills = document.querySelectorAll('.engine-pill');
-  if (!engineEl || !linesEl) return;
+  var root = document.getElementById('fanout');
+  var askEl = document.getElementById('foAsk');
+  var lanesEl = document.getElementById('foLanes');
+  var cmdEl = document.getElementById('foCmd');
+  var replayBtn = document.getElementById('foReplay');
+  if (!root || !askEl || !lanesEl || !cmdEl) return;
 
-  function render(engine) {
-    var slug = branchMap[engine] || engine;
-    engineEl.textContent = engine === 'your own command' ? 'my-cli' : engine;
-    var pad = function (s) { return (s + '              ').slice(0, 16); };
-    linesEl.innerHTML = ['a', 'b', 'c'].map(function (s) {
-      return '<span class="ok">●</span> ' + pad('rove/' + slug + '-' + s) + '<span class="d">running</span>';
-    }).join('\n');
+  var SLUGS = { 'your own command': 'my-cli' };
+  var LANES = ['a', 'b', 'c'];
+  var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var engine = 'claude';
+  var timers = [];
+  var typer = null;
+
+  function clearTimers() {
+    timers.forEach(clearTimeout);
+    timers = [];
+    if (typer) { clearInterval(typer); typer = null; }
+  }
+  function at(ms, fn) { timers.push(setTimeout(fn, still ? 0 : ms)); }
+
+  function slug() { return SLUGS[engine] || engine; }
+
+  function paintLanes() {
+    lanesEl.innerHTML = LANES.map(function (id) {
+      return '<div class="fo-lane" data-lane="' + id + '">' +
+        '<p class="fo-head"><b>' + slug() + '</b><span class="tag">' + id + '</span></p>' +
+        '<p class="fo-wt">simplify-auth-' + id + '</p>' +
+        '<p class="fo-st"><span class="sp">⠋</span> ' + KOBE_I18N.t('fan.starting') + '</p>' +
+      '</div>';
+    }).join('');
   }
 
-  pills.forEach(function (pill) {
+  function setState(i, cls, mark, key) {
+    var lane = lanesEl.children[i];
+    if (!lane) return;
+    lane.classList.add(cls);
+    lane.querySelector('.fo-st').className = 'fo-st ' + (cls === 'ok' ? 'ok' : 'on');
+    lane.querySelector('.fo-st').innerHTML = mark + ' ' + KOBE_I18N.t(key);
+  }
+
+  function play() {
+    clearTimers();
+    root.classList.remove('run', 'done');
+    void root.offsetWidth; // restart the CSS timelines
+    paintLanes();
+    cmdEl.innerHTML = '<b>' + KOBE_I18N.t('fan.cmdLead') + '</b> rove api add --agents ' +
+      slug() + ':3 --prompt …';
+    askEl.textContent = '';
+
+    var full = KOBE_I18N.t('fan.ask');
+    if (still) {
+      askEl.textContent = full;
+      root.classList.add('run', 'done');
+      LANES.forEach(function (_, i) { setState(i, 'ok', '✓', 'fan.done'); });
+      return;
+    }
+    var n = 0;
+    var fanAt = Math.floor(full.length * 0.45);
+    typer = setInterval(function () {
+      askEl.textContent = full.slice(0, ++n);
+      if (n === fanAt) root.classList.add('run');
+      if (n >= full.length) {
+        clearInterval(typer); typer = null;
+        root.classList.add('run');
+        at(500, function () { LANES.forEach(function (_, i) { setState(i, 'lit', '●', 'fan.running'); }); });
+        LANES.forEach(function (_, i) {
+          at(1300 + i * 650, function () { setState(i, 'ok', '✓', 'fan.done'); });
+        });
+        at(1300 + LANES.length * 650, function () { root.classList.add('done'); });
+      }
+    }, 19);
+  }
+
+  document.querySelectorAll('.engine-pill').forEach(function (pill) {
     pill.addEventListener('click', function () {
-      pills.forEach(function (p) { p.setAttribute('data-active', 'false'); });
+      document.querySelectorAll('.engine-pill').forEach(function (p) { p.setAttribute('data-active', 'false'); });
       pill.setAttribute('data-active', 'true');
-      render(pill.getAttribute('data-engine'));
+      engine = pill.getAttribute('data-engine');
+      play();
     });
   });
-  render('claude');
+  if (replayBtn) replayBtn.addEventListener('click', play);
+  var langBtn = document.getElementById('langToggle');
+  if (langBtn) langBtn.addEventListener('click', function () { setTimeout(play, 0); });
+
+  // one ticker drives every braille spinner on the page, the way the TUI does it
+  if (!still) {
+    var FRAMES = '\u280b\u2819\u2839\u2838\u283c\u2834\u2826\u2827\u2807\u280f';
+    var f = 0;
+    setInterval(function () {
+      f = (f + 1) % FRAMES.length;
+      var spinners = root.querySelectorAll('.fo-st .sp');
+      for (var i = 0; i < spinners.length; i++) spinners[i].textContent = FRAMES[f];
+    }, 90);
+  }
+
+  paintLanes();
+  if (still || !window.IntersectionObserver) { play(); return; }
+  var started = false;
+  function start() { if (started) return; started = true; io.disconnect(); play(); }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) start(); });
+  }, { threshold: 0.2 });
+  io.observe(root);
+  // never leave the graph frozen on its empty first frame
+  setTimeout(start, 6000);
+})();
+
+// scroll reveal for the narrative stages. The class is added by JS so the page
+// still renders fully when scripts are blocked (nothing carries .reveal in HTML).
+(function () {
+  var halves = document.querySelectorAll('.stage > .stage-txt, .stage > .stage-vis');
+  if (!halves.length) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !window.IntersectionObserver) return;
+  halves.forEach(function (el) { el.classList.add('reveal'); });
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('seen');
+      io.unobserve(e.target);
+    });
+  }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
+  halves.forEach(function (el) { io.observe(el); });
+  // Safety net: nothing on this page may stay invisible because an observer
+  // never fired (deep link, find-in-page, print, a browser that throttles it).
+  setTimeout(function () {
+    io.disconnect();
+    halves.forEach(function (el) { el.classList.add('seen'); });
+  }, 4000);
 })();
