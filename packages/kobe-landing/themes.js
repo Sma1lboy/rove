@@ -41,7 +41,7 @@ var KOBE_I18N = (function () {
     'pub.s3': '让别人运行 <code>rove theme add &lt;raw-url&gt;</code>。它会先校验 JSON 再写入，且不加 <code>--force</code> 不会覆盖已有主题。',
     'pub.s4': '给仓库打上 GitHub topic <code>rove-theme</code> 方便被搜到，再对本页提个 PR，就能带预览收录进来。',
     'copy.hint': '点击复制', 'copy.done': '已复制',
-    'footer.tagline': '终端原生的编码代理图工程。',
+    'footer.tagline': '终端里的编码代理多路复用器。',
     'footer.themes': '预览由每个主题真实的配色文件渲染，不是截图。',
     'footer.changelog': '更新日志', 'footer.themedocs': '主题文档', 'footer.keybindings': '快捷键',
   };
@@ -85,7 +85,7 @@ var KOBE_I18N = (function () {
     'pub.s3': 'Tell people to run <code>rove theme add &lt;raw-url&gt;</code>. It validates the JSON before writing and refuses to clobber an existing theme without <code>--force</code>.',
     'pub.s4': "Tag the repo <code>rove-theme</code> on GitHub so it's findable, and open a PR against this page to get it listed with a preview.",
     'copy.hint': 'click to copy', 'copy.done': 'copied',
-    'footer.tagline': 'graph engineering for coding agents, terminal-native.',
+    'footer.tagline': 'a terminal multiplexer for coding agents.',
     'footer.themes': "Previews are rendered from each theme's real color file, not screenshots.",
     'footer.changelog': 'changelog', 'footer.themedocs': 'theme docs', 'footer.keybindings': 'keybindings',
   };

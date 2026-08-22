@@ -6,10 +6,10 @@
 <title>Rove — the agent multiplexer in your shell</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="Rove is a local-first TUI for graph engineering: run many AI coding agents as a graph of isolated attempts — git worktrees, hosted engine sessions, explicit reports — and merge the winner.">
+<meta name="description" content="Rove multiplexes AI coding agents in your terminal: N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers — all inside an SSH session you can close.">
 <link rel="canonical" href="https://rove.sma1lboy.me/">
 <meta property="og:title" content="Rove — the agent multiplexer in your shell">
-<meta property="og:description" content="Run many AI coding agents as a graph of isolated attempts — git worktrees, hosted engine sessions, explicit reports — and merge the winner.">
+<meta property="og:description" content="A terminal multiplexer for coding agents: N isolated attempts, SSH-native, talking to each other as peers.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rove.sma1lboy.me/">
 <meta name="twitter:card" content="summary_large_image">
@@ -128,12 +128,16 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 .stage+.stage::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--line-2) 22%,var(--line-2) 78%,transparent)}
 .stage+.stage::after{content:"";position:absolute;top:0;left:50%;width:7px;height:7px;transform:translate(-50%,-50%) rotate(45deg);background:var(--paper);border:1px solid var(--accent-line)}
 @media(max-width:880px){.stage{grid-template-columns:1fr}}
+/* Grid items default to min-width:auto, so a wide term-out line (white-space:pre)
+   inflates the track past the viewport. The frame scrolls internally instead. */
+.stage>*{min-width:0}
 .stage:nth-child(even) .stage-txt{order:2}
 @media(max-width:880px){.stage:nth-child(even) .stage-txt{order:0}}
 .stage-no{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
 .stage h2{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(26px,3.2vw,38px);font-weight:400;letter-spacing:-.018em;line-height:1.12;color:var(--ink);margin-bottom:14px}
 .stage p{font-size:15px;color:var(--muted);max-width:54ch}
 .stage p+p{margin-top:12px}
+.stage .mono{font-family:var(--font-mono);font-size:.92em;color:var(--ink-soft);background:var(--accent-wash);border:1px solid oklch(62% 0.13 45/.18);padding:1px 6px;white-space:nowrap}
 .engine-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
 .engine-pill{font-family:var(--font-mono);font-size:12px;padding:7px 15px;border:1px solid var(--line-2);background:transparent;color:var(--muted);transition:border-color 140ms,color 140ms,background 140ms}
 .engine-pill:hover{color:var(--ink);border-color:var(--faint)}
@@ -204,7 +208,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
   <div class="hero-inner">
     <p class="hero-kicker rise" style="animation-delay:.08s" data-i18n-html="hero.kicker">prompt engineering → context engineering → <span class="acc">graph engineering</span></p>
     <h1 class="rise" style="animation-delay:.2s" data-i18n-html="hero.title">The agent <span class="acc">multiplexer</span> in your shell.</h1>
-    <p class="hero-sub rise" style="animation-delay:.34s" data-i18n="hero.sub">One agent is a conversation. Five at once are a graph: nodes are isolated attempts — git worktree + engine session + branch — edges are dependencies, and the gates are your judgment. Rove is the terminal-native runtime for that graph.</p>
+    <p class="hero-sub rise" style="animation-delay:.34s" data-i18n="hero.sub">One agent is a conversation. Five at once need a multiplexer: every attempt gets its own git worktree, branch and hosted engine session, they reach each other by message, and the whole fleet lives inside an SSH session you can close.</p>
     <div class="hero-row rise" style="animation-delay:.48s">
       <button id="copyBtn" class="copy-cmd">
         <span class="ps">$</span>
@@ -332,14 +336,14 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
   </div>
 </section>
 
-<!-- NARRATIVE WORKFLOW · the four primitives of graph engineering -->
+<!-- NARRATIVE WORKFLOW · multiplex → ssh-native → peers -->
 <section id="workflow" class="stages wrap">
 
   <article class="stage">
     <div class="stage-txt">
-      <span class="stage-no" data-i18n="s1.no">1.0 · FAN OUT</span>
+      <span class="stage-no" data-i18n="s1.no">1.0 · MULTIPLEX</span>
       <h2 data-i18n="s1.title">One prompt becomes N isolated attempts.</h2>
-      <p data-i18n="s1.body">Fan-out is the first primitive, and isolation is the point. Rove spawns every attempt in its own git worktree on its own branch, running whichever engine you point it at — claude, codex, copilot, kimi, or your own command. Independent nodes, no shared state, no agents stepping on each other's files.</p>
+      <p data-i18n="s1.body">A multiplexer is the whole idea: one prompt, N attempts, one call. Rove fans out every attempt into its own git worktree on its own branch, running whichever engine you point it at — claude, codex, copilot, kimi, or your own command. Independent nodes, no shared state, no agents stepping on each other's files.</p>
       <div class="engine-pills" id="enginePills">
         <button class="engine-pill" data-engine="claude" data-active="true">claude</button>
         <button class="engine-pill" data-engine="codex" data-active="false">codex</button>
@@ -359,29 +363,13 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 
   <article class="stage">
     <div class="stage-txt">
-      <span class="stage-no" data-i18n="s2.no">2.0 · SUPERVISE</span>
-      <h2 data-i18n="s2.title">Silence is not a status. Attempts report.</h2>
-      <p data-i18n="s2.body">A quiet agent could be thinking or could be dead. So every attempt ends by reporting an explicit outcome — succeeded or failed — and an orchestrating agent can block until the whole fleet resolves. Agents orchestrating agents, with real completion semantics.</p>
+      <span class="stage-no" data-i18n="s2.no">2.0 · SSH-NATIVE</span>
+      <h2 data-i18n="s2.title">It&rsquo;s a TUI. That is the whole remote story.</h2>
+      <p data-i18n="s2.body">No browser, no VNC, no desktop app, no port to forward. Rove runs where your code already lives — laptop, devbox, VPS, anything you can SSH into — with the real dependencies, services, credentials and build cache. What passes for the agent passes for you.</p>
+      <p data-i18n-html="s2.body2">Dropping the connection is not an interrupt: engines run in hosted PTYs behind a daemon on that machine, so the fleet keeps working with the TUI closed. SSH back in 40 minutes later and reattach. No terminal to hand? <span class="mono">rove web</span> serves the same daemon-owned tasks and live terminals in a browser tab.</p>
     </div>
     <div class="stage-vis">
-      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>report · await</span></div>
-      <pre class="term-out"><span class="d"># inside an attempt, as its last act</span>
-<span class="ps">$</span> rove api report --outcome succeeded
-<span class="d"># in your orchestrator</span>
-<span class="ps">$</span> rove api await --task-ids a,b,c
-<span class="ok">✓</span> a succeeded  <span class="ok">✓</span> b succeeded  <span class="del">✗</span> c failed</pre></figure>
-    </div>
-  </article>
-
-  <article class="stage">
-    <div class="stage-txt">
-      <span class="stage-no" data-i18n="s3.no">3.0 · OBSERVE</span>
-      <h2 data-i18n="s3.title">Read the session, never scrape the screen.</h2>
-      <p data-i18n="s3.body">Rove reads each engine's own session data — history, tokens, context — instead of scraping terminal text. Progress is a fact the engine reported, not a guess scraped off a screen.</p>
-      <p data-i18n="s3.body2">And it's your real machine: real dependencies, services, credentials, build cache. What passes for the agent passes for you.</p>
-    </div>
-    <div class="stage-vis">
-      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>reattach</span></div>
+      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>detach · reattach</span></div>
       <pre class="term-out"><span class="ps">$</span> exit
 <span class="d">Connection to devbox closed.</span>
 <span class="d">▸ 41 minutes later, from anywhere</span>
@@ -393,21 +381,23 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 
   <article class="stage">
     <div class="stage-txt">
-      <span class="stage-no" data-i18n="s4.no">4.0 · FAN IN</span>
-      <h2 data-i18n="s4.title">Compare the attempts. Merge the winner.</h2>
-      <p data-i18n="s4.body">Fan-in is a human gate. Pull a read-only snapshot of every attempt — branch, diffstat, running state — review them side by side, merge the branch you like, archive the rest. One attempt is a coin flip — N is a choice.</p>
+      <span class="stage-no" data-i18n="s3.no">3.0 · PEERS</span>
+      <h2 data-i18n="s3.title">Agents message each other. No coordinator.</h2>
+      <p data-i18n-html="s3.body">Every attempt Rove spawns knows who dispatched it, so a bare <span class="mono">rove api send</span> routes home to that exact engine tab — no ids to thread through, no polling, no shared scratch file. Silence is a checkpoint, never a verdict.</p>
+      <p data-i18n-html="s3.body2">Messages land tagged <span class="mono">[KOBE PEER]</span> with the sender and a tab-precise reply command attached, so the receiving agent can answer back mid-flight. One agent orchestrating five, five reporting in, peers asking each other questions. Your engine learns the verbs from a bundled skill — <span class="mono">rove skill install</span>.</p>
     </div>
     <div class="stage-vis">
-      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>collect · land</span></div>
-      <pre class="term-out"><span class="ps">$</span> rove api collect --task-ids a,b,c
-a  <span class="ok">+118</span> <span class="del">−204</span> · 6 files
-b  <span class="ok">+301</span> <span class="del">−12</span>  · 14 files
-c  <span class="ok">+96</span>  <span class="del">−88</span>  · 5 files
-<span class="ps">$</span> rove api land --task-id a
-<span class="ok">✓</span> rove/simplify-auth-a <span class="ok">merged to main</span>
-<span class="d">○ b archived   ○ c archived</span></pre></figure>
+      <figure class="term-frame"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>peer · send</span></div>
+      <pre class="term-out"><span class="d"># inside attempt b, mid-run</span>
+<span class="ps">$</span> rove api send --prompt <span class="a">"auth done — branch fix/auth-b"</span>
+<span class="ok">✓</span> delivered → orchestrator · tab-1
+<span class="d"># what the orchestrator's engine reads</span>
+<span class="a">[KOBE PEER]</span> from <span class="a">"simplify auth · b"</span>
+  auth done — branch fix/auth-b
+  <span class="d">reply: rove api send --task-id b --tab tab-2</span></pre></figure>
     </div>
   </article>
+
 
 </section>
 
@@ -415,7 +405,7 @@ c  <span class="ok">+96</span>  <span class="del">−88</span>  · 5 files
 <section id="install" class="install wrap">
   <div class="install-final">
     <h2 data-i18n="install.title">Spin it up where your code lives.</h2>
-    <p data-i18n="install.body">Your laptop, a devbox, a VPS, or any machine you can SSH into. No browser, no VNC, no desktop app. Optimize the one metric that matters: merged code per hour of your attention.</p>
+    <p data-i18n="install.body">One line, then one command. Point it at a repo and you have a fleet — optimizing the only metric that matters: merged code per hour of your attention.</p>
     <figure class="term-frame install-term"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>install</span></div>
     <pre class="term-out"><span class="ps">$</span> curl -fsSL https://rove.sma1lboy.me/install.sh | sh
 <span class="ps">$</span> ssh devbox && cd repo
@@ -433,13 +423,13 @@ c  <span class="ok">+96</span>  <span class="del">−88</span>  · 5 files
   <div class="final-bg"></div>
   <div class="final-veil"></div>
   <div class="wrap">
-    <p class="h2f" data-i18n="final.line">Every stream converges. You keep the judgment.</p>
+    <p class="h2f" data-i18n="final.line">Many streams. One shell.</p>
   </div>
 </div>
 
 <!-- FOOTER · dense colophon -->
 <footer class="foot-dense">
-  <p><span class="mark">[Rove]</span> — <span data-i18n="footer.tagline">graph engineering for coding agents, terminal-native.</span> <span data-i18n="footer.colophon">Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.</span> <a href="https://github.com/Sma1lboy/rove">GitHub</a> · <a href="https://www.npmjs.com/package/@sma1lboy/rove">npm</a> · <a href="/plugins" data-i18n="footer.plugins">plugins</a> · <a href="/changelog" data-i18n="footer.changelog">changelog</a> · <a href="https://github.com/Sma1lboy/rove/blob/main/docs/KEYBINDINGS.md" data-i18n="footer.keybindings">keybindings</a></p>
+  <p><span class="mark">[Rove]</span> — <span data-i18n="footer.tagline">a terminal multiplexer for coding agents.</span> <span data-i18n="footer.colophon">Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.</span> <a href="https://github.com/Sma1lboy/rove">GitHub</a> · <a href="https://www.npmjs.com/package/@sma1lboy/rove">npm</a> · <a href="/plugins" data-i18n="footer.plugins">plugins</a> · <a href="/changelog" data-i18n="footer.changelog">changelog</a> · <a href="https://github.com/Sma1lboy/rove/blob/main/docs/KEYBINDINGS.md" data-i18n="footer.keybindings">keybindings</a></p>
 </footer>
 
 <script src="/index.js"></script>
