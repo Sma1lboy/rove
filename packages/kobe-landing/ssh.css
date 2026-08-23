@@ -1,0 +1,81 @@
+/* SSH detach/reattach — stage 2's visual. The point is not that you can leave;
+   it is that the numbers keep climbing after you do. Everything dims except
+   the clocks, which run fast while nobody is attached. */
+
+.sshbox {
+  position: relative; overflow: hidden;
+  border-radius: 6px;
+  background: linear-gradient(180deg, oklch(25% 0.022 50), var(--well) 55%);
+  border: 1px solid oklch(33% 0.024 50);
+  box-shadow: 0 22px 52px oklch(42% 0.06 50/.2);
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.85;
+  color: var(--well-ink);
+}
+
+/* ---- status bar ---- */
+.sh-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 16px; background: oklch(29% 0.022 50);
+  border-bottom: 1px solid oklch(19% 0.018 50);
+  font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: oklch(66% 0.03 62);
+}
+.sh-bar::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: oklch(70% 0.14 145); box-shadow: 0 0 8px 1px oklch(70% 0.14 145/.5);
+  transition: background 300ms, box-shadow 300ms;
+}
+.sshbox.gone .sh-bar::before { background: oklch(48% 0.02 60); box-shadow: none }
+.sh-host { color: oklch(84% 0.02 80); letter-spacing: .06em }
+.sh-state { margin-left: auto; transition: color 300ms }
+.sshbox.gone .sh-state { color: oklch(52% 0.02 60) }
+
+/* ---- body ---- */
+.sh-body { padding: 14px 16px 16px }
+.sh-cmd { min-height: 1.85em; color: oklch(88% 0.02 80); transition: color 420ms }
+.sh-cmd .ps { color: oklch(75% 0.13 50); transition: color 420ms }
+.sh-out { color: oklch(58% 0.02 70); min-height: 1.85em }
+.sshbox.gone .sh-cmd, .sshbox.gone .sh-cmd .ps { color: oklch(50% 0.015 65) }
+
+.sh-rows {
+  margin: 10px 0 12px; padding-left: 12px;
+  border-left: 1px solid oklch(38% 0.024 50); transition: border-color 420ms;
+}
+.sshbox.gone .sh-rows { border-left-color: oklch(30% 0.015 55) }
+.sh-row { display: flex; align-items: baseline; gap: 9px; font-size: 11.5px }
+.sh-row .sp { flex: none; width: 1ch; color: oklch(80% 0.12 85); transition: color 420ms }
+.sh-row .nm {
+  color: oklch(80% 0.025 75); min-width: 0; transition: color 420ms;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sshbox.gone .sh-row .nm { color: oklch(52% 0.015 65) }
+.sshbox.gone .sh-row .sp { color: oklch(62% 0.08 85) }
+.sh-row .el {
+  margin-left: auto; flex: none; color: oklch(66% 0.03 62);
+  font-variant-numeric: tabular-nums; transition: color 300ms;
+}
+/* the one thing that stays bright while you are gone */
+.sshbox.gone .sh-row .el { color: oklch(90% 0.15 85); text-shadow: 0 0 12px oklch(85% 0.15 85/.45) }
+
+.sh-note { font-size: 11px; color: oklch(60% 0.025 68); min-height: 1.85em; transition: color 420ms }
+.sshbox.gone .sh-note { color: oklch(50% 0.015 65) }
+.sh-note b { color: oklch(80% 0.1 55); font-weight: 400 }
+
+/* a dim band across the frame while nothing is attached */
+.sh-veil {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, oklch(15% 0.01 50/.22) 0 1px, transparent 1px 4px);
+  opacity: 0; transition: opacity 420ms;
+}
+.sshbox.gone .sh-veil { opacity: 1 }
+
+@media (max-width: 560px) {
+  .sshbox { font-size: 11px }
+  .sh-body { padding: 12px 13px 13px }
+  .sh-row { font-size: 10.5px; gap: 7px }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-veil, .sh-bar::before, .sh-state, .sh-cmd, .sh-note,
+  .sh-rows, .sh-row .el, .sh-row .nm, .sh-row .sp { transition: none }
+}

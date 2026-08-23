@@ -2,12 +2,12 @@
 // (commands, branch names, TUI chrome) deliberately stays English.
 var KOBE_I18N = (function () {
   var zh = {
-    'meta.title': 'Rove — 把编码代理跑成一张图，终端原生',
-    'meta.desc': 'Rove 是本地优先的图工程 TUI：把多个 AI 编码代理跑成一张由隔离尝试组成的图——git worktree、托管引擎会话、显式结果上报——最后合入赢家。',
+    'meta.title': 'Rove — 装在你 shell 里的 agent 多路复用器',
+    'meta.desc': 'Rove 是终端里的编码代理多路复用器：N 个彼此隔离的尝试，各自拥有 git worktree 和托管引擎会话，互相发消息协作——而这一整套就跑在一个你随时能关掉的 SSH 会话里。',
     'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
     'hero.kicker': '提示词工程 → 上下文工程 → <span class="acc">图工程</span>',
     'hero.title': '装在你 shell 里的 agent <span class="acc">多路复用器</span>。',
-    'hero.sub': '一个代理是一场对话，五个同时跑就是一张图：节点是隔离的尝试——git worktree + 引擎会话 + 分支——边是依赖，门是你的判断。Rove 是这张图的终端原生运行时。',
+    'hero.sub': '一个代理是一场对话；五个同时跑就需要一个多路复用器——隔离的 worktree、托管的会话，还有一条你随时能关掉的 SSH 连接。',
     'hero.getStarted': '快速上手 ↗',
     'hero.requirements': '支持 macOS 和 Linux（Windows 走 WSL）。npm、bun、npx 或一行 curl 都能装 —— Bun 运行时由 Rove 自己带上。只需 git 和 PATH 上任意一个引擎 CLI。',
     'copy.hint': '点击复制', 'copy.done': '✓ 已复制',
@@ -16,31 +16,40 @@ var KOBE_I18N = (function () {
     'fleet.note': '一个真实会话：三个仓库、四个任务，每个任务独占自己的 worktree、分支和终端 tab。<strong>此刻没有任何人接在上面</strong>——每个引擎都跑在 daemon 托管的 hosted PTY 里，关掉 TUI 活儿照样继续。',
     'fleet.noteZen': '现在是 Zen 模式：Files 栏收起，工作区吃掉腾出来的宽度。点左下角 <b>☯ ZEN</b> 退出，或点左边任意一个任务——这是活的布局，不是一张截图。',
     'fleet.noteFull': '完整布局：左边 Tasks、中间分屏工作区、右边 Changes。点左边任意一个任务，或用 <b>[~] Zen</b> 收起 Files——这是活的布局，不是一张截图。',
-    's1.no': '1.0 · 扇出', 's1.title': '一条 prompt 变成 N 个隔离的尝试。',
-    's1.body': '扇出是第一个原语，而隔离正是重点。Rove 为每个尝试建独立的 git worktree 和分支，运行你指定的引擎——claude、codex、copilot、kimi，或你自己的命令。独立节点，没有共享状态，代理之间互不碰文件。',
+    's1.no': '1.0 · 多路复用', 's1.title': '一条 prompt 变成 N 个隔离的尝试。',
+    's1.body': '每个尝试独占自己的 worktree、分支和引擎。没有共享状态，谁也碰不到谁的文件。',
     's1.ownCmd': '你自己的命令',
-    's2.no': '2.0 · 监督', 's2.title': '沉默不是一种状态。尝试要报告。',
-    's2.body': '安静的代理可能在思考，也可能已经挂了。所以每个尝试结束时都显式上报 succeeded 或 failed，编排代理可以阻塞等待整批出结果——代理编排代理，有真正的完成语义。',
-    's3.no': '3.0 · 观察', 's3.title': '读会话本身，不刮终端屏幕。',
-    's3.body': 'Rove 直接读每个引擎自己的会话数据——历史、token、上下文——而不是抓取终端文本。所以进度是引擎报回来的事实，不是屏幕上刮下来的猜测。',
-    's3.body2': '而且是你的真实机器：真实的依赖、服务、凭证和构建缓存。代理跑通的对你也跑通。',
-    's4.no': '4.0 · 扇入', 's4.title': '比较尝试，合入赢家。',
-    's4.body': '扇入是一道人工门。拉一份所有尝试的只读快照——分支、diff 统计、运行状态——并排审阅，合入你满意的分支，归档其余。一次尝试是掷硬币——N 次是选择。',
+    'fan.you': '你', 'fan.ask': '把 auth 流程简化一下——开三条路子并行试。',
+    'fan.starting': '启动中', 'fan.running': '进行中', 'fan.done': '已回报',
+    'fan.cmdLead': '技能替你跑的是：',
+    's2.no': '2.0 · SSH 原生', 's2.title': '它是个 TUI——远程这件事就已经解决了。',
+    's2.body': '引擎跑在 daemon 托管的 PTY 里——断开连接，这支舰队照样干活。手边没终端？<span class="mono">rove web</span>。',
+    's3.no': '3.0 · 代理互通', 's3.title': '代理之间直接发消息，不需要协调器。',
+    's3.body': '一句 <span class="mono">rove api send</span> 就落进另一个 agent 的会话——双向，随时，哪怕你在睡觉。',
+    'px.a': '编排方', 'px.b': '尝试 b', 'px.cmd': '—— 一个动词，两个方向',
+    'px.m1': 'auth 简化完了 — fix/auth-b', 'px.m2': '先 rebase 到 main，再回报一次',
+    'px.m3': '已 rebase，测试全绿', 'px.you': '你', 'px.to': '→', 'px.b1': 'b',
+    'sh.attached': '已接管', 'sh.gone': '连接已断开',
+    'sh.exit': 'exit', 'sh.closed': 'Connection to devbox closed.',
+    'sh.back': 'ssh devbox && rove',
+    'sh.noteLive': '三个引擎在跑，都由这台机器上的 daemon 托管。',
+    'sh.noteGone': 'TUI 关了，<b>活儿没停</b>——托管的 PTY 不归这条 SSH 连接管。',
+    'sh.noteBack': '接回来了——<b>还在你离开的地方</b>。',
     'install.title': '在你代码所在的地方跑起来。',
-    'install.body': '笔记本、devbox、VPS，或任何能 SSH 上去的机器。没有浏览器、没有 VNC、没有桌面应用。优化唯一重要的指标：你每小时注意力换来的已合并代码。',
+    'install.body': '一行装好，一条命令跑起来。唯一重要的指标：你每小时注意力换来的已合并代码。',
     'install.npm': '从 npm 安装 ↗', 'install.star': '去 GitHub 点个 Star ↗',
-    'final.line': '所有支流终会汇合。判断权在你手里。',
-    'footer.tagline': '终端原生的编码代理图工程。',
+    'final.line': '众流汇于一个 shell。',
+    'footer.tagline': '终端里的编码代理多路复用器。',
     'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Fraunces、DM Sans 与 JetBrains Mono。MIT 许可。',
-    'footer.plugins': '插件', 'footer.changelog': '更新日志', 'footer.keybindings': '快捷键',
+    'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.keybindings': '快捷键',
   };
   var en = {
-    'meta.title': 'Rove — run coding agents as a graph, terminal-native',
-    'meta.desc': 'Rove is a local-first TUI for graph engineering: run many AI coding agents as a graph of isolated attempts — git worktrees, hosted engine sessions, explicit reports — and merge the winner.',
+    'meta.title': 'Rove — the agent multiplexer in your shell',
+    'meta.desc': 'Rove multiplexes AI coding agents in your terminal: N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers — all inside an SSH session you can close.',
     'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
     'hero.kicker': 'prompt engineering → context engineering → <span class="acc">graph engineering</span>',
     'hero.title': 'The agent <span class="acc">multiplexer</span> in your shell.',
-    'hero.sub': 'One agent is a conversation. Five at once are a graph: nodes are isolated attempts — git worktree + engine session + branch — edges are dependencies, and the gates are your judgment. Rove is the terminal-native runtime for that graph.',
+    'hero.sub': 'One agent is a conversation. Five at once need a multiplexer — isolated worktrees, hosted sessions, and one SSH connection you can close.',
     'hero.getStarted': 'Get started ↗',
     'hero.requirements': 'Runs on macOS & Linux (Windows via WSL). npm, bun, npx, or one curl line — Rove brings its own Bun runtime. Needs git and one engine CLI on your PATH.',
     'copy.hint': 'click to copy', 'copy.done': '✓ copied',
@@ -49,23 +58,32 @@ var KOBE_I18N = (function () {
     'fleet.note': 'A real session: three repositories, four tasks, each on its own worktree, branch and terminal tabs. <strong>Nothing is attached to any of them right now</strong> — every engine runs in a hosted PTY behind the daemon, so the work continues with the TUI closed.',
     'fleet.noteZen': 'This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left — this is a live layout, not a screenshot.',
     'fleet.noteFull': 'The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files — this is a live layout, not a screenshot.',
-    's1.no': '1.0 · FAN OUT', 's1.title': 'One prompt becomes N isolated attempts.',
-    's1.body': 'Fan-out is the first primitive, and isolation is the point. Rove spawns every attempt in its own git worktree on its own branch, running whichever engine you point it at — claude, codex, copilot, kimi, or your own command. Independent nodes, no shared state, no agents stepping on each other\'s files.',
+    's1.no': '1.0 · MULTIPLEX', 's1.title': 'One prompt becomes N isolated attempts.',
+    's1.body': 'Each attempt gets its own worktree, branch and engine. No shared state, nothing to step on.',
     's1.ownCmd': 'your own command',
-    's2.no': '2.0 · SUPERVISE', 's2.title': 'Silence is not a status. Attempts report.',
-    's2.body': 'A quiet agent could be thinking or could be dead. So every attempt ends by reporting an explicit outcome — succeeded or failed — and an orchestrating agent can block until the whole fleet resolves. Agents orchestrating agents, with real completion semantics.',
-    's3.no': '3.0 · OBSERVE', 's3.title': 'Read the session, never scrape the screen.',
-    's3.body': 'Rove reads each engine\'s own session data — history, tokens, context — instead of scraping terminal text. Progress is a fact the engine reported, not a guess scraped off a screen.',
-    's3.body2': 'And it\'s your real machine: real dependencies, services, credentials, build cache. What passes for the agent passes for you.',
-    's4.no': '4.0 · FAN IN', 's4.title': 'Compare the attempts. Merge the winner.',
-    's4.body': 'Fan-in is a human gate. Pull a read-only snapshot of every attempt — branch, diffstat, running state — review them side by side, merge the branch you like, archive the rest. One attempt is a coin flip — N is a choice.',
+    'fan.you': 'you', 'fan.ask': 'Simplify the auth flow — try three approaches in parallel.',
+    'fan.starting': 'starting', 'fan.running': 'running', 'fan.done': 'reported',
+    'fan.cmdLead': 'what the skill ran for you:',
+    's2.no': '2.0 · SSH-NATIVE', 's2.title': 'It\u2019s a TUI. That is the whole remote story.',
+    's2.body': 'Engines live in hosted PTYs behind a daemon — drop the connection and the fleet keeps working. No terminal to hand? <span class="mono">rove web</span>.',
+    's3.no': '3.0 · PEERS', 's3.title': 'Agents message each other. No coordinator.',
+    's3.body': 'One <span class="mono">rove api send</span> lands in another agent\u2019s session — both directions, mid-flight, while you sleep.',
+    'px.a': 'orchestrator', 'px.b': 'attempt b', 'px.cmd': '— one verb, either direction',
+    'px.m1': 'auth done — fix/auth-b', 'px.m2': 'rebase onto main, then report',
+    'px.m3': 'rebased · tests green', 'px.you': 'you', 'px.to': '→', 'px.b1': 'b',
+    'sh.attached': 'attached', 'sh.gone': 'disconnected',
+    'sh.exit': 'exit', 'sh.closed': 'Connection to devbox closed.',
+    'sh.back': 'ssh devbox && rove',
+    'sh.noteLive': 'Three engines running, all hosted by the daemon on that box.',
+    'sh.noteGone': 'The TUI is closed. <b>The work is not.</b> Hosted PTYs do not belong to your SSH session.',
+    'sh.noteBack': 'Attached — <b>right where you left off</b>.',
     'install.title': 'Spin it up where your code lives.',
-    'install.body': 'Your laptop, a devbox, a VPS, or any machine you can SSH into. No browser, no VNC, no desktop app. Optimize the one metric that matters: merged code per hour of your attention.',
+    'install.body': 'One line, then one command. The only metric that matters: merged code per hour of your attention.',
     'install.npm': 'Install from npm ↗', 'install.star': 'Star on GitHub ↗',
-    'final.line': 'Every stream converges. You keep the judgment.',
-    'footer.tagline': 'graph engineering for coding agents, terminal-native.',
+    'final.line': 'Many streams. One shell.',
+    'footer.tagline': 'a terminal multiplexer for coding agents.',
     'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.',
-    'footer.plugins': 'plugins', 'footer.changelog': 'changelog', 'footer.keybindings': 'keybindings',
+    'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.keybindings': 'keybindings',
   };
   var dicts = { en: en, zh: zh };
   var lang = 'en';
@@ -145,34 +163,4 @@ var KOBE_I18N = (function () {
       try { localStorage.setItem(CACHE_KEY, JSON.stringify({ n: d.stargazers_count })); } catch (e) {}
     })
     .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
-})();
-
-// engine selector → updates the stage-1 fan-out (vendor flag + spawned worktree lanes)
-(function () {
-  var branchMap = {
-    'claude': 'claude', 'codex': 'codex', 'copilot': 'copilot',
-    'kimi': 'kimi', 'your own command': 'my-cli',
-  };
-  var engineEl = document.getElementById('fanEngineName');
-  var linesEl = document.getElementById('fanLines');
-  var pills = document.querySelectorAll('.engine-pill');
-  if (!engineEl || !linesEl) return;
-
-  function render(engine) {
-    var slug = branchMap[engine] || engine;
-    engineEl.textContent = engine === 'your own command' ? 'my-cli' : engine;
-    var pad = function (s) { return (s + '              ').slice(0, 16); };
-    linesEl.innerHTML = ['a', 'b', 'c'].map(function (s) {
-      return '<span class="ok">●</span> ' + pad('rove/' + slug + '-' + s) + '<span class="d">running</span>';
-    }).join('\n');
-  }
-
-  pills.forEach(function (pill) {
-    pill.addEventListener('click', function () {
-      pills.forEach(function (p) { p.setAttribute('data-active', 'false'); });
-      pill.setAttribute('data-active', 'true');
-      render(pill.getAttribute('data-engine'));
-    });
-  });
-  render('claude');
 })();
