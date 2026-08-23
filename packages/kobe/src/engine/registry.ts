@@ -59,6 +59,7 @@ import {
   kimiHistoryReader,
 } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
+import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
 import {
   type EngineTerminalTitle,
@@ -294,7 +295,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     trustWorktree: trustKimiWorktree,
     history: kimiHistoryReader,
     detectAccount: (deps) => detectKimiAccount(deps),
-    createHookAdapter: () => new NoopHookAdapter("kimi"),
+    createHookAdapter: () => new KimiHookAdapter(),
     createTurnDetector: () => new UnknownTurnDetector("kimi"),
   },
 }

@@ -87,10 +87,10 @@ The sidebar shows what each session is doing: **working**, **done**, or
 **needs input**. There's nothing to configure — Rove reads the engine's own
 hook events, falling back to its transcript when hooks aren't available.
 
-One thing worth knowing: **only claude and codex can show "needs input"**.
-Distinguishing "waiting on a permission prompt" from "thinking" requires a
-hook; the other engines top out at working/done. Rove labels the gap honestly
-rather than guessing.
+One thing worth knowing: **only claude, codex, and kimi can show "needs
+input"**. Distinguishing "waiting on a permission prompt" from "thinking"
+requires a hook; the other engines top out at working/done. Rove labels the
+gap honestly rather than guessing.
 
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
 badges stay dark until you approve. That's by design — Rove writes the hook
