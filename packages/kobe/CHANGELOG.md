@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.145
+
+### Patch Changes
+
+- [#499](https://github.com/Sma1lboy/rove/pull/499) [`4ad02d5`](https://github.com/Sma1lboy/rove/commit/4ad02d5d0d055780ebd14a01384adeaeeaa3887b) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - `api dispatch` and `api inspect` now report delivery reach. `session.deliver` is broadcast-only — an attached client performs the paste — so a dispatch with nothing listening published into the void and still answered `ok: true`, indistinguishable from a delivered paste. `dispatch` now returns the daemon's `clients` count and `inspect` reports `connectedClients`, so an answer that reached nobody is visible instead of silent. Non-zero is not proof of the converse (the calling CLI is itself a connection) — confirm a real session host with `api pty-list`.
+
+- [#499](https://github.com/Sma1lboy/rove/pull/499) [`4ad02d5`](https://github.com/Sma1lboy/rove/commit/4ad02d5d0d055780ebd14a01384adeaeeaa3887b) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Kanban surfaces "waiting on you" as an attention partition: In-progress cards whose linked engine is blocked on the user (permission prompt, rate limit, or error) float to the head of their column with a warning border, and the column header shows a "N need you" count. Rendering-only — issue and task status, column membership, and persisted state are untouched.
+
+- [#499](https://github.com/Sma1lboy/rove/pull/499) [`4ad02d5`](https://github.com/Sma1lboy/rove/commit/4ad02d5d0d055780ebd14a01384adeaeeaa3887b) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Kanban gains a Parked column: `hold` (and unknown-status) stories now land in their own column between In progress and Done instead of masquerading as active work whenever they carry a task link. Parked accretes like Done, so it shares the same "+N more" cap; parked cards keep their live engine badge but never float or count toward "N need you" — a blocked engine is often exactly why the story was parked.
+
+- [#499](https://github.com/Sma1lboy/rove/pull/499) [`4ad02d5`](https://github.com/Sma1lboy/rove/commit/4ad02d5d0d055780ebd14a01384adeaeeaa3887b) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Add a status→disposition layer (`@sma1lboy/kobe-daemon/daemon/status-disposition`): every Task/Issue status classifies as `active` (engine runs), `parked` (stop, preserve the worktree), or `terminal` (stop, worktree reclaimable), with unknown values fail-safing to `parked`. `issueColumnKey` now derives its Done column from the terminal disposition instead of a `=== "done"` string compare. Purely additive — no status value, wire shape, or visual change.
+
+- [#499](https://github.com/Sma1lboy/rove/pull/499) [`4ad02d5`](https://github.com/Sma1lboy/rove/commit/4ad02d5d0d055780ebd14a01384adeaeeaa3887b) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Answering a question clears the tab's `?` badge. Approving a permission prompt ends the turn, so `Stop` arrives and the badge clears — but answering an AskUserQuestion dialog resumes the same turn, so the engine emits nothing at all while `permission_needed` is deliberately sticky (the lapse watchdog must never idle a task that needs a human). Nothing cleared it, and the badge pinned forever on a tab whose engine was already working again. The enter typed at a waiting tab is now recorded as evidence that the answer happened, and suppresses that stale state until the daemon reports something newer. Scoped to the answered tab and to `permission_needed` alone, so a sibling's prompt or a real error badge is never hidden.
+
 ## 0.8.144
 
 ### Patch Changes
