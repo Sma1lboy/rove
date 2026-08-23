@@ -47,6 +47,7 @@ import { objectPayload, optionalActivityDetail, optionalString, requireString } 
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -139,6 +140,10 @@ export interface DaemonHandlerContext {
     readonly pid: number
     /** Attached-GUI refcount (reported as `attachedClients`). */
     guiCount(): number
+    /** Every attached client, GUI or pane. `session.deliver` is performed by
+     *  whichever client hosts the session, so this — not the GUI refcount —
+     *  is what says a dispatch could reach anyone. */
+    clientCount(): number
     /** Graceful self-stop (`daemon.stop`). */
     stopSoon(): Promise<void>
     /** Re-check idle shutdown after a keep-alive hold may have been released
@@ -307,28 +312,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,
-    {
-      name: "issue.list",
-      async handle(payload, ctx) {
-        return ctx.issues.list(requireString(payload, "repoRoot"))
-      },
-    },
-    {
-      name: "issue.mutate",
-      async handle(payload, ctx) {
-        const repoRoot = requireString(payload, "repoRoot")
-        const state = await ctx.issues.mutate(repoRoot, payload.op)
-        ctx.bus.publish("issue.snapshot", state)
-        ctx.plugins?.handleUiReport({
-          kind: "issue.changed",
-          detail: {
-            repo: repoRoot,
-            ...(payload.op && typeof payload.op === "object" ? { op: payload.op as Record<string, unknown> } : {}),
-          },
-        })
-        return state
-      },
-    },
+    ...ISSUE_HANDLERS,
     {
       // Production diagnostics (`kobe api inspect`): what the daemon's
       // transient state ACTUALLY holds right now. Bug reports about badges,
@@ -343,6 +327,13 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           startedAt: ctx.daemon.startedAt.toISOString(),
           activity: ctx.activity.debugSnapshot(),
           attachedClients: ctx.daemon.guiCount(),
+          // Total connections, GUI and pane. `session.deliver` (what `api
+          // dispatch` publishes) is only ever PERFORMED by an attached
+          // client, so 0 here proves a dispatch reached nobody while still
+          // answering `ok: true` — the shape that makes "I answered it and
+          // the badge never cleared" unreadable from every other field.
+          // Non-zero is not proof of the converse: a calling CLI counts.
+          connectedClients: ctx.daemon.clientCount(),
         }
       },
     },

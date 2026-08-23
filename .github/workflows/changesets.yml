@@ -118,6 +118,10 @@ jobs:
       - name: Version, verify, commit, tag
         if: steps.ci.outputs.green == 'true'
         id: version
+        env:
+          # @changesets/changelog-github resolves each changeset's PR + author
+          # through the GitHub API while `changeset version` runs.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           bun install --frozen-lockfile
           bun run ci:version

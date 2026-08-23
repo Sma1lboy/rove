@@ -156,7 +156,9 @@
     var TYPE_TINT = { feat: '#9aca86', fix: '#cc785c', perf: '#7fb5d6', refactor: '#d6a85c', chore: '#8a847a', test: '#a98fd0', ci: '#8a847a', docs: '#7fb5d6', style: '#8a847a', build: '#8a847a', revert: '#cc785c' };
     var TYPE_ZH = { feat: '新功能', fix: '修复', perf: '性能', refactor: '重构', chore: '杂项', test: '测试', ci: 'CI', docs: '文档', style: '样式', build: '构建', revert: '回退' };
     function splitBullet(raw) {
-      raw = raw.replace(/^[0-9a-f]{7,40}:\s*/i, '');                 // drop the commit sha prefix
+      raw = raw.replace(/^[0-9a-f]{7,40}:\s*/i, '');                 // drop the commit sha prefix (pre-0.8.139 entries)
+      // drop the changelog-github credit prefix: [#PR](…) [`sha`](…) Thanks [@user](…)! -
+      raw = raw.replace(/^(?:\[[^\]]*\]\([^)]*\)\s*)+(?:Thanks [^!]*!\s*)?-\s*/, '');
       var m = raw.match(/^(\w+)(?:\([^)]*\))?!?:\s*([\s\S]+)$/);     // type: summary
       if (m && TYPE_TINT[m[1].toLowerCase()] !== undefined) return { type: m[1].toLowerCase(), sum: m[2].trim() };
       return { type: '', sum: raw.trim() };

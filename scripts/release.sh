@@ -204,6 +204,19 @@ bun run build
 bun run --filter @sma1lboy/rove test:behavior
 
 # ── consume changesets → bump version + write CHANGELOG ───────────────────────
+# @changesets/changelog-github needs a GitHub token to resolve each
+# changeset's PR + author for the "(#PR) Thanks @handle!" credit. Locally
+# that's the gh CLI's token (gh is already required above for CI watching).
+if [ -z "${GITHUB_TOKEN:-}" ]; then
+  GITHUB_TOKEN=$(gh auth token 2>/dev/null || true)
+  export GITHUB_TOKEN
+fi
+if [ -z "${GITHUB_TOKEN:-}" ]; then
+  echo "Error: no GITHUB_TOKEN and 'gh auth token' returned nothing." >&2
+  echo "  The changelog generator resolves PR/author credits via the GitHub API." >&2
+  echo "  Run 'gh auth login' or export GITHUB_TOKEN, then re-run." >&2
+  exit 1
+fi
 bun x changeset version
 
 NEW_VERSION=$(node -p "require('$PKG_JSON').version")
