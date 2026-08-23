@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.146
+
+### Patch Changes
+
+- [#512](https://github.com/Sma1lboy/rove/pull/512) [`b99720d`](https://github.com/Sma1lboy/rove/commit/b99720d6c5eef7f3e22912745a569643d5c076c8) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Creating a git worktree no longer auto-adopts it onto the sidebar. Agents mint worktrees for PR isolation and no engine session ever enters them, so "created" isn't "wanted as a task" — those showed up as ghost tasks with no prompt and no session. Adoption now requires intent: an engine session starting inside a managed worktree root, or an explicit adopt (`rove add .` / New task → Adopt Worktree). Removing a worktree still archives its task.
+
+- [#510](https://github.com/Sma1lboy/rove/pull/510) [`fc4e959`](https://github.com/Sma1lboy/rove/commit/fc4e95930ff93dec3071c256dcb2fc1e943e95cd) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Plugins can now contribute engines: a `[[engines]]` table in rove-plugin.toml declares a coding CLI's id, name, launch command, and screen-state rules — it appears in the engine selector, launches like any engine, and gets screen-based working/needs-input badges. Built-in engine ids can't be shadowed.
+
 ## 0.8.145
 
 ### Patch Changes
