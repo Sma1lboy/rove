@@ -46,6 +46,7 @@ import { getCustomEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
 import { ClaudeBinaryNotFoundError, findClaudeBinary } from "./claude-code-local/binary"
 import { CodexBinaryNotFoundError, findCodexBinary } from "./codex-local/binary"
+import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS } from "./contrib-engines"
 import { CopilotBinaryNotFoundError, findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
 import { KimiBinaryNotFoundError, findKimiBinary } from "./kimi-local/binary"
@@ -252,6 +253,7 @@ export function detectAvailableVendors(deps: DetectDeps = defaultDeps): Promise<
  *  "rescan" — the Settings Accounts section is the natural caller. */
 export function resetAvailableVendorsCache(): void {
   cachedDefaultVendors = null
+  cachedContribEngines = null
 }
 
 /**
@@ -269,7 +271,34 @@ export function resetAvailableVendorsCache(): void {
  */
 export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
   const builtins = await detectAvailableVendors(deps)
-  return [...builtins, ...getCustomEngineIds()]
+  const contrib = await detectContribEngines()
+  // Custom ids win over a same-named contrib entry (dedup keeps the first).
+  return [...new Set([...builtins, ...getCustomEngineIds(), ...contrib])]
+}
+
+/**
+ * Per-process memo of contrib-engine binary discovery (same rationale as
+ * {@link detectAvailableVendors}: installed CLIs don't change mid-session,
+ * `Bun.which` per keypress is waste). A contrib engine is offered when its
+ * `defaultCommand[0]` is on PATH — the exact binary the launch would run.
+ * Reset alongside the built-in cache in {@link resetAvailableVendorsCache}.
+ */
+let cachedContribEngines: Promise<readonly VendorId[]> | null = null
+
+function detectContribEngines(): Promise<readonly VendorId[]> {
+  if (cachedContribEngines) return cachedContribEngines
+  // `Bun.which` is absent under vitest (node runtime) — treat that as "none
+  // detected", the same degradation as a missing binary.
+  const which: ((bin: string) => string | null) | undefined = globalThis.Bun?.which
+  cachedContribEngines = Promise.resolve(
+    which
+      ? CONTRIB_ENGINE_IDS.filter((id) => {
+          const bin = CONTRIB_ENGINES[id]?.defaultCommand[0]
+          return bin ? which(bin) !== null : false
+        })
+      : [],
+  )
+  return cachedContribEngines
 }
 
 export async function detectClaudeAccount(deps: DetectDeps = defaultDeps): Promise<EngineAccountStatus<ClaudeAccount>> {

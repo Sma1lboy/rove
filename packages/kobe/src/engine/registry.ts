@@ -51,6 +51,7 @@ import { CodexHookAdapter } from "./codex-local/hook-adapter.ts"
 import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
+import { contribEngineEntry, isContribEngine } from "./contrib-engines.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import {
   EMPTY_HISTORY,
@@ -338,7 +339,11 @@ function customEngineEntry(vendor: VendorId): EngineRegistryEntry {
  * this module deliberately does not read so it stays state-free).
  */
 export function engineEntry(vendor: VendorId): EngineRegistryEntry {
-  return isBuiltinVendor(vendor) ? BUILTIN_ENGINES[vendor] : customEngineEntry(vendor)
+  if (isBuiltinVendor(vendor)) return BUILTIN_ENGINES[vendor]
+  const custom = customEngineEntry(vendor)
+  // Shipped contrib engines (data-only long tail): the custom empty entry
+  // overlaid with the catalog's identity + screen manifest.
+  return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
 }
 
 /**
