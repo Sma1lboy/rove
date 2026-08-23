@@ -109,6 +109,22 @@ default = "fast"
 [[file_handlers]]                # claim Files-pane opens by filename pattern
 pattern = "\\.(png|jpg)$"        # JS regex, case-insensitive, vs the file name
 action = "greet"                 # your action, invoked with the absolute path
+
+[[engines]]                      # contribute a coding-CLI engine
+id = "aider"                     # VendorId; may not shadow claude/codex/copilot/kimi
+name = "Aider"                   # display name in the selector and Settings
+command = ["aider"]              # launch argv; argv[0] is the binary
+# process_names = ["aider-core"] # extra ps basenames (post-launch renames)
+
+[[engines.rules]]                # screen-state rules, first match wins —
+state = "blocked"                # declare blocked before working
+all = ["(y)es/(n)o"]             # every string must appear (case-insensitive)
+
+[[engines.rules]]
+state = "working"                # working | blocked | idle
+any = ["ctrl-c to interrupt"]    # at least one must appear
+# line_regex = ["^\\s*⠋"]        # or: one screen line matches a regex
+# bottom_lines = 12              # trailing non-empty lines examined (default 12)
 ```
 
 `command` is always argv: never a shell, no expansion (panes expand only
@@ -225,6 +241,10 @@ the CLI unless you need push channels.
   `plugins: { ctrl+b: pane:you.example.board, f6: action:you.example.greet }`.
   Ship the suggestion in your README; Rove ships no default plugin chords.
 - **Files pane**: `[[file_handlers]]` claims opens by pattern.
+- **Engines**: `[[engines]]` contributes a coding CLI to the engine
+  selector — identity, launch command, and screen-state rules for
+  working / needs-input badges. Launch + badge only: account detection,
+  history, and hooks require a built-in adapter in Rove itself.
 - **Host input dialog**: `rove api prompt --title "…"` (SDK: `promptUser()`)
   pops the TUI's standard input dialog and blocks for the answer: `{value}`
   on submit, `{cancelled, reason}` on esc/timeout. Use it instead of
