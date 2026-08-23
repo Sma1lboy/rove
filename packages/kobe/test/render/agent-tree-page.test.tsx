@@ -58,6 +58,7 @@ test("renders a Dagre topology, fan-out batch, and engine-normalized activity", 
   expect(text).toContain("running")
   expect(text).toContain("complete")
   expect(text).toContain("message")
+  expect(text).toContain("◆")
   expect(text).toMatch(/[┆┄◁▷△▽]/)
   expect(text).toContain("SENT →")
   expect(text).toContain("RECEIVED ← UI pass ×2")

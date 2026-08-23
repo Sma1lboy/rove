@@ -35,6 +35,17 @@ export interface TopologyPoint {
   readonly y: number
 }
 
+type TopologySide = "top" | "right" | "bottom" | "left"
+
+interface CommunicationRoutePlan {
+  readonly edge: AgentTopologyEdge
+  readonly from: TopologyLayoutNode
+  readonly to: TopologyLayoutNode
+  readonly sourceSide: TopologySide
+  readonly targetSide: TopologySide
+  readonly lane: number
+}
+
 const DEFAULT_NODE_WIDTH = 28
 const DEFAULT_NODE_HEIGHT = 4
 const BATCH_PAD_X = 2
@@ -62,48 +73,55 @@ function routeEdge(from: TopologyLayoutNode, to: TopologyLayoutNode, direction: 
   return [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end]
 }
 
-/**
- * Route message edges without changing the spawn-owned Dagre ranks.
- *
- * Peers on the same rank get the shortest possible side-to-side connection;
- * cross-rank messages alternate around the left/right (or top/bottom) edge.
- * That keeps a conversation leg visually independent instead of merging every
- * message into one shared outer bus.
- */
-function routeCommunicationEdge(
+function communicationSides(
   from: TopologyLayoutNode,
   to: TopologyLayoutNode,
   direction: TopologyDirection,
   lane: number,
+): readonly [TopologySide, TopologySide] {
+  if (direction === "TB") {
+    if (from.y === to.y) return to.x >= from.x ? ["right", "left"] : ["left", "right"]
+    return lane % 2 === 0 ? ["right", "right"] : ["left", "left"]
+  }
+  if (from.x === to.x) return to.y >= from.y ? ["bottom", "top"] : ["top", "bottom"]
+  return lane % 2 === 0 ? ["bottom", "bottom"] : ["top", "top"]
+}
+
+function portPoint(node: TopologyLayoutNode, side: TopologySide, ordinal: number, total: number): TopologyPoint {
+  if (side === "left" || side === "right") {
+    // Prefer the two content rows, then the border rows. Four incident edges
+    // therefore get four visibly separate ports on one side of a standard card.
+    const offsets = [1, node.height - 2, 0, node.height - 1]
+    const y = node.y + (offsets[ordinal % offsets.length] ?? Math.floor(node.height / 2))
+    return { x: side === "left" ? node.x - 1 : node.x + node.width, y }
+  }
+  const usable = Math.max(1, node.width - 2)
+  const x = node.x + 1 + Math.round(((ordinal + 1) * (usable - 1)) / (total + 1))
+  return { x, y: side === "top" ? node.y - 1 : node.y + node.height }
+}
+
+function routeCommunicationEdge(
+  plan: CommunicationRoutePlan,
+  start: TopologyPoint,
+  end: TopologyPoint,
+  direction: TopologyDirection,
 ): TopologyPoint[] {
   if (direction === "TB") {
-    const fromY = from.y + Math.floor(from.height / 2)
-    const toY = to.y + Math.floor(to.height / 2)
-    if (fromY === toY) {
-      const rightward = to.x >= from.x
-      const start = { x: rightward ? from.x + from.width : from.x - 1, y: fromY }
-      const end = { x: rightward ? to.x - 1 : to.x + to.width, y: toY }
-      return [start, end]
+    if (plan.sourceSide !== plan.targetSide) {
+      const middle = Math.round((start.x + end.x) / 2)
+      return [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end]
     }
-    const useRight = lane % 2 === 0
-    const band = Math.floor(lane / 2)
-    const start = { x: useRight ? from.x + from.width : from.x - 1, y: fromY }
-    const end = { x: useRight ? to.x + to.width : to.x - 1, y: toY }
+    const useRight = plan.sourceSide === "right"
+    const band = Math.floor(plan.lane / 2)
     const outerX = useRight ? Math.max(start.x, end.x) + 3 + band * 2 : Math.min(start.x, end.x) - 3 - band * 2
     return [start, { x: outerX, y: start.y }, { x: outerX, y: end.y }, end]
   }
-  const fromX = from.x + Math.floor(from.width / 2)
-  const toX = to.x + Math.floor(to.width / 2)
-  if (fromX === toX) {
-    const downward = to.y >= from.y
-    const start = { x: fromX, y: downward ? from.y + from.height : from.y - 1 }
-    const end = { x: toX, y: downward ? to.y - 1 : to.y + to.height }
-    return [start, end]
+  if (plan.sourceSide !== plan.targetSide) {
+    const middle = Math.round((start.y + end.y) / 2)
+    return [start, { x: start.x, y: middle }, { x: end.x, y: middle }, end]
   }
-  const useBottom = lane % 2 === 0
-  const band = Math.floor(lane / 2)
-  const start = { x: fromX, y: useBottom ? from.y + from.height : from.y - 1 }
-  const end = { x: toX, y: useBottom ? to.y + to.height : to.y - 1 }
+  const useBottom = plan.sourceSide === "bottom"
+  const band = Math.floor(plan.lane / 2)
   const outerY = useBottom ? Math.max(start.y, end.y) + 2 + band * 2 : Math.min(start.y, end.y) - 2 - band * 2
   return [start, { x: start.x, y: outerY }, { x: end.x, y: outerY }, end]
 }
@@ -166,15 +184,48 @@ export function layoutAgentTopology(
   })
   const byId = new Map(nodes.map((node) => [node.id, node]))
   let communicationLane = 0
+  const communicationPlans = projection.edges.flatMap((edge): CommunicationRoutePlan[] => {
+    if (edge.kind !== "communication") return []
+    const from = byId.get(edge.from)
+    const to = byId.get(edge.to)
+    if (!from || !to) return []
+    const lane = communicationLane++ % 6
+    const [sourceSide, targetSide] = communicationSides(from, to, direction, lane)
+    return [{ edge, from, to, sourceSide, targetSide, lane }]
+  })
+  const portTotals = new Map<string, number>()
+  for (const plan of communicationPlans) {
+    for (const [node, side] of [
+      [plan.from, plan.sourceSide],
+      [plan.to, plan.targetSide],
+    ] as const) {
+      const key = `${node.id}:${side}`
+      portTotals.set(key, (portTotals.get(key) ?? 0) + 1)
+    }
+  }
+  const portOrdinals = new Map<string, number>()
+  const communicationById = new Map(
+    communicationPlans.map((plan): [string, TopologyLayoutEdge] => {
+      const sourceKey = `${plan.from.id}:${plan.sourceSide}`
+      const targetKey = `${plan.to.id}:${plan.targetSide}`
+      const sourceOrdinal = portOrdinals.get(sourceKey) ?? 0
+      const targetOrdinal = portOrdinals.get(targetKey) ?? 0
+      portOrdinals.set(sourceKey, sourceOrdinal + 1)
+      portOrdinals.set(targetKey, targetOrdinal + 1)
+      const start = portPoint(plan.from, plan.sourceSide, sourceOrdinal, portTotals.get(sourceKey) ?? 1)
+      const end = portPoint(plan.to, plan.targetSide, targetOrdinal, portTotals.get(targetKey) ?? 1)
+      return [plan.edge.id, { ...plan.edge, points: routeCommunicationEdge(plan, start, end, direction) }]
+    }),
+  )
   const edges = projection.edges.flatMap((edge): TopologyLayoutEdge[] => {
     const from = byId.get(edge.from)
     const to = byId.get(edge.to)
     if (!from || !to) return []
-    const points =
-      edge.kind === "spawn"
-        ? routeEdge(from, to, direction)
-        : routeCommunicationEdge(from, to, direction, communicationLane++ % 6)
-    return [{ ...edge, points }]
+    if (edge.kind === "communication") {
+      const routed = communicationById.get(edge.id)
+      return routed ? [routed] : []
+    }
+    return [{ ...edge, points: routeEdge(from, to, direction) }]
   })
   const batches = projection.batches.flatMap((batch): TopologyLayoutBatch[] => {
     const placed = layoutBatch(batch, byId)
@@ -278,9 +329,12 @@ export function topologyEdgeRaster(
 ): readonly string[] {
   const cells = Array.from({ length: layout.height }, () => new Uint8Array(layout.width))
   const arrows = new Map<string, string>()
+  const sources = new Set<string>()
   for (const edge of layout.edges.filter((candidate) => candidate.kind === kind)) {
     const points = orthogonalPoints(edge.points, layout.direction)
     for (let i = 1; i < points.length; i += 1) link(cells, points[i - 1]!, points[i]!)
+    const start = points.at(0)
+    if (kind === "communication" && start) sources.add(`${start.x}:${start.y}`)
     const end = points.at(-1)
     const before = points.at(-2)
     if (!end || !before) continue
@@ -308,7 +362,12 @@ export function topologyEdgeRaster(
     arrows.set(`${end.x}:${end.y}`, mark)
   }
   return cells.map((row, y) =>
-    [...row].map((mask, x) => arrows.get(`${x}:${y}`) ?? glyph(mask, kind === "communication")).join(""),
+    [...row]
+      .map(
+        (mask, x) =>
+          arrows.get(`${x}:${y}`) ?? (sources.has(`${x}:${y}`) ? "◆" : glyph(mask, kind === "communication")),
+      )
+      .join(""),
   )
 }
 

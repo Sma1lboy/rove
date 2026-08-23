@@ -99,9 +99,30 @@ describe("agent topology projection", () => {
     const edge = layout.edges.find((candidate) => candidate.kind === "communication")!
     const end = edge.points.at(-1)!
     const raster = topologyEdgeRaster(layout, "communication")
-    expect(raster.join("\n")).toMatch(/[┆┄◁▷△▽]/)
+    expect(raster.join("\n")).toMatch(/◆.*[┆┄]|[┆┄].*◆/s)
     expect([...raster[end.y]!][end.x]).toBe("◁")
     expect(end.x).toBe(layout.nodes.find((node) => node.id === "owner")!.x + 20)
+  })
+
+  test("assigns separate message ports and marks every sender", () => {
+    const targets = ["a", "b", "c", "d"]
+    const owner = task("owner", {
+      communications: targets.map((targetTaskId) => ({
+        targetTaskId,
+        count: 1,
+        lastAt: "2026-08-22T01:00:00.000Z",
+      })),
+    })
+    const children = targets.map((id) => task(id, { dispatcher: { taskId: "owner", tabId: `tab-${id}` } }))
+    for (const direction of ["TB", "LR"] as const) {
+      const layout = layoutAgentTopology(buildAgentTopology([owner, ...children]), { direction, nodeWidth: 20 })
+      const messages = layout.edges.filter((edge) => edge.kind === "communication")
+      const sourcePorts = messages.map((edge) => edge.points[0]!)
+      const raster = topologyEdgeRaster(layout, "communication")
+
+      expect(new Set(sourcePorts.map((point) => `${point.x}:${point.y}`)).size).toBe(4)
+      for (const point of sourcePorts) expect([...raster[point.y]!][point.x]).toBe("◆")
+    }
   })
 
   test("keeps compact batch ids", () => {

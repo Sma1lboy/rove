@@ -325,7 +325,8 @@ durable spawn graph. Solid arrows show ownership/spawn; bright dashed arrows
 show confirmed `rove api send` relationships, including replies that visibly
 close a loop back to an owner. Communication edges come from explicit verified
 sender/recipient metadata and never from parsing message text; message content
-is not stored. Arrowheads sit against the receiving card. Selecting a node
+is not stored. Each message gets a separate card port: a filled diamond `◆`
+marks the sender and an open arrowhead sits against the receiving card. Selecting a node
 brightens only its incoming/outgoing message edges, and the footer names those
 peers as `SENT →` and `RECEIVED ←`; unrelated traffic stays dim. Repeated sends
 reuse one edge, so a long conversation does not turn the graph into
