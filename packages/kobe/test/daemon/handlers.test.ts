@@ -58,7 +58,6 @@ describe("daemon handler registry", () => {
       "issue.mutate",
       "worktree.discoverAdoptable",
       "worktree.adopt",
-      "worktree.reconcile",
       "worktree.archiveRemoved",
       "worktree.list",
       "worktree.remove",

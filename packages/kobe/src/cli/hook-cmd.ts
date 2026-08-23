@@ -109,32 +109,6 @@ function tokenizeCommand(command: string): string[] {
 }
 
 /**
- * Extract the target path of a `git worktree add` from a (possibly compound)
- * shell command, or undefined when the command isn't a worktree-add. Finds the
- * first positional after the `worktree add` tokens, skipping flags and the
- * values of the value-taking flags (`-b` / `-B` / `--reason`). Stops at a shell
- * operator so a chained `&& rm -rf x` can't be mistaken for the path.
- */
-export function parseWorktreeAddPath(command: string): string | undefined {
-  const tokens = tokenizeCommand(command)
-  const valueFlags = new Set(["-b", "-B", "--reason"])
-  for (let i = 0; i + 1 < tokens.length; i++) {
-    if (tokens[i] !== "worktree" || tokens[i + 1] !== "add") continue
-    let j = i + 2
-    while (j < tokens.length) {
-      const t = tokens[j]
-      if (t === "&&" || t === "||" || t === ";" || t === "|" || t === ">" || t === ">>") break
-      if (t.startsWith("-")) {
-        j += valueFlags.has(t) ? 2 : 1 // `--reason=x` (has `=`) is self-contained → skip 1
-        continue
-      }
-      return t // first positional after the flags is the worktree path
-    }
-  }
-  return undefined
-}
-
-/**
  * Extract the target path of a `git worktree remove` from a (possibly compound)
  * shell command, or undefined when the command isn't a worktree-remove. Mirrors
  * {@link parseWorktreeAddPath}: finds the first positional after the `worktree
@@ -161,11 +135,16 @@ export function parseWorktreeRemovePath(command: string): string | undefined {
 }
 
 /**
- * `kobe hook worktree-created` — the global `PostToolUse` (Bash) callback. Reads
- * the hook payload and asks the daemon (non-spawning) to keep tasks in sync with
- * the two git-worktree lifecycle commands:
- *  - `git worktree add <path>`    → adopt the new worktree as a task.
+ * `kobe hook worktree-created` — the global `PostToolUse` (Bash) callback.
+ * Reads the hook payload and asks the daemon (non-spawning) to keep tasks in
+ * sync with worktree REMOVAL only:
  *  - `git worktree remove <path>` → archive the task pinned to that worktree.
+ *
+ * `git worktree add` no longer adopts (owner decision 2026-08-24): creating a
+ * worktree is a mechanical act — agents mint them for PR isolation and no
+ * engine session ever enters — so "created" is not "wanted on the sidebar".
+ * The intent-carrying adoption paths remain: an engine `session-start` inside
+ * a managed worktree root (handlers.ts) and the explicit `rove add .`.
  * Everything is best-effort + swallowed: a hook must never fail the engine.
  */
 async function runWorktreeCreatedHook(): Promise<void> {
@@ -175,17 +154,12 @@ async function runWorktreeCreatedHook(): Promise<void> {
   const command = typeof toolInput.command === "string" ? toolInput.command : ""
   if (!command.includes("worktree")) return // cheap pre-filter: 99.9% of Bash calls bail here
   const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : process.cwd()
-  const addPath = parseWorktreeAddPath(command)
-  const removePath = addPath ? undefined : parseWorktreeRemovePath(command)
-  if (!addPath && !removePath) return
+  const removePath = parseWorktreeRemovePath(command)
+  if (!removePath) return
   const client = await connectIfRunning() // NON-spawning by contract
   if (!client) return
   try {
-    if (addPath) {
-      await client.request("worktree.reconcile", { cwd, worktreePath: resolve(cwd, addPath) })
-    } else if (removePath) {
-      await client.request("worktree.archiveRemoved", { worktreePath: resolve(cwd, removePath) })
-    }
+    await client.request("worktree.archiveRemoved", { worktreePath: resolve(cwd, removePath) })
   } finally {
     client.close()
   }
@@ -209,7 +183,7 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
   }
   // Worktree lifecycle sync: the global `PostToolUse` (Bash) hook. Fires after
   // EVERY Bash tool call machine-wide, so it must no-op fast — it only touches
-  // the daemon when the command was a `git worktree add`/`remove`.
+  // the daemon when the command was a `git worktree remove`.
   if (verb === WORKTREE_CREATED_VERB) {
     try {
       await runWorktreeCreatedHook()
@@ -374,10 +348,9 @@ export async function ensureGlobalKobeHooks(): Promise<void> {
       const enginePath = a.globalSettingsPath()
       if (!enginePath) continue
       await a.installActivityHooks(enginePath, { toolEvents })
-      // PostToolUse(Bash) observer: a `git worktree add` in ANY session adopts
-      // the new worktree as a task immediately (no session needed). Pure
-      // observer — unlike the removed WorktreeCreate provider hook, it can't
-      // break `claude --worktree`.
+      // PostToolUse(Bash) observer: a `git worktree remove` in ANY session
+      // archives the worktree's task. Pure observer — unlike the removed
+      // WorktreeCreate provider hook, it can't break `claude --worktree`.
       await a.installWorktreeWatchHook(enginePath)
     }
     // 2. Remove the removed WorktreeCreate hook wherever it was ever written.

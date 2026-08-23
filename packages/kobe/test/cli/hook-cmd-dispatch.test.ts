@@ -203,14 +203,13 @@ describe("runHookSubcommand — activity verbs", () => {
 })
 
 describe("runHookSubcommand worktree-created", () => {
-  it("asks the daemon to reconcile the path of a `git worktree add`", async () => {
+  it("does NOT adopt on `git worktree add` — creation is mechanical, not intent", async () => {
+    // Owner decision 2026-08-24: agents mint worktrees for PR isolation and no
+    // engine session ever enters; adoption needs a session-start in a managed
+    // root or an explicit `rove add .`. The hook never touches the daemon.
     stubStdin({ cwd: "/repo", tool_input: { command: "git worktree add -b feat .claude/worktrees/lynx main" } })
     await runHookSubcommand(["worktree-created"])
-    expect(mocks.request).toHaveBeenCalledWith("worktree.reconcile", {
-      cwd: "/repo",
-      worktreePath: resolve("/repo", ".claude/worktrees/lynx"),
-    })
-    expect(mocks.close).toHaveBeenCalledTimes(1)
+    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
   })
 
   it("asks the daemon to archive the task of a `git worktree remove`", async () => {
@@ -328,8 +327,8 @@ describe("runHookSubcommand cleanup (plugin migration path)", () => {
 })
 
 describe("runHookSubcommand worktree-created failure swallowing", () => {
-  it("swallows a daemon error mid-reconcile — the Bash hook must exit 0", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree add wt" } })
+  it("swallows a daemon error mid-archive — the Bash hook must exit 0", async () => {
+    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree remove wt" } })
     mocks.request.mockRejectedValue(new Error("daemon blew up"))
     await expect(runHookSubcommand(["worktree-created"])).resolves.toBeUndefined()
     // The socket is still closed on the failure path.

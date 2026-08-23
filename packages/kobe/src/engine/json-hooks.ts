@@ -133,9 +133,11 @@ export function mergeActivityHooks(
 /**
  * Build kobe's worktree-WATCH hook: a global `PostToolUse` observer scoped to
  * the `Bash` tool. After every Bash call, `kobe hook worktree-created` runs and
- * — only when the command was a `git worktree add` — adopts the new worktree as
- * a task. A pure observer (fires AFTER the tool), so its presence never changes
- * git/`--worktree` behaviour.
+ * — only when the command was a `git worktree remove` — archives the task
+ * pinned to that worktree. (`add` no longer adopts, owner decision 2026-08-24:
+ * creation is mechanical, adoption needs an engine session-start or an
+ * explicit adopt.) A pure observer (fires AFTER the tool), so its presence
+ * never changes git/`--worktree` behaviour.
  */
 export function buildWorktreeWatchHook(inv: readonly string[] = kobeHookInvocation()): Record<string, unknown> {
   const command = quoteShellArgv([...inv, "hook", WORKTREE_WATCH_MARKER])

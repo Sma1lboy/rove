@@ -181,11 +181,10 @@ export type DaemonRequestName =
   // PostToolUse) reports that a `git worktree add` just ran in `cwd`. The
   // daemon adopts the new worktree as a task the MOMENT it's created — no
   // engine session needed (the complement to session-start auto-adopt).
-  | "worktree.reconcile"
   // Removal-time auto-archive (KOB): the same `kobe hook worktree-created`
   // (global PostToolUse) reports that a `git worktree remove <path>` just ran.
   // The daemon archives the task whose worktree was that path — the symmetric
-  // complement to `worktree.reconcile` (remove a worktree → its task archives).
+  // symmetric complement to worktree adoption (remove a worktree → its task archives).
   | "worktree.archiveRemoved"
   // Cross-project worktree audit (the standalone worktree-management TUI
   // page): list every worktree of every local saved project (kobe-managed
