@@ -137,7 +137,7 @@ Code, X = Codex (Kimi adapter pending).
 | `task.opened` / `project.opened` | the user selects/enters a task / project row | |
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
-| `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | |
+| `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
 | `session.start` / `session.end` | engine session lifecycle (C; X start only) | |
 | `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X; interrupted: Kimi-shaped) | `failure` class on failed |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X; failed: C); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
