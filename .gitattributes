@@ -5,6 +5,7 @@
 # first `bun run lint` reports every line of every file as changed — and any
 # `lint:fix` would commit a whole-repo line-ending churn.
 * text=auto eol=lf
+*.ts text eol=lf diff
 
 # Binary assets must never be touched.
 *.png binary
