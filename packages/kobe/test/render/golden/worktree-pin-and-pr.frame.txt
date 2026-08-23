@@ -7,7 +7,7 @@
 |                              |
 |  + New task               n  |
 |                              |
-| Agent Tree                   |
+| Agent Topology               |
 | Kanban                       |
 | Routines                     |
 |                              |

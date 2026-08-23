@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest"
 import { SIDEBAR_NAV_ITEMS, cycleNavTarget, focusPaneForNav } from "../../src/tui/panes/sidebar/nav-core"
 
 describe("sidebar navigation core", () => {
-  test("declares Agent Tree as the first rail destination", () => {
+  test("declares Agent Topology as the first rail destination", () => {
     expect(SIDEBAR_NAV_ITEMS.map((item) => item.nav)).toEqual(["agents", "kanban", "automations"])
     expect(SIDEBAR_NAV_ITEMS.some((item) => item.nav === "terminal")).toBe(false)
   })

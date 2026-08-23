@@ -1,15 +1,15 @@
 export const en = {
-  title: "AGENT TREE",
+  title: "AGENT TOPOLOGY",
   noRepo: "No projects with tasks.",
   empty: "No tasks in this project.",
-  summary: "{owners} owners · {agents} agents · {rounds} rounds",
+  summary: "Agents {agents} · Coordinators {coordinators} · Batches {batches}",
   summaryAnomalies: " · {count} anomalies",
-  owner: "OWNER",
+  root: "ROOT",
+  coordinator: "COORD",
   agent: "AGENT",
   orphan: "ORPHAN",
   cycle: "CYCLE",
-  round: "ROUND {id}",
-  roundMeta: "{count} agents · {active} active",
+  batch: "BATCH {id} · {count}",
   state: {
     running: "running",
     idle: "idle",
@@ -23,17 +23,17 @@ export const en = {
 }
 
 export const zh: typeof en = {
-  title: "AGENT 树",
+  title: "AGENT 拓扑",
   noRepo: "暂无包含任务的项目。",
   empty: "该项目暂无任务。",
-  summary: "{owners} 个 owner · {agents} 个 agent · {rounds} 轮并发",
+  summary: "{agents} 个 agent · {coordinators} 个协调者 · {batches} 个批次",
   summaryAnomalies: " · {count} 个异常关系",
-  owner: "OWNER",
+  root: "根节点",
+  coordinator: "协调者",
   agent: "AGENT",
   orphan: "孤立",
   cycle: "循环",
-  round: "并发轮次 {id}",
-  roundMeta: "{count} 个 agent · {active} 个活跃",
+  batch: "批次 {id} · {count}",
   state: {
     running: "运行中",
     idle: "空闲",

@@ -1,60 +1,19 @@
 /** @jsxImportSource @opentui/react */
 /**
- * AgentTreePage — durable collaboration provenance as an operator surface.
- *
- * The page does not infer relationships from transcript copy. Parent edges
- * come from Task.dispatcher.taskId and fan-out rounds from Task.groupId; live
- * activity remains the engine-normalized TaskEngineState already carried by
- * the orchestrator snapshot.
+ * AgentTreePage — compatibility filename for the Agent Topology surface.
+ * Dagre lays out durable dispatcher edges; batch outlines come from groupId.
  */
 
-import { type BoxRenderable, type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
-import { type ReactNode, useEffect, useRef, useState } from "react"
+import { TextAttributes } from "@opentui/core"
+import { type ReactNode, useEffect, useState } from "react"
 import type { TaskEngineState } from "../../client/remote-orchestrator"
-import { engineEntry } from "../../engine/registry"
-import type { Theme } from "../../tui/context/theme-core"
-import { type AgentTreeRow, agentTreePrefix, buildAgentTree, shortGroupId } from "../../tui/multiagent/tree-core"
+import { buildAgentTopology } from "../../tui/multiagent/tree-core"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
-import { DEFAULT_TASK_VENDOR, type Task } from "../../types/task"
+import type { Task } from "../../types/task"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
-import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
-
-type Tone = "primary" | "success" | "warning" | "error" | "muted"
-
-function activityView(task: Task, activity: TaskEngineState | undefined): { glyph: string; key: string; tone: Tone } {
-  if (task.archived) return { glyph: "·", key: "agents.state.archived", tone: "muted" }
-  switch (activity?.state) {
-    case "running":
-      return { glyph: "◐", key: "agents.state.running", tone: "primary" }
-    case "turn_complete":
-      return { glyph: "●", key: "agents.state.complete", tone: "success" }
-    case "permission_needed":
-      return { glyph: "?", key: "agents.state.permission", tone: "warning" }
-    case "rate_limited":
-      return { glyph: "◷", key: "agents.state.rateLimited", tone: "warning" }
-    case "error":
-      return { glyph: "×", key: "agents.state.error", tone: "error" }
-    default:
-      return { glyph: "○", key: "agents.state.idle", tone: "muted" }
-  }
-}
-
-function toneColor(theme: Theme, tone: Tone): Theme["primary"] {
-  switch (tone) {
-    case "primary":
-      return theme.primary
-    case "success":
-      return theme.success
-    case "warning":
-      return theme.warning
-    case "error":
-      return theme.error
-    default:
-      return theme.textMuted
-  }
-}
+import { AgentTopologyCanvas } from "./agent-topology-canvas"
 
 function reposOf(tasks: readonly Task[]): string[] {
   const repos: string[] = []
@@ -81,28 +40,20 @@ export function AgentTreePage(props: {
   })
   const repo = repos[repoIndex]
   const tasks = repo ? props.tasks.filter((task) => task.repo === repo) : []
-  const projection = buildAgentTree(tasks)
-  const taskRows = projection.rows.filter((row) => row.kind === "task")
+  const projection = buildAgentTopology(tasks)
   const [cursor, setCursor] = useState(() => {
-    const wanted = props.selectedTask ? taskRows.findIndex((row) => row.task.id === props.selectedTask?.id) : -1
+    const wanted = props.selectedTask ? projection.nodes.findIndex((node) => node.id === props.selectedTask?.id) : -1
     return wanted >= 0 ? wanted : 0
   })
 
   useEffect(() => {
-    setCursor((value) => Math.max(0, Math.min(value, taskRows.length - 1)))
-  }, [taskRows.length])
+    setCursor((value) => Math.max(0, Math.min(value, projection.nodes.length - 1)))
+  }, [projection.nodes.length])
 
-  const selectedId = taskRows[cursor]?.task.id
-  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
-  const rowRefs = useRef(new Map<string, BoxRenderable>())
-  useEffect(() => {
-    const scroll = scrollRef.current
-    const row = selectedId ? rowRefs.current.get(selectedId) : undefined
-    if (scroll && row && scroll.viewport.height > 0) scroll.scrollChildIntoView(row.id)
-  }, [selectedId])
+  const selectedId = projection.nodes[cursor]?.id
 
   function moveCursor(delta: -1 | 1): void {
-    setCursor((value) => Math.max(0, Math.min(value + delta, taskRows.length - 1)))
+    setCursor((value) => Math.max(0, Math.min(value + delta, projection.nodes.length - 1)))
   }
 
   function cycleRepo(delta: -1 | 1): void {
@@ -124,77 +75,6 @@ export function AgentTreePage(props: {
       { key: "return", cmd: () => selectedId && props.onOpenTask?.(selectedId) },
     ],
   }))
-
-  function roundRow(row: Extract<AgentTreeRow, { kind: "round" }>): ReactNode {
-    const active = row.tasks.filter((task) => props.engineStates?.get(task.id)?.state === "running").length
-    return (
-      <box key={row.id} flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1}>
-        <text fg={theme.borderActive} wrapMode="none">
-          {agentTreePrefix(row)}
-        </text>
-        <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
-          ◇ {t("agents.round", { id: shortGroupId(row.groupId) })}
-        </text>
-        <text fg={theme.textMuted} wrapMode="none" flexGrow={1}>
-          {" "}
-          {t("agents.roundMeta", { count: row.tasks.length, active })}
-        </text>
-      </box>
-    )
-  }
-
-  function taskRow(row: Extract<AgentTreeRow, { kind: "task" }>, taskIndex: number): ReactNode {
-    const selected = taskIndex === cursor
-    const chrome = resolveRowSelectionChrome(theme, { cursor: selected, selected: false })
-    const activity = activityView(row.task, props.engineStates?.get(row.task.id))
-    const roleKey = row.anomaly ? `agents.${row.anomaly}` : `agents.${row.role}`
-    const engine = engineEntry(row.task.vendor ?? DEFAULT_TASK_VENDOR)
-    return (
-      <box
-        key={row.id}
-        ref={(renderable: BoxRenderable | null) => {
-          if (renderable) rowRefs.current.set(row.task.id, renderable)
-          else rowRefs.current.delete(row.task.id)
-        }}
-        flexDirection="row"
-        flexShrink={0}
-        paddingRight={1}
-        backgroundColor={chrome.backgroundColor}
-        onMouseUp={() => setCursor(taskIndex)}
-      >
-        <text fg={chrome.markerColor} wrapMode="none">
-          {chrome.marker}
-        </text>
-        <text fg={theme.borderActive} wrapMode="none">
-          {agentTreePrefix(row)}
-        </text>
-        <text fg={toneColor(theme, activity.tone)} wrapMode="none">
-          {activity.glyph}
-        </text>
-        <text
-          fg={theme.text}
-          attributes={selected ? TextAttributes.BOLD : undefined}
-          wrapMode="none"
-          flexBasis={0}
-          flexGrow={1}
-          paddingLeft={1}
-        >
-          {row.task.title}
-        </text>
-        <text fg={row.anomaly ? theme.warning : theme.textMuted} wrapMode="none" paddingLeft={1}>
-          {t(roleKey)}
-        </text>
-        <text fg={theme.textMuted} wrapMode="none" paddingLeft={1}>
-          {engine.identity?.shortName ?? engine.displayName}
-        </text>
-        <text fg={toneColor(theme, activity.tone)} wrapMode="none" paddingLeft={1}>
-          {t(activity.key)}
-        </text>
-      </box>
-    )
-  }
-
-  let taskIndex = -1
   const anomalySuffix =
     projection.summary.anomalies > 0 ? t("agents.summaryAnomalies", { count: projection.summary.anomalies }) : ""
 
@@ -216,9 +96,9 @@ export function AgentTreePage(props: {
       {repo ? (
         <text fg={projection.summary.anomalies > 0 ? theme.warning : theme.textMuted} wrapMode="none" flexShrink={0}>
           {t("agents.summary", {
-            owners: projection.summary.owners,
             agents: projection.summary.agents,
-            rounds: projection.summary.rounds,
+            coordinators: projection.summary.coordinators,
+            batches: projection.summary.batches,
           })}
           {anomalySuffix}
         </text>
@@ -228,29 +108,20 @@ export function AgentTreePage(props: {
         <text fg={theme.textMuted} paddingTop={1}>
           {t("agents.noRepo")}
         </text>
-      ) : projection.rows.length === 0 ? (
+      ) : projection.nodes.length === 0 ? (
         <text fg={theme.textMuted} paddingTop={1}>
           {t("agents.empty")}
         </text>
       ) : (
-        <scrollbox
-          ref={(renderable: ScrollBoxRenderable | null) => {
-            scrollRef.current = renderable
+        <AgentTopologyCanvas
+          projection={projection}
+          selectedId={selectedId}
+          engineStates={props.engineStates}
+          onSelect={(taskId) => {
+            const index = projection.nodes.findIndex((node) => node.id === taskId)
+            if (index >= 0) setCursor(index)
           }}
-          flexGrow={1}
-          minHeight={0}
-          paddingTop={1}
-          stickyScroll={false}
-          verticalScrollbarOptions={{ visible: false }}
-        >
-          <box flexDirection="column" flexShrink={0}>
-            {projection.rows.map((row) => {
-              if (row.kind === "round") return roundRow(row)
-              taskIndex += 1
-              return taskRow(row, taskIndex)
-            })}
-          </box>
-        </scrollbox>
+        />
       )}
 
       <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>

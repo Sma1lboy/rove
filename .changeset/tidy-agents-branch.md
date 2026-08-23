@@ -2,4 +2,4 @@
 "@sma1lboy/rove": patch
 ---
 
-Add an Agent Tree page to the OpenTUI sidebar. It renders durable owner-to-subagent edges from `dispatcher.taskId`, groups siblings from the same parallel launch under their shared `groupId`, and shows engine-normalized live activity without inferring topology from message text.
+Add an Agent Topology page to the OpenTUI sidebar. Dagre lays out durable owner-to-subagent spawn edges from `dispatcher.taskId`, batch outlines group siblings from the same parallel launch by `groupId`, and task nodes show engine-normalized roles and live activity without inferring communication from message text.

@@ -310,21 +310,27 @@ from its sidebar rail row; Kanban, Routines, and GitHub Issues also keep their
 `ctrl+a` `1` / `2` / `3` chords. `esc` or `q` closes a page, and selecting a
 task in the sidebar returns you to the workspace.
 
-### Agent Tree (sidebar rail)
+### Agent Topology (sidebar rail)
 
-Agent Tree is the live topology of Rove-created collaboration. A root row is
-an owner session. A child edge comes from the task's durable
-`dispatcher.taskId`, which is also where a subagent's bare `rove api send`
-reply goes. Siblings created by one parallel `rove api add --count` or
-`--agents` call sit under a shared **ROUND** row derived from `groupId`.
+Agent Topology is the live graph of Rove-created collaboration. Each task is a
+node, and a directed spawn edge comes from its durable `dispatcher.taskId`.
+That same dispatcher identity is where a subagent's bare `rove api send` reply
+goes. A node with children is labelled **COORD**; this includes a subagent that
+spawns its own subagents, not just the original root.
 
-Each task row shows its engine-owned identity and normalized activity state;
-Rove does not parse message text to guess either one. Missing dispatcher tasks
-and corrupt cycles remain visible as ORPHAN or CYCLE roots instead of being
-dropped. `j`/`k` or the arrow keys move through task rows, `tab` cycles
-projects, and `enter` opens the selected task. The page intentionally has no
-global chord: its sidebar row is the discoverable entry, so no terminal key is
-claimed for an observability view.
+Siblings created by one parallel `rove api add --count` or `--agents` call are
+enclosed in a **BATCH** derived from their shared `groupId`. A batch is launch
+metadata, not a synthetic agent or an extra graph level. Dagre places the
+durable spawn graph; the current panel does not invent communication edges
+from message text. Those edges can be added when the daemon exposes explicit
+sender and recipient records.
+
+Each node shows its engine-owned identity and normalized activity state.
+Missing dispatcher tasks and corrupt cycles remain visible as ORPHAN or CYCLE
+nodes instead of being dropped. `j`/`k` or the arrow keys move through nodes,
+`tab` cycles projects, and `enter` opens the selected task. The page
+intentionally has no global chord: its sidebar row is the discoverable entry,
+so no terminal key is claimed for an observability view.
 
 ### Kanban (`ctrl+a` `1`)
 

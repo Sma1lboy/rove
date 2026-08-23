@@ -24,7 +24,7 @@ function task(id: string, over: Partial<Task> = {}): Task {
   }
 }
 
-test("renders owner, fan-out round, subagents, and engine-normalized activity", async () => {
+test("renders a Dagre topology, fan-out batch, and engine-normalized activity", async () => {
   const owner = task("Owner session")
   const a = task("API audit", {
     id: toTaskId("agent-a"),
@@ -47,16 +47,16 @@ test("renders owner, fan-out round, subagents, and engine-normalized activity", 
   )
   const text = await frame()
 
-  expect(text).toContain("AGENT TREE")
-  expect(text).toContain("1 owners · 2 agents · 1 rounds")
-  expect(text).toContain("ROUND ENTROUND")
+  expect(text).toContain("AGENT TOPOLOGY")
+  expect(text).toContain("Agents 3 · Coordinators 0 · Batches 1")
+  expect(text).toContain("BATCH ENTROUND · 2")
   expect(text).toContain("API audit")
   expect(text).toContain("Codex")
   expect(text).toContain("running")
   expect(text).toContain("complete")
 })
 
-test("j then enter opens the selected agent task", async () => {
+test("j then enter opens the selected topology node", async () => {
   const owner = task("owner")
   const child = task("child", { dispatcher: { taskId: "owner", tabId: "tab-1" } })
   let opened = ""

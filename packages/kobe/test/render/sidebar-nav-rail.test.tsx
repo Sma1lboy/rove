@@ -54,7 +54,7 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 async function labelLines(frame: () => Promise<string>): Promise<Record<string, number>> {
   const lines = (await frame()).split("\n")
   const out: Record<string, number> = {}
-  for (const label of ["Agent Tree", "Kanban", "Routines"]) {
+  for (const label of ["Agent Topology", "Kanban", "Routines"]) {
     const index = lines.findIndex((line) => line.includes(label))
     if (index >= 0) out[label] = index
   }
@@ -69,7 +69,7 @@ test("every destination gets its own line, in declared order", async () => {
   const rendered = Object.entries(lines)
     .sort(([, a], [, b]) => a - b)
     .map(([label]) => label)
-  expect(rendered).toEqual(["Agent Tree", "Kanban", "Routines"])
+  expect(rendered).toEqual(["Agent Topology", "Kanban", "Routines"])
   // Distinct rows — a horizontal strip would share lines.
   expect(new Set(Object.values(lines)).size).toBe(3)
 })
@@ -79,7 +79,7 @@ test("no label is truncated at the 24-cell rail width", async () => {
   await new Promise((r) => setTimeout(r, SETTLE))
   const text = await frame()
   expect(text).toContain("Routines")
-  expect(text).toContain("Agent Tree")
+  expect(text).toContain("Agent Topology")
   expect(text).not.toContain("Routin…")
 })
 

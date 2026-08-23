@@ -9,7 +9,7 @@
 |                              |
 | /review█ 2/5                 |
 |                              |
-| Agent Tree                   |
+| Agent Topology               |
 | Kanban                       |
 | Routines                     |
 |                              |

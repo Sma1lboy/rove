@@ -50,12 +50,12 @@ function deps(task: Task, opened: string[]): HostPageDeps {
   }
 }
 
-test("host page routing renders Agent Tree and opens its selected task", async () => {
+test("host page routing renders Agent Topology and opens its selected task", async () => {
   const opened: string[] = []
   const view = renderContentPage(deps(ownerTask(), opened))
   const { frame, mockInput } = await renderComponent(view, { width: 84, height: 20 })
 
-  expect(await frame()).toContain("AGENT TREE")
+  expect(await frame()).toContain("AGENT TOPOLOGY")
   mockInput.pressEnter()
   expect(opened).toEqual(["closed", "owner"])
 })
@@ -69,7 +69,7 @@ function NavProbe(props: { focus: FocusContextValue }): ReactNode {
   )
 }
 
-test("host page state moves focus into the Agent Tree content pane", async () => {
+test("host page state moves focus into the Agent Topology content pane", async () => {
   const focused: string[] = []
   const focus: FocusContextValue = {
     focused: "sidebar",

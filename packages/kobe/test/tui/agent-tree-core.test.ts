@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest"
-import { agentTreePrefix, buildAgentTree, shortGroupId } from "../../src/tui/multiagent/tree-core"
+import {
+  clipTopologyRaster,
+  layoutAgentTopology,
+  topologyEdgeRaster,
+  topologyViewportOffset,
+} from "../../src/tui/multiagent/topology-layout"
+import { buildAgentTopology, shortGroupId } from "../../src/tui/multiagent/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -19,51 +25,65 @@ function task(id: string, over: Partial<Task> = {}): Task {
   }
 }
 
-describe("agent tree projection", () => {
-  test("uses dispatcher edges and inserts one round for fan-out siblings", () => {
+describe("agent topology projection", () => {
+  test("uses dispatcher edges and keeps fan-out as a batch enclosure", () => {
     const owner = task("owner")
     const a = task("a", { dispatcher: { taskId: "owner", tabId: "tab-1" }, groupId: "01ROUNDALPHA" })
     const b = task("b", { dispatcher: { taskId: "owner", tabId: "tab-1" }, groupId: "01ROUNDALPHA" })
     const direct = task("direct", { dispatcher: { taskId: "owner", tabId: "tab-2" } })
     const nested = task("nested", { dispatcher: { taskId: "a", tabId: "tab-3" } })
 
-    const tree = buildAgentTree([owner, a, b, direct, nested])
+    const topology = buildAgentTopology([owner, a, b, direct, nested])
 
-    expect(tree.rows.map((row) => `${row.kind}:${row.kind === "task" ? row.task.id : row.groupId}`)).toEqual([
-      "task:owner",
-      "round:01ROUNDALPHA",
-      "task:a",
-      "task:nested",
-      "task:b",
-      "task:direct",
+    expect(topology.edges.map((edge) => `${edge.from}->${edge.to}`)).toEqual([
+      "owner->a",
+      "owner->b",
+      "owner->direct",
+      "a->nested",
     ])
-    expect(tree.summary).toEqual({ owners: 1, agents: 4, rounds: 1, anomalies: 0 })
-    expect(tree.rows.find((row) => row.kind === "task" && row.task.id === "nested")?.depth).toBe(3)
+    expect(topology.batches).toEqual([{ id: "batch:01ROUNDALPHA", groupId: "01ROUNDALPHA", nodeIds: ["a", "b"] }])
+    expect(topology.nodes.map((node) => `${node.id}:${node.role}`)).toEqual([
+      "owner:root",
+      "a:coordinator",
+      "b:agent",
+      "direct:agent",
+      "nested:agent",
+    ])
+    expect(topology.summary).toEqual({ agents: 5, roots: 1, coordinators: 1, batches: 1, anomalies: 0 })
   })
 
-  test("surfaces missing parents and breaks corrupt cycles", () => {
+  test("surfaces missing parents and every member of a corrupt cycle", () => {
     const orphan = task("orphan", { dispatcher: { taskId: "gone", tabId: "tab-1" } })
     const a = task("a", { dispatcher: { taskId: "b", tabId: "tab-1" } })
     const b = task("b", { dispatcher: { taskId: "a", tabId: "tab-1" } })
     const self = task("self", { dispatcher: { taskId: "self", tabId: "tab-1" } })
 
-    const tree = buildAgentTree([orphan, a, b, self])
-    const taskRows = tree.rows.filter((row) => row.kind === "task")
+    const topology = buildAgentTopology([orphan, a, b, self])
 
-    expect(taskRows).toHaveLength(4)
-    expect(taskRows.find((row) => row.task.id === "orphan")?.anomaly).toBe("orphan")
-    expect(taskRows.find((row) => row.task.id === "self")?.anomaly).toBe("cycle")
-    expect(taskRows.some((row) => row.anomaly === "cycle" && (row.task.id === "a" || row.task.id === "b"))).toBe(true)
-    expect(tree.summary.anomalies).toBe(3)
+    expect(topology.nodes.find((node) => node.id === "orphan")?.anomaly).toBe("orphan")
+    expect(topology.nodes.find((node) => node.id === "self")?.anomaly).toBe("cycle")
+    expect(topology.nodes.find((node) => node.id === "a")?.anomaly).toBe("cycle")
+    expect(topology.nodes.find((node) => node.id === "b")?.anomaly).toBe("cycle")
+    expect(topology.summary.anomalies).toBe(4)
   })
 
-  test("renders stable branch prefixes and compact round ids", () => {
+  test("lays out and rasterizes a directed spawn graph", () => {
     const owner = task("owner")
     const child = task("child", { dispatcher: { taskId: "owner", tabId: "tab-1" } })
-    const rows = buildAgentTree([owner, child]).rows
+    const layout = layoutAgentTopology(buildAgentTopology([owner, child]), { direction: "TB", nodeWidth: 20 })
+    const root = layout.nodes.find((node) => node.id === "owner")!
+    const leaf = layout.nodes.find((node) => node.id === "child")!
+    const raster = topologyEdgeRaster(layout)
 
-    expect(agentTreePrefix(rows[0]!)).toBe("")
-    expect(agentTreePrefix(rows[1]!)).toBe("└─ ")
+    expect(root.y).toBeLessThan(leaf.y)
+    expect(raster.join("\n")).toMatch(/[│▼]/)
+    const offset = topologyViewportOffset(layout, "child", { width: 16, height: 8 })
+    const clipped = clipTopologyRaster(raster, offset, { width: 16, height: 8 })
+    expect(clipped.split("\n")).toHaveLength(8)
+    expect(clipped.split("\n").every((row) => [...row].length === 16)).toBe(true)
+  })
+
+  test("keeps compact batch ids", () => {
     expect(shortGroupId("01ABCDEFGHIJK")).toBe("DEFGHIJK")
   })
 })
