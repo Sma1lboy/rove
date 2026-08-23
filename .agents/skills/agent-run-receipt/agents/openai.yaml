@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Run Receipt"
+  short_description: "Turn a completed Rove agent run into a shareable proof card"
+  brand_color: "#CC785C"
+  default_prompt: "Use $agent-run-receipt after I accept this multi-agent run, and attach the generated proof card to the final report."
+policy:
+  allow_implicit_invocation: true
