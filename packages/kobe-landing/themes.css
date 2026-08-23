@@ -45,7 +45,30 @@ button{font-family:inherit;cursor:pointer}
 .lang-btn{background:none;border:1px solid var(--line-2);color:var(--ink-soft);font-family:var(--font-mono);font-size:11.5px;padding:5px 9px;border-radius:999px;transition:border-color 140ms,color 140ms;white-space:nowrap}
 .lang-btn:hover{border-color:var(--accent);color:var(--accent)}
 .gh-link{display:flex;align-items:center;gap:5px;padding:7px 11px;border-radius:999px;background:var(--ink);color:var(--paper);font-family:var(--font-mono);font-size:11.5px;margin-left:2px}
-@media(max-width:820px){.navbar a.nl{display:none}}
+.gh-stars{display:inline-flex;align-items:center;gap:4px;color:oklch(85% 0.06 85)}
+/* Below 820px the pill used to drop ALL five links with `display:none`,
+   leaving `$ Rove [中文] [GitHub]` — a nav bar with no navigation. Keep the
+   cross-page ones and drop only `--primitives` / `--install`, which are
+   home-page section anchors already reachable through `$ Rove`. That fits
+   one row, so the pill keeps its shape instead of stacking over the hero. */
+@media(max-width:820px){
+  .navbar{gap:0;padding:5px 6px;max-width:calc(100vw - 16px)}
+  .navbar .caret{display:none}
+  .navbar a.nl{padding:7px 7px;font-size:11.5px}
+  .navbar a.nl[href*="#workflow"],.navbar a.nl[href*="#install"]{display:none}
+  .lang-btn{padding:5px 8px;margin-left:4px}
+  .gh-link{padding:7px 10px;margin-left:4px}
+}
+@media(max-width:460px){
+  /* the label is redundant next to the mark, and dropping it is what keeps
+     the whole pill inside the viewport at 390 */
+  .gh-link>span:not(.gh-stars){display:none}
+  .navbar a.nl{padding:7px 5px}
+  .navbar .bin{padding-right:2px}
+  /* still 34px over at 390 — changelog is the one to go, it sits in the
+     footer of every page while plugins/themes have no other entry point */
+  .navbar a.nl[href*="changelog"]{display:none}
+}
 
 /* ============ HEAD ============ */
 .top{padding:132px 0 20px}
@@ -92,9 +115,13 @@ h2{font-family:var(--font-display);font-weight:360;font-size:clamp(24px,3vw,34px
 .m-warn{color:var(--t-warning)}
 .m-chip{display:inline-block;background:var(--t-element);color:var(--t-text);padding:0 5px;border-radius:3px}
 
-.tc-cmd{display:flex;align-items:center;gap:7px;width:calc(100% - 34px);margin:0 17px 15px;background:var(--well);color:var(--well-ink);border:none;border-radius:9px;padding:9px 11px;font-family:var(--font-mono);font-size:11px;text-align:left}
+.tc-cmd{display:flex;align-items:flex-start;gap:7px;width:calc(100% - 34px);margin:0 17px 15px;background:var(--well);color:var(--well-ink);border:none;border-radius:9px;padding:9px 11px;font-family:var(--font-mono);font-size:11px;text-align:left}
 .tc-cmd .ps{color:var(--accent-2);flex:none}
-.tc-cmd-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+/* Same reason as the plugin cards (plugins.html): a trailing ellipsis cut
+   the theme NAME, so every card read `rove theme add https://rove…`. Wrap
+   instead — a command you cannot read whole is a command you cannot trust
+   you copied. */
+.tc-cmd-t{flex:1;min-width:0;overflow-wrap:break-word;word-break:normal}
 .tc-copy{flex:none;color:oklch(62% 0.02 60);font-size:10px;border-left:1px solid oklch(38% 0.02 55);padding-left:8px}
 .tc-cmd:hover .tc-copy{color:var(--accent-2)}
 .sw{display:flex;gap:0;padding:12px 17px 15px}
@@ -105,7 +132,10 @@ h2{font-family:var(--font-display);font-weight:360;font-size:clamp(24px,3vw,34px
 
 /* ============ RECIPE / PUBLISH ============ */
 .well{background:var(--well);color:var(--well-ink);border-radius:var(--radius-lg);padding:clamp(20px,3vw,30px);margin-top:26px;overflow-x:auto}
-.well pre{font-family:var(--font-mono);font-size:12.5px;line-height:1.7;white-space:pre}
+/* A JSON sample must not wrap — reflowed code is misleading. Below ~900px
+   it is wider than the well, so it scrolls inside its own box instead of
+   silently clipping. */
+.well pre{font-family:var(--font-mono);font-size:12.5px;line-height:1.7;white-space:pre;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .well .k{color:oklch(78% 0.11 50)}
 .well .s{color:oklch(76% 0.1 145)}
 .well .c{color:oklch(58% 0.02 60)}
