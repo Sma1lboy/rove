@@ -322,6 +322,32 @@ function orthogonalPoints(points: readonly TopologyPoint[], direction: TopologyD
   )
 }
 
+/** Every terminal cell occupied by one routed edge, including its endpoints. */
+export function topologyEdgeCells(
+  edge: Pick<TopologyLayoutEdge, "points">,
+  direction: TopologyDirection,
+): readonly TopologyPoint[] {
+  const points = orthogonalPoints(edge.points, direction)
+  const cells: TopologyPoint[] = []
+  for (let index = 0; index < points.length; index += 1) {
+    const start = points[index]
+    if (!start) continue
+    if (index === 0) cells.push(start)
+    const end = points[index + 1]
+    if (!end) continue
+    const dx = Math.sign(end.x - start.x)
+    const dy = Math.sign(end.y - start.y)
+    let x = start.x
+    let y = start.y
+    while (x !== end.x || y !== end.y) {
+      x += dx
+      y += dy
+      cells.push({ x, y })
+    }
+  }
+  return cells
+}
+
 /** Rasterize routed spawn edges into a monochrome box-drawing canvas. */
 export function topologyEdgeRaster(
   layout: TopologyLayout,

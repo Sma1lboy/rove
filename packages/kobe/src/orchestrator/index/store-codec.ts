@@ -17,6 +17,7 @@
  */
 
 import { copyFile } from "node:fs/promises"
+import { normalizeMessagePreview } from "../../lib/message-preview.ts"
 import type {
   Task,
   TaskCommunication,
@@ -220,7 +221,13 @@ function coerceCommunications(value: unknown): TaskCommunication[] {
     if (typeof v.targetTaskId !== "string" || v.targetTaskId.length === 0) continue
     if (typeof v.count !== "number" || !Number.isSafeInteger(v.count) || v.count < 1) continue
     if (typeof v.lastAt !== "string" || Number.isNaN(Date.parse(v.lastAt))) continue
-    byTarget.set(v.targetTaskId, { targetTaskId: v.targetTaskId, count: v.count, lastAt: v.lastAt })
+    const firstMessagePreview = normalizeMessagePreview(v.firstMessagePreview)
+    byTarget.set(v.targetTaskId, {
+      targetTaskId: v.targetTaskId,
+      count: v.count,
+      lastAt: v.lastAt,
+      ...(firstMessagePreview ? { firstMessagePreview } : {}),
+    })
   }
   return [...byTarget.values()].slice(-32)
 }

@@ -26,7 +26,14 @@ function task(id: string, over: Partial<Task> = {}): Task {
 
 test("renders a Dagre topology, fan-out batch, and engine-normalized activity", async () => {
   const owner = task("Owner session", {
-    communications: [{ targetTaskId: "agent-a", count: 1, lastAt: "2026-08-22T00:30:00.000Z" }],
+    communications: [
+      {
+        targetTaskId: "agent-a",
+        count: 1,
+        lastAt: "2026-08-22T00:30:00.000Z",
+        firstMessagePreview: "Audit the public send contract before release",
+      },
+    ],
   })
   const a = task("API audit", {
     id: toTaskId("agent-a"),
@@ -37,14 +44,21 @@ test("renders a Dagre topology, fan-out batch, and engine-normalized activity", 
     id: toTaskId("agent-b"),
     dispatcher: { taskId: "Owner session", tabId: "tab-1" },
     groupId: "01JAGENTROUND",
-    communications: [{ targetTaskId: "Owner session", count: 2, lastAt: "2026-08-22T01:00:00.000Z" }],
+    communications: [
+      {
+        targetTaskId: "Owner session",
+        count: 2,
+        lastAt: "2026-08-22T01:00:00.000Z",
+        firstMessagePreview: "The keyboard pass is complete",
+      },
+    ],
   })
   const engineStates = new Map<string, TaskEngineState>([
     ["agent-a", { state: "running", at: Date.now() }],
     ["agent-b", { state: "turn_complete", at: Date.now() }],
   ])
 
-  const { frame } = await renderComponent(
+  const { frame, mockMouse } = await renderComponent(
     <AgentTreePage tasks={[owner, a, b]} engineStates={engineStates} focused={true} onClose={() => {}} />,
     { width: 96, height: 24 },
   )
@@ -62,6 +76,19 @@ test("renders a Dagre topology, fan-out batch, and engine-normalized activity", 
   expect(text).toMatch(/[┆┄◁▷△▽]/)
   expect(text).toContain("SENT →")
   expect(text).toContain("RECEIVED ← UI pass ×2")
+
+  let tooltip = ""
+  const rows = text.split("\n")
+  for (let y = 2; y < rows.length && !tooltip.includes("FIRST MESSAGE"); y += 1) {
+    const cells = [...(rows[y] ?? "")]
+    for (let x = 0; x < cells.length && !tooltip.includes("FIRST MESSAGE"); x += 1) {
+      if (!["◆", "┄", "┆", "◁", "▷", "△", "▽"].includes(cells[x] ?? "")) continue
+      await act(async () => mockMouse.moveTo(x, y))
+      tooltip = await frame()
+    }
+  }
+  expect(tooltip).toContain("FIRST MESSAGE")
+  expect(tooltip).toMatch(/Audit the public send contract|The keyboard pass is complete/)
 })
 
 test("j then enter opens the selected topology node", async () => {

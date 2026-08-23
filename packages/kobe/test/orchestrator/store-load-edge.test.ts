@@ -232,7 +232,12 @@ describe("load() recovery", () => {
             ...base,
             communications: [
               { targetTaskId: "peer", count: 2, lastAt: "2026-08-22T01:00:00.000Z" },
-              { targetTaskId: "peer", count: 9, lastAt: "2026-08-22T02:00:00.000Z" },
+              {
+                targetTaskId: "peer",
+                count: 9,
+                lastAt: "2026-08-22T02:00:00.000Z",
+                firstMessagePreview: "  inspect\nthis edge  ",
+              },
               { targetTaskId: 42, count: 1, lastAt: "2026-08-22T03:00:00.000Z" },
             ],
           },
@@ -240,7 +245,12 @@ describe("load() recovery", () => {
       }),
     )
     expect((await store.load()).tasks[0]?.communications).toEqual([
-      { targetTaskId: "peer", count: 9, lastAt: "2026-08-22T02:00:00.000Z" },
+      {
+        targetTaskId: "peer",
+        count: 9,
+        lastAt: "2026-08-22T02:00:00.000Z",
+        firstMessagePreview: "inspect this edge",
+      },
     ])
   })
 

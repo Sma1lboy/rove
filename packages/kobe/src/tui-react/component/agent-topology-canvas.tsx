@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 
-import { type BoxRenderable, TextAttributes } from "@opentui/core"
+import { type BoxRenderable, type MouseEvent, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
-import { type ReactNode, useCallback, useEffect, useState } from "react"
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react"
 import type { TaskEngineState } from "../../client/remote-orchestrator"
 import { engineEntry } from "../../engine/registry"
 import type { Theme } from "../../tui/context/theme-core"
@@ -10,6 +10,7 @@ import { truncateEnd } from "../../tui/lib/truncate"
 import {
   clipTopologyRaster,
   layoutAgentTopology,
+  topologyEdgeCells,
   topologyEdgeRaster,
   topologyViewportOffset,
 } from "../../tui/multiagent/topology-layout"
@@ -77,6 +78,10 @@ function nodeRoleKey(node: AgentTopologyNode): string {
   return node.anomaly ? `agents.${node.anomaly}` : `agents.${node.role}`
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
 export function AgentTopologyCanvas(props: {
   projection: AgentTopologyProjection
   selectedId?: string
@@ -85,18 +90,38 @@ export function AgentTopologyCanvas(props: {
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
-  const { setBody, viewport, bump } = useCanvasViewport()
+  const { body, setBody, viewport, bump } = useCanvasViewport()
+  const [hover, setHover] = useState<{ edgeId: string; x: number; y: number } | null>(null)
   const direction = viewport.width >= 82 ? "TB" : "LR"
   const nodeWidth = 28
-  const layout = layoutAgentTopology(props.projection, { direction, nodeWidth })
+  const layout = useMemo(
+    () => layoutAgentTopology(props.projection, { direction, nodeWidth }),
+    [props.projection, direction],
+  )
   const offset = topologyViewportOffset(layout, props.selectedId, viewport)
   const spawnEdgeText = clipTopologyRaster(topologyEdgeRaster(layout, "spawn"), offset, viewport)
-  const communicationEdges = layout.edges.filter((edge) => edge.kind === "communication")
-  const activeCommunicationIds = new Set(
-    communicationEdges
-      .filter((edge) => edge.from === props.selectedId || edge.to === props.selectedId)
-      .map((edge) => edge.id),
+  const communicationEdges = useMemo(() => layout.edges.filter((edge) => edge.kind === "communication"), [layout.edges])
+  const activeCommunicationIds = useMemo(
+    () =>
+      new Set(
+        communicationEdges
+          .filter((edge) => edge.from === props.selectedId || edge.to === props.selectedId)
+          .map((edge) => edge.id),
+      ),
+    [communicationEdges, props.selectedId],
   )
+  const communicationHitMap = useMemo(() => {
+    const hitMap = new Map<string, string[]>()
+    for (const edge of communicationEdges) {
+      for (const point of topologyEdgeCells(edge, layout.direction)) {
+        const key = `${point.x}:${point.y}`
+        const ids = hitMap.get(key) ?? []
+        if (!ids.includes(edge.id)) ids.push(edge.id)
+        hitMap.set(key, ids)
+      }
+    }
+    return hitMap
+  }, [communicationEdges, layout.direction])
   const passiveCommunicationText = clipTopologyRaster(
     topologyEdgeRaster(
       { ...layout, edges: communicationEdges.filter((edge) => !activeCommunicationIds.has(edge.id)) },
@@ -113,11 +138,46 @@ export function AgentTopologyCanvas(props: {
     offset,
     viewport,
   )
+  const hoveredEdge = hover ? communicationEdges.find((edge) => edge.id === hover.edgeId) : undefined
+  const hoveredFrom = hoveredEdge ? layout.nodes.find((node) => node.id === hoveredEdge.from) : undefined
+  const hoveredTo = hoveredEdge ? layout.nodes.find((node) => node.id === hoveredEdge.to) : undefined
+  const tooltipWidth = Math.min(64, Math.max(20, viewport.width))
+  const tooltipHeight = 6
+  const tooltipLeft = hover ? clamp(hover.x + 2, 0, Math.max(0, viewport.width - tooltipWidth)) : 0
+  const tooltipTop = hover
+    ? hover.y + tooltipHeight < viewport.height
+      ? hover.y + 1
+      : Math.max(0, hover.y - tooltipHeight)
+    : 0
+
+  function updateHover(event: MouseEvent): void {
+    if (!body) return
+    const x = event.x - body.x
+    const y = event.y - body.y
+    const edgeIds = communicationHitMap.get(`${x - offset.x}:${y - offset.y}`) ?? []
+    const edge =
+      edgeIds
+        .map((id) => communicationEdges.find((candidate) => candidate.id === id))
+        .find((candidate) => candidate?.firstMessagePreview && activeCommunicationIds.has(candidate.id)) ??
+      edgeIds
+        .map((id) => communicationEdges.find((candidate) => candidate.id === id))
+        .find((candidate) => candidate?.firstMessagePreview)
+    if (!edge) {
+      setHover(null)
+      return
+    }
+    setHover((current) =>
+      current?.edgeId === edge.id && current.x === x && current.y === y ? current : { edgeId: edge.id, x, y },
+    )
+  }
 
   return (
+    // biome-ignore lint/a11y/useKeyWithMouseEvents: terminal edge hover is pointer inspection; keyboard selection already exposes sender/receiver traffic in the footer.
     <box
       ref={(renderable: BoxRenderable | null) => setBody(renderable)}
       onSizeChange={bump}
+      onMouseMove={updateHover}
+      onMouseOut={() => setHover(null)}
       flexGrow={1}
       minHeight={0}
       overflow="hidden"
@@ -220,6 +280,37 @@ export function AgentTopologyCanvas(props: {
           </box>
         )
       })}
+
+      {hoveredEdge?.firstMessagePreview && hoveredFrom && hoveredTo && viewport.height >= tooltipHeight ? (
+        <box
+          position="absolute"
+          left={tooltipLeft}
+          top={tooltipTop}
+          width={tooltipWidth}
+          height={tooltipHeight}
+          zIndex={10}
+          border
+          borderColor={theme.info}
+          backgroundColor={theme.backgroundElement}
+          paddingLeft={1}
+          paddingRight={1}
+          flexDirection="column"
+          overflow="hidden"
+        >
+          <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+            {truncateEnd(
+              t("agents.messagePreviewTitle", {
+                from: hoveredFrom.task.title,
+                to: hoveredTo.task.title,
+              }),
+              tooltipWidth - 4,
+            )}
+          </text>
+          <text fg={theme.text} wrapMode="word" flexGrow={1}>
+            {hoveredEdge.firstMessagePreview}
+          </text>
+        </box>
+      ) : null}
     </box>
   )
 }

@@ -62,7 +62,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const fromTaskId = requireString(payload, "fromTaskId")
       const toTaskId = requireString(payload, "toTaskId")
-      await ctx.orch.recordCommunication(fromTaskId, toTaskId, optionalString(payload, "at"))
+      await ctx.orch.recordCommunication(
+        fromTaskId,
+        toTaskId,
+        optionalString(payload, "at"),
+        optionalString(payload, "firstMessagePreview"),
+      )
       return {}
     },
   },

@@ -17,6 +17,7 @@ export const en = {
   flowIncoming: "RECEIVED ← {title} ×{count}",
   flowMore: "+{count} more",
   flowNone: "MESSAGES  — no recorded traffic",
+  messagePreviewTitle: "FIRST MESSAGE · {from} → {to}",
   state: {
     running: "running",
     idle: "idle",
@@ -48,6 +49,7 @@ export const zh: typeof en = {
   flowIncoming: "已接收 ← {title} ×{count}",
   flowMore: "另有 {count} 条",
   flowNone: "通信  — 暂无记录",
+  messagePreviewTitle: "首条消息 · {from} → {to}",
   state: {
     running: "运行中",
     idle: "空闲",

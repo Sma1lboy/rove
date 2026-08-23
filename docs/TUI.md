@@ -324,13 +324,17 @@ metadata, not a synthetic agent or an extra graph level. Dagre places the
 durable spawn graph. Solid arrows show ownership/spawn; bright dashed arrows
 show confirmed `rove api send` relationships, including replies that visibly
 close a loop back to an owner. Communication edges come from explicit verified
-sender/recipient metadata and never from parsing message text; message content
-is not stored. Each message gets a separate card port: a filled diamond `◆`
-marks the sender and an open arrowhead sits against the receiving card. Selecting a node
+sender/recipient metadata and never from parsing engine transcripts. Each
+relationship stores only the normalized, 160-character preview of the first
+message that established it. Each relationship gets a separate card port: a
+filled diamond `◆` marks the sender and an open arrowhead sits against the
+receiving card. Selecting a node
 brightens only its incoming/outgoing message edges, and the footer names those
 peers as `SENT →` and `RECEIVED ←`; unrelated traffic stays dim. Repeated sends
 reuse one edge, so a long conversation does not turn the graph into
-parallel-line noise.
+parallel-line noise. Hovering a communication line opens a compact inspector
+with its sender, recipient, and saved first-message preview; relationships
+recorded by older versions have no preview and do not invent one later.
 
 Each node shows its engine-owned identity and normalized activity state.
 Missing dispatcher tasks and corrupt cycles remain visible as ORPHAN or CYCLE

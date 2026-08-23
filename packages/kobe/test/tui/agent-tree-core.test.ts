@@ -87,12 +87,24 @@ describe("agent topology projection", () => {
     const owner = task("owner")
     const child = task("child", {
       dispatcher: { taskId: "owner", tabId: "tab-1" },
-      communications: [{ targetTaskId: "owner", count: 3, lastAt: "2026-08-22T01:00:00.000Z" }],
+      communications: [
+        {
+          targetTaskId: "owner",
+          count: 3,
+          lastAt: "2026-08-22T01:00:00.000Z",
+          firstMessagePreview: "Please review the release checklist",
+        },
+      ],
     })
     const topology = buildAgentTopology([owner, child])
     const communication = topology.edges.find((edge) => edge.kind === "communication")
 
-    expect(communication).toMatchObject({ from: "child", to: "owner", count: 3 })
+    expect(communication).toMatchObject({
+      from: "child",
+      to: "owner",
+      count: 3,
+      firstMessagePreview: "Please review the release checklist",
+    })
     expect(topologyRootId(topology, "child")).toBe("owner")
 
     const layout = layoutAgentTopology(topology, { direction: "TB", nodeWidth: 20 })

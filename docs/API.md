@@ -118,9 +118,11 @@ replacement in `nextCommandArgs`.
   `unregistered: true` — an alive engine is never invisible here.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
   task, when one did — the lineage read for a parallel round's parent.
-  `.task.communications` = the sender's bounded, content-free list of
-  confirmed peer targets (`targetTaskId`/`count`/`lastAt`), used by Agent
-  Topology to draw directed message edges.
+  `.task.communications` = the sender's bounded list of confirmed peer targets
+  (`targetTaskId`/`count`/`lastAt`/optional `firstMessagePreview`), used by
+  Agent Topology to draw directed message edges. The preview is a whitespace-
+  normalized snapshot of at most 160 characters, captured only when an edge
+  is first created; later sends never replace it.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
   = the protocol derived from it.
 - `collect [--task-ids a,b,c] [--repo PATH]`: read-only comparison
@@ -237,10 +239,11 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   the task's worktree — `started: true` in the result marks that fresh
   session (vs. delivery into an existing one). After a verified cross-task
   delivery is confirmed, Rove coalesces a sender → recipient communication
-  edge in task metadata (at most 32 distinct recipients per sender; no
-  message content). Repeated sends to the same task increment `count` and
-  refresh `lastAt` instead of appending unbounded events. The result reports
-  `communicationRecorded`; a metadata
+  edge in task metadata (at most 32 distinct recipients per sender) and keeps
+  a single-line, 160-character preview of the first message that established
+  it. Repeated sends to the same task increment `count` and refresh `lastAt`
+  without replacing that preview or appending unbounded events. The result
+  reports `communicationRecorded`; a metadata
   write failure remains `ok: true` with `communicationRecorded: false`
   because retrying an already-delivered prompt would duplicate it.
 - `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a

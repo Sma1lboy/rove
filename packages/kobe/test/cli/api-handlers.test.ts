@@ -299,7 +299,7 @@ describe("send handler", () => {
       expect(calls[0].prompt).toBe("hi")
       expect(client.requests.at(-1)).toEqual({
         name: "task.recordCommunication",
-        payload: { fromTaskId: "sender-1", toTaskId: "abc" },
+        payload: { fromTaskId: "sender-1", toTaskId: "abc", firstMessagePreview: "hi" },
       })
       expect(result).toMatchObject({ communicationRecorded: true })
     })

@@ -62,6 +62,7 @@ export interface TaskCommunication {
   readonly targetTaskId: string
   readonly count: number
   readonly lastAt: string
+  readonly firstMessagePreview?: string
 }
 
 /** Pointer back to the external issue a task was started from. Snapshot for
@@ -165,8 +166,8 @@ export interface DaemonOrchestrator {
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
-  /** Record one confirmed peer-message delivery without storing its content. */
-  recordCommunication(fromTaskId: string, toTaskId: string, at?: string): Promise<void>
+  /** Record one confirmed peer-message delivery with an optional first-message preview. */
+  recordCommunication(fromTaskId: string, toTaskId: string, at?: string, firstMessagePreview?: string): Promise<void>
   reorderTasks(moves: ReadonlyArray<{ taskId: string; position: number }>): Promise<void>
   deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>

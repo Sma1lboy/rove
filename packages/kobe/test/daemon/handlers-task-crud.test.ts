@@ -92,11 +92,16 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(
         dispatch(
           "task.recordCommunication",
-          { fromTaskId: "owner", toTaskId: "agent", at: "2026-08-22T01:00:00.000Z" },
+          {
+            fromTaskId: "owner",
+            toTaskId: "agent",
+            at: "2026-08-22T01:00:00.000Z",
+            firstMessagePreview: "check the API",
+          },
           ctx,
         ),
       ).resolves.toEqual({})
-      expect(calls).toEqual([["owner", "agent", "2026-08-22T01:00:00.000Z"]])
+      expect(calls).toEqual([["owner", "agent", "2026-08-22T01:00:00.000Z", "check the API"]])
       await expect(dispatch("task.recordCommunication", { toTaskId: "agent" }, ctx)).rejects.toThrow(
         "fromTaskId is required",
       )

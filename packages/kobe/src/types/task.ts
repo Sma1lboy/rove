@@ -88,6 +88,8 @@ export interface TaskCommunication {
   readonly targetTaskId: string
   readonly count: number
   readonly lastAt: string
+  /** Bounded, single-line preview captured only when this edge is created. */
+  readonly firstMessagePreview?: string
 }
 
 export type TaskDeletionPhase = "queued" | "running" | "error"

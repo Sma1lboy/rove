@@ -372,8 +372,12 @@ export class Orchestrator {
     this.editor.setLinkedWorkItem(id, item)
   setQuotaResume = (id: TaskId | string, state: NonNullable<Task["quotaResume"]> | null): Promise<void> =>
     this.editor.setQuotaResume(id, state)
-  recordCommunication = (fromTaskId: TaskId | string, toTaskId: TaskId | string, at?: string): Promise<void> =>
-    this.editor.recordCommunication(fromTaskId, toTaskId, at)
+  recordCommunication = (
+    fromTaskId: TaskId | string,
+    toTaskId: TaskId | string,
+    at?: string,
+    firstMessagePreview?: string,
+  ): Promise<void> => this.editor.recordCommunication(fromTaskId, toTaskId, at, firstMessagePreview)
 
   /**
    * Permanently remove a task. Refuses to delete `kind: "main"`

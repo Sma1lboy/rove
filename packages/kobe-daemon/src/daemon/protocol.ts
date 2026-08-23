@@ -53,11 +53,11 @@ export {
  * client against an older daemon gets "unknown daemon request" and falls back
  * to a local PTY — so MIN stays 2.
  *
- * v5: additive `task.recordCommunication` request + serialized communication
- * edges. Older clients ignore the field; newer clients treat
- * an older daemon as an empty communication graph, so MIN stays 2.
+ * v5: additive `task.recordCommunication` request + serialized communication edges.
+ * v6: additive bounded `firstMessagePreview` on communication edges. Older
+ * peers ignore the field, so MIN stays 2 across both revisions.
  */
-export const DAEMON_PROTOCOL_VERSION = 5
+export const DAEMON_PROTOCOL_VERSION = 6
 
 /** Oldest protocol version this build can still interoperate with. */
 export const MIN_COMPATIBLE_PROTOCOL_VERSION = 2

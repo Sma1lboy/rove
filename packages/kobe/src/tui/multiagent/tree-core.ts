@@ -17,6 +17,7 @@ export interface AgentTopologyEdge {
   readonly kind: "spawn" | "communication"
   readonly count?: number
   readonly lastAt?: string
+  readonly firstMessagePreview?: string
 }
 
 export interface AgentTopologyBatch {
@@ -92,6 +93,7 @@ export function buildAgentTopology(tasks: readonly Task[]): AgentTopologyProject
         kind: "communication",
         count: communication.count,
         lastAt: communication.lastAt,
+        firstMessagePreview: communication.firstMessagePreview,
       })
     }
   }

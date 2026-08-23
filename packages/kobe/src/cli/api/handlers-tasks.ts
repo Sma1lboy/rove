@@ -6,6 +6,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { normalizeMessagePreview } from "@/lib/message-preview"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { kobeApiInvocation } from "../../engine/interactive-command.ts"
@@ -163,7 +164,11 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   let communicationRecorded: boolean | undefined
   if (peer.senderTaskId) {
     try {
-      await daemon.request("task.recordCommunication", { fromTaskId: peer.senderTaskId, toTaskId: taskId })
+      await daemon.request("task.recordCommunication", {
+        fromTaskId: peer.senderTaskId,
+        toTaskId: taskId,
+        firstMessagePreview: normalizeMessagePreview(prompt),
+      })
       communicationRecorded = true
     } catch {
       // Delivery already happened. Never turn a metadata failure into a
