@@ -1,6 +1,6 @@
 # Unified agent lifecycle events — the plugin event stream
 
-Status: SHIPPED for Claude Code + Codex (2026-07-28; Kimi adapter pending). Extends [plugins.md](./plugins.md) §Events.
+Status: SHIPPED for Claude Code + Codex (2026-07-28) + Kimi (2026-08-23). Extends [plugins.md](./plugins.md) §Events.
 Goal: one engine-agnostic event taxonomy covering the WHOLE product
 lifecycle — Rove's task/worktree layer plus the engine's session/turn/tool
 layer — so a plugin can hook any point of the flow without knowing which
@@ -184,9 +184,13 @@ builds: notify, log, mirror state, auto-file, auto-bootstrap, dashboards.
 - **Attention split (done for Claude).** `awaiting-input` maps to
   `attention.permission` vs `attention.question` by `detail.waiting`. Codex
   PermissionRequest opt-in and `attention.notification` remain deferred.
-- **Kimi adapter**: currently `NoopHookAdapter`; Kimi's hooks config is TOML
-  (`~/.kimi-code/config.toml [[hooks]]`, strict keys, 30s timeout). A
-  same-shape adapter is small; wire.jsonl watching covers the F-gaps.
+- **Kimi adapter** (shipped 2026-08-23): `KimiHookAdapter` writes a
+  marker-delimited `[[hooks]]` block into `~/.kimi-code/config.toml`
+  (append-at-EOF, merge-safe; payload fields verified against the installed
+  0.37.2 binary — `SessionStart`/`UserPromptSubmit`/`Stop` live-fired with
+  `session_id` + `cwd` in every payload). `Interrupt` → turn-interrupted and
+  `PermissionRequest` → awaiting-input are wired; `Notification` stays out
+  (no documented type filter). wire.jsonl watching still covers the F-gaps.
 
 Version gates to re-verify against installed binaries at implementation
 time: Codex `SessionEnd`/`Subagent*` (docs ahead of pinned protocol); Kimi
