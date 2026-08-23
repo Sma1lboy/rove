@@ -47,6 +47,7 @@ import { objectPayload, optionalActivityDetail, optionalString, requireString } 
 import { AGENT_TURN_HANDLERS } from "./handlers-agent-turns.ts"
 import { ATTENTION_HANDLERS } from "./handlers-attention.ts"
 import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
+import { ISSUE_HANDLERS } from "./handlers-issues.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -311,28 +312,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...WORK_ITEM_HANDLERS,
     ...AGENT_TURN_HANDLERS,
     ...UI_HANDLERS,
-    {
-      name: "issue.list",
-      async handle(payload, ctx) {
-        return ctx.issues.list(requireString(payload, "repoRoot"))
-      },
-    },
-    {
-      name: "issue.mutate",
-      async handle(payload, ctx) {
-        const repoRoot = requireString(payload, "repoRoot")
-        const state = await ctx.issues.mutate(repoRoot, payload.op)
-        ctx.bus.publish("issue.snapshot", state)
-        ctx.plugins?.handleUiReport({
-          kind: "issue.changed",
-          detail: {
-            repo: repoRoot,
-            ...(payload.op && typeof payload.op === "object" ? { op: payload.op as Record<string, unknown> } : {}),
-          },
-        })
-        return state
-      },
-    },
+    ...ISSUE_HANDLERS,
     {
       // Production diagnostics (`kobe api inspect`): what the daemon's
       // transient state ACTUALLY holds right now. Bug reports about badges,
