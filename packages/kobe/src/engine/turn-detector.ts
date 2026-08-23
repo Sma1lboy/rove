@@ -15,8 +15,9 @@ import * as codexHistory from "@/engine/codex-local/history"
 import type { VendorId } from "@/types/vendor"
 import { engineEntry } from "./registry.ts"
 
-/** `needs_input` is hook-only (permission prompt / question dialog) — the
- *  quiescence poll can't observe it; only `turn-state-merge.ts` produces it. */
+/** `needs_input` comes from hooks (permission prompt / question dialog via
+ *  `turn-state-merge.ts`) or, for marker-less engines with a screen
+ *  manifest, from the poll's screen classifier (`engine/screen-state.ts`). */
 export type ChatTabTurnState = "idle" | "running" | "done" | "error" | "needs_input" | "unknown"
 
 export interface TurnCompletionMarker {

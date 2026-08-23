@@ -129,4 +129,40 @@ describe("startTurnStatusPoll", () => {
     expect(published).toEqual(["unknown"])
     stop()
   })
+
+  it("marker-less engines WITH a screen manifest classify the capture", async () => {
+    let pane = "$ shell prompt"
+    const { published, io } = makeIo(() => pane)
+    const stop = startTurnStatusPoll(
+      {
+        worktree: "/wt",
+        detector: { supportsCompletionMarkers: () => false, latestCompletion: async () => null },
+        usingShared: () => false,
+        sharedEntry: () => null,
+        screenManifest: {
+          rules: [
+            { state: "blocked", all: ["proceed?"] },
+            { state: "working", any: ["esc to cancel"] },
+          ],
+        },
+      },
+      io,
+    )
+    // prime: nothing matches → first read publishes unknown (never silence)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(published).toEqual(["unknown"])
+    // a running turn shows the interrupt hint
+    pane = "output…\nEsc to cancel"
+    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
+    expect(published).toEqual(["unknown", "running"])
+    // a dialog appears WITHOUT the pane hash logic mattering → needs_input
+    pane = "Do you want to proceed?\n❯ Yes"
+    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS)
+    expect(published).toEqual(["unknown", "running", "needs_input"])
+    // an unrecognized screen keeps the previous reading (no flapping)
+    pane = "something unrecognizable"
+    await vi.advanceTimersByTimeAsync(TURN_STATUS_POLL_MS * 2)
+    expect(published).toEqual(["unknown", "running", "needs_input"])
+    stop()
+  })
 })

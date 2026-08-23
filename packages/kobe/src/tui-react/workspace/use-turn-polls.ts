@@ -162,11 +162,15 @@ export function useTurnPolls(deps: {
       // real first capture (the Ops pane's prime-before-poll contract).
       if (!reg.has(target.key)) continue
       const tabId = tab.id
-      const detector = engineEntry(target.vendor).createTurnDetector()
+      const entry = engineEntry(target.vendor)
+      const detector = entry.createTurnDetector()
       const dispose = startTurnStatusPoll(
         {
           worktree: worktreeRef.current,
           detector,
+          // Marker-less engines (copilot/kimi-without-hooks) classify the
+          // capture declaratively instead of publishing "unknown".
+          ...(entry.screenManifest ? { screenManifest: entry.screenManifest } : {}),
           // Shared mode (issue #24): the daemon's transcript.activity push
           // supplies completion reads + drives the adaptive capture
           // cadence; null (no daemon data) falls back to fixed-cadence
