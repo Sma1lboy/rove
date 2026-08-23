@@ -325,7 +325,8 @@ durable spawn graph. Solid arrows show ownership/spawn; bright dashed arrows
 show confirmed `rove api send` relationships, including replies that visibly
 close a loop back to an owner. Communication edges come from explicit verified
 sender/recipient metadata and never from parsing message text; message content
-is not stored.
+is not stored. Repeated sends reuse one edge, so a long conversation does not
+turn the graph into parallel-line noise.
 
 Each node shows its engine-owned identity and normalized activity state.
 Missing dispatcher tasks and corrupt cycles remain visible as ORPHAN or CYCLE
