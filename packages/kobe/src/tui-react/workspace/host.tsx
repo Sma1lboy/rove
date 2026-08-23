@@ -331,7 +331,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   return (
     <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings}>
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
-          ZEN chip is also the exit affordance. */}
+          ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —
           opentui coerces a full frame if borderColor is ever set, so the box
           carries no border prop at all. The workspace frame's left edge is

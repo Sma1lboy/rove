@@ -311,7 +311,7 @@ export const KobeKeymap: readonly KobeBinding[] = [
   },
   {
     // Zen toggle (issue #18, pure-tui shape) — hides the Files column;
-    // the sidebar's ZEN chip is the click-based exit affordance, this is
+    // the sidebar's ☯ ZEN chip is the click-based exit affordance, this is
     // the keyboard one. Prefix-only `prefix+z` (owner call 2026-07-17,
     // dropping the old f6 direct chord entirely — f6 now passes through
     // to the embedded shell). Reachable from the terminal pane too since
