@@ -261,17 +261,19 @@ export async function land(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const strategy = ctx.args.str("strategy") === "squash" ? "squash" : "merge"
   const removeWorktree = ctx.args.bool("remove-worktree") ?? false
+  const deleteBranch = ctx.args.bool("delete-branch") ?? false
   let res: { result: unknown }
   try {
     res = await daemon.request<{ result: unknown }>("task.land", {
       taskId,
       strategy,
-      deleteBranch: ctx.args.bool("delete-branch") ?? false,
+      deleteBranch,
       archive: ctx.args.bool("then-archive") ?? false,
       removeWorktree,
       // The daemon refuses to remove the worktree the caller is running from —
-      // it can only know where the caller is if we tell it.
-      ...(removeWorktree ? { callerCwd: process.cwd() } : {}),
+      // it can only know where the caller is if we tell it. --delete-branch
+      // removes the worktree too, so it needs the same guard.
+      ...(removeWorktree || deleteBranch ? { callerCwd: process.cwd() } : {}),
     })
   } catch (err) {
     throw landRecoveryError(err, taskId)

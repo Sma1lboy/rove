@@ -266,3 +266,105 @@ describe("landTaskWithCleanup --remove-worktree", () => {
     expect(fs.existsSync(wt)).toBe(true)
   })
 })
+
+describe("landTaskWithCleanup --delete-branch", () => {
+  let wt: string
+
+  /** Real worktree on branch `feat` with one committed file, base back on main. */
+  function makeWorktree(): void {
+    wt = path.join(tmpRoot, "wt")
+    git(["worktree", "add", "-b", "feat", wt], repo)
+    fs.writeFileSync(path.join(wt, "b.txt"), "feature\n")
+    git(["add", "."], wt)
+    git(["commit", "-m", "feat commit"], wt)
+  }
+
+  function deps() {
+    const cleared: string[] = []
+    return {
+      cleared,
+      deps: {
+        worktrees: new GitWorktreeManager(),
+        setArchived: async () => {},
+        clearWorktreePath: async (id: unknown) => {
+          cleared.push(String(id))
+        },
+      },
+    }
+  }
+
+  function branchExists(name: string): boolean {
+    return spawnSync("git", ["branch", "--list", name], { cwd: repo, encoding: "utf8" }).stdout.trim().length > 0
+  }
+
+  test("--delete-branch alone removes the worktree first, then deletes the branch", async () => {
+    // The regression: git refuses to delete a branch checked out in a live
+    // worktree, so --delete-branch on its own used to silently no-op behind
+    // `allowFail`. It now implies removing the worktree, so the branch goes.
+    makeWorktree()
+    const { deps: d, cleared } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
+    expect(res.worktree).toEqual({ removed: true })
+    expect(fs.existsSync(wt)).toBe(false)
+    expect(branchExists("feat")).toBe(false)
+    expect(cleared).toEqual(["t-land"])
+    expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true) // the merge still landed
+  })
+
+  test("--delete-branch with --remove-worktree drops both", async () => {
+    makeWorktree()
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      { deleteBranch: true, removeWorktree: true },
+      d,
+    )
+    expect(res.worktree).toEqual({ removed: true })
+    expect(fs.existsSync(wt)).toBe(false)
+    expect(branchExists("feat")).toBe(false)
+  })
+
+  test("a refused worktree removal keeps the branch and lets the land stand", async () => {
+    // Dirty worktree → removal is refused (no force), so the branch stays
+    // checked out and must NOT be deleted. The land itself still holds.
+    makeWorktree()
+    fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted\n")
+    const { deps: d, cleared } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
+    expect(res.worktree?.removed).toBe(false)
+    expect(res.worktree?.reason).toMatch(/dirty/)
+    expect(branchExists("feat")).toBe(true)
+    expect(cleared).toEqual([])
+    expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
+  })
+
+  test("the caller's own worktree is refused, so its branch survives", async () => {
+    makeWorktree()
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      { deleteBranch: true, callerCwd: wt },
+      d,
+    )
+    expect(res.worktree?.removed).toBe(false)
+    expect(res.worktree?.reason).toMatch(/caller's own worktree/)
+    expect(fs.existsSync(wt)).toBe(true)
+    expect(branchExists("feat")).toBe(true)
+  })
+
+  test("a task that never materialised a worktree still gets its branch deleted", async () => {
+    // Branch exists in the repo with a commit ahead of main but is checked out
+    // nowhere (empty worktreePath) — safe to drop directly, no worktree to
+    // remove.
+    git(["checkout", "-b", "feat"], repo)
+    write("b.txt", "feature\n")
+    git(["add", "."], repo)
+    git(["commit", "-m", "feat commit"], repo)
+    git(["checkout", "main"], repo)
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: "" }, { deleteBranch: true }, d)
+    expect(res.worktree?.removed).toBe(false)
+    expect(branchExists("feat")).toBe(false)
+    expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
+  })
+})

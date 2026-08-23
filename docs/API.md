@@ -356,6 +356,9 @@ to do) from `dispatch_failed` (needs a human).
   forces: a dirty worktree, the base checkout, and the worktree the caller is
   running from are all refused, and the outcome lands in the result's
   `worktree` field (`{ removed, reason? }`) instead of failing the land.
+  `--delete-branch` implies removing the worktree first — git can't delete a
+  branch a live worktree still has checked out — so the branch is dropped only
+  once that removal succeeds (a refused removal keeps the branch, land stands).
 - `delete --task-id ID [--force] [--delete-branch]`: remove a task and its
   worktree. **The git branch stays** unless `--delete-branch` is passed —
   git is the durable record, the task row is not. Needs `--force` on a
