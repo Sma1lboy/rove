@@ -32,6 +32,12 @@ export async function startTui(): Promise<void> {
   // launch an engine, so its first activity events are observable too.
   await ensureGlobalKobeHooks()
 
+  // Plugin-contributed engines ([[engines]] in enabled plugin manifests) —
+  // registered before the Workspace Host so the selector, launch path, and
+  // screen badges all see them from the first frame.
+  const { loadPluginEngines } = await import("../engine/plugin-engines.ts")
+  loadPluginEngines()
+
   const { startWorkspaceHost } = await import("../tui-react/workspace/host.tsx")
   await startWorkspaceHost()
 }

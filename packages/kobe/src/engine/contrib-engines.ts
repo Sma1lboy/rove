@@ -21,11 +21,35 @@
 import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
 
-interface ContribEngineSpec {
+export interface ContribEngineSpec {
   readonly displayName: string
   readonly defaultCommand: readonly string[]
   readonly processNames?: readonly string[]
   readonly screenManifest: EngineScreenManifest
+}
+
+/**
+ * Plugin-contributed engines, registered at process start from enabled
+ * plugin manifests' `[[engines]]` tables (`./plugin-engines.ts` reads +
+ * translates; this module only holds the table so `registry.ts` stays
+ * import-cycle-free and state-free). Shipped catalog ids and built-ins win
+ * over a same-named plugin engine — registration skips those.
+ */
+const pluginEngines = new Map<string, ContribEngineSpec>()
+
+export function registerPluginEngine(id: string, spec: ContribEngineSpec): boolean {
+  if (Object.hasOwn(CONTRIB_ENGINES, id)) return false
+  pluginEngines.set(id, spec)
+  return true
+}
+
+/** Test seam: drop all plugin-registered engines. */
+export function clearPluginEngines(): void {
+  pluginEngines.clear()
+}
+
+export function pluginEngineIds(): readonly string[] {
+  return [...pluginEngines.keys()]
 }
 
 const GEMINI: EngineScreenManifest = {
@@ -100,7 +124,7 @@ export const CONTRIB_ENGINES: Record<string, ContribEngineSpec> = {
 }
 
 export function isContribEngine(id: string): boolean {
-  return Object.hasOwn(CONTRIB_ENGINES, id)
+  return Object.hasOwn(CONTRIB_ENGINES, id) || pluginEngines.has(id)
 }
 
 export const CONTRIB_ENGINE_IDS: readonly string[] = Object.keys(CONTRIB_ENGINES)
@@ -112,7 +136,7 @@ export const CONTRIB_ENGINE_IDS: readonly string[] = Object.keys(CONTRIB_ENGINES
  * type-only), overlaid with the contrib's identity + manifest.
  */
 export function contribEngineEntry(id: string, base: EngineRegistryEntry): EngineRegistryEntry {
-  const spec = CONTRIB_ENGINES[id]
+  const spec = CONTRIB_ENGINES[id] ?? pluginEngines.get(id)
   if (!spec) return base
   return {
     ...base,

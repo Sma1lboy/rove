@@ -46,7 +46,7 @@ import { getCustomEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
 import { ClaudeBinaryNotFoundError, findClaudeBinary } from "./claude-code-local/binary"
 import { CodexBinaryNotFoundError, findCodexBinary } from "./codex-local/binary"
-import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS } from "./contrib-engines"
+import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
 import { CopilotBinaryNotFoundError, findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
 import { KimiBinaryNotFoundError, findKimiBinary } from "./kimi-local/binary"
@@ -290,14 +290,18 @@ function detectContribEngines(): Promise<readonly VendorId[]> {
   // `Bun.which` is absent under vitest (node runtime) — treat that as "none
   // detected", the same degradation as a missing binary.
   const which: ((bin: string) => string | null) | undefined = globalThis.Bun?.which
-  cachedContribEngines = Promise.resolve(
-    which
+  // Plugin-registered engines are offered unconditionally — like custom
+  // engines, "the user installed the plugin" counts as available (a missing
+  // binary just fails to launch with a shell error).
+  cachedContribEngines = Promise.resolve([
+    ...(which
       ? CONTRIB_ENGINE_IDS.filter((id) => {
           const bin = CONTRIB_ENGINES[id]?.defaultCommand[0]
           return bin ? which(bin) !== null : false
         })
-      : [],
-  )
+      : []),
+    ...pluginEngineIds(),
+  ])
   return cachedContribEngines
 }
 
