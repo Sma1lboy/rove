@@ -1,10 +1,11 @@
 /**
  * `worktree.*` daemon RPC handlers.
  *
- * The first 4 entries (`discoverAdoptable`/`adopt`/`reconcile`/
- * `archiveRemoved`) are split out of `handlers.ts` (which was over the
- * repo's 500-line file-size cap) purely mechanically — same behavior,
- * moved verbatim.
+ * The first entries (`discoverAdoptable`/`adopt`/`archiveRemoved`) are
+ * split out of `handlers.ts` (which was over the repo's 500-line file-size
+ * cap). `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
+ * 2026-08-24: creation is mechanical, not intent — adoption now needs an
+ * engine session-start in a managed root or an explicit `rove add .`/adopt.
  *
  * `list`/`remove` are NEW — the standalone worktree-management TUI page
  * (`tui/component/worktrees-page.tsx`). Unlike the other four, they don't
@@ -17,7 +18,7 @@
  */
 
 import { logDaemonError } from "./crash-log.ts"
-import { matchRepoByCwd, matchTaskByWorktreePath } from "./cwd-task.ts"
+import { matchTaskByWorktreePath } from "./cwd-task.ts"
 import { optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
@@ -45,30 +46,6 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
         ifExists: optionalString(payload, "ifExists") === "return" ? "return" : "error",
       })
       return { task: serializeTask(task) }
-    },
-  },
-  {
-    name: "worktree.reconcile",
-    async handle(payload, ctx) {
-      // A `kobe hook worktree-created` (global PostToolUse) reporting that a
-      // `git worktree add` just ran in `cwd`, creating `worktreePath`. Adopt
-      // it the MOMENT it's created — no engine session needed (the
-      // creation-time complement to the `session-start` auto-adopt in
-      // `engine.reportEvent` below). Bounded to repos kobe already tracks
-      // (so a stray worktree in an untracked repo is ignored); `adoptWorktree`
-      // is idempotent + git-validated, so a re-fired hook or a bogus path is a
-      // harmless no-op (the path just fails validation → caught → dropped).
-      const cwd = requireString(payload, "cwd")
-      const worktreePath = requireString(payload, "worktreePath")
-      const repo = matchRepoByCwd(ctx.orch.listTasks(), cwd) ?? matchRepoByCwd(ctx.orch.listTasks(), worktreePath)
-      if (!repo) return { adopted: false }
-      try {
-        const task = await ctx.orch.adoptWorktree({ repo, worktreePath, ifExists: "return" })
-        return { adopted: true, taskId: task.id }
-      } catch (err) {
-        logDaemonError("worktree-created", err)
-        return { adopted: false }
-      }
     },
   },
   {

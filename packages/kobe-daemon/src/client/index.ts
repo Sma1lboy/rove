@@ -56,7 +56,6 @@ const RPC_TIMEOUT_EXEMPT: ReadonlySet<DaemonRequestName> = new Set<DaemonRequest
   "task.ensureMain",
   "worktree.discoverAdoptable",
   "worktree.adopt",
-  "worktree.reconcile",
   "worktree.archiveRemoved",
   "worktree.list",
   "worktree.remove",
