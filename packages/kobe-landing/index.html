@@ -69,7 +69,24 @@ button{font-family:inherit;cursor:pointer}
 .gh-link{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:12px;font-weight:500;background:var(--ink);color:oklch(97% 0.008 85);padding:7px 14px;margin-left:8px;transition:background 140ms;white-space:nowrap}
 .gh-link:hover{background:var(--accent);color:oklch(99% 0.005 85)}
 .gh-stars{display:inline-flex;align-items:center;gap:4px;color:oklch(85% 0.06 85)}
-@media(max-width:820px){.navbar a.nl{display:none}}
+/* This used to hide all five links, leaving `$ Rove [中文] [GitHub]` — the
+   same defect fixed on plugins/themes in #511. The home bar is full-width,
+   so it keeps more than the pill could: the section anchors go first (they
+   scroll to content already on this page), then changelog, which the footer
+   also links. Measured against the real bar, not guessed. */
+@media(max-width:820px){
+  .navbar a.nl[href*="#workflow"],.navbar a.nl[href*="#install"]{display:none}
+  .navbar a.nl{padding:6px 8px}
+}
+@media(max-width:460px){
+  .navbar a.nl[href*="changelog"]{display:none}
+  .gh-link>span:not(.gh-stars){display:none}
+  .navbar{padding:10px 12px}
+  .navbar .bin{padding-right:6px}
+  .navbar a.nl{padding:6px 6px}
+  .lang-btn{padding:6px 9px;margin-left:4px}
+  .gh-link{padding:7px 11px;margin-left:5px}
+}
 
 /* ============ HERO ============ */
 /* padding-bottom gives the veil runway below the equation — without it the
