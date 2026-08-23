@@ -35,6 +35,7 @@ test("renders a Dagre topology, fan-out batch, and engine-normalized activity", 
     id: toTaskId("agent-b"),
     dispatcher: { taskId: "Owner session", tabId: "tab-1" },
     groupId: "01JAGENTROUND",
+    communications: [{ targetTaskId: "Owner session", count: 2, lastAt: "2026-08-22T01:00:00.000Z" }],
   })
   const engineStates = new Map<string, TaskEngineState>([
     ["agent-a", { state: "running", at: Date.now() }],
@@ -54,6 +55,8 @@ test("renders a Dagre topology, fan-out batch, and engine-normalized activity", 
   expect(text).toContain("Codex")
   expect(text).toContain("running")
   expect(text).toContain("complete")
+  expect(text).toContain("message")
+  expect(text).toMatch(/[┆┄◁▷△▽]/)
 })
 
 test("j then enter opens the selected topology node", async () => {
@@ -75,4 +78,27 @@ test("j then enter opens the selected topology node", async () => {
   act(() => mockInput.pressKey("j"))
   act(() => mockInput.pressEnter())
   expect(opened).toBe("child")
+})
+
+test("left and right cycle spawn roots before enter opens one", async () => {
+  const owner = task("owner")
+  const child = task("child", { dispatcher: { taskId: "owner", tabId: "tab-1" } })
+  const secondRoot = task("second-root")
+  let opened = ""
+  const { mockInput, rerender } = await renderComponent(
+    <AgentTreePage
+      tasks={[owner, child, secondRoot]}
+      focused={true}
+      onClose={() => {}}
+      onOpenTask={(id) => {
+        opened = id
+      }}
+    />,
+    { width: 80, height: 20 },
+  )
+
+  act(() => mockInput.pressArrow("right"))
+  await rerender()
+  act(() => mockInput.pressEnter())
+  expect(opened).toBe("second-root")
 })

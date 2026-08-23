@@ -174,6 +174,7 @@ while the page has focus.
 
 | Page | Keys |
 |---|---|
+| Agent Topology | `j`/`k` or up/down select nodes; left/right cycles roots; `tab` changes project; `enter` opens the selected Task |
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
 | Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles “assigned to me”; `r` refreshes; `enter` starts a Task |

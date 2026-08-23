@@ -5,7 +5,7 @@ import {
   topologyEdgeRaster,
   topologyViewportOffset,
 } from "../../src/tui/multiagent/topology-layout"
-import { buildAgentTopology, shortGroupId } from "../../src/tui/multiagent/tree-core"
+import { buildAgentTopology, shortGroupId, topologyRootId } from "../../src/tui/multiagent/tree-core"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -81,6 +81,22 @@ describe("agent topology projection", () => {
     const clipped = clipTopologyRaster(raster, offset, { width: 16, height: 8 })
     expect(clipped.split("\n")).toHaveLength(8)
     expect(clipped.split("\n").every((row) => [...row].length === 16)).toBe(true)
+  })
+
+  test("keeps ownership rooted in spawn edges and renders a directed reply loop", () => {
+    const owner = task("owner")
+    const child = task("child", {
+      dispatcher: { taskId: "owner", tabId: "tab-1" },
+      communications: [{ targetTaskId: "owner", count: 3, lastAt: "2026-08-22T01:00:00.000Z" }],
+    })
+    const topology = buildAgentTopology([owner, child])
+    const communication = topology.edges.find((edge) => edge.kind === "communication")
+
+    expect(communication).toMatchObject({ from: "child", to: "owner", count: 3 })
+    expect(topologyRootId(topology, "child")).toBe("owner")
+
+    const layout = layoutAgentTopology(topology, { direction: "TB", nodeWidth: 20 })
+    expect(topologyEdgeRaster(layout, "communication").join("\n")).toMatch(/[┆┄◁▷△▽]/)
   })
 
   test("keeps compact batch ids", () => {

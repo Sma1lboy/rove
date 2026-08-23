@@ -7,7 +7,7 @@
 import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useState } from "react"
 import type { TaskEngineState } from "../../client/remote-orchestrator"
-import { buildAgentTopology } from "../../tui/multiagent/tree-core"
+import { buildAgentTopology, topologyRootId } from "../../tui/multiagent/tree-core"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import type { Task } from "../../types/task"
 import { useTheme } from "../context/theme"
@@ -51,6 +51,9 @@ export function AgentTreePage(props: {
   }, [projection.nodes.length])
 
   const selectedId = projection.nodes[cursor]?.id
+  const rootIds = projection.nodes.filter((node) => node.role === "root").map((node) => node.id)
+  const selectedRootId = topologyRootId(projection, selectedId)
+  const selectedRootIndex = Math.max(0, rootIds.indexOf(selectedRootId ?? ""))
 
   function moveCursor(delta: -1 | 1): void {
     setCursor((value) => Math.max(0, Math.min(value + delta, projection.nodes.length - 1)))
@@ -62,6 +65,13 @@ export function AgentTreePage(props: {
     setCursor(0)
   }
 
+  function cycleRoot(delta: -1 | 1): void {
+    if (rootIds.length === 0) return
+    const nextRootId = rootIds[(selectedRootIndex + delta + rootIds.length) % rootIds.length]
+    const nextCursor = projection.nodes.findIndex((node) => node.id === nextRootId)
+    if (nextCursor >= 0) setCursor(nextCursor)
+  }
+
   useBindings(() => ({
     enabled: props.focused !== false,
     bindings: [
@@ -70,6 +80,8 @@ export function AgentTreePage(props: {
       { key: "down", cmd: () => moveCursor(1) },
       { key: "k", cmd: () => moveCursor(-1) },
       { key: "up", cmd: () => moveCursor(-1) },
+      { key: "left", cmd: () => cycleRoot(-1) },
+      { key: "right", cmd: () => cycleRoot(1) },
       { key: "tab", cmd: () => cycleRepo(1) },
       { key: "shift+tab", cmd: () => cycleRepo(-1) },
       { key: "return", cmd: () => selectedId && props.onOpenTask?.(selectedId) },
@@ -94,14 +106,27 @@ export function AgentTreePage(props: {
       </box>
 
       {repo ? (
-        <text fg={projection.summary.anomalies > 0 ? theme.warning : theme.textMuted} wrapMode="none" flexShrink={0}>
-          {t("agents.summary", {
-            agents: projection.summary.agents,
-            coordinators: projection.summary.coordinators,
-            batches: projection.summary.batches,
-          })}
-          {anomalySuffix}
-        </text>
+        <box flexDirection="row" flexShrink={0} gap={2}>
+          <text
+            fg={projection.summary.anomalies > 0 ? theme.warning : theme.textMuted}
+            wrapMode="none"
+            flexBasis={0}
+            flexGrow={1}
+          >
+            {t("agents.summary", {
+              agents: projection.summary.agents,
+              coordinators: projection.summary.coordinators,
+              batches: projection.summary.batches,
+            })}
+            {anomalySuffix}
+          </text>
+          <text fg={theme.borderActive} wrapMode="none">
+            {t("agents.legend")}
+          </text>
+          <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none">
+            {t("agents.rootNav", { current: rootIds.length > 0 ? selectedRootIndex + 1 : 0, count: rootIds.length })}
+          </text>
+        </box>
       ) : null}
 
       {!repo ? (

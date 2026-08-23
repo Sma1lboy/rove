@@ -212,6 +212,38 @@ describe("load() recovery", () => {
     expect(malformed?.groupId).toBeUndefined()
   })
 
+  it("persists bounded communication edges and drops malformed entries", async () => {
+    await primeDir()
+    const base = {
+      id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      title: "ok",
+      repo: "/r",
+      branch: "b",
+      worktreePath: "",
+      status: "backlog",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    }
+    await writeManifest(
+      JSON.stringify({
+        version: 3,
+        tasks: [
+          {
+            ...base,
+            communications: [
+              { targetTaskId: "peer", count: 2, lastAt: "2026-08-22T01:00:00.000Z" },
+              { targetTaskId: "peer", count: 9, lastAt: "2026-08-22T02:00:00.000Z" },
+              { targetTaskId: 42, count: 1, lastAt: "2026-08-22T03:00:00.000Z" },
+            ],
+          },
+        ],
+      }),
+    )
+    expect((await store.load()).tasks[0]?.communications).toEqual([
+      { targetTaskId: "peer", count: 9, lastAt: "2026-08-22T02:00:00.000Z" },
+    ])
+  })
+
   // These were written to disk but dropped on load, so each survived only
   // until the next daemon restart: a pending quota resume was forgotten by
   // the runner whose whole durability story is an on-disk timestamp, and a

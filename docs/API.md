@@ -118,6 +118,9 @@ replacement in `nextCommandArgs`.
   `unregistered: true` — an alive engine is never invisible here.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
   task, when one did — the lineage read for a parallel round's parent.
+  `.task.communications` = the sender's bounded, content-free list of
+  confirmed peer targets (`targetTaskId`/`count`/`lastAt`), used by Agent
+  Topology to draw directed message edges.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
   = the protocol derived from it.
 - `collect [--task-ids a,b,c] [--repo PATH]`: read-only comparison
@@ -232,7 +235,12 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   `NO_ENGINE_TAB` rather than silently spawning a duplicate engine. Only a
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree — `started: true` in the result marks that fresh
-  session (vs. delivery into an existing one).
+  session (vs. delivery into an existing one). After a verified cross-task
+  delivery is confirmed, Rove coalesces a sender → recipient communication
+  edge in task metadata (at most 32 distinct recipients per sender; no
+  message content). The result reports `communicationRecorded`; a metadata
+  write failure remains `ok: true` with `communicationRecorded: false`
+  because retrying an already-delivered prompt would duplicate it.
 - `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a
   task's live session via the daemon's `session.deliver` channel; requires an
   already-hosted session (the dispatcher's messenger; see

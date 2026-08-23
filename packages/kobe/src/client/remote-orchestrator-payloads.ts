@@ -393,6 +393,7 @@ export function deserializeTask(s: SerializedTask): Task {
     groupId: s.groupId,
     deletion: s.deletion,
     dispatcher: s.dispatcher,
+    communications: s.communications,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   }

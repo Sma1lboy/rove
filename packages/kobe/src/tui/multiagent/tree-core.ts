@@ -14,7 +14,9 @@ export interface AgentTopologyEdge {
   readonly id: string
   readonly from: string
   readonly to: string
-  readonly kind: "spawn"
+  readonly kind: "spawn" | "communication"
+  readonly count?: number
+  readonly lastAt?: string
 }
 
 export interface AgentTopologyBatch {
@@ -78,6 +80,21 @@ export function buildAgentTopology(tasks: readonly Task[]): AgentTopologyProject
     edges.push({ id: `spawn:${parentId}:${id}`, from: parentId, to: id, kind: "spawn" })
     childCounts.set(parentId, (childCounts.get(parentId) ?? 0) + 1)
   }
+  for (const task of tasks) {
+    const from = String(task.id)
+    for (const communication of task.communications ?? []) {
+      const to = communication.targetTaskId
+      if (from === to || !byId.has(to)) continue
+      edges.push({
+        id: `communication:${from}:${to}`,
+        from,
+        to,
+        kind: "communication",
+        count: communication.count,
+        lastAt: communication.lastAt,
+      })
+    }
+  }
 
   const batchesById = new Map<string, string[]>()
   for (const task of tasks) {
@@ -113,4 +130,22 @@ export function buildAgentTopology(tasks: readonly Task[]): AgentTopologyProject
 
 export function shortGroupId(groupId: string): string {
   return groupId.length <= 8 ? groupId : groupId.slice(-8)
+}
+
+/** Resolve the durable spawn root for one node; communication edges do not affect ownership. */
+export function topologyRootId(projection: AgentTopologyProjection, nodeId: string | undefined): string | undefined {
+  if (!nodeId) return undefined
+  const parentByChild = new Map(
+    projection.edges.filter((edge) => edge.kind === "spawn").map((edge) => [edge.to, edge.from]),
+  )
+  const visited = new Set<string>()
+  let current = nodeId
+  while (!visited.has(current)) {
+    visited.add(current)
+    const parent = parentByChild.get(current)
+    if (!parent)
+      return projection.nodes.some((node) => node.id === current && node.role === "root") ? current : undefined
+    current = parent
+  }
+  return undefined
 }

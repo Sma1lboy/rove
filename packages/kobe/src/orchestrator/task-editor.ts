@@ -261,4 +261,27 @@ export class TaskEditor {
     if ((task.linkedWorkItem?.url ?? null) === (item?.url ?? null)) return
     await this.store.update(task.id, { linkedWorkItem: item ?? undefined })
   }
+
+  /**
+   * Coalesce one confirmed peer delivery into the sender's bounded contact
+   * list. Message content and tab identity deliberately stay out of the task
+   * index; the topology needs only direction, recency, and aggregate count.
+   */
+  async recordCommunication(fromTaskId: TaskId | string, toTaskId: TaskId | string, at?: string): Promise<void> {
+    const sender = this.requireTask(fromTaskId)
+    this.requireTask(toTaskId)
+    if (String(fromTaskId) === String(toTaskId)) return
+    const timestamp = at ?? new Date().toISOString()
+    if (Number.isNaN(Date.parse(timestamp))) throw new Error("recordCommunication: at must be an ISO-8601 timestamp")
+    const existing = sender.communications?.find((edge) => edge.targetTaskId === String(toTaskId))
+    const next = [
+      ...(sender.communications ?? []).filter((edge) => edge.targetTaskId !== String(toTaskId)),
+      {
+        targetTaskId: String(toTaskId),
+        count: Math.min(Number.MAX_SAFE_INTEGER, (existing?.count ?? 0) + 1),
+        lastAt: timestamp,
+      },
+    ].slice(-32)
+    await this.store.update(sender.id, { communications: next })
+  }
 }

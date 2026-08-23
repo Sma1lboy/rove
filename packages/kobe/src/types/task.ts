@@ -81,6 +81,15 @@ export interface TaskPRStatus {
   readonly lastError?: string
 }
 
+/** One directed, successfully delivered peer-message relationship.
+ * Stored on the sender task and coalesced per target so topology metadata is
+ * bounded instead of growing once per message. */
+export interface TaskCommunication {
+  readonly targetTaskId: string
+  readonly count: number
+  readonly lastAt: string
+}
+
 export type TaskDeletionPhase = "queued" | "running" | "error"
 
 /** Durable state for daemon-owned background worktree cleanup. */
@@ -225,6 +234,8 @@ export interface Task {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** Bounded, daemon-recorded `api send` edges originating at this task. */
+  readonly communications?: readonly TaskCommunication[]
   readonly createdAt: string
   readonly updatedAt: string
 }

@@ -57,6 +57,13 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** Directed successful peer-message edge (mirrors kobe/types/task.ts). */
+export interface TaskCommunication {
+  readonly targetTaskId: string
+  readonly count: number
+  readonly lastAt: string
+}
+
 /** Pointer back to the external issue a task was started from. Snapshot for
  *  display; `url` is the durable way to the live item. Never synced. */
 export interface TaskLinkedWorkItem {
@@ -93,6 +100,8 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** Bounded `api send` edges originating at this task. */
+  readonly communications?: readonly TaskCommunication[]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -156,6 +165,8 @@ export interface DaemonOrchestrator {
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
+  /** Record one confirmed peer-message delivery without storing its content. */
+  recordCommunication(fromTaskId: string, toTaskId: string, at?: string): Promise<void>
   reorderTasks(moves: ReadonlyArray<{ taskId: string; position: number }>): Promise<void>
   deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>

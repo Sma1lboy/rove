@@ -10,6 +10,8 @@ export const en = {
   orphan: "ORPHAN",
   cycle: "CYCLE",
   batch: "BATCH {id} · {count}",
+  legend: "── spawn · ┄▷ message",
+  rootNav: "ROOT {current}/{count} ←→",
   state: {
     running: "running",
     idle: "idle",
@@ -19,7 +21,7 @@ export const en = {
     error: "error",
     archived: "archived",
   },
-  hint: "↑↓/j k move · tab project · enter open · esc close",
+  hint: "↑↓/j k move · ←→ root · tab project · enter open · esc close",
 }
 
 export const zh: typeof en = {
@@ -34,6 +36,8 @@ export const zh: typeof en = {
   orphan: "孤立",
   cycle: "循环",
   batch: "批次 {id} · {count}",
+  legend: "── 派生 · ┄▷ 通信",
+  rootNav: "根节点 {current}/{count} ←→",
   state: {
     running: "运行中",
     idle: "空闲",
@@ -43,5 +47,5 @@ export const zh: typeof en = {
     error: "错误",
     archived: "已归档",
   },
-  hint: "↑↓/j k 移动 · tab 切项目 · enter 打开 · esc 关闭",
+  hint: "↑↓/j k 移动 · ←→ 切根节点 · tab 切项目 · enter 打开 · esc 关闭",
 }

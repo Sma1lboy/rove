@@ -321,14 +321,17 @@ spawns its own subagents, not just the original root.
 Siblings created by one parallel `rove api add --count` or `--agents` call are
 enclosed in a **BATCH** derived from their shared `groupId`. A batch is launch
 metadata, not a synthetic agent or an extra graph level. Dagre places the
-durable spawn graph; the current panel does not invent communication edges
-from message text. Those edges can be added when the daemon exposes explicit
-sender and recipient records.
+durable spawn graph. Solid arrows show ownership/spawn; bright dashed arrows
+show confirmed `rove api send` relationships, including replies that visibly
+close a loop back to an owner. Communication edges come from explicit verified
+sender/recipient metadata and never from parsing message text; message content
+is not stored.
 
 Each node shows its engine-owned identity and normalized activity state.
 Missing dispatcher tasks and corrupt cycles remain visible as ORPHAN or CYCLE
-nodes instead of being dropped. `j`/`k` or the arrow keys move through nodes,
-`tab` cycles projects, and `enter` opens the selected task. The page
+nodes instead of being dropped. `j`/`k` or up/down move through nodes,
+left/right cycles spawn roots and centers the selected root, `tab` cycles
+projects, and `enter` opens the selected task. The page
 intentionally has no global chord: its sidebar row is the discoverable entry,
 so no terminal key is claimed for an observability view.
 

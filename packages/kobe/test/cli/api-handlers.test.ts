@@ -265,12 +265,13 @@ describe("send handler", () => {
       } else process.env.KOBE_TASK_ID = saved
     })
 
-    const peerClient = () =>
+    const peerClient = (record: () => unknown = () => ({})) =>
       new FakeClient({
         "task.get": (payload) => {
           const id = (payload as { taskId: string }).taskId
           return { task: taskFixture({ id, title: id === "sender-1" ? "Auth attempt" : "T" }) }
         },
+        "task.recordCommunication": record,
       })
 
     it("prefixes cross-task sends with sender identity and a reply command", async () => {
@@ -290,11 +291,41 @@ describe("send handler", () => {
 
     it("--plain sends verbatim", async () => {
       const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--plain"], {
-        client: peerClient(),
+      const client = peerClient()
+      const result = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--plain"], {
+        client,
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
       expect(calls[0].prompt).toBe("hi")
+      expect(client.requests.at(-1)).toEqual({
+        name: "task.recordCommunication",
+        payload: { fromTaskId: "sender-1", toTaskId: "abc" },
+      })
+      expect(result).toMatchObject({ communicationRecorded: true })
+    })
+
+    it("does not record a failed delivery", async () => {
+      const client = peerClient()
+      await expectApiError(
+        () =>
+          invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+            client,
+            runtime: stubRuntime({ deliverPrompt: recordingDelivery({ delivered: false }).deliver }),
+          }),
+        "NOT_DELIVERED",
+      )
+      expect(client.requestNames).not.toContain("task.recordCommunication")
+    })
+
+    it("reports metadata failure without turning the delivered prompt into a retryable error", async () => {
+      const client = peerClient(() => {
+        throw new Error("disk on fire")
+      })
+      const result = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+        client,
+        runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+      })
+      expect(result).toMatchObject({ ok: true, communicationRecorded: false })
     })
 
     it("a send to yourself stays untouched", async () => {

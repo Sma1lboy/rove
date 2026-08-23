@@ -19,6 +19,7 @@
 import { copyFile } from "node:fs/promises"
 import type {
   Task,
+  TaskCommunication,
   TaskDeletionState,
   TaskDispatcher,
   TaskLinkedWorkItem,
@@ -164,6 +165,7 @@ function coerceTask(value: unknown): Task | null {
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
+  const communications = coerceCommunications(v.communications)
 
   return {
     id: toTaskId(v.id),
@@ -203,9 +205,24 @@ function coerceTask(value: unknown): Task | null {
     // load coercion or a daemon restart severs every sub-task's route home.
     // Records that predate the field normalize to undefined.
     ...(dispatcher ? { dispatcher } : {}),
+    ...(communications.length > 0 ? { communications } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
+}
+
+function coerceCommunications(value: unknown): TaskCommunication[] {
+  if (!Array.isArray(value)) return []
+  const byTarget = new Map<string, TaskCommunication>()
+  for (const raw of value.slice(-32)) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue
+    const v = raw as Record<string, unknown>
+    if (typeof v.targetTaskId !== "string" || v.targetTaskId.length === 0) continue
+    if (typeof v.count !== "number" || !Number.isSafeInteger(v.count) || v.count < 1) continue
+    if (typeof v.lastAt !== "string" || Number.isNaN(Date.parse(v.lastAt))) continue
+    byTarget.set(v.targetTaskId, { targetTaskId: v.targetTaskId, count: v.count, lastAt: v.lastAt })
+  }
+  return [...byTarget.values()].slice(-32)
 }
 
 function coerceDispatcher(value: unknown): TaskDispatcher | undefined {

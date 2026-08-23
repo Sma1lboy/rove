@@ -62,6 +62,25 @@ function routeEdge(from: TopologyLayoutNode, to: TopologyLayoutNode, direction: 
   return [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end]
 }
 
+/** Route message edges outside the spawn ranks so a reply visibly closes a loop. */
+function routeCommunicationEdge(
+  from: TopologyLayoutNode,
+  to: TopologyLayoutNode,
+  direction: TopologyDirection,
+  lane: number,
+): TopologyPoint[] {
+  if (direction === "TB") {
+    const start = { x: from.x + from.width, y: from.y + Math.floor(from.height / 2) }
+    const end = { x: to.x + to.width, y: to.y + Math.floor(to.height / 2) }
+    const outerX = Math.max(start.x, end.x) + 3 + lane * 2
+    return [start, { x: outerX, y: start.y }, { x: outerX, y: end.y }, end]
+  }
+  const start = { x: from.x + Math.floor(from.width / 2), y: from.y + from.height }
+  const end = { x: to.x + Math.floor(to.width / 2), y: to.y + to.height }
+  const outerY = Math.max(start.y, end.y) + 2 + lane
+  return [start, { x: start.x, y: outerY }, { x: end.x, y: outerY }, end]
+}
+
 function layoutBatch(
   batch: AgentTopologyBatch,
   byId: ReadonlyMap<string, TopologyLayoutNode>,
@@ -103,7 +122,9 @@ export function layoutAgentTopology(
       height: nodeHeight + (grouped.has(node.id) ? BATCH_PAD_Y * 2 : 0),
     })
   }
-  for (const edge of projection.edges) graph.setEdge(edge.from, edge.to, { weight: 8, minlen: 1 })
+  for (const edge of projection.edges) {
+    if (edge.kind === "spawn") graph.setEdge(edge.from, edge.to, { weight: 8, minlen: 1 })
+  }
   runDagreLayout(graph)
 
   const nodes = projection.nodes.map((node): TopologyLayoutNode => {
@@ -117,10 +138,16 @@ export function layoutAgentTopology(
     }
   })
   const byId = new Map(nodes.map((node) => [node.id, node]))
+  let communicationLane = 0
   const edges = projection.edges.flatMap((edge): TopologyLayoutEdge[] => {
     const from = byId.get(edge.from)
     const to = byId.get(edge.to)
-    return from && to ? [{ ...edge, points: routeEdge(from, to, direction) }] : []
+    if (!from || !to) return []
+    const points =
+      edge.kind === "spawn"
+        ? routeEdge(from, to, direction)
+        : routeCommunicationEdge(from, to, direction, communicationLane++ % 4)
+    return [{ ...edge, points }]
   })
   const batches = projection.batches.flatMap((batch): TopologyLayoutBatch[] => {
     const placed = layoutBatch(batch, byId)
@@ -130,11 +157,13 @@ export function layoutAgentTopology(
     1,
     ...nodes.map((node) => node.x + node.width),
     ...batches.map((batch) => batch.x + batch.width),
+    ...edges.flatMap((edge) => edge.points.map((point) => point.x + 1)),
   )
   const bottom = Math.max(
     1,
     ...nodes.map((node) => node.y + node.height),
     ...batches.map((batch) => batch.y + batch.height),
+    ...edges.flatMap((edge) => edge.points.map((point) => point.y + 1)),
   )
 
   return { direction, width: right + 4, height: bottom + 3, nodes, edges, batches }
@@ -172,7 +201,7 @@ function link(cells: Uint8Array[], a: TopologyPoint, b: TopologyPoint): void {
   }
 }
 
-function glyph(mask: number): string {
+function glyph(mask: number, dashed: boolean): string {
   const table: Record<number, string> = {
     [UP]: "│",
     [DOWN]: "│",
@@ -190,7 +219,11 @@ function glyph(mask: number): string {
     [LEFT | RIGHT | UP]: "┴",
     [UP | RIGHT | DOWN | LEFT]: "┼",
   }
-  return table[mask] ?? " "
+  const solid = table[mask] ?? " "
+  if (!dashed) return solid
+  if (solid === "│") return "┆"
+  if (solid === "─") return "┄"
+  return solid
 }
 
 function orthogonalPoints(points: readonly TopologyPoint[], direction: TopologyDirection): TopologyPoint[] {
@@ -212,10 +245,13 @@ function orthogonalPoints(points: readonly TopologyPoint[], direction: TopologyD
 }
 
 /** Rasterize routed spawn edges into a monochrome box-drawing canvas. */
-export function topologyEdgeRaster(layout: TopologyLayout): readonly string[] {
+export function topologyEdgeRaster(
+  layout: TopologyLayout,
+  kind: AgentTopologyEdge["kind"] = "spawn",
+): readonly string[] {
   const cells = Array.from({ length: layout.height }, () => new Uint8Array(layout.width))
   const arrows = new Map<string, string>()
-  for (const edge of layout.edges) {
+  for (const edge of layout.edges.filter((candidate) => candidate.kind === kind)) {
     const points = orthogonalPoints(edge.points, layout.direction)
     for (let i = 1; i < points.length; i += 1) link(cells, points[i - 1]!, points[i]!)
     const end = points.at(-1)
@@ -224,10 +260,27 @@ export function topologyEdgeRaster(layout: TopologyLayout): readonly string[] {
     const dx = Math.sign(end.x - before.x)
     const dy = Math.sign(end.y - before.y)
     const arrow = { x: end.x - dx, y: end.y - dy }
-    const mark = dx > 0 ? "▶" : dx < 0 ? "◀" : dy > 0 ? "▼" : "▲"
+    const mark =
+      kind === "spawn"
+        ? dx > 0
+          ? "▶"
+          : dx < 0
+            ? "◀"
+            : dy > 0
+              ? "▼"
+              : "▲"
+        : dx > 0
+          ? "▷"
+          : dx < 0
+            ? "◁"
+            : dy > 0
+              ? "▽"
+              : "△"
     arrows.set(`${arrow.x}:${arrow.y}`, mark)
   }
-  return cells.map((row, y) => [...row].map((mask, x) => arrows.get(`${x}:${y}`) ?? glyph(mask)).join(""))
+  return cells.map((row, y) =>
+    [...row].map((mask, x) => arrows.get(`${x}:${y}`) ?? glyph(mask, kind === "communication")).join(""),
+  )
 }
 
 function clamp(value: number, min: number, max: number): number {

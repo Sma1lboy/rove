@@ -8,6 +8,15 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Agent Topology root switching
+
+**2026-08-22 — left/right cycle spawn roots (owner call, same turn).** The
+topology can contain several independent agent groups in one repository, so
+root switching is spatial navigation rather than ordinary list traversal.
+`j`/`k` and up/down keep their node-selection meaning; left/right jump to and
+center the previous/next root. The binding is page-scoped, so it claims no
+keys while an engine terminal has focus.
+
 ## Repo context filter — removed, chord revoked
 
 **2026-08-16 — `ctrl+p` repo filter removed entirely (owner call, same

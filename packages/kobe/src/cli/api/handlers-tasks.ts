@@ -29,10 +29,16 @@ import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
  * bakes their tab into the reply command (issue #24). A send from a plain
  * shell, an unverified process, or to yourself stays untouched.
  */
-async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, prompt: string): Promise<string> {
+async function withPeerProvenance(
+  daemon: DaemonRpc,
+  targetTaskId: string,
+  prompt: string,
+  plain: boolean,
+): Promise<{ text: string; senderTaskId?: string }> {
   const self = await verifiedSelfSession()
   const senderId = self?.taskId
-  if (!senderId || senderId === targetTaskId) return prompt
+  if (!senderId || senderId === targetTaskId) return { text: prompt }
+  if (plain) return { text: prompt, senderTaskId: senderId }
   let label = senderId
   try {
     const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: senderId })
@@ -55,7 +61,10 @@ async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, promp
   // improvises verbs and side-channels (2026-08-10: a peer coordination
   // round-trip fell back to a human relay because neither side had the
   // skill's contract in context).
-  return `[KOBE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`
+  return {
+    text: `[KOBE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`,
+    senderTaskId: senderId,
+  }
 }
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
@@ -126,7 +135,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     }
   }
   const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
-  const text = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  const peer = await withPeerProvenance(daemon, taskId, prompt, ctx.args.bool("plain") === true)
   const delivered = await ctx.runtime.deliverPrompt(
     daemon,
     {
@@ -144,12 +153,23 @@ export async function send(ctx: VerbContext): Promise<unknown> {
       tabVendor,
       tabCommand,
     },
-    text,
+    peer.text,
   )
   // A prompt that never landed in the composer is a delivery FAILURE the
   // script must see — non-zero exit, not a phantom `ok:true`.
   if (!delivered.delivered) {
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
+  }
+  let communicationRecorded: boolean | undefined
+  if (peer.senderTaskId) {
+    try {
+      await daemon.request("task.recordCommunication", { fromTaskId: peer.senderTaskId, toTaskId: taskId })
+      communicationRecorded = true
+    } catch {
+      // Delivery already happened. Never turn a metadata failure into a
+      // retryable send error that could duplicate the user's prompt.
+      communicationRecorded = false
+    }
   }
   return {
     ok: true,
@@ -157,6 +177,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     session: delivered.session,
     started: delivered.started,
     engineReady: delivered.engineReady,
+    ...(communicationRecorded !== undefined ? { communicationRecorded } : {}),
   }
 }
 

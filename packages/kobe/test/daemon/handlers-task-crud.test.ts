@@ -82,6 +82,29 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.reorder", { moves: [{ position: 1 }] }, ctx)).rejects.toThrow("taskId is required")
     })
 
+    it("task.recordCommunication validates and forwards the directed edge", async () => {
+      const calls: unknown[] = []
+      const { ctx } = fakeCtx({
+        recordCommunication: async (...args: unknown[]) => {
+          calls.push(args)
+        },
+      })
+      await expect(
+        dispatch(
+          "task.recordCommunication",
+          { fromTaskId: "owner", toTaskId: "agent", at: "2026-08-22T01:00:00.000Z" },
+          ctx,
+        ),
+      ).resolves.toEqual({})
+      expect(calls).toEqual([["owner", "agent", "2026-08-22T01:00:00.000Z"]])
+      await expect(dispatch("task.recordCommunication", { toTaskId: "agent" }, ctx)).rejects.toThrow(
+        "fromTaskId is required",
+      )
+      await expect(dispatch("task.recordCommunication", { fromTaskId: "owner" }, ctx)).rejects.toThrow(
+        "toTaskId is required",
+      )
+    })
+
     it("task.delete durably prepares, clears activity, and enqueues background cleanup", async () => {
       const prepared: unknown[] = []
       const { ctx, rec } = fakeCtx({

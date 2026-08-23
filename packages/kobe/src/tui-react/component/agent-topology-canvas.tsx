@@ -90,7 +90,8 @@ export function AgentTopologyCanvas(props: {
   const nodeWidth = 28
   const layout = layoutAgentTopology(props.projection, { direction, nodeWidth })
   const offset = topologyViewportOffset(layout, props.selectedId, viewport)
-  const edgeText = clipTopologyRaster(topologyEdgeRaster(layout), offset, viewport)
+  const spawnEdgeText = clipTopologyRaster(topologyEdgeRaster(layout, "spawn"), offset, viewport)
+  const communicationEdgeText = clipTopologyRaster(topologyEdgeRaster(layout, "communication"), offset, viewport)
 
   return (
     <box
@@ -102,7 +103,12 @@ export function AgentTopologyCanvas(props: {
     >
       <box position="absolute" left={0} top={0} width={viewport.width} height={viewport.height} zIndex={2}>
         <text fg={theme.borderActive} wrapMode="none">
-          {edgeText}
+          {spawnEdgeText}
+        </text>
+      </box>
+      <box position="absolute" left={0} top={0} width={viewport.width} height={viewport.height} zIndex={2}>
+        <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none">
+          {communicationEdgeText}
         </text>
       </box>
 
