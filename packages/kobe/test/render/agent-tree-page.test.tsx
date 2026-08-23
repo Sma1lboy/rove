@@ -25,7 +25,9 @@ function task(id: string, over: Partial<Task> = {}): Task {
 }
 
 test("renders a Dagre topology, fan-out batch, and engine-normalized activity", async () => {
-  const owner = task("Owner session")
+  const owner = task("Owner session", {
+    communications: [{ targetTaskId: "agent-a", count: 1, lastAt: "2026-08-22T00:30:00.000Z" }],
+  })
   const a = task("API audit", {
     id: toTaskId("agent-a"),
     dispatcher: { taskId: "Owner session", tabId: "tab-1" },
@@ -57,6 +59,8 @@ test("renders a Dagre topology, fan-out batch, and engine-normalized activity", 
   expect(text).toContain("complete")
   expect(text).toContain("message")
   expect(text).toMatch(/[┆┄◁▷△▽]/)
+  expect(text).toContain("SENT →")
+  expect(text).toContain("RECEIVED ← UI pass ×2")
 })
 
 test("j then enter opens the selected topology node", async () => {

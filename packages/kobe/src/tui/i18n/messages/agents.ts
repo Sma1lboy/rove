@@ -12,6 +12,11 @@ export const en = {
   batch: "BATCH {id} · {count}",
   legend: "── spawn · ┄▷ message",
   rootNav: "ROOT {current}/{count} ←→",
+  flowLabel: "MESSAGES",
+  flowOutgoing: "SENT → {title} ×{count}",
+  flowIncoming: "RECEIVED ← {title} ×{count}",
+  flowMore: "+{count} more",
+  flowNone: "MESSAGES  — no recorded traffic",
   state: {
     running: "running",
     idle: "idle",
@@ -38,6 +43,11 @@ export const zh: typeof en = {
   batch: "批次 {id} · {count}",
   legend: "── 派生 · ┄▷ 通信",
   rootNav: "根节点 {current}/{count} ←→",
+  flowLabel: "通信",
+  flowOutgoing: "已发送 → {title} ×{count}",
+  flowIncoming: "已接收 ← {title} ×{count}",
+  flowMore: "另有 {count} 条",
+  flowNone: "通信  — 暂无记录",
   state: {
     running: "运行中",
     idle: "空闲",

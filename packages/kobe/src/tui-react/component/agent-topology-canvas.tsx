@@ -91,7 +91,28 @@ export function AgentTopologyCanvas(props: {
   const layout = layoutAgentTopology(props.projection, { direction, nodeWidth })
   const offset = topologyViewportOffset(layout, props.selectedId, viewport)
   const spawnEdgeText = clipTopologyRaster(topologyEdgeRaster(layout, "spawn"), offset, viewport)
-  const communicationEdgeText = clipTopologyRaster(topologyEdgeRaster(layout, "communication"), offset, viewport)
+  const communicationEdges = layout.edges.filter((edge) => edge.kind === "communication")
+  const activeCommunicationIds = new Set(
+    communicationEdges
+      .filter((edge) => edge.from === props.selectedId || edge.to === props.selectedId)
+      .map((edge) => edge.id),
+  )
+  const passiveCommunicationText = clipTopologyRaster(
+    topologyEdgeRaster(
+      { ...layout, edges: communicationEdges.filter((edge) => !activeCommunicationIds.has(edge.id)) },
+      "communication",
+    ),
+    offset,
+    viewport,
+  )
+  const activeCommunicationText = clipTopologyRaster(
+    topologyEdgeRaster(
+      { ...layout, edges: communicationEdges.filter((edge) => activeCommunicationIds.has(edge.id)) },
+      "communication",
+    ),
+    offset,
+    viewport,
+  )
 
   return (
     <box
@@ -107,8 +128,13 @@ export function AgentTopologyCanvas(props: {
         </text>
       </box>
       <box position="absolute" left={0} top={0} width={viewport.width} height={viewport.height} zIndex={2}>
+        <text fg={theme.info} attributes={TextAttributes.DIM} wrapMode="none">
+          {passiveCommunicationText}
+        </text>
+      </box>
+      <box position="absolute" left={0} top={0} width={viewport.width} height={viewport.height} zIndex={2}>
         <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none">
-          {communicationEdgeText}
+          {activeCommunicationText}
         </text>
       </box>
 

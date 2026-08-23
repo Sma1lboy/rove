@@ -62,7 +62,14 @@ function routeEdge(from: TopologyLayoutNode, to: TopologyLayoutNode, direction: 
   return [start, { x: middle, y: start.y }, { x: middle, y: end.y }, end]
 }
 
-/** Route message edges outside the spawn ranks so a reply visibly closes a loop. */
+/**
+ * Route message edges without changing the spawn-owned Dagre ranks.
+ *
+ * Peers on the same rank get the shortest possible side-to-side connection;
+ * cross-rank messages alternate around the left/right (or top/bottom) edge.
+ * That keeps a conversation leg visually independent instead of merging every
+ * message into one shared outer bus.
+ */
 function routeCommunicationEdge(
   from: TopologyLayoutNode,
   to: TopologyLayoutNode,
@@ -70,14 +77,34 @@ function routeCommunicationEdge(
   lane: number,
 ): TopologyPoint[] {
   if (direction === "TB") {
-    const start = { x: from.x + from.width, y: from.y + Math.floor(from.height / 2) }
-    const end = { x: to.x + to.width, y: to.y + Math.floor(to.height / 2) }
-    const outerX = Math.max(start.x, end.x) + 3 + lane * 2
+    const fromY = from.y + Math.floor(from.height / 2)
+    const toY = to.y + Math.floor(to.height / 2)
+    if (fromY === toY) {
+      const rightward = to.x >= from.x
+      const start = { x: rightward ? from.x + from.width : from.x - 1, y: fromY }
+      const end = { x: rightward ? to.x - 1 : to.x + to.width, y: toY }
+      return [start, end]
+    }
+    const useRight = lane % 2 === 0
+    const band = Math.floor(lane / 2)
+    const start = { x: useRight ? from.x + from.width : from.x - 1, y: fromY }
+    const end = { x: useRight ? to.x + to.width : to.x - 1, y: toY }
+    const outerX = useRight ? Math.max(start.x, end.x) + 3 + band * 2 : Math.min(start.x, end.x) - 3 - band * 2
     return [start, { x: outerX, y: start.y }, { x: outerX, y: end.y }, end]
   }
-  const start = { x: from.x + Math.floor(from.width / 2), y: from.y + from.height }
-  const end = { x: to.x + Math.floor(to.width / 2), y: to.y + to.height }
-  const outerY = Math.max(start.y, end.y) + 2 + lane
+  const fromX = from.x + Math.floor(from.width / 2)
+  const toX = to.x + Math.floor(to.width / 2)
+  if (fromX === toX) {
+    const downward = to.y >= from.y
+    const start = { x: fromX, y: downward ? from.y + from.height : from.y - 1 }
+    const end = { x: toX, y: downward ? to.y - 1 : to.y + to.height }
+    return [start, end]
+  }
+  const useBottom = lane % 2 === 0
+  const band = Math.floor(lane / 2)
+  const start = { x: fromX, y: useBottom ? from.y + from.height : from.y - 1 }
+  const end = { x: toX, y: useBottom ? to.y + to.height : to.y - 1 }
+  const outerY = useBottom ? Math.max(start.y, end.y) + 2 + band * 2 : Math.min(start.y, end.y) - 2 - band * 2
   return [start, { x: start.x, y: outerY }, { x: end.x, y: outerY }, end]
 }
 
@@ -111,8 +138,8 @@ export function layoutAgentTopology(
       nodesep: direction === "TB" ? 7 : 3,
       edgesep: 2,
       ranksep: direction === "TB" ? 5 : 8,
-      marginx: 4,
-      marginy: 3,
+      marginx: direction === "TB" ? 10 : 4,
+      marginy: direction === "TB" ? 3 : 6,
     })
     .setDefaultEdgeLabel(() => ({}))
 
@@ -146,7 +173,7 @@ export function layoutAgentTopology(
     const points =
       edge.kind === "spawn"
         ? routeEdge(from, to, direction)
-        : routeCommunicationEdge(from, to, direction, communicationLane++ % 4)
+        : routeCommunicationEdge(from, to, direction, communicationLane++ % 6)
     return [{ ...edge, points }]
   })
   const batches = projection.batches.flatMap((batch): TopologyLayoutBatch[] => {
@@ -259,7 +286,6 @@ export function topologyEdgeRaster(
     if (!end || !before) continue
     const dx = Math.sign(end.x - before.x)
     const dy = Math.sign(end.y - before.y)
-    const arrow = { x: end.x - dx, y: end.y - dy }
     const mark =
       kind === "spawn"
         ? dx > 0
@@ -276,7 +302,10 @@ export function topologyEdgeRaster(
             : dy > 0
               ? "▽"
               : "△"
-    arrows.set(`${arrow.x}:${arrow.y}`, mark)
+    // `end` is already the cell immediately outside the destination card.
+    // Marking the previous cell made the arrow float away from its target and
+    // inverted the visual read on outer-loop routes.
+    arrows.set(`${end.x}:${end.y}`, mark)
   }
   return cells.map((row, y) =>
     [...row].map((mask, x) => arrows.get(`${x}:${y}`) ?? glyph(mask, kind === "communication")).join(""),

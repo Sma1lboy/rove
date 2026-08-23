@@ -96,7 +96,12 @@ describe("agent topology projection", () => {
     expect(topologyRootId(topology, "child")).toBe("owner")
 
     const layout = layoutAgentTopology(topology, { direction: "TB", nodeWidth: 20 })
-    expect(topologyEdgeRaster(layout, "communication").join("\n")).toMatch(/[┆┄◁▷△▽]/)
+    const edge = layout.edges.find((candidate) => candidate.kind === "communication")!
+    const end = edge.points.at(-1)!
+    const raster = topologyEdgeRaster(layout, "communication")
+    expect(raster.join("\n")).toMatch(/[┆┄◁▷△▽]/)
+    expect([...raster[end.y]!][end.x]).toBe("◁")
+    expect(end.x).toBe(layout.nodes.find((node) => node.id === "owner")!.x + 20)
   })
 
   test("keeps compact batch ids", () => {
