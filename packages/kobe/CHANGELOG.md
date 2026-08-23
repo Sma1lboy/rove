@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.143
+
+### Patch Changes
+
+- 585bcad: Preserve the source terminal tab ID on reduced `agent.*` plugin event envelopes so plugins can distinguish concurrent agent tabs within one task.
+
 ## 0.8.142
 
 ### Patch Changes
