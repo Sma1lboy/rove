@@ -10,12 +10,8 @@
 
 import { useState } from "react"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
-import {
-  VENDOR_LABEL,
-  defaultEngineCommand,
-  engineCommandKey,
-  engineNameKey,
-} from "../../../engine/interactive-command"
+import { defaultEngineCommand, engineCommandKey, engineNameKey } from "../../../engine/interactive-command"
+import { engineEntry } from "../../../engine/registry"
 import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/vendor-prefs"
 import { humanizeSlug } from "../../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
@@ -56,8 +52,9 @@ export function useEngineSettings(
     return engineNameOverride(vendor).length > 0
   }
   function engineName(vendor: VendorId): string {
-    // Built-ins fall back to VENDOR_LABEL; a custom engine falls back to its id.
-    return engineNameOverride(vendor) || VENDOR_LABEL[vendor] || vendor
+    // Built-ins fall back to VENDOR_LABEL; contrib engines to their catalog
+    // name; a plain custom engine falls back to its id.
+    return engineNameOverride(vendor) || engineEntry(vendor).displayName
   }
 
   const [defaultEngine, setDefaultEngineState] = useState<VendorId>(

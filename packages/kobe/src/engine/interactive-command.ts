@@ -67,7 +67,9 @@ export function engineNameKey(vendor: VendorId): string {
  */
 export function engineDisplayName(vendor: VendorId): string {
   const override = getPersistedString(engineNameKey(vendor))?.trim()
-  return override || VENDOR_LABEL[vendor] || vendor
+  // engineEntry answers every id: built-in labels, contrib catalog names
+  // ("Gemini CLI"), and the id itself for a plain custom engine.
+  return override || engineEntry(vendor).displayName
 }
 
 /**
