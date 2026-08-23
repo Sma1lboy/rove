@@ -11,6 +11,7 @@ import { legendCap } from "../../../tui/lib/help-groups"
 import { SIDEBAR_NAV_ITEMS, type SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { zenChipGlyph } from "./zen-glyph"
 
 export function SectionHeader(props: {
   label: string
@@ -228,7 +229,7 @@ export function SidebarZenChip(props: { onZenClick?: () => void }) {
           props.onZenClick?.()
         }}
       >
-        ☯ ZEN
+        {`${zenChipGlyph()} ZEN`}
       </text>
     </box>
   )
