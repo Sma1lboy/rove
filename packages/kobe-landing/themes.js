@@ -160,3 +160,16 @@ var KOBE_I18N = (function () {
     timer = setTimeout(function () { label.textContent = KOBE_I18N.t('copy.hint'); }, 1800);
   });
 })();
+
+// live GitHub star count — same shape and same `kobe_stars` cache key as the
+// home and plugins pages, so the count paints instantly once any page has run
+(function () {
+  var el = document.getElementById('starCount');
+  if (!el) return;
+  function render(n) { el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n); }
+  try { var c = JSON.parse(localStorage.getItem('kobe_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
+  fetch('https://api.github.com/repos/Sma1lboy/rove')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('kobe_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
+    .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
+})();
