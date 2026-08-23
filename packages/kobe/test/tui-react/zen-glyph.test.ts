@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test"
 import { zenChipGlyph } from "@/tui-react/panes/sidebar/zen-glyph"
+import { describe, expect, test } from "vitest"
 
 describe("zenChipGlyph", () => {
   test("keeps ☯ on macOS, where the code point gets text presentation", () => {
