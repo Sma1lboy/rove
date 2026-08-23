@@ -51,6 +51,7 @@ import { CodexHookAdapter } from "./codex-local/hook-adapter.ts"
 import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
+import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import {
   EMPTY_HISTORY,
   claudeHistoryReader,
@@ -60,7 +61,9 @@ import {
 } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
+import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
+import type { EngineScreenManifest } from "./screen-state.ts"
 import {
   type EngineTerminalTitle,
   stripStatusPrefix,
@@ -202,6 +205,14 @@ export interface EngineRegistryEntry {
    * per-turn attribution kobe can read (nothing is guessed for it).
    */
   readonly readTurns?: EngineTurnReader
+  /**
+   * Declarative screen-state rules for engines WITHOUT persisted completion
+   * markers (see `engine/screen-state.ts`): the quiescence poll classifies
+   * each pane capture into working/blocked/idle instead of "unknown".
+   * Engines with markers don't declare one — the transcript is the better
+   * authority, and hooks supersede both (`turn-state-merge.ts`).
+   */
+  readonly screenManifest?: EngineScreenManifest
 }
 
 // The per-vendor readers live in `history-readers.ts` (file-size cap);
@@ -280,6 +291,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     createHookAdapter: () => new NoopHookAdapter("copilot"),
     // Copilot persists no turn-completion marker kobe can read yet.
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
+    screenManifest: COPILOT_SCREEN_MANIFEST,
   },
   kimi: {
     vendor: "kimi",
@@ -297,6 +309,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     detectAccount: (deps) => detectKimiAccount(deps),
     createHookAdapter: () => new KimiHookAdapter(),
     createTurnDetector: () => new UnknownTurnDetector("kimi"),
+    screenManifest: KIMI_SCREEN_MANIFEST,
   },
 }
 
