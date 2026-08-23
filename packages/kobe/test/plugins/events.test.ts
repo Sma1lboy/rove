@@ -67,9 +67,11 @@ describe("PluginEventReducer", () => {
     expect(feed("a", "running")).toEqual([])
     expect(feed("a", "turn_complete")).toEqual([expect.objectContaining({ event: "agent.turn-complete" })])
     // A different tab of the same task tracks its own state.
-    expect(feed("a", "running", "tab2")).toEqual([expect.objectContaining({ event: "agent.running" })])
+    expect(feed("a", "running", "tab2")).toEqual([
+      expect.objectContaining({ event: "agent.running", taskId: "a", tabId: "tab2" }),
+    ])
     expect(feed("a", "permission_needed", "tab2")).toEqual([
-      expect.objectContaining({ event: "agent.permission-needed" }),
+      expect.objectContaining({ event: "agent.permission-needed", taskId: "a", tabId: "tab2" }),
     ])
     expect(feed("b", "rate_limited")).toEqual([expect.objectContaining({ event: "agent.rate-limited", taskId: "b" })])
   })
