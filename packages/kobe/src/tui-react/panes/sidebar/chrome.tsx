@@ -136,7 +136,10 @@ export function SidebarBrandHeader(props: {
 
 /** Persistent primary action for the sidebar. The full row is clickable and
  *  the keycap comes from the live keymap, so a rebound or disabled `task.new`
- *  binding never leaves stale instructions behind. */
+ *  binding never leaves stale instructions behind. The `+` trails the label
+ *  next to the keycap (owner 2026-08-24) so the row reads label-first and the
+ *  affordance pair sits in the conventional right-hand shortcut column; the
+ *  gap between them keeps `+ n` from reading as a literal `+n` chord. */
 export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   const { theme, transparentBackground } = useTheme()
   const t = useT()
@@ -154,11 +157,11 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
         backgroundColor={transparentBackground ? undefined : theme.backgroundElement}
         onMouseUp={() => props.onAddTask?.()}
       >
-        <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
-          +
-        </text>
         <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none" flexGrow={1}>
           {t("tasks.menu.newTask")}
+        </text>
+        <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
+          +
         </text>
         {keycap ? (
           <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none" flexShrink={0}>
