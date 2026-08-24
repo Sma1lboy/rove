@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.147
+
+### Patch Changes
+
+- [#515](https://github.com/Sma1lboy/rove/pull/515) [`ad45794`](https://github.com/Sma1lboy/rove/commit/ad457944de66042db4b1b6edaa9b47f0f45241ca) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Republish: v0.8.145 and v0.8.146 never reached npm (a stale test assertion turned the release gate red). This release carries their changes — Kimi activity hooks, screen-state badges for hook-less engines, the contrib engine catalog (Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp), plugin-contributed engines, and the worktree auto-adopt fix.
+
 ## 0.8.146
 
 ### Patch Changes
