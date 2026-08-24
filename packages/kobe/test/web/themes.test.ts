@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { WEB_THEMES, type WebThemePalette, handleThemesRequest } from "../../src/web/themes.ts"
+import { WEB_THEMES, type WebThemePalette, handleThemesRequest, mix, resolveHex } from "../../src/web/themes.ts"
 
 /**
  * The web theme palettes are resolved at module load from the TUI's theme
@@ -64,6 +64,49 @@ describe("WEB_THEMES", () => {
     const p = WEB_THEMES.claude
     expect(p.bg).not.toBe(p.surface)
     expect(p.surface).not.toBe(p.inset)
+  })
+})
+
+describe("resolveHex", () => {
+  // The theme schema (theme.schema.json) permits `#abc`, `#aabbcc`, and
+  // `#aabbccdd`. The web resolver must canonicalize all three to `#rrggbb`
+  // exactly like the TUI's normalizeHex — a verbatim `#abc`/`#aabbccdd` used
+  // to reach mix() and blend the wrong channels for derived slots.
+  const theme = { theme: {} } as Parameters<typeof resolveHex>[0]
+
+  it("expands 3-digit shorthand hex", () => {
+    expect(resolveHex(theme, "#abc")).toBe("#aabbcc")
+  })
+
+  it("passes 6-digit hex through (lowercased)", () => {
+    expect(resolveHex(theme, "#AABBCC")).toBe("#aabbcc")
+  })
+
+  it("strips the alpha byte off 8-digit hex", () => {
+    expect(resolveHex(theme, "#aabbccdd")).toBe("#aabbcc")
+  })
+
+  it("resolves a {dark,light} variant's shorthand hex", () => {
+    expect(resolveHex(theme, { dark: "#fff", light: "#000" })).toBe("#ffffff")
+  })
+
+  it("returns null for a malformed hex rather than a garbage colour", () => {
+    expect(resolveHex(theme, "#xyz")).toBeNull()
+    expect(resolveHex(theme, "#12345")).toBeNull()
+  })
+})
+
+describe("mix", () => {
+  it("blends the true channels of a shorthand-derived colour", () => {
+    // #abc expands to #aabbcc; mixing fully toward it must yield #aabbcc, not
+    // the mis-parsed value the verbatim `#abc` produced.
+    const white = resolveHex({ theme: {} } as Parameters<typeof resolveHex>[0], "#abc") as string
+    expect(mix("#000000", white, 1)).toBe("#aabbcc")
+  })
+
+  it("returns the first colour at t=0 and the second at t=1", () => {
+    expect(mix("#102030", "#a0b0c0", 0)).toBe("#102030")
+    expect(mix("#102030", "#a0b0c0", 1)).toBe("#a0b0c0")
   })
 })
 
