@@ -15,105 +15,106 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=DM+Sans:opsz,wght@9..40,300..700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/chrome.css">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:#141413;}
-  ::selection{background:rgba(204,120,92,0.3);color:#eae7df}
-  a{color:inherit;}
-  /* language toggle */
-  .lang{display:inline-flex;border:1px solid #34302a;border-radius:9px;overflow:hidden;background:#1a1917;}
-  .lang button{font-family:inherit;font-size:12.5px;cursor:pointer;border:0;background:transparent;color:#8a847a;padding:6px 14px;transition:all .15s;}
-  .lang button[aria-pressed="true"]{background:rgba(204,120,92,0.14);color:#e6c1b1;}
-  /* release timeline */
-  .rel{position:relative;}
-  .rel-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:14px;}
-  .rel-tag{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:24px;letter-spacing:-0.02em;color:#eae7df;text-decoration:none;}
-  .rel-tag:hover{color:#cc785c;}
-  .rel-date{font-size:12.5px;color:#6b655c;}
-  .rel-badge{font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;border:1px solid rgba(214,168,92,0.4);background:rgba(214,168,92,0.1);color:#d6a85c;border-radius:6px;padding:3px 8px;}
-  .rel-badge.latest{border-color:rgba(154,202,134,0.45);background:rgba(154,202,134,0.08);color:#9aca86;}
-  .rel-body{border:1px solid #2c2823;border-radius:13px;background:#171614;padding:8px 26px;}
-  .rn-h{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#cc785c;margin:20px 0 4px;}
-  .rn-ul{list-style:none;}
-  /* each bullet = one clear, scannable point: [type] summary */
-  .rn-li{position:relative;display:flex;align-items:baseline;gap:11px;padding:12px 0 12px 24px;font-size:14px;line-height:1.55;color:#d2ccc1;border-top:1px solid #211f1c;}
-  .rn-li:first-child{border-top:0;}
-  .rn-li::before{content:"";position:absolute;left:3px;top:18px;width:6px;height:6px;border-radius:2px;background:#cc785c;opacity:0.8;transform:rotate(45deg);}
-  .rn-li.tr-loading .sum{opacity:0.4;}
-  .rn-li .tag{flex:none;font-size:10.5px;font-weight:600;letter-spacing:0.03em;border-radius:5px;padding:2px 8px;border:1px solid;white-space:nowrap;}
-  .rn-li .sum{flex:1;min-width:0;}
-  .rn-li code{font-family:'JetBrains Mono',monospace;font-size:12.5px;background:#211f1c;border:1px solid #322d27;border-radius:5px;padding:1px 6px;color:#e6c1b1;}
-  .rn-li strong{color:#eae7df;font-weight:600;}
-  .rn-li a{color:#d98c72;text-decoration:none;border-bottom:1px solid rgba(217,140,114,0.3);}
-  .rn-li a:hover{color:#e6c1b1;}
-  html[data-lang="zh"] .rn-li .sum{font-family:'JetBrains Mono','PingFang SC','Microsoft YaHei',sans-serif;}
-  @media(max-width:760px){.rel-body{padding:6px 18px;}.rel-tag{font-size:21px;}}
+/* ============ PAGE HEAD ============ */
+.top{padding:clamp(112px,14vh,152px) 0 0}
+.kicker{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;color:var(--muted)}
+h1{margin:14px 0 16px;font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(38px,5.6vw,70px);font-weight:380;letter-spacing:-.028em;line-height:1.02;color:var(--ink)}
+.lede{font-size:clamp(15px,1.5vw,17px);color:var(--ink-soft);max-width:60ch}
+.lede code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash);border:1px solid oklch(62% 0.13 45/.18);padding:1px 6px;color:oklch(46% 0.11 45)}
+.rule{height:1px;background:var(--line);margin:44px 0 0}
+
+/* ============ RELEASE TIMELINE ============ */
+.releases{display:flex;flex-direction:column;gap:40px;padding:44px 0 0;max-width:900px}
+.loading{font-family:var(--font-mono);font-size:13px;color:var(--faint);padding:20px 0}
+.loading a{color:var(--accent);border-bottom:1px solid var(--accent-line)}
+.rel-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.rel-tag{font-family:var(--font-mono);font-weight:700;font-size:21px;letter-spacing:-.01em;color:var(--ink);transition:color 140ms}
+.rel-tag:hover{color:var(--accent)}
+.rel-date{font-family:var(--font-mono);font-size:12px;color:var(--faint)}
+.rel-badge{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line-2);background:var(--surface);color:var(--muted);padding:3px 8px}
+.rel-badge.latest{border-color:var(--accent-line);background:var(--accent-wash);color:var(--accent)}
+.rel-body{border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:8px 26px}
+.rn-h{font-family:var(--font-mono);font-weight:600;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin:20px 0 4px}
+.rn-ul{list-style:none}
+/* each bullet = one clear, scannable point: [type] summary */
+.rn-li{position:relative;display:flex;align-items:baseline;gap:11px;padding:12px 0 12px 24px;font-size:14px;line-height:1.55;color:var(--ink-soft);border-top:1px solid var(--line)}
+/* the rotated square is the same mark the home page uses between stages */
+.rn-li::before{content:"";position:absolute;left:3px;top:19px;width:6px;height:6px;background:var(--accent);opacity:.75;transform:rotate(45deg)}
+.rn-li:first-child{border-top:0}
+.rn-li.tr-loading .sum{opacity:.4}
+.rn-li .tag{flex:none;font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.03em;padding:2px 8px;border:1px solid;white-space:nowrap}
+/* the long token here is usually a slash-separated field list in prose, not
+   inside <code> — the translation path strips markdown, so the wrap rule has
+   to sit on the summary itself */
+.rn-li .sum{flex:1;min-width:0;overflow-wrap:anywhere}
+/* release bodies come from GitHub, so a bullet can carry an arbitrarily long
+   path or command; without this it pushes the page past the viewport at 390 */
+.rn-li code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash);border:1px solid oklch(62% 0.13 45/.18);padding:1px 6px;color:oklch(46% 0.11 45);overflow-wrap:anywhere}
+.rn-li strong{color:var(--ink);font-weight:600}
+.rn-li a{color:var(--accent);border-bottom:1px solid var(--accent-line)}
+.rn-li a:hover{border-bottom-color:var(--accent)}
+html[data-lang="zh"] .rn-li .sum{font-family:var(--font-mono),'PingFang SC','Microsoft YaHei',sans-serif}
+@media(max-width:760px){.rel-body{padding:6px 18px}.rel-tag{font-size:19px}}
 </style>
 </head>
 <body>
-<div style="background:#141413;color:#d6d0c6;font-family:'JetBrains Mono',monospace;min-height:100vh;overflow-x:hidden;position:relative;">
 
-  <!-- subtle grid bg -->
-  <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px);background-size:64px 64px;pointer-events:none;mask-image:radial-gradient(ellipse 90% 60% at 50% 0%,#000 30%,transparent 80%);"></div>
+<!-- NAV · terminal command line (chrome.css) -->
+<header class="navbar">
+  <span class="ps">$</span>
+  <a class="bin" href="/">Rove</a>
+  <a class="nl" data-s="nav.workflow" href="/#workflow">--primitives</a>
+  <a class="nl" data-s="nav.install" href="/#install">--install</a>
+  <a class="nl" data-s="nav.plugins" href="/plugins">--plugins</a>
+  <a class="nl" data-s="nav.themes" href="/themes">--themes</a>
+  <a class="nl" href="/changelog" aria-current="page" data-s="nav.changelog">--changelog</a>
+  <span class="caret" aria-hidden="true"></span>
+  <button id="langToggle" class="lang-btn">中文</button>
+  <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span>GitHub</span>
+    <span class="gh-stars">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
+      <span id="starCount">–</span>
+    </span>
+  </a>
+</header>
 
-  <!-- NAV -->
-  <nav style="position:relative;max-width:1180px;margin:0 auto;padding:26px 40px;display:flex;align-items:center;justify-content:space-between;">
-    <a href="/" style="display:flex;align-items:center;gap:9px;font-weight:700;font-size:18px;letter-spacing:-0.01em;text-decoration:none;">
-      <span style="color:#cc785c;">[</span>
-      <span style="color:#eae7df;">Rove</span>
-      <span style="color:#cc785c;">]</span>
-    </a>
-    <div style="display:flex;align-items:center;gap:30px;font-size:13.5px;color:#8a847a;">
-      <a href="/#workspace" style="color:#8a847a;text-decoration:none;">workspace</a>
-      <a href="/#why" style="color:#8a847a;text-decoration:none;">why</a>
-      <a href="/#engines" style="color:#8a847a;text-decoration:none;">engines</a>
-      <a href="/changelog" style="color:#e6c1b1;text-decoration:none;">changelog</a>
-      <a href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener" style="color:#eae7df;text-decoration:none;border:1px solid #34302a;padding:7px 12px;border-radius:8px;display:flex;align-items:center;gap:8px;">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" style="flex:none;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        <span>GitHub</span>
-        <span style="display:flex;align-items:center;gap:4px;border-left:1px solid #34302a;padding-left:8px;color:#a39d92;">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="#d6a85c" aria-hidden="true" style="flex:none;"><path d="M8 .25l2.06 4.18 4.61.67-3.34 3.25.79 4.6L8 10.97l-4.12 2.17.79-4.6L1.33 5.1l4.61-.67L8 .25z"/></svg>
-          <span id="starCount">–</span>
-        </span>
-      </a>
-    </div>
-  </nav>
+<div class="wrap">
 
-  <!-- HEADER -->
-  <header style="position:relative;max-width:880px;margin:0 auto;padding:50px 40px 30px;">
-    <span style="color:#cc785c;font-size:13px;">// releases</span>
-    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;margin:12px 0 16px;">
-      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:clamp(34px,4.6vw,52px);line-height:1.02;letter-spacing:-0.03em;color:#eae7df;">Changelog</h1>
-      <div class="lang" role="group" aria-label="language">
-        <button id="langEn" aria-pressed="true">EN</button>
-        <button id="langZh" aria-pressed="false">中文</button>
-      </div>
-    </div>
-    <p id="sub" style="font-size:15.5px;line-height:1.6;color:#a39d92;max-width:56ch;">Every Rove release, pulled live from GitHub. <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#e6c1b1;background:#211f1c;border:1px solid #322d27;border-radius:5px;padding:1px 7px;">bun install -g @sma1lboy/rove</code> to update.</p>
-  </header>
+  <section class="top">
+    <p class="kicker" data-s="kicker">// releases</p>
+    <h1 data-s="title">Changelog</h1>
+    <p class="lede" data-s="lede">Every Rove release, pulled live from GitHub. <code>bun install -g @sma1lboy/rove</code> to update.</p>
+  </section>
 
-  <!-- TIMELINE -->
-  <main style="position:relative;max-width:880px;margin:0 auto;padding:0 40px 110px;">
-    <div id="releases" style="display:flex;flex-direction:column;gap:40px;">
-      <div id="loading" style="color:#6b655c;font-size:14px;padding:20px 0;">Loading releases…</div>
-    </div>
+  <div class="rule"></div>
 
-    <!-- footer -->
-    <div style="margin-top:70px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;border-top:1px solid #26221d;padding-top:28px;">
-      <a href="/" style="display:flex;align-items:center;gap:9px;color:#6b655c;font-size:13px;font-weight:600;text-decoration:none;">
-        <span style="color:#cc785c;">[</span><span style="color:#a39d92;">Rove</span><span style="color:#cc785c;">]</span>
-        <span style="font-weight:400;margin-left:4px;">parallel coding agents, terminal-native.</span>
-      </a>
-      <div style="display:flex;gap:24px;font-size:13px;color:#6b655c;">
-        <a href="https://github.com/Sma1lboy/rove/releases" target="_blank" rel="noopener" style="color:#6b655c;text-decoration:none;">All releases ↗</a>
-        <a href="https://www.npmjs.com/package/@sma1lboy/rove" style="color:#6b655c;text-decoration:none;">npm</a>
-        <a href="https://github.com/Sma1lboy/rove/blob/main/docs/KEYBINDINGS.md" style="color:#6b655c;text-decoration:none;">Keybindings</a>
-      </div>
-    </div>
+  <main class="releases" id="releases">
+    <div class="loading" id="loading">Loading releases…</div>
   </main>
 
 </div>
+
+<!-- FOOTER · dense colophon -->
+<footer class="foot-dense foot-spaced">
+  <div class="foot-inner">
+    <p class="foot-id">
+      <span class="mark">[Rove]</span> <span class="tagline" data-s="footer.tagline">a terminal multiplexer for coding agents.</span>
+      <span class="foot-colophon" data-s="footer.colophon">Release notes are pulled live from the GitHub Releases API; 中文 is machine-translated on demand.</span>
+    </p>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="https://github.com/Sma1lboy/rove/releases" target="_blank" rel="noopener" data-s="footer.allReleases">all releases</a>
+      <a href="https://www.npmjs.com/package/@sma1lboy/rove" target="_blank" rel="noopener">npm</a>
+      <a href="/plugins" data-s="footer.plugins">plugins</a>
+      <a href="/themes" data-s="footer.themesLink">themes</a>
+      <a href="https://github.com/Sma1lboy/rove/blob/main/docs/KEYBINDINGS.md" target="_blank" rel="noopener" data-s="footer.keybindings">keybindings</a>
+    </nav>
+  </div>
+</footer>
 
 <script>
   // live GitHub star count (shared with the home page; cache for instant paint)
@@ -134,8 +135,45 @@
     var loading = document.getElementById('loading');
     if (!host) return;
 
+    // same resolution order as index.js: ?lang= → stored pref → browser
     var LANG = 'en';
-    try { if (localStorage.getItem('kobe_lang') === 'zh') LANG = 'zh'; } catch (e) {}
+    try {
+      var fromUrl = new URLSearchParams(location.search).get('lang');
+      var stored = localStorage.getItem('kobe_lang');
+      var nav = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+      LANG = fromUrl === 'zh' || fromUrl === 'en' ? fromUrl : stored === 'zh' || stored === 'en' ? stored : nav;
+    } catch (e) {}
+
+    // the page's own copy. Release bodies come from GitHub and go through the
+    // translation path below; these six strings do not need a round trip.
+    var STATIC = {
+      'meta.title': { en: 'Rove — changelog', zh: 'Rove — 更新日志' },
+      'meta.desc': { en: 'Release notes for Rove — the local-first TUI orchestrator for parallel AI coding agents. Every version, pulled live from GitHub, in English or Chinese.', zh: 'Rove 的发布说明——本地优先的并行 AI 编码代理 TUI 编排器。每个版本都实时取自 GitHub，中英文皆可。' },
+      'kicker': { en: '// releases', zh: '// 发布' },
+      'title': { en: 'Changelog', zh: '更新日志' },
+      'lede': { en: 'Every Rove release, pulled live from GitHub. <code>bun install -g @sma1lboy/rove</code> to update.', zh: '每一个 Rove 版本，实时取自 GitHub。用 <code>bun install -g @sma1lboy/rove</code> 更新。' },
+      'footer.tagline': { en: 'a terminal multiplexer for coding agents.', zh: '终端里的编码代理多路复用器。' },
+      'footer.colophon': { en: 'Release notes are pulled live from the GitHub Releases API; 中文 is machine-translated on demand.', zh: '发布说明实时取自 GitHub Releases API；中文为按需机器翻译。' },
+      'footer.plugins': { en: 'plugins', zh: '插件' },
+      'footer.themesLink': { en: 'themes', zh: '主题' },
+      'footer.keybindings': { en: 'keybindings', zh: '快捷键' },
+      'footer.allReleases': { en: 'all releases', zh: '全部版本' },
+      'nav.workflow': { en: '--primitives', zh: '--原语' },
+      'nav.install': { en: '--install', zh: '--安装' },
+      'nav.plugins': { en: '--plugins', zh: '--插件' },
+      'nav.themes': { en: '--themes', zh: '--主题' },
+      'nav.changelog': { en: '--changelog', zh: '--更新日志' },
+    };
+    function applyStatic() {
+      document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+      document.title = STATIC['meta.title'][LANG];
+      var desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute('content', STATIC['meta.desc'][LANG]);
+      document.querySelectorAll('[data-s]').forEach(function (el) {
+        var v = STATIC[el.getAttribute('data-s')];
+        if (v) el.innerHTML = v[LANG];
+      });
+    }
 
     // ---- tiny markdown (inline) for the EN render ----
     function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -153,7 +191,10 @@
     }
 
     // conventional-commit type → tint + Chinese label (the scannable tag on each bullet)
-    var TYPE_TINT = { feat: '#9aca86', fix: '#cc785c', perf: '#7fb5d6', refactor: '#d6a85c', chore: '#8a847a', test: '#a98fd0', ci: '#8a847a', docs: '#7fb5d6', style: '#8a847a', build: '#8a847a', revert: '#cc785c' };
+    // Tints are darkened from the old dark-theme set: the page is paper now,
+    // and the pale versions were unreadable on it. The '55'/'14' suffixes below
+    // are hex alpha, so these stay hex rather than moving to the oklch tokens.
+    var TYPE_TINT = { feat: '#3f7a45', fix: '#a8482c', perf: '#2f6a8e', refactor: '#8a6212', chore: '#6b655c', test: '#6a4d9c', ci: '#6b655c', docs: '#2f6a8e', style: '#6b655c', build: '#6b655c', revert: '#a8482c' };
     var TYPE_ZH = { feat: '新功能', fix: '修复', perf: '性能', refactor: '重构', chore: '杂项', test: '测试', ci: 'CI', docs: '文档', style: '样式', build: '构建', revert: '回退' };
     function splitBullet(raw) {
       raw = raw.replace(/^[0-9a-f]{7,40}:\s*/i, '');                 // drop the commit sha prefix (pre-0.8.139 entries)
@@ -195,7 +236,7 @@
         }
       }
       close();
-      return out.join('') || '<ul class="rn-ul"><li class="rn-li"><span class="sum" style="color:#6b655c;">—</span></li></ul>';
+      return out.join('') || '<ul class="rn-ul"><li class="rn-li"><span class="sum" style="color:var(--faint);">—</span></li></ul>';
     }
 
     function fmtDate(iso) { try { return new Date(iso).toLocaleDateString(LANG === 'zh' ? 'zh-CN' : 'en-US', { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return ''; } }
@@ -257,8 +298,9 @@
 
     function applyLang() {
       document.documentElement.setAttribute('data-lang', LANG);
-      document.getElementById('langEn').setAttribute('aria-pressed', LANG === 'en' ? 'true' : 'false');
-      document.getElementById('langZh').setAttribute('aria-pressed', LANG === 'zh' ? 'true' : 'false');
+      var toggle = document.getElementById('langToggle');
+      if (toggle) toggle.textContent = LANG === 'zh' ? 'EN' : '中文';
+      applyStatic();
       try { localStorage.setItem('kobe_lang', LANG); } catch (e) {}
       // type tags swap label instantly (no API): fix ⇄ 修复, feat ⇄ 新功能, …
       [].slice.call(document.querySelectorAll('.rn-li .tag')).forEach(function (tg) {
@@ -270,13 +312,15 @@
       else { cards.forEach(function (c) { if (io) io.observe(c); else translateCard(c); }); }
     }
 
-    document.getElementById('langEn').addEventListener('click', function () { if (LANG === 'en') return; LANG = 'en'; applyLang(); });
-    document.getElementById('langZh').addEventListener('click', function () { if (LANG === 'zh') return; LANG = 'zh'; applyLang(); });
+    applyLang(); // first paint: nav toggle + page copy, before releases arrive
+
+    var langBtn = document.getElementById('langToggle');
+    if (langBtn) langBtn.addEventListener('click', function () { LANG = LANG === 'zh' ? 'en' : 'zh'; applyLang(); });
 
     fetch('https://api.github.com/repos/Sma1lboy/rove/releases?per_page=100')
       .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
       .then(function (rels) {
-        if (!Array.isArray(rels) || !rels.length) { loading.innerHTML = 'No releases yet. See <a href="https://github.com/Sma1lboy/rove/releases" style="color:#d98c72;">GitHub</a>.'; return; }
+        if (!Array.isArray(rels) || !rels.length) { loading.innerHTML = 'No releases yet. See <a href="https://github.com/Sma1lboy/rove/releases" style="color:var(--accent);">GitHub</a>.'; return; }
         host.innerHTML = rels.map(function (rel, idx) {
           var tag = esc(rel.tag_name || rel.name || '');
           var badge = idx === 0 ? '<span class="rel-badge latest">latest</span>' : (rel.prerelease ? '<span class="rel-badge">prerelease</span>' : '');
@@ -290,7 +334,7 @@
         }).join('');
         applyLang();
       })
-      .catch(function () { loading.innerHTML = 'Couldn’t load releases (GitHub API). See the full list on <a href="https://github.com/Sma1lboy/rove/releases" style="color:#d98c72;">GitHub ↗</a>.'; });
+      .catch(function () { loading.innerHTML = 'Couldn’t load releases (GitHub API). See the full list on <a href="https://github.com/Sma1lboy/rove/releases" style="color:var(--accent);">GitHub ↗</a>.'; });
   })();
 </script>
 </body>
