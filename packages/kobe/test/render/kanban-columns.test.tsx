@@ -68,6 +68,24 @@ test("a blocked card's column header reports how many need you", async () => {
 })
 
 /**
+ * The card is padded on all four sides — the title used to sit flush against
+ * the top border while the sides had a cell each. Padding read off a frame,
+ * not off the prop: a `padding` that Yoga silently drops renders identically
+ * to one that never existed.
+ */
+test("a card pads its title away from its own border", async () => {
+  const lines = (await board([issue(1)])).split("\n")
+  const title = lines.findIndex((line) => line.includes("story-1"))
+  expect(title).toBeGreaterThan(0)
+  // The row above the title belongs to the card and carries no glyphs of its
+  // own — the card's top border is one row further up.
+  const above = lines[title - 1] ?? ""
+  expect(above).toContain("│")
+  expect(above).not.toContain("┌")
+  expect(above.replace(/[│ ]/g, "")).toBe("")
+})
+
+/**
  * The board's keys are live, not decoration: `r` refetches. A page whose
  * bindings silently do nothing renders identically to a working one, which is
  * exactly how the Automations page once shipped with every key dead.
