@@ -222,7 +222,8 @@ describe("daemon handler registry", () => {
     it("publishes with an explicit tabId and rejects an unknown task", async () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const result = await dispatch("session.deliver", { taskId: "t1", text: "hi", tabId: "tab-2" }, ctx)
-      expect(result).toEqual({ ok: true })
+      // `clients` counts attached connections (#499's reached-nobody probe).
+      expect(result).toEqual({ ok: true, clients: 1 })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("session.deliver")
       expect(event.payload).toMatchObject({ taskId: "t1", text: "hi", tabId: "tab-2", source: "dispatcher" })
