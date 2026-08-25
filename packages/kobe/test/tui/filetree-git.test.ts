@@ -28,7 +28,6 @@ vi.mock("../../src/worktree/content", async (importOriginal) => {
 
 import {
   attachUntrackedChildren,
-  buildTree,
   listFiles,
   parseNameStatus,
   parseNumstat,
@@ -37,6 +36,7 @@ import {
   statusFiles,
   statusFilesBranch,
 } from "../../src/tui/panes/filetree/git"
+import { buildTree } from "../../src/tui/panes/filetree/tree"
 import { readWorktreeFile, runWorktreeGit } from "../../src/worktree/content"
 
 const runGit = vi.mocked(runWorktreeGit)
