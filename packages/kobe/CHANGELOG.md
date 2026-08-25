@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.186
+
+### Patch Changes
+
+- [`cd2ae29`](https://github.com/Sma1lboy/rove/commit/cd2ae2975c41cee8120f9c0b1436215ade3aff59) A scratch shell or directory task opened inside a git repo is now named by its
+  branch, like every other row, instead of always showing its path. The label
+  rule was already branch-first; only `main` rows ever looked the branch up, so
+  a directory task — which stores no branch of its own — could never satisfy it.
+  Directories that aren't repos still fall back to the path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.185
 
 ### Patch Changes
