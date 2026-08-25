@@ -21,6 +21,7 @@ import {
   type WorkspaceTab,
 } from "../lib/tabs.ts"
 import { closePtyTab } from "../lib/terminal.ts"
+import { resolveVendor } from "../lib/vendor.ts"
 import { ChatTranscript } from "./ChatTranscript.tsx"
 import { FilePreview } from "./DiffView.tsx"
 
@@ -40,7 +41,7 @@ function TerminalFallback() {
 }
 
 function vendorLabel(vendor: string | undefined): string {
-  return vendor ?? "claude"
+  return resolveVendor(vendor)
 }
 
 function EmptyTabChooser({

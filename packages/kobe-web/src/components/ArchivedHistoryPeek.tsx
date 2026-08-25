@@ -13,6 +13,7 @@
  */
 
 import type { Task } from "../lib/types.ts"
+import { resolveVendor } from "../lib/vendor.ts"
 import { ChatTranscript } from "./ChatTranscript.tsx"
 import { SlideOver } from "./SlideOver.tsx"
 
@@ -44,7 +45,7 @@ export function ArchivedHistoryPeek({
       {task && (
         <ChatTranscript
           worktreePath={task.worktreePath ?? null}
-          vendor={task.vendor ?? "claude"}
+          vendor={resolveVendor(task.vendor)}
           title={task.title || task.branch}
         />
       )}
