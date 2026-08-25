@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.175
+
+### Patch Changes
+
+- [#550](https://github.com/Sma1lboy/rove/pull/550) [`3977eb9`](https://github.com/Sma1lboy/rove/commit/3977eb9cbfa35064493ec86b58f253cb64c1091b) Consolidate duplicated logic across `tui/` and `tui-react/`.
+
+  - Replace the near-duplicate `formatAgo` in `settings-dialog/plugins-core.ts` with the existing `relativeAgeMs` from `tui/history/message-core`.
+  - Remove `openExternalUrl` from `update-page.tsx`; route release-page opens through `lib/open-external.ts`.
+  - Introduce `lib/spawn-detached.ts` and use it in `lib/open-external.ts`, `tui/panes/filetree/open-external.ts`, and the two plugin fire paths in `tui-react/workspace/`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.174
 
 ### Patch Changes
