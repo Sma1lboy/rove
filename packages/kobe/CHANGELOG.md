@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.177
+
+### Patch Changes
+
+- [#553](https://github.com/Sma1lboy/rove/pull/553) [`354a554`](https://github.com/Sma1lboy/rove/commit/354a554e219c74da6fe71c7337b94ed3d4a415f3) refactor(daemon): remove the deprecated `pollMs` fallback from ui-prefs and file-watch-trigger
+
+  - `file-watch-trigger.ts` no longer accepts the ignored `pollMs` option (chokidar's directory watch + startup signature catch-up replaced the bespoke poll safety-net).
+  - `ui-prefs-watcher.ts` drops its `pollMs` option and `DEFAULT_UI_PREFS_POLL_MS`; the watcher now relies on the directory watch, matching the actual implementation.
+  - No behavior change: the poll path was already a no-op. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.176
 
 ### Patch Changes
