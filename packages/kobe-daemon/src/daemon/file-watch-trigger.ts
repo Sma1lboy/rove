@@ -23,12 +23,6 @@ export interface FileWatchTriggerOptions {
   readonly matchBasenames?: readonly string[]
   /** Debounce between a matching fs event and `onTrigger`. `<= 0` disables. */
   readonly debounceMs: number
-  /**
-   * @deprecated Retained for caller/source compatibility only. chokidar's
-   * cross-platform watcher replaces the old bespoke poll safety-net, so this
-   * field is now ignored.
-   */
-  readonly pollMs?: number
   /** Called after a debounced matching event. */
   readonly onTrigger: () => void
   /** Best-effort error sink; trigger and watcher errors are never thrown. */
