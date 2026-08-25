@@ -82,6 +82,39 @@ describe("findEngineKey", () => {
     const sessions = [session("t1::tab-1", ["claude"])]
     expect(findEngineKey(sessions, "t1")).toBe("t1::tab-1")
   })
+
+  it("resolves a live engine tab whose binary is NOT the task's vendor (issue #36)", () => {
+    // The reported shape: a long-lived task pinned to the custom preset
+    // `claudecpa` (a zsh wrapper) whose tab-1 is long gone and whose only
+    // live tabs launch plain `claude`. engineBin is `claudecpa`, so the
+    // vendor-strict argv match found nothing and bare send refused with
+    // NO_ENGINE_TAB — while the delivery gate accepts ANY live engine.
+    const sessions = [
+      session("t1::tab-22", ["/bin/zsh", "-ilc", "export KOBE_TAB_ID='tab-22'\nclaude --session-id bf09"]),
+    ]
+    expect(findEngineKey(sessions, "t1", "claudecpa")).toBe("t1::tab-22")
+  })
+
+  it("prefers the task's OWN vendor tab over another engine's tab", () => {
+    const sessions = [
+      session("t1::tab-3", ["/bin/zsh", "-ilc", "codex"]),
+      session("t1::tab-9", ["/bin/zsh", "-ilc", "claude"]),
+    ]
+    expect(findEngineKey(sessions, "t1", "claude")).toBe("t1::tab-9")
+  })
+
+  it("picks the LOWEST-numbered engine tab so a bare send is deterministic", () => {
+    const sessions = [
+      session("t1::tab-28", ["/bin/zsh", "-ilc", "claude"]),
+      session("t1::tab-22", ["/bin/zsh", "-ilc", "claude"]),
+    ]
+    expect(findEngineKey(sessions, "t1", "claudecpa")).toBe("t1::tab-22")
+  })
+
+  it("a live SHELL-only tab is still not an engine (no cross-vendor false positive)", () => {
+    const sessions = [session("t1::tab-4", ["/bin/zsh", "-il"])]
+    expect(findEngineKey(sessions, "t1", "claudecpa")).toBeNull()
+  })
 })
 
 describe("isTaskKey / taskKeys", () => {
@@ -271,6 +304,35 @@ describe("deliverHostedPrompt", () => {
     expect((err as ApiError).data).toMatchObject({ nextCommandArgs: ["api", "pty-list"] })
     expect(calls).not.toContain("pty.open") // no session was created
     expect(calls).not.toContain("pty.write") // and nothing was pasted anywhere
+  })
+
+  it("bare send reaches a live non-tab-1 engine instead of refusing (issue #36)", async () => {
+    // End-to-end shape of the report: the task's only live tab is tab-22
+    // running plain `claude` while the task's vendor is the `claudecpa`
+    // preset. Pre-fix the resolver returned null and this threw
+    // NO_ENGINE_TAB with the engine sitting right there.
+    const calls: string[] = []
+    const rpc = {
+      request: async <T>(name: string): Promise<T> => {
+        calls.push(name)
+        if (name === "pty.list")
+          return {
+            sessions: [session("t1::tab-22", ["/bin/zsh", "-ilc", "export KOBE_TAB_ID='tab-22'\nclaude"])],
+          } as T
+        if (name === "pty.peek") return { exists: true, alive: true } as T
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claudecpa" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["/bin/zsh", "-ilc", "claudecpa 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    expect(result).toMatchObject({ session: "t1::tab-22", started: false, delivered: true })
+    expect(calls).not.toContain("pty.open") // delivered into the live tab, never spawned
   })
 
   it("a freeze-RESTORED corpse is respawned in place — never killed, prompt not pasted twice", async () => {
