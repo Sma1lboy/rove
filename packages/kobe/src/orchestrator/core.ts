@@ -278,6 +278,15 @@ export class Orchestrator {
    * Ensure a `kind: "main"` task exists for the given repo. Idempotent.
    * The main task is pinned to the repo root (no `git worktree add`)
    * and lives at the top of the sidebar.
+   *
+   * A directory task already sitting on that exact root is PROMOTED rather
+   * than joined by a second row (owner call 2026-08-25). Both rows pin the
+   * same checkout, so minting a main beside one produced two rows with the
+   * same diff under one project header — one labelled by branch, one by path
+   * — reading as a duplicate of itself. Promotion keeps the session's id, so
+   * its terminal tabs move under the main row instead of being stranded.
+   * Scratch rows are never promoted: their cwd is unsettled by definition and
+   * they belong to the Scratch bench (issue #33).
    */
   async ensureMainTask(repo: string): Promise<Task> {
     const { repo: normalizedRepo, key } = normalizeMainRepo(repo)
@@ -286,9 +295,22 @@ export class Orchestrator {
     const inflight = this.mainTaskLocks.get(key)
     if (inflight) return inflight
     const promise = (async () => {
+      const adoptable = this.store
+        .list()
+        .find((t) => t.kind === "dir" && t.scratch !== true && normalizeMainRepo(t.repo).key === key)
+      if (adoptable) {
+        return await this.store.update(adoptable.id, {
+          kind: "main",
+          // The dir row's auto-name (`quill-all-3ump`) named a session, not a
+          // project. Its own engine choice survives — only the shape changes.
+          title: titleFromRepo(normalizedRepo),
+          repo: normalizedRepo,
+          branch: "",
+          worktreePath: repoWorkingDir(normalizedRepo),
+        })
+      }
       // A project's main chat opens with the repo's preferred engine
       // (per-repo last-active → global default → claude).
-      const vendor = resolvePreferredVendor(normalizedRepo)
       const created = await this.store.create({
         repo: normalizedRepo,
         title: titleFromRepo(normalizedRepo),
@@ -297,7 +319,7 @@ export class Orchestrator {
         worktreePath: repoWorkingDir(normalizedRepo),
         status: "backlog",
         kind: "main",
-        vendor,
+        vendor: resolvePreferredVendor(normalizedRepo),
       })
       return created
     })()

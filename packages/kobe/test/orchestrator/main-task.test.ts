@@ -56,6 +56,26 @@ describe("ensureMainTask", () => {
     expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(1)
   })
 
+  test("promotes an existing directory task on the same root instead of adding a second row", async () => {
+    // Both rows pin the SAME checkout, so minting a main beside a dir task
+    // put two rows with the same diff under one project header — one labelled
+    // by branch, one by path (owner report 2026-08-25, `~/i/quill-all`).
+    const dir = await orch.openDirectoryTask({ dir: repo })
+    await orch.createTask({ repo, title: "t" })
+    const mains = orch.listTasks().filter((t) => t.kind === "main")
+    expect(mains).toHaveLength(1)
+    // Promoted in place: same id, so the session's terminal tabs come with it.
+    expect(mains[0]?.id).toBe(dir.id)
+    expect(orch.listTasks().filter((t) => t.kind === "dir")).toHaveLength(0)
+  })
+
+  test("never promotes a scratch row — it belongs to the Scratch bench", async () => {
+    const scratch = await orch.openDirectoryTask({ dir: repo, scratch: true })
+    await orch.createTask({ repo, title: "t" })
+    expect(orch.getTask(scratch.id)?.kind).toBe("dir")
+    expect(orch.listTasks().filter((t) => t.kind === "main" && t.id !== scratch.id)).toHaveLength(1)
+  })
+
   test("dedupes repo-root and subdirectory inputs to one main task", async () => {
     const subdir = path.join(repo, "packages", "kobe")
     fs.mkdirSync(subdir, { recursive: true })
