@@ -75,6 +75,7 @@ export {
   objectPayload,
   optionalActivityDetail,
   optionalBoolean,
+  optionalNumber,
   optionalString,
   optionalVendor,
   requireString,

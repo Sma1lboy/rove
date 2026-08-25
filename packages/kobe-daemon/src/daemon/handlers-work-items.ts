@@ -1,16 +1,9 @@
 /** External work-item RPC handlers — read a tracker, start work on one item. */
 
-import { requireString } from "./handler-validators.ts"
+import { optionalNumber, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { startWorkItem } from "./work-item-start.ts"
 import { WorkItemError, fetchWorkItem } from "./work-items.ts"
-
-function optionalNumber(payload: Record<string, unknown>, key: string): number | undefined {
-  const value = payload[key]
-  if (value === undefined || value === null) return undefined
-  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${key} must be a number`)
-  return value
-}
 
 function requireNumberField(payload: Record<string, unknown>, key: string): number {
   const value = optionalNumber(payload, key)
