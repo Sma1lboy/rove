@@ -1,11 +1,11 @@
 /**
  * PtyHost — daemon-hosted PTY sessions (protocol v4).
  *
- * The tmux-persistence replacement for the embedded terminal: the daemon
- * owns the raw PTY child (spawned through a `PtyDriver`) plus a capped
- * byte ring buffer per session key, so an engine session keeps running
- * when the TUI exits and replays its screen when a TUI reattaches. VT
- * emulation stays in the TUI (xterm-headless) — this module never parses
+ * Persistent out-of-process terminals for embedded engine sessions: the
+ * daemon owns the raw PTY child (spawned through a `PtyDriver`) plus a
+ * capped byte ring buffer per session key, so an engine session keeps
+ * running when the TUI exits and replays its screen when a TUI reattaches.
+ * VT emulation stays in the TUI (xterm-headless) — this module never parses
  * escape codes, it only moves bytes.
  *
  * Delivery model: TARGETED, not pub/sub. Each session tracks the
@@ -16,10 +16,10 @@
  *
  * Lifecycle: hosted by the standalone `kobe pty-host` process
  * (`pty-server.ts`), NOT the daemon — so `kobe daemon restart` (routine
- * after code changes) never touches running sessions, exactly like the
- * tmux server outliving everything. An exited session is kept, scrollback
- * intact, so a reattach can still show how the child died; it is removed
- * by an explicit `kill` or the task-archive sweep (`sweepTasks`).
+ * after code changes) never touches running sessions, exactly like a
+ * persistent terminal server outliving the TUI. An exited session is kept,
+ * scrollback intact, so a reattach can still show how the child died; it is
+ * removed by an explicit `kill` or the task-archive sweep (`sweepTasks`).
  *
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
@@ -164,9 +164,9 @@ export class PtyHost {
       spec.rows !== undefined &&
       (session.cols !== spec.cols || session.rows !== spec.rows)
     ) {
-      // Reattach from a differently-sized client: last-attach-wins, like
-      // tmux — the SIGWINCH makes a full-screen app repaint at the new
-      // size, fixing what the stale-size replay painted. Size-less opens
+      // Reattach from a differently-sized client: last-attach-wins — the
+      // SIGWINCH makes a full-screen app repaint at the new size, fixing
+      // what the stale-size replay painted. Size-less opens
       // (headless delivery/ensure clients) never resize: shrinking a live
       // session out from under its attached TUI garbles the pane (#18).
       this.resize(key, spec.cols, spec.rows)
@@ -410,7 +410,7 @@ export class PtyHost {
   }
 
   /** Sessions whose child is still running — the host process's reason
-   *  to stay alive (`pty-server.ts` idle-exits at zero, like tmux). */
+   *  to stay alive (`pty-server.ts` idle-exits at zero sessions). */
   liveCount(): number {
     let n = 0
     for (const session of this.sessions.values()) if (session.alive) n++

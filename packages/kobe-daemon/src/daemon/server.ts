@@ -86,19 +86,19 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
 
   // Refcounted lazy shutdown + collector gate (KOB): the daemon's lifetime is
   // bound to the number of attached GUIs — a front-end that subscribed with
-  // `role: "gui"` (the `kobe` process parked on `tmux attach`, or the kobe-web
-  // bridge). The count deliberately EXCLUDES in-tmux helper panes (Tasks/Ops/
-  // settings, `role: "pane"`): those subscribe for push channels but persist
-  // with the tmux session after the user quits, so counting them kept the
-  // daemon alive forever (N ChatTab windows = N Tasks panes, count never hit 0
-  // on quit). CLI pokes (hello-only status/stop, `daemon restart`) never
-  // subscribe at all. When the LAST gui disconnects we wait a short grace then
-  // self-stop, via the normal `stopSoon()` path which NEVER touches tmux (task
-  // sessions outlive the daemon; only `kobe reset` / `kobe kill-sessions` tear
-  // tmux down). The same object also gates the background collectors on
-  // `hasSubscribers()`. The whole policy — refcount, grace timer, stopping flag
-  // — lives in DaemonLifetime (lifetime.ts), unit-tested in isolation; the live
-  // `clients` set stays its source of truth, so there's no counter to drift.
+  // `role: "gui"` (the `kobe` TUI process, or the kobe-web bridge). The count
+  // deliberately EXCLUDES helper panes (Tasks/Ops/settings, `role: "pane"`):
+  // those subscribe for push channels but persist after the user quits the
+  // front-end, so counting them kept the daemon alive forever (N Terminal Tabs
+  // = N Tasks panes, count never hit 0 on quit). CLI pokes (hello-only status/
+  // stop, `daemon restart`) never subscribe at all. When the LAST gui
+  // disconnects we wait a short grace then self-stop, via the normal
+  // `stopSoon()` path which NEVER touches task sessions (they outlive the
+  // daemon; only `kobe reset` / `kobe kill-sessions` tear them down). The same
+  // object also gates the background collectors on `hasSubscribers()`. The
+  // whole policy — refcount, grace timer, stopping flag — lives in
+  // DaemonLifetime (lifetime.ts), unit-tested in isolation; the live `clients`
+  // set stays its source of truth, so there's no counter to drift.
   const lifetime = new DaemonLifetime({
     clients: function* () {
       yield* clients
@@ -317,9 +317,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // Hosted PTYs are deliberately NOT touched here: they live in the
       // standalone `kobe pty-host` process, so `kobe daemon restart` never
       // ends a running engine session — only `kobe reset` does.
-      // tmux is intentionally untouched here: closing the daemon never tears
-      // down task sessions. Session teardown lives ONLY in `kobe reset` /
-      // `kobe kill-sessions` (`tmux -L kobe kill-server`). Keep it that way.
+      // Task sessions are intentionally untouched here: closing the daemon
+      // never tears them down. Session teardown lives ONLY in `kobe reset` /
+      // `kobe kill-sessions`. Keep it that way.
       broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
       for (const client of Array.from(clients)) {
         client.socket.destroy()

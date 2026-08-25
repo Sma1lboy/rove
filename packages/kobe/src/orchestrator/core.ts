@@ -143,7 +143,7 @@ export class Orchestrator {
     }
   }
 
-  /** Solid signal of the current task list. */
+  /** Observable state of the current task list. */
   tasksSignal(): ReadableState<Task[]> {
     return this.tasksAcc
   }

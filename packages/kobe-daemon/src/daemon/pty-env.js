@@ -5,9 +5,10 @@
  *
  * The scrub covers the whole ancestor-identity namespace, not just
  * TERM_PROGRAM: apps with layered detection (claude-code checks
- * LC_TERMINAL, ITERM_SESSION_ID, __CFBundleIdentifier, KITTY_*, TMUX, …
- * as fallbacks) otherwise still resolve the OUTER emulator and keep
- * emitting its dialect at kobe's xterm parser. Capability variables
+ * LC_TERMINAL, ITERM_SESSION_ID, __CFBundleIdentifier, KITTY_*,
+ * terminal-multiplexer identifiers, … as fallbacks) otherwise still
+ * resolve the OUTER emulator and keep emitting its dialect at kobe's
+ * xterm parser. Capability variables
  * (TERM, COLORTERM, TERMINFO*) survive — they describe what the immediate
  * parser can do, which the spawn sites set explicitly.
  */
@@ -24,7 +25,7 @@ const IDENTITY_VARS = new Set([
   "VTE_VERSION", // GNOME VTE terminals
   "WT_SESSION", // Windows Terminal
   "WT_PROFILE_ID",
-  "TMUX", // children talk to xterm-headless, not a tmux pane
+  "TMUX", // strip terminal-multiplexer identifiers; children see xterm-headless
   "TMUX_PANE",
   "ZELLIJ",
   "STY", // GNU screen

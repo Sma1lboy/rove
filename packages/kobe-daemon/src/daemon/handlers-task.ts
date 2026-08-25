@@ -273,7 +273,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       // Long-operation feedback (issue #5): `git worktree add` is
       // minute-class on a huge repo, and the RPC stays BLOCKING (callers
-      // need the path to build the tmux session) — so publish lifecycle
+      // need the path before the engine session can start) — so publish lifecycle
       // progress on the `task.jobs` channel around the call. Every
       // attached Tasks pane shows a "materializing" row state, not just
       // the initiating client. A terminal phase (`done`/`error`) is

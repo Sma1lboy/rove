@@ -175,15 +175,15 @@ export interface ChannelPayloads {
    * Engine-transcript activity for every collected worktree (perf —
    * deduplicate per-Ops-pane polling). Today EVERY `kobe ops` pane stat'd
    * the engine's transcript dir + parsed its JSONL on its own 1.5–2.5s
-   * timer (the `● new` badge's mtime probe + the ChatTab "done" chip's
-   * completion-marker read) — W ChatTabs × K transcripts of duplicated
+   * timer (the `● new` badge's mtime probe + the Terminal Tab "done" chip's
+   * completion-marker read) — W Terminal Tabs × K transcripts of duplicated
    * filesystem churn at total rest. The daemon now runs ONE collector
    * (`daemon/transcript-activity-collector.ts`) doing the shareable,
    * FILESYSTEM half — newest transcript mtime + the engine-owned completion
-   * marker — and fans it out here. The per-window `tmux capture-pane`
-   * quiescence check + `@kobe_tab_state` write STAY in the Ops pane process
-   * (the daemon must never touch tmux), so this channel carries only the
-   * fs-derived facts a window combines with its local pane hash.
+   * marker — and fans it out here. The per-window quiescence check and
+   * pane-local state writes STAY in the Ops pane process (the daemon must
+   * never touch front-end state), so this channel carries only the fs-derived
+   * facts a window combines with its local pane hash.
    *
    * Same FULL-map-replace contract as `worktree.changes`: keys are absolute
    * LOCAL worktree paths, the payload is the whole map republished only when
@@ -201,7 +201,7 @@ export interface ChannelPayloads {
   /**
    * Text addressed INTO a task's live engine session (docs/design/
    * dispatcher.md). The daemon never owns delivery — engines are hosted
-   * by front-ends (tmux panes, the web PTY sidecar), so this channel is
+   * by front-ends (OpenTUI terminal panes, the web PTY sidecar), so this channel is
    * the daemon-side half of the contract: producers publish "paste this
    * into task X", and whichever front-end hosts that task's session
    * delivers it (the SPA via /pty/send today). Producers: the `note.file`
@@ -313,7 +313,7 @@ export interface TabOpenPayload {
   readonly title: string
   /** Host tab for the split (`pane-open --tab`); absent = the focused tab. */
   readonly tabId?: string
-  /** `split` (default) joins the focused chattab's split group; `tab` opens a separate tab. */
+  /** `split` (default) joins the focused Terminal Tab's split group; `tab` opens a separate tab. */
   readonly placement?: "split" | "tab"
   /** Split orientation: `right` (default) lays the new pane beside the
    *  active leaf, `down` stacks it below. Ignored for `placement: "tab"`. */

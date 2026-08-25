@@ -87,8 +87,8 @@ export interface AutomationCollectorDeps {
  *   - transcript-activity collector (perf): the daemon runs the guarded
  *     filesystem probes (newest transcript mtime + the engine-owned
  *     completion marker) and publishes on the `transcript.activity` channel;
- *     the per-window tmux quiescence check stays in-process (the daemon
- *     never touches tmux).
+ *     the per-window quiescence check stays in-process (the daemon never
+ *     touches front-end state).
  *   - pr-status poller: shells `gh pr view` per task with a real branch and
  *     writes the result onto Task.prStatus, which rides the task push.
  */

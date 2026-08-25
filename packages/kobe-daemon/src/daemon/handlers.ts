@@ -281,7 +281,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           uptimeMs: Date.now() - ctx.daemon.startedAt.getTime(),
           startedAt: ctx.daemon.startedAt.toISOString(),
           // Attached GUIs (role "gui" front-ends) — the refcount that keeps
-          // the daemon alive. Excludes in-tmux helper panes (role "pane") and
+          // the daemon alive. Excludes helper panes (role "pane") and
           // transient CLI pokes, so this reflects "humans looking at kobe".
           attachedClients: ctx.daemon.guiCount(),
           // Why this daemon may be up with zero attached clients. Without it,
