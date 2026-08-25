@@ -248,8 +248,9 @@ function armPrefix(now: number, options: readonly PrefixHudOption[], inputPassth
  */
 export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number = Date.now()): boolean {
   if (prefixConfiguration.key === null) return false
-  if (!prefixReachable(snapshot)) return false
-  armPrefix(now, reachablePrefixOptions(snapshot), inputPassthroughReachable(snapshot))
+  const reach = scanReachability(snapshot)
+  if (!reach.prefixReachable) return false
+  armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
   return true
 }
 
@@ -295,65 +296,58 @@ function warnShadowedMatch(
   }
 }
 
-/** Whether an enabled prefix row is reachable above the modal barrier. */
-function prefixReachable(snapshot: readonly RegisteredBinding[]): boolean {
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    if (cfg.bindings.some((binding) => binding.prefix === true)) return true
-    if (cfg.modal) return false
-  }
-  return false
-}
-
-/** True when the current focused input surface forwards keys to a PTY. */
-function inputPassthroughReachable(snapshot: readonly RegisteredBinding[]): boolean {
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    if (cfg.bindings.some((binding) => binding.passthrough)) return true
-    if (cfg.modal) return false
-  }
-  return false
+interface ReachabilityScan {
+  /** True when at least one enabled prefix binding is reachable. */
+  prefixReachable: boolean
+  /** True when the current focused input surface forwards keys to a PTY. */
+  inputPassthrough: boolean
+  /** Deduplicated prefix HUD options in LIFO order. */
+  prefixOptions: PrefixHudOption[]
+  /** Direct (non-prefix) binding ids reachable above the modal barrier. */
+  directIds: ReadonlySet<string>
+  /** Prefix binding ids reachable above the modal barrier. */
+  prefixIds: ReadonlySet<string>
 }
 
 /**
- * Snapshot the prefix command map using the same LIFO + modal reachability
- * rules as dispatch. A duplicated stroke appears once and names the action
- * that would actually win right now.
+ * One top-down scan of the binding stack, collecting every reachability fact
+ * the dispatcher and the HUD need. Previously four near-identical loops
+ * (prefixReachable, inputPassthroughReachable, reachablePrefixOptions,
+ * bindingReachability) repeated the same enable/modal gating; unifying them
+ * removes the drift risk and makes the reachability contract one place to edit.
  */
-function reachablePrefixOptions(snapshot: readonly RegisteredBinding[]): PrefixHudOption[] {
-  const options: PrefixHudOption[] = []
-  const seen = new Set<string>()
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    for (const binding of cfg.bindings) {
-      if (binding.prefix !== true || seen.has(binding.key)) continue
-      seen.add(binding.key)
-      options.push({ stroke: binding.key, action: binding.id ?? binding.key })
-    }
-    if (cfg.modal) break
-  }
-  return options
-}
-
-/** Binding ids available above the active modal barrier right now. */
-export function bindingReachability(snapshot: readonly RegisteredBinding[]): BindingReachability {
-  const direct = new Set<string>()
-  const prefix = new Set<string>()
+function scanReachability(snapshot: readonly RegisteredBinding[]): ReachabilityScan {
+  const directIds = new Set<string>()
+  const prefixIds = new Set<string>()
+  let prefixReachable = false
   let inputPassthrough = false
+  const prefixOptions: PrefixHudOption[] = []
+  const seenPrefixKeys = new Set<string>()
   for (let i = snapshot.length - 1; i >= 0; i--) {
     const cfg = snapshot[i]?.config()
     if (!cfg || cfg.enabled === false) continue
     for (const binding of cfg.bindings) {
       if (binding.passthrough) inputPassthrough = true
-      if (!binding.id) continue
-      ;(binding.prefix === true ? prefix : direct).add(binding.id)
+      if (binding.prefix === true) {
+        prefixReachable = true
+        if (binding.id) prefixIds.add(binding.id)
+        if (!seenPrefixKeys.has(binding.key)) {
+          seenPrefixKeys.add(binding.key)
+          prefixOptions.push({ stroke: binding.key, action: binding.id ?? binding.key })
+        }
+      } else if (binding.id) {
+        directIds.add(binding.id)
+      }
     }
     if (cfg.modal) break
   }
-  return { direct, prefix, inputPassthrough }
+  return { prefixReachable, inputPassthrough, prefixOptions, directIds, prefixIds }
+}
+
+/** Binding ids available above the active modal barrier right now. */
+export function bindingReachability(snapshot: readonly RegisteredBinding[]): BindingReachability {
+  const { directIds, prefixIds, inputPassthrough } = scanReachability(snapshot)
+  return { direct: directIds, prefix: prefixIds, inputPassthrough }
 }
 
 /** Match one Binding Stack mode, preserving normal LIFO and modal semantics. */
@@ -421,12 +415,13 @@ export function dispatchKeyEvent(
   if (evt.defaultPrevented || dispatching) return false
   const snapshot = bindingStack.slice()
   const candidates = matchKey(evt as KeyEvent)
+  const reach = scanReachability(snapshot)
   dispatching = true
   try {
     // A sequence cannot cross the PTY boundary after it is armed: the next
     // key must resolve in the same kind of input surface that showed the
     // command map. Prefixes armed INSIDE the terminal remain valid there.
-    if (prefixArmedAt !== null && inputPassthroughReachable(snapshot) !== prefixArmedOnPassthrough) {
+    if (prefixArmedAt !== null && reach.inputPassthrough !== prefixArmedOnPassthrough) {
       resetPrefixState()
     }
     if (prefixArmedAt !== null) {
@@ -462,8 +457,8 @@ export function dispatchKeyEvent(
       // embedded terminal owns every other unreserved key. If no prefix row
       // is reachable (disabled configuration/modal context), normal direct
       // dispatch below still lets the terminal's passthrough binding win.
-      if (prefixReachable(snapshot)) {
-        armPrefix(now, reachablePrefixOptions(snapshot), inputPassthroughReachable(snapshot))
+      if (reach.prefixReachable) {
+        armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
         evt.preventDefault()
         return true
       }
