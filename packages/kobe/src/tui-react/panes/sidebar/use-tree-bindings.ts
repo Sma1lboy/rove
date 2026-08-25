@@ -1,18 +1,23 @@
 /**
- * Tree sidebar keybindings — one registration instead of the six that grew
- * here as modes were added.
+ * Tree sidebar keybindings — collapsed from six `useBindings` calls in
+ * `SidebarTree.tsx` down to four, while preserving the original dispatch
+ * priority and every user-rebindable registry id.
  *
- * The previous SidebarTree.tsx registered a separate `useBindings` entry for
- * main navigation, move-mode escape, search mode, menu navigation, menu
- * escape, and the global jump chord. The stack order and the overlapping
- * `enabled` flags made the real priority (menu > search > move > main) hard to
- * see, and adding a new mode meant adding yet another hook call. This hook
- * declares the same chords once and routes each press through an explicit
- * mode-guard, so the dispatch table is the only place that knows about modes.
+ * Why not literally one registration:
+ *   - `escape` must NOT be registered when no mode is active, or the sidebar
+ *     silently consumes an otherwise harmless key (regression).
+ *   - `sidebar.search.cancel`, `sidebar.search.nav`, and
+ *     `sidebar.search.submit` are registry ids the user may rebind; they must
+ *     stay routed through `bindByIds`.
  *
- * `tasks.jump` stays outside this hook: it is intentionally always enabled
- * (it switches tasks from inside the engine pane), while every other sidebar
- * chord is gated on the sidebar having focus.
+ * So the split follows the real modes:
+ *   1. Main navigation & action chords (no mode active).
+ *   2. Move-mode escape (raw key — there is no registry id for this).
+ *   3. Search-mode chords (registry ids).
+ *   4. Menu-mode chords + menu escape.
+ *
+ * Registration order mirrors the old code (main → move → search → menu), so
+ * the LIFO stack priority stays identical: menu > search > move > main.
  */
 
 import type { createSidebarController } from "../../../tui/panes/sidebar/controller"
@@ -66,99 +71,100 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     fn(parseRowId(rowId).taskId)
   }
 
+  // 1. Main navigation & per-row verbs — only when no transient mode has the
+  //    keyboard.
   useBindings(() => ({
-    enabled: focused,
+    enabled: focused && !search.active && !menu.open,
+    bindings: bindByIds({
+      "sidebar.nav": (_evt, slot) => {
+        markKeysUsed()
+        const down = (slot ?? 0) % 2 === 0
+        if (moveMode) {
+          moveCursorRow(down ? 1 : -1)
+          return
+        }
+        if (down) controller.moveDown()
+        else controller.moveUp()
+      },
+      "sidebar.select": () => {
+        markKeysUsed()
+        if (moveMode) {
+          onMoveModeExit?.()
+          return
+        }
+        controller.selectCurrent()
+      },
+      "sidebar.goto": (_evt, slot) => {
+        if (moveMode) return
+        if ((slot ?? 0) % 2 === 1) controller.pressShiftG()
+        else controller.pressG()
+      },
+      "sidebar.tree.open": () => {
+        if (moveMode) return
+        controller.selectCurrent()
+      },
+      "sidebar.search.enter": () => {
+        if (moveMode) return
+        search.enter()
+      },
+      "sidebar.delete": () => {
+        if (moveMode) return
+        markKeysUsed()
+        withCursorTask(onDeleteRequest)
+      },
+      "sidebar.archive": () => {
+        if (moveMode) return
+        markKeysUsed()
+        withCursorTask(onArchiveRequest)
+      },
+      "sidebar.rename": () => {
+        if (moveMode) return
+        markKeysUsed()
+        withCursorTask(onRenameRequest)
+      },
+      "sidebar.localMerge": () => withCursorTask(onLocalMergeRequest),
+      "sidebar.pin": () => {
+        if (moveMode) return
+        markKeysUsed()
+        withCursorTask(onPinRequest)
+      },
+    }),
+  }))
+
+  // 2. Move-mode escape — no registry id covers this, so it is a raw key.
+  useBindings(() => ({
+    enabled: focused && moveMode,
+    bindings: [{ key: "escape", cmd: () => onMoveModeExit?.() }],
+  }))
+
+  // 3. Search-mode chords — registry ids so user rebinding keeps working.
+  useBindings(() => ({
+    enabled: focused && search.active,
+    bindings: bindByIds({
+      "sidebar.search.nav": (_evt, slot) => {
+        const down = (slot ?? 0) % 2 === 0
+        if (down) controller.moveDown()
+        else controller.moveUp()
+      },
+      "sidebar.search.submit": () => {
+        controller.selectCurrent()
+        search.exit()
+      },
+      "sidebar.search.cancel": () => search.exit(),
+    }),
+  }))
+
+  // 4. Menu-mode chords — retarget j/k/enter at the menu, and close it on
+  //    escape. Kept separate from main so the same `sidebar.nav`/`sidebar.select`
+  //    ids can be reused without within-config key collisions.
+  useBindings(() => ({
+    enabled: focused && menu.open,
     bindings: [
       ...bindByIds({
-        // j/k/down/up are multiplexed across every mode that needs them. The
-        // keymap dispatcher matches the first binding for a key inside a single
-        // config, so this handler must route all cases instead of registering
-        // separate per-mode rows.
-        "sidebar.nav": (_evt, slot) => {
-          const down = (slot ?? 0) % 2 === 0
-          if (menu.open) {
-            menu.moveCursor(down ? 1 : -1)
-            return
-          }
-          if (search.active) {
-            // Search uses down/up to walk matches; j/k are text in the query.
-            if (down) controller.moveDown()
-            else controller.moveUp()
-            return
-          }
-          markKeysUsed()
-          if (moveMode) {
-            moveCursorRow(down ? 1 : -1)
-            return
-          }
-          if (down) controller.moveDown()
-          else controller.moveUp()
-        },
-        // Return/enter is likewise multiplexed: menu pick, search submit,
-        // move-mode exit, or plain row activation.
-        "sidebar.select": () => {
-          if (menu.open) {
-            menu.pickCurrent()
-            return
-          }
-          if (search.active) {
-            controller.selectCurrent()
-            search.exit()
-            return
-          }
-          markKeysUsed()
-          if (moveMode) {
-            onMoveModeExit?.()
-            return
-          }
-          controller.selectCurrent()
-        },
-        "sidebar.goto": (_evt, slot) => {
-          if (menu.open || search.active || moveMode) return
-          if ((slot ?? 0) % 2 === 1) controller.pressShiftG()
-          else controller.pressG()
-        },
-        "sidebar.tree.open": () => {
-          if (menu.open || search.active || moveMode) return
-          controller.selectCurrent()
-        },
-        "sidebar.search.enter": () => {
-          if (menu.open || search.active || moveMode) return
-          search.enter()
-        },
-        "sidebar.delete": () => {
-          if (menu.open || search.active || moveMode) return
-          markKeysUsed()
-          withCursorTask(onDeleteRequest)
-        },
-        "sidebar.archive": () => {
-          if (menu.open || search.active || moveMode) return
-          markKeysUsed()
-          withCursorTask(onArchiveRequest)
-        },
-        "sidebar.rename": () => {
-          if (menu.open || search.active || moveMode) return
-          markKeysUsed()
-          withCursorTask(onRenameRequest)
-        },
-        "sidebar.localMerge": () => {
-          if (menu.open || search.active || moveMode) return
-          withCursorTask(onLocalMergeRequest)
-        },
-        "sidebar.pin": () => {
-          if (menu.open || search.active || moveMode) return
-          markKeysUsed()
-          withCursorTask(onPinRequest)
-        },
+        "sidebar.nav": (_evt, slot) => menu.moveCursor((slot ?? 0) % 2 === 0 ? 1 : -1),
+        "sidebar.select": () => menu.pickCurrent(),
       }),
-      {
-        key: "escape",
-        cmd: () => {
-          if (menu.open) menu.close()
-          else if (search.active) search.exit()
-          else if (moveMode) onMoveModeExit?.()
-        },
-      },
+      { key: "escape", cmd: () => menu.close() },
     ],
   }))
 }

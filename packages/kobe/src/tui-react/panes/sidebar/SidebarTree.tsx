@@ -258,9 +258,9 @@ export function SidebarTree(props: SidebarTreeProps) {
   // Using the pane's own nav/select keys extinguishes its first-use hint.
   const markKeysUsed = usePaneHintMark("sidebar")
 
-  // One registration for every sidebar-scoped chord; mode routing (menu >
-  // search > move > main) lives inside the dispatch table so the priority is
-  // explicit instead of spread across overlapping `enabled` flags.
+  // Sidebar-scoped chords collapsed from six `useBindings` calls down to
+  // four. Mode priority (menu > search > move > main) is explicit in the
+  // hook's `enabled` guards and registration order.
   useTreeBindings({
     focused,
     search,
