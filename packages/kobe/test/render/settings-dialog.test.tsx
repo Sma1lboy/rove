@@ -44,7 +44,7 @@ describe("SettingsDialog", () => {
     text = await press("j") // → Engines
     expect(text).toContain("Launch command")
     text = await press("j") // → Accounts
-    expect(text).toContain("Read-only view of locally-detected engine accounts")
+    expect(text).toContain("Read-only view of locally-detected engines")
     text = await press("j") // → Plugins
     expect(text).toContain("No plugins registered")
     text = await press("j") // → Keybindings

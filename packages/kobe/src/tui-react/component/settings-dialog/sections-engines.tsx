@@ -9,13 +9,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
-import type {
-  ClaudeAccount,
-  CodexAccount,
-  CopilotAccount,
-  EngineAccountStatus,
-  KimiAccount,
-} from "../../../engine/account-detect"
+import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
 import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -121,13 +115,8 @@ export function EngineSettingsSection(
   )
 }
 
-/** One engine's binary + login lines, shared by the three account blocks. */
-function AccountBlock(props: {
-  name: string
-  status: EngineAccountStatus<unknown> | null
-  /** Renders the resolved account line for this engine's account union. */
-  accountLine: (status: EngineAccountStatus<unknown>) => ReactNode
-}) {
+/** One engine's binary line + (when it has a detector) its login line. */
+function AccountBlock(props: { name: string; status: EngineStatus | null }) {
   const { theme } = useTheme()
   const t = useT()
   const s = props.status
@@ -145,7 +134,9 @@ function AccountBlock(props: {
               ? `Binary: ${(s.binary as { path: string }).path}`
               : `Binary: ${(s.binary as { error: string }).error}`}
           </text>
-          {props.accountLine(s)}
+          {/* No detector (contrib / plugin / custom) → the binary line is the
+              whole story; claiming "not logged in" would be a guess. */}
+          {s.account === null ? null : <AccountLine account={s.account} />}
           {s.accountError ? (
             <text fg={theme.warning} wrapMode="word">
               {`! ${s.accountError}`}
@@ -157,18 +148,45 @@ function AccountBlock(props: {
   )
 }
 
-/** Read-only "is this engine installed + logged in" view. */
+/** The resolved login line for any built-in engine's account shape. */
+function AccountLine({ account }: { account: EngineAccount }): ReactNode {
+  const { theme } = useTheme()
+  const t = useT()
+  if (account.kind === "oauth") {
+    // Claude's oauth carries an identity; copilot's and kimi's don't.
+    if (!("email" in account)) return <text fg={theme.success}>{t("settings.accounts.detected")}</text>
+    const tail = [account.organization, account.billingType].filter((x): x is string => !!x).join(" · ")
+    return (
+      <text fg={theme.success} wrapMode="word">
+        {t("settings.accounts.loggedIn", { email: account.email }) + (tail ? ` (${tail})` : "")}
+      </text>
+    )
+  }
+  if (account.kind === "chatgpt") {
+    return (
+      <text fg={theme.success} wrapMode="word">
+        {t("settings.accounts.chatgptLogin", { email: account.email }) + (account.plan ? ` (${account.plan})` : "")}
+      </text>
+    )
+  }
+  if (account.kind === "apikey") return <text fg={theme.success}>{t("settings.accounts.apiKeyConfigured")}</text>
+  if (account.kind === "token")
+    return <text fg={theme.success}>{t("settings.accounts.tokenConfigured", { source: account.source })}</text>
+  return <text fg={theme.textMuted}>{t("settings.accounts.notLoggedIn")}</text>
+}
+
+/** Read-only "is this engine installed + logged in" view, one block per engine. */
 export function AccountsSettingsSection(props: {
-  claudeStatus: EngineAccountStatus<ClaudeAccount> | null
-  codexStatus: EngineAccountStatus<CodexAccount> | null
-  copilotStatus: EngineAccountStatus<CopilotAccount> | null
-  kimiStatus: EngineAccountStatus<KimiAccount> | null
-  /** Display label for a vendor — custom name override, else VENDOR_LABEL. */
+  /** Every engine the Engines section lists, in the same order. */
+  vendors: readonly VendorId[]
+  /** Probe results, in `vendors` order; `null` while still probing. */
+  statuses: readonly EngineStatus[] | null
+  /** Display label for a vendor — custom name override, else the registry name. */
   displayName: (vendor: VendorId) => string
 }) {
   const { theme } = useTheme()
   const t = useT()
-  const notLoggedIn = <text fg={theme.textMuted}>{t("settings.accounts.notLoggedIn")}</text>
+  const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
@@ -177,58 +195,9 @@ export function AccountsSettingsSection(props: {
       <text fg={theme.textMuted} wrapMode="word">
         {t("settings.accounts.hint")}
       </text>
-      <AccountBlock
-        name={props.displayName("claude")}
-        status={props.claudeStatus}
-        accountLine={(s) => {
-          const a = s.account as ClaudeAccount
-          if (a.kind === "oauth") {
-            const tail = [a.organization, a.billingType].filter((x): x is string => !!x).join(" · ")
-            return (
-              <text fg={theme.success} wrapMode="word">
-                {t("settings.accounts.loggedIn", { email: a.email }) + (tail ? ` (${tail})` : "")}
-              </text>
-            )
-          }
-          return notLoggedIn
-        }}
-      />
-      <AccountBlock
-        name={props.displayName("codex")}
-        status={props.codexStatus}
-        accountLine={(s) => {
-          const a = s.account as CodexAccount
-          if (a.kind === "chatgpt") {
-            return (
-              <text fg={theme.success} wrapMode="word">
-                {t("settings.accounts.chatgptLogin", { email: a.email }) + (a.plan ? ` (${a.plan})` : "")}
-              </text>
-            )
-          }
-          if (a.kind === "apikey") return <text fg={theme.success}>{t("settings.accounts.apiKeyConfigured")}</text>
-          return notLoggedIn
-        }}
-      />
-      <AccountBlock
-        name={props.displayName("copilot")}
-        status={props.copilotStatus}
-        accountLine={(s) => {
-          const a = s.account as CopilotAccount
-          if (a.kind === "token")
-            return <text fg={theme.success}>{t("settings.accounts.tokenConfigured", { source: a.source })}</text>
-          if (a.kind === "oauth") return <text fg={theme.success}>{t("settings.accounts.copilotDetected")}</text>
-          return notLoggedIn
-        }}
-      />
-      <AccountBlock
-        name={props.displayName("kimi")}
-        status={props.kimiStatus}
-        accountLine={(s) => {
-          const a = s.account as KimiAccount
-          if (a.kind === "oauth") return <text fg={theme.success}>{t("settings.accounts.kimiDetected")}</text>
-          return notLoggedIn
-        }}
-      />
+      {props.vendors.map((vendor) => (
+        <AccountBlock key={vendor} name={props.displayName(vendor)} status={byVendor.get(vendor) ?? null} />
+      ))}
     </box>
   )
 }

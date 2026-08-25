@@ -33,7 +33,6 @@ import {
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
-import { isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
 import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../context/theme"
 import { type LocaleId, currentLang, setLocaleLang, useT } from "../../i18n"
@@ -100,7 +99,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
-  const accounts = useAccountProbes(section)
+  const accounts = useAccountProbes(section, engines.engineList())
   const plugins = usePluginSettings(section, dialog)
 
   /**
@@ -368,7 +367,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <EngineSettingsSection
               {...cursorProps}
               vendors={engines.engineList()}
-              isCustom={(v) => !isBuiltinVendor(v)}
+              isCustom={engines.isCustomEngine}
               displayName={engines.engineName}
               commandText={engines.engineCommandText}
               isDefault={engines.engineIsDefault}
@@ -379,10 +378,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
           ) : null}
           {section === "accounts" ? (
             <AccountsSettingsSection
-              claudeStatus={accounts.claude}
-              codexStatus={accounts.codex}
-              copilotStatus={accounts.copilot}
-              kimiStatus={accounts.kimi}
+              vendors={engines.engineList()}
+              statuses={accounts}
               displayName={engines.engineName}
             />
           ) : null}

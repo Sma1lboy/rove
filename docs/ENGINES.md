@@ -23,7 +23,7 @@ you need git-level isolation and a separate branch.
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
-| Anything you register | custom | — | — | — | — |
+| Anything you register | custom | binary only | — | — | — |
 
 **Claude Code is the default** and the most complete: its quota probe drives
 rate-limit auto-resume and the Settings usage dashboard.
@@ -32,8 +32,10 @@ rate-limit auto-resume and the Settings usage dashboard.
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
 `amp`) so they appear in the engine selector whenever the binary is on your
 PATH — with a proper name, a launch command, and screen-based activity
-badges. No account panel, history, or model picker; those need a real
-adapter, which is what promotes an engine to built-in.
+badges. Settings → Accounts lists them (and your own registered engines)
+too, but only to answer "is the binary there?" — no login state, history, or
+model picker; those need a real adapter, which is what promotes an engine to
+built-in.
 
 **Kimi is partial.** Rove finds the binary, reads its login state, and can
 locate each session's transcript — enough to watch it for activity and to

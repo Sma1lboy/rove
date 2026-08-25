@@ -8,7 +8,8 @@
  * state/vendor-prefs.ts).
  */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { availableEngineIds } from "../../../engine/account-detect"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
 import { defaultEngineCommand, engineCommandKey, engineNameKey } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
@@ -26,12 +27,27 @@ export function useEngineSettings(
   /** Clamp the body cursor after a custom engine is removed (max = list length incl. the +Add row). */
   onEngineListShrunk: (maxIndex: number) => void,
 ) {
+  // Engines Rove can launch beyond the built-ins + this user's own: the
+  // shipped contrib catalog (offered only when its binary is on PATH) and
+  // plugin-registered engines. Same source the new-task selector reads, so
+  // an engine you can PICK is an engine you can configure here.
+  const [detected, setDetected] = useState<readonly VendorId[]>([])
+  useEffect(() => {
+    void availableEngineIds().then(setDetected)
+  }, [])
+
   function customEngines(): string[] {
     const raw = kv.get("customEngineIds", [])
     return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
   }
   function engineList(): VendorId[] {
-    return [...ALL_VENDORS, ...customEngines()]
+    // Built-ins are ALWAYS listed, detected or not — this row is where you
+    // point an engine at an off-PATH binary in the first place.
+    return [...new Set([...ALL_VENDORS, ...customEngines(), ...detected])]
+  }
+  /** True only for an engine this user added — the one `x` can unregister. */
+  function isCustomEngine(vendor: VendorId): boolean {
+    return customEngines().includes(vendor)
   }
   function engineOverride(vendor: VendorId): string {
     const v = kv.get(engineCommandKey(vendor), "")
@@ -41,8 +57,9 @@ export function useEngineSettings(
     return engineOverride(vendor) || defaultEngineCommand(vendor).join(" ")
   }
   function engineIsDefault(vendor: VendorId): boolean {
-    // Custom engines have no built-in default, so they never read as "(default)".
-    return isBuiltinVendor(vendor) && engineOverride(vendor).length === 0 && !engineNameIsCustom(vendor)
+    // A user-added engine has no built-in default, so it never reads as
+    // "(default)"; a contrib/plugin engine does (its catalog command).
+    return !isCustomEngine(vendor) && engineOverride(vendor).length === 0 && !engineNameIsCustom(vendor)
   }
   function engineNameOverride(vendor: VendorId): string {
     const v = kv.get(engineNameKey(vendor), "")
@@ -90,7 +107,7 @@ export function useEngineSettings(
   function resetEngine(vendor: VendorId): void {
     kv.set(engineCommandKey(vendor), "")
     kv.set(engineNameKey(vendor), "")
-    if (!isBuiltinVendor(vendor)) {
+    if (isCustomEngine(vendor)) {
       // A removed preset must not leave its protocol behind: re-adding the
       // same id later would silently inherit the old declaration.
       kv.set(engineProtocolKey(vendor), "")
@@ -151,6 +168,7 @@ export function useEngineSettings(
 
   return {
     engineList,
+    isCustomEngine,
     engineName,
     engineCommandText,
     engineIsDefault,
