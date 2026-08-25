@@ -34,7 +34,7 @@ import { isNarrowWidth } from "../lib/narrow-mode"
 
 export { tabTitle }
 
-/** Same glyph vocabulary as tmux's `CHAT_TAB_STATUS_FORMAT` (`@kobe_tab_state`). */
+/** Turn-state glyphs mirrored on the tab strip. */
 export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   running: "●",
   done: "✓",

@@ -1,11 +1,11 @@
 /**
  * Framework-free poll loop for the Ops pane — the per-window turn-status
- * (capture-pane quiescence) poll, extracted from `tui/ops/host.tsx` so the
- * hosts run the SAME loop body verbatim. Only types are imported (erased at
- * runtime); all IO — tmux capture-pane / window-option writes, the attach
- * gate — is injected (`tui/ops/host-io.ts` builds the real set), which is
- * also what makes the loop unit-testable under vitest with fakes. Cadence
- * math stays in `./activity-poll`.
+ * (capture-pane quiescence) poll, extracted from the Solid host so the React
+ * port runs the SAME loop body verbatim. Only types are imported (erased at
+ * runtime); all IO — PTY capture and the attach gate — is injected by the
+ * React consumer (`tui-react/workspace/use-turn-polls.ts`), which is also
+ * what makes the loop unit-testable under vitest with fakes. Cadence math
+ * stays in `./activity-poll`.
  */
 
 import { createHash } from "node:crypto"
@@ -16,8 +16,6 @@ import { TURN_STATUS_POLL_MS, nextTurnStatusPollDelay } from "./activity-poll"
 
 /** Consecutive unchanged capture-pane reads before a completion marker counts as "done". */
 export const STABLE_POLLS_FOR_DONE = 2
-/** tmux window option the ChatTab turn chip reads. */
-export const CHAT_TAB_STATE_OPTION = "@kobe_tab_state"
 
 export function fingerprint(text: string): string {
   return createHash("sha1").update(text).digest("hex")
@@ -33,9 +31,9 @@ export interface TurnDetectorLike {
 
 export interface TurnStatusIo {
   readonly sessionAttached: () => Promise<boolean>
-  /** `tmux capture-pane` of the paired engine pane (quiescence source). */
+  /** Capture the paired engine pane (quiescence source). */
   readonly capturePane: () => Promise<string>
-  /** Write the ChatTab turn chip ({@link CHAT_TAB_STATE_OPTION}). */
+  /** Publish the current turn state for downstream consumers (toast, unread dot). */
   readonly setTurnState: (state: ChatTabTurnState) => Promise<void>
 }
 
