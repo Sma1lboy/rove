@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.173
+
+### Patch Changes
+
+- [#545](https://github.com/Sma1lboy/rove/pull/545) [`74dfd36`](https://github.com/Sma1lboy/rove/commit/74dfd3665e7063c680ce17e87686e90af94fd598) Harden the `daemon.status` wire-shape test. Replace weak `typeof` checks on `uptimeMs` and `kobeVersion` with concrete assertions: `uptimeMs` must be non-negative and `kobeVersion` must equal the runtime's current version. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#547](https://github.com/Sma1lboy/rove/pull/547) [`5a51962`](https://github.com/Sma1lboy/rove/commit/5a519625ef378b8615457d2974e34924062bd898) Derive kobe-web's user-facing CLI command strings from the build-time product name instead of hard-coding "rove". Affected prompts and hints in `lib/issues.ts`, `lib/review.ts`, `lib/terminal.ts`, and `lib/web-transport.ts` now use `ROVE_PRODUCT_NAME` so the legacy `kobe` wrapper is no longer mis-named in generated instructions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#549](https://github.com/Sma1lboy/rove/pull/549) [`d304634`](https://github.com/Sma1lboy/rove/commit/d3046349e336bdd9f5664cc17a98f7031dd67aab) Derive kobe-web's user-facing product display strings from the build-time product name instead of hard-coding "Rove". Affected surfaces include the top bar `[rove]` badge, empty-state headings, daemon-offline banners, desktop notification titles, the document title, and onboarding copy in `AdoptDialog` and `WorktreesPage`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.172
 
 ### Patch Changes
