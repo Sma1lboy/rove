@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.154
+
+### Patch Changes
+
+- [`9649328`](https://github.com/Sma1lboy/rove/commit/9649328f10108878ae1a39c2ce3090311bc189a6) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Landing fleet mock: every engine pane now pins its input row to the pane's bottom edge like the real TUI (scrollback grows, the composer stays put), the crab logo's rows pack seamlessly, and the kimi pane is retraced from a live Kimi Code session — welcome box with the block logo, ✨ user message, rounded input box, and the yolo/K3 status strip.
+
 ## 0.8.153
 
 ### Patch Changes
