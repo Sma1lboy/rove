@@ -1,0 +1,34 @@
+{
+  "workspaces": {
+    "packages/kobe": {
+      "entry": [
+        "src/cli/rove.ts",
+        "src/cli/kobe.ts",
+        "src/**/*mock-host.tsx",
+        "src/tui-react/mock/**"
+      ],
+      "project": [
+        "src/**/*.{ts,tsx}"
+      ]
+    },
+    "packages/kobe-daemon": {
+      "entry": [
+        "src/compat-env.ts",
+        "src/client/**/*.ts",
+        "src/daemon/pty-host-node-entry.ts"
+      ],
+      "project": [
+        "src/**/*.ts"
+      ]
+    }
+  },
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ],
+  "ignoreDependencies": [
+    ".*"
+  ],
+  "includeEntryExports": false,
+  "$schema": "https://unpkg.com/knip@latest/schema.json"
+}
