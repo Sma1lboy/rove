@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.163
+
+### Patch Changes
+
+- [#529](https://github.com/Sma1lboy/rove/pull/529) [`e55c6a8`](https://github.com/Sma1lboy/rove/commit/e55c6a8956573343317c9855735473e899dc2623) Extract `XtermTaskPty.refreshSnapshot()` into a dedicated `XtermSnapshotEngine` in `pty-xterm-snapshot.ts`, shrinking `pty-xterm-base.ts` from 500 to 388 lines and restoring headroom under the file-size cap. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.162
 
 ### Patch Changes
