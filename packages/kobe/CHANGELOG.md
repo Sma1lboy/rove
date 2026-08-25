@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.160
+
+### Patch Changes
+
+- [#524](https://github.com/Sma1lboy/rove/pull/524) [`f8d400a`](https://github.com/Sma1lboy/rove/commit/f8d400ae2eb20ebb27495e914265e018eaddd564) Collapse `XtermTaskPty.feed` and `feedReplay` into one private `feedInternal` helper in the TUI terminal base, and remove an unnecessary `IMarker` cast in scrollback anchor math. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.159
 
 ### Patch Changes
