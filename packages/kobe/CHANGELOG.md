@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.169
+
+### Patch Changes
+
+- [#539](https://github.com/Sma1lboy/rove/pull/539) [`286cadc`](https://github.com/Sma1lboy/rove/commit/286cadcb197ded0c58f3e008d90ca718dbb71341) Centralize the engine package's default vendor fallback. Replace scattered `vendor ?? "claude"` expressions in `engine/interactive-command.ts`, `engine/session-launch.ts`, and `engine/trust-worktree.ts` with `coerceVendorId(vendor)` from `@/types/vendor`. This also fixes a latent edge case: an empty or whitespace vendor string is now treated as "no vendor set" and falls back to `"claude"`, instead of being passed to the engine registry as a literal vendor id. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.168
 
 ### Patch Changes
