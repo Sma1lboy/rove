@@ -17,7 +17,13 @@ import { dirname } from "node:path"
 import type { VendorId } from "../types/vendor.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "./hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
-import { type HookEventSpec, isObject, mergeActivityHooks, mergeWorktreeWatchHook } from "./json-hooks.ts"
+import {
+  GATED_TOOL_VERBS,
+  type HookEventSpec,
+  isObject,
+  mergeActivityHooks,
+  mergeWorktreeWatchHook,
+} from "./json-hooks.ts"
 
 /** Read a JSON object from `path`. A missing file starts empty; any other read
  * or parse failure returns undefined so a best-effort install cannot clobber
@@ -95,7 +101,7 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
    *  hooks) — every tool call machine-wide spawns `kobe hook`, so the family
    *  stays out of the engine config until a plugin actually subscribes. */
   protected gatedVerbs(): ReadonlySet<string> {
-    return new Set(["tool-pre", "tool-post", "tool-failed"])
+    return GATED_TOOL_VERBS
   }
 
   async installActivityHooks(settingsFilePath: string, opts: { toolEvents?: boolean } = {}): Promise<void> {

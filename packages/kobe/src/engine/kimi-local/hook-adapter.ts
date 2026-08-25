@@ -36,7 +36,7 @@ import { kobeHookInvocation } from "../../cli/invocation.ts"
 import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
-import type { HookEventSpec } from "../json-hooks.ts"
+import { GATED_TOOL_VERBS, type HookEventSpec } from "../json-hooks.ts"
 
 /** Kimi hook event → normalized kobe verb. The ONE place Kimi event names live. */
 export const KIMI_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
@@ -66,8 +66,6 @@ export const KOBE_KIMI_HOOK_EVENTS: readonly string[] = [...new Set(KIMI_HOOK_EV
 
 const BLOCK_BEGIN = "# >>> rove hooks"
 const BLOCK_END = "# <<< rove hooks"
-/** Verbs installed only while a plugin subscribes tool.* (volume gate). */
-const GATED_VERBS: ReadonlySet<string> = new Set(["tool-pre", "tool-post", "tool-failed"])
 /** Bound each hook spawn — `kobe hook` is sub-second; Kimi's default is 30s. */
 const HOOK_TIMEOUT_SECONDS = 10
 
@@ -85,7 +83,7 @@ export function renderKimiHookBlock(
 ): string {
   const lines: string[] = [BLOCK_BEGIN]
   for (const spec of KIMI_HOOK_EVENT_MAP) {
-    if (!opts.toolEvents && GATED_VERBS.has(spec.verb)) continue
+    if (!opts.toolEvents && GATED_TOOL_VERBS.has(spec.verb)) continue
     // JSON.stringify doubles as a TOML basic-string quoter (same trick as
     // codex-local/trust.ts).
     const command = quoteShellArgv([...inv, "hook", spec.verb, "--engine", "kimi"])

@@ -19,6 +19,11 @@ import { kobeHookInvocation } from "../cli/invocation.ts"
 import { quoteShellArgv } from "../lib/shell-command.ts"
 import type { EngineActivityKind } from "./hook-events.ts"
 
+/** Verbs installed only while a plugin subscribes to tool.* hooks (volume gate).
+ *  Defined once here so JSON-shaped and TOML-shaped adapters share the same
+ *  gated set and a future change cannot drift between them. */
+export const GATED_TOOL_VERBS: ReadonlySet<string> = new Set(["tool-pre", "tool-post", "tool-failed"])
+
 /** One engine hook event mapped to a normalized kobe verb. `matcher` narrows
  *  which sub-events fire (e.g. only permission notifications). */
 export interface HookEventSpec {
