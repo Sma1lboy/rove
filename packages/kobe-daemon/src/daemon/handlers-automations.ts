@@ -3,15 +3,8 @@
 import { runAutomationOnce } from "./automation-runner.ts"
 import type { AutomationPatch, AutomationPrecheck } from "./contracts.ts"
 import { isValidCron } from "./cron.ts"
-import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
-
-function optionalNumber(payload: Record<string, unknown>, key: string): number | undefined {
-  const value = payload[key]
-  if (value === undefined || value === null) return undefined
-  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${key} must be a number`)
-  return value
-}
 
 /** Reject an unusable schedule at the boundary — persisting one would leave a
  *  row that can never fire and is only discoverable by watching it not run. */
