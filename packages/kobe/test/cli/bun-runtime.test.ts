@@ -97,14 +97,16 @@ describe("install guidance", () => {
       expect(missingBunMessage(undefined, "linux")).toContain("rove: Rove runs on the Bun runtime")
       expect(missingBunMessage(undefined, "linux")).not.toContain("kobe: Rove")
     } finally {
-      if (saved === undefined) process.env.ROVE_INVOKED_AS = undefined
+      // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
+      if (saved === undefined) delete process.env.ROVE_INVOKED_AS
       else process.env.ROVE_INVOKED_AS = saved
     }
   })
 
   it("falls back to kobe when no invocation marker is set", () => {
     const saved = process.env.ROVE_INVOKED_AS
-    process.env.ROVE_INVOKED_AS = undefined
+    // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves the string "undefined").
+    delete process.env.ROVE_INVOKED_AS
     try {
       expect(missingBunMessage(undefined, "linux")).toContain("kobe: Rove runs on the Bun runtime")
     } finally {
