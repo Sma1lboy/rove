@@ -1,12 +1,12 @@
 /**
- * Engine-owned turn completion detection for tmux ChatTabs.
+ * Engine-owned turn completion detection for hosted PTY sessions.
  *
  * Warp's reliable status model comes from structured response-stream
- * lifecycle events. kobe v0.6 delegates engines to interactive CLIs inside
- * tmux, so we cannot observe the live stream directly. The next-best
- * contract is engine-owned transcript markers: each vendor adapter knows
- * which persisted record means "a turn completed"; UI code only asks this
- * abstraction and combines it with pane quiescence.
+ * lifecycle events. kobe hosts engines in interactive CLIs inside a PTY,
+ * so we cannot observe the live stream directly. The next-best contract is
+ * engine-owned transcript markers: each vendor adapter knows which persisted
+ * record means "a turn completed"; UI code only asks this abstraction and
+ * combines it with pane quiescence.
  */
 
 import { readFile, stat } from "node:fs/promises"

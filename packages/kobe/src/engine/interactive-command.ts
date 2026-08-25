@@ -6,8 +6,7 @@
  * path. The vendor → default-argv mapping itself lives on the engine
  * registry (`registry.ts` `defaultCommand`); this module layers the
  * user's per-vendor override on top. Every launch site (the outer
- * monitor's Handover, the Tasks-pane switch, `new-chattab`) goes
- * through this.
+ * monitor's Handover and the Tasks-pane switch) goes through this.
  *
  * Codex's bare `codex` (no subcommand) opens its interactive TUI, the
  * same way bare `claude` does — `codex exec` is the headless path we
@@ -18,9 +17,9 @@
  * (e.g. it's `cl`) or who wants default flags (`claude --model …`) can
  * set their own. The override is a shell-ish command STRING persisted in
  * the shared `state.json` under {@link engineCommandKey}; we read it with
- * the cross-process {@link getPersistedString} (the Tasks-pane and
- * `new-chattab` run in their own processes, so they can't share the TUI's
- * reactive KV — they all read the same file instead). Empty / unset →
+ * the cross-process {@link getPersistedString} (the Tasks-pane runs in
+ * its own process, so it can't share the TUI's reactive KV — both read
+ * the same file instead). Empty / unset →
  * the built-in default.
  */
 

@@ -4,9 +4,9 @@
  *
  * Why it exists: the history pane polls transcript mtime and re-reads the
  * file every ~2.5s. A full re-parse builds a completely fresh `Message[]`
- * with new object identities each call — Solid's `<For>` keys rows by
- * reference, so all-new identities destroy + recreate every rendered row's
- * native subtree per poll, and the re-parse itself is O(n²) allocation over
+ * with new object identities each call — React keys rows by reference, so
+ * all-new identities destroy + recreate every rendered row's DOM subtree
+ * per poll, and the re-parse itself is O(n²) allocation over
  * a session's lifetime. Transcripts are append-only in the common case, so
  * we cache the parsed prefix and only parse the appended slice, returning
  * the SAME object refs for already-seen records.

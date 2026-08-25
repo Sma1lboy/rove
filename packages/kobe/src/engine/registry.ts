@@ -9,7 +9,7 @@
  *   - `history`        — transcript store reader (auto-title, recap).
  *   - `detectAccount`  — read-only login/binary probe (Settings → Accounts).
  *   - `createHookAdapter` — activity-hook installer (claude + codex today).
- *   - `createTurnDetector` — ChatTab turn-completion detection.
+ *   - `createTurnDetector` — Terminal Tab turn-completion detection.
  *   - `defaultCommand` / `displayName` — launch + label defaults.
  *
  * Adding an engine = one new entry here (plus its vendor-local modules);
@@ -137,7 +137,7 @@ export interface EngineRegistryEntry {
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
   /**
-   * Turn-completion detector for ChatTab status (transcript markers +
+   * Turn-completion detector for Terminal Tab status (transcript markers +
    * pane quiescence; see `turn-detector.ts`). Engines without persisted
    * completion markers (copilot, custom) get an {@link UnknownTurnDetector}
    * whose `supportsCompletionMarkers()` is false.

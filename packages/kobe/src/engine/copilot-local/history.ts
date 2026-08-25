@@ -73,8 +73,8 @@ export async function listSessionIdsForWorktree(
 /**
  * Newest `events.jsonl` mtime (epoch ms) across the Copilot sessions
  * rooted at `worktree`, or 0 when none match. The Ops pane polls this to
- * detect new Copilot conversation output without parsing the tmux pane
- *. Each session is a dir with a `workspace.yaml` (for the cwd
+ * detect new Copilot conversation output without parsing the PTY screen.
+ * Each session is a dir with a `workspace.yaml` (for the cwd
  * match) and a growing `events.jsonl` (the transcript we stat).
  */
 export async function latestTranscriptMtimeForWorktree(
