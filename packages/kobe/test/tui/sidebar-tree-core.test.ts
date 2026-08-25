@@ -8,6 +8,7 @@ import {
   mainTaskIdOfProject,
   parseRowId,
   projectKeysOf,
+  rowLiveBranchPath,
   tabRowId,
   treeFlatIds,
   withRecentRow,
@@ -310,6 +311,33 @@ describe("withRecentRow", () => {
   test("no recent task = rows unchanged", () => {
     const base = rows({ tasks: [task("a")], tabsByTask: new Map() })
     expect(withRecentRow(base, null)).toEqual(base)
+  })
+})
+
+describe("rowLiveBranchPath", () => {
+  test("a Rove worktree carries its own branch — nothing to look up", () => {
+    expect(rowLiveBranchPath(task("a", { branch: "feat/a" }))).toBe("")
+  })
+
+  test("main and dir rows resolve their own checkout's HEAD", () => {
+    expect(rowLiveBranchPath(task("m", { kind: "main", branch: "", worktreePath: "/repos/rove" }))).toBe("/repos/rove")
+    // A scratch shell is a dir task: opened inside a repo it IS on a branch,
+    // and showing its path instead read as a different kind of row.
+    const scratch = task("s", {
+      kind: "dir",
+      branch: "",
+      scratch: true,
+      worktreePath: "/Users/me/x",
+      repo: "/Users/me/x",
+    })
+    expect(rowLiveBranchPath(scratch)).toBe("/Users/me/x")
+  })
+
+  test("a dir row with the live branch resolved is named by it, not by its path", () => {
+    const dir = task("d", { kind: "dir", branch: "", worktreePath: "/Users/me/x", repo: "/Users/me/x" })
+    expect(worktreeRowLabel(dir, { liveBranch: "main", home: "/Users/me" })).toBe("main")
+    // Not a repo (poller answers "") → the path fallback still stands.
+    expect(worktreeRowLabel(dir, { liveBranch: "", home: "/Users/me" })).toBe("~/x")
   })
 })
 

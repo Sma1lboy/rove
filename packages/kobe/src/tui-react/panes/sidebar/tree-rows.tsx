@@ -17,7 +17,7 @@ import { type BoxRenderable, MouseButton } from "@opentui/core"
 import { type ReactNode, useEffect } from "react"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { NO_STATE_GLYPH, buildSidebarRowView, prCheckChip, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
-import { type TreeTab, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
+import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
@@ -155,17 +155,16 @@ export function WorktreeTreeRow(props: {
   const chip = prCheckChip(task)
   // A worktree row is named by its BRANCH; branchless rows fall back to
   // their tail-truncated path (the one derivation rule — `worktreeRowLabel`,
-  // issue #42). A `main` row stores no branch (its checkout moves freely),
-  // so it polls the repo HEAD — falling back to the title repeated the
-  // project header's name right under it (owner 2026-08-02), which read as
-  // a duplicate row instead of "the main checkout, currently on <branch>".
-  const isMain = task.kind === "main"
+  // issue #42). Which rows have to LOOK UP that branch is
+  // `rowLiveBranchPath`: main checkouts and directory/scratch tasks store
+  // none and move freely, so they poll their own HEAD.
+  const livePath = rowLiveBranchPath(task)
   useEffect(() => {
     // Dependency-only invalidation key: re-poll on the sidebar's ~2s tick.
     void shared.branchTick
-    if (isMain) pollCurrentBranch(task.repo)
-  }, [isMain, task.repo, shared.branchTick])
-  const label = worktreeRowLabel(task, isMain ? { liveBranch: currentBranch(task.repo) } : {})
+    if (livePath) pollCurrentBranch(livePath)
+  }, [livePath, shared.branchTick])
+  const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>

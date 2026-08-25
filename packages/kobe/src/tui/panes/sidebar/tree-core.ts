@@ -119,10 +119,27 @@ export const PATH_LABEL_MAX = 24
  * keeps its title, else the label falls back to the path and finally
  * "scratch" so a row is never blank.
  *
- * `liveBranch` is the caller-resolved HEAD for `main` rows (their stored
- * branch is always "" — see `git-head.ts`); `home` is injectable so the
- * tildification unit-tests without the real $HOME.
+ * `liveBranch` is the caller-resolved HEAD for the rows that own no branch of
+ * their own (see {@link rowLiveBranchPath} and `git-head.ts`); `home` is
+ * injectable so the tildification unit-tests without the real $HOME.
  */
+/**
+ * The checkout whose LIVE HEAD names this row, or `""` when the row already
+ * carries its own branch.
+ *
+ * Rove-created worktrees store `branch`, so their label is fixed. Two kinds
+ * store none and move freely: `main` (its checkout is the user's to switch)
+ * and `dir` — an arbitrary directory the user opened, which is what a scratch
+ * shell becomes. A scratch shell opened inside a repo IS on a branch, so
+ * labelling it with its path while every worktree row beside it showed a
+ * branch made it read as a different species of row. Not-a-repo still falls
+ * back to the path: the poller answers `""` for anything it can't resolve.
+ */
+export function rowLiveBranchPath(task: Task): string {
+  if (task.kind !== "main" && task.kind !== "dir") return ""
+  return task.worktreePath || task.repo || ""
+}
+
 export function worktreeRowLabel(
   task: Task,
   opts: { readonly liveBranch?: string; readonly home?: string } = {},
