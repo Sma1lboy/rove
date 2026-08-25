@@ -22,6 +22,34 @@ import { ATTR, type Chunk } from "./sgr"
 export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
 
+/**
+ * The absolute snapshot cell under a pointer, plus how far past the pane's
+ * edge that pointer sits.
+ *
+ * `viewCol`/`viewRow` are pointer coordinates RELATIVE to the pane body and
+ * may be negative or past the last row: opentui captures the drag to the
+ * element the press started on, so a drag that leaves the pane keeps
+ * reporting real coordinates. That overshoot is the auto-scroll signal —
+ * negative above the pane, positive below, zero inside — while the cell
+ * itself stays a valid snapshot address (the column is clamped to the grid,
+ * the row to the snapshot). Selection coordinates are absolute, so the row
+ * under a stationary pointer changes as the viewport scrolls; that is what
+ * lets a drag past the top edge keep extending into scrollback.
+ */
+export function pointerCell(
+  viewCol: number,
+  viewRow: number,
+  grid: { cols: number; rows: number },
+  visibleStart: number,
+  snapshotLength: number,
+): { cell: CellPoint; overshoot: number } {
+  const col = Math.min(grid.cols - 1, Math.max(0, viewCol))
+  const row = Math.min(Math.max(0, snapshotLength - 1), Math.max(0, visibleStart + viewRow))
+  const lastRow = grid.rows - 1
+  const overshoot = viewRow < 0 ? viewRow : viewRow > lastRow ? viewRow - lastRow : 0
+  return { cell: { row, col }, overshoot }
+}
+
 /** Reading-order normalize: start is the earlier of anchor/head. */
 export function orderRange(range: SelectionRange): { start: CellPoint; end: CellPoint } {
   const { anchor, head } = range

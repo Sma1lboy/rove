@@ -15,16 +15,33 @@
  * `isDragging` is a plain ref, not state: it flips on every mouse-move
  * during a drag, and mirroring that into React state would re-render the
  * pane on every pixel of drag motion for no visible benefit.
+ *
+ * A drag that hangs past the pane's top or bottom edge AUTO-SCROLLS the
+ * viewport, the way every terminal emulator does — without it the selection
+ * can never reach a row that is already above the first visible one, and the
+ * pointer usually can't travel far past the edge anyway (the pane sits near
+ * the top of the screen). Each tick only scrolls; the head is re-derived
+ * from the last pointer position whenever the viewport moves, so it follows
+ * the scroll exactly and a wheel tick mid-drag extends the selection too.
  */
 
 import type { BoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { copyTextToSystemClipboard } from "../../../tui/lib/clipboard-copy"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
-import { type CellPoint, type SelectionRange, extractSelection } from "../../../tui/panes/terminal/terminal-selection"
+import {
+  type CellPoint,
+  type SelectionRange,
+  extractSelection,
+  pointerCell,
+} from "../../../tui/panes/terminal/terminal-selection"
 
 export type { CellPoint, SelectionRange } from "../../../tui/panes/terminal/terminal-selection"
+
+/** Auto-scroll cadence while a drag hangs past an edge, and its per-tick cap. */
+const AUTO_SCROLL_MS = 50
+const AUTO_SCROLL_MAX_LINES = 5
 
 export interface UseTerminalSelectionOpts {
   bodyEl: BoxRenderable | null
@@ -33,6 +50,8 @@ export interface UseTerminalSelectionOpts {
   /** Absolute snapshot row index of the first VISIBLE row (viewport start). */
   visibleRangeStart: number
   snapshot: readonly TerminalRow[]
+  /** Move the viewport: negative scrolls up into history, positive toward live. */
+  scrollBy: (lines: number) => void
 }
 
 export interface UseTerminalSelectionResult {
@@ -40,7 +59,8 @@ export interface UseTerminalSelectionResult {
   /** Map a mouse event's screen coords to absolute (row, col) snapshot coordinates. */
   cellFromEvent: (evt: { x?: number; y?: number }) => CellPoint | null
   beginSelection: (cell: CellPoint) => void
-  updateSelectionHead: (cell: CellPoint) => void
+  /** Extend the selection to a drag position, auto-scrolling past the edges. */
+  dragTo: (evt: { x?: number; y?: number }) => void
   isDragging: () => boolean
   endDragging: () => void
   clearSelection: () => void
@@ -59,13 +79,19 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     return { anchor: selAnchor, head: selHead }
   }, [selAnchor, selHead])
 
-  const cellFromEvent = (evt: { x?: number; y?: number }): CellPoint | null => {
-    const { bodyEl: body, bodyGeometry: geometry, bodyRows, visibleRangeStart } = opts
+  const resolvePointer = (evt: { x?: number; y?: number }): { cell: CellPoint; overshoot: number } | null => {
+    const { bodyEl: body, bodyGeometry: geometry, bodyRows, visibleRangeStart, snapshot } = opts
     if (!body || !geometry) return null
-    const col = Math.min(geometry.cols - 1, Math.max(0, (evt.x ?? 0) - body.screenX))
-    const viewRow = Math.min(bodyRows - 1, Math.max(0, (evt.y ?? 0) - body.screenY))
-    return { row: visibleRangeStart + viewRow, col }
+    return pointerCell(
+      (evt.x ?? 0) - body.screenX,
+      (evt.y ?? 0) - body.screenY,
+      { cols: geometry.cols, rows: bodyRows },
+      visibleRangeStart,
+      snapshot.length,
+    )
   }
+
+  const cellFromEvent = (evt: { x?: number; y?: number }): CellPoint | null => resolvePointer(evt)?.cell ?? null
 
   const beginSelection = (cell: CellPoint): void => {
     draggingRef.current = true
@@ -73,10 +99,64 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     setSelHead(cell)
   }
 
-  const updateSelectionHead = (cell: CellPoint): void => {
-    if (!draggingRef.current) return
-    setSelHead(cell)
+  /* --------- drag + edge auto-scroll ---------- */
+
+  // The last pointer position of the live drag, in absolute screen coords —
+  // the auto-scroll tick and the post-scroll head refresh both re-read it.
+  const dragPointRef = useRef<{ x: number; y: number } | null>(null)
+  const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // The tick closes over render-derived geometry, so it's refreshed after
+  // every render rather than captured once when the interval starts.
+  const tickRef = useRef<() => void>(() => {})
+
+  const stopAutoScroll = (): void => {
+    if (!autoScrollRef.current) return
+    clearInterval(autoScrollRef.current)
+    autoScrollRef.current = null
   }
+
+  const dragTo = (evt: { x?: number; y?: number }): void => {
+    if (!draggingRef.current) return
+    const at = resolvePointer(evt)
+    if (!at) return
+    dragPointRef.current = { x: evt.x ?? 0, y: evt.y ?? 0 }
+    setSelHead(at.cell)
+    if (at.overshoot === 0) stopAutoScroll()
+    else if (!autoScrollRef.current) autoScrollRef.current = setInterval(() => tickRef.current(), AUTO_SCROLL_MS)
+  }
+
+  useEffect(() => {
+    tickRef.current = () => {
+      const point = dragPointRef.current
+      const at = point && draggingRef.current ? resolvePointer(point) : null
+      if (!at || at.overshoot === 0) {
+        stopAutoScroll()
+        return
+      }
+      // Speed follows how far past the edge the pointer is, capped so a drag
+      // to the edge of the screen doesn't fly through the whole scrollback.
+      opts.scrollBy(Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, at.overshoot)))
+    }
+  })
+
+  // Whenever the viewport moves under a live drag, the pointer is over a
+  // different absolute row — re-derive the head so the highlight keeps up
+  // with the scroll instead of trailing it by a tick.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on viewport moves; the pointer is a ref and the resolver is re-made per render.
+  useEffect(() => {
+    if (!draggingRef.current) return
+    const point = dragPointRef.current
+    const at = point ? resolvePointer(point) : null
+    if (at) setSelHead(at.cell)
+  }, [opts.visibleRangeStart])
+
+  // Unmount mid-drag (tab closed, pane swapped) must not leave a timer behind.
+  useEffect(
+    () => () => {
+      if (autoScrollRef.current) clearInterval(autoScrollRef.current)
+    },
+    [],
+  )
 
   const copySelection = (): void => {
     if (!selection) return
@@ -88,10 +168,12 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     selection,
     cellFromEvent,
     beginSelection,
-    updateSelectionHead,
+    dragTo,
     isDragging: () => draggingRef.current,
     endDragging: () => {
       draggingRef.current = false
+      dragPointRef.current = null
+      stopAutoScroll()
     },
     clearSelection: () => {
       setSelAnchor(null)

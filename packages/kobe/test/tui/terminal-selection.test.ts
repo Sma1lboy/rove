@@ -5,6 +5,7 @@ import {
   extractSelection,
   orderRange,
   overlaySelection,
+  pointerCell,
   rowSpan,
 } from "../../src/tui/panes/terminal/terminal-selection"
 
@@ -129,5 +130,37 @@ describe("terminal grid selection", () => {
     expect(out.map((c) => c.text).join("")).toBe(decomposed)
     const painted = out.filter((c) => ((c.attributes ?? 0) & ATTR.INVERSE) !== 0)
     expect(painted.map((c) => c.text).join("")).toBe("b\u0301")
+  })
+})
+
+describe("pointerCell", () => {
+  // 10 visible rows starting at snapshot row 40, in a 200-row snapshot.
+  const grid = { cols: 80, rows: 10 }
+  const at = (col: number, row: number, start = 40) => pointerCell(col, row, grid, start, 200)
+
+  it("maps a pointer inside the pane to its absolute row, no overshoot", () => {
+    expect(at(5, 3)).toEqual({ cell: { row: 43, col: 5 }, overshoot: 0 })
+    expect(at(0, 0).overshoot).toBe(0)
+    expect(at(0, 9).overshoot).toBe(0)
+  })
+
+  it("reports how far a drag hangs past the top edge", () => {
+    // The row above the viewport is real scrollback — addressable, and the
+    // negative overshoot is what drives auto-scroll toward it.
+    expect(at(2, -1)).toEqual({ cell: { row: 39, col: 2 }, overshoot: -1 })
+    expect(at(2, -7).overshoot).toBe(-7)
+  })
+
+  it("reports how far a drag hangs past the bottom edge", () => {
+    expect(at(2, 10)).toEqual({ cell: { row: 50, col: 2 }, overshoot: 1 })
+    expect(at(2, 14).overshoot).toBe(5)
+  })
+
+  it("clamps the cell to the snapshot and the grid width", () => {
+    expect(at(999, 2).cell.col).toBe(79)
+    expect(at(-4, 2).cell.col).toBe(0)
+    expect(at(0, -100, 40).cell.row).toBe(0) // above the buffer → first row
+    expect(at(0, 500, 190).cell.row).toBe(199) // past the buffer → last row
+    expect(pointerCell(0, 0, grid, 0, 0).cell.row).toBe(0) // empty snapshot
   })
 })

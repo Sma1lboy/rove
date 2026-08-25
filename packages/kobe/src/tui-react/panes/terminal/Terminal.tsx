@@ -199,6 +199,7 @@ export function Terminal(props: TerminalProps) {
     bodyRows,
     visibleRangeStart: visibleRange.start,
     snapshot,
+    scrollBy,
   })
 
   const cursorRows = useMemo(() => {
@@ -333,8 +334,9 @@ export function Terminal(props: TerminalProps) {
         selection.beginSelection(cell)
       }}
       onMouseDrag={(evt) => {
-        const cell = selection.cellFromEvent(evt)
-        if (cell) selection.updateSelectionHead(cell)
+        // Past the top/bottom edge this keeps scrolling on its own — opentui
+        // captures the drag here, so the coordinates stay real off-pane.
+        selection.dragTo(evt)
       }}
       onMouseUp={() => {
         setFocusedLocal(true)
@@ -402,7 +404,19 @@ export function Terminal(props: TerminalProps) {
           // One multi-line `<text>` for the whole snapshot (rows flattened
           // with `\n`) — one <text> per row inside a flex column shifts
           // body.screenY, landing the cursor a row above the prompt.
-          <text fg={theme.text} wrapMode="none" ref={(r: TextRenderable | null) => setSnapshotTextEl(r)} />
+          //
+          // `selectable={false}`: this pane runs its OWN grid selection (see
+          // `use-terminal-selection`), and opentui's text-flow selection can't
+          // work over a snapshot that is replaced every frame. Left on, it also
+          // swallows the drag — the renderer routes a live text selection to
+          // whatever sits under the pointer instead of capturing it to this
+          // pane, so a drag past the edge would never reach us at all.
+          <text
+            fg={theme.text}
+            wrapMode="none"
+            selectable={false}
+            ref={(r: TextRenderable | null) => setSnapshotTextEl(r)}
+          />
         ) : (
           <box paddingLeft={1} paddingTop={1} flexDirection="column" gap={0}>
             {acquireError ? (
