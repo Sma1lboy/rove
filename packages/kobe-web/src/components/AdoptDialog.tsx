@@ -9,6 +9,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useMemo, useRef, useState } from "react"
 import { setActiveTaskBestEffort } from "../lib/active-task.ts"
+import { displayProductName } from "../lib/cli-name.ts"
 import { rpc, useAppState } from "../lib/store.ts"
 import { selectTask } from "../lib/tabs.ts"
 import { relativeTimeAgo } from "../lib/time.ts"
@@ -126,14 +127,14 @@ export function AdoptDialog({ onClose }: { onClose: () => void }) {
               Adopt worktree
             </span>
             <span className="font-mono text-[10px] text-subtle">
-              pull an existing worktree into Rove
+              pull an existing worktree into {displayProductName()}
             </span>
           </div>
 
           <div className="px-3 py-6 text-center">
             <p className="text-[12px] leading-relaxed text-subtle">
-              No repos known to Rove yet. Create a task in a repo first, then
-              come back to adopt its worktrees.
+              No repos known to {displayProductName()} yet. Create a task in a
+              repo first, then come back to adopt its worktrees.
             </p>
             <button
               type="button"
@@ -182,7 +183,7 @@ export function AdoptDialog({ onClose }: { onClose: () => void }) {
             Adopt worktree
           </span>
           <span className="font-mono text-[10px] text-subtle">
-            pull an existing worktree into Rove
+            pull an existing worktree into {displayProductName()}
           </span>
         </div>
 

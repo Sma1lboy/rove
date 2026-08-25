@@ -9,6 +9,7 @@ import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
 import { setActiveTaskBestEffort } from "./active-task.ts"
 import { api } from "./api-client.ts"
 import { labelRepo } from "./board.ts"
+import { displayProductName } from "./cli-name.ts"
 import { fetchDefaultEngine } from "./settings.ts"
 import { rpc } from "./store.ts"
 import { addTab, ensureEngineTab } from "./tabs.ts"
@@ -304,7 +305,7 @@ export function quickStartPrompt(issue: Issue, api = DEFAULT_CLI_API): string {
   const body = issue.body.trim()
   if (body) lines.push(body, "")
   lines.push(
-    "Treat this as the story's dedicated Rove task session: work only in this task worktree, and preserve any repo init instructions already delivered to the session.",
+    `Treat this as the story's dedicated ${displayProductName()} task session: work only in this task worktree, and preserve any repo init instructions already delivered to the session.`,
     "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
     "Then merge the task branch back into the current project's main branch after the worktree is clean and checks pass.",
     `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
