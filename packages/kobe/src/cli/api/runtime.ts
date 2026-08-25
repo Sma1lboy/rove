@@ -11,8 +11,12 @@ import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { withClaudeSessionId } from "../../engine/interactive-command.ts"
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
-import type { DaemonRpc } from "../daemon-session.ts"
+import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 import { verifiedSelfSession } from "./dispatcher.ts"
+
+// Kept for existing callers in this directory; new callers should import from
+// daemon-session.ts directly to keep the daemon/session boundary clean.
+export { resolveActiveTaskId }
 import {
   deliverHostedPrompt,
   deliverToExactTab,
@@ -150,19 +154,6 @@ export async function deliverPrompt(
   const hosted = await ops.deliverHosted(target, worktree, prompt)
   if (!hosted) throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
   return hosted
-}
-
-export async function resolveActiveTaskId(client: DaemonRpc): Promise<string | null> {
-  let activeId: string | null = null
-  const off = client.onChannel("active-task", (payload) => {
-    activeId = payload.taskId
-  })
-  try {
-    await client.subscribe()
-  } finally {
-    off()
-  }
-  return activeId
 }
 
 export const defaultApiRuntime: ApiRuntime = {
