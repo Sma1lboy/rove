@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.167
+
+### Patch Changes
+
+- [#538](https://github.com/Sma1lboy/rove/pull/538) [`96333c7`](https://github.com/Sma1lboy/rove/commit/96333c70fc179fe96436d03a0b7cbc3886f6a064) Extract the hosted PTY child-process lifecycle (`spawn`, `startChild`, `onData`, `markExited`, `endChild`) from `daemon/pty-host.ts` into a new `daemon/pty-child-controller.ts`. The controller owns starting the child, folding output into the ring buffer, observing exit, and teardown, while `PtyHost` keeps session registry, client sinks, freeze coordination, and stats. `pty-host.ts` drops from 497 to 419 lines; both files stay well under the 500-line cap. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.166
 
 ### Patch Changes
