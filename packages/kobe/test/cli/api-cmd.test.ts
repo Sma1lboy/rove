@@ -161,6 +161,67 @@ describe("API surface (full CRUD)", () => {
     }
   })
 
+  // The ORDER of API_VERBS is a contract, not an implementation detail: it is
+  // the order `rove api schema` and `--help` list verbs in, and an agent reads
+  // that listing to discover the API. The neighbouring assertions cannot catch
+  // a drift in it — `toContain` only proves nothing was lost, and comparing
+  // `schemaIndex()` against `API_VERBS` is self-consistent (both derive from
+  // the same array, so they move together). Splitting the registry across
+  // `verbs-*.ts` files makes reordering a one-line accident, so the canonical
+  // sequence is pinned here verbatim.
+  //
+  // If you intend to change the order, update this list in the same commit and
+  // say so in the changeset — it is a user-visible change, not a refactor.
+  it("pins the canonical verb order that schema and help expose", () => {
+    expect([...API_VERBS]).toEqual([
+      "schema",
+      "engine-list",
+      "list",
+      "get-task",
+      "pty-list",
+      "collect",
+      "digest",
+      "agent-turns",
+      "inspect",
+      "read-output",
+      "add",
+      "send",
+      "dispatch",
+      "note",
+      "note-list",
+      "pane-open",
+      "pane-close",
+      "notify",
+      "prompt",
+      "set-active",
+      "feedback",
+      "issue-list",
+      "issue-create",
+      "issue-set-status",
+      "issue-update",
+      "routine-list",
+      "routine-create",
+      "routine-update",
+      "routine-set-enabled",
+      "routine-delete",
+      "routine-run-now",
+      "routine-runs",
+      "workitem-list",
+      "workitem-start",
+      "rename",
+      "set-branch",
+      "set-command",
+      "set-status",
+      "archive",
+      "pin",
+      "land",
+      "delete",
+      "ensure-worktree",
+      "discover-adoptable",
+      "adopt",
+    ])
+  })
+
   it("keeps `spawn-task` working as an alias of `add`", () => {
     expect(findVerb("spawn-task")?.name).toBe("add")
   })
