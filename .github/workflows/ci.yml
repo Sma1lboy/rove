@@ -89,6 +89,15 @@ jobs:
               fi
               echo "::error file=$f::$f is $lines lines (cap ~500). Refactor/split it, or add a 'file-size-exemption: $f — <reason>' line to the PR body. See AGENTS.md 'File size cap'."
               fail=1
+            elif [ "$lines" -ge 470 ]; then
+              # Headroom warning, never a failure. The cap is a cliff: a file
+              # at 499 passes, and the NEXT person to touch it inherits a
+              # refactor they did not plan. Worse, a file with no headroom
+              # can't even improve itself — extracting a helper costs a few
+              # lines before it saves any. Surfacing the remaining room here
+              # lets the split happen when someone chooses it, not when the
+              # gate forces it.
+              echo "::warning file=$f::$f is $lines lines — $((500 - lines)) from the ~500 cap. Consider splitting it now; the next edit may have no room left."
             fi
           done < <(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD)
           exit $fail
