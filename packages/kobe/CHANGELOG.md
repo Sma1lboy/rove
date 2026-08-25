@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.174
+
+### Patch Changes
+
+- [#548](https://github.com/Sma1lboy/rove/pull/548) [`6ab9e58`](https://github.com/Sma1lboy/rove/commit/6ab9e58f8ebf76043c226bb54c5d460120008f58) Remove remaining hard-coded vendor strings from neutral UI layers.
+
+  - Replace literal "Claude Code" / "Codex" / "claude" / "codex" product names in i18n messages, keybinding descriptions, and settings copy with vendor-neutral wording.
+  - Update example comments in `terminal.ts` and `keybindings-sidebar.ts` to avoid embedding vendor names.
+  - No behavior change; labels and descriptions now describe the generic concept instead of enumerating built-in engines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#546](https://github.com/Sma1lboy/rove/pull/546) [`2b1cd30`](https://github.com/Sma1lboy/rove/commit/2b1cd307cc36a082d5e383239a118c116815e743) Remove outdated workaround constraints in `tui/` and `tui-react/`.
+
+  - `tui/ops/activity-monitor.ts`: drop the dead `@kobe_tab_state` tmux window-option constant and update IO docs; turn state now feeds React consumers, not tmux.
+  - `tui/lib/keymap-overrides-parse.ts`: remove the `allowShiftCharacter` normalization option that only existed for the deleted tmux-layer resolver, and delete the unused `chordOptsFor` override hook.
+  - `tui-react/context/notifications.tsx`: read sound/toast toggles from the ported React KV provider when one is present, falling back to the mount-time `state.json` snapshot only in test/mock hosts that intentionally omit `KVProvider`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.173
 
 ### Patch Changes
