@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.165
+
+### Patch Changes
+
+- [#534](https://github.com/Sma1lboy/rove/pull/534) [`0b22892`](https://github.com/Sma1lboy/rove/commit/0b22892d16ba37d4c68ea0fbca789f565a86eded) Extract the path-to-tree builder (`TreeNode`, `buildTree`, `sortTree`) from `filetree/git.ts` into a framework-free `filetree/tree.ts`. The tree builder has no git dependency and is consumed by both the file-tree pane and its React port. `filetree/git.ts` drops from 466 to 412 lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.164
 
 ### Patch Changes
