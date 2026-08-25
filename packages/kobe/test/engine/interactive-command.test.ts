@@ -66,6 +66,11 @@ describe("defaultEngineCommand", () => {
     expect(defaultEngineCommand(undefined)).toEqual(["claude"])
   })
 
+  it("falls back to claude for empty or whitespace vendor", () => {
+    expect(defaultEngineCommand("")).toEqual(["claude"])
+    expect(defaultEngineCommand("   ")).toEqual(["claude"])
+  })
+
   it("runs a custom engine id as a bare binary (not claude)", () => {
     // A custom engine's real command lives in its engineCommand.<id> override;
     // this fallback only fires if that's empty, and must NOT launch claude.
