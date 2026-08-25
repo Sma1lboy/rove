@@ -376,7 +376,6 @@ export function KanbanPage(props: {
             </box>
             <scrollbox
               flexGrow={1}
-              gap={1}
               paddingTop={1}
               verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
             >

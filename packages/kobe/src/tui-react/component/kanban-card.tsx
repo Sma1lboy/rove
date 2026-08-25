@@ -60,13 +60,17 @@ export function KanbanCard(props: {
   // backgroundElement survives transparent mode on purpose (see
   // applyDisplayOverlay): cards are content, not chrome — they keep a
   // tinted surface so the board reads against any host wallpaper.
+  // Uniform padding=1: the title and the date row used to sit flush against
+  // the border while the sides had a cell each, so a card read as lopsided.
+  // The column's scrollbox drops its own gap in exchange — the padded rows
+  // already separate neighbouring cards, so this costs one row per card, not
+  // two, and the dense two-line grammar holds.
   return (
     <box
       border={true}
       borderColor={selected ? theme.primary : needsAttention ? theme.warning : columnBorder}
       backgroundColor={theme.backgroundElement}
-      paddingLeft={1}
-      paddingRight={1}
+      padding={1}
       onMouseUp={() => (selected ? props.onOpen() : props.onSelect())}
     >
       <box flexDirection="row" justifyContent="space-between">
