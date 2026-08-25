@@ -6,7 +6,7 @@
  * This collapses that into the neutral {@link EngineUsageSnapshot} the
  * history reader returns, the same way `codex-local/usage.ts` does for
  * Codex. Extracted from the v0.5 Copilot stream adapter that v0.6
- * dropped — the live engine runs in tmux now; we only read its history.
+ * dropped — the live engine runs in a hosted PTY; we only read its history.
  */
 
 import type { EngineUsageSnapshot } from "@/types/engine"
