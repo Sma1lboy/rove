@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.157
+
+### Patch Changes
+
+- [`84db5d4`](https://github.com/Sma1lboy/rove/commit/84db5d4e2813dc226dcdd843c960ab0660665370) Sidebar: answering an engine's question no longer blanks that tab's status glyph.
+
+  The optimistic overlay hid the stale `?` by deleting the tab's activity entry, but an
+  absent entry reads as "the daemon has never reported this tab" and the row fell back to
+  the dim `·` — for the mark's full 30-minute life, on a session that was visibly working.
+  The answered tab is now downgraded to `idle` instead, so it rests at `○`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`7545fe0`](https://github.com/Sma1lboy/rove/commit/7545fe0a70364262df2e2a2530557462ee1c39d7) A repo whose directory task already pins its root now gets that row promoted to the
+  project's main row, instead of a second row beside it.
+
+  Both rows pin the same checkout, so the sidebar showed one project header with two rows
+  carrying the same diff — one labelled by branch (`main`), one by path (`~/i/quill-all`) —
+  which reads as a duplicate of itself. Promotion keeps the session's id, so its terminal
+  tabs move under the main row. Scratch rows are never promoted. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.156
 
 ### Patch Changes
