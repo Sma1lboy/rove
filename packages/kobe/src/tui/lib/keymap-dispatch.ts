@@ -254,6 +254,27 @@ export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number
   return true
 }
 
+function hasReachableBinding(
+  snapshot: readonly RegisteredBinding[],
+  predicate: (binding: Binding) => boolean,
+): boolean {
+  for (let i = snapshot.length - 1; i >= 0; i--) {
+    const cfg = snapshot[i]?.config()
+    if (!cfg || cfg.enabled === false) continue
+    if (cfg.bindings.some(predicate)) return true
+    if (cfg.modal) return false
+  }
+  return false
+}
+
+/** Whether an enabled prefix row is reachable above the modal barrier. */
+const prefixReachable = (snapshot: readonly RegisteredBinding[]): boolean =>
+  hasReachableBinding(snapshot, (binding) => binding.prefix === true)
+
+/** True when the current focused input surface forwards keys to a PTY. */
+const inputPassthroughReachable = (snapshot: readonly RegisteredBinding[]): boolean =>
+  hasReachableBinding(snapshot, (binding) => binding.passthrough === true)
+
 /** Chords already flagged by the shadowed-match warning (once per process
  *  per chord — a stuck contract violation must not spam every keypress). */
 const shadowWarned = new Set<string>()
@@ -297,24 +318,18 @@ function warnShadowedMatch(
 }
 
 interface ReachabilityScan {
-  /** True when at least one enabled prefix binding is reachable. */
   prefixReachable: boolean
-  /** True when the current focused input surface forwards keys to a PTY. */
   inputPassthrough: boolean
-  /** Deduplicated prefix HUD options in LIFO order. */
   prefixOptions: PrefixHudOption[]
-  /** Direct (non-prefix) binding ids reachable above the modal barrier. */
   directIds: ReadonlySet<string>
-  /** Prefix binding ids reachable above the modal barrier. */
   prefixIds: ReadonlySet<string>
 }
 
 /**
  * One top-down scan of the binding stack, collecting every reachability fact
- * the dispatcher and the HUD need. Previously four near-identical loops
- * (prefixReachable, inputPassthroughReachable, reachablePrefixOptions,
- * bindingReachability) repeated the same enable/modal gating; unifying them
- * removes the drift risk and makes the reachability contract one place to edit.
+ * cold callers (armPrefixNow, bindingReachability, prefix HUD) need. The hot
+ * per-keypress path keeps its own early-exit helpers so a hit or miss never
+ * pays for fields it does not use.
  */
 function scanReachability(snapshot: readonly RegisteredBinding[]): ReachabilityScan {
   const directIds = new Set<string>()
@@ -415,13 +430,12 @@ export function dispatchKeyEvent(
   if (evt.defaultPrevented || dispatching) return false
   const snapshot = bindingStack.slice()
   const candidates = matchKey(evt as KeyEvent)
-  const reach = scanReachability(snapshot)
   dispatching = true
   try {
     // A sequence cannot cross the PTY boundary after it is armed: the next
     // key must resolve in the same kind of input surface that showed the
     // command map. Prefixes armed INSIDE the terminal remain valid there.
-    if (prefixArmedAt !== null && reach.inputPassthrough !== prefixArmedOnPassthrough) {
+    if (prefixArmedAt !== null && inputPassthroughReachable(snapshot) !== prefixArmedOnPassthrough) {
       resetPrefixState()
     }
     if (prefixArmedAt !== null) {
@@ -457,7 +471,8 @@ export function dispatchKeyEvent(
       // embedded terminal owns every other unreserved key. If no prefix row
       // is reachable (disabled configuration/modal context), normal direct
       // dispatch below still lets the terminal's passthrough binding win.
-      if (reach.prefixReachable) {
+      if (prefixReachable(snapshot)) {
+        const reach = scanReachability(snapshot)
         armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
         evt.preventDefault()
         return true
