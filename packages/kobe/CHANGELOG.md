@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.176
+
+### Patch Changes
+
+- [#552](https://github.com/Sma1lboy/rove/pull/552) [`b48226d`](https://github.com/Sma1lboy/rove/commit/b48226d8d5c25d0a757922fc5cc10f6ee03bd20e) docs: update stale Solid/tmux/ChatTab references in orchestrator and kobe-daemon comments
+
+  - Replaced "Solid signal" with "Observable state" in `orchestrator/core.ts`.
+  - Updated `kobe-daemon` comments to stop describing the current architecture in terms of the removed tmux/ChatTab stack (lifetime policy, PTY host, transcript collector, protocol roles, log paths, etc.).
+  - Replaced references to deleted files (`theme.tsx`, `tmux-border-theme.ts`) with the current equivalents.
+  - Left `server-types.ts` untouched: it is a transitional re-export with zero consumers and requires a human decision on whether to remove it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.175
 
 ### Patch Changes
