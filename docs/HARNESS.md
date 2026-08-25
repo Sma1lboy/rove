@@ -294,6 +294,48 @@ for post-failure inspection and never points at production state.
 - daemon/orchestrator/engine edits are verified after replacing stale daemon
   processes in the chosen sandbox.
 
+## Coverage gate
+
+`coverage-cap` (vitest lcov) and `render-track` (bun-test render lcov) hold every
+file a PR touches to a 50% line floor. Only touched files are gated, so a legacy
+file with thin coverage stays green until someone edits it.
+
+### The escape hatch, and when it is honest
+
+A `coverage-exemption: <path> — <reason>` line in the PR body waives one file.
+It is a paper trail, not a mute button: the next person reads it as "someone
+evaluated this and concluded the floor does not apply". Three situations come up,
+and only two of them justify one.
+
+- **Structurally untestable** — the render track cannot mount it at all.
+  `tui-react/workspace/host.tsx` and `workspace/TerminalTabs.tsx` are integration
+  layers needing a live daemon + PTY; their behaviour is covered by the behavior
+  track and the visual-ground-truth harness instead. Exemption is correct, and the
+  reason should name the covering track.
+- **Genuinely untested** — the file is ordinary code that vitest reaches fine, and
+  the number is low because nobody wrote the test. **Write the test.** An exemption
+  here turns the gate into a rubber stamp. (Two CLI modules sat at 28% and 41% and
+  went to 100% once someone actually tested them.)
+- **Pre-existing gap, unrelated change** — the file is partly testable, its gap
+  predates the PR, and the diff is something like a constant rename. Exemption is
+  reasonable, but say *that*: "pre-existing gap, not introduced by this PR". Do not
+  dress it up as untestable — the coverage number itself contradicts you.
+
+### Editing the PR body does not re-run CI
+
+The gate reads the body **during a workflow run**, so an exemption added after the
+failing run is invisible until a new run starts:
+
+```bash
+gh pr edit <n> --body-file <file>          # 1. add the exemption
+git commit --allow-empty -m "chore: re-trigger CI"   # 2. THEN force a fresh run
+git push
+```
+
+`gh run rerun` does **not** work here — it replays the frozen event payload, which
+carries the body as it was before the edit. Three PRs hit this in one night; each
+had a correct exemption sitting in the body that no run ever read.
+
 ## Required pre-PR command
 
 ```bash
