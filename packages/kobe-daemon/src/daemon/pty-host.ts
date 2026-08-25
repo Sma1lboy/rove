@@ -75,6 +75,7 @@ export const FREEZE_INTERVAL_MS = 5_000
 export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
   private readonly opts: PtyHostOptions
+  private readonly scrollbackCap: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
   /** The one warm-spare shell slot (see `pty-warm.ts`). */
@@ -88,6 +89,7 @@ export class PtyHost {
 
   constructor(opts: PtyHostOptions = {}) {
     this.opts = opts
+    this.scrollbackCap = opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP
   }
 
   /**
@@ -241,10 +243,7 @@ export class PtyHost {
     session.sinks.delete(token)
     // One socket has one sink per key. Only the final detach describes the
     // session's current visibility; a second attached client is still live.
-    if (session.sinks.size === 0) {
-      session.parked = parked
-      session.parkedScreenBytes = parked ? Math.max(0, parkedScreenBytes) : 0
-    }
+    this.applyParkedOnDetach(session, parked, parkedScreenBytes)
   }
 
   /** Detach one connection from EVERY session (socket closed). */
@@ -253,11 +252,16 @@ export class PtyHost {
       session.sinks.delete(token)
       // A socket vanished without an explicit park detach, so no local
       // registry is guaranteed to retain a restorable screen.
-      if (session.sinks.size === 0) {
-        session.parked = false
-        session.parkedScreenBytes = 0
-      }
+      this.applyParkedOnDetach(session)
     }
+  }
+
+  /** Update parked state when the last sink just left; a still-attached
+   *  session keeps its prior visibility. */
+  private applyParkedOnDetach(session: PtySessionState, parked = false, parkedScreenBytes = 0): void {
+    if (session.sinks.size !== 0) return
+    session.parked = parked
+    session.parkedScreenBytes = parked ? Math.max(0, parkedScreenBytes) : 0
   }
 
   /** Session inventory — lets a fresh TUI discover background sessions. */
@@ -272,12 +276,7 @@ export class PtyHost {
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */
   stats(): PtyHostStats {
-    return hostStats(
-      this.sessions.values(),
-      this.opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP,
-      this.parkRestoreDeltas,
-      this.parkRestoreFallbacks,
-    )
+    return hostStats(this.sessions.values(), this.scrollbackCap, this.parkRestoreDeltas, this.parkRestoreFallbacks)
   }
 
   /**
@@ -330,7 +329,7 @@ export class PtyHost {
     let restoredCount = 0
     for (const record of records) {
       if (this.sessions.has(record.key)) continue
-      const session = thawSession(record, this.opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP)
+      const session = thawSession(record, this.scrollbackCap)
       if (!session) continue
       this.sessions.set(record.key, session)
       restoredCount++
@@ -437,7 +436,7 @@ export class PtyHost {
     // ponytail: O(chunks) front-trim like the web sidecar; a chunk may
     // overshoot the cap slightly — replay correctness only needs "recent
     // tail", the client's xterm re-derives the screen from whatever it gets.
-    while (session.bytes > (this.opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP) && session.chunks.length > 1) {
+    while (session.bytes > this.scrollbackCap && session.chunks.length > 1) {
       const dropped = session.chunks.shift()
       if (dropped) session.bytes -= dropped.byteLength
     }
