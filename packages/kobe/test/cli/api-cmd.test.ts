@@ -15,6 +15,18 @@ import {
   verbSchema,
 } from "../../src/cli/api-cmd.ts"
 
+function withEnv(name: string, value: string | undefined, fn: () => void): void {
+  const before = process.env[name]
+  try {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+    fn()
+  } finally {
+    if (before === undefined) delete process.env[name]
+    else process.env[name] = before
+  }
+}
+
 describe("parseFlags", () => {
   it("parses `--key value` pairs", () => {
     const { flags, pretty } = parseFlags(["--repo", "/x", "--prompt", "hello world"])
@@ -262,6 +274,21 @@ describe("API surface (full CRUD)", () => {
       expect(help).toContain(`kobe api ${v.name}`)
       for (const f of v.flags) expect(help).toContain(`--${f.name}`)
     }
+  })
+
+  it("uses the active CLI name (rove) when invoked through the rove wrapper", () => {
+    withEnv("ROVE_INVOKED_AS", "rove", () => {
+      const help = verbHelp(findVerb("add")!)
+      expect(help).toContain("rove api add")
+      expect(help).not.toContain("kobe api add")
+    })
+  })
+
+  it("falls back to kobe when no invocation marker is set", () => {
+    withEnv("ROVE_INVOKED_AS", undefined, () => {
+      const help = verbHelp(findVerb("add")!)
+      expect(help).toContain("kobe api add")
+    })
   })
 })
 
