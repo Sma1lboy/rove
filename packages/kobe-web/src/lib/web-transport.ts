@@ -1,3 +1,5 @@
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
+
 export interface WebTransportConnectivity {
   daemonConnected: boolean
   streamConnected: boolean
@@ -51,8 +53,7 @@ export function webTransportTopBarView(
     return {
       ok: false,
       label: "no daemon",
-      title:
-        "Daemon offline — if it doesn't recover, run `rove doctor` or `rove reset` in a terminal.",
+      title: `Daemon offline — if it doesn't recover, run \`${ROVE_PRODUCT_NAME} doctor\` or \`${ROVE_PRODUCT_NAME} reset\` in a terminal.`,
     }
   }
   return { ok: false, label: "connecting…" }

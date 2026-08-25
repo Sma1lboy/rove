@@ -5,6 +5,7 @@
  * plumbing.
  */
 
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
 import { setActiveTaskBestEffort } from "./active-task.ts"
 import { api } from "./api-client.ts"
 import { labelRepo } from "./board.ts"
@@ -13,6 +14,19 @@ import { rpc } from "./store.ts"
 import { addTab, ensureEngineTab } from "./tabs.ts"
 import { sendPtyText } from "./terminal.ts"
 import type { Task } from "./types.ts"
+
+const DEFAULT_CLI_API = `${ROVE_PRODUCT_NAME} api`
+
+async function fetchKobeApiInvocation(): Promise<string> {
+  const data = await api.getOr<{ api?: unknown }>(
+    "/api/cli-invocation",
+    {},
+    { label: "load CLI invocation" },
+  )
+  return typeof data.api === "string" && data.api.trim().length > 0
+    ? data.api
+    : DEFAULT_CLI_API
+}
 
 export type IssueStatus = "open" | "doing" | "hold" | "done"
 
@@ -121,17 +135,6 @@ export async function deleteIssue(
   id: number,
 ): Promise<RepoIssues> {
   return postOp(repoRoot, { type: "delete", id })
-}
-
-async function fetchKobeApiInvocation(): Promise<string> {
-  const data = await api.getOr<{ api?: unknown }>(
-    "/api/cli-invocation",
-    {},
-    { label: "load CLI invocation" },
-  )
-  return typeof data.api === "string" && data.api.trim().length > 0
-    ? data.api
-    : "rove api"
 }
 
 /* ----- pure helpers ------------------------------------------------------- */
@@ -296,7 +299,7 @@ export function resolveIssueRepoSelection(
  * already flipped the issue to `doing`; the prompt asks the agent to report
  * completion through the daemon-owned issue API, not by editing repo files.
  */
-export function quickStartPrompt(issue: Issue, api = "rove api"): string {
+export function quickStartPrompt(issue: Issue, api = DEFAULT_CLI_API): string {
   const lines = [`Work on user story #${issue.id}: ${issue.title}`, ""]
   const body = issue.body.trim()
   if (body) lines.push(body, "")
@@ -315,7 +318,7 @@ export function quickStartPrompt(issue: Issue, api = "rove api"): string {
  * {@link quickStartPrompt}, but without the worktree/merge instructions —
  * the work happens on the checkout as-is.
  */
-export function projectChatPrompt(issue: Issue, api = "rove api"): string {
+export function projectChatPrompt(issue: Issue, api = DEFAULT_CLI_API): string {
   const lines = [`Work on user story #${issue.id}: ${issue.title}`, ""]
   const body = issue.body.trim()
   if (body) lines.push(body, "")
@@ -332,7 +335,7 @@ export function projectChatPrompt(issue: Issue, api = "rove api"): string {
  * worktree. This is intentionally delivered to the task session instead of
  * merging in the web UI: the engine owns the final code/check/conflict work.
  */
-export function issueMergePrompt(issue: Issue, api = "rove api"): string {
+export function issueMergePrompt(issue: Issue, api = DEFAULT_CLI_API): string {
   return [
     `Finish user story #${issue.id}: ${issue.title}`,
     "",
@@ -373,7 +376,7 @@ export async function quickStartIssue(
   // path pairs selectTask with this (Board/NewTaskDialog), and the
   // /task/$taskId route effect won't fire it (selectTask runs first).
   setActiveTaskBestEffort(taskId)
-  const api = await fetchKobeApiInvocation().catch(() => "rove api")
+  const api = await fetchKobeApiInvocation().catch(() => DEFAULT_CLI_API)
   const tabId = ensureEngineTab(taskId)
   await sendPtyText(tabId, taskId, quickStartPrompt(issue, api))
   return { taskId }
@@ -437,7 +440,7 @@ export async function startIssueChat(
     )
     return { taskId, workspaceTaskId: taskId }
   }
-  const api = await fetchKobeApiInvocation().catch(() => "rove api")
+  const api = await fetchKobeApiInvocation().catch(() => DEFAULT_CLI_API)
   const { task } = await rpc<{ task: { id: string } }>("task.ensureMain", {
     repo: repoRoot,
   })
@@ -474,7 +477,7 @@ export async function promptIssueMerge(
   taskId: string,
   issue: Issue,
 ): Promise<void> {
-  const api = await fetchKobeApiInvocation().catch(() => "rove api")
+  const api = await fetchKobeApiInvocation().catch(() => DEFAULT_CLI_API)
   const tabId = ensureEngineTab(taskId)
   await sendPtyText(tabId, taskId, issueMergePrompt(issue, api))
 }
