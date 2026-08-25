@@ -13,10 +13,10 @@
  * surfaced first so the workspace doesn't vanish without explanation.
  */
 
-import { spawn } from "node:child_process"
 import { TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useEffect, useState } from "react"
+import { openWithSystemViewer } from "../../lib/open-external.ts"
 import {
   CURRENT_VERSION,
   type ReleaseNotesRangeItem,
@@ -32,24 +32,6 @@ import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { runShellUpdater } from "./run-updater.ts"
 
 type ActionId = "update" | "release" | "close"
-
-function openExternalUrl(url: string | null): boolean {
-  if (!url) return false
-  const platform = process.platform
-  const [command, args] =
-    platform === "darwin"
-      ? ["open", [url]]
-      : platform === "win32"
-        ? ["cmd", ["/c", "start", "", url]]
-        : ["xdg-open", [url]]
-  try {
-    const child = spawn(command, args, { stdio: "ignore", detached: true })
-    child.unref()
-    return true
-  } catch {
-    return false
-  }
-}
 
 export function releaseBodyLines(body: string): string[] {
   return body
@@ -109,7 +91,7 @@ export function UpdatePage(props: { onClose: () => void }) {
       return
     }
     if (id === "release") {
-      setStatus(openExternalUrl(releaseUrl) ? t("update.statusReleaseOpened") : t("update.statusReleaseError"))
+      setStatus(openWithSystemViewer(releaseUrl) ? t("update.statusReleaseOpened") : t("update.statusReleaseError"))
       return
     }
     void runUpdater()

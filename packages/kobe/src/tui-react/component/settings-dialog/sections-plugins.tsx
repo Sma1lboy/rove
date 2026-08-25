@@ -8,10 +8,11 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { relativeAgeMs } from "../../../tui/history/message-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { type PluginSettingRowView, isBooleanOn } from "./plugin-settings-core"
-import { type PluginRowView, formatAgo } from "./plugins-core"
+import type { PluginRowView } from "./plugins-core"
 import type { SectionCursorProps } from "./rows"
 
 /**
@@ -150,7 +151,7 @@ export function PluginSettingsSection(
                             : plugin.lastRun.spawnError
                               ? t("settings.plugins.runFailed")
                               : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
-                          ago: formatAgo(now - plugin.lastRun.at),
+                          ago: relativeAgeMs(plugin.lastRun.at, now),
                         })
                       : t("settings.plugins.neverRun")}
                   </text>
