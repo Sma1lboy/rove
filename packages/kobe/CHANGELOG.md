@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.148
+
+### Patch Changes
+
+- [#516](https://github.com/Sma1lboy/rove/pull/516) [`bc1dd49`](https://github.com/Sma1lboy/rove/commit/bc1dd49eeb8f7bb80303f89ecb6c568cc6a71087) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - fix(landing): plugins, themes and changelog match the home page again
+
+  The nav, footer and design tokens were copy-pasted into every page, so the
+  home page redesign (flat full-width bar, square frames) never reached the
+  others — and the changelog was a different site entirely: dark background,
+  Space Grotesk, hardcoded hex, and a nav pointing at three anchors the home
+  page no longer has.
+
+  All four pages now link one `chrome.css` for tokens, nav and footer. The
+  changelog is rebuilt on it, keeps its live GitHub release rendering, and
+  gains the nav language toggle the other pages already had (its EN/中文
+  segmented control is gone; page copy is now translated too). Its type tags
+  were darkened for a paper background.
+
+- [`f4ae083`](https://github.com/Sma1lboy/rove/commit/f4ae083bd988e2f8e0fc7dc249a4734d8298ee83) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Spawned-task reply coda now teaches the bare `send` (no `--task-id`): the explicit `--task-id <spawner>` form it used to bake in skips dispatcher routing and lands on the spawner task's canonical engine tab — on a main task that can be a different agent's session, so worker outcomes were reported to a stranger. Bare `send` resolves the exact dispatching tab recorded at creation. Skill guidance updated in lockstep (v31).
+
 ## 0.8.147
 
 ### Patch Changes
