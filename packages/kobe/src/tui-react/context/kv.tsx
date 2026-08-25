@@ -14,7 +14,7 @@
  * fine-grained proxy.
  */
 
-import { type ReactNode, createContext, useContext, useMemo, useState, useSyncExternalStore } from "react"
+import { type ReactNode, createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { type KvCore, createKvCore } from "./kv-core"
 
 export type KVContext = {
@@ -36,6 +36,27 @@ export function KVProvider(props: { children?: ReactNode }) {
   // (mirrors the Solid provider's init-time loadStateFile()).
   const [core] = useState<KvCore>(createKvCore)
   const snapshot = useSyncExternalStore(core.subscribe, core.snapshot, core.snapshot)
+
+  // Exit flush (issues #22/#23): writes are 250ms-debounced, and every quit
+  // path — the confirm chord, ctrl+c, the signal backstop, a page's bare
+  // `process.exit(0)` — ends the process synchronously, so a state change
+  // made inside that window never reached disk. Reading a completion and
+  // quitting straight after therefore relit the lamp on the next launch,
+  // the very bug the durable seen mark exists to prevent.
+  //
+  // Registered here rather than at the quit call sites: "exit" is the one
+  // hook every path passes through (it fires on process.exit, unlike
+  // "beforeExit"), and `flush()` is synchronous + a no-op when nothing is
+  // dirty. Removed on unmount so a render test's providers don't pile up.
+  useEffect(() => {
+    const flush = (): void => {
+      core.flush()
+    }
+    process.on("exit", flush)
+    return () => {
+      process.off("exit", flush)
+    }
+  }, [core])
 
   const value = useMemo<KVContext>(
     () => ({

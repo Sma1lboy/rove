@@ -6,6 +6,7 @@ import {
   foldCompletionSeen,
   markCompletionSeen,
   parseCompletionSeen,
+  seenCompletionTabs,
 } from "../../src/tui-react/workspace/completion-seen"
 
 function fakeKv(seed?: unknown) {
@@ -74,5 +75,34 @@ describe("durable completion-seen marks", () => {
     for (let i = 0; i < 5; i++) seed[`task-${i}`] = i
     const next = foldCompletionSeen(seed, "task-new", 99, 3)
     expect(Object.keys(next).sort()).toEqual(["task-3", "task-4", "task-new"])
+  })
+})
+
+// Issue #23: the tab strip's chip used to sit on a process-local unread map,
+// so a completion you had read came back looking fresh after a restart while
+// the sidebar lamp (persisted since #22) disagreed. Both now fold the SAME
+// record.
+describe("seenCompletionTabs (tab strip's half of the mark)", () => {
+  test("only tabs whose current completion the record covers come back seen", () => {
+    const kv = fakeKv({
+      [completionSeenKey("task-a", "tab-read")]: 500,
+      [completionSeenKey("task-a", "tab-stale")]: 499,
+    })
+    const seen = seenCompletionTabs(kv, "task-a", [
+      ["tab-read", 500],
+      // A NEWER turn than the mark — unread again, same rule as the rail.
+      ["tab-stale", 500],
+      ["tab-unmarked", 500],
+    ])
+    expect([...seen]).toEqual(["tab-read"])
+  })
+
+  test("a completion with no stamp is never seen (the poll-only path)", () => {
+    const kv = fakeKv({ [completionSeenKey("task-a", "tab-1")]: 500 })
+    expect(seenCompletionTabs(kv, "task-a", [["tab-1", undefined]]).size).toBe(0)
+  })
+
+  test("no kv (render test / host without a provider) means nothing is seen", () => {
+    expect(seenCompletionTabs(null, "task-a", [["tab-1", 1]]).size).toBe(0)
   })
 })
