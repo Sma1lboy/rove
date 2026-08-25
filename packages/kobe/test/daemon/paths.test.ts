@@ -9,6 +9,7 @@
  * + cross-contamination.
  */
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultAttentionInboxPath } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
@@ -87,13 +88,13 @@ describe("defaultDaemonSocketPath", () => {
 
   test("caller-supplied homeDir argument wins over XDG_RUNTIME_DIR", () => {
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
-    expect(defaultDaemonSocketPath("/tmp/sandbox-home")).toBe("/tmp/sandbox-home/.kobe/daemon.sock")
+    expect(defaultDaemonSocketPath("/tmp/sandbox-home")).toBe("/tmp/sandbox-home/.rove/daemon.sock")
   })
 
   test("explicit KOBE_HOME_DIR env var wins over XDG_RUNTIME_DIR", () => {
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
     process.env.KOBE_HOME_DIR = "/tmp/from-env"
-    expect(defaultDaemonSocketPath()).toBe("/tmp/from-env/.kobe/daemon.sock")
+    expect(defaultDaemonSocketPath()).toBe("/tmp/from-env/.rove/daemon.sock")
   })
 
   test("falls back to XDG_RUNTIME_DIR when no home override is set", () => {
@@ -101,13 +102,16 @@ describe("defaultDaemonSocketPath", () => {
     expect(defaultDaemonSocketPath()).toBe("/run/user/1000/kobe.sock")
   })
 
-  test("falls back to $HOME/.kobe/daemon.sock when neither is set", () => {
-    expect(defaultDaemonSocketPath()).toBe(join(homedir(), ".kobe", "daemon.sock"))
+  test("falls back to $HOME's own state dir when neither is set", () => {
+    // Directory only: whether the FILE resolves canonical or legacy depends on
+    // what is running on the machine (see the "live legacy runtime" block).
+    expect(defaultDaemonSocketPath().startsWith(join(homedir(), "."))).toBe(true)
+    expect(defaultDaemonSocketPath().endsWith("daemon.sock")).toBe(true)
   })
 
   test("ignores empty XDG_RUNTIME_DIR (treats it as unset)", () => {
     process.env.XDG_RUNTIME_DIR = ""
-    expect(defaultDaemonSocketPath()).toBe(join(homedir(), ".kobe", "daemon.sock"))
+    expect(defaultDaemonSocketPath()).toBe(defaultDaemonSocketPath(homedir()))
   })
 
   test("two isolated home dirs produce disjoint socket paths", () => {
@@ -135,32 +139,34 @@ describe("defaultDaemonPidPath", () => {
 
   test("uses KOBE_HOME_DIR when set (XDG never relevant for pidfile)", () => {
     process.env.KOBE_HOME_DIR = "/tmp/from-env"
-    expect(defaultDaemonPidPath()).toBe("/tmp/from-env/.kobe/daemon.pid")
+    expect(defaultDaemonPidPath()).toBe("/tmp/from-env/.rove/daemon.pid")
   })
 
-  test("falls back to $HOME/.kobe/daemon.pid", () => {
-    expect(defaultDaemonPidPath()).toBe(join(homedir(), ".kobe", "daemon.pid"))
+  test("falls back to $HOME's own state dir", () => {
+    expect(defaultDaemonPidPath()).toBe(defaultDaemonPidPath(homedir()))
   })
 })
 
 describe("defaultDaemonLogPath", () => {
   test("uses KOBE_HOME_DIR when set", () => {
     process.env.KOBE_HOME_DIR = "/tmp/from-env"
-    expect(defaultDaemonLogPath()).toBe("/tmp/from-env/.kobe/daemon.log")
+    expect(defaultDaemonLogPath()).toBe("/tmp/from-env/.rove/daemon.log")
   })
 
-  test("falls back to $HOME/.kobe/daemon.log", () => {
-    expect(defaultDaemonLogPath()).toBe(join(homedir(), ".kobe", "daemon.log"))
+  test("falls back to $HOME/.rove/daemon.log", () => {
+    // Logs are always canonical — nothing addresses a log file, so there is
+    // no live-process reason to keep writing the legacy one.
+    expect(defaultDaemonLogPath()).toBe(join(homedir(), ".rove", "daemon.log"))
   })
 
-  test("sits next to the socket + pidfile under the same .kobe dir", () => {
+  test("sits next to the socket + pidfile under the same .rove dir", () => {
     process.env.KOBE_HOME_DIR = "/tmp/from-env"
     expect(defaultDaemonLogPath()).toBe(defaultDaemonPidPath().replace(/\.pid$/, ".log"))
   })
 })
 
 describe("ROVE_HOME_DIR compatibility state matrix", () => {
-  test("product data is canonical while runtime and plugins retain compatibility paths", () => {
+  test("every path is canonical once nothing legacy is live", () => {
     process.env.KOBE_HOME_DIR = "/tmp/legacy-home"
     process.env.ROVE_HOME_DIR = "/tmp/rove-home"
 
@@ -185,20 +191,20 @@ describe("ROVE_HOME_DIR compatibility state matrix", () => {
     }).toEqual({
       attention: "/tmp/rove-home/.rove/attention-inbox.json",
       automations: "/tmp/rove-home/.rove/automations.json",
-      clientLog: "/tmp/rove-home/.kobe/client.log",
-      daemonLog: "/tmp/rove-home/.kobe/daemon.log",
-      daemonPid: "/tmp/rove-home/.kobe/daemon.pid",
-      daemonSocket: "/tmp/rove-home/.kobe/daemon.sock",
+      clientLog: "/tmp/rove-home/.rove/client.log",
+      daemonLog: "/tmp/rove-home/.rove/daemon.log",
+      daemonPid: "/tmp/rove-home/.rove/daemon.pid",
+      daemonSocket: "/tmp/rove-home/.rove/daemon.sock",
       issues: "/tmp/rove-home/.rove/issues.json",
       keybindings: "/tmp/rove-home/.rove/settings/keybindings.yaml",
       notes: "/tmp/rove-home/.rove/notes.json",
-      pluginConfig: "/tmp/rove-home/.kobe/plugins/demo/config",
-      pluginRegistry: "/tmp/rove-home/.kobe/plugins.json",
-      pluginState: "/tmp/rove-home/.kobe/plugins/demo/state",
-      ptyExits: "/tmp/rove-home/.kobe/pty-exits.json",
-      ptyLog: "/tmp/rove-home/.kobe/pty.log",
-      ptyPid: "/tmp/rove-home/.kobe/pty.pid",
-      ptySocket: "/tmp/rove-home/.kobe/pty.sock",
+      pluginConfig: "/tmp/rove-home/.rove/plugins/demo/config",
+      pluginRegistry: "/tmp/rove-home/.rove/plugins.json",
+      pluginState: "/tmp/rove-home/.rove/plugins/demo/state",
+      ptyExits: "/tmp/rove-home/.rove/pty-exits.json",
+      ptyLog: "/tmp/rove-home/.rove/pty.log",
+      ptyPid: "/tmp/rove-home/.rove/pty.pid",
+      ptySocket: "/tmp/rove-home/.rove/pty.sock",
       uiPrefs: "/tmp/rove-home/.config/rove/state.json",
     })
   })
@@ -210,13 +216,13 @@ describe("fitSocketPath — sun_path length fallback", () => {
   // past that; without the fallback `listen()` fails silently.
 
   test("returns the natural path when it's short enough", () => {
-    const natural = "/tmp/short-home/.kobe/daemon.sock"
+    const natural = "/tmp/short-home/.rove/daemon.sock"
     expect(fitSocketPath(natural, "/tmp/short-home", "daemon")).toBe(natural)
   })
 
   test("falls back to $TMPDIR/kobe-<homeTag>-<role>.sock when natural path is too long", () => {
     const longHome = "/Users/me/i/kobe/.claude/worktrees/01KRAHRS48X42YK9TRJ2VE5X1F/packages/kobe/.dev-sandbox/home"
-    const natural = `${longHome}/.kobe/daemon.sock`
+    const natural = `${longHome}/.rove/daemon.sock`
     const fitted = fitSocketPath(natural, longHome, "daemon")
     expect(fitted).not.toBe(natural)
     expect(fitted.length).toBeLessThanOrEqual(100)
@@ -241,7 +247,7 @@ describe("fitSocketPath — sun_path length fallback", () => {
 
   test("pidTag is appended for ephemeral sockets (bridge)", () => {
     const longHome = "/Users/me/i/kobe/.claude/worktrees/01KRAHRS48X42YK9TRJ2VE5X1F/packages/kobe/.dev-sandbox/home"
-    const fitted = fitSocketPath(`${longHome}/.kobe/run/bridge-12345.sock`, longHome, "bridge", 12345)
+    const fitted = fitSocketPath(`${longHome}/.rove/run/bridge-12345.sock`, longHome, "bridge", 12345)
     expect(fitted).toMatch(/kobe-[0-9a-f]{8}-bridge-12345\.sock$/)
   })
 
@@ -257,5 +263,44 @@ describe("fitSocketPath — sun_path length fallback", () => {
     expect(tag).toMatch(/^[0-9a-f]{8}$/)
     // determinism
     expect(shortHomeTag("/some/home")).toBe(tag)
+  })
+})
+
+describe("live legacy runtime (the rename's one hazard)", () => {
+  let home = ""
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), "rove-runtime-"))
+    mkdirSync(join(home, ".kobe"), { recursive: true })
+  })
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  test("a legacy socket whose process is ALIVE stays the address", () => {
+    // Switching a running host's address would orphan every engine tab it owns.
+    writeFileSync(join(home, ".kobe", "pty.sock"), "")
+    writeFileSync(join(home, ".kobe", "pty.pid"), `${process.pid}\n`)
+    expect(defaultPtyHostSocketPath(home)).toBe(join(home, ".kobe", "pty.sock"))
+    expect(defaultPtyHostPidPath(home)).toBe(join(home, ".kobe", "pty.pid"))
+  })
+
+  test("a legacy socket left by a dead process is stepped over", () => {
+    writeFileSync(join(home, ".kobe", "daemon.sock"), "")
+    writeFileSync(join(home, ".kobe", "daemon.pid"), "2\n") // pid 2: never ours
+    expect(defaultDaemonSocketPath(home)).toBe(join(home, ".rove", "daemon.sock"))
+  })
+
+  test("a canonical socket always wins, even next to a live legacy one", () => {
+    mkdirSync(join(home, ".rove"), { recursive: true })
+    writeFileSync(join(home, ".rove", "daemon.sock"), "")
+    writeFileSync(join(home, ".kobe", "daemon.sock"), "")
+    writeFileSync(join(home, ".kobe", "daemon.pid"), `${process.pid}\n`)
+    expect(defaultDaemonSocketPath(home)).toBe(join(home, ".rove", "daemon.sock"))
+  })
+
+  test("host-owned data follows whichever layout holds it", () => {
+    writeFileSync(join(home, ".kobe", "pty-exits.json"), "{}")
+    expect(defaultPtyExitsPath(home)).toBe(join(home, ".kobe", "pty-exits.json"))
   })
 })

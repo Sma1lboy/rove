@@ -125,4 +125,24 @@ describe("migrateRoveStateLayout", () => {
     expect(readFileSync(join(blockedDir, "keybindings.yaml"), "utf8")).toContain("task.close")
     expect(existsSync(join(root, ".rove/.layout-client-migration-v1"))).toBe(true)
   })
+
+  test("plugins MOVE to the canonical layout — one registry, not two", () => {
+    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
+    write(".kobe/plugins.json", '{"plugins":[{"id":"demo"}]}')
+    write(".kobe/plugins/demo/config/.env", "TOKEN=1")
+
+    const first = migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root })
+    expect(first.warnings).toEqual([])
+    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("demo")
+    expect(readFileSync(join(root, ".rove/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=1")
+    // MOVED: a copy would leave a second registry for the next writer to find.
+    expect(existsSync(join(root, ".kobe/plugins.json"))).toBe(false)
+    expect(existsSync(join(root, ".kobe/plugins"))).toBe(false)
+
+    // Idempotent, and it never touches a canonical registry that already exists.
+    writeFileSync(join(root, ".rove/plugins.json"), '{"plugins":[]}', "utf8")
+    write(".kobe/plugins.json", '{"plugins":[{"id":"stale"}]}')
+    expect(migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root }).attempted).toBe(false)
+    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).not.toContain("stale")
+  })
 })

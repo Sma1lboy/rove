@@ -21,7 +21,7 @@ describe("sweepPtyHostSessions homeDir isolation", () => {
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "kobe-sweep-"))
-    mkdirSync(join(dir, ".kobe"), { recursive: true })
+    mkdirSync(join(dir, ".rove"), { recursive: true })
   })
 
   afterEach(async () => {
@@ -31,7 +31,7 @@ describe("sweepPtyHostSessions homeDir isolation", () => {
   })
 
   it("connects to the pty socket under the given homeDir, not the ambient default", async () => {
-    const socketPath = join(dir, ".kobe", "pty.sock")
+    const socketPath = join(dir, ".rove", "pty.sock")
     let connections = 0
     server = net.createServer((socket) => {
       connections++

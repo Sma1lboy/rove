@@ -83,7 +83,7 @@ flowchart TB
   daemon restart never kills a running engine. Like the tmux server, it exits
   on its own only after sitting at zero live sessions. `rove reset` is the
   explicit teardown. While it runs, it freezes every session (metadata +
-  scrollback ring) to `<home>/.kobe/pty-sessions/` — throttled to one write
+  scrollback ring) to `<home>/.rove/pty-sessions/` — throttled to one write
   per few seconds while streaming, immediately on exit, and in full at
   shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each record into a dead *restored* session: reattaching replays the

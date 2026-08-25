@@ -67,10 +67,10 @@ describe("plugin command workflow", () => {
 
     expect(output.join("\n")).toContain("linked example.workflow v1.2.3")
     expect(output.join("\n")).toContain("example.workflow.run  Run workflow")
-    expect(output.join("\n")).toContain(join(home, ".kobe", "plugins", "example.workflow", "config"))
+    expect(output.join("\n")).toContain(join(home, ".rove", "plugins", "example.workflow", "config"))
     expect(output.join("\n")).toContain("(no runs logged yet)")
     expect(output.join("\n")).toContain('{"run":2}')
-    expect(existsSync(join(home, ".kobe", "plugins", "example.workflow", "state"))).toBe(true)
+    expect(existsSync(join(home, ".rove", "plugins", "example.workflow", "state"))).toBe(true)
 
     const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never)
     await runPluginSubcommand(["action", "invoke", "example.workflow.run", "extra"])

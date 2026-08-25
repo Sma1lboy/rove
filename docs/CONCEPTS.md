@@ -161,14 +161,14 @@ Issues track *what to do*; the changelog records *what shipped*.
 | Task index | `~/.rove/tasks.json` |
 | Worktrees | `~/.rove/worktrees/<repo-key>/<task-slug>/` |
 | Issue store | `~/.rove/issues.json` |
-| Daemon socket / log | `~/.kobe/daemon.sock`, `~/.kobe/daemon.log` |
+| Daemon socket / log | `~/.rove/daemon.sock`, `~/.rove/daemon.log` |
 | Settings | `~/.config/rove/state.json` (open with `rove config`) |
 | Conversation history | engine-owned, e.g. `~/.claude/projects/**` |
 
 Setting `ROVE_HOME_DIR` moves Rove's home-rooted product data and compatibility
 runtime; `KOBE_HOME_DIR` remains a fallback. It does not relocate platform
 settings or engine-owned conversation stores. That's how the dev sandbox
-avoids touching your real `~/.rove` task data or `.kobe` runtime.
+avoids touching your real `~/.rove` task data or runtime.
 
 ## Three ways people use it
 

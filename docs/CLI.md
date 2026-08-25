@@ -281,7 +281,7 @@ rove daemon restart    # stop, then respawn in the background
 ```
 
 The daemon auto-starts when the TUI or `rove api` needs it, so `start` is
-mainly for debugging. Logs are at `~/.kobe/daemon.log` — read them first when
+mainly for debugging. Logs are at `~/.rove/daemon.log` — read them first when
 something's wrong.
 
 > **Working on Rove itself?** Run `rove daemon restart` after editing
