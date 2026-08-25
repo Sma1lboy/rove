@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.168
+
+### Patch Changes
+
+- [#540](https://github.com/Sma1lboy/rove/pull/540) [`caee31d`](https://github.com/Sma1lboy/rove/commit/caee31dd781fc909b8acc6603707219a7ddba894) Unify the gated tool-hook verb set across engine adapters. Move the `tool-pre` / `tool-post` / `tool-failed` constant from `json-hook-adapter.ts` and `kimi-local/hook-adapter.ts` into a single `GATED_TOOL_VERBS` export in `json-hooks.ts`. No behavior change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.167
 
 ### Patch Changes
