@@ -31,6 +31,14 @@ import type { ExecHost } from "../../exec/exec-host.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
+import {
+  type BranchDeps,
+  branchExists,
+  branchHasUpstream,
+  deleteBranchIn,
+  hasLocalBranch,
+  renameBranch,
+} from "./manager-branch.ts"
 import { type ListDeps, adoptablePaths, listAllAdoptable, listBranchNames, listManaged } from "./manager-list.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
@@ -124,8 +132,8 @@ export class GitWorktreeManager implements WorktreeManager {
     // sensible meaning here (we'd either be lying or silently rebasing
     // their branch); the orchestrator surfaces the resulting state via
     // the existing branch, not via the now-ignored baseRef.
-    const branchExists = await this.branchExists(ctx, branch)
-    const args = branchExists
+    const exists = await branchExists(this.branchDeps(), ctx, branch)
+    const args = exists
       ? ["worktree", "add", worktreePath, branch]
       : baseRef
         ? ["worktree", "add", "-b", branch, worktreePath, baseRef]
@@ -241,24 +249,31 @@ export class GitWorktreeManager implements WorktreeManager {
     // remove left it behind (rare, but documented in vibe-kanban).
     await this.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
 
-    if (branch) await this.deleteBranchIn(exec, repo, branch, force)
+    if (branch) await deleteBranchIn(this.branchDeps(), exec, repo, branch, force)
   }
 
-  /**
-   * Delete a branch in `repo`. `git branch -d` (safe: refuses an unmerged
-   * branch) unless `opts.force`, which uses `-D`. Best-effort — a branch that's
-   * checked out elsewhere, unmerged (without force), or already gone just
-   * returns; the caller (task delete / land cleanup) treats it as non-fatal.
-   */
+  /** Delete a branch in `repo` — body in `manager-branch.ts`. */
   async deleteBranch(repo: string, branch: string, opts?: { readonly force?: boolean }): Promise<void> {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
-    await this.deleteBranchIn(ctx.exec, ctx.dir, branch, opts?.force === true)
+    await deleteBranchIn(this.branchDeps(), ctx.exec, ctx.dir, branch, opts?.force === true)
   }
 
-  private async deleteBranchIn(exec: ExecHost, repo: string, branch: string, force: boolean): Promise<void> {
-    if (!branch || branch === "HEAD") return
-    await this.runGit(exec, ["branch", force ? "-D" : "-d", branch], { cwd: repo, allowFail: true })
+  /** ExecHost for a worktree path, with the absolute-path check bound in — the
+   *  pair every path-addressed probe needs, in that order. Binding them makes a
+   *  forgotten `requireAbsolute` (a silent bug) unrepresentable. */
+  private execAt(worktreePath: string): ExecHost {
+    requireAbsolute("path", worktreePath)
+    return this.execDeps.execForPath(worktreePath)
+  }
+
+  /** The primitives `manager-branch.ts`'s free functions borrow. */
+  private branchDeps(): BranchDeps {
+    return {
+      runGit: (exec, args, opts) => this.runGit(exec, args, opts),
+      execAt: (worktreePath) => this.execAt(worktreePath),
+      findRepoFor: (exec, worktreePath) => this.findRepoFor(exec, worktreePath),
+    }
   }
 
   /** The listing primitives, exposed to `manager-list.ts`'s free functions. */
@@ -308,8 +323,7 @@ export class GitWorktreeManager implements WorktreeManager {
 
   /** Whether `worktreePath` still exists on disk (local fs / remote `test -e`). */
   async pathExists(worktreePath: string): Promise<boolean> {
-    requireAbsolute("path", worktreePath)
-    return this.execDeps.execForPath(worktreePath).exists(worktreePath)
+    return this.execAt(worktreePath).exists(worktreePath)
   }
 
   /**
@@ -359,9 +373,7 @@ export class GitWorktreeManager implements WorktreeManager {
    * yet committed should not be silently nuked by `remove()`.
    */
   async isDirty(worktreePath: string): Promise<boolean> {
-    requireAbsolute("path", worktreePath)
-    const exec = this.execDeps.execForPath(worktreePath)
-    const out = await this.runGit(exec, ["status", "--porcelain"], { cwd: worktreePath })
+    const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], { cwd: worktreePath })
     return out.stdout.length > 0
   }
 
@@ -374,9 +386,9 @@ export class GitWorktreeManager implements WorktreeManager {
    * meaningless string is safer for the orchestrator.
    */
   async currentBranch(worktreePath: string): Promise<string> {
-    requireAbsolute("path", worktreePath)
-    const exec = this.execDeps.execForPath(worktreePath)
-    const out = await this.runGit(exec, ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: worktreePath })
+    const out = await this.runGit(this.execAt(worktreePath), ["rev-parse", "--abbrev-ref", "HEAD"], {
+      cwd: worktreePath,
+    })
     const name = out.stdout.trim()
     if (!name || name === "HEAD") {
       throw new Error(`currentBranch(): ${worktreePath} is in detached-HEAD state`)
@@ -384,50 +396,19 @@ export class GitWorktreeManager implements WorktreeManager {
     return name
   }
 
-  /**
-   * Whether `branch` has a configured upstream (i.e. it tracks / was pushed
-   * to a remote). Auto branch-follow refuses to touch such a branch —
-   * `branch -m` would orphan the remote branch and break any open PR.
-   * Throws on git failure: an unreadable probe is ambiguity, not "no".
-   */
-  async branchHasUpstream(worktreePath: string, branch: string): Promise<boolean> {
-    requireAbsolute("path", worktreePath)
-    const exec = this.execDeps.execForPath(worktreePath)
-    const out = await this.runGit(exec, ["for-each-ref", "--format=%(upstream)", `refs/heads/${branch}`], {
-      cwd: worktreePath,
-    })
-    return out.stdout.trim().length > 0
+  /** Whether `branch` tracks a remote — body in `manager-branch.ts`. */
+  branchHasUpstream(worktreePath: string, branch: string): Promise<boolean> {
+    return branchHasUpstream(this.branchDeps(), worktreePath, branch)
   }
 
-  /** Whether a local `refs/heads/<branch>` exists in the repo owning `worktreePath`. */
-  async hasLocalBranch(worktreePath: string, branch: string): Promise<boolean> {
-    requireAbsolute("path", worktreePath)
-    const exec = this.execDeps.execForPath(worktreePath)
-    const out = await this.runGit(exec, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
-      cwd: worktreePath,
-      allowFail: true,
-    })
-    return out.exitCode === 0
+  /** Whether a local `refs/heads/<branch>` exists — body in `manager-branch.ts`. */
+  hasLocalBranch(worktreePath: string, branch: string): Promise<boolean> {
+    return hasLocalBranch(this.branchDeps(), worktreePath, branch)
   }
 
-  /**
-   * Rename a branch in-place. Used by `setBranch` and the follow-branch-to-
-   * title flow when a placeholder-named task gets its first real title.
-   *
-   * git's `branch -m <old> <new>` updates HEAD on every worktree that
-   * was checked out on `<old>` — the engine's session keeps streaming
-   * without noticing.
-   *
-   * Idempotent: returns silently when `from === to`. If `to` already
-   * exists, throws.
-   */
-  async renameBranch(worktreePath: string, from: string, to: string): Promise<void> {
-    requireAbsolute("path", worktreePath)
-    if (from === to) return
-    const exec = this.execDeps.execForPath(worktreePath)
-    const repo = await this.findRepoFor(exec, worktreePath)
-    if (!repo) throw new Error(`renameBranch(): ${worktreePath} is not a git worktree`)
-    await this.runGit(exec, ["branch", "-m", from, to], { cwd: repo })
+  /** Rename a branch in-place — body in `manager-branch.ts`. */
+  renameBranch(worktreePath: string, from: string, to: string): Promise<void> {
+    return renameBranch(this.branchDeps(), worktreePath, from, to)
   }
 
   // ---------- internals ----------
@@ -456,19 +437,6 @@ export class GitWorktreeManager implements WorktreeManager {
       head: match.head ?? "",
       dirty: await this.isDirty(match.path),
     }
-  }
-
-  /**
-   * Whether `branch` exists in `repo`. Uses `show-ref --verify --quiet`
-   * which exits 0/1 cleanly without touching working tree state.
-   */
-  private async branchExists(ctx: ExecCtx, branch: string): Promise<boolean> {
-    const ref = `refs/heads/${branch}`
-    const out = await this.runGit(ctx.exec, ["show-ref", "--verify", "--quiet", ref], {
-      cwd: ctx.dir,
-      allowFail: true,
-    })
-    return out.exitCode === 0
   }
 
   /**
