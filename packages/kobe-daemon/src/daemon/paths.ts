@@ -130,7 +130,7 @@ export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
 }
 
 /**
- * Log file for Rove's CLIENT-side processes (the in-tmux Tasks/Ops panes
+ * Log file for Rove's CLIENT-side processes (the OpenTUI Tasks/Ops panes
  * and the front-end attach). Unlike the daemon, these run inside an
  * opentui alternate-screen pane, so their `console.*` output is swallowed
  * by the TUI and a stray "[rove tasks] daemon subscribe unavailable" never
@@ -146,7 +146,7 @@ export function defaultClientLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
 
 /**
  * Unix-socket path for the standalone PTY HOST process (`kobe pty-host`)
- * — the tmux-server analog that owns embedded-terminal children so they
+ * — the persistent terminal host that owns embedded-terminal children so they
  * survive both TUI exits AND `kobe daemon restart`. Deliberately a
  * separate process + socket from the daemon: the daemon restarts
  * routinely (it holds all the fast-moving code), while the pty host is

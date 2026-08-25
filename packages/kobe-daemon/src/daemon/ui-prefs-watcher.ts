@@ -54,9 +54,8 @@ export const DEFAULT_UI_PREFS_POLL_MS = 250
 
 /**
  * Focus-accent slots the TUI understands — mirror of `FOCUS_ACCENT_SLOTS`
- * in `packages/kobe/src/tui/context/theme.tsx`, not imported because that
- * module builds a Solid store on a renderer at load time and the daemon
- * must stay UI-free (same stance as `tui/lib/tmux-border-theme.ts`).
+ * in `packages/kobe/src/tui/context/theme-core.ts`, not imported because
+ * that module imports the OpenTUI renderer and the daemon must stay UI-free.
  */
 const FOCUS_ACCENT_SLOT_NAMES = ["primary", "success", "info"] as const
 

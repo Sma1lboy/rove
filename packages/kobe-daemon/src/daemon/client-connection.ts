@@ -30,9 +30,9 @@ export type ClientState = DaemonClientConnection & {
   subscribed: boolean
   /**
    * True only when the client subscribed with `role: "gui"` — a real
-   * front-end attach. This is the refcount that gates lazy shutdown; an
-   * in-tmux helper pane (`role: "pane"`) is `subscribed` (gets channels)
-   * but NOT `holdsLifetime`, so closing it never stops the daemon.
+   * front-end attach. This is the refcount that gates lazy shutdown; a
+   * helper pane (`role: "pane"`) is `subscribed` (gets channels) but NOT
+   * `holdsLifetime`, so closing it never stops the daemon.
    */
   holdsLifetime: boolean
   /**
