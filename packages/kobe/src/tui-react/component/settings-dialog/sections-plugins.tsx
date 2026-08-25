@@ -86,14 +86,13 @@ export function PluginSettingsSection(
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
         {t("settings.plugins.title")}
       </text>
+      {/* With nothing registered, the operating hint (toggling, per-plugin
+          settings) describes rows that aren't there, and it repeats the
+          install command the empty state already gives. One or the other. */}
       <text fg={theme.textMuted} wrapMode="word">
-        {t("settings.plugins.hint")}
+        {t(props.plugins.length === 0 ? "settings.plugins.empty" : "settings.plugins.hint")}
       </text>
-      {props.plugins.length === 0 ? (
-        <text fg={theme.textMuted} wrapMode="word">
-          {t("settings.plugins.empty")}
-        </text>
-      ) : (
+      {props.plugins.length === 0 ? null : (
         <box flexDirection="column" gap={0}>
           {props.plugins.map((plugin, i) => {
             const toggleRow = offsets[i] ?? 0
