@@ -283,7 +283,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   useTabNaming({ stateRef, propsRef, update })
 
   /* --------- per-tab turn state (hook-first, poll-fallback) --------- */
-  const { turnStates, liveTitles, turnVendors } = useTabTurnState({
+  const { turnStates, liveTitles, turnVendors, seenTabs } = useTabTurnState({
     taskId: props.taskId,
     worktree: props.worktree,
     vendor: props.vendor,
@@ -444,6 +444,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         vendor={props.vendor}
         liveTitles={liveTitles}
         turnVendors={turnVendors}
+        seenTabs={seenTabs}
       />
       {/* Spawn gate: while restart verification runs (millisecond-scale
           transcript reads), nothing may spawn. */}

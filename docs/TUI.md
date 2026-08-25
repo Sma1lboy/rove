@@ -66,8 +66,9 @@ completion has a later timestamp and appears unread as usual.
 
 Each tab row reports its **own** activity, not the task's roll-up — tab 2 can
 spin while tab 1 rests. The tab strip at the top of the workspace uses a
-similar but separate vocabulary (`●` running, `✓` done, `!` error, `?` needs
-input, `○` idle).
+similar vocabulary (`●` running, `✓` done, `!` error, `?` needs input, `○`
+idle) over the same saved timestamps: a `✓` you have already read settles
+back to `○`, and stays settled after a restart.
 
 ## Managing Tasks in the sidebar
 

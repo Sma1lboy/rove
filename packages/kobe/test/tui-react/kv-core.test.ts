@@ -107,6 +107,34 @@ describe("createKvCore", () => {
     expect(readState(home)).toEqual({ k: "v" })
   })
 
+  // Issues #22/#23: the debounce is a real data-loss window — a state change
+  // made inside it is gone if the process exits before the timer fires. The
+  // KVProvider's "exit" hook calls flush() for exactly this; these pin that
+  // flush actually beats the pending timer rather than racing it.
+  it("flush() persists a write still inside the debounce window", () => {
+    vi.useFakeTimers()
+    const home = isolatedHome({})
+    const kv = createKvCore()
+    kv.set("completionSeen", { "task-a\u0000tab-1": 500 })
+    expect(readState(home)).toEqual({}) // nothing yet — still debounced
+    expect(kv.flush()).toBe(true)
+    expect(readState(home)).toEqual({ completionSeen: { "task-a\u0000tab-1": 500 } })
+  })
+
+  it("flush() cancels the pending timer instead of leaving a second write armed", () => {
+    vi.useFakeTimers()
+    const home = isolatedHome({})
+    const kv = createKvCore()
+    kv.set("mine", "flushed")
+    expect(kv.flush()).toBe(true)
+    // Another process writes AFTER our flush. A surviving debounce timer
+    // would fire here and merge our (already-written, no-longer-dirty) key
+    // back over it.
+    writeState(home, { mine: "flushed", theirs: "later" })
+    vi.advanceTimersByTime(300)
+    expect(readState(home)).toEqual({ mine: "flushed", theirs: "later" })
+  })
+
   it("clear() wipes the whole file, including keys other processes wrote", () => {
     const home = isolatedHome({ mine: 1 })
     const kv = createKvCore()
