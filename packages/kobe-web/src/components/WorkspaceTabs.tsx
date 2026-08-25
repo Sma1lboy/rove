@@ -8,6 +8,7 @@
 import { Bot, MessagesSquare, Terminal } from "lucide-react"
 import type { DragEvent, ReactNode } from "react"
 import { lazy, Suspense, useState } from "react"
+import { DEFAULT_CLI_NAME } from "../lib/cli-name.ts"
 import { useAppState } from "../lib/store.ts"
 import { tabHasPty } from "../lib/tab-kinds.ts"
 import {
@@ -382,7 +383,7 @@ export function WorkspaceTabs() {
           <div className="flex h-full items-center justify-center px-6 text-center">
             <div className="max-w-md">
               <div className="font-mono text-[13px] font-bold text-primary">
-                [rove web]
+                [{DEFAULT_CLI_NAME} web]
               </div>
               <h1 className="mt-4 text-[18px] font-semibold text-fg">
                 {!task

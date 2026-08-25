@@ -1,5 +1,5 @@
 /**
- * Tab-title attention badge — so a backgrounded browser tab shows "(N) Rove"
+ * Tab-title attention badge — so a backgrounded browser tab shows "(N) {displayProductName()}"
  * when N tasks need a human, the visual complement to the desktop
  * notifications (notify.ts) that works even without notification permission.
  * The "needs you" set is the Overview's attention bucket, derived through the
@@ -7,11 +7,12 @@
  * disagree. Pure + React-free; the root component owns the side effect.
  */
 
+import { displayProductName } from "./cli-name.ts"
 import { triage } from "./triage.ts"
 import type { EngineState, Task } from "./types.ts"
 
 /** Product name shown in the tab (index.html's static title is the build name). */
-export const BASE_TITLE = "Rove"
+export const BASE_TITLE = displayProductName()
 
 /**
  * Count of tasks that need a human right now — the Overview "Needs you"
@@ -32,7 +33,7 @@ export function attentionCount(
   return count
 }
 
-/** Tab title for an attention count: "(N) Rove" when any task needs you,
+/** Tab title for an attention count: "(N) {displayProductName()}" when any task needs you,
  *  else the bare product name. */
 export function documentTitle(count: number): string {
   return count > 0 ? `(${count}) ${BASE_TITLE}` : BASE_TITLE
