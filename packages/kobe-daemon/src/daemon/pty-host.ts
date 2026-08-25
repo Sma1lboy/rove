@@ -32,19 +32,10 @@
  * store) forgets a session for good.
  */
 
-import { resolveLoginShell } from "./platform-shell.js"
-import type { DaemonFrame, PtyPeekResult, PtySessionExit } from "./protocol.ts"
-import { type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
-import { embeddedTerminalEnv } from "./pty-env.js"
+import type { DaemonFrame, PtyPeekResult } from "./protocol.ts"
+import { PtyChildController } from "./pty-child-controller.ts"
 import { type FrozenPtySession, freezeSession, thawSession } from "./pty-freeze-store.ts"
-import {
-  type PtyAttachResult,
-  type PtyHostOptions,
-  type PtySessionState,
-  type PtySink,
-  type PtySpawnSpec,
-  freshSessionState,
-} from "./pty-host-types.ts"
+import type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 import {
   type PtyHostStats,
   type PtySessionInfo,
@@ -52,10 +43,8 @@ import {
   hostStats,
   peekRing,
   ringTail,
-  scanOscTitle,
   sessionInfo,
 } from "./pty-observability.ts"
-import { terminatePtyChild } from "./pty-termination.ts"
 import { WarmSpare } from "./pty-warm.ts"
 
 export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
@@ -78,18 +67,65 @@ export class PtyHost {
   private readonly scrollbackCap: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
+  /** One session's child-process lifecycle (split out for the file-size cap). */
+  private readonly childController: PtyChildController
   /** The one warm-spare shell slot (see `pty-warm.ts`). */
-  private readonly warmSpare = new WarmSpare({
-    spawn: (key, spec, spare) => this.spawn(key, spec, spare),
-    endChild: (session) => this.endChild(session),
-    markExited: (session) => this.markExited(session),
-    log: (event, message) => this.opts.log?.(event, message),
-    onSessionStart: () => this.opts.onSessionStart?.(),
-  })
+  private readonly warmSpare: WarmSpare
 
   constructor(opts: PtyHostOptions = {}) {
     this.opts = opts
     this.scrollbackCap = opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP
+    this.childController = new PtyChildController({
+      driver: opts.driver,
+      scrollbackCap: this.scrollbackCap,
+      onSessionStart: (spare) => {
+        if (!spare) this.opts.onSessionStart?.()
+      },
+      onOutput: (session, data) => {
+        if (session.sinks.size === 0) {
+          this.maybeFreeze(session)
+          return
+        }
+        const frame: DaemonFrame = {
+          type: "event",
+          name: "pty.data",
+          payload: { key: session.key, data: data.toString("base64") },
+        }
+        for (const sink of session.sinks.values()) sink(frame)
+        this.maybeFreeze(session)
+      },
+      onExit: (session, exit) => {
+        const frame: DaemonFrame = {
+          type: "event",
+          name: "pty.exit",
+          payload: { key: session.key, pid: session.proc?.pid ?? null, ...exit },
+        }
+        for (const sink of session.sinks.values()) sink(frame)
+        this.opts.log?.("pty", `session ${session.key} exited${describeExit(exit)}`)
+        // Final freeze: the exit record AND the scrollback as it stood at death
+        // must both survive this host's own end (idle-exit, crash).
+        this.maybeFreeze(session, true)
+        try {
+          this.opts.onSessionExit?.({
+            key: session.key,
+            pid: session.proc?.pid ?? null,
+            exit,
+            tail: ringTail(session.chunks, session.bytes, EXIT_TAIL_BYTES),
+          })
+        } catch {
+          // A death-record hook must never block session teardown.
+        }
+        this.opts.onSessionEnd?.()
+      },
+      log: (event, message) => this.opts.log?.(event, message),
+    })
+    this.warmSpare = new WarmSpare({
+      spawn: (key, spec, spare) => this.childController.spawn(key, spec, spare),
+      endChild: (session) => this.childController.endChild(session),
+      markExited: (session) => this.childController.markExited(session),
+      log: (event, message) => this.opts.log?.(event, message),
+      onSessionStart: () => this.opts.onSessionStart?.(),
+    })
   }
 
   /**
@@ -113,7 +149,7 @@ export class PtyHost {
     let respawned = false
     if (!session) {
       created = true
-      session = this.warmSpare.adopt(key, spec) ?? this.spawn(key, spec)
+      session = this.warmSpare.adopt(key, spec) ?? this.childController.spawn(key, spec)
       this.sessions.set(key, session)
     } else if (!session.alive && session.restored) {
       // A freeze-restored corpse is a host-death casualty, not a death the
@@ -212,7 +248,7 @@ export class PtyHost {
     // An explicit close is not a restart casualty — drop the freeze record
     // so the next host incarnation does not resurrect what was closed.
     this.opts.freeze?.drop(key)
-    return this.endChild(session)
+    return this.childController.endChild(session)
   }
 
   /**
@@ -308,7 +344,7 @@ export class PtyHost {
    */
   async shutdown(): Promise<void> {
     this.flushFrozen()
-    const endings = Array.from(this.sessions.values(), (session) => this.endChild(session))
+    const endings = Array.from(this.sessions.values(), (session) => this.childController.endChild(session))
     endings.push(this.warmSpare.end())
     await Promise.all(endings)
   }
@@ -352,7 +388,7 @@ export class PtyHost {
     if (spec.command && spec.command.length > 0) session.command = [...spec.command]
     session.cols = spec.cols ?? session.cols
     session.rows = spec.rows ?? session.rows
-    this.startChild(session)
+    this.childController.startChild(session)
     if (!session.alive) return
     this.opts.log?.("pty", `respawned restored session ${session.key} (pid ${session.proc?.pid})`)
     this.opts.onSessionStart?.()
@@ -379,119 +415,5 @@ export class PtyHost {
     let n = 0
     for (const session of this.sessions.values()) if (session.alive) n++
     return n
-  }
-
-  /** `spare` skips `onSessionStart` — a warm shell must not pin the host
-   *  open (its adoption fires the callback instead). */
-  private spawn(key: string, spec: PtySpawnSpec, spare = false): PtySessionState {
-    const argv = spec.command && spec.command.length > 0 ? [...spec.command] : [spec.shell ?? resolveLoginShell()]
-    const session = freshSessionState(key, spec, argv)
-    this.startChild(session)
-    if (session.alive) {
-      this.opts.log?.("pty", `spawned ${argv[0]} for ${key} (pid ${session.proc?.pid})`)
-      if (!spare) this.opts.onSessionStart?.()
-    }
-    return session
-  }
-
-  /**
-   * Start `session`'s child process against its current command/cwd/size —
-   * the shared tail of a fresh spawn and a restored session's respawn. On
-   * failure the session flips to dead (a fresh spawn reports it, a respawn
-   * leaves an ordinary view-only corpse).
-   */
-  private startChild(session: PtySessionState): void {
-    try {
-      session.proc = (this.opts.driver ?? bunTerminalDriver())({
-        argv: [...session.command],
-        cwd: session.cwd,
-        env: embeddedTerminalEnv(process.env, {
-          TERM: "xterm-256color",
-          COLUMNS: String(session.cols),
-          LINES: String(session.rows),
-          BASH_SILENCE_DEPRECATION_WARNING: "1",
-          KOBE_TERMINAL_PTY: "1",
-        }),
-        cols: session.cols,
-        rows: session.rows,
-        onData: (data) => this.onData(session, data),
-      })
-      session.alive = true
-      void session.proc.exited.then(
-        (exit) => this.markExited(session, exit),
-        () => this.markExited(session),
-      )
-    } catch (err) {
-      session.alive = false
-      this.opts.log?.("pty", `spawn failed for ${session.key}: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  }
-
-  private onData(session: PtySessionState, data: string | Uint8Array): void {
-    const buf = typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data)
-    scanOscTitle(session, buf)
-    session.chunks.push(buf)
-    session.bytes += buf.byteLength
-    session.totalBytes += buf.byteLength
-    // ponytail: O(chunks) front-trim like the web sidecar; a chunk may
-    // overshoot the cap slightly — replay correctness only needs "recent
-    // tail", the client's xterm re-derives the screen from whatever it gets.
-    while (session.bytes > this.scrollbackCap && session.chunks.length > 1) {
-      const dropped = session.chunks.shift()
-      if (dropped) session.bytes -= dropped.byteLength
-    }
-    if (session.sinks.size === 0) {
-      this.maybeFreeze(session)
-      return
-    }
-    const frame: DaemonFrame = {
-      type: "event",
-      name: "pty.data",
-      payload: { key: session.key, data: buf.toString("base64") },
-    }
-    for (const sink of session.sinks.values()) sink(frame)
-    this.maybeFreeze(session)
-  }
-
-  private markExited(session: PtySessionState, exit?: PtyExit): void {
-    if (!session.alive) return
-    session.alive = false
-    session.exit = { code: exit?.code ?? null, signal: exit?.signal ?? null, at: new Date().toISOString() }
-    try {
-      session.proc?.close()
-    } catch {
-      /* already closed */
-    }
-    const frame: DaemonFrame = {
-      type: "event",
-      name: "pty.exit",
-      payload: { key: session.key, pid: session.proc?.pid ?? null, ...session.exit },
-    }
-    for (const sink of session.sinks.values()) sink(frame)
-    this.opts.log?.("pty", `session ${session.key} exited${describeExit(session.exit)}`)
-    // Final freeze: the exit record AND the scrollback as it stood at death
-    // must both survive this host's own end (idle-exit, crash).
-    this.maybeFreeze(session, true)
-    try {
-      this.opts.onSessionExit?.({
-        key: session.key,
-        pid: session.proc?.pid ?? null,
-        exit: session.exit,
-        tail: ringTail(session.chunks, session.bytes, EXIT_TAIL_BYTES),
-      })
-    } catch {
-      // A death-record hook must never block session teardown.
-    }
-    this.opts.onSessionEnd?.()
-  }
-
-  private async endChild(session: PtySessionState): Promise<void> {
-    if (!session.alive) return
-    const proc = session.proc
-    if (!proc) {
-      this.markExited(session)
-      return
-    }
-    await terminatePtyChild(proc, () => this.markExited(session))
   }
 }
