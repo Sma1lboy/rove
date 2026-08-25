@@ -14,6 +14,7 @@
 
 import { RotateCw, Search, X } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { displayProductName } from "../lib/cli-name.ts"
 import {
   fetchMessages,
   fetchSessions,
@@ -327,8 +328,8 @@ export function ChatTranscript({
           {error ? (
             offline ? (
               <div className="py-4 text-[12px] leading-relaxed text-subtle">
-                The Rove daemon is offline — the transcript will reappear once
-                it reconnects.
+                The {displayProductName()} daemon is offline — the transcript
+                will reappear once it reconnects.
               </div>
             ) : (
               <div className="flex flex-col items-start gap-2 py-4">

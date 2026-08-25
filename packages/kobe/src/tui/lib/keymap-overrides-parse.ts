@@ -107,21 +107,11 @@ const MOD_ORDER: ReadonlyArray<"ctrl" | "cmd" | "alt" | "shift"> = ["ctrl", "cmd
 
 export type ChordResult = { chord: string; warning?: string } | { error: string }
 
-export type NormalizeChordOpts = {
-  /**
-   * Permit `shift+<single char>` chords. The opentui keymap layer can
-   * never match them (terminals deliver shift+letter as a plain
-   * character), but tmux CAN bind `C-S-T` on extended-keys terminals —
-   * the tmux-layer resolver opts in; everything else keeps the rejection.
-   */
-  allowShiftCharacter?: boolean
-}
-
 /**
  * Normalize one user-written chord into the exact candidate string
  * `matchKey()` mints, or explain why it can't work.
  */
-export function normalizeChord(raw: string, opts?: NormalizeChordOpts): ChordResult {
+export function normalizeChord(raw: string): ChordResult {
   // A BARE single uppercase letter is sugar for the shift+ form ("P" →
   // shift+p) — checked on the raw string BEFORE the lowercase pass erases
   // the case information. Only the modifier-less spelling gets the sugar:
@@ -162,8 +152,8 @@ export function normalizeChord(raw: string, opts?: NormalizeChordOpts): ChordRes
   // uppercase keypress), but shift COMBINED with other modifiers on a
   // single char cannot: legacy terminals send ctrl+shift+z and ctrl+z as
   // the same C0 byte, so such a chord would only fire on kitty-protocol
-  // terminals. The tmux-layer resolver opts in via allowShiftCharacter.
-  if (mods.has("shift") && mods.size > 1 && key.length === 1 && !opts?.allowShiftCharacter) {
+  // terminals.
+  if (mods.has("shift") && mods.size > 1 && key.length === 1) {
     return {
       error: `"${raw}": shift with other modifiers on a single character can never match — legacy terminals send the same byte with and without shift`,
     }
@@ -197,21 +187,12 @@ function extractBindingsMap(section: unknown): Record<string, unknown> | null {
   return section
 }
 
-export type ExtractOverridesOpts = {
-  /** Per-id chord-normalization options for specialized consumers. */
-  chordOptsFor?: (id: string) => NormalizeChordOpts
-}
-
 /**
  * Turn a parsed YAML document into a flat override list for `platform`.
  * Never throws; malformed pieces degrade to warnings. Each warning string
  * is prefixed `"<id>: "` when it concerns a specific binding.
  */
-export function extractKeybindingOverrides(
-  doc: unknown,
-  platform: string,
-  opts?: ExtractOverridesOpts,
-): ExtractedKeybindingOverrides {
+export function extractKeybindingOverrides(doc: unknown, platform: string): ExtractedKeybindingOverrides {
   const warnings: string[] = []
   if (doc === null || doc === undefined) return { entries: [], prefixEntries: [], warnings }
   if (!isRecord(doc)) {
@@ -268,7 +249,7 @@ export function extractKeybindingOverrides(
             anyError = true
             continue
           }
-          const result = normalizeChord(rawChord, opts?.chordOptsFor?.(id))
+          const result = normalizeChord(rawChord)
           if ("error" in result) {
             warnings.push(`${id}: ${result.error}`)
             anyError = true

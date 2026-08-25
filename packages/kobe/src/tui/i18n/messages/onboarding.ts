@@ -16,7 +16,7 @@ export const en = {
   /** Step 2 question */
   skillQuestion: "Install the Rove agent skill?",
   /** Step 2 explanation */
-  skillExplain: "Teaches coding agents (Claude Code, Codex) to drive Rove from the shell via `rove api`.",
+  skillExplain: "Teaches coding agents to drive Rove from the shell via `rove api`.",
   /** Recommended option */
   optionYes: "Yes (recommended)",
   /** Decline option */
@@ -57,7 +57,7 @@ export const zh: typeof en = {
   completionsQuestion: "为 {shell} 安装 shell 补全吗？",
   completionsExplain: "让 rove 子命令支持 Tab 补全，会在你的 shell 配置里加一行。",
   skillQuestion: "安装 Rove agent skill 吗？",
-  skillExplain: "教会编码 agent（Claude Code、Codex）通过 `rove api` 在命令行驱动 Rove。",
+  skillExplain: "教会编码 agent 通过 `rove api` 在命令行驱动 Rove。",
   optionYes: "安装（推荐）",
   optionNo: "跳过",
   legend: "↑↓ 选择 · enter 确认 · q 跳过设置",

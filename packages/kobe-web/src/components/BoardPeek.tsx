@@ -19,8 +19,8 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { activityColor, activityLabel } from "../lib/activity.ts"
 import { ensureEngineTab } from "../lib/tabs.ts"
 import type { EngineState, Task } from "../lib/types.ts"
-import { resolveVendor } from "../lib/vendor.ts"
 import { useFocusTrap } from "../lib/use-focus-trap.ts"
+import { resolveVendor } from "../lib/vendor.ts"
 import { ChatTranscript } from "./ChatTranscript.tsx"
 
 // xterm is the app's heaviest dependency — keep it out of the board chunk

@@ -349,7 +349,7 @@ export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): 
 }
 
 /**
- * Cycle the task's engine vendor (claude ↔ codex ↔ …) via `task.setVendor`.
+ * Cycle the task's engine vendor via `task.setVendor`.
  * Takes effect on the task's next enter: `ensureSession` rebuilds a session
  * whose `@kobe_vendor` tag no longer matches, launching the new engine.
  *

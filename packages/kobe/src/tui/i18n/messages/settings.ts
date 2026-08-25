@@ -93,7 +93,7 @@ export const en = {
   },
   engines: {
     title: "Launch command",
-    hint: "The command each engine's task pane runs. Override a built-in when your binary isn't on PATH as `claude` / `codex` (e.g. it's `cl`) or to pass default flags, or add your own engine. ● = global default engine (per-project picks, e.g. Ctrl+Shift+T, override it). enter edit command · r rename · x reset/remove · d set default.",
+    hint: "The command each engine's task pane runs. Override a built-in when the binary isn't on PATH, to pass default flags, or add your own engine. ● = global default engine (per-project picks, e.g. Ctrl+Shift+T, override it). enter edit command · r rename · x reset/remove · d set default.",
     defaultTag: "  (default)",
     customTag: "  (custom)",
     addEngine: "+ Add engine",
@@ -160,7 +160,7 @@ export const en = {
   dev: {
     reset: "Reset UI state",
     resetHint:
-      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session / Archive lists, pane sizes, theme, model picks all reset. Worktrees on disk and Claude Code session history are not touched.",
+      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session / Archive lists, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
     resetButton: "[enter] Reset",
     restart: "Restart backend",
     restartHint:
@@ -174,7 +174,7 @@ export const en = {
     remoteOn: "[x] Remote projects (on)",
     remoteOff: "[ ] Remote projects (off)",
     autoStatusHint:
-      "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new claude sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
+      "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
     autoStatusOn: "[x] Auto status flow (on)",
     autoStatusOff: "[ ] Auto status flow (off)",
     dispatcherHint:
@@ -272,7 +272,7 @@ export const zh: typeof en = {
   },
   engines: {
     title: "启动命令",
-    hint: "每个引擎的任务面板运行的命令。当二进制文件不在 PATH 上的 `claude` / `codex` 名下（比如叫 `cl`）、要传默认参数，或要添加自己的引擎时，可覆盖内置项。● = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）。enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
+    hint: "每个引擎的任务面板运行的命令。当内置二进制文件不在 PATH 上、要传默认参数，或要添加自己的引擎时，可覆盖内置项。● = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）。enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
     defaultTag: "  (默认)",
     customTag: "  (自定义)",
     addEngine: "+ 添加引擎",
@@ -335,7 +335,7 @@ export const zh: typeof en = {
   dev: {
     reset: "重置 UI 状态",
     resetHint:
-      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话 / 归档列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和 Claude Code 会话历史不受影响。",
+      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话 / 归档列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
     resetButton: "[enter] 重置",
     restart: "重启后端",
     restartHint:
@@ -349,7 +349,7 @@ export const zh: typeof en = {
     remoteOn: "[x] 远程项目 (开)",
     remoteOff: "[ ] 远程项目 (关)",
     autoStatusHint:
-      "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新的 claude 会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
+      "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
     autoStatusOn: "[x] 自动状态流转 (开)",
     autoStatusOff: "[ ] 自动状态流转 (关)",
     dispatcherHint:

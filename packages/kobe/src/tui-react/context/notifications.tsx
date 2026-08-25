@@ -1,19 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Per-ChatTab completion notifications (React port of
- * `src/tui/context/notifications.tsx`, issue #15 G3). Same three signals
- * (audible cue, transient toast, unread tab mark) and the same gating —
- * the pure state transforms + the "error toasts always show" invariant
- * live in the shared `src/tui/lib/notify-state.ts` consumed by both
- * runtimes; see the Solid header for the full rationale.
+ * Per-ChatTab completion notifications (React port of the Solid
+ * NotificationsProvider, issue #15 G3). Same three signals (audible cue,
+ * transient toast, unread tab mark) and the same gating — the pure state
+ * transforms + the "error toasts always show" invariant live in the
+ * shared `src/tui/lib/notify-state.ts` consumed by both runtimes.
  *
- * Deliberate delta: the Solid provider reads the sound/toast toggles from
- * the live KVProvider. The React KV context isn't ported yet (issue #15
- * G3, settings slice), so this provider reads a one-shot `state.json`
- * snapshot at mount — the same snapshot-only semantics KV documents
- * (another process's writes need a restart to be seen), and no React pane
- * host has an in-process settings surface that could flip the toggles
- * live yet.
+ * The React KV provider is now ported, so sound/toast toggles are read
+ * from it when a KVProvider is present. Render tests and the mock dialogs
+ * host intentionally run without KV, so we fall back to a one-time
+ * `state.json` snapshot in that case.
  */
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
@@ -29,6 +25,7 @@ import {
   shouldShowToast,
 } from "../../tui/lib/notify-state"
 import { pulse as pulseSound } from "../../tui/lib/sound"
+import { useOptionalKV } from "./kv"
 
 export type { NotificationKind, Toast, NotifyInput } from "../../tui/lib/notify-state"
 
@@ -45,8 +42,19 @@ const ctx = createContext<NotificationsContext | null>(null)
 export function NotificationsProvider(props: { children?: ReactNode }) {
   const [toasts, setToasts] = useState<readonly Toast[]>([])
   const [unread, setUnread] = useState<ReadonlyMap<string, NotificationKind>>(new Map())
-  // ponytail: one-shot toggle snapshot; swap to the React KV context when it lands.
-  const prefs = useMemo(() => loadStateFile(), [])
+  // Read toggles from KV when available; otherwise fall back to the mount-time
+  // snapshot (render tests / mock hosts intentionally omit KVProvider).
+  const kv = useOptionalKV()
+  const snapshot = useMemo(() => loadStateFile(), [])
+  const prefs = useMemo(
+    () => ({
+      "notifications.sound.enabled":
+        (kv?.get("notifications.sound.enabled") as boolean | undefined) ?? snapshot["notifications.sound.enabled"],
+      "notifications.toast.enabled":
+        (kv?.get("notifications.toast.enabled") as boolean | undefined) ?? snapshot["notifications.toast.enabled"],
+    }),
+    [kv, snapshot],
+  )
   const counter = useRef(0)
 
   // Toast auto-dismiss timers are provider-scoped: any still-pending timer
