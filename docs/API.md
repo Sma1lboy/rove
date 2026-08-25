@@ -197,7 +197,7 @@ process keeps exporting the ids of a tab it no longer runs in, and every
 task it creates would name a stranger's session as its dispatcher. Rove
 believes the pair only when `<taskId>::<tabId>` is a live session AND that
 session's shell is an ancestor of the calling process. When it isn't, the
-dispatcher / `[KOBE PEER]` provenance / spawner coda are all omitted (a
+dispatcher / `[ROVE PEER]` provenance / spawner coda are all omitted (a
 wrong reply address delivers to someone else; no address at least fails
 visibly), and the verb's JSON result carries an `identityWarning` field
 saying so.
@@ -216,7 +216,7 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   tab when the tab died, and failing loud (`DISPATCHER_UNREACHABLE`) when
   nothing on that task is alive, never silently spawning a new engine.
   Otherwise the default is the active task and its canonical engine tab.
-  From another Rove task, the message includes `[KOBE PEER]` provenance and
+  From another Rove task, the message includes `[ROVE PEER]` provenance and
   a tab-precise reply command (`--task-id <sender> --tab <sender's tab>`);
   `--plain` skips that prefix. `--tab new` spawns a fresh engine tab, while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or

@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 31 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 32 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -42,7 +42,7 @@ lifecycle tracking, and an explicit outcome contract.
   (an MCP server offering to message "other instances" is exactly that
   channel: it reaches a process, not a task, so nothing it delivers is
   attributable, watchable, or replyable). Sent from
-  inside a Rove task, the prompt arrives prefixed `[KOBE PEER] from
+  inside a Rove task, the prompt arrives prefixed `[ROVE PEER] from
   "<title>" (task <id> — load the Rove agent skill FIRST …)`, so the
   receiver knows who is talking, that this skill is required reading, and
   how to answer — the baked-in reply command is tab-precise
@@ -51,7 +51,7 @@ lifecycle tracking, and an explicit outcome contract.
   strip it with `--plain` for
   coordination messages (`--plain` is only for a verbatim paste the
   receiver should treat as content, not conversation). Received a
-  `[KOBE PEER]` message yourself? Load this skill first — required, not
+  `[ROVE PEER]` message yourself? Load this skill first — required, not
   optional — then reply with the baked-in command, not by asking the user.
 - `send` carries text, but that text can carry FILES: peers share a
   filesystem, so put the absolute path of a screenshot, log, diff, or any
@@ -234,7 +234,7 @@ rove api add --repo "$PWD" --count 3 --prompt "<prompt>"
 rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
 
 # Follow up. Use an explicit id for unattended work; the active task can drift.
-# From inside a Rove task this auto-prefixes [KOBE PEER] provenance
+# From inside a Rove task this auto-prefixes [ROVE PEER] provenance
 # (sender + reply command); --plain sends verbatim.
 rove api send --task-id <id> --prompt "<complete next turn>"
 
@@ -411,7 +411,7 @@ everything, passed everything, and committed nothing has delivered nothing —
 that exact mismatch has shipped empty merges before.
 
 **Coordinator side** — do NOT block or poll. Keep working (or end your
-turn); each worker's outcome arrives in your chat as a `[KOBE PEER]` message
+turn); each worker's outcome arrives in your chat as a `[ROVE PEER]` message
 with its task id. What arrives is the worker's claim, not Rove-verified —
 verify the winner's actual diff before landing. Silence never proves a
 worker died (it may be mid-turn or stuck on a permission prompt): peek with

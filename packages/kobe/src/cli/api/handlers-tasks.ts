@@ -22,7 +22,7 @@ import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
  * Peer provenance: a `send` issued from INSIDE another kobe task is one
  * agent messaging another, and the receiver needs what a bare paste never
  * carries — who is talking and how to answer. Same convention as field
- * notes (`[KOBE FIELD NOTE] from "<label>" (task <id>)`), plus the reply
+ * notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the reply
  * command so a peer conversation is symmetric without any coordinator.
  * Sender identity is the VERIFIED $KOBE_TASK_ID/$KOBE_TAB_ID pair, not the
  * raw env: an unverified one names a stranger's session as the sender and
@@ -55,7 +55,7 @@ async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, promp
   // improvises verbs and side-channels (2026-08-10: a peer coordination
   // round-trip fell back to a human relay because neither side had the
   // skill's contract in context).
-  return `[KOBE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`
+  return `[ROVE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`
 }
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {

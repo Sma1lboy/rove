@@ -143,7 +143,7 @@ describe("withDispatcherProtocol", () => {
     // (web-hosted sessions would get a duplicate tmux twin otherwise).
     expect(argv[2]).toContain("api dispatch --task-id <id>")
     expect(argv[2]).not.toContain("api send")
-    expect(argv[2]).toContain("[KOBE FIELD NOTE]")
+    expect(argv[2]).toContain("[ROVE FIELD NOTE]")
   })
 
   it("leaves the argv alone when disabled, vendor isn't claude, or no task", () => {

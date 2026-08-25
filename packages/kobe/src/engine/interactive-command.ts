@@ -401,7 +401,7 @@ export function withWorktreeProtocol(
 export function dispatcherProtocol(taskId: string, api: string = kobeApiInvocation()): string {
   return [
     `You are running inside Rove (a local multi-session task manager) as this repository's DISPATCHER (task ${taskId}, the repo's main session).`,
-    "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [KOBE FIELD NOTE].",
+    "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [ROVE FIELD NOTE].",
     "Your job is routing that knowledge, fully autonomously — never ask the user for permission:",
     `  - See the fleet: \`${api} collect --repo .\` (status, running, change counts per task), or \`--task-ids id1,id2\` for specific tasks.`,
     `  - Relay a note to a task that would benefit: \`${api} dispatch --task-id <id> --prompt "[dispatcher] FYI from <author task>: <note verbatim>"\`.`,

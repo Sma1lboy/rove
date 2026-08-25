@@ -340,7 +340,7 @@ describe("bare send replies to the dispatcher", () => {
     expect(calls[0].target.id).toBe("active-1")
   })
 
-  it("an INHERITED env sends no [KOBE PEER] prefix — impersonation is worse than anonymity", async () => {
+  it("an INHERITED env sends no [ROVE PEER] prefix — impersonation is worse than anonymity", async () => {
     await asSession("worker-1", "tab-9", { detached: true })
     const client = workerClient({ taskId: "disp-1", tabId: "tab-2" })
     const { calls, deliver } = recordingDelivery()
@@ -351,7 +351,7 @@ describe("bare send replies to the dispatcher", () => {
     expect(calls[0].prompt).toBe("hi")
   })
 
-  it("the [KOBE PEER] reply command is tab-precise (sender's $KOBE_TAB_ID)", async () => {
+  it("the [ROVE PEER] reply command is tab-precise (sender's $KOBE_TAB_ID)", async () => {
     const client = workerClient({ taskId: "disp-1", tabId: "tab-2" })
     const { calls, deliver } = recordingDelivery()
     await invokeVerb("send", ["--task-id", "disp-1", "--prompt", "hi"], {
