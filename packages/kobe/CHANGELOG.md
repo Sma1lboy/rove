@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.184
+
+### Patch Changes
+
+- [`8ee1540`](https://github.com/Sma1lboy/rove/commit/8ee1540226fe98f7a8015f57d9f0bfbb4d747f59) Clicking an engine's on/off checkbox in Settings → Engines no longer also opens
+  its launch-command editor. The click bubbled to the row, so the checkbox fired
+  both actions at once; it now stops there and only toggles. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.183
 
 ### Patch Changes
