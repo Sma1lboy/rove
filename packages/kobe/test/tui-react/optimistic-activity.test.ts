@@ -11,6 +11,7 @@ import {
   supersededAnswers,
   supersededMarks,
 } from "../../src/tui-react/workspace/optimistic-activity.ts"
+import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core.ts"
 
 const auth = (entries: Record<string, TaskEngineState>): ReadonlyMap<string, TaskEngineState> =>
   new Map(Object.entries(entries))
@@ -96,7 +97,9 @@ describe("mergeAnsweredTabs", () => {
   it("hides a permission_needed the user answered, until a newer event arrives", () => {
     const waiting = tabs({ t1: { "tab-27": { state: "permission_needed", at: 1000 } } })
     const marks = new Map([["t1::tab-27", 2000]])
-    expect(mergeAnsweredTabs(waiting, marks, 2500).get("t1")?.get("tab-27")).toBeUndefined()
+    // Downgraded to idle, NOT removed: an absent entry reads as "no signal"
+    // to the sidebar and rests at the dim `·` instead of the idle circle.
+    expect(mergeAnsweredTabs(waiting, marks, 2500).get("t1")?.get("tab-27")?.state).toBe("idle")
 
     // A daemon event stamped after the answer is real news — it wins.
     const resumed = tabs({ t1: { "tab-27": { state: "permission_needed", at: 3000 } } })
@@ -112,11 +115,32 @@ describe("mergeAnsweredTabs", () => {
       },
     })
     const merged = mergeAnsweredTabs(mixed, new Map([["t1::tab-27", 2000]]), 2500)
-    expect(merged.get("t1")?.get("tab-27")).toBeUndefined()
+    expect(merged.get("t1")?.get("tab-27")?.state).toBe("idle")
     // A sibling's prompt and an unrelated error must survive: a local guess
     // may never hide a state the user still has to act on.
     expect(merged.get("t1")?.get("tab-22")?.state).toBe("permission_needed")
     expect(merged.get("t1")?.get("tab-9")?.state).toBe("error")
+  })
+
+  // The whole point of the downgrade: the sidebar must still get an activity
+  // entry for the answered tab. Deleting it made `tabRowActivity` return
+  // undefined (a reporting sibling blocks the task rollup fallback), and the
+  // row of a working engine went dim `·` for the mark's full 30min life.
+  it("leaves the answered tab with activity the sidebar can read", () => {
+    const busy = tabs({
+      t1: {
+        "tab-27": { state: "permission_needed", at: 1000 },
+        "tab-9": { state: "running", at: 1000 },
+      },
+    })
+    const perTab = mergeAnsweredTabs(busy, new Map([["t1::tab-27", 2000]]), 2500).get("t1")
+    const activity = tabRowActivity({
+      tabActivity: perTab?.get("tab-27"),
+      reportedTabCount: perTab?.size ?? 0,
+      taskActivity: undefined,
+      active: true,
+    })
+    expect(activity?.state).toBe("idle")
   })
 
   it("only an enter at a WAITING tab marks an answer", () => {
