@@ -50,16 +50,23 @@
   var TASKS = {
     'streaming-diff': {
       tagA: 'claude', tab2: 'bun dev',
+      // Frame grammar traced from a live Claude Code session (headless-xterm
+      // capture, v2.1.239): crab glyph + 3-line header, ❯ prompt echo,
+      // ⏺ response bullet, indented tool-result line, ✻ spinner, and the
+      // input row fenced by two rules.
       work:
-        '<span class="d">Claude Code v2.1.220</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="hi">stream the diff pane instead of buffering the whole patch</span>\n\n' +
-        '<span class="hi">I\'ll split this into three moves:</span>\n' +
-        '  • parse <span class="hi">git diff</span> as a line stream, not one blob\n' +
-        '  • push hunks to the pane as they land\n' +
-        '  • keep the scroll anchor pinned while rows append\n\n' +
-        '<span class="ok">✓</span> edited <span class="hi">src/panes/diff/stream.ts</span>\n' +
-        '<span class="d">⠹ Baking… (13m 44s · esc to interrupt)</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="fl-cursor"></span>',
+        '<span class="ps"> ▐▛███▛█</span>   <span class="hi">Claude Code</span>\n' +
+        '<span class="ps">▝▜██████▀</span>  <span class="d">Opus 5 · API Usage Billing</span>\n' +
+        '<span class="ps">  ▝▝ ▝▝</span>    <span class="d">~/w/rove</span>\n\n' +
+        '<span class="ps">❯</span> <span class="hi">stream the diff pane instead of buffering the whole patch</span>\n\n' +
+        '<span class="hi">⏺</span> I\'ll parse <span class="hi">git diff</span> as a line stream, push hunks to the pane as\n' +
+        '  they land, and keep the scroll anchor pinned while rows append.\n\n' +
+        '<span class="ok">⏺</span> Update(<span class="hi">src/panes/diff/stream.ts</span>)\n' +
+        '  <span class="d">⎿</span>  Updated <span class="hi">src/panes/diff/stream.ts</span> with 96 additions and 12 removals\n\n' +
+        '<span class="ps">✻</span> <span class="d">Baking… (13m 44s · esc to interrupt)</span>\n\n' +
+        '<span class="d">──────────────────────────────────────────────────</span>\n' +
+        '<span class="ps">❯</span> <span class="fl-cursor"></span>\n' +
+        '<span class="d">──────────────────────────────────────────────────</span>',
       side:
         '<span class="ps">$</span> bun run dev\n\n' +
         '  <span class="ok">VITE v6.3.2</span>  ready in 341 ms\n\n' +
@@ -77,7 +84,7 @@
     'oauth-refresh': {
       tagA: 'codex', tab2: 'pytest',
       work:
-        '<span class="d">Codex CLI 0.9.1</span>\n\n' +
+        '<span class="d">Codex CLI</span>\n\n' +
         '<span class="ps">&gt;</span> <span class="hi">refresh tokens before they expire, not after a 401</span>\n\n' +
         '<span class="hi">Plan:</span>\n' +
         '  • read <span class="hi">expires_at</span> at load, schedule a refresh at T−60s\n' +
@@ -104,7 +111,7 @@
     'ledger-migration': {
       tagA: 'copilot', tab2: 'psql',
       work:
-        '<span class="d">Copilot CLI 1.4.0</span>\n\n' +
+        '<span class="d">Copilot CLI</span>\n\n' +
         '<span class="ps">&gt;</span> <span class="hi">backfill the ledger table without locking writes</span>\n\n' +
         '<span class="hi">Drafted a two-phase migration:</span>\n' +
         '  • add the column nullable, backfill in 10k batches\n' +
@@ -131,7 +138,7 @@
     'flaky-e2e': {
       tagA: 'kimi', tab2: 'git',
       work:
-        '<span class="d">Kimi CLI 0.6.2</span>\n\n' +
+        '<span class="d">Kimi CLI</span>\n\n' +
         '<span class="ps">&gt;</span> <span class="hi">find why the checkout e2e flakes ~1 run in 8</span>\n\n' +
         '<span class="hi">Root cause: a real timer, not a fake one.</span>\n' +
         '  • the suite waits 300ms for the toast\n' +
