@@ -55,18 +55,18 @@
       // ⏺ response bullet, indented tool-result line, ✻ spinner, and the
       // input row fenced by two rules.
       work:
-        '<span class="ps"> ▐▛███▛█</span>   <span class="hi">Claude Code</span>\n' +
+        '<span class="art"><span class="ps"> ▐▛███▛█</span>   <span class="hi">Claude Code</span>\n' +
         '<span class="ps">▝▜██████▀</span>  <span class="d">Opus 5 · API Usage Billing</span>\n' +
-        '<span class="ps">  ▝▝ ▝▝</span>    <span class="d">~/w/rove</span>\n\n' +
+        '<span class="ps">  ▝▝ ▝▝</span>    <span class="d">~/w/rove</span></span>\n\n' +
         '<span class="ps">❯</span> <span class="hi">stream the diff pane instead of buffering the whole patch</span>\n\n' +
         '<span class="hi">⏺</span> I\'ll parse <span class="hi">git diff</span> as a line stream, push hunks to the pane as\n' +
         '  they land, and keep the scroll anchor pinned while rows append.\n\n' +
         '<span class="ok">⏺</span> Update(<span class="hi">src/panes/diff/stream.ts</span>)\n' +
         '  <span class="d">⎿</span>  Updated <span class="hi">src/panes/diff/stream.ts</span> with 96 additions and 12 removals\n\n' +
-        '<span class="ps">✻</span> <span class="d">Baking… (13m 44s · esc to interrupt)</span>\n\n' +
-        '<span class="d">──────────────────────────────────────────────────</span>\n' +
+        '<span class="ps">✻</span> <span class="d">Baking… (13m 44s · esc to interrupt)</span>\n' +
+        '<span class="rule"></span>' +
         '<span class="ps">❯</span> <span class="fl-cursor"></span>\n' +
-        '<span class="d">──────────────────────────────────────────────────</span>',
+        '<span class="rule"></span>',
       side:
         '<span class="ps">$</span> bun run dev\n\n' +
         '  <span class="ok">VITE v6.3.2</span>  ready in 341 ms\n\n' +
@@ -83,17 +83,27 @@
     },
     'oauth-refresh': {
       tagA: 'codex', tab2: 'pytest',
+      // Frame grammar traced from a live Codex session + refs/codex tui:
+      // rounded box header, › prompt, dim • bullets, "  └" result lines,
+      // "Working (… • esc to interrupt)" status.
       work:
-        '<span class="d">Codex CLI</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="hi">refresh tokens before they expire, not after a 401</span>\n\n' +
-        '<span class="hi">Plan:</span>\n' +
-        '  • read <span class="hi">expires_at</span> at load, schedule a refresh at T−60s\n' +
-        '  • collapse concurrent refreshes behind one in-flight promise\n' +
-        '  • keep the 401 retry only as a backstop\n\n' +
-        '<span class="ok">✓</span> edited <span class="hi">auth/session.py</span>\n' +
-        '<span class="wn">!</span> 2 tests still red — reading the fixtures\n' +
-        '<span class="d">● Working… (6m 02s · esc to interrupt)</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="fl-cursor"></span>',
+        '<span class="art"><span class="d">╭────────────────────────────────────────────╮</span>\n' +
+        '<span class="d">│</span> <span class="hi">&gt;_ OpenAI Codex</span>                            <span class="d">│</span>\n' +
+        '<span class="d">│                                            │</span>\n' +
+        '<span class="d">│ model:     gpt-5.2-codex  /model to change │</span>\n' +
+        '<span class="d">│ directory: ~/w/storefront                  │</span>\n' +
+        '<span class="d">╰────────────────────────────────────────────╯</span></span>\n\n' +
+        '<span class="ps">›</span> <span class="hi">refresh tokens before they expire, not after a 401</span>\n\n' +
+        '<span class="d">•</span> Read <span class="hi">expires_at</span> at load and schedule a refresh at T−60s,\n' +
+        '  collapsing concurrent refreshes behind one in-flight promise.\n\n' +
+        '<span class="d">•</span> <span class="hi">Edited</span> auth/session.py\n' +
+        '  <span class="d">└</span> <span class="ok">+61</span> <span class="er">-40</span> <span class="d">schedule_refresh, _single_flight</span>\n\n' +
+        '<span class="d">•</span> <span class="hi">Ran</span> pytest tests/auth -x -q\n' +
+        '  <span class="d">└</span> 8 passed, <span class="er">2 failed</span> <span class="d">— reading the fixtures</span>\n\n' +
+        '<span class="wn">•</span> <span class="d">Working (6m 02s • esc to interrupt)</span>\n' +
+        '<span class="rule"></span>' +
+        '<span class="ps">›</span> <span class="fl-cursor"></span>\n' +
+        '<span class="rule"></span>',
       side:
         '<span class="ps">$</span> pytest tests/auth -x -q\n' +
         '<span class="ok">........</span><span class="er">FF</span>\n\n' +

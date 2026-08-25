@@ -110,6 +110,13 @@ button.fl-row:focus-visible { outline: none; background: oklch(62% 0.13 45/.1); 
 .fl-pane:first-child { border-color: oklch(52% 0.075 45); background: oklch(20.5% 0.018 50); }
 .fl-pane:first-child .fl-tag { color: var(--accent-2); }
 .fl-pane pre { font: inherit; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: oklch(79% 0.018 70); }
+/* Block-glyph art (the crab logo, codex's box header): the pane's 1.75
+   line-height splits ▛▜█│ into fragments — these lines pack tight so the
+   glyphs read as one shape. */
+.fl-pane .art { display: inline-block; line-height: 1.16; }
+/* Input-row fence: a real rule that spans the pane, not a literal run of ─
+   that ends mid-pane at whatever count was typed. */
+.fl-pane .rule { display: block; border-top: 1px solid oklch(34% 0.02 50); margin: 7px 0; }
 .fl-pane .ps { color: oklch(75% 0.13 50); }
 .fl-pane .ok { color: oklch(78% 0.13 145); }
 .fl-pane .wn { color: oklch(80% 0.12 80); }
