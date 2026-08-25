@@ -12,16 +12,21 @@
  * but keeping it explicit means a future page can't silently shadow one.
  */
 
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useEffect, useMemo, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import type { TaskEngineState } from "../../client/remote-orchestrator-payloads"
 import { type SidebarNav, focusPaneForNav } from "../../tui/panes/sidebar/nav-core"
 import type { Task } from "../../types/task"
 import { AutomationsPage } from "../component/automations-page"
 import { KanbanPage } from "../component/kanban-page"
+import { SettingsDialog } from "../component/settings-dialog"
 import { UpdatePage } from "../component/update-page"
 import { WorkItemsPage } from "../component/work-items-page"
 import { WorktreesPage } from "../component/worktrees-page"
-import type { FocusContextValue } from "../context/focus"
+import type { FocusContextValue, PaneId } from "../context/focus"
+import type { KVContext } from "../context/kv"
+import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
+import type { DialogContext } from "../ui/dialog"
 
 export interface HostPageState {
   readonly worktreesOpen: boolean
@@ -191,4 +196,117 @@ export function renderContentPage(deps: HostPageDeps): ReactNode | null {
   }
 
   return null
+}
+
+export interface UseHostPagesRenderOpts {
+  orchestrator: RemoteOrchestrator
+  pages: HostPagesState
+  focus: FocusContextValue
+  dialog: DialogContext
+  kv: KVContext
+  dims: { width: number }
+  selectedTask: Task | undefined
+  activeTaskId: string | null
+  tasks: readonly Task[]
+  engineState: ReadonlyMap<string, TaskEngineState>
+  startIssueChat: HostPageDeps["startIssueChat"]
+  activateTask: (taskId: string) => void
+}
+
+export interface UseHostPagesRenderResult {
+  /** The settings full-window page, if open. */
+  settingsPage: ReactNode | null
+  /** Full-window pages (worktrees/update) or null. */
+  fullWindowPage: ReactNode | null
+  /** Rail content-pane pages or null. */
+  contentPage: ReactNode | null
+  /** Whether the sidebar should render in the current layout. */
+  showSidebar: boolean
+  /** Whether the content pane should render in the current layout. */
+  showContent: boolean
+  /** "↩ recent" jump target for narrow mode. */
+  recentTask: Task | null
+}
+
+/**
+ * Page-render + layout decisions for the workspace host.
+ *
+ * Pulled out of `host.tsx` (file-size cap) because `pageDeps`, the
+ * full-window/content-page render calls, the narrow-mode surface decision,
+ * and the settings standalone page all serve the same concern: deciding
+ * which surface occupies the workspace. Keeping them together means
+ * `host.tsx` no longer has to thread every dependency through `pageDeps`.
+ */
+export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {
+  const {
+    orchestrator,
+    pages,
+    focus,
+    dialog,
+    kv,
+    dims,
+    selectedTask,
+    activeTaskId,
+    tasks,
+    engineState,
+    startIssueChat,
+    activateTask,
+  } = opts
+
+  const activePane: PaneId | null = dialog.stack.length > 0 ? null : focus.focused
+
+  const pageDeps = useMemo<HostPageDeps>(
+    () => ({
+      orchestrator,
+      selectedTask,
+      worktreesOpen: pages.worktreesOpen,
+      automationsOpen: pages.automationsOpen,
+      workItemsOpen: pages.workItemsOpen,
+      kanbanOpen: pages.kanbanOpen,
+      updateOpen: pages.updateOpen,
+      closeWorktrees: pages.closeWorktrees,
+      closeAutomations: pages.closeAutomations,
+      closeWorkItems: pages.closeWorkItems,
+      closeKanban: pages.closeKanban,
+      closeUpdate: pages.closeUpdate,
+      activateTask: (taskId: string) => void activateTask(taskId),
+      startIssueChat,
+      engineStates: engineState,
+      contentFocused: activePane === "workspace",
+    }),
+    [orchestrator, selectedTask, pages, startIssueChat, engineState, activePane, activateTask],
+  )
+
+  const fullWindowPage = useMemo(() => renderFullWindowPage(pageDeps), [pageDeps])
+  const contentPage = useMemo(() => renderContentPage(pageDeps), [pageDeps])
+
+  // Narrow hides the files pane entirely, so a focus stranded there (a
+  // resize below the breakpoint mid-session) falls back to the workspace —
+  // otherwise plain keys would land in an unmounted pane.
+  const narrow = isNarrowWidth(dims.width)
+  useEffect(() => {
+    if (narrow && focus.focused === "files") focus.setFocused("workspace")
+  }, [narrow, focus])
+  const surface = narrow
+    ? narrowSurface({
+        focusedPane: focus.focused,
+        hasSelection: selectedTask != null,
+        hasOpenPage: contentPage != null,
+      })
+    : null
+  const showSidebar = surface !== "content"
+  const showContent = surface !== "sidebar"
+
+  const recentTask = useMemo(
+    () => (narrow ? tasks.find((task) => task.id === activeTaskId && !task.archived) : null) ?? null,
+    [narrow, tasks, activeTaskId],
+  )
+
+  const settingsPage = pages.settingsOpen ? (
+    <box flexGrow={1} backgroundColor="transparent" paddingTop={1}>
+      <SettingsDialog kv={kv} orchestrator={orchestrator} standalone={true} onClose={pages.closeSettings} />
+    </box>
+  ) : null
+
+  return { settingsPage, fullWindowPage, contentPage, showSidebar, showContent, recentTask }
 }

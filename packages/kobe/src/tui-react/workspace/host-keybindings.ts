@@ -24,6 +24,7 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import type { HostPagesState } from "./host-pages"
 import {
   type WorkspacePageState,
   nextFocusedPane,
@@ -39,24 +40,12 @@ import { usePluginKeybindings } from "./use-plugin-keybindings"
 export type WorkspaceKeybindingDeps = {
   focus: FocusContextValue
   dialog: DialogContext
-  settingsOpen: boolean
-  worktreesOpen: boolean
-  openWorktrees: () => void
-  updateOpen: boolean
-  openUpdate: () => void
-  kanbanOpen: boolean
-  openKanban: () => void
+  pages: HostPagesState
   /** False while the files pane is unmounted (zen, or a rail page). */
   filesPaneVisible?: boolean
-  automationsOpen: boolean
-  openAutomations: () => void
-  workItemsOpen: boolean
-  openWorkItems: () => void
   searchActive: boolean
   selectedId: string | null
   openTaskWorktree: (id: string) => void
-  openSettings: () => void
-  closeSettings: () => void
   createTask: () => void
   renameBranch: (id: string) => void
   cycleVendor: (id: string) => void
@@ -113,12 +102,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   // test/tui-react/keybinding-gates.test.ts.
   const pages: WorkspacePageState = {
     dialogOpen: deps.dialog.stack.length > 0,
-    settingsOpen: deps.settingsOpen,
-    worktreesOpen: deps.worktreesOpen,
-    updateOpen: deps.updateOpen,
-    kanbanOpen: deps.kanbanOpen,
-    automationsOpen: deps.automationsOpen,
-    workItemsOpen: deps.workItemsOpen,
+    settingsOpen: deps.pages.settingsOpen,
+    worktreesOpen: deps.pages.worktreesOpen,
+    updateOpen: deps.pages.updateOpen,
+    kanbanOpen: deps.pages.kanbanOpen,
+    automationsOpen: deps.pages.automationsOpen,
+    workItemsOpen: deps.pages.workItemsOpen,
   }
   const pagesClosed = workspacePagesClosed(pages)
 
@@ -138,14 +127,14 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // next waiting task" works even while focused inside the engine.
         "attention.next": () => deps.jumpToNextAttention(),
         "inbox.show": () => deps.openInbox(),
-        "kanban.open": () => deps.openKanban(),
-        "automations.open": () => deps.openAutomations(),
-        "workItems.open": () => deps.openWorkItems(),
+        "kanban.open": () => deps.pages.openKanban(),
+        "automations.open": () => deps.pages.openAutomations(),
+        "workItems.open": () => deps.pages.openWorkItems(),
         "task.moveMode": () => deps.enterMoveMode(),
         // prefix+, — the global companion to the sidebar's bare `s`. The
         // row shipped in the table (and docs) without a handler here, so
         // the chord was dead outside the sidebar.
-        "settings.open": () => deps.openSettings(),
+        "settings.open": () => deps.pages.openSettings(),
         "files.createPR": () => deps.createPR(),
         "task.openEditor": () => {
           if (deps.selectedId) deps.openTaskWorktree(deps.selectedId)
@@ -170,9 +159,9 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         }
         void quit()
       },
-      "settings.open.sidebar": () => deps.openSettings(),
-      "worktrees.open.sidebar": () => deps.openWorktrees(),
-      "tasks.update": () => deps.openUpdate(),
+      "settings.open.sidebar": () => deps.pages.openSettings(),
+      "worktrees.open.sidebar": () => deps.pages.openWorktrees(),
+      "tasks.update": () => deps.pages.openUpdate(),
     }),
   }))
   // Task-lifecycle chords (issue #20 — the tmux Tasks pane's n/b/v set).
@@ -207,7 +196,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   // e.g. the engine-command editor, keeps esc/typing for itself).
   useBindings(() => ({
     enabled: settingsCloseKeysEnabled(pages),
-    bindings: pageCloseBindings(deps.closeSettings),
+    bindings: pageCloseBindings(deps.pages.closeSettings),
   }))
   // User `plugins:` chords — same open-page gating as the workspace rows.
   // Registered LAST so the catalogue registrations keep their positional

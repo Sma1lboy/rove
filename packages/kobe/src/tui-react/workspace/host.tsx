@@ -13,17 +13,13 @@ import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { PrefixHud } from "../component/prefix-hud"
-import { SettingsDialog } from "../component/settings-dialog"
 import { ToastOverlay } from "../component/toast-overlay"
-import { UpdatePage } from "../component/update-page.tsx"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
-import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
-import { useAccessor } from "../lib/use-accessor"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -31,7 +27,7 @@ import { useDialog } from "../ui/dialog"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
-import { renderContentPage, renderFullWindowPage, useHostPagesState } from "./host-pages"
+import { useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebar } from "./host-sidebar"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
@@ -39,11 +35,10 @@ import { useQuickFork } from "./quick-fork"
 import { ShowWorkspace } from "./show-workspace"
 import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
-import { useCreatePR } from "./use-create-pr"
-import { useFileOpenActions } from "./use-file-open-actions"
+import { useDaemonState } from "./use-daemon-state"
+import { useEditorHandles } from "./use-editor-handles"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
-import { useAnsweredTabStates, useOptimisticEngineState } from "./use-optimistic-engine-state"
 import { useScratchShell } from "./use-scratch-shell"
 import { useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
@@ -60,33 +55,23 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // Daemon-broadcast toasts (`kobe api notify` → notice.event).
   useDaemonNotices(orch, notif.notify, dialog)
 
-  const tasks = useAccessor(orch.tasksSignal())
-  const activeTaskId = useAccessor(orch.activeTaskSignal())
-  const engineState = useAccessor(orch.engineStateSignal())
-  const engineLifecycle = useAccessor(orch.engineLifecycleSignal())
-  // Per-TAB activity. The daemon reports both levels; the task entry is a
-  // last-event-wins rollup, so a task whose live tab is not the one the
-  // rollup last described reads as idle. The sidebar tree needs the tab
-  // level to light the right row.
-  // Answered-question overlay: a tab the user answered stops rendering its
-  // sticky `permission_needed` even though the engine emits no event for it.
-  const engineTabState = useAnsweredTabStates(useAccessor(orch.engineTabStatesSignal()))
-  // Sidebar-only optimistic overlay — see use-optimistic-engine-state.ts.
-  const sidebarEngineState = useOptimisticEngineState(engineState)
-  const inboxItems = useAccessor(orch.attentionInboxSignal())
-  const taskJobs = useAccessor(orch.taskJobsSignal())
-  const worktreeChanges = useAccessor(orch.worktreeChangesSignal())
-  // Proves a "complete" turn whose engine is still writing — the hook-silent
-  // long-tool / background-subagent phase (see row-view's completion rule).
-  const transcriptActivity = useAccessor(orch.transcriptActivitySignal())
+  // React subscriptions to daemon signals + derived overlays.
+  const {
+    tasks,
+    activeTaskId,
+    engineState,
+    engineLifecycle,
+    engineTabState,
+    sidebarEngineState,
+    inboxItems,
+    taskJobs,
+    worktreeChanges,
+    transcriptActivity,
+  } = useDaemonState(orch)
 
   // Sidebar-search gate: mutes the host's letter chords while typing. Move
   // mode / toasts live in useSidebarHostState below.
   const [searchActive, setSearchActive] = useState(false)
-
-  // Narrow mode (issue #14, phone SSH): sidebar/workspace go mutually
-  // exclusive, files pane hides — all gated here so ≥70 cols is unchanged.
-  const narrow = isNarrowWidth(dims.width)
 
   // Selection + adopt-first-focus + the archived-task PTY sweep — extracted
   // verbatim to use-workspace-selection.ts (file-size cap split).
@@ -147,24 +132,8 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
     })
 
-  // Imperative handle from the currently-mounted TerminalTabs (issue #16):
-  // a ref, since FileTree's "open" only READS it at click time and
-  // TerminalTabs re-hands it on every mount (task/worktree switch).
-  const openEditorTabFn = useRef<((command: readonly string[], label: string) => void) | null>(null)
-  const sendToEngineFn = useRef<((text: string) => void) | null>(null)
-  // Read-only diff tab opener (issue #21) — same ref pattern as the editor
-  // tab: TerminalTabs re-hands it per mount, FileTree's `d` reads it at
-  // keypress. Opening is a content swap; the host does NOT focus the
-  // workspace here (KOB-25 — a read-only open must not pull focus).
-  const openDiffTabFn = useRef<((relPath: string, label: string, base?: string) => void) | null>(null)
-
-  // Identity guard for the async actions below: after an await, the selected
-  // task (and therefore the TerminalTabs mount behind the imperative refs) may
-  // have changed — a stale continuation must not deliver into the new task.
-  const selectedWorktreeRef = useLatest(worktree)
-
-  // FileTree `pr` chip + prefix+p — split out for the file-size cap.
-  const createPR = useCreatePR({ worktree, sendToEngineFn, selectedWorktreeRef, notifyError })
+  // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
+  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError })
 
   // Quick-fork (issue #17, ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
@@ -189,30 +158,12 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   /* --------- zen mode (issue #18, pure-tui shape) ----------------------- */
   const { zen, toggleZen } = useZenMode({ kv, focus })
 
-  // Narrow hides the files pane entirely, so a focus stranded there (a
-  // resize below the breakpoint mid-session) falls back to the workspace —
-  // otherwise plain keys would land in an unmounted pane.
-  useEffect(() => {
-    if (narrow && focus.focused === "files") focus.setFocused("workspace")
-  }, [narrow, focus])
-
   // Tab open/close (and editor-file close) edges report as plugin events
   // through this seam — wired once per host, torn down on unmount.
   useEffect(() => {
     setUiEventReporter((kind, taskId, detail) => orch.reportUiEvent(kind, taskId, detail))
     return () => setUiEventReporter(null)
   }, [orch])
-
-  // FileTree's Enter (editor/plugin/OS) and `d` (read-only diff tab).
-  const { openFileInEditor, openDiff } = useFileOpenActions({
-    orch,
-    worktree,
-    selectedId,
-    focus,
-    openEditorTabFn,
-    openDiffTabFn,
-    selectedWorktreeRef,
-  })
 
   // Which surface the workspace shows — settings/worktrees/update full swaps
   // plus the rail's one-at-a-time nav. State + rationale in host-pages.tsx.
@@ -234,34 +185,39 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     notifyInfo,
   })
 
+  // Page-render + layout decisions (full-window swaps, rail pages, narrow
+  // surface, settings standalone) — extracted to host-pages.tsx (file-size cap).
+  const pageRender = useHostPagesRender({
+    orchestrator: orch,
+    pages,
+    focus,
+    dialog,
+    kv,
+    dims,
+    selectedTask,
+    activeTaskId,
+    tasks,
+    engineState,
+    startIssueChat: issueChat.start,
+    activateTask,
+  })
+
   useWorkspaceKeybindings({
     focus,
     dialog,
-    settingsOpen: pages.settingsOpen,
-    worktreesOpen: pages.worktreesOpen,
-    openWorktrees: pages.openWorktrees,
-    updateOpen: pages.updateOpen,
-    openUpdate: pages.openUpdate,
-    kanbanOpen: pages.kanbanOpen,
-    openKanban: pages.openKanban,
-    filesPaneVisible: !zen && pages.nav === "terminal" && !narrow,
-    automationsOpen: pages.automationsOpen,
-    openAutomations: pages.openAutomations,
-    workItemsOpen: pages.workItemsOpen,
-    openWorkItems: pages.openWorkItems,
+    pages,
+    filesPaneVisible: !zen && pages.nav === "terminal" && pageRender.showSidebar && pageRender.showContent,
     searchActive,
     selectedId,
     openTaskWorktree: (id) =>
       openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError }),
-    openSettings: pages.openSettings,
-    closeSettings: pages.closeSettings,
     createTask: () => void createTask(),
     renameBranch: (id) => void renameBranch(id),
     cycleVendor: (id) => void cycleVendor(id),
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
-    createPR: () => void createPR(),
+    createPR: () => void editor.onCreatePR(),
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
     // then j/k reorders the cursor row's level (tab/task/project — issue
@@ -282,53 +238,10 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // dialog's focused <input> can read it (opentui only routes a key to a
   // focused renderable when !defaultPrevented). Border colors keep using the
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
-  const dialogOpen = dialog.stack.length > 0
-  const activePane = dialogOpen ? null : focus.focused
+  const activePane = dialog.stack.length > 0 ? null : focus.focused
 
-  const pageDeps = {
-    orchestrator: orch,
-    selectedTask,
-    worktreesOpen: pages.worktreesOpen,
-    automationsOpen: pages.automationsOpen,
-    workItemsOpen: pages.workItemsOpen,
-    kanbanOpen: pages.kanbanOpen,
-    updateOpen: pages.updateOpen,
-    closeWorktrees: pages.closeWorktrees,
-    closeAutomations: pages.closeAutomations,
-    closeWorkItems: pages.closeWorkItems,
-    closeKanban: pages.closeKanban,
-    closeUpdate: pages.closeUpdate,
-    activateTask: (taskId: string) => void activateTask(taskId),
-    startIssueChat: issueChat.start,
-    engineStates: engineState,
-    contentFocused: activePane === "workspace",
-  }
-
-  // Worktrees / Update replace the whole window; the rail's pages replace only
-  // the content pane, so the sidebar stays live beside them.
-  const fullWindowPage = renderFullWindowPage(pageDeps)
-  if (fullWindowPage) return fullWindowPage
-  const openPage = renderContentPage(pageDeps)
-
-  // Narrow: exactly one of sidebar/content renders; desktop renders both.
-  const surface = narrow
-    ? narrowSurface({ focusedPane: focus.focused, hasSelection: selectedTask != null, hasOpenPage: openPage != null })
-    : null
-  const showSidebar = surface !== "content"
-  const showContent = surface !== "sidebar"
-  // "↩ recent" jump target (issue #14, 2A): the daemon's active task — already
-  // persisted as `lastActive.taskId`, so a cold reconnect still knows it.
-  const recentTask = (narrow ? tasks.find((task) => task.id === activeTaskId && !task.archived) : null) ?? null
-
-  if (pages.settingsOpen) {
-    // The scrollbox lives inside SettingsDialog (standalone mode) so its
-    // keyboard cursor can scrollChildIntoView on short terminals.
-    return (
-      <box flexGrow={1} backgroundColor={theme.background} paddingTop={1}>
-        <SettingsDialog kv={kv} orchestrator={orch} standalone={true} onClose={pages.closeSettings} />
-      </box>
-    )
-  }
+  if (pageRender.settingsPage) return pageRender.settingsPage
+  if (pageRender.fullWindowPage) return pageRender.fullWindowPage
 
   return (
     <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings}>
@@ -338,9 +251,9 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           opentui coerces a full frame if borderColor is ever set, so the box
           carries no border prop at all. The workspace frame's left edge is
           the only boundary; sidebar focus shows on the KOBE brand text. */}
-      {showSidebar ? (
+      {pageRender.showSidebar ? (
         <HostSidebar
-          width={narrow ? dims.width : SIDEBAR_WIDTH}
+          width={pageRender.showContent ? SIDEBAR_WIDTH : dims.width}
           nav={pages.nav}
           onNavChange={pages.goToNav}
           tasks={tasks}
@@ -403,11 +316,11 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           zenActive={zen}
           onZenClick={toggleZen}
           onFocusRequest={() => focus.setFocused("sidebar")}
-          recentTask={recentTask}
+          recentTask={pageRender.recentTask}
         />
       ) : null}
 
-      {showContent ? (
+      {pageRender.showContent ? (
         <box
           flexGrow={1}
           flexShrink={1}
@@ -417,22 +330,16 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           {/* The rail swaps THIS pane, not the whole window — the task list on
             the left stays live, so selecting a task is how you get back to
             its terminal. */}
-          {openPage ?? (
+          {pageRender.contentPage ?? (
             <ShowWorkspace
               task={selectedTask}
               worktree={worktree}
               orchestrator={orch}
               focused={activePane === "workspace"}
               onRequestFocus={() => focus.setFocused("workspace")}
-              onEditorTabReady={(open) => {
-                openEditorTabFn.current = open
-              }}
-              onEngineSendReady={(send) => {
-                sendToEngineFn.current = send
-              }}
-              onDiffTabReady={(open) => {
-                openDiffTabFn.current = open
-              }}
+              onEditorTabReady={editor.onEditorTabReady}
+              onEngineSendReady={editor.onEngineSendReady}
+              onDiffTabReady={editor.onDiffTabReady}
               onQuickFork={quickFork.onQuickFork}
               initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
               onTabVisited={inbox.resolveVisited}
@@ -447,15 +354,15 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           worktree — it reads daemon state that spans projects — so the pane
           would be showing an unrelated tree beside it. Hidden, same as zen
           (and always in narrow — three panes don't fit 46 cols). */}
-      {!zen && !openPage && !narrow ? (
+      {!zen && pageRender.contentPage == null && pageRender.showSidebar && pageRender.showContent ? (
         <HostFilesPane
           worktree={worktree}
           prBaseRef={selectedTask?.prStatus?.baseRef}
           focused={activePane === "files"}
-          onOpenFile={(relPath) => void openFileInEditor(relPath)}
-          onOpenDiff={openDiff}
+          onOpenFile={(relPath) => void editor.onOpenFile(relPath)}
+          onOpenDiff={editor.onOpenDiff}
           onZenToggle={toggleZen}
-          onCreatePR={() => void createPR()}
+          onCreatePR={() => void editor.onCreatePR()}
         />
       ) : null}
 

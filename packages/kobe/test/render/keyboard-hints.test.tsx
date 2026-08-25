@@ -22,11 +22,36 @@ import { WizardPage } from "../../src/tui-react/onboarding/host"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
+import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/keyboard-hints"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
+
+const CLOSED_PAGES: HostPagesState = {
+  nav: "terminal",
+  setNav: NOOP,
+  goToNav: NOOP,
+  settingsOpen: false,
+  openSettings: NOOP,
+  closeSettings: NOOP,
+  worktreesOpen: false,
+  openWorktrees: NOOP,
+  closeWorktrees: NOOP,
+  updateOpen: false,
+  openUpdate: NOOP,
+  closeUpdate: NOOP,
+  kanbanOpen: false,
+  openKanban: NOOP,
+  closeKanban: NOOP,
+  automationsOpen: false,
+  openAutomations: NOOP,
+  closeAutomations: NOOP,
+  workItemsOpen: false,
+  openWorkItems: NOOP,
+  closeWorkItems: NOOP,
+}
 
 /** Minimal orchestrator stand-in — the frame only reads the usage signal. */
 function fakeOrchestrator(): RemoteOrchestrator {
@@ -51,23 +76,11 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
   useWorkspaceKeybindings({
     focus,
     dialog,
-    settingsOpen: false,
-    worktreesOpen: false,
-    openWorktrees: NOOP,
-    updateOpen: false,
-    openUpdate: NOOP,
-    kanbanOpen: false,
-    openKanban: NOOP,
+    pages: CLOSED_PAGES,
     filesPaneVisible: true,
-    automationsOpen: false,
-    openAutomations: NOOP,
-    workItemsOpen: false,
-    openWorkItems: NOOP,
     searchActive: false,
     selectedId: null,
     openTaskWorktree: NOOP,
-    openSettings: NOOP,
-    closeSettings: NOOP,
     createTask: NOOP,
     renameBranch: NOOP,
     cycleVendor: NOOP,
