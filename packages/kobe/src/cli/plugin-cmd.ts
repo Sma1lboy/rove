@@ -128,23 +128,38 @@ function listActions(pluginFilter?: string): void {
   }
 }
 
+/**
+ * Plugin ids may contain dots, so a naive `<id>.<local>` split is wrong.
+ * Match registered ids by longest prefix, then let the caller pick the local
+ * item (action or pane) from the suffix.
+ */
+function findByLongestPluginPrefix<T>(
+  qualified: string,
+  options: { enabledOnly?: boolean },
+  findItem: (manifest: PluginManifest, suffix: string) => T | undefined,
+): { entry: PluginRegistryEntry; item: T } | undefined {
+  type LoadedWithManifest = { readonly entry: PluginRegistryEntry; readonly manifest: PluginManifest }
+  for (const { entry, manifest } of (loadAll() as LoadedWithManifest[])
+    .filter(({ entry, manifest }) =>
+      Boolean(manifest && (!options.enabledOnly || entry.enabled) && qualified.startsWith(`${entry.id}.`)),
+    )
+    .sort((a, b) => b.entry.id.length - a.entry.id.length)) {
+    const item = findItem(manifest, qualified.slice(entry.id.length + 1))
+    if (item !== undefined) return { entry, item }
+  }
+  return undefined
+}
+
 function invokeAction(qualified: string, extraArgs: string[]): void {
-  // Plugin ids may contain dots; match registered ids by longest prefix.
-  const candidates = loadAll()
-    .filter(({ entry, manifest }) => manifest && entry.enabled && qualified.startsWith(`${entry.id}.`))
-    .sort((a, b) => b.entry.id.length - a.entry.id.length)
-  const hit = candidates
-    .map(({ entry, manifest }) => {
-      const actionId = qualified.slice(entry.id.length + 1)
-      const action = (manifest as PluginManifest).actions.find((a) => a.id === actionId)
-      return action ? { entry, action } : undefined
-    })
-    .find(Boolean)
+  const hit = findByLongestPluginPrefix(qualified, { enabledOnly: true }, (manifest, actionId) =>
+    manifest.actions.find((a) => a.id === actionId),
+  )
   if (!hit) throw new PluginCliError(`no action \`${qualified}\`; see \`${CLI_NAME} plugin action list\``)
 
   // Extra CLI args are appended to the action's argv so an action can take
   // an argument (`<active CLI> plugin action invoke p.start <url>`).
-  const [cmd, ...args] = [...hit.action.command, ...extraArgs]
+  const action = hit.item
+  const [cmd, ...args] = [...action.command, ...extraArgs]
   const res = spawnSync(cmd as string, args, {
     cwd: hit.entry.root,
     stdio: "inherit",
@@ -153,7 +168,7 @@ function invokeAction(qualified: string, extraArgs: string[]): void {
       binPath: CLI_NAME,
       pluginId: hit.entry.id,
       pluginRoot: hit.entry.root,
-      extra: { ROVE_PLUGIN_ACTION_ID: hit.action.id, ROVE_PLUGIN_INVOKE_CWD: process.cwd() },
+      extra: { ROVE_PLUGIN_ACTION_ID: action.id, ROVE_PLUGIN_INVOKE_CWD: process.cwd() },
     }),
   })
   process.exit(res.status ?? 1)
@@ -161,14 +176,11 @@ function invokeAction(qualified: string, extraArgs: string[]): void {
 
 /** Resolve `<plugin-id>.<pane-id>` (plugin ids may contain dots — longest registered prefix wins). */
 function resolvePaneQualified(qualified: string): { pluginId: string; entrypoint: string } {
-  const hit = loadAll()
-    .filter(({ entry, manifest }) => manifest && qualified.startsWith(`${entry.id}.`))
-    .sort((a, b) => b.entry.id.length - a.entry.id.length)
-    .find(({ entry, manifest }) =>
-      (manifest as PluginManifest).panes.some((p) => p.id === qualified.slice(entry.id.length + 1)),
-    )
+  const hit = findByLongestPluginPrefix(qualified, { enabledOnly: false }, (manifest, entrypoint) =>
+    manifest.panes.find((p) => p.id === entrypoint),
+  )
   if (!hit) throw new PluginCliError(`no pane \`${qualified}\`; see \`${CLI_NAME} plugin list\``)
-  return { pluginId: hit.entry.id, entrypoint: qualified.slice(hit.entry.id.length + 1) }
+  return { pluginId: hit.entry.id, entrypoint: hit.item.id }
 }
 
 async function openPane(pluginId: string, entrypoint: string, taskFlag: string | undefined): Promise<void> {
@@ -185,8 +197,7 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
     binPath: CLI_NAME,
   })
 
-  const { openDaemonSession } = await import("./daemon-session.ts")
-  const { resolveActiveTaskId } = await import("./api/runtime.ts")
+  const { openDaemonSession, resolveActiveTaskId } = await import("./daemon-session.ts")
   const session = await openDaemonSession({ mode: "start" })
   try {
     const taskId = taskFlag ?? (await resolveActiveTaskId(session.client))

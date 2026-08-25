@@ -3,7 +3,15 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { pluginLogPath } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import { loadPluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+const sessionMocks = vi.hoisted(() => ({
+  openDaemonSession: vi.fn(),
+  resolveActiveTaskId: vi.fn(),
+}))
+
+vi.mock("../../src/cli/daemon-session.ts", () => sessionMocks)
+
 import { runPluginSubcommand } from "../../src/cli/plugin-cmd.ts"
 
 const dirs: string[] = []
@@ -14,6 +22,13 @@ function tempDir(prefix: string): string {
   return dir
 }
 
+function writeManifest(root: string, id: string, extras: string[] = []): void {
+  writeFileSync(
+    join(root, "rove-plugin.toml"),
+    [`id = "${id}"`, 'name = "Workflow"', 'version = "1.2.3"', 'min_rove_version = "0.1.0"', ...extras].join("\n"),
+  )
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllEnvs()
@@ -21,23 +36,21 @@ afterEach(() => {
 })
 
 describe("plugin command workflow", () => {
+  beforeEach(() => {
+    sessionMocks.openDaemonSession.mockReset()
+    sessionMocks.resolveActiveTaskId.mockReset()
+  })
+
   it("links, inspects, toggles, and unlinks a canonical Rove plugin", async () => {
     const home = tempDir("rove-plugin-cmd-home-")
     const root = tempDir("rove-plugin-cmd-root-")
     vi.stubEnv("ROVE_HOME_DIR", home)
-    writeFileSync(
-      join(root, "rove-plugin.toml"),
-      [
-        'id = "example.workflow"',
-        'name = "Workflow"',
-        'version = "1.2.3"',
-        'min_rove_version = "0.1.0"',
-        "[[actions]]",
-        'id = "run"',
-        'title = "Run workflow"',
-        'command = ["true"]',
-      ].join("\n"),
-    )
+    writeManifest(root, "example.workflow", [
+      "[[actions]]",
+      'id = "run"',
+      'title = "Run workflow"',
+      'command = ["true"]',
+    ])
     const output: string[] = []
     vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.map(String).join(" ")))
 
@@ -72,5 +85,67 @@ describe("plugin command workflow", () => {
     const stdout = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
     await runPluginSubcommand(["--help"])
     expect(stdout.mock.calls.map((call) => String(call[0])).join("")).toContain("GitHub topic rove-plugin")
+  })
+
+  it("resolves dotted plugin ids by longest registered prefix for actions", async () => {
+    const home = tempDir("rove-plugin-cmd-home-")
+    const rootA = tempDir("rove-plugin-cmd-root-a-")
+    const rootB = tempDir("rove-plugin-cmd-root-b-")
+    vi.stubEnv("ROVE_HOME_DIR", home)
+
+    // Two plugins whose ids share a prefix: "example" and "example.workflow".
+    writeManifest(rootA, "example", ["[[actions]]", 'id = "run"', 'title = "Wrong action"', 'command = ["false"]'])
+    writeManifest(rootB, "example.workflow", [
+      "[[actions]]",
+      'id = "run"',
+      'title = "Right action"',
+      'command = ["true"]',
+    ])
+
+    await runPluginSubcommand(["link", rootA])
+    await runPluginSubcommand(["link", rootB])
+
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never)
+    await runPluginSubcommand(["action", "invoke", "example.workflow.run"])
+    expect(exit).toHaveBeenCalledWith(0)
+    exit.mockRestore()
+  })
+
+  it("opens a pane via qualified id and resolves the active task", async () => {
+    const home = tempDir("rove-plugin-cmd-home-")
+    const root = tempDir("rove-plugin-cmd-root-")
+    vi.stubEnv("ROVE_HOME_DIR", home)
+    writeManifest(root, "example", [
+      "[[panes]]",
+      'id = "logs"',
+      'title = "Logs"',
+      'command = ["tail", "-f", "log.txt"]',
+      'placement = "split"',
+    ])
+
+    await runPluginSubcommand(["link", root])
+
+    const client = {
+      request: vi.fn().mockResolvedValue(undefined),
+    }
+    sessionMocks.openDaemonSession.mockResolvedValue({ client, close: vi.fn() })
+    sessionMocks.resolveActiveTaskId.mockResolvedValue("task-42")
+
+    const output: string[] = []
+    vi.spyOn(console, "log").mockImplementation((...args) => output.push(args.map(String).join(" ")))
+
+    await runPluginSubcommand(["pane", "open", "example.logs"])
+
+    expect(sessionMocks.openDaemonSession).toHaveBeenCalledWith({ mode: "start" })
+    expect(sessionMocks.resolveActiveTaskId).toHaveBeenCalledWith(client)
+    expect(client.request).toHaveBeenCalledWith(
+      "tab.open",
+      expect.objectContaining({
+        taskId: "task-42",
+        title: "Logs",
+        placement: "split",
+      }),
+    )
+    expect(output.join("\n")).toContain("opened pane example.logs in task task-42")
   })
 })

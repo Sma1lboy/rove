@@ -7,7 +7,7 @@
  * so close-on-error is load-bearing, not cosmetic.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { type MockInstance, beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   connectOrStartDaemon: vi.fn(),
@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@sma1lboy/kobe-daemon/client/daemon-process", () => mocks)
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import { openDaemonSession, withDaemonSession } from "../../src/cli/daemon-session.ts"
+import { openDaemonSession, resolveActiveTaskId, withDaemonSession } from "../../src/cli/daemon-session.ts"
 
 function fakeClient(): KobeDaemonClient & { close: ReturnType<typeof vi.fn> } {
   return { close: vi.fn() } as unknown as KobeDaemonClient & { close: ReturnType<typeof vi.fn> }
@@ -86,5 +86,43 @@ describe("withDaemonSession", () => {
       { mode: "require-running" },
     )
     expect(seen).toEqual([null])
+  })
+})
+
+describe("resolveActiveTaskId", () => {
+  function fakeClient(activeId: string | null): KobeDaemonClient & {
+    onChannel: MockInstance
+    subscribe: MockInstance
+  } {
+    const onChannel = vi.fn((channel, handler) => {
+      if (channel === "active-task" && activeId !== null) handler({ taskId: activeId })
+      return vi.fn()
+    })
+    const subscribe = vi.fn().mockResolvedValue(undefined)
+    return { onChannel, subscribe } as unknown as KobeDaemonClient & {
+      onChannel: MockInstance
+      subscribe: MockInstance
+    }
+  }
+
+  it("returns the active task id replayed on the active-task channel", async () => {
+    const client = fakeClient("task-123")
+    expect(await resolveActiveTaskId(client)).toBe("task-123")
+    expect(client.subscribe).toHaveBeenCalled()
+  })
+
+  it("returns null when the channel reports no active task", async () => {
+    const client = fakeClient(null)
+    expect(await resolveActiveTaskId(client)).toBeNull()
+  })
+
+  it("unsubscribes from the channel even if subscribe throws", async () => {
+    const off = vi.fn()
+    const client = {
+      onChannel: vi.fn(() => off),
+      subscribe: vi.fn().mockRejectedValue(new Error("socket closed")),
+    } as unknown as KobeDaemonClient
+    await expect(resolveActiveTaskId(client)).rejects.toThrow("socket closed")
+    expect(off).toHaveBeenCalledTimes(1)
   })
 })

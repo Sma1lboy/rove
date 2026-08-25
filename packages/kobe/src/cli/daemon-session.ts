@@ -84,3 +84,23 @@ export async function withDaemonSession<T>(
     session?.close()
   }
 }
+
+/**
+ * Read the daemon's currently active task once. Subscribes to the
+ * `active-task` push channel and returns the initial replay value, then
+ * tears the listener down. Used by `kobe api` verbs and `kobe plugin pane
+ * open` — kept here in the daemon-session layer so callers don't reach
+ * across into `api/runtime.ts`.
+ */
+export async function resolveActiveTaskId(client: DaemonRpc): Promise<string | null> {
+  let activeId: string | null = null
+  const off = client.onChannel("active-task", (payload) => {
+    activeId = payload.taskId
+  })
+  try {
+    await client.subscribe()
+  } finally {
+    off()
+  }
+  return activeId
+}
