@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.156
+
+### Patch Changes
+
+- [`1ee2a2d`](https://github.com/Sma1lboy/rove/commit/1ee2a2d50734cd6190d3dcc927b2335eda70aee2) Agent-to-agent message provenance renames to the product: peer prompts now arrive prefixed `[ROVE PEER]` and forwarded field notes `[ROVE FIELD NOTE]` (previously `[KOBE PEER]`/`[KOBE FIELD NOTE]`). The prefixes are read by agents, not parsed by code, so there is no compat shim; the skill guidance ships in lockstep (v32). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.155
 
 ### Patch Changes
