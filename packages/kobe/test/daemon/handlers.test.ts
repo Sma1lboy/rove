@@ -3,6 +3,7 @@ import { PromptBroker } from "@sma1lboy/kobe-daemon/daemon/prompt-broker"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
+import { CURRENT_VERSION } from "../../src/version.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 /**
@@ -333,8 +334,8 @@ describe("daemon handler registry", () => {
       expect(status.taskCount).toBe(1)
       expect(status.socketPath).toBe("/tmp/fake/daemon.sock")
       expect(status.startedAt).toBe("2026-06-01T00:00:00.000Z")
-      expect(typeof status.uptimeMs).toBe("number")
-      expect(typeof status.kobeVersion).toBe("string")
+      expect(status.uptimeMs).toBeGreaterThanOrEqual(0)
+      expect(status.kobeVersion).toBe(CURRENT_VERSION)
     })
 
     it("daemon.stop drives stopSoon and returns the empty object", async () => {
