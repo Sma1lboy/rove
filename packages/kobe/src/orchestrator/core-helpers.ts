@@ -7,7 +7,7 @@
 
 import { realpathSync } from "node:fs"
 import { resolve } from "node:path"
-import { isRemoteRepoKey, resolveRepoRoot } from "../state/repos.ts"
+import { getRemoteRepoConfig, isRemoteRepoKey, resolveRepoRoot } from "../state/repos.ts"
 
 /**
  * Resolve symlinks so two strings naming the same node compare equal
@@ -43,4 +43,13 @@ export function normalizeMainRepo(repo: string): { repo: string; key: string } {
     repo: normalized,
     key: isRemoteRepoKey(normalized) ? normalized : canonPath(normalized),
   }
+}
+
+/**
+ * The on-disk working dir a project key resolves to: the local repo path, or a
+ * remote project's `basePath` (the ssh:// key isn't a usable path). The main
+ * task and the engine's `cd` target both key off this.
+ */
+export function repoWorkingDir(repo: string): string {
+  return getRemoteRepoConfig(repo)?.basePath ?? repo
 }

@@ -163,11 +163,18 @@ export function mergeAnsweredTabs(
     const perTab = (out ?? tabs).get(taskId)
     const entry = perTab?.get(tabId)
     if (entry?.state !== "permission_needed" || entry.at >= at) continue
+    // Downgrade, never delete. An ABSENT tab entry does not read as "nothing
+    // to show" downstream — `tabRowActivity` hands the row no activity at all,
+    // and the sidebar then draws the dim `·` it reserves for "the daemon has
+    // never reported this tab". So deleting the entry blanked the row of an
+    // engine that was visibly working, for as long as the 30min mark lived
+    // (owner report 2026-08-25). `idle` is the honest claim: we know the tab
+    // stopped waiting on the user, we just don't know what it is doing now —
+    // which is exactly what the resting `○` says.
     const nextTabs = new Map(perTab)
-    nextTabs.delete(tabId)
+    nextTabs.set(tabId, { ...entry, state: "idle" })
     out ??= new Map(tabs)
-    if (nextTabs.size > 0) out.set(taskId, nextTabs)
-    else out.delete(taskId)
+    out.set(taskId, nextTabs)
   }
   return out ?? tabs
 }

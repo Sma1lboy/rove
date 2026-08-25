@@ -11,24 +11,16 @@ import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskDispatcher, TaskId, TaskPRStatus, TaskStatus, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
-import { canonPath, normalizeMainRepo, randomDirTaskSuffix, titleFromRepo } from "./core-helpers.ts"
+import { canonPath, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
 import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
+import { MainTaskCoordinator } from "./main-task.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
-
-/**
- * The on-disk working dir a project key resolves to: the local repo path, or a
- * remote project's `basePath` (the ssh:// key isn't a usable path). The main
- * task and the engine's `cd` target both key off this.
- */
-function repoWorkingDir(repo: string): string {
-  return getRemoteRepoConfig(repo)?.basePath ?? repo
-}
 
 /** Input to {@link Orchestrator.createTask}. */
 export interface CreateTaskInput {
@@ -82,8 +74,8 @@ export class Orchestrator {
   private readonly tasksAcc: StateCell<Task[]>
   private readonly activeTaskAcc: StateCell<string | null>
   private readonly unsubscribeStore: TaskIndexUnsubscribe
-  /** Lock for `ensureMainTask` so concurrent calls don't double-create. */
-  private readonly mainTaskLocks = new Map<string, Promise<Task>>()
+  /** Owns the `kind:"main"` project row (create / adopt / forget). */
+  private readonly mainTasks: MainTaskCoordinator
 
   constructor(deps: OrchestratorDeps) {
     this.store = deps.store
@@ -91,6 +83,7 @@ export class Orchestrator {
     this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, canonPath, (repo) =>
       this.ensureMainTask(repo),
     )
+    this.mainTasks = new MainTaskCoordinator(this.store, (id) => this.worktreeCoordinator.forget(id))
     this.editor = new TaskEditor(this.store, this.worktrees)
     this.deletions = new TaskDeletionCoordinator(this.store, this.worktrees, (id) =>
       this.worktreeCoordinator.forget(id),
@@ -274,39 +267,9 @@ export class Orchestrator {
     await this.store.update(id, { repo: dir, worktreePath: dir, scratch: false, title: titleFromRepo(dir) })
   }
 
-  /**
-   * Ensure a `kind: "main"` task exists for the given repo. Idempotent.
-   * The main task is pinned to the repo root (no `git worktree add`)
-   * and lives at the top of the sidebar.
-   */
+  /** Ensure the repo's `kind:"main"` sidebar row exists — see {@link MainTaskCoordinator.ensure}. */
   async ensureMainTask(repo: string): Promise<Task> {
-    const { repo: normalizedRepo, key } = normalizeMainRepo(repo)
-    const existing = this.store.list().find((t) => t.kind === "main" && normalizeMainRepo(t.repo).key === key)
-    if (existing) return existing
-    const inflight = this.mainTaskLocks.get(key)
-    if (inflight) return inflight
-    const promise = (async () => {
-      // A project's main chat opens with the repo's preferred engine
-      // (per-repo last-active → global default → claude).
-      const vendor = resolvePreferredVendor(normalizedRepo)
-      const created = await this.store.create({
-        repo: normalizedRepo,
-        title: titleFromRepo(normalizedRepo),
-        branch: "",
-        // Remote main task lives at the remote basePath, not the ssh:// key.
-        worktreePath: repoWorkingDir(normalizedRepo),
-        status: "backlog",
-        kind: "main",
-        vendor,
-      })
-      return created
-    })()
-    this.mainTaskLocks.set(key, promise)
-    try {
-      return await promise
-    } finally {
-      this.mainTaskLocks.delete(key)
-    }
+    return await this.mainTasks.ensure(repo)
   }
 
   /**
@@ -415,33 +378,9 @@ export class Orchestrator {
     })
   }
 
-  /**
-   * Forget a saved project: drop it from `savedRepos` (+ any remote `ssh://`
-   * connection config) AND remove the synthetic `kind:"main"` sidebar row.
-   * Non-destructive — the repo's files, branches, and non-main task worktrees
-   * all stay; only the picker entry + project header go away. The inverse of
-   * {@link ensureMainTask} and the ONE supported way to remove a main row
-   * ({@link deleteTask} refuses them — they project `savedRepos`, not real
-   * work). The main row's `worktreePath` is the repo root, so this touches only
-   * the index, never `git worktree remove`. Idempotent.
-   */
+  /** Drop a saved project + its main row — see {@link MainTaskCoordinator.forget}. */
   async forgetProject(repo: string): Promise<void> {
-    if (!repo) throw new Error("forgetProject: repo is required")
-    // Match by the canonical main-repo key (realpath of the git toplevel, or
-    // the verbatim ssh:// key) so a subdir / differently-realpathed input
-    // (`/var` vs `/private/var` on macOS) still hits the stored savedRepos
-    // entry and the stored main task — the two are written in different forms
-    // (caller path vs git output), so a plain string compare misses.
-    const key = normalizeMainRepo(repo).key
-    for (const saved of getSavedRepos()) {
-      if (normalizeMainRepo(saved).key === key) removeSavedRepo(saved)
-    }
-    for (const task of this.store.list()) {
-      if (task.kind !== "main") continue
-      if (normalizeMainRepo(task.repo).key !== key) continue
-      await this.store.remove(task.id)
-      this.worktreeCoordinator.forget(task.id)
-    }
+    await this.mainTasks.forget(repo)
   }
 
   /**
