@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.155
+
+### Patch Changes
+
+- [`1afa795`](https://github.com/Sma1lboy/rove/commit/1afa795cbeac8c52678102b1702f6651dff53b0a) Release notes drop the "Thanks @user! -" preamble — each patch line now ends with the author credit instead ("summary — @user"), via a local changelog wrapper around @changesets/changelog-github. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.154
 
 ### Patch Changes
