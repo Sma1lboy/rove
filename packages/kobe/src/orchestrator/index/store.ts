@@ -16,7 +16,13 @@ import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../p
 import type { Task, TaskId, TaskIndex, TaskStatus } from "../../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../../types/task.ts"
 import { release } from "./lockfile.ts"
-import { acquireWithRetry, backupCorruptManifest, normalizeIndex } from "./store-codec.ts"
+import {
+  acquireWithRetry,
+  backupCorruptManifest,
+  mergeTasksWithDisk,
+  normalizeIndex,
+  readDiskTasks,
+} from "./store-codec.ts"
 import { ulid } from "./ulid.ts"
 
 export interface TaskIndexStoreOptions {
@@ -165,8 +171,8 @@ export class TaskIndexStore {
     // The lock is held only for this critical section, never across saves.
     await acquireWithRetry(this.lockPath)
     try {
-      const diskTasks = await this.readDiskTasks()
-      const mergedTasks = this.mergeWithDisk(diskTasks, dirty, removed)
+      const diskTasks = await readDiskTasks(this.path, this.legacyPath)
+      const mergedTasks = mergeTasksWithDisk(this.cache.tasks, diskTasks, dirty, removed)
       const payload: TaskIndex = { version: CURRENT_VERSION, tasks: mergedTasks }
       const json = `${JSON.stringify(payload, null, 2)}\n`
 
@@ -196,78 +202,6 @@ export class TaskIndexStore {
     } finally {
       await release(this.lockPath)
     }
-  }
-
-  /**
-   * Read + parse the manifest fresh from disk, returning just the tasks.
-   * Mirrors {@link load}: a missing canonical file falls back to legacy, while
-   * both absent or a corrupt source read as empty. Never touches the cache or
-   * listeners; used so a save reflects peer writes since this process loaded.
-   */
-  private async readDiskTasks(): Promise<Task[]> {
-    let raw: string
-    let sourcePath = this.path
-    try {
-      raw = await readFile(sourcePath, "utf8")
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-      sourcePath = this.legacyPath
-      try {
-        raw = await readFile(sourcePath, "utf8")
-      } catch (legacyErr) {
-        if ((legacyErr as NodeJS.ErrnoException).code === "ENOENT") return []
-        throw legacyErr
-      }
-    }
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      // Preserve bytes before the merged write replaces a corrupt source.
-      await backupCorruptManifest(sourcePath)
-      return []
-    }
-    return normalizeIndex(parsed, sourcePath).tasks
-  }
-
-  /**
-   * Read-merge-write core: combine the fresh on-disk tasks with this process's
-   * in-memory intent. Invariants (mirroring `state/store.ts`):
-   *
-   *   - OUR changes win for ids we touched (`dirty`) — last-write-wins per task.
-   *   - A task we removed (`removed`) is NOT resurrected by a stale disk copy.
-   *   - A task a peer removed (gone from disk, untouched by us) is NOT
-   *     resurrected from our stale cache.
-   *   - A task a peer created/updated (on disk, untouched by us) is preserved —
-   *     concurrent creates are never dropped.
-   */
-  private mergeWithDisk(diskTasks: Task[], dirty: ReadonlySet<string>, removed: ReadonlySet<string>): Task[] {
-    const diskById = new Map(diskTasks.map((t) => [t.id, t] as const))
-    const result: Task[] = []
-    const included = new Set<string>()
-
-    // 1. Walk our cache in order — it carries our create/update/move intent and
-    //    the ordering this process wants persisted.
-    for (const task of this.cache.tasks) {
-      if (dirty.has(task.id)) {
-        result.push(task) // we changed it: our version wins
-      } else {
-        const onDisk = diskById.get(task.id)
-        if (onDisk === undefined) continue // untouched here AND gone from disk: a peer removed it
-        result.push(onDisk) // untouched here: take the peer's possibly-newer copy
-      }
-      included.add(task.id)
-    }
-
-    // 2. Fold in concurrent creates: tasks on disk we've never seen and never
-    //    removed. Appended after our ordering.
-    for (const task of diskTasks) {
-      if (included.has(task.id) || removed.has(task.id)) continue
-      result.push(task)
-      included.add(task.id)
-    }
-
-    return result
   }
 
   get(id: TaskId | string): Task | undefined {
