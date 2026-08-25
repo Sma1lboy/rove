@@ -106,14 +106,19 @@ button.fl-row:focus-visible { outline: none; background: oklch(62% 0.13 45/.1); 
 .fl-pane {
   position: relative; min-width: 0; min-height: 0; overflow: hidden; padding: 10px 12px;
   border: 1px solid oklch(30% 0.021 50); background: oklch(19% 0.016 50);
+  display: flex; flex-direction: column;
 }
+/* Scrollback grows, the composer row hugs the bottom edge — real-TUI layout. */
+.fl-pane > pre:first-of-type { flex: 1; min-height: 0; }
+.fl-pane .fl-input { flex: none; }
 .fl-pane:first-child { border-color: oklch(52% 0.075 45); background: oklch(20.5% 0.018 50); }
 .fl-pane:first-child .fl-tag { color: var(--accent-2); }
 .fl-pane pre { font: inherit; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: oklch(79% 0.018 70); }
 /* Block-glyph art (the crab logo, codex's box header): the pane's 1.75
-   line-height splits ▛▜█│ into fragments — these lines pack tight so the
-   glyphs read as one shape. */
-.fl-pane .art { display: inline-block; line-height: 1.16; }
+   line-height splits ▛▜█│ into fragments — 1.0 packs the glyph rows so half
+   blocks touch and the shape reads whole (1.16 still left a seam between
+   the crab's rows). */
+.fl-pane .art { display: inline-block; line-height: 1.0; }
 /* Input-row fence: a real rule that spans the pane, not a literal run of ─
    that ends mid-pane at whatever count was typed. */
 .fl-pane .rule { display: block; border-top: 1px solid oklch(34% 0.02 50); margin: 7px 0; }
