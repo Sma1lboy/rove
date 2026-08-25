@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.162
+
+### Patch Changes
+
+- [#527](https://github.com/Sma1lboy/rove/pull/527) [`e5e33ac`](https://github.com/Sma1lboy/rove/commit/e5e33ac3f17f0c704e19ec83980eecee0729e16d) Respect the active CLI name (`rove` vs `kobe`) in onboarding completions.
+
+  `kobe onboarding` no longer hard-codes `rove` in the generated shell completion hook, fish autoload file, or user-facing hints. When the binary is invoked as `kobe`, completions now reference `kobe` consistently. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#530](https://github.com/Sma1lboy/rove/pull/530) [`a4e044b`](https://github.com/Sma1lboy/rove/commit/a4e044b76d6a6bb494326f5ca2066990a969050b) `rove theme list` now reads the bundled theme names from the map that owns the JSON
+  imports, instead of a hand-mirrored copy that could silently fall out of date. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.161
 
 ### Patch Changes
