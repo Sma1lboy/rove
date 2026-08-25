@@ -11,6 +11,7 @@ import { setNotificationsEnabled, useNotifyState } from "../lib/notify.ts"
 import { fetchQuickPrompts, saveQuickPrompts } from "../lib/quick-prompts.ts"
 import { DEFAULT_PR_TEMPLATE, defaultReviewTemplate } from "../lib/review.ts"
 import type { WebSettings, WebSettingsEngine } from "../lib/settings.ts"
+import { DEFAULT_VENDOR } from "../lib/vendor.ts"
 import { resetLayout } from "../lib/tabs.ts"
 import { pushToast, reportError } from "../lib/toast.ts"
 import { Card, type PatchSettings, ToggleRow } from "./SettingsShared.tsx"
@@ -248,7 +249,7 @@ export function BoardSection() {
         <textarea
           value={review}
           onChange={(event) => setReview(event.target.value)}
-          placeholder={`default: ${defaultReviewTemplate("claude")}`}
+          placeholder={`default: ${defaultReviewTemplate(DEFAULT_VENDOR)}`}
           rows={3}
           disabled={!loaded}
           className="mt-1 w-full resize-y border border-line bg-bg p-2 font-mono text-[12px] text-fg placeholder:text-subtle focus:border-line-active focus:outline-none"

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { EngineOption } from "../src/lib/engines.ts"
-import { engineLabel } from "../src/lib/vendor.ts"
+import { DEFAULT_VENDOR, engineLabel, resolveVendor } from "../src/lib/vendor.ts"
 
 /**
  * engineLabel maps a vendor id to its display label across the New Task,
@@ -35,5 +35,16 @@ describe("engineLabel", () => {
 
   it("falls back to the id even with an empty list", () => {
     expect(engineLabel([], "codex")).toBe("codex")
+  })
+})
+
+describe("resolveVendor", () => {
+  it("returns the given id when present", () => {
+    expect(resolveVendor("codex")).toBe("codex")
+  })
+
+  it("defaults to the configured fallback vendor", () => {
+    expect(resolveVendor(undefined)).toBe(DEFAULT_VENDOR)
+    expect(DEFAULT_VENDOR).toBe("claude")
   })
 })

@@ -19,6 +19,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { activityColor, activityLabel } from "../lib/activity.ts"
 import { ensureEngineTab } from "../lib/tabs.ts"
 import type { EngineState, Task } from "../lib/types.ts"
+import { resolveVendor } from "../lib/vendor.ts"
 import { useFocusTrap } from "../lib/use-focus-trap.ts"
 import { ChatTranscript } from "./ChatTranscript.tsx"
 
@@ -182,7 +183,7 @@ export function BoardPeek({
           ) : (
             <ChatTranscript
               worktreePath={task.worktreePath}
-              vendor={task.vendor ?? "claude"}
+              vendor={resolveVendor(task.vendor)}
               title={task.title || task.branch}
             />
           )}

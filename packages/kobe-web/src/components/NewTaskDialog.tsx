@@ -17,7 +17,7 @@ import { addTab, selectTask, setPendingPrompt } from "../lib/tabs.ts"
 import { pushToast, reportError } from "../lib/toast.ts"
 import type { Task } from "../lib/types.ts"
 import { useFocusTrap } from "../lib/use-focus-trap.ts"
-import { engineLabel } from "../lib/vendor.ts"
+import { DEFAULT_VENDOR, engineLabel } from "../lib/vendor.ts"
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -54,7 +54,7 @@ export function NewTaskDialog({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("")
   const [branch, setBranch] = useState("")
   const [baseRef, setBaseRef] = useState("")
-  const [vendor, setVendor] = useState<string>(engines[0]?.id ?? "claude")
+  const [vendor, setVendor] = useState<string>(engines[0]?.id ?? DEFAULT_VENDOR)
   const [vendorTouched, setVendorTouched] = useState(false)
   const [firstPrompt, setFirstPrompt] = useState("")
   const [busy, setBusy] = useState(false)

@@ -18,6 +18,7 @@ import {
 } from "../lib/tabs.ts"
 import { pushToast, reportError } from "../lib/toast.ts"
 import type { Task } from "../lib/types.ts"
+import { resolveVendor } from "../lib/vendor.ts"
 import { ConfirmDialog } from "./ConfirmDialog.tsx"
 import { ChangesList } from "./DiffView.tsx"
 import { NotesPanel } from "./NotesPanel.tsx"
@@ -265,7 +266,7 @@ function TaskOverview({ task }: { task: Task | null }) {
             </div>
           </div>
         )}
-        <Field name="Vendor" value={task.vendor ?? "claude"} />
+        <Field name="Vendor" value={resolveVendor(task.vendor)} />
         <Field name="Worktree" value={task.worktreePath} mono />
         <Field name="Repo" value={task.repo} mono />
 
@@ -315,7 +316,7 @@ function TaskOverview({ task }: { task: Task | null }) {
                 }
                 disabled={busy !== null}
                 className={`border px-2 py-1 text-[11px] transition-colors disabled:opacity-40 ${
-                  (task.vendor ?? "claude") === engine.id
+                  resolveVendor(task.vendor) === engine.id
                     ? "border-primary bg-inset text-fg"
                     : "border-line bg-surface text-muted hover:border-primary hover:text-fg"
                 }`}
