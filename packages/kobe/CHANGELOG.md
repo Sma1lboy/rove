@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.166
+
+### Patch Changes
+
+- [#536](https://github.com/Sma1lboy/rove/pull/536) [`a541263`](https://github.com/Sma1lboy/rove/commit/a5412638523e194df2537b5f3dc0639df169abf4) Move `readDiskTasks` and `mergeWithDisk` from `orchestrator/index/store.ts` into `store-codec.ts` as stateless I/O helpers. This relocates the disk-read and three-way merge logic to the existing `this`-independent codec module rather than leaving it on the mutable store class. `store.ts` drops from 498 to 432 lines; `store-codec.ts` remains under the 500-line cap. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.165
 
 ### Patch Changes
