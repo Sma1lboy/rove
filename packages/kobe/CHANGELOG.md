@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.171
+
+### Patch Changes
+
+- [#542](https://github.com/Sma1lboy/rove/pull/542) [`06f046b`](https://github.com/Sma1lboy/rove/commit/06f046bf6c9fc312aff3de52bf994b4e46dbb960) Harden `api-cmd` tests to catch a regression in `--help` CLI name resolution. Add assertions that `verbHelp()` renders `rove api` when `ROVE_INVOKED_AS=rove` and falls back to `kobe api` when the marker is absent. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.170
 
 ### Patch Changes
