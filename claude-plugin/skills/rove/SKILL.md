@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 30 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 31 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -399,8 +399,9 @@ spawning agent's engine tab, not as stored state nobody reads.
 dispatcher (the creating task + tab); when the work is finished, a bare
 `rove api send --prompt "<succeeded|failed>: <one line> (branch <final
 branch>)"` routes the outcome back to that exact tab. Include the final
-branch name — the spawner needs it to `land`. The first-prompt coda still
-names the spawner for an explicit `--task-id` send.
+branch name — the spawner needs it to `land`. Use the BARE form: an explicit
+`--task-id <spawner>` skips dispatcher routing and lands on that task's
+canonical engine tab, which can be a different agent's session.
 
 **"Succeeded" means COMMITTED.** Green tests in your working tree are not a
 deliverable — the only thing `land` can merge is commits on your branch.

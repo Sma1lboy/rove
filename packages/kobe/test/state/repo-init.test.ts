@@ -167,9 +167,11 @@ describe("resolveEngineLaunchInit", () => {
   })
 
   // Why: outcomes travel as chat back to the spawner, not stored reports —
-  // the coda bakes in the exact send command so the channel needs no
-  // coordinator discipline to work.
-  test("new-task with a spawner appends the send-back coda; without one it does not", () => {
+  // and the coda MUST teach the bare form. Only a bare `send` (no --task-id)
+  // resolves the dispatcher's exact tab; an explicit `--task-id` lands on the
+  // spawner task's canonical engine tab, which on a main task can be a
+  // different agent's session entirely (the 2026-08-24 misrouted reports).
+  test("new-task with a spawner appends the bare send-back coda; without one it does not", () => {
     const wt = makeWorktree()
     const spawned = resolveEngineLaunchInit(
       wt,
@@ -177,8 +179,10 @@ describe("resolveEngineLaunchInit", () => {
       { kind: "new-task", prompt: "fix the bug", spawnerTaskId: "spawner-1" },
       "task-9",
     ).firstMessage
-    expect(spawned?.text).toContain("send --task-id spawner-1 --prompt")
+    expect(spawned?.text).toContain("spawned by Rove task spawner-1")
+    expect(spawned?.text).toContain('send --prompt "<succeeded|failed>')
+    expect(spawned?.text).not.toContain("send --task-id")
     const solo = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }, "task-9").firstMessage
-    expect(solo?.text).not.toContain("send --task-id")
+    expect(solo?.text).not.toContain("spawned by")
   })
 })
