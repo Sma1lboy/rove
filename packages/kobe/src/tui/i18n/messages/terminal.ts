@@ -10,7 +10,7 @@ export const en = {
   restoring: "restoring session…",
   tab: {
     // A NORMAL (single) tab's default name is "$process $ordinal" —
-    // built in code from the live process identity ("claude 3",
+    // built in code from the live process identity (e.g. "engine 3",
     // "shell 5"), not translated. Only the SPLIT label lives here.
     groupTitle: "group {n}",
     renameTitle: "Rename tab",

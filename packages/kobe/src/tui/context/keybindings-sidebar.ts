@@ -207,7 +207,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     scope: "sidebar",
     keys: ["v"],
     category: "Tasks pane",
-    description: "Cycle engine vendor (claude ↔ codex ↔ …) — applies on reopen",
+    description: "Cycle engine vendor — applies on reopen",
     hint: { keys: "v" },
   },
   {
@@ -241,11 +241,11 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // Right arrow jumps from the Tasks pane back into the current
-    // window's engine (claude/codex) pane — the spatial "go right into
-    // the conversation" gesture, the inverse of ctrl+h. Named key, not a
-    // bare letter, but still sidebar-scoped per the boundary rule; the
-    // Tasks-pane host gates it on no dialog + `/`-search inactive, so
-    // Right typed while searching keeps moving the input cursor.
+    // window's engine pane — the spatial "go right into the conversation"
+    // gesture, the inverse of ctrl+h. Named key, not a bare letter, but
+    // still sidebar-scoped per the boundary rule; the Tasks-pane host gates
+    // it on no dialog + `/`-search inactive, so Right typed while searching
+    // keeps moving the input cursor.
     id: "tasks.focusEngine",
     scope: "sidebar",
     keys: ["right"],
