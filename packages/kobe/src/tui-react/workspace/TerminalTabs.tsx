@@ -33,6 +33,11 @@
  * `state`/`props` — recreated fresh every render, the guarantee Solid's
  * accessors gave for free. `onEditorTabReady`/`onEngineSendReady` hand
  * their callback to the parent once per mount, re-fired on remount.
+ *
+ * NOTE — This file is an integration layer at the file-size cap. The real
+ * pieces are extracted: TerminalSplit/TabStrip/PreviewScreen, terminal-tabs-core,
+ * and useTabClose/useTabDialogs/useTabHandoffs/useTabHydration/useTabNaming/
+ * useTabRequests/useTabTurnState. The remaining seams are glue; moving them only shuffles it.
  */
 
 import type { TranscriptActivity } from "@/client/remote-orchestrator"
