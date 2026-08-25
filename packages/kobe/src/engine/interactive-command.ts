@@ -31,7 +31,7 @@ import { autoStatusEnabled } from "@/state/auto-status"
 import { dispatcherEnabled } from "@/state/dispatcher"
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/task"
-import { BUILTIN_VENDORS } from "@/types/vendor"
+import { BUILTIN_VENDORS, coerceVendorId } from "@/types/vendor"
 
 /**
  * Human label for a vendor (Settings → Engines rows). Sourced from the
@@ -82,7 +82,7 @@ export function engineDisplayName(vendor: VendorId): string {
  * launching claude.
  */
 export function defaultEngineCommand(vendor: VendorId | undefined): readonly string[] {
-  return engineEntry(vendor ?? "claude").defaultCommand
+  return engineEntry(coerceVendorId(vendor)).defaultCommand
 }
 
 /**
@@ -128,7 +128,7 @@ export function parseEngineCommand(command: string): string[] {
 }
 
 export function interactiveEngineCommand(vendor: VendorId | undefined, effort?: string): readonly string[] {
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   const override = getPersistedString(engineCommandKey(v))?.trim()
   const base = (() => {
     if (override) {
@@ -146,7 +146,7 @@ export function interactiveEngineCommand(vendor: VendorId | undefined, effort?: 
  * adapter concern; launch sites and tab chrome remain vendor-neutral.
  */
 export function withEngineTerminalTitle(argv: readonly string[], vendor: VendorId | undefined): readonly string[] {
-  const args = engineEntry(vendor ?? "claude").terminalTitle?.launchArgs
+  const args = engineEntry(coerceVendorId(vendor)).terminalTitle?.launchArgs
   return args && args.length > 0 ? [...argv, ...args] : argv
 }
 
@@ -165,7 +165,7 @@ export function withEngineEffort(
 ): readonly string[] {
   const trimmed = effort?.trim()
   if (!trimmed) return argv
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   const levels = engineEntry(v).effortLevels
   if (!levels?.includes(trimmed)) return argv
   if (v === "codex") return [...argv, "-c", `model_reasoning_effort=${trimmed}`]
@@ -195,7 +195,7 @@ export function withClaudeSessionId(
   argv: readonly string[],
   vendor: string | undefined,
 ): { argv: readonly string[]; sessionId: string | null } {
-  if ((vendor ?? "claude") !== "claude") return { argv, sessionId: null }
+  if (coerceVendorId(vendor) !== "claude") return { argv, sessionId: null }
   if (argv.some((a) => CLAUDE_SESSION_CONTROL_FLAGS.has(a))) return { argv, sessionId: null }
   const sessionId = randomUUID()
   return { argv: [...argv, "--session-id", sessionId], sessionId }
@@ -213,7 +213,7 @@ export function withClaudeSessionId(
  * session — the same two things claude/codex have.
  */
 export function canForkSession(vendor: VendorId | undefined): boolean {
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   return v === "claude" || v === "codex"
 }
 
@@ -236,7 +236,7 @@ export function forkSessionArgv(
   newSessionId?: string | null,
 ): readonly string[] | null {
   if (!sourceSessionId) return null
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   if (v === "claude") {
     const forked = [...base, "--resume", sourceSessionId, "--fork-session"]
     return newSessionId ? [...forked, "--session-id", newSessionId] : forked
@@ -377,7 +377,7 @@ export function withWorktreeProtocol(
   notes: readonly { text: string; author: string }[] = [],
 ): readonly string[] {
   if (!taskId) return argv
-  if ((vendor ?? "claude") !== "claude") return argv
+  if (coerceVendorId(vendor) !== "claude") return argv
   if (argv.includes("--append-system-prompt") || argv.includes("--append-system-prompt-file")) {
     return argv
   }
@@ -430,7 +430,7 @@ export function withDispatcherProtocol(
   enabled: () => boolean = dispatcherEnabled,
 ): readonly string[] {
   if (!taskId || !enabled()) return argv
-  if ((vendor ?? "claude") !== "claude") return argv
+  if (coerceVendorId(vendor) !== "claude") return argv
   if (argv.includes("--append-system-prompt") || argv.includes("--append-system-prompt-file")) {
     return argv
   }

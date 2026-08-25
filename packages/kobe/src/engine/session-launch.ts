@@ -3,7 +3,7 @@ import { worktreeInitMarkerPath } from "../env.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
-import type { VendorId } from "../types/vendor.ts"
+import { type VendorId, coerceVendorId } from "../types/vendor.ts"
 import { withDispatcherProtocol, withWorktreeProtocol } from "./interactive-command.ts"
 import { engineEntry } from "./registry.ts"
 
@@ -181,7 +181,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   // kill the launch as an unknown command. The spawner pastes it instead
   // (see EngineSessionLaunch.firstMessage).
   const delivery =
-    input.firstMessageDelivery ?? engineEntry(input.task.vendor ?? "claude").firstMessageDelivery ?? "argv"
+    input.firstMessageDelivery ?? engineEntry(coerceVendorId(input.task.vendor)).firstMessageDelivery ?? "argv"
   const pasteFirstMessage = delivery === "paste" ? launchInit.firstMessage?.text : undefined
   if (launchInit.firstMessage && !pasteFirstMessage) argv = [...argv, launchInit.firstMessage.text]
   const script = engineLaunchLine(quoteShellArgv(argv, { bareSafe: true }), {
