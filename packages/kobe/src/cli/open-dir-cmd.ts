@@ -15,6 +15,7 @@
 import { statSync } from "node:fs"
 import { resolve } from "node:path"
 import { expandTilde } from "../lib/path-home.ts"
+import { withDaemonOrLocal } from "./orchestrator-bridge.ts"
 import { activeCliName } from "./rename-compat.ts"
 
 /**
@@ -47,26 +48,17 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     process.stderr.write(`${activeCliName()}: "${arg}" is not a directory (resolved to ${dir}).\n`)
     process.exit(1)
   }
-  const { connectIfRunning } = await import("@sma1lboy/kobe-daemon/client/daemon-process")
-  const client = await connectIfRunning()
-  try {
-    if (client) {
+  await withDaemonOrLocal({
+    daemon: async (client) => {
       const { taskId } = await client.request<{ taskId: string }>("task.openDir", { dir })
       await client.request("task.setActive", { taskId })
-    } else {
-      const { TaskIndexStore } = await import("../orchestrator/index/store.ts")
-      const { GitWorktreeManager } = await import("../orchestrator/worktree/manager.ts")
-      const { Orchestrator } = await import("../orchestrator/core.ts")
-      const store = new TaskIndexStore()
-      await store.load()
-      const orch = new Orchestrator({ store, worktrees: new GitWorktreeManager() })
+    },
+    local: async (orch) => {
       const task = await orch.openDirectoryTask({ dir })
       const { writeLastActiveTaskId } = await import("../state/last-active.ts")
       writeLastActiveTaskId(String(task.id))
-    }
-  } finally {
-    client?.close()
-  }
+    },
+  })
   const { publishKobeTerminalTitle } = await import("../tui/lib/outer-terminal-title.ts")
   publishKobeTerminalTitle()
   const { startTui } = await import("../tui/index.tsx")

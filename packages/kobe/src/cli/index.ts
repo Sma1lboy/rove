@@ -8,7 +8,9 @@ import { type VendorId, coerceVendorId } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 // Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
 // orchestrator/TUI imports stay dynamic inside runOpenDirectory itself.
+import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
 import { isPathLikeArg, runOpenDirectory } from "./open-dir-cmd.ts"
+import { openLocalOrchestrator, withDaemonOrLocal } from "./orchestrator-bridge.ts"
 import { activeCliName, prepareCliEnvironment } from "./rename-compat.ts"
 import { topLevelUsage } from "./usage.ts"
 
@@ -71,19 +73,13 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
  *  one-shot local orchestrator. Best-effort: a failure must not block the
  *  add (worktree adoption below still runs). */
 async function ensureProjectMainTask(repo: string): Promise<void> {
-  const { connectIfRunning } = await import("@sma1lboy/kobe-daemon/client/daemon-process")
-  const client = await connectIfRunning()
   try {
-    if (client) {
-      await client.request("task.ensureMain", { repo })
-      return
-    }
-    const orch = await openLocalOrchestrator()
-    await orch.ensureMainTask(repo)
+    await withDaemonOrLocal({
+      daemon: (client) => client.request("task.ensureMain", { repo }),
+      local: (orch) => orch.ensureMainTask(repo),
+    })
   } catch (err) {
     console.error(`(skipped project main-task setup: ${errorMessage(err)})`)
-  } finally {
-    client?.close()
   }
 }
 
@@ -148,14 +144,10 @@ async function runRemoveSubcommand(rest: readonly string[]): Promise<void> {
   // projects it into the sidebar — removeSavedRepo alone left an orphan main
   // row behind (it lives in the daemon-owned task index, not state.json).
   // Prefer a RUNNING daemon so a live TUI updates; fall back to in-process.
-  const { connectIfRunning } = await import("@sma1lboy/kobe-daemon/client/daemon-process")
-  const client = await connectIfRunning()
-  try {
-    if (client) await client.request("project.forget", { repo: target })
-    else await (await openLocalOrchestrator()).forgetProject(target)
-  } finally {
-    client?.close()
-  }
+  await withDaemonOrLocal({
+    daemon: (client) => client.request("project.forget", { repo: target }),
+    local: (orch) => orch.forgetProject(target),
+  })
   const remaining = getSavedRepos().length
   console.log(`removed ${target} (${remaining} saved repo${remaining === 1 ? "" : "s"} left)`)
 }
@@ -191,15 +183,6 @@ async function adoptAllWorktrees(repo: string): Promise<void> {
 /** Build a short-lived in-process orchestrator (store + git manager) for
  * a one-shot CLI command. No daemon, no socket — just reads `tasks.json`
  * and shells git. */
-async function openLocalOrchestrator() {
-  const { TaskIndexStore } = await import("../orchestrator/index/store.ts")
-  const { GitWorktreeManager } = await import("../orchestrator/worktree/manager.ts")
-  const { Orchestrator } = await import("../orchestrator/core.ts")
-  const store = new TaskIndexStore()
-  await store.load()
-  return new Orchestrator({ store, worktrees: new GitWorktreeManager() })
-}
-
 /**
  * Adopt `list` as tasks, printing one line each. Prefers a RUNNING
  * daemon (writes over RPC so a live TUI updates + the on-disk index
@@ -212,24 +195,20 @@ async function adoptWorktreesInto(
   list: readonly AdoptableWorktree[],
   vendor: VendorId,
 ): Promise<void> {
-  const { connectIfRunning } = await import("@sma1lboy/kobe-daemon/client/daemon-process")
-  const client = await connectIfRunning()
-  try {
-    for (const w of list) {
-      const adopted = client
-        ? (
-            await client.request<{ task: { id: string; title: string } }>("worktree.adopt", {
-              repo,
-              worktreePath: w.path,
-              branch: w.branch,
-              vendor,
-            })
-          ).task
-        : await orch.adoptWorktree({ repo, worktreePath: w.path, branch: w.branch, vendor })
-      console.log(`  adopted ${w.branch} → task ${adopted.id} (${adopted.title})`)
-    }
-  } finally {
-    client?.close()
+  for (const w of list) {
+    const adopted = await withDaemonOrLocal({
+      daemon: async (client) =>
+        (
+          await client.request<{ task: { id: string; title: string } }>("worktree.adopt", {
+            repo,
+            worktreePath: w.path,
+            branch: w.branch,
+            vendor,
+          })
+        ).task,
+      local: async () => orch.adoptWorktree({ repo, worktreePath: w.path, branch: w.branch, vendor }),
+    })
+    console.log(`  adopted ${w.branch} → task ${adopted.id} (${adopted.title})`)
   }
 }
 
@@ -332,6 +311,19 @@ function printTopLevelUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(`${topLevelUsage()}\n`)
 }
 
+/**
+ * Command dispatch table. Inline handlers (add/remove/adopt) are referenced
+ * directly; heavy or rarely-used commands come from `index-commands.ts` as
+ * dynamic imports so a bare `kobe add` does not pull in the TUI, opentui, or
+ * plugin machinery.
+ */
+const COMMANDS = new Map<string, CommandHandler>([
+  ["add", runAddSubcommand],
+  ["remove", runRemoveSubcommand],
+  ["adopt", runAdoptSubcommand],
+  ...DYNAMIC_COMMANDS,
+])
+
 async function main(): Promise<void> {
   const [, , ...rawArgs] = process.argv
   const [subcommand, ...rest] = rawArgs
@@ -353,105 +345,12 @@ async function main(): Promise<void> {
     return
   }
 
-  if (subcommand === "add") {
-    await runAddSubcommand(rest)
+  const handler = subcommand !== undefined ? COMMANDS.get(subcommand) : undefined
+  if (handler) {
+    await handler(rest)
     return
   }
-  if (subcommand === "remove") {
-    await runRemoveSubcommand(rest)
-    return
-  }
-  if (subcommand === "completions") {
-    const { runCompletionsSubcommand } = await import("./completions-cmd.ts")
-    await runCompletionsSubcommand(rest)
-    return
-  }
-  if (subcommand === "adopt") {
-    await runAdoptSubcommand(rest)
-    return
-  }
-  if (subcommand === "export") {
-    const { runExportSubcommand } = await import("./export-cmd.ts")
-    await runExportSubcommand(rest)
-    return
-  }
-  if (subcommand === "repo") {
-    const { runRepoSubcommand } = await import("./repo-cmd.ts")
-    await runRepoSubcommand(rest)
-    return
-  }
-  if (subcommand === "api") {
-    const { runApiSubcommand } = await import("./api-cmd.ts")
-    await runApiSubcommand(rest)
-    return
-  }
-  if (subcommand === "update") {
-    const { runUpdateSubcommand } = await import("./update.ts")
-    await runUpdateSubcommand(rest)
-    return
-  }
-  if (subcommand === "theme") {
-    const { runThemeSubcommand } = await import("./theme.ts")
-    await runThemeSubcommand(rest)
-    return
-  }
-  if (subcommand === "feedback") {
-    const { runFeedbackSubcommand } = await import("./feedback-cmd.ts")
-    await runFeedbackSubcommand(rest)
-    return
-  }
-  if (subcommand === "daemon") {
-    const { runDaemonSubcommand } = await import("./daemon-cmd.ts")
-    await runDaemonSubcommand(rest)
-    return
-  }
-  if (subcommand === "doctor") {
-    const { runDoctorSubcommand } = await import("./doctor-cmd.ts")
-    await runDoctorSubcommand(rest)
-    return
-  }
-  if (subcommand === "config") {
-    const { runConfigSubcommand } = await import("./config-cmd.ts")
-    await runConfigSubcommand(rest)
-    return
-  }
-  if (subcommand === "reset") {
-    const { runResetSubcommand } = await import("./reset-cmd.ts")
-    await runResetSubcommand(rest)
-    return
-  }
-  if (subcommand === "pty-host") {
-    // Internal (spawned detached by the terminal pane's
-    // ensurePtyHostReachable): the standalone process that owns embedded
-    // terminal PTYs so they survive TUI exits and daemon restarts.
-    const { runPtyHostSubcommand } = await import("./pty-host-cmd.ts")
-    await runPtyHostSubcommand(rest)
-    return
-  }
-  if (subcommand === "web") {
-    const { runWebSubcommand } = await import("./web-cmd.ts")
-    await runWebSubcommand(rest)
-    return
-  }
-  if (subcommand === "skill") {
-    // Install / inspect the kobe agent skill that ships in this package.
-    const { runSkillSubcommand } = await import("./skill-cmd.ts")
-    await runSkillSubcommand(rest)
-    return
-  }
-  if (subcommand === "plugin") {
-    const { runPluginSubcommand } = await import("./plugin-cmd.ts")
-    await runPluginSubcommand(rest)
-    return
-  }
-  if (subcommand === "hook") {
-    // Internal: fired by an engine's hooks inside a task worktree to report a
-    // normalized activity event to the daemon (event-driven task state).
-    // Always exits 0; never spawns the daemon.
-    const { runHookSubcommand } = await import("./hook-cmd.ts")
-    await runHookSubcommand(rest)
-    return
-  }
+
   // `kobe .` / `kobe <path>` — the `code .` gesture: open the directory as
   // a standalone dir task. Path syntax only (checked by the predicate), so
   // typos still hit the unknown-command error below with no import cost.
