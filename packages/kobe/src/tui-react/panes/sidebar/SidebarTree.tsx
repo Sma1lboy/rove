@@ -24,7 +24,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { filterByView } from "../../../tui/panes/sidebar/groups"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
-import type { TreeMenuAction } from "../../../tui/panes/sidebar/tree-menu"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
 import { bindByIds } from "../../context/keybindings"
@@ -37,6 +36,7 @@ import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchI
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-rows"
 import type { SidebarProps } from "./types"
+import { useTreeBindings } from "./use-tree-bindings"
 import { useTreeMenu } from "./use-tree-menu"
 import { useTreeSearch } from "./use-tree-search"
 import { useTreeState } from "./use-tree-state"
@@ -258,123 +258,26 @@ export function SidebarTree(props: SidebarTreeProps) {
   // Using the pane's own nav/select keys extinguishes its first-use hint.
   const markKeysUsed = usePaneHintMark("sidebar")
 
-  useBindings(() => ({
-    // Search mode swallows the letter chords — j/k/d/a/r must reach the query
-    // as text, exactly as in the flat sidebar's keys.ts. An open menu swallows
-    // them for the same reason: j/k/enter belong to the menu while it is up.
-    enabled: focused && !search.active && !menu.open,
-    bindings: bindByIds({
-      // In move mode j/k drag the cursor row's LEVEL instead of walking the
-      // cursor — same multiplexing the flat sidebar does for tasks.
-      "sidebar.nav": (_evt, slot) => {
-        markKeysUsed()
-        const down = (slot ?? 0) % 2 === 0
-        if (moveMode) {
-          moveCursorRow(down ? 1 : -1)
-          return
-        }
-        if (down) ctrl.moveDown()
-        else ctrl.moveUp()
-      },
-      "sidebar.select": () => {
-        markKeysUsed()
-        if (moveMode) {
-          props.onMoveModeExit?.()
-          return
-        }
-        ctrl.selectCurrent()
-      },
-      "sidebar.goto": (_evt, slot) => {
-        if (moveMode) return
-        if ((slot ?? 0) % 2 === 1) ctrl.pressShiftG()
-        else ctrl.pressG()
-      },
-      // `l` is "go in", not "unfold" (owner call 2026-08-01: the tree never
-      // folds): open the row under the cursor — on a tab row, the last
-      // level, that enters the tab's chat.
-      "sidebar.tree.open": () => {
-        if (moveMode) return
-        ctrl.selectCurrent()
-      },
-      "sidebar.search.enter": () => {
-        if (moveMode) return
-        search.enter()
-      },
-      "sidebar.delete": () => {
-        if (moveMode) return
-        withCursorTask(props.onDeleteRequest)
-      },
-      "sidebar.archive": () => {
-        if (moveMode) return
-        withCursorTask(props.onArchiveRequest)
-      },
-      "sidebar.rename": () => {
-        if (moveMode) return
-        withCursorTask(props.onRenameRequest)
-      },
-      "sidebar.localMerge": () => withCursorTask(props.onLocalMergeRequest),
-      "sidebar.pin": () => {
-        if (moveMode) return
-        withCursorTask(props.onPinRequest)
-      },
-    }),
-  }))
-
-  // Escape leaves move mode — the same raw binding keys.ts uses, since escape
-  // has no sidebar-scope registry entry outside search.
-  useBindings(() => ({
-    enabled: focused && moveMode,
-    bindings: [{ key: "escape", cmd: () => props.onMoveModeExit?.() }],
-  }))
-
-  // View switching stays live during search (flat sidebar's Block B): `[`/`]`
-  // are not text, and re-scoping the list mid-query is a reasonable thing to
-  // want.
-  // Search-mode chords — registered only while the query row shows. j/k are
-  // deliberately absent: they are text here, so ctrl+n/ctrl+p walk the results.
-  useBindings(() => ({
-    enabled: focused && search.active,
-    bindings: bindByIds({
-      "sidebar.search.nav": (_evt, slot) => {
-        if ((slot ?? 0) % 2 === 0) ctrl.moveDown()
-        else ctrl.moveUp()
-      },
-      "sidebar.search.submit": () => {
-        ctrl.selectCurrent()
-        search.exit()
-      },
-      "sidebar.search.cancel": () => search.exit(),
-    }),
-  }))
-
-  // Menu chords — the same j/k/enter the tree uses, retargeted at the menu
-  // while it is up. No new bindings: an open menu is a mode, not a surface
-  // with its own vocabulary.
-  useBindings(() => ({
-    enabled: focused && menu.open,
-    bindings: bindByIds({
-      "sidebar.nav": (_evt, slot) => menu.moveCursor((slot ?? 0) % 2 === 0 ? 1 : -1),
-      "sidebar.select": () => menu.pickCurrent(),
-    }),
-  }))
-  // Escape has no sidebar-scope registry entry outside search, so it binds
-  // raw — the same escape hatch move mode uses in keys.ts.
-  useBindings(() => ({
-    enabled: focused && menu.open,
-    bindings: [{ key: "escape", cmd: () => menu.close() }],
-  }))
-
-  function withCursorTask(fn?: (taskId: string) => void): void {
-    const rowId = flatIdsRef.current[cursorRef.current]
-    if (rowId === undefined || !fn) return
-    // The "↩ recent" jump row answers only to ⏎ — per-task verbs
-    // (delete/archive/rename) on a shortcut row would act at a distance.
-    if (rowId === RECENT_ROW_ID) return
-    // Per-task verbs target the row's TASK even from a tab row: the verbs
-    // (delete/archive/rename) have no tab-level meaning, and refusing them
-    // one level down would just make the user press k first.
-    fn(parseRowId(rowId).taskId)
-  }
+  // Sidebar-scoped chords collapsed from six `useBindings` calls down to
+  // four. Mode priority (menu > search > move > main) is explicit in the
+  // hook's `enabled` guards and registration order.
+  useTreeBindings({
+    focused,
+    search,
+    menu,
+    moveMode,
+    onMoveModeExit: props.onMoveModeExit,
+    controller: ctrl,
+    flatIdsRef,
+    cursorRef,
+    moveCursorRow,
+    onDeleteRequest: props.onDeleteRequest,
+    onArchiveRequest: props.onArchiveRequest,
+    onRenameRequest: props.onRenameRequest,
+    onPinRequest: props.onPinRequest,
+    onLocalMergeRequest: props.onLocalMergeRequest,
+    markKeysUsed,
+  })
 
   // ctrl+<digit> jump — same contract as the flat sidebar: slot N is the Nth
   // VISIBLE row, so it follows expansion state. Not gated on focus: the chord
