@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.8.166
+
+### Patch Changes
+
+- [#536](https://github.com/Sma1lboy/rove/pull/536) [`a541263`](https://github.com/Sma1lboy/rove/commit/a5412638523e194df2537b5f3dc0639df169abf4) Move `readDiskTasks` and `mergeWithDisk` from `orchestrator/index/store.ts` into `store-codec.ts` as stateless I/O helpers. This relocates the disk-read and three-way merge logic to the existing `this`-independent codec module rather than leaving it on the mutable store class. `store.ts` drops from 498 to 432 lines; `store-codec.ts` remains under the 500-line cap. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.8.165
+
+### Patch Changes
+
+- [#534](https://github.com/Sma1lboy/rove/pull/534) [`0b22892`](https://github.com/Sma1lboy/rove/commit/0b22892d16ba37d4c68ea0fbca789f565a86eded) Extract the path-to-tree builder (`TreeNode`, `buildTree`, `sortTree`) from `filetree/git.ts` into a framework-free `filetree/tree.ts`. The tree builder has no git dependency and is consumed by both the file-tree pane and its React port. `filetree/git.ts` drops from 466 to 412 lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.8.164
+
+### Patch Changes
+
+- [#533](https://github.com/Sma1lboy/rove/pull/533) [`354f0db`](https://github.com/Sma1lboy/rove/commit/354f0db3844d103688f321e020f7dbe99999006d) refactor(tui-react): extract Terminal host cursor and resize effects
+
+  `Terminal.tsx` was pinned at the 500-line file-size cap with zero
+  headroom. Move the resize-push-to-PTY effect and the macOS IME host
+  cursor-anchor effects into a new `use-terminal-host-cursor.ts` hook
+  so the component can focus on rendering and input handling.
+
+  No behavior change: all terminal render, IME cursor, and scrollback
+  tests pass. `Terminal.tsx` drops from 500 to 427 lines; the new hook
+  is 115 lines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#531](https://github.com/Sma1lboy/rove/pull/531) [`ad7f2be`](https://github.com/Sma1lboy/rove/commit/ad7f2bec87cc822613388e2ee8a4408662402f39) Refactor plugin-cmd boundaries and remove another hard-coded CLI name.
+
+  - Move `resolveActiveTaskId` from `cli/api/runtime.ts` to `cli/daemon-session.ts` and have `plugin-cmd.ts` import it from the session layer instead of reaching across the API boundary.
+  - Extract `findByLongestPluginPrefix` to remove the duplicated dotted-plugin-id resolution logic in `invokeAction` and `resolvePaneQualified`.
+  - Default `missingBunMessage()` to `activeCliName()` instead of the hard-coded `"rove"`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#532](https://github.com/Sma1lboy/rove/pull/532) [`e2fe12d`](https://github.com/Sma1lboy/rove/commit/e2fe12d1e525d76223dfabf169af205e5156028b) Split binding-stack reachability scanning out of `keymap-dispatch.ts` into a dedicated `keymap-reachability.ts` module. The hot `dispatchKeyEvent` path keeps its early-exit helpers unchanged; only the cold-path scanner and its consumers moved. Restores headroom under the 500-line cap (429 lines). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.163
 
 ### Patch Changes

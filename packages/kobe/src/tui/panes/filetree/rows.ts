@@ -19,7 +19,8 @@
 
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
 import { truncateStart } from "@/tui/lib/truncate"
-import type { FileStatus, StatusEntry, TreeNode } from "./git"
+import type { FileStatus, StatusEntry } from "./git"
+import type { TreeNode } from "./tree"
 
 /**
  * Internal row shape. The All tab renders a tree (files + collapsible
