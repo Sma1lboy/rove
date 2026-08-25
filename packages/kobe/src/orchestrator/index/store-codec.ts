@@ -1,7 +1,7 @@
 /**
  * Pure I/O internals for {@link TaskIndexStore} (`store.ts`).
  *
- * Two `this`-independent concerns that would otherwise bloat the store:
+ * `this`-independent concerns that would otherwise bloat the store:
  *
  *   - **Lock-retry policy.** {@link acquireWithRetry} wraps the raw
  *     `lockfile.ts` `acquire` with the fixed-backoff wait a contended
@@ -10,13 +10,18 @@
  *   - **On-disk codec.** {@link normalizeIndex} + {@link coerceTask} turn an
  *     arbitrary parsed JSON value into a v3 task list, migrating v1/v2
  *     manifests by stripping dropped fields and self-healing legacy status
- *     rows. Used by both `load()` and the read-merge-write's disk read.
+ *     rows.
+ *   - **Read-merge-write helpers.** {@link readDiskTasks} + {@link mergeTasksWithDisk}
+ *     implement the disk side of the save protocol: a fresh read of the
+ *     manifest and the three-way merge between in-memory intent and on-disk
+ *     state. Both are stateless and live here so the store class focuses on
+ *     the mutable cache / dirty tracking / persistence orchestration.
  *
- * All functions here are pure (no store state) — moved out verbatim so the
+ * All functions here are `this`-independent — moved out verbatim so the
  * store class stays under the file-size cap.
  */
 
-import { copyFile } from "node:fs/promises"
+import { copyFile, readFile } from "node:fs/promises"
 import type {
   Task,
   TaskDeletionState,
@@ -111,6 +116,84 @@ export function normalizeIndex(parsed: unknown, source: string): { version: type
     }
   }
   return { version: CURRENT_VERSION, tasks }
+}
+
+/**
+ * Read + parse the manifest fresh from disk, returning just the tasks.
+ * Mirrors {@link TaskIndexStore.load}: a missing canonical file falls back
+ * to `legacyPath`, while both absent or a corrupt source read as empty.
+ * Never touches the store cache or listeners; used so a save reflects peer
+ * writes since this process loaded.
+ */
+export async function readDiskTasks(path: string, legacyPath: string): Promise<Task[]> {
+  let raw: string
+  let sourcePath = path
+  try {
+    raw = await readFile(sourcePath, "utf8")
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+    sourcePath = legacyPath
+    try {
+      raw = await readFile(sourcePath, "utf8")
+    } catch (legacyErr) {
+      if ((legacyErr as NodeJS.ErrnoException).code === "ENOENT") return []
+      throw legacyErr
+    }
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    // Preserve bytes before the merged write replaces a corrupt source.
+    await backupCorruptManifest(sourcePath)
+    return []
+  }
+  return normalizeIndex(parsed, sourcePath).tasks
+}
+
+/**
+ * Read-merge-write core: combine the fresh on-disk tasks with this process's
+ * in-memory intent. Invariants (mirroring `state/store.ts`):
+ *
+ *   - OUR changes win for ids we touched (`dirty`) — last-write-wins per task.
+ *   - A task we removed (`removed`) is NOT resurrected by a stale disk copy.
+ *   - A task a peer removed (gone from disk, untouched by us) is NOT
+ *     resurrected from our stale cache.
+ *   - A task a peer created/updated (on disk, untouched by us) is preserved —
+ *     concurrent creates are never dropped.
+ */
+export function mergeTasksWithDisk(
+  cacheTasks: readonly Task[],
+  diskTasks: Task[],
+  dirty: ReadonlySet<string>,
+  removed: ReadonlySet<string>,
+): Task[] {
+  const diskById = new Map(diskTasks.map((t) => [t.id, t] as const))
+  const result: Task[] = []
+  const included = new Set<string>()
+
+  // 1. Walk our cache in order — it carries our create/update/move intent and
+  //    the ordering this process wants persisted.
+  for (const task of cacheTasks) {
+    if (dirty.has(task.id)) {
+      result.push(task) // we changed it: our version wins
+    } else {
+      const onDisk = diskById.get(task.id)
+      if (onDisk === undefined) continue // untouched here AND gone from disk: a peer removed it
+      result.push(onDisk) // untouched here: take the peer's possibly-newer copy
+    }
+    included.add(task.id)
+  }
+
+  // 2. Fold in concurrent creates: tasks on disk we've never seen and never
+  //    removed. Appended after our ordering.
+  for (const task of diskTasks) {
+    if (included.has(task.id) || removed.has(task.id)) continue
+    result.push(task)
+    included.add(task.id)
+  }
+
+  return result
 }
 
 /**
