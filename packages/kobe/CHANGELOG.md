@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.8.174
+
+### Patch Changes
+
+- [#548](https://github.com/Sma1lboy/rove/pull/548) [`6ab9e58`](https://github.com/Sma1lboy/rove/commit/6ab9e58f8ebf76043c226bb54c5d460120008f58) Remove remaining hard-coded vendor strings from neutral UI layers.
+
+  - Replace literal "Claude Code" / "Codex" / "claude" / "codex" product names in i18n messages, keybinding descriptions, and settings copy with vendor-neutral wording.
+  - Update example comments in `terminal.ts` and `keybindings-sidebar.ts` to avoid embedding vendor names.
+  - No behavior change; labels and descriptions now describe the generic concept instead of enumerating built-in engines. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#546](https://github.com/Sma1lboy/rove/pull/546) [`2b1cd30`](https://github.com/Sma1lboy/rove/commit/2b1cd307cc36a082d5e383239a118c116815e743) Remove outdated workaround constraints in `tui/` and `tui-react/`.
+
+  - `tui/ops/activity-monitor.ts`: drop the dead `@kobe_tab_state` tmux window-option constant and update IO docs; turn state now feeds React consumers, not tmux.
+  - `tui/lib/keymap-overrides-parse.ts`: remove the `allowShiftCharacter` normalization option that only existed for the deleted tmux-layer resolver, and delete the unused `chordOptsFor` override hook.
+  - `tui-react/context/notifications.tsx`: read sound/toast toggles from the ported React KV provider when one is present, falling back to the mount-time `state.json` snapshot only in test/mock hosts that intentionally omit `KVProvider`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.8.173
+
+### Patch Changes
+
+- [#545](https://github.com/Sma1lboy/rove/pull/545) [`74dfd36`](https://github.com/Sma1lboy/rove/commit/74dfd3665e7063c680ce17e87686e90af94fd598) Harden the `daemon.status` wire-shape test. Replace weak `typeof` checks on `uptimeMs` and `kobeVersion` with concrete assertions: `uptimeMs` must be non-negative and `kobeVersion` must equal the runtime's current version. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#547](https://github.com/Sma1lboy/rove/pull/547) [`5a51962`](https://github.com/Sma1lboy/rove/commit/5a519625ef378b8615457d2974e34924062bd898) Derive kobe-web's user-facing CLI command strings from the build-time product name instead of hard-coding "rove". Affected prompts and hints in `lib/issues.ts`, `lib/review.ts`, `lib/terminal.ts`, and `lib/web-transport.ts` now use `ROVE_PRODUCT_NAME` so the legacy `kobe` wrapper is no longer mis-named in generated instructions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#549](https://github.com/Sma1lboy/rove/pull/549) [`d304634`](https://github.com/Sma1lboy/rove/commit/d3046349e336bdd9f5664cc17a98f7031dd67aab) Derive kobe-web's user-facing product display strings from the build-time product name instead of hard-coding "Rove". Affected surfaces include the top bar `[rove]` badge, empty-state headings, daemon-offline banners, desktop notification titles, the document title, and onboarding copy in `AdoptDialog` and `WorktreesPage`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.8.172
+
+### Patch Changes
+
+- [#543](https://github.com/Sma1lboy/rove/pull/543) [`c38014a`](https://github.com/Sma1lboy/rove/commit/c38014ae4f23b11397e63acd192309417cdfa8ab) Remove hard-coded vendor strings from neutral UI layers and introduce a named default-theme constant.
+
+  - `DEFAULT_TASK_VENDOR` now backs the fallback engine selection in `new-task-dialog/pure.ts` and `new-chat-dialog.tsx` instead of the literal `"claude"`.
+  - `DEFAULT_THEME` is exported from `tui/context/theme-core.ts` and used by the React theme provider and host-boot fallback instead of hard-coding `"claude"`.
+  - `AccountsSettingsSection` now receives the same `displayName` resolver used by `EngineSettingsSection`, so account block labels respect custom name overrides and built-in registry labels instead of literal `"claude-code"` / `"codex"` / `"copilot"` / `"kimi"`.
+  - The "no engine detected" toast in `task-create-flow.ts` no longer names specific vendors. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.171
 
 ### Patch Changes

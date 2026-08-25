@@ -8,8 +8,8 @@
  * interactive belongs in a pane instead.
  */
 
-import { spawn } from "node:child_process"
 import { kobeCliInvocation } from "@/cli/invocation"
+import { spawnDetached } from "../../lib/spawn-detached"
 import { pluginKeybindings } from "../../tui/context/keybindings-user"
 import type { PluginKeyBinding } from "../../tui/lib/keymap-plugin-bindings"
 import { useBindings } from "../lib/keymap"
@@ -20,13 +20,9 @@ function firePluginBinding(binding: PluginKeyBinding): void {
       ? ["plugin", "pane", "open", binding.target]
       : ["plugin", "action", "invoke", binding.target]
   const [cmd, ...rest] = [...kobeCliInvocation(), ...verb]
-  try {
-    const child = spawn(cmd as string, rest, { detached: true, stdio: "ignore" })
-    child.on("error", (err) => console.warn(`[rove/plugins] ${binding.target}: ${String(err)}`))
-    child.unref()
-  } catch (err) {
-    console.warn(`[rove/plugins] ${binding.target}: ${String(err)}`)
-  }
+  spawnDetached(cmd as string, rest, {
+    onError: (err) => console.warn(`[rove/plugins] ${binding.target}: ${String(err)}`),
+  })
 }
 
 export function usePluginKeybindings(enabled: boolean): void {

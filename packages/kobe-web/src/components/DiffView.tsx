@@ -15,6 +15,7 @@
 
 import { RotateCw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { displayProductName } from "../lib/cli-name.ts"
 import { type DiffFile, type DiffResult, fetchDiff } from "../lib/diff.ts"
 import { rowClass, statusBadge } from "../lib/diff-display.ts"
 import { filterDiffFiles } from "../lib/diff-filter.ts"
@@ -51,7 +52,8 @@ function DiffError({ onRetry }: { onRetry: () => void }) {
   if (offline) {
     return (
       <div className="px-3 py-4 text-[12px] leading-relaxed text-subtle">
-        The Rove daemon is offline — changes will reappear once it reconnects.
+        The {displayProductName()} daemon is offline — changes will reappear
+        once it reconnects.
       </div>
     )
   }

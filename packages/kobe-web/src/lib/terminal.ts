@@ -5,6 +5,7 @@
  * spawn the user's shell in the same worktree.
  */
 
+import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
 import { ApiError, api } from "./api-client.ts"
 
 export type PtyMode = "engine" | "shell"
@@ -76,7 +77,7 @@ export async function sendPtyText(
     // targeted restart hint instead of surfacing a generic status error.
     if (err instanceof ApiError && err.status === 404 && !err.detail) {
       throw new Error(
-        "the PTY server doesn't know /pty/send — restart `rove web` (the sidecar doesn't hot-reload)",
+        `the PTY server doesn't know /pty/send — restart \`${ROVE_PRODUCT_NAME} web\` (the sidecar doesn't hot-reload)`,
       )
     }
     throw err
