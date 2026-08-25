@@ -3,7 +3,7 @@ owner:
   kind: repo
   id: kobe
 domain: promo
-revision: 6
+revision: 7
 accepted:
   - id: cursor-block
     concept: "cursor block"
@@ -139,3 +139,15 @@ accepted:
     size: [1600, 400]
     checksum_sha256: fb03a9c5f553ace44fc5b1814bf86c3a1ba2417f92d02b22c09db6d49e8b2faf
     accepted_at: "2026-07-28"
+  - id: rove-promo
+    concept: "rove promo — the agent multiplexer in your shell (Eric v3 VO, EN)"
+    round: "promo v4 · 2026-08-25"
+    modality: video
+    asset_type: promo-video
+    path: public/assets/video/rove-promo.mp4
+    source: .studio/out/rove-promo/renders/video-v4.mp4
+    mime_type: video/mp4
+    size: [1920, 1080]
+    duration_seconds: 38.2
+    checksum_sha256: bba25fbea074f6f662992df72ebcad9ef6da67f97f9187798b1f14c281b3ae54
+    accepted_at: "2026-08-25"
