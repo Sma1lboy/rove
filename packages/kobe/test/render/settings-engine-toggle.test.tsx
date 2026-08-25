@@ -43,3 +43,31 @@ test("space switches the focused engine off and back on", async () => {
   expect(await press(" ")).toContain("[ ]")
   expect(await press(" ")).not.toContain("[ ]")
 })
+
+test("clicking the checkbox toggles it instead of opening the command editor", async () => {
+  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-engine-click-"))
+  const { frame, mockInput, mockMouse } = await renderComponent(<Driver />, {
+    width: 110,
+    height: 40,
+    providers: { kv: true, dialog: true },
+  })
+  act(() => mockInput.pressKey("j")) // → Engines
+  await settle()
+
+  // Locate a real checkbox on screen rather than hard-coding a cell — the
+  // section hint mentions "[x]" too, so anchor on an engine row.
+  const lines = (await frame()).split("\n")
+  const y = lines.findIndex((line) => line.includes("[x]") && line.includes("Codex"))
+  expect(y).toBeGreaterThan(-1)
+  const x = (lines[y] as string).indexOf("[x]") + 1 // the "x" cell itself
+
+  await act(async () => {
+    await mockMouse.click(x, y)
+  })
+  await settle()
+
+  const after = await frame()
+  // Clicking the ROW opens the launch-command editor; the checkbox must not.
+  expect(after).not.toContain("Codex launch command")
+  expect(after.split("\n")[y] as string).toContain("[ ]")
+})

@@ -86,11 +86,21 @@ export function EngineSettingsSection(
               >
                 {/* On/off switch (`space`), then the ● that marks the DEFAULT
                     engine for new tasks (radio-style, like the theme list); a
-                    space holds that column on the others. */}
+                    space holds that column on the others.
+
+                    `stopPropagation`: opentui bubbles to the parent, and the
+                    row's own handler opens the launch-command editor — without
+                    it, clicking the checkbox means "edit command", which is the
+                    one action the checkbox must never be. */}
                 <text
                   fg={isCursor ? theme.selectedListItemText : enabled ? theme.text : theme.textMuted}
                   wrapMode="none"
-                  onMouseUp={() => props.toggleEngine(vendor)}
+                  onMouseUp={(evt: { stopPropagation(): void }) => {
+                    evt.stopPropagation()
+                    props.setLevel("body")
+                    props.setBodyRow(i)
+                    props.toggleEngine(vendor)
+                  }}
                 >
                   {enabled ? "[x]" : "[ ]"}
                 </text>
