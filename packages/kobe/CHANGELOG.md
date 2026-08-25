@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.181
+
+### Patch Changes
+
+- [`145bcbd`](https://github.com/Sma1lboy/rove/commit/145bcbd906b6b08812f5845304236974cbeeb9f7) Terminal drag-select now scrolls from the pane's edge ROW, not only from
+  beyond it — the pane sits flush under the tab strip, so holding the drag on
+  the first visible row (the actual gesture) previously did nothing. The pull is
+  directional, so a sideways drag along that row still doesn't move the
+  viewport, and the selection anchor is read from a ref so the first drag event
+  after mouse-down isn't judged against a stale anchor. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.180
 
 ### Patch Changes
