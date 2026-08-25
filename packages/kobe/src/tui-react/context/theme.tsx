@@ -22,6 +22,7 @@ import { type ReactNode, createContext, useContext, useEffect, useMemo } from "r
 import { createExternalStore } from "../../lib/external-store"
 import {
   BUNDLED_THEMES,
+  DEFAULT_THEME,
   type FocusAccentSlot,
   type Theme,
   type ThemeJson,
@@ -30,7 +31,7 @@ import {
 } from "../../tui/context/theme-core"
 import { useAccessor } from "../lib/use-accessor"
 
-export { FOCUS_ACCENT_SLOTS, resolveTheme } from "../../tui/context/theme-core"
+export { DEFAULT_THEME, FOCUS_ACCENT_SLOTS, resolveTheme } from "../../tui/context/theme-core"
 export type { FocusAccentSlot, Theme, ThemeJson } from "../../tui/context/theme-core"
 
 type State = {
@@ -43,7 +44,7 @@ type State = {
 
 const store = createExternalStore<State>({
   themes: { ...BUNDLED_THEMES },
-  active: "claude",
+  active: DEFAULT_THEME,
   mode: "dark",
   // Transparent by default (2026-07-12) — kobe sits on the terminal's own
   // background unless the user explicitly turns transparency off.
@@ -122,8 +123,8 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 function resolveActive(state: State): Theme {
   const active = state.themes[state.active]
   if (active) return resolveTheme(active, state.mode)
-  // safety net: if active was somehow cleared, fall back to claude
-  const fallback = state.themes.claude ?? state.themes.opencode ?? Object.values(state.themes)[0]
+  // safety net: if active was somehow cleared, fall back to the default theme
+  const fallback = state.themes[DEFAULT_THEME] ?? Object.values(state.themes)[0]
   if (!fallback) {
     // truly empty — synthesize a black theme so the renderer can stand up
     return resolveTheme({ theme: { background: "#000000", text: "#ffffff" } }, state.mode)

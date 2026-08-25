@@ -76,7 +76,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   // missing binary surfaces only as a raw shell error inside the pane. Warn
   // up front but still allow proceeding (they may install it after picking).
   if (availableVendors.length === 0) {
-    ctx.notifyInfo?.("No engine CLI detected — install claude or codex, or add one in Settings → Engines")
+    ctx.notifyInfo?.("No engine CLI detected — install a supported engine, or add one in Settings → Engines")
   }
   const orch = ctx.orch
   const result = await ctx.promptNewTask(defaultRepo, repos, {

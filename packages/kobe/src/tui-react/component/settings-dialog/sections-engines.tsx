@@ -163,6 +163,8 @@ export function AccountsSettingsSection(props: {
   codexStatus: EngineAccountStatus<CodexAccount> | null
   copilotStatus: EngineAccountStatus<CopilotAccount> | null
   kimiStatus: EngineAccountStatus<KimiAccount> | null
+  /** Display label for a vendor — custom name override, else VENDOR_LABEL. */
+  displayName: (vendor: VendorId) => string
 }) {
   const { theme } = useTheme()
   const t = useT()
@@ -176,7 +178,7 @@ export function AccountsSettingsSection(props: {
         {t("settings.accounts.hint")}
       </text>
       <AccountBlock
-        name="claude-code"
+        name={props.displayName("claude")}
         status={props.claudeStatus}
         accountLine={(s) => {
           const a = s.account as ClaudeAccount
@@ -192,7 +194,7 @@ export function AccountsSettingsSection(props: {
         }}
       />
       <AccountBlock
-        name="codex"
+        name={props.displayName("codex")}
         status={props.codexStatus}
         accountLine={(s) => {
           const a = s.account as CodexAccount
@@ -208,7 +210,7 @@ export function AccountsSettingsSection(props: {
         }}
       />
       <AccountBlock
-        name="copilot"
+        name={props.displayName("copilot")}
         status={props.copilotStatus}
         accountLine={(s) => {
           const a = s.account as CopilotAccount
@@ -219,7 +221,7 @@ export function AccountsSettingsSection(props: {
         }}
       />
       <AccountBlock
-        name="kimi"
+        name={props.displayName("kimi")}
         status={props.kimiStatus}
         accountLine={(s) => {
           const a = s.account as KimiAccount

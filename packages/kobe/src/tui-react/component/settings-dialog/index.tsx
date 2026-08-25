@@ -383,6 +383,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               codexStatus={accounts.codex}
               copilotStatus={accounts.copilot}
               kimiStatus={accounts.kimi}
+              displayName={engines.engineName}
             />
           ) : null}
           {section === "plugins" ? (
