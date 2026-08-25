@@ -138,6 +138,8 @@ export function GeneralSettingsSection(
   }
   const onOff = (on: boolean) => (on ? t("settings.general.on") : t("settings.general.off"))
   const check = (on: boolean) => (on ? "[x]" : "[ ]")
+  /** Exclusive pick — the same radio the Engines section uses for its default. */
+  const radio = (on: boolean) => (on ? "(●)" : "( )")
 
   const transparentRow = rowIdx("transparent")
   const toastRow = rowIdx("toast")
@@ -173,7 +175,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(i) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${name}`}
+                {`${radio(isSelected)} ${name}`}
               </Row>
             )
           })}
@@ -190,7 +192,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(langRow) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${loc.label}`}
+                {`${radio(isSelected)} ${loc.label}`}
               </Row>
             )
           })}
@@ -217,7 +219,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.focusAccent : theme.text}
                 bold={isBodyCursor(accentRow) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${t(`settings.general.accent${slot.charAt(0).toUpperCase()}${slot.slice(1)}`)}`}
+                {`${radio(isSelected)} ${t(`settings.general.accent${slot.charAt(0).toUpperCase()}${slot.slice(1)}`)}`}
               </Row>
             )
           })}
@@ -234,7 +236,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(styleRow) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${t(style === "box" ? "settings.general.splitBox" : "settings.general.splitLine")}`}
+                {`${radio(isSelected)} ${t(style === "box" ? "settings.general.splitBox" : "settings.general.splitLine")}`}
               </Row>
             )
           })}

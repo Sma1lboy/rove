@@ -114,6 +114,22 @@ export function useEngineSettings(
     setDefaultEngineState(vendor)
   }
 
+  /**
+   * `d` and the `(●)` radio both land here. Making a switched-off engine the
+   * default is a contradiction — the pick would never be offered — so choosing
+   * it switches it back on first, which is plainly what the gesture meant.
+   */
+  function chooseDefaultEngine(vendor: VendorId): void {
+    const off = disabledEngines()
+    if (off.includes(vendor)) {
+      kv.set(
+        "disabledEngineIds",
+        off.filter((id) => id !== vendor),
+      )
+    }
+    setEngineDefault(vendor)
+  }
+
   async function editEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineCommandText(vendor), {
       dialogTitle: `${engineName(vendor)} launch command`,
@@ -207,6 +223,7 @@ export function useEngineSettings(
     engineIsDefault,
     defaultEngine,
     setEngineDefault,
+    chooseDefaultEngine,
     editEngine,
     renameEngine,
     resetEngine,

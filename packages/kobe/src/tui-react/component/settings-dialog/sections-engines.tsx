@@ -13,6 +13,7 @@ import { homedir } from "node:os"
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
+import { displayWidth } from "../../../lib/display-width"
 import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -39,6 +40,8 @@ export function EngineSettingsSection(
     editEngine: (vendor: VendorId) => void
     /** Switch a vendor on or off (`space`). */
     toggleEngine: (vendor: VendorId) => void
+    /** Make a vendor the default engine for new tasks (`d`); enables it first. */
+    chooseDefault: (vendor: VendorId) => void
     /** Register a new custom engine — the trailing "+ Add engine" row. */
     onAddEngine: () => void
   },
@@ -49,6 +52,14 @@ export function EngineSettingsSection(
   const addRowIndex = props.vendors.length
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
   const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
+  // Names get a shared column so the commands line up under each other —
+  // "Claude claude" is two words the eye has to separate on every row. Capped,
+  // because one long custom name must not push every command off to the right.
+  const nameWidth = Math.min(
+    16,
+    props.vendors.reduce((max, v) => Math.max(max, displayWidth(props.displayName(v))), 0),
+  )
+  const padName = (name: string): string => name + " ".repeat(Math.max(0, nameWidth - displayWidth(name)))
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
@@ -84,14 +95,15 @@ export function EngineSettingsSection(
                   props.editEngine(vendor)
                 }}
               >
-                {/* On/off switch (`space`), then the ● that marks the DEFAULT
-                    engine for new tasks (radio-style, like the theme list); a
-                    space holds that column on the others.
+                {/* Two 3-cell hit zones, different shapes on purpose: `[x]` is
+                    a checkbox (this engine is offered at all), `(●)` is a radio
+                    (exactly one engine is the default for new tasks). Both wide
+                    enough to click; a bare glyph is a one-cell target sitting
+                    next to another one-cell target.
 
-                    `stopPropagation`: opentui bubbles to the parent, and the
-                    row's own handler opens the launch-command editor — without
-                    it, clicking the checkbox means "edit command", which is the
-                    one action the checkbox must never be. */}
+                    `stopPropagation` on both: opentui bubbles to the parent,
+                    and the row's own handler opens the launch-command editor —
+                    without it a click on either control fires two actions. */}
                 <text
                   fg={isCursor ? theme.selectedListItemText : enabled ? theme.text : theme.textMuted}
                   wrapMode="none"
@@ -105,14 +117,26 @@ export function EngineSettingsSection(
                   {enabled ? "[x]" : "[ ]"}
                 </text>
                 <text
-                  fg={isCursor ? theme.selectedListItemText : theme.accent}
+                  fg={
+                    isCursor
+                      ? theme.selectedListItemText
+                      : props.isDefaultEngine(vendor)
+                        ? theme.accent
+                        : theme.textMuted
+                  }
                   attributes={TextAttributes.BOLD}
                   wrapMode="none"
+                  onMouseUp={(evt: { stopPropagation(): void }) => {
+                    evt.stopPropagation()
+                    props.setLevel("body")
+                    props.setBodyRow(i)
+                    props.chooseDefault(vendor)
+                  }}
                 >
-                  {props.isDefaultEngine(vendor) ? "●" : " "}
+                  {props.isDefaultEngine(vendor) ? "(●)" : "( )"}
                 </text>
                 <text fg={nameFg} attributes={TextAttributes.BOLD} wrapMode="none">
-                  {props.displayName(vendor)}
+                  {padName(props.displayName(vendor))}
                 </text>
                 {/* No "(default)" tag on an untouched command: the ● column
                     already spends the word "default" on the engine choice, and

@@ -139,10 +139,16 @@ export function DevSettingsSection(
     props.setBodyRow(row)
     action()
   }
-  const toggleRow = (id: string, enabled: boolean, hintKey: string, onKey: string, offKey: string, act: () => void) => {
+  // `[x] Label` — the checkbox column is the state, so the label doesn't
+  // repeat it, and a column of switches stays scannable down the block. The
+  // top padding is what separates one experiment from the previous one's prose.
+  const toggleRow = (id: string, enabled: boolean, hintKey: string, labelKey: string, act: () => void) => {
     const row = rowIndex(rows, id)
     return (
-      <>
+      // Wrapped (not a fragment) so the gap lands BETWEEN experiments — each
+      // one is prose + its switch, and previously they ran together into a
+      // wall where the switches were invisible.
+      <box flexDirection="column" gap={0} paddingTop={1}>
         <text fg={theme.textMuted} wrapMode="word">
           {t(hintKey)}
         </text>
@@ -153,9 +159,9 @@ export function DevSettingsSection(
           bold={enabled}
           idleBackground={theme.backgroundElement}
         >
-          {enabled ? t(onKey) : t(offKey)}
+          {`${enabled ? "[x]" : "[ ]"} ${t(labelKey)}`}
         </Row>
-      </>
+      </box>
     )
   }
   return (
@@ -200,32 +206,28 @@ export function DevSettingsSection(
           "remote-projects",
           prefs.remoteProjectsEnabled(),
           "settings.dev.remoteHint",
-          "settings.dev.remoteOn",
-          "settings.dev.remoteOff",
+          "settings.dev.remote",
           prefs.toggleRemoteProjects,
         )}
         {toggleRow(
           "auto-status",
           prefs.autoStatusOn(),
           "settings.dev.autoStatusHint",
-          "settings.dev.autoStatusOn",
-          "settings.dev.autoStatusOff",
+          "settings.dev.autoStatus",
           prefs.toggleAutoStatus,
         )}
         {toggleRow(
           "dispatcher",
           prefs.dispatcherOn(),
           "settings.dev.dispatcherHint",
-          "settings.dev.dispatcherOn",
-          "settings.dev.dispatcherOff",
+          "settings.dev.dispatcher",
           prefs.toggleDispatcher,
         )}
         {toggleRow(
           "archived-history",
           prefs.archivedHistoryOn(),
           "settings.dev.archivedHistoryHint",
-          "settings.dev.archivedHistoryOn",
-          "settings.dev.archivedHistoryOff",
+          "settings.dev.archivedHistory",
           prefs.toggleArchivedHistory,
         )}
       </box>

@@ -306,7 +306,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
         key: "d",
         cmd: () => {
           const v = currentEngineRow()
-          if (v) engines.setEngineDefault(v)
+          if (v) engines.chooseDefaultEngine(v)
         },
       },
       {
@@ -385,6 +385,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               isCustom={engines.isCustomEngine}
               isEnabled={engines.isEngineEnabled}
               toggleEngine={engines.toggleEngineEnabled}
+              chooseDefault={engines.chooseDefaultEngine}
               displayName={engines.engineName}
               commandText={engines.engineCommandText}
               isDefault={engines.engineIsDefault}

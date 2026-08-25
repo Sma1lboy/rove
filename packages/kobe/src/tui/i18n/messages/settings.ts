@@ -92,7 +92,7 @@ export const en = {
   },
   engines: {
     title: "Engines",
-    hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; ● = the global default (per-project picks, e.g. Ctrl+Shift+T, override it). Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
+    hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; (●) = the global default (per-project picks, e.g. Ctrl+Shift+T, override it) — click either, or use the keys below. Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
     customTag: "  (custom)",
     addEngine: "+ Add engine",
   },
@@ -166,20 +166,16 @@ export const en = {
     experimental: "Experimental",
     remoteHint:
       "Remote projects (SSH): register a project whose git worktrees live on another host, driven from this local Rove. Unfinished — Hosted PTY engine launch over SSH is not implemented, and file/diff panes still degrade. Enables `rove add --remote`.",
-    remoteOn: "[x] Remote projects (on)",
-    remoteOff: "[ ] Remote projects (off)",
+    remote: "Remote projects",
     autoStatusHint:
       "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
-    autoStatusOn: "[x] Auto status flow (on)",
-    autoStatusOff: "[ ] Auto status flow (off)",
+    autoStatus: "Auto status flow",
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
-    dispatcherOn: "[x] Field-notes dispatcher (on)",
-    dispatcherOff: "[ ] Field-notes dispatcher (off)",
+    dispatcher: "Field-notes dispatcher",
     archivedHistoryHint:
       "Archived history preview (beta): opening an archived task shows a read-only `rove history` pane (session selector + transcript) in the engine slot instead of relaunching the engine. Its transcript survives worktree removal because the engine store is keyed by the worktree path. Shared with the web dashboard.",
-    archivedHistoryOn: "[x] Archived history preview (on)",
-    archivedHistoryOff: "[ ] Archived history preview (off)",
+    archivedHistory: "Archived history preview",
   },
 }
 
@@ -266,7 +262,7 @@ export const zh: typeof en = {
   },
   engines: {
     title: "引擎",
-    hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；● = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
+    hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；(●) = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）——两者都可直接点，也可用下面的按键。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
     customTag: "  (自定义)",
     addEngine: "+ 添加引擎",
   },
@@ -336,19 +332,15 @@ export const zh: typeof en = {
     experimental: "实验性",
     remoteHint:
       "远程项目（SSH）：注册一个 git worktree + 引擎都通过 SSH 跑在另一台主机上、由本地 Rove 驱动的项目。尚未完成——文件/diff 面板对远程仍会降级。启用 `rove add --remote`。",
-    remoteOn: "[x] 远程项目 (开)",
-    remoteOff: "[ ] 远程项目 (关)",
+    remote: "远程项目",
     autoStatusHint:
       "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
-    autoStatusOn: "[x] 自动状态流转 (开)",
-    autoStatusOff: "[ ] 自动状态流转 (关)",
+    autoStatus: "自动状态流转",
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
-    dispatcherOn: "[x] 现场笔记调度器 (开)",
-    dispatcherOff: "[ ] 现场笔记调度器 (关)",
+    dispatcher: "现场笔记调度器",
     archivedHistoryHint:
       "归档历史预览（beta）：打开已归档的任务时，引擎位置改为只读的 `rove history` 面板（会话选择器 + 对话记录），而不是重新启动引擎。引擎记录按 worktree 路径存储，所以 worktree 被删除后历史仍然可读。与 Web 仪表盘共用同一开关。",
-    archivedHistoryOn: "[x] 归档历史预览 (开)",
-    archivedHistoryOff: "[ ] 归档历史预览 (关)",
+    archivedHistory: "归档历史预览",
   },
 }
