@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.150
+
+### Patch Changes
+
+- [`17e110d`](https://github.com/Sma1lboy/rove/commit/17e110d7dc2fb7f35154bda21ea069df7cd4ba45) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Warn a new worktree task when its dependencies were never installed. If a lockfile is committed but its install output is missing (`node_modules`, `target`, `.venv`) and the repo configures no init script, the first prompt now ends with a note to run the install step before trusting build/test results. Advice only — installing stays `.rove/init.sh`'s job — and silent when an init script exists or the dependency directory is already there.
+
 ## 0.8.149
 
 ### Patch Changes
