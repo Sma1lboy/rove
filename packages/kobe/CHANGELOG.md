@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.161
+
+### Patch Changes
+
+- [#518](https://github.com/Sma1lboy/rove/pull/518) [`6e4e42e`](https://github.com/Sma1lboy/rove/commit/6e4e42e93bbc9cc812a5274887cde8adbed21af5) Consolidate SidebarTree keybindings into one registration.
+
+  `SidebarTree.tsx` had grown six separate `useBindings` calls (main navigation,
+  move-mode escape, search mode, menu navigation, menu escape, jump). The
+  overlapping `enabled` flags and stack order made the real mode priority hard to
+  see, and the shared keys (`escape`, `enter`, `down`/`up`) were duplicated across
+  the bindings array. The same chords are now registered once through a dedicated
+  `useTreeBindings` hook that routes each press through explicit mode guards
+  (menu > search > move > main), keeping behavior identical while removing the
+  spaghetti growth. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#525](https://github.com/Sma1lboy/rove/pull/525) [`71fab42`](https://github.com/Sma1lboy/rove/commit/71fab42743d803c91b59017c9bcf6842633e7fb5) Unify binding-stack reachability scanning for cold callers (`armPrefixNow`, `bindingReachability`) into one `scanReachability` helper while keeping the per-keypress `dispatchKeyEvent` hot path on early-exit helpers so the binding-stack budget tests stay green. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.160
 
 ### Patch Changes
