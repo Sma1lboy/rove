@@ -63,12 +63,12 @@ import {
   setTransparentBackground,
   transparentBackground,
 } from "../context/theme"
-import { useTheme } from "../context/theme"
+import { DEFAULT_THEME, useTheme } from "../context/theme"
 import { isLocaleId, setLocaleLang, t } from "../i18n"
 import { DialogProvider } from "../ui/dialog"
 
 /** Theme used when `state.json` is missing/stale — kobe's brand default. */
-const FALLBACK_THEME = "claude"
+const FALLBACK_THEME = DEFAULT_THEME
 
 /** Same flag surface as the Solid host; see header for the un-ported one. */
 export interface HostProviderFlags {

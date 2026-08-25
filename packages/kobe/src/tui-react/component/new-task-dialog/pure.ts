@@ -9,6 +9,7 @@
  * new-task-pure.test.ts`). No React, no Solid, no fs.
  */
 
+import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { ALL_VENDORS, type VendorId } from "@/types/vendor"
 
 /**
@@ -25,8 +26,8 @@ export function resolveVendorSet(available: readonly VendorId[] | undefined): re
  * detected one (first detected wins when the preference isn't available).
  */
 export function resolveInitialVendor(set: readonly VendorId[], preferred: VendorId | undefined): VendorId {
-  const pref = preferred ?? "claude"
-  return set.includes(pref) ? pref : (set[0] ?? "claude")
+  const pref = preferred ?? DEFAULT_TASK_VENDOR
+  return set.includes(pref) ? pref : (set[0] ?? DEFAULT_TASK_VENDOR)
 }
 
 /** Immutable toggle of one path in the adopt multi-select. */

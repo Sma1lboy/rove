@@ -77,6 +77,13 @@ export type Theme = {
 export const BUNDLED_THEMES: Record<string, ThemeJson> = BUNDLED_THEME_JSONS
 
 /**
+ * Brand default theme for new installs and any fallback path that needs a
+ * bundled palette. Kept as one named constant so theme consumers don't
+ * hard-code the string.
+ */
+export const DEFAULT_THEME = "claude"
+
+/**
  * Is `name` a bundled theme? Framework-free check against the bundled set —
  * the live provider (`src/tui-react/context/theme.tsx`) keeps its own
  * mutable registry (bundled + user themes) behind its own `hasTheme`; this

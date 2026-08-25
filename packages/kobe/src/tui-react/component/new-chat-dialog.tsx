@@ -18,6 +18,7 @@
  * (see `use-tab-dialogs.ts`); the dispatch on submit lives there too.
  */
 
+import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { ALL_VENDORS, type VendorId } from "@/types/vendor"
 import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
@@ -83,7 +84,7 @@ export function NewChatDialogView(props: {
         ...(props.allowScratch ? (["scratch"] as const) : []),
       ]
     : vendors
-  const fallback = vendors.includes(props.defaultVendor) ? props.defaultVendor : (vendors[0] ?? "claude")
+  const fallback = vendors.includes(props.defaultVendor) ? props.defaultVendor : (vendors[0] ?? DEFAULT_TASK_VENDOR)
   const [pick, setPick] = useState<EnginePick>(fallback)
   const display = (choice: EnginePick): string =>
     choice === "scratch"
