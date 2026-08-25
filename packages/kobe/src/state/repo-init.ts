@@ -89,6 +89,43 @@ export function newTaskBranchCoda(taskId: string, api: string = kobeApiInvocatio
   return `${rename}\n\nYou were spawned by Rove task ${spawnerTaskId}. When the work is finished, send your outcome back — include the final branch name: \`${api} send --prompt "<succeeded|failed>: <one-line summary> (branch <final-branch>)"\` (bare send, no --task-id: it routes to the exact tab that dispatched you)`
 }
 
+/**
+ * Lockfile → the directory its install step produces. A committed lockfile
+ * with no install output means the worktree was never installed, so builds,
+ * type-checks and tests there fail for reasons unrelated to the task — the
+ * failure mode behind issue #35 (agents reporting install breakage as a
+ * product regression).
+ *
+ * ponytail: a flat table, not a package-manager abstraction. Add a row when a
+ * real repo needs one.
+ */
+const LOCKFILE_DEPENDENCY_DIRS = [
+  ["bun.lock", "node_modules"],
+  ["bun.lockb", "node_modules"],
+  ["package-lock.json", "node_modules"],
+  ["yarn.lock", "node_modules"],
+  ["pnpm-lock.yaml", "node_modules"],
+  ["Cargo.lock", "target"],
+  ["poetry.lock", ".venv"],
+  ["uv.lock", ".venv"],
+] as const
+
+/**
+ * Warn a fresh worktree's first agent that dependencies were never installed.
+ * Advice only — installing is `.rove/init.sh`'s job, so a repo that ships one
+ * (or a per-user override) gets nothing from here; see `firstMessageFor`.
+ */
+export function missingDependenciesCoda(worktreePath: string): string | undefined {
+  const missing = new Set<string>()
+  for (const [lockfile, dependencyDir] of LOCKFILE_DEPENDENCY_DIRS) {
+    if (!existsSync(join(worktreePath, lockfile))) continue
+    if (existsSync(join(worktreePath, dependencyDir))) continue
+    missing.add(dependencyDir)
+  }
+  if (missing.size === 0) return undefined
+  return `PS: this worktree has no installed dependencies (${[...missing].join(", ")} missing beside a committed lockfile). Run the repo's install step before trusting build/test results — a failure here is most likely the missing install, not a regression. If this repo always needs one, consider adding \`.rove/init.sh\`.`
+}
+
 const INIT_SCRIPT_RELS = [join(".rove", "init.sh"), join(".kobe", "init.sh")] as const
 const INIT_PROMPT_RELS = [join(".rove", "init-prompt.md"), join(".kobe", "init-prompt.md")] as const
 
@@ -138,6 +175,7 @@ export function resolveRepoInit(repoRoot: string, worktreePath: string): Resolve
 function firstMessageFor(
   intent: PromptDeliveryIntent,
   init: ResolvedRepoInit,
+  worktreePath: string,
   taskId?: string,
 ): FirstEngineMessage | undefined {
   if (intent.kind === "none") return undefined
@@ -145,9 +183,14 @@ function firstMessageFor(
   if (intent.kind === "new-task") {
     // `$ROVE_TASK_ID` fallback: exported into every engine tab's env, so the
     // agent's shell expands it even if a caller never threaded the id here.
+    const branch = newTaskBranchCoda(taskId ?? '"$ROVE_TASK_ID"', undefined, intent.spawnerTaskId)
+    // Only when the repo has no init script: with one, the install already ran
+    // (or the repo chose not to), and the warning would be noise. Scoped to
+    // new-task so `send`/handoff prompts into existing sessions never see it.
+    const deps = init.initScript ? undefined : missingDependenciesCoda(worktreePath)
     return {
       source: "explicit",
-      text: `${intent.prompt}\n\n${newTaskBranchCoda(taskId ?? '"$ROVE_TASK_ID"', undefined, intent.spawnerTaskId)}`,
+      text: [intent.prompt, branch, deps].filter(Boolean).join("\n\n"),
     }
   }
   const text = init.initPrompt?.trim()
@@ -168,6 +211,6 @@ export function resolveEngineLaunchInit(
   const init = resolveRepoInit(repoRoot, worktreePath)
   return {
     initScript: init.initScript,
-    firstMessage: firstMessageFor(intent, init, taskId),
+    firstMessage: firstMessageFor(intent, init, worktreePath, taskId),
   }
 }

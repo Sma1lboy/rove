@@ -186,3 +186,56 @@ describe("resolveEngineLaunchInit", () => {
     expect(solo?.text).not.toContain("spawned by")
   })
 })
+
+// Why: issue #35 — a fresh worktree with a committed lockfile but no install
+// output makes every build/test fail for reasons unrelated to the task, and
+// agents have reported that breakage as a product regression. Advice only:
+// installing belongs to `.rove/init.sh`, so a repo that configures one is
+// silent, as is a worktree whose dependency dir is already there.
+describe("missing-dependency coda (new-task only)", () => {
+  test("lockfile present, dependency dir missing, no init script → warns", () => {
+    const wt = makeWorktree({ "bun.lock": "{}" })
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    expect(msg?.text).toContain("no installed dependencies")
+    expect(msg?.text).toContain("node_modules")
+  })
+
+  test("dependency dir already installed → silent", () => {
+    const wt = makeWorktree({ "bun.lock": "{}", "node_modules/.keep": "" })
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    expect(msg?.text).not.toContain("no installed dependencies")
+  })
+
+  test("no lockfile → silent", () => {
+    const wt = makeWorktree()
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    expect(msg?.text).not.toContain("no installed dependencies")
+  })
+
+  test("repo init script configured → silent (install is init.sh's job)", () => {
+    const wt = makeWorktree({ "bun.lock": "{}", ".rove/init.sh": "bun install" })
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    expect(msg?.text).not.toContain("no installed dependencies")
+  })
+
+  test("per-user init-script override also silences it", () => {
+    const wt = makeWorktree({ "Cargo.lock": "" })
+    setRepoInitOverride(wt, { initScript: "cargo fetch" })
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    expect(msg?.text).not.toContain("no installed dependencies")
+  })
+
+  test("non-node ecosystems map to their own dependency dir", () => {
+    const wt = makeWorktree({ "Cargo.lock": "" })
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix it" }, "task-1").firstMessage
+    expect(msg?.text).toContain("target")
+  })
+
+  test("explicit / repo-init / none intents never carry it", () => {
+    const wt = makeWorktree({ "bun.lock": "{}", ".kobe/init-prompt.md": "repo prompt" })
+    for (const intent of [{ kind: "explicit", prompt: "p" }, { kind: "repo-init" }, { kind: "none" }] as const) {
+      const msg = resolveEngineLaunchInit(wt, wt, intent).firstMessage
+      expect(msg?.text ?? "").not.toContain("no installed dependencies")
+    }
+  })
+})
