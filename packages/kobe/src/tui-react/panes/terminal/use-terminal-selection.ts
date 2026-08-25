@@ -16,13 +16,16 @@
  * during a drag, and mirroring that into React state would re-render the
  * pane on every pixel of drag motion for no visible benefit.
  *
- * A drag that hangs past the pane's top or bottom edge AUTO-SCROLLS the
+ * A drag held at (or past) the pane's top or bottom EDGE ROW auto-scrolls the
  * viewport, the way every terminal emulator does — without it the selection
- * can never reach a row that is already above the first visible one, and the
- * pointer usually can't travel far past the edge anyway (the pane sits near
- * the top of the screen). Each tick only scrolls; the head is re-derived
- * from the last pointer position whenever the viewport moves, so it follows
- * the scroll exactly and a wheel tick mid-drag extends the selection too.
+ * can never reach a row that is already above the first visible one. The pull
+ * starts at the boundary row itself because the pane sits flush under a
+ * one-row tab strip: "past the edge" is a target the pointer rarely hits. It
+ * only pulls in the direction the selection is actually growing, so dragging
+ * sideways along the first row (anchor on that row) never scrolls. Each tick
+ * only scrolls; the head is re-derived from the last pointer position
+ * whenever the viewport moves, so it follows the scroll exactly and a wheel
+ * tick mid-drag extends the selection too.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -71,6 +74,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   const [selAnchor, setSelAnchor] = useState<CellPoint | null>(null)
   const [selHead, setSelHead] = useState<CellPoint | null>(null)
   const draggingRef = useRef(false)
+  const anchorRef = useRef<CellPoint | null>(null)
   const renderer = useRenderer()
 
   const selection = useMemo<SelectionRange | null>(() => {
@@ -79,7 +83,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     return { anchor: selAnchor, head: selHead }
   }, [selAnchor, selHead])
 
-  const resolvePointer = (evt: { x?: number; y?: number }): { cell: CellPoint; overshoot: number } | null => {
+  const resolvePointer = (evt: { x?: number; y?: number }): { cell: CellPoint; edgePull: number } | null => {
     const { bodyEl: body, bodyGeometry: geometry, bodyRows, visibleRangeStart, snapshot } = opts
     if (!body || !geometry) return null
     return pointerCell(
@@ -95,6 +99,10 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
 
   const beginSelection = (cell: CellPoint): void => {
     draggingRef.current = true
+    // Mirrored into a ref as well: the drag events of a fast gesture land
+    // before React has re-rendered with the new anchor, and the auto-scroll
+    // direction check must not read a stale (null) one.
+    anchorRef.current = cell
     setSelAnchor(cell)
     setSelHead(cell)
   }
@@ -115,13 +123,26 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     autoScrollRef.current = null
   }
 
+  /**
+   * The pull only counts when the selection is GROWING that way: at the
+   * boundary row the pointer is still inside the pane, so a sideways drag
+   * along the first row (anchor on that row) must not drag the viewport with
+   * it. Once the pointer is genuinely past the edge, the head is already
+   * beyond the anchor and this is satisfied by construction.
+   */
+  const pullFor = (at: { cell: CellPoint; edgePull: number }, anchor: CellPoint | null): number => {
+    if (at.edgePull === 0 || !anchor) return 0
+    if (at.edgePull < 0) return at.cell.row < anchor.row ? at.edgePull : 0
+    return at.cell.row > anchor.row ? at.edgePull : 0
+  }
+
   const dragTo = (evt: { x?: number; y?: number }): void => {
     if (!draggingRef.current) return
     const at = resolvePointer(evt)
     if (!at) return
     dragPointRef.current = { x: evt.x ?? 0, y: evt.y ?? 0 }
     setSelHead(at.cell)
-    if (at.overshoot === 0) stopAutoScroll()
+    if (pullFor(at, anchorRef.current) === 0) stopAutoScroll()
     else if (!autoScrollRef.current) autoScrollRef.current = setInterval(() => tickRef.current(), AUTO_SCROLL_MS)
   }
 
@@ -129,13 +150,14 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     tickRef.current = () => {
       const point = dragPointRef.current
       const at = point && draggingRef.current ? resolvePointer(point) : null
-      if (!at || at.overshoot === 0) {
+      const pull = at ? pullFor(at, anchorRef.current) : 0
+      if (pull === 0) {
         stopAutoScroll()
         return
       }
       // Speed follows how far past the edge the pointer is, capped so a drag
       // to the edge of the screen doesn't fly through the whole scrollback.
-      opts.scrollBy(Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, at.overshoot)))
+      opts.scrollBy(Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, pull)))
     }
   })
 
@@ -176,6 +198,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
       stopAutoScroll()
     },
     clearSelection: () => {
+      anchorRef.current = null
       setSelAnchor(null)
       setSelHead(null)
     },

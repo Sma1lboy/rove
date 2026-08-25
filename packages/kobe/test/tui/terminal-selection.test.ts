@@ -138,22 +138,25 @@ describe("pointerCell", () => {
   const grid = { cols: 80, rows: 10 }
   const at = (col: number, row: number, start = 40) => pointerCell(col, row, grid, start, 200)
 
-  it("maps a pointer inside the pane to its absolute row, no overshoot", () => {
-    expect(at(5, 3)).toEqual({ cell: { row: 43, col: 5 }, overshoot: 0 })
-    expect(at(0, 0).overshoot).toBe(0)
-    expect(at(0, 9).overshoot).toBe(0)
+  it("maps a pointer inside the pane to its absolute row, with no pull", () => {
+    expect(at(5, 3)).toEqual({ cell: { row: 43, col: 5 }, edgePull: 0 })
+    expect(at(0, 1).edgePull).toBe(0)
+    expect(at(0, 8).edgePull).toBe(0)
   })
 
-  it("reports how far a drag hangs past the top edge", () => {
+  it("pulls from the edge ROW, not only from beyond it", () => {
+    // The pane sits flush under a one-row tab strip: a drag held on the first
+    // visible row is the gesture, and it has to scroll.
+    expect(at(2, 0)).toEqual({ cell: { row: 40, col: 2 }, edgePull: -1 })
+    expect(at(2, 9)).toEqual({ cell: { row: 49, col: 2 }, edgePull: 1 })
+  })
+
+  it("pulls harder the further past the edge the pointer sits", () => {
     // The row above the viewport is real scrollback — addressable, and the
-    // negative overshoot is what drives auto-scroll toward it.
-    expect(at(2, -1)).toEqual({ cell: { row: 39, col: 2 }, overshoot: -1 })
-    expect(at(2, -7).overshoot).toBe(-7)
-  })
-
-  it("reports how far a drag hangs past the bottom edge", () => {
-    expect(at(2, 10)).toEqual({ cell: { row: 50, col: 2 }, overshoot: 1 })
-    expect(at(2, 14).overshoot).toBe(5)
+    // negative pull is what drives auto-scroll toward it.
+    expect(at(2, -1)).toEqual({ cell: { row: 39, col: 2 }, edgePull: -2 })
+    expect(at(2, -7).edgePull).toBe(-8)
+    expect(at(2, 14).edgePull).toBe(6)
   })
 
   it("clamps the cell to the snapshot and the grid width", () => {

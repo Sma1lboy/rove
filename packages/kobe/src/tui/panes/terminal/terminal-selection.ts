@@ -23,18 +23,23 @@ export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
 
 /**
- * The absolute snapshot cell under a pointer, plus how far past the pane's
- * edge that pointer sits.
+ * The absolute snapshot cell under a pointer, plus the auto-scroll pull that
+ * pointer position asks for.
  *
  * `viewCol`/`viewRow` are pointer coordinates RELATIVE to the pane body and
  * may be negative or past the last row: opentui captures the drag to the
  * element the press started on, so a drag that leaves the pane keeps
- * reporting real coordinates. That overshoot is the auto-scroll signal —
- * negative above the pane, positive below, zero inside — while the cell
- * itself stays a valid snapshot address (the column is clamped to the grid,
- * the row to the snapshot). Selection coordinates are absolute, so the row
- * under a stationary pointer changes as the viewport scrolls; that is what
- * lets a drag past the top edge keep extending into scrollback.
+ * reporting real coordinates.
+ *
+ * `edgePull` counts from the EDGE ROW, not from outside the pane — the first
+ * visible row already pulls by 1, one row above it by 2, and so on (mirrored
+ * at the bottom). A terminal pane sits flush under a one-row tab strip, so
+ * "drag beyond the pane" is a one-row target the pointer rarely hits;
+ * emulators scroll at the pane boundary itself, and so do we. The cell stays
+ * a valid snapshot address either way (column clamped to the grid, row to the
+ * snapshot). Selection coordinates are absolute, so the row under a
+ * stationary pointer changes as the viewport scrolls — that is what lets a
+ * held drag keep extending into scrollback.
  */
 export function pointerCell(
   viewCol: number,
@@ -42,12 +47,12 @@ export function pointerCell(
   grid: { cols: number; rows: number },
   visibleStart: number,
   snapshotLength: number,
-): { cell: CellPoint; overshoot: number } {
+): { cell: CellPoint; edgePull: number } {
   const col = Math.min(grid.cols - 1, Math.max(0, viewCol))
   const row = Math.min(Math.max(0, snapshotLength - 1), Math.max(0, visibleStart + viewRow))
   const lastRow = grid.rows - 1
-  const overshoot = viewRow < 0 ? viewRow : viewRow > lastRow ? viewRow - lastRow : 0
-  return { cell: { row, col }, overshoot }
+  const edgePull = viewRow <= 0 ? viewRow - 1 : viewRow >= lastRow ? viewRow - lastRow + 1 : 0
+  return { cell: { row, col }, edgePull }
 }
 
 /** Reading-order normalize: start is the earlier of anchor/head. */

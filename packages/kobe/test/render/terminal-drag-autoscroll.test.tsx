@@ -5,6 +5,31 @@ import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
 import { type RenderHandle, act, renderComponent } from "./harness"
 
+/** A pane with 80 rows of history, its first visible row at screen y=2. */
+const mountPane = async (taskId: string): Promise<RenderHandle> => {
+  const harness = createScriptedPtyRegistry()
+  let handle: RenderHandle | undefined
+  await act(async () => {
+    handle = await renderComponent(
+      // Two spacer rows stand in for the workspace tab strip above the pane.
+      <box flexDirection="column" height={18}>
+        <box height={2}>
+          <text>spacer</text>
+        </box>
+        <Terminal cwd="/wt" taskId={taskId} focused registry={harness.registry} />
+      </box>,
+      { width: 60, height: 18, providers: { dialog: true } },
+    )
+  })
+  if (!handle) throw new Error("terminal mount failed")
+  const mounted = handle
+  await act(async () => {
+    harness.last().feed(Array.from({ length: 80 }, (_, i) => `line-${i + 1}`).join("\r\n"))
+    await mounted.frame()
+  })
+  return mounted
+}
+
 const settle = async (handle: RenderHandle, ms: number): Promise<void> => {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, ms))
@@ -13,59 +38,58 @@ const settle = async (handle: RenderHandle, ms: number): Promise<void> => {
 }
 
 /**
- * A selection drag that hangs above the pane must pull the viewport into
- * scrollback — the pointer can't travel far past an edge that sits near the
- * top of the screen, so without auto-scroll every row above the first visible
- * one is unreachable. Two spacer rows give the drag somewhere to hang.
+ * A selection drag held at the pane's FIRST VISIBLE ROW must pull the viewport
+ * into scrollback. The boundary row is the gesture that matters: in the real
+ * workspace the pane sits flush under a one-row tab strip, so "drag above the
+ * pane" is a target the pointer rarely hits.
  *
- * The test never RELEASES the drag: mouse-up copies the selection, and that
+ * Neither test RELEASES the drag: mouse-up copies the selection, and that
  * writes to the real system clipboard.
  */
-test("a selection drag hanging above the pane scrolls into scrollback", async () => {
-  const harness = createScriptedPtyRegistry()
-  let handle: RenderHandle | undefined
-  await act(async () => {
-    handle = await renderComponent(
-      <box flexDirection="column" height={18}>
-        <box height={2}>
-          <text>spacer</text>
-        </box>
-        <Terminal cwd="/wt" taskId="drag-autoscroll" focused registry={harness.registry} />
-      </box>,
-      { width: 60, height: 18, providers: { dialog: true } },
-    )
-  })
-  if (!handle) throw new Error("terminal mount failed")
+test("a selection drag held at the pane's top row scrolls into scrollback", async () => {
+  const handle = await mountPane("drag-autoscroll")
   try {
-    await act(async () => {
-      harness.last().feed(Array.from({ length: 80 }, (_, i) => `line-${i + 1}`).join("\r\n"))
-      await handle?.frame()
-    })
     expect(await handle.frame()).toContain("line-80")
 
-    // Press inside the pane, drag up to a row still inside it (that is what
-    // captures the drag), then hang two rows above the pane's top edge.
+    // Press inside the pane, drag up through it, and hold on its first
+    // visible row. The pointer never leaves the pane.
     await act(async () => {
-      await handle?.mockMouse.pressDown(20, 12)
-      await handle?.mockMouse.emitMouseEvent("drag", 20, 6)
-      await handle?.mockMouse.emitMouseEvent("drag", 20, 0)
-      await handle?.frame()
+      await handle.mockMouse.pressDown(20, 12)
+      await handle.mockMouse.emitMouseEvent("drag", 20, 6)
+      await handle.mockMouse.emitMouseEvent("drag", 20, 2)
+      await handle.frame()
     })
     await settle(handle, 250)
 
     // The scrollback affordance only draws once the viewport has left the live
-    // bottom — i.e. the hanging drag reached history that pointer travel alone
-    // could never have reached.
+    // bottom — i.e. the held drag reached history the pointer alone couldn't.
     expect(await handle.frame()).toMatch(/scrolled|已回滚/)
 
-    // Back inside the pane, the viewport must stop moving on its own.
+    // Away from the edge, the viewport must stop moving on its own.
     await act(async () => {
-      await handle?.mockMouse.emitMouseEvent("drag", 20, 6)
-      await handle?.frame()
+      await handle.mockMouse.emitMouseEvent("drag", 20, 6)
+      await handle.frame()
     })
     const stopped = await handle.frame()
     await settle(handle, 250)
     expect(await handle.frame()).toBe(stopped)
+  } finally {
+    handle.destroy()
+  }
+})
+
+/** The pull is directional: a sideways drag along the top row is not "up". */
+test("dragging sideways along the top row does not scroll", async () => {
+  const handle = await mountPane("drag-sideways")
+  try {
+    await act(async () => {
+      await handle.mockMouse.pressDown(10, 2)
+      await handle.mockMouse.emitMouseEvent("drag", 20, 2)
+      await handle.mockMouse.emitMouseEvent("drag", 30, 2)
+      await handle.frame()
+    })
+    await settle(handle, 250)
+    expect(await handle.frame()).not.toMatch(/scrolled|已回滚/)
   } finally {
     handle.destroy()
   }
