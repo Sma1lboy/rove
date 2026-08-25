@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.180
+
+### Patch Changes
+
+- [`2924f51`](https://github.com/Sma1lboy/rove/commit/2924f516eb9c2bfacdf66798aef5d56ebe4eba02) Terminal selection can now reach scrollback: dragging past the pane's top or
+  bottom edge scrolls the viewport and keeps extending the selection, instead of
+  pinning it to the first visible row. The pane's snapshot no longer registers as
+  opentui-selectable either — that was swallowing every drag event once the
+  pointer left the pane, so the drag could never be followed past the edge. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.179
 
 ### Patch Changes
