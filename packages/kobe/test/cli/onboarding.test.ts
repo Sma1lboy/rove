@@ -31,7 +31,7 @@ describe("detectShell", () => {
 describe("installCompletions", () => {
   it("appends one guarded source line to a missing .zshrc", () => {
     const home = freshHome()
-    const rc = installCompletions("zsh", home)
+    const rc = installCompletions("zsh", home, "rove")
     expect(rc).toBe(join(home, ".zshrc"))
     const content = readFileSync(rc, "utf8")
     expect(content).toContain("source <(rove completions zsh)")
@@ -40,8 +40,8 @@ describe("installCompletions", () => {
 
   it("is idempotent — a second run never stacks a duplicate line", () => {
     const home = freshHome()
-    installCompletions("zsh", home)
-    installCompletions("zsh", home)
+    installCompletions("zsh", home, "rove")
+    installCompletions("zsh", home, "rove")
     const content = readFileSync(join(home, ".zshrc"), "utf8")
     expect(content.match(/rove completions zsh/g)).toHaveLength(1)
   })
@@ -50,7 +50,7 @@ describe("installCompletions", () => {
     const home = freshHome()
     const rc = join(home, ".bashrc")
     writeFileSync(rc, "# mine\nsource ~/.bash_completion.d/rove # rove completions via fpath\n")
-    installCompletions("bash", home)
+    installCompletions("bash", home, "rove")
     const content = readFileSync(rc, "utf8")
     expect(content).toContain("# mine")
     // The marker was already present → nothing appended.
@@ -59,9 +59,17 @@ describe("installCompletions", () => {
 
   it("fish gets an autoloaded completions file, no rc edit", () => {
     const home = freshHome()
-    const path = installCompletions("fish", home)
+    const path = installCompletions("fish", home, "rove")
     expect(path).toBe(join(home, ".config", "fish", "completions", "rove.fish"))
     expect(readFileSync(path, "utf8")).toBe("rove completions fish | source\n")
     expect(existsSync(join(home, ".config", "fish", "config.fish"))).toBe(false)
+  })
+
+  it("uses the active cli name (kobe) when no product is pinned", () => {
+    const home = freshHome()
+    const rc = installCompletions("zsh", home)
+    const content = readFileSync(rc, "utf8")
+    expect(content).toContain("source <(kobe completions zsh)")
+    expect(content).toContain("command -v kobe")
   })
 })

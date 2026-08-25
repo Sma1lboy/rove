@@ -18,6 +18,7 @@ import { basename, join } from "node:path"
 import { npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
 import { getPersistedBool, setPersistedBool } from "../state/store.ts"
 import { t } from "../tui/i18n"
+import { activeCliName } from "./rename-compat.ts"
 
 const ONBOARDED_KEY = "onboarded"
 
@@ -35,29 +36,27 @@ export function detectShell(env: NodeJS.ProcessEnv = process.env): ShellKind | n
   return shell === "zsh" || shell === "bash" || shell === "fish" ? shell : null
 }
 
-/** Marker that makes the rc-append idempotent across re-runs. */
-const RC_MARKER = "rove completions"
-
 /**
  * Hook completions into the shell, returning the file that was touched.
- * zsh/bash get one guarded `source <(kobe completions <shell>)` line in
+ * zsh/bash get one guarded `source <(<cli> completions <shell>)` line in
  * their rc file (the generated zsh script self-registers via compdef when
  * sourced); fish gets a lazy one-liner completions file, which fish
  * autoloads with no rc edit. All three re-generate from the live binary,
  * so completions never go stale across updates.
  */
-export function installCompletions(shell: ShellKind, home: string = homedir()): string {
+export function installCompletions(shell: ShellKind, home: string = homedir(), cli: string = activeCliName()): string {
+  const rcMarker = `${cli} completions`
   if (shell === "fish") {
     const dir = join(home, ".config", "fish", "completions")
-    const path = join(dir, "rove.fish")
+    const path = join(dir, `${cli}.fish`)
     mkdirSync(dir, { recursive: true })
-    writeFileSync(path, "rove completions fish | source\n")
+    writeFileSync(path, `${cli} completions fish | source\n`)
     return path
   }
   const rc = join(home, shell === "zsh" ? ".zshrc" : ".bashrc")
   const existing = existsSync(rc) ? readFileSync(rc, "utf8") : ""
-  if (!existing.includes(RC_MARKER)) {
-    const line = `\n# rove completions\ncommand -v rove >/dev/null && source <(rove completions ${shell})\n`
+  if (!existing.includes(rcMarker)) {
+    const line = `\n# ${cli} completions\ncommand -v ${cli} >/dev/null && source <(${cli} completions ${shell})\n`
     appendFileSync(rc, line)
   }
   return rc
@@ -77,20 +76,23 @@ export function markOnboarded(): void {
  * terminal (npx prompts/progress), and the summary lands in scrollback.
  */
 export function applyOnboardingChoices(choices: OnboardingChoices, shell: ShellKind | null): void {
+  const cli = activeCliName()
+  const completionsHelp = `${cli} completions --help`
+  const skillInstall = `${cli} skill install`
   const out = (line: string) => process.stdout.write(`${line}\n`)
   if (shell !== null) {
     if (choices.completions) {
       out(t("onboarding.appliedCompletions", { path: installCompletions(shell) }))
     } else {
-      out(t("onboarding.skippedCompletions", { command: "rove completions --help" }))
+      out(t("onboarding.skippedCompletions", { command: completionsHelp }))
     }
   }
   if (choices.skill) {
     out(t("onboarding.installingSkill", { command: npxSkillsCommand() }))
     const result = spawnSync("npx", npxSkillsArgv(), { stdio: "inherit" })
-    if (result.status !== 0) out(t("onboarding.skillFailed", { command: "rove skill install" }))
+    if (result.status !== 0) out(t("onboarding.skillFailed", { command: skillInstall }))
   } else {
-    out(t("onboarding.skippedSkill", { command: "rove skill install" }))
+    out(t("onboarding.skippedSkill", { command: skillInstall }))
   }
   out("")
   out(t("onboarding.ready"))
