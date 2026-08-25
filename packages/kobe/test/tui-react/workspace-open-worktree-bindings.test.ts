@@ -21,6 +21,8 @@ vi.mock("../../src/tui-react/lib/keymap", () => ({
 }))
 vi.mock("../../src/tui-react/ui/dialog-confirm", () => ({ DialogConfirm: { show: vi.fn() } }))
 
+import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
+
 const { useWorkspaceKeybindings } = await import("../../src/tui-react/workspace/host-keybindings")
 
 describe("workspace open-worktree bindings", () => {
@@ -32,25 +34,36 @@ describe("workspace open-worktree bindings", () => {
     const openTaskWorktree = vi.fn()
     const renameBranch = vi.fn()
     const cycleVendor = vi.fn()
+    const pages: HostPagesState = {
+      nav: "terminal",
+      setNav: vi.fn(),
+      goToNav: vi.fn(),
+      settingsOpen: false,
+      openSettings: vi.fn(),
+      closeSettings: vi.fn(),
+      worktreesOpen: false,
+      openWorktrees: vi.fn(),
+      closeWorktrees: vi.fn(),
+      updateOpen: false,
+      openUpdate: vi.fn(),
+      closeUpdate: vi.fn(),
+      kanbanOpen: false,
+      openKanban: vi.fn(),
+      closeKanban: vi.fn(),
+      automationsOpen: false,
+      openAutomations: vi.fn(),
+      closeAutomations: vi.fn(),
+      workItemsOpen: false,
+      openWorkItems: vi.fn(),
+      closeWorkItems: vi.fn(),
+    }
     useWorkspaceKeybindings({
       focus: { focused: "sidebar", setFocused: vi.fn() } as never,
       dialog: { stack: [] } as never,
-      settingsOpen: false,
-      worktreesOpen: false,
-      openWorktrees: vi.fn(),
-      updateOpen: false,
-      openUpdate: vi.fn(),
-      kanbanOpen: false,
-      automationsOpen: false,
-      openAutomations: vi.fn(),
-      workItemsOpen: false,
-      openWorkItems: vi.fn(),
-      openKanban: vi.fn(),
+      pages,
       searchActive: false,
       selectedId: "task-1",
       openTaskWorktree,
-      openSettings: vi.fn(),
-      closeSettings: vi.fn(),
       createTask: vi.fn(),
       renameBranch,
       cycleVendor,
@@ -86,25 +99,36 @@ describe("workspace open-worktree bindings", () => {
   // Pinning the gate here keeps that contract visible to anyone driving the
   // TUI from a test: press ctrl+q first, or use the global prefix chord.
   test("the sidebar open-worktree row is gated off while another pane holds focus", () => {
+    const pages: HostPagesState = {
+      nav: "terminal",
+      setNav: vi.fn(),
+      goToNav: vi.fn(),
+      settingsOpen: false,
+      openSettings: vi.fn(),
+      closeSettings: vi.fn(),
+      worktreesOpen: false,
+      openWorktrees: vi.fn(),
+      closeWorktrees: vi.fn(),
+      updateOpen: false,
+      openUpdate: vi.fn(),
+      closeUpdate: vi.fn(),
+      kanbanOpen: false,
+      openKanban: vi.fn(),
+      closeKanban: vi.fn(),
+      automationsOpen: false,
+      openAutomations: vi.fn(),
+      closeAutomations: vi.fn(),
+      workItemsOpen: false,
+      openWorkItems: vi.fn(),
+      closeWorkItems: vi.fn(),
+    }
     useWorkspaceKeybindings({
       focus: { focused: "workspace", setFocused: vi.fn() } as never,
       dialog: { stack: [] } as never,
-      settingsOpen: false,
-      worktreesOpen: false,
-      openWorktrees: vi.fn(),
-      updateOpen: false,
-      openUpdate: vi.fn(),
-      kanbanOpen: false,
-      automationsOpen: false,
-      openAutomations: vi.fn(),
-      workItemsOpen: false,
-      openWorkItems: vi.fn(),
-      openKanban: vi.fn(),
+      pages,
       searchActive: false,
       selectedId: "task-1",
       openTaskWorktree: vi.fn(),
-      openSettings: vi.fn(),
-      closeSettings: vi.fn(),
       createTask: vi.fn(),
       renameBranch: vi.fn(),
       cycleVendor: vi.fn(),
