@@ -87,6 +87,16 @@ interface PayloadSource {
  * separate slots and ONE pure function decides what subscribers see, instead
  * of each writer special-casing the other source's entries.
  */
+/** Scope key for the unified lapse watchdog — one abstraction covers both
+ *  the task-level rollup and a per-tab hook slot. */
+interface LapseTarget {
+  readonly taskId: string
+  readonly tabId?: string
+}
+
+/** The subset of an entry the lapse-timer abstraction reads and writes. */
+type LapseEntry = Pick<ActivityEntry, "at" | "vendor" | "session" | "lapse">
+
 export class DaemonActivityRegistry {
   private readonly activity = new Map<string, ActivityEntry>()
   /** Per-tab records (taskId → tabId → entry) for events that carried a
@@ -131,7 +141,7 @@ export class DaemonActivityRegistry {
     // (turn_complete + the attention states a user walks away to handle) stay
     // visible until the next real event clears them; see {@link STICKY_STATES}.
     if (state !== "idle" && !STICKY_STATES.has(state)) {
-      entry.lapse = this.armLapse(taskId, at)
+      entry.lapse = this.armLapse({ taskId }, at)
     }
     this.activity.set(taskId, entry)
     // Per-tab ledger. A TAB-scoped publish must carry the TAB's session
@@ -156,7 +166,7 @@ export class DaemonActivityRegistry {
         tabs.delete(tabId)
       } else {
         const hook: TabHookEntry = { state, detail, at, session: tabSession, vendor: tabVendor }
-        if (!STICKY_STATES.has(state)) hook.lapse = this.armTabLapse(taskId, tabId, at)
+        if (!STICKY_STATES.has(state)) hook.lapse = this.armLapse({ taskId, tabId }, at)
         tabs.set(tabId, {
           hook,
           effective: {
@@ -216,49 +226,16 @@ export class DaemonActivityRegistry {
    * a write within the trailing `staleMs` window ⇒ the turn is alive, so we
    * re-arm (a heartbeat) instead of idling. Only a genuinely silent engine
    * (no recent write ⇒ a missed Stop / hung process) lapses to idle.
+   *
+   * One helper covers both the task-level rollup and per-tab hook slots; the
+   * callback resolves the right ledger by the scope key.
    */
-  private armLapse(taskId: string, at: number): ReturnType<typeof setTimeout> {
+  private armLapse(target: LapseTarget, at: number): ReturnType<typeof setTimeout> {
     const timer = setTimeout(() => {
-      void this.handleLapse(taskId, at)
+      void this.handleLapse(target, at)
     }, this.staleMs)
     timer.unref?.()
     return timer
-  }
-
-  /** Per-tab sibling of {@link armLapse} — same probe-then-idle heartbeat,
-   *  scoped to one (taskId, tabId) hook slot. */
-  private armTabLapse(taskId: string, tabId: string, at: number): ReturnType<typeof setTimeout> {
-    const timer = setTimeout(() => {
-      void this.handleTabLapse(taskId, tabId, at)
-    }, this.staleMs)
-    timer.unref?.()
-    return timer
-  }
-
-  /** Per-tab sibling of {@link handleLapse}: same supersede guards (re-read
-   *  before AND after the probe, match on `at`), same liveness heartbeat.
-   *  Only the HOOK slot is policed (observed entries carry no watchdog — the
-   *  observer's own poll retires them); on a genuine lapse the whole tab
-   *  record is dropped and a per-tab idle is published so hook-wins
-   *  subscribers fall back to the quiescence poll. */
-  private async handleTabLapse(taskId: string, tabId: string, at: number): Promise<void> {
-    const before = this.tabActivity.get(taskId)?.get(tabId)?.hook
-    if (!before || before.at !== at) return
-
-    const live = await this.probe(taskId, before.vendor, before.session?.transcriptPath)
-
-    const tabs = this.tabActivity.get(taskId)
-    const cur = tabs?.get(tabId)?.hook
-    if (!tabs || !cur || cur.at !== at) return
-
-    if (this.stillWorking(live, at)) {
-      cur.lapse = this.armTabLapse(taskId, tabId, at)
-      return
-    }
-
-    tabs.delete(tabId)
-    if (tabs.size === 0) this.tabActivity.delete(taskId)
-    this.bus.publish("engine-state", { taskId, tabId, state: "idle", at: this.now() })
   }
 
   /**
@@ -267,26 +244,47 @@ export class DaemonActivityRegistry {
    * before OR during the probe supersedes this lapse (re-read the map and
    * confirm the same `at` both before and after the await). A rescheduled
    * lapse is stored back on the live entry, so a later event can cancel it.
+   *
+   * One implementation covers both the task-level rollup and the per-tab hook
+   * slot — the policy (probe, supersede guard, heartbeat) is identical; only
+   * the idle cleanup differs.
    */
-  private async handleLapse(taskId: string, at: number): Promise<void> {
+  private async handleLapse(target: LapseTarget, at: number): Promise<void> {
     // Superseded before we even probed (a fresh report swapped the entry).
-    const before = this.activity.get(taskId)
+    const before = this.lapseEntry(target)
     if (!before || before.at !== at) return
 
-    const live = await this.probe(taskId, before.vendor, before.session?.transcriptPath)
+    const live = await this.probe(target.taskId, before.vendor, before.session?.transcriptPath)
 
     // Re-read after the await: the entry may have been replaced or cleared
     // while the probe was in flight. Acting on a stale `at` would clobber a
     // newer state or resurrect a cleared task.
-    const cur = this.activity.get(taskId)
+    const cur = this.lapseEntry(target)
     if (!cur || cur.at !== at) return
 
     if (this.stillWorking(live, at)) {
-      cur.lapse = this.armLapse(taskId, at)
+      cur.lapse = this.armLapse(target, at)
       return
     }
 
-    this.publishIdle(taskId)
+    if (target.tabId) {
+      const tabs = this.tabActivity.get(target.taskId)
+      if (tabs) {
+        tabs.delete(target.tabId)
+        if (tabs.size === 0) this.tabActivity.delete(target.taskId)
+      }
+      this.bus.publish("engine-state", { taskId: target.taskId, tabId: target.tabId, state: "idle", at: this.now() })
+    } else {
+      this.publishIdle(target.taskId)
+    }
+  }
+
+  /** Read the hook entry that a lapse watchdog polices at a given scope. */
+  private lapseEntry(target: LapseTarget): LapseEntry | undefined {
+    if (target.tabId) {
+      return this.tabActivity.get(target.taskId)?.get(target.tabId)?.hook
+    }
+    return this.activity.get(target.taskId)
   }
 
   /**
