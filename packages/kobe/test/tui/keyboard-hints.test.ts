@@ -19,7 +19,7 @@ import {
   toggleKeyHints,
   wizardKeyLines,
 } from "../../src/tui/lib/keyboard-hints.ts"
-import type { BindingReachability } from "../../src/tui/lib/keymap-dispatch.ts"
+import type { BindingReachability } from "../../src/tui/lib/keymap-reachability.ts"
 
 afterEach(() => resetKeymapToDefaults())
 

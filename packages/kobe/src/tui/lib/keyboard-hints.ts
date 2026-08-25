@@ -12,7 +12,7 @@
 
 import { formatChord } from "./chord-glyphs"
 import { legendCap } from "./help-groups"
-import type { BindingReachability } from "./keymap-dispatch"
+import type { BindingReachability } from "./keymap-reachability"
 
 /** Master toggle (Settings → General → Keyboard hints). Default ON. */
 export const KEY_HINTS_ENABLED_KEY = "hints.keyboard.enabled"

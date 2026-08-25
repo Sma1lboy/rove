@@ -8,7 +8,7 @@
 
 import type { KobeBinding, KobeBindingScope } from "../context/keybindings"
 import { findBinding } from "../context/keybindings"
-import type { BindingReachability } from "./keymap-dispatch"
+import type { BindingReachability } from "./keymap-reachability"
 
 /** Group a flat keymap into categories in declaration order. */
 export function groupBindings<T extends { readonly category: string }>(
