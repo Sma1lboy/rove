@@ -272,11 +272,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * a chunk boundary is reassembled correctly. Decoding each chunk here
    * instead corrupted any glyph straddling a boundary. */
   protected feed(data: string | Uint8Array): void {
-    if (this._killed) return
-    this.term.write(data, () => {
-      if (!this.refreshTracker.supported) this.refreshTracker.markAll()
-      this.queueRefresh()
-    })
+    this.feedInternal(data, false)
   }
 
   /** Feed a ring-buffer REPLAY: parsed like live output, but the emulator's
@@ -284,10 +280,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * channel). Live chunks fed after this parse in FIFO order, so the
    * un-mute callback lands between the replay's parse and theirs. */
   protected feedReplay(data: string | Uint8Array): void {
+    this.feedInternal(data, true)
+  }
+
+  private feedInternal(data: string | Uint8Array, muteReplies: boolean): void {
     if (this._killed) return
-    this.muteReplies = true
+    if (muteReplies) this.muteReplies = true
     this.term.write(data, () => {
-      this.muteReplies = false
+      if (muteReplies) this.muteReplies = false
       if (!this.refreshTracker.supported) this.refreshTracker.markAll()
       this.queueRefresh()
     })

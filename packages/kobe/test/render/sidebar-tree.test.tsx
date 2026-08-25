@@ -15,6 +15,7 @@
  * correctly.
  */
 import { expect, test } from "bun:test"
+import { useBindings } from "../../src/tui-react/lib/keymap"
 import { SidebarTree } from "../../src/tui-react/panes/sidebar/SidebarTree"
 import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { Task } from "../../src/types/task"
@@ -265,4 +266,36 @@ test("escape leaves move mode", async () => {
   mockInput.pressEscape()
   await new Promise((r) => setTimeout(r, SETTLE))
   expect(exited).toBe(1)
+})
+
+// Regression: when no transient mode is active, the sidebar must not register
+// an escape binding. If it does, dispatch considers it a match and swallows the
+// key, even though the handler is a no-op.
+test("escape bubbles out when no sidebar mode is active", async () => {
+  tabsByTask.clear()
+  let escaped = false
+  function LowerEscape() {
+    useBindings(() => ({
+      enabled: true,
+      bindings: [
+        {
+          key: "escape",
+          cmd: () => {
+            escaped = true
+          },
+        },
+      ],
+    }))
+    return null
+  }
+  const { mockInput } = await renderComponent(
+    <>
+      <LowerEscape />
+      {tree()}
+    </>,
+  )
+  await new Promise((r) => setTimeout(r, SETTLE))
+  mockInput.pressEscape()
+  await new Promise((r) => setTimeout(r, SETTLE))
+  expect(escaped).toBe(true)
 })
