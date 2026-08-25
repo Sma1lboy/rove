@@ -15,7 +15,6 @@ export const en = {
   sections: {
     general: "General",
     engines: "Engines",
-    accounts: "Accounts",
     plugins: "Plugins",
     keys: "Keybindings",
     feedback: "Feedback",
@@ -92,15 +91,12 @@ export const en = {
     },
   },
   engines: {
-    title: "Launch command",
-    hint: "The command each engine's task pane runs. Override a built-in when the binary isn't on PATH, to pass default flags, or add your own engine. ● = global default engine (per-project picks, e.g. Ctrl+Shift+T, override it). enter edit command · r rename · x reset/remove · d set default.",
-    defaultTag: "  (default)",
+    title: "Engines",
+    hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; ● = the global default (per-project picks, e.g. Ctrl+Shift+T, override it). Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
     customTag: "  (custom)",
     addEngine: "+ Add engine",
   },
   accounts: {
-    title: "Accounts",
-    hint: "Read-only view of locally-detected engines: every engine the Engines section lists, its binary, and — for engines with an account detector — whether you are logged in. Login flows land here later.",
     checking: "Checking…",
     notLoggedIn: "○ Not logged in",
     loggedIn: "● Logged in: {email}",
@@ -197,7 +193,6 @@ export const zh: typeof en = {
   sections: {
     general: "通用",
     engines: "引擎",
-    accounts: "账户",
     plugins: "插件",
     keys: "快捷键",
     feedback: "反馈",
@@ -270,15 +265,12 @@ export const zh: typeof en = {
     },
   },
   engines: {
-    title: "启动命令",
-    hint: "每个引擎的任务面板运行的命令。当内置二进制文件不在 PATH 上、要传默认参数，或要添加自己的引擎时，可覆盖内置项。● = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）。enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
-    defaultTag: "  (默认)",
+    title: "引擎",
+    hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；● = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
     customTag: "  (自定义)",
     addEngine: "+ 添加引擎",
   },
   accounts: {
-    title: "账户",
-    hint: "本地探测结果的只读视图：引擎页列出的每个引擎、它的可执行文件，以及——对有账户探测器的引擎——是否已登录。登录流程稍后会接入这里。",
     checking: "检查中…",
     notLoggedIn: "○ 未登录",
     loggedIn: "● 已登录: {email}",

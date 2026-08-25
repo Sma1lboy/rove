@@ -1,6 +1,6 @@
 /**
  * Section data the Settings dialog reads from OUTSIDE its own kv state —
- * engine account probes (fs/env) and the plugin registry (`~/.kobe/
+ * engine detection probes (fs/env) and the plugin registry (`~/.kobe/
  * plugins.json`). Both are lazy: nothing is read until the owning section
  * is first opened, so a settings open that never visits them pays nothing.
  * Split out of `index.tsx` for the file-size cap, like `use-settings-prefs`
@@ -20,7 +20,7 @@ import { type PluginRowView, readPluginRows, setPluginEnabled, setPluginSetting 
 
 /**
  * Read-only "installed + logged in" detection for EVERY engine in the
- * settings list — the built-ins with a real account detector and the
+ * Engines section's list — the built-ins with a real account detector and the
  * contrib / plugin / custom engines that only have a binary to probe.
  * `null` while the probe is in flight. Re-probes each time the section is
  * opened (and when the engine list grows), so a CLI installed from another
@@ -33,7 +33,7 @@ export function useAccountProbes(section: SectionId, vendors: readonly VendorId[
   // array itself would re-probe on every keystroke in the dialog.
   const key = vendors.join(",")
   useEffect(() => {
-    if (section !== "accounts") return
+    if (section !== "engines") return
     let cancelled = false
     void detectEngineStatuses(key ? key.split(",") : []).then((s) => {
       if (!cancelled) setStatuses(s)

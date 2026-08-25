@@ -42,7 +42,7 @@
 import { homedir } from "node:os"
 import path from "node:path"
 import { errorMessage } from "@/lib/error-message"
-import { getCustomEngineIds } from "@/state/repos"
+import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
 import { ClaudeBinaryNotFoundError, findClaudeBinary } from "./claude-code-local/binary"
 import { CodexBinaryNotFoundError, findCodexBinary } from "./codex-local/binary"
@@ -269,11 +269,21 @@ export function resetAvailableVendorsCache(): void {
  * call — state.json can change (Settings → Engines), and only the slow binary
  * `which` probes are worth caching.
  */
-export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+export async function installedEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
   const builtins = await detectAvailableVendors(deps)
   const contrib = await detectContribEngines()
   // Custom ids win over a same-named contrib entry (dedup keeps the first).
   return [...new Set([...builtins, ...getCustomEngineIds(), ...contrib])]
+}
+
+/**
+ * {@link installedEngineIds} minus the engines the user switched OFF in
+ * Settings → Engines. This is the list to OFFER — Settings itself reads the
+ * installed list, since a disabled engine still needs a row to switch back on.
+ */
+export async function availableEngineIds(deps: DetectDeps = defaultDeps): Promise<readonly VendorId[]> {
+  const disabled = new Set(getDisabledEngineIds())
+  return (await installedEngineIds(deps)).filter((id) => !disabled.has(id))
 }
 
 /**

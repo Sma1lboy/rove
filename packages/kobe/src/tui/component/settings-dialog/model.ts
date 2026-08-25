@@ -25,12 +25,11 @@ import { LOCALES, type LocaleId } from "../../i18n/catalog"
 
 export type NavLevel = "sidebar" | "body"
 
-export type SectionId = "general" | "engines" | "accounts" | "plugins" | "keys" | "feedback" | "dev"
+export type SectionId = "general" | "engines" | "plugins" | "keys" | "feedback" | "dev"
 
 export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "general", label: "General" },
   { id: "engines", label: "Engines" },
-  { id: "accounts", label: "Accounts" },
   { id: "plugins", label: "Plugins" },
   { id: "keys", label: "Keybindings" },
   { id: "feedback", label: "Feedback" },
@@ -202,8 +201,8 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
 }
 
 /**
- * The full registry: a section's ordered navigable rows. Accounts and
- * Keybindings are read-only displays — zero navigable rows.
+ * The full registry: a section's ordered navigable rows. Keybindings is a
+ * read-only display — zero navigable rows.
  */
 export function sectionRows(section: SectionId, input: SettingsRowsInput): SettingsRow[] {
   switch (section) {
@@ -211,7 +210,6 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
       return generalRows(input)
     case "engines":
       return engineRows(input.engineList)
-    case "accounts":
     case "keys":
       return []
     case "plugins":

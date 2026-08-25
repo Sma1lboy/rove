@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useState } from "react"
-import { availableEngineIds } from "../../../engine/account-detect"
+import { installedEngineIds } from "../../../engine/account-detect"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
 import { defaultEngineCommand, engineCommandKey, engineNameKey } from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
@@ -29,11 +29,11 @@ export function useEngineSettings(
 ) {
   // Engines Rove can launch beyond the built-ins + this user's own: the
   // shipped contrib catalog (offered only when its binary is on PATH) and
-  // plugin-registered engines. Same source the new-task selector reads, so
-  // an engine you can PICK is an engine you can configure here.
+  // plugin-registered engines. The INSTALLED list, not the offered one — a
+  // switched-off engine still needs its row here to switch back on.
   const [detected, setDetected] = useState<readonly VendorId[]>([])
   useEffect(() => {
-    void availableEngineIds().then(setDetected)
+    void installedEngineIds().then(setDetected)
   }, [])
 
   function customEngines(): string[] {
@@ -48,6 +48,37 @@ export function useEngineSettings(
   /** True only for an engine this user added — the one `x` can unregister. */
   function isCustomEngine(vendor: VendorId): boolean {
     return customEngines().includes(vendor)
+  }
+
+  function disabledEngines(): string[] {
+    const raw = kv.get("disabledEngineIds", [])
+    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
+  }
+  function isEngineEnabled(vendor: VendorId): boolean {
+    return !disabledEngines().includes(vendor)
+  }
+  /**
+   * Switch an engine off (it keeps its overrides, it just stops being offered
+   * when picking one for a task) or back on. Switching off the GLOBAL default
+   * hands the ● to the first engine still enabled — a default nobody can pick
+   * would silently strand every new task; when nothing else is enabled the
+   * toggle is refused instead.
+   */
+  function toggleEngineEnabled(vendor: VendorId): void {
+    const off = disabledEngines()
+    if (off.includes(vendor)) {
+      kv.set(
+        "disabledEngineIds",
+        off.filter((id) => id !== vendor),
+      )
+      return
+    }
+    const nextDefault = engineList().find((id) => id !== vendor && !off.includes(id))
+    if (defaultEngine === vendor) {
+      if (!nextDefault) return // the last enabled engine stays on
+      setEngineDefault(nextDefault)
+    }
+    kv.set("disabledEngineIds", [...off, vendor])
   }
   function engineOverride(vendor: VendorId): string {
     const v = kv.get(engineCommandKey(vendor), "")
@@ -169,6 +200,8 @@ export function useEngineSettings(
   return {
     engineList,
     isCustomEngine,
+    isEngineEnabled,
+    toggleEngineEnabled,
     engineName,
     engineCommandText,
     engineIsDefault,

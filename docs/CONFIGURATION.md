@@ -233,6 +233,11 @@ register any other CLI from **Settings → Engines**, or by hand:
 }
 ```
 
+Switching an engine OFF in **Settings → Engines** (`space`) records it under
+`disabledEngineIds`; it keeps every override and simply stops being offered
+when you pick an engine for a task. The global default engine can't be left
+disabled — switching it off hands the default to the first engine still on.
+
 Being in `customEngineIds` *is* the registration — there's no other step. Ids
 must match `^[a-z][a-z0-9_-]{0,47}$` and can't collide with a built-in;
 invalid ones are dropped on read.

@@ -251,12 +251,14 @@ left arrow to return to the section list, and `enter` to activate a row.
   notifications, keyboard hints, zen startup, editor choice, worktree
   location, terminal scrollback and the optional horizontal tab strip. It
   also shows available engine quota snapshots.
-- **Engines** edits launch commands and display names, chooses the default,
-  and registers custom engines. On an engine row, `r` renames, `x` resets a
+- **Engines** lists every engine Rove can launch — built-ins, the contrib
+  catalog, plugin-registered and your own — each with what local detection
+  found under it: where its binary is, and for engines with an account
+  detector whether you are logged in (login itself still happens in each
+  engine's own CLI). On an engine row, `space` switches it on or off (off
+  keeps its settings, it just stops being offered when picking an engine for
+  a task), `enter` edits the launch command, `r` renames, `x` resets a
   built-in or removes a custom engine, and `d` makes it the default.
-- **Accounts** is a read-only check of installed binaries and locally detected
-  login state for Claude Code, Codex, Copilot and Kimi; login still happens in
-  each engine's own CLI.
 - **Plugins** enables or disables registered plugins live and edits settings
   declared by their manifests. Install, update, link and remove plugins from
   the shell.

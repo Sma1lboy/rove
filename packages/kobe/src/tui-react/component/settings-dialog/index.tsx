@@ -41,7 +41,7 @@ import { useAccessor } from "../../lib/use-accessor"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
 import { SettingsCursorElContext } from "./rows"
-import { AccountsSettingsSection, EngineSettingsSection } from "./sections-engines"
+import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
@@ -99,7 +99,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
-  const accounts = useAccountProbes(section, engines.engineList())
+  const engineStatuses = useAccountProbes(section, engines.engineList())
   const plugins = usePluginSettings(section, dialog)
 
   /**
@@ -309,6 +309,15 @@ export function SettingsDialog(props: SettingsDialogProps) {
           if (v) engines.setEngineDefault(v)
         },
       },
+      {
+        // Engines section: `space` switches the focused engine on or off.
+        // PROPOSED chord — surfaced for sign-off, see docs/KEYBINDINGS.md.
+        key: "space",
+        cmd: () => {
+          const v = currentEngineRow()
+          if (v) engines.toggleEngineEnabled(v)
+        },
+      },
     ],
   }))
 
@@ -337,6 +346,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }, [])
 
   const cursorProps = { level, bodyRow, setLevel, setBodyRow }
+  const navHint = (
+    <box paddingTop={0}>
+      <text fg={theme.textMuted}>{editingFeedback ? t("settings.nav.feedback") : t("settings.nav.default")}</text>
+    </box>
+  )
   const body = (
     <box paddingLeft={padX} paddingRight={padX} paddingBottom={1} gap={1}>
       <box flexDirection="row" justifyContent="space-between">
@@ -367,20 +381,16 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <EngineSettingsSection
               {...cursorProps}
               vendors={engines.engineList()}
+              statuses={engineStatuses}
               isCustom={engines.isCustomEngine}
+              isEnabled={engines.isEngineEnabled}
+              toggleEngine={engines.toggleEngineEnabled}
               displayName={engines.engineName}
               commandText={engines.engineCommandText}
               isDefault={engines.engineIsDefault}
               isDefaultEngine={(v) => engines.defaultEngine === v}
               editEngine={(v) => void engines.editEngine(v)}
               onAddEngine={() => void engines.addEngineFlow()}
-            />
-          ) : null}
-          {section === "accounts" ? (
-            <AccountsSettingsSection
-              vendors={engines.engineList()}
-              statuses={accounts}
-              displayName={engines.engineName}
             />
           ) : null}
           {section === "plugins" ? (
@@ -421,9 +431,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
           ) : null}
         </box>
       </box>
-      <box paddingTop={0}>
-        <text fg={theme.textMuted}>{editingFeedback ? t("settings.nav.feedback") : t("settings.nav.default")}</text>
-      </box>
+      {/* Overlay dialog: the box is content-sized, so the hint is simply its
+          last row. The standalone page pulls it out as a footer instead. */}
+      {props.standalone ? null : navHint}
     </box>
   )
 
@@ -431,15 +441,25 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return <SettingsCursorElContext.Provider value={reportCursorEl}>{body}</SettingsCursorElContext.Provider>
   return (
     <SettingsCursorElContext.Provider value={reportCursorEl}>
-      <scrollbox
-        ref={(r: ScrollBoxRenderable | null) => {
-          scrollRef.current = r
-        }}
-        flexGrow={1}
-        verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
-      >
-        {body}
-      </scrollbox>
+      <box flexDirection="column" flexGrow={1}>
+        <scrollbox
+          ref={(r: ScrollBoxRenderable | null) => {
+            scrollRef.current = r
+          }}
+          flexGrow={1}
+          flexShrink={1}
+          flexBasis={0}
+          verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+        >
+          {body}
+        </scrollbox>
+        {/* Floating footer: the page content scrolls, this line does not —
+            the nav hint is exactly what you want when a long section has
+            scrolled its own header out of sight. */}
+        <box paddingLeft={padX} paddingRight={padX}>
+          {navHint}
+        </box>
+      </box>
     </SettingsCursorElContext.Provider>
   )
 }

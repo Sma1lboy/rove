@@ -1,12 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings sections (React, issue #15 G3) — Engines + Accounts. Port of
- * the corresponding views in `src/tui/component/settings-dialog/
- * sections.tsx`; Accessor props became plain values, and the status
- * accessors of the Accounts section are plain nullable values resolved by
- * the dialog's probe effect.
+ * Settings → Engines (React): the one place an engine is configured AND
+ * inspected. Each engine is a two-line card — the navigable line carries its
+ * on/off switch, the ● default marker, its display name and launch command;
+ * the muted line under it carries what detection found (the binary, and for
+ * the built-ins whether an account is logged in). Accounts used to be its own
+ * read-only section; splitting "which engines exist" from "do they work" only
+ * made you hop between two lists of the same names.
  */
 
+import { homedir } from "node:os"
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
@@ -18,6 +21,8 @@ import type { SectionCursorProps } from "./rows"
 export function EngineSettingsSection(
   props: SectionCursorProps & {
     vendors: readonly VendorId[]
+    /** Detection results, keyed by vendor; `null` while the probe is in flight. */
+    statuses: readonly EngineStatus[] | null
     /** Display label for a vendor — custom name override, else VENDOR_LABEL. */
     displayName: (vendor: VendorId) => string
     /** Current launch command shown for a vendor (override or default). */
@@ -26,10 +31,14 @@ export function EngineSettingsSection(
     isDefault: (vendor: VendorId) => boolean
     /** True for a user-added engine (shown with a `(custom)` tag; `x` removes it). */
     isCustom: (vendor: VendorId) => boolean
+    /** False for an engine switched off — kept here, not offered for new tasks. */
+    isEnabled: (vendor: VendorId) => boolean
     /** True for the DEFAULT engine for new tasks (the ● marker; set with `d`). */
     isDefaultEngine: (vendor: VendorId) => boolean
     /** Open the editor for a vendor's launch command (`enter`). */
     editEngine: (vendor: VendorId) => void
+    /** Switch a vendor on or off (`space`). */
+    toggleEngine: (vendor: VendorId) => void
     /** Register a new custom engine — the trailing "+ Add engine" row. */
     onAddEngine: () => void
   },
@@ -39,6 +48,7 @@ export function EngineSettingsSection(
   // The "+ Add engine" row sits right after the last engine, at index = count.
   const addRowIndex = props.vendors.length
   const isBodyCursor = (row: number) => props.level === "body" && props.bodyRow === row
+  const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
@@ -50,47 +60,58 @@ export function EngineSettingsSection(
       <box flexDirection="column" gap={0}>
         {props.vendors.map((vendor, i) => {
           const isCursor = isBodyCursor(i)
+          const enabled = props.isEnabled(vendor)
+          // A switched-off engine reads as inert: no accent anywhere, name and
+          // command dimmed to the same muted tone as its detection line.
+          const nameFg = isCursor ? theme.selectedListItemText : enabled ? theme.text : theme.textMuted
+          const commandFg = isCursor
+            ? theme.selectedListItemText
+            : !enabled || props.isDefault(vendor)
+              ? theme.textMuted
+              : theme.accent
           return (
-            <box
-              key={vendor}
-              flexDirection="row"
-              gap={1}
-              paddingLeft={1}
-              paddingRight={1}
-              backgroundColor={isCursor ? theme.primary : undefined}
-              onMouseUp={() => {
-                props.setLevel("body")
-                props.setBodyRow(i)
-                props.editEngine(vendor)
-              }}
-            >
-              {/* ● marks the DEFAULT engine for new tasks (radio-style, like
-                  the theme list); a space holds the column on the others. */}
-              <text
-                fg={isCursor ? theme.selectedListItemText : theme.accent}
-                attributes={TextAttributes.BOLD}
-                wrapMode="none"
+            <box key={vendor} flexDirection="column" gap={0}>
+              <box
+                flexDirection="row"
+                gap={1}
+                paddingLeft={1}
+                paddingRight={1}
+                overflow="hidden"
+                backgroundColor={isCursor ? theme.primary : undefined}
+                onMouseUp={() => {
+                  props.setLevel("body")
+                  props.setBodyRow(i)
+                  props.editEngine(vendor)
+                }}
               >
-                {props.isDefaultEngine(vendor) ? "●" : " "}
-              </text>
-              <text
-                fg={isCursor ? theme.selectedListItemText : theme.text}
-                attributes={TextAttributes.BOLD}
-                wrapMode="none"
-              >
-                {props.displayName(vendor)}
-              </text>
-              <text
-                fg={isCursor ? theme.selectedListItemText : props.isDefault(vendor) ? theme.textMuted : theme.accent}
-                wrapMode="none"
-              >
-                {props.commandText(vendor) +
-                  (props.isDefault(vendor)
-                    ? t("settings.engines.defaultTag")
-                    : props.isCustom(vendor)
-                      ? t("settings.engines.customTag")
-                      : "")}
-              </text>
+                {/* On/off switch (`space`), then the ● that marks the DEFAULT
+                    engine for new tasks (radio-style, like the theme list); a
+                    space holds that column on the others. */}
+                <text
+                  fg={isCursor ? theme.selectedListItemText : enabled ? theme.text : theme.textMuted}
+                  wrapMode="none"
+                  onMouseUp={() => props.toggleEngine(vendor)}
+                >
+                  {enabled ? "[x]" : "[ ]"}
+                </text>
+                <text
+                  fg={isCursor ? theme.selectedListItemText : theme.accent}
+                  attributes={TextAttributes.BOLD}
+                  wrapMode="none"
+                >
+                  {props.isDefaultEngine(vendor) ? "●" : " "}
+                </text>
+                <text fg={nameFg} attributes={TextAttributes.BOLD} wrapMode="none">
+                  {props.displayName(vendor)}
+                </text>
+                {/* No "(default)" tag on an untouched command: the ● column
+                    already spends the word "default" on the engine choice, and
+                    two of them in one row read as one claim. Dimming says it. */}
+                <text fg={commandFg} wrapMode="none" flexShrink={1}>
+                  {props.commandText(vendor) + (props.isCustom(vendor) ? t("settings.engines.customTag") : "")}
+                </text>
+              </box>
+              <EngineStatusLine status={byVendor.get(vendor) ?? null} probing={props.statuses === null} />
             </box>
           )
         })}
@@ -115,37 +136,46 @@ export function EngineSettingsSection(
   )
 }
 
-/** One engine's binary line + (when it has a detector) its login line. */
-function AccountBlock(props: { name: string; status: EngineStatus | null }) {
+/**
+ * The muted second line of an engine card: where its binary was found and —
+ * only for the engines that have an account detector — whether it is logged
+ * in. An engine without one shows the binary alone; claiming "not logged in"
+ * for it would be a guess.
+ */
+function EngineStatusLine(props: { status: EngineStatus | null; probing: boolean }) {
   const { theme } = useTheme()
   const t = useT()
   const s = props.status
+  if (!s)
+    return (
+      <box paddingLeft={6}>
+        <text fg={theme.textMuted}>{props.probing ? t("settings.accounts.checking") : " "}</text>
+      </box>
+    )
   return (
-    <box flexDirection="column" gap={0}>
-      <text fg={theme.text} attributes={TextAttributes.BOLD}>
-        {props.name}
+    // Login state first, path second: when the line doesn't fit, the PATH is
+    // the part worth losing, so it is the one that shrinks. `overflow="hidden"`
+    // + `wrapMode="none"` clips at the pane edge instead of overdrawing.
+    <box flexDirection="row" gap={1} paddingLeft={6} overflow="hidden">
+      {s.account === null ? null : <AccountLine account={s.account} />}
+      {s.accountError ? (
+        <text fg={theme.warning} wrapMode="none">
+          {`! ${s.accountError}`}
+        </text>
+      ) : null}
+      <text fg={s.binary.found ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={1}>
+        {(s.account === null ? "" : "· ") +
+          (s.binary.found ? tildePath((s.binary as { path: string }).path) : (s.binary as { error: string }).error)}
       </text>
-      {s === null ? (
-        <text fg={theme.textMuted}>{t("settings.accounts.checking")}</text>
-      ) : (
-        <box flexDirection="column" gap={0}>
-          <text fg={s.binary.found ? theme.textMuted : theme.warning} wrapMode="word">
-            {s.binary.found
-              ? `Binary: ${(s.binary as { path: string }).path}`
-              : `Binary: ${(s.binary as { error: string }).error}`}
-          </text>
-          {/* No detector (contrib / plugin / custom) → the binary line is the
-              whole story; claiming "not logged in" would be a guess. */}
-          {s.account === null ? null : <AccountLine account={s.account} />}
-          {s.accountError ? (
-            <text fg={theme.warning} wrapMode="word">
-              {`! ${s.accountError}`}
-            </text>
-          ) : null}
-        </box>
-      )}
     </box>
   )
+}
+
+/** `/Users/me/.kimi-code/bin/kimi` → `~/.kimi-code/bin/kimi`; the home prefix
+ *  is the same on every row, so it is pure width. */
+function tildePath(p: string): string {
+  const home = homedir()
+  return home && p.startsWith(`${home}/`) ? `~${p.slice(home.length)}` : p
 }
 
 /** The resolved login line for any built-in engine's account shape. */
@@ -154,17 +184,25 @@ function AccountLine({ account }: { account: EngineAccount }): ReactNode {
   const t = useT()
   if (account.kind === "oauth") {
     // Claude's oauth carries an identity; copilot's and kimi's don't.
-    if (!("email" in account)) return <text fg={theme.success}>{t("settings.accounts.detected")}</text>
-    const tail = [account.organization, account.billingType].filter((x): x is string => !!x).join(" · ")
+    if (!("email" in account))
+      return (
+        <text fg={theme.success} wrapMode="none">
+          {t("settings.accounts.detected")}
+        </text>
+      )
+    // Billing type only: a personal Anthropic account's org name is generated
+    // from the very email printed two words earlier, and this line now shares
+    // its row with the binary path.
+    const tail = account.billingType
     return (
-      <text fg={theme.success} wrapMode="word">
+      <text fg={theme.success} wrapMode="none" flexShrink={1}>
         {t("settings.accounts.loggedIn", { email: account.email }) + (tail ? ` (${tail})` : "")}
       </text>
     )
   }
   if (account.kind === "chatgpt") {
     return (
-      <text fg={theme.success} wrapMode="word">
+      <text fg={theme.success} wrapMode="none" flexShrink={1}>
         {t("settings.accounts.chatgptLogin", { email: account.email }) + (account.plan ? ` (${account.plan})` : "")}
       </text>
     )
@@ -173,31 +211,4 @@ function AccountLine({ account }: { account: EngineAccount }): ReactNode {
   if (account.kind === "token")
     return <text fg={theme.success}>{t("settings.accounts.tokenConfigured", { source: account.source })}</text>
   return <text fg={theme.textMuted}>{t("settings.accounts.notLoggedIn")}</text>
-}
-
-/** Read-only "is this engine installed + logged in" view, one block per engine. */
-export function AccountsSettingsSection(props: {
-  /** Every engine the Engines section lists, in the same order. */
-  vendors: readonly VendorId[]
-  /** Probe results, in `vendors` order; `null` while still probing. */
-  statuses: readonly EngineStatus[] | null
-  /** Display label for a vendor — custom name override, else the registry name. */
-  displayName: (vendor: VendorId) => string
-}) {
-  const { theme } = useTheme()
-  const t = useT()
-  const byVendor = new Map((props.statuses ?? []).map((s) => [s.vendor, s]))
-  return (
-    <box flexDirection="column" gap={1}>
-      <text fg={theme.text} attributes={TextAttributes.BOLD}>
-        {t("settings.accounts.title")}
-      </text>
-      <text fg={theme.textMuted} wrapMode="word">
-        {t("settings.accounts.hint")}
-      </text>
-      {props.vendors.map((vendor) => (
-        <AccountBlock key={vendor} name={props.displayName(vendor)} status={byVendor.get(vendor) ?? null} />
-      ))}
-    </box>
-  )
 }
