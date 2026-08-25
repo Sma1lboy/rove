@@ -32,6 +32,13 @@ export function Row(props: {
   fg: RGBA
   bold?: boolean
   idleBackground?: RGBA
+  /**
+   * What this option means, muted, on the SAME line as the control. A
+   * paragraph above a block of switches has to be re-read to find which
+   * sentence belongs to which switch; a phrase beside one does not. Pad the
+   * label (the caller owns its column width) to line the phrases up.
+   */
+  hint?: string
   children?: ReactNode
 }) {
   const { theme } = useTheme()
@@ -50,6 +57,7 @@ export function Row(props: {
       gap={1}
       paddingLeft={1}
       paddingRight={1}
+      overflow="hidden"
       backgroundColor={props.cursor ? theme.primary : props.idleBackground}
       onMouseUp={props.onMouseUp}
     >
@@ -60,6 +68,11 @@ export function Row(props: {
       >
         {props.children}
       </text>
+      {props.hint ? (
+        <text fg={props.cursor ? theme.selectedListItemText : theme.textMuted} wrapMode="none" flexShrink={1}>
+          {props.hint}
+        </text>
+      ) : null}
     </box>
   )
 }
