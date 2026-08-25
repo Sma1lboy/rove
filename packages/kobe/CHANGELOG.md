@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.149
+
+### Patch Changes
+
+- [`0e19300`](https://github.com/Sma1lboy/rove/commit/0e193000667928d22f707cc9954b24b82808699d) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Kanban cards breathe: the title and date rows no longer sit flush against the card border. Padding is now uniform on all four sides, and the column drops its own inter-card gap in exchange, so a card costs one extra row rather than two and the board keeps its dense two-line grammar.
+
+- [`c2c954c`](https://github.com/Sma1lboy/rove/commit/c2c954cecbd66405b1df697ea4d542151a76ed2e) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Sidebar: the New task row now reads label-first, with the `+` moved to the right beside its keycap so the two affordances share the conventional right-hand shortcut column.
+
 ## 0.8.148
 
 ### Patch Changes
