@@ -10,6 +10,7 @@
 
 import type { KeyEvent } from "@opentui/core"
 import { isDev } from "../../env.ts"
+import { inputPassthroughReachable, prefixReachable, scanReachability } from "./keymap-reachability"
 import { type PrefixHudOption, prefixHudPush, prefixHudSetArmed } from "./prefix-hud"
 
 export type Binding = {
@@ -188,13 +189,6 @@ export type PrefixConfiguration = {
   timeoutMs: number
 }
 
-export type BindingReachability = {
-  direct: ReadonlySet<string>
-  prefix: ReadonlySet<string>
-  /** The current input surface forwards unclaimed keys to a terminal. */
-  inputPassthrough: boolean
-}
-
 export const DEFAULT_PREFIX_CONFIGURATION: Readonly<PrefixConfiguration> = { key: "ctrl+a", timeoutMs: 5000 }
 
 let prefixConfiguration: PrefixConfiguration = { ...DEFAULT_PREFIX_CONFIGURATION }
@@ -254,27 +248,6 @@ export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number
   return true
 }
 
-function hasReachableBinding(
-  snapshot: readonly RegisteredBinding[],
-  predicate: (binding: Binding) => boolean,
-): boolean {
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    if (cfg.bindings.some(predicate)) return true
-    if (cfg.modal) return false
-  }
-  return false
-}
-
-/** Whether an enabled prefix row is reachable above the modal barrier. */
-const prefixReachable = (snapshot: readonly RegisteredBinding[]): boolean =>
-  hasReachableBinding(snapshot, (binding) => binding.prefix === true)
-
-/** True when the current focused input surface forwards keys to a PTY. */
-const inputPassthroughReachable = (snapshot: readonly RegisteredBinding[]): boolean =>
-  hasReachableBinding(snapshot, (binding) => binding.passthrough === true)
-
 /** Chords already flagged by the shadowed-match warning (once per process
  *  per chord — a stuck contract violation must not spam every keypress). */
 const shadowWarned = new Set<string>()
@@ -315,54 +288,6 @@ function warnShadowedMatch(
     }
     if (cfg.modal) return
   }
-}
-
-interface ReachabilityScan {
-  prefixReachable: boolean
-  inputPassthrough: boolean
-  prefixOptions: PrefixHudOption[]
-  directIds: ReadonlySet<string>
-  prefixIds: ReadonlySet<string>
-}
-
-/**
- * One top-down scan of the binding stack, collecting every reachability fact
- * cold callers (armPrefixNow, bindingReachability, prefix HUD) need. The hot
- * per-keypress path keeps its own early-exit helpers so a hit or miss never
- * pays for fields it does not use.
- */
-function scanReachability(snapshot: readonly RegisteredBinding[]): ReachabilityScan {
-  const directIds = new Set<string>()
-  const prefixIds = new Set<string>()
-  let prefixReachable = false
-  let inputPassthrough = false
-  const prefixOptions: PrefixHudOption[] = []
-  const seenPrefixKeys = new Set<string>()
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    for (const binding of cfg.bindings) {
-      if (binding.passthrough) inputPassthrough = true
-      if (binding.prefix === true) {
-        prefixReachable = true
-        if (binding.id) prefixIds.add(binding.id)
-        if (!seenPrefixKeys.has(binding.key)) {
-          seenPrefixKeys.add(binding.key)
-          prefixOptions.push({ stroke: binding.key, action: binding.id ?? binding.key })
-        }
-      } else if (binding.id) {
-        directIds.add(binding.id)
-      }
-    }
-    if (cfg.modal) break
-  }
-  return { prefixReachable, inputPassthrough, prefixOptions, directIds, prefixIds }
-}
-
-/** Binding ids available above the active modal barrier right now. */
-export function bindingReachability(snapshot: readonly RegisteredBinding[]): BindingReachability {
-  const { directIds, prefixIds, inputPassthrough } = scanReachability(snapshot)
-  return { direct: directIds, prefix: prefixIds, inputPassthrough }
 }
 
 /** Match one Binding Stack mode, preserving normal LIFO and modal semantics. */
