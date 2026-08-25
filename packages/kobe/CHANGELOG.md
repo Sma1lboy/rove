@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.151
+
+### Patch Changes
+
+- [`b838c64`](https://github.com/Sma1lboy/rove/commit/b838c64e335212cddee34f7f24e6696416a86b2b) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Fix `rove api send` refusing a live engine tab with NO_ENGINE_TAB when the task's recorded vendor differs from what its tabs actually run (issue [#36](https://github.com/Sma1lboy/rove/issues/36)). The engine-key resolver's fallback was vendor-strict, so a long-lived task pinned to a custom preset (e.g. `claudecpa`) whose `tab-1` had died and whose live tabs launch plain `claude` resolved to no engine at all. It now falls back to any tab running a registered engine — matching what the delivery gate and `--tab tab-N` have always accepted — and picks the lowest-numbered tab so a bare send is deterministic.
+
 ## 0.8.150
 
 ### Patch Changes
