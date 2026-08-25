@@ -214,7 +214,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!main || main.id === author.id) return { ok: true, routed: false, persisted: persisted ?? false }
       ctx.bus.publish("session.deliver", {
         taskId: main.id,
-        text: `[KOBE FIELD NOTE] from "${label}" (task ${taskId}): ${text}`,
+        text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId}): ${text}`,
         at: Date.now(),
         source: "note",
       })

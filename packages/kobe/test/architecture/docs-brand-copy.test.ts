@@ -16,7 +16,10 @@
  * `packages/kobe*` workspace names, `~/.kobe` runtime + plugin paths, legacy
  * `.kobe/worktrees` discovery, the `kobe-plugin` topic,
  * the installed `.agents/skills/kobe/SKILL.md` path,
- * the persisted `kobe hook` invocation, and `[KOBE PEER]`/`[KOBE FIELD NOTE]`.
+ * and the persisted `kobe hook` invocation.
+ * `[KOBE PEER]`/`[KOBE FIELD NOTE]` LEFT this list 2026-08-25 (owner call):
+ * the message prefixes are read by LLMs, not parsed by code, so they renamed
+ * to `[ROVE PEER]`/`[ROVE FIELD NOTE]` with no compat shim — guarded below.
  * Historical records (`docs/adr/`, `docs/superpowers/`, CHANGELOG, and the
  * superseded design notes) keep their original wording on purpose.
  */
@@ -113,6 +116,20 @@ describe("current docs and landing copy speak Rove", () => {
     const source = read(".claude/skills/file-issue/SKILL.md")
     const match = TYPED_KOBE_COMMAND.exec(source)
     expect(match?.[0], `the file-issue skill still teaches "${match?.[0]}"`).toBeUndefined()
+  })
+
+  // The peer/field-note prefixes renamed 2026-08-25 — LLM-read text, no code
+  // parses the literal, so there is no compat shim to preserve. Producers and
+  // the skill must not regrow the old spelling.
+  test.each([
+    "packages/kobe/src/cli/api/handlers-tasks.ts",
+    "packages/kobe-daemon/src/daemon/handlers-ui.ts",
+    "packages/kobe/src/engine/interactive-command.ts",
+    ".agents/skills/kobe/SKILL.md",
+  ])("%s stamps ROVE-branded message provenance", (path) => {
+    const source = read(path)
+    expect(source, `${path} still stamps [KOBE PEER]`).not.toContain("[KOBE PEER]")
+    expect(source, `${path} still stamps [KOBE FIELD NOTE]`).not.toContain("[KOBE FIELD NOTE]")
   })
 
   test("the landing page prints Rove state paths and branch names", () => {
