@@ -248,10 +248,32 @@ function armPrefix(now: number, options: readonly PrefixHudOption[], inputPassth
  */
 export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number = Date.now()): boolean {
   if (prefixConfiguration.key === null) return false
-  if (!prefixReachable(snapshot)) return false
-  armPrefix(now, reachablePrefixOptions(snapshot), inputPassthroughReachable(snapshot))
+  const reach = scanReachability(snapshot)
+  if (!reach.prefixReachable) return false
+  armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
   return true
 }
+
+function hasReachableBinding(
+  snapshot: readonly RegisteredBinding[],
+  predicate: (binding: Binding) => boolean,
+): boolean {
+  for (let i = snapshot.length - 1; i >= 0; i--) {
+    const cfg = snapshot[i]?.config()
+    if (!cfg || cfg.enabled === false) continue
+    if (cfg.bindings.some(predicate)) return true
+    if (cfg.modal) return false
+  }
+  return false
+}
+
+/** Whether an enabled prefix row is reachable above the modal barrier. */
+const prefixReachable = (snapshot: readonly RegisteredBinding[]): boolean =>
+  hasReachableBinding(snapshot, (binding) => binding.prefix === true)
+
+/** True when the current focused input surface forwards keys to a PTY. */
+const inputPassthroughReachable = (snapshot: readonly RegisteredBinding[]): boolean =>
+  hasReachableBinding(snapshot, (binding) => binding.passthrough === true)
 
 /** Chords already flagged by the shadowed-match warning (once per process
  *  per chord — a stuck contract violation must not spam every keypress). */
@@ -295,65 +317,52 @@ function warnShadowedMatch(
   }
 }
 
-/** Whether an enabled prefix row is reachable above the modal barrier. */
-function prefixReachable(snapshot: readonly RegisteredBinding[]): boolean {
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    if (cfg.bindings.some((binding) => binding.prefix === true)) return true
-    if (cfg.modal) return false
-  }
-  return false
-}
-
-/** True when the current focused input surface forwards keys to a PTY. */
-function inputPassthroughReachable(snapshot: readonly RegisteredBinding[]): boolean {
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    if (cfg.bindings.some((binding) => binding.passthrough)) return true
-    if (cfg.modal) return false
-  }
-  return false
+interface ReachabilityScan {
+  prefixReachable: boolean
+  inputPassthrough: boolean
+  prefixOptions: PrefixHudOption[]
+  directIds: ReadonlySet<string>
+  prefixIds: ReadonlySet<string>
 }
 
 /**
- * Snapshot the prefix command map using the same LIFO + modal reachability
- * rules as dispatch. A duplicated stroke appears once and names the action
- * that would actually win right now.
+ * One top-down scan of the binding stack, collecting every reachability fact
+ * cold callers (armPrefixNow, bindingReachability, prefix HUD) need. The hot
+ * per-keypress path keeps its own early-exit helpers so a hit or miss never
+ * pays for fields it does not use.
  */
-function reachablePrefixOptions(snapshot: readonly RegisteredBinding[]): PrefixHudOption[] {
-  const options: PrefixHudOption[] = []
-  const seen = new Set<string>()
-  for (let i = snapshot.length - 1; i >= 0; i--) {
-    const cfg = snapshot[i]?.config()
-    if (!cfg || cfg.enabled === false) continue
-    for (const binding of cfg.bindings) {
-      if (binding.prefix !== true || seen.has(binding.key)) continue
-      seen.add(binding.key)
-      options.push({ stroke: binding.key, action: binding.id ?? binding.key })
-    }
-    if (cfg.modal) break
-  }
-  return options
-}
-
-/** Binding ids available above the active modal barrier right now. */
-export function bindingReachability(snapshot: readonly RegisteredBinding[]): BindingReachability {
-  const direct = new Set<string>()
-  const prefix = new Set<string>()
+function scanReachability(snapshot: readonly RegisteredBinding[]): ReachabilityScan {
+  const directIds = new Set<string>()
+  const prefixIds = new Set<string>()
+  let prefixReachable = false
   let inputPassthrough = false
+  const prefixOptions: PrefixHudOption[] = []
+  const seenPrefixKeys = new Set<string>()
   for (let i = snapshot.length - 1; i >= 0; i--) {
     const cfg = snapshot[i]?.config()
     if (!cfg || cfg.enabled === false) continue
     for (const binding of cfg.bindings) {
       if (binding.passthrough) inputPassthrough = true
-      if (!binding.id) continue
-      ;(binding.prefix === true ? prefix : direct).add(binding.id)
+      if (binding.prefix === true) {
+        prefixReachable = true
+        if (binding.id) prefixIds.add(binding.id)
+        if (!seenPrefixKeys.has(binding.key)) {
+          seenPrefixKeys.add(binding.key)
+          prefixOptions.push({ stroke: binding.key, action: binding.id ?? binding.key })
+        }
+      } else if (binding.id) {
+        directIds.add(binding.id)
+      }
     }
     if (cfg.modal) break
   }
-  return { direct, prefix, inputPassthrough }
+  return { prefixReachable, inputPassthrough, prefixOptions, directIds, prefixIds }
+}
+
+/** Binding ids available above the active modal barrier right now. */
+export function bindingReachability(snapshot: readonly RegisteredBinding[]): BindingReachability {
+  const { directIds, prefixIds, inputPassthrough } = scanReachability(snapshot)
+  return { direct: directIds, prefix: prefixIds, inputPassthrough }
 }
 
 /** Match one Binding Stack mode, preserving normal LIFO and modal semantics. */
@@ -463,7 +472,8 @@ export function dispatchKeyEvent(
       // is reachable (disabled configuration/modal context), normal direct
       // dispatch below still lets the terminal's passthrough binding win.
       if (prefixReachable(snapshot)) {
-        armPrefix(now, reachablePrefixOptions(snapshot), inputPassthroughReachable(snapshot))
+        const reach = scanReachability(snapshot)
+        armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
         evt.preventDefault()
         return true
       }
