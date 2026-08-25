@@ -21,8 +21,8 @@ test("renders a labelled task action with the live default keycap", async () => 
   })
   const text = await frame()
 
-  expect(text).toContain("+ New task")
-  expect(text.split("\n")[lineOf(text, "New task")]).toMatch(/New task\s+n/)
+  // `+` trails the label and pairs with the keycap in the right-hand column.
+  expect(text.split("\n")[lineOf(text, "New task")]).toMatch(/New task\s+\+\s+n/)
   expect(text).not.toContain("[+]")
 })
 
