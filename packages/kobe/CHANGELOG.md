@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.178
+
+### Patch Changes
+
+- [#554](https://github.com/Sma1lboy/rove/pull/554) [`e5393aa`](https://github.com/Sma1lboy/rove/commit/e5393aa2dcd0988d2683af6a9c634577dc5ed591) Clean up stale architecture references in `packages/kobe/src/engine/` comments. Replaces mentions of the removed tmux/Solid stack and retired `new-chattab` / `ChatTab` vocabulary with the current hosted-PTY / React / Terminal Tab framing. No behavior changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.177
 
 ### Patch Changes
