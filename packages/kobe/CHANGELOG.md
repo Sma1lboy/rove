@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.158
+
+### Patch Changes
+
+- [#519](https://github.com/Sma1lboy/rove/pull/519) [`781b4b9`](https://github.com/Sma1lboy/rove/commit/781b4b955c25afaf35b816247a327c4fbfdb6042) Dedupe the daemon activity registry's task-level and per-tab lapse watchdogs into one scope-keyed abstraction, removing the copy-paste arm/handle pairs. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#521](https://github.com/Sma1lboy/rove/pull/521) [`7563965`](https://github.com/Sma1lboy/rove/commit/7563965acc01826f3ebc2e5abd771af6bcb6e731) Reuse the canonical `optionalNumber` payload validator from `handler-validators.ts` in the automation and work-item handler modules, removing two near-duplicate local copies. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#520](https://github.com/Sma1lboy/rove/pull/520) [`f37739b`](https://github.com/Sma1lboy/rove/commit/f37739b360354cad76c17d2d259d8138403f7891) Centralize the PTY host scrollback-cap default in a constructor-resolved field and collapse the duplicated detach/parked update logic into one helper. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.157
 
 ### Patch Changes
