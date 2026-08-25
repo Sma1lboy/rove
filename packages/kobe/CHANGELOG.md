@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.183
+
+### Patch Changes
+
+- [`7796081`](https://github.com/Sma1lboy/rove/commit/77960816a013c7f5d7182bbe8993295be722f0c0) Pasting multi-line text into an engine no longer submits it line by line. Rove
+  now asks the host terminal for bracketed paste (DECSET 2004), so a paste
+  arrives framed as one event and is handed to the engine as a paste; opentui
+  knows the markers but never turns the mode on, so the terminal was delivering
+  pastes as plain keystrokes and every newline read as Enter. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.182
 
 ### Patch Changes
