@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.152
+
+### Patch Changes
+
+- [`a714aac`](https://github.com/Sma1lboy/rove/commit/a714aacbcc7bdb4c9404edc97436c5244bd03c5f) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - Landing fleet mock's Claude pane now mirrors the real Claude Code frame — crab-glyph header, ❯ prompt echo, ⏺ response/tool bullets with ⎿ result lines, ✻ spinner, and the fenced input row — traced from a live session capture; engine version numbers dropped from all four mock panes.
+
+- [`12a4aea`](https://github.com/Sma1lboy/rove/commit/12a4aeab3086831a36d761fdd7ddff1ce2290875) Thanks [@Sma1lboy](https://github.com/Sma1lboy)! - The tab strip's completion chip now reads the same saved "already looked at" timestamps as the sidebar lamp, so quitting Rove no longer wipes what you had read: a `✓` you already consumed comes back as `○`, and a turn that finished while you were away still announces itself. Persisted UI state is also flushed on exit — writes were debounced 250ms, so anything changed in the last quarter-second before quitting (the seen mark most of all) used to be lost.
+
 ## 0.8.151
 
 ### Patch Changes
