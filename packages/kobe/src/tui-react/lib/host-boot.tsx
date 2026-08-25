@@ -43,6 +43,7 @@ import { installEventLoopStallTelemetry } from "../../tui/lib/event-loop-stall"
 import {
   hostRenderOptions,
   inlineRenderOptions,
+  installBracketedPasteMode,
   installExitRestoreBackstop,
   installOrphanExitWatchdog,
   installPaneExitBackstop,
@@ -267,6 +268,9 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
     </ThemeProvider>,
   )
   installExitRestoreBackstop(renderer)
+  // After render: opentui has finished its own terminal setup, so the mode we
+  // add on top isn't clobbered by it.
+  installBracketedPasteMode()
   installPaneExitBackstop()
   installOrphanExitWatchdog()
   installEventLoopStallTelemetry()

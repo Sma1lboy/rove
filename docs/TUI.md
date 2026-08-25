@@ -434,6 +434,11 @@ your file manager:
 attaches by path, a raw screenshot is saved under `~/.rove/attachments/`
 first. Rove only ever passes paths — the engine reads the file itself.
 
+**Pasting text with newlines** stays one paste. Rove asks the terminal for
+bracketed paste, so a multi-line block arrives framed and is handed to the
+engine as a paste rather than as typing that submits on the first newline —
+the engine shows it as a pasted block and you decide when to send.
+
 ## Quota in the footer
 
 For engines with a quota probe (Claude Code and Codex today), the footer

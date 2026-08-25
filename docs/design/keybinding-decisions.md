@@ -203,6 +203,13 @@ engine a doomed `gh pr create`.
 
 ## Other placements
 
+- **2026-08-25 — Settings → Engines: `space` toggles an engine on/off,
+  approved.** Dialog-scoped, beside the existing `r` / `x` / `d` engine
+  letters, so it can shadow nothing outside Settings. `space` because it is
+  the checkbox gesture and the row's `[x]` column is a checkbox; `enter` was
+  equally acceptable to the owner but stays the row's primary action (edit
+  the launch command), which is what makes the toggle a separate key rather
+  than a mode.
 - **2026-08-16 — Scratch shell gets NO chord; entry is the ctrl+e dialog's
   tail.** The PROPOSED `prefix+t` (issue #33 PR-2) was rejected: an unproven
   gesture doesn't earn a chord — Scratch entry joins the unified
