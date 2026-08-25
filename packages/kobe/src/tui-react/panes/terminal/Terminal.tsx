@@ -25,24 +25,18 @@
  *     dependency array during render, so no such ordering constraint
  *     exists — the hooks below are ordered for readability, not
  *     correctness.
- *   - Body-box measurement lives in `use-terminal-geometry.ts`; the
- *     resize-push-to-pty and host-cursor-anchor effects stay HERE
- *     because they need the PTY handle and the computed viewport cursor,
- *     which only exist after the geometry hook's `bodyGeometry` has fed
- *     `useTerminalPty` — splitting them out would just reintroduce the
- *     same chicken-and-egg hook ordering this file avoids.
+ *   - Body-box measurement and the resize-push / host-cursor-anchor
+ *     effects live in `use-terminal-geometry.ts` and
+ *     `use-terminal-host-cursor.ts`. They receive the PTY handle and the
+ *     computed viewport cursor after `useTerminalPty` has produced them,
+ *     so the call order in this file remains the same and there is no
+ *     chicken-and-egg hook-ordering hazard.
  */
 
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
-import { useRenderer } from "@opentui/react"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { imeAnchorController } from "../../../tui/lib/ime-anchor-output"
-import {
-  ImeCursorRetention,
-  type ImeScreenAnchor,
-  ImeScreenAnchorRetention,
-} from "../../../tui/panes/terminal/ime-cursor"
+import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
 import { isShellMissing, overlayCursor, sealRowEndAttributes } from "../../../tui/panes/terminal/terminal-render"
@@ -62,6 +56,7 @@ import { useDialog } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { useTerminalBindings } from "./keys"
 import { useTerminalGeometry } from "./use-terminal-geometry"
+import { useTerminalHostCursor } from "./use-terminal-host-cursor"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalSelection } from "./use-terminal-selection"
 
@@ -307,83 +302,15 @@ export function Terminal(props: TerminalProps) {
 
   /* --------- resize-push + host-cursor anchor ---------- */
 
-  const renderer = useRenderer()
-  const imeAnchorOwner = useRef(Symbol("terminal-ime-anchor")).current
-  const [imeScreenAnchorRetention] = useState(() => new ImeScreenAnchorRetention())
-
-  // Push geometry changes to the backend, deduped against the last push —
-  // real PTY backends may emit SIGWINCH even when geometry is unchanged.
-  const lastResizeRef = useRef<{ pty: typeof pty; cols: number; rows: number } | null>(null)
-  useEffect(() => {
-    if (!pty || !bodyGeometry) return
-    const { cols, rows } = bodyGeometry
-    const last = lastResizeRef.current
-    if (last?.pty === pty && last.cols === cols && last.rows === rows) return
-    lastResizeRef.current = { pty, cols, rows }
-    try {
-      pty.resize(cols, rows)
-    } catch {
-      /* best effort */
-    }
-  }, [pty, bodyGeometry])
-
-  // Keep the native host cursor INVISIBLE (the visible cursor is the inline
-  // inverse cell in `cursorRows`) but ANCHORED to the visible chat terminal's
-  // screen cell — even while Sidebar or Files owns keyboard focus. A transient
-  // PTY cursor-hide retains the last position; the renderer-output adapter
-  // restores it at the end of every diff frame.
-  useEffect(() => {
-    // Dependency-only invalidation keys — see use-terminal-geometry.ts;
-    // screenX/screenY are read imperatively, non-reactive geometry.
-    void dims
-    void geomTick
-    if (!renderer) return
-    if (!imeAnchorActive) {
-      imeScreenAnchorRetention.update(null, null)
-      if (imeAnchorController.release(imeAnchorOwner)) renderer.setCursorPosition(0, 0, false)
-      return
-    }
-    let currentScreenAnchor: ImeScreenAnchor | null = null
-    if (bodyEl && visibleImeCursor && bodyEl.width > 0) {
-      currentScreenAnchor = {
-        x: bodyEl.screenX + visibleImeCursor.x,
-        y: bodyEl.screenY + visibleImeCursor.y,
-      }
-    }
-    // Historical scrollback has no live viewport cursor. Keep the prior
-    // screen-cell anchor for this PTY instead of sending the IME to the outer
-    // origin. A replacement PTY starts at origin until it reports a cursor.
-    const retainedAnchor = imeScreenAnchorRetention.update(pty, currentScreenAnchor)
-    if (retainedAnchor) {
-      imeAnchorController.claim(imeAnchorOwner, retainedAnchor)
-      renderer.setCursorPosition(retainedAnchor.x, retainedAnchor.y, false)
-      return
-    }
-    imeAnchorController.claim(imeAnchorOwner, { x: 0, y: 0 })
-    renderer.setCursorPosition(0, 0, false)
-  }, [
-    renderer,
-    imeAnchorActive,
+  useTerminalHostCursor({
+    pty,
     bodyEl,
+    bodyGeometry,
     visibleImeCursor,
+    imeAnchorActive,
     dims,
     geomTick,
-    imeAnchorOwner,
-    imeScreenAnchorRetention,
-    pty,
-  ])
-
-  // On unmount, hide the cursor so it doesn't leak into whichever pane
-  // gains focus next.
-  useEffect(() => {
-    return () => {
-      try {
-        if (imeAnchorController.release(imeAnchorOwner)) renderer?.setCursorPosition(0, 0, false)
-      } catch {
-        /* renderer may already be torn down */
-      }
-    }
-  }, [renderer, imeAnchorOwner])
+  })
 
   /* --------- view ---------- */
 
