@@ -53,6 +53,7 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
       { id: "acme.layout", settingKeys: [] },
     ],
     hasDaemon: true,
+    keybindingsFileExists: true,
     ...overrides,
   }
 }
@@ -182,8 +183,9 @@ describe("feedbackRows", () => {
 })
 
 describe("sectionRows / bodyRowCount", () => {
-  it("keys is read-only — zero navigable rows", () => {
+  it("keys has no rows once the YAML exists, and one create action while it doesn't", () => {
     expect(sectionRows("keys", input())).toEqual([])
+    expect(sectionRows("keys", input({ keybindingsFileExists: false })).map((r) => r.kind)).toEqual(["keysCreate"])
   })
 
   it("bodyRowCount is the registry length for every section", () => {

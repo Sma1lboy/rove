@@ -8,10 +8,11 @@
 
 import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
+import { tildify } from "../../../lib/path-home"
 import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
 import { devRows, rowIndex } from "../../../tui/component/settings-dialog/model"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
-import { DEFAULT_PREFIX_CONFIGURATION, currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
+import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
 import { FIXED_BINDING_IDS } from "../../../tui/lib/keymap-overrides"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
@@ -242,7 +243,12 @@ export function DevSettingsSection(
  * discoverable, show which overrides actually landed, and surface every
  * load warning that otherwise only reaches the pane's console log.
  */
-export function KeybindingsSettingsSection() {
+export function KeybindingsSettingsSection(
+  props: SectionCursorProps & {
+    /** Write the starter YAML — offered only while the file is absent. */
+    onCreateFile: () => void
+  },
+) {
   const { theme } = useTheme()
   const t = useT()
   // Re-read the cached report when the daemon's keybindings channel triggers
@@ -252,6 +258,10 @@ export function KeybindingsSettingsSection() {
   const report = userKeybindingsReport()
   const prefix = currentPrefixConfiguration()
   const fixedIds = Object.keys(FIXED_BINDING_IDS).sort()
+  const appliedIdWidth = Math.min(
+    28,
+    report.applied.reduce((max, o) => Math.max(max, o.id.length), 0),
+  )
   return (
     <box flexDirection="column" gap={1}>
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
@@ -264,8 +274,10 @@ export function KeybindingsSettingsSection() {
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
           {t("settings.keybindings.configFile")}
         </text>
+        {/* Tildified: the raw path wrapped onto a second line, which read as
+            two facts instead of one. */}
         <text fg={theme.textMuted} wrapMode="word">
-          {report.path + (report.exists ? "" : t("settings.keybindings.notCreated"))}
+          {tildify(report.path) + (report.exists ? "" : t("settings.keybindings.notCreated"))}
         </text>
       </box>
       <box flexDirection="column" gap={0}>
@@ -280,24 +292,25 @@ export function KeybindingsSettingsSection() {
         </text>
       </box>
       {!report.exists ? (
+        // The example used to be printed here for the user to retype into a
+        // file they also had to create. It is now the CONTENT of that file,
+        // one keypress away — see `keybindings-starter.ts`.
         <box flexDirection="column" gap={0}>
-          <text fg={theme.text} attributes={TextAttributes.BOLD}>
-            {t("settings.keybindings.example")}
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("settings.keybindings.createHint")}
           </text>
-          <text fg={theme.textMuted}>prefix:</text>
-          <text fg={theme.textMuted}>{"  key: ctrl+a                 # first stroke (null disables)"}</text>
-          <text fg={theme.textMuted}>
-            {`  timeoutMs: ${DEFAULT_PREFIX_CONFIGURATION.timeoutMs}             # second stroke deadline`}
-          </text>
-          <text fg={theme.textMuted}>{"  bindings:"}</text>
-          <text fg={theme.textMuted}>{"    chat.tab.new: t           # ctrl+a, then t"}</text>
-          <text fg={theme.textMuted}>bindings:</text>
-          <text fg={theme.textMuted}>{"  chat.fork.new: ctrl+g      # string = one chord"}</text>
-          <text fg={theme.textMuted}>{"  sidebar.select: [enter]    # list = several chords"}</text>
-          <text fg={theme.textMuted}>{"  files.createPR: null       # null = unbind"}</text>
-          <text fg={theme.textMuted}>{"darwin:                      # platform overlay (also: linux)"}</text>
-          <text fg={theme.textMuted}>{"  bindings:"}</text>
-          <text fg={theme.textMuted}>{"    palette.open: [cmd+p, ctrl+p]"}</text>
+          <Row
+            cursor={props.level === "body" && props.bodyRow === 0}
+            onMouseUp={() => {
+              props.setLevel("body")
+              props.setBodyRow(0)
+              props.onCreateFile()
+            }}
+            fg={theme.text}
+            idleBackground={theme.backgroundElement}
+          >
+            {t("settings.keybindings.createFile")}
+          </Row>
         </box>
       ) : (
         <box flexDirection="column" gap={0}>
@@ -305,9 +318,12 @@ export function KeybindingsSettingsSection() {
             {t("settings.keybindings.overridesApplied")}
           </text>
           {report.applied.length === 0 ? <text fg={theme.textMuted}>{t("settings.keybindings.none")}</text> : null}
+          {/* Ids share a column so the chords line up under each other — an
+              override list is read by scanning the right-hand side. */}
           {report.applied.map((o) => (
-            <text key={o.id} fg={theme.text} wrapMode="word">
-              {`${o.id} → ${o.keys.length > 0 ? o.keys.join(" / ") : "(unbound)"}  (default: ${o.defaultKeys.join(" / ")})`}
+            <text key={o.id} fg={theme.text} wrapMode="none">
+              {`${o.id.padEnd(appliedIdWidth)}  ${o.keys.length > 0 ? o.keys.join(" / ") : t("settings.keybindings.unbound")}` +
+                `  (${t("settings.keybindings.defaultKeys", { keys: o.defaultKeys.join(" / ") })})`}
             </text>
           ))}
         </box>

@@ -30,6 +30,8 @@ import {
   rowAt,
   sectionRows,
 } from "../../../tui/component/settings-dialog/model"
+import { reloadUserKeybindings, userKeybindingsReport } from "../../../tui/context/keybindings-user"
+import { createKeybindingsFile } from "../../../tui/lib/keybindings-starter"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
@@ -100,6 +102,19 @@ export function SettingsDialog(props: SettingsDialogProps) {
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
   const engineStatuses = useAccountProbes(section, engines.engineList())
+  // Writing the starter YAML flips the Keybindings section from "here is an
+  // example" to a real file — and re-applying it is what re-renders the
+  // section (and drops its create row) without a restart.
+  const [keysFileExists, setKeysFileExists] = useState(() => userKeybindingsReport().exists)
+  function createKeysFile(): void {
+    try {
+      createKeybindingsFile(userKeybindingsReport().path)
+      reloadUserKeybindings()
+    } catch {
+      /* unwritable config dir — the section keeps offering the action */
+    }
+    setKeysFileExists(userKeybindingsReport().exists)
+  }
   const plugins = usePluginSettings(section, dialog)
 
   /**
@@ -114,6 +129,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       engineList: engines.engineList(),
       plugins: plugins.rows.map((p) => ({ id: p.id, settingKeys: p.settings.map((s) => s.key) })),
       hasDaemon,
+      keybindingsFileExists: keysFileExists,
     })
   }
 
@@ -240,6 +256,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     tabStripHideSingle: () => prefs.cycleTabStripMode(),
     engine: (row) => void engines.editEngine(row.vendor),
     engineAdd: () => void engines.addEngineFlow(),
+    keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
     feedbackTitle: () => setBodyRow(0),
@@ -402,7 +419,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               editSetting={(id, key) => void plugins.editSetting(id, key)}
             />
           ) : null}
-          {section === "keys" ? <KeybindingsSettingsSection /> : null}
+          {section === "keys" ? <KeybindingsSettingsSection {...cursorProps} onCreateFile={createKeysFile} /> : null}
           {section === "feedback" ? (
             <FeedbackSettingsSection
               {...cursorProps}

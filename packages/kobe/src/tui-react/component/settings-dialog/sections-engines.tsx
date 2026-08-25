@@ -9,11 +9,11 @@
  * made you hop between two lists of the same names.
  */
 
-import { homedir } from "node:os"
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import type { EngineAccount, EngineStatus } from "../../../engine/engine-status"
 import { displayWidth } from "../../../lib/display-width"
+import { tildify } from "../../../lib/path-home"
 import type { VendorId } from "../../../types/task"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -199,17 +199,10 @@ function EngineStatusLine(props: { status: EngineStatus | null; probing: boolean
       ) : null}
       <text fg={s.binary.found ? theme.textMuted : theme.warning} wrapMode="none" flexShrink={1}>
         {(s.account === null ? "" : "· ") +
-          (s.binary.found ? tildePath((s.binary as { path: string }).path) : (s.binary as { error: string }).error)}
+          (s.binary.found ? tildify((s.binary as { path: string }).path) : (s.binary as { error: string }).error)}
       </text>
     </box>
   )
-}
-
-/** `/Users/me/.kimi-code/bin/kimi` → `~/.kimi-code/bin/kimi`; the home prefix
- *  is the same on every row, so it is pure width. */
-function tildePath(p: string): string {
-  const home = homedir()
-  return home && p.startsWith(`${home}/`) ? `~${p.slice(home.length)}` : p
 }
 
 /** The resolved login line for any built-in engine's account shape. */

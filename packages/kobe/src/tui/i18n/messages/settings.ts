@@ -126,7 +126,7 @@ export const en = {
   },
   keybindings: {
     title: "Keybindings",
-    hint: "Edit the YAML below to rebind direct and PureTUI prefix chords; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
+    hint: "Rebind direct and prefix chords in your own YAML file; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
     configFile: "Config file",
     notCreated: "  (not created yet)",
     /** Heading for the prefix/grammar block; {prefix} is the live first stroke */
@@ -138,9 +138,13 @@ export const en = {
     prefixDisabled: "disabled",
     /** Trailing note listing non-rebindable ids; hidden when there are none */
     fixed: "Fixed (not rebindable): {ids}.",
-    example: "Example",
+    createHint:
+      "No overrides file yet. Rove can write one for you, fully commented — nothing is rebound until you uncomment a line.",
+    createFile: "[enter] Create keybindings.yaml",
     overridesApplied: "Overrides applied",
     none: "none",
+    unbound: "(unbound)",
+    defaultKeys: "default: {keys}",
     warnings: "Warnings",
   },
   feedback: {
@@ -296,7 +300,7 @@ export const zh: typeof en = {
   },
   keybindings: {
     title: "快捷键",
-    hint: "编辑下面的 YAML 来重绑定直接按键和 PureTUI prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",
+    hint: "在你自己的 YAML 文件里重绑定直接按键和 prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",
     configFile: "配置文件",
     notCreated: "  (尚未创建)",
     prefixTitle: "命令层（{prefix}）",
@@ -304,9 +308,12 @@ export const zh: typeof en = {
       "裸键作用于当前聚焦面板；少量单次快捷键覆盖高频 Rove 操作；{prefix} 打开命令层（第二击窗口 {timeout}ms — 稍等会出现命令指南）。Prefix 绑定保持原有的面板作用域和 modal 规则。",
     prefixDisabled: "已禁用",
     fixed: "固定（不可重绑定）：{ids}。",
-    example: "示例",
+    createHint: "还没有覆盖文件。Rove 可以帮你写一份带完整注释的——在你取消注释之前不会改动任何按键。",
+    createFile: "[enter] 创建 keybindings.yaml",
     overridesApplied: "已应用的覆盖",
     none: "无",
+    unbound: "(已解绑)",
+    defaultKeys: "默认: {keys}",
     warnings: "警告",
   },
   feedback: {
