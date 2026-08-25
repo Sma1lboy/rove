@@ -33,6 +33,7 @@
  * `state`/`props` — recreated fresh every render, the guarantee Solid's
  * accessors gave for free. `onEditorTabReady`/`onEngineSendReady` hand
  * their callback to the parent once per mount, re-fired on remount.
+ * NOTE — Integration layer at the file-size cap; see docs/design/terminal-tabs-integration.md.
  */
 
 import type { TranscriptActivity } from "@/client/remote-orchestrator"
