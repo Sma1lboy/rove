@@ -58,6 +58,7 @@ const ev = pluginEvent()      // typed event envelope (null outside [[events]])
   SDK's `./contract` module, so host and SDK can't drift by construction.
 
 Package README has full examples: `packages/kobe-plugin-sdk/README.md`.
+Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 
 Publish: push a public GitHub repo (one plugin per subdirectory is fine),
 add the topic **`rove-plugin`** → it appears in the marketplace
