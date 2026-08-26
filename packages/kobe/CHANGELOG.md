@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.191
+
+### Patch Changes
+
+- [`db4191c`](https://github.com/Sma1lboy/rove/commit/db4191cb39b1c7c04fa67b7d3636a5a1a88f0bdd) Add two runnable SDK example plugins:
+
+  - `examples/task-board` — a `[[panes]]` plugin that draws a live task board
+    from `task.snapshot` and `engine-state`, plus a headless `snapshot`
+    `[[actions]]` entry that prints one frame for verification.
+  - `examples/contrib-engine` — a manifest-only `[[engines]]` plugin that
+    contributes a fake engine with identity and screen-state rules.
+
+  `rove api engine-list` now includes engines contributed by enabled plugins,
+  so plugin engines are visible alongside built-ins and registered presets. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.190
 
 ### Patch Changes

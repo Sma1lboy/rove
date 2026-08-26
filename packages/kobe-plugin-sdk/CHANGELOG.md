@@ -1,5 +1,27 @@
 # @sma1lboy/rove-plugin-sdk
 
+## 0.1.5
+
+### Patch Changes
+
+- [`be26ebe`](https://github.com/Sma1lboy/rove/commit/be26ebe5f76dc3a8fb83100006a1839e3842e558) Add two runnable SDK example plugins under `examples/`:
+  `turn-notify` demonstrates `turn.complete` / `agent.permission-needed` hooks,
+  reading `detail.turn` usage, and toasting via `notify()`;
+  `settings-demo` declares string/enum/boolean settings and prints the effective
+  config from an action entrypoint using `readSettings()` / `setting()`.
+  Also adds an `examples/README.md` index covering all three examples. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`db4191c`](https://github.com/Sma1lboy/rove/commit/db4191cb39b1c7c04fa67b7d3636a5a1a88f0bdd) Add two runnable SDK example plugins:
+
+  - `examples/task-board` — a `[[panes]]` plugin that draws a live task board
+    from `task.snapshot` and `engine-state`, plus a headless `snapshot`
+    `[[actions]]` entry that prints one frame for verification.
+  - `examples/contrib-engine` — a manifest-only `[[engines]]` plugin that
+    contributes a fake engine with identity and screen-state rules.
+
+  `rove api engine-list` now includes engines contributed by enabled plugins,
+  so plugin engines are visible alongside built-ins and registered presets. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.1.4
 
 ### Patch Changes

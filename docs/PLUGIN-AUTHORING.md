@@ -60,6 +60,21 @@ const ev = pluginEvent()      // typed event envelope (null outside [[events]])
 Package README has full examples: `packages/kobe-plugin-sdk/README.md`.
 Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 
+## SDK examples
+
+Each example under `packages/kobe-plugin-sdk/examples/` includes a reproducible
+`demo.tape` recording script. The GIFs below were captured in an isolated
+`ex-gif` named dev sandbox (`bun dev:sandbox --name ex-gif …`):
+
+![hello-events](./assets/plugins/hello-events.gif)
+*hello-events: fire `issue-create` and inspect the captured `issue.changed` event in the plugin state dir.*
+
+![settings-demo](./assets/plugins/settings-demo.gif)
+*settings-demo: declare settings, override them in the config `.env`, and invoke the print action to see effective values.*
+
+![turn-notify](./assets/plugins/turn-notify.gif)
+*turn-notify: report a `turn-complete` for a task and see the hook log the notification.*
+
 Publish: push a public GitHub repo (one plugin per subdirectory is fine),
 add the topic **`rove-plugin`** → it appears in the marketplace
 ([rove.sma1lboy.me/plugins](https://rove.sma1lboy.me/plugins) and
