@@ -87,6 +87,7 @@ const MODULES = [
         title: 'Plugin development',
         pages: [
           ['PLUGIN-AUTHORING.md', 'plugins/authoring'],
+          ['PLUGIN-EVENTS.md', 'plugins/events'],
           ['PLUGIN-SDK.md', 'plugins/sdk'],
         ],
       },

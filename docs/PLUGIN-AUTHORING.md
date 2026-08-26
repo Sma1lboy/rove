@@ -165,7 +165,11 @@ no declaration, Rove assumes the command is portable and allows it everywhere.
 Declare `[[events]]` hooks; each fire runs your command with the envelope in
 `ROVE_PLUGIN_EVENT_JSON`. Events are **asynchronous observers**. Your exit
 code and output never block or change what happened. Support: C = Claude
-Code, X = Codex (Kimi adapter pending).
+Code, X = Codex, K = Kimi Code.
+
+This table is the one-line index — **per-event trigger semantics, exact
+`detail` fields, and envelope samples live in
+[PLUGIN-EVENTS.md](./PLUGIN-EVENTS.md)**.
 
 | Event | Fires when | Detail highlights |
 |---|---|---|
