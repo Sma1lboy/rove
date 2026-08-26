@@ -17,11 +17,24 @@ describe("Rove package distribution", () => {
       stdio: "pipe",
     })
 
+    // Find the page rather than hardcoding its directory: sync-docs.mjs owns
+    // the docs/ source -> site slug mapping, and a module split moves pages
+    // between subdirectories (ad017cbd put these under rove/). Searching keeps
+    // this assertion about the VIDEO EMBED instead of the current tree shape.
+    const contentRoot = join(ROOT, "packages/kobe-docs/content/docs")
+    const findPage = (page: string) => {
+      const hits = readdirSync(contentRoot, { recursive: true, encoding: "utf8" }).filter(
+        (entry) => entry === `${page}.mdx` || entry.endsWith(`/${page}.mdx`),
+      )
+      expect(hits, `${page}.mdx should be generated exactly once`).toHaveLength(1)
+      return join(contentRoot, hits[0])
+    }
+
     for (const [page, video] of [
       ["tui", "kanban"],
       ["routines", "routines"],
     ] as const) {
-      const generated = read(`packages/kobe-docs/content/docs/${page}.mdx`)
+      const generated = readFileSync(findPage(page), "utf8")
       expect(generated).toContain("<video controls playsInline")
       expect(generated).toContain(`poster="/docs-assets/${video}.png"`)
       expect(generated).toContain(`src="/docs-assets/${video}.mp4"`)
