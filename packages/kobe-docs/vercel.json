@@ -2,5 +2,87 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": null,
   "outputDirectory": "out",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/docs/quick-start",
+      "destination": "/docs/rove/quick-start",
+      "permanent": true
+    },
+    {
+      "source": "/docs/concepts",
+      "destination": "/docs/rove/concepts",
+      "permanent": true
+    },
+    {
+      "source": "/docs/tui",
+      "destination": "/docs/rove/tui",
+      "permanent": true
+    },
+    {
+      "source": "/docs/keybindings",
+      "destination": "/docs/rove/keybindings",
+      "permanent": true
+    },
+    {
+      "source": "/docs/cli",
+      "destination": "/docs/rove/cli",
+      "permanent": true
+    },
+    {
+      "source": "/docs/configuration",
+      "destination": "/docs/rove/configuration",
+      "permanent": true
+    },
+    {
+      "source": "/docs/engines",
+      "destination": "/docs/rove/engines",
+      "permanent": true
+    },
+    {
+      "source": "/docs/worktrees",
+      "destination": "/docs/rove/worktrees",
+      "permanent": true
+    },
+    {
+      "source": "/docs/themes",
+      "destination": "/docs/rove/themes",
+      "permanent": true
+    },
+    {
+      "source": "/docs/sessions",
+      "destination": "/docs/rove/sessions",
+      "permanent": true
+    },
+    {
+      "source": "/docs/routines",
+      "destination": "/docs/rove/routines",
+      "permanent": true
+    },
+    {
+      "source": "/docs/api",
+      "destination": "/docs/rove/api",
+      "permanent": true
+    },
+    {
+      "source": "/docs/work-tracking",
+      "destination": "/docs/rove/work-tracking",
+      "permanent": true
+    },
+    {
+      "source": "/docs/troubleshooting",
+      "destination": "/docs/rove/troubleshooting",
+      "permanent": true
+    },
+    {
+      "source": "/docs/plugins",
+      "destination": "/docs/plugins/authoring",
+      "permanent": true
+    },
+    {
+      "source": "/docs/plugin-sdk",
+      "destination": "/docs/plugins/sdk",
+      "permanent": true
+    }
+  ]
 }

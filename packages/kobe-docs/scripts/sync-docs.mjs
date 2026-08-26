@@ -15,7 +15,7 @@
  * byte-identical files.
  */
 
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -31,46 +31,70 @@ const repoBlob = 'https://github.com/Sma1lboy/rove/blob/main/';
 const referencedAssets = new Set();
 
 /**
- * The sidebar, as ordered sections of `[docs/ source file, site slug]`.
- * This is the single source of truth: PAGES (what gets synced) is derived
- * from it, so a page can never be synced but missing from the sidebar.
+ * The site, as root MODULES (Fumadocs `root: true` folders → sidebar tabs):
+ * the Rove product manual and the plugin-development docs are two separate
+ * modules with their own sidebars. Each module holds ordered sections of
+ * `[docs/ source file, site slug]`. This is the single source of truth:
+ * PAGES (what gets synced) is derived from it, so a page can never be
+ * synced but missing from a sidebar.
  */
-const SECTIONS = [
+const MODULES = [
   {
-    title: 'Getting started',
-    pages: [
-      ['QUICKSTART.md', 'quick-start'],
-      ['CONCEPTS.md', 'concepts'],
-      ['TUI.md', 'tui'],
-      ['KEYBINDINGS.md', 'keybindings'],
+    dir: 'rove',
+    title: 'Rove',
+    description: 'Using the Rove terminal UI and CLI',
+    sections: [
+      {
+        title: 'Getting started',
+        pages: [
+          ['QUICKSTART.md', 'rove/quick-start'],
+          ['CONCEPTS.md', 'rove/concepts'],
+          ['TUI.md', 'rove/tui'],
+          ['KEYBINDINGS.md', 'rove/keybindings'],
+        ],
+      },
+      {
+        title: 'Using Rove',
+        pages: [
+          ['CLI.md', 'rove/cli'],
+          ['CONFIGURATION.md', 'rove/configuration'],
+          ['ENGINES.md', 'rove/engines'],
+          ['WORKTREES.md', 'rove/worktrees'],
+          ['themes.md', 'rove/themes'],
+          ['SESSIONS.md', 'rove/sessions'],
+        ],
+      },
+      {
+        title: 'Automating',
+        pages: [
+          ['ROUTINES.md', 'rove/routines'],
+          ['API.md', 'rove/api'],
+          ['WORK-TRACKING.md', 'rove/work-tracking'],
+        ],
+      },
+      {
+        title: 'Help',
+        pages: [['TROUBLESHOOTING.md', 'rove/troubleshooting']],
+      },
     ],
   },
   {
-    title: 'Using Rove',
-    pages: [
-      ['CLI.md', 'cli'],
-      ['CONFIGURATION.md', 'configuration'],
-      ['ENGINES.md', 'engines'],
-      ['WORKTREES.md', 'worktrees'],
-      ['themes.md', 'themes'],
-      ['SESSIONS.md', 'sessions'],
+    dir: 'plugins',
+    title: 'Plugins',
+    description: 'Writing Rove plugins and the plugin SDK',
+    sections: [
+      {
+        title: 'Plugin development',
+        pages: [
+          ['PLUGIN-AUTHORING.md', 'plugins/authoring'],
+          ['PLUGIN-SDK.md', 'plugins/sdk'],
+        ],
+      },
     ],
-  },
-  {
-    title: 'Automating and extending',
-    pages: [
-      ['ROUTINES.md', 'routines'],
-      ['API.md', 'api'],
-      ['PLUGIN-AUTHORING.md', 'plugins'],
-      ['PLUGIN-SDK.md', 'plugin-sdk'],
-      ['WORK-TRACKING.md', 'work-tracking'],
-    ],
-  },
-  {
-    title: 'Help',
-    pages: [['TROUBLESHOOTING.md', 'troubleshooting']],
   },
 ];
+
+const SECTIONS = MODULES.flatMap((m) => m.sections);
 
 /** docs/ source file → site slug, in sidebar order. */
 const PAGES = new Map(SECTIONS.flatMap((section) => section.pages));
@@ -213,11 +237,18 @@ function toMdxPage(markdown, sourceFile) {
 }
 
 await mkdir(docsOutDir, { recursive: true });
+// content/docs is generated whole by this script (and gitignored). Prune
+// leftovers from a previous layout first, or a local build ships stale pages
+// the sidebar no longer lists.
+for (const entry of await readdir(docsOutDir)) {
+  await rm(join(docsOutDir, entry), { recursive: true, force: true });
+}
 let quickStart = null;
 for (const [sourceFile, slug] of PAGES) {
   const markdown = await readFile(join(docsSourceDir, sourceFile), 'utf8');
   const page = toMdxPage(markdown, sourceFile);
-  if (slug === 'quick-start') quickStart = page;
+  if (slug.endsWith('/quick-start')) quickStart = page;
+  await mkdir(dirname(join(docsOutDir, `${slug}.mdx`)), { recursive: true });
   await writeFile(join(docsOutDir, `${slug}.mdx`), page, 'utf8');
   console.log(`synced docs/${sourceFile} → content/docs/${slug}.mdx`);
 }
@@ -226,14 +257,23 @@ for (const [sourceFile, slug] of PAGES) {
 await writeFile(join(docsOutDir, 'index.mdx'), quickStart, 'utf8');
 console.log('synced docs/QUICKSTART.md → content/docs/index.mdx (docs home)');
 
-// Fumadocs renders `---Title---` entries as sidebar section separators.
-const meta = {
-  title: 'Rove',
-  pages: SECTIONS.flatMap((section) => [
-    `---${section.title}---`,
-    ...section.pages.map(([, slug]) => slug),
-  ]),
-};
+// Each module is a Fumadocs ROOT folder (sidebar tab): its meta.json carries
+// `root: true` plus the section separators (`---Title---`) for its own pages.
+for (const module of MODULES) {
+  const meta = {
+    title: module.title,
+    description: module.description,
+    root: true,
+    pages: module.sections.flatMap((section) => [
+      `---${section.title}---`,
+      ...section.pages.map(([, slug]) => slug.slice(module.dir.length + 1)),
+    ]),
+  };
+  await mkdir(join(docsOutDir, module.dir), { recursive: true });
+  await writeFile(join(docsOutDir, module.dir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+  console.log(`wrote content/docs/${module.dir}/meta.json`);
+}
+const meta = { title: 'Rove docs', pages: MODULES.map((m) => m.dir) };
 await writeFile(join(docsOutDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
 console.log('wrote content/docs/meta.json');
 
