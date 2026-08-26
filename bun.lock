@@ -32,7 +32,7 @@
     },
     "packages/kobe": {
       "name": "@sma1lboy/rove",
-      "version": "0.8.189",
+      "version": "0.8.190",
       "bin": {
         "kobe": "dist/cli/kobe.js",
         "rove": "dist/cli/rove.js",
@@ -50,7 +50,7 @@
       },
       "devDependencies": {
         "@biomejs/biome": "1.9.4",
-        "@sma1lboy/kobe-daemon": "0.7.14",
+        "@sma1lboy/kobe-daemon": "0.7.15",
         "@tsconfig/bun": "1.0.10",
         "@types/bun": "1.3.14",
         "@types/node": "25.6.2",
@@ -65,7 +65,7 @@
     },
     "packages/kobe-daemon": {
       "name": "@sma1lboy/kobe-daemon",
-      "version": "0.7.14",
+      "version": "0.7.15",
       "dependencies": {
         "@sma1lboy/rove-plugin-sdk": "workspace:*",
         "chokidar": "^5.0.0",
@@ -111,7 +111,7 @@
     },
     "packages/kobe-plugin-sdk": {
       "name": "@sma1lboy/rove-plugin-sdk",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "devDependencies": {
         "@types/node": "^22.13.10",
         "typescript": "5.8.2",
@@ -120,7 +120,7 @@
     },
     "packages/kobe-web": {
       "name": "kobe-web",
-      "version": "0.0.3",
+      "version": "0.0.4",
       "dependencies": {
         "@ansi-tools/parser": "^1.0.17",
         "@dnd-kit/core": "^6.3.1",

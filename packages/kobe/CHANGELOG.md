@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.8.190
+
+### Patch Changes
+
+- [`5d69fea`](https://github.com/Sma1lboy/rove/commit/5d69fead742d3a9d7398b333b6e1325d60bf3287) A Rove install predating the `.kobe` → `.rove` move still finds the daemon,
+  the PTY host and its plugins. The new runtime paths are invisible to an older
+  binary, and an invisible daemon isn't an error it reports — it's a second
+  daemon it starts on the same task index, or a second PTY host that splits your
+  engine tabs. Each bind now leaves a symlink at the legacy path (never
+  clobbering a real file there, which would be another daemon's live socket),
+  and the migrated plugin tree is linked back the same way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#557](https://github.com/Sma1lboy/rove/pull/557) [`2794d3a`](https://github.com/Sma1lboy/rove/commit/2794d3aea2504c7962f03e5f69a499ef01bf2961) Plugins now see the whole product move, not just the corners a handler
+  remembered to report. Task events derive from field-level snapshot diffs, so
+  `task.archived` fires however a task got archived (including the
+  `git worktree remove` sweep and `land --then-archive`) and `worktree.created`
+  fires for adopted worktrees too — both previously dropped. New catalog
+  entries: `task.changed` (fields/from/to), `task.pr-changed`,
+  `automation.dispatched/skipped/failed`, `quota.exhausted/resumed`,
+  `session.exited` (the crash signal, off the PTY host's death records),
+  `note.filed`, `message.delivered`, `attention.handled`, and
+  `plugin.enabled/disabled`. `turn.complete` now carries the finished turn's
+  model + token usage. Manifests gain `[[shutdown]]` hooks (bounded ~3s at
+  daemon stop) and `[engines.identity]` for composer copy, and
+  `rove api engine-report` lets a plugin-contributed engine drive the sidebar
+  badge, attention inbox, and event stream without a built-in hook adapter. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`6ebc1e7`](https://github.com/Sma1lboy/rove/commit/6ebc1e70a7a8b525992c418dbdc7c4838809e6f8) Named plugin sandboxes: `bun plugin-sandbox <name> <link|run|api|smoketest|home|reset>`
+  gives every plugin-dev or demo-recording task its own isolated home, daemon,
+  PTY host, plugin registry, and web port under `.scratch/plugin-sandbox/<name>` —
+  parallel sandboxes never collide with each other, the shared dev sandbox, or
+  production. The SDK ships a first runnable example
+  (`examples/hello-events`), and `smoketest` proves the whole chain end to end:
+  link the example, boot a fresh daemon, fire `issue.changed`, assert the hook
+  saw it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`50e8179`](https://github.com/Sma1lboy/rove/commit/50e8179563bbdbfbc776359af887a9dd1a854406) A selection drag that leaves the terminal pane on its very first move — a fast
+  flick upward, or a press on the top row heading into the tab strip — now scrolls
+  the viewport into scrollback like the slower gesture already did. The pane
+  claims the drag on press instead of waiting for the renderer to hand it over on
+  the first drag event, which it only did when that event still landed inside the
+  pane. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`fedb872`](https://github.com/Sma1lboy/rove/commit/fedb87202eb95a9293384aa20696ce417ef215af) Drag-selecting to the top or bottom edge of an ENGINE tab now scrolls. Claude
+  Code runs on the alternate screen, where the pane holds no local scrollback at
+  all, so the edge pull had nothing to move and the gesture looked dead. The pane
+  now scrolls a drag the same way it scrolls the wheel — an app that owns its own
+  scrollback gets wheel ticks forwarded, and only an app that wants neither moves
+  Rove's local viewport. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`515c2aa`](https://github.com/Sma1lboy/rove/commit/515c2aaabeea1d96d607d7bcdb2d824ede1eeb5e) Add the Plugin SDK API reference page (docs/PLUGIN-SDK.md), wire it into the docs site sidebar, and cross-link it from PLUGIN-AUTHORING.md and the SDK README. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.189
 
 ### Patch Changes
