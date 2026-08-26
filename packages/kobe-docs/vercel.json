@@ -5,6 +5,11 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/docs/rove",
+      "destination": "/docs/rove/quick-start",
+      "permanent": true
+    },
+    {
       "source": "/docs/quick-start",
       "destination": "/docs/rove/quick-start",
       "permanent": true
@@ -84,5 +89,6 @@
       "destination": "/docs/plugins/sdk",
       "permanent": true
     }
-  ]
+  ],
+  "trailingSlash": false
 }
