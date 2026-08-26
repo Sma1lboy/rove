@@ -53,8 +53,13 @@ export interface UseTerminalSelectionOpts {
   /** Absolute snapshot row index of the first VISIBLE row (viewport start). */
   visibleRangeStart: number
   snapshot: readonly TerminalRow[]
-  /** Move the viewport: negative scrolls up into history, positive toward live. */
-  scrollBy: (lines: number) => void
+  /**
+   * Scroll for a drag hanging past an edge: negative goes up into history,
+   * positive toward live. The pointer's absolute coords come along because the
+   * pane may have to forward wheel ticks to an app that owns its own
+   * scrollback (an engine on the alternate screen has no local scrollback).
+   */
+  scrollBy: (lines: number, screenX: number, screenY: number) => void
 }
 
 export interface UseTerminalSelectionResult {
@@ -166,13 +171,13 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
       const point = dragPointRef.current
       const at = point && draggingRef.current ? resolvePointer(point) : null
       const pull = at ? pullFor(at, anchorRef.current) : 0
-      if (pull === 0) {
+      if (pull === 0 || !point) {
         stopAutoScroll()
         return
       }
       // Speed follows how far past the edge the pointer is, capped so a drag
       // to the edge of the screen doesn't fly through the whole scrollback.
-      opts.scrollBy(Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, pull)))
+      opts.scrollBy(Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, pull)), point.x, point.y)
     }
   })
 

@@ -166,6 +166,30 @@ export function Terminal(props: TerminalProps) {
     setScrollState((current) => moveViewportScroll(current, snapshot.length, bodyRows, lines, snapshotWindow))
   }
 
+  /**
+   * Emulator order for ANY scroll this pane performs — a wheel tick or a
+   * selection drag hanging past an edge. An app that owns its own scrollback
+   * (mouse tracking, or a fullscreen app on the alternate screen) gets wheel
+   * events; only when it wants neither do we move kobe's local viewport.
+   * Engine tabs are why this matters for the drag: Claude Code runs on the
+   * ALTERNATE screen, where there is no local scrollback to move at all, so a
+   * drag held at the edge has to ask the app to scroll, exactly as the wheel
+   * does. `screenX`/`screenY` are absolute pointer coords.
+   */
+  const scrollFromPointer = (lines: number, screenX: number, screenY: number): void => {
+    if (lines === 0) return
+    const direction = lines < 0 ? "up" : "down"
+    if (pty && !pty.killed && bodyEl) {
+      const col = Math.max(1, screenX - bodyEl.screenX + 1)
+      const row = Math.max(1, screenY - bodyEl.screenY + 1)
+      if (pty.wheel(direction, col, row)) {
+        for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row)
+        return
+      }
+    }
+    scrollBy(lines)
+  }
+
   /* --------- viewport slicing ---------- */
 
   // Rows visible after applying scroll offset. offset 0 means
@@ -199,7 +223,7 @@ export function Terminal(props: TerminalProps) {
     bodyRows,
     visibleRangeStart: visibleRange.start,
     snapshot,
-    scrollBy,
+    scrollBy: scrollFromPointer,
   })
 
   const cursorRows = useMemo(() => {
@@ -357,15 +381,10 @@ export function Terminal(props: TerminalProps) {
         // otherwise scroll kobe's local scrollback.
         const scroll = evt.scroll
         if (!scroll || (scroll.direction !== "up" && scroll.direction !== "down")) return
-        if (pty && !pty.killed && bodyEl) {
-          const col = Math.max(1, evt.x - bodyEl.screenX + 1)
-          const row = Math.max(1, evt.y - bodyEl.screenY + 1)
-          if (pty.wheel(scroll.direction, col, row)) return
-        }
         // One line per event — opentui's parser emits delta:1 per wheel
         // tick already granulated by the host terminal.
         const step = Math.max(1, scroll.delta || 1)
-        scrollBy(scroll.direction === "up" ? -step : step)
+        scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
       }}
     >
       {/* Scroll affordance overlays the historical viewport instead of

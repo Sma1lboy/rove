@@ -6,7 +6,7 @@ import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scri
 import { type RenderHandle, act, renderComponent } from "./harness"
 
 /** A pane with 80 rows of history, its first visible row at screen y=2. */
-const mountPane = async (taskId: string): Promise<RenderHandle> => {
+const mountPane = async (taskId: string): Promise<[RenderHandle, ReturnType<typeof createScriptedPtyRegistry>]> => {
   const harness = createScriptedPtyRegistry()
   let handle: RenderHandle | undefined
   await act(async () => {
@@ -27,7 +27,7 @@ const mountPane = async (taskId: string): Promise<RenderHandle> => {
     harness.last().feed(Array.from({ length: 80 }, (_, i) => `line-${i + 1}`).join("\r\n"))
     await mounted.frame()
   })
-  return mounted
+  return [mounted, harness]
 }
 
 const settle = async (handle: RenderHandle, ms: number): Promise<void> => {
@@ -47,7 +47,7 @@ const settle = async (handle: RenderHandle, ms: number): Promise<void> => {
  * writes to the real system clipboard.
  */
 test("a selection drag held at the pane's top row scrolls into scrollback", async () => {
-  const handle = await mountPane("drag-autoscroll")
+  const [handle] = await mountPane("drag-autoscroll")
   try {
     expect(await handle.frame()).toContain("line-80")
 
@@ -85,7 +85,7 @@ test("a selection drag held at the pane's top row scrolls into scrollback", asyn
  * without an explicit capture on press the pane never sees the drag at all.
  */
 test("a drag that leaves the pane on its first move still scrolls", async () => {
-  const handle = await mountPane("drag-first-move-out")
+  const [handle] = await mountPane("drag-first-move-out")
   try {
     await act(async () => {
       await handle.mockMouse.pressDown(20, 2)
@@ -101,7 +101,7 @@ test("a drag that leaves the pane on its first move still scrolls", async () => 
 
 /** The pull is directional: a sideways drag along the top row is not "up". */
 test("dragging sideways along the top row does not scroll", async () => {
-  const handle = await mountPane("drag-sideways")
+  const [handle] = await mountPane("drag-sideways")
   try {
     await act(async () => {
       await handle.mockMouse.pressDown(10, 2)
@@ -110,6 +110,37 @@ test("dragging sideways along the top row does not scroll", async () => {
       await handle.frame()
     })
     await settle(handle, 250)
+    expect(await handle.frame()).not.toMatch(/scrolled|已回滚/)
+  } finally {
+    handle.destroy()
+  }
+})
+
+/**
+ * An app that owns its own scrollback — an engine on the ALTERNATE screen,
+ * where the pane has no local history to move — must be scrolled the way the
+ * wheel scrolls it: by forwarding wheel ticks, not by moving a viewport that
+ * cannot move. Claude Code is exactly this case, so without it a drag-select
+ * at the edge of an engine tab does nothing at all.
+ */
+test("a drag held at the edge scrolls an app that owns its own scrollback", async () => {
+  const [handle, harness] = await mountPane("drag-forwards-wheel")
+  const wheels: string[] = []
+  const pty = harness.last() as unknown as { wheel: (d: string) => boolean }
+  pty.wheel = (direction: string): boolean => {
+    wheels.push(direction)
+    return true
+  }
+  try {
+    await act(async () => {
+      await handle.mockMouse.pressDown(20, 12)
+      await handle.mockMouse.emitMouseEvent("drag", 20, 2)
+      await handle.frame()
+    })
+    await settle(handle, 250)
+    expect(wheels.length).toBeGreaterThan(0)
+    expect(wheels.every((d) => d === "up")).toBe(true)
+    // The app scrolls itself; the pane's own viewport must stay put.
     expect(await handle.frame()).not.toMatch(/scrolled|已回滚/)
   } finally {
     handle.destroy()
