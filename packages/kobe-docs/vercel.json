@@ -5,6 +5,11 @@
   "cleanUrls": true,
   "redirects": [
     {
+      "source": "/",
+      "destination": "/rove/quick-start",
+      "permanent": false
+    },
+    {
       "source": "/docs/rove",
       "destination": "/rove/quick-start",
       "permanent": true
