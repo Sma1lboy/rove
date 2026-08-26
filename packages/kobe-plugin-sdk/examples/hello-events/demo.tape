@@ -11,8 +11,8 @@
 cd packages/kobe
 
 # Off-screen setup: link plugin, ensure repo exists, compute home, clear old events.
-bun plugin-sandbox ex-gif link ../kobe-plugin-sdk/examples/hello-events >/dev/null 2>&1
-home=$(bun run scripts/plugin-sandbox.ts ex-gif home)
+bun dev:sandbox --name ex-gif run plugin link ../kobe-plugin-sdk/examples/hello-events >/dev/null 2>&1
+home=$(bun run scripts/dev-sandbox.ts --name ex-gif home)
 mkdir -p "$home/smoke-repo"
 git -C "$home/smoke-repo" init -q 2>/dev/null || true
 rm -f "$home/.rove/plugins/examples.hello-events/state/events.jsonl"
@@ -37,8 +37,8 @@ run_cmd() {
 }
 
 clear
-type_cmd "bun plugin-sandbox ex-gif api issue-create --repo \"\$home/smoke-repo\" --title 'Demo issue'"
-run_cmd "bun plugin-sandbox ex-gif api issue-create --repo \"$home/smoke-repo\" --title 'Demo issue'"
+type_cmd "bun dev:sandbox --name ex-gif run api issue-create --repo \"\$home/smoke-repo\" --title 'Demo issue'"
+run_cmd "bun dev:sandbox --name ex-gif run api issue-create --repo \"$home/smoke-repo\" --title 'Demo issue'"
 
 type_cmd "cat \"\$home/.rove/plugins/examples.hello-events/state/events.jsonl\""
 run_cmd "cat \"$home/.rove/plugins/examples.hello-events/state/events.jsonl\""

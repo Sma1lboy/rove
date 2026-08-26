@@ -64,7 +64,7 @@ Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 
 Each example under `packages/kobe-plugin-sdk/examples/` includes a reproducible
 `demo.tape` recording script. The GIFs below were captured in an isolated
-`ex-gif` plugin sandbox (`bun plugin-sandbox ex-gif …`):
+`ex-gif` named dev sandbox (`bun dev:sandbox --name ex-gif …`):
 
 ![hello-events](./assets/plugins/hello-events.gif)
 *hello-events: fire `issue-create` and inspect the captured `issue.changed` event in the plugin state dir.*

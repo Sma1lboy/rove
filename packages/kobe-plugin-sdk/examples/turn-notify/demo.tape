@@ -11,13 +11,13 @@
 cd packages/kobe
 
 # Off-screen setup: link plugin, ensure a repo/task exists, and reset the log.
-bun plugin-sandbox ex-gif link ../kobe-plugin-sdk/examples/turn-notify >/dev/null 2>&1
-home=$(bun run scripts/plugin-sandbox.ts ex-gif home 2>/dev/null)
+bun dev:sandbox --name ex-gif run plugin link ../kobe-plugin-sdk/examples/turn-notify >/dev/null 2>&1
+home=$(bun run scripts/dev-sandbox.ts --name ex-gif home 2>/dev/null)
 mkdir -p "$home/smoke-repo"
 git -C "$home/smoke-repo" init -q 2>/dev/null || true
-bun plugin-sandbox ex-gif run api issue-create --repo "$home/smoke-repo" --title warmup >/dev/null 2>&1
-bun plugin-sandbox ex-gif run add "$home/smoke-repo" >/dev/null 2>&1
-task_id=$(bun plugin-sandbox ex-gif run api list 2>/dev/null | bun -e 'const data = await Bun.stdin.json(); const task = data.tasks.find(t => t.repo.includes("smoke-repo")); console.log(task?.id ?? "")')
+bun dev:sandbox --name ex-gif run api issue-create --repo "$home/smoke-repo" --title warmup >/dev/null 2>&1
+bun dev:sandbox --name ex-gif run add "$home/smoke-repo" >/dev/null 2>&1
+task_id=$(bun dev:sandbox --name ex-gif run api list 2>/dev/null | bun -e 'const data = await Bun.stdin.json(); const task = data.tasks.find(t => t.repo.includes("smoke-repo")); console.log(task?.id ?? "")')
 rm -f "$home/.rove/plugins/examples.turn-notify/log.jsonl"
 
 PS1='$ '
@@ -43,10 +43,10 @@ run_cmd() {
 task=$task_id
 
 clear
-type_cmd "bun plugin-sandbox ex-gif run api engine-report --kind turn-complete --task-id \"\$task\""
-run_cmd "bun plugin-sandbox ex-gif run api engine-report --kind turn-complete --task-id \"$task\""
+type_cmd "bun dev:sandbox --name ex-gif run api engine-report --kind turn-complete --task-id \"\$task\""
+run_cmd "bun dev:sandbox --name ex-gif run api engine-report --kind turn-complete --task-id \"$task\""
 
-type_cmd "bun plugin-sandbox ex-gif run plugin log examples.turn-notify"
-run_cmd "bun plugin-sandbox ex-gif run plugin log examples.turn-notify"
+type_cmd "bun dev:sandbox --name ex-gif run plugin log examples.turn-notify"
+run_cmd "bun dev:sandbox --name ex-gif run plugin log examples.turn-notify"
 
 sleep 1
