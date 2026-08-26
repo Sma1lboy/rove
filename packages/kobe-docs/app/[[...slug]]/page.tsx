@@ -1,4 +1,5 @@
 import { getMDXComponents } from '@/components/mdx';
+import { pageSchema } from '@/lib/page-schema';
 import { source } from '@/lib/source';
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from 'fumadocs-ui/layouts/docs/page';
 import type { Metadata } from 'next';
@@ -10,9 +11,22 @@ export default async function Page(props: PageProps<'/[[...slug]]'>) {
   if (!page) notFound();
 
   const MDX = page.data.body;
+  const schema = pageSchema({
+    url: page.url,
+    title: page.data.title,
+    description: page.data.description,
+  });
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: JSON-LD has no
+          other injection point in React, and the payload is built from our own
+          page metadata, not user input. */}
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/correctness/useUniqueElementIds: not an id.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      />
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>

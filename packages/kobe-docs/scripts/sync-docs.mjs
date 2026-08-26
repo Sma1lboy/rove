@@ -9,12 +9,15 @@
  *   2. rewrites relative links: synced pages become /docs/<slug> site paths,
  *      repo source files and non-synced docs become github.com blob URLs;
  *   3. copies quick-start.mdx to index.mdx so the docs home IS the quick
- *      start, and writes meta.json with the sidebar order.
+ *      start, and writes meta.json with the sidebar order;
+ *   4. writes last-modified.json — site path → source file's git commit date,
+ *      which the site turns into <lastmod> and schema.org dateModified.
  *
  * Output is deterministic — re-running sync on unchanged sources produces
  * byte-identical files.
  */
 
+import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +29,25 @@ const docsOutDir = join(packageDir, 'content/docs');
 const assetsOutDir = join(packageDir, 'public/docs-assets');
 
 const repoBlob = 'https://github.com/Sma1lboy/rove/blob/main/';
+
+/**
+ * A shallow clone cannot answer "when did this file last change" — see
+ * lastModified(). Probed once; a git failure (no git, not a repo) counts as
+ * shallow so the sync still succeeds without dates.
+ */
+const isShallow = (() => {
+  try {
+    return (
+      execFileSync('git', ['rev-parse', '--is-shallow-repository'], {
+        cwd: repoRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() !== 'false'
+    );
+  } catch {
+    return true;
+  }
+})();
 
 /** docs/assets/… paths referenced by synced pages, relative to assets/. */
 const referencedAssets = new Set();
@@ -218,6 +240,24 @@ function rewriteAutolinks(markdown) {
     .join('\n');
 }
 
+/**
+ * Last git commit date for a docs/ source file, as YYYY-MM-DD.
+ *
+ * Returns null under a shallow clone: `git log -- <file>` there reports the
+ * single fetched commit's date for EVERY file, which would stamp all pages
+ * with today and claim freshness the content does not have. Vercel builds
+ * shallow by default, so this is the normal case, not an edge case — a
+ * missing date is correct, a wrong one is worse than none.
+ */
+function lastModified(sourceFile) {
+  if (isShallow) return null;
+  const iso = execFileSync('git', ['log', '-1', '--format=%cs', '--', `docs/${sourceFile}`], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  }).trim();
+  return iso || null;
+}
+
 function toMdxPage(markdown, sourceFile) {
   // Title comes from the first H1, which is then stripped from the body.
   const h1 = markdown.match(/^# (.+)$/m);
@@ -245,10 +285,18 @@ for (const entry of await readdir(docsOutDir)) {
   await rm(join(docsOutDir, entry), { recursive: true, force: true });
 }
 let quickStart = null;
+/** Site path → source file's last git commit date (YYYY-MM-DD). */
+const lastModifiedByPath = {};
 for (const [sourceFile, slug] of PAGES) {
   const markdown = await readFile(join(docsSourceDir, sourceFile), 'utf8');
   const page = toMdxPage(markdown, sourceFile);
-  if (slug.endsWith('/quick-start')) quickStart = page;
+  const modified = lastModified(sourceFile);
+  if (modified) lastModifiedByPath[`/${slug}`] = modified;
+  if (slug.endsWith('/quick-start')) {
+    quickStart = page;
+    // The docs home renders the quick start, so it inherits its date.
+    if (modified) lastModifiedByPath['/'] = modified;
+  }
   await mkdir(dirname(join(docsOutDir, `${slug}.mdx`)), { recursive: true });
   await writeFile(join(docsOutDir, `${slug}.mdx`), page, 'utf8');
   console.log(`synced docs/${sourceFile} → content/docs/${slug}.mdx`);
@@ -277,6 +325,20 @@ for (const module of MODULES) {
 const meta = { title: 'Rove docs', pages: MODULES.map((m) => m.dir) };
 await writeFile(join(docsOutDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
 console.log('wrote content/docs/meta.json');
+
+// Not frontmatter: Fumadocs' page schema strips unknown fields, and widening
+// it would pull in zod, which this package does not install. A sibling map the
+// site imports keeps the dependency graph unchanged.
+await writeFile(
+  join(packageDir, 'lib/last-modified.json'),
+  `${JSON.stringify(lastModifiedByPath, null, 2)}\n`,
+  'utf8',
+);
+console.log(
+  isShallow
+    ? 'wrote lib/last-modified.json (empty — shallow clone has no per-file history)'
+    : `wrote lib/last-modified.json (${Object.keys(lastModifiedByPath).length} pages)`,
+);
 
 // Copy referenced docs/assets/ files into public/docs-assets/ so rewritten
 // image, video, and download paths resolve on the static site.

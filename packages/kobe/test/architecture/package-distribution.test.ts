@@ -1,7 +1,8 @@
 /** Distribution contract for the canonical Rove npm package and Kobe alias. */
 
 import { execFileSync } from "node:child_process"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
@@ -40,6 +41,52 @@ describe("Rove package distribution", () => {
       expect(generated).toContain(`src="/docs-assets/${video}.mp4"`)
       expect(generated).toContain(`](/docs-assets/${video}.mp4)`)
       expect(existsSync(join(ROOT, `packages/kobe-docs/public/docs-assets/${video}.mp4`))).toBe(true)
+    }
+  })
+
+  test("the docs freshness map carries a real date per page, or no date at all", () => {
+    execFileSync("bun", ["packages/kobe-docs/scripts/sync-docs.mjs"], {
+      cwd: ROOT,
+      stdio: "pipe",
+    })
+
+    const dates = json<Record<string, string>>("packages/kobe-docs/lib/last-modified.json")
+    expect(Object.keys(dates).length).toBeGreaterThan(10)
+    for (const [path, date] of Object.entries(dates)) {
+      expect(path, "keys are site paths").toMatch(/^\/[a-z0-9/-]*$/)
+      expect(date, `${path} should be an ISO date`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+  })
+
+  test("a shallow clone emits no dates rather than stamping every page with the build date", () => {
+    // Vercel builds from a shallow clone, where `git log -1 -- <file>` returns
+    // the single fetched commit's date for EVERY file. Emitting that would
+    // claim a freshness the content does not have, so sync-docs must detect
+    // the shallow case and emit nothing. Verified against a real shallow repo:
+    // asserting on THIS repo would silently pass, since it has full history.
+    const shallow = mkdtempSync(join(tmpdir(), "rove-shallow-"))
+    try {
+      const git = (...args: string[]) => execFileSync("git", args, { cwd: shallow, stdio: "pipe", encoding: "utf8" })
+      // `clone --depth 1` off a local path does not mark the result shallow;
+      // an explicit shallow-file does, which is what sync-docs probes for.
+      git("init", "--quiet")
+      git("commit", "--allow-empty", "-m", "seed", "--no-gpg-sign")
+      writeFileSync(join(shallow, ".git/shallow"), `${git("rev-parse", "HEAD").trim()}\n`)
+      expect(git("rev-parse", "--is-shallow-repository").trim()).toBe("true")
+
+      const probe = readFileSync(join(ROOT, "packages/kobe-docs/scripts/sync-docs.mjs"), "utf8").match(
+        /const isShallow = \(\(\) => \{[\s\S]*?\}\)\(\);/,
+      )
+      expect(probe, "sync-docs should still probe for a shallow clone").not.toBeNull()
+
+      const detected = execFileSync("bun", ["-e", `${probe?.[0]}\nconsole.log(isShallow)`], {
+        cwd: shallow,
+        stdio: "pipe",
+        encoding: "utf8",
+      }).trim()
+      expect(detected, "the probe must report shallow inside a shallow repo").toBe("true")
+    } finally {
+      rmSync(shallow, { recursive: true, force: true })
     }
   })
 
