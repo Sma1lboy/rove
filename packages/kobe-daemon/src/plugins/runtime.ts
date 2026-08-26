@@ -91,25 +91,44 @@ export class PluginHost {
     this.watchRegistry()
   }
 
-  stop(): void {
+  /**
+   * Stop the host and run every `[[shutdown]]` hook. Resolves once each hook
+   * has exited or been SIGKILLed at the grace deadline — the caller (daemon
+   * close) MUST await it, or `process.exit` destroys the grace timers and the
+   * hook children become unbounded orphans. Total wait is bounded by
+   * {@link SHUTDOWN_GRACE_MS}; a host with no shutdown hooks resolves
+   * immediately.
+   */
+  async stop(): Promise<void> {
     if (this.stopped) return
     this.stopped = true
     if (this.reloadTimer) clearTimeout(this.reloadTimer)
     this.watcher?.close()
-    // Shutdown hooks: bounded fire-and-forget — daemon close never waits on
-    // a plugin, and a hook that outlives the grace window is killed.
+    const runs: Promise<void>[] = []
     for (const plugin of this.plugins) {
       for (const [i, hook] of plugin.manifest.shutdown.entries()) {
         if (!supportsPlatform(hook, plugin.manifest, currentPluginPlatform())) continue
-        void this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`, SHUTDOWN_GRACE_MS)
+        runs.push(
+          this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`, SHUTDOWN_GRACE_MS),
+        )
       }
     }
+    await Promise.all(runs)
   }
 
   /** Feed every bus publish through here (server wires `bus.onPublish`). */
   handleChannel(event: ChannelEvent): void {
     if (this.stopped) return
-    for (const derived of this.reducer.reduce(event)) this.dispatch(derived)
+    // Guarded: the bus sink loop and the orch.subscribeTasks callback have no
+    // catch of their own, so a throw here (a pathological task field breaking
+    // the diff's deep-compare) would kill the whole snapshot pipeline — the
+    // PTY sweep included — on every subsequent publish. One bad diff must
+    // cost one event batch, never the channel.
+    try {
+      for (const derived of this.reducer.reduce(event)) this.dispatch(derived)
+    } catch (err) {
+      this.opts.log?.(`plugin event reduce failed on ${event.channel} — ${String(err)}`)
+    }
   }
 
   /** Direct feed from `ui.reportEvent` — TUI-originated product events
@@ -120,12 +139,19 @@ export class PluginHost {
     readonly detail?: Record<string, unknown>
   }): void {
     if (this.stopped) return
-    this.dispatch({
-      event: report.kind,
-      ...(report.taskId ? { taskId: report.taskId, task: this.reducer.contextFor(report.taskId) } : {}),
-      ...(report.detail ? { detail: report.detail } : {}),
-      at: Date.now(),
-    })
+    // Guarded here, once, so no reporting call site (RPC handlers, runners)
+    // needs its own try/catch — a pathological detail payload breaking
+    // JSON.stringify must never fail the operation that reported it.
+    try {
+      this.dispatch({
+        event: report.kind,
+        ...(report.taskId ? { taskId: report.taskId, task: this.reducer.contextFor(report.taskId) } : {}),
+        ...(report.detail ? { detail: report.detail } : {}),
+        at: Date.now(),
+      })
+    } catch (err) {
+      this.opts.log?.(`plugin ui-report dispatch failed for ${report.kind} — ${String(err)}`)
+    }
   }
 
   /**
@@ -145,16 +171,21 @@ export class PluginHost {
     if (this.stopped) return
     const event = lifecycleEventFor(report.kind, report.detail as { waiting?: string } | undefined)
     if (!event) return
-    this.dispatch({
-      event,
-      taskId: report.taskId,
-      task: this.reducer.contextFor(report.taskId),
-      ...(report.vendor ? { vendor: report.vendor } : {}),
-      ...(report.tabId ? { tabId: report.tabId } : {}),
-      ...(report.sessionId ? { sessionId: report.sessionId } : {}),
-      ...(report.detail ? { detail: report.detail } : {}),
-      at: Date.now(),
-    })
+    // Same single-site guard as handleUiReport.
+    try {
+      this.dispatch({
+        event,
+        taskId: report.taskId,
+        task: this.reducer.contextFor(report.taskId),
+        ...(report.vendor ? { vendor: report.vendor } : {}),
+        ...(report.tabId ? { tabId: report.tabId } : {}),
+        ...(report.sessionId ? { sessionId: report.sessionId } : {}),
+        ...(report.detail ? { detail: report.detail } : {}),
+        at: Date.now(),
+      })
+    } catch (err) {
+      this.opts.log?.(`plugin engine-report dispatch failed for ${event} — ${String(err)}`)
+    }
   }
 
   /** Fire one event at ONE plugin's matching hooks (registry transitions). */

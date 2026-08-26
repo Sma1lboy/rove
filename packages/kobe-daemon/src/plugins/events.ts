@@ -154,8 +154,8 @@ export class PluginEventReducer {
           taskId: id,
           task: ctx,
           detail: {
-            ...(before.prStatus ? { from: before.prStatus } : {}),
-            ...(task.prStatus ? { to: task.prStatus } : {}),
+            ...(before.prStatus !== undefined ? { from: before.prStatus } : {}),
+            ...(task.prStatus !== undefined ? { to: task.prStatus } : {}),
           },
           at,
         })

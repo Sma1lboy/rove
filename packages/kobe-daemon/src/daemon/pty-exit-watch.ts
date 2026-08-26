@@ -36,12 +36,18 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
 
   const sweep = (): void => {
     const host = opts.plugins()
-    for (const record of Object.values(readPtyExitRecords(path))) {
+    // No host = don't mark records seen, so a fire is deferred, not lost.
+    // (Unreachable today — server.ts only starts the watch with a live host —
+    // but cheap insurance against a future caller.)
+    if (!host) return
+    const records = readPtyExitRecords(path)
+    for (const record of Object.values(records)) {
       if (seen.get(record.key) === record.at) continue
       seen.set(record.key, record.at)
-      if (!host) continue
       host.handleUiReport({ kind: "session.exited", ...exitReport(record) })
     }
+    // The file caps at 50 records; prune dropped keys so `seen` tracks it.
+    for (const key of seen.keys()) if (!(key in records)) seen.delete(key)
   }
 
   return startFileWatchTrigger({

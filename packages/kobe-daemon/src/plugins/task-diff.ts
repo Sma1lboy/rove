@@ -54,6 +54,21 @@ function same(a: unknown, b: unknown): boolean {
   return false
 }
 
+/**
+ * PR-status compare with the poller's own semantics (`samePrStatus` in
+ * kobe/monitor/pr-status.ts, which this package cannot import): the
+ * per-poll bookkeeping fields must not read as change, or a second writer
+ * would fire `task.pr-changed` on every tick.
+ */
+function samePr(a: unknown, b: unknown): boolean {
+  const strip = (v: unknown): unknown => {
+    if (v == null || typeof v !== "object" || Array.isArray(v)) return v
+    const { lastCheckedAt: _a, lastError: _b, ...rest } = v as Record<string, unknown>
+    return rest
+  }
+  return same(strip(a), strip(b))
+}
+
 /** Diff one task across two snapshots; null when nothing watched changed. */
 export function diffTask(prev: SerializedTask, next: SerializedTask): TaskFieldDiff | null {
   const fields: WatchedTaskField[] = []
@@ -67,7 +82,7 @@ export function diffTask(prev: SerializedTask, next: SerializedTask): TaskFieldD
     if (a !== undefined) from[field] = a
     if (b !== undefined) to[field] = b
   }
-  const prChanged = !same(prev.prStatus, next.prStatus)
+  const prChanged = !samePr(prev.prStatus, next.prStatus)
   if (fields.length === 0 && !prChanged) return null
   return {
     fields,

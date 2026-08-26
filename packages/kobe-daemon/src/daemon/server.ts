@@ -333,7 +333,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       stopCollectors()
       ptyHold.stop()
       stopPtyExitWatch()
-      pluginHost?.stop()
+      // Await: [[shutdown]] hooks run inside stop() with a bounded grace
+      // window; returning earlier lets the caller's process.exit orphan them.
+      await pluginHost?.stop()
       prompts.clear()
       activity.close()
       // Hosted PTYs are deliberately NOT touched here: they live in the

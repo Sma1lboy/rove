@@ -101,7 +101,7 @@ describe("PluginHost", () => {
       await waitFor(() => logLines().length >= 2)
       expect(JSON.parse(logLines()[0] as string)).toMatchObject({ exitCode: 0 })
     } finally {
-      host.stop()
+      await host.stop()
     }
   })
 
@@ -148,9 +148,10 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
       )
       await waitFor(() => read("enabled.txt") === "plugin.enabled")
     } finally {
-      host.stop()
+      // stop() resolves only after the shutdown hook exited (or was killed).
+      await host.stop()
     }
-    await waitFor(() => read("stopped.txt") === "shutdown")
+    expect(read("stopped.txt")).toBe("shutdown")
   })
 
   it("skips disabled plugins and unreadable manifests without crashing", async () => {
@@ -174,7 +175,7 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
     })
     host.start()
     host.handleChannel(snapshotEvent(["a"]))
-    host.stop()
+    await host.stop()
     expect(lines.some((l) => l.includes("broken"))).toBe(true)
   })
 })

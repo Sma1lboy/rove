@@ -107,23 +107,21 @@ function emitRunEvent(
   args: { scheduledFor: number; trigger: "scheduled" | "manual" },
   extra: { taskId?: string; error?: string },
 ): void {
-  try {
-    deps.plugins?.()?.handleUiReport({
-      kind: runEventFor(status),
-      ...(extra.taskId ? { taskId: extra.taskId } : {}),
-      detail: {
-        automationId: automation.id,
-        name: automation.name,
-        repo: automation.repo,
-        status,
-        trigger: args.trigger,
-        scheduledFor: new Date(args.scheduledFor).toISOString(),
-        ...(extra.error ? { error: extra.error } : {}),
-      },
-    })
-  } catch {
-    /* plugin fan-out must never fail a run */
-  }
+  // handleUiReport guards its own dispatch — a throw can only come from the
+  // getter, which is a plain closure over the server's pluginHost.
+  deps.plugins?.()?.handleUiReport({
+    kind: runEventFor(status),
+    ...(extra.taskId ? { taskId: extra.taskId } : {}),
+    detail: {
+      automationId: automation.id,
+      name: automation.name,
+      repo: automation.repo,
+      status,
+      trigger: args.trigger,
+      scheduledFor: new Date(args.scheduledFor).toISOString(),
+      ...(extra.error ? { error: extra.error } : {}),
+    },
+  })
 }
 
 /**

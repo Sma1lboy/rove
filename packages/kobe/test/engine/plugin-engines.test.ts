@@ -102,7 +102,13 @@ describe("plugin engine registration", () => {
     expect(entry.screenManifest).toBeDefined()
     expect(entry.builtin).toBe(false)
     // Identity rides the overlay — TUI copy comes from here, never hard-coded.
-    expect(entry.identity?.inputPlaceholder).toBe("Ask Aider…")
+    expect(entry.identity).toEqual({
+      vendorId: "aider",
+      productName: "Aider",
+      shortName: "Aider",
+      assistantName: "Aider",
+      inputPlaceholder: "Ask Aider…",
+    })
   })
 
   it("a shipped catalog id cannot be overridden by a plugin", () => {

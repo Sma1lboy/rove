@@ -83,15 +83,11 @@ export async function scheduleQuotaResume(
     requestedAt: new Date(now()).toISOString(),
   })
   logDaemonInfo("quota-resume", `armed task=${taskId} resumeAt=${resumeAt}`)
-  try {
-    plugins?.()?.handleUiReport({
-      kind: "quota.exhausted",
-      taskId,
-      detail: { vendor: task.vendor ?? runtime.defaultTaskVendor, resumeAt },
-    })
-  } catch {
-    /* plugin fan-out must never fail the schedule */
-  }
+  plugins?.()?.handleUiReport({
+    kind: "quota.exhausted",
+    taskId,
+    detail: { vendor: task.vendor ?? runtime.defaultTaskVendor, resumeAt },
+  })
 }
 
 /**
@@ -112,11 +108,7 @@ async function resumeDueTask(
     QUOTA_RESUME_CONTINUE_PROMPT,
   )
   logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)
-  try {
-    plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
-  } catch {
-    /* plugin fan-out must never fail the resume */
-  }
+  plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
 }
 
 /**

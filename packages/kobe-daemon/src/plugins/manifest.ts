@@ -407,11 +407,15 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       const idt = identityRaw as Record<string, unknown>
       const opt = (key: string): string | undefined =>
         idt[key] === undefined ? undefined : asString(idt[key], `engines[${i}].identity.${key}`)
+      const productName = opt("product_name")
+      const shortName = opt("short_name")
+      const assistantName = opt("assistant_name")
+      const inputPlaceholder = opt("input_placeholder")
       identity = {
-        ...(opt("product_name") !== undefined ? { productName: opt("product_name") } : {}),
-        ...(opt("short_name") !== undefined ? { shortName: opt("short_name") } : {}),
-        ...(opt("assistant_name") !== undefined ? { assistantName: opt("assistant_name") } : {}),
-        ...(opt("input_placeholder") !== undefined ? { inputPlaceholder: opt("input_placeholder") } : {}),
+        ...(productName !== undefined ? { productName } : {}),
+        ...(shortName !== undefined ? { shortName } : {}),
+        ...(assistantName !== undefined ? { assistantName } : {}),
+        ...(inputPlaceholder !== undefined ? { inputPlaceholder } : {}),
       }
     }
     return {

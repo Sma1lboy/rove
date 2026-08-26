@@ -40,10 +40,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         at: Date.now(),
         source: source ?? "dispatcher",
       })
+      // `clients` mirrors the RPC's own honesty note above: broadcast-only
+      // delivery can't be observed, so the event reports REACH (connection
+      // count; 0 = certainly nobody performed the paste), not a confirmation.
       ctx.plugins?.handleUiReport({
         kind: "message.delivered",
         taskId,
-        detail: { source: source ?? "dispatcher", ...(tabId !== undefined ? { tabId } : {}), length: text.length },
+        detail: {
+          source: source ?? "dispatcher",
+          ...(tabId !== undefined ? { tabId } : {}),
+          length: text.length,
+          clients: ctx.daemon.clientCount(),
+        },
       })
       // Report reach, don't just claim success. `session.deliver` is
       // broadcast-only — an attached client performs the paste — so with
@@ -225,10 +233,20 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           source: "note",
         })
       }
+      // Text is capped: the envelope rides ROVE_PLUGIN_EVENT_JSON into every
+      // subscriber's spawn env — an unbounded note risks E2BIG. The durable
+      // store holds the full body; plugins read it back via note-list.
       ctx.plugins?.handleUiReport({
         kind: "note.filed",
         taskId,
-        detail: { repo: author.repo, author: label, text, routed, persisted: persisted ?? false },
+        detail: {
+          repo: author.repo,
+          author: label,
+          text: text.length > 512 ? `${text.slice(0, 512)}…` : text,
+          length: text.length,
+          routed,
+          persisted: persisted ?? false,
+        },
       })
       return { ok: true, routed, persisted: persisted ?? false }
     },
