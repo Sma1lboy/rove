@@ -17,7 +17,8 @@ function tmp(prefix: string): string {
 const savedHome = process.env.ROVE_HOME_DIR
 afterEach(() => {
   clearPluginEngines()
-  if (savedHome === undefined) delete process.env.ROVE_HOME_DIR
+  // Assigning undefined would store the string "undefined" — a real delete.
+  if (savedHome === undefined) Reflect.deleteProperty(process.env, "ROVE_HOME_DIR")
   else process.env.ROVE_HOME_DIR = savedHome
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
