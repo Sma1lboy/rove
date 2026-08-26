@@ -265,9 +265,10 @@ exactly one:
   ```
 
   The plugin's hook commands call a bundled wrapper by absolute path, so they
-  work even when `rove` isn't on the shell's PATH. The bundled skill versions
-  with the plugin (`/plugin update` refreshes both), so Rove's skill staleness
-  prompts step aside while the plugin is enabled.
+  work even when `rove` isn't on the shell's PATH. The bundled skill is
+  versioned with the plugin rather than with Rove itself (`/plugin update`
+  refreshes both), so Rove's skill staleness prompts step aside while the
+  plugin is enabled.
 
 Once Rove sees the plugin enabled, it stops writing the Claude hooks into
 `settings.json` on launch. If you were running Rove **before** installing the
