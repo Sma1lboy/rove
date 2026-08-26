@@ -234,7 +234,7 @@ for the event catalog and channel list, so host and SDK cannot drift.
 | `DaemonFrame` | type | One newline-delimited JSON socket frame. |
 
 Event semantics (when each fires, what `detail` contains) are documented in
-the event catalog of [Writing Rove plugins](./PLUGIN-AUTHORING.md#event-catalog).
+the per-event contract in the [plugin event reference](./PLUGIN-EVENTS.md).
 
 ## Compatibility aliases
 
