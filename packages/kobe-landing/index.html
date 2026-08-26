@@ -7,11 +7,11 @@
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
 <meta name="description" content="Rove multiplexes AI coding agents in your terminal. N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers, all inside an SSH session you can close.">
-<link rel="canonical" href="https://rove.sma1lboy.me/">
+<link rel="canonical" href="https://rove.run/">
 <meta property="og:title" content="Rove: the agent multiplexer in your shell">
 <meta property="og:description" content="A terminal multiplexer for coding agents: N isolated attempts, SSH-native, talking to each other as peers.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://rove.sma1lboy.me/">
+<meta property="og:url" content="https://rove.run/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -131,6 +131,126 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 .final-band .h2f{font-family:var(--font-display);font-size:clamp(30px,4.6vw,56px);font-weight:400;letter-spacing:-.02em;color:var(--ink);max-width:20ch;margin:0 auto;text-shadow:0 1px 26px oklch(97% 0.01 85/.9)}
 
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://rove.run/#website",
+      "url": "https://rove.run/",
+      "name": "Rove",
+      "description": "A terminal multiplexer for AI coding agents: one prompt becomes N isolated attempts, each with its own git worktree and hosted engine session.",
+      "inLanguage": "en",
+      "publisher": {
+        "@id": "https://rove.run/#org"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://docs.rove.run/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://rove.run/#org",
+      "name": "Rove",
+      "url": "https://rove.run/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://rove.run/assets/favicon.png"
+      },
+      "sameAs": [
+        "https://github.com/Sma1lboy/rove",
+        "https://www.npmjs.com/package/@sma1lboy/rove"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://rove.run/#app",
+      "name": "Rove",
+      "url": "https://rove.run/",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Terminal multiplexer for AI coding agents",
+      "operatingSystem": "macOS, Linux, Windows (WSL)",
+      "softwareRequirements": "git and at least one AI coding engine CLI (Claude Code or Codex) on PATH",
+      "description": "Rove multiplexes AI coding agents in your terminal. One prompt fans out to N isolated attempts, each with its own git worktree, branch and hosted engine session. Agents message each other as peers with no coordinator, and sessions survive closing the SSH connection.",
+      "license": "https://github.com/Sma1lboy/rove/blob/main/LICENSE",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "publisher": {
+        "@id": "https://rove.run/#org"
+      },
+      "downloadUrl": "https://www.npmjs.com/package/@sma1lboy/rove",
+      "softwareHelp": {
+        "@type": "CreativeWork",
+        "url": "https://docs.rove.run/"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://rove.run/#faq",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is Rove?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Rove is a local-first terminal UI that runs many AI coding sessions at once. One prompt becomes N isolated attempts; each attempt gets its own git worktree, its own branch, and its own hosted engine session, so the attempts never step on each other."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I install Rove?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Install globally with npm i -g @sma1lboy/rove, or bun add -g @sma1lboy/rove, run it once with npx @sma1lboy/rove, or use the one-line installer: curl -fsSL https://rove.run/install.sh | bash. Rove ships its own Bun runtime, so no separate runtime install is needed."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does Rove require to run?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "macOS or Linux (Windows works through WSL), git, and at least one AI coding engine CLI on your PATH. Claude Code is the default engine; Codex is supported behind the same engine contract."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do Rove sessions survive closing SSH?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Engine sessions are hosted PTYs owned by a separate PTY host process, not by the terminal you are looking at. Closing the SSH connection, or even restarting the Rove daemon, leaves the running agents alive; you reattach and they are still working."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is Rove different from tmux?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "tmux multiplexes terminals. Rove multiplexes agent attempts: the unit of isolation is a git worktree plus a branch plus terminal tabs, not just a pane. Rove also routes peer messages between running agents and tracks each attempt's engine state, which a generic multiplexer has no concept of."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which AI coding engines does Rove support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Claude Code is the default engine. Codex is supported through the same engine-owned adapter contract. Engine adapters are execution backends; the terminal UI is the product surface, so adding an engine does not change how you drive Rove."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
 </head>
 <body>
 
@@ -154,6 +274,8 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     </span>
   </a>
 </header>
+
+<main>
 
 <!-- HERO -->
 <section class="hero">
@@ -381,7 +503,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <h2 data-i18n="install.title">Spin it up where your code lives.</h2>
     <p data-i18n="install.body">One line, then one command. The only metric that matters: merged code per hour of your attention.</p>
     <figure class="term-frame install-term"><div class="tbar" aria-hidden="true"><i class="r"></i><i class="y"></i><i class="g"></i><span>install</span></div>
-    <pre class="term-out"><span class="ps">$</span> curl -fsSL https://rove.sma1lboy.me/install.sh | sh
+    <pre class="term-out"><span class="ps">$</span> curl -fsSL https://rove.run/install.sh | sh
 <span class="ps">$</span> ssh devbox && cd repo
 <span class="ps">$</span> rove
 <span class="d">3 attempts running. Go do something else.</span></pre></figure>
@@ -400,6 +522,8 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <p class="h2f" data-i18n="final.line">Many streams. One shell.</p>
   </div>
 </div>
+
+</main>
 
 <!-- FOOTER · dense colophon -->
 <footer class="foot-dense">
