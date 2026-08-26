@@ -1,12 +1,12 @@
 # Quick start
 
-rove runs many AI coding sessions side by side in your terminal. Each managed
+Rove runs many AI coding sessions side by side in your terminal. Each managed
 Task gets its own git worktree and branch, so parallel Tasks never step on
 each other. Extra tabs inside one Task share that Task's directory.
 
 You need git and at least one engine CLI (`claude`, `codex`, `copilot`, or
 `kimi`) on your `PATH`. The Rove CLI itself runs on the [Bun](https://bun.sh)
-runtime (≥ 1.3.11) — you do not have to install Bun yourself, every route
+runtime (≥ 1.3.11). You do not have to install Bun yourself; every route
 below brings it along.
 
 **Windows also requires [Node.js](https://nodejs.org) and Git for Windows.**
@@ -16,7 +16,7 @@ the new executables are on `PATH`.
 
 ## Install
 
-One line on a fresh machine — installs Bun if it is missing, then Rove:
+One line on a fresh machine. It installs Bun if it is missing, then Rove:
 
 ```bash
 curl -fsSL https://rove.sma1lboy.me/install.sh | sh
@@ -28,7 +28,7 @@ curl -fsSL https://rove.sma1lboy.me/install.sh | sh -s -- 0.8.136
 Or use a package manager you already have:
 
 ```bash
-npm install -g @sma1lboy/rove   # npm — the first launch offers to install Bun
+npm install -g @sma1lboy/rove   # npm; the first launch offers to install Bun
 bun install -g @sma1lboy/rove   # bun
 npx @sma1lboy/rove              # try it without installing
 ```
@@ -42,13 +42,14 @@ npm install -g @sma1lboy/rove
 Rove looks for Bun on `PATH`, in `$BUN_INSTALL/bin`, and in `~/.bun/bin`. If
 yours lives somewhere else, point Rove at it with `ROVE_BUN=/path/to/bun`. To
 never be asked about installing Bun (CI, images, locked-down machines), set
-`ROVE_NO_BUN_BOOTSTRAP=1` — Rove then prints the install commands and exits.
+`ROVE_NO_BUN_BOOTSTRAP=1`. Rove then prints the install commands and exits.
 
 ## Install the agent skill
 
 Do this in the same sitting as the install above. The companion skill teaches
-your coding agent (Claude Code, Codex, …) how to drive Rove itself — spawn
-tasks, fan a prompt out to several attempts, compare them, land the winner:
+your coding agent (Claude Code, Codex, and so on) how to drive Rove itself:
+spawn tasks, fan a prompt out to several attempts, compare them, land the
+winner.
 
 ```bash
 rove skill install
@@ -64,7 +65,7 @@ setup:
 ```
 
 If you were already running Rove before installing the plugin, run
-`rove hook cleanup` once afterwards — details in
+`rove hook cleanup` once afterwards. Details in
 [Configuration → Claude Code plugin](CONFIGURATION.md#claude-code-plugin).
 
 ## First launch
@@ -76,7 +77,7 @@ with `enter`. `q` or `esc` skips anything you have not answered.
 
 The wizard finishes with a short keyboard primer. It does not sign in to an
 engine; install and authenticate at least one supported engine CLI separately.
-The skill question is the same `rove skill install` from the section above —
+The skill question is the same `rove skill install` from the section above;
 answering it there is enough.
 
 ## Your first task
@@ -86,8 +87,8 @@ cd your-repo
 rove
 ```
 
-Press `n`, pick a repo, a base branch, and an engine. Then just talk to the
-session — it's the real engine CLI, running in a fresh worktree under
+Press `n`, pick a repo, a base branch, and an engine. Then talk to the
+session. It's the real engine CLI, running in a fresh worktree under
 `~/.rove/worktrees/` (existing `~/.kobe/worktrees/` tasks remain usable).
 
 ![Rove's three panes: tasks on the left, the engine session in the middle, changed files on the right](assets/workspace.png)
@@ -101,7 +102,7 @@ Three panes: **tasks** on the left, the **engine session** in the middle,
 |---|---|
 | `F1` | Shortcuts reachable from the current focus, including your overrides |
 | `ctrl+a` | Opens the command menu |
-| `ctrl+q` | Focus the sidebar — press it again to quit |
+| `ctrl+q` | Focus the sidebar; press it again to quit |
 
 ## Quitting doesn't stop anything
 
@@ -137,9 +138,9 @@ rove api land --task-id a              # merge the winning branch
 ## Let your agent drive
 
 With the [agent skill](#install-the-agent-skill) in place, you do not have to
-type those commands yourself — ask your coding agent for three attempts at a
-prompt and it runs the `rove api` loop above for you, then reports back which
-branch to land.
+type those commands yourself. Ask your coding agent for three attempts at a
+prompt; it runs the `rove api` loop above and reports back which branch to
+land.
 
 ## If something's wrong
 
@@ -152,8 +153,8 @@ More fixes in [Troubleshooting](TROUBLESHOOTING.md).
 
 ## Next steps
 
-- [Concepts](CONCEPTS.md) — tasks, sessions, and what survives what.
-- [The TUI](TUI.md) — status glyphs, the Inbox, diff review, and the pages.
-- [CLI reference](CLI.md) — every `rove` command.
-- [rove api](API.md) — the scriptable surface for scripts and agents.
-- [Configuration](CONFIGURATION.md) — engines, themes, notifications.
+- [Concepts](CONCEPTS.md): tasks, sessions, and what survives what.
+- [The TUI](TUI.md): status glyphs, the Inbox, diff review, and the pages.
+- [CLI reference](CLI.md): every `rove` command.
+- [rove api](API.md): the scriptable surface for scripts and agents.
+- [Configuration](CONFIGURATION.md): engines, themes, notifications.

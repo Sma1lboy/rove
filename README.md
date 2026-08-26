@@ -1,10 +1,10 @@
-# Rove — the agent multiplexer for your terminal
+# Rove: the agent multiplexer for your terminal
 
 <p align="center">
-  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove — the agent multiplexer for your terminal" />
+  <img src="docs/assets/brand/bracket-chip.gif" alt="Rove, the agent multiplexer for your terminal" />
 </p>
 
-Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, or any CLI you register. 
+Rove is a terminal-native workspace for running multiple coding tasks in parallel with [Claude Code](https://claude.com/claude-code), [Codex](https://github.com/openai/codex), [Copilot](https://github.com/github/copilot-cli), Kimi, or any CLI you register.
 
 Rove isolates parallel work in git worktrees and branches, while agent and shell sessions keep running when you disconnect.
 
@@ -24,15 +24,15 @@ Rove isolates parallel work in git worktrees and branches, while agent and shell
 </p>
 
 <p align="center">
-  <img src="docs/assets/demo.gif" alt="Rove demo — two tasks running at once, each on its own worktree and branch" /><br />
+  <img src="docs/assets/demo.gif" alt="Rove demo: two tasks running at once, each on its own worktree and branch" /><br />
   <a href="docs/assets/demo.mp4">Watch the full-quality MP4</a>
 </p>
 
-The sidebar tracks tasks and their sessions, the workspace embeds the active agent or shell, and the files pane shows the worktree's changes. Switch tasks to review output, inspect diffs, run tests, or send the next instruction.
+The sidebar tracks tasks and their sessions. The workspace embeds the active agent or shell. The files pane shows what changed in the worktree. Switch tasks to read output, inspect a diff, run tests, or send the next instruction.
 
 ## Quick start
 
-One line, on a machine with nothing installed — it sets up the Bun runtime Rove needs, then Rove itself:
+One line on a machine with nothing installed. It sets up the Bun runtime Rove needs, then Rove itself:
 
 ```bash
 curl -fsSL https://rove.sma1lboy.me/install.sh | sh
@@ -46,7 +46,7 @@ bun install -g @sma1lboy/rove   # if you already run Bun
 npx @sma1lboy/rove              # try it without installing
 ```
 
-Install the skill to let a coding agent orchestrate Rove directly:
+To let a coding agent drive Rove itself, install the skill:
 
 ```bash
 rove skill install
@@ -59,20 +59,20 @@ cd your-repo
 rove
 ```
 
-Rove needs git and at least one supported agent CLI on `PATH`, and runs on macOS, Linux, and Windows; Windows also requires Node.js and Git for Windows/Git Bash. The CLI itself runs on [Bun](https://bun.sh) ≥ 1.3.11 — every install route above brings it along, and `ROVE_BUN=/path/to/bun` points Rove at a Bun installed somewhere unusual.
+Rove needs git and at least one supported agent CLI on `PATH`. It runs on macOS, Linux, and Windows; Windows also requires Node.js and Git for Windows/Git Bash. The CLI itself runs on [Bun](https://bun.sh) ≥ 1.3.11, which every install route above brings along. If your Bun lives somewhere unusual, point Rove at it with `ROVE_BUN=/path/to/bun`.
 
-Press `n`, choose a repository, base branch, and agent, then enter a prompt. Press `F1` for the live keybinding reference; `ctrl+q` returns to the sidebar and quits from there without stopping sessions.
+Press `n`, choose a repository, base branch, and agent, then enter a prompt. `F1` shows the live keybinding reference. `ctrl+q` returns to the sidebar, and quits from there without stopping sessions.
 
-The package also installs `kobe` as a compatibility alias; `rove` is the canonical command. On first launch, supported legacy state is copied additively into `~/.rove`; existing files and worktrees stay in place.
+`rove` is the canonical command. The package also installs `kobe` as a compatibility alias. On first launch, supported legacy state is copied into `~/.rove`; existing files and worktrees stay where they are.
 
 ## Why Rove
 
-- **Parallel tasks** — keep a refactor, bug fix, test investigation, and review moving at the same time.
-- **Git isolation** — each managed task owns a worktree and branch, so agents working on different tasks do not overwrite each other's files.
-- **Persistent sessions** — quit the TUI or drop SSH, then reattach without stopping the work.
-- **Your existing agents** — use the real Claude Code, Codex, Copilot, Kimi, or custom CLI, with its own authentication, permissions, models, and access to the local environment.
-- **Terminal-native** — run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
-- **Automation-ready** — scripts and coding agents can create, inspect, message, and land tasks through `rove api`.
+- **Parallel tasks.** Keep a refactor, a bug fix, a test investigation, and a review moving at the same time.
+- **Git isolation.** Each managed task owns a worktree and branch, so agents on different tasks never overwrite each other's files.
+- **Persistent sessions.** Quit the TUI or drop SSH, then reattach without stopping the work.
+- **Your existing agents.** Rove runs the real Claude Code, Codex, Copilot, Kimi, or custom CLI, with its own auth, permissions, models, and access to the local machine.
+- **Terminal-native.** Run Rove where the code lives: laptop, devbox, VPS, or a narrow mobile SSH session.
+- **Scriptable.** Scripts and coding agents create, inspect, message, and land tasks through `rove api`.
 
 ## How it works
 
@@ -86,13 +86,13 @@ Managed task
     └── shell
 ```
 
-Tabs inside one task share its files; create separate managed tasks when work needs isolation. Project-main tasks and `rove .` directory tasks deliberately reuse an existing directory. Sessions continue in the background when the TUI detaches, and Rove restores them when you return.
+Tabs inside one task share its files, so work that needs isolation gets its own managed task. Project-main tasks and `rove .` directory tasks deliberately reuse an existing directory. Sessions keep running in the background when the TUI detaches, and Rove restores them when you return.
 
-The usual loop is simple: start several different tasks, switch between their live sessions, review each worktree's diff and checks, send follow-up instructions, then merge the completed branches. See [Concepts](./docs/CONCEPTS.md) and [Sessions](./docs/SESSIONS.md) for the full lifecycle.
+The loop: start several tasks, switch between their live sessions, review each worktree's diff and checks, send follow-up instructions, then merge the branches that worked out. [Concepts](./docs/CONCEPTS.md) and [Sessions](./docs/SESSIONS.md) cover the full lifecycle.
 
 ## Scripting and Agent API
 
-`rove api` exposes the same task model to shell scripts and coding agents. A typical workflow creates a task, checks its output, sends follow-up instructions, and lands the completed branch:
+`rove api` exposes the same task model to shell scripts and coding agents. A run creates a task, checks its output, sends follow-ups, and lands the branch:
 
 ```bash
 rove api add --repo "$PWD" --prompt "Fix the flaky auth test."
@@ -102,39 +102,37 @@ rove api send --task-id <id> --prompt "Run the integration suite too."
 rove api land --task-id <id>
 ```
 
-Install the companion skill to let a coding agent orchestrate Rove directly:
+The companion skill teaches a coding agent to drive that loop for you:
 
 ```bash
 rove skill install
 ```
 
-Tasks created from inside another Rove session remember which task and tab dispatched them, so workers can report results back without an external coordinator. The API also covers task inspection, notifications, prompts, panes, issue tracking, routines, and worktree-safe lifecycle operations.
+A task created from inside another Rove session remembers which task and tab dispatched it, so workers report results back without an external coordinator. The API also covers task inspection, notifications, prompts, panes, issue tracking, routines, and worktree-safe lifecycle operations.
 
-See the [Agent API reference](https://docs.rove.sma1lboy.me/docs/api) for every verb, flag, and exit code.
+Every verb, flag, and exit code is in the [Agent API reference](https://docs.rove.sma1lboy.me/docs/api).
 
 ## Built for the terminal
 
-Rove works with the tools you already use: your editor, terminal, git workflow, and coding agents.
+Rove runs the interactive agent CLIs you already have, keeps their sessions alive on the host, and lets you manage parallel coding tasks from the terminal, including over SSH.
 
-It runs the interactive agent CLIs you already use, keeps their sessions alive on the host, and lets you manage parallel coding tasks directly from your terminal — including over SSH.
-
-- **Terminal TUI** — no desktop app required
-- **SSH-native** — the same workflow works on remote machines
-- **Persistent sessions** — disconnect and come back without losing running agents
-- **Existing agent CLIs** — Claude Code, Codex, Copilot, Kimi, or your own
-- **Git-native isolation** — parallel tasks can live in separate worktrees and branches
-- **Programmable** — orchestrate tasks through `rove api`
+- **Terminal TUI.** No desktop app.
+- **SSH-native.** The same workflow on remote machines.
+- **Persistent sessions.** Disconnect and come back without losing running agents.
+- **Existing agent CLIs.** Claude Code, Codex, Copilot, Kimi, or your own.
+- **Git-native isolation.** Parallel tasks live in separate worktrees and branches.
+- **Programmable.** Orchestrate tasks through `rove api`.
 
 ## More features
 
-- **Review:** diff views and inline notes sent back as one agent prompt
-- **Recovery:** rate-limit resume, cross-engine handoff, and multiple agents within one task
-- **Remote ergonomics:** narrow/mobile layouts, a durable Inbox, notifications, and attachments
-- **Unattended work:** scheduled routines with optional prechecks that skip idle runs
-- **Planning context:** local Kanban, GitHub issue intake, and reusable repository field notes
-- **Customization:** themes and plugins with custom panes, events, and commands
+- **Review.** Diff views, plus inline notes that go back as one agent prompt.
+- **Recovery.** Rate-limit resume, cross-engine handoff, several agents inside one task.
+- **Remote ergonomics.** Narrow and mobile layouts, a durable Inbox, notifications, attachments.
+- **Unattended work.** Scheduled routines, with optional prechecks that skip idle runs.
+- **Planning context.** Local Kanban, GitHub issue intake, reusable repository field notes.
+- **Customization.** Themes, and plugins with custom panes, events, and commands.
 
-Explore the [TUI guide](./docs/TUI.md), [Routines](./docs/ROUTINES.md), [configuration](./docs/CONFIGURATION.md), and [plugin authoring](./docs/PLUGIN-AUTHORING.md) for details.
+Details live in the [TUI guide](./docs/TUI.md), [Routines](./docs/ROUTINES.md), [configuration](./docs/CONFIGURATION.md), and [plugin authoring](./docs/PLUGIN-AUTHORING.md).
 
 ## Troubleshooting
 
@@ -142,7 +140,7 @@ Explore the [TUI guide](./docs/TUI.md), [Routines](./docs/ROUTINES.md), [configu
 rove doctor
 ```
 
-See [Troubleshooting](./docs/TROUBLESHOOTING.md) for diagnostics and recovery steps.
+[Troubleshooting](./docs/TROUBLESHOOTING.md) has the diagnostics and recovery steps.
 
 ## Development
 
@@ -152,7 +150,7 @@ bun run dev:sandbox
 bun run test
 ```
 
-Start with [CONTRIBUTING.md](./CONTRIBUTING.md) and [Architecture](./docs/ARCHITECTURE.md). Shipped behavior lives in the [changelog](./packages/kobe/CHANGELOG.md).
+Start with [CONTRIBUTING.md](./CONTRIBUTING.md) and [Architecture](./docs/ARCHITECTURE.md). Shipped behavior is in the [changelog](./packages/kobe/CHANGELOG.md).
 
 ## License
 

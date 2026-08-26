@@ -1,6 +1,6 @@
 # Engines
 
-An **engine** is the AI coding CLI a task runs on — `claude`, `codex`,
+An **engine** is the AI coding CLI a task runs on: `claude`, `codex`,
 `copilot`, `kimi`, or one you register yourself. Rove runs the real
 interactive CLI inside the task's terminal session.
 
@@ -31,14 +31,14 @@ rate-limit auto-resume and the Settings usage dashboard.
 **Contrib engines are launch + badge only.** Rove ships a catalog of
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
 `amp`) so they appear in the engine selector whenever the binary is on your
-PATH — with a proper name, a launch command, and screen-based activity
+PATH, with a proper name, a launch command, and screen-based activity
 badges. Settings → Engines lists them (and your own registered engines) with
-their binary discovery, but that is all detection can answer for them — no
+their binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
 what promotes an engine to built-in.
 
 **Kimi is partial.** Rove finds the binary, reads its login state, and can
-locate each session's transcript — enough to watch it for activity and to
+locate each session's transcript, enough to watch it for activity and to
 hand the conversation to another engine. It still doesn't *parse* that
 transcript (the wire format is unverified), so auto-title keeps the
 placeholder and `rove api read-output` reports `engine_unsupported` rather
@@ -49,11 +49,11 @@ than guessing.
 Per task, at creation time, or with `v` in the sidebar. The default for new
 tasks comes from Settings → Engines (`defaultVendor`), and Rove remembers the
 last engine you used per project. From a script it is
-`rove api add --command <engine-or-command-line>` — see
+`rove api add --command <engine-or-command-line>`; see
 [engine presets and protocols](#engine-presets-and-protocols).
 
 Engines whose CLI isn't installed are hidden from the new-task dialog. Custom
-engines always show — you added it, so Rove assumes you meant it.
+engines always show; you added it, so Rove assumes you meant it.
 
 ### Reasoning effort
 
@@ -64,13 +64,13 @@ can drive; a selected effort is ignored there rather than passed through.
 ### Workspace trust
 
 Claude, Codex, and Kimi each gate a first launch in a never-seen directory
-behind a trust dialog — and every task worktree is such a directory, so a
+behind a trust dialog, and every task worktree is such a directory, so a
 hosted session can't answer it (Kimi's dialog even exits the process when a
 pasted first message lands on "Don't trust"). Before spawning an engine into
 a Rove-created worktree, Rove writes the vendor's own trust record for that
-path — `~/.claude.json` `projects[<path>].hasTrustDialogAccepted`,
+path (`~/.claude.json` `projects[<path>].hasTrustDialogAccepted`,
 `~/.codex/config.toml` `[projects."<path>"] trust_level = "trusted"`, or
-`~/.kimi-code/workspace-trust/` — merging into existing entries, never
+`~/.kimi-code/workspace-trust/`), merging into existing entries, never
 clobbering. This only ever fires for worktrees Rove itself created from a
 repo you already work in; your own directories are untouched.
 
@@ -84,8 +84,8 @@ Override any engine's launch command in Settings → Engines, or by hand in
 ```
 
 Quotes are honored, so `claude --append-system-prompt "be terse"` works. For
-Claude, Rove appends its own `--session-id` so the tab stays resumable — but
-if your override already pins the conversation (`--session-id`, `--resume`,
+Claude, Rove appends its own `--session-id` so the tab stays resumable. If
+your override already pins the conversation (`--session-id`, `--resume`,
 `--continue`, `--from-pr`), Rove leaves it alone.
 
 If an engine exits non-zero, the terminal stays open with a banner pointing
@@ -94,11 +94,11 @@ at Settings → Engines, and drops you into a shell.
 ## Activity badges
 
 The sidebar shows what each session is doing: **working**, **done**, or
-**needs input**. There's nothing to configure — Rove reads the engine's own
+**needs input**. There's nothing to configure. Rove reads the engine's own
 hook events, falling back to its transcript when hooks aren't available.
 
 One thing worth knowing: **the depth of the badge depends on the engine**.
-Claude, codex, and kimi report through hooks — the full working / done /
+Claude, codex, and kimi report through hooks: the full working / done /
 needs-input vocabulary, sub-second. Engines without hooks or a readable
 transcript (copilot today) fall back to screen reading: Rove classifies the
 visible terminal against engine-declared rules, which still distinguishes
@@ -106,7 +106,7 @@ working from waiting-on-you but can't see a completed turn the way a
 transcript marker can. Rove labels the gap honestly rather than guessing.
 
 Codex won't run Rove's hooks until you trust them once via `/hooks`, so Codex
-badges stay dark until you approve. That's by design — Rove writes the hook
+badges stay dark until you approve. That's by design: Rove writes the hook
 definition but never bypasses the trust prompt for you.
 
 Mechanics: [design/engine-internals.md](./design/engine-internals.md).
@@ -115,7 +115,7 @@ Mechanics: [design/engine-internals.md](./design/engine-internals.md).
 
 **Resume.** A Claude tab whose process is gone (reboot, unarchive) relaunches
 into the same conversation instead of a blank one. A tab that never sent a
-first message isn't resumed — there's no transcript yet. Codex, Copilot,
+first message isn't resumed; there's no transcript yet. Codex, Copilot,
 Kimi, and custom engines can't take a caller-set session id, so their tabs
 relaunch fresh.
 
@@ -144,9 +144,9 @@ session store is refused instead of silently opening a blank continuation.
 *Different built-in engine* → a handoff. This is the move that saves you when
 you hit a usage limit mid-task. The new engine starts fresh with a first prompt
 that points it at the old session's transcript and asks it to state where the
-previous one stopped — that sentence is how you check the handoff landed.
+previous one stopped. That sentence is how you check the handoff landed.
 
-Handoffs work in every direction between the four built-ins — the receiving
+Handoffs work in every direction between the four built-ins. The receiving
 agent is handed the previous transcript's *path* and reads it in whatever
 format it finds, so no format ever has to be converted. Only a **custom**
 engine can't be a handoff source (Rove doesn't know its session store); that
@@ -155,8 +155,8 @@ case is refused with a reason. A handoff *to* a custom engine works fine.
 ## Custom engines
 
 Any CLI can be an engine. A custom engine is a **named preset**: an id, a
-launch command, an optional display name, and — declared once at
-registration — the *protocol* Rove speaks to it. **Settings → Engines → + Add
+launch command, an optional display name, and, declared once at
+registration, the *protocol* Rove speaks to it. **Settings → Engines → + Add
 engine** asks for each. Or by hand:
 
 ```json
@@ -171,7 +171,7 @@ engine** asks for each. Or by hand:
 Being in `customEngineIds` *is* the registration.
 
 `engineProtocol.<id>` is optional and says "talk to my binary the way you talk
-to `claude`" — set it when your CLI is a wrapper around a built-in (a
+to `claude`". Set it when your CLI is a wrapper around a built-in (a
 different binary name, a fixed set of flags, a company shim) so the transcript
 reader, workspace-trust pre-answer, and first-message delivery all apply.
 Leave it out and the preset gets the **generic** protocol: it launches and
@@ -185,18 +185,18 @@ remove a custom engine entirely.
 
 Rove separates two things a "vendor" used to conflate:
 
-- **the command** — what actually runs. A preset id (`claude`) or a full
+- **the command.** What actually runs. A preset id (`claude`) or a full
   command line (`codex --search`). Nothing validates its flags; probe an
   unfamiliar CLI with `<cmd> --help` first.
-- **the protocol** — which adapter Rove uses for that command: whose
+- **the protocol.** Which adapter Rove uses for that command: whose
   transcripts to read, whose trust store to pre-answer, whether the first
   message may ride the launch argv.
 
 The protocol is **derived** from the command, never declared beside it:
 
 1. `argv[0]` names a registered preset (built-in or yours) → that preset's
-   protocol. Deterministic, and it answers before anything spawns — the
-   normal path.
+   protocol. Deterministic, and it answers before anything spawns. This is
+   the normal path.
 2. Otherwise Rove can recognise a known engine binary through wrappers
    (`env FOO=1 claude`, `node …/codex.js`), the same walk the process probe
    uses at runtime.

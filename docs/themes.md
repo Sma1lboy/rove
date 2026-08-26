@@ -1,6 +1,6 @@
 # Themes
 
-rove bundles three themes — `claude`, `conductor`, `tokyonight` — and ten
+Rove bundles three themes (`claude`, `conductor`, `tokyonight`) and ten
 more are [one command away](#hosted-themes). You can also write your own.
 
 Any `~/.rove/themes/*.json` file loads at boot and appears in the theme
@@ -79,7 +79,7 @@ doesn't have to know it's a "user" theme.
 
 ## Hosted themes
 
-Ten more themes are hosted rather than bundled — `catppuccin`, `dracula`,
+Ten more themes are hosted rather than bundled: `catppuccin`, `dracula`,
 `everforest`, `gruvbox`, `kanagawa`, `nord`, `opencode`, `osaka-jade`,
 `rose-pine`, `solarized`. Install any of them with one command:
 

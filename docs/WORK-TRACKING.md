@@ -25,7 +25,7 @@ common-dir, so the source checkout and its worktrees share one issue record:
       "repoRoot": "/path/to/repo",
       "nextId": 4,
       "issues": [
-        { "id": 1, "title": "short imperative title", "status": "open", "created": "YYYY-MM-DD", "body": "context, repro, scope — one field, free text" }
+        { "id": 1, "title": "short imperative title", "status": "open", "created": "YYYY-MM-DD", "body": "context, repro, scope; one field, free text" }
       ]
     }
   }

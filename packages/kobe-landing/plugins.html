@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rove — plugins</title>
+<title>Rove: plugins</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="The Rove plugin marketplace — shareable workflow packages built on the Rove CLI. Public repos tagged rove-plugin are listed automatically; legacy kobe-plugin repos stay included.">
-<link rel="canonical" href="https://rove.sma1lboy.me/plugins">
-<meta property="og:title" content="Rove — plugins">
+<meta name="description" content="The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. Public repos tagged rove-plugin are listed automatically; legacy kobe-plugin repos stay included.">
+<link rel="canonical" href="https://rove.run/plugins">
+<meta property="og:title" content="Rove: plugins">
 <meta property="og:description" content="Shareable workflow packages for Rove. Repositories tagged rove-plugin or legacy kobe-plugin are listed automatically.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://rove.sma1lboy.me/plugins">
+<meta property="og:url" content="https://rove.run/plugins">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -208,7 +208,7 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
 
   <div class="notice" id="disclaimer">
     <span class="mk" aria-hidden="true">!</span>
-    <span data-i18n="mk.disclaimer">These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges — read the manifest before you install.</span>
+    <span data-i18n="mk.disclaimer">These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges, so read the manifest before you install.</span>
   </div>
 
   <div class="grid" id="grid" aria-live="polite">
@@ -225,7 +225,7 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
   <h2 data-i18n="pub.title">Ship yours in three steps.</h2>
   <div class="publish">
     <ol class="steps">
-      <li data-i18n-html="pub.s1"><b>Put a manifest in a public repo.</b> A <code>rove-plugin.toml</code> at the repo root — or in a subdirectory, if you keep several plugins in one repo.</li>
+      <li data-i18n-html="pub.s1"><b>Put a manifest in a public repo.</b> A <code>rove-plugin.toml</code> at the repo root, or in a subdirectory if you keep several plugins in one repo.</li>
       <li data-i18n-html="pub.s2"><b>Add the GitHub topic <code>rove-plugin</code>.</b> Repo page → the gear next to About → Topics.</li>
       <li data-i18n-html="pub.s3"><b>Done.</b> It shows up on this page on the next load, and anyone can run <code>rove plugin install you/your-repo</code>.</li>
     </ol>
@@ -299,8 +299,8 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
       'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.keybindings': '快捷键',
     };
     var en = {
-      'meta.title': 'Rove — plugins',
-      'meta.desc': 'The Rove plugin marketplace — shareable workflow packages built on the Rove CLI. rove-plugin and legacy kobe-plugin repositories are listed automatically.',
+      'meta.title': 'Rove: plugins',
+      'meta.desc': 'The Rove plugin marketplace: shareable workflow packages built on the Rove CLI. rove-plugin and legacy kobe-plugin repositories are listed automatically.',
       'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
       'plug.kicker': 'a directory · a <span class="acc" style="font-style:normal;font-weight:700">rove-plugin.toml</span> · the whole CLI as the API',
       'plug.title': 'Workflow, packaged and <span class="acc">shareable</span>.',
@@ -309,10 +309,10 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
       'mk.title': 'Everything tagged <span class="acc">rove-plugin</span>.',
       'mk.lede': 'This list is not curated by hand. It combines rove-plugin with legacy kobe-plugin repositories, fetched live when you open the page.',
       'mk.sortLabel': 'SORT', 'mk.sortStars': 'stars', 'mk.sortPushed': 'recently pushed', 'mk.sortNewest': 'newest',
-      'mk.disclaimer': "These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges — read the manifest before you install.",
+      'mk.disclaimer': "These are community repositories, listed automatically and reviewed by nobody. A plugin runs with your shell's privileges, so read the manifest before you install.",
       'mk.filterPlaceholder': 'filter plugins…',
       'mk.offline': "Couldn't reach the GitHub API (usually rate limiting). Showing the first-party example plugins that ship in this repo.",
-      'mk.empty': 'No public repository carries the rove-plugin or legacy kobe-plugin topic yet. Below are the first-party examples — the first one listed here could be yours.',
+      'mk.empty': 'No public repository carries the rove-plugin or legacy kobe-plugin topic yet. Below are the first-party examples. The first community one listed here could be yours.',
       'mk.copy': 'copy install command', 'mk.copied': '✓ copied',
       'mk.count': 'plugins', 'mk.none': 'No plugins match that filter.',
       'mk.firstParty': 'first-party',
@@ -323,7 +323,7 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
       'det.readmeFail': "Couldn't load this plugin's README.",
       'pub.no': '02 · PUBLISH',
       'pub.title': 'Ship yours in three steps.',
-      'pub.s1': '<b>Put a manifest in a public repo.</b> A <code>rove-plugin.toml</code> at the repo root — or in a subdirectory, if you keep several plugins in one repo.',
+      'pub.s1': '<b>Put a manifest in a public repo.</b> A <code>rove-plugin.toml</code> at the repo root, or in a subdirectory if you keep several plugins in one repo.',
       'pub.s2': '<b>Add the GitHub topic <code>rove-plugin</code>.</b> Repo page → the gear next to About → Topics.',
       'pub.s3': '<b>Done.</b> It shows up on this page on the next load, and anyone can run <code>rove plugin install you/your-repo</code>.',
       'footer.tagline': 'a terminal multiplexer for coding agents.',

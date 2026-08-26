@@ -22,8 +22,8 @@ Click a pane or row to focus it. `F4` moves focus forward, `ctrl+a` `h` / `l`
 moves left or right, and `ctrl+q` returns from the workspace to Tasks. From the
 Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
-from the keyboard — including **New conversation** and **New shell** for that
-Task's worktree — and clicking anywhere else dismisses that menu.
+from the keyboard, including **New conversation** and **New shell** for that
+Task's worktree. Clicking anywhere else dismisses that menu.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
@@ -46,7 +46,7 @@ on the **tab rows** underneath:
 | Glyph | Meaning |
 |---|---|
 | spinner | Engine is working (also shown while a worktree materializes or deletes) |
-| `?` | Needs your input — a permission prompt or a question |
+| `?` | Needs your input: a permission prompt or a question |
 | `●` | Turn finished, and you haven't looked yet |
 | `○` | Idle or not yet observed. Includes a finished turn you've already seen |
 | `◷` | Rate limited |
@@ -57,14 +57,14 @@ A tab labelled `⚠ <name>` is a live hosted session that was missing from the
 saved tab list. Rove exposes it instead of hiding a running process and adopts
 it back into the Task's tab state when possible.
 
-**Seen means consumed.** A `●` clears the moment you actually open that tab —
+**Seen means consumed.** A `●` clears the moment you actually open that tab,
 select the task, with that tab active. Moving the sidebar cursor over the row
 doesn't count. Once seen, the badge drops back to `○`; there is no lingering
 checkmark. Rove saves the completion timestamp per task and tab, so restarting
 or reattaching does not relight a completion you already read. A later
 completion has a later timestamp and appears unread as usual.
 
-Each tab row reports its **own** activity, not the task's roll-up — tab 2 can
+Each tab row reports its **own** activity, not the task's roll-up. Tab 2 can
 spin while tab 1 rests. The tab strip at the top of the workspace uses a
 similar vocabulary (`●` running, `✓` done, `!` error, `?` needs input, `○`
 idle) over the same saved timestamps: a `✓` you have already read settles
@@ -105,23 +105,23 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 
 ## Inbox
 
-`ctrl+a` `i` opens it. The Inbox answers two questions — *what needs me?* and
-*where was I?* — with one section for each:
+`ctrl+a` `i` opens it. The Inbox answers two questions, *what needs me?* and
+*where was I?*, with one section for each:
 
-- **ATTENTION** — pending items, oldest first. An item appears when a turn
+- **ATTENTION.** Pending items, oldest first. An item appears when a turn
   completes, a session asks for input, hits a rate limit, or errors. Most
   items target one task-and-tab; events without a tab identity target the
   whole task instead. A newer event for the same target replaces the older
   one, and starting a new turn clears it.
-- **RECENT** — the last handful of tabs you visited, most recent first. These
+- **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.
 
 `enter` opens the task and, when the episode names one, its exact tab; a
 task-level episode leaves that task's current tab active. It also clears the
-item. `d` clears without navigating (ATTENTION rows only — RECENT rows have
+item. `d` clears without navigating (ATTENTION rows only; RECENT rows have
 nothing to drop). You rarely need `d`: **visiting a target clears its item
-anyway** — visiting any tab resolves a task-level episode — and stale items
+anyway**, since visiting any tab resolves a task-level episode, and stale items
 whose tab or task is gone get cleaned up in the background.
 
 `F7` jumps straight to the oldest pending item across **all** projects,
@@ -135,16 +135,16 @@ The files pane shows what changed; diff review lets you respond. Press `d`
 on a file to open its read-only diff, then:
 
 1. `j` / `k` move the line cursor.
-2. `v` anchors a range — move to the other end with `j`/`k`; `v` again
+2. `v` anchors a range. Move to the other end with `j`/`k`; `v` again
    cancels. Skip this for a single-line note.
 3. `c` writes a note for the current line or range.
-4. `s` sends **all** unsent notes — across all files of the task — to the
+4. `s` sends **all** unsent notes, across all files of the task, to the
    engine as one prompt, and submits it.
 
-The prompt the engine receives is just file, line numbers, and your words —
+The prompt the engine receives is just file, line numbers, and your words,
 no code excerpt. The engine reads the worktree itself. Notes are stored per
 task and survive restarts; the footer counts `notes · unsent` so you always
-know what's pending. Sending doesn't switch tabs — keep reviewing while the
+know what's pending. Sending doesn't switch tabs, so keep reviewing while the
 engine works.
 
 Notes anchor to the file path and the line number displayed at the time you
@@ -251,8 +251,8 @@ left arrow to return to the section list, and `enter` to activate a row.
   notifications, keyboard hints, zen startup, editor choice, worktree
   location, terminal scrollback and the optional horizontal tab strip. It
   also shows available engine quota snapshots.
-- **Engines** lists every engine Rove can launch — built-ins, the contrib
-  catalog, plugin-registered and your own — each with what local detection
+- **Engines** lists every engine Rove can launch: built-ins, the contrib
+  catalog, plugin-registered and your own, each with what local detection
   found under it: where its binary is, and for engines with an account
   detector whether you are logged in (login itself still happens in each
   engine's own CLI). On an engine row, `space` switches it on or off (off
@@ -284,11 +284,11 @@ engines, a `shell`, and any plugin panes. Two toggles set what happens:
   child task in a fresh worktree.
 - `ctrl+f` flips the **context**: a fresh conversation ⇄ continue this one.
 
-Flip either toggle and the list narrows to engines only — a shell can't
+Flip either toggle and the list narrows to engines only; a shell can't
 continue a conversation, and a plugin pane isn't a task.
 
 **Continue** uses a native conversation fork only when the selected engine is
-the source engine and supports one — currently Claude and Codex. Copilot and
+the source engine and supports one, currently Claude and Codex. Copilot and
 Kimi use a transcript handoff even when continuing to the same engine. A
 built-in source can also hand off to a different built-in or custom target.
 A custom source has no readable transcript, so Rove refuses to continue it
@@ -296,7 +296,7 @@ instead of opening a context-free tab.
 
 **Fork a child task** opens the quick composer (prompt, engine, branch). The
 child branches from your task's **current branch**, so committed work carries
-over — uncommitted changes stay behind; commit first if the child needs them.
+over. Uncommitted changes stay behind; commit first if the child needs them.
 
 `ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.
@@ -314,22 +314,22 @@ workspace. The chords stay live, so you can hop between pages directly.
 
 ### Kanban (`ctrl+a` `1`)
 
-![The Kanban board — Backlog, In progress and Done for one project, with the card cursor on an in-progress story](assets/kanban.png)
+![The Kanban board: Backlog, In progress and Done for one project, with the card cursor on an in-progress story](assets/kanban.png)
 
 The [issue store](CONCEPTS.md#the-issue-store) as a board, one project at a
 time (`tab` cycles projects). Three columns:
 
-- **Backlog** — open, doing, or on hold, not linked to a task.
-- **In progress** — linked to a task. The link *is* the column: agents move
+- **Backlog.** Open, doing, or on hold, not linked to a task.
+- **In progress.** Linked to a task. The link *is* the column: agents move
   cards with `rove api issue-update --task`, and in-progress cards show the
   linked task's live engine activity.
-- **Done** — status `done`.
+- **Done.** Status `done`.
 
 `enter` opens the detail drawer: edit the title and description, then start a
-real session from the card — pick an engine, pick where it runs (the story's
+real session from the card: pick an engine, pick where it runs (the story's
 own worktree, or the project checkout), and choose to follow it or stay on
 the board. Starting links the issue and flips it to `doing`. `n` creates a
-story, `d` deletes one (the issue record only — a linked task and its
+story, `d` deletes one (the issue record only; a linked task and its
 worktree are never touched). The board refreshes every few seconds, so cards
 moved by agents move on screen too.
 
@@ -339,9 +339,9 @@ point-in-time diagnostic view: reopen the drawer to fetch it again. A daemon
 restart clears the in-memory event ring, so an empty list does not mean the
 linked Task never ran.
 
-![The story detail drawer — editable title and description above the engine, workspace and after-start choices a session would launch with](assets/kanban-story.png)
+![The story detail drawer: editable title and description above the engine, workspace and after-start choices a session would launch with](assets/kanban-story.png)
 
-The board in motion — walking the cards, opening a story, filing a new one
+The board in motion: walking the cards, opening a story, filing a new one
 with `n`, and an agent picking it up (`rove api issue-update --task`) while
 the page is open, which moves the card into In progress on its own:
 
@@ -354,7 +354,7 @@ the page is open, which moves the card into In progress on its own:
 
 ### Routines (`ctrl+a` `2`)
 
-![The Routines page — three scheduled prompts with their repo, cron expression and next run, and the selected routine's prompt, precheck and run history below](assets/routines.png)
+![The Routines page: three scheduled prompts with their repo, cron expression and next run, and the selected routine's prompt, precheck and run history below](assets/routines.png)
 
 Daemon-owned scheduled prompts on five-field cron expressions. Each row shows
 the repo, the schedule, and the next run; the detail box below shows the
@@ -362,7 +362,7 @@ prompt, the precheck if any, and the last few runs with their outcomes.
 
 `n` creates a routine (name, repo, prompt, schedule), `e` pauses or resumes,
 `s` runs one now, `enter` opens the task created by the latest run. There is
-no in-page editing — recreate the routine, or use `rove api routine-update`
+no in-page editing. Recreate the routine, or use `rove api routine-update`
 (which also sets prechecks; see [rove api](API.md)). An enabled routine keeps
 the daemon alive so schedules fire with no TUI attached.
 
@@ -371,8 +371,8 @@ rules spelled out: [Routines](ROUTINES.md).
 
 ### GitHub Issues (`ctrl+a` `3`)
 
-A read-only view of the repo's GitHub issues, fetched through the `gh` CLI —
-if `gh` works in your terminal, this page works too; otherwise the page tells
+A read-only view of the repo's GitHub issues, fetched through the `gh` CLI.
+If `gh` works in your terminal, this page works too; otherwise the page tells
 you exactly what's missing. `a` filters to issues assigned to you, `tab`
 switches repos, `r` refreshes past the cache.
 
@@ -404,16 +404,16 @@ separate PTY host and survive that daemon restart.
 
 ## Narrow terminals (phone SSH)
 
-Below **70 columns** the TUI switches to one panel at a time — made for
+Below **70 columns** the TUI switches to one panel at a time, made for
 phone-sized SSH sessions. Nothing changes at 70 columns or wider, and there
 is no setting: it follows the terminal width.
 
 - The task list and the workspace alternate: opening a task shows the
   workspace full-width, `ctrl+q` returns to the list. No new chords.
-- The first sidebar row is `↩ Recent: <task>` — `enter` drops you back into
+- The first sidebar row is `↩ Recent: <task>`; `enter` drops you back into
   the task you were last working in, and it survives reconnects.
 - The files pane is hidden; the pane-cycle keys skip it.
-- The tab strip always shows — compressed to the active tab plus a `2/3`
+- The tab strip always shows, compressed to the active tab plus a `2/3`
   counter. The usual tab chords still switch.
 - The footer keeps one quota chip per engine (`CLAUDE 42%`) and shrinks the
   hints to bare keycaps.
@@ -424,26 +424,26 @@ is no setting: it follows the terminal width.
 Drop an image (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`) or a `.pdf` from
 your file manager:
 
-- **Onto an engine session** — the path lands in the engine's input, pasted
+- **Onto an engine session.** The path lands in the engine's input, pasted
   but **not submitted**, so you can keep typing around it. The visible
   session catches the drop even when your keyboard focus is elsewhere.
-- **Into the quick-task composer or an issue drawer** — the file becomes an
+- **Into the quick-task composer or an issue drawer.** The file becomes an
   `images[N]: /path` attachment line sent along with the first prompt.
 
 `ctrl+v` in those dialogs does the same with the clipboard: a copied file
 attaches by path, a raw screenshot is saved under `~/.rove/attachments/`
-first. Rove only ever passes paths — the engine reads the file itself.
+first. Rove only ever passes paths; the engine reads the file itself.
 
 **Pasting text with newlines** stays one paste. Rove asks the terminal for
 bracketed paste, so a multi-line block arrives framed and is handed to the
-engine as a paste rather than as typing that submits on the first newline —
+engine as a paste rather than as typing that submits on the first newline,
 the engine shows it as a pasted block and you decide when to send.
 
 ## Quota in the footer
 
 For engines with a quota probe (Claude Code and Codex today), the footer
-shows each usage window the vendor reports — e.g. `CLAUDE 5h 42% → 14:00 ·
-7d 12%` — with the percentage colored green below 75%, yellow from 75%, red
+shows each usage window the vendor reports, e.g. `CLAUDE 5h 42% → 14:00 ·
+7d 12%`, with the percentage colored green below 75%, yellow from 75%, red
 from 95%. The same numbers, same thresholds, appear in Settings → General.
 
 The daemon refreshes quota roughly every 15 minutes, so treat the figure as
