@@ -130,7 +130,7 @@ function rewriteTarget(target) {
 
   // Links between synced pages → site paths.
   const slug = PAGE_BY_LOWER_NAME.get(basename(path).toLowerCase());
-  if (slug && !path.includes('/')) return `/docs/${slug}${anchor}`;
+  if (slug && !path.includes('/')) return `/${slug}${anchor}`;
 
   // Repo source files → GitHub blob URLs. Bare `src/…` paths in docs are
   // relative to packages/kobe/ by repo convention (see AGENTS.md).
