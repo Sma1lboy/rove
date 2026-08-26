@@ -62,6 +62,7 @@ const SECTIONS = [
       ['ROUTINES.md', 'routines'],
       ['API.md', 'api'],
       ['PLUGIN-AUTHORING.md', 'plugins'],
+      ['PLUGIN-SDK.md', 'plugin-sdk'],
       ['WORK-TRACKING.md', 'work-tracking'],
     ],
   },
