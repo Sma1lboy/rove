@@ -1,20 +1,49 @@
 import { describe, expect, it } from "vitest"
-import { SANDBOX_DAEMON_WEB_PORT, parseSandboxArgs, sandboxChildEnv } from "../../scripts/dev-sandbox-args"
+import {
+  SANDBOX_DAEMON_WEB_PORT,
+  parseSandboxArgs,
+  sandboxChildEnv,
+  sandboxPortForName,
+} from "../../scripts/dev-sandbox-args"
 
 describe("parseSandboxArgs", () => {
-  it("defaults to the sole run mode", () => {
-    expect(parseSandboxArgs(["run"])).toEqual({ mode: "run" })
-    expect(parseSandboxArgs([])).toEqual({ mode: "run" })
+  it("defaults to the run mode with no rove argv", () => {
+    expect(parseSandboxArgs(["run"])).toEqual({ mode: "run", roveArgs: [] })
+    expect(parseSandboxArgs([])).toEqual({ mode: "run", roveArgs: [] })
   })
 
   it("keeps reset and home unchanged", () => {
-    expect(parseSandboxArgs(["reset"])).toEqual({ mode: "reset" })
-    expect(parseSandboxArgs(["home"])).toEqual({ mode: "home" })
+    expect(parseSandboxArgs(["reset"])).toEqual({ mode: "reset", roveArgs: [] })
+    expect(parseSandboxArgs(["home"])).toEqual({ mode: "home", roveArgs: [] })
   })
 
-  it("rejects retired launch flags and extra arguments", () => {
+  it("run forwards trailing rove argv; other modes still reject extras", () => {
+    expect(parseSandboxArgs(["run", "api", "list"])).toEqual({ mode: "run", roveArgs: ["api", "list"] })
+    expect(() => parseSandboxArgs(["reset", "extra"])).toThrow('unexpected argument "extra"')
+  })
+
+  it("rejects retired launch flags", () => {
     expect(() => parseSandboxArgs(["--tmux"])).toThrow('unknown sandbox mode "--tmux"')
-    expect(() => parseSandboxArgs(["run", "extra"])).toThrow('unexpected argument "extra"')
+  })
+
+  it("--name selects a named instance and validates the name", () => {
+    expect(parseSandboxArgs(["--name", "ex-a", "smoketest"])).toEqual({
+      mode: "smoketest",
+      name: "ex-a",
+      roveArgs: [],
+    })
+    expect(() => parseSandboxArgs(["--name", "Bad Name"])).toThrow(/instance name/)
+    expect(() => parseSandboxArgs(["--name"])).toThrow(/instance name/)
+  })
+})
+
+describe("sandboxPortForName", () => {
+  it("is deterministic, in-range, and distinct across names", () => {
+    const a = Number(sandboxPortForName("ex-a"))
+    expect(a).toBe(Number(sandboxPortForName("ex-a")))
+    expect(a).toBeGreaterThanOrEqual(5300)
+    expect(a).toBeLessThan(6000)
+    expect(sandboxPortForName("ex-a")).not.toBe(sandboxPortForName("ex-b"))
   })
 })
 
@@ -62,6 +91,12 @@ describe("sandboxChildEnv", () => {
 
     expect(env.ROVE_DAEMON_WEB_PORT).toBe(SANDBOX_DAEMON_WEB_PORT)
     expect(env.KOBE_DAEMON_WEB_PORT).toBe(SANDBOX_DAEMON_WEB_PORT)
+  })
+
+  it("a named instance derives its own stable port", () => {
+    const env = sandboxChildEnv("/tmp/isolated", {}, "ex-a")
+    expect(env.ROVE_DAEMON_WEB_PORT).toBe(sandboxPortForName("ex-a"))
+    expect(env.ROVE_DAEMON_WEB_PORT).not.toBe(SANDBOX_DAEMON_WEB_PORT)
   })
 
   it("still honours an explicitly sandbox-scoped web port", () => {
