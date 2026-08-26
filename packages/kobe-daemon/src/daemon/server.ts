@@ -285,8 +285,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // Plugin runtime: startup hooks + channel-derived event hooks (plugins/runtime.ts).
   const pluginHost = maybeStartPluginHost(bus, options, socketPath, (line) => logDaemonInfo("plugin-host", line))
   // session.exited plugin events off the pty-host's death records (the host
-  // is a separate process; the file is the channel). Only worth watching
-  // when a plugin host exists to receive them.
+  // is a separate process; the file is the channel — see pty-exit-watch.ts).
   const stopPtyExitWatch = pluginHost
     ? startPtyExitWatch({
         ...(options.homeDir ? { homeDir: options.homeDir } : {}),
@@ -333,8 +332,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       stopCollectors()
       ptyHold.stop()
       stopPtyExitWatch()
-      // Await: [[shutdown]] hooks run inside stop() with a bounded grace
-      // window; returning earlier lets the caller's process.exit orphan them.
+      // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
       await pluginHost?.stop()
       prompts.clear()
       activity.close()
