@@ -13,6 +13,7 @@
     "./client/pty-process": "./src/client/pty-process.ts",
     "./client/rpc": "./src/client/rpc.ts",
     "./daemon/activity-arbitrate": "./src/daemon/activity-arbitrate.ts",
+    "./daemon/compat-link": "./src/daemon/compat-link.ts",
     "./daemon/agent-turns-ingest": "./src/daemon/agent-turns-ingest.ts",
     "./daemon/agent-turns-store": "./src/daemon/agent-turns-store.ts",
     "./daemon/activity-liveness": "./src/daemon/activity-liveness.ts",

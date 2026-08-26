@@ -135,14 +135,17 @@ describe("migrateRoveStateLayout", () => {
     expect(first.warnings).toEqual([])
     expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("demo")
     expect(readFileSync(join(root, ".rove/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=1")
-    // MOVED: a copy would leave a second registry for the next writer to find.
-    expect(existsSync(join(root, ".kobe/plugins.json"))).toBe(false)
-    expect(existsSync(join(root, ".kobe/plugins"))).toBe(false)
+    // MOVED, then linked back: a copy would leave a second registry for the
+    // next writer, while a bare move blinds every pre-rename binary.
+    expect(lstatSync(join(root, ".kobe/plugins.json")).isSymbolicLink()).toBe(true)
+    expect(readFileSync(join(root, ".kobe/plugins.json"), "utf8")).toContain("demo")
+    expect(readFileSync(join(root, ".kobe/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=1")
 
-    // Idempotent, and it never touches a canonical registry that already exists.
-    writeFileSync(join(root, ".rove/plugins.json"), '{"plugins":[]}', "utf8")
-    write(".kobe/plugins.json", '{"plugins":[{"id":"stale"}]}')
+    // Idempotent: a second start finds the canonical registry and does nothing.
     expect(migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root }).attempted).toBe(false)
-    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).not.toContain("stale")
+    // And the link is the whole compatibility story — an old binary writing to
+    // the legacy path writes the canonical registry, not a second one.
+    writeFileSync(join(root, ".kobe/plugins.json"), '{"plugins":[{"id":"from-old-cli"}]}', "utf8")
+    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("from-old-cli")
   })
 })

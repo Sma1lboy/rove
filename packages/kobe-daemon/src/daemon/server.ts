@@ -19,6 +19,7 @@ import { initAutomationsStore } from "./automation-wiring.ts"
 import { type ClientState, broadcast, drainClientBuffer, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
+import { linkLegacyRuntimePath } from "./compat-link.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
@@ -33,7 +34,13 @@ import {
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
-import { defaultDaemonPidPath, defaultDaemonSocketPath, resolveDaemonHomeDir } from "./paths.ts"
+import {
+  defaultDaemonPidPath,
+  defaultDaemonSocketPath,
+  legacyDaemonPidPath,
+  legacyDaemonSocketPath,
+  resolveDaemonHomeDir,
+} from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, normalizeChannelFilter, serializeTask } from "./protocol.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
@@ -332,6 +339,10 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
 
   await listenOnUnixSocket(server, socketPath)
   await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  // A pre-rename binary only knows `.kobe`; without these it starts a second
+  // daemon on the same task index. See compat-link.ts.
+  await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
+  await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
   await sockGuard.arm()
 
   async function stopSoon(): Promise<void> {

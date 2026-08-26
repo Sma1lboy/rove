@@ -9,11 +9,12 @@
  * + cross-contamination.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultAttentionInboxPath } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
 import { defaultAutomationsPath } from "@sma1lboy/kobe-daemon/daemon/automations-store"
+import { linkLegacyRuntimePath } from "@sma1lboy/kobe-daemon/daemon/compat-link"
 import { defaultIssuesStorePath } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { defaultKeybindingsPath } from "@sma1lboy/kobe-daemon/daemon/keybindings-watcher"
 import { defaultNotesStorePath } from "@sma1lboy/kobe-daemon/daemon/notes-store"
@@ -27,6 +28,7 @@ import {
   defaultPtyHostPidPath,
   defaultPtyHostSocketPath,
   fitSocketPath,
+  legacyDaemonSocketPath,
   shortHomeTag,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { defaultUiPrefsStatePath } from "@sma1lboy/kobe-daemon/daemon/ui-prefs-watcher"
@@ -302,5 +304,39 @@ describe("live legacy runtime (the rename's one hazard)", () => {
   test("host-owned data follows whichever layout holds it", () => {
     writeFileSync(join(home, ".kobe", "pty-exits.json"), "{}")
     expect(defaultPtyExitsPath(home)).toBe(join(home, ".kobe", "pty-exits.json"))
+  })
+})
+
+describe("linkLegacyRuntimePath (the other direction)", () => {
+  let home = ""
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), "rove-compat-"))
+  })
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  test("points the legacy path at the canonical one, creating its dir", async () => {
+    const canonical = join(home, ".rove", "daemon.sock")
+    mkdirSync(join(home, ".rove"), { recursive: true })
+    writeFileSync(canonical, "")
+    expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(true)
+    expect(readlinkSync(join(home, ".kobe", "daemon.sock"))).toBe(canonical)
+  })
+
+  test("never clobbers a REAL file at the legacy path — that is another daemon's socket", async () => {
+    mkdirSync(join(home, ".kobe"), { recursive: true })
+    writeFileSync(join(home, ".kobe", "daemon.sock"), "someone else's")
+    expect(await linkLegacyRuntimePath(join(home, ".rove", "daemon.sock"), legacyDaemonSocketPath(home))).toBe(false)
+    expect(readFileSync(join(home, ".kobe", "daemon.sock"), "utf8")).toBe("someone else's")
+  })
+
+  test("replaces its own stale link from a previous boot", async () => {
+    mkdirSync(join(home, ".kobe"), { recursive: true })
+    symlinkSync(join(home, ".rove", "old.sock"), join(home, ".kobe", "daemon.sock"))
+    const canonical = join(home, ".rove", "daemon.sock")
+    expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(true)
+    expect(readlinkSync(join(home, ".kobe", "daemon.sock"))).toBe(canonical)
   })
 })

@@ -48,6 +48,32 @@ function runtimePath(homeDir: string, name: string, pidName: string): string {
   return canonicalPath
 }
 
+/**
+ * The pre-rename location of one runtime file. Only the BINDING side needs
+ * these: after a successful bind it points the legacy path at the canonical
+ * one so a binary predating the rename still finds a live daemon/host
+ * (`compat-link.ts`). Resolution never calls this — that is `runtimePath`.
+ */
+export function legacyRuntimePath(homeDir: string, name: string): string {
+  return join(homeDir, COMPAT_STATE_DIR_BASENAME, name)
+}
+
+export function legacyDaemonSocketPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "daemon.sock")
+}
+
+export function legacyDaemonPidPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "daemon.pid")
+}
+
+export function legacyPtyHostSocketPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "pty.sock")
+}
+
+export function legacyPtyHostPidPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "pty.pid")
+}
+
 /** Data a host reads back across restarts: whichever layout actually has it. */
 function runtimeDataPath(homeDir: string, name: string): string {
   const { canonical, legacy } = stateDirs(homeDir)
