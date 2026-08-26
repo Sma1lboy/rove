@@ -78,6 +78,27 @@ test("a selection drag held at the pane's top row scrolls into scrollback", asyn
   }
 })
 
+/**
+ * The gesture that actually breaks: the drag's FIRST move already lands outside
+ * the pane (a fast flick, or a press on the top row heading up into the tab
+ * strip). opentui starts capturing a drag on that first event by hit test, so
+ * without an explicit capture on press the pane never sees the drag at all.
+ */
+test("a drag that leaves the pane on its first move still scrolls", async () => {
+  const handle = await mountPane("drag-first-move-out")
+  try {
+    await act(async () => {
+      await handle.mockMouse.pressDown(20, 2)
+      await handle.mockMouse.emitMouseEvent("drag", 20, 0)
+      await handle.frame()
+    })
+    await settle(handle, 250)
+    expect(await handle.frame()).toMatch(/scrolled|已回滚/)
+  } finally {
+    handle.destroy()
+  }
+})
+
 /** The pull is directional: a sideways drag along the top row is not "up". */
 test("dragging sideways along the top row does not scroll", async () => {
   const handle = await mountPane("drag-sideways")

@@ -97,8 +97,23 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
 
   const cellFromEvent = (evt: { x?: number; y?: number }): CellPoint | null => resolvePointer(evt)?.cell ?? null
 
+  /**
+   * opentui only starts capturing a drag on the FIRST drag event, routed by hit
+   * test — a gesture whose first move already lands outside the pane (a fast
+   * drag, or a press on the top row moving up into the tab strip) hands the
+   * whole drag to whatever sits under the pointer, and this pane never hears
+   * about it again. So claim the capture on PRESS. `setCapturedRenderable` is
+   * TS-private, not runtime-private.
+   * ponytail: reaching into it beats re-implementing opentui's dispatch; if it
+   * ever goes away, the fallback is a root-level drag listener.
+   */
+  const captureDrag = (el: BoxRenderable | null): void => {
+    ;(renderer as unknown as { setCapturedRenderable?: (r: unknown) => void })?.setCapturedRenderable?.(el ?? undefined)
+  }
+
   const beginSelection = (cell: CellPoint): void => {
     draggingRef.current = true
+    captureDrag(opts.bodyEl)
     // Mirrored into a ref as well: the drag events of a fast gesture land
     // before React has re-rendered with the new anchor, and the auto-scroll
     // direction check must not read a stale (null) one.
@@ -194,6 +209,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     isDragging: () => draggingRef.current,
     endDragging: () => {
       draggingRef.current = false
+      captureDrag(null)
       dragPointRef.current = null
       stopAutoScroll()
     },
