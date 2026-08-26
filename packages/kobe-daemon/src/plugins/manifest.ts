@@ -98,6 +98,14 @@ export interface PluginEngine {
   readonly processNames?: readonly string[]
   /** Screen-state rules, first match wins (declare blocked before working). */
   readonly rules: readonly PluginEngineRule[]
+  /** Product identity for UI copy (composer placeholder, labels). Absent
+   *  fields fall back to `name`/id derivations. */
+  readonly identity?: {
+    readonly productName?: string
+    readonly shortName?: string
+    readonly assistantName?: string
+    readonly inputPlaceholder?: string
+  }
 }
 
 export interface PluginManifest {
@@ -109,6 +117,9 @@ export interface PluginManifest {
   readonly platforms?: readonly PluginPlatform[]
   readonly build: readonly PluginCommandSpec[]
   readonly startup: readonly PluginCommandSpec[]
+  /** Run at daemon stop (bounded — the host kills a hook that outlives its
+   *  grace window rather than delaying shutdown). */
+  readonly shutdown: readonly PluginCommandSpec[]
   readonly actions: readonly PluginAction[]
   readonly events: readonly PluginEventHook[]
   readonly panes: readonly PluginPane[]
@@ -258,6 +269,10 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     command: asCommand(t.command, `startup[${i}].command`),
     platforms: asPlatforms(t.platforms, `startup[${i}].platforms`),
   }))
+  const shutdown = asTableArray(raw.shutdown, "shutdown").map((t, i) => ({
+    command: asCommand(t.command, `shutdown[${i}].command`),
+    platforms: asPlatforms(t.platforms, `shutdown[${i}].platforms`),
+  }))
 
   const actions = asTableArray(raw.actions, "actions").map((t, i) => {
     const actionId = asString(t.id, `actions[${i}].id`)
@@ -383,6 +398,26 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
         ...(lineRegex ? { lineRegex } : {}),
       }
     })
+    const identityRaw = t.identity
+    let identity: PluginEngine["identity"]
+    if (identityRaw !== undefined) {
+      if (typeof identityRaw !== "object" || identityRaw === null || Array.isArray(identityRaw)) {
+        fail(`engines[${i}].identity must be a table`)
+      }
+      const idt = identityRaw as Record<string, unknown>
+      const opt = (key: string): string | undefined =>
+        idt[key] === undefined ? undefined : asString(idt[key], `engines[${i}].identity.${key}`)
+      const productName = opt("product_name")
+      const shortName = opt("short_name")
+      const assistantName = opt("assistant_name")
+      const inputPlaceholder = opt("input_placeholder")
+      identity = {
+        ...(productName !== undefined ? { productName } : {}),
+        ...(shortName !== undefined ? { shortName } : {}),
+        ...(assistantName !== undefined ? { assistantName } : {}),
+        ...(inputPlaceholder !== undefined ? { inputPlaceholder } : {}),
+      }
+    }
     return {
       id: engineId,
       name: asString(t.name, `engines[${i}].name`),
@@ -391,6 +426,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
         ? {}
         : { processNames: asCommand(t.process_names, `engines[${i}].process_names`) }),
       rules,
+      ...(identity ? { identity } : {}),
     }
   })
   const engineSeen = new Set<string>()
@@ -409,6 +445,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       platforms,
       build,
       startup,
+      shutdown,
       actions,
       events,
       panes,

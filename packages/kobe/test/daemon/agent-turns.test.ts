@@ -109,14 +109,14 @@ describe("ingestAgentTurns", () => {
     const { store } = await createStore()
     const { runtime, orch, asked } = deps()
 
-    expect(
-      await ingestAgentTurns(store, runtime, orch, {
-        taskId: "task-1",
-        tabId: "tab-2",
-        vendor: "claude",
-        transcriptPath: "/t.jsonl",
-      }),
-    ).toBe(1)
+    const result = await ingestAgentTurns(store, runtime, orch, {
+      taskId: "task-1",
+      tabId: "tab-2",
+      vendor: "claude",
+      transcriptPath: "/t.jsonl",
+    })
+    expect(result.recorded).toBe(1)
+    expect(result.latest).toMatchObject({ id: engineTurn.id })
     expect(asked).toEqual([{ vendor: "claude", path: "/t.jsonl" }])
     expect(store.list()).toEqual([{ ...engineTurn, taskId: "task-1", tabId: "tab-2", vendor: "claude", repo: "/repo" }])
   })
@@ -124,14 +124,16 @@ describe("ingestAgentTurns", () => {
   it("no transcript path and no resolvable vendor are both no-ops", async () => {
     const { store } = await createStore()
     const { runtime, orch, asked } = deps()
-    expect(await ingestAgentTurns(store, runtime, orch, { taskId: "task-1" })).toBe(0)
+    expect((await ingestAgentTurns(store, runtime, orch, { taskId: "task-1" })).recorded).toBe(0)
 
     const vendorless = deps(undefined, { repo: "/repo" })
     expect(
-      await ingestAgentTurns(store, vendorless.runtime, vendorless.orch, {
-        taskId: "task-1",
-        transcriptPath: "/t.jsonl",
-      }),
+      (
+        await ingestAgentTurns(store, vendorless.runtime, vendorless.orch, {
+          taskId: "task-1",
+          transcriptPath: "/t.jsonl",
+        })
+      ).recorded,
     ).toBe(0)
     expect(asked).toEqual([])
     expect(store.list()).toEqual([])

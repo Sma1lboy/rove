@@ -53,6 +53,24 @@ describe("plugin manifest [[engines]]", () => {
     expect(() => parsePluginManifest(bad)).toThrow(/not a valid regex/)
   })
 
+  it("parses [engines.identity] with snake_case keys", () => {
+    const withIdentity = MANIFEST.replace(
+      'command = ["aider", "--no-auto-commits"]',
+      `command = ["aider", "--no-auto-commits"]
+
+[engines.identity]
+product_name = "Aider"
+short_name = "Aider"
+input_placeholder = "Ask Aider…"`,
+    )
+    const { manifest } = parsePluginManifest(withIdentity)
+    expect(manifest.engines[0]?.identity).toEqual({
+      productName: "Aider",
+      shortName: "Aider",
+      inputPlaceholder: "Ask Aider…",
+    })
+  })
+
   it("a manifest without engines parses to an empty list", () => {
     const { manifest } = parsePluginManifest('id = "x"\nname = "X"\nversion = "1"\nmin_rove_version = "0.8.0"\n')
     expect(manifest.engines).toEqual([])
@@ -68,6 +86,13 @@ describe("plugin engine registration", () => {
       displayName: "Aider",
       defaultCommand: ["aider"],
       screenManifest: { rules: [{ state: "working", any: ["ctrl-c to interrupt"] }] },
+      identity: {
+        vendorId: "aider",
+        productName: "Aider",
+        shortName: "Aider",
+        assistantName: "Aider",
+        inputPlaceholder: "Ask Aider…",
+      },
     })
     expect(ok).toBe(true)
     expect(pluginEngineIds()).toEqual(["aider"])
@@ -76,6 +101,14 @@ describe("plugin engine registration", () => {
     expect(entry.defaultCommand).toEqual(["aider"])
     expect(entry.screenManifest).toBeDefined()
     expect(entry.builtin).toBe(false)
+    // Identity rides the overlay — TUI copy comes from here, never hard-coded.
+    expect(entry.identity).toEqual({
+      vendorId: "aider",
+      productName: "Aider",
+      shortName: "Aider",
+      assistantName: "Aider",
+      inputPlaceholder: "Ask Aider…",
+    })
   })
 
   it("a shipped catalog id cannot be overridden by a plugin", () => {

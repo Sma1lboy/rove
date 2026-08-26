@@ -24,11 +24,21 @@ export function loadPluginEngines(): readonly string[] {
       try {
         const { manifest } = readPluginManifest(entry.root)
         for (const engine of manifest.engines) {
+          // Identity falls back per-field to the engine's display name — a
+          // plugin declaring nothing still gets sensible composer copy.
+          const identity = {
+            vendorId: engine.id,
+            productName: engine.identity?.productName ?? engine.name,
+            shortName: engine.identity?.shortName ?? engine.name,
+            assistantName: engine.identity?.assistantName ?? engine.name,
+            inputPlaceholder: engine.identity?.inputPlaceholder ?? `Ask ${engine.identity?.shortName ?? engine.name}…`,
+          }
           const ok = registerPluginEngine(engine.id, {
             displayName: engine.name,
             defaultCommand: engine.command,
             ...(engine.processNames ? { processNames: engine.processNames } : {}),
             screenManifest: { rules: engine.rules },
+            identity,
           })
           if (ok) registered.push(engine.id)
         }

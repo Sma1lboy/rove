@@ -4,18 +4,23 @@
  * The channels are STATE snapshots (last-value replay); plugin hooks want
  * edges. This reducer is fed every `bus.publish` and emits the transitions:
  *
- *   task.snapshot diff            → task.created / task.deleted
- *   task.jobs ensureWorktree done → worktree.created
- *   engine-state transitions      → agent.* (per task+tab, deduped)
+ *   task.snapshot diff       → task.created / task.deleted / task.changed /
+ *                              task.pr-changed / task.archived / worktree.created
+ *   engine-state transitions → agent.* (per task+tab, deduped)
  *
- * It is deliberately blind to the first snapshot after daemon start — replayed
- * state must not re-fire hooks for tasks that already existed.
+ * `worktree.created` is snapshot-derived (empty → non-empty worktreePath, or
+ * a task-kind row born with one) so EVERY materialization path fires it —
+ * lazy ensure, adopt, scratch-adopt — not just the ensureWorktree job that an
+ * earlier version keyed on. It is deliberately blind to the first snapshot
+ * after daemon start — replayed state must not re-fire hooks for tasks that
+ * already existed.
  */
 
 import type { ChannelEvent } from "../daemon/event-bus.ts"
 import type { ChannelPayloads } from "../daemon/protocol.ts"
 import type { SerializedTask } from "../daemon/protocol.ts"
 import type { PluginEventName } from "./manifest.ts"
+import { bornWithWorktree, diffTask } from "./task-diff.ts"
 
 export interface PluginEvent {
   readonly event: PluginEventName
@@ -108,8 +113,6 @@ export class PluginEventReducer {
     switch (event.channel) {
       case "task.snapshot":
         return this.reduceTasks((event.payload as ChannelPayloads["task.snapshot"]).tasks)
-      case "task.jobs":
-        return this.reduceJobs(event.payload as ChannelPayloads["task.jobs"])
       case "engine-state":
         return this.reduceEngine(event.payload as EngineState)
       default:
@@ -126,24 +129,44 @@ export class PluginEventReducer {
     const at = this.now()
     const out: PluginEvent[] = []
     for (const [id, task] of next) {
-      if (!prev.has(id)) out.push({ event: "task.created", taskId: id, task: taskContext(task), at })
+      const before = prev.get(id)
+      if (!before) {
+        out.push({ event: "task.created", taskId: id, task: taskContext(task), at })
+        // Adopt paths create the row WITH its worktree — same moment.
+        if (bornWithWorktree(task)) out.push({ event: "worktree.created", taskId: id, task: taskContext(task), at })
+        continue
+      }
+      const diff = diffTask(before, task)
+      if (!diff) continue
+      const ctx = taskContext(task)
+      if (diff.fields.length > 0) {
+        out.push({
+          event: "task.changed",
+          taskId: id,
+          task: ctx,
+          detail: { fields: diff.fields, from: diff.from, to: diff.to },
+          at,
+        })
+      }
+      if (diff.prChanged) {
+        out.push({
+          event: "task.pr-changed",
+          taskId: id,
+          task: ctx,
+          detail: {
+            ...(before.prStatus !== undefined ? { from: before.prStatus } : {}),
+            ...(task.prStatus !== undefined ? { to: task.prStatus } : {}),
+          },
+          at,
+        })
+      }
+      if (diff.archivedNow) out.push({ event: "task.archived", taskId: id, task: ctx, at })
+      if (diff.worktreeCreated) out.push({ event: "worktree.created", taskId: id, task: ctx, at })
     }
     for (const [id, task] of prev) {
       if (!next.has(id)) out.push({ event: "task.deleted", taskId: id, task: taskContext(task), at })
     }
     return out
-  }
-
-  private reduceJobs(payload: ChannelPayloads["task.jobs"]): PluginEvent[] {
-    if (payload.kind !== "ensureWorktree" || payload.phase !== "done") return []
-    return [
-      {
-        event: "worktree.created",
-        taskId: payload.taskId,
-        task: taskContext(this.tasks?.get(payload.taskId)),
-        at: this.now(),
-      },
-    ]
   }
 
   private reduceEngine(payload: EngineState): PluginEvent[] {

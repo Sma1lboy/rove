@@ -54,6 +54,8 @@ export interface DaemonCollectorOptions {
 export interface AutomationCollectorDeps {
   readonly store: AutomationsStore
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
+  /** Plugin host getter (constructed after the collectors start, like `link`). */
+  readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
 }
 
 /**
@@ -171,13 +173,21 @@ export function startDaemonCollectors(
     orch,
     runtime,
     options.quotaResumeTickMs ?? DEFAULT_QUOTA_RESUME_TICK_MS,
+    undefined,
+    automations?.plugins,
   )
 
   // Automation sweep: same reasoning as quota-resume, only more so — a
   // schedule that requires an audience is not a schedule. Also ungated.
   const stopAutomationRunner = automations
     ? startAutomationRunner(
-        { store: automations.store, orch, runtime, link: automations.link },
+        {
+          store: automations.store,
+          orch,
+          runtime,
+          link: automations.link,
+          ...(automations.plugins ? { plugins: automations.plugins } : {}),
+        },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )
     : () => {}

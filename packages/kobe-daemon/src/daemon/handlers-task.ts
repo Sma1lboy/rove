@@ -63,9 +63,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const archived = optionalBoolean(payload, "archived")
+      // `task.archived` now derives from the snapshot diff (plugins/task-diff.ts)
+      // so archive-via-worktree-removal and land --then-archive fire it too.
       await ctx.orch.setArchived(taskId, archived)
-      // Unarchive (archived: false) is a restore, not an "archived" moment.
-      if (archived !== false) ctx.plugins?.handleUiReport({ kind: "task.archived", taskId })
       return {}
     },
   },

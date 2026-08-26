@@ -205,6 +205,7 @@ describe("API surface (full CRUD)", () => {
       "pane-close",
       "notify",
       "prompt",
+      "engine-report",
       "set-active",
       "feedback",
       "issue-list",

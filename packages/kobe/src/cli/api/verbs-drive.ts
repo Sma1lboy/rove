@@ -135,6 +135,59 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     },
   },
   {
+    name: "engine-report",
+    summary:
+      "Report a normalized engine-activity verb for a task — the public face of the same engine.reportEvent RPC the built-in hook adapters use. Lets a plugin-contributed engine (or any wrapper script) drive the sidebar badge, attention inbox, and plugin event stream without a built-in hook adapter. Kinds: session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end (state kinds) plus tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop (plugin-only).",
+    flags: [
+      F.taskId(false),
+      {
+        name: "kind",
+        type: "string",
+        required: true,
+        placeholder: "KIND",
+        description: "Normalized activity verb (see summary). Unknown kinds are rejected.",
+      },
+      {
+        name: "engine",
+        type: "string",
+        placeholder: "ID",
+        description: "Engine id producing the report (a plugin engine id, or a built-in vendor).",
+      },
+      {
+        name: "tab",
+        type: "string",
+        placeholder: "TAB",
+        description: "Terminal tab id the session runs in (defaults to $ROVE_TAB_ID / $KOBE_TAB_ID).",
+      },
+      {
+        name: "detail",
+        type: "string",
+        placeholder: "JSON",
+        description: 'Optional detail JSON, e.g. \'{"failure":"rate_limit"}\' or \'{"waiting":"input"}\'.',
+      },
+    ],
+    handler: async (ctx) => {
+      const taskId = ctx.args.str("task-id") ?? process.env.ROVE_TASK_ID ?? process.env.KOBE_TASK_ID
+      const tabId = ctx.args.str("tab") ?? process.env.ROVE_TAB_ID ?? process.env.KOBE_TAB_ID
+      const detailRaw = ctx.args.str("detail")
+      let detail: unknown
+      if (detailRaw !== undefined) {
+        try {
+          detail = JSON.parse(detailRaw)
+        } catch {
+          throw new Error("--detail must be valid JSON")
+        }
+      }
+      return simpleRpc(ctx, "engine.reportEvent", {
+        kind: ctx.args.str("kind"),
+        ...(taskId ? { taskId } : { cwd: process.cwd() }),
+        ...(ctx.args.str("engine") ? { engine: ctx.args.str("engine") } : {}),
+        ...(tabId ? { tabId } : {}),
+        ...(detail !== undefined ? { detail } : {}),
+      })
+    },
+  },
+  {
     name: "set-active",
     summary: "Set the shared active task (the focus every Tasks pane highlights). Pass --none to clear.",
     flags: [

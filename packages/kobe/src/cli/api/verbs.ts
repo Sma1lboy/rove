@@ -83,7 +83,7 @@ export const VERB_GROUPS: Readonly<Record<string, readonly string[]>> = {
   discover: ["schema", "engine-list"],
   read: ["list", "get-task", "collect", "digest", "agent-turns", "pty-list", "read-output", "inspect"],
   create: ["add"],
-  drive: ["send", "dispatch", "note", "note-list", "set-active", "pane-open", "pane-close", "notify"],
+  drive: ["send", "dispatch", "note", "note-list", "set-active", "pane-open", "pane-close", "notify", "engine-report"],
   edit: ["rename", "set-branch", "set-command", "set-status"],
   issues: ["issue-list", "issue-create", "issue-set-status", "issue-update"],
   workitems: ["workitem-list", "workitem-start"],
