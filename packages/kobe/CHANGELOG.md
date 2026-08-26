@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.192
+
+### Patch Changes
+
+- [`742d360`](https://github.com/Sma1lboy/rove/commit/742d3609b62612db6042bf3e3a77460a48b75947) Add short demo GIFs for the SDK example plugins (hello-events, settings-demo, turn-notify) under `docs/assets/plugins/`, referenced from `docs/PLUGIN-AUTHORING.md`. Each example gains a reproducible `demo.tape` recording script. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.191
 
 ### Patch Changes
