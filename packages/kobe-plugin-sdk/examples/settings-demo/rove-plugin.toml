@@ -1,0 +1,32 @@
+# Declares three [[settings]] and one [[actions]] entrypoint that reads them.
+# Shows: settings declaration, config .env layout, and the action env contract
+# (ROVE_PLUGIN_ACTION_ID / ROVE_PLUGIN_INVOKE_CWD).
+id = "examples.settings-demo"
+name = "Settings Demo"
+version = "0.1.0"
+min_rove_version = "0.8.0"
+description = "Reads declared plugin settings and prints the effective config"
+
+[[settings]]
+key = "EX_DEMO_NAME"
+label = "Display name"
+type = "string"
+default = "Rover"
+
+[[settings]]
+key = "EX_DEMO_THEME"
+label = "Theme"
+type = "enum"
+options = ["light", "dark", "system"]
+default = "system"
+
+[[settings]]
+key = "EX_DEMO_NOTIFY"
+label = "Send notifications"
+type = "boolean"
+default = "1"
+
+[[actions]]
+id = "print"
+title = "Print effective settings"
+command = ["bun", "action.ts"]

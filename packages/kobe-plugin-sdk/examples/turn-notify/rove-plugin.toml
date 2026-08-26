@@ -1,0 +1,15 @@
+# Toasts a summary when an engine turn completes or the agent needs permission.
+# Shows: event envelope, detail.turn usage, and the SDK notify() CLI callback.
+id = "examples.turn-notify"
+name = "Turn Notify"
+version = "0.1.0"
+min_rove_version = "0.8.0"
+description = "Notifies the UI on turn.complete and agent.permission-needed"
+
+[[events]]
+on = "turn.complete"
+command = ["bun", "hook.ts"]
+
+[[events]]
+on = "agent.permission-needed"
+command = ["bun", "hook.ts"]
