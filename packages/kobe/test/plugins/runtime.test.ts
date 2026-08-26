@@ -105,6 +105,54 @@ describe("PluginHost", () => {
     }
   })
 
+  it("runs [[shutdown]] hooks on stop and fires plugin.enabled on a registry reload", async () => {
+    const home = tmp("kobe-plugin-home-")
+    const root = tmp("kobe-plugin-root-")
+    writeFileSync(
+      join(root, "rove-plugin.toml"),
+      `
+id = "example.life"
+name = "Life"
+version = "0.1.0"
+min_rove_version = "0.1.0"
+
+[[shutdown]]
+command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > stopped.txt"]
+
+[[events]]
+on = "plugin.enabled"
+command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
+`,
+    )
+    mkdirSync(join(home, ".kobe"), { recursive: true })
+    // Start with an EMPTY registry — the plugin is enabled by a later write,
+    // which is exactly the transition plugin.enabled reports.
+    savePluginRegistry({ plugins: [] }, home)
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
+    const read = (name: string): string => {
+      try {
+        return readFileSync(join(root, name), "utf8")
+      } catch {
+        return ""
+      }
+    }
+    host.start()
+    try {
+      savePluginRegistry(
+        {
+          plugins: [
+            { id: "example.life", source: { kind: "link" }, root, enabled: true, version: "0.1.0", installedAt: 1 },
+          ],
+        },
+        home,
+      )
+      await waitFor(() => read("enabled.txt") === "plugin.enabled")
+    } finally {
+      host.stop()
+    }
+    await waitFor(() => read("stopped.txt") === "shutdown")
+  })
+
   it("skips disabled plugins and unreadable manifests without crashing", async () => {
     const home = tmp("kobe-plugin-home-")
     mkdirSync(join(home, ".kobe"), { recursive: true })

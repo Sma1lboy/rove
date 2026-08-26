@@ -18,6 +18,7 @@
  * classifier's vocabulary. Blocked rules go before working rules.
  */
 
+import type { EngineIdentity } from "@/types/engine"
 import type { EngineRegistryEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
 
@@ -26,6 +27,8 @@ export interface ContribEngineSpec {
   readonly defaultCommand: readonly string[]
   readonly processNames?: readonly string[]
   readonly screenManifest: EngineScreenManifest
+  /** Plugin-declared product identity (composer placeholder etc.). */
+  readonly identity?: EngineIdentity
 }
 
 /**
@@ -144,5 +147,6 @@ export function contribEngineEntry(id: string, base: EngineRegistryEntry): Engin
     defaultCommand: spec.defaultCommand,
     ...(spec.processNames ? { processNames: spec.processNames } : {}),
     screenManifest: spec.screenManifest,
+    ...(spec.identity ? { identity: spec.identity } : {}),
   }
 }

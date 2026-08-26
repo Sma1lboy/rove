@@ -42,6 +42,8 @@ interface LoadedPlugin {
 
 const OUTPUT_CAP = 8 * 1024
 const RELOAD_DEBOUNCE_MS = 150
+/** How long a [[shutdown]] hook may run before the host kills it. */
+const SHUTDOWN_GRACE_MS = 3_000
 
 /** Compose a host onto the daemon's bus: subscribe first, then start. */
 export function startPluginHost(
@@ -90,9 +92,18 @@ export class PluginHost {
   }
 
   stop(): void {
+    if (this.stopped) return
     this.stopped = true
     if (this.reloadTimer) clearTimeout(this.reloadTimer)
     this.watcher?.close()
+    // Shutdown hooks: bounded fire-and-forget — daemon close never waits on
+    // a plugin, and a hook that outlives the grace window is killed.
+    for (const plugin of this.plugins) {
+      for (const [i, hook] of plugin.manifest.shutdown.entries()) {
+        if (!supportsPlatform(hook, plugin.manifest, currentPluginPlatform())) continue
+        void this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`, SHUTDOWN_GRACE_MS)
+      }
+    }
   }
 
   /** Feed every bus publish through here (server wires `bus.onPublish`). */
@@ -144,6 +155,22 @@ export class PluginHost {
       ...(report.detail ? { detail: report.detail } : {}),
       at: Date.now(),
     })
+  }
+
+  /** Fire one event at ONE plugin's matching hooks (registry transitions). */
+  private dispatchTo(plugin: LoadedPlugin, event: PluginEvent): void {
+    const platform = currentPluginPlatform()
+    for (const hook of plugin.manifest.events) {
+      if (hook.on !== event.event) continue
+      if (!supportsPlatform(hook, plugin.manifest, platform)) continue
+      void this.run(
+        plugin,
+        hook,
+        "event",
+        { ROVE_PLUGIN_EVENT: event.event, ROVE_PLUGIN_EVENT_JSON: JSON.stringify(event) },
+        hook.on,
+      )
+    }
   }
 
   private dispatch(event: PluginEvent): void {
@@ -200,8 +227,23 @@ export class PluginHost {
         if (this.reloadTimer) clearTimeout(this.reloadTimer)
         this.reloadTimer = setTimeout(() => {
           if (this.stopped) return
+          const before = new Map(this.plugins.map((p) => [p.manifest.id, p]))
           this.plugins = this.loadPlugins()
           this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
+          // Registry transitions, delivered ONLY to the affected plugin: an
+          // enabled hook fires on the new load, a disabled hook on the last
+          // registration we still hold for it.
+          const at = Date.now()
+          for (const plugin of this.plugins) {
+            if (!before.has(plugin.manifest.id)) {
+              this.dispatchTo(plugin, { event: "plugin.enabled", detail: { pluginId: plugin.manifest.id }, at })
+            }
+          }
+          for (const [id, plugin] of before) {
+            if (!this.plugins.some((p) => p.manifest.id === id)) {
+              this.dispatchTo(plugin, { event: "plugin.disabled", detail: { pluginId: id }, at })
+            }
+          }
         }, RELOAD_DEBOUNCE_MS)
       })
     } catch (err) {
@@ -212,9 +254,10 @@ export class PluginHost {
   private async run(
     plugin: LoadedPlugin,
     spec: PluginCommandSpec,
-    kind: "startup" | "event",
+    kind: "startup" | "event" | "shutdown",
     extraEnv: Record<string, string>,
     label: string,
+    killAfterMs?: number,
   ): Promise<void> {
     const id = plugin.manifest.id
     const startedAt = Date.now()
@@ -252,6 +295,11 @@ export class PluginHost {
         exitCode = code
         resolve()
       })
+      if (killAfterMs !== undefined) {
+        const killer = setTimeout(() => child.kill("SIGKILL"), killAfterMs)
+        killer.unref?.()
+        child.on("close", () => clearTimeout(killer))
+      }
     })
     const record = {
       at: startedAt,

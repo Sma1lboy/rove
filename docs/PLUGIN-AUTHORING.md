@@ -83,6 +83,9 @@ command = ["npm", "install"]     # self-provision deps INTO the plugin dir; `lin
 [[startup]]                      # once per daemon start, after the socket is ready; one-shot, not a daemon
 command = ["node", "restore.js"]
 
+[[shutdown]]                     # at daemon stop; bounded (~3s) — the host kills a hook that lingers
+command = ["node", "flush.js"]
+
 [[actions]]                      # on-demand: rove plugin action invoke you.example.greet [args…]
 id = "greet"                     # local id, no dots; extra CLI args append to argv
 title = "Say hello"
@@ -116,6 +119,11 @@ name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
 
+[engines.identity]               # optional product identity for UI copy
+product_name = "Aider"           # each field falls back to `name`
+short_name = "Aider"
+input_placeholder = "Ask Aider…" # composer placeholder
+
 [[engines.rules]]                # screen-state rules, first match wins —
 state = "blocked"                # declare blocked before working
 all = ["(y)es/(n)o"]             # every string must appear (case-insensitive)
@@ -146,16 +154,25 @@ Code, X = Codex (Kimi adapter pending).
 | Event | Fires when | Detail highlights |
 |---|---|---|
 | `task.created` / `task.deleted` | task appears/disappears in the index | task context |
+| `task.changed` | any watched task field changed (title/branch/status/pin/vendor/…) — fired off the snapshot diff, so EVERY mutation path counts | `fields`, `from`, `to` |
 | `task.landed` | a task's branch merged back into its base repo | `strategy`, `landedOn`, `commit` |
-| `task.archived` | a task was archived (restores don't fire) | task context |
-| `worktree.created` | a task's worktree materialized | task context |
+| `task.archived` | a task was archived, by ANY path — the archive RPC, `land --then-archive`, or a `git worktree remove` sweep (restores don't fire) | task context |
+| `task.pr-changed` | the task's PR status changed (open/merged/closed, checks) | `from`, `to` (TaskPRStatus) |
+| `worktree.created` | a task's worktree materialized — lazy ensure, adopt, or scratch-adopt | task context |
 | `issue.changed` | a daemon-tracker issue mutated (create/edit/status) | `repo`, `op` |
+| `note.filed` | a session filed a field note (`rove api note`) | `repo`, `author`, `text`, `routed`, `persisted` |
+| `message.delivered` | text was dispatched into a task's live session (`dispatch`/note relay) | `source`, `tabId`, `length` |
+| `attention.handled` | the human resolved an inbox episode | `how: dismissed\|read`, `tabId` |
+| `automation.dispatched` / `automation.skipped` / `automation.failed` | one scheduled-automation run finished with that outcome | `automationId`, `name`, `repo`, `status`, `trigger`, `scheduledFor`, `error` |
+| `quota.exhausted` / `quota.resumed` | rate-limit auto-resume armed / delivered its continue prompt | `vendor`, `resumeAt` / `delivered` |
+| `session.exited` | a hosted PTY child died abnormally (the crash signal — the engine's own `session.end` hook never fires on a crash) | `tabId`, `pid`, `code`, `signal`, `exitedAt`, `tail` |
+| `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin) | `pluginId` |
 | `task.opened` / `project.opened` | the user selects/enters a task / project row | |
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
 | `session.start` / `session.end` | engine session lifecycle (C; X start only) | |
-| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X; interrupted: Kimi-shaped) | `failure` class on failed |
+| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X; interrupted: Kimi-shaped) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
 | `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X; failed: C); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
 | `attention.permission` / `attention.question` | the engine blocked on a human (C) | `waiting` |
 | `context.pre-compact` / `context.post-compact` | context compaction (C, X) | `compact.trigger: manual\|auto` |
@@ -176,10 +193,12 @@ Envelope (`ROVE_PLUGIN_EVENT_JSON`):
 ```
 
 **The principle: any observable product moment is a candidate event.** The
-catalog grows as subsystems expose their edges (PR status and task status
-transitions are natural next ones). If your plugin needs a
-moment that isn't fired yet, ask via `rove feedback` or a GitHub issue; the
-plumbing (`ui.reportEvent` → plugin sink) makes additions cheap.
+catalog grows as subsystems expose their edges. Threshold policies stay OUT:
+"worktree dirtier than N" is a plugin's own judgment — subscribe to the
+`worktree.changes` channel over the raw socket and decide yourself. If your
+plugin needs a moment that isn't fired yet, ask via `rove feedback` or a
+GitHub issue; the plumbing (`ui.reportEvent` → plugin sink) makes additions
+cheap.
 
 ## Environment contract
 
@@ -195,6 +214,7 @@ Every plugin command gets, on top of the user's environment:
 | `ROVE_PLUGIN_STATE_DIR` | your durable state; survives reinstall |
 | events | `ROVE_PLUGIN_EVENT`, `ROVE_PLUGIN_EVENT_JSON`, `ROVE_PLUGIN_TASK_ID`, `ROVE_PLUGIN_TASK_TITLE` |
 | startup | `ROVE_PLUGIN_EVENT=startup` |
+| shutdown | `ROVE_PLUGIN_EVENT=shutdown` |
 | actions | `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user invoked, usually "the repo I mean") |
 | panes | `ROVE_PLUGIN_ENTRYPOINT_ID`; cwd is the task worktree |
 
@@ -243,8 +263,14 @@ the CLI unless you need push channels.
 - **Files pane**: `[[file_handlers]]` claims opens by pattern.
 - **Engines**: `[[engines]]` contributes a coding CLI to the engine
   selector — identity, launch command, and screen-state rules for
-  working / needs-input badges. Launch + badge only: account detection,
-  history, and hooks require a built-in adapter in Rove itself.
+  working / needs-input badges. Beyond screen scraping, a wrapper can
+  report PRECISE activity itself: `rove api engine-report --kind
+  turn-complete --engine <id>` drives the same badge / attention-inbox /
+  plugin-event pipeline the built-in hook adapters use (kinds:
+  `session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end`,
+  plus the plugin-only `tool-*`/`*-compact`/`subagent-*` family). Account
+  detection, history readers, and model catalogs still require a built-in
+  adapter in Rove itself — render those surfaces yourself via `[[panes]]`.
 - **Host input dialog**: `rove api prompt --title "…"` (SDK: `promptUser()`)
   pops the TUI's standard input dialog and blocks for the answer: `{value}`
   on submit, `{cancelled, reason}` on esc/timeout. Use it instead of

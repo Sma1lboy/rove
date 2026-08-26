@@ -40,6 +40,11 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         at: Date.now(),
         source: source ?? "dispatcher",
       })
+      ctx.plugins?.handleUiReport({
+        kind: "message.delivered",
+        taskId,
+        detail: { source: source ?? "dispatcher", ...(tabId !== undefined ? { tabId } : {}), length: text.length },
+      })
       // Report reach, don't just claim success. `session.deliver` is
       // broadcast-only — an attached client performs the paste — so with
       // nothing listening the text goes into the void while the caller still
@@ -211,14 +216,21 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // No dispatcher seat, or the dispatcher noting to itself: accepted
       // but unrouted — filing must never error a working agent. Still
       // persisted above, which is why an unrouted note is no longer a loss.
-      if (!main || main.id === author.id) return { ok: true, routed: false, persisted: persisted ?? false }
-      ctx.bus.publish("session.deliver", {
-        taskId: main.id,
-        text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId}): ${text}`,
-        at: Date.now(),
-        source: "note",
+      const routed = !!main && main.id !== author.id
+      if (routed && main) {
+        ctx.bus.publish("session.deliver", {
+          taskId: main.id,
+          text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId}): ${text}`,
+          at: Date.now(),
+          source: "note",
+        })
+      }
+      ctx.plugins?.handleUiReport({
+        kind: "note.filed",
+        taskId,
+        detail: { repo: author.repo, author: label, text, routed, persisted: persisted ?? false },
       })
-      return { ok: true, routed: true, persisted: persisted ?? false }
+      return { ok: true, routed, persisted: persisted ?? false }
     },
   },
   {

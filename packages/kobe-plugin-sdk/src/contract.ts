@@ -12,10 +12,27 @@ export const PLUGIN_EVENT_NAMES = [
   // Product layer
   "task.created",
   "task.deleted",
+  "task.changed",
   "task.landed",
   "task.archived",
+  "task.pr-changed",
   "worktree.created",
   "issue.changed",
+  "note.filed",
+  "message.delivered",
+  "attention.handled",
+  // Scheduled automations (one event per run outcome)
+  "automation.dispatched",
+  "automation.skipped",
+  "automation.failed",
+  // Quota auto-resume lifecycle
+  "quota.exhausted",
+  "quota.resumed",
+  // Hosted PTY child died abnormally (clean exits are never recorded)
+  "session.exited",
+  // Plugin registry transitions (delivered only to the affected plugin)
+  "plugin.enabled",
+  "plugin.disabled",
   // Reduced activity-state transitions (deduped per task+tab)
   "agent.turn-complete",
   "agent.permission-needed",

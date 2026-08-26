@@ -10,7 +10,15 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
       const at = payload.at === undefined ? undefined : requireNumber(payload, "at")
-      return { deleted: await ctx.inbox.deleteEpisode(taskId, tabId, at) }
+      const deleted = await ctx.inbox.deleteEpisode(taskId, tabId, at)
+      if (deleted) {
+        ctx.plugins?.handleUiReport({
+          kind: "attention.handled",
+          taskId,
+          detail: { how: "dismissed", ...(tabId ? { tabId } : {}) },
+        })
+      }
+      return { deleted }
     },
   },
   {
@@ -18,7 +26,15 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
-      return { updated: await ctx.inbox.markRead(taskId, tabId, requireNumber(payload, "at")) }
+      const updated = await ctx.inbox.markRead(taskId, tabId, requireNumber(payload, "at"))
+      if (updated) {
+        ctx.plugins?.handleUiReport({
+          kind: "attention.handled",
+          taskId,
+          detail: { how: "read", ...(tabId ? { tabId } : {}) },
+        })
+      }
+      return { updated }
     },
   },
 ]

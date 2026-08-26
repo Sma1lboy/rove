@@ -76,11 +76,54 @@ interface RunnerDeps {
    *  self-link is constructed after the collectors start, and the sweep only
    *  needs it on a tick. */
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
+  /** Plugin event sink (getter for the same construction-order reason as
+   *  `link`). Every recorded run fires one automation.* plugin event. */
+  readonly plugins?: () => { handleUiReport(report: PluginRunReport): void } | null
   readonly now?: () => number
+}
+
+type PluginRunReport = {
+  readonly kind: import("../plugins/manifest.ts").PluginEventName
+  readonly taskId?: string
+  readonly detail?: Record<string, unknown>
+}
+
+/** Run outcome → plugin event name (docs/design/plugin-events.md). */
+function runEventFor(status: AutomationRunStatus): PluginRunReport["kind"] {
+  if (status === "dispatched") return "automation.dispatched"
+  if (status === "dispatch_failed") return "automation.failed"
+  return "automation.skipped"
 }
 
 function resolveLink(link: RunnerDeps["link"]): DaemonRpcClient {
   return typeof link === "function" ? link() : link
+}
+
+/** Best-effort plugin event for one recorded run — never throws. */
+function emitRunEvent(
+  deps: RunnerDeps,
+  automation: Automation,
+  status: AutomationRunStatus,
+  args: { scheduledFor: number; trigger: "scheduled" | "manual" },
+  extra: { taskId?: string; error?: string },
+): void {
+  try {
+    deps.plugins?.()?.handleUiReport({
+      kind: runEventFor(status),
+      ...(extra.taskId ? { taskId: extra.taskId } : {}),
+      detail: {
+        automationId: automation.id,
+        name: automation.name,
+        repo: automation.repo,
+        status,
+        trigger: args.trigger,
+        scheduledFor: new Date(args.scheduledFor).toISOString(),
+        ...(extra.error ? { error: extra.error } : {}),
+      },
+    })
+  } catch {
+    /* plugin fan-out must never fail a run */
+  }
 }
 
 /**
@@ -106,6 +149,7 @@ export async function runAutomationOnce(
       at: new Date(now()).toISOString(),
       ...extra,
     })
+    emitRunEvent(deps, automation, status, args, extra)
     return status
   }
 
@@ -165,14 +209,22 @@ export async function sweepAutomations(deps: RunnerDeps): Promise<void> {
     await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor)
 
     if (occurrence.missed) {
+      const error = `missed by more than the ${automation.missedRunGraceMinutes}m grace window`
       await deps.store.recordRun({
         automationId: automation.id,
         scheduledFor: new Date(occurrence.scheduledFor).toISOString(),
         status: "skipped_missed",
         trigger: "scheduled",
         at: new Date(nowMs).toISOString(),
-        error: `missed by more than the ${automation.missedRunGraceMinutes}m grace window`,
+        error,
       })
+      emitRunEvent(
+        deps,
+        automation,
+        "skipped_missed",
+        { scheduledFor: occurrence.scheduledFor, trigger: "scheduled" },
+        { error },
+      )
       continue
     }
 

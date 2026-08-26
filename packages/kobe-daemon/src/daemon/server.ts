@@ -43,6 +43,7 @@ import {
 } from "./paths.ts"
 import { PromptBroker } from "./prompt-broker.ts"
 import { type DaemonFrame, normalizeChannelFilter, serializeTask } from "./protocol.ts"
+import { startPtyExitWatch } from "./pty-exit-watch.ts"
 import { PtyLiveHold } from "./pty-live-hold.ts"
 import { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
@@ -274,12 +275,25 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // over half this function); the sweep only reads it on a tick, long after
       // construction settles.
       link: () => selfLink,
+      // Same construction-order deferral: the plugin host starts right after
+      // the collectors, and the sweep only reads it on a tick.
+      plugins: () => pluginHost,
     },
     activity,
   )
 
   // Plugin runtime: startup hooks + channel-derived event hooks (plugins/runtime.ts).
   const pluginHost = maybeStartPluginHost(bus, options, socketPath, (line) => logDaemonInfo("plugin-host", line))
+  // session.exited plugin events off the pty-host's death records (the host
+  // is a separate process; the file is the channel). Only worth watching
+  // when a plugin host exists to receive them.
+  const stopPtyExitWatch = pluginHost
+    ? startPtyExitWatch({
+        ...(options.homeDir ? { homeDir: options.homeDir } : {}),
+        plugins: () => pluginHost,
+        log: (line) => logDaemonInfo("plugin-host", line),
+      })
+    : () => {}
 
   // Pending host-dialog prompts (`ui.prompt` ↔ `ui.promptReply`).
   const prompts = new PromptBroker()
@@ -318,6 +332,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       webServer = null
       stopCollectors()
       ptyHold.stop()
+      stopPtyExitWatch()
       pluginHost?.stop()
       prompts.clear()
       activity.close()

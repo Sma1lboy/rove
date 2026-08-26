@@ -381,3 +381,13 @@ to do) from `dispatch_failed` (needs a human).
   ask the human for a line of text through the attached TUI's input dialog;
   blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
   and returns `{ value }` or `{ cancelled, reason }`.
+- `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
+  [--detail JSON]`: report a normalized engine-activity verb for a task —
+  the public face of the `engine.reportEvent` RPC the built-in hook adapters
+  use. Lets a plugin-contributed engine (or any wrapper) drive the sidebar
+  badge, attention inbox, and plugin event stream. Task/tab default to
+  `$ROVE_TASK_ID` / `$ROVE_TAB_ID`; without either, the caller's cwd is
+  mapped to a task by worktree path. Kinds: `session-start`, `turn-start`,
+  `turn-complete`, `turn-failed`, `turn-interrupted`, `awaiting-input`,
+  `session-end` (activity state), plus `tool-pre/post/failed`,
+  `pre/post-compact`, `subagent-start/stop` (plugin-only).

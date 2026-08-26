@@ -62,11 +62,19 @@ Support: **C** Claude Code · **X** Codex · **K** Kimi Code. `N` native hook,
 | Event | Fires when | Status |
 |---|---|---|
 | `task.created` / `task.deleted` | task appears/disappears in the index | ✅ |
+| `task.changed` | any watched field changed (title/branch/status/pin/vendor/…) — snapshot-diff sourced, so EVERY mutation path fires (`detail.fields/from/to`) | ✅ (subsumes the deferred `task.status-changed`) |
 | `task.landed` | branch merged back into the base repo (`detail.strategy/landedOn/commit`) | ✅ |
-| `task.archived` | task archived; restores don't fire | ✅ |
-| `worktree.created` | worktree materialized for a task | ✅ |
+| `task.archived` | task archived by ANY path (RPC, `land --then-archive`, worktree-removal sweep); restores don't fire | ✅ (snapshot-diff sourced) |
+| `task.pr-changed` | PR status changed on the task (`detail.from/to`) | ✅ |
+| `worktree.created` | worktree materialized for a task (lazy ensure, adopt, scratch-adopt — snapshot-diff sourced) | ✅ |
 | `issue.changed` | daemon-tracker issue mutated (`detail.repo/op`) | ✅ |
-| `task.status-changed` | backlog → in-progress → done transitions | 💤 (derivable from snapshots; add on demand) |
+| `note.filed` | a session filed a field note (`detail.repo/author/text/routed/persisted`) | ✅ |
+| `message.delivered` | text dispatched into a task's live session (`detail.source/tabId/length`) | ✅ |
+| `attention.handled` | the human resolved an inbox episode (`detail.how: dismissed\|read`) | ✅ |
+| `automation.dispatched` / `.skipped` / `.failed` | one scheduled-automation run's outcome (`detail.automationId/name/status/trigger/error`) | ✅ |
+| `quota.exhausted` / `quota.resumed` | auto-resume armed (`detail.vendor/resumeAt`) / continue prompt delivered (`detail.delivered`) | ✅ |
+| `session.exited` | hosted PTY child died abnormally — the crash signal, watched off `pty-exits.json` (`detail.code/signal/tail`) | ✅ |
+| `plugin.enabled` / `plugin.disabled` | registry transition, delivered only to the affected plugin | ✅ |
 | `file.will-open` / `file.opened` | Files-pane open, before/after (`detail.path`, `detail.via: plugin\|editor\|external`) | ✅ |
 | `file.closed` | the editor tab left the tab strip (fires off the tab-delta seam) | ✅ |
 | `task.opened` / `project.opened` | the user selects/enters a task or project row | ✅ |
@@ -181,6 +189,25 @@ builds: notify, log, mirror state, auto-file, auto-bootstrap, dashboards.
   `ui.reportEvent` RPC → PluginHost direct sink (same no-broadcast path as
   lifecycle kinds). Async observers only — a `will-` event precedes the
   action but cannot block it.
+- **Snapshot-diff sourcing (done).** `task.changed` / `task.pr-changed` /
+  `task.archived` / `worktree.created` derive from field-level diffs of
+  consecutive `task.snapshot` publishes (`plugins/task-diff.ts`), NOT from
+  RPC handlers — every mutation path (including worktree-removal sweeps and
+  orchestrator-internal archive) funnels through the store and therefore
+  fires. `task.landed` stays handler-emitted: its detail (strategy/commit)
+  never reaches the snapshot.
+- **[[shutdown]] hooks (done).** Run at daemon stop, bounded (~3s grace,
+  then SIGKILL) — a plugin can flush state without ever delaying shutdown.
+- **`session.exited` (done).** The pty-host is a separate process with no
+  daemon socket; the daemon watches its durable `pty-exits.json` death
+  records (FileWatchTrigger) and fires one event per NEW record. Clean
+  exits are never recorded, hence never fired.
+- **`rove api engine-report` (done).** The public face of
+  `engine.reportEvent`: plugin-contributed engines (or any wrapper) report
+  normalized activity verbs themselves and get the badge / inbox / plugin
+  event pipeline without a built-in hook adapter.
+- **Threshold policies stay out.** "Worktree dirtier than N" is plugin
+  judgment — subscribe to the `worktree.changes` channel over the socket.
 - **Attention split (done for Claude).** `awaiting-input` maps to
   `attention.permission` vs `attention.question` by `detail.waiting`. Codex
   PermissionRequest opt-in and `attention.notification` remain deferred.
