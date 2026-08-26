@@ -13,19 +13,41 @@
  * under the file-size cap.
  */
 
+import { pluginEngineIds } from "../../engine/contrib-engines.ts"
 import { GENERIC_PROTOCOL, listEnginePresets, resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { loadPluginEngines } from "../../engine/plugin-engines.ts"
+import { engineEntry } from "../../engine/registry.ts"
+import type { VendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import type { VerbContext, VerbSpec } from "./types.ts"
 
+function listAllEnginePresets() {
+  // Plugin-contributed engines are loaded from enabled plugin manifests at
+  // process start in the TUI, but the CLI path must load them explicitly.
+  loadPluginEngines()
+  const presets = [...listEnginePresets()]
+  for (const id of pluginEngineIds()) {
+    const entry = engineEntry(id as VendorId)
+    presets.push({
+      id,
+      name: entry.displayName,
+      command: entry.defaultCommand.join(" "),
+      protocol: GENERIC_PROTOCOL,
+      builtin: false,
+    })
+  }
+  return presets
+}
+
 export const ENGINE_LIST_VERB: VerbSpec = {
   name: "engine-list",
   summary:
-    "List every engine Rove can launch — built-ins and your registered presets — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. Returns { engines }.",
+    "List every engine Rove can launch — built-ins, registered presets, and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. Returns { engines }.",
   flags: [],
-  // Presets live in state.json, not the daemon — no RPC, no daemon needed.
+  // Presets live in state.json + plugin manifests, not the daemon — no RPC, no daemon needed.
   offline: true,
-  handler: async () => ({ engines: listEnginePresets() }),
+  handler: async () => ({ engines: listAllEnginePresets() }),
 }
 
 export async function setCommand(ctx: VerbContext): Promise<unknown> {

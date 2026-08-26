@@ -1,0 +1,29 @@
+# Manifest-only engine contribution: a fake coding CLI that shows up in
+# `rove api engine-list` and the engine selector.
+id = "examples.contrib-engine"
+name = "Contrib Engine Demo"
+version = "0.1.0"
+min_rove_version = "0.8.0"
+description = "Contributes a fake engine with identity and screen-state rules"
+
+[[engines]]
+id = "fake-coder"
+name = "Fake Coder"
+command = ["echo", "fake-coder", "engine", "placeholder"]
+
+[engines.identity]
+product_name = "Fake Coder"
+short_name = "Fake"
+input_placeholder = "Ask Fake Coder…"
+
+[[engines.rules]]
+state = "blocked"
+all = ["(y)es/(n)o"]
+
+[[engines.rules]]
+state = "working"
+any = ["ctrl-c to interrupt", "running"]
+
+[[engines.rules]]
+state = "blocked"
+any = ["waiting for approval"]

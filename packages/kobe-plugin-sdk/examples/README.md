@@ -1,12 +1,19 @@
 # Rove plugin SDK examples
 
-Small, runnable plugins that each demonstrate one part of the SDK contract.
-Link them with `rove plugin link <dir>` (or `bun plugin-sandbox <name> link
-<dir>`) and watch the daemon run their hooks.
+Small, runnable plugins that demonstrate the surfaces in `docs/PLUGIN-AUTHORING.md`.
 
-- **hello-events** — subscribe to `task.created` and `issue.changed`; append the
-  event envelope to a JSONL log.
-- **turn-notify** — subscribe to `turn.complete` and `agent.permission-needed`;
-  toast a summary via `notify()` and read turn usage from `detail.turn`.
-- **settings-demo** — declare string/enum/boolean settings; run an action that
-  reads the config `.env` with `readSettings()` / `setting()`.
+| Example | Surfaces | What it shows |
+|---|---|---|
+| `hello-events/` | `[[events]]` | Log every `task.created` / `issue.changed` to a JSONL file. |
+| `turn-notify/` | `[[events]]` | Toast a summary on `turn.complete` / `agent.permission-needed` via `notify()`; read turn usage from `detail.turn`. |
+| `settings-demo/` | `[[settings]]`, `[[actions]]` | Declare string/enum/boolean settings; an action reads the config `.env` with `readSettings()` / `setting()`. |
+| `task-board/` | `[[panes]]`, `[[actions]]` | Live task board drawn from `task.snapshot` + `engine-state`; headless `snapshot` action prints one frame. |
+| `contrib-engine/` | `[[engines]]` | Manifest-only fake engine with identity and screen-state rules. |
+
+Link any example into a named dev sandbox to try it:
+
+```bash
+cd packages/kobe
+bun dev:sandbox --name demo run plugin link ../kobe-plugin-sdk/examples/task-board
+bun dev:sandbox --name demo run plugin action invoke examples.task-board.snapshot
+```
