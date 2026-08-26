@@ -88,9 +88,21 @@ describe("describeCron", () => {
     expect(describeCron("0 9 * * MON-FRI")).toBe("weekdays at 09:00")
     expect(describeCron("0 9 * * SAT,SUN")).toBe("weekends at 09:00")
     expect(describeCron("30 6 * * *")).toBe("every day at 06:30")
-    expect(describeCron("0 9 * * MON")).toBe("Mondays at 09:00")
     expect(describeCron("*/15 * * * *")).toBe("every day every 15m")
     expect(describeCron("0 */6 * * *")).toBe("every day every 6h")
+  })
+
+  test("spells every single weekday correctly", () => {
+    // Building the plural from the abbreviation ("TUE" + "days") mangles the
+    // names whose full spelling is not just the abbreviation — every day but
+    // MON/FRI/SUN. Each single-day rung of the picker must read right.
+    expect(describeCron("0 9 * * MON")).toBe("Mondays at 09:00")
+    expect(describeCron("0 9 * * TUE")).toBe("Tuesdays at 09:00")
+    expect(describeCron("0 9 * * WED")).toBe("Wednesdays at 09:00")
+    expect(describeCron("0 9 * * THU")).toBe("Thursdays at 09:00")
+    expect(describeCron("0 9 * * FRI")).toBe("Fridays at 09:00")
+    expect(describeCron("0 9 * * SAT")).toBe("Saturdays at 09:00")
+    expect(describeCron("0 9 * * SUN")).toBe("Sundays at 09:00")
   })
 
   test("stays silent rather than describing a shape it does not model", () => {
@@ -99,5 +111,7 @@ describe("describeCron", () => {
     expect(describeCron("0 9 1 * *")).toBeNull()
     expect(describeCron("0 9 * JAN *")).toBeNull()
     expect(describeCron("0 9-17 * * *")).toBeNull()
+    // An unrecognized three-letter day code invents no weekday name.
+    expect(describeCron("0 9 * * XYZ")).toBeNull()
   })
 })

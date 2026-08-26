@@ -41,6 +41,17 @@ function range(from: number, to: number): string[] {
   return out
 }
 
+/** Full weekday name for a cron three-letter abbreviation (uppercase). */
+const WEEKDAY_NAMES: Record<string, string> = {
+  MON: "Monday",
+  TUE: "Tuesday",
+  WED: "Wednesday",
+  THU: "Thursday",
+  FRI: "Friday",
+  SAT: "Saturday",
+  SUN: "Sunday",
+}
+
 const LADDERS: Record<CronSegment, readonly string[]> = {
   minute: MINUTE_LADDER,
   hour: HOUR_LADDER,
@@ -97,7 +108,8 @@ export function describeCron(expression: string): string | null {
   if (dow === "*") return `every day ${at}`
   if (dow === "MON-FRI") return `weekdays ${at}`
   if (dow === "SAT,SUN") return `weekends ${at}`
-  if (/^[A-Z]{3}$/.test(dow)) return `${dow.charAt(0)}${dow.slice(1).toLowerCase()}days ${at}`
+  const weekday = WEEKDAY_NAMES[dow]
+  if (weekday) return `${weekday}s ${at}`
   return null
 }
 
