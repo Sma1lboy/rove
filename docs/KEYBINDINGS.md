@@ -7,8 +7,8 @@ overrides. This page is the stable vocabulary and behavior reference.
 
 Two things decide what a key does:
 
-- **Where** — a key is either Rove-wide, or owned by the focused pane.
-- **How** — one press, or the prefix followed by a second key.
+- **Where.** A key is either Rove-wide, or owned by the focused pane.
+- **How.** One press, or the prefix followed by a second key.
 
 Which gives you three patterns:
 
@@ -18,8 +18,8 @@ Which gives you three patterns:
 | One press | `ctrl+t`, `ctrl+w` | Frequent Rove-wide actions |
 | Prefix sequence | `ctrl+a` then `i` | Everything less frequent |
 
-Inside the embedded engine terminal, unclaimed keys go straight to the engine
-— Rove only reserves its explicit chords. The prefix still works there, so
+Inside the embedded engine terminal, unclaimed keys go straight to the engine;
+Rove only reserves its explicit chords. The prefix still works there, so
 the command menu is reachable from every pane. Press `ctrl+q` to leave the
 terminal without opening it.
 
@@ -31,7 +31,7 @@ the actions that can actually run right now.
 
 | Sequence | Action |
 |---|---|
-| `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task" — new managed worktree, branched off this Task's branch |
+| `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
 | `ctrl+a` `y` | Resume a prior engine session |
@@ -57,10 +57,10 @@ focus or dialog.
 
 | Key | Action |
 |---|---|
-| `F1` | The live keymap — works everywhere, including inside the terminal |
+| `F1` | The live keymap; works everywhere, including inside the terminal |
 | `ctrl+q` | Focus the sidebar; from the sidebar, quit |
 | `ctrl+t` | New engine tab |
-| `ctrl+e` | New-conversation dialog — engine/shell picker; inside it, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
+| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
 | `ctrl+w` | Close the active split, otherwise the tab |
 | `ctrl+[` / `ctrl+]` | Previous / next tab |
 | `ctrl+\` | Split right |
@@ -76,7 +76,7 @@ Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule.
 
 **Jump digits.** Each sidebar row prints the digit that jumps to it, so you
-read it off the screen rather than counting. There is no `ctrl+1` — the
+read it off the screen rather than counting. There is no `ctrl+1`; the
 terminal protocol can't encode it, so the first row answers to `2`.
 
 ## Sidebar and Files
@@ -116,15 +116,15 @@ through a Task row in that project.
 | `a` | Insert an `@path` mention into the engine pane |
 | `[` / `]` | Switch file tabs |
 
-The sidebar is a tree — project → Task → Terminal Tab — and it never folds, so
+The sidebar is a tree (project → Task → Terminal Tab) and it never folds, so
 everything is always visible. Search (`/`) matches titles, repos, branches,
 and live tab titles, and keeps matching rows' parents so a hit is never
 orphaned.
 
 Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a press
-anywhere else — or `esc` — dismisses it. Common row actions also have direct
+anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
-engine/shell picker) and **New shell** (a bare shell tab) for that worktree —
+engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
 both enter the Task first, exactly as pressing the chord there would. (If right-click opens your *terminal's* menu instead, see
 [Troubleshooting](./TROUBLESHOOTING.md).)
 
@@ -164,7 +164,7 @@ In the read-only diff tab, with the workspace focused:
 | `c` | Write a note |
 | `s` | Send all unsent notes to the engine |
 
-These four are fixed — they can't be rebound. The workflow:
+These four are fixed and can't be rebound. The workflow:
 [The TUI → Diff review](TUI.md#diff-review).
 
 ## Workspace pages
@@ -176,7 +176,7 @@ while the page has focus.
 |---|---|
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
 | Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
-| GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles “assigned to me”; `r` refreshes; `enter` starts a Task |
+| GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
 
@@ -188,7 +188,7 @@ them.
 
 ## Customizing
 
-Edit `~/.rove/settings/keybindings.yaml`. Changes reload live — no restart.
+Edit `~/.rove/settings/keybindings.yaml`. Changes reload live, no restart.
 
 ```yaml
 prefix:
@@ -212,13 +212,13 @@ darwin:                  # platform overlays win per chord
 - Prefix overrides set second-stroke keys and keep the binding's pane scope.
 - Uppercase is a distinct chord: `shift+p` (or just `P`) can be bound apart
   from `p`. Shift with another modifier on a letter (`ctrl+shift+p`) is
-  invalid — legacy terminals send the same byte either way.
+  invalid; legacy terminals send the same byte either way.
 - Unknown ids and invalid entries are ignored with a warning in
   Settings → Keybindings. A typo never breaks the default keymap.
 
 ### Plugin chords
 
-rove ships none — every plugin chord is your own choice:
+Rove ships none; every plugin chord is your own choice:
 
 ```yaml
 plugins:

@@ -7,7 +7,7 @@ One section per symptom; keep entries short and command-exact.
 
 The Rove CLI runs on the [Bun](https://bun.sh) runtime. The published `rove` and
 `kobe` bins are node launchers that re-exec through Bun, so an `npm install -g`
-or `npx` on a machine without Bun still works — the first launch offers to
+or `npx` on a machine without Bun still works; the first launch offers to
 install Bun for you. You land on this error when that offer could not be made
 (no TTY, `CI=true`, or `ROVE_NO_BUN_BOOTSTRAP=1`) or was declined.
 
@@ -21,9 +21,9 @@ npm install -g bun                              # any platform
 
 Bun is discovered on `PATH`, in `$BUN_INSTALL/bin`, in `~/.bun/bin`, and in a
 `bun` npm package installed beside Rove. A Bun anywhere else needs
-`ROVE_BUN=/path/to/bun` — export it from your shell profile so daemon restarts
+`ROVE_BUN=/path/to/bun`. Export it from your shell profile so daemon restarts
 see it too. The bare `env: bun: No such file or directory` message comes from an install
-made before the launcher shipped, whose bin needed Bun on `PATH` — `rove update`
+made before the launcher shipped, whose bin needed Bun on `PATH`. `rove update`
 replaces it.
 
 ## Windows opens Rove, but engine and terminal tabs never start
@@ -100,8 +100,8 @@ under `~/.kobe/` (or the selected Rove home):
 
 These files can contain text that was visible in the embedded terminal. Treat
 the Rove home with the same permissions and backup policy as shell history and
-engine transcripts; do not describe terminal output as “never written to
-disk.”
+engine transcripts; do not describe terminal output as "never written to
+disk."
 
 ## Rove says the daemon serves a different home
 
@@ -213,7 +213,7 @@ browser owns the clipboard.
 the TTY: it decides what to do with a right-click before mouse reporting
 ever sees it. iTerm2 (and several other emulators) keep right-click for
 their own menu by default, so Rove's row menu never gets the event. No TUI
-can take that back from inside the terminal — the fix is a terminal
+can take that back from inside the terminal. The fix is a terminal
 setting, not a Rove one.
 
 **iTerm2** ships an official escape hatch for exactly this
@@ -230,7 +230,7 @@ setting, not a Rove one.
 fallback below.
 
 **Fallback that works everywhere:** every row-menu entry is also a direct
-chord on the row itself (`r` rename, `a` archive, `d` delete, …) — see
+chord on the row itself (`r` rename, `a` archive, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
 

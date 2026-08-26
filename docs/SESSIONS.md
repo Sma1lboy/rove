@@ -48,8 +48,8 @@ flowchart TB
     idx["tasks.json"]
   end
   subgraph host["rove pty-host (engine lifetime)"]
-    p1["engine PTY — task A"]
-    p2["engine PTY — task B"]
+    p1["engine PTY: task A"]
+    p2["engine PTY: task B"]
     ring["per-session scrollback ring"]
   end
   subgraph browserHost["Node browser PTY sidecar"]
@@ -73,8 +73,8 @@ flowchart TB
   TUI/API sessions.
 - **The daemon** owns your task index, worktree records, and the event bus.
   It starts on first launch and stops after the last attached GUI disconnects,
-  unless an enabled routine or a live session in the PTY host holds it alive —
-  while an engine or shell tab is still running, the daemon stays up to
+  unless an enabled routine or a live session in the PTY host holds it alive.
+  While an engine or shell tab is still running, the daemon stays up to
   collect its activity events, so the sidebar status dots survive a detach.
   The hold follows actual live standalone-host sessions, not persisted tab
   snapshots. Restarting the daemon is routine: `rove daemon restart`.
@@ -83,17 +83,17 @@ flowchart TB
   daemon restart never kills a running engine. Like the tmux server, it exits
   on its own only after sitting at zero live sessions. `rove reset` is the
   explicit teardown. While it runs, it freezes every session (metadata +
-  scrollback ring) to `<home>/.rove/pty-sessions/` — throttled to one write
+  scrollback ring) to `<home>/.rove/pty-sessions/`, throttled to one write
   per few seconds while streaming, immediately on exit, and in full at
   shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each record into a dead *restored* session: reattaching replays the
   old screen and respawns the command in place. Closing a tab, archiving a
-  task, or `rove reset` deletes the record instead — an intentional end is
+  task, or `rove reset` deletes the record instead. An intentional end is
   never resurrected.
 
 ## Detaching and reattaching
 
-There's no detach command — quitting **is** detaching. `ctrl+q`, closing the
+There's no detach command. Quitting **is** detaching. `ctrl+q`, closing the
 terminal, an SSH drop: the connection closes and the engine keeps running.
 
 Reattaching is just running `rove` again. A fresh TUI finds the background
@@ -156,7 +156,7 @@ items and unread state.
 
 Three related limits are easy to confuse:
 
-- **What a reattach replays** — the PTY host keeps ~512 KiB of recent output
+- **What a reattach replays.** The PTY host keeps ~512 KiB of recent output
   per session. The live copy is in memory; the complete bounded ring is also
   frozen under `<home>/.kobe/pty-sessions/` at most once every five seconds
   while output streams, immediately when the child exits, and in full during
@@ -164,19 +164,19 @@ Three related limits are easy to confuse:
   but a reboot or host restart restores the last completed snapshot. Closing
   the tab, archiving its task, or `rove reset` deliberately drops the relevant
   frozen record.
-- **What diagnostics retain after an abnormal PTY death** —
+- **What diagnostics retain after an abnormal PTY death.**
   `<home>/.kobe/pty-exits.json` stores the newest 50 abnormal deaths. Each
   record has the exit code or signal, time, and the last 40 plain-text lines
   extracted from up to 16 KiB of raw ring data. Clean exits are omitted. This
   is a diagnostic tail, not scrollback, and an engine CLI returning to its
   still-live shell does not create one.
-- **How far you can scroll** — `terminal.scrollbackRows` in Settings →
+- **How far you can scroll.** `terminal.scrollbackRows` in Settings →
   General → Terminal, default 1000 rows. Applies to terminals started after
   the change.
 
 Reattach has a fast path: if a tab was only hidden, Rove replays just the
 bytes written since it was parked, so waking it is bit-identical to never
-having left. Attaching from a different-sized terminal resizes the session —
+having left. Attaching from a different-sized terminal resizes the session,
 last attach wins, like tmux.
 
 ## Resuming a conversation
@@ -192,7 +192,7 @@ process, including a reboot.
 - A resumable engine tab found dead on attach gets **one** automatic resume
   attempt. If that dies too, an extra tab closes; the task's only tab recycles
   into a fresh engine tab rather than respawning forever.
-- `ctrl+a` `y` opens the resume picker for the active task — Rove's mirror of
+- `ctrl+a` `y` opens the resume picker for the active task, Rove's mirror of
   claude-code's `/resume`. It lists every session in the task's worktree.
 
 ## rove web as a second client
@@ -204,7 +204,7 @@ like an attached TUI does.
 One difference: the web dashboard's terminals are **not** views of the TUI's
 sessions. They're spawned by a separate sidecar process with their own
 lifetime. They survive page reloads and reconnects, and several browser views
-of one tab share a single terminal — but they're independent of the sessions
+of one tab share a single terminal, but they're independent of the sessions
 your TUI is attached to. Stopping `rove web` stops the sidecar and its browser
 PTYs; they do not use the standalone host's freeze/thaw store.
 
@@ -213,7 +213,7 @@ PTYs; they do not use the standalone host's freeze/thaw store.
 Stated plainly so this page doesn't overpromise:
 
 - **Surviving a reboot with processes intact.** Tasks, worktrees, scrollback,
-  and conversations come back from disk, and sessions relaunch on attach —
+  and conversations come back from disk, and sessions relaunch on attach,
   but the processes themselves die with the machine; any in-flight execution
   state inside them is gone.
 - **Attaching from another machine.** The sockets are local only. Running the

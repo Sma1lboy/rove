@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rove — the agent multiplexer in your shell</title>
+<title>Rove: the agent multiplexer in your shell</title>
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="/assets/favicon.png">
-<meta name="description" content="Rove multiplexes AI coding agents in your terminal: N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers — all inside an SSH session you can close.">
+<meta name="description" content="Rove multiplexes AI coding agents in your terminal. N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers, all inside an SSH session you can close.">
 <link rel="canonical" href="https://rove.sma1lboy.me/">
-<meta property="og:title" content="Rove — the agent multiplexer in your shell">
+<meta property="og:title" content="Rove: the agent multiplexer in your shell">
 <meta property="og:description" content="A terminal multiplexer for coding agents: N isolated attempts, SSH-native, talking to each other as peers.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rove.sma1lboy.me/">
@@ -162,7 +162,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
   <div class="hero-inner">
     <p class="hero-kicker rise" style="animation-delay:.08s" data-i18n-html="hero.kicker">prompt engineering → context engineering → <span class="acc">graph engineering</span></p>
     <h1 class="rise" style="animation-delay:.2s" data-i18n-html="hero.title">The agent <span class="acc">multiplexer</span> in your shell.</h1>
-    <p class="hero-sub rise" style="animation-delay:.34s" data-i18n="hero.sub">One agent is a conversation. Five at once need a multiplexer — isolated worktrees, hosted sessions, and one SSH connection you can close.</p>
+    <p class="hero-sub rise" style="animation-delay:.34s" data-i18n="hero.sub">One agent is a conversation. Five at once need a multiplexer: isolated worktrees, hosted sessions, and one SSH connection you can close.</p>
     <div class="hero-row rise" style="animation-delay:.48s">
       <button id="copyBtn" class="copy-cmd">
         <span class="ps">$</span>
@@ -171,7 +171,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
       </button>
       <a class="btn-primary" href="https://github.com/Sma1lboy/rove#readme" data-i18n="hero.getStarted">Get started ↗</a>
     </div>
-    <p class="hero-req rise" style="animation-delay:.58s" data-i18n="hero.requirements">Runs on macOS &amp; Linux (Windows via WSL). npm, bun, npx, or one curl line — Rove brings its own Bun runtime. Needs git and one engine CLI on your PATH.</p>
+    <p class="hero-req rise" style="animation-delay:.58s" data-i18n="hero.requirements">Runs on macOS &amp; Linux (Windows via WSL). Install with npm, bun, npx, or one curl line. Rove brings its own Bun runtime. Needs git and one engine CLI on your PATH.</p>
   </div>
 
   <div class="quicklook fleet rise" id="fleet" style="animation-delay:.7s">
@@ -272,9 +272,9 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     </div>
 
     <p class="fleet-note">
-    <span data-i18n-html="fleet.note">A real session: three repositories, four tasks, each with its own worktree, branch and terminal tabs. <strong>Nothing is attached to any of them right now</strong> — every engine runs in a hosted PTY behind the daemon, so the work continues with the TUI closed.</span>
-    <span data-zen-only data-i18n-html="fleet.noteZen">This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left — this is a live layout, not a screenshot.</span>
-    <span data-full-only hidden data-i18n-html="fleet.noteFull">The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files — this is a live layout, not a screenshot.</span>
+    <span data-i18n-html="fleet.note">A real session: three repositories, four tasks, each with its own worktree, branch and terminal tabs. <strong>Nothing is attached to any of them right now.</strong> Every engine runs in a hosted PTY behind the daemon, so the work continues with the TUI closed.</span>
+    <span data-zen-only data-i18n-html="fleet.noteZen">This is zen mode: Files is collapsed and the workspace takes the freed width. Hit <b>☯ ZEN</b> at the bottom of the rail to bring it back, or pick a task on the left. This is a live layout, not a screenshot.</span>
+    <span data-full-only hidden data-i18n-html="fleet.noteFull">The full layout: Tasks on the left, the split workspace, Changes on the right. Pick a task, or use <b>[~] Zen</b> to collapse Files. This is a live layout, not a screenshot.</span>
   </p>
     <div class="equation">
       <div class="equation-inner">
@@ -329,7 +329,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <div class="stage-txt">
       <span class="stage-no" data-i18n="s2.no">2.0 · SSH-NATIVE</span>
       <h2 data-i18n="s2.title">It&rsquo;s a TUI. That is the whole remote story.</h2>
-      <p data-i18n-html="s2.body">Engines live in hosted PTYs behind a daemon — drop the connection and the fleet keeps working. No terminal to hand? <span class="mono">rove web</span>.</p>
+      <p data-i18n-html="s2.body">Engines live in hosted PTYs behind a daemon. Drop the connection and the fleet keeps working. No terminal to hand? <span class="mono">rove web</span>.</p>
     </div>
     <div class="stage-vis">
       <div class="sshbox" id="sshbox">
@@ -350,7 +350,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
     <div class="stage-txt">
       <span class="stage-no" data-i18n="s3.no">3.0 · PEERS</span>
       <h2 data-i18n="s3.title">Agents message each other. No coordinator.</h2>
-      <p data-i18n-html="s3.body">One <span class="mono">rove api send</span> lands in another agent&rsquo;s session — both directions, mid-flight, while you sleep.</p>
+      <p data-i18n-html="s3.body">One <span class="mono">rove api send</span> lands in another agent's session. Both directions, mid-flight, while you sleep.</p>
     </div>
     <div class="stage-vis">
       <div class="peers" id="peers">
@@ -367,7 +367,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
           </div>
         </div>
         <div class="px-log" id="pxLog"></div>
-        <p class="px-cmd"><b>rove api send</b> <span data-i18n="px.cmd">— one verb, either direction</span></p>
+        <p class="px-cmd"><b>rove api send</b> <span data-i18n="px.cmd">· one verb, either direction</span></p>
       </div>
     </div>
   </article>

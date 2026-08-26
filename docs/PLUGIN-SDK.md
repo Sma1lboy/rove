@@ -2,7 +2,7 @@
 
 `@sma1lboy/rove-plugin-sdk` is optional TypeScript sugar over the same env +
 CLI + unix-socket contract that powers every Rove plugin. If your plugin is a
-shell script, Python tool, or Rust binary, you do not need this package — read
+shell script, Python tool, or Rust binary, you do not need this package; read
 [Writing Rove plugins](./PLUGIN-AUTHORING.md) for the raw contract.
 
 Use the SDK when you want typed env readers, event-name unions, CLI helpers, a
@@ -64,7 +64,7 @@ const ctx = pluginContext()
 const mode = setting(ctx.configDir, "YOU_EXAMPLE_MODE", "fast")
 ```
 
-Booleans store as `"1"` or are absent; numbers remain strings — cast if you
+Booleans store as `"1"` or are absent; numbers remain strings, so cast if you
 need another type.
 
 ## Calling Rove from code
@@ -77,11 +77,11 @@ channels.
 |---|---|---|
 | `rove` | `(args, opts?) => Promise<RoveRunResult>` | Raw CLI runner; resolves with exit code, never rejects on non-zero. |
 | `roveJson` | `<T>(args, opts?) => Promise<T>` | Run, parse stdout as JSON; throws on non-zero exit or bad JSON. |
-| `notify` | `(title, body?, opts?) => Promise<RoveRunResult>` | `rove api notify` — toast in every attached UI. |
-| `dispatch` | `(taskId, prompt, opts?) => Promise<RoveRunResult>` | `rove api dispatch` — text into a live session. |
-| `listTasks` | `<T>(opts?) => Promise<T>` | `rove api list` — all tasks as daemon-serialized JSON. |
-| `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult>` | `rove plugin pane open` — open one of your `[[panes]]`. |
-| `promptUser` | `(title, opts?) => Promise<string \| null>` | `rove api prompt` — host input dialog. Returns `null` on cancel, timeout, no attached TUI, or non-zero exit. |
+| `notify` | `(title, body?, opts?) => Promise<RoveRunResult>` | `rove api notify`; toast in every attached UI. |
+| `dispatch` | `(taskId, prompt, opts?) => Promise<RoveRunResult>` | `rove api dispatch`; text into a live session. |
+| `listTasks` | `<T>(opts?) => Promise<T>` | `rove api list`; all tasks as daemon-serialized JSON. |
+| `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult>` | `rove plugin pane open`; opens one of your `[[panes]]`. |
+| `promptUser` | `(title, opts?) => Promise<string \| null>` | `rove api prompt`; host input dialog. Returns `null` on cancel, timeout, no attached TUI, or non-zero exit. |
 
 Combined example:
 

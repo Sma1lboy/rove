@@ -1,6 +1,6 @@
 # Configuration
 
-Most settings are written for you by the Settings dialog — press `ctrl+a`,
+Most settings are written for you by the Settings dialog. Press `ctrl+a`,
 then `,`. This page is for when you want to edit them by hand.
 
 ## Where things live
@@ -33,7 +33,7 @@ editor (`editor.kind` below) → the first installed of nvim, vim, emacs, nano.
 Restart Rove to apply a hand edit everywhere.
 
 **Hand-editing is safe.** Unknown keys are ignored and bad values fall back to
-defaults, so a typo can't wedge the app — worst case a preference resets. If
+defaults, so a typo can't wedge the app; worst case a preference resets. If
 the file becomes invalid JSON, Rove renames it to
 `state.json.corrupt-<timestamp>` and starts fresh rather than deleting it.
 Concurrent Rove processes re-read before writing, so they don't clobber each
@@ -86,10 +86,10 @@ per-file TTY editor.
 | `defaultVendor` | engine id | `"claude"` | Default engine for new tasks |
 | `engineCommand.<id>` | string | built-in | Launch command, e.g. `"engineCommand.claude": "claude --model opus"` |
 | `engineName.<id>` | string | built-in | Display name |
-| `customEngineIds` | string[] | `[]` | Your own engines — see [Custom engines](#custom-engines) |
+| `customEngineIds` | string[] | `[]` | Your own engines; see [Custom engines](#custom-engines) |
 | `lastActiveVendor.<repo>` | engine id | unset | Per-project last used; outranks `defaultVendor`. Written by Rove |
 
-Launch commands are parsed shell-ish — quotes group arguments. Clear both
+Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 `engineName.<id>` and `engineCommand.<id>` to reset an engine to its default.
 
 ### Terminal and tabs
@@ -143,7 +143,7 @@ By default new worktrees land under `~/.rove/worktrees/<repo-key>/<slug>`.
 | `worktree.basePath.custom` | string | unset | Remembers your last custom path in the TUI |
 
 `worktree.basePath` takes an absolute path, or one starting with the
-`$project_dir` token, which expands to each task's project root — one setting
+`$project_dir` token, which expands to each task's project root, so one setting
 that gives you a per-project layout. `$project_dir/..` puts worktrees next to
 each repo. The token only counts as the **first** segment.
 
@@ -172,7 +172,7 @@ Off by default. These can change without notice.
 
 ## Themes
 
-rove bundles three themes — `claude`, `conductor`, and `tokyonight` — and ten
+Rove bundles three themes (`claude`, `conductor`, and `tokyonight`) and ten
 more are one command away:
 
 ```sh
@@ -185,7 +185,7 @@ Available hosted: `catppuccin`, `dracula`, `everforest`, `gruvbox`,
 `kanagawa`, `nord`, `opencode`, `osaka-jade`, `rose-pine`, `solarized`.
 Preview them at <https://rove.sma1lboy.me/themes>.
 
-You can also drop your own `<name>.json` into `~/.rove/themes/` — no
+You can also drop your own `<name>.json` into `~/.rove/themes/`. No
 recompile, loaded at boot, and a user theme wins over a bundled one with the
 same name. Writing one: [Themes](./themes.md).
 
@@ -194,28 +194,28 @@ same name. Writing one: [Themes](./themes.md).
 Full vocabulary: [Keybindings](./KEYBINDINGS.md). The configuration surface:
 
 - Edit `~/.rove/settings/keybindings.yaml` by hand. Rove never writes it.
-- Changes **reload live** — no restart. Problems show up as warnings in
+- Changes **reload live**, no restart. Problems show up as warnings in
   Settings → Keybindings.
 - A direct override replaces that binding's whole chord list; `null` or `[]`
   unbinds it. Prefix overrides set second-stroke keys and keep the original
   pane scope. Platform overlays (`darwin:`, …) win per chord.
 - A `plugins:` section binds chords to installed plugin panes and actions.
   Rove ships no default plugin chords.
-- Unknown ids are ignored with a warning — a typo never breaks the keymap.
+- Unknown ids are ignored with a warning; a typo never breaks the keymap.
 
 ## Notifications and sound
 
 Three kinds: `done` (green), `needs_input` (yellow), `error` (red). Yellow and
 red outrank green when both fire for the same tab. Three delivery channels:
 
-- **Toasts** — in-TUI, 4.5 seconds. Error toasts always show, even with
+- **Toasts.** In-TUI, 4.5 seconds. Error toasts always show, even with
   toasts disabled: a failure shouldn't vanish because you turned off
   completion popups.
-- **Desktop notification** — Rove emits an OSC 9 escape that iTerm2, kitty,
+- **Desktop notification.** Rove emits an OSC 9 escape that iTerm2, kitty,
   WezTerm, and Ghostty turn into a real OS notification; other terminals
   ignore it. Because it travels down the terminal stream, **it reaches you
   over SSH**. No separate switch.
-- **Sound** — a short chime when a background tab finishes. Rove uses the
+- **Sound.** A short chime when a background tab finishes. Rove uses the
   first player it finds on `PATH` (`afplay`, `ffplay`, `mpv`, `play`,
   `aplay`, …). With none installed it's silent and the terminal bell is the
   fallback.
@@ -236,9 +236,9 @@ register any other CLI from **Settings → Engines**, or by hand:
 Switching an engine OFF in **Settings → Engines** (`space`) records it under
 `disabledEngineIds`; it keeps every override and simply stops being offered
 when you pick an engine for a task. The global default engine can't be left
-disabled — switching it off hands the default to the first engine still on.
+disabled; switching it off hands the default to the first engine still on.
 
-Being in `customEngineIds` *is* the registration — there's no other step. Ids
+Being in `customEngineIds` *is* the registration. There's no other step. Ids
 must match `^[a-z][a-z0-9_-]{0,47}$` and can't collide with a built-in;
 invalid ones are dropped on read.
 
@@ -256,7 +256,7 @@ exactly one:
 - **Default (no action needed)**: every Rove launch idempotently writes its
   hooks into `~/.claude/settings.json`, and `rove skill install` places the
   skill. This is what most existing installs use.
-- **The Claude Code plugin** — one install carries hooks and skill together,
+- **The Claude Code plugin.** One install carries hooks and skill together,
   with no PATH or settings.json involvement:
 
   ```text
@@ -272,7 +272,7 @@ exactly one:
 Once Rove sees the plugin enabled, it stops writing the Claude hooks into
 `settings.json` on launch. If you were running Rove **before** installing the
 plugin, the old settings-managed hooks are still there and every event would
-fire twice — Rove warns about this at startup and the fix is one command:
+fire twice. Rove warns about this at startup and the fix is one command:
 
 ```bash
 rove hook cleanup
@@ -280,7 +280,7 @@ rove hook cleanup
 
 That removes only Rove's own entries from `~/.claude/settings.json`; your
 other hooks are untouched. If you also have a pre-plugin skill copy under
-`~/.claude/skills/rove` (or `…/kobe`), delete that directory — the plugin's
+`~/.claude/skills/rove` (or `…/kobe`), delete that directory. The plugin's
 bundled copy replaces it. Rove never edits or removes either one silently.
 
 Uninstalling or disabling the plugin reverses the handoff: the next Rove
@@ -293,9 +293,9 @@ engine-owned and unchanged by the plugin.
 
 A repo can ship two files in its own `.rove/` directory:
 
-- **`.rove/init.sh`** — runs in each new task worktree before the engine
+- **`.rove/init.sh`.** Runs in each new task worktree before the engine
   starts, once per worktree. Use it for `bun install`, direnv, codegen.
-- **`.rove/init-prompt.md`** — sent as the engine's first message.
+- **`.rove/init-prompt.md`.** Sent as the engine's first message.
 
 Files committed in the repo win over any per-user override you set with
 `rove repo set`. Legacy `.kobe/init.sh` and `.kobe/init-prompt.md` remain
