@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.196
+
+### Patch Changes
+
+- [#565](https://github.com/Sma1lboy/rove/pull/565) [`2044c78`](https://github.com/Sma1lboy/rove/commit/2044c7878402bb9dc617c5f324702f230240569c) `rove doctor` now reports whether the engine hook channel is actually live.
+
+  Hooks are the only sub-second path to the sidebar badge, and they fail
+  silently by contract: `rove hook` never spawns a daemon, always exits 0, and
+  swallows every error. When an engine tab holds a stale daemon socket path,
+  every hook drops its event and the badges quietly fall back to the activity
+  observer's ~10s poll — so the UI looks sluggish rather than broken. Doctor
+  reads the activity entries the daemon already records and reports one of four
+  states: the channel is live, no hook events are arriving at all, there are no
+  engine tabs to judge, or the registry could not be read. The failure case
+  prints the resolved socket path plus how to read an engine tab's own. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.195
 
 ### Patch Changes
