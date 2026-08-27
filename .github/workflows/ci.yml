@@ -66,32 +66,11 @@ jobs:
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
           PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          # Exemptions are PER FILE: each `file-size-exemption: <path> — <reason>`
-          # line in the PR body exempts only the exact path it names (a bare
-          # reason with no path exempts nothing).
-          exempt_paths=$(printf '%s\n' "$PR_BODY" | grep -io 'file-size-exemption:[[:space:]]*[^[:space:]]*' | sed 's/^[^:]*:[[:space:]]*//' || true)
-          fail=0
-          while IFS= read -r f; do
-            [ -f "$f" ] || continue
-            case "$f" in
-              refs/*|*.snap|*fixtures/*|*.lock|*.lockb) continue ;;
-            esac
-            case "$f" in
-              *.ts|*.tsx|*.js|*.jsx|*.mjs) ;;
-              *) continue ;;
-            esac
-            lines=$(wc -l < "$f")
-            if [ "$lines" -gt 500 ]; then
-              if [ -n "$exempt_paths" ] && printf '%s\n' "$exempt_paths" | grep -qxF "$f"; then
-                echo "::notice file=$f::$f is $lines lines but exempted by the PR body."
-                continue
-              fi
-              echo "::error file=$f::$f is $lines lines (cap ~500). Refactor/split it, or add a 'file-size-exemption: $f — <reason>' line to the PR body. See AGENTS.md 'File size cap'."
-              fail=1
-            fi
-          done < <(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF"...HEAD)
-          exit $fail
+        # Cap + near-cap headroom warning; extracted to a script so the
+        # gate's behavior is covered by tests. Exemptions are PER FILE:
+        # each `file-size-exemption: <path> — <reason>` line in the PR body
+        # exempts only the exact path it names.
+        run: bash scripts/file-size-check.sh
 
   changeset-cap:
     # Hard rule sibling (KOB-10, docs/RELEASING.md "add a changeset per
