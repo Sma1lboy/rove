@@ -41,7 +41,7 @@ describe("TaskIndexStore.remove", () => {
     expect(reloaded.list().some((t) => t.id === task.id)).toBe(false)
   })
 
-  it("a stale concurrent writer cannot resurrect a removed task (tombstone)", async () => {
+  it("the removing store's own view stays clean while a stale reader still holds the task", async () => {
     const task = await store.create({
       repo: "/repo",
       title: "t",

@@ -52,7 +52,7 @@ describe("daemon refcounted lazy shutdown", () => {
     expect(existsSync(h.socketPath)).toBe(true)
   })
 
-  it("stays up for a transient, never-subscribed connection (default subscribe is pane)", async () => {
+  it("stays up for a transient pane subscriber (a bare subscribe defaults to the pane role)", async () => {
     h = await boot()
     // A bare subscribe() (no role) is a "pane": it must NOT keep the daemon
     // alive. This is the bug — N ChatTab Tasks panes subscribed and the count

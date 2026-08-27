@@ -19,7 +19,7 @@ describe("buildClaudeHooks", () => {
   // Inject a fixed invocation so the test doesn't depend on the dev/prod CLI resolver.
   const hooks = buildClaudeHooks(["kobe"]) as Record<string, Array<{ matcher?: string; hooks: { command: string }[] }>>
 
-  it("installs a hook for each Claude event kobe owns", () => {
+  it("installs hooks for the core activity events (full set pinned by the KOBE_HOOK_EVENTS test)", () => {
     for (const event of ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "Notification", "SessionEnd"]) {
       expect(hooks[event]).toBeDefined()
     }

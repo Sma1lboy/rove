@@ -109,7 +109,7 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
   })
 
-  it("reports legacy process counts and RSS without mutating them", async () => {
+  it("reports legacy process counts and RSS from a single inspect pass", async () => {
     mocks.request.mockRejectedValue(new Error("not running"))
     mocks.inspectLegacyTmux.mockResolvedValue({
       available: true,

@@ -55,7 +55,7 @@ describe("parsePluginManifest", () => {
     expect(warnings.some((warning) => warning.includes("using `min_rove_version`"))).toBe(true)
   })
 
-  it("requires id/name/version/min_kobe_version", () => {
+  it("rejects a manifest missing id or name", () => {
     expect(() => parsePluginManifest('name = "x"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"')).toThrow(/`id`/)
     expect(() => parsePluginManifest('id = "x"\nversion = "1.0.0"\nmin_kobe_version = "0.1.0"')).toThrow(/`name`/)
   })

@@ -5,7 +5,7 @@ import { describe, expectTypeOf, it } from "vitest"
 import type { WorktreeInfo, WorktreeManager } from "../../src/types/worktree.ts"
 
 describe("WorktreeInfo", () => {
-  it("has the four documented readonly fields", () => {
+  it("has the four documented fields with their documented types", () => {
     expectTypeOf<WorktreeInfo["path"]>().toEqualTypeOf<string>()
     expectTypeOf<WorktreeInfo["branch"]>().toEqualTypeOf<string>()
     expectTypeOf<WorktreeInfo["head"]>().toEqualTypeOf<string>()
