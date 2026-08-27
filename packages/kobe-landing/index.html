@@ -27,6 +27,9 @@
 <link rel="stylesheet" href="/fanout.css">
 <link rel="stylesheet" href="/peers.css">
 <link rel="stylesheet" href="/ssh.css">
+<script src="/index.js" defer></script>
+<script src="/stages.js" defer></script>
+<script src="/fleet.js" defer></script>
 <style>
 /* ============ HERO ============ */
 /* padding-bottom gives the veil runway below the equation — without it the
@@ -119,7 +122,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 .term-out .a{color:oklch(85% 0.07 60)}
 .term-out .ok{color:oklch(80% 0.13 145)}
 .term-out .del{color:oklch(72% 0.13 25)}
-.term-out .d{color:oklch(58% 0.02 70)}
+.term-out .d{color:oklch(62% 0.02 70)}
 
 /* ============ INSTALL ============ */
 .install{padding:clamp(70px,9vw,110px) 0 0}
@@ -131,7 +134,8 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 
 /* final band with image */
 .final-band{position:relative;overflow:hidden;margin-top:clamp(70px,9vw,110px);padding:clamp(90px,11vw,140px) 0}
-.final-bg{position:absolute;inset:0;background:url('cand-5-rivers.png') center 50%/cover no-repeat;transform:scale(1.05)}
+.final-bg{position:absolute;inset:0;transform:scale(1.05)}
+.final-bg img{width:100%;height:100%;object-fit:cover;object-position:center 50%}
 .final-veil{position:absolute;inset:0;background:linear-gradient(180deg,var(--paper) 0%,oklch(97.8% 0.007 85/.5) 30%,oklch(97.8% 0.007 85/.35) 60%,oklch(97.8% 0.007 85/.88) 100%)}
 .final-band .wrap{position:relative;z-index:2;text-align:center}
 .final-band .h2f{font-family:var(--font-display);font-size:clamp(30px,4.6vw,56px);font-weight:400;letter-spacing:-.02em;color:var(--ink);max-width:20ch;margin:0 auto;text-shadow:0 1px 26px oklch(97% 0.01 85/.9)}
@@ -262,14 +266,17 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 
 <!-- NAV · terminal command line (chrome.css) -->
 <header class="navbar">
-  <span class="ps">$</span>
+  <span class="ps" aria-hidden="true">$</span>
   <a class="bin" href="/">Rove</a>
+  <!-- display:contents (chrome.css) — a landmark without breaking the flex row -->
+  <nav aria-label="Main">
   <a class="nl" href="#workflow" data-i18n="nav.workflow">--primitives</a>
   <a class="nl" href="#install" data-i18n="nav.install">--install</a>
   <a class="nl" href="https://docs.rove.run" data-i18n="nav.docs">--docs</a>
   <a class="nl" href="/plugins" data-i18n="nav.plugins">--plugins</a>
   <a class="nl" href="/themes" data-i18n="nav.themes">--themes</a>
   <a class="nl" href="/changelog" data-i18n="nav.changelog">--changelog</a>
+  </nav>
   <span class="caret" aria-hidden="true"></span>
   <button id="langToggle" class="lang-btn">中文</button>
   <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
@@ -296,7 +303,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
       <button id="copyBtn" class="copy-cmd">
         <span class="ps">$</span>
         <span class="cmd">curl -fsSL <span class="scheme">https://</span>rove.run/install.sh | sh</span>
-        <span id="copyLabel" class="hint">click to copy</span>
+        <span id="copyLabel" class="hint" aria-live="polite">click to copy</span>
       </button>
       <a class="btn-primary" href="https://docs.rove.run/rove/quick-start" data-i18n="hero.getStarted">Get started ↗</a>
     </div>
@@ -383,7 +390,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
       </div>
       <!-- Inbox — the one full-window overlay of the three (dialog, z-index) -->
     <div class="fl-modal" id="fleetInbox" hidden>
-      <div class="fl-dialog">
+      <div class="fl-dialog" role="dialog" aria-modal="true" aria-label="Inbox">
         <p class="fl-dlg-head"><span><b>INBOX</b> 2</span><button type="button" class="esc" id="fleetInboxEsc" aria-label="Close the Inbox">esc</button></p>
         <p class="fl-sec">ATTENTION</p>
         <p class="fl-item sel"><span class="cur">▌</span><span class="b"><span class="id">ledger-api › copilot 1<span class="bdg wn">? needs input</span><span class="age">9m</span></span><span class="sub">ledger-migration</span></span></p>
@@ -524,7 +531,9 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
 
 <!-- FINAL IMAGE BAND -->
 <div class="final-band" aria-hidden="true">
-  <div class="final-bg"></div>
+  <!-- lazy <img>, not a CSS background: the band sits below the fold and a
+       background url is fetched eagerly at style time, costing first load -->
+  <div class="final-bg"><img src="cand-5-rivers.webp" alt="" loading="lazy" decoding="async"></div>
   <div class="final-veil"></div>
   <div class="wrap">
     <p class="h2f" data-i18n="final.line">Many streams. One shell.</p>
@@ -552,8 +561,5 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(44px
   </div>
 </footer>
 
-<script src="/index.js"></script>
-<script src="/stages.js"></script>
-<script src="/fleet.js"></script>
 </body>
 </html>
