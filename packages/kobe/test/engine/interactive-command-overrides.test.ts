@@ -14,6 +14,7 @@ import os from "node:os"
 import path from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
+  argvHasFlag,
   engineCommandKey,
   engineDisplayName,
   engineNameKey,
@@ -135,5 +136,27 @@ describe("withClaudeSessionId", () => {
       const argv = ["claude", flag, "x"]
       expect(withClaudeSessionId(argv, "claude")).toEqual({ argv, sessionId: null })
     }
+  })
+
+  it("recognizes the attached --flag=value form the command parser preserves", () => {
+    // `parseEngineCommand` keeps `--resume=<id>` as ONE token; an exact-token
+    // guard misses it and appends a second session control, which claude
+    // refuses to launch (issue #58).
+    for (const flag of ["--session-id", "--resume", "--from-pr"]) {
+      const argv = ["claude", `${flag}=x`]
+      expect(withClaudeSessionId(argv, "claude")).toEqual({ argv, sessionId: null })
+    }
+  })
+})
+
+describe("argvHasFlag", () => {
+  it("matches the separated and attached forms, nothing else", () => {
+    expect(argvHasFlag(["claude", "--resume", "x"], "--resume")).toBe(true)
+    expect(argvHasFlag(["claude", "--resume=x"], "--resume")).toBe(true)
+    expect(argvHasFlag(["claude", "--resume-later"], "--resume")).toBe(false)
+    // A flag NAME appearing as another flag's value is a value, not a flag —
+    // known ceiling shared with every guard here; positional matching would
+    // need a full claude arg spec.
+    expect(argvHasFlag(["claude"], "--resume")).toBe(false)
   })
 })
