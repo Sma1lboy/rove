@@ -47,8 +47,9 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
       {
         name: "remove-worktree",
         type: "bool",
+        default: "true",
         description:
-          "Remove the task's worktree after a successful land (the branch stays). Dirty worktrees, the base checkout, and the caller's own worktree are refused — the outcome is reported in the result's `worktree` field, never thrown.",
+          "Remove the task's worktree after a successful land (default; the branch always stays). Pass --remove-worktree=false to keep it. Dirty worktrees, the base checkout, and the caller's own worktree are refused — the outcome is reported in the result's `worktree` field, never thrown.",
       },
     ],
     handler: land,

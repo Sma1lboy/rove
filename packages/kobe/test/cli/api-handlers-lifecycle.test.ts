@@ -237,24 +237,29 @@ describe("task lifecycle handlers", () => {
     expect(result).toEqual({ task, running: true, tabs })
   })
 
-  it("land --remove-worktree sends the caller's cwd so the daemon can refuse self-removal", async () => {
-    const client = new FakeClient({
-      "task.land": () => ({ result: { branch: "b", strategy: "merge", landedOn: "main", commit: "abc" } }),
-    })
-    await invokeVerb("land", ["--task-id", "t1", "--remove-worktree"], { client, runtime: stubRuntime() })
-    const payload = client.requests[0]?.payload as { removeWorktree?: boolean; callerCwd?: string }
-    expect(payload.removeWorktree).toBe(true)
-    expect(payload.callerCwd).toBe(process.cwd())
-  })
-
-  it("plain land does not leak a callerCwd", async () => {
+  it("plain land leaves removeWorktree undefined (daemon default: remove) and always sends callerCwd", async () => {
+    // Removal is the default path now, so the "refusing to remove the caller's
+    // own worktree" guard must be armed on EVERY land — sending callerCwd only
+    // for the explicit flag would leave an agent free to delete its own cwd.
+    // `removeWorktree` stays undefined so the orchestrator default applies;
+    // coercing it to false here would silently pin the old opt-in behaviour.
     const client = new FakeClient({
       "task.land": () => ({ result: { branch: "b", strategy: "merge", landedOn: "main", commit: "abc" } }),
     })
     await invokeVerb("land", ["--task-id", "t1"], { client, runtime: stubRuntime() })
     const payload = client.requests[0]?.payload as { removeWorktree?: boolean; callerCwd?: string }
+    expect(payload.removeWorktree).toBeUndefined()
+    expect(payload.callerCwd).toBe(process.cwd())
+  })
+
+  it("land --remove-worktree=false opts out of the removal", async () => {
+    const client = new FakeClient({
+      "task.land": () => ({ result: { branch: "b", strategy: "merge", landedOn: "main", commit: "abc" } }),
+    })
+    await invokeVerb("land", ["--task-id", "t1", "--remove-worktree=false"], { client, runtime: stubRuntime() })
+    const payload = client.requests[0]?.payload as { removeWorktree?: boolean; callerCwd?: string }
     expect(payload.removeWorktree).toBe(false)
-    expect(payload.callerCwd).toBeUndefined()
+    expect(payload.callerCwd).toBe(process.cwd())
   })
 
   it("land maps EMPTY_BRANCH_DIRTY_WORKTREE to an executable recovery send (worker commits its own work)", async () => {

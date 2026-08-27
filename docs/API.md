@@ -397,18 +397,21 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `pin --task-id ID [--pinned=false]`: pin/unpin a task to the top of the
   sidebar.
 - `land --task-id ID [--strategy merge|squash] [--delete-branch]
-  [--then-archive] [--remove-worktree]`: merge a task's branch back into its
+  [--then-archive] [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
   a dirty base checkout and a branch with no commits ahead of base
   (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when uncommitted work is
   still sitting in the worktree, with a send-back recovery command); on
   conflict it aborts and returns the conflicted files. Returns
   `{ landedOn, commit }`.
-  `--remove-worktree` removes the task's worktree after a successful land;
-  the branch stays (pair with `--delete-branch` to drop it too). It never
-  forces: a dirty worktree, the base checkout, and the worktree the caller is
-  running from are all refused, and the outcome lands in the result's
-  `worktree` field (`{ removed, reason? }`) instead of failing the land.
+  **A successful land removes the task's worktree by default** — the
+  directory is spent once the branch is in. Pass `--remove-worktree=false` to
+  keep it. The **branch always stays** either way (pair with
+  `--delete-branch` to drop it too); git is the durable record, the working
+  directory is not. Removal never forces: a dirty worktree, the base
+  checkout, and the worktree the caller is running from are all refused, and
+  the outcome lands in the result's `worktree` field
+  (`{ removed, reason? }`) instead of failing the land.
 - `delete --task-id ID [--force] [--delete-branch]`: remove a task and its
   worktree. **The git branch stays** unless `--delete-branch` is passed;
   git is the durable record, the task row is not. Needs `--force` on a

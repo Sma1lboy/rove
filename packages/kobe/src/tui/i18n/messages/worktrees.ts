@@ -45,12 +45,13 @@ export const en = {
     button: "Land",
     confirmTitle: "Land branch?",
     confirmBody:
-      'Merge "{branch}" into the base repo\'s current branch? A dirty base checkout is refused; conflicts abort with a file list.',
+      'Merge "{branch}" into the base repo\'s current branch, then remove this worktree? The branch is kept. A dirty base checkout is refused; conflicts abort with a file list.',
     noTask: "This worktree isn't tracked as a Rove task — nothing to land.",
     conflict: "Land hit conflicts (merge aborted). Resolve by hand: {files}",
     dirtyBase: "The base checkout has uncommitted changes — commit or stash them, then land.",
     failed: "Land failed: {error}",
     done: 'Landed "{branch}" onto {landedOn} ({commit}).',
+    worktreeKept: "Landed, but the worktree was kept: {reason}",
   },
 
   hint: {},
@@ -96,12 +97,14 @@ export const zh: typeof en = {
   land: {
     button: "合入",
     confirmTitle: "合入分支？",
-    confirmBody: '把 "{branch}" 合入基仓库当前分支？基础检出有未提交改动会被拒绝；冲突会中止并给出文件清单。',
+    confirmBody:
+      '把 "{branch}" 合入基仓库当前分支，然后移除这个 worktree？分支会保留。基础检出有未提交改动会被拒绝；冲突会中止并给出文件清单。',
     noTask: "该 worktree 未作为 Rove 任务被跟踪——没有可合入的对象。",
     conflict: "合入遇到冲突（已中止）。请手动解决：{files}",
     dirtyBase: "基础检出有未提交改动——请先提交或 stash，再合入。",
     failed: "合入失败：{error}",
     done: '已把 "{branch}" 合入 {landedOn}（{commit}）。',
+    worktreeKept: "已合入，但 worktree 保留了：{reason}",
   },
 
   hint: {},
