@@ -3,6 +3,7 @@ import {
   API_VERBS,
   ApiError,
   VERBS,
+  VerbArgs,
   apiUsage,
   buildCountPlan,
   findVerb,
@@ -99,6 +100,10 @@ describe("parseAgentsSpec", () => {
   it("rejects a non-positive or malformed count", () => {
     expect(() => parseAgentsSpec("claude:0")).toThrow(/positive integer/)
     expect(() => parseAgentsSpec("claude")).toThrow(/engine:count/)
+    // Trailing garbage must NOT be silently coerced (`parseInt("2x") === 2`).
+    expect(() => parseAgentsSpec("claude:2x")).toThrow(/positive integer/)
+    expect(() => parseAgentsSpec("claude:1e3")).toThrow(/positive integer/)
+    expect(() => parseAgentsSpec("claude:2.5")).toThrow(/positive integer/)
   })
 
   it("rejects an over-cap count before allocating (no OOM on a huge count)", () => {
@@ -320,5 +325,44 @@ describe("validateAgainstSpec", () => {
   it("accepts a well-formed invocation", () => {
     const { flags } = parseFlags(["--repo", "/x", "--status", "in_progress", "--command", "claude"])
     expect(() => validateAgainstSpec(add, flags)).not.toThrow()
+  })
+
+  it("rejects an int flag with trailing garbage instead of coercing it", () => {
+    // `parseInt` stops at the first non-digit: without a shape guard `--count 2x`
+    // passed as 2 and `--count 1e3` as 1 — a typo becoming a wrong action.
+    for (const bad of ["2x", "1e3", "2.5", "0x10", "  ", "-1", "0", "abc"]) {
+      const { flags } = parseFlags(["--repo", "/x", "--prompt", "p", "--count", bad])
+      expect(() => validateAgainstSpec(add, flags)).toThrow(/must be a positive integer/)
+    }
+  })
+
+  it("accepts a clean integer flag (surrounding whitespace tolerated)", () => {
+    for (const ok of ["3", " 3 "]) {
+      const { flags } = parseFlags(["--repo", "/x", "--prompt", "p", "--count", ok])
+      expect(() => validateAgainstSpec(add, flags)).not.toThrow()
+    }
+  })
+})
+
+describe("VerbArgs.int", () => {
+  const add = findVerb("add")!
+  const intOf = (value: string): number | undefined => {
+    const { flags } = parseFlags(["--count", value])
+    return new VerbArgs(add, flags).int("count")
+  }
+
+  it("returns the parsed value for a clean positive integer", () => {
+    expect(intOf("3")).toBe(3)
+    expect(intOf(" 7 ")).toBe(7)
+  })
+
+  it("is undefined when the flag is absent", () => {
+    expect(new VerbArgs(add, parseFlags(["--repo", "/x"]).flags).int("count")).toBeUndefined()
+  })
+
+  it("rejects trailing garbage, decimals, and non-positive values", () => {
+    for (const bad of ["2x", "1e3", "2.5", "0x10", "0", "-4", "abc"]) {
+      expect(() => intOf(bad)).toThrow(/must be a positive integer/)
+    }
   })
 })
