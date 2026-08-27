@@ -124,6 +124,23 @@ describe("Rove package distribution", () => {
     expect(commands.some((command) => /--filter @sma1lboy\/kobe(?:\s|$)/.test(command))).toBe(false)
   })
 
+  test("the published package declares node-pty even though kobe's own source never imports it", () => {
+    // The runtime consumer is kobe-daemon (pty-driver.ts's `import("node-pty")`,
+    // shipped as dist/cli/pty-host-node.mjs with node-pty external). But
+    // @sma1lboy/kobe-daemon is private and never published — its dependencies
+    // reach no user install. The ONLY thing that puts node-pty on disk under an
+    // installed @sma1lboy/rove is this declaration; removing it breaks the
+    // Windows ConPTY host with MODULE_NOT_FOUND (verified against a packed
+    // tarball installed into a clean npm prefix, issue #50). knip flags it as
+    // unused because it cannot see the dynamic import — that is a false
+    // positive, suppressed in knip.json, not a license to delete.
+    const pkg = json<{ dependencies: Record<string, string> }>("packages/kobe/package.json")
+    const knip = json<{ ignoreDependencies?: string[] }>("packages/kobe/knip.json")
+
+    expect(pkg.dependencies["node-pty"]).toBeDefined()
+    expect(knip.ignoreDependencies).toContain("node-pty")
+  })
+
   test("daemon typechecking does not rely on the renamed package's hoisted dependencies", () => {
     const daemon = json<{ devDependencies: Record<string, string> }>("packages/kobe-daemon/package.json")
 
