@@ -15,6 +15,23 @@ import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, he
 /** Safety cap on a single `add --count` round so a typo can't spawn a runaway fleet. */
 export const FANOUT_CAP = 10
 
+/**
+ * Parse a strict positive-integer flag value; `undefined` when the whole
+ * value isn't one.
+ *
+ * `Number.parseInt` alone stops at the first non-digit, so it silently
+ * coerces a typo into a confident, wrong number: `--id 5abc` → 5 (flips a
+ * real, wrong issue), `--count 1e3` → 1 (spawns one task without ever
+ * tripping the fan-out cap). Requiring the entire (trimmed) value to be
+ * digits — and a safe integer above zero — makes a malformed flag fail
+ * loudly with BAD_FLAG, like every other validator in this module.
+ */
+export function parsePositiveInt(raw: string): number | undefined {
+  if (!/^\d+$/.test(raw.trim())) return undefined
+  const n = Number.parseInt(raw, 10)
+  return Number.isSafeInteger(n) && n > 0 ? n : undefined
+}
+
 /** Both parallel-plan parsers are only reachable from `add`, so their errors point at its help. */
 const FANOUT_STEP = helpStep("add")
 
@@ -143,10 +160,8 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
     }
     if (f.type === "int") {
       const raw = flags.get(f.name)
-      if (raw !== undefined) {
-        const n = Number.parseInt(raw, 10)
-        if (!Number.isInteger(n) || n <= 0) throw new ApiError(`--${f.name} must be a positive integer`, "BAD_FLAG")
-      }
+      if (raw !== undefined && parsePositiveInt(raw) === undefined)
+        throw new ApiError(`--${f.name} must be a positive integer`, "BAD_FLAG")
     }
   }
 }
@@ -241,8 +256,8 @@ export class VerbArgs {
     this.spec(name)
     const raw = this.str(name)
     if (raw === undefined) return undefined
-    const n = Number.parseInt(raw, 10)
-    if (!Number.isInteger(n) || n <= 0) throw new ApiError(`--${name} must be a positive integer`, "BAD_FLAG")
+    const n = parsePositiveInt(raw)
+    if (n === undefined) throw new ApiError(`--${name} must be a positive integer`, "BAD_FLAG")
     return n
   }
 
@@ -283,8 +298,8 @@ export function parseAgentsSpec(spec: string): VendorId[] {
         FANOUT_STEP,
       )
     }
-    const count = Number.parseInt(trimmed.slice(colon + 1), 10)
-    if (!Number.isInteger(count) || count <= 0) {
+    const count = parsePositiveInt(trimmed.slice(colon + 1))
+    if (count === undefined) {
       throw new ApiError(`--agents count for "${vendor}" must be a positive integer`, "BAD_FLAG", FANOUT_STEP)
     }
     // Reject against the fanout cap BEFORE materializing the array — otherwise
