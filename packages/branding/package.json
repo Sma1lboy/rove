@@ -5,7 +5,7 @@
   "description": "Animated logo concepts for Rove (Remotion). Source lives here; rendered outputs land in ../../docs/assets/brand/ and are committed.",
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "still:bracket": "remotion still src/index.ts bracket-chip ../../docs/assets/brand/bracket-chip.png --frame=28",
+    "still:bracket": "remotion still src/index.ts bracket-chip ../../docs/assets/brand/bracket-chip.png --frame=44",
     "still:grid": "remotion still src/index.ts pane-grid ../../docs/assets/brand/pane-grid.png --frame=120",
     "still:streams": "remotion still src/index.ts task-streams ../../docs/assets/brand/task-streams.png --frame=85",
     "still:glyph": "remotion still src/index.ts glyph-k ../../docs/assets/brand/glyph-k.png --frame=80",
