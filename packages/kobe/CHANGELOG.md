@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.197
+
+### Patch Changes
+
+- [#566](https://github.com/Sma1lboy/rove/pull/566) [`204bdb5`](https://github.com/Sma1lboy/rove/commit/204bdb5d80928f343ed7e38b9d38e747a8edba01) Refresh the README bracket-chip banner with a field of Claude, Codex, Copilot, and Kimi marks pulled into Rove by a deterministic sink-vortex flow. Preserve the previous supported-agent animation as a separately renderable original. — [@NarwhalChen](https://github.com/NarwhalChen)
+
 ## 0.8.196
 
 ### Patch Changes
