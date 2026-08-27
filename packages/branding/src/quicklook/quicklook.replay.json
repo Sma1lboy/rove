@@ -25,8 +25,12 @@
   },
   "waits": {
     "workspaceReady": {
-      "pattern": "KOBE",
+      "pattern": "ROVE",
       "timeoutMs": 20000
+    },
+    "sidebarHydrated": {
+      "pattern": "fix flaky retry test",
+      "timeoutMs": 15000
     },
     "newTaskDialog": {
       "pattern": "from branch",
@@ -53,6 +57,11 @@
     }
   },
   "beats": [
+    {
+      "at": 1,
+      "action": "waitFor",
+      "waitFor": "sidebarHydrated"
+    },
     {
       "at": 2,
       "action": "flow",
