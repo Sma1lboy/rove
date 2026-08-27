@@ -151,7 +151,7 @@ button.fl-row:focus-visible { outline: none; background: oklch(62% 0.13 45/.1); 
 .fleet-status {
   display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   margin-top: 12px; padding-top: 10px; border-top: 1px solid oklch(28% 0.02 50);
-  color: oklch(52% 0.018 65); font-size: 11.5px;
+  color: oklch(62% 0.018 65); font-size: 11.5px; /* 4.8:1 on the well — was 3.1 */
 }
 .fleet-status b { color: oklch(66% 0.02 65); font-weight: 400; letter-spacing: .08em; }
 .fleet-status .ok { color: oklch(72% 0.13 145); }
@@ -261,7 +261,8 @@ button.fl-row:focus-visible { outline: none; background: oklch(62% 0.13 45/.1); 
 .fl-nav.inbox { display: inline; width: auto; padding: 0 .4ch; color: oklch(58% 0.02 65); font-size: 11.5px; letter-spacing: .1em; }
 .fl-nav:hover { color: oklch(88% 0.02 78); }
 .fl-nav:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
-.fl-nav[aria-pressed="true"] { background: var(--accent); color: oklch(20% 0.02 50); font-weight: 600; }
+/* light-on-accent, not dark-on-accent: 4.5:1 on the tuned accent, dark was 3.7 */
+.fl-nav[aria-pressed="true"] { background: var(--accent); color: oklch(97% 0.008 85); font-weight: 600; }
 .fl-nav.inbox[aria-pressed="true"] { padding: 0 .6ch; }
 /* while a page owns the column the rail's task selection is not the subject */
 .fl-rail.page-open .fl-row[aria-selected="true"] { background: transparent; border-left-color: oklch(40% 0.02 55); }

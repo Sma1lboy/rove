@@ -40,7 +40,7 @@ h1{font-family:var(--font-display);font-optical-sizing:auto;font-size:clamp(38px
 .term-out .a{color:oklch(85% 0.07 60)}
 .term-out .k{color:oklch(78% 0.09 60)}
 .term-out .s{color:oklch(80% 0.11 145)}
-.term-out .d{color:oklch(58% 0.02 70)}
+.term-out .d{color:oklch(62% 0.02 70)}
 
 /* ============ SECTION SHELL ============ */
 .sec{padding:clamp(64px,8vw,96px) 0 0}
@@ -150,13 +150,15 @@ code{font-family:var(--font-mono);font-size:12.5px;background:var(--accent-wash)
 
 <!-- NAV · terminal command in a glass pill -->
 <header class="navbar">
-  <span class="ps">$</span>
+  <span class="ps" aria-hidden="true">$</span>
   <a class="bin" href="/">Rove</a>
+  <nav aria-label="Main">
   <a class="nl" href="/#workflow" data-i18n="nav.workflow">--primitives</a>
   <a class="nl" href="/#install" data-i18n="nav.install">--install</a>
   <a class="nl" href="/plugins" aria-current="page" data-i18n="nav.plugins">--plugins</a>
   <a class="nl" href="/themes" data-i18n="nav.themes">--themes</a>
   <a class="nl" href="/changelog" data-i18n="nav.changelog">--changelog</a>
+  </nav>
   <span class="caret" aria-hidden="true"></span>
   <button id="langToggle" class="lang-btn">中文</button>
   <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">

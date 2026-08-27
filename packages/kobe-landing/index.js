@@ -112,7 +112,11 @@ var KOBE_I18N = (function () {
     var label = document.getElementById('copyLabel');
     if (label) label.textContent = t('copy.hint');
     var toggle = document.getElementById('langToggle');
-    if (toggle) toggle.textContent = lang === 'zh' ? 'EN' : '中文';
+    if (toggle) {
+      toggle.textContent = lang === 'zh' ? 'EN' : '中文';
+      // the label names the OTHER language — tag it so screen readers switch voice
+      toggle.lang = lang === 'zh' ? 'en' : 'zh-CN';
+    }
   }
 
   var toggleBtn = document.getElementById('langToggle');

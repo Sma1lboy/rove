@@ -12,15 +12,18 @@
   --ink:       oklch(25% 0.02 60);
   --ink-soft:  oklch(35% 0.02 55);
   --muted:     oklch(50% 0.02 60);
-  --faint:     oklch(62% 0.018 65);
+  /* faint/accent/ok/warn lightness tuned down from 62/62/58/62 so small text
+     on paper clears WCAG AA 4.5:1 (and white-on-accent buttons clear it too).
+     Hue and chroma — the brand — are untouched. */
+  --faint:     oklch(55% 0.018 65);
   --line:      oklch(88% 0.014 80);
   --line-2:    oklch(83% 0.018 75);
-  --accent:    oklch(62% 0.13 45);
+  --accent:    oklch(56% 0.13 45);
   --accent-2:  oklch(70% 0.11 50);
-  --accent-wash: oklch(62% 0.13 45 / .1);
-  --accent-line: oklch(62% 0.13 45 / .4);
-  --ok:        oklch(58% 0.12 145);
-  --warn:      oklch(62% 0.11 80);
+  --accent-wash: oklch(56% 0.13 45 / .1);
+  --accent-line: oklch(56% 0.13 45 / .4);
+  --ok:        oklch(54% 0.12 145);
+  --warn:      oklch(54% 0.11 80);
   --radius:    12px;
   --radius-lg: 22px;
   --font-display:'Fraunces', Georgia, serif;
@@ -42,6 +45,7 @@ button{cursor:pointer}
 /* ============ NAV — a terminal command line, full width ============ */
 .navbar{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;gap:2px;padding:10px clamp(20px,4vw,52px);background:oklch(97.8% 0.007 85/.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line);font-family:var(--font-mono);font-size:12.5px}
 .navbar .ps{color:var(--accent);padding-left:8px}
+.navbar nav{display:contents}
 .navbar .bin{font-weight:700;color:var(--ink);padding:6px 14px 6px 4px}
 .navbar a.nl{color:var(--muted);padding:6px 10px;transition:color 140ms;white-space:nowrap}
 .navbar a.nl:hover{color:var(--accent)}

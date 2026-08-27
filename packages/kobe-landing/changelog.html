@@ -68,13 +68,15 @@ html[data-lang="zh"] .rn-li .sum{font-family:var(--font-mono),'PingFang SC','Mic
 
 <!-- NAV · terminal command line (chrome.css) -->
 <header class="navbar">
-  <span class="ps">$</span>
+  <span class="ps" aria-hidden="true">$</span>
   <a class="bin" href="/">Rove</a>
+  <nav aria-label="Main">
   <a class="nl" data-s="nav.workflow" href="/#workflow">--primitives</a>
   <a class="nl" data-s="nav.install" href="/#install">--install</a>
   <a class="nl" data-s="nav.plugins" href="/plugins">--plugins</a>
   <a class="nl" data-s="nav.themes" href="/themes">--themes</a>
   <a class="nl" href="/changelog" aria-current="page" data-s="nav.changelog">--changelog</a>
+  </nav>
   <span class="caret" aria-hidden="true"></span>
   <button id="langToggle" class="lang-btn">中文</button>
   <a class="gh-link" href="https://github.com/Sma1lboy/rove" target="_blank" rel="noopener">
