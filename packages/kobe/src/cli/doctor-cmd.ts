@@ -231,6 +231,12 @@ async function collectDoctorLines(): Promise<string[]> {
     if (tabs) {
       const hookInput = { socketPath: daemonSocket }
       out.push("", ...hookChannelDoctorLines(classifyHookChannel({ tabs, ...hookInput }), hookInput, CLI_NAME))
+    } else {
+      // `requestIfReachable` swallows its failure into null, so an
+      // unanswered `debug.inspect` (a daemon predating the verb) would drop
+      // this whole block without a word — the exact silence this check
+      // exists to end. Say the check could not run instead.
+      out.push("", "hooks:   ? could not read the daemon's activity registry (debug.inspect unavailable)")
     }
   } else {
     await appendUnavailableProcess(out, "daemon ", defaultDaemonPidPath(), daemonSocket)
