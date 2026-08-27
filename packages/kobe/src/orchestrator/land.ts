@@ -33,7 +33,9 @@ export interface LandTaskInput {
 /** Options for a full land: strategy + post-land cleanup. */
 export interface LandTaskOpts {
   readonly strategy?: LandStrategy
-  /** Delete the task's branch after a successful land. */
+  /** Delete the task's branch after a successful land. Implies removing the
+   *  worktree first — git can't delete a branch a live worktree has checked
+   *  out — so the branch is dropped only once that removal succeeds. */
   readonly deleteBranch?: boolean
   /** Archive the task after a successful land (moves it off the active board). */
   readonly archive?: boolean
@@ -68,11 +70,24 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
   if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
   const result = await landTask(task, { strategy: opts.strategy })
-  // Worktree removal runs BEFORE branch deletion: git refuses to delete a
-  // branch that's still checked out in a live worktree, so the reverse order
-  // would leave --delete-branch a silent no-op when combined with it.
-  const worktree = opts.removeWorktree ? await removeLandedWorktree(task, opts.callerCwd, deps) : undefined
-  if (opts.deleteBranch) await deps.worktrees.deleteBranch(task.repo, result.branch, { force: true })
+  // git refuses to delete a branch that's still checked out in a live worktree,
+  // so --delete-branch can only take effect once the worktree is gone. It
+  // therefore IMPLIES removing the worktree (branch and worktree drop together,
+  // matching the `delete` verb) — and the branch is deleted only once removal
+  // actually succeeds. Without that gate `git branch -D` runs behind
+  // `allowFail` while the worktree still holds the branch, leaving
+  // --delete-branch a silent no-op (the exact trap when it was passed alone).
+  const hadWorktreeOnDisk = task.worktreePath.trim().length > 0
+  const removeWorktree = opts.removeWorktree === true || opts.deleteBranch === true
+  const worktree = removeWorktree ? await removeLandedWorktree(task, opts.callerCwd, deps) : undefined
+  // The branch is checked out nowhere — safe to drop — only when its worktree
+  // was just removed, or the task never had one on disk. A refused removal
+  // (dirty, the caller's own worktree, the base checkout) leaves it checked
+  // out, so we skip the delete rather than let it silently fail.
+  const branchDeletable = !hadWorktreeOnDisk || worktree?.removed === true
+  if (opts.deleteBranch && branchDeletable) {
+    await deps.worktrees.deleteBranch(task.repo, result.branch, { force: true })
+  }
   if (opts.archive) await deps.setArchived(task.id, true)
   return worktree ? { ...result, worktree } : result
 }
@@ -127,7 +142,8 @@ export interface LandResult {
   readonly landedOn: string
   /** Short SHA of the merge/commit that landed the work. */
   readonly commit: string
-  /** Present only when `removeWorktree` was requested — the cleanup outcome. */
+  /** Present when the worktree was removed as part of cleanup — i.e. whenever
+   *  `removeWorktree` OR `deleteBranch` was requested — carrying that outcome. */
   readonly worktree?: LandWorktreeCleanup
 }
 
