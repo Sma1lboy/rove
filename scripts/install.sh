@@ -3,8 +3,8 @@ set -eu
 
 # One-step install for Rove, for a machine that has nothing yet.
 #
-#   curl -fsSL https://rove.sma1lboy.me/install.sh | sh
-#   curl -fsSL https://rove.sma1lboy.me/install.sh | sh -s -- 0.8.136   # pin
+#   curl -fsSL https://rove.run/install.sh | sh
+#   curl -fsSL https://rove.run/install.sh | sh -s -- 0.8.136   # pin
 #
 # Rove's CLI is a Bun program, so this script installs Bun first when the
 # machine has none, then installs the package with it. Updating later is

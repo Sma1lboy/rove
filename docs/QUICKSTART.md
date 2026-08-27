@@ -19,10 +19,10 @@ the new executables are on `PATH`.
 One line on a fresh machine. It installs Bun if it is missing, then Rove:
 
 ```bash
-curl -fsSL https://rove.sma1lboy.me/install.sh | sh
+curl -fsSL https://rove.run/install.sh | sh
 
 # pin a version
-curl -fsSL https://rove.sma1lboy.me/install.sh | sh -s -- 0.8.136
+curl -fsSL https://rove.run/install.sh | sh -s -- 0.8.136
 ```
 
 Or use a package manager you already have:

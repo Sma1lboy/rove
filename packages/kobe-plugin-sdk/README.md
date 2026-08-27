@@ -85,7 +85,7 @@ await rove(["api", "issue-create", "--repo", ".", "--title", "found a bug"])
 Full contract (manifest reference, event catalog, env table):
 [docs/PLUGIN-AUTHORING.md](https://github.com/Sma1lboy/rove/blob/main/docs/PLUGIN-AUTHORING.md).
 Published docs site version:
-[docs.rove.sma1lboy.me/plugins/sdk](https://docs.rove.sma1lboy.me/plugins/sdk).
+[docs.rove.run/plugins/sdk](https://docs.rove.run/plugins/sdk).
 
 Existing plugins can keep importing `@sma1lboy/kobe-plugin-sdk`: every SDK
 release publishes the same files and version under both package names. The

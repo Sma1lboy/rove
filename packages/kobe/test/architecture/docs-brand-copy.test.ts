@@ -141,8 +141,8 @@ describe("current docs and landing copy speak Rove", () => {
     expect(read("packages/kobe-landing/index.js"), "the fan-out demo still prints kobe/ branches").not.toContain(
       "'kobe/'",
     )
-    // The canonical domain is now `rove.sma1lboy.me` (kobe.sma1lboy.me 301s to
-    // it); only a `kobe/<branch>` slug is stale.
+    // The canonical domain is now `rove.run`; every sma1lboy.me host 301s to
+    // it. Only a `kobe/<branch>` slug is stale.
     expect(
       read("packages/kobe-landing/index.html"),
       "the static fan-in fallback still prints a kobe/ branch",

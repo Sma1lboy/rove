@@ -121,7 +121,7 @@ export function missingBunMessage(
     "  npm install -g bun          # any platform, if you already have npm",
     "",
     "Or install Bun and Rove together in one step:",
-    "  curl -fsSL https://rove.sma1lboy.me/install.sh | sh",
+    "  curl -fsSL https://rove.run/install.sh | sh",
     "",
     `Already have Bun somewhere unusual? Point Rove at it: ${BUN_OVERRIDE_ENV}=/path/to/bun`,
     "",

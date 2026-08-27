@@ -84,10 +84,10 @@ Ten more themes are hosted rather than bundled: `catppuccin`, `dracula`,
 `rose-pine`, `solarized`. Install any of them with one command:
 
 ```sh
-rove theme add https://rove.sma1lboy.me/themes/gruvbox.json
+rove theme add https://rove.run/themes/gruvbox.json
 ```
 
-Preview all thirteen at <https://rove.sma1lboy.me/themes>.
+Preview all thirteen at <https://rove.run/themes>.
 
 ## Troubleshooting
 
