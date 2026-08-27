@@ -106,8 +106,10 @@ local authoring (no build; your tree, your build). `uninstall` removes the
 managed checkout but keeps `config/` + `state/`; `unlink` never touches files.
 
 Registry: `~/.kobe/plugins.json`, written only by the CLI. The daemon
-(`plugins/runtime.ts`, wired in `daemon/server.ts`) file-watches it, so
-install/enable/disable apply to a running daemon without a restart. Run log:
+(`plugins/runtime.ts`, wired in `daemon/server.ts`) stat-polls it (not
+`fs.watch` — macOS FSEvents can permanently drop writes landing in its async
+startup window), so install/enable/disable apply to a running daemon without
+a restart. Run log:
 `~/.kobe/plugins/<id>/log.jsonl` (`rove plugin log <id>`), stdout/stderr
 capped at 8 KB per run.
 

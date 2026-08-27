@@ -126,7 +126,11 @@ command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
     )
     mkdirSync(join(home, ".kobe"), { recursive: true })
     // Start with an EMPTY registry — the plugin is enabled by a later write,
-    // which is exactly the transition plugin.enabled reports.
+    // which is exactly the transition plugin.enabled reports. The write below
+    // lands in the same tick as start(); with fs.watch this sat inside the
+    // FSEvents async-startup window and was dropped forever under load
+    // (issue #61, ~8% of runs at 8 lanes). The stat-poll watcher makes
+    // delivery deterministic — do not reintroduce fs.watch here.
     savePluginRegistry({ plugins: [] }, home)
     const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
     const read = (name: string): string => {
