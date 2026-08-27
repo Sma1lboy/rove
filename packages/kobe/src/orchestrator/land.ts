@@ -56,7 +56,11 @@ export interface LandDeps {
   readonly clearWorktreePath: (id: TaskId | string) => Promise<void>
 }
 
-/** Outcome of the post-land worktree removal — reported in the result, never thrown. */
+/**
+ * Outcome of the post-land worktree removal — reported in the result, never
+ * thrown. `reason` is not failure-only: it also accompanies `removed: true`
+ * when the directory went but clearing the task's worktree path did not.
+ */
 export interface LandWorktreeCleanup {
   readonly removed: boolean
   readonly reason?: string

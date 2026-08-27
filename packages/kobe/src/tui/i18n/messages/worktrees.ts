@@ -52,6 +52,7 @@ export const en = {
     failed: "Land failed: {error}",
     done: 'Landed "{branch}" onto {landedOn} ({commit}).',
     worktreeKept: "Landed, but the worktree was kept: {reason}",
+    worktreePathStale: "Landed and removed the worktree, but the task still points at it: {reason}",
   },
 
   hint: {},
@@ -105,6 +106,7 @@ export const zh: typeof en = {
     failed: "合入失败：{error}",
     done: '已把 "{branch}" 合入 {landedOn}（{commit}）。',
     worktreeKept: "已合入，但 worktree 保留了：{reason}",
+    worktreePathStale: "已合入并移除 worktree，但任务仍指向它：{reason}",
   },
 
   hint: {},

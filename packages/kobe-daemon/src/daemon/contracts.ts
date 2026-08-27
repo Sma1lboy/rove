@@ -104,7 +104,9 @@ export interface LandResult {
   readonly landedOn: string
   readonly commit: string
   /** The post-land worktree cleanup outcome. Present unless removal was
-   *  explicitly declined (`removeWorktree: false`). */
+   *  explicitly declined (`removeWorktree: false`). `reason` is not
+   *  failure-only: it also rides with `removed: true` when the directory went
+   *  but clearing the task's worktree path did not. */
   readonly worktree?: { readonly removed: boolean; readonly reason?: string }
 }
 
