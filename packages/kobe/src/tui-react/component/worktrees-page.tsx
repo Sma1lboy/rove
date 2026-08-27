@@ -190,7 +190,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       )
       // A refused removal is reported, never thrown — the land still stands,
       // so say why the directory is still there rather than leaving it silent.
-      if (res.worktree && !res.worktree.removed) {
+      if (res.worktree?.removed === false) {
         console.error(
           `[rove worktrees] ${t("worktrees.land.worktreeKept", { reason: res.worktree.reason ?? "refused" })}`,
         )

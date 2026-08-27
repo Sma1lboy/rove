@@ -115,7 +115,7 @@ set-command    --task-id(REQ) --command(REQ)      next launch only
 set-status     --task-id(REQ) --status(REQ)[backlog|in_progress|in_review|done|canceled|error]
 archive        --task-id(REQ) --archived(true)
 pin            --task-id(REQ) --pinned(true)
-land           --task-id(REQ) --strategy[merge|squash] --delete-branch --then-archive --remove-worktree
+land           --task-id(REQ) --strategy[merge|squash] --delete-branch --then-archive --remove-worktree(true)
 delete         --task-id(REQ) --force --delete-branch
 ```
 
