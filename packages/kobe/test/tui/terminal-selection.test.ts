@@ -2,10 +2,14 @@ import { describe, expect, it } from "vitest"
 import { displayWidth } from "../../src/lib/display-width"
 import { ATTR, type Chunk } from "../../src/tui/panes/terminal/sgr"
 import {
+  type CellPoint,
   EMPTY_SHADOW,
+  type SelectionRange,
+  type SelectionShiftState,
   clampRowToShadow,
   extractSelection,
   extractShadowedSelection,
+  followContentShift,
   orderRange,
   overlaySelection,
   pointerCell,
@@ -266,6 +270,43 @@ describe("alt-screen drag scrolling (shadow buffer)", () => {
     // Composed space stays contiguous: above ++ screen(14) ++ below.
     const range = { anchor: { row: -3, col: 0 }, head: { row: 5, col: 10 } }
     expect(extractShadowedSelection(screen(14), shadow, range)).toBe(doc.slice(11, 20).join("\n"))
+  })
+
+  it("keeps a RELEASED selection glued to its content while the app scrolls", () => {
+    // Selection made over lines 17-19, then the mouse released. The app
+    // scrolls up twice by 2: both endpoints must ride the content down and
+    // off the bottom, not stay pinned to screen rows 1 and 3.
+    let state: SelectionShiftState = { anchor: { row: 1, col: 0 }, head: { row: 3, col: 7 }, shadow: EMPTY_SHADOW }
+    let visible = screen(15)
+    for (const top of [13, 11]) {
+      const next = screen(top)
+      state = followContentShift(state, visible, next, false)
+      visible = next
+    }
+    expect(state.anchor).toEqual({ row: 5, col: 0 })
+    expect(state.head).toEqual({ row: 7, col: 7 })
+    // Still the same three lines, now read entirely out of the shadow.
+    const range: SelectionRange = { anchor: state.anchor as CellPoint, head: state.head as CellPoint }
+    expect(extractShadowedSelection(visible, state.shadow, range)).toBe(doc.slice(16, 19).join("\n"))
+  })
+
+  it("moves only the anchor while the drag is still live", () => {
+    // Mid-drag the head belongs to the pointer, which the pane re-derives.
+    const state: SelectionShiftState = {
+      anchor: { row: 1, col: 0 },
+      head: { row: 3, col: 7 },
+      shadow: EMPTY_SHADOW,
+    }
+    const rolled = followContentShift(state, screen(15), screen(13), true)
+    expect(rolled.anchor).toEqual({ row: 3, col: 0 })
+    expect(rolled.head).toBe(state.head)
+  })
+
+  it("leaves the state alone when nothing is selected or nothing moved", () => {
+    const empty: SelectionShiftState = { anchor: null, head: null, shadow: EMPTY_SHADOW }
+    expect(followContentShift(empty, screen(15), screen(13), false)).toBe(empty)
+    const held: SelectionShiftState = { anchor: { row: 1, col: 0 }, head: { row: 3, col: 7 }, shadow: EMPTY_SHADOW }
+    expect(followContentShift(held, screen(15), screen(15), false)).toBe(held)
   })
 
   it("caps the shadow and clamps the anchor to what it can still address", () => {
