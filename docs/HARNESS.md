@@ -231,6 +231,16 @@ What actually works:
 
 What silently produces a false result:
 
+- **A bare sidebar key right after boot.** Boot restores INTO the session
+  (2026-08-09): any non-empty task store lands focus on the workspace pane, so
+  `n`/`j`/Enter dispatch against disabled sidebar bindings and vanish without
+  an error — the issue-#12 "keys are all dead" report; the injection path was
+  never broken. Wait for the sidebar rows to hydrate (the focus flip rides the
+  same commit), then normalize with `focusLeftmostPane` (`C-a` `h`,
+  `packages/branding/src/quicklook/capture-core.ts`) before sidebar-scoped
+  keys, and settle between strokes — the focus flip is a React state update,
+  so a key sent in the same tick still hits the OLD gates.
+  `bun run test:replay:e2e` in `packages/branding` pins the recipe live.
 - **`api read-output` for a vendor TUI.** Claude and Codex run on the alternate
   screen, so the text tail is escape-code noise (`">0q"`) no matter how healthy
   the session is. Absence of output is not absence of a dialog.

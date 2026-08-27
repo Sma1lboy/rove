@@ -92,7 +92,7 @@ export function createClient(baseUrl: string) {
 }
 `
 
-const createFixtureRepository = async (demoRoot: string): Promise<string> => {
+export const createFixtureRepository = async (demoRoot: string): Promise<string> => {
   const fixtureRepo = join(demoRoot, "fixture-repo")
   await mkdir(join(fixtureRepo, "src"), { recursive: true })
   await run("git", ["init", "-q", "-b", "main"], fixtureRepo)
@@ -121,7 +121,7 @@ const createFixtureRepository = async (demoRoot: string): Promise<string> => {
  */
 export const CAPTURE_SKILL_HINT_VERSION = 21
 
-const prepareCaptureState = async (demoRoot: string, fixtureRepo: string, claudeCommand?: string): Promise<void> => {
+export const prepareCaptureState = async (demoRoot: string, fixtureRepo: string, claudeCommand?: string): Promise<void> => {
   const configDir = join(demoRoot, "home", ".config", "kobe")
   await mkdir(configDir, { recursive: true })
   const state: Record<string, unknown> = {
