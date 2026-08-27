@@ -32,6 +32,11 @@
   --ease-out: cubic-bezier(0.16,1,0.3,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* clip, not hidden: the scroll-reveal entrance parks stages 14px outside the
+   viewport until they animate in, and body's overflow-x alone left the page
+   scrollable those 14px sideways. `clip` seals it without turning the root
+   into a scroll container, which would break position:sticky. */
+html{overflow-x:clip}
 html,body{background:var(--paper)}
 body{color:var(--ink-soft);font-family:var(--font-sans);font-weight:380;font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 ::selection{background:oklch(62% 0.13 45/.22)}
@@ -57,16 +62,36 @@ button{cursor:pointer}
 .gh-link{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:12px;font-weight:500;background:var(--ink);color:oklch(97% 0.008 85);padding:7px 14px;margin-left:8px;transition:background 140ms;white-space:nowrap}
 .gh-link:hover{background:var(--accent);color:oklch(99% 0.005 85)}
 .gh-stars{display:inline-flex;align-items:center;gap:4px;color:oklch(85% 0.06 85)}
-/* This used to hide all five links, leaving `$ Rove [中文] [GitHub]` — the
-   defect fixed in #511/#513. The section anchors go first (they scroll to
-   content that only exists on the home page), then changelog, which the
-   footer also links. Measured against the real bar, not guessed. */
-@media(max-width:820px){
+/* The bar is one line that must never exceed the viewport, so each tier is a
+   measured width budget, not a preference. Order of sacrifice: the section
+   anchors first (they scroll to content that only exists on the home page),
+   then changelog, themes, plugins — every one of them still reachable from
+   the footer, which every page carries. `--docs` survives to the narrowest
+   width: leaving `$ Rove [中文] [GitHub]` with no destination at all was the
+   defect fixed in #511/#513.
+
+   Measured against the real bar (star count rendered, English labels, which
+   run wider than the Chinese ones). Each set is listed with the bar width it
+   needs, so the next link to join the nav gets re-measured instead of
+   silently pushing the star button off-screen — which is what happened when
+   `--docs` was added and broke every width from 461px to 630px:
+     all six links                  853px   →  fits from 880px
+     docs+plugins+themes+changelog  626px   →  fits from 660px
+     docs+plugins+themes            536px   →  fits from 560px
+     docs+plugins                   447px   →  fits from 460px
+     docs                           270px   →  fits from 320px            */
+@media(max-width:880px){
   .navbar a.nl[href*="#workflow"],.navbar a.nl[href*="#install"]{display:none}
   .navbar a.nl{padding:6px 8px}
 }
-@media(max-width:460px){
+@media(max-width:660px){
   .navbar a.nl[href*="changelog"]{display:none}
+}
+@media(max-width:560px){
+  .navbar a.nl[href*="themes"]{display:none}
+}
+@media(max-width:460px){
+  .navbar a.nl[href*="plugins"]{display:none}
   .gh-link>span:not(.gh-stars){display:none}
   .navbar{padding:10px 12px}
   .navbar .bin{padding-right:6px}
