@@ -167,7 +167,7 @@ Declare `[[events]]` hooks; each fire runs your command with the envelope in
 code and output never block or change what happened. Support: C = Claude
 Code, X = Codex, K = Kimi Code.
 
-This table is the one-line index — **per-event trigger semantics, exact
+This table is the one-line index. **Per-event trigger semantics, exact
 `detail` fields, and envelope samples live in
 [PLUGIN-EVENTS.md](./PLUGIN-EVENTS.md)**.
 
