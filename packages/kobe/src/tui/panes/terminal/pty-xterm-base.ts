@@ -16,7 +16,7 @@ import {
   type TerminalSnapshotWindow,
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
-import { XtermRefreshTracker, wireXtermChannels } from "./xterm-refresh"
+import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
@@ -54,7 +54,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * (Settings → General → Terminal) — fixed for this PTY's lifetime. */
   private readonly scrollbackRows: number
 
-  constructor(opts: TaskPtyOpts) {
+  constructor(opts: TaskPtyOpts, options: { respondToDefaultColorQueries?: boolean } = {}) {
     this.taskId = opts.taskId
     this.cwd = opts.cwd
     this.cols = opts.cols ?? DEFAULT_COLS
@@ -76,25 +76,29 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.term.unicode.activeVersion = "11"
     this.refreshTracker = new XtermRefreshTracker(this.term)
 
+    const reply = (data: string): void => {
+      if (this._killed || this.muteReplies) return
+      try {
+        this.transportWrite(data)
+      } catch {
+        /* best effort — child may have exited */
+      }
+    }
     wireXtermChannels(this.term, {
       // `muteReplies`: replies triggered while parsing a ring-buffer REPLAY
       // answer queries the child asked in the PAST (already answered by the
       // then-attached emulator); re-answering injects unsolicited CPR/DA
       // into the child's stdin (scrambled claude's renderer). Live flows.
-      onReply: (data) => {
-        if (this._killed || this.muteReplies) return
-        try {
-          this.transportWrite(data)
-        } catch {
-          /* best effort — child may have exited */
-        }
-      },
+      onReply: reply,
       onTitle: (title) => {
         if (!title || title === this._title) return
         this._title = title
         this.listeners.publishTitle(title)
       },
     })
+    if (options.respondToDefaultColorQueries !== false) {
+      wireXtermDefaultColorQueries(this.term, opts.defaultColors, reply)
+    }
   }
 
   /** Send input bytes to the child over this backend's transport. */

@@ -185,10 +185,11 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light" = "dark"):
 export function applyDisplayOverlay(base: Theme, focusAccent: FocusAccentSlot, transparentBackground: boolean): Theme {
   const v: Theme = { ...base, focusAccent: base[focusAccent] ?? base.primary }
   if (!transparentBackground) return v
-  const transparent = RGBA.fromInts(0, 0, 0, 0)
+  const [backgroundR, backgroundG, backgroundB] = base.background.toInts()
+  const [panelR, panelG, panelB] = base.backgroundPanel.toInts()
   return {
     ...v,
-    background: transparent,
-    backgroundPanel: transparent,
+    background: RGBA.fromInts(backgroundR, backgroundG, backgroundB, 0),
+    backgroundPanel: RGBA.fromInts(panelR, panelG, panelB, 0),
   }
 }

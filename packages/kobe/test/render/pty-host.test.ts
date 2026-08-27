@@ -17,6 +17,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import type { DaemonFrame } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { PtyHost, foldOscTitle } from "@sma1lboy/kobe-daemon/daemon/pty-host"
+import { foldDefaultColorQueries, parseTerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 
 const hosts: PtyHost[] = []
 
@@ -357,6 +358,40 @@ describe("PtyHost", () => {
     await until(() => dataText(frames).includes("program="))
     expect(dataText(frames)).toContain("program=unset version=unset")
   })
+
+  test("answers OSC 10/11 queries even when no terminal client is attached", async () => {
+    const host = makeHost()
+    const { frames, sink } = collector()
+    const probe = [
+      "process.stdin.setRawMode?.(true)",
+      "process.stdin.resume()",
+      "let input = ''",
+      "process.stdin.on('data', (chunk) => {",
+      "  input += chunk.toString('latin1')",
+      "  if (input.includes('\\x1b]10;rgb:1212/3434/5656\\x1b\\\\') && input.includes('\\x1b]11;rgb:abab/cdcd/efef\\x1b\\\\')) {",
+      "    process.stdout.write('colors-ok')",
+      "    process.exit(0)",
+      "  }",
+      "})",
+      "process.stdout.write('\\x1b]10;?\\x1b\\\\\\x1b]11;?\\x1b\\\\')",
+      "setTimeout(() => process.exit(2), 1000)",
+    ].join(";")
+
+    host.open(
+      "t1::colors",
+      {
+        ...SPEC,
+        command: [process.execPath, "--eval", probe],
+        defaultColors: { foreground: "#123456", background: "#abcdef" },
+      },
+      {},
+      sink,
+    )
+
+    await until(() => frames.some((frame) => frame.type === "event" && frame.name === "pty.exit"))
+    expect(dataText(frames)).toContain("colors-ok")
+    expect(host.list()[0]?.exit?.code).toBe(0)
+  })
 })
 
 // The pure title/carry fold behind scanOscTitle. Driving this directly
@@ -401,5 +436,24 @@ describe("foldOscTitle", () => {
     const first = foldOscTitle("", `done${ESC}`)
     expect(first).toEqual({ title: null, carry: ESC })
     expect(foldOscTitle(first.carry, `]2;boot${BEL}`)).toEqual({ title: "boot", carry: "" })
+  })
+})
+
+describe("default terminal color protocol", () => {
+  test("recognizes BEL/ST queries and carries a split ST terminator", () => {
+    expect(foldDefaultColorQueries("", "\x1b]10;?\x07\x1b]11;?\x1b\\")).toEqual({ slots: [10, 11], carry: "" })
+
+    const first = foldDefaultColorQueries("", "\x1b]10;?\x1b")
+    expect(first).toEqual({ slots: [], carry: "\x1b]10;?\x1b" })
+    expect(foldDefaultColorQueries(first.carry, "\\")).toEqual({ slots: [10], carry: "" })
+  })
+
+  test("accepts only complete six-digit foreground/background pairs", () => {
+    expect(parseTerminalDefaultColors({ foreground: "#EAE7DF", background: "#141413" })).toEqual({
+      foreground: "#eae7df",
+      background: "#141413",
+    })
+    expect(parseTerminalDefaultColors({ foreground: "#fff", background: "#141413" })).toBeNull()
+    expect(parseTerminalDefaultColors({ foreground: "#eae7df" })).toBeNull()
   })
 })

@@ -1,5 +1,6 @@
 import { parse } from "@ansi-tools/parser"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
+import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { Chunk } from "./sgr"
 
 /** One rendered row: a list of opentui-ready style runs. */
@@ -14,6 +15,8 @@ export type TaskPtyOpts = {
   cols?: number
   /** Initial pane size. Default 80x24. */
   rows?: number
+  /** Default foreground/background exposed to child terminal applications. */
+  defaultColors?: TerminalDefaultColors
   /** Scrollback rows for the xterm buffer. Defaults to the persisted
    *  Settings → Terminal preference (`state/scrollback.ts`); tests inject
    *  small buffers here to exercise trimming deterministically. */

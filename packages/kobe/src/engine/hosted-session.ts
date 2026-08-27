@@ -4,6 +4,8 @@ import { ensurePtyHostReachable } from "@sma1lboy/kobe-daemon/client/pty-process
 import { defaultPtyHostSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
+import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
+import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { engineEntry } from "./registry.ts"
@@ -168,11 +170,13 @@ export async function ensureHostedEngine(
   rpc: HostedSessionRpc,
   cwd: string,
   launch: EngineSessionLaunch,
+  defaultColors: TerminalDefaultColors = readPersistedTerminalDefaultColors(),
 ): Promise<PtyOpenResult> {
   const result = await rpc.request<PtyOpenResult>("pty.open", {
     key: launch.key,
     cwd,
     command: launch.command,
+    defaultColors,
   })
   await rpc.request("pty.detach", { key: launch.key }).catch(() => {})
   return result

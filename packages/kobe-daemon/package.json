@@ -61,6 +61,7 @@
     "./daemon/runtime": "./src/daemon/runtime.ts",
     "./daemon/server": "./src/daemon/server.ts",
     "./daemon/status-disposition": "./src/daemon/status-disposition.ts",
+    "./daemon/terminal-colors": "./src/daemon/terminal-colors.ts",
     "./daemon/transcript-activity-collector": "./src/daemon/transcript-activity-collector.ts",
     "./daemon/ui-prefs-watcher": "./src/daemon/ui-prefs-watcher.ts",
     "./daemon/web-server": "./src/daemon/web-server.ts",

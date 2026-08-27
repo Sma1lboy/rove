@@ -140,6 +140,16 @@ export function Terminal(props: TerminalProps) {
   const [scrollState, setScrollState] = useState<ViewportScrollState>(FOLLOW_VIEWPORT)
 
   const { bodyEl, setBodyEl, bodyRows, bodyGeometry, bumpGeomTick, dims, geomTick } = useTerminalGeometry()
+  const defaultColors = useMemo(() => {
+    const [foregroundR, foregroundG, foregroundB] = theme.text.toInts()
+    const [backgroundR, backgroundG, backgroundB] = theme.background.toInts()
+    const hex = (r: number, g: number, b: number): `#${string}` =>
+      `#${[r, g, b].map((component) => component.toString(16).padStart(2, "0")).join("")}`
+    return {
+      foreground: hex(foregroundR, foregroundG, foregroundB),
+      background: hex(backgroundR, backgroundG, backgroundB),
+    }
+  }, [theme])
 
   const { pty, snapshot, snapshotWindow, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
@@ -148,6 +158,7 @@ export function Terminal(props: TerminalProps) {
     initialInput: props.initialInput,
     firstMessage: props.firstMessage,
     engineBin: props.engineBin,
+    defaultColors,
     resetToken: props.resetToken,
     onExit: props.onExit,
     registry,

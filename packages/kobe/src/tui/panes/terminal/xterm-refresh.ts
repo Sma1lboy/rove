@@ -1,3 +1,9 @@
+import {
+  DEFAULT_TERMINAL_COLORS,
+  type TerminalDefaultColors,
+  formatDefaultColorReply,
+  parseTerminalDefaultColors,
+} from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { Terminal as XtermHeadless } from "@xterm/headless"
 import type { TerminalRow } from "./pty-types"
 import { type XtermLineLike, xtermLineMatchesChunks } from "./xterm-chunks"
@@ -17,6 +23,23 @@ export function wireXtermChannels(
 ): void {
   term.onData(hooks.onReply)
   term.onTitleChange(hooks.onTitle)
+}
+
+/** Answer OSC 10/11 in local xterm-backed terminals. Hosted PTYs disable
+ * this because their process-owning host answers even with no TUI attached. */
+export function wireXtermDefaultColorQueries(
+  term: XtermHeadless,
+  colors: TerminalDefaultColors | undefined,
+  reply: (data: string) => void,
+): void {
+  const resolved = parseTerminalDefaultColors(colors) ?? DEFAULT_TERMINAL_COLORS
+  for (const slot of [10, 11] as const) {
+    term.parser.registerOscHandler(slot, (payload) => {
+      if (payload !== "?") return false
+      reply(formatDefaultColorReply(slot, resolved))
+      return true
+    })
+  }
 }
 
 export type SnapshotMeta = {

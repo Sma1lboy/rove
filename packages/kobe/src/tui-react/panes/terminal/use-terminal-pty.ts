@@ -22,7 +22,13 @@
 
 import { errorMessage } from "@/lib/error-message"
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { CursorPos, TaskPty, TerminalRow, TerminalSnapshotWindow } from "../../../tui/panes/terminal/pty"
+import type {
+  CursorPos,
+  TaskPty,
+  TaskPtyOpts,
+  TerminalRow,
+  TerminalSnapshotWindow,
+} from "../../../tui/panes/terminal/pty"
 import type { PtyRegistry } from "../../../tui/panes/terminal/registry"
 import { useLatest } from "../../lib/use-latest"
 
@@ -40,6 +46,8 @@ export interface UseTerminalPtyOpts {
   firstMessage?: string
   /** Engine binary name for the first-message engine-up probe. */
   engineBin?: string
+  /** Current Rove theme colors reported to the embedded terminal child. */
+  defaultColors?: TaskPtyOpts["defaultColors"]
   resetToken?: number
   /** `deadOnAttach`: the exit was discovered on reattach (engine died
    *  while the TUI was away), not observed live — see `TaskPtyLike`. */
@@ -79,6 +87,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   const initialInputRef = useLatest(opts.initialInput)
   const firstMessageRef = useLatest(opts.firstMessage)
   const engineBinRef = useLatest(opts.engineBin)
+  const defaultColorsRef = useLatest(opts.defaultColors)
   const bodyGeometryRef = useLatest(opts.bodyGeometry)
   const registryRef = useLatest(opts.registry)
   const onExitRef = useLatest(opts.onExit)
@@ -112,6 +121,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         initialInput: initialInputRef.current,
         firstMessage: firstMessageRef.current,
         engineBin: engineBinRef.current,
+        defaultColors: defaultColorsRef.current,
       })
     } catch (err) {
       const message = errorMessage(err)

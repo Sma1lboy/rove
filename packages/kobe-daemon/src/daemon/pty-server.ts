@@ -44,6 +44,7 @@ import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
 import { clearFrozenSessions, fileFreezeSink, loadFrozenSessions } from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
+import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 /**
  * Grace before a host with ZERO live sessions exits (persistent terminal
@@ -225,6 +226,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
             // (spawn defaults live in the host; reattach must not resize).
             cols: typeof payload.cols === "number" ? payload.cols : undefined,
             rows: typeof payload.rows === "number" ? payload.rows : undefined,
+            defaultColors: parseTerminalDefaultColors(payload.defaultColors) ?? undefined,
           },
           client,
           (frame) => writeFrame(client, frame),

@@ -74,7 +74,8 @@ export class HostedTaskPty extends XtermTaskPty {
   private hostOffset: number | null = null
 
   constructor(opts: TaskPtyOpts) {
-    super(opts)
+    // The process-owning PTY host answers OSC 10/11 even while detached.
+    super(opts, { respondToDefaultColorQueries: false })
     this.term.loadAddon(this.serializer)
     void this.openRemote(opts)
   }
@@ -111,6 +112,7 @@ export class HostedTaskPty extends XtermTaskPty {
         shell: opts.shell,
         cols: this.cols,
         rows: this.rows,
+        defaultColors: opts.defaultColors,
         sinceOffset: opts.restore?.byteOffset,
         sincePid: opts.restore?.pid ?? undefined,
       })
