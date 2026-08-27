@@ -16,7 +16,7 @@ const LONG_BODY = "fixture-repo › second opinion: root-cause the stale badge b
 /** Pushes one toast on mount, then renders the overlay under test. */
 function Harness() {
   const notif = useNotifications()
-  if (notif.toasts.length === 0) notif.notify({ title: LONG_TITLE, body: LONG_BODY, kind: "done" })
+  if (notif.toasts.length === 0) notif.notify({ kind: "done", taskId: "t1", tabId: "tab-1", title: LONG_TITLE, body: LONG_BODY })
   return <ToastOverlay />
 }
 
