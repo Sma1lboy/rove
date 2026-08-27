@@ -293,6 +293,42 @@ export function clampRowToShadow(row: number, snapshotLength: number, shadow: Se
   return Math.min(snapshotLength - 1 + shadow.below.length, Math.max(0 - shadow.above.length, row))
 }
 
+/** Selection endpoints plus the shadow they address, rolled together. */
+export type SelectionShiftState = {
+  readonly anchor: CellPoint | null
+  readonly head: CellPoint | null
+  readonly shadow: SelectionShadow
+}
+
+/**
+ * Roll a selection across one snapshot change: measure the content
+ * displacement, bank the rows that scrolled off, and move the endpoints that
+ * belong to the CONTENT along with it.
+ *
+ * While the drag is LIVE only the anchor follows — the head is pinned to the
+ * pointer, which the pane re-derives from the last pointer position itself.
+ * Once the drag is released both endpoints belong to the content, so both
+ * follow and the highlight scrolls off the top or bottom of the pane the way
+ * every emulator's does, instead of staying pinned to screen rows.
+ *
+ * Returns the input state by reference when there is nothing selected or no
+ * shift is measurable, so callers can skip the update entirely.
+ */
+export function followContentShift(
+  state: SelectionShiftState,
+  prev: readonly (readonly Chunk[])[],
+  next: readonly (readonly Chunk[])[],
+  dragging: boolean,
+): SelectionShiftState {
+  if (!state.anchor) return state
+  const shift = snapshotShift(prev, next)
+  if (shift === 0) return state
+  const shadow = shiftShadow(state.shadow, prev, shift)
+  const follow = (cell: CellPoint | null): CellPoint | null =>
+    cell ? { row: clampRowToShadow(cell.row + shift, next.length, shadow), col: cell.col } : cell
+  return { anchor: follow(state.anchor), head: dragging ? state.head : follow(state.head), shadow }
+}
+
 /**
  * Extract over the composed drag buffer — shadow rows glued around the live
  * snapshot, the range translated into composed space. Same `extractSelection`

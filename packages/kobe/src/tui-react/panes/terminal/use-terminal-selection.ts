@@ -29,11 +29,13 @@
  *
  * When the scroll was FORWARDED to an app that owns its own scrollback (an
  * engine on the alternate screen), the viewport never moves — the app redraws
- * and the content shifts under snapshot row numbers that stay put. While such
- * a drag is live, every snapshot change is measured with `snapshotShift`; the
- * ANCHOR moves by the measured displacement (the head stays pinned to the
- * pointer), and the rows that scrolled off screen are banked in a bounded
- * shadow so the copy contains exactly what the highlight covered.
+ * and the content shifts under snapshot row numbers that stay put. While a
+ * SELECTION EXISTS — during the drag and after the release, until the next
+ * click clears it — every snapshot change is measured with `snapshotShift` and
+ * the endpoints move with the content (`followContentShift`); the rows that
+ * scrolled off screen are banked in a bounded shadow so the copy contains
+ * exactly what the highlight covered. During the drag only the anchor follows,
+ * because the head belongs to the pointer.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -46,11 +48,9 @@ import {
   EMPTY_SHADOW,
   type SelectionRange,
   type SelectionShadow,
-  clampRowToShadow,
   extractShadowedSelection,
+  followContentShift,
   pointerCell,
-  shiftShadow,
-  snapshotShift,
 } from "../../../tui/panes/terminal/terminal-selection"
 
 export type { CellPoint, SelectionRange } from "../../../tui/panes/terminal/terminal-selection"
@@ -88,7 +88,7 @@ export interface UseTerminalSelectionResult {
   endDragging: () => void
   clearSelection: () => void
   copySelection: () => void
-  /** The pane forwarded a wheel to the app mid-drag (outside the edge pull). */
+  /** The pane forwarded a wheel to the app (outside the edge pull). */
   noteAppScroll: () => void
 }
 
@@ -220,22 +220,26 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   }, [opts.visibleRangeStart])
 
   // App-owned scrolling never moves the viewport — the CONTENT moves under
-  // fixed snapshot rows. Measure each snapshot change during such a drag and
-  // move the anchor with the content (the head stays pinned to the pointer);
-  // rows that scrolled off screen are banked so the copy still has them.
+  // fixed snapshot rows. Measure each snapshot change and move the selection
+  // with the content; rows that scrolled off are banked so the copy still has
+  // them. Gated on a selection EXISTING rather than on a live drag: the
+  // measurement is an O(rows^2) text comparison and must not run on every PTY
+  // frame for nothing, but a RELEASED selection still belongs to its content.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on snapshot pushes; `selHead` is read from the render that pushed them.
   useEffect(() => {
     const prev = lastSnapshotRef.current
     lastSnapshotRef.current = opts.snapshot
-    if (!draggingRef.current || !appScrolledRef.current || prev === opts.snapshot) return
-    const shift = snapshotShift(prev, opts.snapshot)
-    if (shift === 0) return
-    shadowRef.current = shiftShadow(shadowRef.current, prev, shift)
-    const shadow = shadowRef.current
-    const length = opts.snapshot.length
-    const follow = (cell: CellPoint | null): CellPoint | null =>
-      cell ? { row: clampRowToShadow(cell.row + shift, length, shadow), col: cell.col } : cell
-    anchorRef.current = follow(anchorRef.current)
-    setSelAnchor(follow)
+    if (!anchorRef.current || !appScrolledRef.current || prev === opts.snapshot) return
+    const rolled = followContentShift(
+      { anchor: anchorRef.current, head: selHead, shadow: shadowRef.current },
+      prev,
+      opts.snapshot,
+      draggingRef.current,
+    )
+    shadowRef.current = rolled.shadow
+    anchorRef.current = rolled.anchor
+    setSelAnchor(rolled.anchor)
+    setSelHead(rolled.head)
   }, [opts.snapshot])
 
   // Unmount mid-drag (tab closed, pane swapped) must not leave a timer behind.
@@ -273,7 +277,9 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     },
     copySelection,
     noteAppScroll: () => {
-      if (draggingRef.current) appScrolledRef.current = true
+      // Armed by a selection, not by a drag — a wheel AFTER the release has to
+      // start the measuring too, or the highlight stops following its content.
+      if (anchorRef.current) appScrolledRef.current = true
     },
   }
 }
