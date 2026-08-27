@@ -1,6 +1,7 @@
 # kobe-landing — TODOs
 
 Landing page 迭代清单。源文件：`packages/kobe-landing/index.html`（静态页 + plugins/themes/changelog 三个子页）。
+线上：[rove.run](https://rove.run) · 仓库：[github.com/Sma1lboy/rove](https://github.com/Sma1lboy/rove)
 
 ## 状态（2026-08-27 逐条核对过实现，不是照抄旧标记）
 
