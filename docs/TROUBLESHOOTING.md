@@ -83,6 +83,11 @@ host itself is wedged, `rove reset` stops both runtimes and all live terminal
 and engine sessions, but does not touch git worktrees. Read the confirmation
 carefully before proceeding.
 
+`rove doctor --fix` walks these remedies for you, one confirmation per fix:
+safe ones (a daemon restart, a skill install) run after a per-fix `y/N`, while
+anything that would kill live sessions — `rove reset` included — is printed
+for you to run yourself, never executed.
+
 ## What terminal output does Rove persist after a crash?
 
 Hosted PTY output is not always memory-only. Two bounded recovery stores live

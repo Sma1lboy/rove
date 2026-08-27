@@ -140,6 +140,29 @@ describe("runDoctorSubcommand", () => {
     writeSpy.mockRestore()
   })
 
+  it("failing checks add a --fix hint to the plain run", async () => {
+    mocks.request.mockRejectedValue(new Error("not running"))
+
+    await runDoctorSubcommand([])
+
+    expect(output()).toContain("doctor --fix")
+  })
+
+  it("--fix without a TTY prints the per-fix plan and executes nothing", async () => {
+    mocks.request.mockRejectedValue(new Error("not running"))
+
+    await runDoctorSubcommand(["--fix"])
+
+    // Runnable fix shown with its exact command…
+    expect(output()).toContain("will run:")
+    expect(output()).toContain("daemon restart")
+    // …the dangerous remedy is print-only…
+    expect(output()).toContain("reset")
+    // …and nothing ran (no TTY → no confirmations → no executions).
+    expect(output()).toContain("nothing was executed")
+    expect(output()).not.toContain("✓ done")
+  })
+
   it("--report writes a bundle file and points the user at it", async () => {
     mocks.request.mockRejectedValue(new Error("not running"))
     const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(home)

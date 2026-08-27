@@ -73,7 +73,7 @@ Commands:
   repo <verb>             Per-repo init script + first prompt (show|set|unset)
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
-  doctor [--report]       Diagnose daemon/PTY/engines/git; --report writes a bundle
+  doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
   config [--path]         Open Rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
   theme <verb>            Manage user themes (list|add|remove)
@@ -252,14 +252,27 @@ Changes apply to a running daemon without a restart. Writing one:
 ## doctor
 
 ```bash
-rove doctor [--report]
+rove doctor [--report] [--fix]
 ```
 
 Read-only check of your build, terminal, git, engine CLIs and logins, daemon,
-running sessions, agent skill, and state files. Never changes anything.
-`--report` also writes a bug bundle (diagnosis + recent logs + env) and
-prints its path; attach that to bug reports. See
-[Troubleshooting](./TROUBLESHOOTING.md).
+running sessions, agent skill, and state files. The plain run never changes
+anything. `--report` also writes a bug bundle (diagnosis + recent logs + env)
+and prints its path; attach that to bug reports.
+
+`--fix` walks the remedies for whatever the diagnosis found, one at a time:
+
+- **Safe fixes run after a per-fix `y/N`** — each shows the exact command
+  before asking (e.g. `rove daemon restart` for a stale/dead daemon or a dead
+  hook channel, `rove skill install` for a missing/stale agent skill). Nothing
+  is batched; declining one fix never skips the next prompt.
+- **Risky remedies are printed, never executed** — anything that kills live
+  sessions (`rove reset`, closing engine tabs) or needs a human (installing
+  git/Node.js, engine logins) is shown with the step and why doctor won't run
+  it. Without a TTY (`--fix` in a script), nothing at all is executed.
+
+The remedies mirror [Troubleshooting](./TROUBLESHOOTING.md) — `--fix` is that
+page's executable half.
 
 ## reset
 
