@@ -62,9 +62,17 @@ describe("formatTokens", () => {
 
   it("switches suffix at the EXACT threshold (>=, not >)", () => {
     // The boundary is the bit a `>` refactor would silently break: 999 stays
-    // raw, 1000 is already "1.0k", and 1_000_000 is already "1.0m".
+    // raw and 1000 is already "1.0k".
+    expect(formatTokens(999)).toBe("999")
     expect(formatTokens(1_000)).toBe("1.0k")
-    expect(formatTokens(999_999)).toBe("1000.0k") // just under 1m → still k
+  })
+
+  it("promotes to m once the k rendering would round up to 1000.0", () => {
+    // 999,950 is where value/1000 rounds to "1000.0" at one decimal — from
+    // there on the value must render as "1.0m", never "1000.0k".
+    expect(formatTokens(999_949)).toBe("999.9k")
+    expect(formatTokens(999_950)).toBe("1.0m")
+    expect(formatTokens(999_999)).toBe("1.0m")
     expect(formatTokens(1_000_000)).toBe("1.0m")
   })
 })

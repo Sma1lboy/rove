@@ -17,6 +17,7 @@ import { TextAttributes } from "@opentui/core"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { relativeBuckets } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -44,11 +45,9 @@ function formatWhen(iso: string | undefined, now: number): string {
   const at = Date.parse(iso)
   if (!Number.isFinite(at)) return "—"
   const deltaMs = at - now
-  const abs = Math.abs(deltaMs)
-  const mins = Math.round(abs / 60_000)
-  if (mins < 1) return deltaMs >= 0 ? "now" : "just now"
-  if (mins < 60) return deltaMs >= 0 ? `in ${mins}m` : `${mins}m ago`
-  const hours = Math.round(mins / 60)
+  const { minutes, hours } = relativeBuckets(Math.abs(deltaMs))
+  if (minutes < 1) return deltaMs >= 0 ? "now" : "just now"
+  if (minutes < 60) return deltaMs >= 0 ? `in ${minutes}m` : `${minutes}m ago`
   if (hours < 24) return deltaMs >= 0 ? `in ${hours}h` : `${hours}h ago`
   return new Date(at).toLocaleDateString()
 }
