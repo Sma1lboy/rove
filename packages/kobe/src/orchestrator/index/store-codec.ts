@@ -11,11 +11,12 @@
  *     arbitrary parsed JSON value into a v3 task list, migrating v1/v2
  *     manifests by stripping dropped fields and self-healing legacy status
  *     rows.
- *   - **Read-merge-write helpers.** {@link readDiskTasks} + {@link mergeTasksWithDisk}
+ *   - **Read-merge-write helpers.** {@link readDiskIndex} + {@link mergeTasksWithDisk}
  *     implement the disk side of the save protocol: a fresh read of the
- *     manifest and the three-way merge between in-memory intent and on-disk
- *     state. Both are stateless and live here so the store class focuses on
- *     the mutable cache / dirty tracking / persistence orchestration.
+ *     manifest (tasks + deletion tombstones) and the three-way merge between
+ *     in-memory intent and on-disk state. Both are stateless and live here so
+ *     the store class focuses on the mutable cache / dirty tracking /
+ *     persistence orchestration.
  *
  * All functions here are `this`-independent — moved out verbatim so the
  * store class stays under the file-size cap.
@@ -30,6 +31,7 @@ import type {
   TaskPRStatus,
   TaskQuotaResumeState,
   TaskStatus,
+  TaskTombstone,
 } from "../../types/task.ts"
 import { toTaskId } from "../../types/task.ts"
 import { coerceVendorId } from "../../types/vendor.ts"
@@ -50,14 +52,14 @@ const LOCK_MAX_WAIT_MS = 5_000
  * Acquire the index lock, retrying with a fixed backoff while it's held by a
  * *live* peer. {@link acquire} rejects immediately on a live holder (and steals
  * a stale one on its own), so the wait policy lives here. Non-contention errors
- * (and a blown deadline) propagate to the caller.
+ * (and a blown deadline) propagate to the caller. Returns the ownership token
+ * to pass to `release`.
  */
-export async function acquireWithRetry(lockPath: string): Promise<void> {
+export async function acquireWithRetry(lockPath: string): Promise<string> {
   const deadline = Date.now() + LOCK_MAX_WAIT_MS
   for (;;) {
     try {
-      await acquire(lockPath)
-      return
+      return await acquire(lockPath)
     } catch (err) {
       if (!(err instanceof LockfileError) || Date.now() >= deadline) throw err
       await sleep(LOCK_RETRY_DELAY_MS)
@@ -119,13 +121,24 @@ export function normalizeIndex(parsed: unknown, source: string): { version: type
 }
 
 /**
- * Read + parse the manifest fresh from disk, returning just the tasks.
- * Mirrors {@link TaskIndexStore.load}: a missing canonical file falls back
- * to `legacyPath`, while both absent or a corrupt source read as empty.
- * Never touches the store cache or listeners; used so a save reflects peer
- * writes since this process loaded.
+ * How long a deletion tombstone stays in the manifest before save-time
+ * pruning. A tombstone only has to outlive any live writer's in-memory dirty
+ * reference to the task (dirty ids flush on that instance's next save), so
+ * 30 days is generous headroom and growth stays negligible.
  */
-export async function readDiskTasks(path: string, legacyPath: string): Promise<Task[]> {
+const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+/**
+ * Read + parse the manifest fresh from disk, returning the tasks and the
+ * deletion tombstones. Mirrors {@link TaskIndexStore.load}: a missing
+ * canonical file falls back to `legacyPath`, while both absent or a corrupt
+ * source read as empty. Never touches the store cache or listeners; used so
+ * a save reflects peer writes since this process loaded.
+ */
+export async function readDiskIndex(
+  path: string,
+  legacyPath: string,
+): Promise<{ tasks: Task[]; removed: TaskTombstone[] }> {
   let raw: string
   let sourcePath = path
   try {
@@ -136,7 +149,7 @@ export async function readDiskTasks(path: string, legacyPath: string): Promise<T
     try {
       raw = await readFile(sourcePath, "utf8")
     } catch (legacyErr) {
-      if ((legacyErr as NodeJS.ErrnoException).code === "ENOENT") return []
+      if ((legacyErr as NodeJS.ErrnoException).code === "ENOENT") return { tasks: [], removed: [] }
       throw legacyErr
     }
   }
@@ -146,28 +159,58 @@ export async function readDiskTasks(path: string, legacyPath: string): Promise<T
   } catch {
     // Preserve bytes before the merged write replaces a corrupt source.
     await backupCorruptManifest(sourcePath)
-    return []
+    return { tasks: [], removed: [] }
   }
-  return normalizeIndex(parsed, sourcePath).tasks
+  return { tasks: normalizeIndex(parsed, sourcePath).tasks, removed: coerceTombstones(parsed) }
+}
+
+/** Coerce the manifest's optional `removed` field; malformed entries drop. */
+function coerceTombstones(parsed: unknown): TaskTombstone[] {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return []
+  const raw = (parsed as { removed?: unknown }).removed
+  if (!Array.isArray(raw)) return []
+  const out: TaskTombstone[] = []
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue
+    const v = entry as Record<string, unknown>
+    if (typeof v.id === "string" && v.id.length > 0 && typeof v.at === "string") out.push({ id: v.id, at: v.at })
+  }
+  return out
 }
 
 /**
- * Read-merge-write core: combine the fresh on-disk tasks with this process's
+ * Read-merge-write core: combine the fresh on-disk index with this process's
  * in-memory intent. Invariants (mirroring `state/store.ts`):
  *
  *   - OUR changes win for ids we touched (`dirty`) — last-write-wins per task.
- *   - A task we removed (`removed`) is NOT resurrected by a stale disk copy.
- *   - A task a peer removed (gone from disk, untouched by us) is NOT
- *     resurrected from our stale cache.
+ *   - A DELETION beats a concurrent edit, from either side: our pending
+ *     removals (`removed`) and the on-disk tombstones a peer persisted both
+ *     suppress the task, even if we hold it dirty (issue #47 — task ids are
+ *     ULIDs and never reused, so a tombstone can't shadow a legit new task).
+ *   - A task a peer removed pre-tombstones (gone from disk, untouched by us)
+ *     is still NOT resurrected from our stale cache.
  *   - A task a peer created/updated (on disk, untouched by us) is preserved —
  *     concurrent creates are never dropped.
+ *
+ * Returns the merged tasks plus the tombstone set to persist (disk ∪ ours,
+ * expired entries pruned).
  */
 export function mergeTasksWithDisk(
   cacheTasks: readonly Task[],
   diskTasks: Task[],
   dirty: ReadonlySet<string>,
-  removed: ReadonlySet<string>,
-): Task[] {
+  removed: ReadonlyMap<string, string>,
+  diskRemoved: readonly TaskTombstone[] = [],
+  now: number = Date.now(),
+): { tasks: Task[]; removed: TaskTombstone[] } {
+  const tombstones = new Map<string, string>()
+  for (const t of diskRemoved) {
+    const at = Date.parse(t.at)
+    if (!Number.isFinite(at) || now - at > TOMBSTONE_TTL_MS) continue // expired (or malformed): prune
+    tombstones.set(t.id, t.at)
+  }
+  for (const [id, at] of removed) tombstones.set(id, at)
+
   const diskById = new Map(diskTasks.map((t) => [t.id, t] as const))
   const result: Task[] = []
   const included = new Set<string>()
@@ -175,6 +218,7 @@ export function mergeTasksWithDisk(
   // 1. Walk our cache in order — it carries our create/update/move intent and
   //    the ordering this process wants persisted.
   for (const task of cacheTasks) {
+    if (tombstones.has(task.id)) continue // deleted (here or by a peer): deletion beats our edit
     if (dirty.has(task.id)) {
       result.push(task) // we changed it: our version wins
     } else {
@@ -188,12 +232,12 @@ export function mergeTasksWithDisk(
   // 2. Fold in concurrent creates: tasks on disk we've never seen and never
   //    removed. Appended after our ordering.
   for (const task of diskTasks) {
-    if (included.has(task.id) || removed.has(task.id)) continue
+    if (included.has(task.id) || tombstones.has(task.id)) continue
     result.push(task)
     included.add(task.id)
   }
 
-  return result
+  return { tasks: result, removed: [...tombstones].map(([id, at]) => ({ id, at })) }
 }
 
 /**
