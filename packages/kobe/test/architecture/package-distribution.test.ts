@@ -126,8 +126,13 @@ describe("Rove package distribution", () => {
 
   test("daemon typechecking does not rely on the renamed package's hoisted dependencies", () => {
     const daemon = json<{ devDependencies: Record<string, string> }>("packages/kobe-daemon/package.json")
+    const kobe = json<{ devDependencies: Record<string, string> }>("packages/kobe/package.json")
 
-    expect(daemon.devDependencies["@types/node"]).toBe("25.6.2")
+    // The invariant is "daemon carries its OWN pin, in lockstep with kobe's" —
+    // not a specific version. A frozen literal turns every routine @types/node
+    // bump into an unrelated red.
+    expect(daemon.devDependencies["@types/node"]).toBeDefined()
+    expect(daemon.devDependencies["@types/node"]).toBe(kobe.devDependencies["@types/node"])
   })
 
   test("the plugin SDK workspace and daemon dependency use the canonical Rove package", () => {
@@ -290,9 +295,12 @@ describe("Rove package distribution", () => {
     expect(releaseSkill).toContain("# Release Rove")
     expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
     expect(releaseSkill).not.toContain('"@sma1lboy/kobe": minor')
-    expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeLessThan(
-      releaseSkill.indexOf("npm view @sma1lboy/kobe@<new-version>"),
-    )
+    // indexOf returns -1 when absent, and -1 < anything — without the presence
+    // guards, deleting the canonical `npm view` line would turn this GREEN.
+    const canonicalView = releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")
+    const aliasView = releaseSkill.indexOf("npm view @sma1lboy/kobe@<new-version>")
+    expect(canonicalView).toBeGreaterThanOrEqual(0)
+    expect(aliasView).toBeGreaterThan(canonicalView)
     expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/kobe-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("Every Rove release checks the SDK's current version")

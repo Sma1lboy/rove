@@ -10,7 +10,13 @@ describe("ptyEnv", () => {
       TERM: "xterm-256color",
     }
 
-    expect(ptyEnv(base)).toEqual({
+    // The contract is removals + additions, per the test name — not the exact
+    // key set, which turns every new passthrough var into a red.
+    const env = ptyEnv(base)
+    expect(env).not.toHaveProperty("NO_COLOR")
+    expect(env).not.toHaveProperty("TERM_PROGRAM")
+    expect(env).not.toHaveProperty("TERM_PROGRAM_VERSION")
+    expect(env).toMatchObject({
       TERM: "xterm-256color",
       CLICOLOR: "1",
       COLORTERM: "truecolor",
