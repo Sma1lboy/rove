@@ -320,6 +320,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   }, [effectiveWidth])
 
   const shared: TreeRowShared = {
+    width: effectiveWidth,
     cursorIndex,
     activeRowId: tree.activeRowId,
     selectedTaskId: props.selectedId,

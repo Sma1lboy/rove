@@ -15,10 +15,12 @@ import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator
 import type { Task } from "@/types/task"
 import { type BoxRenderable, MouseButton } from "@opentui/core"
 import { type ReactNode, useEffect } from "react"
+import { charWidth } from "../../../lib/display-width"
+import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
 import { NO_STATE_GLYPH, buildSidebarRowView, prCheckChip, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
-import { toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
+import { SIDEBAR_WIDTH, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -38,6 +40,8 @@ import {
 const INDENT_CELLS = 1
 
 export type TreeRowShared = {
+  /** Rail width in cells — the label truncation budget derives from it. */
+  readonly width?: number
   /** Cursor position in the tree's flat id list. */
   readonly cursorIndex: number
   /** The row id the right pane is showing (`taskId::tabId` when a tab). */
@@ -66,6 +70,28 @@ export type TreeRowShared = {
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
+}
+
+/**
+ * Cell budget for a tree row's flexible label, so a clipped label ends in a
+ * visible `…` instead of the bare hard cut Yoga produces (a chopped branch
+ * name reads as the full name to anyone who doesn't know it's longer). The
+ * caller passes the LIVE right-edge cluster width — same per-row subtraction
+ * the flat cards do — and each cluster item costs its width plus its 1-cell
+ * flex gap. Slight over-budget is safe (flex still clips); the floor keeps a
+ * crowded row from erasing its label entirely.
+ */
+function treeLabelBudget(shared: TreeRowShared, reserved: number): number {
+  const width = shared.width ?? SIDEBAR_WIDTH
+  // marker (1) + indent (1) + paddingRight (1) = 3 cells every row spends.
+  return Math.max(6, width - 3 - reserved)
+}
+
+/** Cells one right-cluster glyph occupies: itself plus the row's 1-cell gap. */
+function clusterCells(text: string): number {
+  let cells = 1
+  for (const ch of text) cells += charWidth(ch.codePointAt(0) ?? 0)
+  return cells
 }
 
 /** The move-mode chip a dragged ROW wears (issue #43) — same vocabulary as
@@ -148,6 +174,7 @@ export function WorktreeTreeRow(props: {
   readonly shared: TreeRowShared
 }) {
   const { theme } = useTheme()
+  const t = useT()
   const shared = props.shared
   const task = props.task
   const isCursor = shared.cursorIndex === props.flatIndex
@@ -165,11 +192,18 @@ export function WorktreeTreeRow(props: {
     if (livePath) pollCurrentBranch(livePath)
   }, [livePath, shared.branchTick])
   const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
+  const moving = shared.movingRowId === props.rowId
+  const reserved =
+    (task.pinned === true ? 2 : 0) +
+    (chip ? 2 : 0) +
+    (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
+    (changes.deleted > 0 ? clusterCells(`−${changes.deleted}`) : 0) +
+    (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         <text fg={theme.text} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {label}
+          {truncateEndCells(label, treeLabelBudget(shared, reserved), charWidth)}
         </text>
         {task.pinned === true ? (
           <text fg={theme.warning} wrapMode="none" flexShrink={0}>
@@ -197,6 +231,7 @@ export function TabTreeRow(props: {
   readonly shared: TreeRowShared
 }) {
   const { theme } = useTheme()
+  const t = useT()
   const shared = props.shared
   const isCursor = shared.cursorIndex === props.flatIndex
   // Glyph rule (owner round 7): an AGENT tab always wears the state circle
@@ -284,7 +319,15 @@ export function TabTreeRow(props: {
       </text>
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         <text fg={theme.textMuted} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {props.tab.label}
+          {truncateEndCells(
+            props.tab.label,
+            // The 2-cell state-glyph column is this row's extra fixed spend.
+            treeLabelBudget(
+              shared,
+              2 + (shared.movingRowId === props.rowId ? clusterCells(t("tasks.moveChip").trim()) : 0),
+            ),
+            charWidth,
+          )}
         </text>
         <MoveChip rowId={props.rowId} shared={shared} />
         <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
