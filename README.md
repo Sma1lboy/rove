@@ -15,12 +15,12 @@ Rove isolates parallel work in git worktrees and branches, while agent and shell
 </p>
 
 <p align="center">
-  <a href="https://docs.rove.sma1lboy.me"><strong>Documentation</strong></a> ·
-  <a href="https://docs.rove.sma1lboy.me/docs/quick-start">Quick start</a> ·
-  <a href="https://docs.rove.sma1lboy.me/docs/concepts">Concepts</a> ·
-  <a href="https://docs.rove.sma1lboy.me/docs/cli">CLI</a> ·
-  <a href="https://docs.rove.sma1lboy.me/docs/api">Agent API</a> ·
-  <a href="https://rove.sma1lboy.me">Website</a>
+  <a href="https://docs.rove.run"><strong>Documentation</strong></a> ·
+  <a href="https://docs.rove.run/rove/quick-start">Quick start</a> ·
+  <a href="https://docs.rove.run/rove/concepts">Concepts</a> ·
+  <a href="https://docs.rove.run/rove/cli">CLI</a> ·
+  <a href="https://docs.rove.run/rove/api">Agent API</a> ·
+  <a href="https://rove.run">Website</a>
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@ The sidebar tracks tasks and their sessions. The workspace embeds the active age
 One line on a machine with nothing installed. It sets up the Bun runtime Rove needs, then Rove itself:
 
 ```bash
-curl -fsSL https://rove.sma1lboy.me/install.sh | sh
+curl -fsSL https://rove.run/install.sh | sh
 ```
 
 Or use the package manager you already have:
@@ -110,7 +110,7 @@ rove skill install
 
 A task created from inside another Rove session remembers which task and tab dispatched it, so workers report results back without an external coordinator. The API also covers task inspection, notifications, prompts, panes, issue tracking, routines, and worktree-safe lifecycle operations.
 
-Every verb, flag, and exit code is in the [Agent API reference](https://docs.rove.sma1lboy.me/docs/api).
+Every verb, flag, and exit code is in the [Agent API reference](https://docs.rove.run/rove/api).
 
 ## Built for the terminal
 

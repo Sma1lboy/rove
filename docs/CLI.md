@@ -13,7 +13,7 @@ Needs git and at least one engine CLI on `PATH`. The CLI runs on the Bun
 runtime (≥ 1.3.11); each route below installs Bun for you when it is missing.
 
 ```bash
-curl -fsSL https://rove.sma1lboy.me/install.sh | sh   # installs Bun, then Rove
+curl -fsSL https://rove.run/install.sh | sh   # installs Bun, then Rove
 npm install -g @sma1lboy/rove                         # npm (asks about Bun on first run)
 bun install -g @sma1lboy/rove                         # bun
 npx @sma1lboy/rove                                    # try without installing

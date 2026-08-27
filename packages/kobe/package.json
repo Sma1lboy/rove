@@ -3,6 +3,22 @@
   "name": "@sma1lboy/rove",
   "version": "0.8.194",
   "description": "Rove — the agent multiplexer for your terminal. Run coding agents on parallel tasks with isolated worktrees and persistent sessions.",
+  "keywords": [
+    "terminal",
+    "tui",
+    "cli",
+    "multiplexer",
+    "ai-agents",
+    "coding-agent",
+    "ai-coding-assistant",
+    "agentic-ai",
+    "parallel-agents",
+    "git-worktree",
+    "claude-code",
+    "codex",
+    "llm",
+    "developer-tools"
+  ],
   "type": "module",
   "packageManager": "bun@1.3.13",
   "bin": {
@@ -17,7 +33,7 @@
     "type": "git",
     "url": "git+https://github.com/Sma1lboy/rove.git"
   },
-  "homepage": "https://github.com/Sma1lboy/rove#readme",
+  "homepage": "https://rove.run",
   "bugs": {
     "url": "https://github.com/Sma1lboy/rove/issues"
   },
