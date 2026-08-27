@@ -28,10 +28,11 @@ import {
   runNpxSkillsInstall,
 } from "../lib/skill-install.ts"
 import { activeCliName } from "./rename-compat.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = activeCliName()
 
-const SKILL_VERBS = ["install", "status", "command", "print"] as const
+const SKILL_VERBS = SUBCOMMAND_VERBS.skill
 
 function skillUsage(): string {
   return [
@@ -103,7 +104,7 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
     if (!verb) process.exitCode = 2
     return
   }
-  if (!SKILL_VERBS.includes(verb as (typeof SKILL_VERBS)[number])) {
+  if (!SKILL_VERBS.includes(verb)) {
     process.stderr.write(`${CLI_NAME} skill: unknown verb "${verb}"\n\n${skillUsage()}\n`)
     process.exit(2)
   }

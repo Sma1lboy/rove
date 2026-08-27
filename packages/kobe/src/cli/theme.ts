@@ -29,8 +29,12 @@ import { BUNDLED_THEME_JSONS } from "../tui/context/theme/bundled"
 import { userThemesDir } from "../tui/context/theme/loader"
 import { validateTheme } from "../tui/context/theme/schema"
 import { activeCliName } from "./rename-compat.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = activeCliName()
+
+/** Short spellings accepted on the command line but not offered by completions. */
+const THEME_VERB_ALIASES: Readonly<Record<string, string>> = { ls: "list", rm: "remove" }
 
 /**
  * The bundled theme names, read from the map that owns the JSON imports.
@@ -251,18 +255,27 @@ export async function runThemeSubcommand(args: string[]): Promise<void> {
     if (!action) process.exit(2)
     return
   }
-  if (action === "list" || action === "ls") {
+  // Canonical verbs come from `subcommands.ts` (the same list `kobe
+  // completions` offers); the short spellings stay local because completing
+  // both of every pair is noise.
+  const verb = THEME_VERB_ALIASES[action] ?? action
+  if (!SUBCOMMAND_VERBS.theme.includes(verb)) {
+    failUsage(`unknown action "${action}" (try ${SUBCOMMAND_VERBS.theme.map((v) => `"${v}"`).join(", ")})`)
+  }
+  if (verb === "list") {
     if (rest.length > 0) failUsage(`"${action}" takes no arguments`)
     listThemes()
     return
   }
-  if (action === "add") {
+  if (verb === "add") {
     await addTheme(rest)
     return
   }
-  if (action === "remove" || action === "rm") {
+  if (verb === "remove") {
     removeTheme(rest)
     return
   }
-  failUsage(`unknown action "${action}" (try "list", "add", or "remove")`)
+  // Unreachable via the gate above; kept so a verb added to SUBCOMMAND_VERBS
+  // without a branch here fails loud instead of falling into the last one.
+  failUsage(`unknown action "${action}"`)
 }

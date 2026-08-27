@@ -15,6 +15,7 @@ import { resolve } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { expandTilde } from "../lib/path-home.ts"
 import { activeCliName } from "./rename-compat.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = activeCliName()
 
@@ -106,6 +107,10 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
     return
   }
 
+  // Accept-set from `subcommands.ts` so `kobe completions` and this dispatch
+  // cannot drift apart — see the comment there.
+  if (!SUBCOMMAND_VERBS.repo.includes(verb)) usageError(`unknown verb "${verb}"`)
+
   const { getRepoInitOverride, setRepoInitOverride, resolveRepoRoot } = await import("../state/repos.ts")
   const { existsSync } = await import("node:fs")
   const { join } = await import("node:path")
@@ -157,6 +162,8 @@ export async function runRepoSubcommand(args: readonly string[]): Promise<void> 
     return
   }
 
+  // Unreachable via the gate above; kept so a verb added to SUBCOMMAND_VERBS
+  // without a branch here fails loud instead of silently doing nothing.
   usageError(`unknown verb "${verb}"`)
 }
 

@@ -24,6 +24,7 @@ import {
 } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
 import { activeCliName } from "./rename-compat.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = activeCliName()
 
@@ -234,6 +235,15 @@ function flagValue(rest: string[], flag: string): string | undefined {
 
 export async function runPluginSubcommand(rest: string[]): Promise<void> {
   const [command, ...args] = rest
+  // The switch below dispatches, but `subcommands.ts` decides what is a verb
+  // at all — so `kobe completions` offers exactly this set, and a case added
+  // without listing it there is unreachable instead of silently uncompletable.
+  if (command !== undefined && !SUBCOMMAND_VERBS.plugin.includes(command)) {
+    const isHelp = command === "help" || command === "--help" || command === "-h"
+    printUsage(isHelp ? process.stdout : process.stderr)
+    if (!isHelp) process.exit(2)
+    return
+  }
   try {
     switch (command) {
       case "install": {

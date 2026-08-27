@@ -25,6 +25,7 @@ import { createKobeCore } from "../core/index.ts"
 import { LEGACY_KOBE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { activeCliName } from "./rename-compat.ts"
+import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
 const CLI_NAME = activeCliName()
 
@@ -58,6 +59,15 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   if (command === "--help" || command === "-h" || command === "help") {
     printDaemonUsage(process.stdout)
     return
+  }
+
+  // The accept-set lives in `subcommands.ts` so `kobe completions` offers
+  // exactly what this dispatch runs; a verb added below but not there is
+  // rejected here rather than becoming an uncompletable secret.
+  if (!SUBCOMMAND_VERBS.daemon.includes(command)) {
+    process.stderr.write(`${CLI_NAME} daemon: unknown command "${command}"\n\n`)
+    printDaemonUsage(process.stderr)
+    process.exit(2)
   }
 
   if (command === "status") {
@@ -104,12 +114,6 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     next.close()
     console.log(`${CLI_NAME} daemon: restarted, listening on ${socketPath}`)
     return
-  }
-
-  if (command !== "start") {
-    process.stderr.write(`${CLI_NAME} daemon: unknown command "${command}"\n\n`)
-    printDaemonUsage(process.stderr)
-    process.exit(2)
   }
 
   // We ARE the daemon process from here on. `daemon.log` is stdout/stderr
