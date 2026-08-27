@@ -84,6 +84,17 @@ export class MockTaskPty implements TaskPtyLike {
     this.writes.push(data)
   }
 
+  /**
+   * Scripted full-screen repaint: replace the whole snapshot instead of
+   * appending — how an alternate-screen app (an engine tab) redraws after
+   * scrolling its own content.
+   */
+  replaceScreen(data: string): void {
+    if (this._killed) return
+    this.buffer = ""
+    this.feed(data)
+  }
+
   onData(cb: DataListener): () => void {
     this.listeners.add(cb)
     if (this.buffer !== "") {
