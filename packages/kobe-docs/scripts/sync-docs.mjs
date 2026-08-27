@@ -100,6 +100,7 @@ const MODULES = [
       {
         title: "Automating",
         pages: [
+          ["ORCHESTRATION.md", "rove/orchestration"],
           ["ROUTINES.md", "rove/routines"],
           ["API.md", "rove/api"],
           ["WORK-TRACKING.md", "rove/work-tracking"],
