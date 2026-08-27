@@ -34,7 +34,6 @@ the actions that can actually run right now.
 | `ctrl+a` `f` | New-conversation dialog, preset to "fork a child task": new managed worktree, branched off this Task's branch |
 | `ctrl+a` `c` | New-conversation dialog, preset to "continue this chat" in a new tab of the same Task directory |
 | `ctrl+a` `i` | Open the Inbox |
-| `ctrl+a` `y` | Resume a prior engine session |
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
@@ -42,7 +41,7 @@ the actions that can actually run right now.
 | `ctrl+a` `1` / `2` / `3` | Kanban / Automations / GitHub Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
-| `ctrl+a` `p` | Create a PR from the active task |
+| `ctrl+a` `p` / `P` | Create a PR from the active task |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a
@@ -57,15 +56,15 @@ focus or dialog.
 
 | Key | Action |
 |---|---|
-| `F1` | The live keymap; works everywhere, including inside the terminal |
-| `ctrl+q` | Focus the sidebar; from the sidebar, quit |
+| `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
+| `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New engine tab |
-| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
+| `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
 | `ctrl+w` | Close the active split, otherwise the tab |
 | `ctrl+[` / `ctrl+]` | Previous / next tab |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
-| `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the sidebar row printing that digit |
+| `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the Nth visible sidebar row (`ctrl+2` = first row) |
 | `F2` | Rename the active split, otherwise the tab |
 | `F3` | Focus the next split |
 | `F4` | Cycle focus forward |
@@ -75,9 +74,12 @@ focus or dialog.
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule.
 
-**Jump digits.** Each sidebar row prints the digit that jumps to it, so you
-read it off the screen rather than counting. There is no `ctrl+1`; the
-terminal protocol can't encode it, so the first row answers to `2`.
+Both split chords need a terminal speaking the kitty keyboard protocol
+(legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);
+reserving `ctrl+\` also costs the embedded shell its SIGQUIT.
+
+**Jump digits.** There is no `ctrl+1`; the terminal protocol can't encode it,
+so the first row answers to `2`.
 
 ## Sidebar and Files
 
@@ -106,8 +108,8 @@ through a Task row in that project.
 
 | Key | Action |
 |---|---|
-| `j` / `k` | Move |
-| `h` / `l` | Collapse / expand |
+| `j` / `k` (or arrows) | Move |
+| `h` / `l` (or `←`/`→`) | Collapse / expand |
 | `enter` | Open in your configured editor; changed files use a Vim/Nvim diff when available, otherwise Rove falls back to its read-only preview |
 | `d` | Open a read-only diff in a workspace tab without moving focus |
 | `r` | Refresh the current file tab |
@@ -159,7 +161,7 @@ In the read-only diff tab, with the workspace focused:
 
 | Key | Action |
 |---|---|
-| `j` / `k` | Move the line cursor |
+| `j` / `k` (or arrows) | Move the line cursor |
 | `v` | Anchor a range (`v` again cancels) |
 | `c` | Write a note |
 | `s` | Send all unsent notes to the engine |
@@ -169,13 +171,13 @@ These four are fixed and can't be rebound. The workflow:
 
 ## Workspace pages
 
-All of these pages close with `q` or `esc`. Their bare letters are active only
-while the page has focus.
+All of these pages close with `q`, `esc`, or `ctrl+c`. Their bare letters are
+active only while the page has focus.
 
 | Page | Keys |
 |---|---|
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
-| Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
+| Automations | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |

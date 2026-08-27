@@ -158,14 +158,14 @@ Three related limits are easy to confuse:
 
 - **What a reattach replays.** The PTY host keeps ~512 KiB of recent output
   per session. The live copy is in memory; the complete bounded ring is also
-  frozen under `<home>/.kobe/pty-sessions/` at most once every five seconds
+  frozen under `<home>/.rove/pty-sessions/` at most once every five seconds
   while output streams, immediately when the child exits, and in full during
   a clean host shutdown. A crash can therefore lose the newest few seconds,
   but a reboot or host restart restores the last completed snapshot. Closing
   the tab, archiving its task, or `rove reset` deliberately drops the relevant
   frozen record.
 - **What diagnostics retain after an abnormal PTY death.**
-  `<home>/.kobe/pty-exits.json` stores the newest 50 abnormal deaths. Each
+  `<home>/.rove/pty-exits.json` stores the newest 50 abnormal deaths. Each
   record has the exit code or signal, time, and the last 40 plain-text lines
   extracted from up to 16 KiB of raw ring data. Clean exits are omitted. This
   is a diagnostic tail, not scrollback, and an engine CLI returning to its
@@ -192,8 +192,8 @@ process, including a reboot.
 - A resumable engine tab found dead on attach gets **one** automatic resume
   attempt. If that dies too, an extra tab closes; the task's only tab recycles
   into a fresh engine tab rather than respawning forever.
-- `ctrl+a` `y` opens the resume picker for the active task, Rove's mirror of
-  claude-code's `/resume`. It lists every session in the task's worktree.
+- To resume a conversation that is not represented by a tab, use the engine's
+  own picker (e.g. claude-code's `/resume`) inside a fresh engine tab.
 
 ## rove web as a second client
 

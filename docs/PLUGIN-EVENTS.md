@@ -19,7 +19,7 @@ Ground rules that apply to every event here:
   "taskId": "01M0…",              // when the event mapped to a task
   "task": {                       // task context at emit time, when known
     "id": "01M0…", "title": "…", "repo": "/path", "branch": "…",
-    "worktreePath": "/path", "vendor": "claude", "status": "active"
+    "worktreePath": "/path", "vendor": "claude", "status": "in_progress"
   },
   "vendor": "claude",             // agent-layer events: which engine reported
   "tabId": "tab-1",               // when the session is a Rove terminal tab
@@ -91,7 +91,7 @@ The task's PR status changed. Compared with the PR poller's own semantics:
 
 | detail field | type | meaning |
 |---|---|---|
-| `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `headRef?`, `reviewDecision?`, `mergeable?` |
+| `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `headRef?`, `reviewDecision?`, `mergeable?`, plus `lastCheckedAt?`/`lastError?` (present in the payload, excluded from the change test) |
 
 Typical use: toast when `to.checkState` flips to failing, or auto-archive on
 `to.lifecycle === "merged"`.
@@ -111,7 +111,7 @@ A daemon-tracker issue mutated.
 | detail field | type | meaning |
 |---|---|---|
 | `repo` | string | repo root the issue store is keyed by |
-| `op` | object | the raw mutation op, e.g. `{ "type": "create", "title": "…" }`, `{ "type": "set-status", "id": 3, "status": "done" }` |
+| `op` | object | the raw mutation op, e.g. `{ "type": "create", "title": "…" }`, `{ "type": "setStatus", "id": 3, "status": "done" }` (valid types: `create`, `setStatus`, `update`, `link`, `unlink`, `delete`) |
 
 ### `note.filed`
 
@@ -252,17 +252,17 @@ carries it (absent otherwise, never fabricated):
                         "startedAt": 1690000000000, "endedAt": 1690000042000 } } }
 ```
 
-### `turn.failed` · C, X (emulated), K
+### `turn.failed` · C, K
 
 | detail field | type | meaning |
 |---|---|---|
 | `failure` | `"rate_limit" \| "billing" \| "other"` | normalized failure class |
-| `note` | string? | the raw vendor error type, for humans |
+| `note` | string? | the raw vendor error type, for humans; only present when a wrapper self-reports it via `rove api engine-report --detail` (no built-in adapter sets it) |
 
 A `rate_limit` failure also arms auto-resume, so expect a `quota.exhausted`
 right after when the quota probe finds a reset time.
 
-### `turn.interrupted` · K (native), X (emulated)
+### `turn.interrupted` · C, X (emulated), K (native)
 
 The user interrupted the turn. Exists because Kimi fires `Interrupt` INSTEAD
 of `Stop`. Without this verb an interrupted Kimi turn would strand in
@@ -270,7 +270,7 @@ of `Stop`. Without this verb an interrupted Kimi turn would strand in
 
 ## Tools: the high-volume family
 
-### `tool.pre` / `tool.post` · C, X, K · `tool.failed` · C
+### `tool.pre` / `tool.post` · C, X, K · `tool.failed` · C, K
 
 One event per engine tool call, before/after. **Volume-gated install**: the
 underlying engine hooks are written into engine config only while some
@@ -287,7 +287,7 @@ sub-second and silent.
 
 ## Attention (engine blocked on a human)
 
-### `attention.permission` · C, X, K · `attention.question` · C
+### `attention.permission` · C, K · `attention.question` · C
 
 The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
@@ -305,7 +305,7 @@ The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
 ## Subagents
 
-### `subagent.start` / `subagent.stop` · C
+### `subagent.start` / `subagent.stop` · C, K
 
 A nested agent began/ended under the session.
 

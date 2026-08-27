@@ -96,7 +96,7 @@ platforms = ["macos", "linux", "windows"] # optional; item-level override
 [[build]]                        # runs at GitHub install (after preview confirm), cwd = checkout
 command = ["npm", "install"]     # self-provision deps INTO the plugin dir; `link` skips build
 
-[[startup]]                      # once per daemon start, after the socket is ready; one-shot, not a daemon
+[[startup]]                      # once per daemon start; the socket may not accept connections yet — retry your connect. One-shot, not a daemon
 command = ["node", "restore.js"]
 
 [[shutdown]]                     # at daemon stop; bounded (~3s), the host kills a hook that lingers
@@ -138,6 +138,7 @@ command = ["aider"]              # launch argv; argv[0] is the binary
 [engines.identity]               # optional product identity for UI copy
 product_name = "Aider"           # each field falls back to `name`
 short_name = "Aider"
+assistant_name = "Aider"         # how the assistant is referred to
 input_placeholder = "Ask Aider…" # composer placeholder
 
 [[engines.rules]]                # screen-state rules, first match wins;
@@ -191,12 +192,12 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
 | `agent.running` / `agent.idle` / `agent.turn-complete` / `agent.permission-needed` / `agent.rate-limited` / `agent.error` | activity-STATE transitions, deduped per task+tab | `tabId` when the source state identifies a tab |
-| `session.start` / `session.end` | engine session lifecycle (C; X start only) | |
-| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X; interrupted: Kimi-shaped) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
-| `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X; failed: C); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
-| `attention.permission` / `attention.question` | the engine blocked on a human (C) | `waiting` |
+| `session.start` / `session.end` | engine session lifecycle (C, K; X start only) | |
+| `turn.prompt` / `turn.complete` / `turn.failed` / `turn.interrupted` | one event per turn edge (C, X, K; failed: C, K) | `failure` class on failed; `turn` (id/model/usage/startedAt/endedAt) on complete when the transcript yielded one |
+| `tool.pre` / `tool.post` / `tool.failed` | every tool call (C, X, K; failed: C, K); **installed into engine config only while some enabled plugin subscribes** | `tool.name`, `tool.id` |
+| `attention.permission` / `attention.question` | the engine blocked on a human (permission: C, K; question: C) | `waiting` |
 | `context.pre-compact` / `context.post-compact` | context compaction (C, X) | `compact.trigger: manual\|auto` |
-| `subagent.start` / `subagent.stop` | nested agent lifecycle (C) | `subagent.type/id` |
+| `subagent.start` / `subagent.stop` | nested agent lifecycle (C, K) | `subagent.type/id` |
 
 Envelope (`ROVE_PLUGIN_EVENT_JSON`):
 
@@ -298,7 +299,8 @@ the CLI unless you need push channels.
 - **Settings → Plugins**: enable/disable, declared surfaces, last run,
   and your `[[settings]]` editors.
 - **CLI**: `rove plugin action invoke`, `rove plugin pane open`, `rove
-  plugin log`.
+  plugin log`, `rove plugin config-dir` (prints the plugin's config
+  directory).
 
 ## Ground rules
 

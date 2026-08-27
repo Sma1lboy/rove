@@ -72,7 +72,7 @@ rove api land --task-id a              # merge the winning branch
 
 Flag parsing: `--key value` and `--key=value` both work; boolean flags may
 be given bare (`--force` ⇒ true) or explicitly (`--archived=false`);
-`--task-id` / enum / positive-int values are validated against the verb's
+`--tab` / enum / positive-int values are validated against the verb's
 spec, and unknown flags are rejected (exit 2). `--repo` resolves relative
 paths against `$PWD` (`~` expanded). `spawn-task` is an alias of `add`.
 
@@ -88,14 +88,15 @@ Two verbs were REMOVED (no aliases): `fan-out` → `add --count N`, and
 `set-vendor` → `set-command`. Calling either returns `UNKNOWN_VERB` with the
 replacement in `nextCommandArgs`.
 
-## Discovery
+## discover
 
 - `schema` *(offline)*: the API, as JSON. Default is a compact index
   (groups + verb summaries, no flags); drill in with `--verb <name>` (full
   flag detail for one verb), `--group <g>`, or `--all` (everything; large).
   Includes an `apiVersion` agents can gate on.
-- `engine-list` *(offline)*: every engine Rove can launch, built-ins and
-  your registered presets, each with the RAW command it runs, its display
+- `engine-list` *(offline)*: every engine Rove can launch — built-ins, your
+  registered presets, and engines contributed by enabled plugins — each with
+  the RAW command it runs, its display
   name, and its `protocol` (the adapter Rove speaks to it: history reads,
   trust pre-answer, first-message delivery; `generic` = none). What it
   prints is what a launch runs, so an entry can be copied into `--command`
@@ -180,8 +181,9 @@ replacement in `nextCommandArgs`.
   with a mixed fleet (engine IDS only; a raw command line can't be
   expressed per-sibling; issue N separate `add --command` calls for that).
   Capped at 10; prefer 3-4. Both require `--prompt` (a parallel round IS its
-  prompt) and reject `--branch` (siblings cannot share one branch). This was
-  the `fan-out` verb, which no longer exists.
+  prompt) and reject `--branch` (siblings cannot share one branch);
+  `--agents` also rejects `--count` and `--command` (it already names each
+  sibling's engine). This was the `fan-out` verb, which no longer exists.
 
   `--command` picks the engine (an id from `engine-list`, or a full command
   line). Omitted, the repo's default engine is used.
@@ -235,10 +237,12 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
 - `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a
-  task's live session via the daemon's `session.deliver` channel; requires an
-  already-hosted session (the dispatcher's messenger; see
-  [design/dispatcher.md](./design/dispatcher.md)). `--tab tab-N` delivers
-  into exactly that tab instead of the canonical engine tab.
+  task's live session via the daemon's `session.deliver` channel (the
+  dispatcher's messenger; see
+  [design/dispatcher.md](./design/dispatcher.md)). Broadcast-only: it does
+  not verify a session received the text — the result's `clients` count is
+  the reach signal (`0` = nothing attached performed the paste). `--tab
+  tab-N` delivers into exactly that tab instead of the canonical engine tab.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
   future worktree session on this repo starts with it in its system prompt;
@@ -251,8 +255,9 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   right|down] [--placement split|tab] [--title TEXT]`: open a terminal pane
   in a task's workspace: split the focused tab (default, tmux-style
   beside/below the active pane; `--tab tab-N` hosts the split in that tab
-  instead) or open a separate command tab. `--command` runs via
-  `sh -lc` and the pane closes when it exits; omit it for an interactive
+  instead) or open a separate command tab. `--command` runs via your login
+  shell (`-ilc`, so shell-rc `PATH`/exports apply, same as the engine tab)
+  and the pane closes when it exits; omit it for an interactive
   shell. Broadcast over the daemon's `tab.open` channel, so an attached TUI
   showing the task performs the split (headless, nothing happens). Task
   defaults to `$ROVE_TASK_ID` (or its Kobe alias), then the active task. How far splits can go
@@ -264,6 +269,19 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   one tab. Engine panes are never closed. Broadcast over the daemon's
   `tab.close` channel; an attached TUI performs the close (headless, nothing
   happens).
+- `notify --title TEXT [--kind KIND] [--task-id ID] [--source TAG]`: show
+  a toast in every attached Rove UI. `done` / `needs_input` / `error` get
+  severity styling; any other kind renders neutrally.
+- `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
+  [--detail JSON]`: report a normalized engine-activity verb for a task,
+  the public face of the `engine.reportEvent` RPC the built-in hook adapters
+  use. Lets a plugin-contributed engine (or any wrapper) drive the sidebar
+  badge, attention inbox, and plugin event stream. Task/tab default to
+  `$ROVE_TASK_ID` / `$ROVE_TAB_ID`; without either, the caller's cwd is
+  mapped to a task by worktree path. Kinds: `session-start`, `turn-start`,
+  `turn-complete`, `turn-failed`, `turn-interrupted`, `awaiting-input`,
+  `session-end` (activity state), plus `tool-pre/post/failed`,
+  `pre/post-compact`, `subagent-start/stop` (plugin-only).
 
 ## edit
 
@@ -335,14 +353,16 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 **`--precheck`** runs a shell command in the repo before the engine starts;
 a non-zero exit skips the run *without* creating a task. Use it so a schedule
 does not burn a turn when nothing changed (`git log --since=24.hours --oneline
-| grep -q .`). Run statuses distinguish `skipped_precheck` (healthy: nothing
-to do) from `dispatch_failed` (needs a human).
+| grep -q .`). Run statuses: `dispatched`, `skipped_precheck` (healthy:
+nothing to do), `skipped_missed`, `skipped_unavailable`, and
+`dispatch_failed` (needs a human).
 
 ## lifecycle
 
 - `archive --task-id ID [--archived=false]`: archive/unarchive.
   Non-destructive: worktree, branch, and history stay. A manual "hide the
-  row" override. Once work is merged, `delete` (branch survives) is the
+  row" override. Archiving stops the task's live engine session (the data
+  survives; unarchiving rebuilds it on next entry). Once work is merged, `delete` (branch survives) is the
   normal cleanup path; see
   [`design/task-lifecycle.md`](./design/task-lifecycle.md).
 - `pin --task-id ID [--pinned=false]`: pin/unpin a task to the top of the
@@ -350,8 +370,11 @@ to do) from `dispatch_failed` (needs a human).
 - `land --task-id ID [--strategy merge|squash] [--delete-branch]
   [--then-archive] [--remove-worktree]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
-  a dirty base checkout; on conflict it aborts and returns the conflicted
-  files. Returns `{ landedOn, commit }`.
+  a dirty base checkout and a branch with no commits ahead of base
+  (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when uncommitted work is
+  still sitting in the worktree, with a send-back recovery command); on
+  conflict it aborts and returns the conflicted files. Returns
+  `{ landedOn, commit }`.
   `--remove-worktree` removes the task's worktree after a successful land;
   the branch stays (pair with `--delete-branch` to drop it too). It never
   forces: a dirty worktree, the base checkout, and the worktree the caller is
@@ -375,20 +398,7 @@ to do) from `dispatch_failed` (needs a human).
 
 - `feedback --title T --body TEXT [--category SLUG]` *(offline)*: create a
   GitHub Discussion in the Rove repository's Feedback category via `gh`.
-- `notify --title TEXT [--kind KIND] [--task-id ID] [--source TAG]`: show
-  a toast in every attached Rove UI. `done` / `needs_input` / `error` get
-  severity styling; any other kind renders neutrally.
 - `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
   ask the human for a line of text through the attached TUI's input dialog;
   blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
   and returns `{ value }` or `{ cancelled, reason }`.
-- `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
-  [--detail JSON]`: report a normalized engine-activity verb for a task,
-  the public face of the `engine.reportEvent` RPC the built-in hook adapters
-  use. Lets a plugin-contributed engine (or any wrapper) drive the sidebar
-  badge, attention inbox, and plugin event stream. Task/tab default to
-  `$ROVE_TASK_ID` / `$ROVE_TAB_ID`; without either, the caller's cwd is
-  mapped to a task by worktree path. Kinds: `session-start`, `turn-start`,
-  `turn-complete`, `turn-failed`, `turn-interrupted`, `awaiting-input`,
-  `session-end` (activity state), plus `tool-pre/post/failed`,
-  `pre/post-compact`, `subagent-start/stop` (plugin-only).

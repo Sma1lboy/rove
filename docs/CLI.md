@@ -29,14 +29,14 @@ The installed package exposes both `rove` and `kobe`. `rove` is the canonical
 entry point; `kobe` remains a fully supported compatibility alias. They run the
 same commands against the same daemon, worktrees, and persisted state. This
 rename uses `~/.rove` and `~/.config/rove/state.json` for canonical product
-data. First launch copies supported legacy data without overwriting or removing
-the old files; runtime and plugin paths retain their compatibility names.
+data. First launch migrates supported legacy data from `~/.kobe` (see
+[Where state lives](#where-state-lives)).
 
 ```bash
 rove update            # latest
 rove update 0.7.90     # pin a version
-rove update list       # browse recent versions
-rove update dry-run    # print the command without running it
+rove update list       # browse recent versions (also: --list)
+rove update dry-run    # print the command without running it (also: --dry-run)
 ```
 
 rove updates using whichever package manager owns the `rove` on your `PATH`,
@@ -61,7 +61,12 @@ exits 2.
 ## All commands
 
 ```text
+rove <version>
+
 Usage: rove [command] [options]
+
+Run with no command to launch PureTUI.
+Run `rove .` (or `rove <path>`) to open a directory as a standalone task.
 
 Commands:
   web [options]           Launch the browser dashboard
@@ -87,6 +92,9 @@ Options:
   -h, --help              Print this help
   --skill                 Print the agent skill file and exit
 ```
+
+Bare `rove version` and `rove help` work too, as spelled-out forms of the
+flags.
 
 ## Managing projects
 
@@ -132,6 +140,8 @@ host.
 rove web [--port <n>] [--routes-only] [--no-takeover]
 ```
 
+(`--bridge-only` is accepted as a legacy alias for `--routes-only`.)
+
 Serves the dashboard on `:45174`, plus a sidecar for browser terminal tabs.
 `--routes-only` starts/verifies only the daemon-hosted HTTP/SSE routes, for a
 separate Vite dev server. Normally Rove may replace an older Rove PTY sidecar
@@ -157,7 +167,7 @@ Completes subcommands; each subcommand owns its own flags.
 ## export
 
 ```bash
-rove export [--json | --csv | --format <json|csv|table>]
+rove export [--json | --csv | --format <json|csv|table>]   # --format=<fmt> works too
 ```
 
 Prints your task list. Read-only and **works with the daemon down**, which is
@@ -168,7 +178,7 @@ table` aligns it for humans.
 ## config
 
 ```bash
-rove config [--path]
+rove config [--path]     # `rove config path` works too
 ```
 
 Opens `~/.config/rove/state.json` in your editor. See
@@ -177,9 +187,9 @@ Opens `~/.config/rove/state.json` in your editor. See
 ## theme
 
 ```bash
-rove theme list
-rove theme add <url|path> [--name <name>] [--force]
-rove theme remove <name>
+rove theme list                                  # alias: ls
+rove theme add <url|path> [--name|-n <name>] [--force|-f]
+rove theme remove <name>                         # alias: rm
 ```
 
 User themes land in `~/.rove/themes/` and can shadow a bundled name. Bundled
@@ -189,8 +199,9 @@ themes can't be removed. See [Themes](./themes.md).
 
 ```bash
 rove repo show [path]
-rove repo set [path] --init-script <text> | --init-script-file <path>
+rove repo set [path] [--init-script <text> | --init-script-file <path>]
                     [--init-prompt <text> | --init-prompt-file <path>]
+                    # at least one of the four
 rove repo unset [path] [--init-script] [--init-prompt]
 ```
 
@@ -218,7 +229,9 @@ detects your installed agents and asks. To name them yourself, repeat the flag
 (`--agent claude-code --agent codex`; `--agent=codex` also works); a
 comma-joined list is rejected rather than silently using only the first.
 
-The skill ships inside the npm package, so nothing is downloaded.
+The SKILL.md ships inside the npm package, so no repo clone is needed; the
+install itself still runs `npx skills add` (which falls back to a repo clone
+only if the bundled copy is missing).
 
 `rove --skill` (top-level flag) is shorthand for `rove skill print`: it dumps
 the bundled SKILL.md to stdout so an agent can learn the `rove api` surface in
@@ -238,10 +251,11 @@ rove plugin enable <id> | disable <id>         toggle without unregistering
 rove plugin unlink <id>                        unregister a linked plugin
 rove plugin uninstall <id-or-spec>             unregister + remove the checkout
 rove plugin config-dir <id>                    print its config directory
-rove plugin log <id> [-n <count>]              tail its command log
+rove plugin log <id> [-n <count>]              tail its command log (default 20)
 rove plugin action list [--plugin <id>]
 rove plugin action invoke <plugin-id.action-id> [args…]
 rove plugin pane open <plugin-id.pane-id> [--task <task-id>]
+rove plugin pane open --plugin <id> --entrypoint <pane-id>   # equivalent form
 ```
 
 Changes apply to a running daemon without a restart. Writing one:
@@ -281,7 +295,8 @@ rove reset [--hard] [--yes]
 ```
 
 Recovers a wedged install: stops the daemon and the PTY host (ending all
-background sessions). **Never touches git worktrees.** `--hard` also deletes
+background sessions), and also stops any pre-v0.8 tmux sessions the retired
+runtime left behind. **Never touches git worktrees.** `--hard` also deletes
 your task index and UI state. Asks for confirmation unless `--yes`.
 
 ## daemon
@@ -292,6 +307,8 @@ rove daemon start      # run in the FOREGROUND (this process becomes it)
 rove daemon stop
 rove daemon restart    # stop, then respawn in the background
 ```
+
+Bare `rove daemon` defaults to `status`.
 
 The daemon auto-starts when the TUI or `rove api` needs it, so `start` is
 mainly for debugging. Logs are at `~/.rove/daemon.log`; read them first when
@@ -307,7 +324,7 @@ rove feedback --title <text> (--body <text> | --body-file <path>) [--category <s
 ```
 
 Opens a GitHub Discussion via the `gh` CLI (needs `gh auth login`).
-`--body-file -` reads from stdin.
+`--body-file -` reads from stdin. `--category` defaults to `feedback`.
 
 ## Internal subcommands
 
@@ -317,10 +334,12 @@ Not in `--help`, listed so they aren't a mystery if you see them:
   survive TUI exits and daemon restarts. Spawned automatically.
 - **`rove hook <verb>`.** Fired by an engine's own hooks to report activity.
   It always exits 0 and never starts the daemon, so it can't fail your engine.
-  One verb is user-facing: **`rove hook cleanup`** removes Rove's
+  Two verbs are user-facing: **`rove hook cleanup`** removes Rove's
   settings-managed hooks from `~/.claude/settings.json` after the Claude Code
-  plugin takes over; see
-  [Configuration → Claude Code plugin](CONFIGURATION.md#claude-code-plugin).
+  plugin takes over (see
+  [Configuration → Claude Code plugin](CONFIGURATION.md#claude-code-plugin)),
+  and **`rove hook setup`** is a deprecated no-op kept so old instructions
+  fail loud instead of silently.
 
 ## Exit codes
 
@@ -347,6 +366,7 @@ are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
 | `ROVE_HOME_DIR` | Move Rove's home-rooted task/runtime data; platform settings and engine-owned history keep their own locations |
 | `ROVE_OPEN_EDITOR` | Command that opens a worktree in a GUI editor (`code`, `cursor`, …) |
 | `ROVE_DAEMON_WEB_PORT` | Daemon web-transport port at daemon startup (default 45174; `0`/`off`/`false` disables). `rove web` itself uses `--port`. |
+| `ROVE_WEB_HOST` | Host the daemon binds its web transport to, read at daemon startup |
 | `ROVE_DEV=1` | Mark a developer checkout; hides the update chip |
 | `ROVE_DEBUG=1` | Print full startup errors instead of one line |
 | `ROVE_TASK_ID` / `ROVE_TAB_ID` | Set inside tabs Rove opens; how `rove api` verbs resolve the calling task |
@@ -364,13 +384,18 @@ Canonical product data under `~/.rove/` (or `ROVE_HOME_DIR`, with
 `KOBE_HOME_DIR` as fallback):
 
 - `tasks.json`: the task index
-- `worktrees/<repo-key>/<task-slug>/`: per-task worktrees
+- `worktrees/<repo-key>/<task-slug>/`: per-task worktrees (unless relocated by
+  Settings → General → Worktree location)
 - `themes/`, `settings/keybindings.yaml`, issues, notes, and automations
 
 Plus `~/.config/rove/state.json`, the settings file `rove config` or
 `kobe config` opens. Existing `~/.kobe/worktrees` paths remain recognized and
-are never copied or rewritten. Daemon/PTY runtime files and `plugins.json` +
-`plugins/<id>/` deliberately remain under `~/.kobe` for continuity. The first
-launch copies other supported legacy data additively and never deletes the
-source or overwrites canonical files. Daemon-owned stores are copied at
+are never copied or rewritten. Daemon/PTY runtime files (sockets, pidfiles,
+logs) and the plugin tree are canonical under `~/.rove/`; a legacy `~/.kobe`
+path is honoured only while a pre-rename daemon, PTY host, or plugin registry
+is still live, and after binding on the new paths Rove leaves symlinks at the
+old ones so older binaries still find the running daemon. The first launch
+copies supported legacy state additively and never overwrites canonical files
+— except the plugin tree (`plugins.json`, `plugins/<id>/`), which is *moved*
+with a compatibility symlink left behind. Daemon-owned stores are copied at
 new-daemon startup, only after the legacy writer has stopped.

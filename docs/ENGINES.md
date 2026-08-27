@@ -37,6 +37,12 @@ their binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
 what promotes an engine to built-in.
 
+**Plugins can contribute engines too**: a plugin manifest's `[[engines]]`
+entries register engines with a display name, launch command, screen
+manifest, and identity. Unlike the contrib catalog, plugin engines are
+offered without a binary check — installing the plugin is the opt-in. See
+[Plugin authoring](./PLUGIN-AUTHORING.md).
+
 **Kimi is partial.** Rove finds the binary, reads its login state, and can
 locate each session's transcript, enough to watch it for activity and to
 hand the conversation to another engine. It still doesn't *parse* that
@@ -46,14 +52,16 @@ than guessing.
 
 ## Picking an engine
 
-Per task, at creation time, or with `v` in the sidebar. The default for new
-tasks comes from Settings → Engines (`defaultVendor`), and Rove remembers the
-last engine you used per project. From a script it is
+Per task, at creation time, or with `v` in the sidebar. For new tasks the
+per-project last-used engine wins; Settings → Engines (`defaultVendor`) is
+the fallback, then `claude`. From a script it is
 `rove api add --command <engine-or-command-line>`; see
 [engine presets and protocols](#engine-presets-and-protocols).
 
-Engines whose CLI isn't installed are hidden from the new-task dialog. Custom
-engines always show; you added it, so Rove assumes you meant it.
+Engines whose CLI isn't installed are hidden from the new-task dialog, and
+so are engines you switched off in Settings → Engines (Settings still lists
+them so you can switch them back on). Custom engines always show; you added
+it, so Rove assumes you meant it.
 
 ### Reasoning effort
 
@@ -119,8 +127,6 @@ first message isn't resumed; there's no transcript yet. Codex, Copilot,
 Kimi, and custom engines can't take a caller-set session id, so their tabs
 relaunch fresh.
 
-`ctrl+a` `y` opens the resume picker for the active task.
-
 **Continue in a new tab.** `ctrl+a` `c` opens the continuation flow in the
 *same* worktree. What happens depends on the source and destination engines:
 
@@ -175,11 +181,12 @@ to `claude`". Set it when your CLI is a wrapper around a built-in (a
 different binary name, a fixed set of flags, a company shim) so the transcript
 reader, workspace-trust pre-answer, and first-message delivery all apply.
 Leave it out and the preset gets the **generic** protocol: it launches and
-runs fine, but Rove reads no history, pre-answers no trust dialog, and falls
-back to silence-window liveness with settle-then-paste delivery. If the
-running session later reveals a built-in engine behind the command, Rove
-upgrades the task's protocol automatically — see
-[engine presets and protocols](#engine-presets-and-protocols).
+runs fine with settle-then-paste delivery, but Rove reads no history,
+pre-answers no trust dialog, and shows no working badge (the activity
+observer only recognises engines with an adapter or screen manifest, so a
+generic engine reads as at-rest). If the running session later reveals a
+built-in engine behind the command, Rove upgrades the task's protocol
+automatically — see [engine presets and protocols](#engine-presets-and-protocols).
 
 Press `x` on an engine row in Settings to reset a built-in's overrides, or
 remove a custom engine entirely.
@@ -226,7 +233,7 @@ Engines own their own history. Rove reads it, never writes it.
 | `claude` | `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl` |
 | `codex` | `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl` |
 | `copilot` | `~/.copilot/session-state/<id>/events.jsonl` |
-| `kimi` | `~/.kimi-code/sessions/<workspace>/<session>/agents/main/wire.jsonl` |
+| `kimi` | `~/.kimi-code/session_index.jsonl` maps each session to its dir; the stream is `<sessionDir>/agents/main/wire.jsonl` |
 
 That's why a crash never loses a conversation, and why history survives
 `rove reset` and a machine reboot.
