@@ -226,7 +226,10 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
   claude: {
     vendor: "claude",
     builtin: true,
-    displayName: "Claude",
+    // The adapter's EngineIdentity is the source of truth for name copy
+    // (AGENTS.md: engine-owned UI data); displayName is the resolved view
+    // every neutral layer reads via engineDisplayName().
+    displayName: claudeIdentity.shortName,
     defaultCommand: ["claude"],
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
@@ -248,7 +251,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
   codex: {
     vendor: "codex",
     builtin: true,
-    displayName: "Codex",
+    displayName: codexIdentity.shortName,
     defaultCommand: ["codex"],
     // Effort levels real `codex exec` accepts (the broken `minimal` is
     // deliberately excluded — CHANGELOG 0.5.17).
