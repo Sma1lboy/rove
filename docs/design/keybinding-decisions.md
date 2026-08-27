@@ -20,6 +20,20 @@ would have to be undone anyway. Removed rather than re-homed behind the
 prefix — YAGNI. If cross-repo grouping returns, it starts from the
 session-as-repo-set design, not from this filter.
 
+## Session resume — inert row deleted
+
+**2026-08-27 — `chat.session.resume` (`ctrl+y` / prefix `y`) removed
+(issue #55).** The row shipped in #220 with full i18n but no handler was
+ever registered, so F1 advertised a chord that did nothing when pressed.
+Deleted the table row and both locale strings rather than wiring it up:
+the interaction shape (a `/resume`-style session picker) is an owner
+product call — first-open auto-resume was already reverted once — and an
+advertised-but-dead chord costs the keymap's credibility. Docs had
+already dropped it in PR #575. To revive it, the row, the
+chord-selection rationale ("yank from history"; `ctrl+r` is the prompt
+history palette, `ctrl+h` is the backspace byte), and the i18n strings
+are in git history at `2360b2e48`.
+
 ## Open calls
 
 - **Inert table rows.** `sidebar.sort` (`t`), `sidebar.projectFilter`
