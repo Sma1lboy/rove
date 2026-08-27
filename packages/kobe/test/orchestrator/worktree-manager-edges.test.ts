@@ -82,3 +82,29 @@ describe("remove() / currentBranch() edges", () => {
     await expect(manager.currentBranch(wt)).rejects.toThrow(/detached-HEAD/)
   })
 })
+
+describe("renameBranch() convergence (issue #44)", () => {
+  it("resolves when the recorded old name is stale but the branch already carries the new name", async () => {
+    const wt = join(root, "wt-stale-rename")
+    await manager.create(repo, "rename-old", wt)
+    // Out-of-band rename in the worktree — what a retried set-branch whose
+    // first attempt renamed-but-lost-its-response leaves behind.
+    execSync("git branch -m rename-old rename-new", { cwd: wt, env: gitEnv })
+    await expect(manager.renameBranch(wt, "rename-old", "rename-new")).resolves.toBeUndefined()
+    expect(await manager.currentBranch(wt)).toBe("rename-new")
+  })
+
+  it("still fails when neither the old nor the new name exists", async () => {
+    const wt = join(root, "wt-rename-missing")
+    await manager.create(repo, "rename-anchor", wt)
+    await expect(manager.renameBranch(wt, "no-such-old", "no-such-new")).rejects.toThrow(/branch -m/)
+  })
+
+  it("still fails on a collision with a different existing branch", async () => {
+    const wt = join(root, "wt-rename-collide")
+    await manager.create(repo, "rename-a", wt)
+    execSync("git branch rename-b", { cwd: repo, env: gitEnv })
+    await expect(manager.renameBranch(wt, "rename-a", "rename-b")).rejects.toThrow(/branch -m/)
+    expect(await manager.currentBranch(wt)).toBe("rename-a")
+  })
+})

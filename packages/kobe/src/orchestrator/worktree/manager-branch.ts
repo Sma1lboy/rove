@@ -10,7 +10,7 @@
 
 import type { ExecHost } from "../../exec/exec-host.ts"
 import type { ExecCtx } from "./exec-deps.ts"
-import type { GitRunOpts, GitRunResult } from "./git.ts"
+import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 
 /** The manager primitives the branch functions borrow. */
 export interface BranchDeps {
@@ -86,13 +86,21 @@ export async function hasLocalBranch(deps: BranchDeps, worktreePath: string, bra
  *
  * git's `branch -m <old> <new>` updates HEAD on every worktree that was
  * checked out on `<old>` — the engine's session keeps streaming without
- * noticing. Idempotent: returns silently when `from === to`. If `to` already
- * exists, throws.
+ * noticing. Idempotent: returns silently when `from === to`, and also when
+ * `from` is already gone while `to` exists — the recorded `from` can be
+ * stale (a retried call whose first attempt renamed but whose response was
+ * lost, a concurrent rename, an out-of-band `git branch -m`; issue #44), and
+ * branch refs are shared across worktrees, so old-gone + new-present IS the
+ * requested end state. If `to` already exists alongside `from`, throws.
  */
 export async function renameBranch(deps: BranchDeps, worktreePath: string, from: string, to: string): Promise<void> {
   const exec = deps.execAt(worktreePath)
   if (from === to) return
   const repo = await deps.findRepoFor(exec, worktreePath)
   if (!repo) throw new Error(`renameBranch(): ${worktreePath} is not a git worktree`)
-  await deps.runGit(exec, ["branch", "-m", from, to], { cwd: repo })
+  const out = await deps.runGit(exec, ["branch", "-m", from, to], { cwd: repo, allowFail: true })
+  if (out.exitCode === 0) return
+  const ctx: ExecCtx = { exec, dir: repo, remote: exec.isRemote }
+  if (!(await branchExists(deps, ctx, from)) && (await branchExists(deps, ctx, to))) return
+  throw new GitCommandError(["branch", "-m", from, to], repo, out)
 }
