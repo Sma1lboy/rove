@@ -20,8 +20,7 @@ function Harness() {
   return <ToastOverlay />
 }
 
-const mount = (width: number) =>
-  renderComponent(<Harness />, { width, height: 12, providers: { notifications: true } })
+const mount = (width: number) => renderComponent(<Harness />, { width, height: 12, providers: { notifications: true } })
 
 describe("ToastOverlay truncation", () => {
   it("ends an over-long title in an ellipsis instead of a hard cut", async () => {
