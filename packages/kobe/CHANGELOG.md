@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.193
+
+### Patch Changes
+
+- [`d5b261e`](https://github.com/Sma1lboy/rove/commit/d5b261e568fb812d3a2a37af92fb871172e50e88) The plugin event catalog grows a full per-event reference page
+  (docs → Plugins → Plugin event reference): exact trigger semantics, every
+  `detail` field with its type, and real envelope samples for all 50 events —
+  the authoring page's one-line table stays as the index and links through. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.192
 
 ### Patch Changes
