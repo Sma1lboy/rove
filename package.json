@@ -40,5 +40,8 @@
     "@changesets/changelog-github": "^1.0.0",
     "@changesets/cli": "^2.31.1"
   },
-  "trustedDependencies": ["electron", "node-pty"]
+  "trustedDependencies": ["electron", "node-pty"],
+  "overrides": {
+    "postcss": "^8.5.26"
+  }
 }
