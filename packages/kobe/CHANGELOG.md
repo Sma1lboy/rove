@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.8.200
+
+### Patch Changes
+
+- [#602](https://github.com/Sma1lboy/rove/pull/602) [`b3e9c57`](https://github.com/Sma1lboy/rove/commit/b3e9c572a610c84f16609fc59296faf005d46192) `rove api collect` answers "what is this parallel round's status right now" in one read. Select a whole fan-out round with `--group <groupId>` (spanning repos, skipping archived siblings) alongside the existing `--repo` and `--task-ids`. Each task now also reports `.activity` — the engine's state and how long it has held it, from the daemon's activity registry, or `null` when the registry genuinely cannot answer rather than a fabricated idle — and a dead tab's `.exit` now carries the session's output `tail` next to its exit code, so a crashed worker comes back with its cause attached. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#603](https://github.com/Sma1lboy/rove/pull/603) [`69382ec`](https://github.com/Sma1lboy/rove/commit/69382ec151d57c5fbdb0fda9dcf5b6cbc58cf0c9) Shell completions now complete sub-verbs, not just the top-level command
+
+  `rove daemon <TAB>` used to offer nothing; now it offers `start stop status
+restart`, and the same second level exists for `api` (all ~46 verbs), `plugin`,
+  `repo`, `skill` and `theme` — in bash, zsh and fish alike. fish also stops
+  re-offering the top-level command list once a command is already typed.
+
+  The verb lists are derived rather than transcribed: `api` reads the registry
+  `rove api schema` enumerates, and the other five read a table their own command
+  modules validate incoming argv against. A verb the CLI accepts but the
+  completion omits is therefore not a reachable state — stale completions tell a
+  user a verb does not exist, which is worse than having no completions at all. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#604](https://github.com/Sma1lboy/rove/pull/604) [`9ee95bc`](https://github.com/Sma1lboy/rove/commit/9ee95bc25afa78a1a9c07c1e0c9dc2c54a504283) Landing site: the nav bar fits every screen again, and the page no longer scrolls sideways.
+
+  Adding `--docs` to the nav pushed the GitHub button — and with it the star
+  count, the site's only piece of social proof — off the right edge at every
+  width from 320px to 630px, and again between 821px and 855px. The bar hides
+  links in tiers as it narrows, and those tiers were sized before the sixth
+  link existed. They are re-measured now, and each tier records the bar width
+  its link set actually needs so the next link added gets re-measured instead of
+  silently truncating the bar. `--docs` survives to the narrowest width; every
+  link a tier drops is still reachable from the footer.
+
+  Separately, the scroll-reveal entrance parks each stage 14px outside the
+  viewport until it animates in, and the page could be dragged those 14px
+  sideways on any screen wider than 880px. The root element now clips it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#601](https://github.com/Sma1lboy/rove/pull/601) [`2bd8bc5`](https://github.com/Sma1lboy/rove/commit/2bd8bc5295c8cf88a85ee2ee1c03908021887a21) Pin the plugin SDK examples to the manifest contract. Every example is now parsed by the real `rove-plugin.toml` parser, checked for a misspelled event name or unsupported pane placement, and required to ship the entrypoint files its commands name — the examples are also inside the SDK's typecheck scope for the first time. Copying a broken example used to be silent; now it turns CI red. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#605](https://github.com/Sma1lboy/rove/pull/605) [`f67298c`](https://github.com/Sma1lboy/rove/commit/f67298c7a7cdd22018b5a5b62ddbb22a9ffe84c6) Terminal selection now stays glued to its content after the mouse is released. In an engine tab, drag-selecting a region and then scrolling with the wheel left the highlight pinned to the same screen rows while the text moved out from under it; the content-following machinery was gated on a drag being in progress, so it stopped the moment the button came up. It is now gated on a selection existing, and both endpoints follow the content — the highlight travels off the top or bottom of the pane the way it does in every terminal emulator. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#600](https://github.com/Sma1lboy/rove/pull/600) [`7f56c66`](https://github.com/Sma1lboy/rove/commit/7f56c663b9cae33a5da74ae05f0ed584932cc0ca) Three TROUBLESHOOTING entries for failures that gave the user no signal at
+  all, each named by the symptom rather than the mechanism:
+
+  - **A plugin installs cleanly, but Rove never loads it** — `rove plugin list`
+    reads the registry file, the daemon is what loads plugins, and before
+    0.8.198 a write racing daemon startup fell into the macOS FSEvents arming
+    window and was dropped until the next restart.
+  - **`rove api set-branch` fails, but the branch was renamed anyway** — the
+    pre-0.8.198 error quotes git's `no branch named …` against the main
+    checkout while the worktree already holds the new name, so the caller
+    cannot tell partial success from failure. Says what to read instead of
+    retrying, and why renaming by hand makes it worse.
+  - **One task's badge never moves, and its title never auto-fills** — the
+    single-worktree counterpart to the existing all-tasks hooks entry: before
+    0.8.198 Rove's Claude project-dir encoding folded only `/` and `.`, so any
+    path with an underscore, space, or non-ASCII character pointed at a
+    directory Claude never wrote. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.199
 
 ### Patch Changes
