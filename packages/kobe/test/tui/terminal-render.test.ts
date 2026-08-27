@@ -32,6 +32,34 @@ describe("overlayCursor — cell-column aware", () => {
     expect(cursorCell([out], 0)?.text).toBe("b")
   })
 
+  it("counts a zero-width combining mark as part of its base char's cell", () => {
+    // "éx": é in NFD (e + combining acute) is ONE cell, x is the next.
+    // xterm folds the mark onto the base cell, so the mark must add 0 columns
+    // — counting it as 1 drifted the overlay one cell right and inverted the
+    // bare combining mark instead of the char the cursor was actually on.
+    const rows = [[{ text: "e\u0301x" } as Chunk]]
+    expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }), 0)?.text).toBe("e")
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }), 0)?.text).toBe("x")
+  })
+
+  it("treats an emoji variation selector as zero-width", () => {
+    // "❤️x": U+2764 + VS16 is one narrow-width unit here (matching
+    // displayWidth), so x sits at cell 1, not cell 2.
+    const rows = [[{ text: "❤️x" } as Chunk]]
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }), 0)?.text).toBe("x")
+  })
+
+  it("gives a control byte zero cells WITHOUT a one-cell floor re-widening it", () => {
+    // Merged invariant of the control-char and zero-width fixes: `charWidth`
+    // alone decides cell math (controls AND combining marks are 0), and this
+    // module must not re-floor it with `|| 1`. "a" + BEL + NFD é: a=1, BEL=0,
+    // e=1, mark=0 — so cell 1 is "e". Either half alone fails this: a floor
+    // turns BEL back into a column, and without the control branch BEL is 1.
+    const rows = [[{ text: "a\x07e\u0301" } as Chunk]]
+    expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }), 0)?.text).toBe("a")
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }), 0)?.text).toBe("e")
+  })
+
   it("past-the-end cursor (blank cell) appends an inverse space", () => {
     const rows = [[{ text: "你" } as Chunk]]
     // 你 spans cells 0-1; x=2 is the empty cell after it.
@@ -95,6 +123,19 @@ describe("sealRowEndAttributes — opentui row-end attribute leak workaround", (
     expect(out.at(-1)?.attributes ?? 0).toBe(0)
     // ...and the same row is left alone in a wider terminal.
     expect(sealRowEndAttributes(rows, 10, FG, BG)[0]).toBe(rows[0])
+  })
+
+  it("finds the last visible cell past a zero-width combining mark", () => {
+    // "ábc" with á in NFD (a + combining acute) is THREE cells, not four:
+    // the mark folds onto its base. A cols=3 row is full and the seal must
+    // land on "c" — counting the mark as a column sealed "b" and left "c"
+    // (the real last-column cell) still bleeding its attribute.
+    const rows = [[{ text: "a\u0301bc", attributes: ATTR.UNDERLINE } as Chunk]]
+    const out = sealRowEndAttributes(rows, 3, FG, BG)[0] as readonly Chunk[]
+    expect(out.map((c) => c.text).join("")).toBe("a\u0301bc")
+    const sealed = out.find((c) => c.text === "c") as Chunk
+    expect(sealed.attributes ?? 0).toBe(0)
+    expect(out.find((c) => c.text === "a\u0301b")?.attributes).toBe(ATTR.UNDERLINE)
   })
 
   it("seals the last VISIBLE cell when the row is wider than the pane", () => {
