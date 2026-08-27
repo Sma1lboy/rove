@@ -270,6 +270,27 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     expect(fs.existsSync(wt)).toBe(true)
   })
 
+  test("a failed worktreePath clear still reports the worktree as removed", async () => {
+    // The directory really is gone by then, so reporting `removed: false`
+    // because only the store write failed would send the user looking for a
+    // worktree that no longer exists. The failure still rides in `reason`.
+    makeWorktree()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      {},
+      {
+        worktrees: new GitWorktreeManager(),
+        setArchived: async () => {},
+        clearWorktreePath: async () => {
+          throw new Error("tasks.json write failed")
+        },
+      },
+    )
+    expect(res.worktree?.removed).toBe(true)
+    expect(res.worktree?.reason).toMatch(/tasks\.json write failed/)
+    expect(fs.existsSync(wt)).toBe(false)
+  })
+
   test("never removes the base checkout even if worktreePath points at it", async () => {
     makeWorktree()
     const { deps: d } = deps()

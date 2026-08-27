@@ -103,7 +103,8 @@ export interface LandResult {
   readonly strategy: "merge" | "squash"
   readonly landedOn: string
   readonly commit: string
-  /** Present only when the land requested worktree removal — the cleanup outcome. */
+  /** The post-land worktree cleanup outcome. Present unless removal was
+   *  explicitly declined (`removeWorktree: false`). */
   readonly worktree?: { readonly removed: boolean; readonly reason?: string }
 }
 

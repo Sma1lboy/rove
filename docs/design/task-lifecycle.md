@@ -80,9 +80,9 @@ stateDiagram-v2
 Trigger sources:
 
 - **Land success** (`task.land`): the merge just happened locally, so the
-  answer is authoritative. `--remove-worktree` already implements the cleanup
-  half; the remaining work is making it the default behavior of a settled
-  task rather than an opt-in flag.
+  answer is authoritative. Removing the worktree is already the default for
+  a settled task (`--remove-worktree=false` opts out), so the cleanup half is
+  done.
 - **Daemon detection**: a task whose PR merged on the forge (the user merged
   in the browser, or an agent landed it from another checkout). The daemon
   already polls PR status (`pr-status-collector.ts`); a `merged` PR + a clean

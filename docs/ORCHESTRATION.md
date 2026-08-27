@@ -128,9 +128,9 @@ rove api archive --task-id <loser2>
 
 `land` refuses a dirty base checkout, and on merge conflict aborts cleanly
 and returns the conflicted files for manual resolution. `delete` removes a
-loser's worktree but keeps its branch (git is the durable record); add
-`--remove-worktree` to `land` to clean up the winner's worktree in the same
-call. Finish rounds — a sidebar full of stale attempts is where the next
+loser's worktree but keeps its branch (git is the durable record); `land`
+cleans up the winner's worktree in the same call by default, so a finished
+round leaves no stale directories behind. Finish rounds — a sidebar full of stale attempts is where the next
 round's confusion comes from.
 
 ## Failure modes
@@ -191,7 +191,7 @@ git -C <worktreePath> log --oneline main..HEAD
 git -C <worktreePath> diff main...HEAD
 
 # 4. Land it, archive the rest.
-rove api land --task-id <winner> --then-archive --remove-worktree
+rove api land --task-id <winner> --then-archive
 rove api archive --task-id <loser1>
 rove api archive --task-id <loser2>
 ```
