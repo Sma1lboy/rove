@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.8.199
+
+### Patch Changes
+
+- [#575](https://github.com/Sma1lboy/rove/pull/575) [`46024a3`](https://github.com/Sma1lboy/rove/commit/46024a32c046ef6e83f69ba81cabbf1ce8916b4b) Docs audit: verify every checkable claim in the user-facing pages against
+  source and fix ~60 drifted assertions — the `~/.kobe` → `~/.rove` runtime
+  paths in TROUBLESHOOTING/SESSIONS/CLI/CONFIGURATION, the dead `ctrl+a y`
+  resume-picker chord (removed from KEYBINDINGS/ENGINES/SESSIONS/TUI), stale
+  CLI flags and undocumented aliases, `rove api` group/flag mismatches, the
+  inverted editor precedence, the four-column Kanban, the kimi transcript
+  layout, and the plugin event-support matrix (Kimi wires more hooks than
+  documented). Fixes the one dead link on the docs site (WORK-TRACKING →
+  gitignored HANDOFF.md) and adds two TROUBLESHOOTING entries users actually
+  hit: `rove api send` refusing with NO_ENGINE_TAB/ENGINE_NOT_RUNNING, and
+  duplicate daemons after upgrading across the 0.8.189 path move. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#596](https://github.com/Sma1lboy/rove/pull/596) [`d4180b0`](https://github.com/Sma1lboy/rove/commit/d4180b0909b8f2c4d29c519713a0d4c2cb9fdc21) Fix three user-visible bugs that tests had pinned in place (issue [#62](https://github.com/Sma1lboy/rove/issues/62)): `describeCron` now pluralizes all seven weekdays correctly (TUE/WED/THU/SAT rendered as "Tuedays"/"Weddays"/"Thudays"/"Satdays") and no longer double-qualifies interval schedules as "every day every 15m"; the web markdown renderer no longer double-escapes image alt text, so screen readers announce the original text instead of literal entities; and web error toasts render plain-object rejections as JSON instead of "[object Object]". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#599](https://github.com/Sma1lboy/rove/pull/599) [`82909df`](https://github.com/Sma1lboy/rove/commit/82909df3692d25db3e115ab22af7863124a94908) Rename 17 tests whose names had drifted from what their assertions actually verify — overstated quantifiers ("every", "exactly", "only the three"), claims of untested clauses ("rethrows real errors", "without mutating"), and one vacuous tombstone test whose name promised concurrent-writer coverage its body never exercised. Assertions are untouched; the one genuine frozen-bug case (parseDiffRows ghost meta row for an empty patch) is documented in .scratch/test-name-drift.md rather than papered over. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.198
 
 ### Patch Changes
