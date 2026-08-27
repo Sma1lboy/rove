@@ -23,6 +23,7 @@ import {
   detectCopilotAccount,
 } from "../engine/account-detect.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
+import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
 import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
@@ -94,16 +95,10 @@ function fmtDuration(ms: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
-function fmtBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 function describeFile(path: string): string {
   try {
     const stat = statSync(path)
-    return `present (${fmtBytes(stat.size)}, modified ${stat.mtime.toISOString()})`
+    return `present (${formatBytes(stat.size)}, modified ${stat.mtime.toISOString()})`
   } catch {
     return "absent"
   }
@@ -291,14 +286,14 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
       `pty host: ✓ running (${sessions.length} session(s), ${sessions.filter((session) => session.alive).length} live, ${parked} parked)`,
     )
     if (typeof inventory.pid === "number" && typeof inventory.rssBytes === "number") {
-      out.push(`         pid ${inventory.pid}, ${fmtBytes(inventory.rssBytes)} RSS`)
+      out.push(`         pid ${inventory.pid}, ${formatBytes(inventory.rssBytes)} RSS`)
     }
     const stats = inventory.stats
     if (stats && typeof stats.ringBytes === "number" && typeof stats.ringCapacityBytes === "number") {
-      out.push(`         ring: ${fmtBytes(stats.ringBytes)} / ${fmtBytes(stats.ringCapacityBytes)}`)
+      out.push(`         ring: ${formatBytes(stats.ringBytes)} / ${formatBytes(stats.ringCapacityBytes)}`)
     }
     if (stats && typeof stats.parkedScreenBytes === "number") {
-      out.push(`         parked screens: ${fmtBytes(stats.parkedScreenBytes)}`)
+      out.push(`         parked screens: ${formatBytes(stats.parkedScreenBytes)}`)
     }
     if (stats && typeof stats.parkRestoreDeltas === "number" && typeof stats.parkRestoreFallbacks === "number") {
       out.push(

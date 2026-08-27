@@ -93,7 +93,10 @@ export function summarizeUsage(
 
 /** Compact token formatting: 1234 → "1.2k", 1234567 → "1.2m". */
 export function formatTokens(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`
+  // Promote at 999,950, not 1,000,000: once value/1000 rounds to "1000.0" at
+  // one decimal it must render as the next unit ("1.0m", never "1000.0k").
+  // Same promote-before-round rule as kobe's lib/format-bytes.ts.
+  if (value >= 999_950) return `${(value / 1_000_000).toFixed(1)}m`
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`
   return String(value)
 }

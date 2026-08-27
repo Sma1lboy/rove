@@ -101,9 +101,10 @@ describe("runDoctorSubcommand", () => {
 
     expect(output()).toContain("daemon:  ✓ running (pid 42, up 1m 5s, 2 task(s), 1 client(s))")
     expect(output()).toContain("pty host: ✓ running (2 session(s), 1 live, 1 parked)")
+    // Sizes render through the shared lib/format-bytes.ts (≥100 drops the decimal).
     expect(output()).toContain("pid 99, 12.0 MB RSS")
-    expect(output()).toContain("ring: 128.0 KB / 1.0 MB")
-    expect(output()).toContain("parked screens: 100.0 KB")
+    expect(output()).toContain("ring: 128 KB / 1.0 MB")
+    expect(output()).toContain("parked screens: 100 KB")
     expect(output()).toContain("park wakes: 7 delta, 2 full replay fallback")
     expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
   })
