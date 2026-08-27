@@ -1,4 +1,4 @@
-import { AbsoluteFill, Easing, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion"
+import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion"
 import { colors, monoStack } from "./colors"
 
 // Concept 1 — Bracket Chip [ rove ]
@@ -34,15 +34,11 @@ const pointOnCurve = (startX: number, endX: number, progress: number) => {
   return { x, y }
 }
 
-const MovingAgentIcons: React.FC<{ frame: number }> = ({ frame }) => {
+const MovingAgentIcons: React.FC<{ progress: number }> = ({ progress }) => {
   return (
     <AbsoluteFill aria-hidden style={{ overflow: "hidden" }}>
       <svg width="1600" height="400" viewBox="0 0 1600 400" style={{ position: "absolute", inset: 0 }}>
         {agents.map((agent) => {
-          const progress = interpolate(frame, [8, 56], [0, 1], {
-            ...clamp,
-            easing: Easing.inOut(Easing.cubic),
-          })
           const trailOpacity = interpolate(progress, [0, 0.08, 0.82, 1], [0, 0.28, 0.28, 0], clamp)
 
           return (
@@ -63,10 +59,6 @@ const MovingAgentIcons: React.FC<{ frame: number }> = ({ frame }) => {
       </svg>
 
       {agents.map((agent) => {
-        const progress = interpolate(frame, [8, 56], [0, 1], {
-          ...clamp,
-          easing: Easing.inOut(Easing.cubic),
-        })
         const point = pointOnCurve(agent.startX, agent.targetX, progress)
         const movingOpacity = interpolate(progress, [0, 0.82, 1], [1, 1, 0], clamp)
         const scale = interpolate(progress, [0, 0.7, 1], [1, 0.88, 0.2], clamp)
@@ -98,7 +90,8 @@ export const BracketChip: React.FC = () => {
   const { fps } = useVideoConfig()
   const leftBracket = spring({ frame: frame - 2, fps, config: { damping: 12, stiffness: 180 } })
   const rightBracket = spring({ frame: frame - 6, fps, config: { damping: 12, stiffness: 180 } })
-  const typedCount = Math.max(0, Math.min(4, Math.floor((frame - 8) / 8)))
+  const sharedProgress = interpolate(frame, [8, 56], [0, 1], clamp)
+  const typedCount = frame < 8 ? 0 : Math.min(4, Math.floor(sharedProgress * 4) + 1)
   const cursorOn = frame > 8 && Math.floor(frame / 10) % 2 === 0
   const sceneOpacity = interpolate(frame, [0, 6, 104, 119], [0, 1, 1, 0], clamp)
   const impactScale = interpolate(frame, [56, 60, 68], [1, 1.045, 1], clamp)
@@ -108,7 +101,7 @@ export const BracketChip: React.FC = () => {
   return (
     <AbsoluteFill style={{ backgroundColor: colors.bg, fontFamily: monoStack }}>
       <AbsoluteFill style={{ opacity: sceneOpacity }}>
-        <MovingAgentIcons frame={frame} />
+        <MovingAgentIcons progress={sharedProgress} />
         <div
           style={{
             position: "absolute",
