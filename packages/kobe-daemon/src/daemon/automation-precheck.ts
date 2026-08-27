@@ -37,9 +37,25 @@ const MAX_OUTPUT_CHARS = 4000
 /** Upper bound on a user-supplied timeout, so a typo can't wedge the sweep. */
 const MAX_TIMEOUT_SECONDS = 600
 
-function tail(chunks: readonly (Buffer | string)[]): string {
-  const text = chunks.map((c) => c.toString()).join("")
-  return text.length <= MAX_OUTPUT_CHARS ? text : text.slice(-MAX_OUTPUT_CHARS)
+/**
+ * Decode captured stream chunks to text, keeping only the last
+ * `MAX_OUTPUT_CHARS`.
+ *
+ * Node splits a pipe's `data` events at arbitrary byte offsets, so a
+ * multi-byte UTF-8 sequence can straddle two Buffers; decoding each chunk on
+ * its own turned that seam into a `�`, so a `gh pr list` full of CJK/emoji
+ * titles came back mojibake. Concatenate the raw bytes and decode once
+ * instead (the odd pre-decoded error string we push ourselves round-trips
+ * through UTF-8 unchanged). Cap by whole code points, not UTF-16 units, so
+ * the tail slice can't halve a surrogate pair and strand a lone surrogate.
+ */
+export function tail(chunks: readonly (Buffer | string)[]): string {
+  const text = Buffer.concat(chunks.map((c) => (typeof c === "string" ? Buffer.from(c) : c))).toString("utf8")
+  // `text.length` (UTF-16 units) >= code-point count, so an under-cap string
+  // is safe as-is; only pay for the code-point split when over.
+  if (text.length <= MAX_OUTPUT_CHARS) return text
+  const points = Array.from(text)
+  return points.length <= MAX_OUTPUT_CHARS ? text : points.slice(-MAX_OUTPUT_CHARS).join("")
 }
 
 /**
