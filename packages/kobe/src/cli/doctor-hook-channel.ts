@@ -20,10 +20,9 @@
  * hook entry yet and is perfectly healthy.
  */
 
-/** One tab's activity entry, as `debug.inspect` reports it. */
+/** The one field of a `debug.inspect` tab entry this check reads. */
 export interface InspectTabEntry {
   readonly source?: string
-  readonly state?: string
 }
 
 export interface HookChannelInput {

@@ -35,7 +35,7 @@ type PtySessionStatus = { alive?: boolean; parked?: boolean }
 
 /** The slice of `debug.inspect` the hook-channel check reads. */
 type InspectSnapshot = {
-  activity?: { tabs?: Record<string, Record<string, { source?: string; state?: string }>> }
+  activity?: { tabs?: Record<string, Record<string, { source?: string }>> }
 }
 
 type PtyInventory = {
