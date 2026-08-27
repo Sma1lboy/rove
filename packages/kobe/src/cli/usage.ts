@@ -30,7 +30,7 @@ export function topLevelUsage(cliName: ProductCliName = activeCliName()): string
     "  repo <verb>             Per-repo init script + first prompt (show|set|unset)",
     `  api <verb>              Scriptable RPC surface for agents (see \`${cliName} api --help\`)`,
     "  daemon <verb>           Manage the daemon (start|stop|status|restart)",
-    "  doctor [--report]        Diagnose daemon/PTY/engines/git; --report writes a bundle",
+    "  doctor [--report|--fix]  Diagnose daemon/PTY/engines/git; --fix walks the remedies",
     `  config [--path]          Open ${cliName}'s config file (state.json) in your editor`,
     "  reset [--hard]           Stop runtimes; optionally wipe task/UI state",
     "  theme <verb>            Manage user themes (list|add|remove)",

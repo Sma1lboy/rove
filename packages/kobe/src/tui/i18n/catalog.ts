@@ -19,6 +19,7 @@
 
 import { en as automations, zh as automationsZh } from "./messages/automations"
 import { en as common, zh as commonZh } from "./messages/common"
+import { en as doctor, zh as doctorZh } from "./messages/doctor"
 import { en as files, zh as filesZh } from "./messages/files"
 import { en as help, zh as helpZh } from "./messages/help"
 import { en as hints, zh as hintsZh } from "./messages/hints"
@@ -57,6 +58,7 @@ export const en = {
   kanban,
   automations,
   workItems,
+  doctor,
 }
 
 /**
@@ -86,6 +88,7 @@ export const zh: Messages = {
   kanban: kanbanZh,
   automations: automationsZh,
   workItems: workItemsZh,
+  doctor: doctorZh,
 }
 
 /** Registered locales, in display order. */
