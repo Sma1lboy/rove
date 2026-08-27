@@ -13,7 +13,7 @@ import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-p
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
-import { logDaemonError } from "./crash-log.ts"
+import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
   DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -56,6 +56,41 @@ export interface AutomationCollectorDeps {
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
+}
+
+/**
+ * Tier-(b) protocol sniff (issue #31): the observer's evidence hook that
+ * upgrades a GENERIC task record from its live session. Only `tab-1` — the
+ * deterministic engine tab launched from the task's own command (kobe's
+ * `hosted-session.ts`) — may speak for the record: an engine a user starts
+ * by hand in another tab says nothing about what the task's command is, and
+ * secondary engine tabs may legitimately run another vendor. Naming +
+ * eligibility are engine-owned (`runtime.resolveProtocolUpgrade`, absent →
+ * never upgrades); the write is fire-and-forget so a slow store never
+ * stalls the observer, and activity claims are untouched — a sniff names an
+ * engine, it does not resurrect a dot. Idempotent by construction: an
+ * upgraded record stops being generic, so the next tick resolves null.
+ */
+export function createProtocolUpgradeReporter(
+  orch: Pick<DaemonOrchestrator, "getTask" | "setCommand">,
+  runtime: Pick<DaemonRuntimeAdapter, "resolveProtocolUpgrade">,
+): (taskId: string, tabId: string, evidence: { readonly walkVendor: string | null; readonly title: string }) => void {
+  return (taskId, tabId, evidence) => {
+    if (tabId !== "tab-1") return
+    const task = orch.getTask(taskId)
+    if (!task) return
+    const upgrade = runtime.resolveProtocolUpgrade?.(task, evidence)
+    if (!upgrade) return
+    void orch
+      .setCommand(taskId, upgrade.command, upgrade.vendor)
+      .then(() =>
+        logDaemonInfo(
+          "protocol-sniff",
+          `upgraded task ${taskId} to the ${upgrade.vendor} protocol from its live session`,
+        ),
+      )
+      .catch((err) => logDaemonError("protocol-sniff", err))
+  }
 }
 
 /**
@@ -109,9 +144,17 @@ export function startDaemonCollectors(
   activity?: DaemonActivityRegistry,
 ): () => void {
   // Activity observer: first tick immediately (restart seeding), then the
-  // slow poll; gated per-tick on subscribers like every collector here.
+  // slow poll; gated per-tick on subscribers like every collector here. Its
+  // per-session evidence also feeds the tier-(b) protocol sniff (#31).
   const stopActivityObserver = activity
-    ? startActivityObserver(activity, createActivityObserverIo(options.homeDir, runtime), hasSubscribers)
+    ? startActivityObserver(
+        activity,
+        {
+          ...createActivityObserverIo(options.homeDir, runtime),
+          onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
+        },
+        hasSubscribers,
+      )
     : () => {}
   const checkUpdate = options.checkUpdate ?? runtime.checkLatestVersion
   const updatePollMs = options.updatePollMs ?? DEFAULT_UPDATE_POLL_MS

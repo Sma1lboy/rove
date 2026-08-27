@@ -59,6 +59,18 @@ export interface DaemonRuntimeAdapter {
    */
   titleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null
   /**
+   * Tier-(b) protocol sniff consumer (issue #31): given a task record and
+   * live evidence from its engine tab (foreground-walk vendor + OSC title),
+   * the `setCommand` payload that upgrades a generic record to the named
+   * protocol — or null to leave the record alone. Naming + eligibility are
+   * engine-owned (kobe's `engine/protocol-sniff.ts`); the daemon only
+   * relays evidence. Optional: a runtime without it never upgrades.
+   */
+  resolveProtocolUpgrade?(
+    task: Pick<DaemonTask, "vendor" | "command">,
+    evidence: { readonly walkVendor: VendorId | null; readonly title: string },
+  ): { command: string; vendor: VendorId } | null
+  /**
    * Engine-owned per-turn telemetry (issue #32): completed turns read out of
    * ONE session transcript by the vendor's own adapter. `[]` when the engine
    * ships no turn reader or the file is unreadable — the daemon never parses

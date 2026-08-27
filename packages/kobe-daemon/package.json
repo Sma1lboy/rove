@@ -31,6 +31,7 @@
     "./daemon/client-writer": "./src/daemon/client-writer.ts",
     "./daemon/conflict-collector": "./src/daemon/conflict-collector.ts",
     "./daemon/crash-log": "./src/daemon/crash-log.ts",
+    "./daemon/collectors": "./src/daemon/collectors.ts",
     "./daemon/cwd-task": "./src/daemon/cwd-task.ts",
     "./daemon/engine-events-log": "./src/daemon/engine-events-log.ts",
     "./daemon/event-bus": "./src/daemon/event-bus.ts",
