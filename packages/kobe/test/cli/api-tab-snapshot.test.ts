@@ -355,4 +355,47 @@ describe("joinTaskTabs", () => {
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: true }], { "t1::tab-1": stale })
     expect(rows[0]).toMatchObject({ alive: true, exit: null })
   })
+
+  it("a dead tab carries the durable record's output tail, so the cause is readable", () => {
+    const record = {
+      code: 1,
+      signal: null,
+      at: "2026-08-11T00:00:00.000Z",
+      tail: ["Error: ENOSPC: no space left on device", "  at write (node:fs)"],
+    }
+    const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [], { "t1::tab-1": record })
+    expect(rows[0]?.exit).toEqual(record)
+  })
+
+  it("a stale record never captions a NEWER death — different `at`, no tail borrowed", () => {
+    // The key was reopened and died again: the host's fresh exit wins, and the
+    // previous incarnation's tail must not be attached to it as if it were the
+    // cause. Wrong output on a real death is worse than no output.
+    const fresh = { code: 137, signal: "SIGKILL", at: "2026-08-12T00:00:00.000Z" }
+    const older = { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z", tail: ["from the PREVIOUS incarnation"] }
+    const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit: fresh }], {
+      "t1::tab-1": older,
+    })
+    expect(rows[0]?.exit).toEqual(fresh)
+    expect(rows[0]?.exit).not.toHaveProperty("tail")
+  })
+
+  it("a snapshot claiming a live engine loses to the pty truth: dead reads dead, with its cause", () => {
+    // The round-health divergence (the reason `list`'s cached `running` lies):
+    // a mounted TUI recorded `liveVendor: claude` on this tab, then the engine
+    // crashed. The snapshot still SAYS an engine is there. Process truth must
+    // win on `alive`/`running`, and the exit cause must come back with it —
+    // a coordinator polling this must never be told the worker is still going.
+    const snap = {
+      tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, liveVendor: "claude" }],
+      activeId: "tab-1",
+      nextOrdinal: 2,
+    } as unknown as TabsState
+    const record = { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z", tail: ["Fatal: engine exited"] }
+    const sessions = [{ key: "t1::tab-1", alive: false }]
+
+    const rows = joinTaskTabs(snap, "t1", sessions, { "t1::tab-1": record })
+    expect(rows[0]).toMatchObject({ id: "tab-1", alive: false, exit: record })
+    expect(hasLiveEngineTab(snap, "t1", sessions)).toBe(false)
+  })
 })

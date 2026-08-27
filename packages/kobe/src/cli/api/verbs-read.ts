@@ -34,9 +34,15 @@ export const READ_VERBS: readonly VerbSpec[] = [
   {
     name: "collect",
     summary:
-      "Read-only comparison snapshot of several tasks: identity, branch, lineage (.dispatcher, .groupId), .running, per-tab .tabs (same join as get-task — pick a `send --tab` target without a second hop), uncommitted .changes, and committed .base (ahead count + diffstat vs the base branch).",
+      "Read-only health snapshot of a parallel round: identity, branch, lineage (.dispatcher, .groupId), .running (pty-host process truth, not a cached status), .activity (daemon engine state + how long it has been in it, null when unknowable), per-tab .tabs with a dead tab's exit cause AND output tail, uncommitted .changes (non-zero = it cannot land), and committed .base (ahead count + diffstat — ahead:0 is the `succeeded but committed nothing` tell). Select with --group (one fan-out round), --repo, or --task-ids.",
     flags: [
       { name: "task-ids", type: "csv", placeholder: "a,b,c", description: "Comma-separated task ids." },
+      {
+        name: "group",
+        type: "string",
+        placeholder: "GROUPID",
+        description: "Every unarchived task of one fan-out round (the `groupId` that `add --count` returns).",
+      },
       F.repo(false),
     ],
     handler: collect,

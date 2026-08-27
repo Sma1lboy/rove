@@ -53,7 +53,8 @@ rove api read-output --task-id <id> --tab tab-3   # one exact tab's terminal
 **Fan in.** Compare the attempts, then land one:
 
 ```bash
-rove api collect --task-ids a,b,c      # read-only comparison snapshot
+rove api collect --group <groupId>     # the whole round's health, one read
+rove api collect --task-ids a,b,c      # or name the attempts yourself
 rove api land --task-id a              # merge the winning branch
 ```
 
@@ -121,11 +122,39 @@ replacement in `nextCommandArgs`.
   task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
   = the protocol derived from it.
-- `collect [--task-ids a,b,c] [--repo PATH]`: read-only comparison
-  snapshot of several tasks: identity, branch, lineage (`.dispatcher`,
-  `.groupId`), `.running`, per-tab `.tabs` (the same join as `get-task`,
-  pick a `send --tab` target without a second hop), uncommitted `.changes`,
-  and committed `.base` (ahead count + diffstat vs base).
+- `collect [--task-ids a,b,c] [--group GROUPID] [--repo PATH]`: read-only
+  health snapshot of a parallel round — the one read that answers "what is
+  this round's status right now" without fanning out to `get-task` per task.
+  Select the tasks by fan-out round (`--group`, the `groupId` that
+  `add --count` returns), by repo, or by explicit ids; `--group` spans repos
+  and skips archived siblings.
+
+  Per task: identity, branch, lineage (`.dispatcher`, `.groupId`), plus
+
+  - `.running` — is an engine ALIVE, from the pty host's live session
+    inventory. This is process truth, not the cached status field `list`
+    reports, which lags and will happily call a working fleet idle.
+  - `.activity` — `{state, at, forMs}` from the daemon's activity registry:
+    the engine's state (`running` / `idle` / `permission_needed` /
+    `rate_limited` / `error` / `turn_complete`) and how long it has been in
+    it. `forMs` is the "stuck for 40 minutes" number. `null` when the
+    registry cannot answer (daemon restarted, task never observed) — an
+    honest unknown, never a fabricated idle. `.activity.state` disagreeing
+    with `.running` is itself the signal: `running: false` with a
+    `permission_needed` state is a worker that died at a prompt.
+  - `.tabs` — the same per-tab join as `get-task` (pick a `send --tab`
+    target without a second hop). A tab whose session died abnormally
+    carries `.exit` with `code`/`signal`/`at` **and** `tail`, the last lines
+    the session printed, so a crash comes back with its cause attached. The
+    tail rides along only when the durable record describes that same death.
+  - `.changes` — uncommitted files (`added`/`deleted`). Non-zero means the
+    task cannot land as-is, however it reported itself.
+  - `.base` — committed work: `ahead` (commits vs the base branch) and a
+    diffstat. `ahead: 0` against a resolved `baseRef` is the "reported
+    succeeded, committed nothing" tell.
+
+  Read-only by contract: it starts no engines, writes nothing, and changes
+  no task state.
 - `digest --repo PATH [--since-days N]`: the repo's recent agent work,
   tasks touched in the window plus routine outcomes by status. Default
   window 7 days. Task outcomes are deliberately absent: completion travels
