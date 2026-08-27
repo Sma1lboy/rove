@@ -2,4 +2,4 @@
 "@sma1lboy/rove": patch
 ---
 
-Refresh the README bracket-chip banner with animated curved streams for the built-in Claude, Codex, Copilot, and Kimi engines.
+Refresh the README bracket-chip banner with the Claude, Codex, Copilot, and Kimi marks flowing directly into Rove.
