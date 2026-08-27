@@ -112,7 +112,7 @@ describe("acquire / release — edge branches", () => {
     expect(readFileSync(lockPath, "utf8")).toBe(token)
   })
 
-  it("release tolerates a lock that's already gone, rethrows real errors", async () => {
+  it("release tolerates a lock that's already gone", async () => {
     await expect(release(join(dir, "never-existed.lock"), "any-token")).resolves.toBeUndefined()
   })
 })

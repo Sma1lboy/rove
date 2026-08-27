@@ -108,7 +108,7 @@ describe("findClaudeBinary", () => {
     }
   })
 
-  it("returns undefined from which() when the underlying probe yields nothing (no alias, no output)", async () => {
+  it("skips to the next search step when which() yields nothing (no alias, no output)", async () => {
     // Exercise the real (non-injected) which() shape indirectly isn't needed;
     // this pins the deps contract: a which() returning undefined skips to
     // the next search step without throwing.

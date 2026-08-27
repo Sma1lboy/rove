@@ -43,7 +43,7 @@ describe("nextVendorWithin", () => {
 })
 
 describe("isBuiltinVendor", () => {
-  it("is true only for the three first-party engines", () => {
+  it("is true for first-party engines and false for custom ones", () => {
     expect(isBuiltinVendor("claude")).toBe(true)
     expect(isBuiltinVendor("codex")).toBe(true)
     expect(isBuiltinVendor("copilot")).toBe(true)

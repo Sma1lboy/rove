@@ -41,8 +41,8 @@ describe("renderMarkdown — link scheme hardening", () => {
   })
 })
 
-describe("renderMarkdown — no image/raw-markup vectors", () => {
-  it("does NOT emit an <img> for a non-asset image url (falls back to a link)", () => {
+describe("renderMarkdown — non-asset image/raw-markup vectors stay inert", () => {
+  it("does NOT emit an <img> for a remote image URL (only issue-asset routes render images)", () => {
     const out = renderMarkdown("![alt](https://x.com/i.png)")
     expect(out).not.toContain("<img")
     // The image pass itself renders the fallback as a safe anchor (alt as the

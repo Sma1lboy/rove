@@ -294,7 +294,7 @@ describe("load() recovery", () => {
 })
 
 describe("loaded guard", () => {
-  it("every read/mutation before load() throws the call-load-first error", () => {
+  it("reads before load() throw the call-load-first error", () => {
     expect(() => store.list()).toThrow(/call load\(\)/)
     expect(() => store.get("x")).toThrow(/call load\(\)/)
   })

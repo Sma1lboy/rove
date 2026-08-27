@@ -151,7 +151,7 @@ describe("rail Enter target — top match of filter+sort", () => {
     expect(topMatch(all, "billing", "default")?.id).toBe("b")
   })
 
-  it("respects group order — a project outranks a matching worktree", () => {
+  it("opens the first matching worktree in order when no project matches", () => {
     // "feat" matches both worktrees, but a project (main) that also matches
     // sorts first; here the query matches only worktrees, so the first
     // worktree in order wins.

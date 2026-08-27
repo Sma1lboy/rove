@@ -36,10 +36,8 @@ describe("react i18n runtime", () => {
     expect(t("x {who}")).toBe("x {who}")
   })
 
-  it("tKeys indexes the keybinding catalog by exact id", () => {
+  it("tKeys echoes an unknown binding id back (raw-key fallback)", () => {
     setLocaleLang("en")
-    // Any real binding id resolves to a non-empty string that isn't the raw id,
-    // and an unknown id echoes back.
     expect(tKeys("desc", "not.a.real.binding.id")).toBe("not.a.real.binding.id")
   })
 })
