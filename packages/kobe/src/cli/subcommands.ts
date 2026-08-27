@@ -29,3 +29,47 @@ export const TOP_LEVEL_SUBCOMMANDS = [
   "feedback",
   "update",
 ] as const
+
+/**
+ * Sub-verbs of the top-level commands that take one — the second level
+ * `kobe completions` offers.
+ *
+ * This module has no imports on purpose, so the dependency runs the other
+ * way: `daemon-cmd.ts`, `plugin-cmd.ts`, `theme.ts`, `repo-cmd.ts` and
+ * `skill-cmd.ts` each validate their argv against the entry below instead of
+ * keeping a private list. A verb missing from here is therefore unreachable
+ * in the command itself, not merely absent from the completion script — the
+ * drift fails loud at the first invocation rather than silently telling a
+ * user the verb doesn't exist.
+ *
+ * `api` is deliberately NOT here: its verbs come from the `VERBS` registry
+ * (`api/verbs.ts`, the same one `kobe api schema` enumerates), which
+ * `completions-cmd.ts` loads lazily so this module stays import-free.
+ *
+ * Canonical spellings only. Aliases (`theme ls`/`rm`) stay in their command
+ * module — completing both spellings is noise.
+ */
+export type VerbedSubcommand = "daemon" | "plugin" | "repo" | "skill" | "theme"
+
+export const SUBCOMMAND_VERBS: Readonly<Record<VerbedSubcommand, readonly string[]>> = {
+  daemon: ["status", "start", "stop", "restart"],
+  plugin: [
+    "install",
+    "link",
+    "list",
+    "search",
+    "outdated",
+    "update",
+    "enable",
+    "disable",
+    "unlink",
+    "uninstall",
+    "config-dir",
+    "log",
+    "action",
+    "pane",
+  ],
+  repo: ["show", "set", "unset"],
+  skill: ["install", "status", "command", "print"],
+  theme: ["list", "add", "remove"],
+}

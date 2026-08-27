@@ -162,7 +162,24 @@ rove completions bash > ~/.bash_completion.d/rove
 rove completions fish > ~/.config/fish/completions/rove.fish
 ```
 
-Completes subcommands; each subcommand owns its own flags.
+Completes two levels: the subcommand, then its verb.
+
+```text
+rove <TAB>          web completions add remove adopt export repo api daemon …
+rove daemon <TAB>   status start stop restart
+rove theme <TAB>    list add remove
+rove api routine-<TAB>   routine-list routine-create routine-update …
+```
+
+`api`, `daemon`, `plugin`, `repo`, `skill` and `theme` carry verbs; the rest
+take flags only, and get no second level rather than an invented one. Flags
+are never completed — each subcommand owns its own.
+
+Both levels are derived, not transcribed. The `api` verbs come from the same
+registry `rove api schema` enumerates, and the other five from a table each
+command validates its own argv against — so a verb the CLI accepts but the
+completion script omits is not a state the two can reach. Regenerate the
+script after upgrading Rove to pick up new verbs.
 
 ## export
 
