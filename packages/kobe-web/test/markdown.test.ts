@@ -69,13 +69,15 @@ describe("renderMarkdown — image rule (issue-asset urls only)", () => {
     expect(out).toContain('alt="&amp;lt;img onerror=1&amp;gt;"')
   })
 
-  it("falls back to inert text for a NON-asset image url (no <img>)", () => {
+  it("falls back to a plain link for a NON-asset image url (no <img>, no stray !)", () => {
     const out = renderMarkdown("![alt](https://evil.example.com/i.png)")
     expect(out).not.toContain("<img")
-    // The `[alt](url)` survives the image pass and is picked up by the link
-    // rule (safe http href), so the worst case is a plain anchor — never an
-    // off-site <img> fetch / tracking pixel.
-    expect(out).toContain("!<a ")
+    // The image pass renders the fallback itself as a safe anchor with the alt
+    // as text — never an off-site <img> fetch / tracking pixel, and no `!`
+    // artifact left in front of the link.
+    expect(out).toContain('href="https://evil.example.com/i.png"')
+    expect(out).toContain(">alt</a>")
+    expect(out).not.toContain("!<a ")
   })
 
   it("falls back to inert ESCAPED text for an image with an unsafe scheme (no <img>, no XSS)", () => {

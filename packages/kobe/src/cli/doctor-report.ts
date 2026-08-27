@@ -23,6 +23,9 @@ const REPORT_ENV_KEYS = [
   "EDITOR",
 ] as const
 
+/** How many trailing log lines each log section carries (also named in its header). */
+const LOG_TAIL_LINES = 200
+
 function logTail(path: string, count: number): string {
   try {
     return readFileSync(path, "utf8")
@@ -57,10 +60,12 @@ export function buildReportBundle(
     "## environment",
     ...reportEnvLines(parts.env),
     "",
-    "## daemon.log (last 200 lines)",
+    `## daemon.log (last ${LOG_TAIL_LINES} lines)`,
     parts.daemonLog || "(empty or absent)",
     "",
-    "## pty-host.log (last 200 lines)",
+    // Section header must match the real file name (<home>/.rove/pty.log) so a
+    // bug-report reader can find the log the tail came from.
+    `## pty.log (last ${LOG_TAIL_LINES} lines)`,
     parts.ptyLog || "(empty or absent)",
     "",
   ].join("\n")
@@ -74,8 +79,8 @@ export function writeReportBundle(doctorLines: readonly string[]): string {
     buildReportBundle(doctorLines, {
       generatedAt: new Date().toISOString(),
       env: process.env,
-      daemonLog: logTail(defaultDaemonLogPath(), 200),
-      ptyLog: logTail(defaultPtyHostLogPath(), 200),
+      daemonLog: logTail(defaultDaemonLogPath(), LOG_TAIL_LINES),
+      ptyLog: logTail(defaultPtyHostLogPath(), LOG_TAIL_LINES),
     }),
   )
   return path
