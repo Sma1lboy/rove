@@ -1,7 +1,7 @@
 /** Distribution contract for the canonical Rove npm package and Kobe alias. */
 
 import { execFileSync } from "node:child_process"
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -10,13 +10,12 @@ import { describe, expect, test } from "vitest"
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8")
 const json = <T>(path: string): T => JSON.parse(read(path)) as T
+const SYNC_SCRIPT = "packages/kobe-docs/scripts/sync-docs.mjs"
+const MODIFIED_MAP = "packages/kobe-docs/lib/last-modified.json"
 
 describe("Rove package distribution", () => {
   test("the docs build embeds demo videos from its own static asset tree", () => {
-    execFileSync("bun", ["packages/kobe-docs/scripts/sync-docs.mjs"], {
-      cwd: ROOT,
-      stdio: "pipe",
-    })
+    execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
 
     // Find the page rather than hardcoding its directory: sync-docs.mjs owns
     // the docs/ source -> site slug mapping, and a module split moves pages
@@ -45,12 +44,9 @@ describe("Rove package distribution", () => {
   })
 
   test("the docs freshness map carries a real date per page, or no date at all", () => {
-    execFileSync("bun", ["packages/kobe-docs/scripts/sync-docs.mjs"], {
-      cwd: ROOT,
-      stdio: "pipe",
-    })
+    execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
 
-    const dates = json<Record<string, string>>("packages/kobe-docs/lib/last-modified.json")
+    const dates = json<Record<string, string>>(MODIFIED_MAP)
     expect(Object.keys(dates).length).toBeGreaterThan(10)
     for (const [path, date] of Object.entries(dates)) {
       expect(path, "keys are site paths").toMatch(/^\/[a-z0-9/-]*$/)
@@ -58,35 +54,38 @@ describe("Rove package distribution", () => {
     }
   })
 
-  test("a shallow clone emits no dates rather than stamping every page with the build date", () => {
-    // Vercel builds from a shallow clone, where `git log -1 -- <file>` returns
-    // the single fetched commit's date for EVERY file. Emitting that would
-    // claim a freshness the content does not have, so sync-docs must detect
-    // the shallow case and emit nothing. Verified against a real shallow repo:
-    // asserting on THIS repo would silently pass, since it has full history.
-    const shallow = mkdtempSync(join(tmpdir(), "rove-shallow-"))
+  test("a shallow checkout deepens its history instead of dating every page today", () => {
+    // CI and Vercel both check out shallow, where `git log -1 -- <file>`
+    // returns the one fetched commit's date for EVERY file. sync-docs must
+    // fetch the history rather than stamp all pages with the build date.
+    // Built against a real shallow clone: asserting on THIS repo would pass
+    // whether the deepening works or not, since it already has full history.
+    const tmp = mkdtempSync(join(tmpdir(), "rove-shallow-"))
+    const clone = join(tmp, "repo")
     try {
-      const git = (...args: string[]) => execFileSync("git", args, { cwd: shallow, stdio: "pipe", encoding: "utf8" })
-      // `clone --depth 1` off a local path does not mark the result shallow;
-      // an explicit shallow-file does, which is what sync-docs probes for.
-      git("init", "--quiet")
-      git("commit", "--allow-empty", "-m", "seed", "--no-gpg-sign")
-      writeFileSync(join(shallow, ".git/shallow"), `${git("rev-parse", "HEAD").trim()}\n`)
-      expect(git("rev-parse", "--is-shallow-repository").trim()).toBe("true")
-
-      const probe = readFileSync(join(ROOT, "packages/kobe-docs/scripts/sync-docs.mjs"), "utf8").match(
-        /const isShallow = \(\(\) => \{[\s\S]*?\}\)\(\);/,
-      )
-      expect(probe, "sync-docs should still probe for a shallow clone").not.toBeNull()
-
-      const detected = execFileSync("bun", ["-e", `${probe?.[0]}\nconsole.log(isShallow)`], {
-        cwd: shallow,
+      execFileSync("git", ["clone", "--quiet", "--depth", "1", `file://${ROOT}`, clone], {
         stdio: "pipe",
-        encoding: "utf8",
-      }).trim()
-      expect(detected, "the probe must report shallow inside a shallow repo").toBe("true")
+      })
+      const git = (...args: string[]) =>
+        execFileSync("git", args, { cwd: clone, stdio: "pipe", encoding: "utf8" }).trim()
+      expect(git("rev-parse", "--is-shallow-repository"), "clone should start shallow").toBe("true")
+
+      // The clone carries committed state; copy the working tree's script so
+      // this tests the code under review, not the last commit's version.
+      copyFileSync(join(ROOT, SYNC_SCRIPT), join(clone, SYNC_SCRIPT))
+      execFileSync("bun", [SYNC_SCRIPT], { cwd: clone, stdio: "pipe" })
+
+      expect(git("rev-parse", "--is-shallow-repository"), "sync should deepen it").toBe("false")
+
+      // The contract: a shallow build produces the same dates as a full one.
+      // Not "the dates differ from each other" — a single commit touching all
+      // of docs/ makes them legitimately uniform, and that would assert on
+      // content rather than on behavior.
+      const fromShallow = JSON.parse(readFileSync(join(clone, MODIFIED_MAP), "utf8")) as Record<string, string>
+      expect(Object.keys(fromShallow).length).toBeGreaterThan(10)
+      expect(fromShallow).toEqual(json<Record<string, string>>(MODIFIED_MAP))
     } finally {
-      rmSync(shallow, { recursive: true, force: true })
+      rmSync(tmp, { recursive: true, force: true })
     }
   })
 
