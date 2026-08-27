@@ -319,10 +319,13 @@ describe("Rove package distribution", () => {
     const themesScript = read("packages/kobe-landing/themes.js")
     const themesStyles = read("packages/kobe-landing/themes.css")
 
-    expect(home).toContain('<script src="/index.js"></script>')
+    // Match the REFERENCE, not its exact spelling: `defer`/`async` are
+    // performance attributes a page may legitimately gain, and pinning the
+    // literal tag turned that into a failure (PR #594).
+    expect(home).toMatch(/<script[^>]+src="\/index\.js"/)
     expect(homeScript).toContain("https://api.github.com/repos/Sma1lboy/rove")
     expect(themes).toContain('<link rel="stylesheet" href="/themes.css">')
-    expect(themes).toContain('<script src="/themes.js"></script>')
+    expect(themes).toMatch(/<script[^>]+src="\/themes\.js"/)
     expect(themesScript).toContain("var KOBE_I18N")
     expect(themesStyles).toContain(".tcard")
   })
