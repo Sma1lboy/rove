@@ -17,10 +17,10 @@
  *     tmp + rename, which swaps the file's inode — an `fs.watch` on the
  *     file itself goes dead after the first atomic write. Watching the
  *     parent dir and filtering on the filename survives every rename.
- *   - **No recurring poll.** `file-watch-trigger.ts` uses chokidar and a
- *     startup-signature reconciliation catch-up; the old poll safety-net
- *     has been removed because it masked watcher-health issues and added
- *     unnecessary disk churn.
+ *   - **Stat-poll, not fs events.** `file-watch-trigger.ts` stamp-polls the
+ *     watched basenames — on macOS the FSEvents stream behind fs events
+ *     starts asynchronously and permanently drops writes landing in its
+ *     arm window (issue #61), so event-based watching cannot be lossless.
  *   - **Debounce.** A write burst (KVProvider flush + a `setPersisted*`
  *     call) collapses into one read ~{@link DEFAULT_UI_PREFS_DEBOUNCE_MS}
  *     later.
@@ -144,27 +144,32 @@ export function startUiPrefsWatcher(bus: DaemonEventBus, options: UiPrefsWatcher
   const statePath = options.statePath ?? defaultUiPrefsStatePath()
   const stateFile = basename(statePath)
 
-  let last = readUiPrefsFromStateFile(statePath)
-  bus.publish("ui-prefs", last)
+  let last: UiPrefsPayload | null = null
 
   const publishIfChanged = (): void => {
     try {
       const next = readUiPrefsFromStateFile(statePath)
-      if (samePrefs(last, next)) return
+      if (last && samePrefs(last, next)) return
       last = next
       bus.publish("ui-prefs", next)
     } catch (err) {
       logDaemonError("ui-prefs-watcher", err)
     }
   }
-  // No watcher → panes keep the boot-time prefs they read themselves (the
-  // documented degraded mode). The initial publish above still serves the
-  // at-start value to subscribers.
-  return startFileWatchTrigger({
+  // Watch BEFORE the initial read (issue #61 pattern): the trigger's
+  // baseline stamp is taken synchronously in here, so a write landing
+  // before it is seen by the initial publish below and one landing after
+  // it flips the stamp — no write can fall between the two.
+  const stop = startFileWatchTrigger({
     filePath: statePath,
     matchBasenames: [stateFile],
     debounceMs,
     onTrigger: publishIfChanged,
     onError: (err) => logDaemonError("ui-prefs-watcher", err),
   })
+  // Initial publish warms the bus replay cache (`last` is null → always
+  // publishes). Panes keep boot-time prefs if the poll never fires — the
+  // documented degraded mode.
+  publishIfChanged()
+  return stop
 }

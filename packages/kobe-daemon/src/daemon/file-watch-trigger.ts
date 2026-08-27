@@ -1,47 +1,52 @@
 /**
- * Shared directory-watch trigger for daemon channels backed by files.
+ * Shared stat-poll trigger for daemon channels backed by files.
  *
- * State-like files in kobe are commonly written with tmp+rename. Watching the
- * file inode directly goes stale after the first rename, so daemon fan-out
- * modules watch the parent directory, filter by filename, and debounce bursts.
- * This module owns those mechanics; callers provide only the file path and the
- * action to run when it changes.
- *
- * The watcher is backed by chokidar, which already smooths over the
- * cross-platform fs-event edge cases (macOS rename/inode churn, rapid bursts,
- * atomic saves) without a hand-rolled polling safety-net.
+ * State-like files in kobe are commonly written with tmp+rename, and every
+ * fs-event watcher on macOS (fs.watch, chokidar) rides FSEvents, whose
+ * stream starts ASYNCHRONOUSLY: a write landing after the watcher is
+ * created but before the stream is live is dropped forever, with no signal
+ * (issue #61 — same failure the plugin registry hit, fixed the same way in
+ * PR #590). A chokidar `ready` reconciliation narrowed that window but did
+ * not close it: writes landing between the ready check and stream-live
+ * still probed at ~3% single-write loss under load. Stat-polling closes it
+ * constructively — the baseline stamp is taken synchronously before this
+ * function returns, so a caller that does its first load AFTER starting
+ * the trigger can never miss a write: earlier writes are seen by that
+ * load, later ones flip a stamp. The watched files are single small
+ * JSON/YAML files, so the poll is a few statSync calls every 200ms.
  */
 
-import { mkdirSync, statSync } from "node:fs"
+import { statSync } from "node:fs"
 import { basename, dirname, join } from "node:path"
-import { type FSWatcher, watch } from "chokidar"
+
+/** Stamp-poll cadence; trigger latency is this + the caller's debounce. */
+const POLL_MS = 200
 
 export interface FileWatchTriggerOptions {
-  /** File whose parent directory should be watched. */
+  /** File to watch (stamped by basename inside its parent directory). */
   readonly filePath: string
   /** Additional basenames that should count as the same watched file. */
   readonly matchBasenames?: readonly string[]
-  /** Debounce between a matching fs event and `onTrigger`. `<= 0` disables. */
+  /** Debounce between a detected change and `onTrigger`. `<= 0` disables. */
   readonly debounceMs: number
-  /** Called after a debounced matching event. */
+  /** Called after a debounced detected change. */
   readonly onTrigger: () => void
-  /** Best-effort error sink; trigger and watcher errors are never thrown. */
+  /** Best-effort error sink; trigger errors are never thrown. */
   readonly onError: (err: unknown) => void
 }
 
 /**
- * Start a best-effort watcher. The returned stop function closes the chokidar
- * watcher and clears any pending debounce timer.
+ * Start the poller. The baseline stamps are taken synchronously, so callers
+ * that load AFTER this returns cannot lose a concurrent write. The returned
+ * stop function clears the poll interval and any pending debounce timer.
  */
 export function startFileWatchTrigger(opts: FileWatchTriggerOptions): () => void {
   if (opts.debounceMs <= 0) return () => {}
 
   const dir = dirname(opts.filePath)
-  const names = new Set([basename(opts.filePath), ...(opts.matchBasenames ?? [])])
+  const names = [...new Set([basename(opts.filePath), ...(opts.matchBasenames ?? [])])]
 
   let timer: ReturnType<typeof setTimeout> | null = null
-  let watcher: FSWatcher | null = null
-  let stopped = false
 
   const trigger = (): void => {
     try {
@@ -60,66 +65,34 @@ export function startFileWatchTrigger(opts: FileWatchTriggerOptions): () => void
     timer.unref?.()
   }
 
-  const onPath = (changedPath: string): void => {
-    if (!names.has(basename(changedPath))) return
-    schedule()
-  }
-
-  // Per-file signature (mtime+size, or null if absent) used to detect any write
-  // that lands while chokidar is still arming its underlying directory watch.
-  const sigOf = (name: string): string | null => {
+  /** mtime(ns) + size + inode, or "absent" — flips on write, rename, delete. */
+  const stampOf = (name: string): string => {
     try {
-      const s = statSync(join(dir, name))
-      return `${s.mtimeMs}:${s.size}`
+      const s = statSync(join(dir, name), { bigint: true })
+      return `${s.mtimeNs}:${s.size}:${s.ino}`
     } catch {
-      return null
+      return "absent"
     }
   }
 
-  try {
-    mkdirSync(dir, { recursive: true })
-    // chokidar arms its directory watch ASYNCHRONOUSLY (after a readdir scan),
-    // whereas the old fs.watch armed synchronously. Snapshot the watched files
-    // NOW so the one-shot `ready` reconciliation below can catch any write that
-    // slips through that arm window — closing the startup race without a
-    // recurring poll.
-    const startSigs = new Map<string, string | null>()
-    for (const name of names) startSigs.set(name, sigOf(name))
+  const stamps = new Map<string, string>()
+  for (const name of names) stamps.set(name, stampOf(name))
 
-    watcher = watch(dir, {
-      // We diff by basename ourselves and only want this one directory.
-      depth: 0,
-      // The directory already exists; don't fire for files present at start.
-      ignoreInitial: true,
-    })
-    watcher.on("add", onPath)
-    watcher.on("change", onPath)
-    watcher.on("unlink", onPath)
-    watcher.on("error", opts.onError)
-    watcher.once("ready", () => {
-      // If a matching file changed between start and arm, fire once to catch up.
-      for (const name of names) {
-        if (sigOf(name) !== startSigs.get(name)) {
-          schedule()
-          break
-        }
-      }
-    })
-  } catch (err) {
-    opts.onError(err)
-  }
+  const poll = setInterval(() => {
+    for (const name of names) {
+      const stamp = stampOf(name)
+      if (stamp === stamps.get(name)) continue
+      stamps.set(name, stamp)
+      schedule()
+    }
+  }, POLL_MS)
+  poll.unref?.()
 
   return () => {
-    if (stopped) return
-    stopped = true
+    clearInterval(poll)
     if (timer) {
       clearTimeout(timer)
       timer = null
     }
-    const w = watcher
-    watcher = null
-    // close() is async; swallow rejection so teardown stays best-effort and
-    // never throws into the caller's stop path.
-    void w?.close().catch(opts.onError)
   }
 }

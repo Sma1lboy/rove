@@ -171,6 +171,13 @@ type EventedWatcher = ReturnType<typeof watch> & { on(event: "error", listener: 
  * Opt-in at the call site via `KOBE_FILETREE_WATCH=1` — on large repos a
  * recursive watcher can overwhelm the TUI process before the user does
  * anything.
+ *
+ * Known window, deliberately NOT closed (issue #61): macOS FSEvents arms
+ * asynchronously, so a write landing right after this call may be dropped
+ * before the stream is live. The daemon's single-file watchers close that
+ * with a stat-poll, but stat-polling a whole worktree is disproportionate
+ * here — the cost of a miss is only a stale pane until the next fs event
+ * or a manual `r`, in a feature that is already opt-in and best-effort.
  */
 export function watchWorktree(path: string, onChange: () => void, debounceMs = 500): () => void {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null

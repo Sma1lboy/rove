@@ -30,9 +30,7 @@ export interface PtyExitWatchOptions {
 
 export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
   const path = opts.path ?? defaultPtyExitsPath(opts.homeDir)
-  // Baseline: everything already on disk predates this daemon.
   const seen = new Map<string, string>()
-  for (const record of Object.values(readPtyExitRecords(path))) seen.set(record.key, record.at)
 
   const sweep = (): void => {
     const host = opts.plugins()
@@ -50,12 +48,20 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     for (const key of seen.keys()) if (!(key in records)) seen.delete(key)
   }
 
-  return startFileWatchTrigger({
+  // Watch BEFORE the baseline read (issue #61 pattern): the trigger's
+  // baseline stamp is taken synchronously in here, so a crash record
+  // written before it lands in the baseline below (predates this daemon)
+  // and one written after it flips the stamp and sweeps — a record can
+  // never fall between the two and lose its `session.exited` forever.
+  const stop = startFileWatchTrigger({
     filePath: path,
     debounceMs: DEBOUNCE_MS,
     onTrigger: sweep,
     onError: (err) => opts.log?.(`pty-exit watch: ${String(err)}`),
   })
+  // Baseline: everything already on disk predates this daemon.
+  for (const record of Object.values(readPtyExitRecords(path))) seen.set(record.key, record.at)
+  return stop
 }
 
 function exitReport(record: PtyExitRecord): { taskId?: string; detail: Record<string, unknown> } {
