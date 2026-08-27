@@ -332,6 +332,9 @@ function coerceDeletion(value: unknown): TaskDeletionState | undefined {
   return {
     phase: v.phase,
     force: v.force,
+    // Delete-branch opt-in — must survive the load coercion or a daemon
+    // restart silently downgrades the user's "delete branch too" to keep.
+    ...(typeof v.deleteBranch === "boolean" ? { deleteBranch: v.deleteBranch } : {}),
     requestedAt: v.requestedAt,
     ...(typeof v.error === "string" ? { error: v.error } : {}),
   }
