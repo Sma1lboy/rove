@@ -68,6 +68,7 @@ the content.
 ## Triggers
 
 - Nontrivial change, architecture decision, or "are we sure?" → `how`.
+- "Why is it built this way?", a magic number with no comment, or a constraint nobody remembers → `why`. It fans out across this repo's decision record (ADRs, `docs/design/`, the issue store, the changelog, wisp) and git history in parallel, and cites or names the gap. `how` answers what the code does; `why` answers what forced its shape.
 - Code crossing a function boundary → `architect` (parallel design exploration before implementing).
 - Parallel fan-out → `swarm`. Design or code bakeoff → `arena`.
 - Contested design → `interrogate` (adversarial multi-reviewer) before shipping.
