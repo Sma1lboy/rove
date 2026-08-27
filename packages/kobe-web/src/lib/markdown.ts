@@ -88,7 +88,11 @@ function transformSpans(s: string): string {
         // The url was HTML-escaped; unescape &amp; before the route check.
         const src = safeImageSrc(url.replace(/&amp;/g, "&"))
         if (!src) return alt ? renderLinkSpan(alt, url) : `![${alt}](${url})`
-        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" class="kobe-md-img">`
+        // `alt` reaches here already entity-encoded by the escape-first pass
+        // (<, >, ", & are all entities), so it is attribute-safe as-is —
+        // escaping again would double-encode (&amp;lt;) and screen readers
+        // would announce the entities literally.
+        return `<img src="${escapeHtml(src)}" alt="${alt}" loading="lazy" class="kobe-md-img">`
       },
     )
   }

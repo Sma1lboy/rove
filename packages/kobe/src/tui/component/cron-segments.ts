@@ -107,7 +107,13 @@ export function describeCron(expression: string): string | null {
 
   const at = describeTimeOfDay(minute, hour)
   if (!at) return null
-  if (dow === "*") return `every day ${at}`
+  // An "every N" phrase already says it recurs — prefixing it with "every
+  // day" produces the double qualifier "every day every 15m". Only a
+  // specific clock time needs the day qualifier.
+  // An "every N" phrase already says it recurs — prefixing it with "every
+  // day" gives the double qualifier "every day every 15m". Every other
+  // phrase (a clock time, an hourly minute) still takes the qualifier.
+  if (dow === "*") return at.startsWith("every ") ? at : `every day ${at}`
   if (dow === "MON-FRI") return `weekdays ${at}`
   if (dow === "SAT,SUN") return `weekends ${at}`
   const named = DOW_NAMES[dow.toUpperCase()]
