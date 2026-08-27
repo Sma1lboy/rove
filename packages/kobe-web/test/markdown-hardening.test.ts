@@ -42,12 +42,13 @@ describe("renderMarkdown — link scheme hardening", () => {
 })
 
 describe("renderMarkdown — no image/raw-markup vectors", () => {
-  it("does NOT emit an <img> for image syntax (the ! survives as text)", () => {
+  it("does NOT emit an <img> for a non-asset image url (falls back to a link)", () => {
     const out = renderMarkdown("![alt](https://x.com/i.png)")
     expect(out).not.toContain("<img")
-    // Current behavior: the link pass turns the [alt](url) into an anchor and
-    // leaves the leading ! as literal text — never a raw image element.
-    expect(out).toContain("!<a ")
+    // The image pass itself renders the fallback as a safe anchor (alt as the
+    // text) — never a raw image element, and no stray `!` left behind.
+    expect(out).toContain("<a ")
+    expect(out).not.toContain("!<a ")
   })
 
   it("escapes an onerror payload smuggled through image alt text", () => {

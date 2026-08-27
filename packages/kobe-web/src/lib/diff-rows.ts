@@ -49,7 +49,11 @@ export function diffStat(patch: string): { added: number; deleted: number } {
 }
 
 export function parseDiffRows(patch: string): DiffRow[] {
-  const lines = patch.replace(/\n$/, "").split("\n")
+  const body = patch.replace(/\n$/, "")
+  // An empty patch has no rows — without this, "".split("\n") is [""] and the
+  // view would render a phantom empty meta line.
+  if (body === "") return []
+  const lines = body.split("\n")
   const rows: DiffRow[] = []
   let oldLn = 0
   let newLn = 0

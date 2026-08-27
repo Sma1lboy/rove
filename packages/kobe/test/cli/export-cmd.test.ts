@@ -27,7 +27,7 @@ describe("renderExport", () => {
       id: "01HZ0000000000000000000001",
       title: "Fix the thing",
       status: "in_progress",
-      archived: "false",
+      archived: false,
       vendor: "claude",
       branch: "kobe/fix-thing-01",
       repo: "/home/u/repo",

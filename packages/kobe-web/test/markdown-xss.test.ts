@@ -42,11 +42,11 @@ describe("renderMarkdown — structural inertness", () => {
     expect(out).toContain("[](http://a.com)")
   })
 
-  it("truncates a URL at the first ) without breaking out of the href", () => {
-    // The link regex stops the URL at the first ), so the tail becomes text —
-    // the anchor that IS produced still carries a valid, escaped href.
+  it("keeps balanced parens in the URL without breaking out of the href", () => {
+    // CommonMark-style: one level of balanced (…) belongs to the URL, so the
+    // href stays whole (a working link) and still escaped inside the attribute.
     const out = renderMarkdown("[x](http://a.com/foo(bar))")
-    expect(out).toContain('href="http://a.com/foo(bar"')
+    expect(out).toContain('href="http://a.com/foo(bar)"')
     expect(out).not.toContain("javascript")
     // no unescaped attribute break-out
     expect(out).not.toMatch(/href="[^"]*"[^>]*on\w+=/)
