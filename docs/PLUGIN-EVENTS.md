@@ -30,14 +30,14 @@ Ground rules that apply to every event here:
 ```
 
 - **Optional means absent**, never null-filled. A field listed below can be
-  missing whenever its source didn't know it — validate what you read.
+  missing whenever its source didn't know it, so validate what you read.
 - Engine support marks: **C** Claude Code · **X** Codex · **K** Kimi Code.
   Product-layer events are engine-independent.
 
 ## Task lifecycle
 
 Sourced from field-level diffs of consecutive task-index snapshots, so every
-mutation path fires them — RPC handlers, `land --then-archive`, the
+mutation path fires them: RPC handlers, `land --then-archive`, the
 `git worktree remove` sweep, adopt flows. The first snapshot after a daemon
 start is baseline: pre-existing tasks never re-fire.
 
@@ -70,12 +70,12 @@ noise), `updatedAt`/`createdAt` (ride every change), `quotaResume` (the
 ### `task.archived`
 
 `archived` flipped false→true, by any path. Restores (true→false) do NOT
-fire this — they show up as a `task.changed` with `archived` in `fields`.
+fire this; they show up as a `task.changed` with `archived` in `fields`.
 No extra detail; the task context is the payload.
 
 ### `task.landed`
 
-The task's branch merged into its base repo — the one task event still
+The task's branch merged into its base repo. This is the one task event still
 emitted by its handler, because the merge detail never reaches the snapshot.
 
 | detail field | type | meaning |
@@ -98,7 +98,7 @@ Typical use: toast when `to.checkState` flips to failing, or auto-archive on
 
 ### `worktree.created`
 
-A managed task's worktree materialized — lazy ensure on first open, adopt of
+A managed task's worktree materialized: lazy ensure on first open, adopt of
 an external worktree, or scratch-adopt. Fires once per task (empty → set
 path transition); a worktree MOVE is a `task.changed` on `worktreePath`.
 
@@ -121,7 +121,7 @@ A session filed a field note (`rove api note`).
 |---|---|---|
 | `repo` | string | the author task's repo |
 | `author` | string | the author task's display title |
-| `text` | string | the note, capped at 512 chars (`…`-suffixed when cut) — the envelope rides every subscriber's spawn env, so read the full body from `rove api note-list` |
+| `text` | string | the note, capped at 512 chars (`…`-suffixed when cut); the envelope rides every subscriber's spawn env, so read the full body from `rove api note-list` |
 | `length` | number | the UNCAPPED length |
 | `routed` | boolean | whether a live dispatcher seat received the relay |
 | `persisted` | boolean | whether the durable note store took it |
@@ -137,7 +137,7 @@ broadcast-based, so the daemon cannot observe the paste itself.
 | `source` | `"dispatcher" \| "note"` | which flow sent it |
 | `tabId` | string? | target tab, when addressed |
 | `length` | number | text length (the text itself is not echoed) |
-| `clients` | number | attached connections at send time — `0` means nothing can have delivered it |
+| `clients` | number | attached connections at send time; `0` means nothing can have delivered it |
 
 ### `attention.handled`
 
@@ -163,7 +163,7 @@ detail shape:
 | `status` | string | the precise outcome: `dispatched`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed` |
 | `trigger` | `"scheduled" \| "manual"` | cron tick or run-now |
 | `scheduledFor` | ISO string | the occurrence this run was for |
-| `error` | string? | present on skips/failures — the precheck output, the missed-grace message, or the dispatch error |
+| `error` | string? | present on skips/failures: the precheck output, the missed-grace message, or the dispatch error |
 
 `taskId` is set when a task was created (always for `dispatched`; for
 `dispatch_failed` when the task exists but its engine did not start).
@@ -183,20 +183,20 @@ The resume schedule came due and the continue prompt was sent.
 
 | detail field | type | meaning |
 |---|---|---|
-| `delivered` | boolean | whether a live engine session accepted it — `false` means the session had died and nothing was resumed |
+| `delivered` | boolean | whether a live engine session accepted it; `false` means the session had died and nothing was resumed |
 
 ## Sessions and crashes
 
-### `session.start` / `session.end` — C, X (start only), K
+### `session.start` / `session.end` · C, X (start only), K
 
 The engine's own session lifecycle, from its hooks. `session.end` never
-fires on a crash — that is what `session.exited` is for.
+fires on a crash. That is what `session.exited` is for.
 
 ### `session.exited`
 
 A hosted PTY child died **abnormally** (non-zero exit or a signal; clean
 exits are never recorded). Watched off the PTY host's durable death records,
-so it fires even though the host is a separate process — this is the crash
+so it fires even though the host is a separate process. This is the crash
 signal.
 
 | detail field | type | meaning |
@@ -207,7 +207,7 @@ signal.
 | `code` | number \| null | exit code |
 | `signal` | string \| null | killing signal, when signaled |
 | `exitedAt` | ISO string | when it died |
-| `tail` | `string[]` | last output lines, ANSI-stripped — the death note |
+| `tail` | `string[]` | last output lines, ANSI-stripped: the death note |
 
 ```jsonc
 { "event": "session.exited", "taskId": "01M0…",
@@ -219,7 +219,7 @@ signal.
 ## Turns and activity
 
 Two views of the same engine, at different granularities. **Activity states**
-(`agent.*`) are the reduced per-task+tab badge states, deduped — you see
+(`agent.*`) are the reduced per-task+tab badge states, deduped, so you see
 transitions, not every report. **Turn edges** (`turn.*`) are one event per
 hook report, unreduced.
 
@@ -229,14 +229,14 @@ Activity-state transitions. Keyed per task+tab: the same state twice in a
 row is suppressed. `tabId` is present when the reporting session identifies
 its tab. No detail beyond the envelope.
 
-### `turn.prompt` — C, X, K
+### `turn.prompt` · C, X, K
 
 A user prompt entered the engine (`turn-start`). One per turn.
 
-### `turn.complete` — C, X, K
+### `turn.complete` · C, X, K
 
 The turn finished. When the engine's transcript yielded telemetry, `detail.turn`
-carries it (absent otherwise — never fabricated):
+carries it (absent otherwise, never fabricated):
 
 | detail.turn field | type | meaning |
 |---|---|---|
@@ -252,25 +252,25 @@ carries it (absent otherwise — never fabricated):
                         "startedAt": 1690000000000, "endedAt": 1690000042000 } } }
 ```
 
-### `turn.failed` — C, X (emulated), K
+### `turn.failed` · C, X (emulated), K
 
 | detail field | type | meaning |
 |---|---|---|
 | `failure` | `"rate_limit" \| "billing" \| "other"` | normalized failure class |
 | `note` | string? | the raw vendor error type, for humans |
 
-A `rate_limit` failure also arms auto-resume — expect a `quota.exhausted`
+A `rate_limit` failure also arms auto-resume, so expect a `quota.exhausted`
 right after when the quota probe finds a reset time.
 
-### `turn.interrupted` — K (native), X (emulated)
+### `turn.interrupted` · K (native), X (emulated)
 
 The user interrupted the turn. Exists because Kimi fires `Interrupt` INSTEAD
-of `Stop` — without this verb an interrupted Kimi turn would strand in
+of `Stop`. Without this verb an interrupted Kimi turn would strand in
 `running`.
 
-## Tools — the high-volume family
+## Tools: the high-volume family
 
-### `tool.pre` / `tool.post` — C, X, K · `tool.failed` — C
+### `tool.pre` / `tool.post` · C, X, K · `tool.failed` · C
 
 One event per engine tool call, before/after. **Volume-gated install**: the
 underlying engine hooks are written into engine config only while some
@@ -279,7 +279,7 @@ plugin takes effect at the next Rove start.
 
 | detail field | type | meaning |
 |---|---|---|
-| `tool.name` | string? | normalized tool name (`Bash`, `Edit`, …) — vendor field spellings die in the adapter |
+| `tool.name` | string? | normalized tool name (`Bash`, `Edit`, …); vendor field spellings die in the adapter |
 | `tool.id` | string? | the vendor's tool-use id, when it has one |
 
 Expect real volume: a busy session fires dozens per minute. Keep the hook
@@ -287,7 +287,7 @@ sub-second and silent.
 
 ## Attention (engine blocked on a human)
 
-### `attention.permission` — C, X, K · `attention.question` — C
+### `attention.permission` · C, X, K · `attention.question` · C
 
 The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
@@ -297,7 +297,7 @@ The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
 ## Context compaction
 
-### `context.pre-compact` / `context.post-compact` — C, X, K
+### `context.pre-compact` / `context.post-compact` · C, X, K
 
 | detail field | type | meaning |
 |---|---|---|
@@ -305,7 +305,7 @@ The engine stopped and is waiting. One `awaiting-input` report splits on why:
 
 ## Subagents
 
-### `subagent.start` / `subagent.stop` — C
+### `subagent.start` / `subagent.stop` · C
 
 A nested agent began/ended under the session.
 
@@ -332,7 +332,7 @@ Files-pane opens, before and after, and the editor tab leaving the strip.
 | `via` | `"plugin" \| "editor" \| "external"`? | on `file.opened`: which route opened it |
 | `title` | string? | on `file.closed`: the closing tab's title |
 
-`will-` precedes the action but cannot block it — observers only.
+`will-` precedes the action but cannot block it. Observers only.
 
 ### `tab.opened` / `tab.closed`
 
@@ -350,7 +350,7 @@ A workspace terminal tab appeared/went away. Mount-time restores don't fire.
 
 ### `plugin.enabled` / `plugin.disabled`
 
-YOUR plugin's registry entry transitioned — delivered only to the affected
+YOUR plugin's registry entry transitioned, delivered only to the affected
 plugin, so subscribing is how you get lifecycle callbacks without polling.
 `plugin.disabled` is the last event a disabled plugin's hooks receive.
 
@@ -363,7 +363,7 @@ plugin, so subscribing is how you get lifecycle callbacks without polling.
 Threshold policies ("worktree dirtier than N", "usage above X%") stay out of
 the catalog: they are plugin judgment. Subscribe to the daemon's broadcast
 channels over the raw socket (SDK: `RoveSocket.subscribe`, catalog:
-`DAEMON_CHANNELS` in the contract module) and decide yourself —
+`DAEMON_CHANNELS` in the contract module) and decide yourself:
 `worktree.changes` and `usage.snapshot` carry the state these policies need.
 If a MOMENT you need is genuinely missing, ask via `rove feedback`; the
 plumbing makes additions cheap.
