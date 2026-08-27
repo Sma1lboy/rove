@@ -60,6 +60,13 @@ describe("withWorktreeProtocol", () => {
     const customFile = ["claude", "--append-system-prompt-file", "/tmp/p.txt"]
     expect(withWorktreeProtocol(customFile, "claude", "t1", { status: on, notes: on })).toEqual(customFile)
   })
+
+  it("never double-injects over the attached --flag=value form either (issue #58)", () => {
+    const attached = ["claude", "--append-system-prompt=user's own"]
+    expect(withWorktreeProtocol(attached, "claude", "t1", { status: on, notes: on })).toEqual(attached)
+    const attachedFile = ["claude", "--append-system-prompt-file=/tmp/p.txt"]
+    expect(withWorktreeProtocol(attachedFile, "claude", "t1", { status: on, notes: on })).toEqual(attachedFile)
+  })
 })
 
 describe("statusReportProtocol", () => {
@@ -152,9 +159,11 @@ describe("withDispatcherProtocol", () => {
     expect(withDispatcherProtocol(["claude"], "claude", undefined, on)).toEqual(["claude"])
   })
 
-  it("never double-injects over a custom command that sets the flag", () => {
+  it("never double-injects over a custom command that sets the flag — either form (issue #58)", () => {
     const custom = ["claude", "--append-system-prompt", "user's own"]
     expect(withDispatcherProtocol(custom, "claude", "m1", on)).toEqual(custom)
+    const attached = ["claude", "--append-system-prompt=user's own"]
+    expect(withDispatcherProtocol(attached, "claude", "m1", on)).toEqual(attached)
   })
 
   it("composes with the worktree protocol: mutually exclusive task ids → exactly one protocol", () => {

@@ -172,12 +172,33 @@ export function withEngineEffort(
 }
 
 /**
+ * True when `argv` carries `flag` — in EITHER the separated form
+ * (`--flag value`, the flag its own token) or the attached form
+ * (`--flag=value`, one token). {@link parseEngineCommand} deliberately keeps
+ * the attached form as a single token ("the common CLI idiom"), so a bare
+ * `argv.includes(flag)` silently misses `--resume=<id>` /
+ * `--append-system-prompt="…"` — the root cause behind double session
+ * control and double prompt injection. Every "the command already sets this
+ * flag, don't add our own" guard must go through this helper; an
+ * architecture test (`test/architecture/argv-flag-guards.test.ts`) rejects
+ * new `argv.includes("--…")` guards. Prefix-safe: `--resume-x` ≠ `--resume`.
+ */
+export function argvHasFlag(argv: readonly string[], flag: string): boolean {
+  return argv.some((a) => a === flag || a.startsWith(`${flag}=`))
+}
+
+/**
  * Claude flags that already pin / fork the conversation's session. If the
  * launch command carries one of these, we must NOT also append our own
  * `--session-id` (claude would reject two, or our id would lose to the
  * resumed one). Covers both long and short forms.
  */
-const CLAUDE_SESSION_CONTROL_FLAGS = new Set(["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"])
+const CLAUDE_SESSION_CONTROL_FLAGS = ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"] as const
+
+/** The command already controls its own claude session (either flag form). */
+function pinsClaudeSession(argv: readonly string[]): boolean {
+  return CLAUDE_SESSION_CONTROL_FLAGS.some((flag) => argvHasFlag(argv, flag))
+}
 
 /**
  * For a Claude launch, append a kobe-generated `--session-id <uuid>` so the
@@ -195,7 +216,7 @@ export function withClaudeSessionId(
   vendor: string | undefined,
 ): { argv: readonly string[]; sessionId: string | null } {
   if (coerceVendorId(vendor) !== "claude") return { argv, sessionId: null }
-  if (argv.some((a) => CLAUDE_SESSION_CONTROL_FLAGS.has(a))) return { argv, sessionId: null }
+  if (pinsClaudeSession(argv)) return { argv, sessionId: null }
   const sessionId = randomUUID()
   return { argv: [...argv, "--session-id", sessionId], sessionId }
 }
@@ -225,8 +246,11 @@ export function canForkSession(vendor: VendorId | undefined): boolean {
  *     the forked tab stays trackable — the three combine, probed against
  *     claude 2.x: the fork lands in the id we pass).
  *   - codex: the `fork` SUBCOMMAND, options before the positional id.
- * Returns null when the vendor has no fork verb (copilot/custom) or no
- * source id — the caller then opens an ordinary blank tab.
+ * Returns null when the vendor has no fork verb (copilot/custom), there is
+ * no source id, or a claude base already controls its own session (a second
+ * `--resume` would make claude refuse to launch — the user's override wins,
+ * the {@link withClaudeSessionId} precedent) — the caller then opens an
+ * ordinary tab on the base command.
  */
 export function forkSessionArgv(
   base: readonly string[],
@@ -237,6 +261,7 @@ export function forkSessionArgv(
   if (!sourceSessionId) return null
   const v: VendorId = coerceVendorId(vendor)
   if (v === "claude") {
+    if (pinsClaudeSession(base)) return null
     const forked = [...base, "--resume", sourceSessionId, "--fork-session"]
     return newSessionId ? [...forked, "--session-id", newSessionId] : forked
   }
@@ -377,7 +402,7 @@ export function withWorktreeProtocol(
 ): readonly string[] {
   if (!taskId) return argv
   if (coerceVendorId(vendor) !== "claude") return argv
-  if (argv.includes("--append-system-prompt") || argv.includes("--append-system-prompt-file")) {
+  if (argvHasFlag(argv, "--append-system-prompt") || argvHasFlag(argv, "--append-system-prompt-file")) {
     return argv
   }
   const text = worktreeProtocol(taskId, kobeApiInvocation(), gates, notes)
@@ -430,7 +455,7 @@ export function withDispatcherProtocol(
 ): readonly string[] {
   if (!taskId || !enabled()) return argv
   if (coerceVendorId(vendor) !== "claude") return argv
-  if (argv.includes("--append-system-prompt") || argv.includes("--append-system-prompt-file")) {
+  if (argvHasFlag(argv, "--append-system-prompt") || argvHasFlag(argv, "--append-system-prompt-file")) {
     return argv
   }
   return [...argv, "--append-system-prompt", dispatcherProtocol(taskId)]
