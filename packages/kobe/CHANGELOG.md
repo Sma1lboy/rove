@@ -1,5 +1,206 @@
 # Changelog
 
+## 0.8.198
+
+### Patch Changes
+
+- [#593](https://github.com/Sma1lboy/rove/pull/593) [`ea6c22e`](https://github.com/Sma1lboy/rove/commit/ea6c22eda1b4cd1e023a1d9faa03ccf57b149bdf) New internal doc `docs/agents/verifying-worker-output.md`: what a coordinator
+  does after a worker reports `succeeded`.
+
+  The verification workflow existed only as one night's lived experience —
+  verify the branch exists and holds commits before trusting the report,
+  cherry-pick past checkout debris in the diff, prove tests can fail by
+  reverting the fix, triage red CI into regression/flake/hang/stale-green,
+  treat brief facts as claims, accept skipping as an outcome, and never endorse
+  numbers you couldn't reproduce. Internal to `docs/agents/`; not synced to the
+  docs site. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#569](https://github.com/Sma1lboy/rove/pull/569) [`87e827b`](https://github.com/Sma1lboy/rove/commit/87e827b5c1cd70429c9689100dc2787a3edec872) A drag-selection on an engine tab now follows the content the app scrolls
+  under it, and the copy contains every line the highlight covered.
+
+  Engines run on the alternate screen: the snapshot is one screen, and the
+  edge-drag scroll is forwarded to the app as wheel ticks (`fedb8720`). The app
+  scrolled, the content moved, but the selection was addressed in snapshot rows
+  that never changed — so the highlight sat still as a screen-fixed rectangle
+  and rows scrolling in from the top never joined it. The pane now measures how
+  far the content actually moved between snapshots (the wheel only _asks_ the
+  app to scroll, so the displacement is read back from the redraw, not assumed
+  from tick counts), moves the anchor with the content while the head stays
+  pinned to the pointer, and banks rows that scroll off screen in a bounded
+  per-drag buffer. Extraction runs over that composed buffer through the same
+  path the highlight's range feeds, so what you see selected is what mouse-up
+  copies — including the rows that already scrolled away. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#579](https://github.com/Sma1lboy/rove/pull/579) [`3a1cb3a`](https://github.com/Sma1lboy/rove/commit/3a1cb3ac938470902f1855d53bfe63db0aff7340) Every "the launch command already sets this flag" guard now recognizes the attached `--flag=value` form through one exported `argvHasFlag` helper — the engine-command parser deliberately keeps `claude --resume=<id>` or `--append-system-prompt="…"` as a single token, and the exact-token guards missed it, so kobe appended a second `--session-id` (claude refuses to launch) or double-injected its worktree/dispatcher prompt over the user's own. Forking a chat on a base command that already pins its own session now declines instead of composing two `--resume`s, and an architecture test rejects any future exact-token `argv.includes("--…")` guard so the class can't recur. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#588](https://github.com/Sma1lboy/rove/pull/588) [`442f911`](https://github.com/Sma1lboy/rove/commit/442f9115eab7027a0a9d58ea6b229d5545f57df1) Make `charWidth` the single authority for terminal cell math: a C0 / DEL / C1 control character (a stray escape byte, NUL, or similar) now counts as zero columns instead of one, and the embedded terminal's cursor overlay / row-end seal stop re-flooring zero-width code points back to one cell. A control byte in a task title or `rove export` cell no longer shoves every column to its right out of alignment, and on a line holding a zero-width mark (NFD combining accents, emoji variation selectors, joiners) the cursor overlay lands on the character it's actually over instead of drifting one column right, while an underlined URL reaching the row edge seals its real last column. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#586](https://github.com/Sma1lboy/rove/pull/586) [`100279a`](https://github.com/Sma1lboy/rove/commit/100279af6b4d35e7e5d5ff95a356f9117df8f084) Fix the automation schedule preview spelling four of the seven weekdays wrong — a `TUE`/`WED`/`THU`/`SAT` cron rendered "Tuedays", "Weddays", "Thudays", "Satdays". The preview also stays silent on an hourly list/range minute (`15,45 * * * *`) instead of asserting a fire time (`:15,45`) the schedule never has. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#592](https://github.com/Sma1lboy/rove/pull/592) [`9e9e32b`](https://github.com/Sma1lboy/rove/commit/9e9e32beb3f3467f14734d406268da1818793fad) Close the macOS FSEvents startup-drop window in the daemon's shared file-watch trigger (issue [#61](https://github.com/Sma1lboy/rove/issues/61), same bug class as the plugin-registry fix). `file-watch-trigger.ts` — backing the ui-prefs, keybindings, and pty-exit fan-outs — previously rode chokidar with a one-shot `ready` reconciliation, which narrowed but did not close the window where FSEvents arms asynchronously: a probe still measured ~3% permanent single-write loss for writes landing near `ready` under load. It now stat-polls the watched basenames (mtimeNs + size + inode every 200ms), with the baseline stamp taken synchronously before the caller's first load, so no write can fall between the two; the ui-prefs and pty-exit watchers were reordered to load after the watch starts. Worst prior consequence: an engine crash record written during daemon startup could lose its `session.exited` plugin event forever. This also drops the chokidar dependency. The filetree pane's recursive worktree watch keeps fs.watch deliberately — stat-polling a whole tree is disproportionate when a missed event only means a stale pane until the next change or a manual `r` — and now documents that trade-off. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#574](https://github.com/Sma1lboy/rove/pull/574) [`5c5c67e`](https://github.com/Sma1lboy/rove/commit/5c5c67ecf38e5df6a9868657ab87c9ac8225907e) `rove doctor --fix`: doctor can now remediate what it diagnoses, not just report it. Every finding maps to either a runnable fix or an explicitly manual step. Safe, reversible fixes (`daemon restart` for a stale/dead daemon or dead hook channel, `skill install` for a missing/stale agent skill) execute only after a per-fix y/N confirmation showing the exact command; anything that kills live sessions or needs a human (`rove reset`, engine-tab restarts, installs, logins) is printed but never executed — including everything when there is no TTY. A plain `rove doctor` run now ends with a `--fix` hint when findings have a known remedy. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#589](https://github.com/Sma1lboy/rove/pull/589) [`f67892f`](https://github.com/Sma1lboy/rove/commit/f67892fd52789e39b913c836cfdaed25c4a42b76) The F1 keymap no longer advertises `ctrl+y` (resume a prior session).
+
+  The `chat.session.resume` row shipped with full i18n but no handler was ever
+  registered, so pressing the chord did nothing while the live keymap kept
+  promising it worked. The row and both locale strings are removed; the docs
+  already dropped the chord in the docs audit. The chord rationale and history
+  live in `docs/design/keybinding-decisions.md` for whenever the session picker
+  actually gets built. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#570](https://github.com/Sma1lboy/rove/pull/570) [`04e5269`](https://github.com/Sma1lboy/rove/commit/04e526969354e86b54046c09ae60870e6029da17) Wire `EngineIdentity` into the live display-name path: the built-in registry entries now derive `displayName` from each adapter's `identity.shortName`, so the identity contract AGENTS.md points at is what every neutral layer actually reads through `engineDisplayName()`. A new architecture test (`test/architecture/engine-owned-copy.test.ts`) locks the boundary in: any capitalized vendor name landing in TUI/web/orchestrator/client/daemon source outside the two documented bridge fallbacks fails CI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#598](https://github.com/Sma1lboy/rove/pull/598) [`3d9deb4`](https://github.com/Sma1lboy/rove/commit/3d9deb41eae404587f046a2afaf0067e0cbbc62a) Fix five small bugs that tests had pinned in place: markdown link URLs now keep
+  one level of balanced parens (`http://a.com/foo(bar)` links whole instead of
+  truncating into a dead href), non-asset image syntax falls back to a safe link
+  without leaving a stray `!` artifact, `parseDiffRows("")` returns an empty
+  array instead of a phantom blank meta row, the doctor report's pty section
+  header now names the real `pty.log` file (and both log headers share the tail
+  count with the tail call), and `rove export --json` serializes `archived` as a
+  real boolean so `jq 'select(.archived)'` works. Scheme allowlists, escaping,
+  and the issue-asset image gate are unchanged and re-verified against XSS
+  payloads. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#585](https://github.com/Sma1lboy/rove/pull/585) [`1b7593f`](https://github.com/Sma1lboy/rove/commit/1b7593fe1326474e935c75b93face7bc833c9263) Byte sizes and relative times each render through one shared helper now, instead of per-screen copies that had drifted apart. `rove doctor` no longer shows sizes just under a unit boundary as "1024.0 KB" — they roll over to "1.0 MB", and gigabyte-scale sizes finally say GB — and the web transcript's token counter promotes to "1.0m" the moment the k rendering would round up to "1000.0k". — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#571](https://github.com/Sma1lboy/rove/pull/571) [`2c84bc5`](https://github.com/Sma1lboy/rove/commit/2c84bc561fbc2f446ebf2533cdf365538ad323e4) Guard the published package's `node-pty` declaration: an architecture test now pins it in `dependencies` (it is the only thing that installs node-pty for the bundled daemon's external import — `@sma1lboy/kobe-daemon` is private and never published), and knip no longer flags it as unused (the dynamic `import("node-pty")` is invisible to static analysis). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#573](https://github.com/Sma1lboy/rove/pull/573) [`3e7352e`](https://github.com/Sma1lboy/rove/commit/3e7352e77678adfd147fd285e2db0df9363bb3c7) The landing page now routes visitors to docs.rove.run instead of raw GitHub
+  markdown: `--docs` joins the nav on every page, the hero's Get started button
+  opens the quick-start guide, and the footer keybindings/theme-docs links point
+  at the rendered docs site. Also fixes the install pill copying the legacy
+  `rove.sma1lboy.me` URL while displaying `rove.run`, and adds the missing
+  `og:image` social card that `twitter:card` was promising on all four pages. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#594](https://github.com/Sma1lboy/rove/pull/594) [`ae5aa9f`](https://github.com/Sma1lboy/rove/commit/ae5aa9fff966a8b5ab58183ee351c9512ecf9ed8) Landing page performance and accessibility pass. First load drops from 625 KB / 11 requests to 148 KB / 10 requests: the final-band background is now a lazy-loaded WebP (478 KB PNG → 40 KB, fetched only when scrolled into view) and scripts moved to `<head>` with `defer`. Accessibility: warm accent, faint, ok and warn tokens darkened at the lightness axis only so small text and white-on-accent buttons clear WCAG AA 4.5:1 (hue/chroma — the brand — untouched); the navbar links gained a `<nav>` landmark on all four pages; the fleet mock's Inbox overlay is a proper `role="dialog"`; the copy-install button announces "copied" via `aria-live`; the language toggle tags its label with `lang`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#581](https://github.com/Sma1lboy/rove/pull/581) [`c569d52`](https://github.com/Sma1lboy/rove/commit/c569d5231a2f91a6fd3bb2b099ef7eab9e82709c) Patch the 9 outstanding mermaid/postcss CVEs (issue [#59](https://github.com/Sma1lboy/rove/issues/59), redone from the
+  rotted PR [#393](https://github.com/Sma1lboy/rove/issues/393)).
+
+  - `mermaid` `^11.16.0` → `^11.16.1` (locked at 11.16.1) — fixes 5 advisories:
+    prototype pollution (GHSA-c4c3-pg64-4m4v, GHSA-3rrr-jr9j-h3q3), CSS
+    injection (GHSA-6x64-9x62-f2gx), and infinite-loop DoS in XY/radar charts
+    (GHSA-2v8p-3f2j-5mp7, GHSA-rhh3-jpg6-66xh).
+  - `postcss` `^8.5.21` → `^8.5.26`, plus a root `overrides` entry so every
+    transitive copy (next pinned 8.4.31 exactly; css-loader/vite carried
+    8.5.16/8.5.20) collapses to one non-vulnerable 8.5.26 — fixes 4 advisories:
+    sourceMappingURL path traversal / arbitrary `.map` read (GHSA-r28c-9q8g-f849,
+    GHSA-6g55-p6wh-862q, GHSA-fxqj-rqcc-2cmp) and `</style>` XSS in stringify
+    output (GHSA-qx2v-qp2m-jg93).
+
+  The postcss resolution also pulls `nanoid` 3.3.16 → 3.3.18, clearing its two
+  infinite-loop advisories as a side effect. No other dependencies were bumped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#587](https://github.com/Sma1lboy/rove/pull/587) [`c0e21a2`](https://github.com/Sma1lboy/rove/commit/c0e21a2a9ce0dc933a296562f83f3ccf7841b087) New docs page: Orchestrating many agents (`docs/ORCHESTRATION.md`).
+
+  The existing docs covered the mechanics — the verb table in API.md, the
+  Task/Worktree/Tab nouns in CONCEPTS.md — but no page explained how to
+  actually run a multi-agent workflow: when a new task beats a new tab, how
+  wide to fan out, how worker outcomes travel back through the dispatcher,
+  how to close a round with `collect`/`land`/`archive`, and the failure modes
+  (silent workers, "succeeded" with nothing committed, fresh-worktree install
+  failures masquerading as product bugs). Every command on the page was
+  verified against `rove api schema`. Published under Automating on
+  docs.rove.run. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#590](https://github.com/Sma1lboy/rove/pull/590) [`e4f69a8`](https://github.com/Sma1lboy/rove/commit/e4f69a8d56f965fec358e82c3503e093d118bc36) Watch the plugin registry by stat-polling instead of `fs.watch`. On macOS the FSEvents stream behind `fs.watch` starts asynchronously, so a `plugins.json` write landing before the stream is live was dropped forever — the daemon never saw the install/enable until the next mutation, and the plugin-runtime test flaked ~8% under a loaded suite (issue [#61](https://github.com/Sma1lboy/rove/issues/61)). The host now takes a synchronous baseline stat before the first registry load and polls every 200ms, so no write can fall between the watcher and the load. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#584](https://github.com/Sma1lboy/rove/pull/584) [`b165a5f`](https://github.com/Sma1lboy/rove/commit/b165a5f64d5fe7ffff25a507666e74e632f6955a) Automation precheck output no longer garbles non-ASCII text into `�`: a `gh pr list` or `git log` precheck whose stdout carries CJK or emoji is now decoded as one UTF-8 stream instead of chunk-by-chunk, so the stdout/stderr captured with a skipped run reads cleanly and the tail cap keeps whole code points instead of halving a surrogate pair at the cut. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#572](https://github.com/Sma1lboy/rove/pull/572) [`5f7b0f0`](https://github.com/Sma1lboy/rove/commit/5f7b0f0b3e9c3ac7cadbd2ab7951e3a1cf4b3300) Generic engines now upgrade their protocol from the live session (issue [#31](https://github.com/Sma1lboy/rove/issues/31),
+  tier b).
+
+  A task whose `--command` Rove could not name records the generic protocol: it
+  launches fine, but history stays unread, no trust dialog is pre-answered, and
+  delivery falls back to settle-then-paste. The tier-(b) sniffer landed with
+  issue [#30](https://github.com/Sma1lboy/rove/issues/30) but nothing consumed it — now the daemon's activity observer relays
+  each walked live session's evidence (foreground-walk vendor + OSC title) to a
+  new upgrade hook: when a generic task's `tab-1` — the engine tab launched
+  from the task's own command — identifies exactly one built-in engine, the
+  record's protocol is corrected via `setCommand`, metadata only, so the
+  history reader, trust store, and delivery mode start applying while what
+  launches never changes. Conservative by design: a record that already names a
+  protocol is never flipped, a command tier (a) can resolve wins over runtime
+  evidence, an engine hand-started in a secondary tab is not evidence, and
+  ambiguous or absent fingerprints leave the task generic — a wrong upgrade
+  would point Rove at another vendor's files, which is worse than staying
+  degraded. The sniff never blocks session startup (it rides the observer's
+  existing poll) and writes nothing into the user's session. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#582](https://github.com/Sma1lboy/rove/pull/582) [`1d9b362`](https://github.com/Sma1lboy/rove/commit/1d9b36223c1efea06627750bf9e7bdb8cfe605f8) Remove three daemon exports that had no production consumers (issues [#46](https://github.com/Sma1lboy/rove/issues/46)/[#48](https://github.com/Sma1lboy/rove/issues/48)): the `web-rpc-allowlist.ts` shim (web-server derives the same set from the handler registry directly), the unused `matchRepoByCwd` helper in `cwd-task.ts`, and the transitional `server-types.ts` re-export left over from a completed rename. The tests that only exercised these were removed with them; the web-exposure contract test still pins the browser-reachable RPC surface exactly. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#576](https://github.com/Sma1lboy/rove/pull/576) [`c9ac3f9`](https://github.com/Sma1lboy/rove/commit/c9ac3f93d260cbecd9ff27a8cb5bb276a0a533dc) The PureTUI live capture harness delivers sidebar keys again (issue [#12](https://github.com/Sma1lboy/rove/issues/12)).
+
+  Key injection was never broken — since boot started restoring into the last
+  session (2026-08-09), any boot with a seeded task lands focus on the workspace
+  pane, so `n`/`j`/Enter dispatched against disabled sidebar bindings and
+  vanished without an error. The harness now owns the recipe: the create-task
+  flow settles after each `ctrl+a h` stroke (the pane-focus flip is a React
+  state update, so a key sent in the same tick hit the old gates), the checked-in
+  replay spec waits for sidebar hydration before its first flow and for the
+  post-rename `ROVE` title at boot, and `focusLeftmostPane` is exported for raw
+  key-driving scripts. A live e2e (`bun run test:replay:e2e` in
+  `packages/branding`) boots the real TUI with a seeded task and goes red when
+  the recipe or any layer of the injection path breaks. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#584](https://github.com/Sma1lboy/rove/pull/584) [`b165a5f`](https://github.com/Sma1lboy/rove/commit/b165a5f64d5fe7ffff25a507666e74e632f6955a) `rove api read-output --source terminal` no longer returns an empty tail when the last line of output is larger than the 64 KB byte cap. The tail's byte-budget loop counted the final line first, so a single over-budget line (a minified dump, a long base64 blob, a giant log line with no newline) pushed the window start past the end and blanked the whole response — a coordinator agent reading the pane got nothing. The tail now always keeps at least the last line, mirroring the structured-history page's "never fewer than one" floor, while older lines are still trimmed to fit the cap. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#583](https://github.com/Sma1lboy/rove/pull/583) [`ddc5517`](https://github.com/Sma1lboy/rove/commit/ddc55170aa9c208c754031e27cdff3c0758d7a87) Four long-standing fixes revived from the PR backlog ([#368](https://github.com/Sma1lboy/rove/issues/368), [#366](https://github.com/Sma1lboy/rove/issues/366), [#371](https://github.com/Sma1lboy/rove/issues/371), [#377](https://github.com/Sma1lboy/rove/issues/377)), re-implemented against current main:
+
+  - The published bundle no longer ships React's _development_ build. `Bun.build` defaults `process.env.NODE_ENV` to `"development"`, so react/react-reconciler resolved to their dev entries — whose per-update debug bookkeeping grows without bound in a long-lived TUI ([#307](https://github.com/Sma1lboy/rove/issues/307)). Both `build.ts` and `compile.ts` now pin `NODE_ENV=production` (the npm bundle also drops ~150 KB), and an architecture test guards the pin.
+  - Claude tasks whose worktree path contains an underscore, a space, or a non-ASCII character get their session transcripts found again: kobe derived Claude Code's on-disk project directory by folding only `/` and `.` to `-`, but Claude folds _every_ non-alphanumeric character — so such paths pointed kobe at a directory Claude never wrote, silently disabling the activity badge, turn detection, auto-title, and interrupted-prompt rescue. kobe now matches Claude's encoder exactly.
+  - Claude binary discovery no longer picks the oldest nvm-installed Node: the fallback scan sorted version directories as plain strings, so `v8.17.0` outranked `v18.20.0` and the engine could silently launch on an ancient Node. The scan now orders versions numerically, newest first.
+  - Prefix keybinding overrides now keep the chords that parsed when one entry in a list is invalid, instead of silently discarding the whole binding — matching how direct-chord overrides already behave. The default is only kept (with a "no valid chords" warning) when nothing in the list is usable. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#588](https://github.com/Sma1lboy/rove/pull/588) [`442f911`](https://github.com/Sma1lboy/rove/commit/442f9115eab7027a0a9d58ea6b229d5545f57df1) Dragging a terminal selection into the blank space to the right of a short line now highlights the cells you actually dragged over, instead of a same-width block shoved back against the end of the text. Rows in the embedded terminal are trimmed, not grid-padded, so a selection that starts in that trailing padding was painting its inverse-video highlight from where the line's text ended rather than from where the drag began — the copied text was already correct, only the on-screen highlight was misplaced. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#567](https://github.com/Sma1lboy/rove/pull/567) [`243f78a`](https://github.com/Sma1lboy/rove/commit/243f78a79cef4d02b9fcf38bdc4ba98fd828adce) `rove api set-branch` no longer fails with "no branch named …" when the rename already happened. The task record's branch name can go stale — a retried call whose first attempt renamed but lost its response, a concurrent rename, or an out-of-band `git branch -m` in the worktree — and the rename then errored against the main checkout even though the worktree was already on the requested name, leaving the caller unable to tell partial success from failure. `renameBranch` now probes the end state on failure: old name gone and new name present is the requested outcome, so it succeeds and the record converges; anything else still fails. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#580](https://github.com/Sma1lboy/rove/pull/580) [`b23e26d`](https://github.com/Sma1lboy/rove/commit/b23e26d4b77f731b7a10632cfd37153581bbfed7) Fix the tasks.json load coercion silently dropping `deletion.deleteBranch` — a queued "delete branch too" deletion no longer downgrades to keep-the-branch across a daemon restart. A type-derived schema round-trip test now guards every optional Task field at once, so the next field added to Task cannot repeat this class of silent loss (it was the 7th). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#584](https://github.com/Sma1lboy/rove/pull/584) [`b165a5f`](https://github.com/Sma1lboy/rove/commit/b165a5f64d5fe7ffff25a507666e74e632f6955a) `rove api` integer flags now reject a malformed value instead of silently coercing it. Previously a typo like `issue-set-status --id 5abc` parsed as `5` and flipped the status of a real, wrong issue, and `add --count 1e3` parsed as `1` and quietly spawned a single task — because `parseInt` stops at the first non-digit. Integer flags (`--count`, `--id`, `--number`, `--limit`, and `--agents claude:2` counts) now require the whole value to be a positive integer and fail loudly with a clear error, matching how every other flag validator already behaves. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#588](https://github.com/Sma1lboy/rove/pull/588) [`442f911`](https://github.com/Sma1lboy/rove/commit/442f9115eab7027a0a9d58ea6b229d5545f57df1) Fix the web dashboard rendering a `�` replacement glyph when it truncates a path containing an emoji or a rare astral-plane character: the task rail and the diff file list tail-truncate long paths by keeping the filename end, but the shared `tailPath` helper sliced by UTF-16 code unit, so a cut that landed in the middle of a surrogate pair bisected the character. It now truncates by code point — matching the TUI's `truncateStart` — so every glyph stays intact and a path already within budget by code-point count is no longer needlessly clipped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#568](https://github.com/Sma1lboy/rove/pull/568) [`f6d38c8`](https://github.com/Sma1lboy/rove/commit/f6d38c839521b7cf455de88ee20ac8b8989ffa61) Fix two concurrency holes in the shared task-index write path. The index lockfile is now created atomically (content-first sidecar + link) and carries a per-acquire token, so a reader can never observe a half-written lock and classify a live holder as stale, two stores in the same process are distinguishable holders, and release can no longer unlink a lock a rival legitimately took over — closing the mutual-exclusion break behind the `rename tasks.json.tmp ENOENT` CI flake ([#53](https://github.com/Sma1lboy/rove/issues/53)); each save also stages through a unique tmp file so writers can't clobber each other's staging even under a broken mutex. Deletions are now persisted as tombstones in `tasks.json` (optional `removed` field, pruned after 30 days), so a peer instance that still holds a deleted task dirty in memory can no longer resurrect it on its next save ([#47](https://github.com/Sma1lboy/rove/issues/47)). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#595](https://github.com/Sma1lboy/rove/pull/595) [`bf36917`](https://github.com/Sma1lboy/rove/commit/bf3691747bfa14f95647a4787f5231c94931d20e) Un-pin four test assertions that guarded the wrong thing.
+
+  A targeted audit after PR [#585](https://github.com/Sma1lboy/rove/issues/585)/[#594](https://github.com/Sma1lboy/rove/issues/594) found more assertions protecting what
+  they should prevent. The release-guidance ordering check used bare `indexOf`
+  with no presence guard, so deleting the canonical `npm view` line turned it
+  green (-1 < anything); it now asserts presence before order. The daemon
+  `@types/node` check pinned the literal `25.6.2`, turning every routine bump
+  red — it now asserts lockstep with the kobe package's own pin. Two kobe-web
+  tests (`ptyEnv`, api-client headers) used whole-object equality where the
+  intent was removals-plus-additions and one required header, so any harmless
+  new env var or request header broke them. Every relaxation was re-proven:
+  deleting the guarded behavior still fails each test. The full audit report
+  (including implementation bugs pinned by tests, left for follow-up) lives in
+  `.scratch/test-pinning-audit.md`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#578](https://github.com/Sma1lboy/rove/pull/578) [`c0f8840`](https://github.com/Sma1lboy/rove/commit/c0f8840e5640a42b1ec661796f5c4a0feb1a27f6) Clipped labels across the TUI now end in a visible `…` instead of a bare hard cut: sidebar tree rows (worktree branches and tab titles) truncate to the rail's live cell budget while the right-edge cluster (pin / PR chip / ±stats) keeps its cells, and toast titles/bodies truncate to the card. The files-pane header chips no longer lose their inner gap on a narrow pane ("[~]Zen") — they wrap whole instead — and the toast stack clamps to the terminal width rather than poking across the neighbouring pane. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#591](https://github.com/Sma1lboy/rove/pull/591) [`4e76973`](https://github.com/Sma1lboy/rove/commit/4e76973a5feff7b724744a1dca18a6d5581c7b8f) Second TUI polish round, on the three rail pages. Kanban: card ids keep a cell of air from wrapped titles, the lane scrollbar gets its own gutter instead of painting over card borders, an empty lane says "No cards", and below the narrow breakpoint the board renders one full-width lane under a strip of every lane's count instead of four one-word-wide strips. Inbox: section headers no longer charge a card slot in the window (a trailing RECENT header used to dangle with its rows silently clipped), clipped cards surface as "+N more", clipped labels end in `…`, and a too-tight identity line drops the badge label before the label clips mid-word. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#586](https://github.com/Sma1lboy/rove/pull/586) [`100279a`](https://github.com/Sma1lboy/rove/commit/100279af6b4d35e7e5d5ff95a356f9117df8f084) Task ids stay strictly sortable when the wall clock steps backward: the ULID generator now holds its last timestamp and increments the random tail whenever an incoming timestamp does not advance past the previous one, so an NTP correction, VM resume, or manual clock change mid-session can no longer mint a task id that sorts before its predecessor and silently reorder the task index. Same-millisecond and forward-clock behavior are unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#584](https://github.com/Sma1lboy/rove/pull/584) [`b165a5f`](https://github.com/Sma1lboy/rove/commit/b165a5f64d5fe7ffff25a507666e74e632f6955a) Fix the daemon dashboard rejecting every browser request with a 403 when it is bound to a host whose name carries an uppercase letter — routine for mDNS names like `MyMac.local`. Browsers (and the URL parser) lowercase the Origin host they send, but the allowed bind host was compared with its original case, so `mymac.local` never matched `MyMac.local` and the whole LAN dashboard was locked out; hostnames are case-insensitive (RFC 4343) and the Origin check now compares them that way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#577](https://github.com/Sma1lboy/rove/pull/577) [`db0b22d`](https://github.com/Sma1lboy/rove/commit/db0b22d897fd136e56052c3370cd2e14436b430c) The workspace shows a welcome panel when no tasks exist yet.
+
+  A first launch used to land on an empty sidebar and a bare "Select a task
+  with a worktree" line — nothing said what to press or whether the machine was
+  even ready. With zero tasks the center column now teaches the three
+  QUICKSTART keys (new task, help, command menu), resolved from the live keymap
+  so rebinds show their real chords, and is honest about the environment: which
+  engine CLIs were detected (the same probe the new-task dialog uses), whether
+  git is on PATH, and `rove doctor` as the escalation when something is
+  missing. It is a passive empty state, not a wizard — creating the first task
+  makes it disappear, and users with tasks never see it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.197
 
 ### Patch Changes
