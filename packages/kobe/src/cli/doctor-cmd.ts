@@ -4,6 +4,7 @@ import { existsSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { resolveNodeBinary } from "@sma1lboy/kobe-daemon/client/pty-process"
+import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
   defaultDaemonLogPath,
   defaultDaemonPidPath,
@@ -25,12 +26,18 @@ import {
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
 import { CURRENT_VERSION } from "../version.ts"
+import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
 import { activeCliName } from "./rename-compat.ts"
 
 const CLI_NAME = activeCliName()
 
 type PtySessionStatus = { alive?: boolean; parked?: boolean }
+
+/** The slice of `debug.inspect` the hook-channel check reads. */
+type InspectSnapshot = {
+  activity?: { tabs?: Record<string, Record<string, { source?: string; state?: string }>> }
+}
 
 type PtyInventory = {
   pid?: number
@@ -55,7 +62,10 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-async function requestIfReachable<T>(socketPath: string, name: "daemon.status" | "pty.list"): Promise<T | null> {
+async function requestIfReachable<T>(
+  socketPath: string,
+  name: "daemon.status" | "pty.list" | "debug.inspect",
+): Promise<T | null> {
   const client = new KobeDaemonClient(socketPath)
   try {
     return await client.request<T>(name, {})
@@ -213,6 +223,17 @@ async function collectDoctorLines(): Promise<string[]> {
       out.push(`         ⚠ stale build: daemon is v${version}, you launched v${CURRENT_VERSION}`)
       out.push(`         → run \`${CLI_NAME} daemon restart\`, then relaunch Rove`)
     } else if (version) out.push(`         build: v${version}`)
+    // Hook channel: hooks are the only sub-second path to the badge, and
+    // they fail SILENTLY (`kobe hook` swallows everything by contract), so
+    // a dead channel reads as a merely sluggish UI. Read-only — the verdict
+    // comes from activity entries the daemon already recorded.
+    const snapshot = await requestIfReachable<InspectSnapshot>(daemonSocket, "debug.inspect")
+    const tabs = snapshot?.activity?.tabs
+    if (tabs) {
+      const override = readRoveEnv("DAEMON_SOCKET_PATH")
+      const hookInput = { socketPath: daemonSocket, ...(override ? { socketOverride: override } : {}) }
+      out.push("", ...hookChannelDoctorLines(classifyHookChannel({ tabs, ...hookInput }), hookInput, CLI_NAME))
+    }
   } else {
     await appendUnavailableProcess(out, "daemon ", defaultDaemonPidPath(), daemonSocket)
     const tail = tailFile(daemonLog, 8)
