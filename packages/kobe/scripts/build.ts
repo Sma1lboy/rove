@@ -104,6 +104,11 @@ const result = await Bun.build({
   // resolve the optional platform package under isolated installs.
   external: ["node-pty", "@opentui/core"],
   minify: true,
+  // Without this Bun inlines NODE_ENV as "development", so react/react-reconciler
+  // resolve to their *development* builds and ship to users. Those builds keep
+  // per-update debug bookkeeping alive, which grows unboundedly in a long-lived
+  // TUI — the #307 memory leak.
+  define: { "process.env.NODE_ENV": JSON.stringify("production") },
 })
 
 if (!result.success) {
