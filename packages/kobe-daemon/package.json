@@ -84,7 +84,6 @@
   },
   "dependencies": {
     "@sma1lboy/rove-plugin-sdk": "workspace:*",
-    "chokidar": "^5.0.0",
     "node-pty": "^1.1.0",
     "smol-toml": "^1.7.1"
   },
