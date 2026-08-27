@@ -206,6 +206,29 @@ export const SCENES: readonly Scene[] = [
     }),
   },
   {
+    name: "long-labels",
+    about:
+      "a clipped label ends in a visible … (never Yoga's bare hard cut), and the right-edge cluster still gets its cells",
+    setup: () =>
+      seedTabs([
+        {
+          taskId: "wordy",
+          tabs: [{ id: "tab-1", title: "persist scrollback across daemon restarts without dropping" }],
+        },
+        { taskId: "alpha", tabs: [{ id: "tab-1", title: "build" }] },
+      ]),
+    element: tree({
+      tasks: [
+        task("wordy", {
+          branch: "refactor/tab-strip-restart-scrollback",
+          pinned: true,
+          prStatus: { checkState: "passing" } as Task["prStatus"],
+        }),
+        ALPHA,
+      ],
+    }),
+  },
+  {
     name: "search-pruned",
     about: "the query row plus a tree pruned to matches and their ancestors — a hit never floats free",
     setup: seedStandard,
