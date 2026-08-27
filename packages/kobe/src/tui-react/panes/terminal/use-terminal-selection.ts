@@ -223,7 +223,6 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   // fixed snapshot rows. Measure each snapshot change during such a drag and
   // move the anchor with the content (the head stays pinned to the pointer);
   // rows that scrolled off screen are banked so the copy still has them.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on snapshot changes; everything else is refs.
   useEffect(() => {
     const prev = lastSnapshotRef.current
     lastSnapshotRef.current = opts.snapshot
