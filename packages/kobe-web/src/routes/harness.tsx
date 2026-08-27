@@ -12,6 +12,16 @@ function PtyHarness() {
   const rawRun =
     new URLSearchParams(window.location.search).get("run") ?? "manual"
   const runId = rawRun.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "manual"
+  // `?webgl=1` opts INTO the WebGL renderer. The DOM renderer stays the
+  // default because it cannot fail to initialize, but it renders every cell
+  // as its own span using the font — and xterm's `customGlyphs`, which draws
+  // block-element and box-drawing characters geometrically so they tile with
+  // no seam, is documented as DOM-renderer-incompatible. Engine banner art
+  // (Claude Code's logo is `▛█▝▀`) therefore photographs with a gap in every
+  // cell. Recordings turn this on; a WebGL context that fails to come up
+  // falls back to DOM inside ChatTerminal, so the switch cannot break a take.
+  const useWebgl =
+    new URLSearchParams(window.location.search).get("webgl") === "1"
   const sessionId = `visual-${runId}`
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [buffer, setBuffer] = useState("")
@@ -27,7 +37,7 @@ function PtyHarness() {
         taskId={sessionId}
         mode="shell"
         testId="opentui-terminal"
-        disableWebgl={true}
+        disableWebgl={!useWebgl}
         onStatusChange={setStatus}
         onBufferChange={setBuffer}
       />

@@ -177,6 +177,17 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   `rove api routine-delete` after the take, leaving the same three rows the
   stills were framed on. It stops short of `run now` for the same folder-trust
   reason the kanban take stops short of Start.
+- **Recordings render through WebGL; stills do not.** The harness defaults to
+  xterm's DOM renderer, which draws every cell as its own span using the font
+  and therefore cannot use `customGlyphs` — xterm's geometric drawing of
+  block-element and box-drawing characters. Engine banner art and pane borders
+  are built from exactly those, so under DOM they photograph with a seam at
+  every cell boundary rather than the solid shapes a real terminal draws.
+  `hero-capture.ts` opens the harness with `?webgl=1`; `hero-shot.ts` takes an
+  optional `--webgl` for comparison but keeps DOM by default, because a WebGL
+  context is not guaranteed in every CI container and a still that fails to
+  render is worse than one with a seam. A failed context falls back to DOM
+  inside `ChatTerminal` either way, so the switch cannot break a take.
 - **The plugin takes need their plugins linked BEFORE the harness boots.** The
   TUI reads the plugin registry once at start (`loadPluginEngines()`, and the
   pane/settings sections alongside it), so a plugin linked mid-take contributes
