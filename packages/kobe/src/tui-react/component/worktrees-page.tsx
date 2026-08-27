@@ -181,10 +181,20 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     if (ok !== true) return
     setBusyPath(row.path)
     try {
-      const res = await orch.landTask(taskId)
+      // Land removes the worktree by default — same as the CLI, so the row
+      // clears itself. `callerCwd` lets the daemon refuse the worktree this
+      // TUI is itself running from instead of deleting its own cwd.
+      const res = await orch.landTask(taskId, { callerCwd: process.cwd() })
       console.error(
         `[rove worktrees] ${t("worktrees.land.done", { branch: res.branch, landedOn: res.landedOn, commit: res.commit })}`,
       )
+      // A refused removal is reported, never thrown — the land still stands,
+      // so say why the directory is still there rather than leaving it silent.
+      if (res.worktree && !res.worktree.removed) {
+        console.error(
+          `[rove worktrees] ${t("worktrees.land.worktreeKept", { reason: res.worktree.reason ?? "refused" })}`,
+        )
+      }
       refetch()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)

@@ -90,8 +90,13 @@ a base already on the branch being landed. On a
 merge conflict, Rove aborts the merge and reports the conflicted paths, leaving
 manual conflict resolution to you.
 
-Landing does not remove the worktree, archive the task, or delete the source
-branch. Those are separate lifecycle decisions.
+A successful land removes the worktree — it is spent once its branch is in —
+and the row leaves the page. The **branch survives**: git keeps the durable
+record. If removal is refused (the worktree is dirty, it is the base
+checkout, or it is the directory Rove itself is running from), the land still
+stands and the page reports why the worktree is still there. Archiving the
+task and deleting the source branch remain separate lifecycle decisions;
+from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
 ## Remove a clean worktree
 

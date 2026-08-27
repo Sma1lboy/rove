@@ -271,7 +271,6 @@ export async function land(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
   const strategy = ctx.args.str("strategy") === "squash" ? "squash" : "merge"
-  const removeWorktree = ctx.args.bool("remove-worktree") ?? false
   let res: { result: unknown }
   try {
     res = await daemon.request<{ result: unknown }>("task.land", {
@@ -279,10 +278,16 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       strategy,
       deleteBranch: ctx.args.bool("delete-branch") ?? false,
       archive: ctx.args.bool("then-archive") ?? false,
-      removeWorktree,
+      // Left UNDEFINED when the flag is absent so the orchestrator's default
+      // (remove it) applies; only an explicit `--remove-worktree=false` keeps
+      // the worktree. Coercing undefined to false here would pin the CLI to
+      // the old opt-in behaviour.
+      removeWorktree: ctx.args.bool("remove-worktree"),
       // The daemon refuses to remove the worktree the caller is running from —
-      // it can only know where the caller is if we tell it.
-      ...(removeWorktree ? { callerCwd: process.cwd() } : {}),
+      // it can only know where the caller is if we tell it. Removal is the
+      // default path now, so this is sent on EVERY land: send it only for the
+      // explicit flag and an agent landing itself deletes its own cwd.
+      callerCwd: process.cwd(),
     })
   } catch (err) {
     throw landRecoveryError(err, taskId)

@@ -138,7 +138,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         strategy,
         deleteBranch: optionalBoolean(payload, "deleteBranch") === true,
         archive: optionalBoolean(payload, "archive") === true,
-        removeWorktree: optionalBoolean(payload, "removeWorktree") === true,
+        // Passed through as undefined when absent so the orchestrator's
+        // default (remove the landed worktree) applies; only an explicit
+        // `false` from the caller keeps it.
+        removeWorktree: optionalBoolean(payload, "removeWorktree"),
         callerCwd: optionalString(payload, "callerCwd"),
       })
       // landTask throws on refusal/conflict, so reaching here means it landed.
