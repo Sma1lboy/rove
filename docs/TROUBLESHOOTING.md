@@ -73,9 +73,13 @@ The raw logs live under the active Rove home (normally your OS home):
 
 | Path | Contains |
 |---|---|
-| `~/.kobe/daemon.log` | daemon startup, crashes, RPC and web-transport failures |
-| `~/.kobe/pty.log` | Hosted PTY startup and session-host failures |
-| `~/.kobe/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures |
+| `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
+| `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+
+(Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
+directory; runtime files now live under `~/.rove`, with legacy paths honoured
+only while a process started before the move is still alive.)
 
 After an upgrade, a daemon can still be running old in-memory code. Doctor
 reports that version mismatch; fix it with `rove daemon restart`. If the PTY
@@ -91,7 +95,7 @@ for you to run yourself, never executed.
 ## What terminal output does Rove persist after a crash?
 
 Hosted PTY output is not always memory-only. Two bounded recovery stores live
-under `~/.kobe/` (or the selected Rove home):
+under `~/.rove/` (or the selected Rove home):
 
 - `pty-exits.json` records **abnormal** exits only. It keeps at most the newest
   50 session records, with exit metadata and up to the last 40 plain-text
@@ -159,6 +163,50 @@ no-op. `rove hook setup` is deprecated and now performs cleanup only. Older
 Rove versions installed a Claude `WorktreeCreate` provider hook that could
 break `claude --worktree`; current launches remove Rove's old entry while
 preserving user hooks and use an observer instead.
+
+## `rove api send` refuses with NO_ENGINE_TAB or ENGINE_NOT_RUNNING
+
+Both errors are deliberate refusals, not delivery failures. Silently spawning
+a fresh engine here would make both sender and receiver believe the prompt
+was delivered while it actually landed in a duplicate session nobody is
+watching — so `send` fails loud instead.
+
+- **`NO_ENGINE_TAB`**: the task has live tabs, but none of them resolves as
+  its engine tab (the engine tab died, or the tabs run something else). List
+  what is actually alive, then address a tab explicitly:
+
+  ```bash
+  rove api pty-list
+  rove api send --task-id <id> --tab tab-N --prompt "..."   # deliver to a live tab
+  rove api send --task-id <id> --tab new --prompt "..."     # or spawn a fresh engine tab
+  ```
+
+- **`ENGINE_NOT_RUNNING`**: the engine tab exists but its engine process has
+  exited into a plain shell — pasting there would execute the prompt as shell
+  commands. Spawn a fresh engine tab with `--tab new` as above.
+
+A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
+task another Rove session spawned, and otherwise the active task — it never
+silently spawns an engine on a guess.
+
+## Two daemons, or engine tabs split across hosts, after an upgrade
+
+Rove 0.8.189 moved runtime files (sockets, pidfiles, logs) from `~/.kobe` to
+`~/.rove`. A binary predating the move looks only at the legacy paths; if it
+cannot see the new daemon it starts a second one on the same task index, or a
+second PTY host that splits your engine tabs. Current versions leave symlinks
+at the legacy paths after binding, so mixed-version installs find the same
+daemon — you only hit the split if an old global install (`kobe` from npm,
+an old Homebrew bin) is still being launched somewhere.
+
+```bash
+rove --version        # every entry point should report the same version
+rove doctor           # reports version mismatches and duplicate runtimes
+rove daemon restart   # rebinds on the canonical ~/.rove paths
+```
+
+Then update or remove the stale install so both `rove` and `kobe` resolve to
+the same current binary.
 
 ## Copy from the embedded terminal doesn't reach my clipboard (especially over SSH)
 

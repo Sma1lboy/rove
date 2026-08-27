@@ -22,7 +22,7 @@ One line on a fresh machine. It installs Bun if it is missing, then Rove:
 curl -fsSL https://rove.run/install.sh | sh
 
 # pin a version
-curl -fsSL https://rove.run/install.sh | sh -s -- 0.8.136
+curl -fsSL https://rove.run/install.sh | sh -s -- <version>
 ```
 
 Or use a package manager you already have:
@@ -39,7 +39,8 @@ On Windows, use the npm route (the shell script needs a POSIX shell):
 npm install -g @sma1lboy/rove
 ```
 
-Rove looks for Bun on `PATH`, in `$BUN_INSTALL/bin`, and in `~/.bun/bin`. If
+Rove looks for Bun on `PATH`, in `$BUN_INSTALL/bin`, in `~/.bun/bin`, and in
+a `bun` npm package installed beside Rove. If
 yours lives somewhere else, point Rove at it with `ROVE_BUN=/path/to/bun`. To
 never be asked about installing Bun (CI, images, locked-down machines), set
 `ROVE_NO_BUN_BOOTSTRAP=1`. Rove then prints the install commands and exits.

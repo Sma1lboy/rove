@@ -17,8 +17,11 @@ Setting `ROVE_HOME_DIR` changes the home beneath these paths. `KOBE_HOME_DIR`
 remains a supported fallback; when both are set, `ROVE_HOME_DIR` wins. On first
 launch, Rove copies missing client-owned data from `.kobe` and `.config/kobe`;
 daemon-owned stores are copied when the new daemon starts, after the old writer
-has stopped. Neither phase overwrites or deletes old files. Existing worktrees
-stay where they are; daemon/PTY runtime files and plugins retain their compatibility paths.
+has stopped. Neither phase overwrites old files. Existing worktrees stay
+where they are; daemon/PTY runtime files keep their compatibility paths only
+while a pre-rename process is still live, and the plugin tree is *moved* into
+`~/.rove/` on the first new-daemon start, with a symlink left at the old
+path.
 
 ## Editing settings
 
@@ -27,8 +30,9 @@ rove config          # open state.json in your editor
 rove config --path   # just print the path
 ```
 
-rove picks your editor in this order: `$VISUAL` / `$EDITOR` → your configured
-editor (`editor.kind` below) → the first installed of nvim, vim, emacs, nano.
+rove uses your configured editor (`editor.kind` below) unless it is `auto`
+(the default), which honors `$VISUAL` / `$EDITOR`, then the first installed
+of nvim, vim, emacs, nano.
 
 Restart Rove to apply a hand edit everywhere.
 
@@ -42,7 +46,10 @@ other.
 ## Settings reference
 
 Keys not listed here are internal UI state (saved repos, tab layouts) that
-happen to share the file.
+happen to share the file. Two exceptions worth knowing: `repoConfigs` is what
+`rove repo set` writes (a map of git toplevel → `{initScript, initPrompt}`,
+see [Per-repo init](#per-repo-init)), and `lastSelectedVendor` is the legacy
+engine fallback below `defaultVendor`.
 
 ### Appearance
 
@@ -87,6 +94,7 @@ per-file TTY editor.
 | `engineCommand.<id>` | string | built-in | Launch command, e.g. `"engineCommand.claude": "claude --model opus"` |
 | `engineName.<id>` | string | built-in | Display name |
 | `customEngineIds` | string[] | `[]` | Your own engines; see [Custom engines](#custom-engines) |
+| `engineProtocol.<id>` | built-in engine id | unset | Adapter a custom engine borrows; see [Custom engines](#custom-engines) |
 | `lastActiveVendor.<repo>` | engine id | unset | Per-project last used; outranks `defaultVendor`. Written by Rove |
 
 Launch commands are parsed shell-ish, so quotes group arguments. Clear both
@@ -148,8 +156,9 @@ that gives you a per-project layout. `$project_dir/..` puts worktrees next to
 each repo. The token only counts as the **first** segment.
 
 **Only new tasks move.** Existing tasks keep the path they were created with,
-including legacy global and repo-local roots. New remote (SSH) worktrees use
-`<basePath>/.rove/worktrees`; their existing `.kobe/worktrees` remain
+including legacy global and repo-local roots. `worktree.basePath` is
+local-only: remote (SSH) worktrees go under the *remote project's own* path
+at `<project>/.rove/worktrees`, and their existing `.kobe/worktrees` remain
 discoverable. No restart needed.
 
 ### Sidebar
@@ -193,7 +202,8 @@ same name. Writing one: [Themes](./themes.md).
 
 Full vocabulary: [Keybindings](./KEYBINDINGS.md). The configuration surface:
 
-- Edit `~/.rove/settings/keybindings.yaml` by hand. Rove never writes it.
+- Edit `~/.rove/settings/keybindings.yaml` by hand (`.yml` is accepted when
+  `.yaml` is absent). Rove never writes it.
 - Changes **reload live**, no restart. Problems show up as warnings in
   Settings → Keybindings.
 - A direct override replaces that binding's whole chord list; `null` or `[]`
@@ -214,11 +224,12 @@ red outrank green when both fire for the same tab. Three delivery channels:
 - **Desktop notification.** Rove emits an OSC 9 escape that iTerm2, kitty,
   WezTerm, and Ghostty turn into a real OS notification; other terminals
   ignore it. Because it travels down the terminal stream, **it reaches you
-  over SSH**. No separate switch.
+  over SSH**. No separate switch — it rides the same
+  `notifications.sound.enabled` toggle as the chime.
 - **Sound.** A short chime when a background tab finishes. Rove uses the
-  first player it finds on `PATH` (`afplay`, `ffplay`, `mpv`, `play`,
-  `aplay`, …). With none installed it's silent and the terminal bell is the
-  fallback.
+  first player it finds on `PATH` (`ffplay`, `mpv`, `mpg123`, … `afplay`,
+  `play`, `aplay`, …). With none installed it's silent and the terminal bell
+  is the fallback.
 
 ## Custom engines
 
@@ -238,13 +249,17 @@ Switching an engine OFF in **Settings → Engines** (`space`) records it under
 when you pick an engine for a task. The global default engine can't be left
 disabled; switching it off hands the default to the first engine still on.
 
-Being in `customEngineIds` *is* the registration. There's no other step. Ids
-must match `^[a-z][a-z0-9_-]{0,47}$` and can't collide with a built-in;
-invalid ones are dropped on read.
+Being in `customEngineIds` *is* the registration. There's no other step.
+Stick to `^[a-z][a-z0-9_-]{0,47}$` for ids: the web settings API enforces
+that pattern (and no collision with a built-in) and drops invalid ids on
+read, while the TUI only rejects blank, built-in, and duplicate ids.
 
 A custom engine launches and runs like any other, but Rove deliberately
-doesn't guess at its internals: no history reader, no account detection, no
-activity hooks, no session resume. More in [Engines](./ENGINES.md).
+doesn't guess at its internals — no history reader, no account detection, no
+activity hooks, no session resume — unless you declare
+`"engineProtocol.<id>"` (one of the built-in ids: `claude`, `codex`,
+`copilot`, `kimi`), which borrows that built-in's adapter for transcript
+reads and delivery. More in [Engines](./ENGINES.md).
 
 ## Claude Code plugin
 
@@ -300,8 +315,12 @@ A repo can ship two files in its own `.rove/` directory:
 
 Files committed in the repo win over any per-user override you set with
 `rove repo set`. Legacy `.kobe/init.sh` and `.kobe/init-prompt.md` remain
-field-by-field fallbacks; a `.rove` file wins when both spellings exist.
+field-by-field fallbacks; a `.rove` file wins when both spellings exist —
+for `init.sh` the file merely has to exist (even empty), while
+`init-prompt.md` must be non-empty to win.
 
-The PR action also reads `.rove/pr-instructions.md` as its prompt template.
+The PR action also reads `.rove/pr-instructions.md` as its prompt template;
+`{{branch}}`, `{{targetBranch}}`, `{{dirtyCountSentence}}`, and
+`{{upstreamSentence}}` are substituted (unknown `{{…}}` passes through).
 It falls back to `.kobe/pr-instructions.md`; when both files are present, the
 non-empty `.rove` file wins.

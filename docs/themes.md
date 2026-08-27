@@ -27,7 +27,8 @@ A theme is a JSON object with two top-level fields:
 ```
 
 - **`defs`** (optional): a palette of named colors that `theme` entries
-  can reference by name. Values are hex strings.
+  can reference by name. Values are hex strings, or references to other
+  `defs` keys.
 - **`theme`** (required): the slot map. Each value is either a hex
   string (`#abc`, `#aabbcc`, `#aabbccdd`), a bare string referencing a
   key in `defs`, or a `{ dark, light }` pair for theme-mode-aware

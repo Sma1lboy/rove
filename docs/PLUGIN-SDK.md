@@ -105,8 +105,8 @@ if (answer === null) {
   process.exit(0)
 }
 
-const tasks = await listTasks()
-const first = (tasks as any[])[0]
+const { tasks } = await listTasks<{ tasks: any[] }>()
+const first = tasks[0]
 if (first) await dispatch(first.id, `watch ${answer}`)
 
 await openPane("you.example.board")
@@ -140,6 +140,9 @@ the shape your target Rove version actually emits. The channel names are the
 `attention.inbox`, `ui-prefs`, `keybindings`, `task.jobs`, `worktree.changes`,
 `transcript.activity`, `session.deliver`, `tab.open`, `tab.close`,
 `engine.lifecycle`, `notice.event`, `usage.snapshot`, `ui.prompt`.
+
+Your handler also receives `daemon.stopping` at daemon shutdown — not a
+channel, always delivered regardless of the filter.
 
 ```ts
 import { Pane, RoveSocket } from "@sma1lboy/rove-plugin-sdk"
@@ -179,6 +182,7 @@ draws. Bring your own framework for rich UIs.
 | Export | Signature | Purpose |
 |---|---|---|
 | `Pane` | class | Terminal page surface. |
+| `PaneOptions` | `{ exitOnCtrlC?, input?, output? }` | Constructor options; `exitOnCtrlC` defaults to exiting on `ctrl+c`. |
 | `parseKeys` | `(chunk) => Key[]` | Parse a raw stdin chunk into key events. |
 
 `Key`: `{ name: string, ctrl: boolean }`. Names for specials are `enter`,

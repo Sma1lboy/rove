@@ -43,7 +43,7 @@ Task rows carry worktree-level facts:
 | Mark | Meaning |
 |---|---|
 | `▴` | Pinned Task |
-| `+N` / `−N` | Added and deleted lines in the worktree |
+| `+N` / `−N` | Changed and deleted files in the worktree |
 | `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
 
@@ -308,8 +308,8 @@ over. Uncommitted changes stay behind; commit first if the child needs them.
 `ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.
 
-`ctrl+a` `y` is different: it opens the active Task's engine-owned history
-picker so you can resume a conversation that is not already represented by a
+To resume a conversation that is not already represented by a tab, use the
+engine's own picker (e.g. claude-code's `/resume`) inside a fresh engine
 tab. Availability and restart behavior vary by engine; see
 [Resuming a conversation](SESSIONS.md#resuming-a-conversation).
 
@@ -324,12 +324,14 @@ workspace. The chords stay live, so you can hop between pages directly.
 ![The Kanban board: Backlog, In progress and Done for one project, with the card cursor on an in-progress story](assets/kanban.png)
 
 The [issue store](CONCEPTS.md#the-issue-store) as a board, one project at a
-time (`tab` cycles projects). Three columns:
+time (`tab` cycles projects). Four columns:
 
-- **Backlog.** Open, doing, or on hold, not linked to a task.
+- **Backlog.** Open or doing, not linked to a task.
 - **In progress.** Linked to a task. The link *is* the column: agents move
   cards with `rove api issue-update --task`, and in-progress cards show the
   linked task's live engine activity.
+- **Parked.** Status `hold`, linked or not; sits between In progress and
+  Done.
 - **Done.** Status `done`.
 
 `enter` opens the detail drawer: edit the title and description, then start a
