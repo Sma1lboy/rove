@@ -21,7 +21,7 @@ import {
   backupCorruptManifest,
   mergeTasksWithDisk,
   normalizeIndex,
-  readDiskTasks,
+  readDiskIndex,
 } from "./store-codec.ts"
 import { ulid } from "./ulid.ts"
 
@@ -54,7 +54,6 @@ export class TaskIndexStore {
   private readonly roveDir: string
   private readonly path: string
   private readonly legacyPath: string
-  private readonly tmpPath: string
   private readonly lockPath: string
   private cache: { version: typeof CURRENT_VERSION; tasks: Task[] } = { version: CURRENT_VERSION, tasks: [] }
   private loaded = false
@@ -62,14 +61,14 @@ export class TaskIndexStore {
   private saveChain: Promise<void> = Promise.resolve()
   /** Pending changed/removed ids used by the read-merge-write in {@link doSave}. */
   private readonly dirtyIds = new Set<string>()
-  private readonly removedIds = new Set<string>()
+  /** Pending removals, id → deletion ISO time (becomes the tombstone's `at`). */
+  private readonly removedIds = new Map<string, string>()
 
   constructor(options: TaskIndexStoreOptions = {}) {
     this.homeDir = options.homeDir ?? homedir()
     this.roveDir = join(this.homeDir, ROVE_STATE_DIR_BASENAME)
     this.path = join(this.roveDir, "tasks.json")
     this.legacyPath = join(this.homeDir, LEGACY_KOBE_STATE_DIR_BASENAME, "tasks.json")
-    this.tmpPath = `${this.path}.tmp`
     this.lockPath = `${this.path}.lock`
   }
 
@@ -164,43 +163,57 @@ export class TaskIndexStore {
     // mutations (queued behind this on `saveChain`) keep accumulating into
     // the live sets and are flushed by their own queued save.
     const dirty = new Set(this.dirtyIds)
-    const removed = new Set(this.removedIds)
+    const removed = new Map(this.removedIds)
 
     // Cross-process mutual exclusion: serialize the read-merge-write so two
     // Rove instances (TUI + daemon + CLI) can't interleave and lose updates.
     // The lock is held only for this critical section, never across saves.
-    await acquireWithRetry(this.lockPath)
+    const lockToken = await acquireWithRetry(this.lockPath)
     try {
-      const diskTasks = await readDiskTasks(this.path, this.legacyPath)
-      const mergedTasks = mergeTasksWithDisk(this.cache.tasks, diskTasks, dirty, removed)
-      const payload: TaskIndex = { version: CURRENT_VERSION, tasks: mergedTasks }
+      const disk = await readDiskIndex(this.path, this.legacyPath)
+      const merged = mergeTasksWithDisk(this.cache.tasks, disk.tasks, dirty, removed, disk.removed)
+      const payload: TaskIndex = {
+        version: CURRENT_VERSION,
+        tasks: merged.tasks,
+        ...(merged.removed.length > 0 ? { removed: merged.removed } : {}),
+      }
       const json = `${JSON.stringify(payload, null, 2)}\n`
 
-      const handle = await open(this.tmpPath, "w", 0o644)
+      // Unique per save: a shared `<path>.tmp` let a second writer clobber the
+      // first's staging file whenever mutual exclusion broke, failing the
+      // survivor's rename with ENOENT (issue #53).
+      const tmpPath = `${this.path}.${process.pid}.${ulid()}.tmp`
       try {
-        await handle.writeFile(json, "utf8")
-        await handle.sync()
-      } finally {
-        await handle.close()
+        const handle = await open(tmpPath, "w", 0o644)
+        try {
+          await handle.writeFile(json, "utf8")
+          await handle.sync()
+        } finally {
+          await handle.close()
+        }
+        await rename(tmpPath, this.path)
+      } catch (err) {
+        await unlink(tmpPath).catch(() => {})
+        throw err
       }
-      await rename(this.tmpPath, this.path)
 
       // The write succeeded, so these changes are now durable: stop protecting
       // them in future merges (clearing only the snapshotted ids leaves any
-      // change queued while we were writing intact for its own save).
+      // change queued while we were writing intact for its own save). Removals
+      // now live on as on-disk tombstones, so dropping them here is safe.
       for (const id of dirty) this.dirtyIds.delete(id)
-      for (const id of removed) this.removedIds.delete(id)
+      for (const id of removed.keys()) this.removedIds.delete(id)
 
       // Surface concurrent creates a peer made: fold any merged task we didn't
       // already have into the cache so this process's UI sees it too. We only
       // ADD ids (never overwrite an existing cache entry) to avoid clobbering a
       // mutation that ran on the live cache while we were writing.
       const present = new Set(this.cache.tasks.map((t) => t.id))
-      for (const task of mergedTasks) {
+      for (const task of merged.tasks) {
         if (!present.has(task.id)) this.cache.tasks.push(task)
       }
     } finally {
-      await release(this.lockPath)
+      await release(this.lockPath, lockToken)
     }
   }
 
@@ -375,9 +388,11 @@ export class TaskIndexStore {
     if (idx < 0) return
     this.cache.tasks.splice(idx, 1)
     // Record the deletion so the read-merge-write doesn't resurrect this task
-    // from a stale on-disk copy, and stop treating it as a pending edit.
+    // from a stale on-disk copy, and stop treating it as a pending edit. The
+    // save persists it as a tombstone so PEER writers that still hold the
+    // task dirty in memory don't write it back either (issue #47).
     this.dirtyIds.delete(String(id))
-    this.removedIds.add(String(id))
+    this.removedIds.set(String(id), new Date().toISOString())
     await this.save()
     this.notifyListeners()
   }
@@ -389,11 +404,6 @@ export class TaskIndexStore {
   async _unlinkForTests(): Promise<void> {
     try {
       await unlink(this.path)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-    }
-    try {
-      await unlink(this.tmpPath)
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
     }

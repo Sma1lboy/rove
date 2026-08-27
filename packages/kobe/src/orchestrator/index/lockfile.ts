@@ -2,8 +2,14 @@
  * PID-based lockfile for the task index.
  *
  * Goal: prevent two Rove instances from racing to write `~/.rove/tasks.json`
- * and corrupting it. We use the simplest mechanism that does the job:
- * an `O_EXCL` lockfile containing the holder's PID.
+ * and corrupting it. The lockfile holds `pid:token` — the holder's PID plus a
+ * per-acquire random token, so two stores in the SAME process are still
+ * distinguishable holders (issue #53).
+ *
+ * Creation is atomic-or-fail: contents are written to a private sidecar file
+ * first, then `link(2)`ed into place. The lockfile is therefore never
+ * observable in a half-written (empty) state — an empty read used to classify
+ * a live holder as stale and break mutual exclusion outright.
  *
  * Failure modes:
  *
@@ -26,7 +32,8 @@
  * (flock — Bun coverage uneven), retry/backoff (caller's choice).
  */
 
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises"
+import { randomBytes } from "node:crypto"
+import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 
 export interface LockfileOptions {
@@ -70,82 +77,84 @@ export class LockfileError extends Error {
 }
 
 /**
- * Acquire an exclusive lock at `lockPath`. The file's contents are this
- * process's PID, so a future kobe can decide whether to take over.
+ * Acquire an exclusive lock at `lockPath` and return the ownership token to
+ * pass to {@link release}. The lock's contents are `pid:token` — `parseInt`
+ * still extracts the PID, so older builds reading a new lock see the holder
+ * correctly, and a legacy bare-PID lock parses here the same way.
  *
- * Throws {@link LockfileError} if the lock is held by a live process.
+ * Throws {@link LockfileError} if the lock is held by a live process
+ * (including a sibling store in this same process — it will release; wait).
  */
-export async function acquire(lockPath: string, opts: LockfileOptions = {}): Promise<void> {
+export async function acquire(lockPath: string, opts: LockfileOptions = {}): Promise<string> {
   await mkdir(dirname(lockPath), { recursive: true })
+  const token = `${process.pid}:${randomBytes(8).toString("hex")}`
+  const sidecar = `${lockPath}.${token.replace(":", "-")}`
 
-  // Fast path: O_EXCL create. If it succeeds we own the lock.
-  try {
-    await writeFile(lockPath, String(process.pid), { flag: "wx" })
-    return
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== "EEXIST") {
-      throw err
+  for (;;) {
+    // Atomic creation: full contents first, then link into place. `link`
+    // either succeeds or fails EEXIST — no observable empty-lockfile window.
+    await writeFile(sidecar, token)
+    try {
+      await link(sidecar, lockPath)
+      return token
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
+    } finally {
+      await unlink(sidecar).catch(() => {})
     }
-  }
 
-  // Slow path: lock exists. Inspect the holder.
-  let holderPid = -1
-  try {
-    const raw = (await readFile(lockPath, "utf8")).trim()
-    holderPid = Number.parseInt(raw, 10)
-    if (!Number.isFinite(holderPid)) holderPid = -1
-  } catch {
-    // Lockfile vanished between our EEXIST and the read. Retry once.
-    return acquire(lockPath, opts)
-  }
-
-  const alive = holderPid > 0 && isProcessAlive(holderPid)
-  if (alive && !opts.forceTakeover) {
-    throw new LockfileError(`task index is locked by another Rove instance (pid ${holderPid})`, holderPid)
-  }
-
-  // Stale (or stolen): remove and re-create with our pid.
-  // We log to stderr so the user sees the takeover happen — silent
-  // takeovers are scary in concurrent contexts.
-  console.warn(
-    `[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}` +
-      `${alive ? ", forced" : ", process gone"})`,
-  )
-  try {
-    await unlink(lockPath)
-  } catch (err) {
-    // Race: another acquirer also unlinked. EEXIST or ENOENT both fine here.
-    const code = (err as NodeJS.ErrnoException).code
-    if (code !== "ENOENT") throw err
-  }
-  // One more attempt. If we still lose, surface the error.
-  try {
-    await writeFile(lockPath, String(process.pid), { flag: "wx" })
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "EEXIST") {
-      // Someone else won the takeover race. Read their pid and report.
-      let winnerPid = -1
-      try {
-        winnerPid = Number.parseInt((await readFile(lockPath, "utf8")).trim(), 10)
-      } catch {
-        winnerPid = -1
-      }
-      throw new LockfileError(`task index lockfile contended during takeover (winner pid ${winnerPid})`, winnerPid)
+    // Lock exists. Inspect the holder.
+    let holder: string
+    try {
+      holder = (await readFile(lockPath, "utf8")).trim()
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+      // Holder released between our EEXIST and the read — try again.
+      continue
     }
-    throw err
+
+    const holderPid = Number.parseInt(holder, 10)
+    const alive = Number.isFinite(holderPid) && holderPid > 0 && isProcessAlive(holderPid)
+    if (alive && !opts.forceTakeover) {
+      throw new LockfileError(`task index is locked by another Rove instance (pid ${holderPid})`, holderPid)
+    }
+
+    // Stale (or stolen): remove and loop back to the atomic create. If a
+    // rival waiter wins the takeover race, the next iteration observes their
+    // live lock and rejects. We log to stderr so the user sees the takeover
+    // happen — silent takeovers are scary in concurrent contexts.
+    console.warn(
+      `[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}` +
+        `${alive ? ", forced" : ", process gone"})`,
+    )
+    try {
+      await unlink(lockPath)
+    } catch (err) {
+      // Race: another acquirer also unlinked. ENOENT is fine here.
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+    }
   }
 }
 
 /**
- * Release the lock. Tolerant of "already gone" — we don't want a missing
- * lockfile during shutdown to mask a more interesting error.
+ * Release the lock acquired with `token`. Only removes the file while we
+ * still own it: after a (forced) takeover the lockfile belongs to the new
+ * holder, and unlinking it would let a third writer into the critical
+ * section behind their back. Tolerant of "already gone".
  */
-export async function release(lockPath: string): Promise<void> {
+export async function release(lockPath: string, token: string): Promise<void> {
+  let current: string
+  try {
+    current = (await readFile(lockPath, "utf8")).trim()
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return
+    throw err
+  }
+  if (current !== token) return
   try {
     await unlink(lockPath)
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code
-    if (code === "ENOENT") return
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return
     throw err
   }
 }
