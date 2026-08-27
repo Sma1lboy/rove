@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.195
+
+### Patch Changes
+
+- [#564](https://github.com/Sma1lboy/rove/pull/564) [`4a486a7`](https://github.com/Sma1lboy/rove/commit/4a486a7d678b9ecc7fb0ce7b9ec489c584a1dff3) Point the CLI, installer, and package metadata at `rove.run`. The legacy
+  `*.sma1lboy.me` hosts now 301 to it, so printed URLs no longer send users
+  through a redirect. Adds npm keywords, which npm search matches on and the
+  package had none of. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.194
 
 ### Patch Changes
