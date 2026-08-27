@@ -164,6 +164,36 @@ Rove versions installed a Claude `WorktreeCreate` provider hook that could
 break `claude --worktree`; current launches remove Rove's old entry while
 preserving user hooks and use an observer instead.
 
+## One task's badge never moves, and its title never auto-fills
+
+Every other task updates; one worktree stays silent — no activity badge, no
+auto-title, and an interrupted prompt is never offered back. That is the
+narrow version of the symptom above: when *every* task goes quiet, the hooks
+are the cause; when a single worktree does, its path is.
+
+Rove reads Claude's own transcript directory,
+`~/.claude/projects/<encoded-worktree-path>`. Claude folds every
+non-alphanumeric character of the path into `-`; before 0.8.198 Rove folded
+only `/` and `.`. The two names diverged for any worktree path containing a
+character outside `/`, `.`, `-`, and alphanumerics — an underscore, a space,
+or anything non-ASCII, whether it came from the repo name, the task slug, or
+your home directory. Rove then watched a directory Claude never wrote, and
+every signal derived from that transcript went quiet with no error: activity
+badge, turn detection, auto-title, and prompt rescue.
+
+Check the version, then confirm the directory exists for the stuck worktree:
+
+```bash
+rove --version                                          # 0.8.198+ has the fix
+cd <the worktree>
+ls -d ~/.claude/projects/"$(pwd | sed 's/[^a-zA-Z0-9]/-/g')"
+```
+
+`rove update`, then `rove daemon restart`. No history is lost by the upgrade:
+those directories are written by Claude with the correct encoding, so the
+corrected name finds the transcripts that were there all along, including for
+the sessions that ran while the badge sat still.
+
 ## `rove api send` refuses with NO_ENGINE_TAB or ENGINE_NOT_RUNNING
 
 Both errors are deliberate refusals, not delivery failures. Silently spawning
@@ -189,6 +219,38 @@ A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never
 silently spawns an engine on a guess.
 
+## `rove api set-branch` fails, but the branch was renamed anyway
+
+The call exits non-zero with git's own complaint, stamped with the path of the
+**main checkout** rather than the worktree:
+
+```
+git branch -m <old> <new> (cwd=/path/to/repo) exited with code 128:
+fatal: no branch named '<old>'
+```
+
+Meanwhile the worktree is already sitting on `<new>`. The rename worked; only
+the task record's idea of the old name was stale — from a retried call whose
+first response was lost, a concurrent rename, or an out-of-band
+`git branch -m` in the worktree. Branch refs are shared across all worktrees
+of a repo, so the main-checkout path in the message is where git was run, not
+a branch that is missing from one place and present in another.
+
+0.8.198 resolves the ambiguity: when `git branch -m` fails, the rename probes
+the end state, and old-name-gone plus new-name-present is treated as the
+requested outcome — the call succeeds and the record converges. A genuine
+collision (both names present) or a missing pair still fails.
+
+On an older version, read the end state before you retry, and do **not**
+rename by hand — the branch is already correct:
+
+```bash
+git -C <worktree> branch --show-current   # already <new>? then it succeeded
+rove api get-task --task-id <id>          # what the task record still believes
+```
+
+Upgrading and re-running `set-branch` converges the record.
+
 ## Two daemons, or engine tabs split across hosts, after an upgrade
 
 Rove 0.8.189 moved runtime files (sockets, pidfiles, logs) from `~/.kobe` to
@@ -207,6 +269,30 @@ rove daemon restart   # rebinds on the canonical ~/.rove paths
 
 Then update or remove the stale install so both `rove` and `kobe` resolve to
 the same current binary.
+
+## A plugin installs cleanly, but Rove never loads it
+
+`rove plugin list` shows it as enabled, while its panes and actions never
+appear in the TUI. The two views disagree because they read different things:
+the CLI reads the registry file directly, so it reports what was written; the
+daemon is the process that actually loads plugins, and it missed the write.
+
+Before 0.8.198 the daemon watched `plugins.json` with `fs.watch`. On macOS the
+FSEvents stream behind `fs.watch` arms asynchronously, so a registry write
+landing after the watcher was created but before its stream went live was
+dropped permanently, with no error on either side. A `rove plugin install`,
+`link`, or `enable` that raced daemon startup was therefore ignored until the
+next registry mutation or the next daemon restart.
+
+```bash
+rove --version         # 0.8.198+ stat-polls the registry instead
+rove daemon restart    # makes the daemon re-read a write it dropped
+rove plugin list       # then confirm the TUI agrees
+```
+
+0.8.198 takes a synchronous baseline stat before the first registry load and
+polls every 200ms, so no write can fall between the watcher and the load.
+Enabling a plugin on a current version no longer depends on when you ran it.
 
 ## Copy from the embedded terminal doesn't reach my clipboard (especially over SSH)
 
