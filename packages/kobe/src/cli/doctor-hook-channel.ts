@@ -29,10 +29,17 @@ export interface InspectTabEntry {
 export interface HookChannelInput {
   /** `debug.inspect`'s `activity.tabs`: taskId → tabId → entry. */
   readonly tabs: Readonly<Record<string, Readonly<Record<string, InspectTabEntry>>>>
-  /** The daemon socket the CLI resolved — echoed in the failure hint. */
+  /**
+   * The daemon socket this CLI resolved — echoed in the failure hint so the
+   * reader can compare it against what their engine tabs actually hold.
+   *
+   * Deliberately NOT cross-checked against a `*_DAEMON_SOCKET_PATH` in our
+   * own env, tempting as that is: the stale path lives in the ENGINE's
+   * environment, which doctor cannot see, and our own override — when set —
+   * IS this value (`defaultDaemonSocketPath()` returns it as its first
+   * branch), so any such comparison is unreachable by construction.
+   */
   readonly socketPath: string
-  /** A `*_DAEMON_SOCKET_PATH` override in THIS process's env, when set. */
-  readonly socketOverride?: string
 }
 
 export type HookChannelVerdict =
@@ -67,7 +74,7 @@ export function classifyHookChannel(input: HookChannelInput): HookChannelVerdict
  */
 export function hookChannelDoctorLines(
   verdict: HookChannelVerdict,
-  input: Pick<HookChannelInput, "socketPath" | "socketOverride">,
+  input: Pick<HookChannelInput, "socketPath">,
   cliName: string,
 ): string[] {
   if (verdict.kind === "no-tabs") return ["hooks:   — no engine tabs yet (nothing to check)"]
@@ -80,12 +87,12 @@ export function hookChannelDoctorLines(
     `         daemon socket: ${input.socketPath}`,
   ]
   // The failure that produced this check: an engine (and every hook it
-  // forks) inherited a socket path that no longer exists, so the hook
-  // connected to nothing and dropped the event without a word.
-  if (input.socketOverride && input.socketOverride !== input.socketPath) {
-    out.push(`         ⚠ env override points elsewhere: ${input.socketOverride}`)
-  }
+  // forks) inherited a `*_DAEMON_SOCKET_PATH` that no longer exists, so
+  // every hook connected to nothing and dropped its event without a word.
+  // That env belongs to the engine process, not to doctor, so the hint
+  // points at how to read it rather than pretending to check it here.
   out.push(
+    `         → compare with an engine tab's own path: \`ps eww -p <engine-pid> | tr " " "\\n" | grep DAEMON_SOCKET_PATH\``,
     `         → restart the engine tabs (they may hold a stale socket path), or run \`${cliName} daemon restart\``,
     `         → debug one hook directly: \`KOBE_HOOK_DEBUG=1 echo '{}' | ${cliName} hook turn-start --engine claude\``,
   )

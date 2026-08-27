@@ -31,24 +31,15 @@ describe("classifyHookChannel", () => {
 })
 
 describe("hookChannelDoctorLines", () => {
-  it("names the stale env override that shadowed the live socket", () => {
-    const override = "/home/u/.kobe/daemon.sock"
-    const lines = hookChannelDoctorLines(
-      { kind: "down", totalTabs: 3 },
-      { socketPath, socketOverride: override },
-      "rove",
-    )
-    expect(lines.join("\n")).toContain(override)
+  it("keeps the daemon socket and the engine-env hint in the failure block", () => {
+    // Doctor cannot inspect the ENGINE's env (that is where the stale path
+    // lives), so it prints its own resolved socket plus how to read theirs.
+    const lines = hookChannelDoctorLines({ kind: "down", totalTabs: 3 }, { socketPath }, "rove")
+    const text = lines.join("\n")
     expect(lines[0]).toContain("NO hook events")
-  })
-
-  it("omits the override hint when it matches the resolved socket", () => {
-    const lines = hookChannelDoctorLines(
-      { kind: "down", totalTabs: 1 },
-      { socketPath, socketOverride: socketPath },
-      "rove",
-    )
-    expect(lines.join("\n")).not.toContain("points elsewhere")
+    expect(text).toContain(socketPath)
+    expect(text).toContain("DAEMON_SOCKET_PATH")
+    expect(text).toContain("KOBE_HOOK_DEBUG=1")
   })
 
   it("renders a live channel as a single ✓ line", () => {

@@ -4,7 +4,6 @@ import { existsSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { resolveNodeBinary } from "@sma1lboy/kobe-daemon/client/pty-process"
-import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
   defaultDaemonLogPath,
   defaultDaemonPidPath,
@@ -230,8 +229,7 @@ async function collectDoctorLines(): Promise<string[]> {
     const snapshot = await requestIfReachable<InspectSnapshot>(daemonSocket, "debug.inspect")
     const tabs = snapshot?.activity?.tabs
     if (tabs) {
-      const override = readRoveEnv("DAEMON_SOCKET_PATH")
-      const hookInput = { socketPath: daemonSocket, ...(override ? { socketOverride: override } : {}) }
+      const hookInput = { socketPath: daemonSocket }
       out.push("", ...hookChannelDoctorLines(classifyHookChannel({ tabs, ...hookInput }), hookInput, CLI_NAME))
     }
   } else {
