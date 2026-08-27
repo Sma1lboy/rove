@@ -5,6 +5,7 @@ import { availableEngineIds } from "../engine/account-detect.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "../engine/hook-events.ts"
 import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-command.ts"
+import { protocolUpgradeFromLiveSession } from "../engine/protocol-sniff.ts"
 import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
 import { createEngineTurnDetector } from "../engine/turn-detector.ts"
 import { issueAssetsDir } from "../env.ts"
@@ -55,6 +56,9 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     return out
   },
   titleTurnHint: engineTitleTurnHint,
+  // Tier-(b) protocol sniff (issue #31): the record upgrade for a generic
+  // task identified by its live session — rules live with the sniffer.
+  resolveProtocolUpgrade: protocolUpgradeFromLiveSession,
   // Per-turn telemetry (issue #32) — delegated straight to the vendor's own
   // adapter; an engine without a turn reader simply reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await engineEntry(vendor).readTurns?.(transcriptPath)) ?? [],

@@ -27,13 +27,21 @@
  * ten braille frames), so that rule costs nothing now and is what keeps a
  * future engine borrowing a glyph from silently stealing its identity.
  *
- * NOTHING CONSUMES THIS YET — issue #31 owns wiring it into the record
- * upgrade (a task that resolved to the generic protocol, whose live session
- * turns out to be a known engine, should have its protocol corrected). Both
- * reads are pure so the consumer can be added without touching them.
+ * The consumer (issue #31) is {@link protocolUpgradeFromLiveSession}: the
+ * daemon's activity observer relays each walked live session's evidence
+ * (foreground-walk vendor + OSC title) and, when a task that recorded the
+ * generic protocol is identified, upgrades the record's `vendor` via
+ * `setCommand` — metadata only, so the history reader / trust store /
+ * delivery mode start applying while WHAT LAUNCHES never changes. The
+ * session-store read stays unconsumed there on purpose: a transcript can
+ * outlive the engine that wrote it (a worktree previously run with claude,
+ * later re-pinned to a genuinely different CLI, would mis-identify), so the
+ * record upgrade only trusts evidence that describes the session running
+ * right now. Both sniff reads stay pure.
  */
 
-import { BUILTIN_VENDORS, type VendorId } from "@/types/vendor"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { GENERIC_PROTOCOL, resolveCommandProtocol } from "./engine-presets.ts"
 import { engineEntry } from "./registry.ts"
 
 /**
@@ -93,4 +101,47 @@ export async function sniffProtocol(input: {
   readonly worktree?: string
 }): Promise<VendorId | null> {
   return sniffProtocolFromTitle(input.title) ?? (await sniffProtocolFromSessions(input.worktree))
+}
+
+/** What the observer knows about one LIVE, walked engine-tab session. */
+export interface LiveSessionEvidence {
+  /** Foreground-walk verdict for the session's pid: a built-in vendor whose
+   *  process is running in the tree, or null for "no recognisable engine"
+   *  (a renamed binary reads as null — that's what the title covers). */
+  readonly walkVendor: string | null
+  /** The session's current OSC title. */
+  readonly title: string
+}
+
+/**
+ * The record upgrade, tier (b)'s consumer: the `setCommand` payload that
+ * names a generic task's protocol from its live engine tab, or null to
+ * leave the record alone. Every refusal is deliberate:
+ *
+ *   - no pinned `command` → null. Pre-`command` records LAUNCH from
+ *     `vendor` (see `types/task.ts`), so writing a sniffed protocol there
+ *     would change what spawns, not just how kobe talks to it.
+ *   - `vendor` already names a built-in → null. A named protocol is
+ *     authoritative; sniffing must never flip one engine to another.
+ *   - tier (a) can resolve the command → null. A declared or derivable
+ *     protocol (including one declared AFTER the task was created) wins
+ *     over runtime evidence.
+ *   - evidence names nothing (walk found no engine, title glyph absent or
+ *     ambiguous) → null. Staying generic is always safe; a wrong upgrade
+ *     points the history reader and trust store at another vendor's files.
+ *
+ * Walk evidence outranks the title: a process in the tree is the engine
+ * itself, while a title is what the engine last wrote.
+ */
+export function protocolUpgradeFromLiveSession(
+  task: { readonly vendor?: string; readonly command?: string },
+  evidence: LiveSessionEvidence,
+): { command: string; vendor: VendorId } | null {
+  const command = task.command?.trim()
+  if (!command) return null
+  if (task.vendor && isBuiltinVendor(task.vendor)) return null
+  if (resolveCommandProtocol(command) !== GENERIC_PROTOCOL) return null
+  const walk = evidence.walkVendor
+  const vendor = walk !== null && isBuiltinVendor(walk) ? walk : sniffProtocolFromTitle(evidence.title)
+  return vendor ? { command, vendor } : null
 }

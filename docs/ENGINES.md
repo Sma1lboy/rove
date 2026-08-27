@@ -176,7 +176,10 @@ different binary name, a fixed set of flags, a company shim) so the transcript
 reader, workspace-trust pre-answer, and first-message delivery all apply.
 Leave it out and the preset gets the **generic** protocol: it launches and
 runs fine, but Rove reads no history, pre-answers no trust dialog, and falls
-back to silence-window liveness with settle-then-paste delivery.
+back to silence-window liveness with settle-then-paste delivery. If the
+running session later reveals a built-in engine behind the command, Rove
+upgrades the task's protocol automatically — see
+[engine presets and protocols](#engine-presets-and-protocols).
 
 Press `x` on an engine row in Settings to reset a built-in's overrides, or
 remove a custom engine entirely.
@@ -200,7 +203,15 @@ The protocol is **derived** from the command, never declared beside it:
 2. Otherwise Rove can recognise a known engine binary through wrappers
    (`env FOO=1 claude`, `node …/codex.js`), the same walk the process probe
    uses at runtime.
-3. Neither → **generic**, described above.
+3. Neither → **generic**, described above — until the live session says
+   more. While a generic task's engine tab runs, the daemon watches for a
+   built-in engine's fingerprint in it: the engine's process in the tab's
+   process tree, or a status glyph only one engine writes into its terminal
+   title. When exactly one engine is identified, the task's protocol is
+   upgraded in place (the command it launches never changes), so history,
+   trust pre-answer, and delivery start applying mid-session. The sniff is
+   deliberately conservative: ambiguous or absent evidence leaves the task
+   generic, and a task whose protocol is already known is never flipped.
 
 `rove api engine-list` prints every entry with its raw command and resolved
 protocol; copy one into `rove api add --command` verbatim, or edit a flag
