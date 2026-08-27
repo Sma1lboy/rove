@@ -12,6 +12,9 @@ export const en = {
   noRepos: "No projects yet — create a task first.",
   /** A repo section with zero issues. */
   empty: "No issues — agents file them via `rove api issue-create`.",
+  /** One column with zero cards — a quiet placeholder so the empty lane
+   *  reads as intentional rather than unrendered. */
+  columnEmpty: "No cards",
   column: {
     backlog: "Backlog",
     inProgress: "In progress",
@@ -87,6 +90,7 @@ export const zh: typeof en = {
   loading: "正在加载 issues…",
   noRepos: "还没有项目——先创建一个任务。",
   empty: "暂无 issue——agent 可通过 `rove api issue-create` 创建。",
+  columnEmpty: "暂无卡片",
   column: {
     backlog: "待办",
     inProgress: "进行中",

@@ -116,3 +116,42 @@ test("r refetches the board", async () => {
   await settle()
   expect(fetches).toBeGreaterThan(before)
 })
+
+/**
+ * Wide board: an empty lane says so instead of rendering a bare void — a
+ * blank bordered box reads as "failed to load", not "nothing parked".
+ */
+test("an empty column renders its placeholder", async () => {
+  const text = await board([issue(1)])
+  // Only Backlog holds a card; the other three lanes each show the hint.
+  expect(text.match(/No cards/g)?.length).toBe(3)
+})
+
+/**
+ * Below the narrow breakpoint the board renders ONE full-width lane under a
+ * strip of every lane's count — four side-by-side columns at phone width
+ * were one-word-per-line strips. The off-lane cards must NOT render: their
+ * presence is exactly what the old layout got wrong.
+ */
+test("narrow board shows a lane strip and only the selected lane's cards", async () => {
+  const { frame } = await renderComponent(
+    <KanbanPage
+      orchestrator={orchestrator([issue(1), issue(2, { taskId: "T2" })])}
+      focused={true}
+      onClose={() => {}}
+      onStartChat={async () => {}}
+      onOpenTask={() => {}}
+    />,
+    { width: 60, height: 34, providers: { dialog: true, kv: true, notifications: true } },
+  )
+  await settle()
+  const text = await frame()
+  // The strip names every lane with its count…
+  expect(text).toContain("Backlog (1)")
+  expect(text).toContain("In progress (1)")
+  expect(text).toContain("Done (0)")
+  // …and the board shows the selection's lane only (selection defaults to
+  // the first non-empty column — Backlog's story-1).
+  expect(text).toContain("story-1")
+  expect(text).not.toContain("story-2")
+})

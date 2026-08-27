@@ -19,6 +19,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import type { Issue, RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
@@ -30,6 +31,7 @@ import type { VendorId } from "../../types/task"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { isNarrowWidth } from "../lib/narrow-mode"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { quickForkDefaultVendor } from "../workspace/quick-fork"
@@ -69,6 +71,9 @@ export function KanbanPage(props: {
   const columnBorder = transparentBackground ? theme.border : theme.borderSubtle
   const t = useT()
   const dialog = useDialog()
+  // Below the narrow breakpoint four side-by-side columns degrade to
+  // one-word-per-line strips, so the board shows ONE full-width lane there.
+  const narrow = isNarrowWidth(useTerminalDimensions().width)
 
   const [boards, setBoards] = useState<readonly RepoIssues[] | null>(null)
   // Detected engines for the detail drawer's picker — one probe per page
@@ -323,27 +328,30 @@ export function KanbanPage(props: {
   }
 
   /** One-line rolling project selector — tab/←/→ (or click) cycles, no tab
-   *  row. Label stays flush with the page's left edge. */
+   *  row. Label stays flush with the page's left edge. The full path is a
+   *  wide-layout nicety; narrow keeps only the label that identifies. */
   function projectSelector(active: RepoIssues): ReactNode {
     return (
       <box flexDirection="row" justifyContent="space-between" paddingTop={1} paddingLeft={3} paddingRight={3}>
         <box flexDirection="row" onMouseUp={() => cycleProject(1)}>
-          <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none">
+          <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {sidebarProjectLabel(active.repoRoot, repoRoots)}
           </text>
           {boardList.length > 1 ? (
-            <text fg={theme.textMuted} wrapMode="none">
+            <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
               {" "}
               {activeIndex + 1}/{boardList.length}
             </text>
           ) : null}
-          <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-            {"  "}
-            {active.repoRoot}
-          </text>
+          {narrow ? null : (
+            <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+              {"  "}
+              {active.repoRoot}
+            </text>
+          )}
         </box>
         {active.issues.length === 0 ? (
-          <text fg={theme.textMuted} wrapMode="none">
+          <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
             {t("kanban.empty")}
           </text>
         ) : null}
@@ -351,43 +359,97 @@ export function KanbanPage(props: {
     )
   }
 
+  function column(col: (typeof columns)[number], opts?: { header?: boolean }): ReactNode {
+    return (
+      <box
+        key={col.key}
+        flexGrow={1}
+        flexBasis={0}
+        border={true}
+        borderColor={columnBorder}
+        paddingLeft={1}
+        paddingRight={1}
+      >
+        {(opts?.header ?? true) ? (
+          <box flexDirection="row" justifyContent="space-between">
+            <text fg={columnAccent[col.key]} attributes={TextAttributes.BOLD} wrapMode="none">
+              {t(COLUMN_LABEL_KEY[col.key])} ({col.issues.length + col.hiddenCount})
+            </text>
+            {col.key === "in_progress" && attentionCount > 0 ? (
+              <text fg={theme.warning} attributes={TextAttributes.BOLD} wrapMode="none">
+                {t("kanban.attention", { count: String(attentionCount) })}
+              </text>
+            ) : null}
+          </box>
+        ) : null}
+        {/* paddingRight keeps a one-cell gutter under the scrollbar thumb —
+            without it the thumb paints over the cards' right borders (the
+            help-dialog / versions-page convention). The horizontal bar is
+            hidden outright: a lane never scrolls sideways, and its arrow
+            glyphs were painting stray diamonds over card borders. */}
+        <scrollbox
+          flexGrow={1}
+          paddingTop={1}
+          paddingRight={1}
+          verticalScrollbarOptions={{ showArrows: false, trackOptions: { foregroundColor: "transparent" } }}
+          horizontalScrollbarOptions={{ visible: false }}
+        >
+          {col.issues.map((issue) => card(issue, col.key))}
+          {col.issues.length === 0 && col.hiddenCount === 0 ? (
+            <text fg={theme.textMuted} wrapMode="none">
+              {t("kanban.columnEmpty")}
+            </text>
+          ) : null}
+          {col.hiddenCount > 0 ? (
+            <text fg={theme.textMuted} wrapMode="none">
+              {t("kanban.more", { count: String(col.hiddenCount) })}
+            </text>
+          ) : null}
+        </scrollbox>
+      </box>
+    )
+  }
+
+  /** Narrow: one full-width lane (the selection's column) under a strip of
+   *  the other lanes' counts; ←/→ moves selection across lanes, and the
+   *  visible column follows it. Clicking a lane jumps to its first card. */
+  function narrowBoard(): ReactNode {
+    const active =
+      columns.find((col) => col.issues.some((issue) => issue.id === selectedId)) ??
+      columns.find((col) => col.issues.length > 0) ??
+      columns[0]
+    if (!active) return null
+    return (
+      <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={1} paddingRight={1}>
+        <box flexDirection="row" gap={2} paddingLeft={2}>
+          {columns.map((col) => (
+            <text
+              key={col.key}
+              fg={col.key === active.key ? columnAccent[col.key] : theme.textMuted}
+              attributes={col.key === active.key ? TextAttributes.BOLD : undefined}
+              wrapMode="none"
+              onMouseUp={() => {
+                const first = col.issues[0]
+                if (first) setSelectedId(first.id)
+              }}
+            >
+              {t(COLUMN_LABEL_KEY[col.key])} ({col.issues.length + col.hiddenCount})
+            </text>
+          ))}
+        </box>
+        {/* The strip above already names the active lane — the in-column
+            header would repeat it one row later. Blocked cards still read:
+            the attention float pins them to the top with warning borders. */}
+        {column(active, { header: false })}
+      </box>
+    )
+  }
+
   function board(): ReactNode {
+    if (narrow) return narrowBoard()
     return (
       <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1} paddingLeft={1} paddingRight={1}>
-        {columns.map((col) => (
-          <box
-            key={col.key}
-            flexGrow={1}
-            flexBasis={0}
-            border={true}
-            borderColor={columnBorder}
-            paddingLeft={1}
-            paddingRight={1}
-          >
-            <box flexDirection="row" justifyContent="space-between">
-              <text fg={columnAccent[col.key]} attributes={TextAttributes.BOLD} wrapMode="none">
-                {t(COLUMN_LABEL_KEY[col.key])} ({col.issues.length + col.hiddenCount})
-              </text>
-              {col.key === "in_progress" && attentionCount > 0 ? (
-                <text fg={theme.warning} attributes={TextAttributes.BOLD} wrapMode="none">
-                  {t("kanban.attention", { count: String(attentionCount) })}
-                </text>
-              ) : null}
-            </box>
-            <scrollbox
-              flexGrow={1}
-              paddingTop={1}
-              verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
-            >
-              {col.issues.map((issue) => card(issue, col.key))}
-              {col.hiddenCount > 0 ? (
-                <text fg={theme.textMuted} wrapMode="none">
-                  {t("kanban.more", { count: String(col.hiddenCount) })}
-                </text>
-              ) : null}
-            </scrollbox>
-          </box>
-        ))}
+        {columns.map((col) => column(col))}
       </box>
     )
   }
@@ -400,11 +462,15 @@ export function KanbanPage(props: {
   // one cell of air between the borders and the screen edge.
   return (
     <box flexGrow={1} backgroundColor={theme.background} paddingTop={1} paddingBottom={1}>
-      <box flexDirection="row" justifyContent="space-between" paddingLeft={3} paddingRight={3}>
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
+      <box flexDirection="row" justifyContent="space-between" gap={2} paddingLeft={3} paddingRight={3}>
+        <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none" flexShrink={0}>
           {t("kanban.title")}
         </text>
-        <text fg={theme.textMuted}>{t("kanban.hint")}</text>
+        {/* Shrinkable so a tight terminal clips the legend, not the title —
+            un-shrunk the two texts overlapped into one glued string. */}
+        <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+          {t("kanban.hint")}
+        </text>
       </box>
       {loading ? (
         <text fg={theme.textMuted} paddingLeft={3}>

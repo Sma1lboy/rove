@@ -219,6 +219,41 @@ export function clampSelectableRow(rows: readonly InboxRow[], cursor: number): n
   return rows[bounded]?.kind === "header" ? nextSelectableRow(rows, bounded, 1) : bounded
 }
 
+export type InboxWindow = {
+  readonly visible: InboxRow[]
+  /** CARDS clipped above/below the window (headers are never counted). */
+  readonly hiddenAbove: number
+  readonly hiddenBelow: number
+}
+
+/**
+ * The slice of rows the pane can show. `budget` counts CARDS only — a header
+ * is one line against a card's three, so charging it a whole card slot both
+ * shrank the window and let a trailing section header dangle with its rows
+ * clipped and nothing saying so. The window slides so the cursor's card is
+ * always inside it; the clipped-card counts feed the pane's "+N more" lines,
+ * which is what tells the user the queue continues past the fold.
+ */
+export function windowInboxRows(rows: readonly InboxRow[], cursor: number, budget: number): InboxWindow {
+  const cardIndexes = rows.reduce<number[]>((acc, row, index) => {
+    if (row.kind !== "header") acc.push(index)
+    return acc
+  }, [])
+  if (cardIndexes.length <= budget) return { visible: [...rows], hiddenAbove: 0, hiddenBelow: 0 }
+  const cursorCard = Math.max(0, cardIndexes.indexOf(clampSelectableRow(rows, cursor)))
+  const firstCard = Math.max(0, Math.min(cursorCard - budget + 1, cardIndexes.length - budget))
+  const lastCard = firstCard + budget - 1
+  // A window starting at a section's first card keeps that section's header.
+  const start = firstCard === 0 ? 0 : (cardIndexes[firstCard] ?? 0)
+  const startWithHeader = start > 0 && rows[start - 1]?.kind === "header" ? start - 1 : start
+  const end = (cardIndexes[lastCard] ?? rows.length - 1) + 1
+  return {
+    visible: rows.slice(startWithHeader, end),
+    hiddenAbove: firstCard,
+    hiddenBelow: cardIndexes.length - lastCard - 1,
+  }
+}
+
 /**
  * Pick the next pending episode (oldest first). Unavailable episodes are
  * excluded while the Inbox pane's silent cleanup drains them.

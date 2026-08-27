@@ -5,8 +5,10 @@ import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { DEFAULT_SPINNER_FRAMES } from "../../engine/spinner-frames"
+import { approxCharCells } from "../../lib/display-width"
 import { relativeAgeMs } from "../../tui/history/message-core"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../tui/lib/spinner-frame-store"
+import { truncateEndCells } from "../../tui/lib/truncate"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import { tabTitleStable } from "../../tui/workspace/terminal-tabs-core"
 import type { Task } from "../../types/task"
@@ -26,14 +28,20 @@ import {
   isAttentionInboxItemAvailable,
   nextSelectableRow,
   partitionAttentionInboxAvailability,
+  windowInboxRows,
 } from "./attention-inbox-core"
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
 const MAX_VISIBLE_CARDS = 6
 const CARD_ROWS_WITH_GAP = 3
-const DIALOG_CHROME_ROWS = 7
+// Title + hints + up to two 1-line section headers + two "+N more" lines,
+// each with the list's gap row — headers no longer charge a card slot, so
+// the chrome estimate carries them instead.
+const DIALOG_CHROME_ROWS = 12
 const AGE_REFRESH_MS = 30_000
+/** Identity keeps at least this many cells before the badge drops its label. */
+const IDENTITY_FLOOR_CELLS = 16
 
 function itemColor(state: AttentionInboxItem["state"], theme: ReturnType<typeof useTheme>["theme"]) {
   if (state === "permission_needed") return theme.warning
@@ -128,6 +136,12 @@ function useSpinnerFrame(active: boolean): number {
  * an episode, `project › task` for a recent task) plus its state badge and
  * age, line 2 is the context line. The attention badge is the only colored
  * ink — recent rows stay quiet so pending work still reads first.
+ *
+ * Both lines are cell-budgeted against the dialog's known width (medium =
+ * 80 cols, clamped to the terminal) and end in `…` when clipped — Yoga's
+ * bare hard cut reads as the full name (the sidebar's round-one rule). When
+ * the identity would drop under its floor, the badge gives up its label
+ * first and keeps only the glyph.
  */
 function InboxCard(props: {
   identity: string
@@ -138,6 +152,18 @@ function InboxCard(props: {
   onOpen: () => void
 }) {
   const { theme } = useTheme()
+  const dimensions = useTerminalDimensions()
+  // Dialog medium = 80 cols (maxWidth terminal-2); pane padding (2) +
+  // marker column (2) + trailing padding (2) leave the row's cell budget.
+  const rowCells = Math.min(80, dimensions.width - 2) - 6
+  const ageText = `  ${props.age}`
+  const fullBadge = props.badge ? ` ${props.badge.glyph} ${props.badge.label}` : ""
+  const cells = (s: string): number => [...s].reduce((n, ch) => n + approxCharCells(ch.codePointAt(0) ?? 0), 0)
+  const identityRoom = rowCells - cells(ageText) - cells(fullBadge)
+  const dropLabel = props.badge !== undefined && identityRoom < IDENTITY_FLOOR_CELLS
+  const badgeText = props.badge ? (dropLabel ? ` ${props.badge.glyph}` : fullBadge) : ""
+  const identity = truncateEndCells(props.identity, rowCells - cells(ageText) - cells(badgeText), approxCharCells)
+  const subtitle = truncateEndCells(props.subtitle, rowCells, approxCharCells)
   // ONE cursor vocabulary across every navigable list: the shared sidebar
   // row chrome (▌ marker + row tint). Toast accent bars are a different
   // semantic (status color) and deliberately don't route through this.
@@ -171,20 +197,20 @@ function InboxCard(props: {
             flexGrow={1}
             flexShrink={1}
           >
-            {props.identity}
+            {identity}
           </text>
           {props.badge ? (
             <text fg={props.badge.color} wrapMode="none" flexShrink={0}>
-              {` ${props.badge.glyph} ${props.badge.label}`}
+              {badgeText}
             </text>
           ) : null}
           <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-            {`  ${props.age}`}
+            {ageText}
           </text>
         </box>
         <box flexDirection="row">
           <text fg={theme.textMuted} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-            {props.subtitle}
+            {subtitle}
           </text>
         </box>
       </box>
@@ -246,15 +272,12 @@ export function AttentionInboxPane(props: {
     (row) => row.kind === "recent" && props.engineStates?.get(row.task.id)?.state === "running",
   )
   const spinnerFrame = useSpinnerFrame(anyRunning)
-  // ponytail: headers are one line, cards three — the window budgets every
-  // row as a card. Conservative by a couple of rows, never overflows.
   const maxVisibleCards = Math.max(
     1,
     Math.min(MAX_VISIBLE_CARDS, Math.floor((dimensions.height - DIALOG_CHROME_ROWS) / CARD_ROWS_WITH_GAP)),
   )
   const safeCursor = clampSelectableRow(rows, cursor)
-  const windowStart = Math.max(0, Math.min(safeCursor - maxVisibleCards + 1, rows.length - maxVisibleCards))
-  const visible = rows.slice(windowStart, windowStart + maxVisibleCards)
+  const { visible, hiddenAbove, hiddenBelow } = windowInboxRows(rows, safeCursor, maxVisibleCards)
   const repos = [...new Set(props.tasks.map((task) => task.repo))]
 
   useEffect(() => {
@@ -321,8 +344,13 @@ export function AttentionInboxPane(props: {
         </box>
       ) : (
         <box flexDirection="column" gap={1} paddingTop={1} paddingBottom={1}>
-          {visible.map((row, index) => {
-            const absoluteIndex = windowStart + index
+          {hiddenAbove > 0 ? (
+            <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+              {t("workspace.inbox.more", { count: String(hiddenAbove) })}
+            </text>
+          ) : null}
+          {visible.map((row) => {
+            const absoluteIndex = rows.indexOf(row)
             if (row.kind === "header") {
               return (
                 <text key={row.id} fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
@@ -387,6 +415,11 @@ export function AttentionInboxPane(props: {
               />
             )
           })}
+          {hiddenBelow > 0 ? (
+            <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+              {t("workspace.inbox.more", { count: String(hiddenBelow) })}
+            </text>
+          ) : null}
         </box>
       )}
       <box flexDirection="row" flexShrink={0} gap={2} paddingTop={1}>
