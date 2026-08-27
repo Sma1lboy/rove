@@ -77,7 +77,9 @@ export function KanbanCard(props: {
         <text fg={fg} attributes={TextAttributes.BOLD} wrapMode="word" flexShrink={1}>
           {issue.title}
         </text>
-        <text fg={theme.textMuted} wrapMode="none">
+        {/* paddingLeft keeps a cell of air when a wrapped title line runs
+            the full row — space-between alone let it read as `title#12`. */}
+        <text fg={theme.textMuted} wrapMode="none" flexShrink={0} paddingLeft={1}>
           #{issue.id}
         </text>
       </box>

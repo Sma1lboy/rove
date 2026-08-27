@@ -38,6 +38,8 @@ export const en = {
     empty: "No pending attention",
     openHint: "enter open",
     deleteHint: "d delete",
+    /** Cards clipped past the visible window. `{count}` = hidden card count. */
+    more: "+{count} more",
     section: {
       attention: "ATTENTION",
       recent: "RECENT",
@@ -82,6 +84,7 @@ export const zh: typeof en = {
     empty: "暂无待处理",
     openHint: "enter 打开",
     deleteHint: "d 删除",
+    more: "还有 {count} 条",
     section: {
       attention: "待处理",
       recent: "最近使用",
