@@ -9,26 +9,59 @@
  *   2. rewrites relative links: synced pages become /docs/<slug> site paths,
  *      repo source files and non-synced docs become github.com blob URLs;
  *   3. copies quick-start.mdx to index.mdx so the docs home IS the quick
- *      start, and writes meta.json with the sidebar order.
+ *      start, and writes meta.json with the sidebar order;
+ *   4. writes last-modified.json — site path → source file's git commit date,
+ *      which the site turns into <lastmod> and schema.org dateModified.
  *
  * Output is deterministic — re-running sync on unchanged sources produces
  * byte-identical files.
  */
 
-import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execFileSync } from "node:child_process"
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises"
+import { basename, dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
-const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const repoRoot = resolve(packageDir, '../..');
-const docsSourceDir = join(repoRoot, 'docs');
-const docsOutDir = join(packageDir, 'content/docs');
-const assetsOutDir = join(packageDir, 'public/docs-assets');
+const packageDir = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+const repoRoot = resolve(packageDir, "../..")
+const docsSourceDir = join(repoRoot, "docs")
+const docsOutDir = join(packageDir, "content/docs")
+const assetsOutDir = join(packageDir, "public/docs-assets")
 
-const repoBlob = 'https://github.com/Sma1lboy/rove/blob/main/';
+const repoBlob = "https://github.com/Sma1lboy/rove/blob/main/"
+
+/**
+ * True when per-file git history is unavailable, so lastModified() must return
+ * nothing rather than a wrong date.
+ *
+ * CI and Vercel both check out shallow, where `git log -1 -- <file>` reports
+ * the single fetched commit's date for EVERY file — every page would then
+ * claim it changed on the build date. Deepening costs ~4s with
+ * --filter=blob:none (commits only, no file contents), so the fix is to fetch
+ * the history rather than ship a site with no freshness signal at all. When
+ * that fetch can't happen — offline, no remote, not a git checkout — dates are
+ * dropped entirely.
+ */
+const historyUnavailable = (() => {
+  const git = (args) =>
+    execFileSync("git", args, {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    })
+  try {
+    if (git(["rev-parse", "--is-shallow-repository"]).trim() === "false") return false
+    console.log("shallow checkout — fetching commit history for page dates")
+    git(["fetch", "--unshallow", "--filter=blob:none", "--quiet"])
+    return git(["rev-parse", "--is-shallow-repository"]).trim() !== "false"
+  } catch (error) {
+    console.warn(`no git history for page dates, shipping without them: ${error.message}`)
+    return true
+  }
+})()
 
 /** docs/assets/… paths referenced by synced pages, relative to assets/. */
-const referencedAssets = new Set();
+const referencedAssets = new Set()
 
 /**
  * The site, as root MODULES (Fumadocs `root: true` folders → sidebar tabs):
@@ -40,115 +73,115 @@ const referencedAssets = new Set();
  */
 const MODULES = [
   {
-    dir: 'rove',
-    title: 'Rove',
-    description: 'Using the Rove terminal UI and CLI',
+    dir: "rove",
+    title: "Rove",
+    description: "Using the Rove terminal UI and CLI",
     sections: [
       {
-        title: 'Getting started',
+        title: "Getting started",
         pages: [
-          ['QUICKSTART.md', 'rove/quick-start'],
-          ['CONCEPTS.md', 'rove/concepts'],
-          ['TUI.md', 'rove/tui'],
-          ['KEYBINDINGS.md', 'rove/keybindings'],
+          ["QUICKSTART.md", "rove/quick-start"],
+          ["CONCEPTS.md", "rove/concepts"],
+          ["TUI.md", "rove/tui"],
+          ["KEYBINDINGS.md", "rove/keybindings"],
         ],
       },
       {
-        title: 'Using Rove',
+        title: "Using Rove",
         pages: [
-          ['CLI.md', 'rove/cli'],
-          ['CONFIGURATION.md', 'rove/configuration'],
-          ['ENGINES.md', 'rove/engines'],
-          ['WORKTREES.md', 'rove/worktrees'],
-          ['themes.md', 'rove/themes'],
-          ['SESSIONS.md', 'rove/sessions'],
+          ["CLI.md", "rove/cli"],
+          ["CONFIGURATION.md", "rove/configuration"],
+          ["ENGINES.md", "rove/engines"],
+          ["WORKTREES.md", "rove/worktrees"],
+          ["themes.md", "rove/themes"],
+          ["SESSIONS.md", "rove/sessions"],
         ],
       },
       {
-        title: 'Automating',
+        title: "Automating",
         pages: [
-          ['ROUTINES.md', 'rove/routines'],
-          ['API.md', 'rove/api'],
-          ['WORK-TRACKING.md', 'rove/work-tracking'],
+          ["ROUTINES.md", "rove/routines"],
+          ["API.md", "rove/api"],
+          ["WORK-TRACKING.md", "rove/work-tracking"],
         ],
       },
       {
-        title: 'Help',
-        pages: [['TROUBLESHOOTING.md', 'rove/troubleshooting']],
+        title: "Help",
+        pages: [["TROUBLESHOOTING.md", "rove/troubleshooting"]],
       },
     ],
   },
   {
-    dir: 'plugins',
-    title: 'Plugins',
-    description: 'Writing Rove plugins and the plugin SDK',
+    dir: "plugins",
+    title: "Plugins",
+    description: "Writing Rove plugins and the plugin SDK",
     sections: [
       {
-        title: 'Plugin development',
+        title: "Plugin development",
         pages: [
-          ['PLUGIN-AUTHORING.md', 'plugins/authoring'],
-          ['PLUGIN-EVENTS.md', 'plugins/events'],
-          ['PLUGIN-SDK.md', 'plugins/sdk'],
+          ["PLUGIN-AUTHORING.md", "plugins/authoring"],
+          ["PLUGIN-EVENTS.md", "plugins/events"],
+          ["PLUGIN-SDK.md", "plugins/sdk"],
         ],
       },
     ],
   },
-];
+]
 
-const SECTIONS = MODULES.flatMap((m) => m.sections);
+const SECTIONS = MODULES.flatMap((m) => m.sections)
 
 /** docs/ source file → site slug, in sidebar order. */
-const PAGES = new Map(SECTIONS.flatMap((section) => section.pages));
+const PAGES = new Map(SECTIONS.flatMap((section) => section.pages))
 
 /** Case-insensitive lookup so `./Keybindings.md`-style links still resolve. */
-const PAGE_BY_LOWER_NAME = new Map([...PAGES].map(([name, slug]) => [name.toLowerCase(), slug]));
+const PAGE_BY_LOWER_NAME = new Map([...PAGES].map(([name, slug]) => [name.toLowerCase(), slug]))
 
 function rewriteTarget(target) {
   // External URLs, absolute site paths, and pure anchors pass through.
-  if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(target)) return target;
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(target)) return target
 
-  const hashIndex = target.indexOf('#');
-  const anchor = hashIndex === -1 ? '' : target.slice(hashIndex);
-  let path = hashIndex === -1 ? target : target.slice(0, hashIndex);
+  const hashIndex = target.indexOf("#")
+  const anchor = hashIndex === -1 ? "" : target.slice(hashIndex)
+  let path = hashIndex === -1 ? target : target.slice(0, hashIndex)
 
   // Classify the prefix before stripping it:
   //   `../x`   → repo-root relative (docs/ lives one level below the root)
   //   `docs/x` → repo-root relative, rooted at docs/
   //   `./x` / bare → relative to docs/
-  let repoRelativeBase = 'docs/';
-  if (path.startsWith('../')) {
-    repoRelativeBase = '';
-    path = path.replace(/^(?:\.\.\/)+/, '');
-  } else if (path.startsWith('docs/')) {
-    path = path.slice('docs/'.length);
-  } else if (path.startsWith('./')) {
-    path = path.slice('./'.length);
+  let repoRelativeBase = "docs/"
+  if (path.startsWith("../")) {
+    repoRelativeBase = ""
+    path = path.replace(/^(?:\.\.\/)+/, "")
+  } else if (path.startsWith("docs/")) {
+    path = path.slice("docs/".length)
+  } else if (path.startsWith("./")) {
+    path = path.slice("./".length)
   }
 
   // Linked media and downloads live beside images in docs/assets/. Keep the
   // source repo-relative, but serve the docs site from its own static tree.
-  if (path.startsWith('assets/')) return `${rewriteAssetTarget(path)}${anchor}`;
+  if (path.startsWith("assets/")) return `${rewriteAssetTarget(path)}${anchor}`
 
   // Links between synced pages → site paths.
-  const slug = PAGE_BY_LOWER_NAME.get(basename(path).toLowerCase());
-  if (slug && !path.includes('/')) return `/${slug}${anchor}`;
+  const slug = PAGE_BY_LOWER_NAME.get(basename(path).toLowerCase())
+  if (slug && !path.includes("/")) return `/${slug}${anchor}`
 
   // Repo source files → GitHub blob URLs. Bare `src/…` paths in docs are
   // relative to packages/kobe/ by repo convention (see AGENTS.md).
-  if (path.startsWith('packages/') || path.startsWith('scripts/')) {
-    return `${repoBlob}${path}${anchor}`;
+  if (path.startsWith("packages/") || path.startsWith("scripts/")) {
+    return `${repoBlob}${path}${anchor}`
   }
-  if (path.startsWith('src/')) {
-    return `${repoBlob}packages/kobe/${path}${anchor}`;
+  if (path.startsWith("src/")) {
+    return `${repoBlob}packages/kobe/${path}${anchor}`
   }
 
   // Anything else repo-relative (non-synced docs, CONTRIBUTING.md, …) →
   // GitHub blob URL under the base it was written against.
-  if (/\.mdx?$/i.test(path) || repoRelativeBase === '') {
-    return `${repoBlob}${repoRelativeBase}${path}${anchor}`;
+  if (/\.mdx?$/i.test(path) || repoRelativeBase === "") {
+    return `${repoBlob}${repoRelativeBase}${path}${anchor}`
   }
 
-  return target;
+  return target
 }
 
 /**
@@ -157,32 +190,32 @@ function rewriteTarget(target) {
  * the referenced files are copied into public/docs-assets/ below.
  */
 function rewriteAssetTarget(target) {
-  if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(target)) return target;
-  const path = target.startsWith('./') ? target.slice('./'.length) : target;
-  if (path.startsWith('assets/')) {
-    referencedAssets.add(path.slice('assets/'.length));
-    return `/docs-assets/${path.slice('assets/'.length)}`;
+  if (/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(target)) return target
+  const path = target.startsWith("./") ? target.slice("./".length) : target
+  if (path.startsWith("assets/")) {
+    referencedAssets.add(path.slice("assets/".length))
+    return `/docs-assets/${path.slice("assets/".length)}`
   }
-  return target;
+  return target
 }
 
 function rewriteImageTarget(target) {
-  return rewriteAssetTarget(target);
+  return rewriteAssetTarget(target)
 }
 
 /** Raw MDX media attributes are invisible to Markdown link rewriting. */
 function rewriteMediaTargets(markdown) {
-  let inFence = false;
+  let inFence = false
   return markdown
-    .split('\n')
+    .split("\n")
     .map((line) => {
-      if (/^\s*```/.test(line)) inFence = !inFence;
-      if (inFence) return line;
+      if (/^\s*```/.test(line)) inFence = !inFence
+      if (inFence) return line
       return line.replace(/\b(src|poster)=(['"])([^'"]+)\2/g, (_match, attribute, quote, target) => {
-        return `${attribute}=${quote}${rewriteAssetTarget(target)}${quote}`;
-      });
+        return `${attribute}=${quote}${rewriteAssetTarget(target)}${quote}`
+      })
     })
-    .join('\n');
+    .join("\n")
 }
 
 function rewriteLinks(markdown) {
@@ -193,13 +226,11 @@ function rewriteLinks(markdown) {
       .replace(
         /(!?)\[([^\]]*)\]\((<)?([^)\s>]+)(>)?((?:\s+"[^"]*")?)\)/g,
         (match, bang, text, _open, target, _close, title) =>
-          bang
-            ? `![${text}](${rewriteImageTarget(target)}${title})`
-            : `[${text}](${rewriteTarget(target)}${title})`,
+          bang ? `![${text}](${rewriteImageTarget(target)}${title})` : `[${text}](${rewriteTarget(target)}${title})`,
       )
       // Reference-style definitions: [label]: target
       .replace(/^(\[[^\]]+\]:\s+)(\S+)/gm, (match, label, target) => `${label}${rewriteTarget(target)}`)
-  );
+  )
 }
 
 /**
@@ -207,56 +238,80 @@ function rewriteLinks(markdown) {
  * Convert them to explicit links outside fenced code blocks.
  */
 function rewriteAutolinks(markdown) {
-  let inFence = false;
+  let inFence = false
   return markdown
-    .split('\n')
+    .split("\n")
     .map((line) => {
-      if (/^\s*```/.test(line)) inFence = !inFence;
-      if (inFence) return line;
-      return line.replace(/<(https?:\/\/[^>\s]+)>/g, '[$1]($1)');
+      if (/^\s*```/.test(line)) inFence = !inFence
+      if (inFence) return line
+      return line.replace(/<(https?:\/\/[^>\s]+)>/g, "[$1]($1)")
     })
-    .join('\n');
+    .join("\n")
+}
+
+/**
+ * Last git commit date for a docs/ source file, as YYYY-MM-DD.
+ *
+ * Returns null when the build has no per-file history (see
+ * historyUnavailable). A missing date is honest; a uniform build-date stamp
+ * across every page is a freshness claim the content cannot back.
+ */
+function lastModified(sourceFile) {
+  if (historyUnavailable) return null
+  const iso = execFileSync("git", ["log", "-1", "--format=%cs", "--", `docs/${sourceFile}`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).trim()
+  return iso || null
 }
 
 function toMdxPage(markdown, sourceFile) {
   // Title comes from the first H1, which is then stripped from the body.
-  const h1 = markdown.match(/^# (.+)$/m);
-  if (!h1) throw new Error(`${sourceFile}: no H1 found to derive the page title`);
-  const title = h1[1].trim();
-  const body = markdown.replace(/^# .+\r?\n(?:\r?\n)*/m, '');
+  const h1 = markdown.match(/^# (.+)$/m)
+  if (!h1) throw new Error(`${sourceFile}: no H1 found to derive the page title`)
+  const title = h1[1].trim()
+  const body = markdown.replace(/^# .+\r?\n(?:\r?\n)*/m, "")
 
   const frontmatter = [
-    '---',
-    '# Generated by packages/kobe-docs/scripts/sync-docs.mjs from',
+    "---",
+    "# Generated by packages/kobe-docs/scripts/sync-docs.mjs from",
     `# docs/${sourceFile} — edit the source, not this file.`,
     `title: "${title.replace(/"/g, '\\"')}"`,
-    '---',
-    '',
-  ].join('\n');
+    "---",
+    "",
+  ].join("\n")
 
-  return `${frontmatter}${rewriteAutolinks(rewriteMediaTargets(rewriteLinks(body)))}`;
+  return `${frontmatter}${rewriteAutolinks(rewriteMediaTargets(rewriteLinks(body)))}`
 }
 
-await mkdir(docsOutDir, { recursive: true });
+await mkdir(docsOutDir, { recursive: true })
 // content/docs is generated whole by this script (and gitignored). Prune
 // leftovers from a previous layout first, or a local build ships stale pages
 // the sidebar no longer lists.
 for (const entry of await readdir(docsOutDir)) {
-  await rm(join(docsOutDir, entry), { recursive: true, force: true });
+  await rm(join(docsOutDir, entry), { recursive: true, force: true })
 }
-let quickStart = null;
+let quickStart = null
+/** Site path → source file's last git commit date (YYYY-MM-DD). */
+const lastModifiedByPath = {}
 for (const [sourceFile, slug] of PAGES) {
-  const markdown = await readFile(join(docsSourceDir, sourceFile), 'utf8');
-  const page = toMdxPage(markdown, sourceFile);
-  if (slug.endsWith('/quick-start')) quickStart = page;
-  await mkdir(dirname(join(docsOutDir, `${slug}.mdx`)), { recursive: true });
-  await writeFile(join(docsOutDir, `${slug}.mdx`), page, 'utf8');
-  console.log(`synced docs/${sourceFile} → content/docs/${slug}.mdx`);
+  const markdown = await readFile(join(docsSourceDir, sourceFile), "utf8")
+  const page = toMdxPage(markdown, sourceFile)
+  const modified = lastModified(sourceFile)
+  if (modified) lastModifiedByPath[`/${slug}`] = modified
+  if (slug.endsWith("/quick-start")) {
+    quickStart = page
+    // The docs home renders the quick start, so it inherits its date.
+    if (modified) lastModifiedByPath["/"] = modified
+  }
+  await mkdir(dirname(join(docsOutDir, `${slug}.mdx`)), { recursive: true })
+  await writeFile(join(docsOutDir, `${slug}.mdx`), page, "utf8")
+  console.log(`synced docs/${sourceFile} → content/docs/${slug}.mdx`)
 }
 
 // The docs home IS the quick start: /docs renders index.mdx.
-await writeFile(join(docsOutDir, 'index.mdx'), quickStart, 'utf8');
-console.log('synced docs/QUICKSTART.md → content/docs/index.mdx (docs home)');
+await writeFile(join(docsOutDir, "index.mdx"), quickStart, "utf8")
+console.log("synced docs/QUICKSTART.md → content/docs/index.mdx (docs home)")
 
 // Each module is a Fumadocs ROOT folder (sidebar tab): its meta.json carries
 // `root: true` plus the section separators (`---Title---`) for its own pages.
@@ -269,20 +324,30 @@ for (const module of MODULES) {
       `---${section.title}---`,
       ...section.pages.map(([, slug]) => slug.slice(module.dir.length + 1)),
     ]),
-  };
-  await mkdir(join(docsOutDir, module.dir), { recursive: true });
-  await writeFile(join(docsOutDir, module.dir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
-  console.log(`wrote content/docs/${module.dir}/meta.json`);
+  }
+  await mkdir(join(docsOutDir, module.dir), { recursive: true })
+  await writeFile(join(docsOutDir, module.dir, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`, "utf8")
+  console.log(`wrote content/docs/${module.dir}/meta.json`)
 }
-const meta = { title: 'Rove docs', pages: MODULES.map((m) => m.dir) };
-await writeFile(join(docsOutDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
-console.log('wrote content/docs/meta.json');
+const meta = { title: "Rove docs", pages: MODULES.map((m) => m.dir) }
+await writeFile(join(docsOutDir, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`, "utf8")
+console.log("wrote content/docs/meta.json")
+
+// Not frontmatter: Fumadocs' page schema strips unknown fields, and widening
+// it would pull in zod, which this package does not install. A sibling map the
+// site imports keeps the dependency graph unchanged.
+await writeFile(join(packageDir, "lib/last-modified.json"), `${JSON.stringify(lastModifiedByPath, null, 2)}\n`, "utf8")
+console.log(
+  historyUnavailable
+    ? "wrote lib/last-modified.json (empty — no per-file git history available)"
+    : `wrote lib/last-modified.json (${Object.keys(lastModifiedByPath).length} pages)`,
+)
 
 // Copy referenced docs/assets/ files into public/docs-assets/ so rewritten
 // image, video, and download paths resolve on the static site.
 for (const asset of [...referencedAssets].sort()) {
-  const out = join(assetsOutDir, asset);
-  await mkdir(dirname(out), { recursive: true });
-  await copyFile(join(docsSourceDir, 'assets', asset), out);
-  console.log(`copied docs/assets/${asset} → public/docs-assets/${asset}`);
+  const out = join(assetsOutDir, asset)
+  await mkdir(dirname(out), { recursive: true })
+  await copyFile(join(docsSourceDir, "assets", asset), out)
+  console.log(`copied docs/assets/${asset} → public/docs-assets/${asset}`)
 }

@@ -9,13 +9,12 @@ import { describe, expect, test } from "vitest"
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8")
 const json = <T>(path: string): T => JSON.parse(read(path)) as T
+const SYNC_SCRIPT = "packages/kobe-docs/scripts/sync-docs.mjs"
+const MODIFIED_MAP = "packages/kobe-docs/lib/last-modified.json"
 
 describe("Rove package distribution", () => {
   test("the docs build embeds demo videos from its own static asset tree", () => {
-    execFileSync("bun", ["packages/kobe-docs/scripts/sync-docs.mjs"], {
-      cwd: ROOT,
-      stdio: "pipe",
-    })
+    execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
 
     // Find the page rather than hardcoding its directory: sync-docs.mjs owns
     // the docs/ source -> site slug mapping, and a module split moves pages
@@ -40,6 +39,22 @@ describe("Rove package distribution", () => {
       expect(generated).toContain(`src="/docs-assets/${video}.mp4"`)
       expect(generated).toContain(`](/docs-assets/${video}.mp4)`)
       expect(existsSync(join(ROOT, `packages/kobe-docs/public/docs-assets/${video}.mp4`))).toBe(true)
+    }
+  })
+
+  test("the docs freshness map carries a real date per page, or no date at all", () => {
+    execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
+
+    // Non-empty is the real guard, and CI is where it bites: GitHub Actions
+    // and Vercel both check out shallow, where `git log -1 -- <file>` cannot
+    // distinguish "changed today" from "fetched today". sync-docs deepens the
+    // history rather than emit nothing, and an empty map here means that
+    // deepening broke — the site would ship with no freshness signal at all.
+    const dates = json<Record<string, string>>(MODIFIED_MAP)
+    expect(Object.keys(dates).length).toBeGreaterThan(10)
+    for (const [path, date] of Object.entries(dates)) {
+      expect(path, "keys are site paths").toMatch(/^\/[a-z0-9/-]*$/)
+      expect(date, `${path} should be an ISO date`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     }
   })
 
