@@ -3,10 +3,14 @@
 import { expect, test } from "bun:test"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
+import { ATTR } from "../../src/tui/panes/terminal/sgr"
 import { type RenderHandle, act, renderComponent } from "./harness"
 
-/** A pane with 80 rows of history, its first visible row at screen y=2. */
-const mountPane = async (taskId: string): Promise<[RenderHandle, ReturnType<typeof createScriptedPtyRegistry>]> => {
+/** A pane fed `content`, its first visible row at screen y=2 (body: 16 rows). */
+const mountPane = async (
+  taskId: string,
+  content = Array.from({ length: 80 }, (_, i) => `line-${i + 1}`).join("\r\n"),
+): Promise<[RenderHandle, ReturnType<typeof createScriptedPtyRegistry>]> => {
   const harness = createScriptedPtyRegistry()
   let handle: RenderHandle | undefined
   await act(async () => {
@@ -24,7 +28,7 @@ const mountPane = async (taskId: string): Promise<[RenderHandle, ReturnType<type
   if (!handle) throw new Error("terminal mount failed")
   const mounted = handle
   await act(async () => {
-    harness.last().feed(Array.from({ length: 80 }, (_, i) => `line-${i + 1}`).join("\r\n"))
+    harness.last().feed(content)
     await mounted.frame()
   })
   return [mounted, harness]
@@ -122,16 +126,41 @@ test("dragging sideways along the top row does not scroll", async () => {
  * wheel scrolls it: by forwarding wheel ticks, not by moving a viewport that
  * cannot move. Claude Code is exactly this case, so without it a drag-select
  * at the edge of an engine tab does nothing at all.
+ *
+ * And forwarding alone is not the fix (issue #54): the app scrolls, the
+ * content shifts, but the snapshot row numbers stay put — so the SELECTION
+ * must follow the measured content shift, not stay a screen-fixed rectangle.
+ * The drag here is held at the edge while the scripted app scrolls itself;
+ * the highlight must keep growing over the rows scrolling in from the top.
  */
 test("a drag held at the edge scrolls an app that owns its own scrollback", async () => {
-  const [handle, harness] = await mountPane("drag-forwards-wheel")
+  // A 16-row alternate screen over an 80-line document, scrolled to the
+  // bottom: exactly an engine tab's snapshot shape (one screen, no history).
+  const doc = Array.from({ length: 80 }, (_, i) => `line-${i + 1}`)
+  let top = 64
+  const [handle, harness] = await mountPane("drag-forwards-wheel", doc.slice(top, top + 16).join("\n"))
   const wheels: string[] = []
-  const pty = harness.last() as unknown as { wheel: (d: string) => boolean }
-  pty.wheel = (direction: string): boolean => {
+  const pty = harness.last()
+  pty.wheel = (direction: "up" | "down"): boolean => {
     wheels.push(direction)
+    // The scripted app scrolls itself: full-screen repaint one line over.
+    top = direction === "up" ? Math.max(0, top - 1) : Math.min(64, top + 1)
+    pty.replaceScreen(doc.slice(top, top + 16).join("\n"))
     return true
   }
+  const highlightedLines = async (): Promise<string[]> => {
+    const frame = await handle.spans()
+    return frame.lines
+      .filter((line) => line.spans.some((s) => (s.attributes & ATTR.INVERSE) !== 0))
+      .map((line) =>
+        line.spans
+          .map((s) => s.text)
+          .join("")
+          .trim(),
+      )
+  }
   try {
+    // Press on line-75 (body row 10), drag up to the edge row and hold.
     await act(async () => {
       await handle.mockMouse.pressDown(20, 12)
       await handle.mockMouse.emitMouseEvent("drag", 20, 2)
@@ -142,6 +171,17 @@ test("a drag held at the edge scrolls an app that owns its own scrollback", asyn
     expect(wheels.every((d) => d === "up")).toBe(true)
     // The app scrolls itself; the pane's own viewport must stay put.
     expect(await handle.frame()).not.toMatch(/scrolled|已回滚/)
+    expect(top).toBeLessThan(64)
+
+    // The selection followed the content: rows scrolled in from the top are
+    // highlighted (the selection GREW past the 11 rows the press-to-edge drag
+    // covered on its own — head row 0 to anchor row 10), and the anchor row's
+    // content stayed selected as it moved down the screen.
+    const after = await highlightedLines()
+    expect(after.length).toBeGreaterThan(11)
+    expect(after[0]).toBe(`line-${top + 1}`) // head still pinned at the top edge
+    const anchorRow = after.indexOf("line-75")
+    expect(anchorRow === -1 || anchorRow > 10).toBe(true) // moved down (or off) with the content
   } finally {
     handle.destroy()
   }

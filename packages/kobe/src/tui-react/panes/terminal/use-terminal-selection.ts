@@ -26,6 +26,14 @@
  * only scrolls; the head is re-derived from the last pointer position
  * whenever the viewport moves, so it follows the scroll exactly and a wheel
  * tick mid-drag extends the selection too.
+ *
+ * When the scroll was FORWARDED to an app that owns its own scrollback (an
+ * engine on the alternate screen), the viewport never moves — the app redraws
+ * and the content shifts under snapshot row numbers that stay put. While such
+ * a drag is live, every snapshot change is measured with `snapshotShift`; the
+ * ANCHOR moves by the measured displacement (the head stays pinned to the
+ * pointer), and the rows that scrolled off screen are banked in a bounded
+ * shadow so the copy contains exactly what the highlight covered.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -35,9 +43,14 @@ import { copyTextToSystemClipboard } from "../../../tui/lib/clipboard-copy"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import {
   type CellPoint,
+  EMPTY_SHADOW,
   type SelectionRange,
-  extractSelection,
+  type SelectionShadow,
+  clampRowToShadow,
+  extractShadowedSelection,
   pointerCell,
+  shiftShadow,
+  snapshotShift,
 } from "../../../tui/panes/terminal/terminal-selection"
 
 export type { CellPoint, SelectionRange } from "../../../tui/panes/terminal/terminal-selection"
@@ -58,8 +71,10 @@ export interface UseTerminalSelectionOpts {
    * positive toward live. The pointer's absolute coords come along because the
    * pane may have to forward wheel ticks to an app that owns its own
    * scrollback (an engine on the alternate screen has no local scrollback).
+   * Returns true when the scroll was forwarded to the app that way — the cue
+   * to start measuring content shifts against the snapshot.
    */
-  scrollBy: (lines: number, screenX: number, screenY: number) => void
+  scrollBy: (lines: number, screenX: number, screenY: number) => boolean
 }
 
 export interface UseTerminalSelectionResult {
@@ -73,6 +88,8 @@ export interface UseTerminalSelectionResult {
   endDragging: () => void
   clearSelection: () => void
   copySelection: () => void
+  /** The pane forwarded a wheel to the app mid-drag (outside the edge pull). */
+  noteAppScroll: () => void
 }
 
 export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTerminalSelectionResult {
@@ -119,6 +136,9 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   const beginSelection = (cell: CellPoint): void => {
     draggingRef.current = true
     captureDrag(opts.bodyEl)
+    appScrolledRef.current = false
+    shadowRef.current = EMPTY_SHADOW
+    lastSnapshotRef.current = opts.snapshot
     // Mirrored into a ref as well: the drag events of a fast gesture land
     // before React has re-rendered with the new anchor, and the auto-scroll
     // direction check must not read a stale (null) one.
@@ -132,6 +152,12 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   // The last pointer position of the live drag, in absolute screen coords —
   // the auto-scroll tick and the post-scroll head refresh both re-read it.
   const dragPointRef = useRef<{ x: number; y: number } | null>(null)
+  // App-owned scrolling (alt-screen engines): set once a wheel was forwarded
+  // during this drag; from then on snapshot changes are measured and the
+  // anchor + shadow follow the content. All reset by the next beginSelection.
+  const appScrolledRef = useRef(false)
+  const shadowRef = useRef<SelectionShadow>(EMPTY_SHADOW)
+  const lastSnapshotRef = useRef(opts.snapshot)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // The tick closes over render-derived geometry, so it's refreshed after
   // every render rather than captured once when the interval starts.
@@ -177,7 +203,8 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
       }
       // Speed follows how far past the edge the pointer is, capped so a drag
       // to the edge of the screen doesn't fly through the whole scrollback.
-      opts.scrollBy(Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, pull)), point.x, point.y)
+      const capped = Math.max(-AUTO_SCROLL_MAX_LINES, Math.min(AUTO_SCROLL_MAX_LINES, pull))
+      if (opts.scrollBy(capped, point.x, point.y)) appScrolledRef.current = true
     }
   })
 
@@ -192,6 +219,25 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     if (at) setSelHead(at.cell)
   }, [opts.visibleRangeStart])
 
+  // App-owned scrolling never moves the viewport — the CONTENT moves under
+  // fixed snapshot rows. Measure each snapshot change during such a drag and
+  // move the anchor with the content (the head stays pinned to the pointer);
+  // rows that scrolled off screen are banked so the copy still has them.
+  useEffect(() => {
+    const prev = lastSnapshotRef.current
+    lastSnapshotRef.current = opts.snapshot
+    if (!draggingRef.current || !appScrolledRef.current || prev === opts.snapshot) return
+    const shift = snapshotShift(prev, opts.snapshot)
+    if (shift === 0) return
+    shadowRef.current = shiftShadow(shadowRef.current, prev, shift)
+    const shadow = shadowRef.current
+    const length = opts.snapshot.length
+    const follow = (cell: CellPoint | null): CellPoint | null =>
+      cell ? { row: clampRowToShadow(cell.row + shift, length, shadow), col: cell.col } : cell
+    anchorRef.current = follow(anchorRef.current)
+    setSelAnchor(follow)
+  }, [opts.snapshot])
+
   // Unmount mid-drag (tab closed, pane swapped) must not leave a timer behind.
   useEffect(
     () => () => {
@@ -202,7 +248,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
 
   const copySelection = (): void => {
     if (!selection) return
-    const text = extractSelection(opts.snapshot, selection)
+    const text = extractShadowedSelection(opts.snapshot, shadowRef.current, selection)
     if (text.trim().length > 0) copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload))
   }
 
@@ -220,9 +266,14 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     },
     clearSelection: () => {
       anchorRef.current = null
+      appScrolledRef.current = false
+      shadowRef.current = EMPTY_SHADOW
       setSelAnchor(null)
       setSelHead(null)
     },
     copySelection,
+    noteAppScroll: () => {
+      if (draggingRef.current) appScrolledRef.current = true
+    },
   }
 }

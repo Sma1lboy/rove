@@ -174,20 +174,23 @@ export function Terminal(props: TerminalProps) {
    * Engine tabs are why this matters for the drag: Claude Code runs on the
    * ALTERNATE screen, where there is no local scrollback to move at all, so a
    * drag held at the edge has to ask the app to scroll, exactly as the wheel
-   * does. `screenX`/`screenY` are absolute pointer coords.
+   * does. `screenX`/`screenY` are absolute pointer coords. Returns true when
+   * the scroll was forwarded — the selection hook then tracks the content
+   * shifts the app's redraws cause under the fixed snapshot rows.
    */
-  const scrollFromPointer = (lines: number, screenX: number, screenY: number): void => {
-    if (lines === 0) return
+  const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
+    if (lines === 0) return false
     const direction = lines < 0 ? "up" : "down"
     if (pty && !pty.killed && bodyEl) {
       const col = Math.max(1, screenX - bodyEl.screenX + 1)
       const row = Math.max(1, screenY - bodyEl.screenY + 1)
       if (pty.wheel(direction, col, row)) {
         for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row)
-        return
+        return true
       }
     }
     scrollBy(lines)
+    return false
   }
 
   /* --------- viewport slicing ---------- */
@@ -384,7 +387,10 @@ export function Terminal(props: TerminalProps) {
         // One line per event — opentui's parser emits delta:1 per wheel
         // tick already granulated by the host terminal.
         const step = Math.max(1, scroll.delta || 1)
-        scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
+        const forwarded = scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
+        // A wheel tick mid-drag scrolls the app too — the selection must
+        // follow that shift exactly as it follows the edge pull's.
+        if (forwarded) selection.noteAppScroll()
       }}
     >
       {/* Scroll affordance overlays the historical viewport instead of
