@@ -3,9 +3,18 @@
  * the useful part) and prefix an ellipsis. A path within the budget is returned
  * unchanged. Shared so the rail and the diff file list truncate identically.
  *
- * The result is at most `max` chars: the leading `…` plus the last `max - 1`.
+ * The result is at most `max` code points: the leading `…` plus the last
+ * `max - 1`. Iterates by code POINT (`[...path]`), not UTF-16 code unit: a
+ * plain `.slice` can bisect a surrogate pair (an emoji or astral-plane char in
+ * a filename) and render a `�` replacement glyph. `max` stays an approximate
+ * cell budget — a code point can be a wide CJK glyph.
+ *
+ * Mirrors the TUI's `truncateStart` (packages/kobe/src/tui/lib/truncate.ts) —
+ * kept in step by hand because kobe-web's only workspace dependency is the
+ * daemon package; if the daemon ever grows a shared string lib, fold this in.
  */
 export function tailPath(path: string, max = 36): string {
-  if (path.length <= max) return path
-  return `…${path.slice(path.length - max + 1)}`
+  const points = [...path]
+  if (points.length <= max) return path
+  return `…${points.slice(points.length - max + 1).join("")}`
 }
