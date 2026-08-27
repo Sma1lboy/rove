@@ -59,13 +59,12 @@ the PTY sidecar, and lets Vite proxy `/api`, `/events`, `/pty`.
 The daemon web transport exposes only what the SPA is allowed to reach; no
 standalone bridge socket is involved. Browser reachability is now declared
 per handler (`web: true` in `packages/kobe-daemon/src/daemon/handlers*.ts`)
-and surfaced as a set by
-[`web-rpc-allowlist.ts`](../../packages/kobe-daemon/src/daemon/web-rpc-allowlist.ts),
+and surfaced as a set by `webExposedRpcNames` in
+[`web-server.ts`](../../packages/kobe-daemon/src/daemon/web-server.ts),
 so the list can't drift from the registry it describes — this replaced the
 hand-maintained `spa-channels.ts`. A contract test
-([`packages/kobe-web/test/rpc-allowlist.test.ts`](../../packages/kobe-web/test/rpc-allowlist.test.ts))
-partitions every protocol entry into consumed vs dropped so a new one can't
-slip through unaccounted.
+([`packages/kobe/test/daemon/web-exposure.test.ts`](../../packages/kobe/test/daemon/web-exposure.test.ts))
+pins the exposed set exactly so a new verb can't slip through unaccounted.
 
 | Channel | What the SPA does with it |
 |---|---|
@@ -101,12 +100,13 @@ extracted from `Bun.serve` so the whole surface is unit-testable against a fake 
 
 ### `/api/rpc` is an allowlist, not a denylist
 
-The forwarder admits only the verbs in
-[`web-rpc-allowlist.ts`](../../packages/kobe-daemon/src/daemon/web-rpc-allowlist.ts) — a new
+The forwarder admits only the verbs marked `web: true` in the handler
+registry (surfaced by `webExposedRpcNames` in
+[`web-server.ts`](../../packages/kobe-daemon/src/daemon/web-server.ts)) — a new
 daemon verb is NOT browser-reachable until added deliberately, and
 connection-scoped (`hello`/`subscribe`), kill-switch (`daemon.stop`), and
 hook-ingest (`engine.reportEvent`/`worktree.reconcile`) verbs are pinned out by
-a contract test (`test/rpc-allowlist.test.ts`).
+a contract test (`packages/kobe/test/daemon/web-exposure.test.ts`).
 
 ### Teardown Hook
 
