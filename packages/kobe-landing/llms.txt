@@ -4,7 +4,7 @@
 
 Rove is a local-first TUI, not a web app. It runs where your code lives — laptop, devbox, or a box you reach over SSH. Engine adapters (Claude Code by default, Codex behind the same contract) are execution backends; the TUI is the product.
 
-Install: `npm i -g @sma1lboy/rove`, `bun add -g @sma1lboy/rove`, `npx @sma1lboy/rove`, or `curl -fsSL https://rove.run/install.sh | bash`. Requires macOS or Linux (Windows via WSL), git, and one engine CLI on PATH. Rove ships its own Bun runtime.
+Install: `npm i -g @sma1lboy/rove`, `bun add -g @sma1lboy/rove`, `npx @sma1lboy/rove`, or `curl -fsSL https://rove.run/install.sh | sh`. Requires macOS or Linux (Windows via WSL), git, and one engine CLI on PATH. Rove ships its own Bun runtime.
 
 ## Core concepts
 

@@ -4,7 +4,7 @@ var KOBE_I18N = (function () {
   var zh = {
     'meta.title': 'Rove — 主题',
     'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。',
-    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
+    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
     'head.kicker': '外观',
     'head.title': '内置三套，<span class="acc">另外十套</span>一条命令。',
     'head.lede': '下面每一块面板都由真实的主题文件绘制——就是 Rove 启动时加载的那份 JSON，不是谁手工调色的截图。在 <code>设置 → General → Theme</code> 里挑内置的三套之一，其余的一条命令装上，或者自己写——一个主题就是一个 JSON 文件，没有需要挤进去的注册表。',
@@ -48,7 +48,7 @@ var KOBE_I18N = (function () {
   var en = {
     'meta.title': 'Rove: themes',
     'meta.desc': "Every bundled Rove theme, rendered from its real color file, plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.",
-    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
+    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
     'head.kicker': 'Appearance',
     'head.title': 'Three in the box, <span class="acc">ten more</span> a command away.',
     'head.lede': "Every panel below is drawn from a real theme file, the same JSON Rove loads at boot, not a screenshot someone re-tinted by hand. Pick one of the three bundled ones in <code>Settings → General → Theme</code>, install any of the rest with one command, or write your own. A theme is one JSON file, and there is no registry to get into.",

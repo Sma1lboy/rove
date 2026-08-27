@@ -4,7 +4,7 @@ var KOBE_I18N = (function () {
   var zh = {
     'meta.title': 'Rove — 装在你 shell 里的 agent 多路复用器',
     'meta.desc': 'Rove 是终端里的编码代理多路复用器：N 个彼此隔离的尝试，各自拥有 git worktree 和托管引擎会话，互相发消息协作——而这一整套就跑在一个你随时能关掉的 SSH 会话里。',
-    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
+    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
     'hero.kicker': '提示词工程 → 上下文工程 → <span class="acc">图工程</span>',
     'hero.title': '装在你 shell 里的 agent <span class="acc">多路复用器</span>。',
     'hero.sub': '一个代理是一场对话；五个同时跑就需要一个多路复用器——隔离的 worktree、托管的会话，还有一条你随时能关掉的 SSH 连接。',
@@ -37,16 +37,16 @@ var KOBE_I18N = (function () {
     'sh.noteBack': '接回来了——<b>还在你离开的地方</b>。',
     'install.title': '在你代码所在的地方跑起来。',
     'install.body': '一行装好，一条命令跑起来。唯一重要的指标：你每小时注意力换来的已合并代码。',
-    'install.npm': '从 npm 安装 ↗', 'install.star': '去 GitHub 点个 Star ↗',
+    'install.npm': '从 npm 安装 ↗', 'install.docs': '阅读文档 ↗', 'install.star': '去 GitHub 点个 Star ↗',
     'final.line': '众流汇于一个 shell。',
     'footer.tagline': '终端里的编码代理多路复用器。',
     'footer.colophon': '用 Bun、OpenTUI 和 React 构建。字体为 Fraunces、DM Sans 与 JetBrains Mono。MIT 许可。',
-    'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.keybindings': '快捷键',
+    'footer.plugins': '插件', 'footer.themesLink': '主题', 'footer.changelog': '更新日志', 'footer.docs': '文档', 'footer.keybindings': '快捷键',
   };
   var en = {
     'meta.title': 'Rove: the agent multiplexer in your shell',
     'meta.desc': 'Rove multiplexes AI coding agents in your terminal. N isolated attempts, each with its own git worktree and hosted engine session, messaging each other as peers, all inside an SSH session you can close.',
-    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
+    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
     'hero.kicker': 'prompt engineering → context engineering → <span class="acc">graph engineering</span>',
     'hero.title': 'The agent <span class="acc">multiplexer</span> in your shell.',
     'hero.sub': 'One agent is a conversation. Five at once need a multiplexer: isolated worktrees, hosted sessions, and one SSH connection you can close.',
@@ -79,11 +79,11 @@ var KOBE_I18N = (function () {
     'sh.noteBack': 'Attached, <b>right where you left off</b>.',
     'install.title': 'Spin it up where your code lives.',
     'install.body': 'One line, then one command. The only metric that matters: merged code per hour of your attention.',
-    'install.npm': 'Install from npm ↗', 'install.star': 'Star on GitHub ↗',
+    'install.npm': 'Install from npm ↗', 'install.docs': 'Read the docs ↗', 'install.star': 'Star on GitHub ↗',
     'final.line': 'Many streams. One shell.',
     'footer.tagline': 'a terminal multiplexer for coding agents.',
     'footer.colophon': 'Built with Bun, OpenTUI and React. Set in Fraunces, DM Sans and JetBrains Mono. MIT licensed.',
-    'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.keybindings': 'keybindings',
+    'footer.plugins': 'plugins', 'footer.themesLink': 'themes', 'footer.changelog': 'changelog', 'footer.docs': 'docs', 'footer.keybindings': 'keybindings',
   };
   var dicts = { en: en, zh: zh };
   var lang = 'en';
@@ -135,7 +135,7 @@ var KOBE_I18N = (function () {
   var timer;
   btn.addEventListener('click', function () {
     try {
-      if (navigator.clipboard) navigator.clipboard.writeText('curl -fsSL https://rove.sma1lboy.me/install.sh | sh');
+      if (navigator.clipboard) navigator.clipboard.writeText('curl -fsSL https://rove.run/install.sh | sh');
     } catch (e) {}
     label.textContent = KOBE_I18N.t('copy.done');
     clearTimeout(timer);
