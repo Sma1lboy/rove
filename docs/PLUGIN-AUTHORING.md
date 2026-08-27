@@ -62,18 +62,48 @@ Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 
 ## SDK examples
 
-Each example under `packages/kobe-plugin-sdk/examples/` includes a reproducible
-`demo.tape` recording script. The GIFs below were captured in an isolated
-`ex-gif` named dev sandbox (`bun dev:sandbox --name ex-gif …`):
+Five runnable examples live under `packages/kobe-plugin-sdk/examples/`, one
+per surface. Each clip below is the real TUI — recorded through the same
+browser-PTY path the README assets use, against a throwaway home with the
+example already linked (`packages/kobe-web/e2e/hero-plugin-demos.ts`), so what
+you see is where your plugin actually shows up.
 
-![hello-events](./assets/plugins/hello-events.gif)
-*hello-events: fire `issue-create` and inspect the captured `issue.changed` event in the plugin state dir.*
+![task-board](./assets/plugins/task-board.gif)
+*`[[panes]]` — the pane is offered in the `ctrl+e` picker under its declared
+title, splits in beside the engine, and redraws when a task is created from
+outside the TUI: it is subscribed to `task.snapshot`, not polling.*
+
+![contrib-engine](./assets/plugins/contrib-engine.gif)
+*`[[engines]]` — a manifest-only plugin puts `fake-coder` in the engine list
+next to the built-ins, with the identity and screen-state rules it declared.*
 
 ![settings-demo](./assets/plugins/settings-demo.gif)
-*settings-demo: declare settings, override them in the config `.env`, and invoke the print action to see effective values.*
+*`[[settings]]` + `[[actions]]` — Settings → Plugins renders the settings the
+manifest declares; editing one writes the config `.env` your plugin reads on
+its next run.*
+
+![hello-events](./assets/plugins/hello-events.gif)
+*`[[events]]` — an `issue.changed` fired from outside the TUI reaches the hook,
+and the plugin's run summary records the exit status and timing.*
 
 ![turn-notify](./assets/plugins/turn-notify.gif)
-*turn-notify: report a `turn-complete` for a task and see the hook log the notification.*
+*`[[events]]` + `notify()` — the hook calls back INTO the host, and its own
+copy appears as a toast in every attached UI.*
+
+Re-record with:
+
+```bash
+cd packages/kobe-web
+bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
+bun e2e/hero-plugins.ts           # link all five examples (BEFORE the TUI boots)
+bun e2e/hero-serve.ts             # warm capture stack (keep running)
+bun e2e/hero-plugin-demos.ts      # all five, or name one
+```
+
+Linking has to happen before the harness starts: the TUI reads the plugin
+registry once at boot, so a plugin linked mid-session contributes nothing a
+running TUI can see. The takes create real records and do not clean up after
+themselves, so re-shoot from a fresh fixture rather than a used one.
 
 Publish: push a public GitHub repo (one plugin per subdirectory is fine),
 add the topic **`rove-plugin`** → it appears in the marketplace
