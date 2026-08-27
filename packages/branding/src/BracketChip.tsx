@@ -39,7 +39,7 @@ const MovingAgentIcons: React.FC<{ frame: number }> = ({ frame }) => {
     <AbsoluteFill aria-hidden style={{ overflow: "hidden" }}>
       <svg width="1600" height="400" viewBox="0 0 1600 400" style={{ position: "absolute", inset: 0 }}>
         {agents.map((agent) => {
-          const progress = interpolate(frame, [24, 64], [0, 1], {
+          const progress = interpolate(frame, [8, 56], [0, 1], {
             ...clamp,
             easing: Easing.inOut(Easing.cubic),
           })
@@ -63,7 +63,7 @@ const MovingAgentIcons: React.FC<{ frame: number }> = ({ frame }) => {
       </svg>
 
       {agents.map((agent) => {
-        const progress = interpolate(frame, [24, 64], [0, 1], {
+        const progress = interpolate(frame, [8, 56], [0, 1], {
           ...clamp,
           easing: Easing.inOut(Easing.cubic),
         })
@@ -97,11 +97,11 @@ export const BracketChip: React.FC = () => {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const leftBracket = spring({ frame: frame - 2, fps, config: { damping: 12, stiffness: 180 } })
-  const rightBracket = spring({ frame: frame - 8, fps, config: { damping: 12, stiffness: 180 } })
-  const typedCount = Math.max(0, Math.min(4, Math.floor((frame - 6) / 4)))
-  const cursorOn = frame > 6 && Math.floor(frame / 10) % 2 === 0
+  const rightBracket = spring({ frame: frame - 6, fps, config: { damping: 12, stiffness: 180 } })
+  const typedCount = Math.max(0, Math.min(4, Math.floor((frame - 8) / 8)))
+  const cursorOn = frame > 8 && Math.floor(frame / 10) % 2 === 0
   const sceneOpacity = interpolate(frame, [0, 6, 104, 119], [0, 1, 1, 0], clamp)
-  const impactScale = interpolate(frame, [64, 68, 76], [1, 1.045, 1], clamp)
+  const impactScale = interpolate(frame, [56, 60, 68], [1, 1.045, 1], clamp)
   const leftX = interpolate(leftBracket, [0, 1], [-52, 0])
   const rightX = interpolate(rightBracket, [0, 1], [52, 0])
 
