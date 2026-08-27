@@ -11,11 +11,15 @@ import { DEFAULT_FEEDBACK_CATEGORY_SLUG, submitFeedback } from "../../lib/feedba
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
+/** One entry of the daemon activity registry's task dump (`debug.inspect`). */
+type ActivityEntry = { state: string; at: number }
+
 export async function collect(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args, runtime } = ctx
   const idsFlag = args.str("task-ids")
   const repoFlag = args.path("repo")
+  const groupFlag = args.str("group")
 
   let taskIds: string[]
   if (idsFlag) {
@@ -23,16 +27,32 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
-  } else if (repoFlag) {
-    const target = await runtime.resolveRepoRoot(repoFlag)
+  } else if (repoFlag || groupFlag) {
+    const target = repoFlag ? await runtime.resolveRepoRoot(repoFlag) : null
     const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
     taskIds = []
     for (const t of tasks) {
       if (t.archived) continue
-      if ((await runtime.resolveRepoRoot(t.repo)) === target) taskIds.push(t.id)
+      if (groupFlag && t.groupId !== groupFlag) continue
+      if (target !== null && (await runtime.resolveRepoRoot(t.repo)) !== target) continue
+      taskIds.push(t.id)
     }
   } else {
-    throw new ApiError("collect needs --task-ids id1,id2 or --repo PATH", "MISSING_TARGET")
+    throw new ApiError("collect needs --task-ids id1,id2, --group GROUPID, or --repo PATH", "MISSING_TARGET")
+  }
+
+  // The daemon's activity registry (one debug.inspect for the whole round) is
+  // the "how long has it been in this state" source: per-task engine state +
+  // the ms timestamp of its last transition. `null` = couldn't ask / no entry
+  // (daemon restarted, task never observed) — an honest unknown, never a
+  // fabricated "idle". Distinct from `running` (pty-host process truth):
+  // the two diverging IS the diagnostic signal.
+  let registry: Record<string, ActivityEntry> | null = null
+  try {
+    const dbg = await daemon.request<{ activity?: { tasks?: Record<string, ActivityEntry> } }>("debug.inspect")
+    registry = dbg?.activity?.tasks ?? {}
+  } catch {
+    registry = null
   }
 
   const out: unknown[] = []
@@ -49,6 +69,12 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     const base = task.worktreePath
       ? await runtime.readBranchSignals(task.worktreePath)
       : { baseRef: null, ahead: null, diff: null }
+    const entry = registry?.[task.id]
+    // `forMs` = time in the CURRENT state ("idle for 40min" when state is
+    // idle). Clock skew between daemon and CLI clamps to 0, never negative.
+    const activity = entry
+      ? { state: entry.state, at: new Date(entry.at).toISOString(), forMs: Math.max(0, Date.now() - entry.at) }
+      : null
     out.push({
       taskId: task.id,
       title: task.title,
@@ -61,6 +87,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       // round's parent is programmatically discoverable.
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),
       running,
+      activity,
       tabs,
       changes,
       base,

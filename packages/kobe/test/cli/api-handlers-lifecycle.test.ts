@@ -121,11 +121,82 @@ describe("collect handler", () => {
     expect(result.tasks.map((task) => task.taskId)).toEqual(["in-repo"])
   })
 
-  it("requires ids or repo", async () => {
+  it("requires ids, group, or repo", async () => {
     await expectApiError(
       () => invokeVerb("collect", [], { client: new FakeClient(), runtime: stubRuntime() }),
       "MISSING_TARGET",
     )
+  })
+
+  it("--group selects one fan-out round across repos, skipping archived siblings", async () => {
+    const client = new FakeClient({
+      "task.list": () => ({
+        tasks: [
+          taskFixture({ id: "sib-1", groupId: "g1" }),
+          taskFixture({ id: "sib-2", groupId: "g1", repo: "/repo/elsewhere" }),
+          taskFixture({ id: "dead-sib", groupId: "g1", archived: true }),
+          taskFixture({ id: "other-round", groupId: "g2" }),
+          taskFixture({ id: "no-group" }),
+        ],
+      }),
+      "task.get": (payload) => ({ task: taskFixture({ id: (payload as { taskId: string }).taskId }) }),
+    })
+    const result = (await invokeVerb("collect", ["--group", "g1"], {
+      client,
+      runtime: stubRuntime(),
+    })) as { tasks: Array<{ taskId: string }> }
+    expect(result.tasks.map((t) => t.taskId)).toEqual(["sib-1", "sib-2"])
+  })
+
+  it("reports engine state and how long it has held it, from the daemon activity registry", async () => {
+    const at = Date.now() - 90_000
+    const client = new FakeClient({
+      "debug.inspect": () => ({ activity: { tasks: { a: { state: "permission_needed", at } } } }),
+      "task.get": (payload) => ({ task: taskFixture({ id: (payload as { taskId: string }).taskId }) }),
+    })
+    const result = (await invokeVerb("collect", ["--task-ids", "a"], {
+      client,
+      runtime: stubRuntime(),
+    })) as { tasks: Array<{ activity: { state: string; at: string; forMs: number } | null }> }
+    const activity = result.tasks[0].activity
+    expect(activity?.state).toBe("permission_needed")
+    expect(activity?.at).toBe(new Date(at).toISOString())
+    // Stuck-for duration, not a bare timestamp — the coordinator's actual question.
+    expect(activity?.forMs).toBeGreaterThanOrEqual(90_000)
+  })
+
+  it("a task the registry has never seen reports activity null — an honest unknown, not a fake idle", async () => {
+    const client = new FakeClient({
+      "debug.inspect": () => ({ activity: { tasks: {} } }),
+      "task.get": () => ({ task: taskFixture({ id: "a" }) }),
+    })
+    const result = (await invokeVerb("collect", ["--task-ids", "a"], {
+      client,
+      runtime: stubRuntime(),
+    })) as { tasks: Array<{ activity: unknown }> }
+    expect(result.tasks[0].activity).toBeNull()
+  })
+
+  it("an unreachable registry degrades to activity null and still returns the git + pty truth", async () => {
+    // `running`/`changes`/`base` come from the pty host and git, not the
+    // daemon's registry — a daemon that just restarted must not blank them.
+    const client = new FakeClient({
+      "debug.inspect": () => {
+        throw new Error("no daemon")
+      },
+      "task.get": () => ({ task: taskFixture({ id: "a" }) }),
+    })
+    const result = (await invokeVerb("collect", ["--task-ids", "a"], {
+      client,
+      runtime: stubRuntime({
+        taskTabs: async () => ({ tabs: [], running: true }),
+        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, diff: null }),
+      }),
+    })) as { tasks: Array<{ activity: unknown; running: boolean; base: { ahead: number | null } }> }
+    expect(result.tasks[0].activity).toBeNull()
+    expect(result.tasks[0].running).toBe(true)
+    // ahead:0 with a resolved base is the "succeeded but committed nothing" tell.
+    expect(result.tasks[0].base.ahead).toBe(0)
   })
 })
 

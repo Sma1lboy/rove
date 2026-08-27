@@ -44,8 +44,10 @@ export interface TaskTabRow {
   readonly alive: boolean
   /** How the tab's session died — ABNORMAL exits only (clean exit 0 stays
    *  null, per issue #9's no-noise rule); null while alive/unknown. Joined
-   *  from the live host when present, else the durable exit records. */
-  readonly exit: PtySessionExit | null
+   *  from the live host when present, else the durable exit records —
+   *  `tail` (the exit-time output lines the durable record keeps) rides
+   *  along whenever the record describes the same death. */
+  readonly exit: (PtySessionExit & { tail?: readonly string[] }) | null
   /** Present (true) only on rows derived from a LIVE pty session the
    *  persisted snapshot does not list — issue #20's invisible engine. The
    *  snapshot is a record of intent; the pty host holds the truth, and a
@@ -122,11 +124,22 @@ export function joinTaskTabs(
   snapshot: TabsState | undefined,
   taskId: string,
   sessions: readonly TaskSessionRow[],
-  persistedExits: Readonly<Record<string, PtySessionExit>> = {},
+  persistedExits: Readonly<Record<string, PtySessionExit & { tail?: readonly string[] }>> = {},
   liveVendors?: ReadonlyMap<string, string | null>,
 ): TaskTabRow[] {
   const alive = aliveKeysOf(sessions)
   const sessionExits = new Map(sessions.map((s) => [s.key, s.exit]))
+  // Death cause + tail for one dead tab. The live host's in-memory exit wins
+  // (fresher when the key was reopened) but carries no output; the durable
+  // record has the exit-time tail — merge it in only when both describe the
+  // SAME death (`at` matches), so a stale record never captions a newer one.
+  const deadExit = (key: string): TaskTabRow["exit"] => {
+    const ex = abnormalExit(sessionExits.get(key) ?? persistedExits[key])
+    if (!ex) return null
+    const record = persistedExits[key]
+    const tail = record?.at === ex.at ? record.tail : undefined
+    return { code: ex.code, signal: ex.signal, at: ex.at, ...(tail && tail.length > 0 ? { tail } : {}) }
+  }
   const rows: TaskTabRow[] = (snapshot?.tabs ?? []).map((t) => {
     const key = `${taskId}::${t.id}`
     const isAlive = alive.has(key)
@@ -140,7 +153,7 @@ export function joinTaskTabs(
       lastTitle: t.lastTitle ?? null,
       autoTitle: t.autoTitle ?? null,
       alive: isAlive,
-      exit: isAlive ? null : abnormalExit(sessionExits.get(key) ?? persistedExits[key]),
+      exit: isAlive ? null : deadExit(key),
     }
   })
   // Live sessions the snapshot doesn't know still get a row — the discovery
