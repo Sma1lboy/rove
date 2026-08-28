@@ -88,6 +88,41 @@ export interface CaptureClock {
   sleep(ms: number): Promise<void>
 }
 
+/**
+ * Focus the leftmost pane (the sidebar) — the ONE key sequence that makes
+ * sidebar-scoped keys (`n`, `j`, Enter, …) reachable from any pane. Since the
+ * boot-restore change (kobe 1443da8e6, 2026-08-09) a TUI booted with ANY task
+ * in the store lands focused on the WORKSPACE pane, so a bare `n` after boot
+ * is silently swallowed — the issue-#12 "keys are all dead" symptom; the
+ * injection path itself was never broken. `ctrl+a h` ("move focus left",
+ * docs/KEYBINDINGS.md) is idempotent at the leftmost pane, unlike `ctrl+q`,
+ * which focuses the sidebar but QUITS when the sidebar already has focus.
+ */
+export const FOCUS_LEFTMOST_KEYS = ["C-a", "h"] as const
+
+/** Post-stroke settle for the focus flip — see {@link focusLeftmostPane}. */
+// ponytail: fixed settle; poll the focus gate instead if this ever flakes
+export const FOCUS_SETTLE_MS = 300
+
+/**
+ * Drive {@link FOCUS_LEFTMOST_KEYS} on a live terminal, settling between
+ * strokes: the pane-focus flip is a React state update, so a key sent in the
+ * same tick still dispatches against the OLD focus gates. Callers must first
+ * wait for the sidebar rows to hydrate (e.g. `waitFor` a seeded task title) —
+ * the boot-restore focus flip fires on that same hydration, and normalizing
+ * before it would be undone.
+ */
+export async function focusLeftmostPane(
+  terminal: Pick<CaptureTerminal, "key">,
+  sleep: (ms: number) => Promise<void> = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  settleMs = FOCUS_SETTLE_MS,
+): Promise<void> {
+  for (const key of FOCUS_LEFTMOST_KEYS) {
+    await terminal.key(key)
+    await sleep(settleMs)
+  }
+}
+
 export interface CaptureDocument {
   cols: number
   rows: number
@@ -233,14 +268,13 @@ const runCreateTask = async (
 ) => {
   const flow = spec.flows?.createTask
   if (!flow) throw new Error("replay flow createTask is not configured")
-  // The sidebar owns the bare `n` that opens the dialog, and a fresh boot does
-  // not focus it — an unanchored `n` is simply swallowed. Use the `ctrl+a` `h`
-  // prefix sequence from docs/KEYBINDINGS.md ("move focus left"): it is
-  // idempotent at the leftmost pane, unlike `ctrl+q`, which focuses the
-  // sidebar but QUITS when the sidebar already has focus.
   if (flow.focusPaneBeforeOpen === "leftmost") {
-    await sendKey("C-a", terminal, clock, startedAt, frames)
-    await sendKey("h", terminal, clock, startedAt, frames)
+    for (const key of FOCUS_LEFTMOST_KEYS) {
+      await sendKey(key, terminal, clock, startedAt, frames)
+      // The pane-focus flip is a React state update: a key sent in the same
+      // tick dispatches against the OLD focus gates and vanishes (issue #12).
+      await pause(FOCUS_SETTLE_MS, terminal, clock, startedAt, frames)
+    }
   }
   await sendKey(flow.openKey ?? "n", terminal, clock, startedAt, frames)
   await wait(spec, flow.dialogWait, terminal, clock, startedAt, frames)

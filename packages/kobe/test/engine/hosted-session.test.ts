@@ -54,7 +54,8 @@ describe("hosted session helpers", () => {
       env: {},
     }
 
-    await expect(ensureHostedEngine(rpc, "/worktree", launch)).resolves.toEqual(opened)
+    const defaultColors = { foreground: "#eae7df", background: "#141413" } as const
+    await expect(ensureHostedEngine(rpc, "/worktree", launch, defaultColors)).resolves.toEqual(opened)
     expect(request.mock.calls).toEqual([
       [
         "pty.open",
@@ -64,6 +65,7 @@ describe("hosted session helpers", () => {
           // No cols/rows: a size-less open must never resize a live
           // session away from its attached TUI (issue #18).
           command: ["engine", "--resume", "session-1"],
+          defaultColors,
         },
       ],
       ["pty.detach", { key: "task-a::tab-1" }],

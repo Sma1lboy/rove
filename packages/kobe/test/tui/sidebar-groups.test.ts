@@ -374,7 +374,7 @@ describe("resolveCursorTarget", () => {
     expect(resolveCursorTarget("gone", ["a", "b"], -1)).toBe(1)
   })
 
-  it("empty list → -1 regardless of selection", () => {
+  it("empty list → -1, except a stray cursor with null selection resolves to 0", () => {
     expect(resolveCursorTarget("a", [], 0)).toBe(-1)
     expect(resolveCursorTarget(null, [], 3)).toBe(0) // cursor>=len(0) path snaps to max(0,-1)=0... see null-empty
     expect(resolveCursorTarget(null, [], -1)).toBe(-1)

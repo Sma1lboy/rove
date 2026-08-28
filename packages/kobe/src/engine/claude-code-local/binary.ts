@@ -8,8 +8,8 @@
  *   1. `$PATH` (the user's shell — `which claude`).
  *   2. `~/.claude/local/claude`  (Claude Code's bundled-update install).
  *   3. NVM-active (`$NVM_BIN/claude`).
- *   4. NVM versions (`~/.nvm/versions/node/<v>/bin/claude` — newest first
- *      by directory name string-sort, which is good enough for v1).
+ *   4. NVM versions (`~/.nvm/versions/node/<v>/bin/claude` — newest
+ *      first, compared numerically).
  *   5. Homebrew + system paths (`/opt/homebrew/bin`, `/usr/local/bin`,
  *      `/usr/bin`, `/bin`).
  *   6. Misc user installs (`~/.local/bin`, `~/.npm-global/bin`,
@@ -146,9 +146,11 @@ export async function findClaudeBinary(deps: BinaryDiscoveryDeps = defaultDeps):
     if (candidate) return candidate
   }
 
-  // 4. All NVM-installed node versions (newest by string sort).
+  // 4. All NVM-installed node versions, newest first. A plain string sort
+  //    mis-orders unpadded semver dir names ("v8.17.0" sorts after "v18.20.0"),
+  //    so a single-digit major would shadow newer nodes; compare numerically.
   const nvmRoot = path.join(home, ".nvm", "versions", "node")
-  const nvmVersions = deps.readdir(nvmRoot).sort().reverse()
+  const nvmVersions = deps.readdir(nvmRoot).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
   for (const v of nvmVersions) {
     const candidate = tryPath(path.join(nvmRoot, v, "bin", "claude"))
     if (candidate) return candidate

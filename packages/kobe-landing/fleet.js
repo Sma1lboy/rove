@@ -50,16 +50,24 @@
   var TASKS = {
     'streaming-diff': {
       tagA: 'claude', tab2: 'bun dev',
+      // Frame grammar traced from a live Claude Code session (headless-xterm
+      // capture, v2.1.239): crab glyph + 3-line header, ❯ prompt echo,
+      // ⏺ response bullet, indented tool-result line, ✻ spinner, and the
+      // input row fenced by two rules.
       work:
-        '<span class="d">Claude Code v2.1.220</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="hi">stream the diff pane instead of buffering the whole patch</span>\n\n' +
-        '<span class="hi">I\'ll split this into three moves:</span>\n' +
-        '  • parse <span class="hi">git diff</span> as a line stream, not one blob\n' +
-        '  • push hunks to the pane as they land\n' +
-        '  • keep the scroll anchor pinned while rows append\n\n' +
-        '<span class="ok">✓</span> edited <span class="hi">src/panes/diff/stream.ts</span>\n' +
-        '<span class="d">⠹ Baking… (13m 44s · esc to interrupt)</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="fl-cursor"></span>',
+        '<span class="art"><span class="ps"> ▐▛███▛█</span>   <span class="hi">Claude Code</span>\n' +
+        '<span class="ps">▝▜██████▀</span>  <span class="d">Opus 5 · API Usage Billing</span>\n' +
+        '<span class="ps">  ▝▝ ▝▝</span>    <span class="d">~/w/rove</span></span>\n\n' +
+        '<span class="ps">❯</span> <span class="hi">stream the diff pane instead of buffering the whole patch</span>\n\n' +
+        '<span class="hi">⏺</span> I\'ll parse <span class="hi">git diff</span> as a line stream, push hunks to the pane as\n' +
+        '  they land, and keep the scroll anchor pinned while rows append.\n\n' +
+        '<span class="ok">⏺</span> Update(<span class="hi">src/panes/diff/stream.ts</span>)\n' +
+        '  <span class="d">⎿</span>  Updated <span class="hi">src/panes/diff/stream.ts</span> with 96 additions and 12 removals\n\n' +
+        '<span class="ps">✻</span> <span class="d">Baking… (13m 44s · esc to interrupt)</span>',
+      input:
+        '<span class="rule"></span>' +
+        '<span class="ps">❯</span> <span class="fl-cursor"></span>\n' +
+        '<span class="rule"></span>',
       side:
         '<span class="ps">$</span> bun run dev\n\n' +
         '  <span class="ok">VITE v6.3.2</span>  ready in 341 ms\n\n' +
@@ -76,17 +84,28 @@
     },
     'oauth-refresh': {
       tagA: 'codex', tab2: 'pytest',
+      // Frame grammar traced from a live Codex session + refs/codex tui:
+      // rounded box header, › prompt, dim • bullets, "  └" result lines,
+      // "Working (… • esc to interrupt)" status.
       work:
-        '<span class="d">Codex CLI 0.9.1</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="hi">refresh tokens before they expire, not after a 401</span>\n\n' +
-        '<span class="hi">Plan:</span>\n' +
-        '  • read <span class="hi">expires_at</span> at load, schedule a refresh at T−60s\n' +
-        '  • collapse concurrent refreshes behind one in-flight promise\n' +
-        '  • keep the 401 retry only as a backstop\n\n' +
-        '<span class="ok">✓</span> edited <span class="hi">auth/session.py</span>\n' +
-        '<span class="wn">!</span> 2 tests still red — reading the fixtures\n' +
-        '<span class="d">● Working… (6m 02s · esc to interrupt)</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="fl-cursor"></span>',
+        '<span class="art"><span class="d">╭────────────────────────────────────────────╮</span>\n' +
+        '<span class="d">│</span> <span class="hi">&gt;_ OpenAI Codex</span>                            <span class="d">│</span>\n' +
+        '<span class="d">│                                            │</span>\n' +
+        '<span class="d">│ model:     gpt-5.2-codex  /model to change │</span>\n' +
+        '<span class="d">│ directory: ~/w/storefront                  │</span>\n' +
+        '<span class="d">╰────────────────────────────────────────────╯</span></span>\n\n' +
+        '<span class="ps">›</span> <span class="hi">refresh tokens before they expire, not after a 401</span>\n\n' +
+        '<span class="d">•</span> Read <span class="hi">expires_at</span> at load and schedule a refresh at T−60s,\n' +
+        '  collapsing concurrent refreshes behind one in-flight promise.\n\n' +
+        '<span class="d">•</span> <span class="hi">Edited</span> auth/session.py\n' +
+        '  <span class="d">└</span> <span class="ok">+61</span> <span class="er">-40</span> <span class="d">schedule_refresh, _single_flight</span>\n\n' +
+        '<span class="d">•</span> <span class="hi">Ran</span> pytest tests/auth -x -q\n' +
+        '  <span class="d">└</span> 8 passed, <span class="er">2 failed</span> <span class="d">— reading the fixtures</span>\n\n' +
+        '<span class="wn">•</span> <span class="d">Working (6m 02s • esc to interrupt)</span>',
+      input:
+        '<span class="rule"></span>' +
+        '<span class="ps">›</span> <span class="fl-cursor"></span>\n' +
+        '<span class="rule"></span>',
       side:
         '<span class="ps">$</span> pytest tests/auth -x -q\n' +
         '<span class="ok">........</span><span class="er">FF</span>\n\n' +
@@ -104,7 +123,7 @@
     'ledger-migration': {
       tagA: 'copilot', tab2: 'psql',
       work:
-        '<span class="d">Copilot CLI 1.4.0</span>\n\n' +
+        '<span class="d">Copilot CLI</span>\n\n' +
         '<span class="ps">&gt;</span> <span class="hi">backfill the ledger table without locking writes</span>\n\n' +
         '<span class="hi">Drafted a two-phase migration:</span>\n' +
         '  • add the column nullable, backfill in 10k batches\n' +
@@ -112,8 +131,11 @@
         '<span class="wn">?</span> <span class="hi">This rewrites 2,418,905 production rows.</span>\n' +
         '  <span class="d">Run it now?</span>\n' +
         '  <span class="wn">❯ 1. Yes</span>\n' +
-        '    <span class="d">2. No, keep the migration as a draft</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="fl-cursor"></span>',
+        '    <span class="d">2. No, keep the migration as a draft</span>',
+      input:
+        '<span class="rule"></span>' +
+        '<span class="ps">&gt;</span> <span class="fl-cursor"></span>\n' +
+        '<span class="rule"></span>',
       side:
         '<span class="ps">$</span> psql $DATABASE_URL\n' +
         '<span class="d">psql (16.3)</span>\n\n' +
@@ -130,17 +152,30 @@
     },
     'flaky-e2e': {
       tagA: 'kimi', tab2: 'git',
+      // Frame grammar traced from a live Kimi Code session: rounded welcome
+      // box with the two-row block logo, ✨ user message, rounded input box,
+      // dim status strip under it.
       work:
-        '<span class="d">Kimi CLI 0.6.2</span>\n\n' +
-        '<span class="ps">&gt;</span> <span class="hi">find why the checkout e2e flakes ~1 run in 8</span>\n\n' +
-        '<span class="hi">Root cause: a real timer, not a fake one.</span>\n' +
-        '  • the suite waits 300ms for the toast\n' +
-        '  • CI renders it in 280–420ms under load\n' +
-        '  • replaced the sleep with a visibility wait\n\n' +
-        '<span class="ok">✓</span> edited <span class="hi">e2e/checkout.spec.ts</span>\n' +
-        '<span class="ok">✓</span> 200 consecutive runs, 0 failures\n' +
-        '<span class="ok">✓</span> reported <span class="hi">succeeded</span> · 12m 08s\n\n' +
-        '<span class="d">○ turn finished — nobody has looked yet</span>',
+        '<span class="art"><span class="d">╭────────────────────────────────────────────────────╮</span>\n' +
+        '<span class="d">│</span>                                                    <span class="d">│</span>\n' +
+        '<span class="d">│</span>  <span class="ps">▐█▛█▛█▌</span>  <span class="hi">Welcome to Kimi Code!</span>                    <span class="d">│</span>\n' +
+        '<span class="d">│</span>  <span class="ps">▐█████▌</span>  <span class="d">Send /help for help information.</span>         <span class="d">│</span>\n' +
+        '<span class="d">│</span>                                                    <span class="d">│</span>\n' +
+        '<span class="d">│  Directory: ~/w/storefront                         │</span>\n' +
+        '<span class="d">│  Model:     K3                                     │</span>\n' +
+        '<span class="d">│</span>                                                    <span class="d">│</span>\n' +
+        '<span class="d">╰────────────────────────────────────────────────────╯</span></span>\n\n' +
+        '<span class="wn">✨</span> <span class="hi">find why the checkout e2e flakes ~1 run in 8</span>\n\n' +
+        'Root cause: a real timer, not a fake one — the suite waits 300ms\n' +
+        'for the toast, CI renders it in 280–420ms under load. Replaced\n' +
+        'the sleep with a visibility wait.\n\n' +
+        '<span class="ok">✓</span> Edited <span class="hi">e2e/checkout.spec.ts</span>\n' +
+        '<span class="ok">✓</span> 200 consecutive runs, 0 failures',
+      input:
+        '<span class="art"><span class="d">╭────────────────────────────────────────────────────╮</span>\n' +
+        '<span class="d">│</span> <span class="ps">&gt;</span> <span class="fl-cursor"></span>                                                <span class="d">│</span>\n' +
+        '<span class="d">╰────────────────────────────────────────────────────╯</span></span>\n' +
+        '<span class="wn">yolo</span>  <span class="d">K3 thinking: high  ~/w/storefront  main</span>',
       side:
         '<span class="ps">$</span> git log --oneline -3\n' +
         '<span class="wn">a91c04e</span> fix(e2e): wait for the toast\n' +
@@ -213,6 +248,15 @@
     tagA.textContent = t.tagA;
     tagB.textContent = t.tab2;
     work.querySelector('pre').innerHTML = t.work;
+    // Engine input row pinned to the pane's bottom edge, like the real TUI —
+    // scrollback grows downward, the composer stays put.
+    var input = work.querySelector('.fl-input');
+    if (!input) {
+      input = el('pre', 'fl-input');
+      work.appendChild(input);
+    }
+    input.innerHTML = t.input || '';
+    input.hidden = !t.input;
     side.querySelector('pre').innerHTML = t.side;
     document.getElementById('fleetScope').textContent = t.scope;
     var list = document.getElementById('fleetFileRows');

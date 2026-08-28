@@ -70,7 +70,7 @@ beforeEach(() => {
   process.env.ROVE_HOME_DIR = home
   process.env.KOBE_HOME_DIR = home
   Reflect.deleteProperty(process.env, "ROVE_DAEMON_WEB_PORT")
-  mkdirSync(join(home, ".kobe"), { recursive: true })
+  mkdirSync(join(home, ".rove"), { recursive: true })
 
   mocks.daemonRequest.mockReset()
   mocks.daemonClose.mockReset()
@@ -127,7 +127,7 @@ describe("kobe daemon status", () => {
 
   it("reports a stale pidfile and sets exitCode 1 when the socket doesn't answer", async () => {
     mocks.daemonRequest.mockRejectedValue(new Error("ECONNREFUSED"))
-    writeFileSync(join(home, ".kobe", "daemon.pid"), "4242", "utf8")
+    writeFileSync(join(home, ".rove", "daemon.pid"), "4242", "utf8")
     await runDaemonSubcommand(["status"])
     expect(output()).toContain("stale pidfile pid=4242")
     expect(process.exitCode).toBe(1)

@@ -43,7 +43,11 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
       {/* Action row — sits above the All / Changes tabs so it's reachable
          from both tabs. Zen toggle sits left of Create PR (prefix+p). */}
       {props.onZenToggle || props.onCreatePR ? (
-        <box flexDirection="row" justifyContent="flex-end" gap={2} paddingBottom={1} flexShrink={0}>
+        // wrap, and chips flexShrink={0}: on a narrow pane Yoga used to
+        // squeeze the chips' inner gaps first ("[~]Zen"), and with shrink
+        // forbidden the row would overflow the pane border instead — wrapping
+        // stacks the chips right-aligned, both still whole.
+        <box flexDirection="row" flexWrap="wrap" justifyContent="flex-end" gap={2} paddingBottom={1} flexShrink={0}>
           {props.onZenToggle ? (
             // stopPropagation: the chip click must NOT bubble to the host
             // pane box's own onMouseUp (workspace host focuses the files
@@ -53,6 +57,10 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
             <box
               flexDirection="row"
               gap={1}
+              // Never squeeze the chip below its content: on a narrow pane the
+              // shrink ate the inner gap first ("[~]Zen"), which reads as one
+              // garbled token instead of a keycap + label.
+              flexShrink={0}
               onMouseUp={(e: { stopPropagation(): void }) => {
                 e.stopPropagation()
                 props.onZenToggle?.()
@@ -70,6 +78,8 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
             <box
               flexDirection="row"
               gap={1}
+              // Same no-squeeze rule as the Zen chip.
+              flexShrink={0}
               onMouseUp={(e: { stopPropagation(): void }) => {
                 e.stopPropagation()
                 props.onCreatePR?.()

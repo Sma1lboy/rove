@@ -80,7 +80,7 @@ describe("worktree.list", () => {
     expect(row?.branchOnRemote).toBeNull()
   })
 
-  it("excludes repos with no worktrees from an empty result, not an error", async () => {
+  it("includes a repo with no worktrees in the result rather than erroring", async () => {
     const result = (await dispatch("worktree.list", {})) as { projects: Array<{ repo: string }> }
     const project = result.projects.find((p) => p.repo === repo)
     expect(project).toBeDefined()

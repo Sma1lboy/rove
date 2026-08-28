@@ -3,6 +3,7 @@ import { PromptBroker } from "@sma1lboy/kobe-daemon/daemon/prompt-broker"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
+import { CURRENT_VERSION } from "../../src/version.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 /**
@@ -58,7 +59,6 @@ describe("daemon handler registry", () => {
       "issue.mutate",
       "worktree.discoverAdoptable",
       "worktree.adopt",
-      "worktree.reconcile",
       "worktree.archiveRemoved",
       "worktree.list",
       "worktree.remove",
@@ -223,7 +223,8 @@ describe("daemon handler registry", () => {
     it("publishes with an explicit tabId and rejects an unknown task", async () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const result = await dispatch("session.deliver", { taskId: "t1", text: "hi", tabId: "tab-2" }, ctx)
-      expect(result).toEqual({ ok: true })
+      // `clients` counts attached connections (#499's reached-nobody probe).
+      expect(result).toEqual({ ok: true, clients: 1 })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("session.deliver")
       expect(event.payload).toMatchObject({ taskId: "t1", text: "hi", tabId: "tab-2", source: "dispatcher" })
@@ -333,8 +334,8 @@ describe("daemon handler registry", () => {
       expect(status.taskCount).toBe(1)
       expect(status.socketPath).toBe("/tmp/fake/daemon.sock")
       expect(status.startedAt).toBe("2026-06-01T00:00:00.000Z")
-      expect(typeof status.uptimeMs).toBe("number")
-      expect(typeof status.kobeVersion).toBe("string")
+      expect(status.uptimeMs).toBeGreaterThanOrEqual(0)
+      expect(status.kobeVersion).toBe(CURRENT_VERSION)
     })
 
     it("daemon.stop drives stopSoon and returns the empty object", async () => {

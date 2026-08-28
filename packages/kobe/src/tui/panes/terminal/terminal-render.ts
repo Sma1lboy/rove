@@ -12,6 +12,17 @@ export function isShellMissing(message: string): boolean {
   return m.includes("enoent") || m.includes("not found")
 }
 
+/**
+ * Cells a single code point occupies in the grid, matching `displayWidth`'s
+ * accounting exactly: a zero-width mark (combining diacritic, emoji variation
+ * selector, ZWJ/bidi control) contributes 0. xterm folds such a mark onto its
+ * base char's cell, so counting it as 1 drifts the cell-column cursor right by
+ * one column per mark to its left — do NOT `|| 1` this back to a width of one.
+ */
+function cellWidth(ch: string): number {
+  return charWidth(ch.codePointAt(0) as number)
+}
+
 function cloneChunk(c: Chunk, text: string, attrs = c.attributes ?? 0): Chunk {
   return {
     text,
@@ -24,11 +35,27 @@ function cloneChunk(c: Chunk, text: string, attrs = c.attributes ?? 0): Chunk {
 /** Sum the display width (in cells) of a chunk's text. */
 function chunkCells(chars: readonly string[]): number {
   let w = 0
-  for (const ch of chars) w += charWidth(ch.codePointAt(0) as number) || 1
+  for (const ch of chars) w += cellWidth(ch)
   return w
 }
 
-function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
+export interface TerminalRenderColors {
+  readonly foreground: RGB
+  readonly background: RGB
+}
+
+/** Resolve the synthetic cursor to literal colors before OpenTUI sees it. */
+function cursorChunk(source: Chunk, text: string, colors: TerminalRenderColors): Chunk {
+  const attributes = (source.attributes ?? 0) & ~ATTR.INVERSE
+  return {
+    text,
+    fg: source.bg ?? colors.background,
+    bg: source.fg ?? colors.foreground,
+    ...(attributes !== 0 ? { attributes } : {}),
+  }
+}
+
+function overlayCursorRow(row: readonly Chunk[], x: number, colors: TerminalRenderColors): Chunk[] {
   const out: Chunk[] = []
   // `x` is a terminal CELL column. Chunk text is code points, and a wide
   // (CJK / fullwidth / emoji) glyph is ONE code point but TWO cells — so we
@@ -51,7 +78,7 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
     let localCol = col
     let hit = -1
     for (let idx = 0; idx < chars.length; idx++) {
-      const w = charWidth((chars[idx] as string).codePointAt(0) as number) || 1
+      const w = cellWidth(chars[idx] as string)
       if (x >= localCol && x < localCol + w) {
         hit = idx
         break
@@ -62,7 +89,7 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
       const before = chars.slice(0, hit).join("")
       const after = chars.slice(hit + 1).join("")
       if (before) out.push(cloneChunk(chunk, before))
-      out.push(cloneChunk(chunk, chars[hit] || " ", (chunk.attributes ?? 0) | ATTR.INVERSE))
+      out.push(cursorChunk(chunk, chars[hit] || " ", colors))
       if (after) out.push(cloneChunk(chunk, after))
       inserted = true
     } else {
@@ -77,7 +104,7 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
     // end-of-text instead is how the cursor visually froze while xterm's
     // cursor kept advancing over typed spaces.
     if (x > col) out.push({ text: " ".repeat(x - col) })
-    out.push({ text: " ", attributes: ATTR.INVERSE })
+    out.push(cursorChunk({ text: " " }, " ", colors))
   }
   return out
 }
@@ -85,9 +112,10 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
 export function overlayCursor(
   rows: readonly (readonly Chunk[])[],
   cursor: CursorPos | null,
+  colors: TerminalRenderColors,
 ): readonly (readonly Chunk[])[] {
   if (!cursor) return rows
-  return rows.map((row, y) => (y === cursor.y ? overlayCursorRow(row, cursor.x) : row))
+  return rows.map((row, y) => (y === cursor.y ? overlayCursorRow(row, cursor.x, colors) : row))
 }
 
 /**
@@ -137,7 +165,7 @@ export function sealRowEndAttributes(
       const chars = Array.from(chunk.text)
       for (let j = 0; j < chars.length; j++) {
         const ch = chars[j] as string
-        const w = charWidth(ch.codePointAt(0) as number) || 1
+        const w = cellWidth(ch)
         if (col + w <= lastColumn) {
           col += w
           continue

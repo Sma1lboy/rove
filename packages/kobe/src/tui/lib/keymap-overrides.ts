@@ -18,9 +18,7 @@ import type { KeymapOverrideEntry } from "./keymap-overrides-parse"
 export {
   type ChordResult,
   type ExtractedKeybindingOverrides,
-  type ExtractOverridesOpts,
   type KeymapOverrideEntry,
-  type NormalizeChordOpts,
   extractKeybindingOverrides,
   normalizeChord,
 } from "./keymap-overrides-parse"

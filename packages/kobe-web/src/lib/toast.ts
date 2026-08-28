@@ -35,11 +35,18 @@ export function dismissToast(id: number): void {
 }
 
 /** Standard shape for a failed mutation: `label: cause`. An Error contributes
- *  its message; anything else is stringified. Pure + exported so the contract
- *  is testable without the window-bound toast store. */
+ *  its message; a plain object its JSON (never "[object Object]"); anything
+ *  else is stringified. Pure + exported so the contract is testable without
+ *  the window-bound toast store. */
 export function formatError(label: string, err: unknown): string {
-  const cause = err instanceof Error ? err.message : String(err)
-  return `${label}: ${cause}`
+  if (err instanceof Error) return `${label}: ${err.message}`
+  const raw = String(err)
+  if (raw !== "[object Object]") return `${label}: ${raw}`
+  try {
+    return `${label}: ${JSON.stringify(err) ?? raw}`
+  } catch {
+    return `${label}: ${raw}` // circular — raw is the best we have
+  }
 }
 
 /** Standard shape for a failed mutation: `label: cause`. */

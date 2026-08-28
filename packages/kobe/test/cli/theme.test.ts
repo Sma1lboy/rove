@@ -10,6 +10,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { type MockInstance, afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { runThemeSubcommand } from "../../src/cli/theme.ts"
+import { BUNDLED_THEME_JSONS } from "../../src/tui/context/theme/bundled.ts"
 
 const VALID_THEME = {
   defs: { bg: "#000000", fg: "#ffffff" },
@@ -95,6 +96,21 @@ describe("runThemeSubcommand list", () => {
     const text = out()
     expect(text).toContain("my-theme")
     expect(text).toContain("claude (overrides built-in)")
+  })
+
+  // `theme list` must name every bundled theme, not a copy of the list that
+  // happened to be true when it was written. The CLI used to hand-mirror these
+  // names because importing the theme map pulled in opentui + Solid; once Solid
+  // went away the workaround outlived its reason, leaving two files and two
+  // "keep in sync" comments as the only thing holding them together. This
+  // asserts against the map that owns the JSON imports, so adding a bundled
+  // theme without the CLI picking it up fails here.
+  it("lists every bundled theme in the canonical map", async () => {
+    await runThemeSubcommand(["list"])
+    const text = out()
+    for (const name of Object.keys(BUNDLED_THEME_JSONS)) {
+      expect(text).toContain(name)
+    }
   })
 
   it("rejects extra arguments to list", async () => {

@@ -59,6 +59,46 @@ export function installExitRestoreBackstop(renderer: { destroy(): void }): void 
   process.on("exit", () => renderer.destroy())
 }
 
+/** DECSET 2004 — the terminal wraps pasted text in `\x1b[200~ … \x1b[201~`. */
+const BRACKETED_PASTE_ON = "\x1b[?2004h"
+const BRACKETED_PASTE_OFF = "\x1b[?2004l"
+
+/**
+ * Ask the host terminal for BRACKETED PASTE, and give it back on exit.
+ *
+ * Without this the terminal delivers a paste as ordinary keystrokes, so every
+ * newline in the pasted text is an Enter: paste three lines into an engine tab
+ * and the first line is SUBMITTED while the rest land wherever the engine went
+ * next. With it the terminal frames the paste, opentui's key parser buffers
+ * the whole thing into one `paste` event (it knows the markers but never turns
+ * the mode on), the focused pane hands it to its PTY as a paste, and
+ * `pty-xterm-base.ts#paste` re-frames it for the engine when the engine itself
+ * asked for the mode. Every other link of that chain already existed.
+ *
+ * Returns the restore, which is also registered on "exit" — pages quit through
+ * `process.exit()`, and a terminal left in bracketed-paste mode makes the next
+ * shell's own paste handling look broken.
+ */
+export function installBracketedPasteMode(stdout: NodeJS.WriteStream = process.stdout): () => void {
+  if (!stdout.isTTY) return () => {}
+  const write = (seq: string): void => {
+    try {
+      stdout.write(seq)
+    } catch {
+      /* a revoked tty must not take the host down */
+    }
+  }
+  write(BRACKETED_PASTE_ON)
+  let restored = false
+  const restore = (): void => {
+    if (restored) return
+    restored = true
+    write(BRACKETED_PASTE_OFF)
+  }
+  process.on("exit", restore)
+  return restore
+}
+
 /**
  * Exit-signal backstop (orphaned-helper leak): opentui's own exit handler
  * for SIGHUP/SIGTERM only destroys the renderer — it never calls

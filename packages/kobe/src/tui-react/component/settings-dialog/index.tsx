@@ -30,10 +30,11 @@ import {
   rowAt,
   sectionRows,
 } from "../../../tui/component/settings-dialog/model"
+import { reloadUserKeybindings, userKeybindingsReport } from "../../../tui/context/keybindings-user"
+import { createKeybindingsFile } from "../../../tui/lib/keybindings-starter"
 import { toggleKeyHints } from "../../../tui/lib/keyboard-hints"
 import { LOCALE_KEY } from "../../../tui/lib/persisted-ui-prefs"
 import type { VendorId } from "../../../types/task"
-import { isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
 import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../context/theme"
 import { type LocaleId, currentLang, setLocaleLang, useT } from "../../i18n"
@@ -42,7 +43,7 @@ import { useAccessor } from "../../lib/use-accessor"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
 import { SettingsCursorElContext } from "./rows"
-import { AccountsSettingsSection, EngineSettingsSection } from "./sections-engines"
+import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
 import { DevSettingsSection, FeedbackSettingsSection, KeybindingsSettingsSection } from "./sections-misc"
 import { PluginSettingsSection } from "./sections-plugins"
@@ -100,7 +101,20 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
-  const accounts = useAccountProbes(section)
+  const engineStatuses = useAccountProbes(section, engines.engineList())
+  // Writing the starter YAML flips the Keybindings section from "here is an
+  // example" to a real file — and re-applying it is what re-renders the
+  // section (and drops its create row) without a restart.
+  const [keysFileExists, setKeysFileExists] = useState(() => userKeybindingsReport().exists)
+  function createKeysFile(): void {
+    try {
+      createKeybindingsFile(userKeybindingsReport().path)
+      reloadUserKeybindings()
+    } catch {
+      /* unwritable config dir — the section keeps offering the action */
+    }
+    setKeysFileExists(userKeybindingsReport().exists)
+  }
   const plugins = usePluginSettings(section, dialog)
 
   /**
@@ -115,6 +129,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
       engineList: engines.engineList(),
       plugins: plugins.rows.map((p) => ({ id: p.id, settingKeys: p.settings.map((s) => s.key) })),
       hasDaemon,
+      keybindingsFileExists: keysFileExists,
     })
   }
 
@@ -241,6 +256,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     tabStripHideSingle: () => prefs.cycleTabStripMode(),
     engine: (row) => void engines.editEngine(row.vendor),
     engineAdd: () => void engines.addEngineFlow(),
+    keysCreate: () => createKeysFile(),
     pluginToggle: (row) => plugins.toggle(row.pluginId),
     pluginSetting: (row) => void plugins.editSetting(row.pluginId, row.key),
     feedbackTitle: () => setBodyRow(0),
@@ -307,7 +323,16 @@ export function SettingsDialog(props: SettingsDialogProps) {
         key: "d",
         cmd: () => {
           const v = currentEngineRow()
-          if (v) engines.setEngineDefault(v)
+          if (v) engines.chooseDefaultEngine(v)
+        },
+      },
+      {
+        // Engines section: `space` switches the focused engine on or off.
+        // PROPOSED chord — surfaced for sign-off, see docs/KEYBINDINGS.md.
+        key: "space",
+        cmd: () => {
+          const v = currentEngineRow()
+          if (v) engines.toggleEngineEnabled(v)
         },
       },
     ],
@@ -338,6 +363,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }, [])
 
   const cursorProps = { level, bodyRow, setLevel, setBodyRow }
+  const navHint = (
+    <box paddingTop={0}>
+      <text fg={theme.textMuted}>{editingFeedback ? t("settings.nav.feedback") : t("settings.nav.default")}</text>
+    </box>
+  )
   const body = (
     <box paddingLeft={padX} paddingRight={padX} paddingBottom={1} gap={1}>
       <box flexDirection="row" justifyContent="space-between">
@@ -368,21 +398,17 @@ export function SettingsDialog(props: SettingsDialogProps) {
             <EngineSettingsSection
               {...cursorProps}
               vendors={engines.engineList()}
-              isCustom={(v) => !isBuiltinVendor(v)}
+              statuses={engineStatuses}
+              isCustom={engines.isCustomEngine}
+              isEnabled={engines.isEngineEnabled}
+              toggleEngine={engines.toggleEngineEnabled}
+              chooseDefault={engines.chooseDefaultEngine}
               displayName={engines.engineName}
               commandText={engines.engineCommandText}
               isDefault={engines.engineIsDefault}
               isDefaultEngine={(v) => engines.defaultEngine === v}
               editEngine={(v) => void engines.editEngine(v)}
               onAddEngine={() => void engines.addEngineFlow()}
-            />
-          ) : null}
-          {section === "accounts" ? (
-            <AccountsSettingsSection
-              claudeStatus={accounts.claude}
-              codexStatus={accounts.codex}
-              copilotStatus={accounts.copilot}
-              kimiStatus={accounts.kimi}
             />
           ) : null}
           {section === "plugins" ? (
@@ -393,7 +419,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
               editSetting={(id, key) => void plugins.editSetting(id, key)}
             />
           ) : null}
-          {section === "keys" ? <KeybindingsSettingsSection /> : null}
+          {section === "keys" ? <KeybindingsSettingsSection {...cursorProps} onCreateFile={createKeysFile} /> : null}
           {section === "feedback" ? (
             <FeedbackSettingsSection
               {...cursorProps}
@@ -423,9 +449,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
           ) : null}
         </box>
       </box>
-      <box paddingTop={0}>
-        <text fg={theme.textMuted}>{editingFeedback ? t("settings.nav.feedback") : t("settings.nav.default")}</text>
-      </box>
+      {/* Overlay dialog: the box is content-sized, so the hint is simply its
+          last row. The standalone page pulls it out as a footer instead. */}
+      {props.standalone ? null : navHint}
     </box>
   )
 
@@ -433,15 +459,25 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return <SettingsCursorElContext.Provider value={reportCursorEl}>{body}</SettingsCursorElContext.Provider>
   return (
     <SettingsCursorElContext.Provider value={reportCursorEl}>
-      <scrollbox
-        ref={(r: ScrollBoxRenderable | null) => {
-          scrollRef.current = r
-        }}
-        flexGrow={1}
-        verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
-      >
-        {body}
-      </scrollbox>
+      <box flexDirection="column" flexGrow={1}>
+        <scrollbox
+          ref={(r: ScrollBoxRenderable | null) => {
+            scrollRef.current = r
+          }}
+          flexGrow={1}
+          flexShrink={1}
+          flexBasis={0}
+          verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+        >
+          {body}
+        </scrollbox>
+        {/* Floating footer: the page content scrolls, this line does not —
+            the nav hint is exactly what you want when a long section has
+            scrolled its own header out of sight. */}
+        <box paddingLeft={padX} paddingRight={padX}>
+          {navHint}
+        </box>
+      </box>
     </SettingsCursorElContext.Provider>
   )
 }

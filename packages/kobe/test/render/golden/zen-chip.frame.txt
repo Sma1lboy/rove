@@ -5,7 +5,7 @@
 |                              |
 | ROVE                         |
 |                              |
-|  + New task               n  |
+|  New task               + n  |
 |                              |
 | Kanban                       |
 | Routines                     |
@@ -22,5 +22,5 @@
 |                              |
 |                              |
 |                              |
-| ☯ ZEN                        |
+| ◐ ZEN                        |
 |                              |

@@ -6,8 +6,7 @@
  * path. The vendor → default-argv mapping itself lives on the engine
  * registry (`registry.ts` `defaultCommand`); this module layers the
  * user's per-vendor override on top. Every launch site (the outer
- * monitor's Handover, the Tasks-pane switch, `new-chattab`) goes
- * through this.
+ * monitor's Handover and the Tasks-pane switch) goes through this.
  *
  * Codex's bare `codex` (no subcommand) opens its interactive TUI, the
  * same way bare `claude` does — `codex exec` is the headless path we
@@ -18,9 +17,9 @@
  * (e.g. it's `cl`) or who wants default flags (`claude --model …`) can
  * set their own. The override is a shell-ish command STRING persisted in
  * the shared `state.json` under {@link engineCommandKey}; we read it with
- * the cross-process {@link getPersistedString} (the Tasks-pane and
- * `new-chattab` run in their own processes, so they can't share the TUI's
- * reactive KV — they all read the same file instead). Empty / unset →
+ * the cross-process {@link getPersistedString} (the Tasks-pane runs in
+ * its own process, so it can't share the TUI's reactive KV — both read
+ * the same file instead). Empty / unset →
  * the built-in default.
  */
 
@@ -31,7 +30,7 @@ import { autoStatusEnabled } from "@/state/auto-status"
 import { dispatcherEnabled } from "@/state/dispatcher"
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/task"
-import { BUILTIN_VENDORS } from "@/types/vendor"
+import { BUILTIN_VENDORS, coerceVendorId } from "@/types/vendor"
 
 /**
  * Human label for a vendor (Settings → Engines rows). Sourced from the
@@ -67,7 +66,9 @@ export function engineNameKey(vendor: VendorId): string {
  */
 export function engineDisplayName(vendor: VendorId): string {
   const override = getPersistedString(engineNameKey(vendor))?.trim()
-  return override || VENDOR_LABEL[vendor] || vendor
+  // engineEntry answers every id: built-in labels, contrib catalog names
+  // ("Gemini CLI"), and the id itself for a plain custom engine.
+  return override || engineEntry(vendor).displayName
 }
 
 /**
@@ -80,7 +81,7 @@ export function engineDisplayName(vendor: VendorId): string {
  * launching claude.
  */
 export function defaultEngineCommand(vendor: VendorId | undefined): readonly string[] {
-  return engineEntry(vendor ?? "claude").defaultCommand
+  return engineEntry(coerceVendorId(vendor)).defaultCommand
 }
 
 /**
@@ -126,7 +127,7 @@ export function parseEngineCommand(command: string): string[] {
 }
 
 export function interactiveEngineCommand(vendor: VendorId | undefined, effort?: string): readonly string[] {
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   const override = getPersistedString(engineCommandKey(v))?.trim()
   const base = (() => {
     if (override) {
@@ -144,7 +145,7 @@ export function interactiveEngineCommand(vendor: VendorId | undefined, effort?: 
  * adapter concern; launch sites and tab chrome remain vendor-neutral.
  */
 export function withEngineTerminalTitle(argv: readonly string[], vendor: VendorId | undefined): readonly string[] {
-  const args = engineEntry(vendor ?? "claude").terminalTitle?.launchArgs
+  const args = engineEntry(coerceVendorId(vendor)).terminalTitle?.launchArgs
   return args && args.length > 0 ? [...argv, ...args] : argv
 }
 
@@ -163,11 +164,27 @@ export function withEngineEffort(
 ): readonly string[] {
   const trimmed = effort?.trim()
   if (!trimmed) return argv
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   const levels = engineEntry(v).effortLevels
   if (!levels?.includes(trimmed)) return argv
   if (v === "codex") return [...argv, "-c", `model_reasoning_effort=${trimmed}`]
   return argv
+}
+
+/**
+ * True when `argv` carries `flag` — in EITHER the separated form
+ * (`--flag value`, the flag its own token) or the attached form
+ * (`--flag=value`, one token). {@link parseEngineCommand} deliberately keeps
+ * the attached form as a single token ("the common CLI idiom"), so a bare
+ * `argv.includes(flag)` silently misses `--resume=<id>` /
+ * `--append-system-prompt="…"` — the root cause behind double session
+ * control and double prompt injection. Every "the command already sets this
+ * flag, don't add our own" guard must go through this helper; an
+ * architecture test (`test/architecture/argv-flag-guards.test.ts`) rejects
+ * new `argv.includes("--…")` guards. Prefix-safe: `--resume-x` ≠ `--resume`.
+ */
+export function argvHasFlag(argv: readonly string[], flag: string): boolean {
+  return argv.some((a) => a === flag || a.startsWith(`${flag}=`))
 }
 
 /**
@@ -176,7 +193,12 @@ export function withEngineEffort(
  * `--session-id` (claude would reject two, or our id would lose to the
  * resumed one). Covers both long and short forms.
  */
-const CLAUDE_SESSION_CONTROL_FLAGS = new Set(["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"])
+const CLAUDE_SESSION_CONTROL_FLAGS = ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"] as const
+
+/** The command already controls its own claude session (either flag form). */
+function pinsClaudeSession(argv: readonly string[]): boolean {
+  return CLAUDE_SESSION_CONTROL_FLAGS.some((flag) => argvHasFlag(argv, flag))
+}
 
 /**
  * For a Claude launch, append a kobe-generated `--session-id <uuid>` so the
@@ -193,8 +215,8 @@ export function withClaudeSessionId(
   argv: readonly string[],
   vendor: string | undefined,
 ): { argv: readonly string[]; sessionId: string | null } {
-  if ((vendor ?? "claude") !== "claude") return { argv, sessionId: null }
-  if (argv.some((a) => CLAUDE_SESSION_CONTROL_FLAGS.has(a))) return { argv, sessionId: null }
+  if (coerceVendorId(vendor) !== "claude") return { argv, sessionId: null }
+  if (pinsClaudeSession(argv)) return { argv, sessionId: null }
   const sessionId = randomUUID()
   return { argv: [...argv, "--session-id", sessionId], sessionId }
 }
@@ -211,7 +233,7 @@ export function withClaudeSessionId(
  * session — the same two things claude/codex have.
  */
 export function canForkSession(vendor: VendorId | undefined): boolean {
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   return v === "claude" || v === "codex"
 }
 
@@ -224,8 +246,11 @@ export function canForkSession(vendor: VendorId | undefined): boolean {
  *     the forked tab stays trackable — the three combine, probed against
  *     claude 2.x: the fork lands in the id we pass).
  *   - codex: the `fork` SUBCOMMAND, options before the positional id.
- * Returns null when the vendor has no fork verb (copilot/custom) or no
- * source id — the caller then opens an ordinary blank tab.
+ * Returns null when the vendor has no fork verb (copilot/custom), there is
+ * no source id, or a claude base already controls its own session (a second
+ * `--resume` would make claude refuse to launch — the user's override wins,
+ * the {@link withClaudeSessionId} precedent) — the caller then opens an
+ * ordinary tab on the base command.
  */
 export function forkSessionArgv(
   base: readonly string[],
@@ -234,8 +259,9 @@ export function forkSessionArgv(
   newSessionId?: string | null,
 ): readonly string[] | null {
   if (!sourceSessionId) return null
-  const v: VendorId = vendor ?? "claude"
+  const v: VendorId = coerceVendorId(vendor)
   if (v === "claude") {
+    if (pinsClaudeSession(base)) return null
     const forked = [...base, "--resume", sourceSessionId, "--fork-session"]
     return newSessionId ? [...forked, "--session-id", newSessionId] : forked
   }
@@ -375,8 +401,8 @@ export function withWorktreeProtocol(
   notes: readonly { text: string; author: string }[] = [],
 ): readonly string[] {
   if (!taskId) return argv
-  if ((vendor ?? "claude") !== "claude") return argv
-  if (argv.includes("--append-system-prompt") || argv.includes("--append-system-prompt-file")) {
+  if (coerceVendorId(vendor) !== "claude") return argv
+  if (argvHasFlag(argv, "--append-system-prompt") || argvHasFlag(argv, "--append-system-prompt-file")) {
     return argv
   }
   const text = worktreeProtocol(taskId, kobeApiInvocation(), gates, notes)
@@ -399,7 +425,7 @@ export function withWorktreeProtocol(
 export function dispatcherProtocol(taskId: string, api: string = kobeApiInvocation()): string {
   return [
     `You are running inside Rove (a local multi-session task manager) as this repository's DISPATCHER (task ${taskId}, the repo's main session).`,
-    "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [KOBE FIELD NOTE].",
+    "Rove runs multiple worktree task sessions on this repo in parallel. When one of them resolves a non-obvious gotcha, it files a one-line field note; Rove forwards each note to you as a user message prefixed with [ROVE FIELD NOTE].",
     "Your job is routing that knowledge, fully autonomously — never ask the user for permission:",
     `  - See the fleet: \`${api} collect --repo .\` (status, running, change counts per task), or \`--task-ids id1,id2\` for specific tasks.`,
     `  - Relay a note to a task that would benefit: \`${api} dispatch --task-id <id> --prompt "[dispatcher] FYI from <author task>: <note verbatim>"\`.`,
@@ -428,8 +454,8 @@ export function withDispatcherProtocol(
   enabled: () => boolean = dispatcherEnabled,
 ): readonly string[] {
   if (!taskId || !enabled()) return argv
-  if ((vendor ?? "claude") !== "claude") return argv
-  if (argv.includes("--append-system-prompt") || argv.includes("--append-system-prompt-file")) {
+  if (coerceVendorId(vendor) !== "claude") return argv
+  if (argvHasFlag(argv, "--append-system-prompt") || argvHasFlag(argv, "--append-system-prompt-file")) {
     return argv
   }
   return [...argv, "--append-system-prompt", dispatcherProtocol(taskId)]

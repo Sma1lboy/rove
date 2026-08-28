@@ -2,10 +2,20 @@ import { describe, expect, it } from "vitest"
 import { displayWidth } from "../../src/lib/display-width"
 import { ATTR, type Chunk } from "../../src/tui/panes/terminal/sgr"
 import {
+  type CellPoint,
+  EMPTY_SHADOW,
+  type SelectionRange,
+  type SelectionShiftState,
+  clampRowToShadow,
   extractSelection,
+  extractShadowedSelection,
+  followContentShift,
   orderRange,
   overlaySelection,
+  pointerCell,
   rowSpan,
+  shiftShadow,
+  snapshotShift,
 } from "../../src/tui/panes/terminal/terminal-selection"
 
 const row = (text: string): readonly Chunk[] => [{ text }]
@@ -78,6 +88,29 @@ describe("terminal grid selection", () => {
     expect(out[0].map((c) => c.text).join("")).toBe("ab    ")
   })
 
+  it("overlaySelection lands the padding highlight on the selected cells when the span starts past the text", () => {
+    // The drag anchors in the blank padding to the right of a short line
+    // (cols 5-7, past "ab" which paints only cols 0-1). The highlight must
+    // sit on cols 5-7, with cols 2-4 left as unhighlighted padding — not
+    // shifted left onto cols 2-4 (the regression this guards).
+    const short = [row("ab")]
+    const range = { anchor: { row: 0, col: 5 }, head: { row: 0, col: 7 } }
+    const out = overlaySelection(short, range, 0, 10)[0]
+    // Full row is 8 cells: "ab" + three plain spaces + three inverse spaces.
+    expect(out.map((c) => c.text).join("")).toBe("ab      ")
+    expect(displayWidth(out.map((c) => c.text).join(""))).toBe(8)
+    const plain = out
+      .filter((c) => ((c.attributes ?? 0) & ATTR.INVERSE) === 0)
+      .map((c) => c.text)
+      .join("")
+    const inverse = out
+      .filter((c) => ((c.attributes ?? 0) & ATTR.INVERSE) !== 0)
+      .map((c) => c.text)
+      .join("")
+    expect(plain).toBe("ab   ") // "ab" + the 3-cell gap, unhighlighted
+    expect(inverse).toBe("   ") // exactly the 3 selected padding cells
+  })
+
   it("extracts a CJK range by terminal cells in either drag direction", () => {
     const cjk = [row("唯一需要区分的是：")]
     const forward = { anchor: { row: 0, col: 4 }, head: { row: 0, col: 9 } }
@@ -129,5 +162,159 @@ describe("terminal grid selection", () => {
     expect(out.map((c) => c.text).join("")).toBe(decomposed)
     const painted = out.filter((c) => ((c.attributes ?? 0) & ATTR.INVERSE) !== 0)
     expect(painted.map((c) => c.text).join("")).toBe("b\u0301")
+  })
+})
+
+describe("pointerCell", () => {
+  // 10 visible rows starting at snapshot row 40, in a 200-row snapshot.
+  const grid = { cols: 80, rows: 10 }
+  const at = (col: number, row: number, start = 40) => pointerCell(col, row, grid, start, 200)
+
+  it("maps a pointer inside the pane to its absolute row, with no pull", () => {
+    expect(at(5, 3)).toEqual({ cell: { row: 43, col: 5 }, edgePull: 0 })
+    expect(at(0, 1).edgePull).toBe(0)
+    expect(at(0, 8).edgePull).toBe(0)
+  })
+
+  it("pulls from the edge ROW, not only from beyond it", () => {
+    // The pane sits flush under a one-row tab strip: a drag held on the first
+    // visible row is the gesture, and it has to scroll.
+    expect(at(2, 0)).toEqual({ cell: { row: 40, col: 2 }, edgePull: -1 })
+    expect(at(2, 9)).toEqual({ cell: { row: 49, col: 2 }, edgePull: 1 })
+  })
+
+  it("pulls harder the further past the edge the pointer sits", () => {
+    // The row above the viewport is real scrollback — addressable, and the
+    // negative pull is what drives auto-scroll toward it.
+    expect(at(2, -1)).toEqual({ cell: { row: 39, col: 2 }, edgePull: -2 })
+    expect(at(2, -7).edgePull).toBe(-8)
+    expect(at(2, 14).edgePull).toBe(6)
+  })
+
+  it("clamps the cell to the snapshot and the grid width", () => {
+    expect(at(999, 2).cell.col).toBe(79)
+    expect(at(-4, 2).cell.col).toBe(0)
+    expect(at(0, -100, 40).cell.row).toBe(0) // above the buffer → first row
+    expect(at(0, 500, 190).cell.row).toBe(199) // past the buffer → last row
+    expect(pointerCell(0, 0, grid, 0, 0).cell.row).toBe(0) // empty snapshot
+  })
+})
+
+describe("alt-screen drag scrolling (shadow buffer)", () => {
+  // A 20-line document seen through a 5-row alternate screen. `screen(top)`
+  // is the app's repaint after scrolling to `top` — one full screen, no
+  // scrollback, exactly what an engine tab's snapshot looks like.
+  const doc = Array.from({ length: 20 }, (_, i) => `line-${String(i + 1).padStart(2, "0")}`)
+  const screen = (top: number): (readonly Chunk[])[] => doc.slice(top, top + 5).map(row)
+
+  it("snapshotShift measures the content displacement, not the wheel ticks", () => {
+    // Scroll up (older content): the surviving rows sit LOWER on screen.
+    expect(snapshotShift(screen(15), screen(13))).toBe(2)
+    // Scroll down: they sit higher.
+    expect(snapshotShift(screen(11), screen(14))).toBe(-3)
+    // Nothing moved.
+    expect(snapshotShift(screen(10), screen(10))).toBe(0)
+  })
+
+  it("snapshotShift stays at 0 for a repaint no shift explains", () => {
+    // Full repaint with unrelated content: no candidate shift reaches a
+    // majority — the selection must stay screen-fixed, not jump.
+    const other = ["alpha", "bravo", "charlie", "delta", "echo"].map(row)
+    expect(snapshotShift(screen(0), other)).toBe(0)
+    // All-blank rows match any shift; ambiguity must resolve to "no move".
+    const blank = ["", "", "", "", ""].map(row)
+    expect(snapshotShift(blank, blank)).toBe(0)
+    // A status line changing in place is not a scroll.
+    const spinner = [...screen(5).slice(0, 4), row("busy ⠧")]
+    const spinner2 = [...screen(5).slice(0, 4), row("busy ⠇")]
+    expect(snapshotShift(spinner, spinner2)).toBe(0)
+  })
+
+  it("banks scrolled-off rows and extracts the full drag, off-screen rows included", () => {
+    // Anchor pressed on row 3 (line-19), head dragged to the top edge; the
+    // app then scrolls up twice by 2 lines. The anchor follows the content
+    // off the bottom; the copy must contain every line the drag covered.
+    let shadow = EMPTY_SHADOW
+    let anchor = { row: 3, col: 10 }
+    let visible = screen(15)
+    for (const top of [13, 11]) {
+      const next = screen(top)
+      const shift = snapshotShift(visible, next)
+      expect(shift).toBe(2)
+      shadow = shiftShadow(shadow, visible, shift)
+      anchor = { row: clampRowToShadow(anchor.row + shift, next.length, shadow), col: anchor.col }
+      visible = next
+    }
+    // line-19 started at row 3; after +4 it lives at logical row 7, two rows
+    // past the 5-row screen — inside the shadow.
+    expect(anchor.row).toBe(7)
+    expect(shadow.below.length).toBe(4)
+    const range = { anchor, head: { row: 0, col: 0 } }
+    expect(extractShadowedSelection(visible, shadow, range)).toBe(doc.slice(11, 19).join("\n"))
+    // Highlight and copy agree: every visible row overlaySelection paints is a
+    // line the extraction contains (the overlay sees the same range).
+    const painted = overlaySelection(visible, range, 0, 10)
+    for (let i = 0; i < painted.length; i++) expect(painted[i]).not.toBe(visible[i])
+  })
+
+  it("drops re-revealed rows on a reversed drag instead of extracting them twice", () => {
+    // Up 4 (banks 4 rows below), then back down 3: three of those rows are on
+    // screen again and must leave the shadow, keeping the composed buffer
+    // contiguous.
+    let shadow = shiftShadow(EMPTY_SHADOW, screen(15), 2)
+    shadow = shiftShadow(shadow, screen(13), 2)
+    expect(shadow.below.map((r) => r[0]?.text)).toEqual(doc.slice(16, 20))
+    shadow = shiftShadow(shadow, screen(11), -3)
+    expect(shadow.above.map((r) => r[0]?.text)).toEqual(doc.slice(11, 14))
+    expect(shadow.below.map((r) => r[0]?.text)).toEqual([doc[19]])
+    // Composed space stays contiguous: above ++ screen(14) ++ below.
+    const range = { anchor: { row: -3, col: 0 }, head: { row: 5, col: 10 } }
+    expect(extractShadowedSelection(screen(14), shadow, range)).toBe(doc.slice(11, 20).join("\n"))
+  })
+
+  it("keeps a RELEASED selection glued to its content while the app scrolls", () => {
+    // Selection made over lines 17-19, then the mouse released. The app
+    // scrolls up twice by 2: both endpoints must ride the content down and
+    // off the bottom, not stay pinned to screen rows 1 and 3.
+    let state: SelectionShiftState = { anchor: { row: 1, col: 0 }, head: { row: 3, col: 7 }, shadow: EMPTY_SHADOW }
+    let visible = screen(15)
+    for (const top of [13, 11]) {
+      const next = screen(top)
+      state = followContentShift(state, visible, next, false)
+      visible = next
+    }
+    expect(state.anchor).toEqual({ row: 5, col: 0 })
+    expect(state.head).toEqual({ row: 7, col: 7 })
+    // Still the same three lines, now read entirely out of the shadow.
+    const range: SelectionRange = { anchor: state.anchor as CellPoint, head: state.head as CellPoint }
+    expect(extractShadowedSelection(visible, state.shadow, range)).toBe(doc.slice(16, 19).join("\n"))
+  })
+
+  it("moves only the anchor while the drag is still live", () => {
+    // Mid-drag the head belongs to the pointer, which the pane re-derives.
+    const state: SelectionShiftState = {
+      anchor: { row: 1, col: 0 },
+      head: { row: 3, col: 7 },
+      shadow: EMPTY_SHADOW,
+    }
+    const rolled = followContentShift(state, screen(15), screen(13), true)
+    expect(rolled.anchor).toEqual({ row: 3, col: 0 })
+    expect(rolled.head).toBe(state.head)
+  })
+
+  it("leaves the state alone when nothing is selected or nothing moved", () => {
+    const empty: SelectionShiftState = { anchor: null, head: null, shadow: EMPTY_SHADOW }
+    expect(followContentShift(empty, screen(15), screen(13), false)).toBe(empty)
+    const held: SelectionShiftState = { anchor: { row: 1, col: 0 }, head: { row: 3, col: 7 }, shadow: EMPTY_SHADOW }
+    expect(followContentShift(held, screen(15), screen(15), false)).toBe(held)
+  })
+
+  it("caps the shadow and clamps the anchor to what it can still address", () => {
+    let shadow = shiftShadow(EMPTY_SHADOW, screen(15), 2, 3)
+    shadow = shiftShadow(shadow, screen(13), 2, 3)
+    // Cap 3: the far (anchor-end) row is trimmed, not a middle one.
+    expect(shadow.below.map((r) => r[0]?.text)).toEqual(doc.slice(16, 19))
+    expect(clampRowToShadow(8, 5, shadow)).toBe(7)
+    expect(clampRowToShadow(-9, 5, shadow)).toBe(0)
   })
 })

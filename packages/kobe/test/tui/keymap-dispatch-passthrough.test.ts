@@ -4,12 +4,12 @@ import type { KeyEvent } from "@opentui/core"
 import { beforeEach, describe, expect, test } from "vitest"
 import {
   type RegisteredBinding,
-  bindingReachability,
   configurePrefix,
   dispatchKeyEvent,
   resetPrefixConfiguration,
   resetPrefixState,
 } from "../../src/tui/lib/keymap-dispatch"
+import { bindingReachability } from "../../src/tui/lib/keymap-reachability"
 import { prefixHudState, resetPrefixHud } from "../../src/tui/lib/prefix-hud"
 
 function makeEvt(name: string, mods: Partial<KeyEvent> = {}): KeyEvent & { defaultPrevented: boolean } {

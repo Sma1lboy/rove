@@ -3,7 +3,14 @@ import { mkdtemp, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { defaultDaemonSocketPath, defaultPtyHostSocketPath } from "../../kobe-daemon/src/daemon/paths"
-import { CAPTURE_SKILL_HINT_VERSION, capturePureTui } from "../scripts/capture-puretui"
+import {
+  CAPTURE_SKILL_HINT_VERSION,
+  capturePureTui,
+  createFixtureRepository,
+  prepareCaptureState,
+} from "../scripts/capture-puretui"
+import { focusLeftmostPane } from "../src/quicklook/capture-core"
+import { createPureTuiCapture } from "../src/quicklook/puretui-terminal"
 import quicklookSpec from "../src/quicklook/quicklook.replay.json"
 import { type RawReplaySpec, assertRenderableCapture } from "../src/quicklook/replay-spec"
 
@@ -26,10 +33,16 @@ e2e(
     const spec = structuredClone(quicklookSpec) as unknown as RawReplaySpec
     spec.viewport = { cols: 100, rows: 30, width: 800, height: 480 }
     spec.capture.seconds = 18
-    spec.setup = { seedTasks: [] }
-    // Dialog-only label: "New task" also matches the sidebar's own button,
-    // so it would pass before the dialog ever opened.
-    spec.waits = { newTaskDialog: { pattern: "from branch", timeoutMs: 8000 } }
+    // Keep the checked-in `setup` (readyWait + seed tasks) and `waits`: the
+    // spec's own ready pattern rotting away from the TUI's real title (the
+    // "KOBE" -> "ROVE" rename) and a boot with a NON-EMPTY task store are
+    // exactly the two conditions issue #12's "keys are all dead" hid behind --
+    // a boot-restored store lands focus on the workspace pane, so the flow's
+    // leftmost normalization (after `sidebarHydrated`) is what keeps `n`
+    // reachable. Overriding them here made this e2e green while the real
+    // capture was dead.
+    // Dialog-only label ("from branch"): "New task" also matches the
+    // sidebar's own button, so it would pass before the dialog ever opened.
     spec.text = { prompt: "Brand Studio replay prompt" }
     spec.flows = {
       createTask: {
@@ -43,6 +56,7 @@ e2e(
       },
     }
     spec.beats = [
+      { at: 1, action: "waitFor", waitFor: "sidebarHydrated" },
       { at: 2, action: "flow", flow: "createTask", engine: "claude" },
       { at: 14, action: "typeText", textRef: "prompt", msPerChar: 25 },
       { at: 18, action: "sleep", ms: 0 },
@@ -61,12 +75,55 @@ e2e(
 
     const capture = await Bun.file(outputPath).json()
     const screen = capture.frames.flatMap((frame: { lines: string[] }) => frame.lines).join("\n")
+    expect(screen).toContain("fix flaky retry test")
     expect(screen).toContain("New task")
     expect(screen).toContain("Brand Studio replay prompt")
     expect(await Bun.file(defaultDaemonSocketPath(join(demoRoot, "home"))).exists()).toBe(false)
     expect(await Bun.file(defaultPtyHostSocketPath(join(demoRoot, "home"))).exists()).toBe(false)
   },
-  45_000,
+  90_000,
+)
+
+// The raw `terminal.key` contract -- how agents drive chord-level live
+// verification (issue #12). Boot with a seeded task restores INTO the
+// session (workspace pane focused), so a bare `n` dispatches against
+// disabled sidebar bindings and vanishes without an error; the recipe is
+// waitFor sidebar hydration (the focus flip rides the same commit), then
+// `focusLeftmostPane`, then the sidebar key. Red here means either the key
+// injection path or that recipe broke.
+e2e(
+  "drives sidebar keys through raw terminal.key after boot restores into a task",
+  async () => {
+    // Short prefix on purpose: the demo home's daemon socket must stay under
+    // the sun_path ceiling or it silently falls back to a shared namespace.
+    const root = await mkdtemp(join(tmpdir(), "kobe-pt-live-"))
+    const demoRoot = join(root, "demo")
+    const fixtureRepo = await createFixtureRepository(demoRoot)
+    await prepareCaptureState(demoRoot, fixtureRepo)
+    const seedTitle = "fix flaky retry test"
+    const capture = await createPureTuiCapture({
+      repoRoot: resolve(import.meta.dirname, "../../.."),
+      demoRoot,
+      fixtureRepo,
+      seedTasks: [{ title: seedTitle, status: "in_progress" }],
+      readyPattern: quicklookSpec.waits.workspaceReady.pattern,
+      readyTimeoutMs: 30_000,
+      cols: 120,
+      rows: 36,
+    })
+    try {
+      await capture.terminal.start()
+      await capture.terminal.waitFor(seedTitle, 15_000)
+      await focusLeftmostPane(capture.terminal)
+      await capture.terminal.key("n")
+      await capture.terminal.waitFor("from branch", 8_000)
+    } finally {
+      await capture.cleanup()
+    }
+    expect(await Bun.file(defaultDaemonSocketPath(join(demoRoot, "home"))).exists()).toBe(false)
+    expect(await Bun.file(defaultPtyHostSocketPath(join(demoRoot, "home"))).exists()).toBe(false)
+  },
+  90_000,
 )
 
 describe("capture PureTUI CLI", () => {

@@ -11,6 +11,15 @@
  * replayed sticky `turn_complete` paints the ✓ chip but never re-fires a
  * toast; `TerminalTabs` remounts per worktree via `key={path}`, so task
  * switches re-seed).
+ *
+ * Also owns the strip's half of the DURABLE seen bit (issue #23). The chip
+ * used to be backed by a purely in-process unread map, so a completion you
+ * had already read came back looking fresh after a restart while the
+ * sidebar lamp — persisted since issue #22 — said otherwise. Both surfaces
+ * now read and write the one `(task, tab) → seen-at` record in
+ * `completion-seen.ts`; the strip must keep its own write because the rail
+ * is not always mounted (narrow layout hides it behind the workspace, which
+ * is exactly where the strip is the only tab affordance).
  */
 
 import { useEffect, useMemo, useRef } from "react"
@@ -28,8 +37,10 @@ import {
 } from "../../tui/workspace/terminal-tabs-core"
 import { type HookTabState, mergeTurnStates } from "../../tui/workspace/turn-state-merge"
 import type { VendorId } from "../../types/vendor"
+import { useOptionalKV } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"
 import { useLatest } from "../lib/use-latest"
+import { completionSeenKey, markCompletionSeen, seenCompletionTabs } from "./completion-seen"
 import { tabTitle } from "./tab-strip"
 import { useTurnPolls } from "./use-turn-polls"
 
@@ -53,6 +64,8 @@ export function useTabTurnState(deps: {
   turnStates: ReadonlyMap<string, ChatTabTurnState>
   liveTitles: ReadonlyMap<string, string>
   turnVendors: ReadonlyMap<string, VendorId>
+  /** Tabs whose current completion the durable record already covers. */
+  seenTabs: ReadonlySet<string>
 } {
   const { turnStates: pollStates, liveTitles, rawTitles, turnVendors } = useTurnPolls(deps)
 
@@ -158,5 +171,42 @@ export function useTabTurnState(deps: {
     }
   }, [turnStates])
 
-  return { turnStates, liveTitles, turnVendors }
+  const seenTabs = useDurableTabSeen(deps.taskId, deps.hookTabStates, deps.state.activeId)
+
+  return { turnStates, liveTitles, turnVendors, seenTabs }
+}
+
+/**
+ * Read + record the durable completion-seen marks for this task's tabs
+ * (issue #23) — the strip's counterpart to the sidebar row's
+ * `useDurableCompletionSeen`.
+ *
+ * Only a HOOK-reported completion carries the stamp the mark is keyed on;
+ * the quiescence poll infers `done` with no timestamp, so a poll-only tab
+ * simply never digests (the pre-#23 behaviour) rather than being marked
+ * seen against a stamp we made up. The write is an effect for the same
+ * reason the rail's is: `kv.set` re-renders every KV consumer.
+ */
+export function useDurableTabSeen(
+  taskId: string,
+  hookTabStates: ReadonlyMap<string, HookTabState> | undefined,
+  activeId: string,
+): ReadonlySet<string> {
+  const kv = useOptionalKV()
+  const stamps: [string, number | undefined][] = []
+  for (const [tabId, entry] of hookTabStates ?? []) {
+    if (entry.state === "turn_complete") stamps.push([tabId, entry.at])
+  }
+  const seenTabs = seenCompletionTabs(kv, taskId, stamps)
+  // Sitting in a finished tab consumes its completion — same rule the rail
+  // states ("seen means consumed"), recorded here so it also holds when the
+  // rail is off screen.
+  const activeAt = hookTabStates?.get(activeId)
+  const at = activeAt?.state === "turn_complete" ? activeAt.at : undefined
+  const activeSeen = seenTabs.has(activeId)
+  useEffect(() => {
+    if (!kv || at === undefined || activeSeen) return
+    markCompletionSeen(kv, completionSeenKey(taskId, activeId), at)
+  }, [kv, taskId, activeId, at, activeSeen])
+  return seenTabs
 }

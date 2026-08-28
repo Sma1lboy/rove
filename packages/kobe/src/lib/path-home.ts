@@ -14,8 +14,19 @@
  * bare `~` and `~/…` are expanded — `~user/` lookups are rare and left
  * untouched, same as the TUI's `expandHome`.
  */
+import { homedir as osHomedir } from "node:os"
 import { join } from "node:path"
 import { homeDir } from "../env.ts"
+
+/**
+ * The display inverse of {@link expandTilde}: `/Users/me/x` → `~/x`. The home
+ * prefix repeats on every row of any path list, so it is pure width. Uses the
+ * REAL home (not `homeDir()`): what is shown must match what the user's own
+ * shell would print, even under an isolated `KOBE_HOME_DIR`.
+ */
+export function tildify(path: string, home = osHomedir()): string {
+  return home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
+}
 
 export function expandTilde(path: string): string {
   if (path === "~") return homeDir()

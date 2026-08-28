@@ -14,6 +14,7 @@
  *    watching is the whole point.
  */
 
+import type { PluginHost } from "../plugins/runtime.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
@@ -62,6 +63,7 @@ export async function scheduleQuotaResume(
   cache: QuotaUsageCache,
   taskId: string,
   now: () => number = Date.now,
+  plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
 ): Promise<void> {
   const task = orch.getTask(taskId)
   if (!task || !task.worktreePath || task.deletion) return
@@ -75,11 +77,17 @@ export async function scheduleQuotaResume(
   // A reset already in the past still gets a schedule (the next sweep tick
   // delivers) — the engine said "limited", so an immediate manual retry would
   // just fail again a bit earlier than ours.
+  const resumeAt = new Date(resetAtMs).toISOString()
   await orch.setQuotaResume(taskId, {
-    resumeAt: new Date(resetAtMs).toISOString(),
+    resumeAt,
     requestedAt: new Date(now()).toISOString(),
   })
-  logDaemonInfo("quota-resume", `armed task=${taskId} resumeAt=${new Date(resetAtMs).toISOString()}`)
+  logDaemonInfo("quota-resume", `armed task=${taskId} resumeAt=${resumeAt}`)
+  plugins?.()?.handleUiReport({
+    kind: "quota.exhausted",
+    taskId,
+    detail: { vendor: task.vendor ?? runtime.defaultTaskVendor, resumeAt },
+  })
 }
 
 /**
@@ -88,13 +96,19 @@ export async function scheduleQuotaResume(
  * alive engine session) is logged and dropped — if the engine later comes
  * back and hits the limit again, a fresh schedule is armed by the hook path.
  */
-async function resumeDueTask(orch: DaemonOrchestrator, runtime: DaemonRuntimeAdapter, task: DaemonTask): Promise<void> {
+async function resumeDueTask(
+  orch: DaemonOrchestrator,
+  runtime: DaemonRuntimeAdapter,
+  task: DaemonTask,
+  plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
+): Promise<void> {
   await orch.setQuotaResume(task.id, null)
   const delivered = await runtime.deliverPromptToLiveEngine(
     { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
     QUOTA_RESUME_CONTINUE_PROMPT,
   )
   logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)
+  plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })
 }
 
 /**
@@ -107,6 +121,7 @@ export function startQuotaResumeRunner(
   runtime: DaemonRuntimeAdapter,
   tickMs: number = DEFAULT_QUOTA_RESUME_TICK_MS,
   now: () => number = Date.now,
+  plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
 ): () => void {
   let sweeping = false
   const sweep = async (): Promise<void> => {
@@ -114,7 +129,7 @@ export function startQuotaResumeRunner(
     sweeping = true
     try {
       for (const task of dueQuotaResumes(orch.listTasks(), now())) {
-        await resumeDueTask(orch, runtime, task).catch((err) => logDaemonError("quota-resume", err))
+        await resumeDueTask(orch, runtime, task, plugins).catch((err) => logDaemonError("quota-resume", err))
       }
     } finally {
       sweeping = false

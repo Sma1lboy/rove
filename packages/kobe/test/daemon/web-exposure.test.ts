@@ -1,6 +1,5 @@
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { createDaemonHandlerRegistry, shapeDaemonError } from "@sma1lboy/kobe-daemon/daemon/server"
-import { WEB_RPC_ALLOWLIST, WEB_RPC_ALLOWSET } from "@sma1lboy/kobe-daemon/daemon/web-rpc-allowlist"
 import { webExposedRpcNames, webRpcErrorBody } from "@sma1lboy/kobe-daemon/daemon/web-server"
 import { describe, expect, it } from "vitest"
 
@@ -58,12 +57,6 @@ describe("registry web-exposure policy", () => {
     for (const name of FORBIDDEN) {
       expect(exposed.has(name as DaemonRequestName)).toBe(false)
     }
-  })
-
-  it("the web-rpc-allowlist shim mirrors the registry metadata exactly", () => {
-    expect(new Set(WEB_RPC_ALLOWLIST)).toEqual(new Set(exposed))
-    expect(WEB_RPC_ALLOWSET.size).toBe(WEB_RPC_ALLOWLIST.length)
-    for (const name of exposed) expect(WEB_RPC_ALLOWSET.has(name)).toBe(true)
   })
 })
 

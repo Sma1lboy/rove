@@ -12,6 +12,7 @@ import { TextAttributes } from "@opentui/core"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
+import { displayWidth } from "../../../lib/display-width"
 import { SPLIT_STYLES } from "../../../state/split-style"
 import {
   type NavLevel,
@@ -137,7 +138,11 @@ export function GeneralSettingsSection(
     action()
   }
   const onOff = (on: boolean) => (on ? t("settings.general.on") : t("settings.general.off"))
+  /** Label column: the inline hints beside each control read as a column too. */
+  const pad = (label: string) => label + " ".repeat(Math.max(0, 30 - displayWidth(label)))
   const check = (on: boolean) => (on ? "[x]" : "[ ]")
+  /** Exclusive pick — the same radio the Engines section uses for its default. */
+  const radio = (on: boolean) => (on ? "(●)" : "( )")
 
   const transparentRow = rowIdx("transparent")
   const toastRow = rowIdx("toast")
@@ -173,7 +178,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(i) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${name}`}
+                {`${radio(isSelected)} ${name}`}
               </Row>
             )
           })}
@@ -190,7 +195,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(langRow) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${loc.label}`}
+                {`${radio(isSelected)} ${loc.label}`}
               </Row>
             )
           })}
@@ -217,7 +222,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.focusAccent : theme.text}
                 bold={isBodyCursor(accentRow) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${t(`settings.general.accent${slot.charAt(0).toUpperCase()}${slot.slice(1)}`)}`}
+                {`${radio(isSelected)} ${t(`settings.general.accent${slot.charAt(0).toUpperCase()}${slot.slice(1)}`)}`}
               </Row>
             )
           })}
@@ -234,7 +239,7 @@ export function GeneralSettingsSection(
                 fg={isSelected ? theme.accent : theme.text}
                 bold={isBodyCursor(styleRow) || isSelected}
               >
-                {`${isSelected ? "● " : "  "}${t(style === "box" ? "settings.general.splitBox" : "settings.general.splitLine")}`}
+                {`${radio(isSelected)} ${t(style === "box" ? "settings.general.splitBox" : "settings.general.splitLine")}`}
               </Row>
             )
           })}
@@ -245,24 +250,27 @@ export function GeneralSettingsSection(
             onMouseUp={activate(toastRow, prefs.toggleToast)}
             fg={prefs.toastEnabled() ? theme.accent : theme.textMuted}
             bold={true}
+            hint={t("settings.general.toastHint")}
           >
-            {`${check(prefs.toastEnabled())} ${t("settings.general.toast")}`}
+            {pad(`${check(prefs.toastEnabled())} ${t("settings.general.toast")}`)}
           </Row>
           <Row
             cursor={isBodyCursor(soundRow)}
             onMouseUp={activate(soundRow, prefs.toggleSound)}
             fg={prefs.soundEnabled() ? theme.accent : theme.textMuted}
             bold={true}
+            hint={t("settings.general.soundHint")}
           >
-            {`${check(prefs.soundEnabled())} ${t("settings.general.sound")}`}
+            {pad(`${check(prefs.soundEnabled())} ${t("settings.general.sound")}`)}
           </Row>
           <Row
             cursor={isBodyCursor(crossTaskRow)}
             onMouseUp={activate(crossTaskRow, prefs.toggleCrossTask)}
             fg={prefs.crossTaskEnabled() ? theme.accent : theme.textMuted}
             bold={true}
+            hint={t("settings.general.crossTaskHint")}
           >
-            {`${check(prefs.crossTaskEnabled())} ${t("settings.general.crossTask")}`}
+            {pad(`${check(prefs.crossTaskEnabled())} ${t("settings.general.crossTask")}`)}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.keyHints")} hint={t("settings.general.keyHintsHint")}>
@@ -271,8 +279,9 @@ export function GeneralSettingsSection(
             onMouseUp={activate(keyHintsRow, () => toggleKeyHints(kv))}
             fg={keyHintsToggleOn(kv) ? theme.accent : theme.textMuted}
             bold={true}
+            hint={t("settings.general.keyHintsShowHint")}
           >
-            {`${check(keyHintsToggleOn(kv))} ${t("settings.general.keyHintsShow")}`}
+            {pad(`${check(keyHintsToggleOn(kv))} ${t("settings.general.keyHintsShow")}`)}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.zen")} hint={t("settings.general.zenHint")}>
@@ -289,8 +298,9 @@ export function GeneralSettingsSection(
             onMouseUp={activate(zenKeepTasksRow, prefs.toggleZenKeepsTasks)}
             fg={prefs.zenKeepsTasks() ? theme.accent : theme.textMuted}
             bold={true}
+            hint={t("settings.general.zenKeepTasksHint")}
           >
-            {`${check(prefs.zenKeepsTasks())} ${t("settings.general.zenKeepTasks")}`}
+            {pad(`${check(prefs.zenKeepsTasks())} ${t("settings.general.zenKeepTasks")}`)}
           </Row>
         </SubSection>
         <SubSection title={t("settings.general.editor")} hint={t("settings.general.editorHint")}>
@@ -299,8 +309,9 @@ export function GeneralSettingsSection(
             onMouseUp={activate(editorKindRow, prefs.cycleEditorKind)}
             fg={theme.accent}
             bold={true}
+            hint={t("settings.general.editorRowHint")}
           >
-            {t("settings.general.editorRow", { kind: prefs.editorKind() })}
+            {pad(t("settings.general.editorRow", { kind: prefs.editorKind() }))}
           </Row>
           <Row
             cursor={isBodyCursor(editorCustomRow)}
@@ -318,8 +329,9 @@ export function GeneralSettingsSection(
             onMouseUp={activate(worktreeBaseRow, prefs.cycleWorktreeBase)}
             fg={theme.accent}
             bold={true}
+            hint={t("settings.general.worktreeBaseHint")}
           >
-            {t("settings.general.worktreeBase", { kind: prefs.worktreeKindLabel() })}
+            {pad(t("settings.general.worktreeBase", { kind: prefs.worktreeKindLabel() }))}
           </Row>
           <Row
             cursor={isBodyCursor(worktreeCustomRow)}
@@ -337,8 +349,9 @@ export function GeneralSettingsSection(
             onMouseUp={activate(scrollbackRow, () => void prefs.editScrollbackRows())}
             fg={theme.accent}
             bold={true}
+            hint={t("settings.general.scrollbackRowHint")}
           >
-            {t("settings.general.scrollbackRow", { rows: String(prefs.scrollbackRows()) })}
+            {pad(t("settings.general.scrollbackRow", { rows: String(prefs.scrollbackRows()) }))}
           </Row>
           <Row
             cursor={isBodyCursor(tabStripHideSingleRow)}

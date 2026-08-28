@@ -2,5 +2,108 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": null,
   "outputDirectory": "out",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/rove/quick-start",
+      "permanent": false
+    },
+    {
+      "source": "/docs/rove",
+      "destination": "/rove/quick-start",
+      "permanent": true
+    },
+    {
+      "source": "/docs/quick-start",
+      "destination": "/rove/quick-start",
+      "permanent": true
+    },
+    {
+      "source": "/docs/concepts",
+      "destination": "/rove/concepts",
+      "permanent": true
+    },
+    {
+      "source": "/docs/tui",
+      "destination": "/rove/tui",
+      "permanent": true
+    },
+    {
+      "source": "/docs/keybindings",
+      "destination": "/rove/keybindings",
+      "permanent": true
+    },
+    {
+      "source": "/docs/cli",
+      "destination": "/rove/cli",
+      "permanent": true
+    },
+    {
+      "source": "/docs/configuration",
+      "destination": "/rove/configuration",
+      "permanent": true
+    },
+    {
+      "source": "/docs/engines",
+      "destination": "/rove/engines",
+      "permanent": true
+    },
+    {
+      "source": "/docs/worktrees",
+      "destination": "/rove/worktrees",
+      "permanent": true
+    },
+    {
+      "source": "/docs/themes",
+      "destination": "/rove/themes",
+      "permanent": true
+    },
+    {
+      "source": "/docs/sessions",
+      "destination": "/rove/sessions",
+      "permanent": true
+    },
+    {
+      "source": "/docs/routines",
+      "destination": "/rove/routines",
+      "permanent": true
+    },
+    {
+      "source": "/docs/api",
+      "destination": "/rove/api",
+      "permanent": true
+    },
+    {
+      "source": "/docs/work-tracking",
+      "destination": "/rove/work-tracking",
+      "permanent": true
+    },
+    {
+      "source": "/docs/troubleshooting",
+      "destination": "/rove/troubleshooting",
+      "permanent": true
+    },
+    {
+      "source": "/docs/plugins",
+      "destination": "/plugins/authoring",
+      "permanent": true
+    },
+    {
+      "source": "/docs/plugin-sdk",
+      "destination": "/plugins/sdk",
+      "permanent": true
+    },
+    {
+      "source": "/docs",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/docs/:path*",
+      "destination": "/:path*",
+      "permanent": true
+    }
+  ],
+  "trailingSlash": false
 }

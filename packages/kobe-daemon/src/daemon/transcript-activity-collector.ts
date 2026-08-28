@@ -5,24 +5,25 @@
  * Before this, EVERY `kobe ops` pane process polled the engine transcript
  * store itself: the `● new` badge readdir'd + stat'd the worktree's
  * transcript dir on a 2.5–20s adaptive timer (`monitor/activity`'s
- * `latestTranscriptMtime`), and the ChatTab "done" chip re-read + re-parsed
- * the newest session JSONL on a 1.5s timer for the engine-owned completion
- * marker (`engine/turn-detector`). Each ChatTab runs its own Ops pane, so a
- * worktree with W tabs paid W× that filesystem churn — at total rest. The
- * daemon is now the SINGLE collector for the SHAREABLE, filesystem half:
- * one guarded probe per local worktree producing `{ mtimeMs, completionId,
- * completionAt }`, fanned out on the `transcript.activity` channel. Panes
- * render the pushes and stat/parse ZERO transcripts while daemon-connected;
- * the pane-local probes survive only as the no-daemon / old-daemon fallback.
+ * `latestTranscriptMtime`), and the Terminal Tab "done" chip re-read +
+ * re-parsed the newest session JSONL on a 1.5s timer for the engine-owned
+ * completion marker (`engine/turn-detector`). Each Terminal Tab runs its own
+ * Ops pane, so a worktree with W tabs paid W× that filesystem churn — at
+ * total rest. The daemon is now the SINGLE collector for the SHAREABLE,
+ * filesystem half: one guarded probe per local worktree producing
+ * `{ mtimeMs, completionId, completionAt }`, fanned out on the
+ * `transcript.activity` channel. Panes render the pushes and stat/parse ZERO
+ * transcripts while daemon-connected; the pane-local probes survive only as
+ * the no-daemon / old-daemon fallback.
  *
  * ╔══════════════════════════════════════════════════════════════════════╗
  * ║  HARD CONSTRAINT — this collector does FILESYSTEM reads ONLY.         ║
- * ║  CLAUDE.md: "daemon shutdown never touches tmux." The per-window      ║
- * ║  `tmux capture-pane` quiescence hashing and the `@kobe_tab_state`     ║
- * ║  `setWindowOption` write STAY in the Ops pane process (ops/host.tsx). ║
- * ║  This file MUST NOT import `@/tmux/*` or anything that drives tmux —  ║
- * ║  it reads the engine's on-disk transcript store and nothing else.    ║
- * ║  Moving capture-pane daemon-side would defeat the whole design.      ║
+ * ║  The daemon must never touch front-end state. The per-window          ║
+ * ║  quiescence hashing and pane-local state writes STAY in the Ops pane  ║
+ * ║  process (ops/host.tsx). This file MUST NOT import anything that      ║
+ * ║  drives the TUI — it reads the engine's on-disk transcript store and  ║
+ * ║  nothing else. Moving pane-local checks daemon-side would defeat the  ║
+ * ║  whole design.                                                        ║
  * ╚══════════════════════════════════════════════════════════════════════╝
  *
  * Scheduling reuses the SAME guards as the worktree-changes collector
@@ -46,7 +47,7 @@
  * subscriber the whole picture in one frame, and unchanged ticks cost
  * subscribers nothing. Reads are best-effort: a failed/timed-out probe
  * keeps the entry's last value, never throws, never publishes garbage.
- * `stop()` clears the timer only — NO tmux, no held filesystem handles.
+ * `stop()` clears the timer only — no subprocess, no held filesystem handles.
  */
 
 import type { DaemonTask as Task, VendorId } from "./contracts.ts"
@@ -148,7 +149,7 @@ export type TranscriptActivityRunner = (
  * `UnknownTurnDetector`) yield no mtime, so we fall back to the vendor's own
  * `latestTranscriptMtime` for them (copilot has a real store the detector
  * doesn't read) — a SINGLE walk, exactly as before for those vendors.
- * Best-effort and FILESYSTEM-only — no tmux, no subprocess.
+ * Best-effort and FILESYSTEM-only — no subprocess.
  */
 export async function runTranscriptActivity(
   worktreePath: string,

@@ -18,6 +18,7 @@ import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { platform } from "node:os"
 import type { Readable } from "node:stream"
+import { spawnDetached } from "../../../lib/spawn-detached"
 
 type EventedChild = {
   readonly stdout?: Readable | null
@@ -34,7 +35,7 @@ export function openExternally(absPath: string): void {
     if (existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || process.env.WSL_DISTRO_NAME) {
       // Prefer wslview when installed (wslu package); falls back to
       // explorer.exe with the Windows-mapped path otherwise.
-      spawnDetached("wslview", [absPath], () => {
+      spawnDetachedWithFallback("wslview", [absPath], () => {
         const child = spawn("wslpath", ["-w", absPath], {
           stdio: ["ignore", "pipe", "ignore"],
         }) as unknown as EventedChild
@@ -43,30 +44,24 @@ export function openExternally(absPath: string): void {
           out += b.toString()
         })
         child.on("close", (code: number | null) => {
-          if (code === 0) spawnDetached("explorer.exe", [out.trim()])
+          if (code === 0) spawnDetachedWithFallback("explorer.exe", [out.trim()])
         })
       })
       return
     }
-    spawnDetached("xdg-open", [absPath])
+    spawnDetachedWithFallback("xdg-open", [absPath])
     return
   }
   if (plat === "darwin") {
-    spawnDetached("open", [absPath])
+    spawnDetachedWithFallback("open", [absPath])
     return
   }
   if (plat === "win32") {
-    spawnDetached("cmd.exe", ["/c", "start", "", absPath])
+    spawnDetachedWithFallback("cmd.exe", ["/c", "start", "", absPath])
     return
   }
 }
 
-function spawnDetached(cmd: string, args: readonly string[], onError?: () => void): void {
-  try {
-    const child = spawn(cmd, args, { stdio: "ignore", detached: true }) as unknown as EventedChild
-    child.on("error", () => onError?.())
-    child.unref()
-  } catch {
-    onError?.()
-  }
+function spawnDetachedWithFallback(cmd: string, args: readonly string[], onError?: () => void): void {
+  spawnDetached(cmd, args, { onError: onError ? () => onError() : undefined })
 }

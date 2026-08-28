@@ -30,6 +30,8 @@ class ProbeTaskPty extends XtermTaskPty {
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the raw ESC-prefixed CPR reply is the whole point
 const CPR = /\x1b\[\d+;\d+R/
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching raw OSC color replies is the whole point
+const DEFAULT_COLOR_REPLY = /\x1b\](10|11);rgb:[0-9a-f/]+\x1b\\/
 
 function screenText(pty: ProbeTaskPty): string {
   return pty
@@ -63,5 +65,15 @@ describe("XtermTaskPty replay reply muting", () => {
     pty.feedLive("hello \x1b[6n world")
     await until(() => screenText(pty).includes("world"))
     expect(pty.writes.filter((w) => CPR.test(w))).toHaveLength(1)
+  })
+
+  it("answers live default-color queries for terminal-aware engines", async () => {
+    const pty = probe()
+    pty.feedLive("\x1b]10;?\x1b\\\x1b]11;?\x1b\\")
+    await until(() => pty.writes.filter((w) => DEFAULT_COLOR_REPLY.test(w)).length === 2)
+    expect(pty.writes.filter((w) => DEFAULT_COLOR_REPLY.test(w))).toEqual([
+      "\x1b]10;rgb:eaea/e7e7/dfdf\x1b\\",
+      "\x1b]11;rgb:1414/1414/1313\x1b\\",
+    ])
   })
 })

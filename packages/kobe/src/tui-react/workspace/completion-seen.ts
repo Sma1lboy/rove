@@ -88,3 +88,27 @@ export function markCompletionSeen(kv: CompletionSeenKv, key: string, at: number
   const next = foldCompletionSeen(seen, key, at)
   if (next !== seen) kv.set(COMPLETION_SEEN_KEY, next)
 }
+
+/**
+ * The subset of `stamps` whose completion the persisted record already
+ * covers — the tab strip's half of the same bit (issue #23).
+ *
+ * The strip used to read a purely in-process unread map, so it lost the
+ * fact on every relaunch: a tab that finished while you were away came
+ * back looking read. Folding the SAME (task, tab) → seen-at record the
+ * sidebar lamp uses keeps the two surfaces telling one story across
+ * restarts. A tab with no stamp (`undefined` — the poll-only path, where
+ * no hook ever reported a completion timestamp) is never "seen": there is
+ * nothing to key a mark on.
+ */
+export function seenCompletionTabs(
+  kv: CompletionSeenKv | null,
+  taskId: string,
+  stamps: Iterable<readonly [string, number | undefined]>,
+): ReadonlySet<string> {
+  const seen = new Set<string>()
+  for (const [tabId, at] of stamps) {
+    if (completionSeenAt(kv, completionSeenKey(taskId, tabId), at)) seen.add(tabId)
+  }
+  return seen
+}

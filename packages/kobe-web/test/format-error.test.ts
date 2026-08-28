@@ -19,11 +19,21 @@ describe("formatError", () => {
     expect(formatError("Archive failed", "nope")).toBe("Archive failed: nope")
   })
 
-  it("stringifies a non-Error object rather than dropping it", () => {
-    // Not ideal copy, but never silent — the failure is still visible.
+  it("renders a plain object as JSON, never [object Object]", () => {
     expect(formatError("Create failed", { code: 500 })).toBe(
-      "Create failed: [object Object]",
+      'Create failed: {"code":500}',
     )
+  })
+
+  it("keeps an object's own toString when it has a real one", () => {
+    const err = { toString: () => "custom cause" }
+    expect(formatError("X", err)).toBe("X: custom cause")
+  })
+
+  it("survives a circular object without throwing", () => {
+    const err: Record<string, unknown> = {}
+    err.self = err
+    expect(formatError("X", err)).toBe("X: [object Object]")
   })
 
   it("handles null/undefined causes without throwing", () => {

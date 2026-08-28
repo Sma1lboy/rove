@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { BUNDLED_THEMES, applyDisplayOverlay, resolveTheme } from "../../src/tui/context/theme-core"
+import { terminalDefaultColorsForTheme } from "../../src/tui/lib/terminal-colors"
 
 const base = resolveTheme(BUNDLED_THEMES.claude as never, "dark")
 
@@ -22,6 +23,8 @@ describe("applyDisplayOverlay", () => {
     const out = applyDisplayOverlay(base, "primary", true)
     expect(out.background.a).toBe(0)
     expect(out.backgroundPanel.a).toBe(0)
+    expect(out.background.toInts().slice(0, 3)).toEqual(base.background.toInts().slice(0, 3))
+    expect(out.backgroundPanel.toInts().slice(0, 3)).toEqual(base.backgroundPanel.toInts().slice(0, 3))
     // The composer body tint survives so input stays legible…
     expect(out.backgroundElement).toBe(base.backgroundElement)
     // …and the dialog card stays opaque so overlays stay readable.
@@ -34,5 +37,14 @@ describe("applyDisplayOverlay", () => {
       const overlaid = applyDisplayOverlay(resolved, "info", true)
       expect(overlaid.focusAccent, name).toBeDefined()
     }
+  })
+})
+
+describe("terminalDefaultColorsForTheme", () => {
+  it("reports the embedded terminal's actual foreground and background", () => {
+    expect(terminalDefaultColorsForTheme(BUNDLED_THEMES.claude as never)).toEqual({
+      foreground: "#eae7df",
+      background: "#141413",
+    })
   })
 })

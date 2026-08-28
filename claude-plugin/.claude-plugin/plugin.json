@@ -6,7 +6,7 @@
     "name": "Sma1lboy",
     "url": "https://github.com/Sma1lboy"
   },
-  "homepage": "https://docs.rove.sma1lboy.me",
+  "homepage": "https://docs.rove.run",
   "repository": "https://github.com/Sma1lboy/rove",
   "hooks": "./hooks/hooks.json"
 }

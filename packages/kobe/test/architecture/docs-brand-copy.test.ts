@@ -16,7 +16,10 @@
  * `packages/kobe*` workspace names, `~/.kobe` runtime + plugin paths, legacy
  * `.kobe/worktrees` discovery, the `kobe-plugin` topic,
  * the installed `.agents/skills/kobe/SKILL.md` path,
- * the persisted `kobe hook` invocation, and `[KOBE PEER]`/`[KOBE FIELD NOTE]`.
+ * and the persisted `kobe hook` invocation.
+ * `[KOBE PEER]`/`[KOBE FIELD NOTE]` LEFT this list 2026-08-25 (owner call):
+ * the message prefixes are read by LLMs, not parsed by code, so they renamed
+ * to `[ROVE PEER]`/`[ROVE FIELD NOTE]` with no compat shim — guarded below.
  * Historical records (`docs/adr/`, `docs/superpowers/`, CHANGELOG, and the
  * superseded design notes) keep their original wording on purpose.
  */
@@ -115,6 +118,20 @@ describe("current docs and landing copy speak Rove", () => {
     expect(match?.[0], `the file-issue skill still teaches "${match?.[0]}"`).toBeUndefined()
   })
 
+  // The peer/field-note prefixes renamed 2026-08-25 — LLM-read text, no code
+  // parses the literal, so there is no compat shim to preserve. Producers and
+  // the skill must not regrow the old spelling.
+  test.each([
+    "packages/kobe/src/cli/api/handlers-tasks.ts",
+    "packages/kobe-daemon/src/daemon/handlers-ui.ts",
+    "packages/kobe/src/engine/interactive-command.ts",
+    ".agents/skills/kobe/SKILL.md",
+  ])("%s stamps ROVE-branded message provenance", (path) => {
+    const source = read(path)
+    expect(source, `${path} still stamps [KOBE PEER]`).not.toContain("[KOBE PEER]")
+    expect(source, `${path} still stamps [KOBE FIELD NOTE]`).not.toContain("[KOBE FIELD NOTE]")
+  })
+
   test("the landing page prints Rove state paths and branch names", () => {
     for (const path of ["packages/kobe-landing/themes.html", "packages/kobe-landing/themes.js"]) {
       expect(read(path), `${path} still writes themes to the legacy state dir`).not.toContain("~/.kobe/themes/")
@@ -124,8 +141,8 @@ describe("current docs and landing copy speak Rove", () => {
     expect(read("packages/kobe-landing/index.js"), "the fan-out demo still prints kobe/ branches").not.toContain(
       "'kobe/'",
     )
-    // The canonical domain is now `rove.sma1lboy.me` (kobe.sma1lboy.me 301s to
-    // it); only a `kobe/<branch>` slug is stale.
+    // The canonical domain is now `rove.run`; every sma1lboy.me host 301s to
+    // it. Only a `kobe/<branch>` slug is stale.
     expect(
       read("packages/kobe-landing/index.html"),
       "the static fan-in fallback still prints a kobe/ branch",

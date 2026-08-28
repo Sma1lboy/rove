@@ -206,7 +206,7 @@ describe("defaultPtyHostSocketPath", () => {
   })
 
   test("POSIX still gets the unix socket under the home dir", () => {
-    expect(norm(defaultPtyHostSocketPath("/home/dev", "linux"))).toBe("/home/dev/.kobe/pty.sock")
+    expect(norm(defaultPtyHostSocketPath("/home/dev", "linux"))).toBe("/home/dev/.rove/pty.sock")
   })
 })
 

@@ -2,7 +2,7 @@
  * Subclasses supply {@link feed}; VT behavior and snapshots live here once. */
 
 import { Unicode11Addon } from "@xterm/addon-unicode11"
-import { type IMarker, Terminal as XtermHeadless } from "@xterm/headless"
+import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
 import { encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
@@ -15,17 +15,8 @@ import {
   type TerminalRow,
   type TerminalSnapshotWindow,
 } from "./pty-types"
-import { reconcileTerminalCursor, reconcileTerminalRow, reconcileTerminalRows } from "./terminal-snapshot"
-import { xtermLineToChunks } from "./xterm-chunks"
-import {
-  type SnapshotMeta,
-  XtermRefreshTracker,
-  dirtyRowsMatchSnapshot,
-  snapshotMeta,
-  wireXtermChannels,
-  xtermCursorHidden,
-  xtermSynchronizedOutput,
-} from "./xterm-refresh"
+import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
+import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
@@ -35,24 +26,13 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private snapshot: readonly TerminalRow[] = []
   private cursor: CursorPos | null = null
   private snapshotWindow: TerminalSnapshotWindow | null = null
-  private snapshotEpoch = 0
   /** Output arrived while nobody was subscribed — snapshot is stale and
    * will be rebuilt lazily on the next capture()/subscribe. Keeps the N
    * background sessions of a multi-task workspace from re-converting
    * their full grid+scrollback at output cadence for a consumer (the
    * 1.5s turn poll) that only reads via capture(). */
   private snapshotDirty = false
-  /** Frozen-scrollback conversion cache: absolute line id → converted row.
-   * A line above `baseY` can never change again (apps can only address the
-   * live grid), so re-converting the full scrollback margin on every
-   * refresh was ~80% wasted work under streaming. Absolute ids ride
-   * `anchor` — an xterm marker whose `.line` tracks buffer trimming, so an
-   * id keeps naming the same physical line across scrollback trim shifts.
-   * Wiped on resize (reflow rewrites history) and whenever the anchor dies
-   * (buffer reset trims it). */
-  private readonly scrollbackCache = new Map<number, TerminalRow>()
-  private anchor: IMarker | undefined
-  private anchorId = 0
+  private readonly snapshotEngine: XtermSnapshotEngine
   private _title: string | null = null
   /** Since when the pty has had zero data subscribers (epoch ms), null
    * while watched. Fresh instances start "unwatched now" — the mounting
@@ -70,12 +50,11 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   protected rows: number
   private refreshQueued = false
   private readonly refreshTracker: XtermRefreshTracker
-  private publishedMeta: SnapshotMeta | null = null
   /** Scrollback rows resolved from the persisted preference at construction
    * (Settings → General → Terminal) — fixed for this PTY's lifetime. */
   private readonly scrollbackRows: number
 
-  constructor(opts: TaskPtyOpts) {
+  constructor(opts: TaskPtyOpts, options: { respondToDefaultColorQueries?: boolean } = {}) {
     this.taskId = opts.taskId
     this.cwd = opts.cwd
     this.cols = opts.cols ?? DEFAULT_COLS
@@ -90,6 +69,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       rows: this.rows,
       scrollback: this.scrollbackRows,
     })
+    this.snapshotEngine = new XtermSnapshotEngine(opts.alternateScreenStyleRewrites)
     // Unicode 11 width tables: the default (Unicode 6) measures emoji as ONE
     // cell while modern apps — and kobe's cursor-overlay math in
     // lib/display-width.ts — measure TWO; emoji desynced cursor/wrap.
@@ -97,25 +77,29 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.term.unicode.activeVersion = "11"
     this.refreshTracker = new XtermRefreshTracker(this.term)
 
+    const reply = (data: string): void => {
+      if (this._killed || this.muteReplies) return
+      try {
+        this.transportWrite(data)
+      } catch {
+        /* best effort — child may have exited */
+      }
+    }
     wireXtermChannels(this.term, {
       // `muteReplies`: replies triggered while parsing a ring-buffer REPLAY
       // answer queries the child asked in the PAST (already answered by the
       // then-attached emulator); re-answering injects unsolicited CPR/DA
       // into the child's stdin (scrambled claude's renderer). Live flows.
-      onReply: (data) => {
-        if (this._killed || this.muteReplies) return
-        try {
-          this.transportWrite(data)
-        } catch {
-          /* best effort — child may have exited */
-        }
-      },
+      onReply: reply,
       onTitle: (title) => {
         if (!title || title === this._title) return
         this._title = title
         this.listeners.publishTitle(title)
       },
     })
+    if (options.respondToDefaultColorQueries !== false) {
+      wireXtermDefaultColorQueries(this.term, opts.defaultColors, reply)
+    }
   }
 
   /** Send input bytes to the child over this backend's transport. */
@@ -258,12 +242,8 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   }
 
   private invalidateScrollbackCache(): void {
-    this.scrollbackCache.clear()
-    this.anchor?.dispose()
-    this.anchor = undefined
-    this.anchorId = 0
+    this.snapshotEngine.invalidate()
     this.snapshotWindow = null
-    this.publishedMeta = null
   }
   capture(): readonly TerminalRow[] {
     this.ensureFreshSnapshot()
@@ -297,11 +277,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * a chunk boundary is reassembled correctly. Decoding each chunk here
    * instead corrupted any glyph straddling a boundary. */
   protected feed(data: string | Uint8Array): void {
-    if (this._killed) return
-    this.term.write(data, () => {
-      if (!this.refreshTracker.supported) this.refreshTracker.markAll()
-      this.queueRefresh()
-    })
+    this.feedInternal(data, false)
   }
 
   /** Feed a ring-buffer REPLAY: parsed like live output, but the emulator's
@@ -309,10 +285,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * channel). Live chunks fed after this parse in FIFO order, so the
    * un-mute callback lands between the replay's parse and theirs. */
   protected feedReplay(data: string | Uint8Array): void {
+    this.feedInternal(data, true)
+  }
+
+  private feedInternal(data: string | Uint8Array, muteReplies: boolean): void {
     if (this._killed) return
-    this.muteReplies = true
+    if (muteReplies) this.muteReplies = true
     this.term.write(data, () => {
-      this.muteReplies = false
+      if (muteReplies) this.muteReplies = false
       if (!this.refreshTracker.supported) this.refreshTracker.markAll()
       this.queueRefresh()
     })
@@ -335,115 +315,27 @@ export abstract class XtermTaskPty implements TaskPtyLike {
 
   private refreshSnapshot(): void {
     if (this._killed) return
-    const previousSnapshot = this.snapshot
-    const previousCursor = this.cursor
-    const previousWindow = this.snapshotWindow
-    // Don't snapshot a half-painted frame. Self-reschedule rather than
-    // relying solely on the closing write's callback — under rapid redraws
-    // a new sync block can open before that write lands, bouncing forever.
-    if (xtermSynchronizedOutput(this.term)) {
+    const result = this.snapshotEngine.refresh(
+      this.term,
+      this.rows,
+      this.scrollbackRows,
+      this.refreshTracker,
+      this.snapshot,
+      this.cursor,
+      this.snapshotWindow,
+    )
+    if (result === null) {
+      // Don't snapshot a half-painted frame. Self-reschedule rather than
+      // relying solely on the closing write's callback — under rapid redraws
+      // a new sync block can open before that write lands, bouncing forever.
       this.queueRefresh()
       return
     }
-    const active = this.term.buffer.active
-    const cursorHidden = xtermCursorHidden(this.term)
-    const currentMeta = snapshotMeta(active, this.rows, this.scrollbackRows)
-    const nextCursor = reconcileTerminalCursor(
-      previousCursor,
-      cursorHidden ? null : { x: active.cursorX, y: active.baseY + active.cursorY - currentMeta.start },
-    )
-    // Frozen-scrollback view for the VERIFY pass only. The rebuild path below
-    // may re-anchor mid-pass, so it derives its own `anchorAlive`/`absBase`;
-    // this one reads the anchor as it stands on entry.
-    const verifyAnchor = this.anchor
-    const verifyFrozen =
-      active.type !== "alternate" && verifyAnchor !== undefined && !verifyAnchor.isDisposed
-        ? { baseY: active.baseY, absBase: this.anchorId - verifyAnchor.line, cache: this.scrollbackCache }
-        : null
-    if (
-      dirtyRowsMatchSnapshot(
-        active,
-        previousSnapshot,
-        this.publishedMeta,
-        currentMeta,
-        this.refreshTracker.peek(),
-        cursorHidden,
-        verifyFrozen,
-      )
-    ) {
-      this.snapshotDirty = false
-      this.refreshTracker.clear()
-      this.publishedMeta = currentMeta
-      this.cursor = nextCursor
-      if (this.cursor !== previousCursor) this.publishSnapshot()
-      return
-    }
-    // Alt screen has no scrollback (baseY 0) — every row is live, nothing
-    // to cache. The normal buffer's anchor/cache are left untouched so
-    // they're still valid when the fullscreen app exits.
-    const alt = active.type === "alternate"
-    const canAnchor = !alt && active.baseY > 0
-    if (canAnchor && (this.anchor === undefined || this.anchor.isDisposed)) {
-      // A fresh epoch must populate the new absolute-id cache in this pass.
-      this.scrollbackCache.clear()
-      const fresh = this.term.registerMarker(-active.cursorY - 1)
-      if (fresh) {
-        this.snapshotEpoch += 1
-        this.anchor = fresh
-        this.anchorId = fresh.line
-      }
-    }
-    const anchorAlive = canAnchor && this.anchor !== undefined && !this.anchor.isDisposed
-    // Absolute id of buffer line y — only meaningful while the anchor lives.
-    const absBase = anchorAlive ? this.anchorId - (this.anchor as IMarker).line : 0
-    const cache = this.scrollbackCache
-    const rows: TerminalRow[] = []
-    const cursorY = active.baseY + active.cursorY
-    const start = currentMeta.start
-    for (let y = start; y < active.length; y++) {
-      const frozen = anchorAlive && y < active.baseY
-      if (frozen) {
-        const cached = cache.get(absBase + y)
-        if (cached) {
-          rows.push(cached)
-          continue
-        }
-      }
-      const line = active.getLine(y)
-      const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
-      const row: TerminalRow = line ? xtermLineToChunks(line, minLast) : []
-      const stableRow = frozen ? reconcileTerminalRow(previousSnapshot[rows.length], row) : row
-      rows.push(stableRow)
-      if (frozen) cache.set(absBase + y, stableRow)
-    }
-    if (anchorAlive) {
-      // Drop ids that scrolled past the window so the map stays ≤ margin.
-      const min = absBase + start
-      for (const id of cache.keys()) if (id < min) cache.delete(id)
-    }
-    if (canAnchor) {
-      // Re-anchor on frozen scrollback before the old marker can trim out.
-      const next = this.term.registerMarker(-active.cursorY - 1)
-      if (next) {
-        this.anchorId = anchorAlive ? absBase + next.line : 0
-        this.anchor?.dispose()
-        this.anchor = next
-      }
-    }
-    this.snapshot = reconcileTerminalRows(previousSnapshot, rows)
-    const nextStartLine = absBase + start
-    this.snapshotWindow = anchorAlive
-      ? previousWindow?.epoch === this.snapshotEpoch && previousWindow.startLine === nextStartLine
-        ? previousWindow
-        : { epoch: this.snapshotEpoch, startLine: nextStartLine }
-      : null
+    this.snapshot = result.snapshot
+    this.cursor = result.cursor
+    this.snapshotWindow = result.snapshotWindow
     this.snapshotDirty = false
-    this.refreshTracker.clear()
-    this.publishedMeta = currentMeta
-    this.cursor = nextCursor
-    if (this.snapshot === previousSnapshot && this.cursor === previousCursor && this.snapshotWindow === previousWindow)
-      return
-    this.publishSnapshot()
+    if (result.changed) this.publishSnapshot()
   }
 
   private publishSnapshot(): void {

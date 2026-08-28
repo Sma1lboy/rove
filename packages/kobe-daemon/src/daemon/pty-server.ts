@@ -1,12 +1,12 @@
 /**
- * Standalone PTY host server — kobe's tmux-server analog.
+ * Standalone PTY host server — kobe's persistent terminal host.
  *
  * Runs as its own detached process (`kobe pty-host`), on its own unix
  * socket, deliberately OUTSIDE the daemon: the daemon restarts routinely
  * (it holds the fast-moving code), while this process is tiny, stable,
  * and must keep embedded-terminal children alive across both TUI exits
  * and daemon restarts. Only `kobe reset` (or idle-exit at zero live
- * sessions, like tmux) ends it.
+ * sessions) ends it.
  *
  * Wire: the same JSON-lines frame grammar as the daemon socket
  * (`protocol.ts`), so `KobeDaemonClient` speaks it unchanged. Every
@@ -27,19 +27,29 @@ import { type Server, type Socket, createServer } from "node:net"
 import { dirname } from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { ClientWriter } from "./client-writer.ts"
+import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
-import { defaultPtyFreezeDir, defaultPtyHostPidPath, defaultPtyHostSocketPath, isWindowsPipePath } from "./paths.ts"
+import {
+  defaultPtyFreezeDir,
+  defaultPtyHostPidPath,
+  defaultPtyHostSocketPath,
+  isWindowsPipePath,
+  legacyPtyHostPidPath,
+  legacyPtyHostSocketPath,
+  resolveDaemonHomeDir,
+} from "./paths.ts"
 import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, frameToLine } from "./protocol.ts"
 import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
 import { clearFrozenSessions, fileFreezeSink, loadFrozenSessions } from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
+import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 /**
- * Grace before a host with ZERO live sessions exits (tmux exits at zero
- * sessions too — the grace absorbs the boot window before the first
- * `pty.open` and quick close→reopen cycles). Override via
+ * Grace before a host with ZERO live sessions exits (persistent terminal
+ * hosts exit at zero sessions too — the grace absorbs the boot window
+ * before the first `pty.open` and quick close→reopen cycles). Override via
  * `KOBE_PTY_IDLE_EXIT_MS`.
  */
 const DEFAULT_IDLE_EXIT_MS = 60_000
@@ -97,7 +107,8 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     if (idleTimer) clearTimeout(idleTimer)
     idleTimer = null
   }
-  // Zero LIVE sessions → exit after a grace, like the tmux server. NOT
+  // Zero LIVE sessions → exit after a grace, like other persistent terminal
+  // hosts. NOT
   // unref'd: this timer being the only pending work is exactly the state
   // it exists to resolve.
   const armIdle = (): void => {
@@ -215,6 +226,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
             // (spawn defaults live in the host; reattach must not resize).
             cols: typeof payload.cols === "number" ? payload.cols : undefined,
             rows: typeof payload.rows === "number" ? payload.rows : undefined,
+            defaultColors: parseTerminalDefaultColors(payload.defaultColors) ?? undefined,
           },
           client,
           (frame) => writeFrame(client, frame),
@@ -331,6 +343,13 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     server.listen(socketPath, () => resolve())
   })
   await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  // Same reason as the daemon's: a pre-rename TUI that can't see this host
+  // starts a SECOND one, and the engine tabs split across the pair.
+  if (!pipeSocket) {
+    const home = resolveDaemonHomeDir()
+    await linkLegacyRuntimePath(socketPath, legacyPtyHostSocketPath(home))
+    await linkLegacyRuntimePath(pidPath, legacyPtyHostPidPath(home))
+  }
   armIdle()
   log("boot", `pty host listening on ${socketPath}`)
   return api

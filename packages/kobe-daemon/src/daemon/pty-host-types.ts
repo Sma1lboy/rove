@@ -6,6 +6,7 @@ import type { DaemonFrame, PtySessionExit } from "./protocol.ts"
 import type { PtyChild, PtyDriver } from "./pty-driver.ts"
 import type { PtyFreezeSink } from "./pty-freeze-store.ts"
 import type { PtySessionEndInfo } from "./pty-observability.ts"
+import { DEFAULT_TERMINAL_COLORS, type TerminalDefaultColors, parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 /** Everything `pty.open` needs to spawn a session's child on first open. */
 export interface PtySpawnSpec {
@@ -20,6 +21,8 @@ export interface PtySpawnSpec {
    *  always sends its real pane size) take last-attach-wins. */
   readonly cols?: number
   readonly rows?: number
+  /** Default colors reported to child applications through OSC 10/11. */
+  readonly defaultColors?: TerminalDefaultColors
 }
 
 /** Attach result — mirrors the wire `PtyOpenResult`. */
@@ -71,6 +74,10 @@ export interface PtySessionState {
   titleCarry: string
   /** UTF-8 decoder for the title scan (a multibyte title may split across chunks). */
   readonly titleDecoder: StringDecoder
+  /** Incomplete OSC 10/11 query carried across PTY output chunks. */
+  colorQueryCarry: string
+  /** Colors this terminal reports to applications running in the child. */
+  defaultColors: TerminalDefaultColors
   /** Attached connections, keyed by connection identity (the server's ClientState). */
   readonly sinks: Map<object, PtySink>
   /** A detached TUI still holds a serialized screen for an exact-delta wake. */
@@ -124,6 +131,8 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     title: "",
     titleCarry: "",
     titleDecoder: new StringDecoder("utf8"),
+    colorQueryCarry: "",
+    defaultColors: parseTerminalDefaultColors(spec.defaultColors) ?? DEFAULT_TERMINAL_COLORS,
     sinks: new Map(),
     parked: false,
     parkedScreenBytes: 0,

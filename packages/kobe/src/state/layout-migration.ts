@@ -13,6 +13,7 @@ import {
   openSync,
   readdirSync,
   readlinkSync,
+  renameSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
@@ -28,6 +29,7 @@ import {
 } from "../product.ts"
 
 const CLIENT_MIGRATION_MARKER = ".layout-client-migration-v1"
+const PLUGIN_MIGRATION_MARKER = ".layout-plugins-migration-v1"
 const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
 
 /** Client-owned data can move while a pre-upgrade daemon is still alive. */
@@ -49,6 +51,10 @@ export interface StateLayoutMigrationResult {
   readonly attempted: boolean
   readonly copied: number
   readonly warnings: readonly string[]
+}
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
 }
 
 function lstatIfExists(path: string): Stats | undefined {
@@ -200,6 +206,62 @@ function migrateStateEntries(
   return { attempted: true, copied, warnings }
 }
 
+/**
+ * Plugin trees are MOVED, not copied: a managed checkout is hundreds of
+ * megabytes, and a copy would leave two registries where the whole point is
+ * that exactly one writer owns `plugins.json`. Runs at daemon start, the same
+ * single-writer moment the daemon-owned copy uses, and only while the
+ * canonical registry is absent — so it happens once and never races an
+ * install. A failure leaves the legacy tree in place; the plugin path resolver
+ * still finds it there.
+ */
+const PLUGIN_ENTRIES = ["plugins.json", "plugins", "plugins-outdated.json"] as const
+
+function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationResult {
+  const home = readRoveEnv("HOME_DIR", env) ?? homedir()
+  const legacyState = join(home, LEGACY_KOBE_STATE_DIR_BASENAME)
+  const roveState = join(home, ROVE_STATE_DIR_BASENAME)
+  const marker = join(roveState, PLUGIN_MIGRATION_MARKER)
+  try {
+    if (lstatIfExists(marker) || lstatIfExists(join(roveState, "plugins.json"))) {
+      return { attempted: false, copied: 0, warnings: [] }
+    }
+    if (!lstatIfExists(join(legacyState, "plugins.json"))) return { attempted: false, copied: 0, warnings: [] }
+  } catch (err) {
+    return { attempted: true, copied: 0, warnings: [`plugin migration preflight: ${errorText(err)}`] }
+  }
+  mkdirSync(roveState, { recursive: true })
+  let moved = 0
+  const warnings: string[] = []
+  for (const name of PLUGIN_ENTRIES) {
+    const source = join(legacyState, name)
+    const destination = join(roveState, name)
+    try {
+      if (!lstatIfExists(source) || lstatIfExists(destination)) continue
+      renameSync(source, destination)
+      moved += 1
+      // Leave the old path pointing at the new one: a `rove`/`kobe` binary
+      // predating the rename reads only `.kobe/plugins.json`, and finding it
+      // empty reads as "you have no plugins", not as "look elsewhere".
+      try {
+        symlinkSync(destination, source)
+      } catch {
+        /* compatibility is a courtesy — a failed link never fails the move */
+      }
+    } catch (err) {
+      warnings.push(`${name}: ${errorText(err)}`)
+    }
+  }
+  if (warnings.length === 0) {
+    try {
+      writeMarker(marker)
+    } catch (err) {
+      warnings.push(`plugin migration marker: ${errorText(err)}`)
+    }
+  }
+  return { attempted: true, copied: moved, warnings }
+}
+
 /** Copy UI/client-owned state before any command reads its canonical path. */
 export function migrateRoveClientStateLayout(env: NodeJS.ProcessEnv = process.env): StateLayoutMigrationResult {
   return migrateStateEntries(CLIENT_STATE_ENTRIES, CLIENT_MIGRATION_MARKER, true, env)
@@ -207,7 +269,13 @@ export function migrateRoveClientStateLayout(env: NodeJS.ProcessEnv = process.en
 
 /** Copy daemon-owned state immediately before a new daemon opens its stores. */
 export function migrateRoveDaemonStateLayout(env: NodeJS.ProcessEnv = process.env): StateLayoutMigrationResult {
-  return migrateStateEntries(DAEMON_STATE_ENTRIES, DAEMON_MIGRATION_MARKER, false, env)
+  const state = migrateStateEntries(DAEMON_STATE_ENTRIES, DAEMON_MIGRATION_MARKER, false, env)
+  const plugins = migrateLegacyPluginTree(env)
+  return {
+    attempted: state.attempted || plugins.attempted,
+    copied: state.copied + plugins.copied,
+    warnings: [...state.warnings, ...plugins.warnings],
+  }
 }
 
 /** Aggregate helper for tests and one-shot migration tools. */

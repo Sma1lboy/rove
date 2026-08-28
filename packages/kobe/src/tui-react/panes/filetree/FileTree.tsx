@@ -30,8 +30,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   type GitScope,
   type StatusEntry,
-  type TreeNode,
-  buildTree,
   listFiles,
   resolveBase,
   statusFiles,
@@ -58,6 +56,7 @@ import {
   sameStatusEntries,
   statusRows,
 } from "../../../tui/panes/filetree/rows"
+import { type TreeNode, buildTree } from "../../../tui/panes/filetree/tree"
 import { PaneKeyHint, usePaneHintMark } from "../../component/keyboard-hints"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"

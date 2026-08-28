@@ -17,10 +17,10 @@
  *     tmp + rename, which swaps the file's inode — an `fs.watch` on the
  *     file itself goes dead after the first atomic write. Watching the
  *     parent dir and filtering on the filename survives every rename.
- *   - **Poll as a safety net.** Bun/macOS can miss that tmp+rename edge in
- *     a long-lived daemon even when the directory watch is alive. The state
- *     file is tiny and publishes are changed-only, so a low-frequency poll
- *     turns the live theme path from best-effort into reliable fan-out.
+ *   - **Stat-poll, not fs events.** `file-watch-trigger.ts` stamp-polls the
+ *     watched basenames — on macOS the FSEvents stream behind fs events
+ *     starts asynchronously and permanently drops writes landing in its
+ *     arm window (issue #61), so event-based watching cannot be lossless.
  *   - **Debounce.** A write burst (KVProvider flush + a `setPersisted*`
  *     call) collapses into one read ~{@link DEFAULT_UI_PREFS_DEBOUNCE_MS}
  *     later.
@@ -49,14 +49,10 @@ import type { UiPrefsPayload } from "./protocol.ts"
 /** Default debounce between a state-file event and the read+publish. */
 export const DEFAULT_UI_PREFS_DEBOUNCE_MS = 200
 
-/** Safety-net poll cadence for missed fs.watch events. */
-export const DEFAULT_UI_PREFS_POLL_MS = 250
-
 /**
  * Focus-accent slots the TUI understands — mirror of `FOCUS_ACCENT_SLOTS`
- * in `packages/kobe/src/tui/context/theme.tsx`, not imported because that
- * module builds a Solid store on a renderer at load time and the daemon
- * must stay UI-free (same stance as `tui/lib/tmux-border-theme.ts`).
+ * in `packages/kobe/src/tui/context/theme-core.ts`, not imported because
+ * that module imports the OpenTUI renderer and the daemon must stay UI-free.
  */
 const FOCUS_ACCENT_SLOT_NAMES = ["primary", "success", "info"] as const
 
@@ -135,49 +131,45 @@ export interface UiPrefsWatcherOptions {
    * same disable convention as the server's other pollers.
    */
   readonly debounceMs?: number
-  /**
-   * Poll fallback cadence in ms. `<= 0` disables only the fallback poll;
-   * the directory watcher still runs. Defaults to
-   * {@link DEFAULT_UI_PREFS_POLL_MS}.
-   */
-  readonly pollMs?: number
 }
 
 /**
  * Start the watcher: publish the current prefs immediately (replay seed),
- * then re-read + publish-on-change after every debounced state-file event
- * and on a small polling fallback. Returns a `stop()` that closes the fs
- * watcher and clears pending timers.
+ * then re-read + publish-on-change after every debounced state-file event.
+ * Returns a `stop()` that closes the fs watcher and clears pending timers.
  */
 export function startUiPrefsWatcher(bus: DaemonEventBus, options: UiPrefsWatcherOptions = {}): () => void {
   const debounceMs = options.debounceMs ?? DEFAULT_UI_PREFS_DEBOUNCE_MS
   if (debounceMs <= 0) return () => {}
-  const pollMs = options.pollMs ?? DEFAULT_UI_PREFS_POLL_MS
   const statePath = options.statePath ?? defaultUiPrefsStatePath()
   const stateFile = basename(statePath)
 
-  let last = readUiPrefsFromStateFile(statePath)
-  bus.publish("ui-prefs", last)
+  let last: UiPrefsPayload | null = null
 
   const publishIfChanged = (): void => {
     try {
       const next = readUiPrefsFromStateFile(statePath)
-      if (samePrefs(last, next)) return
+      if (last && samePrefs(last, next)) return
       last = next
       bus.publish("ui-prefs", next)
     } catch (err) {
       logDaemonError("ui-prefs-watcher", err)
     }
   }
-  // No watcher → panes keep the boot-time prefs they read themselves (the
-  // documented degraded mode). The initial publish above still serves the
-  // at-start value to subscribers; the poll fallback continues when enabled.
-  return startFileWatchTrigger({
+  // Watch BEFORE the initial read (issue #61 pattern): the trigger's
+  // baseline stamp is taken synchronously in here, so a write landing
+  // before it is seen by the initial publish below and one landing after
+  // it flips the stamp — no write can fall between the two.
+  const stop = startFileWatchTrigger({
     filePath: statePath,
     matchBasenames: [stateFile],
     debounceMs,
-    pollMs,
     onTrigger: publishIfChanged,
     onError: (err) => logDaemonError("ui-prefs-watcher", err),
   })
+  // Initial publish warms the bus replay cache (`last` is null → always
+  // publishes). Panes keep boot-time prefs if the poll never fires — the
+  // documented degraded mode.
+  publishIfChanged()
+  return stop
 }

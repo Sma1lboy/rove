@@ -5,14 +5,16 @@
  *
  * Plugins are ordinary argv commands — no shell, cwd = plugin root, env
  * carries the ROVE_PLUGIN_* contract plus Kobe compatibility aliases. The host
- * file-watches `plugins.json` so a CLI install/link/enable applies to the
- * running daemon without a restart. Startup hooks run only at daemon start
- * (herdr semantics): a reload swaps hook registrations, nothing more.
+ * stat-polls `plugins.json` so a CLI install/link/enable applies to the
+ * running daemon without a restart — polling, not `fs.watch`: on macOS the
+ * FSEvents stream behind `fs.watch` starts asynchronously, and a write landing
+ * before it is live is dropped forever, with no signal (issue #61). Startup
+ * hooks run only at daemon start (herdr semantics): a reload swaps hook
+ * registrations, nothing more.
  */
 
 import { spawn } from "node:child_process"
-import { type FSWatcher, appendFileSync, mkdirSync, watch } from "node:fs"
-import { dirname } from "node:path"
+import { appendFileSync, mkdirSync, statSync } from "node:fs"
 import type { ChannelEvent } from "../daemon/event-bus.ts"
 import { buildPluginEnv } from "./env.ts"
 import { type PluginEvent, PluginEventReducer, lifecycleEventFor } from "./events.ts"
@@ -42,6 +44,10 @@ interface LoadedPlugin {
 
 const OUTPUT_CAP = 8 * 1024
 const RELOAD_DEBOUNCE_MS = 150
+/** Registry stat-poll cadence; reload latency is this + the debounce. */
+const REGISTRY_POLL_MS = 200
+/** How long a [[shutdown]] hook may run before the host kills it. */
+const SHUTDOWN_GRACE_MS = 3_000
 
 /** Compose a host onto the daemon's bus: subscribe first, then start. */
 export function startPluginHost(
@@ -69,7 +75,8 @@ export class PluginHost {
   private readonly opts: PluginHostOptions
   private readonly reducer = new PluginEventReducer()
   private plugins: LoadedPlugin[] = []
-  private watcher: FSWatcher | undefined
+  private pollTimer: ReturnType<typeof setInterval> | undefined
+  private registryStamp = ""
   private reloadTimer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
 
@@ -79,6 +86,11 @@ export class PluginHost {
 
   /** Load the registry, run startup hooks, and begin watching for changes. */
   start(): void {
+    // Watch BEFORE the first load: the baseline stamp is taken synchronously,
+    // so a write landing before it is seen by the load below, and one landing
+    // after it flips the stamp and triggers a reload. No write can fall
+    // between the two.
+    this.watchRegistry()
     this.plugins = this.loadPlugins()
     for (const plugin of this.plugins) {
       for (const [i, hook] of plugin.manifest.startup.entries()) {
@@ -86,19 +98,46 @@ export class PluginHost {
         void this.run(plugin, hook, "startup", { ROVE_PLUGIN_EVENT: "startup" }, `startup[${i}]`)
       }
     }
-    this.watchRegistry()
   }
 
-  stop(): void {
+  /**
+   * Stop the host and run every `[[shutdown]]` hook. Resolves once each hook
+   * has exited or been SIGKILLed at the grace deadline — the caller (daemon
+   * close) MUST await it, or `process.exit` destroys the grace timers and the
+   * hook children become unbounded orphans. Total wait is bounded by
+   * {@link SHUTDOWN_GRACE_MS}; a host with no shutdown hooks resolves
+   * immediately.
+   */
+  async stop(): Promise<void> {
+    if (this.stopped) return
     this.stopped = true
     if (this.reloadTimer) clearTimeout(this.reloadTimer)
-    this.watcher?.close()
+    if (this.pollTimer) clearInterval(this.pollTimer)
+    const runs: Promise<void>[] = []
+    for (const plugin of this.plugins) {
+      for (const [i, hook] of plugin.manifest.shutdown.entries()) {
+        if (!supportsPlatform(hook, plugin.manifest, currentPluginPlatform())) continue
+        runs.push(
+          this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`, SHUTDOWN_GRACE_MS),
+        )
+      }
+    }
+    await Promise.all(runs)
   }
 
   /** Feed every bus publish through here (server wires `bus.onPublish`). */
   handleChannel(event: ChannelEvent): void {
     if (this.stopped) return
-    for (const derived of this.reducer.reduce(event)) this.dispatch(derived)
+    // Guarded: the bus sink loop and the orch.subscribeTasks callback have no
+    // catch of their own, so a throw here (a pathological task field breaking
+    // the diff's deep-compare) would kill the whole snapshot pipeline — the
+    // PTY sweep included — on every subsequent publish. One bad diff must
+    // cost one event batch, never the channel.
+    try {
+      for (const derived of this.reducer.reduce(event)) this.dispatch(derived)
+    } catch (err) {
+      this.opts.log?.(`plugin event reduce failed on ${event.channel} — ${String(err)}`)
+    }
   }
 
   /** Direct feed from `ui.reportEvent` — TUI-originated product events
@@ -109,12 +148,19 @@ export class PluginHost {
     readonly detail?: Record<string, unknown>
   }): void {
     if (this.stopped) return
-    this.dispatch({
-      event: report.kind,
-      ...(report.taskId ? { taskId: report.taskId, task: this.reducer.contextFor(report.taskId) } : {}),
-      ...(report.detail ? { detail: report.detail } : {}),
-      at: Date.now(),
-    })
+    // Guarded here, once, so no reporting call site (RPC handlers, runners)
+    // needs its own try/catch — a pathological detail payload breaking
+    // JSON.stringify must never fail the operation that reported it.
+    try {
+      this.dispatch({
+        event: report.kind,
+        ...(report.taskId ? { taskId: report.taskId, task: this.reducer.contextFor(report.taskId) } : {}),
+        ...(report.detail ? { detail: report.detail } : {}),
+        at: Date.now(),
+      })
+    } catch (err) {
+      this.opts.log?.(`plugin ui-report dispatch failed for ${report.kind} — ${String(err)}`)
+    }
   }
 
   /**
@@ -134,16 +180,37 @@ export class PluginHost {
     if (this.stopped) return
     const event = lifecycleEventFor(report.kind, report.detail as { waiting?: string } | undefined)
     if (!event) return
-    this.dispatch({
-      event,
-      taskId: report.taskId,
-      task: this.reducer.contextFor(report.taskId),
-      ...(report.vendor ? { vendor: report.vendor } : {}),
-      ...(report.tabId ? { tabId: report.tabId } : {}),
-      ...(report.sessionId ? { sessionId: report.sessionId } : {}),
-      ...(report.detail ? { detail: report.detail } : {}),
-      at: Date.now(),
-    })
+    // Same single-site guard as handleUiReport.
+    try {
+      this.dispatch({
+        event,
+        taskId: report.taskId,
+        task: this.reducer.contextFor(report.taskId),
+        ...(report.vendor ? { vendor: report.vendor } : {}),
+        ...(report.tabId ? { tabId: report.tabId } : {}),
+        ...(report.sessionId ? { sessionId: report.sessionId } : {}),
+        ...(report.detail ? { detail: report.detail } : {}),
+        at: Date.now(),
+      })
+    } catch (err) {
+      this.opts.log?.(`plugin engine-report dispatch failed for ${event} — ${String(err)}`)
+    }
+  }
+
+  /** Fire one event at ONE plugin's matching hooks (registry transitions). */
+  private dispatchTo(plugin: LoadedPlugin, event: PluginEvent): void {
+    const platform = currentPluginPlatform()
+    for (const hook of plugin.manifest.events) {
+      if (hook.on !== event.event) continue
+      if (!supportsPlatform(hook, plugin.manifest, platform)) continue
+      void this.run(
+        plugin,
+        hook,
+        "event",
+        { ROVE_PLUGIN_EVENT: event.event, ROVE_PLUGIN_EVENT_JSON: JSON.stringify(event) },
+        hook.on,
+      )
+    }
   }
 
   private dispatch(event: PluginEvent): void {
@@ -189,32 +256,56 @@ export class PluginHost {
     return out
   }
 
-  private watchRegistry(): void {
-    const path = pluginRegistryPath(this.opts.homeDir)
+  /** mtime(ns) + size + inode of the registry file, or "absent". */
+  private registryStampNow(): string {
     try {
-      mkdirSync(dirname(path), { recursive: true })
-      // Watch the directory: plugins.json may not exist yet, and whole-file
-      // rewrites replace the inode on some platforms.
-      this.watcher = watch(dirname(path), (_kind, filename) => {
-        if (filename && filename !== "plugins.json") return
-        if (this.reloadTimer) clearTimeout(this.reloadTimer)
-        this.reloadTimer = setTimeout(() => {
-          if (this.stopped) return
-          this.plugins = this.loadPlugins()
-          this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
-        }, RELOAD_DEBOUNCE_MS)
-      })
-    } catch (err) {
-      this.opts.log?.(`plugin registry watch failed — ${String(err)}`)
+      const s = statSync(pluginRegistryPath(this.opts.homeDir), { bigint: true })
+      return `${s.mtimeNs}:${s.size}:${s.ino}`
+    } catch {
+      return "absent"
     }
+  }
+
+  private watchRegistry(): void {
+    this.registryStamp = this.registryStampNow()
+    this.pollTimer = setInterval(() => {
+      const stamp = this.registryStampNow()
+      if (stamp === this.registryStamp) return
+      this.registryStamp = stamp
+      // Debounce past the poll: a burst of CLI mutations (or a write still in
+      // flight) collapses into one reload after the file settles.
+      if (this.reloadTimer) clearTimeout(this.reloadTimer)
+      this.reloadTimer = setTimeout(() => {
+        if (this.stopped) return
+        const before = new Map(this.plugins.map((p) => [p.manifest.id, p]))
+        this.plugins = this.loadPlugins()
+        this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
+        // Registry transitions, delivered ONLY to the affected plugin: an
+        // enabled hook fires on the new load, a disabled hook on the last
+        // registration we still hold for it.
+        const at = Date.now()
+        for (const plugin of this.plugins) {
+          if (!before.has(plugin.manifest.id)) {
+            this.dispatchTo(plugin, { event: "plugin.enabled", detail: { pluginId: plugin.manifest.id }, at })
+          }
+        }
+        for (const [id, plugin] of before) {
+          if (!this.plugins.some((p) => p.manifest.id === id)) {
+            this.dispatchTo(plugin, { event: "plugin.disabled", detail: { pluginId: id }, at })
+          }
+        }
+      }, RELOAD_DEBOUNCE_MS)
+    }, REGISTRY_POLL_MS)
+    this.pollTimer.unref?.()
   }
 
   private async run(
     plugin: LoadedPlugin,
     spec: PluginCommandSpec,
-    kind: "startup" | "event",
+    kind: "startup" | "event" | "shutdown",
     extraEnv: Record<string, string>,
     label: string,
+    killAfterMs?: number,
   ): Promise<void> {
     const id = plugin.manifest.id
     const startedAt = Date.now()
@@ -252,6 +343,11 @@ export class PluginHost {
         exitCode = code
         resolve()
       })
+      if (killAfterMs !== undefined) {
+        const killer = setTimeout(() => child.kill("SIGKILL"), killAfterMs)
+        killer.unref?.()
+        child.on("close", () => clearTimeout(killer))
+      }
     })
     const record = {
       at: startedAt,

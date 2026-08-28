@@ -22,7 +22,9 @@ describe("api client", () => {
     await expect(api.post("/api/rpc", { name: "task.list" })).resolves.toEqual({ ok: true })
     expect(seen?.url).toBe("/api/rpc")
     expect(seen?.init?.method).toBe("POST")
-    expect(seen?.init?.headers).toEqual({ "content-type": "application/json" })
+    // Assert the header that matters, not the whole object — an added accept
+    // or request-id header is not a regression.
+    expect(seen?.init?.headers).toMatchObject({ "content-type": "application/json" })
     expect(JSON.parse(seen?.init?.body as string)).toEqual({ name: "task.list" })
   })
 

@@ -20,6 +20,7 @@ import { activityColor, activityLabel } from "../lib/activity.ts"
 import { ensureEngineTab } from "../lib/tabs.ts"
 import type { EngineState, Task } from "../lib/types.ts"
 import { useFocusTrap } from "../lib/use-focus-trap.ts"
+import { resolveVendor } from "../lib/vendor.ts"
 import { ChatTranscript } from "./ChatTranscript.tsx"
 
 // xterm is the app's heaviest dependency — keep it out of the board chunk
@@ -182,7 +183,7 @@ export function BoardPeek({
           ) : (
             <ChatTranscript
               worktreePath={task.worktreePath}
-              vendor={task.vendor ?? "claude"}
+              vendor={resolveVendor(task.vendor)}
               title={task.title || task.branch}
             />
           )}

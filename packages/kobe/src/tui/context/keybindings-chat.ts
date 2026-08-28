@@ -116,23 +116,6 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "ctrl+a f" },
   },
   {
-    // Mirror of claude-code's `/resume` slash. Pops a picker listing
-    // every persisted session for the active task's worktree so the
-    // user can jump back to (or fork from) any prior conversation.
-    // Selecting an already-open session focuses its tab; otherwise a
-    // new tab is opened seeded with that sessionId. Chord chosen for
-    // mnemonic "yank from history" — `ctrl+r` belongs to the prompt
-    // history palette (claude-code parity) and `ctrl+h`
-    // collides with terminals' backspace byte.
-    id: "chat.session.resume",
-    scope: "workspace",
-    keys: [],
-    prefixKeys: ["y"],
-    category: "Workspace",
-    description: "Resume a prior session in this Task directory",
-    hint: { keys: "ctrl+y" },
-  },
-  {
     id: "chat.tab.close",
     scope: "workspace",
     // Direct-only (owner call 2026-07-11), same as chat.tab.new.

@@ -88,9 +88,51 @@ describe("describeCron", () => {
     expect(describeCron("0 9 * * MON-FRI")).toBe("weekdays at 09:00")
     expect(describeCron("0 9 * * SAT,SUN")).toBe("weekends at 09:00")
     expect(describeCron("30 6 * * *")).toBe("every day at 06:30")
-    expect(describeCron("0 9 * * MON")).toBe("Mondays at 09:00")
-    expect(describeCron("*/15 * * * *")).toBe("every day every 15m")
-    expect(describeCron("0 */6 * * *")).toBe("every day every 6h")
+  })
+
+  test("pluralizes ALL seven days — not just the ones where code+`days` happens to read", () => {
+    // MON/FRI/SUN read fine with naive `${code}days`; TUE/WED/THU/SAT don't
+    // ("Tuedays"). Sampling one lucky day is how the bug shipped green.
+    const days: Array<[string, string]> = [
+      ["MON", "Mondays"],
+      ["TUE", "Tuesdays"],
+      ["WED", "Wednesdays"],
+      ["THU", "Thursdays"],
+      ["FRI", "Fridays"],
+      ["SAT", "Saturdays"],
+      ["SUN", "Sundays"],
+    ]
+    for (const [code, name] of days) {
+      expect(describeCron(`0 9 * * ${code}`), code).toBe(`${name} at 09:00`)
+    }
+  })
+
+  test("adds 'every day' only to a specific time — an every-N phrase already recurs", () => {
+    // "every day every 15m" double-qualifies; the interval phrase stands alone.
+    expect(describeCron("*/15 * * * *")).toBe("every 15m")
+    expect(describeCron("0 */6 * * *")).toBe("every 6h")
+    expect(describeCron("* * * * *")).toBe("every minute")
+    expect(describeCron("30 * * * *")).toBe("every day hourly at :30")
+  })
+
+  test("spells every weekday the ladder can reach", () => {
+    // Mechanical `TUE` + "days" spelled four of the seven wrong
+    // ("Tuedays", "Weddays", "Thudays", "Satdays").
+    expect(describeCron("0 9 * * TUE")).toBe("Tuesdays at 09:00")
+    expect(describeCron("0 9 * * WED")).toBe("Wednesdays at 09:00")
+    expect(describeCron("0 9 * * THU")).toBe("Thursdays at 09:00")
+    expect(describeCron("0 9 * * FRI")).toBe("Fridays at 09:00")
+    expect(describeCron("0 9 * * SAT")).toBe("Saturdays at 09:00")
+    expect(describeCron("0 9 * * SUN")).toBe("Sundays at 09:00")
+  })
+
+  test("stays silent on an hourly list/range minute instead of naming a false time", () => {
+    // `15,45` is two fire times, not one — "hourly at :15,45" asserts a
+    // clock time the schedule never has.
+    expect(describeCron("15,45 * * * *")).toBeNull()
+    expect(describeCron("10-20 * * * *")).toBeNull()
+    // A plain hourly minute still names itself.
+    expect(describeCron("15 * * * *")).toBe("every day hourly at :15")
   })
 
   test("stays silent rather than describing a shape it does not model", () => {

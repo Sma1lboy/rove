@@ -8,10 +8,11 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { relativeAgeMs } from "../../../tui/history/message-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { type PluginSettingRowView, isBooleanOn } from "./plugin-settings-core"
-import { type PluginRowView, formatAgo } from "./plugins-core"
+import type { PluginRowView } from "./plugins-core"
 import type { SectionCursorProps } from "./rows"
 
 /**
@@ -85,14 +86,13 @@ export function PluginSettingsSection(
       <text fg={theme.text} attributes={TextAttributes.BOLD}>
         {t("settings.plugins.title")}
       </text>
+      {/* With nothing registered, the operating hint (toggling, per-plugin
+          settings) describes rows that aren't there, and it repeats the
+          install command the empty state already gives. One or the other. */}
       <text fg={theme.textMuted} wrapMode="word">
-        {t("settings.plugins.hint")}
+        {t(props.plugins.length === 0 ? "settings.plugins.empty" : "settings.plugins.hint")}
       </text>
-      {props.plugins.length === 0 ? (
-        <text fg={theme.textMuted} wrapMode="word">
-          {t("settings.plugins.empty")}
-        </text>
-      ) : (
+      {props.plugins.length === 0 ? null : (
         <box flexDirection="column" gap={0}>
           {props.plugins.map((plugin, i) => {
             const toggleRow = offsets[i] ?? 0
@@ -150,7 +150,7 @@ export function PluginSettingsSection(
                             : plugin.lastRun.spawnError
                               ? t("settings.plugins.runFailed")
                               : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
-                          ago: formatAgo(now - plugin.lastRun.at),
+                          ago: relativeAgeMs(plugin.lastRun.at, now),
                         })
                       : t("settings.plugins.neverRun")}
                   </text>

@@ -11,7 +11,9 @@
 
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
+import { charWidth } from "../../lib/display-width"
 import type { Toast } from "../../tui/lib/notify-state"
+import { truncateEndCells } from "../../tui/lib/truncate"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 
@@ -36,11 +38,17 @@ export function ToastOverlay() {
   // the overlay sits on top of the layout without taking flow space;
   // `zIndex` keeps it above the panes but below the dialog backdrop (3000).
   const stackRows = visibleToasts.reduce((rows, toast) => rows + cardRows(toast), 0)
-  const left = Math.max(0, dims.width - CARD_WIDTH - RIGHT_MARGIN)
+  // On a terminal narrower than the card the stack used to poke left across
+  // the neighbouring pane — clamp to what actually fits.
+  const cardWidth = Math.min(CARD_WIDTH, Math.max(12, dims.width - RIGHT_MARGIN * 2))
+  const left = Math.max(0, dims.width - cardWidth - RIGHT_MARGIN)
   const top = Math.max(0, dims.height - BOTTOM_MARGIN - stackRows)
+  // Inner text budget: accent bar (1) + card padding (2) = 3; the title row
+  // spends 2 more on its glyph, the body row 2 on its indent — same number.
+  const textBudget = cardWidth - 5
 
   return (
-    <box position="absolute" zIndex={2500} left={left} top={top} width={CARD_WIDTH} flexDirection="column" gap={1}>
+    <box position="absolute" zIndex={2500} left={left} top={top} width={cardWidth} flexDirection="column" gap={1}>
       {visibleToasts.map((toast) => {
         const accent =
           toast.kind === "needs_input" ? theme.warning : toast.kind === "error" ? theme.error : theme.success
@@ -76,13 +84,13 @@ export function ToastOverlay() {
                   flexGrow={1}
                   flexShrink={1}
                 >
-                  {toast.title}
+                  {truncateEndCells(toast.title, textBudget, charWidth)}
                 </text>
               </box>
               {toast.body ? (
                 <box flexDirection="row" paddingLeft={2}>
                   <text fg={theme.textMuted} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-                    {toast.body}
+                    {truncateEndCells(toast.body, textBudget, charWidth)}
                   </text>
                 </box>
               ) : null}

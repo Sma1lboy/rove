@@ -4,7 +4,11 @@ import { ensurePtyHostReachable } from "@sma1lboy/kobe-daemon/client/pty-process
 import { defaultPtyHostSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
+import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
+import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
+import { BUILTIN_VENDORS } from "../types/vendor.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
+import { engineEntry } from "./registry.ts"
 import type { EngineSessionLaunch } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
@@ -80,26 +84,55 @@ export function commandHasEngineWord(command: readonly string[], engineBin: stri
   return false
 }
 
+/** Every launch binary a REGISTERED built-in engine may show as — the
+ *  vendor-agnostic half of engine identity, same pair the foreground walk
+ *  matches (`defaultCommand[0]` plus post-launch renames like `kimi-co`). */
+function builtinEngineBins(): string[] {
+  return BUILTIN_VENDORS.flatMap((vendor) => {
+    const entry = engineEntry(vendor)
+    return [entry.defaultCommand[0], ...(entry.processNames ?? [])]
+  }).filter((bin): bin is string => Boolean(bin))
+}
+
+/** Trailing `tab-<n>` as a number, `Infinity` for a non-numeric tab id. */
+function tabOrder(key: string): number {
+  const n = Number(/tab-(\d+)$/.exec(key)?.[1])
+  return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY
+}
+
 /**
  * Pick the ALIVE engine session key for `taskId`, or `null` when none.
- * Preference order: the deterministic `<taskId>::tab-1` engine tab, then any
- * alive tab whose launch argv contains `engineBin` as a word (a renumbered
- * or `--tab new` engine surviving tab-1's death). Bare shell tabs never
- * match — they must never receive a prompt.
+ * Preference order: the deterministic `<taskId>::tab-1` engine tab, then the
+ * lowest-numbered alive tab whose launch argv names `engineBin`, then the
+ * lowest-numbered alive tab running ANY registered engine. Bare shell tabs
+ * never match — they must never receive a prompt.
+ *
+ * That last rung is vendor-AGNOSTIC on purpose (issue #36): `engineBin`
+ * comes from the task's recorded vendor, which drifts from what its tabs
+ * actually run — a task pinned to the custom preset `claudecpa` (a zsh
+ * wrapper) whose live tabs launch plain `claude` resolved to null, and a
+ * bare `send` refused with NO_ENGINE_TAB while its engine sat right there.
+ * The delivery gate (`engineProcessIn`) has always accepted any live engine
+ * and `--tab tab-N` has always allowed cross-vendor send; this makes the
+ * resolver agree with both. Safety is unchanged: the caller still re-checks
+ * the pick against a live `ps` walk before writing a single byte.
  */
 export function findHostedEngineKey(
   sessions: readonly PtySessionInfo[],
   taskId: string,
   engineBin?: string,
 ): string | null {
-  const mine = sessions.filter((s) => s.alive && isHostedTaskKey(s.key, taskId))
+  const mine = sessions
+    .filter((s) => s.alive && isHostedTaskKey(s.key, taskId))
+    .sort((a, b) => tabOrder(a.key) - tabOrder(b.key))
   const tab1 = mine.find((s) => s.key === `${taskId}::tab-1`)
   if (tab1) return tab1.key
   if (engineBin) {
     const byCommand = mine.find((s) => commandHasEngineWord(s.command, engineBin))
     if (byCommand) return byCommand.key
   }
-  return null
+  const bins = builtinEngineBins()
+  return mine.find((s) => bins.some((bin) => commandHasEngineWord(s.command, bin)))?.key ?? null
 }
 
 /** Delay between bracketed paste and submit CR so the engine reads two tty events. */
@@ -137,11 +170,13 @@ export async function ensureHostedEngine(
   rpc: HostedSessionRpc,
   cwd: string,
   launch: EngineSessionLaunch,
+  defaultColors: TerminalDefaultColors = readPersistedTerminalDefaultColors(),
 ): Promise<PtyOpenResult> {
   const result = await rpc.request<PtyOpenResult>("pty.open", {
     key: launch.key,
     cwd,
     command: launch.command,
+    defaultColors,
   })
   await rpc.request("pty.detach", { key: launch.key }).catch(() => {})
   return result

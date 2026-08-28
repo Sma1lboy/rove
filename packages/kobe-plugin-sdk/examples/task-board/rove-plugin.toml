@@ -1,0 +1,17 @@
+# Live task board pane + a headless snapshot action for verification.
+id = "examples.task-board"
+name = "Task Board"
+version = "0.1.0"
+min_rove_version = "0.8.0"
+description = "A pane that draws a live board of Rove tasks with engine activity glyphs"
+
+[[panes]]
+id = "board"
+title = "Task Board"
+placement = "split"
+command = ["bun", "$ROVE_PLUGIN_ROOT/board.ts"]
+
+[[actions]]
+id = "snapshot"
+title = "Print task board snapshot"
+command = ["bun", "snapshot.ts"]

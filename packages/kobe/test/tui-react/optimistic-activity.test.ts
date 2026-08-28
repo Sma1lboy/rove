@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator-payloads.ts"
 import {
+  answeredTabsStore,
+  mergeAnsweredTabs,
   mergeOptimisticActivity,
   noteEngineInput,
+  noteEngineTabInput,
   optimisticActivityStore,
   resetOptimisticActivity,
+  supersededAnswers,
   supersededMarks,
 } from "../../src/tui-react/workspace/optimistic-activity.ts"
+import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core.ts"
 
 const auth = (entries: Record<string, TaskEngineState>): ReadonlyMap<string, TaskEngineState> =>
   new Map(Object.entries(entries))
@@ -74,5 +79,87 @@ describe("noteEngineInput", () => {
     noteEngineInput("t1", "\x1b")
     expect(optimisticActivityStore.get().get("t1")?.kind).toBe("interrupted")
     resetOptimisticActivity()
+  })
+})
+
+/**
+ * Answering an AskUserQuestion resumes the SAME turn, so claude emits no
+ * Stop and no UserPromptSubmit, while `permission_needed` is deliberately
+ * sticky (the lapse watchdog must not idle a task that needs a human). With
+ * no event to clear it the tab's `?` pinned forever — observed in production
+ * on a tab still showing it 11 minutes after the engine had resumed working.
+ * The enter typed at that tab is the only evidence the answer happened.
+ */
+describe("mergeAnsweredTabs", () => {
+  const tabs = (entries: Record<string, Record<string, TaskEngineState>>) =>
+    new Map(Object.entries(entries).map(([task, byTab]) => [task, new Map(Object.entries(byTab))]))
+
+  it("hides a permission_needed the user answered, until a newer event arrives", () => {
+    const waiting = tabs({ t1: { "tab-27": { state: "permission_needed", at: 1000 } } })
+    const marks = new Map([["t1::tab-27", 2000]])
+    // Downgraded to idle, NOT removed: an absent entry reads as "no signal"
+    // to the sidebar and rests at the dim `·` instead of the idle circle.
+    expect(mergeAnsweredTabs(waiting, marks, 2500).get("t1")?.get("tab-27")?.state).toBe("idle")
+
+    // A daemon event stamped after the answer is real news — it wins.
+    const resumed = tabs({ t1: { "tab-27": { state: "permission_needed", at: 3000 } } })
+    expect(mergeAnsweredTabs(resumed, marks, 3500).get("t1")?.get("tab-27")?.state).toBe("permission_needed")
+  })
+
+  it("touches only the answered tab, and only permission_needed", () => {
+    const mixed = tabs({
+      t1: {
+        "tab-27": { state: "permission_needed", at: 1000 },
+        "tab-22": { state: "permission_needed", at: 1000 },
+        "tab-9": { state: "error", at: 1000 },
+      },
+    })
+    const merged = mergeAnsweredTabs(mixed, new Map([["t1::tab-27", 2000]]), 2500)
+    expect(merged.get("t1")?.get("tab-27")?.state).toBe("idle")
+    // A sibling's prompt and an unrelated error must survive: a local guess
+    // may never hide a state the user still has to act on.
+    expect(merged.get("t1")?.get("tab-22")?.state).toBe("permission_needed")
+    expect(merged.get("t1")?.get("tab-9")?.state).toBe("error")
+  })
+
+  // The whole point of the downgrade: the sidebar must still get an activity
+  // entry for the answered tab. Deleting it made `tabRowActivity` return
+  // undefined (a reporting sibling blocks the task rollup fallback), and the
+  // row of a working engine went dim `·` for the mark's full 30min life.
+  it("leaves the answered tab with activity the sidebar can read", () => {
+    const busy = tabs({
+      t1: {
+        "tab-27": { state: "permission_needed", at: 1000 },
+        "tab-9": { state: "running", at: 1000 },
+      },
+    })
+    const perTab = mergeAnsweredTabs(busy, new Map([["t1::tab-27", 2000]]), 2500).get("t1")
+    const activity = tabRowActivity({
+      tabActivity: perTab?.get("tab-27"),
+      reportedTabCount: perTab?.size ?? 0,
+      taskActivity: undefined,
+      active: true,
+    })
+    expect(activity?.state).toBe("idle")
+  })
+
+  it("only an enter at a WAITING tab marks an answer", () => {
+    resetOptimisticActivity()
+    noteEngineTabInput("\r", "t1", "tab-1", "idle")
+    expect(answeredTabsStore.get().size).toBe(0)
+    noteEngineTabInput("x", "t1", "tab-1", "permission_needed")
+    expect(answeredTabsStore.get().size).toBe(0)
+    noteEngineTabInput("\r", "t1", "tab-1", "permission_needed")
+    expect([...answeredTabsStore.get().keys()]).toEqual(["t1::tab-1"])
+    resetOptimisticActivity()
+  })
+
+  it("drops a mark once the daemon supersedes it or it ages out", () => {
+    const gone = tabs({ t1: {} })
+    expect(supersededAnswers(gone, new Map([["t1::tab-27", 2000]]), 2500)).toEqual(["t1::tab-27"])
+    const still = tabs({ t1: { "tab-27": { state: "permission_needed", at: 1000 } } })
+    expect(supersededAnswers(still, new Map([["t1::tab-27", 2000]]), 2500)).toEqual([])
+    // Past the memory bound the mark is dropped regardless.
+    expect(supersededAnswers(still, new Map([["t1::tab-27", 2000]]), 2000 + 31 * 60_000)).toEqual(["t1::tab-27"])
   })
 })

@@ -50,7 +50,7 @@ describe("reduceActivity", () => {
 })
 
 describe("isEngineActivityKind", () => {
-  it("accepts the six normalized verbs and rejects others", () => {
+  it("accepts normalized activity verbs and rejects unknown strings", () => {
     for (const v of ["session-start", "turn-start", "turn-complete", "turn-failed", "awaiting-input", "session-end"]) {
       expect(isEngineActivityKind(v)).toBe(true)
     }

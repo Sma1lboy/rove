@@ -28,7 +28,7 @@ flowchart LR
 | Piece | Where | Job |
 |---|---|---|
 | `rove api note --task-id <id> --text <line>` | `kobe/src/cli/api-cmd.ts` | A session files a discovery. |
-| `note.file` RPC | `kobe-daemon/src/daemon/handlers.ts` | Addressing only: find the author's repo's main task, forward over `session.deliver` with provenance (`[KOBE FIELD NOTE] from "<author>" (task <id>): …`). Accepted-but-unrouted when the repo has no main task or the author *is* the dispatcher. |
+| `note.file` RPC | `kobe-daemon/src/daemon/handlers.ts` | Addressing only: find the author's repo's main task, forward over `session.deliver` with provenance (`[ROVE FIELD NOTE] from "<author>" (task <id>): …`). Accepted-but-unrouted when the repo has no main task or the author *is* the dispatcher. |
 | `session.deliver` channel | `kobe-daemon/src/daemon/protocol.ts` | "Paste this text into task X" — an address, not a delivery. EVENT semantics; consumers dedupe on `at`. |
 | `rove api dispatch --task-id <id> --prompt <text>` | api-cmd + `session.deliver` RPC | The dispatcher's relay. Daemon-routed on purpose: `rove api send` targets the task's canonical standalone Hosted PTY session, while browser-sidecar PTYs are a separate delivery surface; starting the canonical session beside a browser-owned one can create a duplicate engine. |
 | `noteFilingProtocol` + `worktreeProtocol` | `kobe/src/engine/interactive-command.ts` | Worktree (card) sessions get ONE composed `--append-system-prompt`: status self-report (gated by `experimental.autoStatus`) + note filing (gated by `experimental.dispatcher`). |

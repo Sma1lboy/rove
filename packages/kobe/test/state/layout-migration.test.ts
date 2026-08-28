@@ -125,4 +125,27 @@ describe("migrateRoveStateLayout", () => {
     expect(readFileSync(join(blockedDir, "keybindings.yaml"), "utf8")).toContain("task.close")
     expect(existsSync(join(root, ".rove/.layout-client-migration-v1"))).toBe(true)
   })
+
+  test("plugins MOVE to the canonical layout — one registry, not two", () => {
+    root = mkdtempSync(join(tmpdir(), "rove-layout-"))
+    write(".kobe/plugins.json", '{"plugins":[{"id":"demo"}]}')
+    write(".kobe/plugins/demo/config/.env", "TOKEN=1")
+
+    const first = migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root })
+    expect(first.warnings).toEqual([])
+    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("demo")
+    expect(readFileSync(join(root, ".rove/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=1")
+    // MOVED, then linked back: a copy would leave a second registry for the
+    // next writer, while a bare move blinds every pre-rename binary.
+    expect(lstatSync(join(root, ".kobe/plugins.json")).isSymbolicLink()).toBe(true)
+    expect(readFileSync(join(root, ".kobe/plugins.json"), "utf8")).toContain("demo")
+    expect(readFileSync(join(root, ".kobe/plugins/demo/config/.env"), "utf8")).toBe("TOKEN=1")
+
+    // Idempotent: a second start finds the canonical registry and does nothing.
+    expect(migrateRoveDaemonStateLayout({ ROVE_HOME_DIR: root }).attempted).toBe(false)
+    // And the link is the whole compatibility story — an old binary writing to
+    // the legacy path writes the canonical registry, not a second one.
+    writeFileSync(join(root, ".kobe/plugins.json"), '{"plugins":[{"id":"from-old-cli"}]}', "utf8")
+    expect(readFileSync(join(root, ".rove/plugins.json"), "utf8")).toContain("from-old-cli")
+  })
 })

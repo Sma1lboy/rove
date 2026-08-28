@@ -34,12 +34,13 @@ describe("acquire / release", () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  it("creates a lockfile holding our pid, then releases it idempotently", async () => {
-    await acquire(lock)
-    expect((await readFile(lock, "utf8")).trim()).toBe(String(process.pid))
-    await release(lock)
+  it("creates a lockfile holding pid:token, then releases it idempotently", async () => {
+    const token = await acquire(lock)
+    expect(token.startsWith(`${process.pid}:`)).toBe(true)
+    expect((await readFile(lock, "utf8")).trim()).toBe(token)
+    await release(lock, token)
     // A second release of an already-gone lock must not throw.
-    await expect(release(lock)).resolves.toBeUndefined()
+    await expect(release(lock, token)).resolves.toBeUndefined()
   })
 
   it("rejects with LockfileError when held by a live process", async () => {
@@ -47,16 +48,42 @@ describe("acquire / release", () => {
     await expect(acquire(lock)).rejects.toBeInstanceOf(LockfileError)
   })
 
+  it("rejects when a SIBLING holder in this same process holds the lock", async () => {
+    // Same pid, different token — the issue #53 topology (two stores, one
+    // process). The holder is alive, so the second acquirer must wait, not
+    // steal.
+    await writeFile(lock, `${process.pid}:some-other-instance`)
+    await expect(acquire(lock)).rejects.toBeInstanceOf(LockfileError)
+    expect((await readFile(lock, "utf8")).trim()).toBe(`${process.pid}:some-other-instance`)
+  })
+
   it("steals a stale lockfile whose holder is gone", async () => {
     await writeFile(lock, "999999") // a pid that does not exist
-    await expect(acquire(lock)).resolves.toBeUndefined()
-    expect((await readFile(lock, "utf8")).trim()).toBe(String(process.pid))
+    const token = await acquire(lock)
+    expect((await readFile(lock, "utf8")).trim()).toBe(token)
+  })
+
+  it("still reads the holder pid from a legacy bare-pid lock", async () => {
+    await writeFile(lock, String(process.pid)) // pre-token format, alive holder
+    await expect(acquire(lock)).rejects.toBeInstanceOf(LockfileError)
   })
 
   it("forceTakeover steals from a live holder", async () => {
     await acquire(lock) // held by us — alive
-    await expect(acquire(lock, { forceTakeover: true })).resolves.toBeUndefined()
-    expect((await readFile(lock, "utf8")).trim()).toBe(String(process.pid))
+    const token = await acquire(lock, { forceTakeover: true })
+    expect((await readFile(lock, "utf8")).trim()).toBe(token)
+  })
+
+  it("release only removes a lock we still own", async () => {
+    // Victim acquires, thief takes over. The victim's release must NOT unlink
+    // the thief's lock — that would let a third writer into the critical
+    // section while the thief is still inside it (issue #53's cascade).
+    const victim = await acquire(lock)
+    const thief = await acquire(lock, { forceTakeover: true })
+    await release(lock, victim)
+    expect((await readFile(lock, "utf8")).trim()).toBe(thief)
+    await release(lock, thief)
+    await expect(readFile(lock, "utf8")).rejects.toMatchObject({ code: "ENOENT" })
   })
 })
 
@@ -65,7 +92,7 @@ describe("acquire / release — edge branches", () => {
   const lockPath = join(dir, "edge.lock")
 
   afterEach(async () => {
-    await release(lockPath).catch(() => {})
+    await rm(lockPath, { force: true })
   })
 
   it("treats an EPERM kill probe as alive (exists but not signalable)", () => {
@@ -81,11 +108,11 @@ describe("acquire / release — edge branches", () => {
 
   it("steals a lockfile whose content isn't a pid at all", async () => {
     writeFileSync(lockPath, "not-a-pid")
-    await acquire(lockPath)
-    expect(readFileSync(lockPath, "utf8")).toBe(String(process.pid))
+    const token = await acquire(lockPath)
+    expect(readFileSync(lockPath, "utf8")).toBe(token)
   })
 
-  it("release tolerates a lock that's already gone, rethrows real errors", async () => {
-    await expect(release(join(dir, "never-existed.lock"))).resolves.toBeUndefined()
+  it("release tolerates a lock that's already gone", async () => {
+    await expect(release(join(dir, "never-existed.lock"), "any-token")).resolves.toBeUndefined()
   })
 })

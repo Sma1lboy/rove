@@ -1,12 +1,14 @@
 /**
  * PtyHost — daemon-hosted PTY sessions (protocol v4).
  *
- * The tmux-persistence replacement for the embedded terminal: the daemon
- * owns the raw PTY child (spawned through a `PtyDriver`) plus a capped
- * byte ring buffer per session key, so an engine session keeps running
- * when the TUI exits and replays its screen when a TUI reattaches. VT
- * emulation stays in the TUI (xterm-headless) — this module never parses
- * escape codes, it only moves bytes.
+ * Persistent out-of-process terminals for embedded engine sessions: the
+ * daemon owns the raw PTY child (spawned through a `PtyDriver`) plus a
+ * capped byte ring buffer per session key, so an engine session keeps
+ * running when the TUI exits and replays its screen when a TUI reattaches.
+ * VT emulation stays in the TUI (xterm-headless). The host recognizes only
+ * the narrow OSC 10/11 capability query so detached/headless engines can
+ * learn the same default colors; all output bytes still enter the ring and
+ * cross the socket unchanged.
  *
  * Delivery model: TARGETED, not pub/sub. Each session tracks the
  * connections attached to it; output goes only to those sinks as
@@ -16,10 +18,10 @@
  *
  * Lifecycle: hosted by the standalone `kobe pty-host` process
  * (`pty-server.ts`), NOT the daemon — so `kobe daemon restart` (routine
- * after code changes) never touches running sessions, exactly like the
- * tmux server outliving everything. An exited session is kept, scrollback
- * intact, so a reattach can still show how the child died; it is removed
- * by an explicit `kill` or the task-archive sweep (`sweepTasks`).
+ * after code changes) never touches running sessions, exactly like a
+ * persistent terminal server outliving the TUI. An exited session is kept,
+ * scrollback intact, so a reattach can still show how the child died; it is
+ * removed by an explicit `kill` or the task-archive sweep (`sweepTasks`).
  *
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
@@ -32,19 +34,10 @@
  * store) forgets a session for good.
  */
 
-import { resolveLoginShell } from "./platform-shell.js"
-import type { DaemonFrame, PtyPeekResult, PtySessionExit } from "./protocol.ts"
-import { type PtyExit, bunTerminalDriver } from "./pty-driver.ts"
-import { embeddedTerminalEnv } from "./pty-env.js"
+import type { DaemonFrame, PtyPeekResult } from "./protocol.ts"
+import { PtyChildController } from "./pty-child-controller.ts"
 import { type FrozenPtySession, freezeSession, thawSession } from "./pty-freeze-store.ts"
-import {
-  type PtyAttachResult,
-  type PtyHostOptions,
-  type PtySessionState,
-  type PtySink,
-  type PtySpawnSpec,
-  freshSessionState,
-} from "./pty-host-types.ts"
+import type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 import {
   type PtyHostStats,
   type PtySessionInfo,
@@ -52,11 +45,10 @@ import {
   hostStats,
   peekRing,
   ringTail,
-  scanOscTitle,
   sessionInfo,
 } from "./pty-observability.ts"
-import { terminatePtyChild } from "./pty-termination.ts"
 import { WarmSpare } from "./pty-warm.ts"
+import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 // Re-exported for the cross-chunk title-boundary tests (pure fold).
@@ -75,19 +67,68 @@ export const FREEZE_INTERVAL_MS = 5_000
 export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
   private readonly opts: PtyHostOptions
+  private readonly scrollbackCap: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
+  /** One session's child-process lifecycle (split out for the file-size cap). */
+  private readonly childController: PtyChildController
   /** The one warm-spare shell slot (see `pty-warm.ts`). */
-  private readonly warmSpare = new WarmSpare({
-    spawn: (key, spec, spare) => this.spawn(key, spec, spare),
-    endChild: (session) => this.endChild(session),
-    markExited: (session) => this.markExited(session),
-    log: (event, message) => this.opts.log?.(event, message),
-    onSessionStart: () => this.opts.onSessionStart?.(),
-  })
+  private readonly warmSpare: WarmSpare
 
   constructor(opts: PtyHostOptions = {}) {
     this.opts = opts
+    this.scrollbackCap = opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP
+    this.childController = new PtyChildController({
+      driver: opts.driver,
+      scrollbackCap: this.scrollbackCap,
+      onSessionStart: (spare) => {
+        if (!spare) this.opts.onSessionStart?.()
+      },
+      onOutput: (session, data) => {
+        if (session.sinks.size === 0) {
+          this.maybeFreeze(session)
+          return
+        }
+        const frame: DaemonFrame = {
+          type: "event",
+          name: "pty.data",
+          payload: { key: session.key, data: data.toString("base64") },
+        }
+        for (const sink of session.sinks.values()) sink(frame)
+        this.maybeFreeze(session)
+      },
+      onExit: (session, exit) => {
+        const frame: DaemonFrame = {
+          type: "event",
+          name: "pty.exit",
+          payload: { key: session.key, pid: session.proc?.pid ?? null, ...exit },
+        }
+        for (const sink of session.sinks.values()) sink(frame)
+        this.opts.log?.("pty", `session ${session.key} exited${describeExit(exit)}`)
+        // Final freeze: the exit record AND the scrollback as it stood at death
+        // must both survive this host's own end (idle-exit, crash).
+        this.maybeFreeze(session, true)
+        try {
+          this.opts.onSessionExit?.({
+            key: session.key,
+            pid: session.proc?.pid ?? null,
+            exit,
+            tail: ringTail(session.chunks, session.bytes, EXIT_TAIL_BYTES),
+          })
+        } catch {
+          // A death-record hook must never block session teardown.
+        }
+        this.opts.onSessionEnd?.()
+      },
+      log: (event, message) => this.opts.log?.(event, message),
+    })
+    this.warmSpare = new WarmSpare({
+      spawn: (key, spec, spare) => this.childController.spawn(key, spec, spare),
+      endChild: (session) => this.childController.endChild(session),
+      markExited: (session) => this.childController.markExited(session),
+      log: (event, message) => this.opts.log?.(event, message),
+      onSessionStart: () => this.opts.onSessionStart?.(),
+    })
   }
 
   /**
@@ -111,7 +152,7 @@ export class PtyHost {
     let respawned = false
     if (!session) {
       created = true
-      session = this.warmSpare.adopt(key, spec) ?? this.spawn(key, spec)
+      session = this.warmSpare.adopt(key, spec) ?? this.childController.spawn(key, spec)
       this.sessions.set(key, session)
     } else if (!session.alive && session.restored) {
       // A freeze-restored corpse is a host-death casualty, not a death the
@@ -126,13 +167,15 @@ export class PtyHost {
       spec.rows !== undefined &&
       (session.cols !== spec.cols || session.rows !== spec.rows)
     ) {
-      // Reattach from a differently-sized client: last-attach-wins, like
-      // tmux — the SIGWINCH makes a full-screen app repaint at the new
-      // size, fixing what the stale-size replay painted. Size-less opens
+      // Reattach from a differently-sized client: last-attach-wins — the
+      // SIGWINCH makes a full-screen app repaint at the new size, fixing
+      // what the stale-size replay painted. Size-less opens
       // (headless delivery/ensure clients) never resize: shrinking a live
       // session out from under its attached TUI garbles the pane (#18).
       this.resize(key, spec.cols, spec.rows)
     }
+    const defaultColors = parseTerminalDefaultColors(spec.defaultColors)
+    if (defaultColors) session.defaultColors = defaultColors
     session.sinks.set(token, sink)
     session.parked = false
     session.parkedScreenBytes = 0
@@ -210,7 +253,7 @@ export class PtyHost {
     // An explicit close is not a restart casualty — drop the freeze record
     // so the next host incarnation does not resurrect what was closed.
     this.opts.freeze?.drop(key)
-    return this.endChild(session)
+    return this.childController.endChild(session)
   }
 
   /**
@@ -241,10 +284,7 @@ export class PtyHost {
     session.sinks.delete(token)
     // One socket has one sink per key. Only the final detach describes the
     // session's current visibility; a second attached client is still live.
-    if (session.sinks.size === 0) {
-      session.parked = parked
-      session.parkedScreenBytes = parked ? Math.max(0, parkedScreenBytes) : 0
-    }
+    this.applyParkedOnDetach(session, parked, parkedScreenBytes)
   }
 
   /** Detach one connection from EVERY session (socket closed). */
@@ -253,11 +293,16 @@ export class PtyHost {
       session.sinks.delete(token)
       // A socket vanished without an explicit park detach, so no local
       // registry is guaranteed to retain a restorable screen.
-      if (session.sinks.size === 0) {
-        session.parked = false
-        session.parkedScreenBytes = 0
-      }
+      this.applyParkedOnDetach(session)
     }
+  }
+
+  /** Update parked state when the last sink just left; a still-attached
+   *  session keeps its prior visibility. */
+  private applyParkedOnDetach(session: PtySessionState, parked = false, parkedScreenBytes = 0): void {
+    if (session.sinks.size !== 0) return
+    session.parked = parked
+    session.parkedScreenBytes = parked ? Math.max(0, parkedScreenBytes) : 0
   }
 
   /** Session inventory — lets a fresh TUI discover background sessions. */
@@ -272,12 +317,7 @@ export class PtyHost {
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */
   stats(): PtyHostStats {
-    return hostStats(
-      this.sessions.values(),
-      this.opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP,
-      this.parkRestoreDeltas,
-      this.parkRestoreFallbacks,
-    )
+    return hostStats(this.sessions.values(), this.scrollbackCap, this.parkRestoreDeltas, this.parkRestoreFallbacks)
   }
 
   /**
@@ -309,7 +349,7 @@ export class PtyHost {
    */
   async shutdown(): Promise<void> {
     this.flushFrozen()
-    const endings = Array.from(this.sessions.values(), (session) => this.endChild(session))
+    const endings = Array.from(this.sessions.values(), (session) => this.childController.endChild(session))
     endings.push(this.warmSpare.end())
     await Promise.all(endings)
   }
@@ -330,7 +370,7 @@ export class PtyHost {
     let restoredCount = 0
     for (const record of records) {
       if (this.sessions.has(record.key)) continue
-      const session = thawSession(record, this.opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP)
+      const session = thawSession(record, this.scrollbackCap)
       if (!session) continue
       this.sessions.set(record.key, session)
       restoredCount++
@@ -353,7 +393,8 @@ export class PtyHost {
     if (spec.command && spec.command.length > 0) session.command = [...spec.command]
     session.cols = spec.cols ?? session.cols
     session.rows = spec.rows ?? session.rows
-    this.startChild(session)
+    session.defaultColors = parseTerminalDefaultColors(spec.defaultColors) ?? session.defaultColors
+    this.childController.startChild(session)
     if (!session.alive) return
     this.opts.log?.("pty", `respawned restored session ${session.key} (pid ${session.proc?.pid})`)
     this.opts.onSessionStart?.()
@@ -375,124 +416,10 @@ export class PtyHost {
   }
 
   /** Sessions whose child is still running — the host process's reason
-   *  to stay alive (`pty-server.ts` idle-exits at zero, like tmux). */
+   *  to stay alive (`pty-server.ts` idle-exits at zero sessions). */
   liveCount(): number {
     let n = 0
     for (const session of this.sessions.values()) if (session.alive) n++
     return n
-  }
-
-  /** `spare` skips `onSessionStart` — a warm shell must not pin the host
-   *  open (its adoption fires the callback instead). */
-  private spawn(key: string, spec: PtySpawnSpec, spare = false): PtySessionState {
-    const argv = spec.command && spec.command.length > 0 ? [...spec.command] : [spec.shell ?? resolveLoginShell()]
-    const session = freshSessionState(key, spec, argv)
-    this.startChild(session)
-    if (session.alive) {
-      this.opts.log?.("pty", `spawned ${argv[0]} for ${key} (pid ${session.proc?.pid})`)
-      if (!spare) this.opts.onSessionStart?.()
-    }
-    return session
-  }
-
-  /**
-   * Start `session`'s child process against its current command/cwd/size —
-   * the shared tail of a fresh spawn and a restored session's respawn. On
-   * failure the session flips to dead (a fresh spawn reports it, a respawn
-   * leaves an ordinary view-only corpse).
-   */
-  private startChild(session: PtySessionState): void {
-    try {
-      session.proc = (this.opts.driver ?? bunTerminalDriver())({
-        argv: [...session.command],
-        cwd: session.cwd,
-        env: embeddedTerminalEnv(process.env, {
-          TERM: "xterm-256color",
-          COLUMNS: String(session.cols),
-          LINES: String(session.rows),
-          BASH_SILENCE_DEPRECATION_WARNING: "1",
-          KOBE_TERMINAL_PTY: "1",
-        }),
-        cols: session.cols,
-        rows: session.rows,
-        onData: (data) => this.onData(session, data),
-      })
-      session.alive = true
-      void session.proc.exited.then(
-        (exit) => this.markExited(session, exit),
-        () => this.markExited(session),
-      )
-    } catch (err) {
-      session.alive = false
-      this.opts.log?.("pty", `spawn failed for ${session.key}: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  }
-
-  private onData(session: PtySessionState, data: string | Uint8Array): void {
-    const buf = typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data)
-    scanOscTitle(session, buf)
-    session.chunks.push(buf)
-    session.bytes += buf.byteLength
-    session.totalBytes += buf.byteLength
-    // ponytail: O(chunks) front-trim like the web sidecar; a chunk may
-    // overshoot the cap slightly — replay correctness only needs "recent
-    // tail", the client's xterm re-derives the screen from whatever it gets.
-    while (session.bytes > (this.opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP) && session.chunks.length > 1) {
-      const dropped = session.chunks.shift()
-      if (dropped) session.bytes -= dropped.byteLength
-    }
-    if (session.sinks.size === 0) {
-      this.maybeFreeze(session)
-      return
-    }
-    const frame: DaemonFrame = {
-      type: "event",
-      name: "pty.data",
-      payload: { key: session.key, data: buf.toString("base64") },
-    }
-    for (const sink of session.sinks.values()) sink(frame)
-    this.maybeFreeze(session)
-  }
-
-  private markExited(session: PtySessionState, exit?: PtyExit): void {
-    if (!session.alive) return
-    session.alive = false
-    session.exit = { code: exit?.code ?? null, signal: exit?.signal ?? null, at: new Date().toISOString() }
-    try {
-      session.proc?.close()
-    } catch {
-      /* already closed */
-    }
-    const frame: DaemonFrame = {
-      type: "event",
-      name: "pty.exit",
-      payload: { key: session.key, pid: session.proc?.pid ?? null, ...session.exit },
-    }
-    for (const sink of session.sinks.values()) sink(frame)
-    this.opts.log?.("pty", `session ${session.key} exited${describeExit(session.exit)}`)
-    // Final freeze: the exit record AND the scrollback as it stood at death
-    // must both survive this host's own end (idle-exit, crash).
-    this.maybeFreeze(session, true)
-    try {
-      this.opts.onSessionExit?.({
-        key: session.key,
-        pid: session.proc?.pid ?? null,
-        exit: session.exit,
-        tail: ringTail(session.chunks, session.bytes, EXIT_TAIL_BYTES),
-      })
-    } catch {
-      // A death-record hook must never block session teardown.
-    }
-    this.opts.onSessionEnd?.()
-  }
-
-  private async endChild(session: PtySessionState): Promise<void> {
-    if (!session.alive) return
-    const proc = session.proc
-    if (!proc) {
-      this.markExited(session)
-      return
-    }
-    await terminatePtyChild(proc, () => this.markExited(session))
   }
 }

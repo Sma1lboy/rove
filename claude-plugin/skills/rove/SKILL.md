@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 30 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 33 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -42,7 +42,7 @@ lifecycle tracking, and an explicit outcome contract.
   (an MCP server offering to message "other instances" is exactly that
   channel: it reaches a process, not a task, so nothing it delivers is
   attributable, watchable, or replyable). Sent from
-  inside a Rove task, the prompt arrives prefixed `[KOBE PEER] from
+  inside a Rove task, the prompt arrives prefixed `[ROVE PEER] from
   "<title>" (task <id> — load the Rove agent skill FIRST …)`, so the
   receiver knows who is talking, that this skill is required reading, and
   how to answer — the baked-in reply command is tab-precise
@@ -51,7 +51,7 @@ lifecycle tracking, and an explicit outcome contract.
   strip it with `--plain` for
   coordination messages (`--plain` is only for a verbatim paste the
   receiver should treat as content, not conversation). Received a
-  `[KOBE PEER]` message yourself? Load this skill first — required, not
+  `[ROVE PEER]` message yourself? Load this skill first — required, not
   optional — then reply with the baked-in command, not by asking the user.
 - `send` carries text, but that text can carry FILES: peers share a
   filesystem, so put the absolute path of a screenshot, log, diff, or any
@@ -208,15 +208,35 @@ build artifacts, nothing a lockfile promises. Two consequences:
 
 ## Discover before calling
 
+Do not guess flags — but do not pay a round-trip for the ones you use every
+turn either. These five carry almost all traffic:
+
+```text
+add      --repo(REQ) --prompt --title --command --count --agents --activate
+send     --prompt(REQ) --task-id --tab --command --plain
+get-task --task-id(REQ)          list  (no flags)
+collect  --task-ids <csv> | --repo
+```
+
+Four names that have actually been guessed wrong here: `add --vendor` is
+`--command`; `read-output --task` is `--task-id`; `dispatch --text` is
+`--prompt` (`--text` belongs to `note`); `issue-list` has no `--state` at all
+— filter its JSON yourself.
+
+**[`references/api-flags.md`](references/api-flags.md) is every verb and flag**,
+including the groups this file leaves out on purpose: `routine-*` (scheduled
+prompts), `workitem-*` (GitHub issues via `gh`), `note`/`note-list` (the repo's
+durable field-note store), `read-output`/`digest`/`agent-turns`/`pty-list`, and
+the error-code table. Read it when you need a verb that is not above; reach for
+`schema` when the binary and that file disagree.
+
 ```bash
-rove api schema
-rove api schema --verb add
-rove api schema --group create
+rove api schema --verb add    # or --group create, --all
 rove api <verb> --help
 rove api engine-list          # what you can launch, and with what command
 ```
 
-Do not guess flags. Commands emit one JSON object; errors use
+Commands emit one JSON object; errors use
 `{"error":{"message","code",...}}` on stderr. Common rejections also carry
 `hint` (what to do) and `nextCommandArgs` (argv for the same `Rove`
 executable — run `rove <args...>` verbatim to recover, e.g. `["api","list"]`
@@ -234,7 +254,7 @@ rove api add --repo "$PWD" --count 3 --prompt "<prompt>"
 rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
 
 # Follow up. Use an explicit id for unattended work; the active task can drift.
-# From inside a Rove task this auto-prefixes [KOBE PEER] provenance
+# From inside a Rove task this auto-prefixes [ROVE PEER] provenance
 # (sender + reply command); --plain sends verbatim.
 rove api send --task-id <id> --prompt "<complete next turn>"
 
@@ -267,7 +287,8 @@ auto-start the canonical engine in the task's worktree (`started: true` in
 the result marks that fresh session). If live tabs exist but none resolves
 as an engine, it refuses with `NO_ENGINE_TAB` — address one with `--tab
 tab-N` or spawn one with `--tab new`; it never silently spawns a duplicate
-engine.
+engine. Its `hint` names `pty-list` — the live-PTY read (key, alive, pid,
+command); use it when `.tabs[]` and reality disagree.
 
 ## Terminal panes
 
@@ -309,7 +330,7 @@ logs, dashboards), don't scatter panes for work `add` should own.
 | `pin --task-id ID [--pinned=false]` | Pin/unpin |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
-| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--then-archive] [--remove-worktree]` | Merge the task's branch into the base repo's current branch; `--remove-worktree` cleans up the Worktree after (branch stays; dirty/self/base refused, outcome in the result's `worktree` field) |
+| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--then-archive] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |
@@ -399,8 +420,9 @@ spawning agent's engine tab, not as stored state nobody reads.
 dispatcher (the creating task + tab); when the work is finished, a bare
 `rove api send --prompt "<succeeded|failed>: <one line> (branch <final
 branch>)"` routes the outcome back to that exact tab. Include the final
-branch name — the spawner needs it to `land`. The first-prompt coda still
-names the spawner for an explicit `--task-id` send.
+branch name — the spawner needs it to `land`. Use the BARE form: an explicit
+`--task-id <spawner>` skips dispatcher routing and lands on that task's
+canonical engine tab, which can be a different agent's session.
 
 **"Succeeded" means COMMITTED.** Green tests in your working tree are not a
 deliverable — the only thing `land` can merge is commits on your branch.
@@ -410,7 +432,7 @@ everything, passed everything, and committed nothing has delivered nothing —
 that exact mismatch has shipped empty merges before.
 
 **Coordinator side** — do NOT block or poll. Keep working (or end your
-turn); each worker's outcome arrives in your chat as a `[KOBE PEER]` message
+turn); each worker's outcome arrives in your chat as a `[ROVE PEER]` message
 with its task id. What arrives is the worker's claim, not Rove-verified —
 verify the winner's actual diff before landing. Silence never proves a
 worker died (it may be mid-turn or stuck on a permission prompt): peek with

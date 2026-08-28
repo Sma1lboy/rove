@@ -117,18 +117,6 @@ export function pluginRowView(
   }
 }
 
-/**
- * Compact elapsed stamp — numeric only, so the surrounding i18n string owns
- * the "ago"/"前" framing (same trick as the usage dashboard's reset stamp).
- */
-export function formatAgo(deltaMs: number): string {
-  const s = Math.max(0, Math.floor(deltaMs / 1000))
-  if (s < 60) return `${s}s`
-  if (s < 3600) return `${Math.floor(s / 60)}m`
-  if (s < 86400) return `${Math.floor(s / 3600)}h`
-  return `${Math.floor(s / 86400)}d`
-}
-
 /** ponytail: only the last record is shown, so read the log's tail, not all of it. */
 const LOG_TAIL_BYTES = 64 * 1024
 

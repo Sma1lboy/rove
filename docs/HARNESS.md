@@ -143,6 +143,9 @@ bun e2e/hero-shot.ts --scale=2 --out=../../docs/assets/workspace.png ctrl+a l
 bun e2e/hero-record.ts            # demo.mp4 + demo.gif (4× cut)
 bun e2e/hero-kanban.ts            # kanban.mp4 + kanban.gif (3× cut)
 bun e2e/hero-routines.ts          # routines.mp4 + routines.gif (3× cut)
+
+bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
+bun e2e/hero-plugin-demos.ts      # docs/assets/plugins/*.{mp4,gif} (2× cut)
 ```
 
 `hero-capture.ts` holds what the recorders share — the `/harness` browser PTY,
@@ -174,6 +177,43 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   `rove api routine-delete` after the take, leaving the same three rows the
   stills were framed on. It stops short of `run now` for the same folder-trust
   reason the kanban take stops short of Start.
+- **Recordings render through WebGL; stills do not.** The harness defaults to
+  xterm's DOM renderer, which draws every cell as its own span using the font
+  and therefore cannot use `customGlyphs` — xterm's geometric drawing of
+  block-element and box-drawing characters. Engine banner art and pane borders
+  are built from exactly those, so under DOM they photograph with a seam at
+  every cell boundary rather than the solid shapes a real terminal draws.
+  `hero-capture.ts` opens the harness with `?webgl=1`; `hero-shot.ts` takes an
+  optional `--webgl` for comparison but keeps DOM by default, because a WebGL
+  context is not guaranteed in every CI container and a still that fails to
+  render is worse than one with a seam. A failed context falls back to DOM
+  inside `ChatTerminal` either way, so the switch cannot break a take.
+- **The plugin takes need their plugins linked BEFORE the harness boots.** The
+  TUI reads the plugin registry once at start (`loadPluginEngines()`, and the
+  pane/settings sections alongside it), so a plugin linked mid-take contributes
+  nothing the running TUI can see — `hero-plugins.ts` runs before
+  `hero-serve.ts`, and the storyboards only ever USE what is installed. They
+  are also NOT idempotent (a story filed, a task created, neither cleaned up),
+  so re-shoot from `hero-fixture.ts --fresh && hero-plugins.ts`; `resetTakeState()`
+  clears what accumulates BETWEEN takes (a leaf pane, run logs, edited
+  settings) but cannot undo a second pass over a used fixture.
+- **Settings → Engines must never be filmed.** `HOME` stays the operator's, so
+  that page renders their real engine accounts — e-mail address, login state,
+  subscription. Selecting a section renders it immediately, and `SECTIONS`
+  orders general → engines → plugins, so stepping DOWN to Plugins films it in
+  passing; the plugin takes walk UP instead (general → dev → feedback → keys →
+  plugins), which crosses nothing personal. `hero-capture.ts` polls the buffer
+  during every take and aborts on an e-mail address, so this is enforced rather
+  than remembered.
+- **The hero home's socket is PINNED, not derived.** `.kobe/` is the pre-rename
+  runtime dir and every daemon bind drops a compatibility symlink there
+  (`compat-link.ts`), which `runtimePath()` then PREFERS over the canonical
+  `.rove/` path. One stray command exporting `*_HOME_DIR=<hero>` without the
+  socket therefore leaves `<hero>/.kobe/daemon.sock` pointing at the operator's
+  real socket, and every later hero process silently attaches to their live
+  daemon. `heroEnv()` stamps `*_DAEMON_SOCKET_PATH` explicitly, and
+  `assertHeroIsolation()` throws when that link escapes the hero root — run
+  every hero command through `heroEnv()`, never a hand-written env prefix.
 - **The fixture seeds the skill hint by VERSION.** `HOME` stays the operator's,
   so an already-installed skill that is merely behind this build takes the
   *stale* path, gated on `skillHintSeen:v<N>` — unseeded, the TUI opens on an
@@ -209,6 +249,60 @@ or the shared `.dev-sandbox/home`. Local Terminal screenshots, native
 `kobe-web` pages such as `/board`, render-test frames, and `dev:mock` cannot
 approve visual changes; `test:e2e` (dev:mock) stays a PTY-transport smoke only.
 Failure artifacts land in `packages/kobe-web/test-results/` (actual/diff/trace).
+
+### Driving a live engine to observe STATE
+
+The journey above proves what the TUI renders. A different class of bug —
+"the badge never cleared after I answered" — needs a real vendor engine
+running, answered by a real keypress, while the daemon's state is sampled
+across the moment. The same harness carries it; the trap is that almost every
+shortcut around it silently measures nothing.
+
+What actually works:
+
+- **Drive keys through the browser.** Chrome MCP over HTTP works even when a
+  tool session has expired — `initialize`, keep the `mcp-session-id` header,
+  then `tools/call`. Read the screen from `.xterm-rows`, and send keys by
+  clicking `.xterm-screen` first, then targeting `.xterm-helper-textarea`.
+  A page-level keypress does not reach the terminal.
+- **Sample state from the daemon, not the screen.** `rove api inspect` reports
+  both levels; a tab badge and its task rollup can disagree, and that
+  disagreement is usually the bug.
+
+What silently produces a false result:
+
+- **A bare sidebar key right after boot.** Boot restores INTO the session
+  (2026-08-09): any non-empty task store lands focus on the workspace pane, so
+  `n`/`j`/Enter dispatch against disabled sidebar bindings and vanish without
+  an error — the issue-#12 "keys are all dead" report; the injection path was
+  never broken. Wait for the sidebar rows to hydrate (the focus flip rides the
+  same commit), then normalize with `focusLeftmostPane` (`C-a` `h`,
+  `packages/branding/src/quicklook/capture-core.ts`) before sidebar-scoped
+  keys, and settle between strokes — the focus flip is a React state update,
+  so a key sent in the same tick still hits the OLD gates.
+  `bun run test:replay:e2e` in `packages/branding` pins the recipe live.
+- **`api read-output` for a vendor TUI.** Claude and Codex run on the alternate
+  screen, so the text tail is escape-code noise (`">0q"`) no matter how healthy
+  the session is. Absence of output is not absence of a dialog.
+- **`api dispatch` as a stand-in for typing.** It publishes on
+  `session.deliver`, which an attached client performs — with nobody attached
+  the text goes nowhere and the call still answers `ok`. It also pastes text,
+  which cannot select an option in a permission dialog. Check the reported
+  `clients` count.
+- **A non-TTY engine.** Claude exposes no AskUserQuestion tool unless stdin is
+  a terminal; piped, it answers in prose and the dialog never exists.
+- **Answering too fast.** The vendor notification that produces
+  `permission_needed` fires only after ~6s of user idle
+  (`DEFAULT_INTERACTION_THRESHOLD_MS`), so an instant reply reproduces a state
+  the user never sees. Let the dialog sit.
+
+Isolation for this mode is stricter than `KOBE_HOME_DIR` alone: the engine's
+hook commands invoke whichever `kobe`/`rove` is on PATH, which resolves its own
+socket, so a sandbox daemon never sees the events. Inline the socket path and
+the source CLI into the hook command itself. A fresh HOME also needs
+`hasCompletedOnboarding` seeded and its folder-trust gate answered, and
+`KOBE_PTY_DEV_COMMAND` must be a script path — nested quotes are lost when the
+dev server re-spawns the sidecar.
 
 ## Terminal endurance probe
 
@@ -249,6 +343,48 @@ for post-failure inspection and never points at production state.
 - published source changes include one patch changeset by default;
 - daemon/orchestrator/engine edits are verified after replacing stale daemon
   processes in the chosen sandbox.
+
+## Coverage gate
+
+`coverage-cap` (vitest lcov) and `render-track` (bun-test render lcov) hold every
+file a PR touches to a 50% line floor. Only touched files are gated, so a legacy
+file with thin coverage stays green until someone edits it.
+
+### The escape hatch, and when it is honest
+
+A `coverage-exemption: <path> — <reason>` line in the PR body waives one file.
+It is a paper trail, not a mute button: the next person reads it as "someone
+evaluated this and concluded the floor does not apply". Three situations come up,
+and only two of them justify one.
+
+- **Structurally untestable** — the render track cannot mount it at all.
+  `tui-react/workspace/host.tsx` and `workspace/TerminalTabs.tsx` are integration
+  layers needing a live daemon + PTY; their behaviour is covered by the behavior
+  track and the visual-ground-truth harness instead. Exemption is correct, and the
+  reason should name the covering track.
+- **Genuinely untested** — the file is ordinary code that vitest reaches fine, and
+  the number is low because nobody wrote the test. **Write the test.** An exemption
+  here turns the gate into a rubber stamp. (Two CLI modules sat at 28% and 41% and
+  went to 100% once someone actually tested them.)
+- **Pre-existing gap, unrelated change** — the file is partly testable, its gap
+  predates the PR, and the diff is something like a constant rename. Exemption is
+  reasonable, but say *that*: "pre-existing gap, not introduced by this PR". Do not
+  dress it up as untestable — the coverage number itself contradicts you.
+
+### Editing the PR body does not re-run CI
+
+The gate reads the body **during a workflow run**, so an exemption added after the
+failing run is invisible until a new run starts:
+
+```bash
+gh pr edit <n> --body-file <file>          # 1. add the exemption
+git commit --allow-empty -m "chore: re-trigger CI"   # 2. THEN force a fresh run
+git push
+```
+
+`gh run rerun` does **not** work here — it replays the frozen event payload, which
+carries the body as it was before the edit. Three PRs hit this in one night; each
+had a correct exemption sitting in the body that no run ever read.
 
 ## Required pre-PR command
 

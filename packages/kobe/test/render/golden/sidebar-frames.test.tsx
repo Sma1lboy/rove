@@ -65,12 +65,23 @@ function frameDocument(scene: Scene, frame: string): string {
 // restore belongs in afterAll — hanging it off an unrelated test's body let
 // "en" leak into whatever ran next if that test was filtered or threw first.
 let restoreLang = "en"
+// Same reason for `process.platform`: the zen chip's glyph is platform-resolved
+// (`zenChipGlyph`), so a capture on the owner's Mac and one on Linux CI are
+// different documents. Pin the non-darwin branch — that's the fallback the
+// chip exists to get right — and restore alongside the locale.
+let restorePlatform: NodeJS.Platform = process.platform
+function setPlatform(value: NodeJS.Platform): void {
+  Object.defineProperty(process, "platform", { value, configurable: true })
+}
 beforeAll(() => {
   restoreLang = currentLang()
   setLocaleLang("en")
+  restorePlatform = process.platform
+  setPlatform("linux")
 })
 afterAll(() => {
   setLocaleLang(restoreLang as Parameters<typeof setLocaleLang>[0])
+  setPlatform(restorePlatform)
 })
 
 for (const scene of SCENES) {

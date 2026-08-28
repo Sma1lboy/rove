@@ -15,7 +15,6 @@ export const en = {
   sections: {
     general: "General",
     engines: "Engines",
-    accounts: "Accounts",
     plugins: "Plugins",
     keys: "Keybindings",
     feedback: "Feedback",
@@ -37,37 +36,39 @@ export const en = {
     accentSuccess: "Success (legacy green)",
     accentInfo: "Info (cool blue)",
     appearance: "Appearance",
-    appearanceHint:
-      "How split panes draw: a full box frame around every pane, or a single divider line between neighbors.",
+    appearanceHint: "How split panes draw.",
     splitBox: "Box frames",
     splitLine: "Divider line",
     notifications: "Notifications",
-    notificationsHint:
-      "Fired when a background chat tab finishes or pauses on an approval. Toast = bottom-right popup; Sound = terminal bell + chime + OSC 9 desktop notification (rides SSH to your local terminal). Cross-task = also notify when a task you've switched AWAY from pauses/errors/finishes. Tab-chip unread dot is always on.",
+    notificationsHint: "When a background tab finishes or pauses on an approval. The tab-chip unread dot is always on.",
     toast: "Toast",
+    toastHint: "bottom-right popup",
     sound: "Sound",
-    crossTask: "Notify for background tasks",
+    soundHint: "bell + chime + an OSC 9 desktop notification (rides SSH)",
+    crossTask: "Cross-task",
+    crossTaskHint: "also for a task you switched away from",
     /** SubSection title for the keyboard-hints toggle */
     keyHints: "Keyboard hints",
-    keyHintsHint:
-      "The status-bar command/help reminder and the one-line first-use key hints in the sidebar and files panes. Re-enabling relights pane hints that were dismissed by use.",
+    keyHintsHint: "The status-bar reminder and the first-use hints in the sidebar and files panes.",
     /** Checkbox row label */
     keyHintsShow: "Show keyboard hints",
+    keyHintsShowHint: "re-enabling relights hints dismissed by use",
     zen: "Zen mode",
-    zenHint:
-      "The `zen` chip (above the file list) and `prefix`+z hide Files while keeping the Tasks rail and workspace visible. The legacy Keep Tasks value is retained in settings but currently has no layout effect.",
+    zenHint: "The `zen` chip and `prefix`+z hide Files, keeping the Tasks rail and workspace.",
     zenDefaultOn: "Start in zen mode",
-    zenKeepTasks: "Keep Tasks pane in zen mode (legacy; no effect)",
+    zenKeepTasks: "Keep Tasks pane",
+    zenKeepTasksHint: "legacy — no layout effect today",
     editor: "Editor",
     editorHint:
-      "What enter opens a file with in the file tree. Changed files use the editor's diff mode when supported; if the editor isn't installed Rove falls back to its read-only preview. `auto` (default) follows $VISUAL / $EDITOR, else auto-detects nvim / vim / emacs / nano. Enter on the row below cycles auto / vim / nvim / nano / emacs / custom.",
-    editorRow: "editor: < {kind} >  (enter to change)",
+      "What enter opens a file with in the file tree — diff mode when the editor supports it, the read-only preview when it isn't installed.",
+    editorRow: "editor: < {kind} >",
+    editorRowHint: "auto follows $VISUAL / $EDITOR, else nvim / vim / emacs / nano",
     editorCustom: "custom: {cmd}",
     editorCustomUnset: "(unset — enter to edit)",
     worktree: "Worktree location",
-    worktreeHint:
-      "Where new task worktrees are created. `next to project` keeps them beside each repo; custom takes any path (`~`, relative, or a leading `$project_dir`). New tasks only.",
-    worktreeBase: "location: < {kind} >  (enter switches)",
+    worktreeHint: "Where new task worktrees are created. New tasks only.",
+    worktreeBase: "location: < {kind} >",
+    worktreeBaseHint: "custom takes `~`, a relative path, or a leading `$project_dir`",
     worktreeKindDefault: "default ~/.rove/worktrees",
     worktreeKindNext: "next to project",
     worktreeKindCustom: "custom",
@@ -76,15 +77,15 @@ export const en = {
     worktreeBaseTitle: "Custom worktree location (blank = default; $project_dir = project root)",
     worktreeBaseField: "path",
     terminal: "Terminal",
-    terminalHint:
-      "Scrollback: how many rows of history each embedded terminal keeps (100–100000). Applies to terminals opened after the change. Larger values cost proportionally more CPU per redraw — 1000 rows is roughly 2× the cost of 50.",
-    scrollbackRow: "scrollback: {rows} rows  (enter to edit)",
+    terminalHint: "Applies to terminals opened after the change.",
+    scrollbackRow: "scrollback: {rows} rows",
+    scrollbackRowHint: "100–100000 · larger costs proportionally more CPU per redraw",
     scrollbackTitle: "Terminal scrollback rows (100–100000)",
     scrollbackField: "rows",
     scrollbackInvalidTitle: "Not a number",
     scrollbackInvalidBody: "Scrollback must be a number of rows (e.g. 1000). Keeping the previous setting.",
     /** `{mode}` = one of tabStripMode.* below. */
-    tabStripRow: "tab strip: {mode}  (enter to cycle)",
+    tabStripRow: "tab strip: {mode}",
     tabStripMode: {
       never: "off — the sidebar tree lists tabs",
       multipleOnly: "only with 2+ tabs",
@@ -92,23 +93,19 @@ export const en = {
     },
   },
   engines: {
-    title: "Launch command",
-    hint: "The command each engine's task pane runs. Override a built-in when your binary isn't on PATH as `claude` / `codex` (e.g. it's `cl`) or to pass default flags, or add your own engine. ● = global default engine (per-project picks, e.g. Ctrl+Shift+T, override it). enter edit command · r rename · x reset/remove · d set default.",
-    defaultTag: "  (default)",
+    title: "Engines",
+    hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; (●) = the global default (per-project picks, e.g. Ctrl+Shift+T, override it) — click either, or use the keys below. Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
     customTag: "  (custom)",
     addEngine: "+ Add engine",
   },
   accounts: {
-    title: "Accounts",
-    hint: "Read-only view of locally-detected engine accounts. Login flows land here later.",
     checking: "Checking…",
     notLoggedIn: "○ Not logged in",
     loggedIn: "● Logged in: {email}",
     apiKeyConfigured: "● API key configured",
     chatgptLogin: "● ChatGPT login: {email}",
     tokenConfigured: "● Token configured ({source})",
-    copilotDetected: "● Copilot login detected",
-    kimiDetected: "● Kimi login detected",
+    detected: "● Login detected",
   },
   plugins: {
     title: "Plugins",
@@ -131,7 +128,7 @@ export const en = {
   },
   keybindings: {
     title: "Keybindings",
-    hint: "Edit the YAML below to rebind direct and PureTUI prefix chords; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
+    hint: "Rebind direct and prefix chords in your own YAML file; changes reload live. Press F1 anywhere for the live keymap with every binding id.",
     configFile: "Config file",
     notCreated: "  (not created yet)",
     /** Heading for the prefix/grammar block; {prefix} is the live first stroke */
@@ -143,9 +140,13 @@ export const en = {
     prefixDisabled: "disabled",
     /** Trailing note listing non-rebindable ids; hidden when there are none */
     fixed: "Fixed (not rebindable): {ids}.",
-    example: "Example",
+    createHint:
+      "No overrides file yet. Rove can write one for you, fully commented — nothing is rebound until you uncomment a line.",
+    createFile: "[enter] Create keybindings.yaml",
     overridesApplied: "Overrides applied",
     none: "none",
+    unbound: "(unbound)",
+    defaultKeys: "default: {keys}",
     warnings: "Warnings",
   },
   feedback: {
@@ -160,7 +161,7 @@ export const en = {
   dev: {
     reset: "Reset UI state",
     resetHint:
-      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session / Archive lists, pane sizes, theme, model picks all reset. Worktrees on disk and Claude Code session history are not touched.",
+      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session / Archive lists, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
     resetButton: "[enter] Reset",
     restart: "Restart backend",
     restartHint:
@@ -171,20 +172,16 @@ export const en = {
     experimental: "Experimental",
     remoteHint:
       "Remote projects (SSH): register a project whose git worktrees live on another host, driven from this local Rove. Unfinished — Hosted PTY engine launch over SSH is not implemented, and file/diff panes still degrade. Enables `rove add --remote`.",
-    remoteOn: "[x] Remote projects (on)",
-    remoteOff: "[ ] Remote projects (off)",
+    remote: "Remote projects",
     autoStatusHint:
-      "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new claude sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
-    autoStatusOn: "[x] Auto status flow (on)",
-    autoStatusOff: "[ ] Auto status flow (off)",
+      "Auto status flow: a backlog task moves to in_progress when its engine starts a turn, and new sessions get a system-prompt note telling the agent to set in_review itself when the work is done. Never touches done/canceled.",
+    autoStatus: "Auto status flow",
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
-    dispatcherOn: "[x] Field-notes dispatcher (on)",
-    dispatcherOff: "[ ] Field-notes dispatcher (off)",
+    dispatcher: "Field-notes dispatcher",
     archivedHistoryHint:
       "Archived history preview (beta): opening an archived task shows a read-only `rove history` pane (session selector + transcript) in the engine slot instead of relaunching the engine. Its transcript survives worktree removal because the engine store is keyed by the worktree path. Shared with the web dashboard.",
-    archivedHistoryOn: "[x] Archived history preview (on)",
-    archivedHistoryOff: "[ ] Archived history preview (off)",
+    archivedHistory: "Archived history preview",
   },
 }
 
@@ -198,7 +195,6 @@ export const zh: typeof en = {
   sections: {
     general: "通用",
     engines: "引擎",
-    accounts: "账户",
     plugins: "插件",
     keys: "快捷键",
     feedback: "反馈",
@@ -220,34 +216,36 @@ export const zh: typeof en = {
     accentSuccess: "成功色（传统绿）",
     accentInfo: "信息色（冷蓝）",
     appearance: "外观",
-    appearanceHint: "分屏面板的描边方式：每个面板一个完整方框，或相邻面板之间一条分隔线。",
+    appearanceHint: "分屏面板怎么画边。",
     splitBox: "方框边框",
     splitLine: "单线分隔",
     notifications: "通知",
-    notificationsHint:
-      "后台聊天页完成或在审批处暂停时触发。Toast = 右下角弹窗；Sound = 终端响铃 + 提示音 + OSC 9 桌面通知（经 SSH 直达你本地终端）。跨任务 = 你已切走的任务暂停/出错/完成时也通知。标签上的未读圆点始终开启。",
+    notificationsHint: "后台标签完成或在审批处暂停时触发。标签上的未读圆点始终开启。",
     toast: "Toast 弹窗",
+    toastHint: "右下角弹窗",
     sound: "声音",
-    crossTask: "为后台任务发送通知",
+    soundHint: "响铃 + 提示音 + OSC 9 桌面通知（经 SSH 直达本地）",
+    crossTask: "跨任务",
+    crossTaskHint: "你已切走的任务也通知",
     keyHints: "键盘提示",
-    keyHintsHint:
-      "状态栏的命令/帮助提醒，以及侧栏和文件面板的一行首用按键提示。重新开启会重新点亮已因使用而熄灭的面板提示。",
+    keyHintsHint: "状态栏提醒，以及侧栏和文件面板的首用提示。",
     keyHintsShow: "显示键盘提示",
+    keyHintsShowHint: "重新开启会点亮已因使用而熄灭的提示",
     zen: "禅模式",
-    zenHint:
-      "`zen` 标记（文件列表上方）和 `prefix`+z 会隐藏 Files，同时保留 Tasks 侧栏与 workspace。旧的“禅模式下保留 Tasks 面板”设置仍会保存，但当前不会改变布局。",
+    zenHint: "`zen` 标记和 `prefix`+z 隐藏 Files，保留 Tasks 侧栏与 workspace。",
     zenDefaultOn: "启动即进入禅模式",
-    zenKeepTasks: "禅模式下保留 Tasks 面板（旧设置；当前无效）",
+    zenKeepTasks: "保留 Tasks 面板",
+    zenKeepTasksHint: "旧设置 — 当前不改变布局",
     editor: "编辑器",
-    editorHint:
-      "文件树里按 enter 用什么打开文件；修改过的文件会在支持时使用编辑器 diff 模式，编辑器未安装时回退到 Rove 的只读预览。`auto`（默认）跟随 $VISUAL / $EDITOR，否则自动探测 nvim / vim / emacs / nano。在下方一行按 enter 在 auto / vim / nvim / nano / emacs / custom 间循环。",
-    editorRow: "编辑器: < {kind} >  (enter 切换)",
+    editorHint: "文件树里按 enter 用什么打开文件——支持时走编辑器 diff 模式，未安装时回退到只读预览。",
+    editorRow: "编辑器: < {kind} >",
+    editorRowHint: "auto 跟随 $VISUAL / $EDITOR，否则 nvim / vim / emacs / nano",
     editorCustom: "自定义: {cmd}",
     editorCustomUnset: "(未设置 — enter 编辑)",
     worktree: "工作树位置",
-    worktreeHint:
-      "新任务工作树的创建位置。「项目旁边」= 紧挨各自仓库存放；自定义可填任意路径（`~`、相对路径或以 `$project_dir` 开头）。仅对新任务生效。",
-    worktreeBase: "位置: < {kind} >  (enter 切换)",
+    worktreeHint: "新任务工作树的创建位置。仅对新任务生效。",
+    worktreeBase: "位置: < {kind} >",
+    worktreeBaseHint: "自定义可填 `~`、相对路径或以 `$project_dir` 开头",
     worktreeKindDefault: "默认 ~/.rove/worktrees",
     worktreeKindNext: "项目旁边",
     worktreeKindCustom: "自定义",
@@ -256,14 +254,14 @@ export const zh: typeof en = {
     worktreeBaseTitle: "自定义工作树位置（留空 = 默认；$project_dir = 项目根目录）",
     worktreeBaseField: "路径",
     terminal: "终端",
-    terminalHint:
-      "回滚缓冲：每个内嵌终端保留多少行历史（100–100000）。对修改后新打开的终端生效。调大会按比例增加每次重绘的 CPU——1000 行约为 50 行的 2 倍。",
-    scrollbackRow: "回滚行数: {rows} 行  (enter 编辑)",
+    terminalHint: "对修改后新打开的终端生效。",
+    scrollbackRow: "回滚行数: {rows} 行",
+    scrollbackRowHint: "100–100000 · 调大会按比例增加每次重绘的 CPU",
     scrollbackTitle: "终端回滚行数（100–100000）",
     scrollbackField: "行数",
     scrollbackInvalidTitle: "不是数字",
     scrollbackInvalidBody: "回滚行数必须是数字（如 1000）。保留原设置。",
-    tabStripRow: "标签栏: {mode}  (enter 切换)",
+    tabStripRow: "标签栏: {mode}",
     tabStripMode: {
       never: "关闭 — 标签在左侧树里",
       multipleOnly: "仅 2 个以上标签时显示",
@@ -271,23 +269,19 @@ export const zh: typeof en = {
     },
   },
   engines: {
-    title: "启动命令",
-    hint: "每个引擎的任务面板运行的命令。当二进制文件不在 PATH 上的 `claude` / `codex` 名下（比如叫 `cl`）、要传默认参数，或要添加自己的引擎时，可覆盖内置项。● = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）。enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
-    defaultTag: "  (默认)",
+    title: "引擎",
+    hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；(●) = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）——两者都可直接点，也可用下面的按键。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
     customTag: "  (自定义)",
     addEngine: "+ 添加引擎",
   },
   accounts: {
-    title: "账户",
-    hint: "本地探测到的引擎账户的只读视图。登录流程稍后会接入这里。",
     checking: "检查中…",
     notLoggedIn: "○ 未登录",
     loggedIn: "● 已登录: {email}",
     apiKeyConfigured: "● 已配置 API key",
     chatgptLogin: "● ChatGPT 登录: {email}",
     tokenConfigured: "● 已配置 Token ({source})",
-    copilotDetected: "● 检测到 Copilot 登录",
-    kimiDetected: "● 检测到 Kimi 登录",
+    detected: "● 检测到登录",
   },
   plugins: {
     title: "插件",
@@ -310,7 +304,7 @@ export const zh: typeof en = {
   },
   keybindings: {
     title: "快捷键",
-    hint: "编辑下面的 YAML 来重绑定直接按键和 PureTUI prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",
+    hint: "在你自己的 YAML 文件里重绑定直接按键和 prefix 组合；修改会实时加载。任意位置按 F1 查看带每个绑定 id 的实时键位表。",
     configFile: "配置文件",
     notCreated: "  (尚未创建)",
     prefixTitle: "命令层（{prefix}）",
@@ -318,9 +312,12 @@ export const zh: typeof en = {
       "裸键作用于当前聚焦面板；少量单次快捷键覆盖高频 Rove 操作；{prefix} 打开命令层（第二击窗口 {timeout}ms — 稍等会出现命令指南）。Prefix 绑定保持原有的面板作用域和 modal 规则。",
     prefixDisabled: "已禁用",
     fixed: "固定（不可重绑定）：{ids}。",
-    example: "示例",
+    createHint: "还没有覆盖文件。Rove 可以帮你写一份带完整注释的——在你取消注释之前不会改动任何按键。",
+    createFile: "[enter] 创建 keybindings.yaml",
     overridesApplied: "已应用的覆盖",
     none: "无",
+    unbound: "(已解绑)",
+    defaultKeys: "默认: {keys}",
     warnings: "警告",
   },
   feedback: {
@@ -335,7 +332,7 @@ export const zh: typeof en = {
   dev: {
     reset: "重置 UI 状态",
     resetHint:
-      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话 / 归档列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和 Claude Code 会话历史不受影响。",
+      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话 / 归档列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
     resetButton: "[enter] 重置",
     restart: "重启后端",
     restartHint:
@@ -346,19 +343,15 @@ export const zh: typeof en = {
     experimental: "实验性",
     remoteHint:
       "远程项目（SSH）：注册一个 git worktree + 引擎都通过 SSH 跑在另一台主机上、由本地 Rove 驱动的项目。尚未完成——文件/diff 面板对远程仍会降级。启用 `rove add --remote`。",
-    remoteOn: "[x] 远程项目 (开)",
-    remoteOff: "[ ] 远程项目 (关)",
+    remote: "远程项目",
     autoStatusHint:
-      "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新的 claude 会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
-    autoStatusOn: "[x] 自动状态流转 (开)",
-    autoStatusOff: "[ ] 自动状态流转 (关)",
+      "自动状态流转：backlog 任务在其引擎开始一轮时移到 in_progress，新会话会拿到一条系统提示，告诉 agent 完成后自行设为 in_review。绝不触碰 done/canceled。",
+    autoStatus: "自动状态流转",
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
-    dispatcherOn: "[x] 现场笔记调度器 (开)",
-    dispatcherOff: "[ ] 现场笔记调度器 (关)",
+    dispatcher: "现场笔记调度器",
     archivedHistoryHint:
       "归档历史预览（beta）：打开已归档的任务时，引擎位置改为只读的 `rove history` 面板（会话选择器 + 对话记录），而不是重新启动引擎。引擎记录按 worktree 路径存储，所以 worktree 被删除后历史仍然可读。与 Web 仪表盘共用同一开关。",
-    archivedHistoryOn: "[x] 归档历史预览 (开)",
-    archivedHistoryOff: "[ ] 归档历史预览 (关)",
+    archivedHistory: "归档历史预览",
   },
 }

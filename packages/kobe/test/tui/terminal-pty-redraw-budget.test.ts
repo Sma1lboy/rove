@@ -130,6 +130,35 @@ describe("XtermTaskPty redraw budget", () => {
     pty.kill()
   })
 
+  it("applies engine style rewrites only on the alternate screen", async () => {
+    const pty = new FakeTransportPty({
+      taskId: "t1",
+      cwd: "/wt",
+      cols: 40,
+      rows: 10,
+      defaultColors: { foreground: "#eae7df", background: "#141413" },
+      alternateScreenStyleRewrites: [
+        { matchBackground: [48, 48, 47], foreground: [20, 20, 19], background: [234, 231, 223] },
+      ],
+    })
+    pty.onData(() => {})
+
+    pty.pump("\x1b[48;2;48;48;47mcomposer")
+    await settle()
+    expect(pty.capture()[0]?.[0]?.fg).toBeUndefined()
+    expect(pty.capture()[0]?.[0]?.bg).toEqual([48, 48, 47])
+
+    pty.pump("\x1b[?1049h\x1b[0m\x1b[48;2;48;48;47mtranscript")
+    await settle()
+    expect(pty.capture()[0]?.[0]).toMatchObject({ fg: [20, 20, 19], bg: [234, 231, 223] })
+
+    pty.pump("\x1b[?1049l")
+    await settle()
+    expect(pty.capture()[0]?.[0]?.fg).toBeUndefined()
+    expect(pty.capture()[0]?.[0]?.bg).toEqual([48, 48, 47])
+    pty.kill()
+  })
+
   it("publishes cursor-only changes while preserving snapshot identity", async () => {
     const pty = makePty()
     const seen: Array<{ rows: readonly TerminalRow[]; cursor: CursorPos | null }> = []
@@ -174,6 +203,23 @@ describe("XtermTaskPty redraw budget", () => {
     await settle()
     expect(seen).toHaveLength(1)
     expect(seen[0]?.cursor).toEqual({ x: 14, y: 0 })
+    pty.kill()
+  })
+
+  it("restores the input cursor after a hidden-cursor alternate-screen pager exits", async () => {
+    const pty = makePty()
+    const seen: Array<CursorPos | null> = []
+    pty.onData((_rows, cursor) => seen.push(cursor))
+
+    pty.pump("input")
+    await settle()
+    pty.pump("\x1b[?1049h\x1b[?25lpager")
+    await settle()
+    expect(seen.at(-1)).toBeNull()
+
+    pty.pump("\x1b[?1049l\x1b[?25h")
+    await settle()
+    expect(seen.at(-1)).toEqual({ x: 5, y: 0 })
     pty.kill()
   })
 })

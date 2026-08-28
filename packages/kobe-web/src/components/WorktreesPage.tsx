@@ -20,6 +20,7 @@
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowLeft, RefreshCw } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import { displayProductName } from "../lib/cli-name.ts"
 import { useAppState } from "../lib/store.ts"
 import { relativeTimeAgo } from "../lib/time.ts"
 import { reportError } from "../lib/toast.ts"
@@ -218,7 +219,7 @@ export function WorktreesPage() {
           </p>
         ) : visibleProjects.length === 0 ? (
           <p className="px-3 py-6 text-center text-[12px] text-subtle">
-            No local projects known to Rove yet.
+            No local projects known to {displayProductName()} yet.
           </p>
         ) : (
           visibleProjects.map((project) => (

@@ -251,7 +251,26 @@ export interface TaskLinkedWorkItem {
  * manifests are migrated on load by dropping the chat-tab / model /
  * vendor / permissionMode fields. Downgrading is not supported.
  */
+/**
+ * A persisted deletion marker. A concurrent writer that still holds the
+ * deleted task dirty in memory must not write it back — the tombstone makes
+ * the deletion visible to peers (issue #47). Pruned after a TTL at save time.
+ */
+export interface TaskTombstone {
+  readonly id: string
+  /** ISO timestamp of the deletion — the TTL clock for pruning. */
+  readonly at: string
+}
+
 export interface TaskIndex {
   readonly version: 3
   readonly tasks: readonly Task[]
+  /**
+   * Deletion tombstones. Optional and absent when empty: builds that predate
+   * the field ignore it on read and drop it on write, degrading to the old
+   * last-write-wins behavior without corrupting anything (which is also why
+   * `version` stays 3 — older readers treat an unknown version as an empty
+   * index, losing everything).
+   */
+  readonly removed?: readonly TaskTombstone[]
 }

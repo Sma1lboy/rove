@@ -6,10 +6,35 @@ import { PrefixHud } from "../../src/tui-react/component/prefix-hud"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
+import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { PREFIX_GUIDE_DELAY_MS, prefixHudPush, prefixHudSetArmed, resetPrefixHud } from "../../src/tui/lib/prefix-hud"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
+
+const CLOSED_PAGES: HostPagesState = {
+  nav: "terminal",
+  setNav: NOOP,
+  goToNav: NOOP,
+  settingsOpen: false,
+  openSettings: NOOP,
+  closeSettings: NOOP,
+  worktreesOpen: false,
+  openWorktrees: NOOP,
+  closeWorktrees: NOOP,
+  updateOpen: false,
+  openUpdate: NOOP,
+  closeUpdate: NOOP,
+  kanbanOpen: false,
+  openKanban: NOOP,
+  closeKanban: NOOP,
+  automationsOpen: false,
+  openAutomations: NOOP,
+  closeAutomations: NOOP,
+  workItemsOpen: false,
+  openWorkItems: NOOP,
+  closeWorkItems: NOOP,
+}
 
 function WorkspaceHelpDriver() {
   const focus = useFocus()
@@ -17,23 +42,11 @@ function WorkspaceHelpDriver() {
   useWorkspaceKeybindings({
     focus,
     dialog,
-    settingsOpen: false,
-    worktreesOpen: false,
-    openWorktrees: NOOP,
-    updateOpen: false,
-    openUpdate: NOOP,
-    kanbanOpen: false,
-    openKanban: NOOP,
+    pages: CLOSED_PAGES,
     filesPaneVisible: true,
-    automationsOpen: false,
-    openAutomations: NOOP,
-    workItemsOpen: false,
-    openWorkItems: NOOP,
     searchActive: false,
     selectedId: null,
     openTaskWorktree: NOOP,
-    openSettings: NOOP,
-    closeSettings: NOOP,
     createTask: NOOP,
     renameBranch: NOOP,
     cycleVendor: NOOP,

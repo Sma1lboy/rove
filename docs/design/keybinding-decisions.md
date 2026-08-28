@@ -20,6 +20,20 @@ would have to be undone anyway. Removed rather than re-homed behind the
 prefix — YAGNI. If cross-repo grouping returns, it starts from the
 session-as-repo-set design, not from this filter.
 
+## Session resume — inert row deleted
+
+**2026-08-27 — `chat.session.resume` (`ctrl+y` / prefix `y`) removed
+(issue #55).** The row shipped in #220 with full i18n but no handler was
+ever registered, so F1 advertised a chord that did nothing when pressed.
+Deleted the table row and both locale strings rather than wiring it up:
+the interaction shape (a `/resume`-style session picker) is an owner
+product call — first-open auto-resume was already reverted once — and an
+advertised-but-dead chord costs the keymap's credibility. Docs had
+already dropped it in PR #575. To revive it, the row, the
+chord-selection rationale ("yank from history"; `ctrl+r` is the prompt
+history palette, `ctrl+h` is the backspace byte), and the i18n strings
+are in git history at `2360b2e48`.
+
 ## Open calls
 
 - **Inert table rows.** `sidebar.sort` (`t`), `sidebar.projectFilter`
@@ -203,6 +217,13 @@ engine a doomed `gh pr create`.
 
 ## Other placements
 
+- **2026-08-25 — Settings → Engines: `space` toggles an engine on/off,
+  approved.** Dialog-scoped, beside the existing `r` / `x` / `d` engine
+  letters, so it can shadow nothing outside Settings. `space` because it is
+  the checkbox gesture and the row's `[x]` column is a checkbox; `enter` was
+  equally acceptable to the owner but stays the row's primary action (edit
+  the launch command), which is what makes the toggle a separate key rather
+  than a mode.
 - **2026-08-16 — Scratch shell gets NO chord; entry is the ctrl+e dialog's
   tail.** The PROPOSED `prefix+t` (issue #33 PR-2) was rejected: an unproven
   gesture doesn't earn a chord — Scratch entry joins the unified

@@ -172,7 +172,7 @@ describe("keep-alive hold", () => {
     expect(onIdleStop).not.toHaveBeenCalled()
   })
 
-  it("re-checks a hold that vanishes while a grace timer is already pending", () => {
+  it("re-checks a hold that appears while a grace timer is already pending", () => {
     // The timer here was armed with no hold, so a hold appearing mid-grace
     // must still be honoured when it fires.
     const clients: LifetimeClient[] = [GUI]

@@ -14,6 +14,7 @@
 
 import { resolveLoginShell } from "./platform-shell.js"
 import type { PtySessionState, PtySpawnSpec } from "./pty-host-types.ts"
+import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 export interface WarmSpareDeps {
   readonly spawn: (key: string, spec: PtySpawnSpec, spare: boolean) => PtySessionState
@@ -57,6 +58,7 @@ export class WarmSpare {
     if (want.length !== 1 || want[0] !== spare.command[0]) return null
     this.spare = null
     spare.key = key
+    spare.defaultColors = parseTerminalDefaultColors(spec.defaultColors) ?? spare.defaultColors
     // A size-less spec keeps the spare's dimensions (headless adopters
     // don't care; the first sized attach will resize).
     const cols = spec.cols ?? spare.cols

@@ -72,7 +72,7 @@ describe("parseDiffRows", () => {
   })
 
   it("returns an empty array for an empty patch", () => {
-    expect(parseDiffRows("")).toEqual([{ kind: "meta", oldLn: null, newLn: null, text: "" }])
+    expect(parseDiffRows("")).toEqual([])
   })
 
   it("resets hunk state at a new file header (concatenated patch)", () => {

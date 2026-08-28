@@ -34,7 +34,7 @@ import { isNarrowWidth } from "../lib/narrow-mode"
 
 export { tabTitle }
 
-/** Same glyph vocabulary as tmux's `CHAT_TAB_STATUS_FORMAT` (`@kobe_tab_state`). */
+/** Turn-state glyphs mirrored on the tab strip. */
 export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   running: "●",
   done: "✓",
@@ -61,6 +61,15 @@ export function TabStrip(props: {
   liveTitles: ReadonlyMap<string, string>
   /** tabId → resolved live engine identity (see `useTurnPolls().turnVendors`). */
   turnVendors: ReadonlyMap<string, VendorId>
+  /**
+   * Tabs whose CURRENT completion the user has already looked at, from the
+   * durable `(task, tab) → seen-at` record the sidebar lamp reads (issue
+   * #23). Their `done` chip digests to the resting `○` — a finished turn
+   * you have read is simply over, the same "seen means consumed" rule the
+   * rail follows. Omitted (render tests, hosts without kv) = nothing seen,
+   * the pre-#23 behaviour.
+   */
+  seenTabs?: ReadonlySet<string>
 }) {
   const themeCtx = useTheme()
   const { theme } = themeCtx
@@ -122,7 +131,12 @@ export function TabStrip(props: {
    * per-cell scroll, not per-tab paging. Widths are computed with the
    * shared display-width table so CJK titles count 2 cells. */
   const entries = props.tabs.map((tab) => {
-    const turn = props.turnStates.get(tab.id) ?? "idle"
+    const raw = props.turnStates.get(tab.id) ?? "idle"
+    // Seen means consumed (docs/TUI.md): a read completion rests at `○`
+    // rather than wearing ✓ forever. The ACTIVE tab is exempt — you are
+    // looking at it, so its live chip is the point.
+    const turn: ChatTabTurnState =
+      raw === "done" && tab.id !== props.activeId && props.seenTabs?.has(tab.id) === true ? "idle" : raw
     const liveTitle = props.liveTitles.get(tab.id)
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
     const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)

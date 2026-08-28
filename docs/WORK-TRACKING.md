@@ -5,7 +5,7 @@ rove work is tracked locally. There is no external issue tracker. Agents should 
 ## Sources of truth
 
 - **Backlog + open issues**: daemon-owned issue state.
-- **Current risks and follow-ups**: [`../HANDOFF.md`](../HANDOFF.md).
+- **Current risks and follow-ups**: `HANDOFF.md` at the repo root (local and gitignored; absent on a fresh clone).
 - **User-facing shipped behavior**: [`../packages/kobe/CHANGELOG.md`](../packages/kobe/CHANGELOG.md).
 - **Durable product and architecture decisions**: `docs/*.md`.
 - **Proof of work**: git commits and test output.
@@ -25,14 +25,14 @@ common-dir, so the source checkout and its worktrees share one issue record:
       "repoRoot": "/path/to/repo",
       "nextId": 4,
       "issues": [
-        { "id": 1, "title": "short imperative title", "status": "open", "created": "YYYY-MM-DD", "body": "context, repro, scope — one field, free text" }
+        { "id": 1, "title": "short imperative title", "status": "open", "created": "YYYY-MM-DD", "body": "context, repro, scope; one field, free text" }
       ]
     }
   }
 }
 ```
 
-- **`status`**: `open` → `doing` → `done`, plus `hold` for issues parked on purpose (waiting on a decision, blocked, deliberately deferred). `hold` is a parking lot, not a lifecycle step. Resume by flipping back to `open`. The archive sweep ignores it (only `done` moves), so held issues stay visible in the active file. Status is still the only dimension; don't add label/type fields.
+- **`status`**: `open` → `doing` → `done`, plus `hold` for issues parked on purpose (waiting on a decision, blocked, deliberately deferred). `hold` is a parking lot, not a lifecycle step. Resume by flipping back to `open`. Held issues stay visible in the active file like every other status. Status is still the only dimension; don't add label/type fields.
 - **`id`**: take `nextId`, then increment `nextId`. Ids are never reused.
 - **Adding**: use the web Issues page or `rove api issue-create --repo <path> --title ...`. The daemon stores the repo's issue record under the repo's git common-dir, so a source checkout and its task worktrees share the same issues.
 - **Closing**: flip `status` to `done`. Done issues stay visible in the Done column until a future archive/export flow exists.

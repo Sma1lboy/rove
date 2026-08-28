@@ -5,7 +5,7 @@ The published Rove CLI and PureTUI package.
 Install it any of these ways:
 
 ```bash
-curl -fsSL https://rove.sma1lboy.me/install.sh | sh   # installs Bun if needed, then Rove
+curl -fsSL https://rove.run/install.sh | sh   # installs Bun if needed, then Rove
 npm install -g @sma1lboy/rove                         # npm
 bun install -g @sma1lboy/rove                         # bun
 npx @sma1lboy/rove                                    # no install

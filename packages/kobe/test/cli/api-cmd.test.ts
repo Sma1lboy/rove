@@ -3,6 +3,7 @@ import {
   API_VERBS,
   ApiError,
   VERBS,
+  VerbArgs,
   apiUsage,
   buildCountPlan,
   findVerb,
@@ -14,6 +15,18 @@ import {
   verbHelp,
   verbSchema,
 } from "../../src/cli/api-cmd.ts"
+
+function withEnv(name: string, value: string | undefined, fn: () => void): void {
+  const before = process.env[name]
+  try {
+    if (value === undefined) delete process.env[name]
+    else process.env[name] = value
+    fn()
+  } finally {
+    if (before === undefined) delete process.env[name]
+    else process.env[name] = before
+  }
+}
 
 describe("parseFlags", () => {
   it("parses `--key value` pairs", () => {
@@ -87,6 +100,10 @@ describe("parseAgentsSpec", () => {
   it("rejects a non-positive or malformed count", () => {
     expect(() => parseAgentsSpec("claude:0")).toThrow(/positive integer/)
     expect(() => parseAgentsSpec("claude")).toThrow(/engine:count/)
+    // Trailing garbage must NOT be silently coerced (`parseInt("2x") === 2`).
+    expect(() => parseAgentsSpec("claude:2x")).toThrow(/positive integer/)
+    expect(() => parseAgentsSpec("claude:1e3")).toThrow(/positive integer/)
+    expect(() => parseAgentsSpec("claude:2.5")).toThrow(/positive integer/)
   })
 
   it("rejects an over-cap count before allocating (no OOM on a huge count)", () => {
@@ -161,6 +178,68 @@ describe("API surface (full CRUD)", () => {
     }
   })
 
+  // The ORDER of API_VERBS is a contract, not an implementation detail: it is
+  // the order `rove api schema` and `--help` list verbs in, and an agent reads
+  // that listing to discover the API. The neighbouring assertions cannot catch
+  // a drift in it — `toContain` only proves nothing was lost, and comparing
+  // `schemaIndex()` against `API_VERBS` is self-consistent (both derive from
+  // the same array, so they move together). Splitting the registry across
+  // `verbs-*.ts` files makes reordering a one-line accident, so the canonical
+  // sequence is pinned here verbatim.
+  //
+  // If you intend to change the order, update this list in the same commit and
+  // say so in the changeset — it is a user-visible change, not a refactor.
+  it("pins the canonical verb order that schema and help expose", () => {
+    expect([...API_VERBS]).toEqual([
+      "schema",
+      "engine-list",
+      "list",
+      "get-task",
+      "pty-list",
+      "collect",
+      "digest",
+      "agent-turns",
+      "inspect",
+      "read-output",
+      "add",
+      "send",
+      "dispatch",
+      "note",
+      "note-list",
+      "pane-open",
+      "pane-close",
+      "notify",
+      "prompt",
+      "engine-report",
+      "set-active",
+      "feedback",
+      "issue-list",
+      "issue-create",
+      "issue-set-status",
+      "issue-update",
+      "routine-list",
+      "routine-create",
+      "routine-update",
+      "routine-set-enabled",
+      "routine-delete",
+      "routine-run-now",
+      "routine-runs",
+      "workitem-list",
+      "workitem-start",
+      "rename",
+      "set-branch",
+      "set-command",
+      "set-status",
+      "archive",
+      "pin",
+      "land",
+      "delete",
+      "ensure-worktree",
+      "discover-adoptable",
+      "adopt",
+    ])
+  })
+
   it("keeps `spawn-task` working as an alias of `add`", () => {
     expect(findVerb("spawn-task")?.name).toBe("add")
   })
@@ -202,6 +281,21 @@ describe("API surface (full CRUD)", () => {
       for (const f of v.flags) expect(help).toContain(`--${f.name}`)
     }
   })
+
+  it("uses the active CLI name (rove) when invoked through the rove wrapper", () => {
+    withEnv("ROVE_INVOKED_AS", "rove", () => {
+      const help = verbHelp(findVerb("add")!)
+      expect(help).toContain("rove api add")
+      expect(help).not.toContain("kobe api add")
+    })
+  })
+
+  it("falls back to kobe when no invocation marker is set", () => {
+    withEnv("ROVE_INVOKED_AS", undefined, () => {
+      const help = verbHelp(findVerb("add")!)
+      expect(help).toContain("kobe api add")
+    })
+  })
 })
 
 describe("validateAgainstSpec", () => {
@@ -231,5 +325,44 @@ describe("validateAgainstSpec", () => {
   it("accepts a well-formed invocation", () => {
     const { flags } = parseFlags(["--repo", "/x", "--status", "in_progress", "--command", "claude"])
     expect(() => validateAgainstSpec(add, flags)).not.toThrow()
+  })
+
+  it("rejects an int flag with trailing garbage instead of coercing it", () => {
+    // `parseInt` stops at the first non-digit: without a shape guard `--count 2x`
+    // passed as 2 and `--count 1e3` as 1 — a typo becoming a wrong action.
+    for (const bad of ["2x", "1e3", "2.5", "0x10", "  ", "-1", "0", "abc"]) {
+      const { flags } = parseFlags(["--repo", "/x", "--prompt", "p", "--count", bad])
+      expect(() => validateAgainstSpec(add, flags)).toThrow(/must be a positive integer/)
+    }
+  })
+
+  it("accepts a clean integer flag (surrounding whitespace tolerated)", () => {
+    for (const ok of ["3", " 3 "]) {
+      const { flags } = parseFlags(["--repo", "/x", "--prompt", "p", "--count", ok])
+      expect(() => validateAgainstSpec(add, flags)).not.toThrow()
+    }
+  })
+})
+
+describe("VerbArgs.int", () => {
+  const add = findVerb("add")!
+  const intOf = (value: string): number | undefined => {
+    const { flags } = parseFlags(["--count", value])
+    return new VerbArgs(add, flags).int("count")
+  }
+
+  it("returns the parsed value for a clean positive integer", () => {
+    expect(intOf("3")).toBe(3)
+    expect(intOf(" 7 ")).toBe(7)
+  })
+
+  it("is undefined when the flag is absent", () => {
+    expect(new VerbArgs(add, parseFlags(["--repo", "/x"]).flags).int("count")).toBeUndefined()
+  })
+
+  it("rejects trailing garbage, decimals, and non-positive values", () => {
+    for (const bad of ["2x", "1e3", "2.5", "0x10", "0", "-4", "abc"]) {
+      expect(() => intOf(bad)).toThrow(/must be a positive integer/)
+    }
   })
 })

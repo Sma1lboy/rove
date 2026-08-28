@@ -29,6 +29,7 @@ import {
   writeHostedPrompt,
 } from "../../engine/hosted-session.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
+import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"
 
 /**
@@ -194,6 +195,7 @@ export async function deliverHostedPrompt(
     key: launch.key,
     cwd,
     command: launch.command,
+    defaultColors: readPersistedTerminalDefaultColors(),
   })
   try {
     if (!open.alive) {

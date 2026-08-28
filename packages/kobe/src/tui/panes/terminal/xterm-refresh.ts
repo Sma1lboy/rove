@@ -1,3 +1,10 @@
+import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
+import {
+  DEFAULT_TERMINAL_COLORS,
+  type TerminalDefaultColors,
+  formatDefaultColorReply,
+  parseTerminalDefaultColors,
+} from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { Terminal as XtermHeadless } from "@xterm/headless"
 import type { TerminalRow } from "./pty-types"
 import { type XtermLineLike, xtermLineMatchesChunks } from "./xterm-chunks"
@@ -17,6 +24,23 @@ export function wireXtermChannels(
 ): void {
   term.onData(hooks.onReply)
   term.onTitleChange(hooks.onTitle)
+}
+
+/** Answer OSC 10/11 in local xterm-backed terminals. Hosted PTYs disable
+ * this because their process-owning host answers even with no TUI attached. */
+export function wireXtermDefaultColorQueries(
+  term: XtermHeadless,
+  colors: TerminalDefaultColors | undefined,
+  reply: (data: string) => void,
+): void {
+  const resolved = parseTerminalDefaultColors(colors) ?? DEFAULT_TERMINAL_COLORS
+  for (const slot of [10, 11] as const) {
+    term.parser.registerOscHandler(slot, (payload) => {
+      if (payload !== "?") return false
+      reply(formatDefaultColorReply(slot, resolved))
+      return true
+    })
+  }
 }
 
 export type SnapshotMeta = {
@@ -136,6 +160,7 @@ export function dirtyRowsMatchSnapshot(
   dirty: DirtyRows | null,
   cursorHidden: boolean,
   frozen: FrozenScrollback | null = null,
+  styleRewrites?: readonly TerminalStyleRewrite[],
 ): boolean {
   if (!previousMeta || !sameMeta(previousMeta, currentMeta) || !dirty) return false
   let first = currentMeta.start
@@ -163,7 +188,7 @@ export function dirtyRowsMatchSnapshot(
     // construction.
     if (frozen && y < frozen.baseY && frozen.cache.get(frozen.absBase + y) === row) continue
     const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
-    if (!xtermLineMatchesChunks(active.getLine(y), row, minLast)) return false
+    if (!xtermLineMatchesChunks(active.getLine(y), row, minLast, styleRewrites)) return false
   }
   return true
 }

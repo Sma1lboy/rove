@@ -10,6 +10,7 @@
  */
 
 import { isValidCron, nextCronAfter } from "@sma1lboy/kobe-daemon/daemon/cron"
+import { relativeBuckets } from "../../lib/relative-time"
 
 /** Card fields, in tab order. `confirm` is the Create button. */
 export type ComposerField = "name" | "repo" | "prompt" | "schedule" | "confirm"
@@ -86,11 +87,10 @@ export function previewSchedule(expression: string, nowMs: number): SchedulePrev
 }
 
 function formatRelative(deltaMs: number): string {
-  const minutes = Math.max(1, Math.round(deltaMs / 60_000))
-  if (minutes < 60) return `in ${minutes}m`
-  const hours = Math.round(minutes / 60)
+  const { minutes, hours, days } = relativeBuckets(deltaMs)
+  if (minutes < 60) return `in ${Math.max(1, minutes)}m`
   if (hours < 24) return `in ${hours}h`
-  return `in ${Math.round(hours / 24)}d`
+  return `in ${days}d`
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const

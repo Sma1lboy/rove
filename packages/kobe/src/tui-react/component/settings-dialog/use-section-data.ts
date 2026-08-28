@@ -1,25 +1,16 @@
 /**
  * Section data the Settings dialog reads from OUTSIDE its own kv state —
- * engine account probes (fs/env) and the plugin registry (`~/.kobe/
+ * engine detection probes (fs/env) and the plugin registry (`~/.kobe/
  * plugins.json`). Both are lazy: nothing is read until the owning section
  * is first opened, so a settings open that never visits them pays nothing.
  * Split out of `index.tsx` for the file-size cap, like `use-settings-prefs`
  * / `use-engine-settings`.
  */
 
-import { useEffect, useRef, useState } from "react"
-import {
-  type ClaudeAccount,
-  type CodexAccount,
-  type CopilotAccount,
-  type EngineAccountStatus,
-  type KimiAccount,
-  detectClaudeAccount,
-  detectCodexAccount,
-  detectCopilotAccount,
-  detectKimiAccount,
-} from "../../../engine/account-detect"
+import { useEffect, useState } from "react"
+import { type EngineStatus, detectEngineStatuses } from "../../../engine/engine-status"
 import type { SectionId } from "../../../tui/component/settings-dialog/model"
+import type { VendorId } from "../../../types/task"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
@@ -27,29 +18,31 @@ import { RenameTaskDialog } from "../rename-task-dialog"
 import { nextEnumValue, normalizeNumberInput, toggledBooleanValue } from "./plugin-settings-core"
 import { type PluginRowView, readPluginRows, setPluginEnabled, setPluginSetting } from "./plugins-core"
 
-export interface AccountProbes {
-  claude: EngineAccountStatus<ClaudeAccount> | null
-  codex: EngineAccountStatus<CodexAccount> | null
-  copilot: EngineAccountStatus<CopilotAccount> | null
-  kimi: EngineAccountStatus<KimiAccount> | null
-}
-
-/** Read-only login detection, probed once per dialog mount. */
-export function useAccountProbes(section: SectionId): AccountProbes {
-  const [claude, setClaude] = useState<EngineAccountStatus<ClaudeAccount> | null>(null)
-  const [codex, setCodex] = useState<EngineAccountStatus<CodexAccount> | null>(null)
-  const [copilot, setCopilot] = useState<EngineAccountStatus<CopilotAccount> | null>(null)
-  const [kimi, setKimi] = useState<EngineAccountStatus<KimiAccount> | null>(null)
-  const probed = useRef(false)
+/**
+ * Read-only "installed + logged in" detection for EVERY engine in the
+ * Engines section's list — the built-ins with a real account detector and the
+ * contrib / plugin / custom engines that only have a binary to probe.
+ * `null` while the probe is in flight. Re-probes each time the section is
+ * opened (and when the engine list grows), so a CLI installed from another
+ * terminal shows up without restarting Rove.
+ */
+export function useAccountProbes(section: SectionId, vendors: readonly VendorId[]): readonly EngineStatus[] | null {
+  const [statuses, setStatuses] = useState<readonly EngineStatus[] | null>(null)
+  // `vendors` is rebuilt every render, so the effect keys on its CONTENT
+  // (engine ids are slugs — no commas) and re-splits it: depending on the
+  // array itself would re-probe on every keystroke in the dialog.
+  const key = vendors.join(",")
   useEffect(() => {
-    if (section !== "accounts" || probed.current) return
-    probed.current = true
-    void detectClaudeAccount().then(setClaude)
-    void detectCodexAccount().then(setCodex)
-    void detectCopilotAccount().then(setCopilot)
-    void detectKimiAccount().then(setKimi)
-  }, [section])
-  return { claude, codex, copilot, kimi }
+    if (section !== "engines") return
+    let cancelled = false
+    void detectEngineStatuses(key ? key.split(",") : []).then((s) => {
+      if (!cancelled) setStatuses(s)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [section, key])
+  return statuses
 }
 
 export interface PluginSettings {

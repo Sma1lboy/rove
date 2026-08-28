@@ -33,12 +33,14 @@
  * `state`/`props` — recreated fresh every render, the guarantee Solid's
  * accessors gave for free. `onEditorTabReady`/`onEngineSendReady` hand
  * their callback to the parent once per mount, re-fired on remount.
+ * NOTE — Integration layer at the file-size cap; see docs/design/terminal-tabs-integration.md.
  */
 
 import type { TranscriptActivity } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
 import { engineLaunchArgv } from "@/engine/engine-presets"
 import { withClaudeSessionId } from "@/engine/interactive-command"
+import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
@@ -84,7 +86,7 @@ import { useLatest } from "../lib/use-latest"
 import { PreviewScreen } from "../ops/preview"
 import { useDialog } from "../ui/dialog"
 import { TerminalSplit, releaseSplitLeaves } from "./TerminalSplit"
-import { noteEngineInput } from "./optimistic-activity"
+import { noteEngineTabInput } from "./optimistic-activity"
 import { TabStrip, tabTitle } from "./tab-strip"
 import { releaseClosedTabPtys } from "./terminal-tabs-close"
 import { terminalTabsKey } from "./terminal-tabs-persist"
@@ -283,7 +285,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   useTabNaming({ stateRef, propsRef, update })
 
   /* --------- per-tab turn state (hook-first, poll-fallback) --------- */
-  const { turnStates, liveTitles, turnVendors } = useTabTurnState({
+  const { turnStates, liveTitles, turnVendors, seenTabs } = useTabTurnState({
     taskId: props.taskId,
     worktree: props.worktree,
     vendor: props.vendor,
@@ -444,6 +446,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
         vendor={props.vendor}
         liveTitles={liveTitles}
         turnVendors={turnVendors}
+        seenTabs={seenTabs}
       />
       {/* Spawn gate: while restart verification runs (millisecond-scale
           transcript reads), nothing may spawn. */}
@@ -473,7 +476,14 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           initialInput={spawn.initialInput}
           firstMessage={spawn.firstMessage}
           engineBin={spawn.engineBin}
-          onUserInput={active.kind === "engine" ? (data) => noteEngineInput(props.taskId, data) : undefined}
+          terminalPresentation={
+            active.kind === "engine" ? getCapabilities(active.vendor ?? props.vendor)?.terminalPresentation : undefined
+          }
+          onUserInput={
+            active.kind === "engine"
+              ? (data) => noteEngineTabInput(data, props.taskId, active.id, props.hookTabStates?.get(active.id)?.state)
+              : undefined
+          }
           splitTree={active.splitTree ?? null}
           onSplitChange={(next) => update(setTabSplit(state, active.id, next))}
           onExit={tabClose.handleActiveExit}

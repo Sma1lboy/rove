@@ -34,7 +34,7 @@ describe("KimiHookAdapter", () => {
     expect(adapter.supportsWorktreeSync()).toBe(false)
   })
 
-  it("owns exactly the events Kimi can deliver safely", () => {
+  it("wires the load-bearing Kimi events and keeps Notification out", () => {
     // Interrupt is the load-bearing one: Kimi fires it INSTEAD of Stop on a
     // user interrupt (plugin-events.md §B).
     for (const wired of ["SessionStart", "UserPromptSubmit", "Stop", "StopFailure", "Interrupt", "PermissionRequest"]) {

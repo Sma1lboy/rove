@@ -183,7 +183,7 @@ describe("landTask", () => {
   })
 })
 
-describe("landTaskWithCleanup --remove-worktree", () => {
+describe("landTaskWithCleanup worktree cleanup", () => {
   let wt: string
 
   /** Real worktree on branch `feat` with one committed file, base back on main. */
@@ -224,11 +224,36 @@ describe("landTaskWithCleanup --remove-worktree", () => {
     expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true) // the merge itself landed
   })
 
-  test("dirty worktree is refused (no force) but the land still stands", async () => {
+  test("land with no opts removes the worktree by default, keeping the branch", async () => {
+    // The DEFAULT, not the flag: `{}` is what the TUI and a flagless
+    // `rove api land` send. Revert land.ts to `opts.removeWorktree ? … :
+    // undefined` and this goes red on its first two assertions.
+    makeWorktree()
+    const { deps: d, cleared } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, {}, d)
+    expect(res.worktree).toEqual({ removed: true })
+    expect(fs.existsSync(wt)).toBe(false)
+    expect(branchExists("feat")).toBe(true)
+    expect(cleared).toEqual(["t-land"])
+    expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
+  })
+
+  test("removeWorktree: false keeps the worktree and reports no cleanup", async () => {
+    makeWorktree()
+    const { deps: d, cleared } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { removeWorktree: false }, d)
+    expect(res.worktree).toBeUndefined()
+    expect(fs.existsSync(wt)).toBe(true)
+    expect(branchExists("feat")).toBe(true)
+    expect(cleared).toEqual([])
+    expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true) // the merge still landed
+  })
+
+  test("a dirty worktree is refused on the default path, and the land still stands", async () => {
     makeWorktree()
     fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted\n")
     const { deps: d, cleared } = deps()
-    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { removeWorktree: true }, d)
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, {}, d)
     expect(res.worktree?.removed).toBe(false)
     expect(res.worktree?.reason).toMatch(/dirty/)
     expect(fs.existsSync(path.join(wt, "wip.txt"))).toBe(true)
@@ -236,17 +261,31 @@ describe("landTaskWithCleanup --remove-worktree", () => {
     expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
   })
 
-  test("caller inside the worktree is refused with an explanation", async () => {
+  test("caller inside the worktree is refused on the default path too", async () => {
     makeWorktree()
     const { deps: d } = deps()
-    const res = await landTaskWithCleanup(
-      { ...task("feat"), worktreePath: wt },
-      { removeWorktree: true, callerCwd: wt },
-      d,
-    )
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { callerCwd: wt }, d)
     expect(res.worktree?.removed).toBe(false)
     expect(res.worktree?.reason).toMatch(/caller's own worktree/)
     expect(fs.existsSync(wt)).toBe(true)
+  })
+
+  test("a failed worktreePath clear still reports the worktree as removed", async () => {
+    makeWorktree()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      {},
+      {
+        worktrees: new GitWorktreeManager(),
+        setArchived: async () => {},
+        clearWorktreePath: async () => {
+          throw new Error("tasks.json write failed")
+        },
+      },
+    )
+    expect(res.worktree?.removed).toBe(true)
+    expect(res.worktree?.reason).toMatch(/tasks\.json write failed/)
+    expect(fs.existsSync(wt)).toBe(false)
   })
 
   test("never removes the base checkout even if worktreePath points at it", async () => {
@@ -256,13 +295,5 @@ describe("landTaskWithCleanup --remove-worktree", () => {
     expect(res.worktree?.removed).toBe(false)
     expect(res.worktree?.reason).toMatch(/base checkout/)
     expect(fs.existsSync(repo)).toBe(true)
-  })
-
-  test("without removeWorktree the result has no worktree field", async () => {
-    makeWorktree()
-    const { deps: d } = deps()
-    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, {}, d)
-    expect(res.worktree).toBeUndefined()
-    expect(fs.existsSync(wt)).toBe(true)
   })
 })

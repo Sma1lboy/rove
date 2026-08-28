@@ -47,7 +47,7 @@ export interface AutoTitled {
  * Run one pass: rename every still-placeholder task that now has a
  * usable first-user-prompt title. Sequential (gentle on disk) and
  * best-effort per task. Returns the tasks it renamed (id + new title) —
- * the live poller uses that to also rename each task's origin ChatTab
+ * the live poller uses that to also rename each task's origin Terminal Tab;
  * tests assert on the list. Pure orchestrator work with no terminal IO.
  */
 export async function runAutoTitlePass(

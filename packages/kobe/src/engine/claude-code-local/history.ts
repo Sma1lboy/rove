@@ -9,7 +9,8 @@
  *
  *     ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl
  *
- * `<encoded-cwd>` is the *absolute* cwd with `/` replaced by `-`, e.g.
+ * `<encoded-cwd>` is the *absolute* cwd with every non-alphanumeric
+ * character replaced by `-` (see {@link encodeCwd}), e.g.
  * `/Users/jackson/i/kobe` → `-Users-jackson-i-kobe`. The encoding is
  * **lossy**: a path containing literal `-` collapses to the same
  * directory as a `/`-delimited one (so `foo/bar-baz` and `foo-bar/baz`
@@ -95,14 +96,25 @@ const defaultDeps: HistoryDeps = {
 /**
  * Encode a cwd to Claude Code's on-disk project directory name.
  *
- * `/` and `.` are both replaced with `-`. Claude Code itself does this —
- * a directory named `1.2.3` becomes `1-2-3`. The encoding is lossy
- * (see file-level docstring) and reversal is unreliable.
+ * Claude Code replaces **every** non-alphanumeric character with `-` —
+ * its own encoder is `cwd.replace(/[^a-zA-Z0-9]/g, "-")` (verified in the
+ * shipped CLI bundle), so `/`, `.`, `_`, spaces, and non-ASCII letters
+ * all fold. Matching only `/` and `.` (the old behavior) pointed every
+ * encoding-dependent consumer at a directory Claude never created
+ * whenever the worktree path contained e.g. an underscore — silently
+ * disabling session-file discovery, activity mtime detection, and
+ * interrupted-prompt rescue for that task.
+ *
+ * No legacy fallback on purpose: the dirs under `~/.claude/projects` are
+ * created by Claude with this encoding, so the fix *restores* access to
+ * them. The only dirs the old encoding could name were rescue-created by
+ * kobe itself, holding orphaned prompts Claude's `--resume` never read.
+ *
+ * The encoding is lossy (see file-level docstring) and reversal is
+ * unreliable — we never decode, only iterate/derive.
  */
 export function encodeCwd(cwd: string): string {
-  // Normalize to forward-slashes (paranoia for cross-platform callers
-  // building these paths in tests). Then replace runs of `/` and `.`.
-  return cwd.replace(/[/.]/g, "-")
+  return cwd.replace(/[^a-zA-Z0-9]/g, "-")
 }
 
 /** One persisted Claude session file under a worktree's project dir. */
@@ -153,7 +165,7 @@ export async function listSessionFilesForWorktree(worktree: string): Promise<Wor
  * Newest transcript mtime (epoch ms) for `worktree`, or 0 when the task
  * was never entered / has no session files. The Ops pane polls this to
  * detect "the agent produced new conversation output" without parsing
- * the tmux pane. `listSessionFilesForWorktree` already sorts
+ * the PTY screen. `listSessionFilesForWorktree` already sorts
  * newest-first, so `[0]` is the most recent activity.
  */
 export async function latestTranscriptMtimeForWorktree(worktree: string): Promise<number> {

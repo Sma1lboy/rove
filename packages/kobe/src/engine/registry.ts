@@ -9,7 +9,7 @@
  *   - `history`        — transcript store reader (auto-title, recap).
  *   - `detectAccount`  — read-only login/binary probe (Settings → Accounts).
  *   - `createHookAdapter` — activity-hook installer (claude + codex today).
- *   - `createTurnDetector` — ChatTab turn-completion detection.
+ *   - `createTurnDetector` — Terminal Tab turn-completion detection.
  *   - `defaultCommand` / `displayName` — launch + label defaults.
  *
  * Adding an engine = one new entry here (plus its vendor-local modules);
@@ -51,6 +51,8 @@ import { CodexHookAdapter } from "./codex-local/hook-adapter.ts"
 import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
+import { contribEngineEntry, isContribEngine } from "./contrib-engines.ts"
+import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import {
   EMPTY_HISTORY,
   claudeHistoryReader,
@@ -60,7 +62,9 @@ import {
 } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
+import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
 import { trustKimiWorktree } from "./kimi-local/trust.ts"
+import type { EngineScreenManifest } from "./screen-state.ts"
 import {
   type EngineTerminalTitle,
   stripStatusPrefix,
@@ -133,7 +137,7 @@ export interface EngineRegistryEntry {
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
   /**
-   * Turn-completion detector for ChatTab status (transcript markers +
+   * Turn-completion detector for Terminal Tab status (transcript markers +
    * pane quiescence; see `turn-detector.ts`). Engines without persisted
    * completion markers (copilot, custom) get an {@link UnknownTurnDetector}
    * whose `supportsCompletionMarkers()` is false.
@@ -202,6 +206,14 @@ export interface EngineRegistryEntry {
    * per-turn attribution kobe can read (nothing is guessed for it).
    */
   readonly readTurns?: EngineTurnReader
+  /**
+   * Declarative screen-state rules for engines WITHOUT persisted completion
+   * markers (see `engine/screen-state.ts`): the quiescence poll classifies
+   * each pane capture into working/blocked/idle instead of "unknown".
+   * Engines with markers don't declare one — the transcript is the better
+   * authority, and hooks supersede both (`turn-state-merge.ts`).
+   */
+  readonly screenManifest?: EngineScreenManifest
 }
 
 // The per-vendor readers live in `history-readers.ts` (file-size cap);
@@ -214,7 +226,10 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
   claude: {
     vendor: "claude",
     builtin: true,
-    displayName: "Claude",
+    // The adapter's EngineIdentity is the source of truth for name copy
+    // (AGENTS.md: engine-owned UI data); displayName is the resolved view
+    // every neutral layer reads via engineDisplayName().
+    displayName: claudeIdentity.shortName,
     defaultCommand: ["claude"],
     history: claudeHistoryReader,
     detectAccount: (deps) => detectClaudeAccount(deps),
@@ -236,7 +251,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
   codex: {
     vendor: "codex",
     builtin: true,
-    displayName: "Codex",
+    displayName: codexIdentity.shortName,
     defaultCommand: ["codex"],
     // Effort levels real `codex exec` accepts (the broken `minimal` is
     // deliberately excluded — CHANGELOG 0.5.17).
@@ -280,6 +295,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     createHookAdapter: () => new NoopHookAdapter("copilot"),
     // Copilot persists no turn-completion marker kobe can read yet.
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
+    screenManifest: COPILOT_SCREEN_MANIFEST,
   },
   kimi: {
     vendor: "kimi",
@@ -297,6 +313,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     detectAccount: (deps) => detectKimiAccount(deps),
     createHookAdapter: () => new KimiHookAdapter(),
     createTurnDetector: () => new UnknownTurnDetector("kimi"),
+    screenManifest: KIMI_SCREEN_MANIFEST,
   },
 }
 
@@ -325,7 +342,11 @@ function customEngineEntry(vendor: VendorId): EngineRegistryEntry {
  * this module deliberately does not read so it stays state-free).
  */
 export function engineEntry(vendor: VendorId): EngineRegistryEntry {
-  return isBuiltinVendor(vendor) ? BUILTIN_ENGINES[vendor] : customEngineEntry(vendor)
+  if (isBuiltinVendor(vendor)) return BUILTIN_ENGINES[vendor]
+  const custom = customEngineEntry(vendor)
+  // Shipped contrib engines (data-only long tail): the custom empty entry
+  // overlaid with the catalog's identity + screen manifest.
+  return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
 }
 
 /**

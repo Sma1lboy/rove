@@ -1,8 +1,8 @@
 # Routines
 
 Work that runs without you. A **Routine** is a cron rule + a prompt + a repo,
-owned by the daemon. Every firing creates a fresh [task](CONCEPTS.md) — its own
-worktree, its own branch, its own engine session — with the prompt as that
+owned by the daemon. Every firing creates a fresh [task](CONCEPTS.md) with its own
+worktree, its own branch, and its own engine session, carrying the prompt as that
 session's first message.
 
 That last part is the design, not an implementation detail. A run is not a
@@ -10,7 +10,7 @@ hidden background job with a log file somewhere; it is an ordinary task in your
 sidebar that you can open, read, disagree with, and keep talking to. Scheduled
 work you cannot inspect afterwards is not worth scheduling.
 
-![The Routines page — three scheduled prompts with their repo, cron expression and next run, and the selected routine's prompt, precheck and run history in the detail box below](assets/routines.png)
+![The Routines page: three scheduled prompts with their repo, cron expression and next run, and the selected routine's prompt, precheck and run history in the detail box below](assets/routines.png)
 
 ## Two minutes to your first routine
 
@@ -22,23 +22,23 @@ The example throughout this page is the one in the screenshot: *every morning at
 1. `ctrl+a` `2` (or click **Routines** in the sidebar rail) opens the page.
 2. `n` opens the composer. `tab` / `shift+tab` walk the fields: **name**,
    **repo** (a scrolling picker over your projects), **prompt**, and
-   **schedule** — five labelled cells (min / hour / day / month / weekday)
+   **schedule**, five labelled cells (min / hour / day / month / weekday)
    where `←`/`→` picks a cell and `↑`/`↓` changes it. The composer restates
    the next fire time in your own clock as you type ("weekdays at 12:00 · in
    2d · Mon 12:00"), so a cron expression you got wrong is visible before you
    save it.
-3. `s` runs it once, right now. **Do this** — it is how you find out the prompt
+3. `s` runs it once, right now. **Do this.** It is how you find out the prompt
    works without waiting a day for the schedule, and it does not shift the next
    scheduled run.
 4. `enter` opens the task that run created. From here it is a normal session.
 
-![The New routine composer — name, repo picker and prompt above five labelled cron cells, with the hour cell selected and the schedule restated underneath as "weekdays at 12:00 · in 2d · Mon 12:00"](assets/routines-composer.png)
+![The New routine composer: name, repo picker and prompt above five labelled cron cells, with the hour cell selected and the schedule restated underneath as "weekdays at 12:00 · in 2d · Mon 12:00"](assets/routines-composer.png)
 
 There is no in-page editing: recreate the routine, or use `rove api
-routine-update`. A precheck (below) is CLI-only — it is the one field that is
+routine-update`. A precheck (below) is CLI-only; it is the one field that is
 genuinely optional.
 
-The page end to end — walking the schedules, pausing one, then composing a
+The page end to end: walking the schedules, pausing one, then composing a
 routine whose next fire time is restated in plain words as the cron cells
 change:
 
@@ -72,16 +72,16 @@ Full flag list: `rove api schema --group routine`, or [rove api](API.md).
 | Where | What it tells you |
 |---|---|
 | Header, right | Whether an enabled routine is **keeping the daemon awake** right now |
-| Row | Name, repo, five-field schedule, and the next run in relative time (`in 5h`) — or `paused` |
+| Row | Name, repo, five-field schedule, and the next run in relative time (`in 5h`), or `paused` |
 | Detail box | The selected routine's prompt, its precheck if any, and **RECENT RUNS** with their outcomes |
-| `[ run now ]` | The same thing `s` does — try it without waiting for the schedule |
+| `[ run now ]` | The same thing `s` does; try it without waiting for the schedule |
 
 Keys: `j`/`k` move, `n` creates, `e` pauses or resumes, `s` runs now, `d`
 deletes, `r` refreshes, `enter` opens the task from the latest run, `esc` or `q`
 closes the page.
 
 Deleting removes the routine and its run history. **Tasks it already created are
-untouched** — they are ordinary tasks and outlive the schedule that made them.
+untouched.** They are ordinary tasks and outlive the schedule that made them.
 
 ## The schedule
 
@@ -105,7 +105,7 @@ field):
 | `*/30 * * * *` | Every half hour |
 
 Day matching follows the Vixie rule: when **both** day-of-month and weekday are
-restricted they are OR'd, so `0 0 1 * MON` means the 1st **or** any Monday — not
+restricted they are OR'd, so `0 0 1 * MON` means the 1st **or** any Monday, not
 "a Monday the 1st".
 
 ## The precheck: don't burn a turn on an idle repo
@@ -115,9 +115,9 @@ restricted they are OR'd, so `0 0 1 * MON` means the 1st **or** any Monday — n
 ```
 
 The command runs in the repo, through your login shell, **before** the engine
-starts. Exit 0 proceeds; anything else — a non-zero exit, a timeout (120s by
-default, `--precheck-timeout`), a failure to spawn — skips the run *without
-creating a task*.
+starts. Exit 0 proceeds. Anything else skips the run *without creating a
+task*: a non-zero exit, a timeout (120s by default, `--precheck-timeout`), or
+a failure to spawn.
 
 This is the cost control. The dominant waste in scheduled agent work is firing
 on time when nothing has changed: the engine still boots, still reads the repo,
@@ -126,7 +126,7 @@ answers that for free.
 
 It fails closed on purpose. A broken precheck must never quietly degrade into
 "run every time", which is exactly the cost it exists to prevent. `run now` /
-`routine-run-now` skips the precheck entirely — asking for the run by hand *is*
+`routine-run-now` skips the precheck entirely; asking for the run by hand *is*
 the answer to "should this run?".
 
 ## What each run did
@@ -138,10 +138,10 @@ needed:
 | Status | Meaning |
 |---|---|
 | `dispatched` | Task created, engine started with the prompt |
-| `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
+| `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_missed` | The occurrence was older than the grace window |
 | `skipped_unavailable` | The repo or worktree could not be resolved |
-| `dispatch_failed` | Task created, but its engine did not start — **needs you** |
+| `dispatch_failed` | Task created, but its engine did not start. **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
@@ -149,7 +149,7 @@ a label.
 ## Restarts, and runs you missed
 
 The next run is stored as an **absolute timestamp on disk**, never an in-memory
-timer. A daemon that restarts — or that was down for a day — rediscovers every
+timer. A daemon that restarts, or that was down for a day, rediscovers every
 armed schedule on its first sweep, with no re-arm step and no lost schedule.
 
 If the daemon was down when a run was due, the occurrence still runs late as
@@ -176,13 +176,13 @@ lifetime rules.
 Known and deliberate, as of today:
 
 - Every firing creates a new task; a routine cannot reuse an existing one.
-- No timezone field — schedules are the daemon host's local time.
+- No timezone field; schedules are the daemon host's local time.
 - No per-run cost attribution, and no remote/SSH execution target.
 
 ## See also
 
-- [rove api](API.md#routine) — every `routine-*` verb and flag.
-- [The TUI](TUI.md#routines-ctrla-2) — the Routines page among the other pages.
-- [Concepts](CONCEPTS.md) — what a task is, and why a run being one matters.
-- [design/automations.md](design/automations.md) — internal design note: the
+- [rove api](API.md#routine): every `routine-*` verb and flag.
+- [The TUI](TUI.md#routines-ctrla-2): the Routines page among the other pages.
+- [Concepts](CONCEPTS.md): what a task is, and why a run being one matters.
+- [design/automations.md](design/automations.md): internal design note, the
   sweep, the cron implementation, the daemon-lifetime hold.

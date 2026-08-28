@@ -4,9 +4,9 @@
  * v0.5's protocol was huge because the daemon hosted live chat
  * streams: `chat.delta`, `chat.event`, `chat.complete`, pending-input
  * brokers, plan-usage polling, rc-bridge state, etc. v0.6 collapses
- * all of that — claude lives in tmux, so the daemon's only job is to
- * be a single writer for the task index. The protocol shrinks to a
- * task-CRUD + subscribe shape.
+ * all of that — engine sessions live in hosted PTYs, so the daemon's
+ * only job is to be a single writer for the task index. The protocol
+ * shrinks to a task-CRUD + subscribe shape.
  */
 
 import type { ChannelName } from "./channels.ts"
@@ -181,11 +181,10 @@ export type DaemonRequestName =
   // PostToolUse) reports that a `git worktree add` just ran in `cwd`. The
   // daemon adopts the new worktree as a task the MOMENT it's created — no
   // engine session needed (the complement to session-start auto-adopt).
-  | "worktree.reconcile"
   // Removal-time auto-archive (KOB): the same `kobe hook worktree-created`
   // (global PostToolUse) reports that a `git worktree remove <path>` just ran.
   // The daemon archives the task whose worktree was that path — the symmetric
-  // complement to `worktree.reconcile` (remove a worktree → its task archives).
+  // symmetric complement to worktree adoption (remove a worktree → its task archives).
   | "worktree.archiveRemoved"
   // Cross-project worktree audit (the standalone worktree-management TUI
   // page): list every worktree of every local saved project (kobe-managed
@@ -254,13 +253,15 @@ export type DaemonRequestName =
   // the launch path seeds each fresh worktree session with it.
   | "note.file"
   | "note.list"
-  // Hosted PTYs (v4) — the tmux-persistence replacement for the embedded
-  // terminal. Served by the standalone PTY HOST process (`kobe pty-host`,
-  // its own socket — see `pty-server.ts`), NOT by the daemon: the daemon
-  // restarts routinely, the pty host must outlive it like the tmux server
-  // did. Same frame grammar, so the same client class speaks both. The
+  // Hosted PTYs (v4) — persistent out-of-process terminals for embedded
+  // engine sessions. Served by the standalone PTY HOST process
+  // (`kobe pty-host`, its own socket — see `pty-server.ts`), NOT by the
+  // daemon: the daemon restarts routinely, so the pty host must outlive it.
+  // Same frame grammar, so the same client class speaks both. The
   // host owns the raw PTY child + a byte ring buffer per session key; the
-  // TUI keeps VT emulation (xterm-headless) local. `pty.open` attaches
+  // TUI keeps VT emulation (xterm-headless) local. The host answers only
+  // OSC 10/11 default-color queries so headless children see a terminal
+  // palette even while no emulator is attached. `pty.open` attaches
   // the calling CONNECTION (spawning on first open, replaying the ring
   // buffer on reattach); output streams back as targeted `pty.data` event
   // frames written only to attached connections. `pty.sweep` is the
@@ -293,15 +294,15 @@ export type DaemonRequestName =
  * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's
  * refcounted lazy-shutdown counts only real front-end attaches.
  *
- * - `gui`  — a user-facing front-end attach (the `kobe` process parked on
- *   `tmux attach`, or the deprecated outer monitor). Its lifetime equals
- *   "a human is looking at kobe", so it HOLDS the daemon alive.
- * - `pane` — a kobe-spawned helper inside the tmux session (Tasks pane, Ops,
- *   settings/new-task windows, transient `kobe api` pokes). It subscribes to
- *   RECEIVE push channels but must NOT keep the daemon alive: these panes
- *   outlive the attach (the tmux session persists after the user quits), so
- *   counting them wedged the daemon open forever — N ChatTab windows meant N
- *   Tasks panes, so the count never reached 0 on quit.
+ * - `gui`  — a user-facing front-end attach (the `kobe` TUI process, or the
+ *   deprecated outer monitor). Its lifetime equals "a human is looking at
+ *   kobe", so it HOLDS the daemon alive.
+ * - `pane` — a kobe-spawned helper pane (Tasks pane, Ops, settings/new-task
+ *   windows, transient `kobe api` pokes). It subscribes to RECEIVE push
+ *   channels but must NOT keep the daemon alive: these panes outlive the
+ *   attach (the front-end session persists after the user quits), so counting
+ *   them wedged the daemon open forever — N Terminal Tabs meant N Tasks panes,
+ *   so the count never reached 0 on quit.
  *
  * Default is `pane`: a subscriber that forgets to declare a role is the safe
  * non-holding kind, so a future client can never accidentally pin the daemon.

@@ -7,7 +7,7 @@ One section per symptom; keep entries short and command-exact.
 
 The Rove CLI runs on the [Bun](https://bun.sh) runtime. The published `rove` and
 `kobe` bins are node launchers that re-exec through Bun, so an `npm install -g`
-or `npx` on a machine without Bun still works — the first launch offers to
+or `npx` on a machine without Bun still works; the first launch offers to
 install Bun for you. You land on this error when that offer could not be made
 (no TTY, `CI=true`, or `ROVE_NO_BUN_BOOTSTRAP=1`) or was declined.
 
@@ -21,9 +21,9 @@ npm install -g bun                              # any platform
 
 Bun is discovered on `PATH`, in `$BUN_INSTALL/bin`, in `~/.bun/bin`, and in a
 `bun` npm package installed beside Rove. A Bun anywhere else needs
-`ROVE_BUN=/path/to/bun` — export it from your shell profile so daemon restarts
+`ROVE_BUN=/path/to/bun`. Export it from your shell profile so daemon restarts
 see it too. The bare `env: bun: No such file or directory` message comes from an install
-made before the launcher shipped, whose bin needed Bun on `PATH` — `rove update`
+made before the launcher shipped, whose bin needed Bun on `PATH`. `rove update`
 replaces it.
 
 ## Windows opens Rove, but engine and terminal tabs never start
@@ -73,9 +73,13 @@ The raw logs live under the active Rove home (normally your OS home):
 
 | Path | Contains |
 |---|---|
-| `~/.kobe/daemon.log` | daemon startup, crashes, RPC and web-transport failures |
-| `~/.kobe/pty.log` | Hosted PTY startup and session-host failures |
-| `~/.kobe/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures |
+| `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
+| `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+
+(Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
+directory; runtime files now live under `~/.rove`, with legacy paths honoured
+only while a process started before the move is still alive.)
 
 After an upgrade, a daemon can still be running old in-memory code. Doctor
 reports that version mismatch; fix it with `rove daemon restart`. If the PTY
@@ -83,10 +87,15 @@ host itself is wedged, `rove reset` stops both runtimes and all live terminal
 and engine sessions, but does not touch git worktrees. Read the confirmation
 carefully before proceeding.
 
+`rove doctor --fix` walks these remedies for you, one confirmation per fix:
+safe ones (a daemon restart, a skill install) run after a per-fix `y/N`, while
+anything that would kill live sessions — `rove reset` included — is printed
+for you to run yourself, never executed.
+
 ## What terminal output does Rove persist after a crash?
 
 Hosted PTY output is not always memory-only. Two bounded recovery stores live
-under `~/.kobe/` (or the selected Rove home):
+under `~/.rove/` (or the selected Rove home):
 
 - `pty-exits.json` records **abnormal** exits only. It keeps at most the newest
   50 session records, with exit metadata and up to the last 40 plain-text
@@ -100,8 +109,8 @@ under `~/.kobe/` (or the selected Rove home):
 
 These files can contain text that was visible in the embedded terminal. Treat
 the Rove home with the same permissions and backup policy as shell history and
-engine transcripts; do not describe terminal output as “never written to
-disk.”
+engine transcripts; do not describe terminal output as "never written to
+disk."
 
 ## Rove says the daemon serves a different home
 
@@ -154,6 +163,136 @@ no-op. `rove hook setup` is deprecated and now performs cleanup only. Older
 Rove versions installed a Claude `WorktreeCreate` provider hook that could
 break `claude --worktree`; current launches remove Rove's old entry while
 preserving user hooks and use an observer instead.
+
+## One task's badge never moves, and its title never auto-fills
+
+Every other task updates; one worktree stays silent — no activity badge, no
+auto-title, and an interrupted prompt is never offered back. That is the
+narrow version of the symptom above: when *every* task goes quiet, the hooks
+are the cause; when a single worktree does, its path is.
+
+Rove reads Claude's own transcript directory,
+`~/.claude/projects/<encoded-worktree-path>`. Claude folds every
+non-alphanumeric character of the path into `-`; before 0.8.198 Rove folded
+only `/` and `.`. The two names diverged for any worktree path containing a
+character outside `/`, `.`, `-`, and alphanumerics — an underscore, a space,
+or anything non-ASCII, whether it came from the repo name, the task slug, or
+your home directory. Rove then watched a directory Claude never wrote, and
+every signal derived from that transcript went quiet with no error: activity
+badge, turn detection, auto-title, and prompt rescue.
+
+Check the version, then confirm the directory exists for the stuck worktree:
+
+```bash
+rove --version                                          # 0.8.198+ has the fix
+cd <the worktree>
+ls -d ~/.claude/projects/"$(pwd | sed 's/[^a-zA-Z0-9]/-/g')"
+```
+
+`rove update`, then `rove daemon restart`. No history is lost by the upgrade:
+those directories are written by Claude with the correct encoding, so the
+corrected name finds the transcripts that were there all along, including for
+the sessions that ran while the badge sat still.
+
+## `rove api send` refuses with NO_ENGINE_TAB or ENGINE_NOT_RUNNING
+
+Both errors are deliberate refusals, not delivery failures. Silently spawning
+a fresh engine here would make both sender and receiver believe the prompt
+was delivered while it actually landed in a duplicate session nobody is
+watching — so `send` fails loud instead.
+
+- **`NO_ENGINE_TAB`**: the task has live tabs, but none of them resolves as
+  its engine tab (the engine tab died, or the tabs run something else). List
+  what is actually alive, then address a tab explicitly:
+
+  ```bash
+  rove api pty-list
+  rove api send --task-id <id> --tab tab-N --prompt "..."   # deliver to a live tab
+  rove api send --task-id <id> --tab new --prompt "..."     # or spawn a fresh engine tab
+  ```
+
+- **`ENGINE_NOT_RUNNING`**: the engine tab exists but its engine process has
+  exited into a plain shell — pasting there would execute the prompt as shell
+  commands. Spawn a fresh engine tab with `--tab new` as above.
+
+A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
+task another Rove session spawned, and otherwise the active task — it never
+silently spawns an engine on a guess.
+
+## `rove api set-branch` fails, but the branch was renamed anyway
+
+The call exits non-zero with git's own complaint, stamped with the path of the
+**main checkout** rather than the worktree:
+
+```
+git branch -m <old> <new> (cwd=/path/to/repo) exited with code 128:
+fatal: no branch named '<old>'
+```
+
+Meanwhile the worktree is already sitting on `<new>`. The rename worked; only
+the task record's idea of the old name was stale — from a retried call whose
+first response was lost, a concurrent rename, or an out-of-band
+`git branch -m` in the worktree. Branch refs are shared across all worktrees
+of a repo, so the main-checkout path in the message is where git was run, not
+a branch that is missing from one place and present in another.
+
+0.8.198 resolves the ambiguity: when `git branch -m` fails, the rename probes
+the end state, and old-name-gone plus new-name-present is treated as the
+requested outcome — the call succeeds and the record converges. A genuine
+collision (both names present) or a missing pair still fails.
+
+On an older version, read the end state before you retry, and do **not**
+rename by hand — the branch is already correct:
+
+```bash
+git -C <worktree> branch --show-current   # already <new>? then it succeeded
+rove api get-task --task-id <id>          # what the task record still believes
+```
+
+Upgrading and re-running `set-branch` converges the record.
+
+## Two daemons, or engine tabs split across hosts, after an upgrade
+
+Rove 0.8.189 moved runtime files (sockets, pidfiles, logs) from `~/.kobe` to
+`~/.rove`. A binary predating the move looks only at the legacy paths; if it
+cannot see the new daemon it starts a second one on the same task index, or a
+second PTY host that splits your engine tabs. Current versions leave symlinks
+at the legacy paths after binding, so mixed-version installs find the same
+daemon — you only hit the split if an old global install (`kobe` from npm,
+an old Homebrew bin) is still being launched somewhere.
+
+```bash
+rove --version        # every entry point should report the same version
+rove doctor           # reports version mismatches and duplicate runtimes
+rove daemon restart   # rebinds on the canonical ~/.rove paths
+```
+
+Then update or remove the stale install so both `rove` and `kobe` resolve to
+the same current binary.
+
+## A plugin installs cleanly, but Rove never loads it
+
+`rove plugin list` shows it as enabled, while its panes and actions never
+appear in the TUI. The two views disagree because they read different things:
+the CLI reads the registry file directly, so it reports what was written; the
+daemon is the process that actually loads plugins, and it missed the write.
+
+Before 0.8.198 the daemon watched `plugins.json` with `fs.watch`. On macOS the
+FSEvents stream behind `fs.watch` arms asynchronously, so a registry write
+landing after the watcher was created but before its stream went live was
+dropped permanently, with no error on either side. A `rove plugin install`,
+`link`, or `enable` that raced daemon startup was therefore ignored until the
+next registry mutation or the next daemon restart.
+
+```bash
+rove --version         # 0.8.198+ stat-polls the registry instead
+rove daemon restart    # makes the daemon re-read a write it dropped
+rove plugin list       # then confirm the TUI agrees
+```
+
+0.8.198 takes a synchronous baseline stat before the first registry load and
+polls every 200ms, so no write can fall between the watcher and the load.
+Enabling a plugin on a current version no longer depends on when you ran it.
 
 ## Copy from the embedded terminal doesn't reach my clipboard (especially over SSH)
 
@@ -213,7 +352,7 @@ browser owns the clipboard.
 the TTY: it decides what to do with a right-click before mouse reporting
 ever sees it. iTerm2 (and several other emulators) keep right-click for
 their own menu by default, so Rove's row menu never gets the event. No TUI
-can take that back from inside the terminal — the fix is a terminal
+can take that back from inside the terminal. The fix is a terminal
 setting, not a Rove one.
 
 **iTerm2** ships an official escape hatch for exactly this
@@ -230,7 +369,7 @@ setting, not a Rove one.
 fallback below.
 
 **Fallback that works everywhere:** every row-menu entry is also a direct
-chord on the row itself (`r` rename, `a` archive, `d` delete, …) — see
+chord on the row itself (`r` rename, `a` archive, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
 

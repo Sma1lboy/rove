@@ -37,7 +37,10 @@ describe("TaskIndexStore multi-process consistency", () => {
   }
 
   /** Read the on-disk manifest directly — the source of truth, not a cache. */
-  async function readDisk(): Promise<{ tasks: Array<{ id: string; title: string }> }> {
+  async function readDisk(): Promise<{
+    tasks: Array<{ id: string; title: string }>
+    removed?: Array<{ id: string; at: string }>
+  }> {
     const raw = await readFile(join(home, ".rove", "tasks.json"), "utf8")
     return JSON.parse(raw)
   }
@@ -81,6 +84,32 @@ describe("TaskIndexStore multi-process consistency", () => {
     const ids = disk.tasks.map((t) => t.id)
     expect(ids).toContain(survivor.id)
     expect(ids).not.toContain(task.id)
+  })
+
+  it("a peer's deletion beats this instance's pending edit (persistent tombstone)", async () => {
+    const procA = new TaskIndexStore({ homeDir: home })
+    await procA.load()
+    const task = await procA.create(input("doomed"))
+
+    const procB = new TaskIndexStore({ homeDir: home })
+    await procB.load()
+
+    // A deletes; B then touches the SAME task without flushing (touchRecency
+    // marks dirty but defers the save). At B's next save the task is dirty in
+    // B's memory while gone from disk — the exact issue #47 resurrection
+    // recipe: the merge's dirty branch used to write it back unconditionally.
+    // A's on-disk tombstone must beat B's pending edit.
+    await procA.remove(task.id)
+    procB.touchRecency(task.id)
+    const survivor = await procB.create(input("survivor"))
+
+    const disk = await readDisk()
+    const ids = disk.tasks.map((t) => t.id)
+    expect(ids).toContain(survivor.id)
+    expect(ids).not.toContain(task.id)
+    // The tombstone itself is preserved by B's merge, so a THIRD stale writer
+    // can't resurrect the task either.
+    expect(disk.removed?.some((r) => r.id === task.id)).toBe(true)
   })
 
   it("does not resurrect a legacy task after a peer creates the canonical index", async () => {

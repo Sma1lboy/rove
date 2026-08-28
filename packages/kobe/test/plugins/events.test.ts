@@ -30,8 +30,11 @@ describe("PluginEventReducer", () => {
     const reducer = new PluginEventReducer(() => 42)
     expect(snapshot(reducer, ["a", "b"])).toEqual([])
     const created = snapshot(reducer, ["a", "b", "c"])
-    expect(created).toEqual([
-      { event: "task.created", taskId: "c", task: expect.objectContaining({ id: "c" }), at: 42 },
+    // The helper's tasks are born WITH a worktree path, so adopt semantics
+    // fire worktree.created in the same snapshot as task.created.
+    expect(created.map((e) => [e.event, e.taskId])).toEqual([
+      ["task.created", "c"],
+      ["worktree.created", "c"],
     ])
     const deleted = snapshot(reducer, ["a"])
     expect(deleted.map((e) => [e.event, e.taskId])).toEqual([
@@ -40,21 +43,43 @@ describe("PluginEventReducer", () => {
     ])
   })
 
-  it("emits worktree.created only on ensureWorktree done", () => {
+  it("emits worktree.created when a task's worktree path goes empty → set", () => {
     const reducer = new PluginEventReducer(() => 1)
-    snapshot(reducer, ["a"])
-    const running = reducer.reduce({
-      channel: "task.jobs",
-      payload: { taskId: "a", kind: "ensureWorktree", phase: "running" },
-    } as never)
-    expect(running).toEqual([])
-    const done = reducer.reduce({
-      channel: "task.jobs",
-      payload: { taskId: "a", kind: "ensureWorktree", phase: "done" },
-    } as never)
-    expect(done).toEqual([
-      { event: "worktree.created", taskId: "a", task: expect.objectContaining({ id: "a" }), at: 1 },
-    ])
+    const feed = (tasks: Record<string, unknown>[]) =>
+      reducer.reduce({ channel: "task.snapshot", payload: { tasks } } as never)
+    feed([task("a", { worktreePath: "" })])
+    const events = feed([task("a", { worktreePath: "/wt/a" })])
+    expect(events.map((e) => e.event)).toEqual(["task.changed", "worktree.created"])
+    // task.jobs no longer feeds the reducer at all.
+    expect(
+      reducer.reduce({
+        channel: "task.jobs",
+        payload: { taskId: "a", kind: "ensureWorktree", phase: "done" },
+      } as never),
+    ).toEqual([])
+  })
+
+  it("emits task.changed with fields/from/to, task.archived on the flip, and task.pr-changed", () => {
+    const reducer = new PluginEventReducer(() => 9)
+    const feed = (tasks: Record<string, unknown>[]) =>
+      reducer.reduce({ channel: "task.snapshot", payload: { tasks } } as never)
+    feed([task("a")])
+    const changed = feed([task("a", { title: "renamed", archived: true })])
+    expect(changed.map((e) => e.event)).toEqual(["task.changed", "task.archived"])
+    expect(changed[0]?.detail).toEqual({
+      fields: ["title", "archived"],
+      from: { title: "t-a", archived: false },
+      to: { title: "renamed", archived: true },
+    })
+    // Unarchive is a restore: task.changed only, no task.archived.
+    const restored = feed([task("a", { title: "renamed" })])
+    expect(restored.map((e) => e.event)).toEqual(["task.changed"])
+    // PR status has its own event and is not a `fields` entry.
+    const pr = feed([task("a", { title: "renamed", prStatus: { state: "open" } })])
+    expect(pr.map((e) => e.event)).toEqual(["task.pr-changed"])
+    expect(pr[0]?.detail).toEqual({ to: { state: "open" } })
+    // Identical snapshot → silence.
+    expect(feed([task("a", { title: "renamed", prStatus: { state: "open" } })])).toEqual([])
   })
 
   it("emits agent.* only on state transitions, keyed per task+tab", () => {
@@ -67,9 +92,11 @@ describe("PluginEventReducer", () => {
     expect(feed("a", "running")).toEqual([])
     expect(feed("a", "turn_complete")).toEqual([expect.objectContaining({ event: "agent.turn-complete" })])
     // A different tab of the same task tracks its own state.
-    expect(feed("a", "running", "tab2")).toEqual([expect.objectContaining({ event: "agent.running" })])
+    expect(feed("a", "running", "tab2")).toEqual([
+      expect.objectContaining({ event: "agent.running", taskId: "a", tabId: "tab2" }),
+    ])
     expect(feed("a", "permission_needed", "tab2")).toEqual([
-      expect.objectContaining({ event: "agent.permission-needed" }),
+      expect.objectContaining({ event: "agent.permission-needed", taskId: "a", tabId: "tab2" }),
     ])
     expect(feed("b", "rate_limited")).toEqual([expect.objectContaining({ event: "agent.rate-limited", taskId: "b" })])
   })

@@ -9,24 +9,52 @@ import { describe, expect, test } from "vitest"
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8")
 const json = <T>(path: string): T => JSON.parse(read(path)) as T
+const SYNC_SCRIPT = "packages/kobe-docs/scripts/sync-docs.mjs"
+const MODIFIED_MAP = "packages/kobe-docs/lib/last-modified.json"
 
 describe("Rove package distribution", () => {
   test("the docs build embeds demo videos from its own static asset tree", () => {
-    execFileSync("bun", ["packages/kobe-docs/scripts/sync-docs.mjs"], {
-      cwd: ROOT,
-      stdio: "pipe",
-    })
+    execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
+
+    // Find the page rather than hardcoding its directory: sync-docs.mjs owns
+    // the docs/ source -> site slug mapping, and a module split moves pages
+    // between subdirectories (ad017cbd put these under rove/). Searching keeps
+    // this assertion about the VIDEO EMBED instead of the current tree shape.
+    const contentRoot = join(ROOT, "packages/kobe-docs/content/docs")
+    const findPage = (page: string) => {
+      const hits = readdirSync(contentRoot, { recursive: true, encoding: "utf8" }).filter(
+        (entry) => entry === `${page}.mdx` || entry.endsWith(`/${page}.mdx`),
+      )
+      expect(hits, `${page}.mdx should be generated exactly once`).toHaveLength(1)
+      return join(contentRoot, hits[0])
+    }
 
     for (const [page, video] of [
       ["tui", "kanban"],
       ["routines", "routines"],
     ] as const) {
-      const generated = read(`packages/kobe-docs/content/docs/${page}.mdx`)
+      const generated = readFileSync(findPage(page), "utf8")
       expect(generated).toContain("<video controls playsInline")
       expect(generated).toContain(`poster="/docs-assets/${video}.png"`)
       expect(generated).toContain(`src="/docs-assets/${video}.mp4"`)
       expect(generated).toContain(`](/docs-assets/${video}.mp4)`)
       expect(existsSync(join(ROOT, `packages/kobe-docs/public/docs-assets/${video}.mp4`))).toBe(true)
+    }
+  })
+
+  test("the docs freshness map carries a real date per page, or no date at all", () => {
+    execFileSync("bun", [SYNC_SCRIPT], { cwd: ROOT, stdio: "pipe" })
+
+    // Non-empty is the real guard, and CI is where it bites: GitHub Actions
+    // and Vercel both check out shallow, where `git log -1 -- <file>` cannot
+    // distinguish "changed today" from "fetched today". sync-docs deepens the
+    // history rather than emit nothing, and an empty map here means that
+    // deepening broke — the site would ship with no freshness signal at all.
+    const dates = json<Record<string, string>>(MODIFIED_MAP)
+    expect(Object.keys(dates).length).toBeGreaterThan(10)
+    for (const [path, date] of Object.entries(dates)) {
+      expect(path, "keys are site paths").toMatch(/^\/[a-z0-9/-]*$/)
+      expect(date, `${path} should be an ISO date`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
     }
   })
 
@@ -96,10 +124,32 @@ describe("Rove package distribution", () => {
     expect(commands.some((command) => /--filter @sma1lboy\/kobe(?:\s|$)/.test(command))).toBe(false)
   })
 
+  test("the published package declares node-pty even though kobe's own source never imports it", () => {
+    // The runtime consumer is kobe-daemon (pty-driver.ts's `import("node-pty")`,
+    // shipped as dist/cli/pty-host-node.mjs with node-pty external). But
+    // @sma1lboy/kobe-daemon is private and never published — its dependencies
+    // reach no user install. The ONLY thing that puts node-pty on disk under an
+    // installed @sma1lboy/rove is this declaration; removing it breaks the
+    // Windows ConPTY host with MODULE_NOT_FOUND (verified against a packed
+    // tarball installed into a clean npm prefix, issue #50). knip flags it as
+    // unused because it cannot see the dynamic import — that is a false
+    // positive, suppressed in knip.json, not a license to delete.
+    const pkg = json<{ dependencies: Record<string, string> }>("packages/kobe/package.json")
+    const knip = json<{ ignoreDependencies?: string[] }>("packages/kobe/knip.json")
+
+    expect(pkg.dependencies["node-pty"]).toBeDefined()
+    expect(knip.ignoreDependencies).toContain("node-pty")
+  })
+
   test("daemon typechecking does not rely on the renamed package's hoisted dependencies", () => {
     const daemon = json<{ devDependencies: Record<string, string> }>("packages/kobe-daemon/package.json")
+    const kobe = json<{ devDependencies: Record<string, string> }>("packages/kobe/package.json")
 
-    expect(daemon.devDependencies["@types/node"]).toBe("25.6.2")
+    // The invariant is "daemon carries its OWN pin, in lockstep with kobe's" —
+    // not a specific version. A frozen literal turns every routine @types/node
+    // bump into an unrelated red.
+    expect(daemon.devDependencies["@types/node"]).toBeDefined()
+    expect(daemon.devDependencies["@types/node"]).toBe(kobe.devDependencies["@types/node"])
   })
 
   test("the plugin SDK workspace and daemon dependency use the canonical Rove package", () => {
@@ -262,9 +312,12 @@ describe("Rove package distribution", () => {
     expect(releaseSkill).toContain("# Release Rove")
     expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
     expect(releaseSkill).not.toContain('"@sma1lboy/kobe": minor')
-    expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeLessThan(
-      releaseSkill.indexOf("npm view @sma1lboy/kobe@<new-version>"),
-    )
+    // indexOf returns -1 when absent, and -1 < anything — without the presence
+    // guards, deleting the canonical `npm view` line would turn this GREEN.
+    const canonicalView = releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")
+    const aliasView = releaseSkill.indexOf("npm view @sma1lboy/kobe@<new-version>")
+    expect(canonicalView).toBeGreaterThanOrEqual(0)
+    expect(aliasView).toBeGreaterThan(canonicalView)
     expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/kobe-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("Every Rove release checks the SDK's current version")
@@ -291,10 +344,13 @@ describe("Rove package distribution", () => {
     const themesScript = read("packages/kobe-landing/themes.js")
     const themesStyles = read("packages/kobe-landing/themes.css")
 
-    expect(home).toContain('<script src="/index.js"></script>')
+    // Match the REFERENCE, not its exact spelling: `defer`/`async` are
+    // performance attributes a page may legitimately gain, and pinning the
+    // literal tag turned that into a failure (PR #594).
+    expect(home).toMatch(/<script[^>]+src="\/index\.js"/)
     expect(homeScript).toContain("https://api.github.com/repos/Sma1lboy/rove")
     expect(themes).toContain('<link rel="stylesheet" href="/themes.css">')
-    expect(themes).toContain('<script src="/themes.js"></script>')
+    expect(themes).toMatch(/<script[^>]+src="\/themes\.js"/)
     expect(themesScript).toContain("var KOBE_I18N")
     expect(themesStyles).toContain(".tcard")
   })

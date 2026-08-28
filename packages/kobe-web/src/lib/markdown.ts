@@ -51,37 +51,57 @@ function safeHref(raw: string): string | null {
   return null
 }
 
+/**
+ * URL part of `[…](url)` / `![…](url)`: anything but parens, plus ONE level of
+ * balanced `(…)` (CommonMark-style), so `http://a.com/foo(bar)` stays whole
+ * instead of truncating at the first `)`. The alternation's branches start on
+ * disjoint characters, so it can't backtrack quadratically.
+ */
+const SPAN_URL = /(?:[^()]|\([^()]*\))+/.source
+const IMAGE_SPAN_RE = new RegExp(`!\\[([^\\]]*)\\]\\((${SPAN_URL})\\)`, "g")
+const LINK_SPAN_RE = new RegExp(`\\[([^\\]]+)\\]\\((${SPAN_URL})\\)`, "g")
+
+/**
+ * Render `[text](url)` (already-escaped fragment) as an anchor when the scheme
+ * is safe, else inert text. Shared by the link pass and the non-asset image
+ * fallback. The url was HTML-escaped (e.g. &amp;); unescape &amp; for the
+ * scheme check, then re-escape, so it's HTML-safe inside the href attribute.
+ */
+function renderLinkSpan(text: string, url: string): string {
+  const href = safeHref(url.replace(/&amp;/g, "&"))
+  if (!href) return `${text}(${url})`
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="kobe-md-link">${text}</a>`
+}
+
 /** Image/link/bold/italic on a NON-code, already-escaped fragment. */
 function transformSpans(s: string): string {
   let out = s
   // ![alt](src): MUST run before the link rule (`![…]` is a superset of `[…]`),
   // else the link pass would eat the `[…](…)` and leave a stray `!`. Only the
-  // bridge's own issue-asset route renders as an <img>; anything else falls
-  // back to escaped text. Gated on `]`/`)` for the same backtracking reason.
+  // bridge's own issue-asset route renders as an <img>; a non-asset url falls
+  // back to the same safe-link rendering as `[alt](url)` (no `!` artifact),
+  // and an empty alt stays literal text. Gated on `]`/`)` cheaply.
   if (out.includes("]") && out.includes(")")) {
     out = out.replace(
-      /!\[([^\]]*)\]\(([^)]+)\)/g,
+      IMAGE_SPAN_RE,
       (_m, alt: string, url: string) => {
         // The url was HTML-escaped; unescape &amp; before the route check.
         const src = safeImageSrc(url.replace(/&amp;/g, "&"))
-        if (!src) return `![${alt}](${url})`
-        return `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="lazy" class="kobe-md-img">`
+        if (!src) return alt ? renderLinkSpan(alt, url) : `![${alt}](${url})`
+        // `alt` reaches here already entity-encoded by the escape-first pass
+        // (<, >, ", & are all entities), so it is attribute-safe as-is —
+        // escaping again would double-encode (&amp;lt;) and screen readers
+        // would announce the entities literally.
+        return `<img src="${escapeHtml(src)}" alt="${alt}" loading="lazy" class="kobe-md-img">`
       },
     )
   }
   // [text](url): url is from escaped text; validate scheme, drop unsafe.
-  // Skip the link regex when there's no `]`/`(` to match: its `[^\]]+`/`[^)]+`
-  // classes backtrack quadratically on a long run of unmatched `[`.
+  // Skip the link regex when there's no `]`/`(` to match: its `[^\]]+` class
+  // backtracks quadratically on a long run of unmatched `[`.
   if (out.includes("]") && out.includes(")")) {
-    out = out.replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      (_m, text: string, url: string) => {
-        // The url was HTML-escaped (e.g. &amp;); unescape &amp; for the scheme
-        // check, then re-escape, so it's HTML-safe inside the href attribute.
-        const href = safeHref(url.replace(/&amp;/g, "&"))
-        if (!href) return `${text}(${url})`
-        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" class="kobe-md-link">${text}</a>`
-      },
+    out = out.replace(LINK_SPAN_RE, (_m, text: string, url: string) =>
+      renderLinkSpan(text, url),
     )
   }
   // Bold is non-greedy so `**bold *italic* more**` keeps the inner `*…*` for

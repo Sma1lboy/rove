@@ -8,14 +8,11 @@
  * state/vendor-prefs.ts).
  */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { installedEngineIds } from "../../../engine/account-detect"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
-import {
-  VENDOR_LABEL,
-  defaultEngineCommand,
-  engineCommandKey,
-  engineNameKey,
-} from "../../../engine/interactive-command"
+import { defaultEngineCommand, engineCommandKey, engineNameKey } from "../../../engine/interactive-command"
+import { engineEntry } from "../../../engine/registry"
 import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/vendor-prefs"
 import { humanizeSlug } from "../../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
@@ -30,12 +27,58 @@ export function useEngineSettings(
   /** Clamp the body cursor after a custom engine is removed (max = list length incl. the +Add row). */
   onEngineListShrunk: (maxIndex: number) => void,
 ) {
+  // Engines Rove can launch beyond the built-ins + this user's own: the
+  // shipped contrib catalog (offered only when its binary is on PATH) and
+  // plugin-registered engines. The INSTALLED list, not the offered one — a
+  // switched-off engine still needs its row here to switch back on.
+  const [detected, setDetected] = useState<readonly VendorId[]>([])
+  useEffect(() => {
+    void installedEngineIds().then(setDetected)
+  }, [])
+
   function customEngines(): string[] {
     const raw = kv.get("customEngineIds", [])
     return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
   }
   function engineList(): VendorId[] {
-    return [...ALL_VENDORS, ...customEngines()]
+    // Built-ins are ALWAYS listed, detected or not — this row is where you
+    // point an engine at an off-PATH binary in the first place.
+    return [...new Set([...ALL_VENDORS, ...customEngines(), ...detected])]
+  }
+  /** True only for an engine this user added — the one `x` can unregister. */
+  function isCustomEngine(vendor: VendorId): boolean {
+    return customEngines().includes(vendor)
+  }
+
+  function disabledEngines(): string[] {
+    const raw = kv.get("disabledEngineIds", [])
+    return Array.isArray(raw) ? raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0) : []
+  }
+  function isEngineEnabled(vendor: VendorId): boolean {
+    return !disabledEngines().includes(vendor)
+  }
+  /**
+   * Switch an engine off (it keeps its overrides, it just stops being offered
+   * when picking one for a task) or back on. Switching off the GLOBAL default
+   * hands the ● to the first engine still enabled — a default nobody can pick
+   * would silently strand every new task; when nothing else is enabled the
+   * toggle is refused instead.
+   */
+  function toggleEngineEnabled(vendor: VendorId): void {
+    const off = disabledEngines()
+    if (off.includes(vendor)) {
+      kv.set(
+        "disabledEngineIds",
+        off.filter((id) => id !== vendor),
+      )
+      return
+    }
+    const nextDefault = engineList().find((id) => id !== vendor && !off.includes(id))
+    if (defaultEngine === vendor) {
+      if (!nextDefault) return // the last enabled engine stays on
+      setEngineDefault(nextDefault)
+    }
+    kv.set("disabledEngineIds", [...off, vendor])
   }
   function engineOverride(vendor: VendorId): string {
     const v = kv.get(engineCommandKey(vendor), "")
@@ -45,8 +88,9 @@ export function useEngineSettings(
     return engineOverride(vendor) || defaultEngineCommand(vendor).join(" ")
   }
   function engineIsDefault(vendor: VendorId): boolean {
-    // Custom engines have no built-in default, so they never read as "(default)".
-    return isBuiltinVendor(vendor) && engineOverride(vendor).length === 0 && !engineNameIsCustom(vendor)
+    // A user-added engine has no built-in default, so it never reads as
+    // "(default)"; a contrib/plugin engine does (its catalog command).
+    return !isCustomEngine(vendor) && engineOverride(vendor).length === 0 && !engineNameIsCustom(vendor)
   }
   function engineNameOverride(vendor: VendorId): string {
     const v = kv.get(engineNameKey(vendor), "")
@@ -56,8 +100,9 @@ export function useEngineSettings(
     return engineNameOverride(vendor).length > 0
   }
   function engineName(vendor: VendorId): string {
-    // Built-ins fall back to VENDOR_LABEL; a custom engine falls back to its id.
-    return engineNameOverride(vendor) || VENDOR_LABEL[vendor] || vendor
+    // Built-ins fall back to VENDOR_LABEL; contrib engines to their catalog
+    // name; a plain custom engine falls back to its id.
+    return engineNameOverride(vendor) || engineEntry(vendor).displayName
   }
 
   const [defaultEngine, setDefaultEngineState] = useState<VendorId>(
@@ -67,6 +112,22 @@ export function useEngineSettings(
     setGlobalDefaultVendor(vendor)
     kv.set("defaultVendor", vendor) // keep the in-process kv consistent
     setDefaultEngineState(vendor)
+  }
+
+  /**
+   * `d` and the `(●)` radio both land here. Making a switched-off engine the
+   * default is a contradiction — the pick would never be offered — so choosing
+   * it switches it back on first, which is plainly what the gesture meant.
+   */
+  function chooseDefaultEngine(vendor: VendorId): void {
+    const off = disabledEngines()
+    if (off.includes(vendor)) {
+      kv.set(
+        "disabledEngineIds",
+        off.filter((id) => id !== vendor),
+      )
+    }
+    setEngineDefault(vendor)
   }
 
   async function editEngine(vendor: VendorId): Promise<void> {
@@ -93,7 +154,7 @@ export function useEngineSettings(
   function resetEngine(vendor: VendorId): void {
     kv.set(engineCommandKey(vendor), "")
     kv.set(engineNameKey(vendor), "")
-    if (!isBuiltinVendor(vendor)) {
+    if (isCustomEngine(vendor)) {
       // A removed preset must not leave its protocol behind: re-adding the
       // same id later would silently inherit the old declaration.
       kv.set(engineProtocolKey(vendor), "")
@@ -154,11 +215,15 @@ export function useEngineSettings(
 
   return {
     engineList,
+    isCustomEngine,
+    isEngineEnabled,
+    toggleEngineEnabled,
     engineName,
     engineCommandText,
     engineIsDefault,
     defaultEngine,
     setEngineDefault,
+    chooseDefaultEngine,
     editEngine,
     renameEngine,
     resetEngine,

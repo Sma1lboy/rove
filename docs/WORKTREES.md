@@ -13,12 +13,25 @@ with [Concepts](CONCEPTS.md). To create or adopt a task, see
 A managed task created without an explicit branch derives its branch name
 from the task title, following the repository's own naming convention: Rove
 scans the repo's existing branches (local + `origin`) and matches the
-dominant style — a type prefix like `feat/`/`fix/`/`chore/` when that's what
+dominant style: a type prefix like `feat/`/`fix/`/`chore/` when that's what
 the repo uses, or a bare kebab slug otherwise (also the fallback for an
 empty repo). Name collisions get a short `-2`/`-3` suffix. Generated names
-never contain Rove branding. An explicit `--branch` on creation and
-`set-branch` afterwards override this entirely; existing branches are never
-renamed retroactively.
+never contain Rove branding. An explicit `--branch` on creation,
+`set-branch` afterwards, and `b` on a task row in the sidebar override this
+entirely. A branch still on its `new-task` placeholder is renamed once,
+automatically, when the task gets a real title (skipped if the branch
+already has an upstream); after that Rove never touches it again. A new
+worktree task started with a prompt also asks its agent to `set-branch` to a
+descriptive name once it understands the work.
+
+## Where worktrees live
+
+By default a managed worktree lands under
+`~/.rove/worktrees/<repo-basename>-<hash>/<slug>`, where `<slug>` is a
+random animal name (`-v2`/`-v3` on collision). Settings → General →
+Worktree location relocates the root (a `$project_dir` token expands to each
+task's project root). Remote (SSH) projects put worktrees under the remote
+project's own path at `<project>/.rove/worktrees/<slug>`.
 
 ## Open and navigate the page
 
@@ -27,7 +40,8 @@ renamed retroactively.
 3. Use the up/down arrows to select a worktree.
 4. Press `esc` or `q` to return to the workspace.
 
-The page lists non-main worktrees from every saved **local** project. Remote
+The page lists non-main worktrees with a branch checked out from every saved
+**local** project (bare and detached-HEAD worktrees are skipped). Remote
 SSH projects are not included. It loads local git facts first, then fills in
 remote and GitHub PR signals; a slow or unavailable network therefore leaves
 useful local rows on screen.
@@ -69,12 +83,20 @@ in the project's base checkout.
 3. Confirm the branch and base-checkout operation.
 
 The page uses a normal `--no-ff` merge. If the selected directory is not
-tracked by a Rove task, Land refuses. A dirty base checkout also refuses. On a
+tracked by a Rove task, Land refuses. A dirty base checkout also refuses, as
+does a branch with no commits ahead of the base (naming the uncommitted
+files when the work was never committed), a detached-HEAD base checkout, and
+a base already on the branch being landed. On a
 merge conflict, Rove aborts the merge and reports the conflicted paths, leaving
 manual conflict resolution to you.
 
-Landing does not remove the worktree, archive the task, or delete the source
-branch. Those are separate lifecycle decisions.
+A successful land removes the worktree — it is spent once its branch is in —
+and the row leaves the page. The **branch survives**: git keeps the durable
+record. If removal is refused (the worktree is dirty, it is the base
+checkout, or it is the directory Rove itself is running from), the land still
+stands and the page reports why the worktree is still there. Archiving the
+task and deleting the source branch remain separate lifecycle decisions;
+from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
 ## Remove a clean worktree
 

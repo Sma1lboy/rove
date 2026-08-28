@@ -12,7 +12,7 @@ type MetaEntry = (typeof docs)['meta'][number];
 // the duplicate declarations. The runtime is unaffected; re-attach the
 // collection entry types explicitly.
 export const source = loader({
-  baseUrl: '/docs',
+  baseUrl: '/',
   source: docs.toFumadocsSource(),
 }) as unknown as LoaderOutput<{
   page: Page<undefined, DocEntry>;

@@ -43,6 +43,7 @@ import { installEventLoopStallTelemetry } from "../../tui/lib/event-loop-stall"
 import {
   hostRenderOptions,
   inlineRenderOptions,
+  installBracketedPasteMode,
   installExitRestoreBackstop,
   installOrphanExitWatchdog,
   installPaneExitBackstop,
@@ -63,12 +64,12 @@ import {
   setTransparentBackground,
   transparentBackground,
 } from "../context/theme"
-import { useTheme } from "../context/theme"
+import { DEFAULT_THEME, useTheme } from "../context/theme"
 import { isLocaleId, setLocaleLang, t } from "../i18n"
 import { DialogProvider } from "../ui/dialog"
 
 /** Theme used when `state.json` is missing/stale — kobe's brand default. */
-const FALLBACK_THEME = "claude"
+const FALLBACK_THEME = DEFAULT_THEME
 
 /** Same flag surface as the Solid host; see header for the un-ported one. */
 export interface HostProviderFlags {
@@ -267,6 +268,9 @@ export async function bootPaneHost(opts: BootPaneHostOpts): Promise<void> {
     </ThemeProvider>,
   )
   installExitRestoreBackstop(renderer)
+  // After render: opentui has finished its own terminal setup, so the mode we
+  // add on top isn't clobbered by it.
+  installBracketedPasteMode()
   installPaneExitBackstop()
   installOrphanExitWatchdog()
   installEventLoopStallTelemetry()

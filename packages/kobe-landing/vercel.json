@@ -13,12 +13,12 @@
   "redirects": [
     {
       "source": "/docs",
-      "destination": "https://docs.rove.sma1lboy.me/",
+      "destination": "https://docs.rove.run/",
       "permanent": true
     },
     {
       "source": "/docs/(.*)",
-      "destination": "https://docs.rove.sma1lboy.me/$1",
+      "destination": "https://docs.rove.run/$1",
       "permanent": true
     }
   ],

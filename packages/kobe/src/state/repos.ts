@@ -161,6 +161,19 @@ export function getCustomEngineIds(): readonly string[] {
   return raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
 }
 
+/**
+ * Engine ids the user switched OFF in Settings → Engines, stored under the
+ * shared state.json `disabledEngineIds` key. A disabled engine keeps its
+ * command and name overrides — it is simply not offered when picking an
+ * engine for a task. Read cross-process the same way as
+ * {@link getCustomEngineIds}; the Settings dialog writes it through its kv.
+ */
+export function getDisabledEngineIds(): readonly string[] {
+  const raw = loadStateFile().disabledEngineIds
+  if (!Array.isArray(raw)) return []
+  return raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+}
+
 export type AddResult = { added: boolean; path: string; total: number }
 
 /**

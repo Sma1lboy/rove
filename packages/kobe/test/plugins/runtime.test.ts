@@ -101,8 +101,61 @@ describe("PluginHost", () => {
       await waitFor(() => logLines().length >= 2)
       expect(JSON.parse(logLines()[0] as string)).toMatchObject({ exitCode: 0 })
     } finally {
-      host.stop()
+      await host.stop()
     }
+  })
+
+  it("runs [[shutdown]] hooks on stop and fires plugin.enabled on a registry reload", async () => {
+    const home = tmp("kobe-plugin-home-")
+    const root = tmp("kobe-plugin-root-")
+    writeFileSync(
+      join(root, "rove-plugin.toml"),
+      `
+id = "example.life"
+name = "Life"
+version = "0.1.0"
+min_rove_version = "0.1.0"
+
+[[shutdown]]
+command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > stopped.txt"]
+
+[[events]]
+on = "plugin.enabled"
+command = ["sh", "-c", "printf %s \\"$ROVE_PLUGIN_EVENT\\" > enabled.txt"]
+`,
+    )
+    mkdirSync(join(home, ".kobe"), { recursive: true })
+    // Start with an EMPTY registry — the plugin is enabled by a later write,
+    // which is exactly the transition plugin.enabled reports. The write below
+    // lands in the same tick as start(); with fs.watch this sat inside the
+    // FSEvents async-startup window and was dropped forever under load
+    // (issue #61, ~8% of runs at 8 lanes). The stat-poll watcher makes
+    // delivery deterministic — do not reintroduce fs.watch here.
+    savePluginRegistry({ plugins: [] }, home)
+    const host = new PluginHost({ homeDir: home, socketPath: "/tmp/fake.sock", binPath: "kobe" })
+    const read = (name: string): string => {
+      try {
+        return readFileSync(join(root, name), "utf8")
+      } catch {
+        return ""
+      }
+    }
+    host.start()
+    try {
+      savePluginRegistry(
+        {
+          plugins: [
+            { id: "example.life", source: { kind: "link" }, root, enabled: true, version: "0.1.0", installedAt: 1 },
+          ],
+        },
+        home,
+      )
+      await waitFor(() => read("enabled.txt") === "plugin.enabled")
+    } finally {
+      // stop() resolves only after the shutdown hook exited (or was killed).
+      await host.stop()
+    }
+    expect(read("stopped.txt")).toBe("shutdown")
   })
 
   it("skips disabled plugins and unreadable manifests without crashing", async () => {
@@ -126,7 +179,7 @@ describe("PluginHost", () => {
     })
     host.start()
     host.handleChannel(snapshotEvent(["a"]))
-    host.stop()
+    await host.stop()
     expect(lines.some((l) => l.includes("broken"))).toBe(true)
   })
 })

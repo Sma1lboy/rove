@@ -101,14 +101,15 @@ describe("runDoctorSubcommand", () => {
 
     expect(output()).toContain("daemon:  ✓ running (pid 42, up 1m 5s, 2 task(s), 1 client(s))")
     expect(output()).toContain("pty host: ✓ running (2 session(s), 1 live, 1 parked)")
+    // Sizes render through the shared lib/format-bytes.ts (≥100 drops the decimal).
     expect(output()).toContain("pid 99, 12.0 MB RSS")
-    expect(output()).toContain("ring: 128.0 KB / 1.0 MB")
-    expect(output()).toContain("parked screens: 100.0 KB")
+    expect(output()).toContain("ring: 128 KB / 1.0 MB")
+    expect(output()).toContain("parked screens: 100 KB")
     expect(output()).toContain("park wakes: 7 delta, 2 full replay fallback")
     expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
   })
 
-  it("reports legacy process counts and RSS without mutating them", async () => {
+  it("reports legacy process counts and RSS from a single inspect pass", async () => {
     mocks.request.mockRejectedValue(new Error("not running"))
     mocks.inspectLegacyTmux.mockResolvedValue({
       available: true,
@@ -138,6 +139,29 @@ describe("runDoctorSubcommand", () => {
     expect(writeSpy.mock.calls.join("")).toContain("--report")
     expect(mocks.request).not.toHaveBeenCalled()
     writeSpy.mockRestore()
+  })
+
+  it("failing checks add a --fix hint to the plain run", async () => {
+    mocks.request.mockRejectedValue(new Error("not running"))
+
+    await runDoctorSubcommand([])
+
+    expect(output()).toContain("doctor --fix")
+  })
+
+  it("--fix without a TTY prints the per-fix plan and executes nothing", async () => {
+    mocks.request.mockRejectedValue(new Error("not running"))
+
+    await runDoctorSubcommand(["--fix"])
+
+    // Runnable fix shown with its exact command…
+    expect(output()).toContain("will run:")
+    expect(output()).toContain("daemon restart")
+    // …the dangerous remedy is print-only…
+    expect(output()).toContain("reset")
+    // …and nothing ran (no TTY → no confirmations → no executions).
+    expect(output()).toContain("nothing was executed")
+    expect(output()).not.toContain("✓ done")
   })
 
   it("--report writes a bundle file and points the user at it", async () => {

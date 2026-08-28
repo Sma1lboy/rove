@@ -137,6 +137,7 @@ from creating duplicate children.
 ## 6. State
 
 - Task index: `<ROVE_HOME>/.rove/tasks.json` (legacy `.kobe/tasks.json` is copied additively when the new daemon starts, after the old writer stops)
+- Runtime: `<ROVE_HOME>/.rove/{daemon,pty}.{sock,pid,log}` + `client.log`. A socket is the ADDRESS of a live process, so a legacy `.kobe` path is still used while the process holding it is alive (`daemon/paths.ts`) — otherwise an upgrade would orphan every engine tab the running PTY host owns.
 - UI/settings state: platform config home, normally
   `~/.config/rove/state.json` (legacy `.config/kobe/state.json` is copied without overwrite)
 - Daemon socket/pid/log: derived from `ROVE_HOME_DIR` (`KOBE_HOME_DIR` fallback) and intentionally retain legacy `.kobe` runtime names
@@ -146,10 +147,11 @@ from creating duplicate children.
   metadata is not authoritative product state
 - Engine conversation history: engine-owned locations such as
   `~/.claude/projects/**`
-- Plugins: registry `<KOBE_HOME>/.kobe/plugins.json` (CLI-written,
+- Plugins: registry `<ROVE_HOME>/.rove/plugins.json` (CLI-written,
   daemon-watched); per-plugin checkout/config/state/log under
-  `<KOBE_HOME>/.kobe/plugins/<id>/`. These paths intentionally remain in the
-  compatibility namespace; new commands receive both `ROVE_PLUGIN_*` and
+  `<ROVE_HOME>/.rove/plugins/<id>/`. A pre-rename install still under `.kobe`
+  is read from there until the daemon's next start MOVES the tree across
+  (`state/layout-migration.ts`); new commands receive both `ROVE_PLUGIN_*` and
   `KOBE_PLUGIN_*` variables pointing at the same data.
 
 Never treat browser storage as authoritative for local product state.

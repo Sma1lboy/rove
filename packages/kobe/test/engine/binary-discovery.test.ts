@@ -72,10 +72,14 @@ describe("findClaudeBinary", () => {
     expect(await findClaudeBinary(d)).toBe("/nvm/active/bin/claude")
   })
 
-  it("scans nvm versions newest-first (string sort, reversed)", async () => {
+  it("scans nvm versions newest-first, numerically (a single-digit major must not shadow newer nodes)", async () => {
     const d = claudeDeps({
-      readdir: (p) => (p === "/home/u/.nvm/versions/node" ? ["v18.0.0", "v20.0.0", "v16.0.0"] : []),
-      fileExists: (p) => p === "/home/u/.nvm/versions/node/v20.0.0/bin/claude",
+      readdir: (p) => (p === "/home/u/.nvm/versions/node" ? ["v8.17.0", "v18.0.0", "v20.0.0", "v16.0.0"] : []),
+      // Both the newest node and an old single-digit-major node carry a claude
+      // shim; the newest must win. A plain string sort reverses to "v8.17.0"
+      // first and would launch claude from Node 8.
+      fileExists: (p) =>
+        p === "/home/u/.nvm/versions/node/v20.0.0/bin/claude" || p === "/home/u/.nvm/versions/node/v8.17.0/bin/claude",
     })
     expect(await findClaudeBinary(d)).toBe("/home/u/.nvm/versions/node/v20.0.0/bin/claude")
   })
@@ -104,7 +108,7 @@ describe("findClaudeBinary", () => {
     }
   })
 
-  it("returns undefined from which() when the underlying probe yields nothing (no alias, no output)", async () => {
+  it("skips to the next search step when which() yields nothing (no alias, no output)", async () => {
     // Exercise the real (non-injected) which() shape indirectly isn't needed;
     // this pins the deps contract: a which() returning undefined skips to
     // the next search step without throwing.

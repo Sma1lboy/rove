@@ -73,6 +73,41 @@ export interface PluginPane extends PluginCommandSpec {
   readonly placement: "split" | "tab"
 }
 
+/**
+ * One coding-CLI engine a plugin contributes (docs/design/plugin-events.md
+ * follow-up; same shape as kobe's shipped contrib-engine catalog): identity +
+ * launch command + declarative screen-state rules. The TUI overlays this onto
+ * the empty custom registry entry — launch + selector + screen-based badges,
+ * no account/history/hook surfaces (those require a built-in adapter).
+ */
+export interface PluginEngineRule {
+  readonly state: "working" | "blocked" | "idle"
+  readonly bottomLines?: number
+  readonly all?: readonly string[]
+  readonly any?: readonly string[]
+  readonly lineRegex?: readonly string[]
+}
+
+export interface PluginEngine {
+  /** Engine id (VendorId); may not shadow a built-in. Same alphabet as actions. */
+  readonly id: string
+  readonly name: string
+  /** Launch argv; argv[0] is also the binary probed for selector gating. */
+  readonly command: readonly string[]
+  /** Extra `ps` basenames a live process may show as (post-launch renames). */
+  readonly processNames?: readonly string[]
+  /** Screen-state rules, first match wins (declare blocked before working). */
+  readonly rules: readonly PluginEngineRule[]
+  /** Product identity for UI copy (composer placeholder, labels). Absent
+   *  fields fall back to `name`/id derivations. */
+  readonly identity?: {
+    readonly productName?: string
+    readonly shortName?: string
+    readonly assistantName?: string
+    readonly inputPlaceholder?: string
+  }
+}
+
 export interface PluginManifest {
   readonly id: string
   readonly name: string
@@ -82,11 +117,15 @@ export interface PluginManifest {
   readonly platforms?: readonly PluginPlatform[]
   readonly build: readonly PluginCommandSpec[]
   readonly startup: readonly PluginCommandSpec[]
+  /** Run at daemon stop (bounded — the host kills a hook that outlives its
+   *  grace window rather than delaying shutdown). */
+  readonly shutdown: readonly PluginCommandSpec[]
   readonly actions: readonly PluginAction[]
   readonly events: readonly PluginEventHook[]
   readonly panes: readonly PluginPane[]
   readonly settings: readonly PluginSetting[]
   readonly fileHandlers: readonly PluginFileHandler[]
+  readonly engines: readonly PluginEngine[]
 }
 
 export interface ParsedPluginManifest {
@@ -230,6 +269,10 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     command: asCommand(t.command, `startup[${i}].command`),
     platforms: asPlatforms(t.platforms, `startup[${i}].platforms`),
   }))
+  const shutdown = asTableArray(raw.shutdown, "shutdown").map((t, i) => ({
+    command: asCommand(t.command, `shutdown[${i}].command`),
+    platforms: asPlatforms(t.platforms, `shutdown[${i}].platforms`),
+  }))
 
   const actions = asTableArray(raw.actions, "actions").map((t, i) => {
     const actionId = asString(t.id, `actions[${i}].id`)
@@ -316,6 +359,82 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
     return { pattern, action }
   })
 
+  const engines = asTableArray(raw.engines, "engines").map((t, i) => {
+    const engineId = asString(t.id, `engines[${i}].id`)
+    if (!LOCAL_ID_RE.test(engineId)) fail(`engine id \`${engineId}\` may not contain dots`)
+    // Shadowing a first-party engine would silently reroute claude/codex
+    // launches through plugin data — always a mistake, always fatal.
+    if (["claude", "codex", "copilot", "kimi"].includes(engineId)) {
+      fail(`engine id \`${engineId}\` shadows a built-in engine`)
+    }
+    const rules = asTableArray(t.rules, `engines[${i}].rules`).map((r, j) => {
+      const state = asString(r.state, `engines[${i}].rules[${j}].state`)
+      if (state !== "working" && state !== "blocked" && state !== "idle") {
+        fail(`engines[${i}].rules[${j}].state must be working | blocked | idle`)
+      }
+      const strings = (value: unknown, field: string): string[] | undefined => {
+        if (value === undefined) return undefined
+        if (!Array.isArray(value) || !value.every((v) => typeof v === "string" && v.length > 0)) {
+          fail(`\`${field}\` must be a non-empty array of strings`)
+        }
+        return value as string[]
+      }
+      const lineRegex = strings(r.line_regex, `engines[${i}].rules[${j}].line_regex`)
+      for (const re of lineRegex ?? []) {
+        try {
+          new RegExp(re)
+        } catch {
+          fail(`engines[${i}].rules[${j}].line_regex \`${re}\` is not a valid regex`)
+        }
+      }
+      const all = strings(r.all, `engines[${i}].rules[${j}].all`)
+      const any = strings(r.any, `engines[${i}].rules[${j}].any`)
+      if (!all && !any && !lineRegex) fail(`engines[${i}].rules[${j}] needs at least one of all/any/line_regex`)
+      return {
+        state: state as "working" | "blocked" | "idle",
+        ...(typeof r.bottom_lines === "number" ? { bottomLines: r.bottom_lines } : {}),
+        ...(all ? { all } : {}),
+        ...(any ? { any } : {}),
+        ...(lineRegex ? { lineRegex } : {}),
+      }
+    })
+    const identityRaw = t.identity
+    let identity: PluginEngine["identity"]
+    if (identityRaw !== undefined) {
+      if (typeof identityRaw !== "object" || identityRaw === null || Array.isArray(identityRaw)) {
+        fail(`engines[${i}].identity must be a table`)
+      }
+      const idt = identityRaw as Record<string, unknown>
+      const opt = (key: string): string | undefined =>
+        idt[key] === undefined ? undefined : asString(idt[key], `engines[${i}].identity.${key}`)
+      const productName = opt("product_name")
+      const shortName = opt("short_name")
+      const assistantName = opt("assistant_name")
+      const inputPlaceholder = opt("input_placeholder")
+      identity = {
+        ...(productName !== undefined ? { productName } : {}),
+        ...(shortName !== undefined ? { shortName } : {}),
+        ...(assistantName !== undefined ? { assistantName } : {}),
+        ...(inputPlaceholder !== undefined ? { inputPlaceholder } : {}),
+      }
+    }
+    return {
+      id: engineId,
+      name: asString(t.name, `engines[${i}].name`),
+      command: asCommand(t.command, `engines[${i}].command`),
+      ...(t.process_names === undefined
+        ? {}
+        : { processNames: asCommand(t.process_names, `engines[${i}].process_names`) }),
+      rules,
+      ...(identity ? { identity } : {}),
+    }
+  })
+  const engineSeen = new Set<string>()
+  for (const e of engines) {
+    if (engineSeen.has(e.id)) fail(`duplicate engine id \`${e.id}\``)
+    engineSeen.add(e.id)
+  }
+
   return {
     manifest: {
       id,
@@ -326,11 +445,13 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       platforms,
       build,
       startup,
+      shutdown,
       actions,
       events,
       panes,
       settings,
       fileHandlers,
+      engines,
     },
     warnings,
   }

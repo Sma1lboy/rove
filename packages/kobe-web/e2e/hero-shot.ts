@@ -58,7 +58,8 @@ const runId = `hero-${Date.now()}`
 const browser = await chromium.launch({ headless: true })
 try {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor })
-  await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}`).catch(() => {
+  const webgl = args.includes("--webgl") ? "&webgl=1" : ""
+  await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${webgl}`).catch(() => {
     throw new Error(`no server on :${HERO_WEB_PORT} — start \`bun e2e/hero-serve.ts\` first`)
   })
   await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })

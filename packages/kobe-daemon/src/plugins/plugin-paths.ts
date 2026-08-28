@@ -1,5 +1,5 @@
 /**
- * Filesystem layout for installed plugins, all under `<home>/.kobe/`:
+ * Filesystem layout for installed plugins, all under `<home>/.rove/`:
  *
  *   plugins.json                  — the registry (see plugins/registry.ts)
  *   plugins/<id>/checkout/        — managed source checkout (GitHub installs only)
@@ -11,12 +11,25 @@
  * config/state still live here so uninstall/relink never loses user data.
  */
 
+import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 
+/**
+ * Plugins live under the canonical state dir. An install predating the rename
+ * is still under `.kobe`, and its registry is the only thing that says which
+ * plugins exist — so a home whose canonical registry is absent keeps reading
+ * the legacy tree until the daemon's startup migration moves it across
+ * (`state/layout-migration.ts`). Never a copy at read time: the registry has
+ * exactly one writer.
+ */
 function stateRoot(homeDir?: string): string {
-  return join(homeDir ?? readRoveEnv("HOME_DIR") ?? homedir(), COMPAT_STATE_DIR_BASENAME)
+  const home = homeDir ?? readRoveEnv("HOME_DIR") ?? homedir()
+  const canonical = join(home, ROVE_STATE_DIR_BASENAME)
+  if (existsSync(join(canonical, "plugins.json"))) return canonical
+  const legacy = join(home, COMPAT_STATE_DIR_BASENAME)
+  return existsSync(join(legacy, "plugins.json")) ? legacy : canonical
 }
 
 export function pluginRegistryPath(homeDir?: string): string {

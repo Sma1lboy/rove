@@ -25,12 +25,11 @@ import { LOCALES, type LocaleId } from "../../i18n/catalog"
 
 export type NavLevel = "sidebar" | "body"
 
-export type SectionId = "general" | "engines" | "accounts" | "plugins" | "keys" | "feedback" | "dev"
+export type SectionId = "general" | "engines" | "plugins" | "keys" | "feedback" | "dev"
 
 export const SECTIONS: ReadonlyArray<{ id: SectionId; label: string }> = [
   { id: "general", label: "General" },
   { id: "engines", label: "Engines" },
-  { id: "accounts", label: "Accounts" },
   { id: "plugins", label: "Plugins" },
   { id: "keys", label: "Keybindings" },
   { id: "feedback", label: "Feedback" },
@@ -64,6 +63,7 @@ export type SettingsRow =
   | { id: "tab-strip-hide-single"; kind: "tabStripHideSingle" }
   | { id: string; kind: "engine"; vendor: VendorId }
   | { id: "add-engine"; kind: "engineAdd" }
+  | { id: "keys-create"; kind: "keysCreate" }
   | { id: string; kind: "pluginToggle"; pluginId: string }
   | { id: string; kind: "pluginSetting"; pluginId: string; key: string }
   | { id: "feedback-title"; kind: "feedbackTitle" }
@@ -114,6 +114,8 @@ export type SettingsRowsInput = {
   /** Registered plugins (`~/.kobe/plugins.json`), in registry order. */
   plugins: readonly PluginRowsEntry[]
   hasDaemon: boolean
+  /** False while `keybindings.yaml` is absent — the section then offers to write it. */
+  keybindingsFileExists: boolean
 }
 
 /** A plugin's toggle row plus the `[[settings]]` keys nested under it. */
@@ -202,8 +204,8 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
 }
 
 /**
- * The full registry: a section's ordered navigable rows. Accounts and
- * Keybindings are read-only displays — zero navigable rows.
+ * The full registry: a section's ordered navigable rows. Keybindings is a
+ * read-only display — zero navigable rows.
  */
 export function sectionRows(section: SectionId, input: SettingsRowsInput): SettingsRow[] {
   switch (section) {
@@ -211,9 +213,11 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
       return generalRows(input)
     case "engines":
       return engineRows(input.engineList)
-    case "accounts":
     case "keys":
-      return []
+      // One action, and only while there is nothing to edit: writing the
+      // starter file is the whole gap between "here is the YAML" and a file
+      // the user can actually open.
+      return input.keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" }]
     case "plugins":
       return pluginRows(input.plugins)
     case "feedback":

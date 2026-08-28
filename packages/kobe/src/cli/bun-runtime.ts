@@ -23,6 +23,7 @@ import { constants, accessSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, delimiter, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { activeCliName } from "./rename-compat.ts"
 
 /** Point Rove at a specific Bun binary (skips every other candidate). */
 export const BUN_OVERRIDE_ENV = "ROVE_BUN"
@@ -106,7 +107,10 @@ export function bunInstallerCommand(platform: NodeJS.Platform = process.platform
 }
 
 /** Copy-pasteable install lines, shown when Rove cannot start Bun itself. */
-export function missingBunMessage(cliName = "rove", platform: NodeJS.Platform = process.platform): string {
+export function missingBunMessage(
+  cliName: string = activeCliName(),
+  platform: NodeJS.Platform = process.platform,
+): string {
   const primary =
     platform === "win32" ? 'powershell -c "irm bun.sh/install.ps1 | iex"' : "curl -fsSL https://bun.sh/install | bash"
   return [
@@ -117,7 +121,7 @@ export function missingBunMessage(cliName = "rove", platform: NodeJS.Platform = 
     "  npm install -g bun          # any platform, if you already have npm",
     "",
     "Or install Bun and Rove together in one step:",
-    "  curl -fsSL https://rove.sma1lboy.me/install.sh | sh",
+    "  curl -fsSL https://rove.run/install.sh | sh",
     "",
     `Already have Bun somewhere unusual? Point Rove at it: ${BUN_OVERRIDE_ENV}=/path/to/bun`,
     "",

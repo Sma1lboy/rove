@@ -28,15 +28,14 @@ import { useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
 import {
   type Binding,
-  type BindingReachability,
   type BindingsConfig,
   type RegisteredBinding,
   armPrefixNow,
-  bindingReachability,
   dispatchKeyEvent,
   insertRegistration,
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
+import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
 import { useLatest } from "../lib/use-latest"
 
 export type { Binding, BindingsConfig, RegisteredBinding } from "../../tui/lib/keymap-dispatch"

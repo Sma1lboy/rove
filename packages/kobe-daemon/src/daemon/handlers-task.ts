@@ -63,9 +63,9 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       const archived = optionalBoolean(payload, "archived")
+      // `task.archived` now derives from the snapshot diff (plugins/task-diff.ts)
+      // so archive-via-worktree-removal and land --then-archive fire it too.
       await ctx.orch.setArchived(taskId, archived)
-      // Unarchive (archived: false) is a restore, not an "archived" moment.
-      if (archived !== false) ctx.plugins?.handleUiReport({ kind: "task.archived", taskId })
       return {}
     },
   },
@@ -138,7 +138,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         strategy,
         deleteBranch: optionalBoolean(payload, "deleteBranch") === true,
         archive: optionalBoolean(payload, "archive") === true,
-        removeWorktree: optionalBoolean(payload, "removeWorktree") === true,
+        // Passed through as undefined when absent so the orchestrator's
+        // default (remove the landed worktree) applies; only an explicit
+        // `false` from the caller keeps it.
+        removeWorktree: optionalBoolean(payload, "removeWorktree"),
         callerCwd: optionalString(payload, "callerCwd"),
       })
       // landTask throws on refusal/conflict, so reaching here means it landed.
@@ -273,7 +276,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       // Long-operation feedback (issue #5): `git worktree add` is
       // minute-class on a huge repo, and the RPC stays BLOCKING (callers
-      // need the path to build the tmux session) — so publish lifecycle
+      // need the path before the engine session can start) — so publish lifecycle
       // progress on the `task.jobs` channel around the call. Every
       // attached Tasks pane shows a "materializing" row state, not just
       // the initiating client. A terminal phase (`done`/`error`) is

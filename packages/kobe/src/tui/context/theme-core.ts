@@ -77,6 +77,13 @@ export type Theme = {
 export const BUNDLED_THEMES: Record<string, ThemeJson> = BUNDLED_THEME_JSONS
 
 /**
+ * Brand default theme for new installs and any fallback path that needs a
+ * bundled palette. Kept as one named constant so theme consumers don't
+ * hard-code the string.
+ */
+export const DEFAULT_THEME = "claude"
+
+/**
  * Is `name` a bundled theme? Framework-free check against the bundled set —
  * the live provider (`src/tui-react/context/theme.tsx`) keeps its own
  * mutable registry (bundled + user themes) behind its own `hasTheme`; this
@@ -178,10 +185,11 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light" = "dark"):
 export function applyDisplayOverlay(base: Theme, focusAccent: FocusAccentSlot, transparentBackground: boolean): Theme {
   const v: Theme = { ...base, focusAccent: base[focusAccent] ?? base.primary }
   if (!transparentBackground) return v
-  const transparent = RGBA.fromInts(0, 0, 0, 0)
+  const [backgroundR, backgroundG, backgroundB] = base.background.toInts()
+  const [panelR, panelG, panelB] = base.backgroundPanel.toInts()
   return {
     ...v,
-    background: transparent,
-    backgroundPanel: transparent,
+    background: RGBA.fromInts(backgroundR, backgroundG, backgroundB, 0),
+    backgroundPanel: RGBA.fromInts(panelR, panelG, panelB, 0),
   }
 }

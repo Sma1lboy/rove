@@ -15,6 +15,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
+import { WelcomePane } from "./welcome-pane"
 
 export function ShowWorkspace(props: {
   task: Task | undefined
@@ -38,7 +39,12 @@ export function ShowWorkspace(props: {
   const t = useT()
   const transcriptActivity = useAccessor(props.orchestrator.transcriptActivityStore())
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
+  const tasks = useAccessor(props.orchestrator.tasksSignal())
   if (!props.worktree) {
+    // Zero unarchived tasks = a brand-new (or fully archived) home: teach
+    // instead of pointing at an empty sidebar. With tasks present, the short
+    // "select a task" line stays.
+    if (!tasks.some((task) => !task.archived)) return <WelcomePane />
     return (
       <box flexGrow={1} alignItems="center" justifyContent="center">
         <text fg={theme.textMuted}>{t("workspace.empty.selectTask")}</text>

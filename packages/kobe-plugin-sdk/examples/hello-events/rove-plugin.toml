@@ -1,0 +1,16 @@
+# The smallest real plugin: subscribe to two events and prove they arrived.
+# Used by the plugin-sandbox smoketest AND as the starting point for new
+# plugin authors — `rove plugin link` this directory and watch events land.
+id = "examples.hello-events"
+name = "Hello Events"
+version = "0.1.0"
+min_rove_version = "0.8.0"
+description = "Logs every task.created / issue.changed to its state dir"
+
+[[events]]
+on = "task.created"
+command = ["bun", "hook.ts"]
+
+[[events]]
+on = "issue.changed"
+command = ["bun", "hook.ts"]

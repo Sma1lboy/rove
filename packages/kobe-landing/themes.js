@@ -4,7 +4,7 @@ var KOBE_I18N = (function () {
   var zh = {
     'meta.title': 'Rove — 主题',
     'meta.desc': '每个内置 Rove 主题都由它真实的配色文件渲染，另附如何编写并发布你自己的主题。一个主题就是一个 JSON 文件，没有需要挤进去的注册表。',
-    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
+    'nav.workflow': '--原语', 'nav.install': '--安装', 'nav.docs': '--文档', 'nav.plugins': '--插件', 'nav.themes': '--主题', 'nav.changelog': '--更新日志',
     'head.kicker': '外观',
     'head.title': '内置三套，<span class="acc">另外十套</span>一条命令。',
     'head.lede': '下面每一块面板都由真实的主题文件绘制——就是 Rove 启动时加载的那份 JSON，不是谁手工调色的截图。在 <code>设置 → General → Theme</code> 里挑内置的三套之一，其余的一条命令装上，或者自己写——一个主题就是一个 JSON 文件，没有需要挤进去的注册表。',
@@ -46,42 +46,42 @@ var KOBE_I18N = (function () {
     'footer.plugins': '插件', 'footer.changelog': '更新日志', 'footer.themedocs': '主题文档', 'footer.keybindings': '快捷键',
   };
   var en = {
-    'meta.title': 'Rove — themes',
-    'meta.desc': "Every bundled Rove theme, rendered from its real color file — plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.",
-    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
+    'meta.title': 'Rove: themes',
+    'meta.desc': "Every bundled Rove theme, rendered from its real color file, plus how to write and publish your own. A theme is one JSON file; there is no registry to get into.",
+    'nav.workflow': '--primitives', 'nav.install': '--install', 'nav.docs': '--docs', 'nav.plugins': '--plugins', 'nav.themes': '--themes', 'nav.changelog': '--changelog',
     'head.kicker': 'Appearance',
     'head.title': 'Three in the box, <span class="acc">ten more</span> a command away.',
-    'head.lede': "Every panel below is drawn from a real theme file — the same JSON Rove loads at boot, not a screenshot someone re-tinted by hand. Pick one of the three bundled ones in <code>Settings → General → Theme</code>, install any of the rest with one command, or write your own — a theme is one JSON file, and there is no registry to get into.",
+    'head.lede': "Every panel below is drawn from a real theme file, the same JSON Rove loads at boot, not a screenshot someone re-tinted by hand. Pick one of the three bundled ones in <code>Settings → General → Theme</code>, install any of the rest with one command, or write your own. A theme is one JSON file, and there is no registry to get into.",
     'bundled.no': '1.0 · Bundled',
     'bundled.title': 'Ships with Rove.',
-    'bundled.body': "Rove keeps its bundled set deliberately small — open Settings with <code>ctrl+,</code> and pick one, nothing to install. Each preview paints the sidebar, the selected task, and a diff with that theme's own slots, so what you see is the contrast you'll actually get. Every theme also defines a light mode; the previews show dark.",
+    'bundled.body': "Rove keeps its bundled set deliberately small. Open Settings with <code>ctrl+,</code> and pick one; nothing to install. Each preview paints the sidebar, the selected task, and a diff with that theme's own slots, so what you see is the contrast you'll actually get. Every theme also defines a light mode; the previews show dark.",
     'tag.default': 'default',
-    'note.claude': "Warm graphite and terracotta — Rove's own identity, matched to the Claude Code palette.",
-    'note.conductor': 'Near-black and near-white. No hue competes with your diff — the one to reach for on a projector.',
+    'note.claude': "Warm graphite and terracotta. Rove's own identity, matched to the Claude Code palette.",
+    'note.conductor': 'Near-black and near-white. No hue competes with your diff. The one to reach for on a projector.',
     'note.dracula': 'The one everybody already has muscle memory for. Highest-saturation set here.',
     'note.nord': 'Arctic blue-grey, low contrast by design. The calmest option for long sessions.',
-    'note.opencode': 'Neutral charcoal with a sand accent — familiar if you came from opencode.',
-    'note.osaka': 'Deep jade ground with a mint signal color. The most opinionated set — and the loudest running indicator.',
+    'note.opencode': 'Neutral charcoal with a sand accent. Familiar if you came from opencode.',
+    'note.osaka': 'Deep jade ground with a mint signal color. The most opinionated set, and the loudest running indicator.',
     'note.tokyonight': 'Indigo night with a coral accent. Pairs with the tokyonight setup you probably already run in nvim.',
     'note.gruvbox': 'Retro groove: warm browns under a signal orange. The highest-contrast warm set, and the one most people mean by "terminal colors".',
-    'note.catppuccin': 'Soft pastels on a cool grey base — mauve signature, nothing shouts. Ships Mocha for dark and Latte for light.',
+    'note.catppuccin': 'Soft pastels on a cool grey base, mauve signature, nothing shouts. Ships Mocha for dark and Latte for light.',
     'note.rosepine': 'Low-saturation iris and rose on near-black plum. Quiet without going grey; Dawn is the light side.',
     'note.everforest': 'Desaturated forest greens, tuned for long sessions on a warm background.',
-    'note.kanagawa': "Inspired by Katsushika Hokusai's wave — ink blues over sumi black, lotus for light.",
+    'note.kanagawa': "Inspired by Katsushika Hokusai's wave: ink blues over sumi black, lotus for light.",
     'note.solarized': 'The 2011 original that started precision terminal palettes. Both sides share one accent set.',
     'dl.no': '2.0 · Downloadable',
     'dl.title': 'Ten more, one command away.',
-    'dl.body': "These live here as plain JSON instead of inside the binary — which is all a theme ever is. Copy the command, run it, restart Rove. Several of them shipped bundled in earlier versions; nothing changed about them except where they're stored.",
+    'dl.body': "These live here as plain JSON instead of inside the binary, which is all a theme ever is. Copy the command, run it, restart Rove. Several of them shipped bundled in earlier versions; nothing changed about them except where they're stored.",
     'card.copy': 'copy', 'card.copied': 'copied',
     'write.no': '3.0 · Write one',
     'write.title': 'A theme is one JSON file.',
-    'write.body': "Drop any <code>*.json</code> into <code>~/.rove/themes/</code> and it appears in the picker at next boot. Name it after a bundled theme and yours wins. You don't have to fill every slot — missing ones fall through (<code>borderActive</code> → <code>border</code> → <code>text</code>), so a dozen lines is already a usable theme.",
-    'write.body2': "<code>defs</code> is an optional named palette a slot can reference by name. A slot value is a hex string, a <code>defs</code> key, or a <code>{ dark, light }</code> pair — and when you use the pair form, both sides are required. The <code>$schema</code> line is what gives you autocomplete in your editor.",
+    'write.body': "Drop any <code>*.json</code> into <code>~/.rove/themes/</code> and it appears in the picker at next boot. Name it after a bundled theme and yours wins. You don't have to fill every slot. Missing ones fall through (<code>borderActive</code> → <code>border</code> → <code>text</code>), so a dozen lines is already a usable theme.",
+    'write.body2': "<code>defs</code> is an optional named palette a slot can reference by name. A slot value is a hex string, a <code>defs</code> key, or a <code>{ dark, light }</code> pair. When you use the pair form, both sides are required. The <code>$schema</code> line is what gives you autocomplete in your editor.",
     'pub.no': '4.0 · Publish',
     'pub.title': "Share a URL. That's the whole registry.",
-    'pub.body': 'There is no submission queue and no manifest to write. Installation reads a raw file over HTTPS, so anything you can link to is installable — a repo, a gist, your own host.',
+    'pub.body': 'There is no submission queue and no manifest to write. Installation reads a raw file over HTTPS, so anything you can link to is installable: a repo, a gist, your own host.',
     'pub.s1': 'Commit the JSON to a <b>public repo or gist</b>.',
-    'pub.s2': 'Hit <b>Raw</b> on GitHub and copy the URL — it looks like <code>raw.githubusercontent.com/&lt;you&gt;/&lt;repo&gt;/main/&lt;theme&gt;.json</code>.',
+    'pub.s2': 'Hit <b>Raw</b> on GitHub and copy the URL. It looks like <code>raw.githubusercontent.com/&lt;you&gt;/&lt;repo&gt;/main/&lt;theme&gt;.json</code>.',
     'pub.s3': 'Tell people to run <code>rove theme add &lt;raw-url&gt;</code>. It validates the JSON before writing and refuses to clobber an existing theme without <code>--force</code>.',
     'pub.s4': "Tag the repo <code>rove-theme</code> on GitHub so it's findable, and open a PR against this page to get it listed with a preview.",
     'copy.hint': 'click to copy', 'copy.done': 'copied',
@@ -159,4 +159,17 @@ var KOBE_I18N = (function () {
     clearTimeout(timer);
     timer = setTimeout(function () { label.textContent = KOBE_I18N.t('copy.hint'); }, 1800);
   });
+})();
+
+// live GitHub star count — same shape and same `kobe_stars` cache key as the
+// home and plugins pages, so the count paints instantly once any page has run
+(function () {
+  var el = document.getElementById('starCount');
+  if (!el) return;
+  function render(n) { el.textContent = n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n); }
+  try { var c = JSON.parse(localStorage.getItem('kobe_stars') || 'null'); if (c && typeof c.n === 'number') render(c.n); } catch (e) {}
+  fetch('https://api.github.com/repos/Sma1lboy/rove')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (!d || typeof d.stargazers_count !== 'number') return; render(d.stargazers_count); try { localStorage.setItem('kobe_stars', JSON.stringify({ n: d.stargazers_count })); } catch (e) {} })
+    .catch(function () { if (el.textContent === '–') el.textContent = '☆'; });
 })();

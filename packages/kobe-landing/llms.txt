@@ -1,0 +1,40 @@
+# Rove
+
+> Rove is a terminal multiplexer for AI coding agents. One prompt becomes N isolated attempts, each with its own git worktree, branch, and hosted engine session. The agents message each other as peers with no coordinator, and the whole fleet survives closing the SSH connection.
+
+Rove is a local-first TUI, not a web app. It runs where your code lives — laptop, devbox, or a box you reach over SSH. Engine adapters (Claude Code by default, Codex behind the same contract) are execution backends; the TUI is the product.
+
+Install: `npm i -g @sma1lboy/rove`, `bun add -g @sma1lboy/rove`, `npx @sma1lboy/rove`, or `curl -fsSL https://rove.run/install.sh | sh`. Requires macOS or Linux (Windows via WSL), git, and one engine CLI on PATH. Rove ships its own Bun runtime.
+
+## Core concepts
+
+- [Concepts](https://docs.rove.run/rove/concepts): Managed task = git worktree + branch + terminal tabs. Also project-main tasks and directory tasks.
+- [Quick start](https://docs.rove.run/rove/quick-start): Install, first task, first fan-out.
+- [Worktrees](https://docs.rove.run/rove/worktrees): How Rove isolates each attempt, and the safety rules around creating and reclaiming them.
+- [Sessions](https://docs.rove.run/rove/sessions): Hosted engine PTYs that outlive the TUI and the SSH connection.
+
+## Using the TUI
+
+- [TUI](https://docs.rove.run/rove/tui): Task sidebar, workspace chat/files tabs, file tree, embedded terminal, status bar.
+- [Keybindings](https://docs.rove.run/rove/keybindings): Pane-scoped chords and the prefix sequence.
+- [Themes](https://docs.rove.run/rove/themes): Built-in themes and how to write one.
+- [Configuration](https://docs.rove.run/rove/configuration): Config keys, per-repo `.rove/init.sh` and `.rove/init-prompt.md`.
+
+## Automation and integration
+
+- [CLI](https://docs.rove.run/rove/cli): Every `rove` subcommand.
+- [API](https://docs.rove.run/rove/api): `rove api` verbs for scripting the daemon — inspect, send, task lifecycle.
+- [Routines](https://docs.rove.run/rove/routines): Scheduled and recurring agent work.
+- [Engines](https://docs.rove.run/rove/engines): Engine adapter contract; Claude Code and Codex support.
+- [Work tracking](https://docs.rove.run/rove/work-tracking): The daemon-owned issue store.
+
+## Extending Rove
+
+- [Plugin authoring](https://docs.rove.run/plugins/authoring): Event catalog, sandboxes, lifecycle hooks.
+- [Plugin SDK](https://docs.rove.run/plugins/sdk): Typed SDK surface for plugin authors.
+
+## Optional
+
+- [Troubleshooting](https://docs.rove.run/rove/troubleshooting): Daemon logs, orphaned PTYs, engine CLI issues.
+- [Changelog](https://rove.run/changelog): Shipped behavior, version by version.
+- [Source](https://github.com/Sma1lboy/rove): GitHub repository.

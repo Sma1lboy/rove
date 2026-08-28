@@ -29,14 +29,15 @@ The docs are the source of truth. **If docs and implementation disagree, surface
 ## Orientation
 
 - **Monorepo (Bun workspaces), source under `packages/`:** `kobe/` (the TUI/CLI, published canonically as `@sma1lboy/rove` and compatibly as `@sma1lboy/kobe`), `kobe-daemon/` (daemon server + protocol + socket client + daemon-hosted web transport), `kobe-web/` (the browser dashboard SPA + PTY sidecar), `branding/` (Remotion pipeline), `kobe-docs/` (public docs site, Fumadocs on Next.js, static export; content synced from `docs/`). Unqualified `src/…`/`test/…` paths in docs are relative to `packages/kobe/`. Full source-tree map: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+- **Two test runners, and picking the wrong one looks like a broken environment.** `test/render/**` runs under bun's own runner (`bun test test/render`) because OpenTUI needs bun; **everything else runs under vitest** (`bun run test:fast`, or `bun x vitest run <file>` for one file). Running a vitest file with `bun test` fails on vitest-only APIs — `vi.hoisted is not a function` is the usual signature, and it reads like a missing dependency rather than the wrong command. If a test "can't run", check the runner before concluding anything about the environment.
 - **Run scripts** via `bun --filter @sma1lboy/rove <script>` or `cd packages/kobe && bun <script>`. Two dev flavours: `dev` (real engines, **production** Rove state) and `dev:sandbox` (real engines, throwaway `packages/kobe/.dev-sandbox/home`) — use the sandbox so you never touch the real `~/.rove/tasks.json`.
-- **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. (The Solid TUI was removed 2026-07-07 — React is the only UI. Orchestrator/client reactivity is framework-free observable state; do not add UI-framework state primitives to the core.)
-- **UI development is OpenTUI-first, with one visual ground truth.** Develop the real `packages/kobe/src/tui-react/**` surface through `dev:sandbox`. For every agent-driven visual iteration, screenshot, and UI acceptance check, the **only** ground-truth path is a fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Do not use local Terminal screenshots, native `kobe-web` pages such as `/board`, render-test output, or alternate mocks as visual substitutes. The harness is infrastructure for observing OpenTUI; it does not make the web SPA the product surface. Work on native `kobe-web` pages only when explicitly requested or when a browser-only boundary must be tested.
+- **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. React is the only UI; orchestrator/client reactivity is framework-free observable state — don't add UI-framework state primitives to the core.
+- **UI development is OpenTUI-first, with one visual ground truth.** Develop the real `packages/kobe/src/tui-react/**` surface through `dev:sandbox`. For every agent-driven visual iteration, screenshot, and UI acceptance check, the **only** ground-truth path is a fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Do not use local Terminal screenshots, native `kobe-web` pages such as `/board`, render-test output, or alternate mocks as visual substitutes. The harness is infrastructure for observing OpenTUI; it does not make the web SPA the product surface. Work on native `kobe-web` pages only when explicitly requested or when a browser-only boundary must be tested. When a bug is about live state rather than layout ("the badge never cleared"), drive a REAL engine down the same path — keys through the browser's xterm, state via `rove api inspect`. The shortcuts that silently measure nothing are catalogued in [`docs/HARNESS.md`](./docs/HARNESS.md).
 - **Language:** respond in whatever language the user writes in. Don't assume their name — let them introduce themselves.
-- **Daemon** is a long-lived background process, refcounted on attached GUIs (mechanics: [`docs/design/daemon.md`](./docs/design/daemon.md)). Boundaries: background consumers subscribe with `role: "pane"`; attached TUI clients and open browser SSE streams hold GUI lifetime; hosted engine PTYs belong to the separate PTY host and survive daemon restarts; read `<KOBE_HOME>/.kobe/daemon.log` first when debugging; **after editing daemon/orchestrator/engine code, `rove daemon restart`** — Bun doesn't hot-reload.
+- **Daemon** is a long-lived background process, refcounted on attached GUIs (mechanics: [`docs/design/daemon.md`](./docs/design/daemon.md)). Boundaries: background consumers subscribe with `role: "pane"`; attached TUI clients and open browser SSE streams hold GUI lifetime; hosted engine PTYs belong to the separate PTY host and survive daemon restarts; read `<ROVE_HOME>/.rove/daemon.log` first when debugging; **after editing daemon/orchestrator/engine code, `rove daemon restart`** — Bun doesn't hot-reload.
 - **Per-repo init:** a repo can ship `.rove/init.sh` (runs before the engine, in the worktree) + `.rove/init-prompt.md` (the engine's first message); `.kobe/` spellings remain field-by-field fallbacks, and repo files win over the per-user state.json override. Mechanics: [`src/state/repo-init.ts`](./packages/kobe/src/state/repo-init.ts).
 - **Reference repos** (`refs/`, gitignored, **read-only**): clone before development — the clone list, what each is for, and when to consult it all live in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) §7.
-- **User-facing docs set:** [`docs/QUICKSTART.md`](./docs/QUICKSTART.md), [`docs/CONCEPTS.md`](./docs/CONCEPTS.md), [`docs/TUI.md`](./docs/TUI.md), [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md), [`docs/CONFIGURATION.md`](./docs/CONFIGURATION.md), [`docs/ENGINES.md`](./docs/ENGINES.md), [`docs/WORKTREES.md`](./docs/WORKTREES.md), [`docs/SESSIONS.md`](./docs/SESSIONS.md), [`docs/CLI.md`](./docs/CLI.md), [`docs/API.md`](./docs/API.md), [`docs/ROUTINES.md`](./docs/ROUTINES.md), [`docs/PLUGIN-AUTHORING.md`](./docs/PLUGIN-AUTHORING.md), and [`docs/TROUBLESHOOTING.md`](./docs/TROUBLESHOOTING.md) — behavior verified against source at writing time. When you change config keys, CLI verbs, `rove api` verbs, engine support, worktree safety, or session/persistence behavior, update the matching page in the same PR. Published at [docs.rove.sma1lboy.me](https://docs.rove.sma1lboy.me) — a new user-facing page must be added to `SECTIONS` in [`packages/kobe-docs/scripts/sync-docs.mjs`](./packages/kobe-docs/scripts/sync-docs.mjs) or it never reaches the site.
+- **User-facing docs set:** `docs/` — QUICKSTART, CONCEPTS, TUI, KEYBINDINGS, CONFIGURATION, ENGINES, WORKTREES, SESSIONS, CLI, API, ORCHESTRATION, ROUTINES, PLUGIN-AUTHORING, TROUBLESHOOTING. Behavior verified against source at writing time. When you change config keys, CLI verbs, `rove api` verbs, engine support, worktree safety, or session/persistence behavior, update the matching page in the same PR. Published at [docs.rove.run](https://docs.rove.run) — a new user-facing page must be added to `SECTIONS` in [`packages/kobe-docs/scripts/sync-docs.mjs`](./packages/kobe-docs/scripts/sync-docs.mjs) or it never reaches the site.
 
 ## Work tracking — local only
 
@@ -46,7 +47,7 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 
 ### How work lands on `main`
 - **Default: PR.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap, Review CI) → `gh pr merge --squash --delete-branch`. The PR gates are where the hard rules below get enforced, so unattended/agent-driven work always takes this path.
-- **Owner-supervised local iteration may skip the PR** (2026-07-10): work in a worktree, get green, then merge/cherry-pick into local `main`. Same quality gates (lint, typecheck, tests, changeset) still apply. Only when the owner is in the loop that turn.
+- **Owner-supervised local iteration may skip the PR**: work in a worktree, get green, then merge/cherry-pick into local `main`. Same quality gates (lint, typecheck, tests, changeset) still apply. Only when the owner is in the loop that turn.
 - A direct push to `main` needs the owner to say so **in that turn** — never inferred, never carried over to the next task.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag (see [`docs/RELEASING.md`](./docs/RELEASING.md)).
 - Never force-push; `git fetch` before pushing.
@@ -100,3 +101,22 @@ Diagrams in `docs/` go in a ` ```mermaid ` fence (renders natively in GitHub + V
 ## Agent skills
 
 Skill-driven flows (`to-issues`/`triage`/`to-prd`/`qa`) scribble in gitignored `.scratch/<feature>/` markdown — that's scratch, not the backlog. The daemon issue store stays the product backlog; GitHub Issues stay inbound-user-reports-only. Mechanics: [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md), [`docs/agents/triage-labels.md`](./docs/agents/triage-labels.md), [`docs/agents/domain.md`](./docs/agents/domain.md).
+
+## Maintaining this file
+
+This file is loaded whole, on every session and every subagent — it is a
+budget, not a scratchpad.
+
+- **Budget: 4k tokens** (~15KB). Measure with `wc -c AGENTS.md`, don't estimate.
+- **Zero-sum.** At budget, a new rule must name what it replaces: another unit
+  deleted, or the mechanics moved to `docs/` behind a one-line pointer.
+- **Where a rule belongs.** Broad (would matter in >1 session out of 5) or
+  safety-critical → here. Narrow but with a clear trigger phrase →
+  `.claude/skills/`. Mechanics → `docs/` + a pointer. One-off → the issue store.
+  Narrow with no trigger → don't write it down.
+- **Evidence, not annoyance.** Add a rule only after the same mistake shows up
+  in **two different sessions**, quoted. One bad session is noise.
+- **Small passes.** ~5 edits at a time (add / delete / rewrite / extract), never
+  a rewrite. Prefer deleting a stale unit to adding a qualifier to it.
+- **No archaeology.** State the rule, not the history that produced it. A date
+  belongs here only when behavior differs before and after it.

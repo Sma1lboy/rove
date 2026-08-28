@@ -1,6 +1,6 @@
 {
   "name": "@sma1lboy/kobe-daemon",
-  "version": "0.7.14",
+  "version": "0.7.16",
   "description": "Daemon server, protocol, lifecycle, and socket client for Rove.",
   "type": "module",
   "private": true,
@@ -13,6 +13,7 @@
     "./client/pty-process": "./src/client/pty-process.ts",
     "./client/rpc": "./src/client/rpc.ts",
     "./daemon/activity-arbitrate": "./src/daemon/activity-arbitrate.ts",
+    "./daemon/compat-link": "./src/daemon/compat-link.ts",
     "./daemon/agent-turns-ingest": "./src/daemon/agent-turns-ingest.ts",
     "./daemon/agent-turns-store": "./src/daemon/agent-turns-store.ts",
     "./daemon/activity-liveness": "./src/daemon/activity-liveness.ts",
@@ -30,6 +31,7 @@
     "./daemon/client-writer": "./src/daemon/client-writer.ts",
     "./daemon/conflict-collector": "./src/daemon/conflict-collector.ts",
     "./daemon/crash-log": "./src/daemon/crash-log.ts",
+    "./daemon/collectors": "./src/daemon/collectors.ts",
     "./daemon/cwd-task": "./src/daemon/cwd-task.ts",
     "./daemon/engine-events-log": "./src/daemon/engine-events-log.ts",
     "./daemon/event-bus": "./src/daemon/event-bus.ts",
@@ -58,9 +60,10 @@
     "./daemon/quota-usage-cache": "./src/daemon/quota-usage-cache.ts",
     "./daemon/runtime": "./src/daemon/runtime.ts",
     "./daemon/server": "./src/daemon/server.ts",
+    "./daemon/status-disposition": "./src/daemon/status-disposition.ts",
+    "./daemon/terminal-colors": "./src/daemon/terminal-colors.ts",
     "./daemon/transcript-activity-collector": "./src/daemon/transcript-activity-collector.ts",
     "./daemon/ui-prefs-watcher": "./src/daemon/ui-prefs-watcher.ts",
-    "./daemon/web-rpc-allowlist": "./src/daemon/web-rpc-allowlist.ts",
     "./daemon/web-server": "./src/daemon/web-server.ts",
     "./daemon/web-session": "./src/daemon/web-session.ts",
     "./daemon/worktree-changes-collector": "./src/daemon/worktree-changes-collector.ts",
@@ -72,14 +75,16 @@
     "./plugins/plugin-paths": "./src/plugins/plugin-paths.ts",
     "./plugins/registry": "./src/plugins/registry.ts",
     "./plugins/runtime": "./src/plugins/runtime.ts",
-    "./plugins/settings-env": "./src/plugins/settings-env.ts"
+    "./plugins/settings-env": "./src/plugins/settings-env.ts",
+    "./daemon/pty-exit-watch": "./src/daemon/pty-exit-watch.ts",
+    "./plugins/task-diff": "./src/plugins/task-diff.ts",
+    "./daemon/quota-resume": "./src/daemon/quota-resume.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@sma1lboy/rove-plugin-sdk": "workspace:*",
-    "chokidar": "^5.0.0",
     "node-pty": "^1.1.0",
     "smol-toml": "^1.7.1"
   },

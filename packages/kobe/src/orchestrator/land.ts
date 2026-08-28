@@ -37,7 +37,12 @@ export interface LandTaskOpts {
   readonly deleteBranch?: boolean
   /** Archive the task after a successful land (moves it off the active board). */
   readonly archive?: boolean
-  /** Remove the task's worktree after a successful land (the branch stays). */
+  /**
+   * Remove the task's worktree after a successful land (the branch stays).
+   * Defaults to ON: once a branch is landed its worktree is dead weight, and
+   * leaving one behind per land piles up directories nobody prunes. Pass
+   * `false` to keep it. Never forces — see {@link LandWorktreeCleanup}.
+   */
   readonly removeWorktree?: boolean
   /** The land caller's cwd — a caller inside the worktree it asks to remove is refused. */
   readonly callerCwd?: string
@@ -51,15 +56,20 @@ export interface LandDeps {
   readonly clearWorktreePath: (id: TaskId | string) => Promise<void>
 }
 
-/** Outcome of the opt-in post-land worktree removal — reported in the result, never thrown. */
+/**
+ * Outcome of the post-land worktree removal — reported in the result, never
+ * thrown. `reason` is not failure-only: it also accompanies `removed: true`
+ * when the directory went but clearing the task's worktree path did not.
+ */
 export interface LandWorktreeCleanup {
   readonly removed: boolean
   readonly reason?: string
 }
 
 /**
- * Land `task`'s branch (via {@link landTask}) and then run the opt-in cleanup:
- * delete the now-landed branch, archive the settled task. The merge has already
+ * Land `task`'s branch (via {@link landTask}) and then run the cleanup: drop
+ * the now-landed worktree (on by default), delete the branch and archive the
+ * settled task (both opt-in). The merge has already
  * committed once cleanup runs, so it must stand — a `deleteBranch` failure is
  * best-effort inside `remove`-style deletion, and archiving is a plain store
  * write. Extracted from the orchestrator so `core.ts` stays a thin delegator.
@@ -71,7 +81,12 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   // Worktree removal runs BEFORE branch deletion: git refuses to delete a
   // branch that's still checked out in a live worktree, so the reverse order
   // would leave --delete-branch a silent no-op when combined with it.
-  const worktree = opts.removeWorktree ? await removeLandedWorktree(task, opts.callerCwd, deps) : undefined
+  //
+  // Removal is the DEFAULT, not an opt-in: a landed task's worktree is spent,
+  // and the opt-in shape meant every land left one behind. Only an explicit
+  // `removeWorktree: false` keeps it. The BRANCH is untouched either way —
+  // git is the durable record, the directory is not.
+  const worktree = opts.removeWorktree === false ? undefined : await removeLandedWorktree(task, opts.callerCwd, deps)
   if (opts.deleteBranch) await deps.worktrees.deleteBranch(task.repo, result.branch, { force: true })
   if (opts.archive) await deps.setArchived(task.id, true)
   return worktree ? { ...result, worktree } : result
@@ -113,11 +128,24 @@ async function removeLandedWorktree(
   }
   try {
     await deps.worktrees.remove(worktreePath)
-    await deps.clearWorktreePath(task.id)
-    return { removed: true }
   } catch (err) {
-    return { removed: false, reason: err instanceof Error ? err.message : String(err) }
+    return { removed: false, reason: errText(err) }
   }
+  // Past this point the directory IS gone, so the outcome is `removed: true`
+  // whatever the store write does. Folding the two calls into one try/catch
+  // would report `removed: false` when only the bookkeeping failed — telling
+  // the user to go look for a worktree that no longer exists. The failure is
+  // still reported, in `reason`, because a dangling `worktreePath` is real.
+  try {
+    await deps.clearWorktreePath(task.id)
+  } catch (err) {
+    return { removed: true, reason: `worktree removed, but clearing the task's worktree path failed: ${errText(err)}` }
+  }
+  return { removed: true }
+}
+
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
 }
 
 export interface LandResult {
@@ -127,7 +155,8 @@ export interface LandResult {
   readonly landedOn: string
   /** Short SHA of the merge/commit that landed the work. */
   readonly commit: string
-  /** Present only when `removeWorktree` was requested — the cleanup outcome. */
+  /** The post-land worktree cleanup outcome. Present unless removal was
+   *  explicitly declined (`removeWorktree: false`). */
   readonly worktree?: LandWorktreeCleanup
 }
 

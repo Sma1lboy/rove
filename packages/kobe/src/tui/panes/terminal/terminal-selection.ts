@@ -22,6 +22,39 @@ import { ATTR, type Chunk } from "./sgr"
 export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
 
+/**
+ * The absolute snapshot cell under a pointer, plus the auto-scroll pull that
+ * pointer position asks for.
+ *
+ * `viewCol`/`viewRow` are pointer coordinates RELATIVE to the pane body and
+ * may be negative or past the last row: opentui captures the drag to the
+ * element the press started on, so a drag that leaves the pane keeps
+ * reporting real coordinates.
+ *
+ * `edgePull` counts from the EDGE ROW, not from outside the pane — the first
+ * visible row already pulls by 1, one row above it by 2, and so on (mirrored
+ * at the bottom). A terminal pane sits flush under a one-row tab strip, so
+ * "drag beyond the pane" is a one-row target the pointer rarely hits;
+ * emulators scroll at the pane boundary itself, and so do we. The cell stays
+ * a valid snapshot address either way (column clamped to the grid, row to the
+ * snapshot). Selection coordinates are absolute, so the row under a
+ * stationary pointer changes as the viewport scrolls — that is what lets a
+ * held drag keep extending into scrollback.
+ */
+export function pointerCell(
+  viewCol: number,
+  viewRow: number,
+  grid: { cols: number; rows: number },
+  visibleStart: number,
+  snapshotLength: number,
+): { cell: CellPoint; edgePull: number } {
+  const col = Math.min(grid.cols - 1, Math.max(0, viewCol))
+  const row = Math.min(Math.max(0, snapshotLength - 1), Math.max(0, visibleStart + viewRow))
+  const lastRow = grid.rows - 1
+  const edgePull = viewRow <= 0 ? viewRow - 1 : viewRow >= lastRow ? viewRow - lastRow + 1 : 0
+  return { cell: { row, col }, edgePull }
+}
+
 /** Reading-order normalize: start is the earlier of anchor/head. */
 export function orderRange(range: SelectionRange): { start: CellPoint; end: CellPoint } {
   const { anchor, head } = range
@@ -139,9 +172,180 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[
     if (after) out.push({ ...chunk, text: after })
   }
   // Selection reaching past the row's painted cells: show the highlight
-  // on the padding too, like terminals do.
-  if (col < to) out.push({ text: " ".repeat(to - Math.max(col, from)), attributes: ATTR.INVERSE })
+  // on the padding too, like terminals do. When the span STARTS past the
+  // painted cells (a drag anchored in the blank padding right of a short
+  // line, `from > col`), the highlight must begin at `from`, not at the
+  // row's painted width — so emit the `from - col` gap as plain spaces
+  // first, then the inverse block. With `from <= col` the gap is zero and
+  // the inverse block fills `[col, to)` exactly as before.
+  if (col < to) {
+    const gap = from - col
+    if (gap > 0) out.push({ text: " ".repeat(gap) })
+    out.push({ text: " ".repeat(to - Math.max(col, from)), attributes: ATTR.INVERSE })
+  }
   return out
+}
+
+/* --------- alt-screen drag scrolling ---------- */
+
+/**
+ * An app that owns its own scrollback (an engine on the ALTERNATE screen) has
+ * a one-screen snapshot: forwarding wheel ticks scrolls the APP, the content
+ * shifts on screen, and the snapshot row numbers don't move. The pieces below
+ * keep a drag-selection glued to the content anyway:
+ *
+ *  - `snapshotShift` MEASURES how far the content actually moved between two
+ *    snapshots — the wheel only *asks* the app to scroll (`pty.wheel` reports
+ *    "sequence sent", not "app moved N lines"), so the displacement has to be
+ *    read back from what changed on screen.
+ *  - `shiftShadow` banks the rows that scrolled off screen during the drag so
+ *    the copy can include them; `extractShadowedSelection` extracts over the
+ *    composed buffer through the SAME `extractSelection` path the highlight's
+ *    range feeds — see-it = copy-it by construction.
+ *
+ * Coordinates stay snapshot-addressed: shadow rows live at logical indices
+ * below 0 (`above`, top-first) and at `snapshotLength` and beyond (`below`).
+ */
+export type SelectionShadow = {
+  /** Rows scrolled off the TOP, top-first: `above[i]` sits at logical index `i - above.length`. */
+  readonly above: readonly (readonly Chunk[])[]
+  /** Rows scrolled off the BOTTOM, contiguous: `below[0]` sits at logical index `snapshotLength`. */
+  readonly below: readonly (readonly Chunk[])[]
+}
+
+export const EMPTY_SHADOW: SelectionShadow = { above: [], below: [] }
+
+/** Rows banked per drag. ponytail: at the auto-scroll cap (~100 lines/s) this
+ *  is ~20s of held drag; past it the anchor clamps instead of silently
+ *  dropping middle rows. Raise if someone actually drags that long. */
+export const SHADOW_ROW_CAP = 2000
+
+/**
+ * The vertical displacement of the content between two snapshots: positive
+ * means the content moved DOWN on screen (`prev[i]` reappears at
+ * `next[i + shift]`) — a scroll toward older content. 0 when nothing moved or
+ * when no shift explains a majority of the non-blank rows it overlaps (a full
+ * repaint, ambiguous repeated content): the conservative answer, leaving the
+ * selection screen-fixed rather than guessing. Score ties resolve to the
+ * smaller displacement, so screens of identical repeated rows — which "match"
+ * at every shift, best at the largest overlap — settle on 0.
+ */
+export function snapshotShift(prev: readonly (readonly Chunk[])[], next: readonly (readonly Chunk[])[]): number {
+  if (prev === next || prev.length === 0 || next.length === 0) return 0
+  const prevText = prev.map(rowText)
+  const nextText = next.map(rowText)
+  const maxShift = Math.min(prev.length, next.length) - 1
+  let best = 0
+  let bestScore = -1
+  let bestOverlap = 0
+  for (let k = -maxShift; k <= maxShift; k++) {
+    let score = 0
+    let overlap = 0
+    for (let i = 0; i < prevText.length; i++) {
+      const j = i + k
+      if (j < 0 || j >= nextText.length) continue
+      const t = prevText[i] as string
+      if (t.trim() === "") continue
+      overlap++
+      if (t === nextText[j]) score++
+    }
+    if (score > bestScore || (score === bestScore && Math.abs(k) < Math.abs(best))) {
+      best = k
+      bestScore = score
+      bestOverlap = overlap
+    }
+  }
+  // Two corroborating rows minimum: one lone matching row at some extreme
+  // shift is far likelier to be a repaint coincidence than a real scroll.
+  return bestScore > 1 && bestScore * 2 > bestOverlap ? best : 0
+}
+
+/**
+ * Roll the shadow forward across one measured shift: bank the rows of
+ * `previous` that just scrolled off screen, and drop shadow rows the app
+ * re-revealed (a reversed drag) so they aren't extracted twice.
+ */
+export function shiftShadow(
+  shadow: SelectionShadow,
+  previous: readonly (readonly Chunk[])[],
+  shift: number,
+  cap = SHADOW_ROW_CAP,
+): SelectionShadow {
+  if (shift === 0) return shadow
+  let above = shadow.above
+  let below = shadow.below
+  if (shift > 0) {
+    // Content moved down: the last rows fell off the bottom; the nearest
+    // above-shadow rows are back on screen.
+    below = [...previous.slice(Math.max(0, previous.length - shift)), ...below]
+    above = above.slice(0, Math.max(0, above.length - shift))
+  } else {
+    above = [...above, ...previous.slice(0, Math.min(previous.length, -shift))]
+    below = below.slice(Math.min(below.length, -shift))
+  }
+  if (above.length > cap) above = above.slice(above.length - cap)
+  if (below.length > cap) below = below.slice(0, cap)
+  return { above, below }
+}
+
+/** Clamp a logical row to what the shadow can still address (the cap). */
+export function clampRowToShadow(row: number, snapshotLength: number, shadow: SelectionShadow): number {
+  return Math.min(snapshotLength - 1 + shadow.below.length, Math.max(0 - shadow.above.length, row))
+}
+
+/** Selection endpoints plus the shadow they address, rolled together. */
+export type SelectionShiftState = {
+  readonly anchor: CellPoint | null
+  readonly head: CellPoint | null
+  readonly shadow: SelectionShadow
+}
+
+/**
+ * Roll a selection across one snapshot change: measure the content
+ * displacement, bank the rows that scrolled off, and move the endpoints that
+ * belong to the CONTENT along with it.
+ *
+ * While the drag is LIVE only the anchor follows — the head is pinned to the
+ * pointer, which the pane re-derives from the last pointer position itself.
+ * Once the drag is released both endpoints belong to the content, so both
+ * follow and the highlight scrolls off the top or bottom of the pane the way
+ * every emulator's does, instead of staying pinned to screen rows.
+ *
+ * Returns the input state by reference when there is nothing selected or no
+ * shift is measurable, so callers can skip the update entirely.
+ */
+export function followContentShift(
+  state: SelectionShiftState,
+  prev: readonly (readonly Chunk[])[],
+  next: readonly (readonly Chunk[])[],
+  dragging: boolean,
+): SelectionShiftState {
+  if (!state.anchor) return state
+  const shift = snapshotShift(prev, next)
+  if (shift === 0) return state
+  const shadow = shiftShadow(state.shadow, prev, shift)
+  const follow = (cell: CellPoint | null): CellPoint | null =>
+    cell ? { row: clampRowToShadow(cell.row + shift, next.length, shadow), col: cell.col } : cell
+  return { anchor: follow(state.anchor), head: dragging ? state.head : follow(state.head), shadow }
+}
+
+/**
+ * Extract over the composed drag buffer — shadow rows glued around the live
+ * snapshot, the range translated into composed space. Same `extractSelection`
+ * the shadow-free path uses; with an empty shadow this IS that path.
+ */
+export function extractShadowedSelection(
+  snapshot: readonly (readonly Chunk[])[],
+  shadow: SelectionShadow,
+  range: SelectionRange,
+): string {
+  if (shadow.above.length === 0 && shadow.below.length === 0) return extractSelection(snapshot, range)
+  const offset = shadow.above.length
+  const rows = [...shadow.above, ...snapshot, ...shadow.below]
+  return extractSelection(rows, {
+    anchor: { row: range.anchor.row + offset, col: range.anchor.col },
+    head: { row: range.head.row + offset, col: range.head.col },
+  })
 }
 
 /**

@@ -12,6 +12,7 @@
  */
 
 import { useSyncExternalStore } from "react"
+import { displayProductName } from "./cli-name.ts"
 import type { ActivityState } from "./types.ts"
 
 const ENABLED_KEY = "kobe-web.notify"
@@ -204,7 +205,10 @@ function fire(
   tag: string,
 ): void {
   try {
-    const n = new Notification(`Rove: ${taskLabel}`, { body, tag })
+    const n = new Notification(`${displayProductName()}: ${taskLabel}`, {
+      body,
+      tag,
+    })
     n.onclick = () => {
       window.focus()
       navigate?.(taskId)

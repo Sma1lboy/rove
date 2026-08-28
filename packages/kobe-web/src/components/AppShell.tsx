@@ -7,6 +7,7 @@
 
 import { CircleHelp, PanelRight } from "lucide-react"
 import { useEffect, useState } from "react"
+import { DEFAULT_CLI_NAME, displayProductName } from "../lib/cli-name.ts"
 import {
   closeSettings,
   openKeyboardHelp,
@@ -47,7 +48,7 @@ function TopBar({
     >
       <DesktopWindowControls />
       <span className="font-mono text-[13px] font-bold text-primary">
-        [rove]
+        [{DEFAULT_CLI_NAME}]
       </span>
       <ViewToggle />
       {task ? (
@@ -117,7 +118,9 @@ function StatusBar() {
         </span>
       )}
       <span className="ml-auto">
-        {update?.latest ? `update ${update.latest} available` : "Rove web"}
+        {update?.latest
+          ? `update ${update.latest} available`
+          : `${displayProductName()} web`}
       </span>
     </footer>
   )

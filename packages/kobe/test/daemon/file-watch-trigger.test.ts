@@ -1,24 +1,24 @@
 /**
- * file-watch-trigger (shared dir-watch backing ui-prefs + keybindings fan-out).
- * Why these tests matter: this module is the load-bearing half of "edit a file
- * on disk → daemon refreshes the channel". After swapping the internals from
- * `node:fs.watch` + a manual poll fallback to chokidar, the EXTERNAL contract
- * the callers (ui-prefs-watcher, keybindings-watcher) depend on must be intact:
+ * file-watch-trigger (shared file-change trigger backing the ui-prefs,
+ * keybindings, and pty-exit fan-outs). Why these tests matter: this module is
+ * the load-bearing half of "edit a file on disk → daemon refreshes the
+ * channel". The internals are a stat-poll (issue #61: macOS FSEvents arms
+ * asynchronously and permanently drops writes landing in the arm window, so
+ * fs-event watching — fs.watch or chokidar — cannot be lossless); the
+ * EXTERNAL contract the callers depend on must be intact:
  *
- *   - it watches the parent DIRECTORY, not the file inode, so the State Store's
- *     atomic tmp+rename is still seen (an inode watch goes dead after rename);
+ *   - it stamps by PATH, not inode, so the State Store's atomic tmp+rename
+ *     is still seen (an inode watch goes dead after rename);
  *   - it filters by basename, so unrelated siblings in the dir don't trigger;
  *   - it debounces bursts into a single trigger;
  *   - `debounceMs <= 0` is a no-op (callers use it as the "watching disabled"
  *     switch);
- *   - `stop()` fully closes the chokidar watcher — no further triggers, no
- *     leaked watchers/timers.
+ *   - `stop()` fully stops the poll — no further triggers, no leaked timers.
  *
- * These run against a real temp dir (chokidar is real-fs), with timeout-based
- * assertions because fs-event delivery is async. The old test surface lived in
- * the ui-prefs/keybindings watcher tests (also real-fs, kept green); this file
- * pins the shared primitive directly. No fs.watch was ever mocked, so there was
- * nothing to un-mock for the chokidar swap.
+ * These run against a real temp dir, with timeout-based assertions because
+ * poll + debounce delivery is async. The old test surface lived in the
+ * ui-prefs/keybindings watcher tests (also real-fs, kept green); this file
+ * pins the shared primitive directly.
  */
 
 import fs from "node:fs"
@@ -28,8 +28,8 @@ import { startFileWatchTrigger } from "@sma1lboy/kobe-daemon/daemon/file-watch-t
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { pokeUntil, waitUntil } from "./fs-watch-helpers.ts"
 
-// fs-event delivery (chokidar arm + fsevents) can take seconds when the socket
-// track runs multi-worker under load; the polling waitFor needs headroom past
+// Poll + debounce delivery can stretch when the socket track runs
+// multi-worker under load; the polling waitFor needs headroom past
 // vitest's 5s default.
 vi.setConfig({ testTimeout: 20_000 })
 

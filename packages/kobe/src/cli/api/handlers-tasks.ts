@@ -22,7 +22,7 @@ import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
  * Peer provenance: a `send` issued from INSIDE another kobe task is one
  * agent messaging another, and the receiver needs what a bare paste never
  * carries — who is talking and how to answer. Same convention as field
- * notes (`[KOBE FIELD NOTE] from "<label>" (task <id>)`), plus the reply
+ * notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the reply
  * command so a peer conversation is symmetric without any coordinator.
  * Sender identity is the VERIFIED $KOBE_TASK_ID/$KOBE_TAB_ID pair, not the
  * raw env: an unverified one names a stranger's session as the sender and
@@ -55,7 +55,7 @@ async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, promp
   // improvises verbs and side-channels (2026-08-10: a peer coordination
   // round-trip fell back to a human relay because neither side had the
   // skill's contract in context).
-  return `[KOBE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`
+  return `[ROVE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`
 }
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
@@ -165,13 +165,24 @@ export async function dispatch(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const text = ctx.args.require("prompt")
   const tabId = ctx.args.str("tab")
-  await daemon.request("session.deliver", {
+  const reply = (await daemon.request("session.deliver", {
     taskId,
     text,
     ...(tabId !== undefined ? { tabId } : {}),
     source: "dispatcher",
-  })
-  return { ok: true, taskId, ...(tabId !== undefined ? { tabId } : {}), routed: "session.deliver" }
+  })) as { clients?: number } | undefined
+  // Surface the daemon's reach verdict. `session.deliver` is broadcast-only
+  // (an attached client performs the paste), so `clients: 0` means the text
+  // reached nobody — the caller must not read `ok` as "the engine saw it".
+  // An older daemon omits the field; absent stays absent rather than being
+  // guessed either way.
+  return {
+    ok: true,
+    taskId,
+    ...(tabId !== undefined ? { tabId } : {}),
+    routed: "session.deliver",
+    ...(reply?.clients !== undefined ? { clients: reply.clients } : {}),
+  }
 }
 
 /** The verb spec lives beside its handler (PANE_VERB pattern) so verbs.ts
@@ -260,7 +271,6 @@ export async function land(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
   const strategy = ctx.args.str("strategy") === "squash" ? "squash" : "merge"
-  const removeWorktree = ctx.args.bool("remove-worktree") ?? false
   let res: { result: unknown }
   try {
     res = await daemon.request<{ result: unknown }>("task.land", {
@@ -268,10 +278,16 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       strategy,
       deleteBranch: ctx.args.bool("delete-branch") ?? false,
       archive: ctx.args.bool("then-archive") ?? false,
-      removeWorktree,
-      // The daemon refuses to remove the worktree the caller is running from —
-      // it can only know where the caller is if we tell it.
-      ...(removeWorktree ? { callerCwd: process.cwd() } : {}),
+      // Left UNDEFINED when the flag is absent so the orchestrator's default
+      // (remove it) applies; only an explicit `--remove-worktree=false` keeps
+      // the worktree. Coercing undefined to false here would pin the CLI to
+      // the old opt-in behaviour.
+      removeWorktree: ctx.args.bool("remove-worktree"),
+      // Sent on EVERY land: the daemon refuses to remove the worktree the
+      // caller is running from, and it can only know where that is if we tell
+      // it. Since removal is now the default rather than an opt-in flag, an
+      // agent landing its own task would otherwise delete its own cwd.
+      callerCwd: process.cwd(),
     })
   } catch (err) {
     throw landRecoveryError(err, taskId)

@@ -54,6 +54,15 @@ describe("forkSessionArgv", () => {
     expect(forkSessionArgv(["opencode"], "opencode", "src")).toBeNull()
     expect(forkSessionArgv(["claude"], "claude", "")).toBeNull()
   })
+
+  it("declines a claude base that already controls its own session — either flag form (issue #58)", () => {
+    // A second --resume makes claude refuse to launch; the user's override
+    // wins and the caller opens an ordinary tab on the base command.
+    expect(forkSessionArgv(["claude", "--resume", "pinned"], "claude", "src", "new")).toBeNull()
+    expect(forkSessionArgv(["claude", "--resume=pinned"], "claude", "src", "new")).toBeNull()
+    expect(forkSessionArgv(["claude", "--session-id=pinned"], "claude", "src", "new")).toBeNull()
+    expect(forkSessionArgv(["claude", "-c"], "claude", "src", "new")).toBeNull()
+  })
 })
 
 // Why: copilot (`--resume`) and kimi (`-S`) can only REOPEN a session, which

@@ -279,7 +279,7 @@ describe("send handler", () => {
         client: peerClient(),
         runtime: stubRuntime({ deliverPrompt: deliver }),
       })
-      expect(calls[0].prompt).toContain('[KOBE PEER] from "Auth attempt" (task sender-1')
+      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
       expect(calls[0].prompt).toContain("registered as /rove; legacy /kobe installs still work")
       expect(calls[0].prompt).toContain("send --task-id sender-1")
       // The self-teach pointer: a receiver that has never seen kobe learns

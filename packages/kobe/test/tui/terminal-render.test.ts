@@ -2,46 +2,87 @@ import { describe, expect, it } from "vitest"
 import { ATTR, type Chunk, type RGB } from "../../src/tui/panes/terminal/sgr"
 import { overlayCursor, sealRowEndAttributes } from "../../src/tui/panes/terminal/terminal-render"
 
-/** The single chunk carrying the INVERSE attribute — that's the cursor cell. */
+const CURSOR_FG: RGB = [20, 20, 19]
+const CURSOR_BG: RGB = [234, 231, 223]
+const COLORS = { foreground: CURSOR_BG, background: CURSOR_FG } as const
+
+/** The single chunk carrying the materialized cursor color pair. */
 function cursorCell(rows: readonly (readonly Chunk[])[], y: number): Chunk | undefined {
-  return rows[y]?.find((c) => ((c.attributes ?? 0) & ATTR.INVERSE) !== 0)
+  return rows[y]?.find((c) => c.fg === CURSOR_FG && c.bg === CURSOR_BG)
 }
 
 describe("overlayCursor — cell-column aware", () => {
+  it("materializes a visible cursor over Codex's dim explicit-background placeholder", () => {
+    const source = [[{ text: "Ask Codex", bg: [48, 48, 47], attributes: ATTR.DIM } as Chunk]]
+
+    const out = overlayCursor(source, { x: 0, y: 0 }, COLORS)
+
+    expect(out[0]?.[0]).toEqual({ text: "A", fg: [48, 48, 47], bg: CURSOR_BG, attributes: ATTR.DIM })
+    expect(source[0]?.[0]).toEqual({ text: "Ask Codex", bg: [48, 48, 47], attributes: ATTR.DIM })
+  })
+
   it("lands on the right char when the row has wide (CJK) glyphs", () => {
     // "你好x": 你 = cells 0-1, 好 = cells 2-3, x = cell 4. `cursor.x` is a
     // CELL column, so counting code points (你好x = 3) used to drift the
     // cursor left by one column per wide char — this pins the fix.
     const rows = [[{ text: "你好x" } as Chunk]]
-    expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }), 0)?.text).toBe("你")
-    expect(cursorCell(overlayCursor(rows, { x: 2, y: 0 }), 0)?.text).toBe("好")
-    expect(cursorCell(overlayCursor(rows, { x: 4, y: 0 }), 0)?.text).toBe("x")
+    expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }, COLORS), 0)?.text).toBe("你")
+    expect(cursorCell(overlayCursor(rows, { x: 2, y: 0 }, COLORS), 0)?.text).toBe("好")
+    expect(cursorCell(overlayCursor(rows, { x: 4, y: 0 }, COLORS), 0)?.text).toBe("x")
   })
 
   it("a wide char's trailing cell resolves to the char itself", () => {
     const rows = [[{ text: "你好" } as Chunk]]
     // x=1 is 你's second cell, x=3 is 好's second cell.
-    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }), 0)?.text).toBe("你")
-    expect(cursorCell(overlayCursor(rows, { x: 3, y: 0 }), 0)?.text).toBe("好")
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }, COLORS), 0)?.text).toBe("你")
+    expect(cursorCell(overlayCursor(rows, { x: 3, y: 0 }, COLORS), 0)?.text).toBe("好")
   })
 
   it("keeps the ascii fast path exact and splits the chunk around the cursor", () => {
     const rows = [[{ text: "abc" } as Chunk]]
-    const out = overlayCursor(rows, { x: 1, y: 0 })[0]
+    const out = overlayCursor(rows, { x: 1, y: 0 }, COLORS)[0]
     expect(out.map((c) => c.text)).toEqual(["a", "b", "c"])
     expect(cursorCell([out], 0)?.text).toBe("b")
   })
 
-  it("past-the-end cursor (blank cell) appends an inverse space", () => {
+  it("counts a zero-width combining mark as part of its base char's cell", () => {
+    // "éx": é in NFD (e + combining acute) is ONE cell, x is the next.
+    // xterm folds the mark onto the base cell, so the mark must add 0 columns
+    // — counting it as 1 drifted the overlay one cell right and inverted the
+    // bare combining mark instead of the char the cursor was actually on.
+    const rows = [[{ text: "e\u0301x" } as Chunk]]
+    expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }, COLORS), 0)?.text).toBe("e")
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }, COLORS), 0)?.text).toBe("x")
+  })
+
+  it("treats an emoji variation selector as zero-width", () => {
+    // "❤️x": U+2764 + VS16 is one narrow-width unit here (matching
+    // displayWidth), so x sits at cell 1, not cell 2.
+    const rows = [[{ text: "❤️x" } as Chunk]]
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }, COLORS), 0)?.text).toBe("x")
+  })
+
+  it("gives a control byte zero cells WITHOUT a one-cell floor re-widening it", () => {
+    // Merged invariant of the control-char and zero-width fixes: `charWidth`
+    // alone decides cell math (controls AND combining marks are 0), and this
+    // module must not re-floor it with `|| 1`. "a" + BEL + NFD é: a=1, BEL=0,
+    // e=1, mark=0 — so cell 1 is "e". Either half alone fails this: a floor
+    // turns BEL back into a column, and without the control branch BEL is 1.
+    const rows = [[{ text: "a\x07e\u0301" } as Chunk]]
+    expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }, COLORS), 0)?.text).toBe("a")
+    expect(cursorCell(overlayCursor(rows, { x: 1, y: 0 }, COLORS), 0)?.text).toBe("e")
+  })
+
+  it("past-the-end cursor (blank cell) appends an explicit cursor space", () => {
     const rows = [[{ text: "你" } as Chunk]]
     // 你 spans cells 0-1; x=2 is the empty cell after it.
-    const out = overlayCursor(rows, { x: 2, y: 0 })[0]
-    expect(out.at(-1)).toEqual({ text: " ", attributes: ATTR.INVERSE })
+    const out = overlayCursor(rows, { x: 2, y: 0 }, COLORS)[0]
+    expect(out.at(-1)).toEqual({ text: " ", fg: CURSOR_FG, bg: CURSOR_BG })
   })
 
   it("only overlays the cursor's row", () => {
     const rows = [[{ text: "你" } as Chunk], [{ text: "好" } as Chunk]]
-    const out = overlayCursor(rows, { x: 0, y: 1 })
+    const out = overlayCursor(rows, { x: 0, y: 1 }, COLORS)
     expect(cursorCell(out, 0)).toBeUndefined()
     expect(cursorCell(out, 1)?.text).toBe("好")
   })
@@ -52,9 +93,9 @@ describe("overlayCursor — cell-column aware", () => {
     // must pad to column 4 — appending straight after the text froze the
     // visual cursor at column 2 no matter how many spaces were typed.
     const rows = [[{ text: "ab" } as Chunk]]
-    const out = overlayCursor(rows, { x: 4, y: 0 })[0]
+    const out = overlayCursor(rows, { x: 4, y: 0 }, COLORS)[0]
     expect(out.map((c) => c.text).join("")).toBe("ab   ")
-    expect(out.at(-1)).toEqual({ text: " ", attributes: ATTR.INVERSE })
+    expect(out.at(-1)).toEqual({ text: " ", fg: CURSOR_FG, bg: CURSOR_BG })
   })
 })
 
@@ -95,6 +136,19 @@ describe("sealRowEndAttributes — opentui row-end attribute leak workaround", (
     expect(out.at(-1)?.attributes ?? 0).toBe(0)
     // ...and the same row is left alone in a wider terminal.
     expect(sealRowEndAttributes(rows, 10, FG, BG)[0]).toBe(rows[0])
+  })
+
+  it("finds the last visible cell past a zero-width combining mark", () => {
+    // "ábc" with á in NFD (a + combining acute) is THREE cells, not four:
+    // the mark folds onto its base. A cols=3 row is full and the seal must
+    // land on "c" — counting the mark as a column sealed "b" and left "c"
+    // (the real last-column cell) still bleeding its attribute.
+    const rows = [[{ text: "a\u0301bc", attributes: ATTR.UNDERLINE } as Chunk]]
+    const out = sealRowEndAttributes(rows, 3, FG, BG)[0] as readonly Chunk[]
+    expect(out.map((c) => c.text).join("")).toBe("a\u0301bc")
+    const sealed = out.find((c) => c.text === "c") as Chunk
+    expect(sealed.attributes ?? 0).toBe(0)
+    expect(out.find((c) => c.text === "a\u0301b")?.attributes).toBe(ATTR.UNDERLINE)
   })
 
   it("seals the last VISIBLE cell when the row is wider than the pane", () => {

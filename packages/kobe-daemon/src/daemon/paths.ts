@@ -1,7 +1,87 @@
 import { createHash } from "node:crypto"
+import { existsSync, readFileSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+
+/**
+ * Runtime files (sockets, pidfiles, logs) live under the product's own state
+ * dir — `.rove`. `.kobe` is where they used to live, and a socket path is not
+ * a preference: it is the ADDRESS of a process that is already running. An
+ * upgrade that simply changed the constant would make the live daemon and the
+ * live PTY host invisible to the new client, which would then start a second
+ * pair and orphan every engine tab the old host owns.
+ *
+ * So the rule for an address is: canonical if it exists, else the legacy path
+ * IF the process it belongs to is still alive, else canonical. A stale `.kobe`
+ * socket left by a crash fails the liveness test and is stepped over. Once the
+ * daemon and host are restarted on the canonical paths, the legacy branch
+ * never fires again.
+ */
+function stateDirs(homeDir: string): { canonical: string; legacy: string } {
+  return { canonical: join(homeDir, ROVE_STATE_DIR_BASENAME), legacy: join(homeDir, COMPAT_STATE_DIR_BASENAME) }
+}
+
+/** True when `pidPath` names a process this machine still has. */
+function pidIsLive(pidPath: string): boolean {
+  try {
+    const pid = Number.parseInt(readFileSync(pidPath, "utf8").trim(), 10)
+    if (!Number.isInteger(pid) || pid <= 1) return false
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Pick the path for one runtime file: the canonical one, unless only the
+ * legacy layout holds a LIVE process (judged by `pidName`, the pidfile that
+ * belongs to the same process).
+ */
+function runtimePath(homeDir: string, name: string, pidName: string): string {
+  const { canonical, legacy } = stateDirs(homeDir)
+  const canonicalPath = join(canonical, name)
+  if (existsSync(canonicalPath)) return canonicalPath
+  const legacyPath = join(legacy, name)
+  if (existsSync(legacyPath) && pidIsLive(join(legacy, pidName))) return legacyPath
+  return canonicalPath
+}
+
+/**
+ * The pre-rename location of one runtime file. Only the BINDING side needs
+ * these: after a successful bind it points the legacy path at the canonical
+ * one so a binary predating the rename still finds a live daemon/host
+ * (`compat-link.ts`). Resolution never calls this — that is `runtimePath`.
+ */
+export function legacyRuntimePath(homeDir: string, name: string): string {
+  return join(homeDir, COMPAT_STATE_DIR_BASENAME, name)
+}
+
+export function legacyDaemonSocketPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "daemon.sock")
+}
+
+export function legacyDaemonPidPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "daemon.pid")
+}
+
+export function legacyPtyHostSocketPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "pty.sock")
+}
+
+export function legacyPtyHostPidPath(homeDir: string): string {
+  return legacyRuntimePath(homeDir, "pty.pid")
+}
+
+/** Data a host reads back across restarts: whichever layout actually has it. */
+function runtimeDataPath(homeDir: string, name: string): string {
+  const { canonical, legacy } = stateDirs(homeDir)
+  const canonicalPath = join(canonical, name)
+  if (existsSync(canonicalPath)) return canonicalPath
+  const legacyPath = join(legacy, name)
+  return existsSync(legacyPath) ? legacyPath : canonicalPath
+}
 
 /**
  * Unix domain socket paths are stored in a fixed-size `sun_path` field
@@ -91,14 +171,14 @@ export function defaultDaemonSocketPath(homeDir?: string): string {
   if (override && override.length > 0) return override
   const explicit = homeDir ?? readRoveEnv("HOME_DIR")
   if (explicit && explicit.length > 0) {
-    return fitSocketPath(join(explicit, COMPAT_STATE_DIR_BASENAME, "daemon.sock"), explicit, "daemon")
+    return fitSocketPath(runtimePath(explicit, "daemon.sock", "daemon.pid"), explicit, "daemon")
   }
   const runtimeDir = process.env.XDG_RUNTIME_DIR
   if (runtimeDir && runtimeDir.length > 0) {
     return fitSocketPath(join(runtimeDir, "kobe.sock"), runtimeDir, "daemon")
   }
   const home = homedir()
-  return fitSocketPath(join(home, COMPAT_STATE_DIR_BASENAME, "daemon.sock"), home, "daemon")
+  return fitSocketPath(runtimePath(home, "daemon.sock", "daemon.pid"), home, "daemon")
 }
 
 /**
@@ -115,7 +195,7 @@ export function resolveDaemonHomeDir(homeDir?: string): string {
 export function defaultDaemonPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
   const override = readRoveEnv("DAEMON_PID_PATH")
   if (override && override.length > 0) return override
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "daemon.pid")
+  return runtimePath(homeDir, "daemon.pid", "daemon.pid")
 }
 
 /**
@@ -126,11 +206,11 @@ export function defaultDaemonPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
  * file next to the socket + pidfile under `<home>/.kobe/`.
  */
 export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "daemon.log")
+  return join(homeDir, ROVE_STATE_DIR_BASENAME, "daemon.log")
 }
 
 /**
- * Log file for Rove's CLIENT-side processes (the in-tmux Tasks/Ops panes
+ * Log file for Rove's CLIENT-side processes (the OpenTUI Tasks/Ops panes
  * and the front-end attach). Unlike the daemon, these run inside an
  * opentui alternate-screen pane, so their `console.*` output is swallowed
  * by the TUI and a stray "[rove tasks] daemon subscribe unavailable" never
@@ -141,12 +221,12 @@ export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
  * like every other state path so sandbox runs stay isolated.
  */
 export function defaultClientLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "client.log")
+  return join(homeDir, ROVE_STATE_DIR_BASENAME, "client.log")
 }
 
 /**
  * Unix-socket path for the standalone PTY HOST process (`kobe pty-host`)
- * — the tmux-server analog that owns embedded-terminal children so they
+ * — the persistent terminal host that owns embedded-terminal children so they
  * survive both TUI exits AND `kobe daemon restart`. Deliberately a
  * separate process + socket from the daemon: the daemon restarts
  * routinely (it holds all the fast-moving code), while the pty host is
@@ -187,35 +267,35 @@ export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Plat
   const explicit = homeDir ?? readRoveEnv("HOME_DIR")
   if (platform === "win32") return windowsPipePath(explicit || homedir(), "pty")
   if (explicit && explicit.length > 0) {
-    return fitSocketPath(join(explicit, COMPAT_STATE_DIR_BASENAME, "pty.sock"), explicit, "pty")
+    return fitSocketPath(runtimePath(explicit, "pty.sock", "pty.pid"), explicit, "pty")
   }
   const runtimeDir = process.env.XDG_RUNTIME_DIR
   if (runtimeDir && runtimeDir.length > 0) {
     return fitSocketPath(join(runtimeDir, "kobe-pty.sock"), runtimeDir, "pty")
   }
   const home = homedir()
-  return fitSocketPath(join(home, COMPAT_STATE_DIR_BASENAME, "pty.sock"), home, "pty")
+  return fitSocketPath(runtimePath(home, "pty.sock", "pty.pid"), home, "pty")
 }
 
 export function defaultPtyHostPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
   const override = readRoveEnv("PTY_PID_PATH")
   if (override && override.length > 0) return override
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "pty.pid")
+  return runtimePath(homeDir, "pty.pid", "pty.pid")
 }
 
 export function defaultPtyHostLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "pty.log")
+  return join(homeDir, ROVE_STATE_DIR_BASENAME, "pty.log")
 }
 
 /** Durable per-session death records (`pty-exit-store.ts`) — must outlive
  *  the host's idle-exit, so a crashed engine's cause stays queryable. */
 export function defaultPtyExitsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "pty-exits.json")
+  return runtimeDataPath(homeDir, "pty-exits.json")
 }
 
 /** Frozen live-session snapshots (`pty-freeze-store.ts`) — one JSON file per
  *  session key, so a host restart (crash, reboot) can hand every session's
  *  metadata + scrollback back to the next host incarnation. */
 export function defaultPtyFreezeDir(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, COMPAT_STATE_DIR_BASENAME, "pty-sessions")
+  return runtimeDataPath(homeDir, "pty-sessions")
 }

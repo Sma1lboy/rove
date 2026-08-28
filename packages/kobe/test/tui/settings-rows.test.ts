@@ -53,6 +53,7 @@ function input(overrides: Partial<SettingsRowsInput> = {}): SettingsRowsInput {
       { id: "acme.layout", settingKeys: [] },
     ],
     hasDaemon: true,
+    keybindingsFileExists: true,
     ...overrides,
   }
 }
@@ -182,9 +183,9 @@ describe("feedbackRows", () => {
 })
 
 describe("sectionRows / bodyRowCount", () => {
-  it("accounts and keys are read-only — zero navigable rows", () => {
-    expect(sectionRows("accounts", input())).toEqual([])
+  it("keys has no rows once the YAML exists, and one create action while it doesn't", () => {
     expect(sectionRows("keys", input())).toEqual([])
+    expect(sectionRows("keys", input({ keybindingsFileExists: false })).map((r) => r.kind)).toEqual(["keysCreate"])
   })
 
   it("bodyRowCount is the registry length for every section", () => {
@@ -200,7 +201,6 @@ describe("sectionRows / bodyRowCount", () => {
     const inp = input({ themeNames: themes, engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 14) // themes + langs + transparent + accents + retained general rows
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 1) // 6
-    expect(bodyRowCount("accounts", inp)).toBe(0)
     expect(bodyRowCount("keys", inp)).toBe(0)
     expect(bodyRowCount("feedback", inp)).toBe(3)
     expect(bodyRowCount("dev", inp)).toBe(6)

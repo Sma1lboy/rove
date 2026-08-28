@@ -45,12 +45,12 @@ describe("client-log", () => {
       await rm(home, { recursive: true, force: true })
     })
 
-    it("appends to <home>/.kobe/client.log, creating the dir if absent", async () => {
+    it("appends to <home>/.rove/client.log, creating the dir if absent", async () => {
       setClientLogContext("ops")
       logClient("reconnect", "daemon socket closed")
       logClient("reconnect", "reconnected after 2 attempts")
       await flushClientLog() // append is fire-and-forget async; wait for the chain
-      const contents = await readFile(join(home, ".kobe", "client.log"), "utf8")
+      const contents = await readFile(join(home, ".rove", "client.log"), "utf8")
       const lines = contents.trim().split("\n")
       expect(lines).toHaveLength(2)
       expect(lines[0]).toContain("client ops [reconnect] ")
@@ -65,8 +65,8 @@ describe("client-log", () => {
      * cap, so no long-lived process can grow this file unboundedly.
      */
     it("rotates client.log to .old once it's over the cap, then keeps appending fresh", async () => {
-      const logPath = join(home, ".kobe", "client.log")
-      await mkdir(join(home, ".kobe"), { recursive: true })
+      const logPath = join(home, ".rove", "client.log")
+      await mkdir(join(home, ".rove"), { recursive: true })
       await writeFile(logPath, "x".repeat(DEFAULT_LOG_ROTATE_CAP_BYTES + 1))
 
       setClientLogContext("ops")

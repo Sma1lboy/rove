@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { hostRenderOptions, installPaneExitBackstop } from "../../src/tui/lib/host-render-options"
+import {
+  hostRenderOptions,
+  installBracketedPasteMode,
+  installPaneExitBackstop,
+} from "../../src/tui/lib/host-render-options"
 import { createHostImeOutput } from "../../src/tui/lib/ime-anchor-output"
 
 function fakeTty(): NodeJS.WriteStream {
@@ -8,6 +12,21 @@ function fakeTty(): NodeJS.WriteStream {
     rows: 40,
     write: () => true,
   } as unknown as NodeJS.WriteStream
+}
+
+/** A tty that records what was written to it. */
+function recordingTty(isTTY = true): { stream: NodeJS.WriteStream; written: string[] } {
+  const written: string[] = []
+  return {
+    written,
+    stream: {
+      isTTY,
+      write: (chunk: string) => {
+        written.push(chunk)
+        return true
+      },
+    } as unknown as NodeJS.WriteStream,
+  }
 }
 
 describe("hostRenderOptions", () => {
@@ -52,5 +71,41 @@ describe("installPaneExitBackstop", () => {
       expect(listeners.length).toBe((before.get(signal) ?? 0) + 1)
       added.push({ signal, fn: listeners.at(-1) as NodeJS.SignalsListener })
     }
+  })
+})
+
+describe("installBracketedPasteMode", () => {
+  const installed: Array<() => void> = []
+
+  afterEach(() => {
+    for (const restore of installed.splice(0)) {
+      process.removeListener("exit", restore as NodeJS.ExitListener)
+    }
+  })
+
+  it("turns the mode on, and its restore turns it back off exactly once", () => {
+    const { stream, written } = recordingTty()
+    const restore = installBracketedPasteMode(stream)
+    installed.push(restore)
+    // Without the enable the terminal sends a paste as plain keystrokes, and
+    // every newline in it submits.
+    expect(written).toEqual(["\x1b[?2004h"])
+
+    restore()
+    restore()
+    expect(written).toEqual(["\x1b[?2004h", "\x1b[?2004l"])
+  })
+
+  it("registers the restore on exit so process.exit() still gives the mode back", () => {
+    const before = process.listeners("exit").length
+    const restore = installBracketedPasteMode(recordingTty().stream)
+    installed.push(restore)
+    expect(process.listeners("exit").length).toBe(before + 1)
+  })
+
+  it("does nothing when stdout is not a tty (piped output, tests)", () => {
+    const { stream, written } = recordingTty(false)
+    installBracketedPasteMode(stream)
+    expect(written).toEqual([])
   })
 })

@@ -25,24 +25,19 @@
  *     dependency array during render, so no such ordering constraint
  *     exists — the hooks below are ordered for readability, not
  *     correctness.
- *   - Body-box measurement lives in `use-terminal-geometry.ts`; the
- *     resize-push-to-pty and host-cursor-anchor effects stay HERE
- *     because they need the PTY handle and the computed viewport cursor,
- *     which only exist after the geometry hook's `bodyGeometry` has fed
- *     `useTerminalPty` — splitting them out would just reintroduce the
- *     same chicken-and-egg hook ordering this file avoids.
+ *   - Body-box measurement and the resize-push / host-cursor-anchor
+ *     effects live in `use-terminal-geometry.ts` and
+ *     `use-terminal-host-cursor.ts`. They receive the PTY handle and the
+ *     computed viewport cursor after `useTerminalPty` has produced them,
+ *     so the call order in this file remains the same and there is no
+ *     chicken-and-egg hook-ordering hazard.
  */
 
+import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
-import { useRenderer } from "@opentui/react"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { imeAnchorController } from "../../../tui/lib/ime-anchor-output"
-import {
-  ImeCursorRetention,
-  type ImeScreenAnchor,
-  ImeScreenAnchorRetention,
-} from "../../../tui/panes/terminal/ime-cursor"
+import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
 import { isShellMissing, overlayCursor, sealRowEndAttributes } from "../../../tui/panes/terminal/terminal-render"
@@ -62,6 +57,7 @@ import { useDialog } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { useTerminalBindings } from "./keys"
 import { useTerminalGeometry } from "./use-terminal-geometry"
+import { useTerminalHostCursor } from "./use-terminal-host-cursor"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalSelection } from "./use-terminal-selection"
 
@@ -126,6 +122,8 @@ export type TerminalProps = {
   resetToken?: number
   /** Optional registry override (tests inject a mock-backed registry). */
   registry?: PtyRegistry
+  /** Vendor-owned full-screen presentation policy for the original engine leaf. */
+  terminalPresentation?: EngineTerminalPresentation
 }
 
 /* --------------------------------------------------------------------- */
@@ -145,6 +143,20 @@ export function Terminal(props: TerminalProps) {
   const [scrollState, setScrollState] = useState<ViewportScrollState>(FOLLOW_VIEWPORT)
 
   const { bodyEl, setBodyEl, bodyRows, bodyGeometry, bumpGeomTick, dims, geomTick } = useTerminalGeometry()
+  const defaultColors = useMemo(() => {
+    const [foregroundR, foregroundG, foregroundB] = theme.text.toInts()
+    const [backgroundR, backgroundG, backgroundB] = theme.background.toInts()
+    const hex = (r: number, g: number, b: number): `#${string}` =>
+      `#${[r, g, b].map((component) => component.toString(16).padStart(2, "0")).join("")}`
+    return {
+      foreground: hex(foregroundR, foregroundG, foregroundB),
+      background: hex(backgroundR, backgroundG, backgroundB),
+    }
+  }, [theme])
+  const alternateScreenStyleRewrites = useMemo(
+    () => props.terminalPresentation?.alternateScreenStyleRewrites(defaultColors),
+    [props.terminalPresentation, defaultColors],
+  )
 
   const { pty, snapshot, snapshotWindow, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
@@ -153,6 +165,8 @@ export function Terminal(props: TerminalProps) {
     initialInput: props.initialInput,
     firstMessage: props.firstMessage,
     engineBin: props.engineBin,
+    defaultColors,
+    alternateScreenStyleRewrites,
     resetToken: props.resetToken,
     onExit: props.onExit,
     registry,
@@ -169,6 +183,33 @@ export function Terminal(props: TerminalProps) {
   // Clamped to the real history depth.
   const scrollBy = (lines: number): void => {
     setScrollState((current) => moveViewportScroll(current, snapshot.length, bodyRows, lines, snapshotWindow))
+  }
+
+  /**
+   * Emulator order for ANY scroll this pane performs — a wheel tick or a
+   * selection drag hanging past an edge. An app that owns its own scrollback
+   * (mouse tracking, or a fullscreen app on the alternate screen) gets wheel
+   * events; only when it wants neither do we move kobe's local viewport.
+   * Engine tabs are why this matters for the drag: Claude Code runs on the
+   * ALTERNATE screen, where there is no local scrollback to move at all, so a
+   * drag held at the edge has to ask the app to scroll, exactly as the wheel
+   * does. `screenX`/`screenY` are absolute pointer coords. Returns true when
+   * the scroll was forwarded — the selection hook then tracks the content
+   * shifts the app's redraws cause under the fixed snapshot rows.
+   */
+  const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
+    if (lines === 0) return false
+    const direction = lines < 0 ? "up" : "down"
+    if (pty && !pty.killed && bodyEl) {
+      const col = Math.max(1, screenX - bodyEl.screenX + 1)
+      const row = Math.max(1, screenY - bodyEl.screenY + 1)
+      if (pty.wheel(direction, col, row)) {
+        for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row)
+        return true
+      }
+    }
+    scrollBy(lines)
+    return false
   }
 
   /* --------- viewport slicing ---------- */
@@ -204,7 +245,17 @@ export function Terminal(props: TerminalProps) {
     bodyRows,
     visibleRangeStart: visibleRange.start,
     snapshot,
+    scrollBy: scrollFromPointer,
   })
+
+  const terminalColors = useMemo(() => {
+    const foreground = theme.text.toInts()
+    const background = theme.background.toInts()
+    return {
+      foreground: [foreground[0], foreground[1], foreground[2]],
+      background: [background[0], background[1], background[2]],
+    } as const
+  }, [theme])
 
   const cursorRows = useMemo(() => {
     const withSelection = overlaySelection(
@@ -218,8 +269,8 @@ export function Terminal(props: TerminalProps) {
     // inverse styling, so a cursor sitting just past the selection read
     // as the highlight overrunning by one blinking cell.
     const cursorWhileUnselected = focused && !selection.selection ? visibleCursor : null
-    return overlayCursor(withSelection, cursorWhileUnselected)
-  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor])
+    return overlayCursor(withSelection, cursorWhileUnselected, terminalColors)
+  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor, terminalColors])
 
   // Flatten every visible row into ONE `StyledText` — see the Solid
   // original for why a single element (not per-row `<text>`s) is load-
@@ -230,16 +281,14 @@ export function Terminal(props: TerminalProps) {
   // the "wrapped URL underlines everything below it" report). Its doc comment
   // has the full mechanism; drop this call once opentui resets per row.
   const styledSnapshot = useMemo(() => {
-    const themeFg = theme.text.toInts()
-    const themeBg = theme.background.toInts()
     const sealed = sealRowEndAttributes(
       cursorRows,
       bodyGeometry?.cols ?? 80,
-      [themeFg[0], themeFg[1], themeFg[2]],
-      [themeBg[0], themeBg[1], themeBg[2]],
+      terminalColors.foreground,
+      terminalColors.background,
     )
     return new StyledText(rowsToStyledText(sealed))
-  }, [cursorRows, bodyGeometry, theme])
+  }, [cursorRows, bodyGeometry, terminalColors])
 
   // Imperative content push — opentui 0.4 won't accept StyledText as a
   // JSX child or through the content prop (stringifies it).
@@ -307,83 +356,15 @@ export function Terminal(props: TerminalProps) {
 
   /* --------- resize-push + host-cursor anchor ---------- */
 
-  const renderer = useRenderer()
-  const imeAnchorOwner = useRef(Symbol("terminal-ime-anchor")).current
-  const [imeScreenAnchorRetention] = useState(() => new ImeScreenAnchorRetention())
-
-  // Push geometry changes to the backend, deduped against the last push —
-  // real PTY backends may emit SIGWINCH even when geometry is unchanged.
-  const lastResizeRef = useRef<{ pty: typeof pty; cols: number; rows: number } | null>(null)
-  useEffect(() => {
-    if (!pty || !bodyGeometry) return
-    const { cols, rows } = bodyGeometry
-    const last = lastResizeRef.current
-    if (last?.pty === pty && last.cols === cols && last.rows === rows) return
-    lastResizeRef.current = { pty, cols, rows }
-    try {
-      pty.resize(cols, rows)
-    } catch {
-      /* best effort */
-    }
-  }, [pty, bodyGeometry])
-
-  // Keep the native host cursor INVISIBLE (the visible cursor is the inline
-  // inverse cell in `cursorRows`) but ANCHORED to the visible chat terminal's
-  // screen cell — even while Sidebar or Files owns keyboard focus. A transient
-  // PTY cursor-hide retains the last position; the renderer-output adapter
-  // restores it at the end of every diff frame.
-  useEffect(() => {
-    // Dependency-only invalidation keys — see use-terminal-geometry.ts;
-    // screenX/screenY are read imperatively, non-reactive geometry.
-    void dims
-    void geomTick
-    if (!renderer) return
-    if (!imeAnchorActive) {
-      imeScreenAnchorRetention.update(null, null)
-      if (imeAnchorController.release(imeAnchorOwner)) renderer.setCursorPosition(0, 0, false)
-      return
-    }
-    let currentScreenAnchor: ImeScreenAnchor | null = null
-    if (bodyEl && visibleImeCursor && bodyEl.width > 0) {
-      currentScreenAnchor = {
-        x: bodyEl.screenX + visibleImeCursor.x,
-        y: bodyEl.screenY + visibleImeCursor.y,
-      }
-    }
-    // Historical scrollback has no live viewport cursor. Keep the prior
-    // screen-cell anchor for this PTY instead of sending the IME to the outer
-    // origin. A replacement PTY starts at origin until it reports a cursor.
-    const retainedAnchor = imeScreenAnchorRetention.update(pty, currentScreenAnchor)
-    if (retainedAnchor) {
-      imeAnchorController.claim(imeAnchorOwner, retainedAnchor)
-      renderer.setCursorPosition(retainedAnchor.x, retainedAnchor.y, false)
-      return
-    }
-    imeAnchorController.claim(imeAnchorOwner, { x: 0, y: 0 })
-    renderer.setCursorPosition(0, 0, false)
-  }, [
-    renderer,
-    imeAnchorActive,
+  useTerminalHostCursor({
+    pty,
     bodyEl,
+    bodyGeometry,
     visibleImeCursor,
+    imeAnchorActive,
     dims,
     geomTick,
-    imeAnchorOwner,
-    imeScreenAnchorRetention,
-    pty,
-  ])
-
-  // On unmount, hide the cursor so it doesn't leak into whichever pane
-  // gains focus next.
-  useEffect(() => {
-    return () => {
-      try {
-        if (imeAnchorController.release(imeAnchorOwner)) renderer?.setCursorPosition(0, 0, false)
-      } catch {
-        /* renderer may already be torn down */
-      }
-    }
-  }, [renderer, imeAnchorOwner])
+  })
 
   /* --------- view ---------- */
 
@@ -406,8 +387,9 @@ export function Terminal(props: TerminalProps) {
         selection.beginSelection(cell)
       }}
       onMouseDrag={(evt) => {
-        const cell = selection.cellFromEvent(evt)
-        if (cell) selection.updateSelectionHead(cell)
+        // Past the top/bottom edge this keeps scrolling on its own — opentui
+        // captures the drag here, so the coordinates stay real off-pane.
+        selection.dragTo(evt)
       }}
       onMouseUp={() => {
         setFocusedLocal(true)
@@ -428,15 +410,13 @@ export function Terminal(props: TerminalProps) {
         // otherwise scroll kobe's local scrollback.
         const scroll = evt.scroll
         if (!scroll || (scroll.direction !== "up" && scroll.direction !== "down")) return
-        if (pty && !pty.killed && bodyEl) {
-          const col = Math.max(1, evt.x - bodyEl.screenX + 1)
-          const row = Math.max(1, evt.y - bodyEl.screenY + 1)
-          if (pty.wheel(scroll.direction, col, row)) return
-        }
         // One line per event — opentui's parser emits delta:1 per wheel
         // tick already granulated by the host terminal.
         const step = Math.max(1, scroll.delta || 1)
-        scrollBy(scroll.direction === "up" ? -step : step)
+        const forwarded = scrollFromPointer(scroll.direction === "up" ? -step : step, evt.x, evt.y)
+        // A wheel tick mid-drag scrolls the app too — the selection must
+        // follow that shift exactly as it follows the edge pull's.
+        if (forwarded) selection.noteAppScroll()
       }}
     >
       {/* Scroll affordance overlays the historical viewport instead of
@@ -475,7 +455,19 @@ export function Terminal(props: TerminalProps) {
           // One multi-line `<text>` for the whole snapshot (rows flattened
           // with `\n`) — one <text> per row inside a flex column shifts
           // body.screenY, landing the cursor a row above the prompt.
-          <text fg={theme.text} wrapMode="none" ref={(r: TextRenderable | null) => setSnapshotTextEl(r)} />
+          //
+          // `selectable={false}`: this pane runs its OWN grid selection (see
+          // `use-terminal-selection`), and opentui's text-flow selection can't
+          // work over a snapshot that is replaced every frame. Left on, it also
+          // swallows the drag — the renderer routes a live text selection to
+          // whatever sits under the pointer instead of capturing it to this
+          // pane, so a drag past the edge would never reach us at all.
+          <text
+            fg={theme.text}
+            wrapMode="none"
+            selectable={false}
+            ref={(r: TextRenderable | null) => setSnapshotTextEl(r)}
+          />
         ) : (
           <box paddingLeft={1} paddingTop={1} flexDirection="column" gap={0}>
             {acquireError ? (

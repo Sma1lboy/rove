@@ -6,7 +6,7 @@
  * them), so "preview an image" means handing it to the system.
  */
 
-import { spawn } from "node:child_process"
+import { spawnDetached } from "./spawn-detached"
 
 /** Pure: the platform's open-with-default-app argv. */
 export function systemOpenArgv(absPath: string, platform: NodeJS.Platform = process.platform): readonly string[] {
@@ -18,14 +18,7 @@ export function systemOpenArgv(absPath: string, platform: NodeJS.Platform = proc
 }
 
 /** Fire-and-forget system open. Soft-fails — a missing opener never crashes the TUI. */
-export function openWithSystemViewer(absPath: string): void {
-  try {
-    const [cmd, ...args] = systemOpenArgv(absPath)
-    spawn(cmd ?? "", args, { detached: true, stdio: "ignore" })
-      .on("error", () => {})
-      .unref()
-  } catch {
-    // ponytail: no user-facing error surface; the key just no-ops if the
-    // platform opener is missing.
-  }
+export function openWithSystemViewer(absPath: string): boolean {
+  const [cmd, ...args] = systemOpenArgv(absPath)
+  return spawnDetached(cmd ?? "", args)
 }

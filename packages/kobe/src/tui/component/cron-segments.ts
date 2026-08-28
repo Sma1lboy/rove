@@ -35,6 +35,19 @@ const MONTH_LADDER = ["*", "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG
 // describe a schedule, and neither is reachable by stepping single days.
 const DOW_LADDER = ["*", "MON-FRI", "SAT,SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
+// Plural weekday names keyed by cron abbreviation. English weekday names
+// don't derive mechanically from their three-letter forms — "TUE" + "days"
+// is "Tuedays" — so each one is spelled out.
+const DOW_NAMES: Record<string, string> = {
+  MON: "Mondays",
+  TUE: "Tuesdays",
+  WED: "Wednesdays",
+  THU: "Thursdays",
+  FRI: "Fridays",
+  SAT: "Saturdays",
+  SUN: "Sundays",
+}
+
 function range(from: number, to: number): string[] {
   const out: string[] = []
   for (let n = from; n <= to; n++) out.push(String(n))
@@ -94,10 +107,17 @@ export function describeCron(expression: string): string | null {
 
   const at = describeTimeOfDay(minute, hour)
   if (!at) return null
-  if (dow === "*") return `every day ${at}`
+  // An "every N" phrase already says it recurs — prefixing it with "every
+  // day" produces the double qualifier "every day every 15m". Only a
+  // specific clock time needs the day qualifier.
+  // An "every N" phrase already says it recurs — prefixing it with "every
+  // day" gives the double qualifier "every day every 15m". Every other
+  // phrase (a clock time, an hourly minute) still takes the qualifier.
+  if (dow === "*") return at.startsWith("every ") ? at : `every day ${at}`
   if (dow === "MON-FRI") return `weekdays ${at}`
   if (dow === "SAT,SUN") return `weekends ${at}`
-  if (/^[A-Z]{3}$/.test(dow)) return `${dow.charAt(0)}${dow.slice(1).toLowerCase()}days ${at}`
+  const named = DOW_NAMES[dow.toUpperCase()]
+  if (named) return `${named} ${at}`
   return null
 }
 
@@ -105,7 +125,12 @@ function describeTimeOfDay(minute: string, hour: string): string | null {
   if (hour === "*") {
     if (minute === "*") return "every minute"
     if (minute.startsWith("*/")) return `every ${minute.slice(2)}m`
-    return `hourly at :${minute.padStart(2, "0")}`
+    // Only a single clock minute names a real fire time. A list or range
+    // (`15,45`, `10-20`) is not one instant — `:15,45` would assert a time
+    // the schedule never has, so stay silent and let the raw cron plus the
+    // next-run preview carry the truth.
+    if (/^\d+$/.test(minute)) return `hourly at :${minute.padStart(2, "0")}`
+    return null
   }
   if (hour.startsWith("*/") && minute === "0") return `every ${hour.slice(2)}h`
   if (/^\d+$/.test(hour) && /^\d+$/.test(minute)) {

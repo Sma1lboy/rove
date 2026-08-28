@@ -17,7 +17,9 @@ describe("buildReportBundle", () => {
 
   it("includes log tails, falling back when a log is empty", () => {
     expect(bundle).toContain("daemon line")
-    expect(bundle).toContain("## pty-host.log (last 200 lines)\n(empty or absent)")
+    // Header must name the real log file (<home>/.rove/pty.log, pinned by
+    // paths.test.ts) so the bundle points readers at a file that exists.
+    expect(bundle).toContain("## pty.log (last 200 lines)\n(empty or absent)")
   })
 
   it("captures ROVE_*, KOBE_* + known env keys but never arbitrary secrets", () => {

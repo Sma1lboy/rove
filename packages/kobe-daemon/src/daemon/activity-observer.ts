@@ -73,6 +73,17 @@ export interface ActivityObserverIo {
   foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, string | null>>
   /** Engine-owned title verdict — see kobe's `engineTitleTurnHint`. */
   titleTurnHint(vendor: string, title: string): "working" | "rest" | null
+  /**
+   * Live naming evidence for each ALIVE, WALKED session (issue #31 tier-b
+   * protocol sniff): relayed as-is once per tick; the consumer owns
+   * eligibility and must never feed it back into activity claims (a sniff
+   * names an engine, it does not resurrect a dot). Optional.
+   */
+  onEngineEvidence?(
+    taskId: string,
+    tabId: string,
+    evidence: { readonly walkVendor: string | null; readonly title: string },
+  ): void
 }
 
 export interface ActivityObserverOptions {
@@ -235,6 +246,7 @@ export function startActivityObserver(
         const key = `${track.taskId}::${track.tabId}`
         const session = sessions.find((s) => s.key === key)
         if (!session || track.vendor === undefined) continue
+        io.onEngineEvidence?.(track.taskId, track.tabId, { walkVendor: track.vendor, title: session.title })
         if (track.vendor === null) {
           applyRest(track, "no engine in foreground")
           continue

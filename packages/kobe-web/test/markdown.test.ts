@@ -61,21 +61,24 @@ describe("renderMarkdown — image rule (issue-asset urls only)", () => {
   it("escapes the alt text — no markup smuggling through alt", () => {
     const out = renderMarkdown(`![<img onerror=1>](${asset})`)
     // Exactly one <img> (the legit asset one); the alt text's angle brackets
-    // are entity-encoded, so the smuggled `<img onerror=1>` never becomes a
-    // second, real element. (The renderer escapes the alt a second time, hence
-    // &amp;lt; — the safety property is that no raw `<img onerror` survives.)
+    // are entity-encoded ONCE, so the smuggled `<img onerror=1>` never becomes
+    // a second, real element, and a screen reader announces the original text
+    // rather than literal entities.
     expect((out.match(/<img/g) ?? []).length).toBe(1)
     expect(out).not.toContain("<img onerror")
-    expect(out).toContain('alt="&amp;lt;img onerror=1&amp;gt;"')
+    expect(out).toContain('alt="&lt;img onerror=1&gt;"')
+    expect(out).not.toContain("&amp;lt;")
   })
 
-  it("falls back to inert text for a NON-asset image url (no <img>)", () => {
+  it("falls back to a plain link for a NON-asset image url (no <img>, no stray !)", () => {
     const out = renderMarkdown("![alt](https://evil.example.com/i.png)")
     expect(out).not.toContain("<img")
-    // The `[alt](url)` survives the image pass and is picked up by the link
-    // rule (safe http href), so the worst case is a plain anchor — never an
-    // off-site <img> fetch / tracking pixel.
-    expect(out).toContain("!<a ")
+    // The image pass renders the fallback itself as a safe anchor with the alt
+    // as text — never an off-site <img> fetch / tracking pixel, and no `!`
+    // artifact left in front of the link.
+    expect(out).toContain('href="https://evil.example.com/i.png"')
+    expect(out).toContain(">alt</a>")
+    expect(out).not.toContain("!<a ")
   })
 
   it("falls back to inert ESCAPED text for an image with an unsafe scheme (no <img>, no XSS)", () => {
