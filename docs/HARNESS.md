@@ -139,7 +139,8 @@ bun e2e/hero-seed.ts              # REAL Claude Code turns on two worktrees
 bun e2e/hero-issues.ts            # the kanban board's stories (no quota)
 bun e2e/hero-serve.ts             # warm capture stack on :5323 (keep running)
 
-bun e2e/hero-shot.ts --scale=2 --out=../../docs/assets/workspace.png ctrl+a l
+bun e2e/hero-stills.ts            # docs/assets/*.png (workspace, kanban, routines…)
+bun e2e/hero-shot.ts --out=/tmp/probe.png ctrl+a l   # one ad-hoc frame
 bun e2e/hero-record.ts            # demo.mp4 + demo.gif (4× cut)
 bun e2e/hero-kanban.ts            # kanban.mp4 + kanban.gif (3× cut)
 bun e2e/hero-routines.ts          # routines.mp4 + routines.gif (3× cut)
@@ -177,6 +178,19 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   `rove api routine-delete` after the take, leaving the same three rows the
   stills were framed on. It stops short of `run now` for the same folder-trust
   reason the kanban take stops short of Start.
+- **Stills ship at 1×, and `--scale=2` is currently broken.** `--scale` should
+  raise only raster density while the viewport — and so the terminal's cell
+  grid — stays fixed. At 2 the TUI now comes back ONE column wide, with larger
+  glyphs and the right pane cut off, though the same flag produced correct
+  three-pane frames for the images it replaced. Something in the DPR path feeds
+  the fit calculation, so a 2× still photographs a different layout rather than
+  a sharper one. `hero-stills.ts` pins `STILL_SCALE = 1` until that is fixed;
+  raise it back in the same change that fixes the regression.
+- **The fixture repo carries its own CLAUDE.md, on purpose.** It lives under
+  this repository's `.scratch/`, and project settings resolve upward — without
+  one, the seeded engine picks up Rove's contributor rules and narrates them.
+  One take photographed an engine apologising for a commit flag those rules
+  forbid, in a transcript meant to show a toy client getting a timeout.
 - **Recordings render through WebGL; stills do not.** The harness defaults to
   xterm's DOM renderer, which draws every cell as its own span using the font
   and therefore cannot use `customGlyphs` — xterm's geometric drawing of

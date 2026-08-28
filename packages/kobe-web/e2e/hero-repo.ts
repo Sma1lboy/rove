@@ -25,6 +25,28 @@ export const HERO_FILES: readonly HeroFile[] = [
 `,
   },
   {
+    /**
+     * The fixture's OWN project instructions, and the reason it has any.
+     *
+     * The hero repo lives under this repository's `.scratch/`, and project
+     * settings resolve UPWARD — so without a file here the seeded engine picks
+     * up Rove's own CLAUDE.md, follows rules written for this codebase, and
+     * narrates them. One take photographed an engine apologising for a commit
+     * flag Rove's contributor rules forbid, in a transcript that is meant to
+     * show a small client library getting a timeout. Stopping the walk here
+     * keeps the capture about the fixture.
+     */
+    path: "CLAUDE.md",
+    body: `# Orbit SDK
+
+A small typed client for the Orbit API.
+
+- \`bun test\` runs the suite.
+- Keep \`src/client.ts\` free of transport-specific branching; \`src/retry.ts\` owns retry policy.
+- Commit with a short \`type: summary\` subject line.
+`,
+  },
+  {
     path: "README.md",
     body: `# orbit-sdk
 
@@ -133,7 +155,10 @@ test("client errors are not retried", () => {
 
 /** Commits the repo is seeded with, so the log reads like real history. */
 export const HERO_COMMITS: readonly { readonly message: string; readonly paths: readonly string[] }[] = [
-  { message: "feat: typed client for the Orbit API", paths: ["package.json", "README.md", "src/index.ts", "src/client.ts"] },
+  {
+    message: "feat: typed client for the Orbit API",
+    paths: ["package.json", "README.md", "CLAUDE.md", "src/index.ts", "src/client.ts"],
+  },
   { message: "feat: cache the session token until it expires", paths: ["src/session.ts"] },
   { message: "feat: retry gateway failures", paths: ["src/retry.ts", "test/client.test.ts"] },
 ]

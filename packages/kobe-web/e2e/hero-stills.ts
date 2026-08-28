@@ -31,9 +31,9 @@ const ROW = { kanban: 87, routines: 104, main: 152, seededTab: 264 } as const
 
 type Still = {
   readonly name: string
-  /** Viewport; every still renders at `scale` 2 for a crisp docs image. */
   readonly width?: number
   readonly height?: number
+  /** Device pixel ratio; see {@link STILL_SCALE} before raising this. */
   readonly scale?: number
   /** What the reader is meant to see — kept next to the keystrokes. */
   readonly subject: string
@@ -41,6 +41,23 @@ type Still = {
 }
 
 type Page = Awaited<ReturnType<Awaited<ReturnType<typeof chromium.launch>>["newPage"]>>
+
+/**
+ * Device pixel ratio for every still — deliberately 1, not 2.
+ *
+ * `--scale` is supposed to raise only the raster density while the viewport,
+ * and so the terminal's cell grid, stays fixed. It no longer does: at 2 the
+ * TUI comes back one column wide, with a larger glyph and the right pane cut
+ * off, while the same command produced a correct three-pane frame for the
+ * images currently in `docs/assets`. Something in the DPR path now feeds the
+ * fit calculation, so a 2× still photographs a DIFFERENT layout rather than a
+ * sharper one.
+ *
+ * Until that is fixed these ship at 1×: lower density than the images they
+ * replace, but showing the product as it actually lays out. Raise this back to
+ * 2 in the same change that fixes the regression, never before.
+ */
+const STILL_SCALE = 1
 
 const KEYS: Record<string, string> = {
   enter: "Enter",
@@ -102,7 +119,15 @@ const STILLS: readonly Still[] = [
     drive: async (page) => {
       await click(page, 40, ROW.kanban)
       await look(page, "In progress")
-      await page.waitForTimeout(2_000)
+      await page.waitForTimeout(1_200)
+      // The board opens with NO card selected (`selectedId` starts null), so
+      // the caption's "cursor on a story" needs a keypress to exist. `down`
+      // takes the first card of the leftmost column (Backlog); `right` moves
+      // to In progress, which is the column the caption names.
+      await press(page, "down")
+      await page.waitForTimeout(600)
+      await press(page, "right")
+      await page.waitForTimeout(1_500)
     },
   },
   {
@@ -111,7 +136,11 @@ const STILLS: readonly Still[] = [
     drive: async (page) => {
       await click(page, 40, ROW.kanban)
       await look(page, "In progress")
-      await page.waitForTimeout(1_500)
+      await page.waitForTimeout(1_200)
+      // `enter` on an unselected board is a no-op — it photographed the plain
+      // board twice before this. Select a card first.
+      await press(page, "down")
+      await page.waitForTimeout(800)
       await press(page, "enter")
       await look(page, "WORKSPACE")
       await page.waitForTimeout(2_000)
@@ -138,12 +167,20 @@ const STILLS: readonly Still[] = [
       await press(page, "n")
       await look(page, "New routine")
       await page.waitForTimeout(800)
-      // Walk to the schedule row and land on the hour cell, which is what the
-      // caption describes — the preview underneath restates it in words.
-      await press(page, "tab", "tab", "tab")
+      // Fill name and prompt: an all-placeholder card photographs as an empty
+      // form, and the caption describes a composed routine.
+      await page.keyboard.type("Weekday dependency audit", { delay: 30 })
+      await page.waitForTimeout(500)
+      await press(page, "tab") // → repo
+      await press(page, "tab") // → prompt
+      await page.keyboard.type("Audit dependencies and summarize risky changes.", { delay: 30 })
+      await page.waitForTimeout(500)
+      // → schedule, then the hour cell, which is what the caption describes;
+      // the preview underneath restates the whole cron in words.
+      await press(page, "tab")
       await page.waitForTimeout(600)
       await press(page, "right")
-      await page.waitForTimeout(1_500)
+      await page.waitForTimeout(1_800)
     },
   },
 ]
@@ -161,7 +198,7 @@ try {
     const runId = `still-${still.name}-${queue.indexOf(still)}`
     const page = await browser.newPage({
       viewport: { width, height },
-      deviceScaleFactor: still.scale ?? 2,
+      deviceScaleFactor: still.scale ?? STILL_SCALE,
     })
     // `webgl=1` for the same reason recordings use it: the DOM renderer cannot
     // use xterm's `customGlyphs`, so block-element and box-drawing characters
