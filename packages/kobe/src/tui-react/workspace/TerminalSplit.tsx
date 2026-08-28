@@ -39,6 +39,7 @@ import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import {
@@ -220,7 +221,7 @@ export function TerminalSplit(props: {
   useBindings(() => ({
     enabled: props.focused && isSplit,
     bindings: bindByIds({
-      "workspace.split.close": () => removeAndRelease(activeLeaf),
+      "workspace.split.close": prefixAction(() => removeAndRelease(activeLeaf)),
       "workspace.split.rename": () => {
         const id = activeLeaf
         void RenameTaskDialog.show(dialog, leafNames.get(id) ?? "", {

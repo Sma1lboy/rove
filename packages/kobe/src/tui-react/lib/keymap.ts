@@ -33,6 +33,7 @@ import {
   armPrefixNow,
   dispatchKeyEvent,
   insertRegistration,
+  invokeArmedPrefixAction,
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
@@ -112,6 +113,11 @@ export function currentBindingReachability(): BindingReachability {
 /** Mouse path into the command layer: arm the prefix against the live stack. */
 export function armPrefixFromCurrentStack(): boolean {
   return armPrefixNow(stack)
+}
+
+/** Click one entry from the currently armed local prefix reveal. */
+export function invokeArmedPrefixActionFromCurrentStack(actionId: string, stroke: string): boolean {
+  return invokeArmedPrefixAction(stack, actionId, stroke)
 }
 
 // Registration-change signal. Registrations land in mount EFFECTS (after the
