@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0
+
+### Minor Changes
+
+- Plugins: Rove is extensible from outside the repo.
+
+  At 0.8.0 a plugin was an idea; it is now a supported surface. A plugin ships a manifest and gets the daemon's full lifecycle event stream — 40 documented events covering agent state, attention, automation, tasks, and worktrees — plus a published SDK (`@sma1lboy/rove-plugin-sdk`) and five worked examples: a hook that toasts on turn completion, a settings page, a live task board pane, an engine contributed through `[[engines]]`, and an events smoketest. Each runs in its own named sandbox. `[[engines]]` is the one worth calling out: a plugin can add a coding CLI to the `ctrl+e` picker without a line of Rove's own code, which is how the long tail of engines gets supported.
+
+  Runtime state moved from `~/.kobe/` to `~/.rove/`, matching the rename. The daemon migrates an existing home on startup, and anything it has not moved yet is still read from the old path — no manual step, and a downgrade still finds its data.
+
+  Docs are now a site rather than a folder: fourteen pages at docs.rove.run, synced from `docs/` so they cannot drift from the source they describe.
+
 ## 0.8.204
 
 ### Patch Changes
