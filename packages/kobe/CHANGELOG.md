@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.202
+
+### Patch Changes
+
+- [#607](https://github.com/Sma1lboy/rove/pull/607) [`91ea6e1`](https://github.com/Sma1lboy/rove/commit/91ea6e1470d3e6dbe6d97ad5f0fe291a00977563) `land` no longer reports a removed worktree as kept. `removeLandedWorktree` wrapped the git removal and the task-store write in one try/catch, so a failed `clearWorktreePath` returned `{ removed: false }` for a directory that was already gone — sending you to look for a worktree that no longer exists. The two are separated: once the removal succeeds the outcome is `removed: true`, with the bookkeeping failure carried in `reason`.
+
+  Also corrects docs that still described `--remove-worktree` as opt-in after it became the default: the fan-out walkthrough in `ORCHESTRATION.md`, the daemon's wire-contract comment, and the agent-facing skill tables (now `--remove-worktree(true)`, matching `--archived(true)`). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.201
 
 ### Patch Changes
