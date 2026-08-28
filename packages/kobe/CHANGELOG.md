@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.2
+
+### Patch Changes
+
+- [#614](https://github.com/Sma1lboy/rove/pull/614) [`6e2147f`](https://github.com/Sma1lboy/rove/commit/6e2147fff3732c7fd4e37f57a2b7c032c0176648) Tap the configured prefix to open the complete clickable command guide and reveal shortcuts on current on-screen controls. Settings can hide the local badges while keeping the full guide; both presentations use the same live prefix session. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [`cc5327d`](https://github.com/Sma1lboy/rove/commit/cc5327dea0bc4e191406da311689060bbd1ef079) Wait for the whole terminal font stack before the first paint
+
+  `loadTerminalFont()` awaited only JetBrains Mono, which ships as a latin
+  subset — so every icon glyph an engine draws falls through to a Nerd Font, a
+  family the browser never requests until something actually renders that
+  character. Interactively the lazy load is invisible; anything that reads the
+  terminal early sees missing-glyph boxes where the icons belong. Each family in
+  the stack is now warmed independently, so a machine without Nerd Fonts still
+  renders the rest. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.1
 
 ### Patch Changes
