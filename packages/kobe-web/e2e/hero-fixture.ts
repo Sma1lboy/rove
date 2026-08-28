@@ -34,8 +34,17 @@ export function heroApi(args: readonly string[]): Record<string, unknown> {
  * finishes and the branch stays empty. Allowing exactly the two commands the
  * storyboard needs is the narrow fix; never `bypassPermissions`, which would
  * hand an unattended agent the operator's real HOME.
+ *
+ * `--setting-sources project --disable-slash-commands` keeps the operator's
+ * USER-level configuration out of the session. `HOME` is deliberately theirs
+ * (see `hero-env.ts`), which also means the engine would otherwise inherit
+ * their global CLAUDE.md and every skill and plugin installed there — enough
+ * of a system prompt that the seed prompts came back `Prompt is too long` and
+ * both turns stalled before writing a line. Auth still resolves from `HOME`;
+ * only the configuration is scoped to this throwaway repo.
  */
-const CLAUDE_COMMAND = 'claude --permission-mode acceptEdits --allowedTools "Bash(git *)" "Bash(bun test*)"'
+const CLAUDE_COMMAND =
+  'claude --permission-mode acceptEdits --allowedTools "Bash(git *)" "Bash(bun test*)" --setting-sources project --disable-slash-commands'
 
 /**
  * Skill version this build expects, read off the BUILT skill (stamped in
