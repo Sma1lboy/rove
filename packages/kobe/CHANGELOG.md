@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.8.204
+
+### Patch Changes
+
+- [#610](https://github.com/Sma1lboy/rove/pull/610) [`62fa31e`](https://github.com/Sma1lboy/rove/commit/62fa31e09e9b8c98a6d258d5f164897f5f6b4b48) Re-shoot the plugin SDK example clips in the real TUI
+
+  The old GIFs filmed a shell running `rove api …` and `cat`-ing a log file —
+  true, but no frame contained the product, and the two examples with the most
+  to show (a pane, a contributed engine) had no clip at all. Each example is now
+  recorded where its surface actually appears: the `ctrl+e` picker, a split pane
+  redrawing off `task.snapshot`, the engine list carrying a plugin's engine,
+  Settings → Plugins, and a hook's own toast.
+
+  Captures ride the same browser-PTY path as the README assets
+  (`packages/kobe-web/e2e/hero-plugin-demos.ts`), with two guards added along
+  the way: the hero fixture's daemon socket is now pinned rather than derived,
+  so a compatibility symlink under `.kobe/` can no longer point a capture at the
+  operator's live daemon, and a take aborts if the TUI ever displays an e-mail
+  address — Settings → Engines renders real accounts, since `HOME` stays the
+  operator's by design. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.8.203
 
 ### Patch Changes
