@@ -66,10 +66,43 @@ const CLAUDE_XTERM_THEME = {
 const TERMINAL_FONT_FAMILY =
   '"JetBrains Mono", "JetBrainsMono Nerd Font", "MesloLGS NF", "Symbols Nerd Font Mono", "SF Mono", ui-monospace, Menlo, monospace'
 
+/**
+ * Families in {@link TERMINAL_FONT_FAMILY} that the browser must have resolved
+ * before the terminal is worth photographing. The bundled JetBrains Mono is a
+ * LATIN subset, so every icon glyph an engine draws (`▶`, branch and status
+ * symbols) necessarily falls through to a Nerd Font — a family the page never
+ * asks for until something actually renders that character.
+ */
+const TERMINAL_FONT_FAMILIES = [
+  '"JetBrains Mono"',
+  '"JetBrainsMono Nerd Font"',
+  '"MesloLGS NF"',
+  '"Symbols Nerd Font Mono"',
+] as const
+
+/**
+ * Warm every family in the stack, not just the first.
+ *
+ * `document.fonts.load()` resolves one family at a time, and awaiting only
+ * JetBrains Mono left the Nerd Fonts to load lazily — i.e. after the first
+ * frame that needed them. Interactively nobody notices; a scripted capture
+ * screenshots the frame in between and photographs missing-glyph boxes where
+ * the icons belong, which is how `docs/assets/workspace.png` shipped with
+ * `▯▯` in place of `▶▶`. Each family is settled independently so an absent
+ * one (a machine without Nerd Fonts) cannot block the others.
+ */
 async function loadTerminalFont(): Promise<void> {
   if (!("fonts" in document)) return
+  await Promise.allSettled(
+    TERMINAL_FONT_FAMILIES.map((family) =>
+      document.fonts.load(`12px ${family}`),
+    ),
+  )
   try {
-    await document.fonts.load(`12px "JetBrains Mono"`)
+    // The per-family loads above cover the stack; `ready` covers anything else
+    // the page is still fetching, so layout is settled before the first paint
+    // a capture might grab.
+    await document.fonts.ready
   } catch {
     /* fallback font stack still renders if the bundled font fails */
   }
