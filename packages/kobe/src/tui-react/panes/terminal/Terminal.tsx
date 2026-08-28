@@ -248,6 +248,15 @@ export function Terminal(props: TerminalProps) {
     scrollBy: scrollFromPointer,
   })
 
+  const terminalColors = useMemo(() => {
+    const foreground = theme.text.toInts()
+    const background = theme.background.toInts()
+    return {
+      foreground: [foreground[0], foreground[1], foreground[2]],
+      background: [background[0], background[1], background[2]],
+    } as const
+  }, [theme])
+
   const cursorRows = useMemo(() => {
     const withSelection = overlaySelection(
       visibleRows,
@@ -260,8 +269,8 @@ export function Terminal(props: TerminalProps) {
     // inverse styling, so a cursor sitting just past the selection read
     // as the highlight overrunning by one blinking cell.
     const cursorWhileUnselected = focused && !selection.selection ? visibleCursor : null
-    return overlayCursor(withSelection, cursorWhileUnselected)
-  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor])
+    return overlayCursor(withSelection, cursorWhileUnselected, terminalColors)
+  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor, terminalColors])
 
   // Flatten every visible row into ONE `StyledText` — see the Solid
   // original for why a single element (not per-row `<text>`s) is load-
@@ -272,16 +281,14 @@ export function Terminal(props: TerminalProps) {
   // the "wrapped URL underlines everything below it" report). Its doc comment
   // has the full mechanism; drop this call once opentui resets per row.
   const styledSnapshot = useMemo(() => {
-    const themeFg = theme.text.toInts()
-    const themeBg = theme.background.toInts()
     const sealed = sealRowEndAttributes(
       cursorRows,
       bodyGeometry?.cols ?? 80,
-      [themeFg[0], themeFg[1], themeFg[2]],
-      [themeBg[0], themeBg[1], themeBg[2]],
+      terminalColors.foreground,
+      terminalColors.background,
     )
     return new StyledText(rowsToStyledText(sealed))
-  }, [cursorRows, bodyGeometry, theme])
+  }, [cursorRows, bodyGeometry, terminalColors])
 
   // Imperative content push — opentui 0.4 won't accept StyledText as a
   // JSX child or through the content prop (stringifies it).
