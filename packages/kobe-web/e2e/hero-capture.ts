@@ -91,6 +91,41 @@ export async function look(page: Page, needle: string, timeout = 60_000): Promis
  * a `.webm` in `workDir`. The takeover marker is the hero repo's own sidebar
  * row: until it renders, keystrokes land in a shell, not in the product.
  */
+/**
+ * Text that must never reach a published asset.
+ *
+ * `HOME` stays the operator's throughout a hero capture (see `hero-env.ts`):
+ * the engine under capture is the real `claude` and needs its credentials. The
+ * cost is that some product surfaces render the operator's own account —
+ * Settings → Engines lists every engine's detected login, e-mail address and
+ * subscription included. A storyboard can wander onto such a page in one
+ * keystroke, and a frame or two of it survives into an mp4 nobody re-watches
+ * before publishing. This is the backstop for that: cheap, and it does not
+ * depend on remembering.
+ */
+const FORBIDDEN = [/[\w.+-]+@[\w-]+\.[\w.]+/] as const
+
+/**
+ * Read the terminal buffer and fail the take if it is showing something that
+ * must not be published. Called on a beat cadence during `record`, because a
+ * check that only runs at the end cannot say WHICH beat exposed it.
+ */
+async function assertNothingSensitive(page: Page): Promise<void> {
+  const text = (await page.getByTestId("opentui-buffer").textContent()) ?? ""
+  for (const pattern of FORBIDDEN) {
+    const hit = text.match(pattern)
+    if (hit) {
+      const at = text.indexOf(hit[0])
+      const around = text.slice(Math.max(0, at - 120), at + 120).replace(/\s+/g, " ")
+      throw new Error(
+        `capture aborted: the TUI is displaying ${JSON.stringify(hit[0])} (…${around}…), which must not reach a published asset. ` +
+          `Some beat navigated onto a surface that renders the operator's own account (Settings → Engines is the usual one). ` +
+          `Re-route that beat; HOME is deliberately the operator's, so the page itself is not the bug.`,
+      )
+    }
+  }
+}
+
 export async function record(workDir: string, storyboard: (page: Page) => Promise<void>): Promise<void> {
   const runId = `rec-${Date.now()}`
   const browser = await chromium.launch({ headless: true })
@@ -100,12 +135,34 @@ export async function record(workDir: string, storyboard: (page: Page) => Promis
   })
   try {
     const page = await context.newPage()
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}`)
+    // `webgl=1`: recordings need xterm's WebGL renderer, not the DOM one the
+    // harness defaults to. The DOM renderer draws every cell as its own span
+    // using the font, which disables `customGlyphs` — xterm's geometric
+    // drawing of block-element and box-drawing characters. Engine banner art
+    // is built from those (Claude Code's logo is `▛█▝▀`), so under DOM it
+    // photographs with a seam down every cell boundary instead of the solid
+    // shape a real terminal shows. Stills keep the DOM default: a WebGL
+    // context is not guaranteed in every CI container, and a still that fails
+    // to render is worse than one with a seam. A failed context falls back to
+    // DOM inside ChatTerminal either way.
+    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&webgl=1`)
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
     await look(page, "orbit-sdk", 60_000)
     await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: 400 } })
     await page.waitForTimeout(2_000)
-    await storyboard(page)
+    let breach: Error | null = null
+    const guard = setInterval(() => {
+      void assertNothingSensitive(page).catch((error: Error) => {
+        console.error(`[hero:capture] ${error.message}`)
+        breach = error
+      })
+    }, 1_000)
+    try {
+      await storyboard(page)
+    } finally {
+      clearInterval(guard)
+    }
+    if (breach) throw breach
     await page.request.post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } }).catch(() => {})
   } finally {
     await context.close()

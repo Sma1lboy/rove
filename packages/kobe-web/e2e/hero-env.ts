@@ -16,7 +16,11 @@
  * can never reach the owner's live daemon.
  */
 
-import { join, resolve } from "node:path"
+import { readlinkSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
+
+/** Pre-rename runtime dir; `compat-link.ts` still writes symlinks here. */
+const COMPAT_STATE_DIR = ".kobe"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 export const KOBE_DIR: string = join(REPO_ROOT, "packages", "kobe")
@@ -31,6 +35,25 @@ export const HERO_ROOT: string = join(REPO_ROOT, ".scratch", "hero")
 export const HERO_HOME: string = join(HERO_ROOT, "home")
 /** Settings blob path derives from the Rove home, not from `XDG_CONFIG_HOME`. */
 export const HERO_CONFIG: string = join(HERO_HOME, ".config")
+/**
+ * The hero daemon's socket, PINNED rather than derived.
+ *
+ * Deriving it from the home dir is not enough. `.kobe/` is the pre-rename
+ * runtime dir, and every daemon bind drops a compatibility symlink there
+ * (`compat-link.ts`) so binaries older than the `.kobe` → `.rove` move still
+ * find a live daemon. A daemon that binds while `*_HOME_DIR` points at the
+ * hero fixture therefore leaves `<hero>/.kobe/daemon.sock` behind — and if
+ * that daemon was the OPERATOR's, the link points at the operator's socket.
+ * `runtimePath()` prefers an existing legacy path over the canonical one, so
+ * from then on every hero process silently attaches to the real daemon.
+ *
+ * Pinning the socket makes the isolation independent of what is on disk:
+ * `defaultDaemonSocketPath()` returns the override before it looks at any
+ * path at all. `heroPtyCommand()` already blanked these for the TUI; the
+ * shell-side callers need the same, which is what this constant is for.
+ */
+export const HERO_DAEMON_SOCKET: string = join(HERO_HOME, ".rove", "daemon.sock")
+export const HERO_PTY_SOCKET: string = join(HERO_HOME, ".rove", "pty.sock")
 /** Repo directory name is visible in the sidebar — keep it product-plausible. */
 export const HERO_REPO: string = join(HERO_ROOT, "orbit-sdk")
 
@@ -89,6 +112,34 @@ function stamp(env: Record<string, string>, suffix: string, value: string): void
   env[`ROVE_${suffix}`] = value
 }
 
+/**
+ * Fail loudly if anything under the hero home points OUTSIDE it.
+ *
+ * The compatibility symlink under `<hero>/.kobe/` is written by whichever
+ * daemon binds while `*_HOME_DIR` names the hero fixture — including the
+ * operator's own, if a stray shell command ever exports the home without the
+ * socket. The result is a link that looks like isolation and is not, and a
+ * capture run that quietly drives the real daemon. Pinned sockets make that
+ * link inert, so this is a tripwire for the state itself, not the connection.
+ */
+export function assertHeroIsolation(): void {
+  const legacy = join(HERO_HOME, COMPAT_STATE_DIR, "daemon.sock")
+  let target: string
+  try {
+    target = readlinkSync(legacy)
+  } catch {
+    return // no link, or a real socket the guard in `compat-link.ts` respects
+  }
+  const resolved = resolve(dirname(legacy), target)
+  if (!resolved.startsWith(HERO_ROOT)) {
+    throw new Error(
+      `hero isolation breach: ${legacy} → ${resolved} (outside ${HERO_ROOT}). ` +
+        `Some process bound a daemon while *_HOME_DIR named the hero fixture but the socket did not. ` +
+        `Remove that link and re-run; every hero caller must go through heroEnv().`,
+    )
+  }
+}
+
 export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string, string> {
   const env = scrubbed(parent)
   env.TERM = "xterm-256color"
@@ -97,6 +148,11 @@ export function heroEnv(parent: NodeJS.ProcessEnv = process.env): Record<string,
   stamp(env, "SANDBOX_HOME_DIR", HERO_HOME)
   stamp(env, "DAEMON_WEB_PORT", String(HERO_DAEMON_PORT))
   stamp(env, "SANDBOX_DAEMON_WEB_PORT", String(HERO_DAEMON_PORT))
+  // Pinned, not derived — see HERO_DAEMON_SOCKET. `scrubbed()` dropped any
+  // inherited value; these put the hero's OWN path back, so no compatibility
+  // symlink under `<hero>/.kobe/` can redirect a hero process elsewhere.
+  stamp(env, "DAEMON_SOCKET_PATH", HERO_DAEMON_SOCKET)
+  stamp(env, "PTY_SOCKET_PATH", HERO_PTY_SOCKET)
   return env
 }
 
@@ -115,10 +171,10 @@ export function heroPtyCommand(): string {
     `KOBE_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
     `ROVE_SANDBOX_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
     `KOBE_SANDBOX_DAEMON_WEB_PORT=${HERO_DAEMON_PORT}`,
-    "ROVE_DAEMON_SOCKET_PATH=",
-    "KOBE_DAEMON_SOCKET_PATH=",
-    "ROVE_PTY_SOCKET_PATH=",
-    "KOBE_PTY_SOCKET_PATH=",
+    `ROVE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
+    `KOBE_DAEMON_SOCKET_PATH=${HERO_DAEMON_SOCKET}`,
+    `ROVE_PTY_SOCKET_PATH=${HERO_PTY_SOCKET}`,
+    `KOBE_PTY_SOCKET_PATH=${HERO_PTY_SOCKET}`,
     "ROVE_TASK_ID=",
     "KOBE_TASK_ID=",
     "ROVE_TAB_ID=",

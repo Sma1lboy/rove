@@ -143,6 +143,9 @@ bun e2e/hero-shot.ts --scale=2 --out=../../docs/assets/workspace.png ctrl+a l
 bun e2e/hero-record.ts            # demo.mp4 + demo.gif (4× cut)
 bun e2e/hero-kanban.ts            # kanban.mp4 + kanban.gif (3× cut)
 bun e2e/hero-routines.ts          # routines.mp4 + routines.gif (3× cut)
+
+bun e2e/hero-plugins.ts           # link the five SDK examples (BEFORE serve)
+bun e2e/hero-plugin-demos.ts      # docs/assets/plugins/*.{mp4,gif} (2× cut)
 ```
 
 `hero-capture.ts` holds what the recorders share — the `/harness` browser PTY,
@@ -174,6 +177,43 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   `rove api routine-delete` after the take, leaving the same three rows the
   stills were framed on. It stops short of `run now` for the same folder-trust
   reason the kanban take stops short of Start.
+- **Recordings render through WebGL; stills do not.** The harness defaults to
+  xterm's DOM renderer, which draws every cell as its own span using the font
+  and therefore cannot use `customGlyphs` — xterm's geometric drawing of
+  block-element and box-drawing characters. Engine banner art and pane borders
+  are built from exactly those, so under DOM they photograph with a seam at
+  every cell boundary rather than the solid shapes a real terminal draws.
+  `hero-capture.ts` opens the harness with `?webgl=1`; `hero-shot.ts` takes an
+  optional `--webgl` for comparison but keeps DOM by default, because a WebGL
+  context is not guaranteed in every CI container and a still that fails to
+  render is worse than one with a seam. A failed context falls back to DOM
+  inside `ChatTerminal` either way, so the switch cannot break a take.
+- **The plugin takes need their plugins linked BEFORE the harness boots.** The
+  TUI reads the plugin registry once at start (`loadPluginEngines()`, and the
+  pane/settings sections alongside it), so a plugin linked mid-take contributes
+  nothing the running TUI can see — `hero-plugins.ts` runs before
+  `hero-serve.ts`, and the storyboards only ever USE what is installed. They
+  are also NOT idempotent (a story filed, a task created, neither cleaned up),
+  so re-shoot from `hero-fixture.ts --fresh && hero-plugins.ts`; `resetTakeState()`
+  clears what accumulates BETWEEN takes (a leaf pane, run logs, edited
+  settings) but cannot undo a second pass over a used fixture.
+- **Settings → Engines must never be filmed.** `HOME` stays the operator's, so
+  that page renders their real engine accounts — e-mail address, login state,
+  subscription. Selecting a section renders it immediately, and `SECTIONS`
+  orders general → engines → plugins, so stepping DOWN to Plugins films it in
+  passing; the plugin takes walk UP instead (general → dev → feedback → keys →
+  plugins), which crosses nothing personal. `hero-capture.ts` polls the buffer
+  during every take and aborts on an e-mail address, so this is enforced rather
+  than remembered.
+- **The hero home's socket is PINNED, not derived.** `.kobe/` is the pre-rename
+  runtime dir and every daemon bind drops a compatibility symlink there
+  (`compat-link.ts`), which `runtimePath()` then PREFERS over the canonical
+  `.rove/` path. One stray command exporting `*_HOME_DIR=<hero>` without the
+  socket therefore leaves `<hero>/.kobe/daemon.sock` pointing at the operator's
+  real socket, and every later hero process silently attaches to their live
+  daemon. `heroEnv()` stamps `*_DAEMON_SOCKET_PATH` explicitly, and
+  `assertHeroIsolation()` throws when that link escapes the hero root — run
+  every hero command through `heroEnv()`, never a hand-written env prefix.
 - **The fixture seeds the skill hint by VERSION.** `HOME` stays the operator's,
   so an already-installed skill that is merely behind this build takes the
   *stale* path, gated on `skillHintSeen:v<N>` — unseeded, the TUI opens on an
