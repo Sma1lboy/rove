@@ -1,6 +1,6 @@
 /** Durable per-turn telemetry: store persistence + the hook-driven ingest (issue #32). */
 
-import { mkdtemp, rm } from "node:fs/promises"
+import { mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ingestAgentTurns } from "@sma1lboy/kobe-daemon/daemon/agent-turns-ingest"
@@ -53,6 +53,28 @@ describe("AgentTurnsStore", () => {
     expect(await store.record([record()])).toBe(1)
     expect(await store.record([record(), record({ id: "msg_b", endedAt: 3000 })])).toBe(1)
     expect(store.list().map((t) => t.id)).toEqual(["msg_b", "msg_a"]) // newest first
+  })
+
+  it("persists a field-only re-read of an existing turn (last write wins, durably)", async () => {
+    const { store, path } = await createStore()
+    expect(await store.record([record({ usage: { input_tokens: 1, output_tokens: 2 } })])).toBe(1)
+    // A later Stop re-reads the same turn with a more complete usage. No NEW
+    // turn, so record() still reports 0 — but the update must reach disk.
+    const fuller = record({ usage: { input_tokens: 1, output_tokens: 99 }, endedAt: 2500 })
+    expect(await store.record([fuller])).toBe(0)
+    expect(store.list()[0].usage?.output_tokens).toBe(99)
+
+    const reloaded = new AgentTurnsStore(path)
+    await reloaded.init()
+    expect(reloaded.list()).toEqual([fuller])
+  })
+
+  it("skips the write when a re-read is byte-identical (the common no-op Stop)", async () => {
+    const { store, path } = await createStore()
+    await store.record([record()])
+    const before = await stat(path)
+    expect(await store.record([record()])).toBe(0)
+    expect((await stat(path)).mtimeMs).toBe(before.mtimeMs) // untouched
   })
 
   it("scopes the dedupe key by task, so two tasks may carry the same engine id", async () => {
