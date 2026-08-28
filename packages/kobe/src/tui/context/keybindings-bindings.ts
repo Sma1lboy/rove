@@ -1,6 +1,6 @@
 /** Runtime binding expansion for the canonical KobeKeymap catalogue. */
 
-import type { Binding } from "../lib/keymap-dispatch"
+import type { Binding, PrefixAction } from "../lib/keymap-dispatch"
 import { findBinding } from "./keybindings"
 
 /** Resolve direct chords for one binding id. */
@@ -9,11 +9,13 @@ export function chordsOf(id: string): readonly string[] {
 }
 
 /** Expand binding ids into direct and prefix-marked dispatcher entries. */
-export function bindByIds(handlers: Record<string, Binding["cmd"]>): Binding[] {
+export function bindByIds(handlers: Record<string, Binding["cmd"] | PrefixAction>): Binding[] {
   const out: Binding[] = []
   for (const id in handlers) {
-    const cmd = handlers[id]
-    if (!cmd) continue
+    const handler = handlers[id]
+    if (!handler) continue
+    const action = typeof handler === "function" ? undefined : handler
+    const cmd: Binding["cmd"] = typeof handler === "function" ? handler : () => handler.run()
     const binding = findBinding(id)
     const chords = binding?.keys ?? []
     const prefixChords = binding?.prefixKeys ?? []
@@ -21,8 +23,8 @@ export function bindByIds(handlers: Record<string, Binding["cmd"]>): Binding[] {
       console.warn(`[rove/keybindings] bindByIds: id="${id}" has no chords (or doesn't exist in KobeKeymap)`)
       continue
     }
-    chords.forEach((key, slot) => out.push({ key, cmd, slot, id }))
-    prefixChords.forEach((key, slot) => out.push({ key, prefix: true, cmd, slot, id }))
+    chords.forEach((key, slot) => out.push({ key, cmd, action, slot, id }))
+    prefixChords.forEach((key, slot) => out.push({ key, prefix: true, cmd, action, slot, id }))
   }
   return out
 }

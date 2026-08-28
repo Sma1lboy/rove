@@ -5,6 +5,8 @@ import {
   armPrefixNow,
   configurePrefix,
   dispatchKeyEvent,
+  invokeArmedPrefixAction,
+  prefixAction,
   resetPrefixConfiguration,
   resetPrefixState,
 } from "../../src/tui/lib/keymap-dispatch"
@@ -151,5 +153,75 @@ describe("armPrefixNow (mouse path into the command layer)", () => {
       { id: 2, config: () => ({ enabled: true, modal: true, bindings: [] }) },
     ]
     expect(armPrefixNow(stack)).toBe(false)
+  })
+})
+
+describe("invokeArmedPrefixAction (click path out of the local reveal)", () => {
+  test("runs the exact live action that was advertised and clears the sequence", () => {
+    const calls: string[] = []
+    const stack: RegisteredBinding[] = [
+      {
+        id: 1,
+        config: () => ({
+          bindings: bindByIds({ "chat.fork.new": prefixAction(() => calls.push("fork")) }),
+        }),
+      },
+    ]
+
+    expect(armPrefixNow(stack, 100)).toBe(true)
+    expect(invokeArmedPrefixAction(stack, "chat.fork.new", "f", 101)).toBe(true)
+    expect(calls).toEqual(["fork"])
+    expect(invokeArmedPrefixAction(stack, "chat.fork.new", "f", 102)).toBe(false)
+  })
+
+  test("fails closed when the option is stale, mismatched, or expired", () => {
+    let calls = 0
+    configurePrefix({ key: "ctrl+a", timeoutMs: 1000 })
+    let enabled = true
+    const stack: RegisteredBinding[] = [
+      {
+        id: 1,
+        config: () => ({
+          enabled,
+          bindings: bindByIds({ "chat.fork.new": prefixAction(() => calls++) }),
+        }),
+      },
+    ]
+
+    expect(armPrefixNow(stack, 100)).toBe(true)
+    expect(invokeArmedPrefixAction(stack, "chat.fork.new", "c", 101)).toBe(false)
+    expect(calls).toBe(0)
+
+    expect(armPrefixNow(stack, 200)).toBe(true)
+    enabled = false
+    expect(invokeArmedPrefixAction(stack, "chat.fork.new", "f", 201)).toBe(false)
+    expect(calls).toBe(0)
+
+    enabled = true
+    expect(armPrefixNow(stack, 300)).toBe(true)
+    expect(invokeArmedPrefixAction(stack, "chat.fork.new", "f", 1301)).toBe(false)
+    expect(calls).toBe(0)
+  })
+
+  test("does not fall through to an advertised action after a new binding shadows its stroke", () => {
+    const calls: string[] = []
+    const advertised: RegisteredBinding = {
+      id: 1,
+      config: () => ({
+        bindings: bindByIds({ "chat.fork.new": prefixAction(() => calls.push("advertised")) }),
+      }),
+    }
+    const stack: RegisteredBinding[] = [advertised]
+
+    expect(armPrefixNow(stack, 100)).toBe(true)
+    stack.push({
+      id: 2,
+      config: () => ({
+        bindings: [{ key: "f", prefix: true, id: "plugin.shadow", cmd: () => {}, action: prefixAction(() => {}) }],
+      }),
+    })
+
+    expect(invokeArmedPrefixAction(stack, "chat.fork.new", "f", 101)).toBe(false)
+    expect(calls).toEqual([])
   })
 })

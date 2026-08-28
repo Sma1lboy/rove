@@ -33,7 +33,6 @@
  * `state`/`props` — recreated fresh every render, the guarantee Solid's
  * accessors gave for free. `onEditorTabReady`/`onEngineSendReady` hand
  * their callback to the parent once per mount, re-fired on remount.
- * NOTE — Integration layer at the file-size cap; see docs/design/terminal-tabs-integration.md.
  */
 
 import type { TranscriptActivity } from "@/client/remote-orchestrator"
@@ -45,6 +44,7 @@ import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { buildDiffReview } from "../../tui/ops/diff-comments"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
@@ -410,15 +410,15 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       // context to "continue this conversation", f dials destination to
       // "fork a child task worktree".
       "chat.tab.chooseEngine": () => requestNewChat(),
-      "chat.tab.fork": () => requestNewChat({ context: "continue" }),
+      "chat.tab.fork": prefixAction(() => requestNewChat({ context: "continue" })),
       "chat.tab.cycle-next": () => update(cycleTab(state, 1)),
       "chat.tab.cycle-prev": () => update(cycleTab(state, -1)),
-      "chat.fork.new": () => requestNewChat({ destination: "fork" }),
+      "chat.fork.new": prefixAction(() => requestNewChat({ destination: "fork" })),
     }),
   }))
 
-  // ctrl+w / F2 share their chords with TerminalSplit's leaf-level close/
-  // rename. In React the keymap stack puts ANCESTORS on top (mount effects
+  // ctrl+w / F2 share chords with TerminalSplit's leaf-level close/rename.
+  // In React the keymap stack puts ANCESTORS on top (mount effects
   // run children-first — see keymap.ts), so these tab-level entries would
   // always shadow the split ones. Gate them off while the active tab is
   // actually split (>1 leaf) so the chords fall through the LIFO stack to
