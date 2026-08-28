@@ -10,6 +10,7 @@ import {
   extractSelection,
   extractShadowedSelection,
   followContentShift,
+  followWindowShift,
   orderRange,
   overlaySelection,
   pointerCell,
@@ -316,5 +317,59 @@ describe("alt-screen drag scrolling (shadow buffer)", () => {
     expect(shadow.below.map((r) => r[0]?.text)).toEqual(doc.slice(16, 19))
     expect(clampRowToShadow(8, 5, shadow)).toBe(7)
     expect(clampRowToShadow(-9, 5, shadow)).toBe(0)
+  })
+})
+
+/**
+ * NORMAL screen, bounded local scrollback. Once the buffer saturates every new
+ * line drops one row off the front of the snapshot, so a held selection's array
+ * indices address content that is `startLine` lines newer than what it selected.
+ */
+describe("bounded-scrollback trimming (snapshot window)", () => {
+  const buffer = (from: number, count: number): readonly (readonly Chunk[])[] =>
+    Array.from({ length: count }, (_, i) => row(`line-${from + i}`))
+
+  const held = (state: SelectionShiftState): SelectionRange => ({
+    anchor: state.anchor as CellPoint,
+    head: state.head as CellPoint,
+  })
+
+  it("keeps a released selection on the SAME CONTENT after the snapshot is trimmed from the front", () => {
+    const before = buffer(100, 10)
+    const state: SelectionShiftState = {
+      anchor: { row: 3, col: 0 },
+      head: { row: 4, col: 7 },
+      shadow: EMPTY_SHADOW,
+    }
+    expect(extractSelection(before, held(state))).toBe("line-103\nline-104")
+
+    // Three more lines streamed in; the buffer was already at its cap, so the
+    // window slid forward by three and `after[i]` is `before[i + 3]`.
+    const after = buffer(103, 10)
+    const rolled = followWindowShift(state, { epoch: 1, startLine: 0 }, { epoch: 1, startLine: 3 }, after.length, false)
+    expect(rolled).not.toBeNull()
+    expect(extractSelection(after, held(rolled as SelectionShiftState))).toBe("line-103\nline-104")
+    expect((rolled as SelectionShiftState).anchor).toEqual({ row: 0, col: 0 })
+  })
+
+  it("leaves the head on the pointer during a live drag, and clamps endpoints trimmed away", () => {
+    const state: SelectionShiftState = {
+      anchor: { row: 1, col: 0 },
+      head: { row: 6, col: 3 },
+      shadow: EMPTY_SHADOW,
+    }
+    const dragging = followWindowShift(state, { epoch: 1, startLine: 0 }, { epoch: 1, startLine: 4 }, 10, true)
+    // Anchor's content scrolled off the top — clamp to what is still addressable.
+    expect(dragging?.anchor).toEqual({ row: 0, col: 0 })
+    expect(dragging?.head).toBe(state.head)
+  })
+
+  it("returns the input by reference when the window did not move, and null across an epoch reset", () => {
+    const state: SelectionShiftState = { anchor: { row: 2, col: 0 }, head: { row: 2, col: 4 }, shadow: EMPTY_SHADOW }
+    expect(followWindowShift(state, { epoch: 1, startLine: 7 }, { epoch: 1, startLine: 7 }, 10, false)).toBe(state)
+    // Alternate screen (no line numbering) is the other mechanism's business.
+    expect(followWindowShift(state, null, null, 10, false)).toBe(state)
+    // A resize reflows history: those ids no longer mean anything.
+    expect(followWindowShift(state, { epoch: 1, startLine: 7 }, { epoch: 2, startLine: 0 }, 10, false)).toBeNull()
   })
 })
