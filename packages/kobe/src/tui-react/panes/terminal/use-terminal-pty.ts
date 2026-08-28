@@ -48,6 +48,8 @@ export interface UseTerminalPtyOpts {
   engineBin?: string
   /** Current Rove theme colors reported to the embedded terminal child. */
   defaultColors?: TaskPtyOpts["defaultColors"]
+  /** Engine-owned cell substitutions for the alternate screen only. */
+  alternateScreenStyleRewrites?: TaskPtyOpts["alternateScreenStyleRewrites"]
   resetToken?: number
   /** `deadOnAttach`: the exit was discovered on reattach (engine died
    *  while the TUI was away), not observed live — see `TaskPtyLike`. */
@@ -88,6 +90,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   const firstMessageRef = useLatest(opts.firstMessage)
   const engineBinRef = useLatest(opts.engineBin)
   const defaultColorsRef = useLatest(opts.defaultColors)
+  const alternateScreenStyleRewritesRef = useLatest(opts.alternateScreenStyleRewrites)
   const bodyGeometryRef = useLatest(opts.bodyGeometry)
   const registryRef = useLatest(opts.registry)
   const onExitRef = useLatest(opts.onExit)
@@ -122,6 +125,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         firstMessage: firstMessageRef.current,
         engineBin: engineBinRef.current,
         defaultColors: defaultColorsRef.current,
+        alternateScreenStyleRewrites: alternateScreenStyleRewritesRef.current,
       })
     } catch (err) {
       const message = errorMessage(err)
@@ -195,6 +199,8 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
           initialInput: initialInputRef.current,
           firstMessage: firstMessageRef.current,
           engineBin: engineBinRef.current,
+          defaultColors: defaultColorsRef.current,
+          alternateScreenStyleRewrites: alternateScreenStyleRewritesRef.current,
         }
         const fresh = expected
           ? registryRef.current.resetIfCurrent(nextTaskId, expected, nextCwd, opts)

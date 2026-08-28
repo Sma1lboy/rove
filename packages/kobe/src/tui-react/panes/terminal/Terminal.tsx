@@ -33,6 +33,7 @@
  *     chicken-and-egg hook-ordering hazard.
  */
 
+import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
@@ -121,6 +122,8 @@ export type TerminalProps = {
   resetToken?: number
   /** Optional registry override (tests inject a mock-backed registry). */
   registry?: PtyRegistry
+  /** Vendor-owned full-screen presentation policy for the original engine leaf. */
+  terminalPresentation?: EngineTerminalPresentation
 }
 
 /* --------------------------------------------------------------------- */
@@ -141,8 +144,8 @@ export function Terminal(props: TerminalProps) {
 
   const { bodyEl, setBodyEl, bodyRows, bodyGeometry, bumpGeomTick, dims, geomTick } = useTerminalGeometry()
   const defaultColors = useMemo(() => {
-    const [foregroundR, foregroundG, foregroundB] = theme.background.toInts()
-    const [backgroundR, backgroundG, backgroundB] = theme.text.toInts()
+    const [foregroundR, foregroundG, foregroundB] = theme.text.toInts()
+    const [backgroundR, backgroundG, backgroundB] = theme.background.toInts()
     const hex = (r: number, g: number, b: number): `#${string}` =>
       `#${[r, g, b].map((component) => component.toString(16).padStart(2, "0")).join("")}`
     return {
@@ -150,6 +153,10 @@ export function Terminal(props: TerminalProps) {
       background: hex(backgroundR, backgroundG, backgroundB),
     }
   }, [theme])
+  const alternateScreenStyleRewrites = useMemo(
+    () => props.terminalPresentation?.alternateScreenStyleRewrites(defaultColors),
+    [props.terminalPresentation, defaultColors],
+  )
 
   const { pty, snapshot, snapshotWindow, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
@@ -159,6 +166,7 @@ export function Terminal(props: TerminalProps) {
     firstMessage: props.firstMessage,
     engineBin: props.engineBin,
     defaultColors,
+    alternateScreenStyleRewrites,
     resetToken: props.resetToken,
     onExit: props.onExit,
     registry,

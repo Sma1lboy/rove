@@ -40,6 +40,7 @@ import type { TranscriptActivity } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
 import { engineLaunchArgv } from "@/engine/engine-presets"
 import { withClaudeSessionId } from "@/engine/interactive-command"
+import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
@@ -475,6 +476,9 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           initialInput={spawn.initialInput}
           firstMessage={spawn.firstMessage}
           engineBin={spawn.engineBin}
+          terminalPresentation={
+            active.kind === "engine" ? getCapabilities(active.vendor ?? props.vendor)?.terminalPresentation : undefined
+          }
           onUserInput={
             active.kind === "engine"
               ? (data) => noteEngineTabInput(data, props.taskId, active.id, props.hookTabStates?.get(active.id)?.state)

@@ -8,8 +8,8 @@ export interface TerminalDefaultColors {
 export type DefaultColorSlot = 10 | 11
 
 export const DEFAULT_TERMINAL_COLORS: TerminalDefaultColors = {
-  foreground: "#141413",
-  background: "#eae7df",
+  foreground: "#eae7df",
+  background: "#141413",
 }
 
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i

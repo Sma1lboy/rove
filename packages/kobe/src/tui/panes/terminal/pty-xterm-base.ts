@@ -69,17 +69,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       rows: this.rows,
       scrollback: this.scrollbackRows,
     })
-    const foreground = opts.defaultColors?.foreground
-    const rgb = foreground?.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
-    this.snapshotEngine = new XtermSnapshotEngine(
-      rgb
-        ? [
-            Number.parseInt(rgb[1] as string, 16),
-            Number.parseInt(rgb[2] as string, 16),
-            Number.parseInt(rgb[3] as string, 16),
-          ]
-        : undefined,
-    )
+    this.snapshotEngine = new XtermSnapshotEngine(opts.alternateScreenStyleRewrites)
     // Unicode 11 width tables: the default (Unicode 6) measures emoji as ONE
     // cell while modern apps — and kobe's cursor-overlay math in
     // lib/display-width.ts — measure TWO; emoji desynced cursor/wrap.

@@ -1,27 +1,52 @@
 import { Terminal } from "@xterm/headless"
 import { describe, expect, it } from "vitest"
 import { xtermLineToChunks } from "../../src/tui/panes/terminal/xterm-chunks"
+import type { TerminalStyleRewrite } from "../../src/types/terminal-presentation"
 
 async function rowFor(
   bytes: string,
-  defaultForeground?: [number, number, number],
+  styleRewrites?: readonly TerminalStyleRewrite[],
 ): Promise<ReturnType<typeof xtermLineToChunks>> {
   const t = new Terminal({ cols: 20, rows: 4, allowProposedApi: true })
   await new Promise<void>((r) => t.write(bytes, () => r()))
   // biome-ignore lint/suspicious/noExplicitAny: structural test double
-  return xtermLineToChunks(t.buffer.active.getLine(0) as any, -1, defaultForeground)
+  return xtermLineToChunks(t.buffer.active.getLine(0) as any, -1, styleRewrites)
 }
 
 describe("embedded terminal default foreground", () => {
-  it("resolves default text on an explicit app background", async () => {
-    const row = await rowFor("\x1b[48;2;234;231;223mmessage", [20, 20, 19])
-    expect(row[0]).toMatchObject({ fg: [20, 20, 19], bg: [234, 231, 223] })
+  it("leaves default text on an explicit app background inheritable", async () => {
+    const row = await rowFor("\x1b[48;2;234;231;223mmessage")
+    expect(row[0]?.fg).toBeUndefined()
+    expect(row[0]?.bg).toEqual([234, 231, 223])
   })
 
   it("leaves fully default cells to inherit the outer Rove theme", async () => {
-    const row = await rowFor("message", [20, 20, 19])
+    const row = await rowFor("message")
     expect(row[0]?.fg).toBeUndefined()
     expect(row[0]?.bg).toBeUndefined()
+  })
+})
+
+describe("engine-owned terminal style rewrites", () => {
+  const transcriptRewrite = {
+    matchBackground: [48, 48, 47],
+    foreground: [20, 20, 19],
+    background: [234, 231, 223],
+  } as const
+
+  it("rewrites the Codex user-message surface only when requested", async () => {
+    const bytes = "\x1b[48;2;48;48;47mmessage"
+    const primary = await rowFor(bytes)
+    const transcript = await rowFor(bytes, [transcriptRewrite])
+
+    expect(primary[0]?.fg).toBeUndefined()
+    expect(primary[0]?.bg).toEqual([48, 48, 47])
+    expect(transcript[0]).toMatchObject({ fg: [20, 20, 19], bg: [234, 231, 223] })
+  })
+
+  it("does not overwrite an explicit foreground on the same background", async () => {
+    const row = await rowFor("\x1b[38;2;0;255;255m\x1b[48;2;48;48;47mmessage", [transcriptRewrite])
+    expect(row[0]).toMatchObject({ fg: [0, 255, 255], bg: [48, 48, 47] })
   })
 })
 

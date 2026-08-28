@@ -7,6 +7,7 @@
  */
 
 import type { EngineCapabilities, EngineIdentity } from "@/types/engine"
+import { codexTerminalPresentation } from "./terminal-presentation"
 
 export const CODEX_DEFAULT_MODEL = "gpt-5.3-codex"
 
@@ -17,6 +18,7 @@ export const codexCapabilities: EngineCapabilities = {
   permissionModes: [],
   defaultModelId: () => CODEX_DEFAULT_MODEL,
   contextWindowFor: () => 0,
+  terminalPresentation: codexTerminalPresentation,
 }
 
 export const codexIdentity: EngineIdentity = {

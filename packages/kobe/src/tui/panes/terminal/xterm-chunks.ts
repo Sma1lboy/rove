@@ -1,3 +1,4 @@
+import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import { ATTR, type Chunk, type RGB, ansi256ToRgb } from "./sgr"
 
 const XTERM_COLOR_MODE_DEFAULT = 0
@@ -78,27 +79,36 @@ function cellAttributes(cell: XtermCellLike): number {
   return attrs
 }
 
-function cellStyle(cell: XtermCellLike): RenderStyle {
-  return {
+function matchingStyleRewrite(
+  cell: XtermCellLike,
+  styleRewrites: readonly TerminalStyleRewrite[] | undefined,
+): TerminalStyleRewrite | undefined {
+  if (!styleRewrites || styleRewrites.length === 0 || !cell.isFgDefault() || cell.isBgDefault()) return undefined
+  const background = colorKeyToRGB(colorKey(cell, "bg"))
+  return styleRewrites.find((rewrite) => sameRgb(background, rewrite.matchBackground))
+}
+
+function rgbKey([red, green, blue]: readonly [number, number, number]): string {
+  return `rgb:${(red << 16) | (green << 8) | blue}`
+}
+
+function cellStyle(cell: XtermCellLike, styleRewrites?: readonly TerminalStyleRewrite[]): RenderStyle {
+  const style = {
     fg: colorKey(cell, "fg"),
     bg: colorKey(cell, "bg"),
     attrs: cellAttributes(cell),
   }
+  const rewrite = matchingStyleRewrite(cell, styleRewrites)
+  return rewrite ? { ...style, fg: rgbKey(rewrite.foreground), bg: rgbKey(rewrite.background) } : style
 }
 
 function styleEquals(a: RenderStyle, b: RenderStyle): boolean {
   return a.fg === b.fg && a.bg === b.bg && a.attrs === b.attrs
 }
 
-function renderStyleToChunkFields(
-  style: RenderStyle,
-  defaultForeground?: RGB,
-): Pick<Chunk, "fg" | "bg" | "attributes"> {
+function renderStyleToChunkFields(style: RenderStyle): Pick<Chunk, "fg" | "bg" | "attributes"> {
+  const fg = colorKeyToRGB(style.fg)
   const bg = colorKeyToRGB(style.bg)
-  // A native terminal resolves its default foreground even when an app
-  // paints an explicit background. OpenTUI would otherwise inherit Rove's
-  // outer text color, producing white-on-light adaptive cards.
-  const fg = colorKeyToRGB(style.fg) ?? (bg ? defaultForeground : undefined)
   return {
     ...(fg ? { fg } : {}),
     ...(bg ? { bg } : {}),
@@ -188,7 +198,11 @@ function getCellReusing(line: XtermLineLike, x: number): XtermCellLike | undefin
  * when the trailing cells are blank, mirroring the snapshot the cursor
  * overlay is computed against.
  */
-export function xtermLineToChunks(line: XtermLineLike, minLast = -1, defaultForeground?: RGB): Chunk[] {
+export function xtermLineToChunks(
+  line: XtermLineLike,
+  minLast = -1,
+  styleRewrites?: readonly TerminalStyleRewrite[],
+): Chunk[] {
   // `Math.max` is load-bearing: the `minLast` seed (cursor column) must
   // survive the visible-cell scan. A plain `last = x` let the FIRST
   // visible cell clobber the seed, so trailing BLANK cells (typed spaces
@@ -210,13 +224,13 @@ export function xtermLineToChunks(line: XtermLineLike, minLast = -1, defaultFore
   let buf = ""
   const flush = () => {
     if (buf === "") return
-    out.push({ text: buf, ...renderStyleToChunkFields(active, defaultForeground) })
+    out.push({ text: buf, ...renderStyleToChunkFields(active) })
     buf = ""
   }
   for (let x = 0; x <= last; x++) {
     const cell = getCellReusing(line, x)
     if (!cell || cell.getWidth() === 0) continue
-    const next = cellStyle(cell)
+    const next = cellStyle(cell, styleRewrites)
     if (!styleEquals(active, next)) {
       flush()
       active = next
@@ -234,17 +248,9 @@ export function xtermLineToChunks(line: XtermLineLike, minLast = -1, defaultFore
   return out
 }
 
-function chunkColorMatchesCell(
-  rgb: RGB | undefined,
-  cell: XtermCellLike,
-  kind: "fg" | "bg",
-  defaultForeground?: RGB,
-): boolean {
+function chunkColorMatchesCell(rgb: RGB | undefined, cell: XtermCellLike, kind: "fg" | "bg"): boolean {
   const isDefault = kind === "fg" ? cell.isFgDefault() : cell.isBgDefault()
-  if (isDefault) {
-    if (kind === "fg" && !cell.isBgDefault() && defaultForeground) return sameRgb(rgb, defaultForeground)
-    return rgb === undefined
-  }
+  if (isDefault) return rgb === undefined
   if (!rgb) return false
   const mode = kind === "fg" ? cell.getFgColorMode() : cell.getBgColorMode()
   const color = kind === "fg" ? cell.getFgColor() : cell.getBgColor()
@@ -258,14 +264,29 @@ function chunkColorMatchesCell(
   return false
 }
 
-function sameRgb(a: RGB | undefined, b: RGB | undefined): boolean {
+function sameRgb(
+  a: readonly [number, number, number] | undefined,
+  b: readonly [number, number, number] | undefined,
+): boolean {
   return Boolean(a && b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2])
 }
 
-function chunkStyleMatchesCell(chunk: Chunk, cell: XtermCellLike, defaultForeground?: RGB): boolean {
+function chunkStyleMatchesCell(
+  chunk: Chunk,
+  cell: XtermCellLike,
+  styleRewrites?: readonly TerminalStyleRewrite[],
+): boolean {
+  const rewrite = matchingStyleRewrite(cell, styleRewrites)
+  if (rewrite) {
+    return (
+      (chunk.attributes ?? 0) === cellAttributes(cell) &&
+      sameRgb(chunk.fg, rewrite.foreground) &&
+      sameRgb(chunk.bg, rewrite.background)
+    )
+  }
   return (
     (chunk.attributes ?? 0) === cellAttributes(cell) &&
-    chunkColorMatchesCell(chunk.fg, cell, "fg", defaultForeground) &&
+    chunkColorMatchesCell(chunk.fg, cell, "fg") &&
     chunkColorMatchesCell(chunk.bg, cell, "bg")
   )
 }
@@ -275,7 +296,7 @@ export function xtermLineMatchesChunks(
   line: XtermLineLike | undefined,
   row: readonly Chunk[],
   minLast = -1,
-  defaultForeground?: RGB,
+  styleRewrites?: readonly TerminalStyleRewrite[],
 ): boolean {
   if (!line) return row.length === 0
   let last = Math.min(line.length - 1, minLast)
@@ -292,7 +313,7 @@ export function xtermLineMatchesChunks(
     const cell = getCellReusing(line, x)
     if (!cell || cell.getWidth() === 0) continue
     const chunk = row[chunkIndex]
-    if (!chunk || !chunkStyleMatchesCell(chunk, cell, defaultForeground)) return false
+    if (!chunk || !chunkStyleMatchesCell(chunk, cell, styleRewrites)) return false
     const raw = cell.getChars() || " "
     // Same substitution as the converter, from the same `paintsSamePixel`
     // definition. `chunkStyleMatchesCell` above already proved the chunk's

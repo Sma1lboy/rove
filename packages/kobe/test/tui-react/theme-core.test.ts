@@ -41,10 +41,10 @@ describe("applyDisplayOverlay", () => {
 })
 
 describe("terminalDefaultColorsForTheme", () => {
-  it("resolves a content contrast pair against the surrounding TUI chrome", () => {
+  it("reports the embedded terminal's actual foreground and background", () => {
     expect(terminalDefaultColorsForTheme(BUNDLED_THEMES.claude as never)).toEqual({
-      foreground: "#141413",
-      background: "#eae7df",
+      foreground: "#eae7df",
+      background: "#141413",
     })
   })
 })

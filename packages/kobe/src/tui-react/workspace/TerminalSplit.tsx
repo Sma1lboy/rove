@@ -35,6 +35,7 @@
  * a full frame whenever any border styling lands) is preserved verbatim.
  */
 
+import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
@@ -122,6 +123,8 @@ export function TerminalSplit(props: {
   /** The tab's first-prompt title (title ?? autoTitle) — the engine leaf's
    *  name, matching the group/tab label. Null before the first prompt. */
   engineTitle?: string | null
+  /** Vendor presentation applies to leaf-1 only; split-created shells stay native. */
+  terminalPresentation?: EngineTerminalPresentation
 }): ReactNode {
   const { theme, transparentBackground } = useTheme()
   const inactiveBorder = transparentBackground ? theme.border : theme.borderSubtle
@@ -286,6 +289,7 @@ export function TerminalSplit(props: {
           initialInput={leaf.content === null ? props.initialInput : undefined}
           firstMessage={leaf.content === null ? props.firstMessage : undefined}
           engineBin={leaf.content === null ? props.engineBin : undefined}
+          terminalPresentation={leaf.content === null ? props.terminalPresentation : undefined}
           onUserInput={leaf.content === null ? props.onUserInput : undefined}
           onExit={() => onLeafExit(leaf.id)}
           resetToken={leaf.id === "leaf-1" ? props.resetToken : undefined}
@@ -394,6 +398,7 @@ export function TerminalSplit(props: {
       initialInput={props.initialInput}
       firstMessage={props.firstMessage}
       engineBin={props.engineBin}
+      terminalPresentation={props.terminalPresentation}
       onUserInput={props.onUserInput}
       onExit={props.onExit}
       resetToken={props.resetToken}
