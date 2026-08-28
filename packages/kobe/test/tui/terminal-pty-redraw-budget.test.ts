@@ -176,4 +176,21 @@ describe("XtermTaskPty redraw budget", () => {
     expect(seen[0]?.cursor).toEqual({ x: 14, y: 0 })
     pty.kill()
   })
+
+  it("restores the input cursor after a hidden-cursor alternate-screen pager exits", async () => {
+    const pty = makePty()
+    const seen: Array<CursorPos | null> = []
+    pty.onData((_rows, cursor) => seen.push(cursor))
+
+    pty.pump("input")
+    await settle()
+    pty.pump("\x1b[?1049h\x1b[?25lpager")
+    await settle()
+    expect(seen.at(-1)).toBeNull()
+
+    pty.pump("\x1b[?1049l\x1b[?25h")
+    await settle()
+    expect(seen.at(-1)).toEqual({ x: 5, y: 0 })
+    pty.kill()
+  })
 })

@@ -13,8 +13,11 @@ import { readPersistedUiPrefs } from "./persisted-ui-prefs"
 export function terminalDefaultColorsForTheme(theme: ThemeJson): TerminalDefaultColors {
   return (
     parseTerminalDefaultColors({
-      foreground: resolveThemeSlotHex(theme, "text", "dark"),
-      background: resolveThemeSlotHex(theme, "background", "dark"),
+      // The embedded terminal is a content surface inside Rove's chrome.
+      // Give adaptive child UIs the inverse contrast pair so their cards
+      // remain visually distinct from the surrounding pane.
+      foreground: resolveThemeSlotHex(theme, "background", "dark"),
+      background: resolveThemeSlotHex(theme, "text", "dark"),
     }) ?? DEFAULT_TERMINAL_COLORS
   )
 }

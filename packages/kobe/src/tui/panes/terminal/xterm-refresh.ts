@@ -6,6 +6,7 @@ import {
 } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { Terminal as XtermHeadless } from "@xterm/headless"
 import type { TerminalRow } from "./pty-types"
+import type { RGB } from "./sgr"
 import { type XtermLineLike, xtermLineMatchesChunks } from "./xterm-chunks"
 
 /**
@@ -159,6 +160,7 @@ export function dirtyRowsMatchSnapshot(
   dirty: DirtyRows | null,
   cursorHidden: boolean,
   frozen: FrozenScrollback | null = null,
+  defaultForeground?: RGB,
 ): boolean {
   if (!previousMeta || !sameMeta(previousMeta, currentMeta) || !dirty) return false
   let first = currentMeta.start
@@ -186,7 +188,7 @@ export function dirtyRowsMatchSnapshot(
     // construction.
     if (frozen && y < frozen.baseY && frozen.cache.get(frozen.absBase + y) === row) continue
     const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
-    if (!xtermLineMatchesChunks(active.getLine(y), row, minLast)) return false
+    if (!xtermLineMatchesChunks(active.getLine(y), row, minLast, defaultForeground)) return false
   }
   return true
 }

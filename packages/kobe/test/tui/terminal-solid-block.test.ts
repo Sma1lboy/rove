@@ -2,12 +2,28 @@ import { Terminal } from "@xterm/headless"
 import { describe, expect, it } from "vitest"
 import { xtermLineToChunks } from "../../src/tui/panes/terminal/xterm-chunks"
 
-async function rowFor(bytes: string): Promise<ReturnType<typeof xtermLineToChunks>> {
+async function rowFor(
+  bytes: string,
+  defaultForeground?: [number, number, number],
+): Promise<ReturnType<typeof xtermLineToChunks>> {
   const t = new Terminal({ cols: 20, rows: 4, allowProposedApi: true })
   await new Promise<void>((r) => t.write(bytes, () => r()))
   // biome-ignore lint/suspicious/noExplicitAny: structural test double
-  return xtermLineToChunks(t.buffer.active.getLine(0) as any)
+  return xtermLineToChunks(t.buffer.active.getLine(0) as any, -1, defaultForeground)
 }
+
+describe("embedded terminal default foreground", () => {
+  it("resolves default text on an explicit app background", async () => {
+    const row = await rowFor("\x1b[48;2;234;231;223mmessage", [20, 20, 19])
+    expect(row[0]).toMatchObject({ fg: [20, 20, 19], bg: [234, 231, 223] })
+  })
+
+  it("leaves fully default cells to inherit the outer Rove theme", async () => {
+    const row = await rowFor("message", [20, 20, 19])
+    expect(row[0]?.fg).toBeUndefined()
+    expect(row[0]?.bg).toBeUndefined()
+  })
+})
 
 describe("solid-block minimum-contrast immunity (issue #1 zebra)", () => {
   it("fg==bg solid blocks become bg-only spaces", async () => {

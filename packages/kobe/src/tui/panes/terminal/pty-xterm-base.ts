@@ -32,7 +32,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * their full grid+scrollback at output cadence for a consumer (the
    * 1.5s turn poll) that only reads via capture(). */
   private snapshotDirty = false
-  private readonly snapshotEngine = new XtermSnapshotEngine()
+  private readonly snapshotEngine: XtermSnapshotEngine
   private _title: string | null = null
   /** Since when the pty has had zero data subscribers (epoch ms), null
    * while watched. Fresh instances start "unwatched now" — the mounting
@@ -69,6 +69,17 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       rows: this.rows,
       scrollback: this.scrollbackRows,
     })
+    const foreground = opts.defaultColors?.foreground
+    const rgb = foreground?.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i)
+    this.snapshotEngine = new XtermSnapshotEngine(
+      rgb
+        ? [
+            Number.parseInt(rgb[1] as string, 16),
+            Number.parseInt(rgb[2] as string, 16),
+            Number.parseInt(rgb[3] as string, 16),
+          ]
+        : undefined,
+    )
     // Unicode 11 width tables: the default (Unicode 6) measures emoji as ONE
     // cell while modern apps — and kobe's cursor-overlay math in
     // lib/display-width.ts — measure TWO; emoji desynced cursor/wrap.

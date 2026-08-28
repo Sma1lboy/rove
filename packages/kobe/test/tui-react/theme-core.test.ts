@@ -41,10 +41,10 @@ describe("applyDisplayOverlay", () => {
 })
 
 describe("terminalDefaultColorsForTheme", () => {
-  it("resolves the same semantic text/background pair used by the TUI", () => {
+  it("resolves a content contrast pair against the surrounding TUI chrome", () => {
     expect(terminalDefaultColorsForTheme(BUNDLED_THEMES.claude as never)).toEqual({
-      foreground: "#eae7df",
-      background: "#141413",
+      foreground: "#141413",
+      background: "#eae7df",
     })
   })
 })

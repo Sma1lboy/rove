@@ -72,8 +72,8 @@ describe("XtermTaskPty replay reply muting", () => {
     pty.feedLive("\x1b]10;?\x1b\\\x1b]11;?\x1b\\")
     await until(() => pty.writes.filter((w) => DEFAULT_COLOR_REPLY.test(w)).length === 2)
     expect(pty.writes.filter((w) => DEFAULT_COLOR_REPLY.test(w))).toEqual([
-      "\x1b]10;rgb:eaea/e7e7/dfdf\x1b\\",
-      "\x1b]11;rgb:1414/1414/1313\x1b\\",
+      "\x1b]10;rgb:1414/1414/1313\x1b\\",
+      "\x1b]11;rgb:eaea/e7e7/dfdf\x1b\\",
     ])
   })
 })

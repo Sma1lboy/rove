@@ -5,6 +5,7 @@
 
 import type { IMarker, Terminal as XtermHeadless } from "@xterm/headless"
 import type { CursorPos, TerminalRow, TerminalSnapshotWindow } from "./pty-types"
+import type { RGB } from "./sgr"
 import { reconcileTerminalCursor, reconcileTerminalRow, reconcileTerminalRows } from "./terminal-snapshot"
 import { xtermLineToChunks } from "./xterm-chunks"
 import {
@@ -30,6 +31,8 @@ export class XtermSnapshotEngine {
   private anchorId = 0
   private snapshotEpoch = 0
   private publishedMeta: SnapshotMeta | null = null
+
+  constructor(private readonly defaultForeground?: RGB) {}
 
   /** Drop the cache and anchor; called on resize/reflow or teardown. */
   invalidate(): void {
@@ -72,6 +75,7 @@ export class XtermSnapshotEngine {
         refreshTracker.peek(),
         cursorHidden,
         verifyFrozen,
+        this.defaultForeground,
       )
     ) {
       refreshTracker.clear()
@@ -112,7 +116,7 @@ export class XtermSnapshotEngine {
       }
       const line = active.getLine(y)
       const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
-      const row: TerminalRow = line ? xtermLineToChunks(line, minLast) : []
+      const row: TerminalRow = line ? xtermLineToChunks(line, minLast, this.defaultForeground) : []
       const stableRow = frozen ? reconcileTerminalRow(previousSnapshot[rowsOut.length], row) : row
       rowsOut.push(stableRow)
       if (frozen) cache.set(absBase + y, stableRow)

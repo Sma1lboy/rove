@@ -141,8 +141,8 @@ export function Terminal(props: TerminalProps) {
 
   const { bodyEl, setBodyEl, bodyRows, bodyGeometry, bumpGeomTick, dims, geomTick } = useTerminalGeometry()
   const defaultColors = useMemo(() => {
-    const [foregroundR, foregroundG, foregroundB] = theme.text.toInts()
-    const [backgroundR, backgroundG, backgroundB] = theme.background.toInts()
+    const [foregroundR, foregroundG, foregroundB] = theme.background.toInts()
+    const [backgroundR, backgroundG, backgroundB] = theme.text.toInts()
     const hex = (r: number, g: number, b: number): `#${string}` =>
       `#${[r, g, b].map((component) => component.toString(16).padStart(2, "0")).join("")}`
     return {

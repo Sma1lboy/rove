@@ -90,9 +90,15 @@ function styleEquals(a: RenderStyle, b: RenderStyle): boolean {
   return a.fg === b.fg && a.bg === b.bg && a.attrs === b.attrs
 }
 
-function renderStyleToChunkFields(style: RenderStyle): Pick<Chunk, "fg" | "bg" | "attributes"> {
-  const fg = colorKeyToRGB(style.fg)
+function renderStyleToChunkFields(
+  style: RenderStyle,
+  defaultForeground?: RGB,
+): Pick<Chunk, "fg" | "bg" | "attributes"> {
   const bg = colorKeyToRGB(style.bg)
+  // A native terminal resolves its default foreground even when an app
+  // paints an explicit background. OpenTUI would otherwise inherit Rove's
+  // outer text color, producing white-on-light adaptive cards.
+  const fg = colorKeyToRGB(style.fg) ?? (bg ? defaultForeground : undefined)
   return {
     ...(fg ? { fg } : {}),
     ...(bg ? { bg } : {}),
@@ -182,7 +188,7 @@ function getCellReusing(line: XtermLineLike, x: number): XtermCellLike | undefin
  * when the trailing cells are blank, mirroring the snapshot the cursor
  * overlay is computed against.
  */
-export function xtermLineToChunks(line: XtermLineLike, minLast = -1): Chunk[] {
+export function xtermLineToChunks(line: XtermLineLike, minLast = -1, defaultForeground?: RGB): Chunk[] {
   // `Math.max` is load-bearing: the `minLast` seed (cursor column) must
   // survive the visible-cell scan. A plain `last = x` let the FIRST
   // visible cell clobber the seed, so trailing BLANK cells (typed spaces
@@ -204,7 +210,7 @@ export function xtermLineToChunks(line: XtermLineLike, minLast = -1): Chunk[] {
   let buf = ""
   const flush = () => {
     if (buf === "") return
-    out.push({ text: buf, ...renderStyleToChunkFields(active) })
+    out.push({ text: buf, ...renderStyleToChunkFields(active, defaultForeground) })
     buf = ""
   }
   for (let x = 0; x <= last; x++) {
@@ -228,9 +234,17 @@ export function xtermLineToChunks(line: XtermLineLike, minLast = -1): Chunk[] {
   return out
 }
 
-function chunkColorMatchesCell(rgb: RGB | undefined, cell: XtermCellLike, kind: "fg" | "bg"): boolean {
+function chunkColorMatchesCell(
+  rgb: RGB | undefined,
+  cell: XtermCellLike,
+  kind: "fg" | "bg",
+  defaultForeground?: RGB,
+): boolean {
   const isDefault = kind === "fg" ? cell.isFgDefault() : cell.isBgDefault()
-  if (isDefault) return rgb === undefined
+  if (isDefault) {
+    if (kind === "fg" && !cell.isBgDefault() && defaultForeground) return sameRgb(rgb, defaultForeground)
+    return rgb === undefined
+  }
   if (!rgb) return false
   const mode = kind === "fg" ? cell.getFgColorMode() : cell.getBgColorMode()
   const color = kind === "fg" ? cell.getFgColor() : cell.getBgColor()
@@ -244,16 +258,25 @@ function chunkColorMatchesCell(rgb: RGB | undefined, cell: XtermCellLike, kind: 
   return false
 }
 
-function chunkStyleMatchesCell(chunk: Chunk, cell: XtermCellLike): boolean {
+function sameRgb(a: RGB | undefined, b: RGB | undefined): boolean {
+  return Boolean(a && b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2])
+}
+
+function chunkStyleMatchesCell(chunk: Chunk, cell: XtermCellLike, defaultForeground?: RGB): boolean {
   return (
     (chunk.attributes ?? 0) === cellAttributes(cell) &&
-    chunkColorMatchesCell(chunk.fg, cell, "fg") &&
+    chunkColorMatchesCell(chunk.fg, cell, "fg", defaultForeground) &&
     chunkColorMatchesCell(chunk.bg, cell, "bg")
   )
 }
 
 /** Compare xterm cells with their rendered chunks without allocating a replacement row. */
-export function xtermLineMatchesChunks(line: XtermLineLike | undefined, row: readonly Chunk[], minLast = -1): boolean {
+export function xtermLineMatchesChunks(
+  line: XtermLineLike | undefined,
+  row: readonly Chunk[],
+  minLast = -1,
+  defaultForeground?: RGB,
+): boolean {
   if (!line) return row.length === 0
   let last = Math.min(line.length - 1, minLast)
   for (let x = 0; x < line.length; x++) {
@@ -269,7 +292,7 @@ export function xtermLineMatchesChunks(line: XtermLineLike | undefined, row: rea
     const cell = getCellReusing(line, x)
     if (!cell || cell.getWidth() === 0) continue
     const chunk = row[chunkIndex]
-    if (!chunk || !chunkStyleMatchesCell(chunk, cell)) return false
+    if (!chunk || !chunkStyleMatchesCell(chunk, cell, defaultForeground)) return false
     const raw = cell.getChars() || " "
     // Same substitution as the converter, from the same `paintsSamePixel`
     // definition. `chunkStyleMatchesCell` above already proved the chunk's
