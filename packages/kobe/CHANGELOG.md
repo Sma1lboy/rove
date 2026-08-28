@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.203
+
+### Patch Changes
+
+- [#609](https://github.com/Sma1lboy/rove/pull/609) [`8109be8`](https://github.com/Sma1lboy/rove/commit/8109be8555341c27b34013ee5fec2d40c6d449dd) Report the embedded terminal's real palette to terminal-aware engines, and preserve Codex transcript contrast without changing its dark composer. — [@NarwhalChen](https://github.com/NarwhalChen)
+
 ## 0.8.202
 
 ### Patch Changes
