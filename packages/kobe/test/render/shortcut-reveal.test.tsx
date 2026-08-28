@@ -10,7 +10,6 @@ import { useBindings } from "../../src/tui-react/lib/keymap"
 import { SidebarNavRail } from "../../src/tui-react/panes/sidebar/chrome"
 import { bindByIds } from "../../src/tui/context/keybindings"
 import { prefixAction } from "../../src/tui/lib/keymap-dispatch"
-import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
 import { act, renderComponent, settle } from "./harness"
 
@@ -47,6 +46,16 @@ function tempHome(mode?: "local" | "guide"): string {
   return home
 }
 
+async function waitForFrameText(frame: () => Promise<string>, text: string): Promise<string> {
+  const deadline = Date.now() + 1_000
+  let current = await frame()
+  while (!current.includes(text) && Date.now() < deadline) {
+    await settle(25)
+    current = await frame()
+  }
+  return current
+}
+
 test("the default prefix tap shows local badges and the complete command guide together", async () => {
   process.env.KOBE_HOME_DIR = tempHome()
   const { mockInput, frame } = await renderComponent(
@@ -57,8 +66,7 @@ test("the default prefix tap shows local badges and the complete command guide t
   )
 
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  await settle(PREFIX_GUIDE_DELAY_MS + 40)
-  const local = await frame()
+  const local = await waitForFrameText(frame, "more Rove commands")
   expect(local).toContain("⌃ A 1")
   expect(local).toContain("⌃ A 2")
   expect(local).toContain("more Rove commands")
@@ -81,8 +89,7 @@ test("a complete-guide row is a real clickable entry in local mode", async () =>
   )
 
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  await settle(PREFIX_GUIDE_DELAY_MS + 40)
-  const revealed = await frame()
+  const revealed = await waitForFrameText(frame, "Open active Task directory in editor")
   const at = locate(revealed, "Open active Task directory in editor")
   await mockMouse.click(at.x + 1, at.y)
   await settle()
@@ -101,8 +108,7 @@ test("the guide setting routes the same prefix tap to the global command guide",
   )
 
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  await settle(PREFIX_GUIDE_DELAY_MS + 40)
-  const guide = await frame()
+  const guide = await waitForFrameText(frame, "more Rove commands")
   expect(guide).toContain("more Rove commands")
   expect(guide).toContain("Open active Task directory in editor")
   expect(guide).not.toContain("⌃ A 1")

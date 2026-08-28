@@ -136,6 +136,16 @@ function withGuideKvHome(): void {
   process.env.KOBE_HOME_DIR = home
 }
 
+async function waitForFrameText(frame: () => Promise<string>, text: string): Promise<string> {
+  const deadline = Date.now() + 1_000
+  let current = await frame()
+  while (!current.includes(text) && Date.now() < deadline) {
+    await settle(25)
+    current = await frame()
+  }
+  return current
+}
+
 describe("StatusKeyHintBar", () => {
   it("advertises the live prefix and help chords from the workspace stack", async () => {
     const { frame } = await renderComponent(
@@ -183,8 +193,7 @@ describe("StatusKeyHintBar", () => {
     await settle()
 
     act(() => mockInput.pressKey("a", { ctrl: true }))
-    await settle(300)
-    expect(await frame()).toContain("more Rove commands")
+    expect(await waitForFrameText(frame, "more Rove commands")).toContain("more Rove commands")
 
     act(() => mockInput.pressKey("z"))
     await settle()
@@ -275,9 +284,7 @@ describe("footer hint clicks", () => {
     await settle()
     const spot = locate(await frame(), "commands")
     await mockMouse.click(spot.x + 1, spot.y)
-    // The guide expands after the learner delay (180ms).
-    await settle(300)
-    expect(await frame()).toContain("more Rove commands")
+    expect(await waitForFrameText(frame, "more Rove commands")).toContain("more Rove commands")
     act(() => resetPrefixState())
   })
 })
