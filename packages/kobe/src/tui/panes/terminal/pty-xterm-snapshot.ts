@@ -3,6 +3,7 @@
  * Owns the scrollback cache, anchor marker, and snapshot metadata so the
  * main PTY class can stay focused on transport/lifecycle. */
 
+import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import type { IMarker, Terminal as XtermHeadless } from "@xterm/headless"
 import type { CursorPos, TerminalRow, TerminalSnapshotWindow } from "./pty-types"
 import { reconcileTerminalCursor, reconcileTerminalRow, reconcileTerminalRows } from "./terminal-snapshot"
@@ -31,6 +32,8 @@ export class XtermSnapshotEngine {
   private snapshotEpoch = 0
   private publishedMeta: SnapshotMeta | null = null
 
+  constructor(private readonly alternateScreenStyleRewrites?: readonly TerminalStyleRewrite[]) {}
+
   /** Drop the cache and anchor; called on resize/reflow or teardown. */
   invalidate(): void {
     this.scrollbackCache.clear()
@@ -52,6 +55,7 @@ export class XtermSnapshotEngine {
     previousWindow: TerminalSnapshotWindow | null,
   ): XtermSnapshotRefreshResult | null {
     const active = term.buffer.active
+    const styleRewrites = active.type === "alternate" ? this.alternateScreenStyleRewrites : undefined
     const cursorHidden = xtermCursorHidden(term)
     const currentMeta = snapshotMeta(active, rows, scrollbackRows)
     const nextCursor = reconcileTerminalCursor(
@@ -72,6 +76,7 @@ export class XtermSnapshotEngine {
         refreshTracker.peek(),
         cursorHidden,
         verifyFrozen,
+        styleRewrites,
       )
     ) {
       refreshTracker.clear()
@@ -112,7 +117,7 @@ export class XtermSnapshotEngine {
       }
       const line = active.getLine(y)
       const minLast = !cursorHidden && y === cursorY ? active.cursorX - 1 : -1
-      const row: TerminalRow = line ? xtermLineToChunks(line, minLast) : []
+      const row: TerminalRow = line ? xtermLineToChunks(line, minLast, styleRewrites) : []
       const stableRow = frozen ? reconcileTerminalRow(previousSnapshot[rowsOut.length], row) : row
       rowsOut.push(stableRow)
       if (frozen) cache.set(absBase + y, stableRow)

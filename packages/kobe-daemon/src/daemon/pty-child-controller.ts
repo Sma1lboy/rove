@@ -3,7 +3,7 @@
  *
  * Split from `pty-host.ts` for the file-size cap. This module is responsible
  * for starting a PTY child, feeding its output bytes into the session's ring
- * buffer + title scan, observing its exit, and tearing it down. It does NOT
+ * buffer + narrow OSC scans, observing its exit, and tearing it down. It does NOT
  * know about the host's session map, client sinks, or freeze policy — those
  * stay in `PtyHost`.
  */
@@ -15,6 +15,7 @@ import { embeddedTerminalEnv } from "./pty-env.js"
 import { type PtySessionState, type PtySpawnSpec, freshSessionState } from "./pty-host-types.ts"
 import { scanOscTitle } from "./pty-observability.ts"
 import { terminatePtyChild } from "./pty-termination.ts"
+import { foldDefaultColorQueries, formatDefaultColorReply } from "./terminal-colors.ts"
 
 export interface PtyChildControllerDeps {
   /** How children spawn. Default Bun's; the Windows host injects node-pty's. */
@@ -117,6 +118,15 @@ export class PtyChildController {
 
   private onData(session: PtySessionState, data: string | Uint8Array): void {
     const buf = typeof data === "string" ? Buffer.from(data, "utf8") : Buffer.from(data)
+    const colorQueries = foldDefaultColorQueries(session.colorQueryCarry, buf.toString("latin1"))
+    session.colorQueryCarry = colorQueries.carry
+    for (const slot of colorQueries.slots) {
+      try {
+        session.proc?.write(formatDefaultColorReply(slot, session.defaultColors))
+      } catch {
+        /* child may have exited between emitting the query and our reply */
+      }
+    }
     scanOscTitle(session, buf)
     session.chunks.push(buf)
     session.bytes += buf.byteLength

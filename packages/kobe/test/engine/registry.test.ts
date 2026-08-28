@@ -148,6 +148,14 @@ describe("getCapabilities", () => {
     expect(getCapabilities("copilot")).toBeUndefined()
     expect(getCapabilities("aider")).toBeUndefined()
   })
+
+  it("keeps the Codex terminal presentation policy engine-owned", () => {
+    const policy = getCapabilities("codex")?.terminalPresentation
+    expect(policy?.alternateScreenStyleRewrites({ foreground: "#eae7df", background: "#141413" })).toEqual([
+      { matchBackground: [48, 48, 47], foreground: [20, 20, 19], background: [234, 231, 223] },
+    ])
+    expect(getCapabilities("claude")?.terminalPresentation).toBeUndefined()
+  })
 })
 
 describe("engineEntry — custom (user-registered) vendors", () => {

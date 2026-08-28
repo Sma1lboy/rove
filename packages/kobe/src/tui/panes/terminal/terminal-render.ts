@@ -39,7 +39,23 @@ function chunkCells(chars: readonly string[]): number {
   return w
 }
 
-function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
+export interface TerminalRenderColors {
+  readonly foreground: RGB
+  readonly background: RGB
+}
+
+/** Resolve the synthetic cursor to literal colors before OpenTUI sees it. */
+function cursorChunk(source: Chunk, text: string, colors: TerminalRenderColors): Chunk {
+  const attributes = (source.attributes ?? 0) & ~ATTR.INVERSE
+  return {
+    text,
+    fg: source.bg ?? colors.background,
+    bg: source.fg ?? colors.foreground,
+    ...(attributes !== 0 ? { attributes } : {}),
+  }
+}
+
+function overlayCursorRow(row: readonly Chunk[], x: number, colors: TerminalRenderColors): Chunk[] {
   const out: Chunk[] = []
   // `x` is a terminal CELL column. Chunk text is code points, and a wide
   // (CJK / fullwidth / emoji) glyph is ONE code point but TWO cells — so we
@@ -73,7 +89,7 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
       const before = chars.slice(0, hit).join("")
       const after = chars.slice(hit + 1).join("")
       if (before) out.push(cloneChunk(chunk, before))
-      out.push(cloneChunk(chunk, chars[hit] || " ", (chunk.attributes ?? 0) | ATTR.INVERSE))
+      out.push(cursorChunk(chunk, chars[hit] || " ", colors))
       if (after) out.push(cloneChunk(chunk, after))
       inserted = true
     } else {
@@ -88,7 +104,7 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
     // end-of-text instead is how the cursor visually froze while xterm's
     // cursor kept advancing over typed spaces.
     if (x > col) out.push({ text: " ".repeat(x - col) })
-    out.push({ text: " ", attributes: ATTR.INVERSE })
+    out.push(cursorChunk({ text: " " }, " ", colors))
   }
   return out
 }
@@ -96,9 +112,10 @@ function overlayCursorRow(row: readonly Chunk[], x: number): Chunk[] {
 export function overlayCursor(
   rows: readonly (readonly Chunk[])[],
   cursor: CursorPos | null,
+  colors: TerminalRenderColors,
 ): readonly (readonly Chunk[])[] {
   if (!cursor) return rows
-  return rows.map((row, y) => (y === cursor.y ? overlayCursorRow(row, cursor.x) : row))
+  return rows.map((row, y) => (y === cursor.y ? overlayCursorRow(row, cursor.x, colors) : row))
 }
 
 /**

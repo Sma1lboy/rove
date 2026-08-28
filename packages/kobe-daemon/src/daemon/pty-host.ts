@@ -5,8 +5,10 @@
  * daemon owns the raw PTY child (spawned through a `PtyDriver`) plus a
  * capped byte ring buffer per session key, so an engine session keeps
  * running when the TUI exits and replays its screen when a TUI reattaches.
- * VT emulation stays in the TUI (xterm-headless) — this module never parses
- * escape codes, it only moves bytes.
+ * VT emulation stays in the TUI (xterm-headless). The host recognizes only
+ * the narrow OSC 10/11 capability query so detached/headless engines can
+ * learn the same default colors; all output bytes still enter the ring and
+ * cross the socket unchanged.
  *
  * Delivery model: TARGETED, not pub/sub. Each session tracks the
  * connections attached to it; output goes only to those sinks as
@@ -46,6 +48,7 @@ import {
   sessionInfo,
 } from "./pty-observability.ts"
 import { WarmSpare } from "./pty-warm.ts"
+import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 // Re-exported for the cross-chunk title-boundary tests (pure fold).
@@ -171,6 +174,8 @@ export class PtyHost {
       // session out from under its attached TUI garbles the pane (#18).
       this.resize(key, spec.cols, spec.rows)
     }
+    const defaultColors = parseTerminalDefaultColors(spec.defaultColors)
+    if (defaultColors) session.defaultColors = defaultColors
     session.sinks.set(token, sink)
     session.parked = false
     session.parkedScreenBytes = 0
@@ -388,6 +393,7 @@ export class PtyHost {
     if (spec.command && spec.command.length > 0) session.command = [...spec.command]
     session.cols = spec.cols ?? session.cols
     session.rows = spec.rows ?? session.rows
+    session.defaultColors = parseTerminalDefaultColors(spec.defaultColors) ?? session.defaultColors
     this.childController.startChild(session)
     if (!session.alive) return
     this.opts.log?.("pty", `respawned restored session ${session.key} (pid ${session.proc?.pid})`)

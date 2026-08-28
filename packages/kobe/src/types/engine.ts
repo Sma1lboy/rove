@@ -28,6 +28,7 @@
  */
 
 import type { ContentBlock } from "./content"
+import type { EngineTerminalPresentation } from "./terminal-presentation"
 import type { VendorId } from "./vendor"
 export type { ContentBlock } from "./content"
 
@@ -111,6 +112,8 @@ export interface EngineCapabilities {
   contextWindowFor(modelId: string): number
   /** The vendor's small/fast model id for metadata one-shots, if any. */
   smallFastModelId?(): string | undefined
+  /** Optional vendor-owned adjustments for its full-screen terminal UI. */
+  readonly terminalPresentation?: EngineTerminalPresentation
 }
 
 /**

@@ -33,6 +33,7 @@ import { StringDecoder } from "node:string_decoder"
 import { defaultPtyFreezeDir } from "./paths.ts"
 import type { PtySessionExit } from "./protocol.ts"
 import type { PtySessionState } from "./pty-host-types.ts"
+import { DEFAULT_TERMINAL_COLORS } from "./terminal-colors.ts"
 
 /** Record format version — unknown versions read as absent (forward-safe). */
 const FREEZE_VERSION = 1
@@ -131,6 +132,8 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
     title: record.title,
     titleCarry: "",
     titleDecoder: new StringDecoder("utf8"),
+    colorQueryCarry: "",
+    defaultColors: DEFAULT_TERMINAL_COLORS,
     sinks: new Map(),
     parked: false,
     parkedScreenBytes: 0,

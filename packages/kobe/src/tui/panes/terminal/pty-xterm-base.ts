@@ -16,7 +16,7 @@ import {
   type TerminalSnapshotWindow,
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
-import { XtermRefreshTracker, wireXtermChannels } from "./xterm-refresh"
+import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
@@ -32,7 +32,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * their full grid+scrollback at output cadence for a consumer (the
    * 1.5s turn poll) that only reads via capture(). */
   private snapshotDirty = false
-  private readonly snapshotEngine = new XtermSnapshotEngine()
+  private readonly snapshotEngine: XtermSnapshotEngine
   private _title: string | null = null
   /** Since when the pty has had zero data subscribers (epoch ms), null
    * while watched. Fresh instances start "unwatched now" — the mounting
@@ -54,7 +54,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
    * (Settings → General → Terminal) — fixed for this PTY's lifetime. */
   private readonly scrollbackRows: number
 
-  constructor(opts: TaskPtyOpts) {
+  constructor(opts: TaskPtyOpts, options: { respondToDefaultColorQueries?: boolean } = {}) {
     this.taskId = opts.taskId
     this.cwd = opts.cwd
     this.cols = opts.cols ?? DEFAULT_COLS
@@ -69,6 +69,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       rows: this.rows,
       scrollback: this.scrollbackRows,
     })
+    this.snapshotEngine = new XtermSnapshotEngine(opts.alternateScreenStyleRewrites)
     // Unicode 11 width tables: the default (Unicode 6) measures emoji as ONE
     // cell while modern apps — and kobe's cursor-overlay math in
     // lib/display-width.ts — measure TWO; emoji desynced cursor/wrap.
@@ -76,25 +77,29 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.term.unicode.activeVersion = "11"
     this.refreshTracker = new XtermRefreshTracker(this.term)
 
+    const reply = (data: string): void => {
+      if (this._killed || this.muteReplies) return
+      try {
+        this.transportWrite(data)
+      } catch {
+        /* best effort — child may have exited */
+      }
+    }
     wireXtermChannels(this.term, {
       // `muteReplies`: replies triggered while parsing a ring-buffer REPLAY
       // answer queries the child asked in the PAST (already answered by the
       // then-attached emulator); re-answering injects unsolicited CPR/DA
       // into the child's stdin (scrambled claude's renderer). Live flows.
-      onReply: (data) => {
-        if (this._killed || this.muteReplies) return
-        try {
-          this.transportWrite(data)
-        } catch {
-          /* best effort — child may have exited */
-        }
-      },
+      onReply: reply,
       onTitle: (title) => {
         if (!title || title === this._title) return
         this._title = title
         this.listeners.publishTitle(title)
       },
     })
+    if (options.respondToDefaultColorQueries !== false) {
+      wireXtermDefaultColorQueries(this.term, opts.defaultColors, reply)
+    }
   }
 
   /** Send input bytes to the child over this backend's transport. */

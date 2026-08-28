@@ -33,6 +33,7 @@
  *     chicken-and-egg hook-ordering hazard.
  */
 
+import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
@@ -121,6 +122,8 @@ export type TerminalProps = {
   resetToken?: number
   /** Optional registry override (tests inject a mock-backed registry). */
   registry?: PtyRegistry
+  /** Vendor-owned full-screen presentation policy for the original engine leaf. */
+  terminalPresentation?: EngineTerminalPresentation
 }
 
 /* --------------------------------------------------------------------- */
@@ -140,6 +143,20 @@ export function Terminal(props: TerminalProps) {
   const [scrollState, setScrollState] = useState<ViewportScrollState>(FOLLOW_VIEWPORT)
 
   const { bodyEl, setBodyEl, bodyRows, bodyGeometry, bumpGeomTick, dims, geomTick } = useTerminalGeometry()
+  const defaultColors = useMemo(() => {
+    const [foregroundR, foregroundG, foregroundB] = theme.text.toInts()
+    const [backgroundR, backgroundG, backgroundB] = theme.background.toInts()
+    const hex = (r: number, g: number, b: number): `#${string}` =>
+      `#${[r, g, b].map((component) => component.toString(16).padStart(2, "0")).join("")}`
+    return {
+      foreground: hex(foregroundR, foregroundG, foregroundB),
+      background: hex(backgroundR, backgroundG, backgroundB),
+    }
+  }, [theme])
+  const alternateScreenStyleRewrites = useMemo(
+    () => props.terminalPresentation?.alternateScreenStyleRewrites(defaultColors),
+    [props.terminalPresentation, defaultColors],
+  )
 
   const { pty, snapshot, snapshotWindow, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
@@ -148,6 +165,8 @@ export function Terminal(props: TerminalProps) {
     initialInput: props.initialInput,
     firstMessage: props.firstMessage,
     engineBin: props.engineBin,
+    defaultColors,
+    alternateScreenStyleRewrites,
     resetToken: props.resetToken,
     onExit: props.onExit,
     registry,
@@ -229,6 +248,15 @@ export function Terminal(props: TerminalProps) {
     scrollBy: scrollFromPointer,
   })
 
+  const terminalColors = useMemo(() => {
+    const foreground = theme.text.toInts()
+    const background = theme.background.toInts()
+    return {
+      foreground: [foreground[0], foreground[1], foreground[2]],
+      background: [background[0], background[1], background[2]],
+    } as const
+  }, [theme])
+
   const cursorRows = useMemo(() => {
     const withSelection = overlaySelection(
       visibleRows,
@@ -241,8 +269,8 @@ export function Terminal(props: TerminalProps) {
     // inverse styling, so a cursor sitting just past the selection read
     // as the highlight overrunning by one blinking cell.
     const cursorWhileUnselected = focused && !selection.selection ? visibleCursor : null
-    return overlayCursor(withSelection, cursorWhileUnselected)
-  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor])
+    return overlayCursor(withSelection, cursorWhileUnselected, terminalColors)
+  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor, terminalColors])
 
   // Flatten every visible row into ONE `StyledText` — see the Solid
   // original for why a single element (not per-row `<text>`s) is load-
@@ -253,16 +281,14 @@ export function Terminal(props: TerminalProps) {
   // the "wrapped URL underlines everything below it" report). Its doc comment
   // has the full mechanism; drop this call once opentui resets per row.
   const styledSnapshot = useMemo(() => {
-    const themeFg = theme.text.toInts()
-    const themeBg = theme.background.toInts()
     const sealed = sealRowEndAttributes(
       cursorRows,
       bodyGeometry?.cols ?? 80,
-      [themeFg[0], themeFg[1], themeFg[2]],
-      [themeBg[0], themeBg[1], themeBg[2]],
+      terminalColors.foreground,
+      terminalColors.background,
     )
     return new StyledText(rowsToStyledText(sealed))
-  }, [cursorRows, bodyGeometry, theme])
+  }, [cursorRows, bodyGeometry, terminalColors])
 
   // Imperative content push — opentui 0.4 won't accept StyledText as a
   // JSX child or through the content prop (stringifies it).

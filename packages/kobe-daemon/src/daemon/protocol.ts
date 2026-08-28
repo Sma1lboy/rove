@@ -259,7 +259,9 @@ export type DaemonRequestName =
   // daemon: the daemon restarts routinely, so the pty host must outlive it.
   // Same frame grammar, so the same client class speaks both. The
   // host owns the raw PTY child + a byte ring buffer per session key; the
-  // TUI keeps VT emulation (xterm-headless) local. `pty.open` attaches
+  // TUI keeps VT emulation (xterm-headless) local. The host answers only
+  // OSC 10/11 default-color queries so headless children see a terminal
+  // palette even while no emulator is attached. `pty.open` attaches
   // the calling CONNECTION (spawning on first open, replaying the ring
   // buffer on reattach); output streams back as targeted `pty.data` event
   // frames written only to attached connections. `pty.sweep` is the
