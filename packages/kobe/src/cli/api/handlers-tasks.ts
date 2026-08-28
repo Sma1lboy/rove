@@ -283,10 +283,10 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       // the worktree. Coercing undefined to false here would pin the CLI to
       // the old opt-in behaviour.
       removeWorktree: ctx.args.bool("remove-worktree"),
-      // The daemon refuses to remove the worktree the caller is running from —
-      // it can only know where the caller is if we tell it. Removal is the
-      // default path now, so this is sent on EVERY land: send it only for the
-      // explicit flag and an agent landing itself deletes its own cwd.
+      // Sent on EVERY land: the daemon refuses to remove the worktree the
+      // caller is running from, and it can only know where that is if we tell
+      // it. Since removal is now the default rather than an opt-in flag, an
+      // agent landing its own task would otherwise delete its own cwd.
       callerCwd: process.cwd(),
     })
   } catch (err) {

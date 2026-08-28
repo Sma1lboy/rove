@@ -188,12 +188,16 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       console.error(
         `[rove worktrees] ${t("worktrees.land.done", { branch: res.branch, landedOn: res.landedOn, commit: res.commit })}`,
       )
-      // A refused removal is reported, never thrown — the land still stands,
-      // so say why the directory is still there rather than leaving it silent.
-      if (res.worktree && !res.worktree.removed) {
-        console.error(
-          `[rove worktrees] ${t("worktrees.land.worktreeKept", { reason: res.worktree.reason ?? "refused" })}`,
-        )
+      // Two cleanup outcomes carry information, and neither is ever thrown —
+      // nothing surfaces them but this. A refused removal leaves the directory
+      // in place; a removal whose bookkeeping write failed takes the directory
+      // but leaves the task still pointing at it. They need different copy:
+      // `worktreeKept` would be actively wrong for the second.
+      const cleanup = res.worktree
+      if (cleanup && !cleanup.removed) {
+        console.error(`[rove worktrees] ${t("worktrees.land.worktreeKept", { reason: cleanup.reason ?? "refused" })}`)
+      } else if (cleanup?.reason) {
+        console.error(`[rove worktrees] ${t("worktrees.land.worktreePathStale", { reason: cleanup.reason })}`)
       }
       refetch()
     } catch (err) {

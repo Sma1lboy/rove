@@ -330,7 +330,7 @@ logs, dashboards), don't scatter panes for work `add` should own.
 | `pin --task-id ID [--pinned=false]` | Pin/unpin |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
-| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--then-archive] [--remove-worktree]` | Merge the task's branch into the base repo's current branch; `--remove-worktree` cleans up the Worktree after (branch stays; dirty/self/base refused, outcome in the result's `worktree` field) |
+| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--then-archive] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |

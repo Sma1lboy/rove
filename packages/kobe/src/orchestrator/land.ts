@@ -56,7 +56,11 @@ export interface LandDeps {
   readonly clearWorktreePath: (id: TaskId | string) => Promise<void>
 }
 
-/** Outcome of the post-land worktree removal — reported in the result, never thrown. */
+/**
+ * Outcome of the post-land worktree removal — reported in the result, never
+ * thrown. `reason` is not failure-only: it also accompanies `removed: true`
+ * when the directory went but clearing the task's worktree path did not.
+ */
 export interface LandWorktreeCleanup {
   readonly removed: boolean
   readonly reason?: string
@@ -124,11 +128,24 @@ async function removeLandedWorktree(
   }
   try {
     await deps.worktrees.remove(worktreePath)
-    await deps.clearWorktreePath(task.id)
-    return { removed: true }
   } catch (err) {
-    return { removed: false, reason: err instanceof Error ? err.message : String(err) }
+    return { removed: false, reason: errText(err) }
   }
+  // Past this point the directory IS gone, so the outcome is `removed: true`
+  // whatever the store write does. Folding the two calls into one try/catch
+  // would report `removed: false` when only the bookkeeping failed — telling
+  // the user to go look for a worktree that no longer exists. The failure is
+  // still reported, in `reason`, because a dangling `worktreePath` is real.
+  try {
+    await deps.clearWorktreePath(task.id)
+  } catch (err) {
+    return { removed: true, reason: `worktree removed, but clearing the task's worktree path failed: ${errText(err)}` }
+  }
+  return { removed: true }
+}
+
+function errText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
 }
 
 export interface LandResult {
