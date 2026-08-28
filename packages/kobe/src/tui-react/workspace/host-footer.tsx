@@ -22,6 +22,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
 import { narrowUsageChip, usageChips } from "../component/settings-dialog/usage-core"
+import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
@@ -96,19 +97,21 @@ export function WorkspaceFrame(props: {
   const hintItems = useStatusKeyHintItems({ onOpenSettings: props.onOpenSettings })
   const footerVisible = (usage != null && usage.size > 0) || hintItems.length > 0
   return (
-    <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
-      <box flexDirection="row" flexGrow={1}>
-        {props.children}
-      </box>
-      {footerVisible ? (
-        <box flexDirection="row" flexShrink={0} height={1} paddingLeft={1} paddingRight={1} gap={2}>
-          <box flexGrow={1} flexDirection="row">
-            <UsageChips orchestrator={props.orchestrator} narrow={narrow} />
-          </box>
-          {/* Narrow drops the verbs and the [settings] chip: `⌃A · F1`. */}
-          <StatusKeyHintBar onOpenSettings={narrow ? undefined : props.onOpenSettings} compact={narrow} />
+    <ShortcutRevealProvider>
+      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
+        <box flexDirection="row" flexGrow={1}>
+          {props.children}
         </box>
-      ) : null}
-    </box>
+        {footerVisible ? (
+          <box flexDirection="row" flexShrink={0} height={1} paddingLeft={1} paddingRight={1} gap={2}>
+            <box flexGrow={1} flexDirection="row">
+              <UsageChips orchestrator={props.orchestrator} narrow={narrow} />
+            </box>
+            {/* Narrow drops the verbs and the [settings] chip: `⌃A · F1`. */}
+            <StatusKeyHintBar onOpenSettings={narrow ? undefined : props.onOpenSettings} compact={narrow} />
+          </box>
+        ) : null}
+      </box>
+    </ShortcutRevealProvider>
   )
 }

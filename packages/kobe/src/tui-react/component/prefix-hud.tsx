@@ -17,8 +17,10 @@ import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudState } from "../../
 import { truncateEnd } from "../../tui/lib/truncate"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
+import { invokeArmedPrefixActionFromCurrentStack } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
+import { useShortcutRevealPresentation } from "./shortcut-reveal"
 
 const BOTTOM_MARGIN = 1
 
@@ -73,6 +75,8 @@ export function PrefixHud(props: { left: number; width: number }) {
   const t = useT()
   const dims = useTerminalDimensions()
   const hud = useAccessor(prefixHudState)
+  const { activeSurface } = useShortcutRevealPresentation()
+  const showCommandGuide = activeSurface !== null
   const [, setFlushTick] = useState(0)
 
   const now = Date.now()
@@ -90,32 +94,40 @@ export function PrefixHud(props: { left: number; width: number }) {
   }, [oldestAt])
 
   useEffect(() => {
-    if (!hud.armed || hud.armedAt === null) return
+    if (!showCommandGuide || hud.armedAt === null) return
     const remaining = hud.armedAt + PREFIX_GUIDE_DELAY_MS - Date.now()
     if (remaining <= 0) return
     const timer = setTimeout(() => setFlushTick((tick) => tick + 1), remaining)
     return () => clearTimeout(timer)
-  }, [hud.armed, hud.armedAt])
+  }, [showCommandGuide, hud.armedAt])
 
-  const lineCount = fresh.length + (hud.armed ? 1 : 0)
+  const lineCount = fresh.length + (showCommandGuide ? 1 : 0)
   if (lineCount === 0) return null
   const armedKey = currentPrefixConfiguration().key ?? ""
-  const showGuide = hud.armed && hud.armedAt !== null && now - hud.armedAt >= PREFIX_GUIDE_DELAY_MS
+  const showGuide = showCommandGuide && hud.armedAt !== null && now - hud.armedAt >= PREFIX_GUIDE_DELAY_MS
   const groups = showGuide ? groupPrefixGuideOptions(hud.options) : []
 
   if (showGuide) {
     const narrow = dims.width < 88
-    const columns = narrow ? 1 : Math.min(3, Math.max(1, groups.length))
+    const columns = narrow ? 1 : Math.min(dims.width < 140 ? 2 : 3, Math.max(1, groups.length))
     const groupRows = Array.from({ length: Math.ceil(groups.length / columns) }, (_, index) =>
       groups.slice(index * columns, (index + 1) * columns),
     )
+    const guideWidth = Math.max(20, dims.width - 4)
+    const groupWidth = narrow ? guideWidth - 4 : Math.max(18, Math.floor((guideWidth - 4) / columns))
+    const actionHeight = (action: GuideAction): number => {
+      const strokes = action.strokes.join("/")
+      const keyWidth = Math.min(9, Math.max(3, strokes.length))
+      const labelWidth = Math.max(1, groupWidth - keyWidth - 1)
+      return Math.max(1, Math.ceil(actionLabel(action.action).length / labelWidth))
+    }
     const guideHeight = groupRows.reduce(
-      (height, row) => height + Math.max(1, ...row.map((group) => group.actions.length)) + 1,
+      (height, row) =>
+        height +
+        Math.max(1, ...row.map((group) => 1 + group.actions.reduce((sum, action) => sum + actionHeight(action), 0))),
       3,
     )
-    const guideWidth = Math.max(20, dims.width - 4)
     const top = Math.max(0, dims.height - BOTTOM_MARGIN - guideHeight)
-    const groupWidth = narrow ? guideWidth - 4 : Math.max(18, Math.floor((guideWidth - 4) / columns))
     return (
       <box
         position="absolute"
@@ -142,14 +154,22 @@ export function PrefixHud(props: { left: number; width: number }) {
                   <text fg={theme.accent}>{tKeys("category", group.category)}</text>
                   {group.actions.map((action) => {
                     const strokes = action.strokes.join("/")
-                    const label = truncateEnd(actionLabel(action.action), Math.max(4, groupWidth - strokes.length - 3))
                     return (
-                      <box key={action.action} flexDirection="row" gap={1}>
+                      <box
+                        key={action.action}
+                        flexDirection="row"
+                        gap={1}
+                        onMouseUp={(event: { stopPropagation(): void }) => {
+                          event.stopPropagation()
+                          const stroke = action.strokes[0]
+                          if (stroke) invokeArmedPrefixActionFromCurrentStack(action.action, stroke)
+                        }}
+                      >
                         <box width={Math.min(9, Math.max(3, strokes.length))}>
                           <text fg={theme.primary}>{strokes}</text>
                         </box>
-                        <text fg={theme.text} wrapMode="none">
-                          {label}
+                        <text fg={theme.text} wrapMode="word" flexGrow={1} flexShrink={1}>
+                          {actionLabel(action.action)}
                         </text>
                       </box>
                     )
@@ -187,7 +207,7 @@ export function PrefixHud(props: { left: number; width: number }) {
           </text>
         </box>
       ))}
-      {hud.armed ? (
+      {showCommandGuide ? (
         <box paddingLeft={1} paddingRight={1} backgroundColor={theme.backgroundDialog}>
           <text fg={theme.textMuted} wrapMode="none">
             {`${armedKey} ⋯`}

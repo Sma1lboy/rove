@@ -45,9 +45,11 @@ import {
 } from "../lib/keymap"
 import { useOptionalDialog } from "../ui/dialog"
 import { HelpDialog } from "./help-dialog"
+import { ShortcutRevealBadge } from "./shortcut-reveal"
 
 export type StatusKeyHintItem = {
   text: string
+  bindingId?: string
   /** Mouse activation — the same action the advertised key would run. */
   onPress?: () => void
 }
@@ -131,6 +133,7 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   if (opts?.onOpenSettings && !opts.compact && keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))) {
     items.push({
       text: `[${t("hints.status.settings")}]`,
+      bindingId: "settings.open",
       onPress: snapshot.modal ? undefined : opts.onOpenSettings,
     })
   }
@@ -150,10 +153,11 @@ export function StatusKeyHintBar(props: { onOpenSettings?: () => void; compact?:
             {" · "}
           </text>
         ) : null,
-        <box key={item.text} onMouseUp={item.onPress}>
+        <box key={item.text} position="relative" onMouseUp={item.onPress}>
           <text fg={theme.textMuted} wrapMode="none">
             {item.text}
           </text>
+          {item.bindingId ? <ShortcutRevealBadge bindingId={item.bindingId} cover /> : null}
         </box>,
       ])}
     </box>

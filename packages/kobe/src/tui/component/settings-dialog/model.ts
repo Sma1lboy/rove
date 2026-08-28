@@ -22,6 +22,7 @@ import type { VendorId } from "../../../types/vendor"
 // React port, which must not reference the Solid .tsx even type-only.
 import type { FocusAccentSlot } from "../../context/theme-core"
 import { LOCALES, type LocaleId } from "../../i18n/catalog"
+import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
 
 export type NavLevel = "sidebar" | "body"
 
@@ -53,6 +54,7 @@ export type SettingsRow =
   | { id: "sound"; kind: "sound" }
   | { id: "cross-task"; kind: "crossTask" }
   | { id: "key-hints"; kind: "keyHints" }
+  | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
   | { id: "zen-keep-tasks"; kind: "zenKeepTasks" }
   | { id: "editor-kind"; kind: "editorKind" }
@@ -95,6 +97,10 @@ export function engineRowId(vendor: VendorId): string {
 
 export function splitStyleRowId(style: SplitStyle): string {
   return `split-style:${style}`
+}
+
+export function prefixTapPresentationRowId(presentation: PrefixTapPresentation): string {
+  return `prefix-tap:${presentation}`
 }
 
 export function pluginRowId(pluginId: string): string {
@@ -187,6 +193,19 @@ export function feedbackRows(): SettingsRow[] {
   ]
 }
 
+export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
+  return [
+    ...PREFIX_TAP_PRESENTATIONS.map(
+      (presentation): SettingsRow => ({
+        id: prefixTapPresentationRowId(presentation),
+        kind: "prefixTapPresentation",
+        presentation,
+      }),
+    ),
+    ...(keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" } as const]),
+  ]
+}
+
 /**
  * Dev section: Reset (always), Restart (daemon only), then the
  * Experimental remote-projects toggle — kept last so its presence never
@@ -214,10 +233,7 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
     case "engines":
       return engineRows(input.engineList)
     case "keys":
-      // One action, and only while there is nothing to edit: writing the
-      // starter file is the whole gap between "here is the YAML" and a file
-      // the user can actually open.
-      return input.keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" }]
+      return keybindingRows(input.keybindingsFileExists)
     case "plugins":
       return pluginRows(input.plugins)
     case "feedback":

@@ -8,6 +8,35 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Prefix tap presentation
+
+**2026-08-28 — the prefix has tap behavior only. Every tap opens the complete
+command guide; Settings chooses whether Rove also marks current clickable
+controls, and the combined presentation is the default. No action chord is
+added or moved (latest owner resolution: the guide and on-screen entries may
+coexist).**
+Each existing control names the stable binding id for the action it already
+performs, then resolves the displayed direct or prefix sequence through the
+live keymap and current binding stack. Rebindings therefore update the badge,
+while unbound or modal-blocked actions disappear instead of showing stale
+help. The current anchors are New task, Inbox, Kanban, Automations, Zen, Create
+PR, and Settings.
+
+The full-width guide is derived from the dispatcher's armed options, not a
+second hand-maintained action list, so it covers every currently reachable
+prefix binding without collapsing labels into the sidebar width. Clicking a
+row invokes a typed action only after the dispatcher confirms that the same
+action and stroke are still armed, in the same terminal-passthrough boundary,
+and reachable under the current LIFO and modal rules.
+
+The setting is presentation-only and persists in the UI state. The dispatcher
+still owns the single prefix session: tap arms it, the next stroke resolves it,
+and Escape, a miss, focus change, or timeout clears it. Both settings subscribe
+to that same armed state, so switching the display does not add a second input
+state machine or require terminal key-repeat/release reporting. The combined
+default keeps spatial teaching on existing controls while the guide remains a
+complete reference and clickable mouse entry.
+
 ## Repo context filter — removed, chord revoked
 
 **2026-08-16 — `ctrl+p` repo filter removed entirely (owner call, same

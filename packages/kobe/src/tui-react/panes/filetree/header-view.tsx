@@ -12,6 +12,7 @@ import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
 import type { GitScope } from "../../../tui/panes/filetree/git"
 import { type FileTreeTab, TAB_ORDER, tabLabelKey } from "../../../tui/panes/filetree/keys-core"
+import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 
@@ -55,6 +56,7 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
             // the focus-leaves-workspace guard. A chip click is an
             // action, never a background pane click.
             <box
+              position="relative"
               flexDirection="row"
               gap={1}
               // Never squeeze the chip below its content: on a narrow pane the
@@ -72,6 +74,7 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
               <text fg={theme.text} wrapMode="none">
                 {t("files.actions.zen")}
               </text>
+              <ShortcutRevealBadge bindingId="workspace.zenToggle" />
             </box>
           ) : null}
           {props.onCreatePR ? (
@@ -86,9 +89,12 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
               }}
             >
               {createPRChord ? (
-                <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
-                  {createPRChord}
-                </text>
+                <box position="relative">
+                  <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
+                    {createPRChord}
+                  </text>
+                  <ShortcutRevealBadge bindingId="files.createPR" cover />
+                </box>
               ) : null}
               <text fg={theme.text} wrapMode="none">
                 {t("files.actions.createPR")}

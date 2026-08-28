@@ -9,6 +9,7 @@
 import { MouseButton, TextAttributes } from "@opentui/core"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { SIDEBAR_NAV_ITEMS, type SidebarNav } from "../../../tui/panes/sidebar/nav-core"
+import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { zenChipGlyph } from "./zen-glyph"
@@ -120,14 +121,16 @@ export function SidebarBrandHeader(props: {
           ROVE
         </text>
         {props.status ? (
-          <text
-            fg={props.status.emphasize ? theme.warning : theme.textMuted}
-            attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
-            wrapMode="none"
-            onMouseUp={() => props.onStatusClick?.()}
-          >
-            {props.status.label}
-          </text>
+          <box position="relative" onMouseUp={() => props.onStatusClick?.()}>
+            <text
+              fg={props.status.emphasize ? theme.warning : theme.textMuted}
+              attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
+              wrapMode="none"
+            >
+              {props.status.label}
+            </text>
+            {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
+          </box>
         ) : null}
       </box>
     </box>
@@ -149,6 +152,7 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   return (
     <box flexShrink={0} paddingTop={1} paddingBottom={1} paddingLeft={1} paddingRight={1}>
       <box
+        position="relative"
         flexDirection="row"
         flexShrink={0}
         gap={1}
@@ -168,6 +172,7 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
             {keycap}
           </text>
         ) : null}
+        <ShortcutRevealBadge bindingId="task.new" />
       </box>
     </box>
   )
@@ -185,6 +190,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
         return (
           <box
             key={item.nav}
+            position="relative"
             flexDirection="row"
             flexShrink={0}
             paddingLeft={1}
@@ -209,6 +215,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             >
               {t(item.labelKey)}
             </text>
+            <ShortcutRevealBadge bindingId={item.bindingId} />
           </box>
         )
       })}
@@ -219,7 +226,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
 export function SidebarZenChip(props: { onZenClick?: () => void }) {
   const { theme } = useTheme()
   return (
-    <box flexShrink={0} paddingLeft={1} paddingRight={1} paddingTop={1}>
+    <box position="relative" flexShrink={0} paddingLeft={1} paddingRight={1} paddingTop={1}>
       <text
         fg={theme.accent}
         attributes={TextAttributes.BOLD}
@@ -234,6 +241,7 @@ export function SidebarZenChip(props: { onZenClick?: () => void }) {
       >
         {`${zenChipGlyph()} ZEN`}
       </text>
+      <ShortcutRevealBadge bindingId="workspace.zenToggle" />
     </box>
   )
 }

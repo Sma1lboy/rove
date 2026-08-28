@@ -23,11 +23,26 @@ Rove only reserves its explicit chords. The prefix still works there, so
 the command menu is reachable from every pane. Press `ctrl+q` to leave the
 terminal without opening it.
 
+Tap the configured prefix once to open the command layer. By default, Rove
+opens the complete command guide and also shows shortcuts beside clickable
+controls already on screen, such as **New task**, **Inbox**, **Kanban**,
+**Automations**, **Zen**, **Create PR**, and **Settings**. In **Settings →
+Keybindings → Prefix tap**, choose **Complete guide only** to hide the on-screen
+badges while keeping the guide.
+
+Both the badges and guide read the live keymap. A rebound prefix or action
+changes immediately, and an unbound or currently unreachable action is not
+advertised. Clicking a guide row rechecks the current pane and modal scope
+before it runs. The setting changes only whether the pending command layer also
+marks controls in place. Both choices use the same prefix, second stroke,
+timeout, pane scope, and cancellation rules. No hold or key-release support is
+required.
+
 ## The prefix
 
-The default first stroke is `ctrl+a`. Press it, then one more key within 5
-seconds. After a short pause an on-screen command map appears, showing only
-the actions that can actually run right now.
+The default first stroke is `ctrl+a`. Tap it, then press one more key within
+5 seconds. A complete on-screen command map appears after a short pause and
+shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|

@@ -40,6 +40,11 @@ import {
   type EditorKind,
   normalizeEditorKind,
 } from "../../../tui/lib/editor-prefs"
+import {
+  PREFIX_TAP_PRESENTATION_KEY,
+  type PrefixTapPresentation,
+  normalizePrefixTapPresentation,
+} from "../../../tui/lib/prefix-tap-presentation"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -69,6 +74,13 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleCrossTask(): void {
     kv.set("notifications.crossTask.enabled", !crossTaskEnabled())
+  }
+
+  function prefixTapPresentation(): PrefixTapPresentation {
+    return normalizePrefixTapPresentation(kv.get(PREFIX_TAP_PRESENTATION_KEY))
+  }
+  function selectPrefixTapPresentation(next: PrefixTapPresentation): void {
+    kv.set(PREFIX_TAP_PRESENTATION_KEY, next)
   }
   // Sidebar hover tooltips: opt-in, default OFF (owner call 2026-07-28) —
   // the item info they show is nice-to-have, not essential.
@@ -270,6 +282,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleSound,
     crossTaskEnabled,
     toggleCrossTask,
+    prefixTapPresentation,
+    selectPrefixTapPresentation,
     splitStyle,
     selectSplitStyle,
     zenDefaultOn,

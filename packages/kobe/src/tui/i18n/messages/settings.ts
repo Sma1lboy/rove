@@ -135,7 +135,11 @@ export const en = {
     prefixTitle: "Command layer ({prefix})",
     /** One-paragraph grammar summary; {prefix} live first stroke, {timeout} live second-stroke window in ms */
     prefixHint:
-      "Bare keys act in the focused pane; a small one-press set covers frequent Rove actions; {prefix} opens the command map ({timeout}ms second-stroke window — hold on and a guide appears). Prefix bindings keep their pane scope and modal rules.",
+      "Bare keys act in the focused pane; a small one-press set covers frequent Rove actions; {prefix} opens the command layer ({timeout}ms second-stroke window). Prefix bindings keep their pane scope and modal rules.",
+    tapPresentation: "Prefix tap",
+    tapPresentationHint: "Choose whether the complete guide also marks controls already on screen.",
+    tapPresentationLocal: "On-screen entries + complete guide (default)",
+    tapPresentationGuide: "Complete guide only",
     /** Shown as the {prefix} value when the user disabled the prefix in YAML */
     prefixDisabled: "disabled",
     /** Trailing note listing non-rebindable ids; hidden when there are none */
@@ -309,7 +313,11 @@ export const zh: typeof en = {
     notCreated: "  (尚未创建)",
     prefixTitle: "命令层（{prefix}）",
     prefixHint:
-      "裸键作用于当前聚焦面板；少量单次快捷键覆盖高频 Rove 操作；{prefix} 打开命令层（第二击窗口 {timeout}ms — 稍等会出现命令指南）。Prefix 绑定保持原有的面板作用域和 modal 规则。",
+      "裸键作用于当前聚焦面板；少量单次快捷键覆盖高频 Rove 操作；{prefix} 打开命令层（第二击窗口 {timeout}ms）。Prefix 绑定保持原有的面板作用域和 modal 规则。",
+    tapPresentation: "点按 Prefix",
+    tapPresentationHint: "选择完整指南是否同时标记当前屏幕上的入口。",
+    tapPresentationLocal: "屏幕入口 + 完整指南（默认）",
+    tapPresentationGuide: "仅完整指南",
     prefixDisabled: "已禁用",
     fixed: "固定（不可重绑定）：{ids}。",
     createHint: "还没有覆盖文件。Rove 可以帮你写一份带完整注释的——在你取消注释之前不会改动任何按键。",
