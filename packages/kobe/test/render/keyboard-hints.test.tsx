@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { useEffect } from "react"
@@ -25,6 +25,7 @@ import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keyb
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/keyboard-hints"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
+import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
@@ -127,6 +128,24 @@ function withTempKvHome(): void {
   process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hints-"))
 }
 
+function withGuideKvHome(): void {
+  const home = mkdtempSync(join(tmpdir(), "kobe-hints-guide-"))
+  const configDir = join(home, ".config", "rove")
+  mkdirSync(configDir, { recursive: true })
+  writeFileSync(join(configDir, "state.json"), JSON.stringify({ [PREFIX_TAP_PRESENTATION_KEY]: "guide" }))
+  process.env.KOBE_HOME_DIR = home
+}
+
+async function waitForFrameText(frame: () => Promise<string>, text: string): Promise<string> {
+  const deadline = Date.now() + 1_000
+  let current = await frame()
+  while (!current.includes(text) && Date.now() < deadline) {
+    await settle(25)
+    current = await frame()
+  }
+  return current
+}
+
 describe("StatusKeyHintBar", () => {
   it("advertises the live prefix and help chords from the workspace stack", async () => {
     const { frame } = await renderComponent(
@@ -159,6 +178,7 @@ describe("StatusKeyHintBar", () => {
   })
 
   it("opens and dispatches the command layer with ctrl+a inside the terminal", async () => {
+    withGuideKvHome()
     let zenToggles = 0
     const { frame, mockInput } = await renderComponent(
       <WorkspaceFrame orchestrator={fakeOrchestrator()} onOpenSettings={NOOP}>
@@ -168,13 +188,12 @@ describe("StatusKeyHintBar", () => {
           </TerminalPassthroughDriver>
         </WorkspaceDriver>
       </WorkspaceFrame>,
-      { width: 110, height: 30, providers: { focus: true, dialog: true } },
+      { width: 110, height: 30, providers: { kv: true, focus: true, dialog: true } },
     )
     await settle()
 
     act(() => mockInput.pressKey("a", { ctrl: true }))
-    await settle(300)
-    expect(await frame()).toContain("more Rove commands")
+    expect(await waitForFrameText(frame, "more Rove commands")).toContain("more Rove commands")
 
     act(() => mockInput.pressKey("z"))
     await settle()
@@ -254,19 +273,18 @@ describe("footer hint clicks", () => {
   })
 
   it("clicking the commands caption arms the real prefix and shows the which-key guide", async () => {
+    withGuideKvHome()
     const { frame, mockMouse } = await renderComponent(
       <WorkspaceFrame orchestrator={fakeOrchestrator()} onOpenSettings={NOOP}>
         <WorkspaceDriver />
         <PrefixHud left={1} width={24} />
       </WorkspaceFrame>,
-      { width: 110, height: 30, providers: { focus: true, dialog: true } },
+      { width: 110, height: 30, providers: { kv: true, focus: true, dialog: true } },
     )
     await settle()
     const spot = locate(await frame(), "commands")
     await mockMouse.click(spot.x + 1, spot.y)
-    // The guide expands after the learner delay (180ms).
-    await settle(300)
-    expect(await frame()).toContain("more Rove commands")
+    expect(await waitForFrameText(frame, "more Rove commands")).toContain("more Rove commands")
     act(() => resetPrefixState())
   })
 })

@@ -7,11 +7,12 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
+import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
@@ -51,10 +52,42 @@ describe("SettingsDialog", () => {
     text = await press("j") // → Keybindings
     expect(text).toContain("Command layer (ctrl+a)")
     expect(text).toContain("5000ms second-stroke window")
+    expect(text).toContain("On-screen entries + complete guide (default)")
+    expect(text).toContain("Complete guide only")
     expect(text).not.toContain("Fixed (not rebindable)") // FIXED_BINDING_IDS is empty
     text = await press("j") // → Feedback
     expect(text).toContain("GitHub Discussion")
     text = await press("j") // → Dev
     expect(text).toContain("Reset UI state")
+  })
+
+  it("selects and persists the prefix-tap presentation with ordinary Settings keys", async () => {
+    const home = mkdtempSync(join(tmpdir(), "kobe-prefix-setting-"))
+    process.env.KOBE_HOME_DIR = home
+    const { frame, mockInput } = await renderComponent(<Driver />, {
+      width: 110,
+      height: 40,
+      providers: { kv: true, dialog: true },
+    })
+
+    for (let i = 0; i < 3; i++) {
+      act(() => mockInput.pressKey("j"))
+      await settle()
+    }
+    expect(await frame()).toContain("(●) On-screen entries + complete guide (default)")
+
+    act(() => mockInput.pressKey("l"))
+    await settle()
+    act(() => mockInput.pressKey("j"))
+    await settle()
+    act(() => mockInput.pressEnter())
+    await settle(320)
+
+    expect(await frame()).toContain("(●) Complete guide only")
+    const persisted = JSON.parse(readFileSync(join(home, ".config", "rove", "state.json"), "utf8")) as Record<
+      string,
+      unknown
+    >
+    expect(persisted[PREFIX_TAP_PRESENTATION_KEY]).toBe("guide")
   })
 })

@@ -23,6 +23,8 @@ export interface SidebarNavItem {
   readonly nav: SidebarNav
   /** i18n key — callers translate with their own `t`. */
   readonly labelKey: string
+  /** Existing keymap action represented by this clickable destination. */
+  readonly bindingId: string
 }
 
 /**
@@ -31,8 +33,8 @@ export interface SidebarNavItem {
  * for the same thing — and clicking a task already returns there.
  */
 export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
-  { nav: "kanban", labelKey: "tasks.nav.kanban" },
-  { nav: "automations", labelKey: "tasks.nav.automations" },
+  { nav: "kanban", labelKey: "tasks.nav.kanban", bindingId: "kanban.open" },
+  { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
   // `issues` is deliberately absent: the external-tracker page works but has
   // had no design pass, so it stays reachable only through `kobe api
   // workitem-*` until it earns a rail row. Its nav value and page stay wired

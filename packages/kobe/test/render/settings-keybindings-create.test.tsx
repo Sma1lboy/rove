@@ -40,7 +40,9 @@ test("the Keybindings page writes the starter YAML on enter", async () => {
   for (let i = 0; i < 3; i++) await press("j") // → Keybindings
   expect(await frame()).toContain("not created yet")
 
-  await press("l") // into the body — the section has exactly one row
+  await press("l") // into the body — prefix presentation rows come first
+  await press("j")
+  await press("j") // → Create keybindings.yaml
   // `pressEnter()`, not `pressKey("return")`: the mock's key NAMES are
   // uppercase, so a lowercase one is typed as its six letters.
   act(() => mockInput.pressEnter())

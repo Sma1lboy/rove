@@ -1,18 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings dialog (issue #15 G3). Two-column layout: left sidebar
- * (sections), right pane (the active section). Row order/indices come from
- * the shared framework-free registry
- * (`../../../tui/component/settings-dialog/model`), so keyboard nav stays
- * in lockstep with the section views; the kv-backed helper closures live
- * in `./use-settings-prefs` / `./use-engine-settings` (file-size cap
- * split) and reach the sections as one `prefs: SettingsPrefs` prop.
- *
- * Bindings inside the dialog:
- *   - `↑` / `↓` / `j` / `k` — navigate the current level.
- *   - `h` / `l`              — switch sidebar/body levels.
- *   - `enter`                — activate the focused row.
- *   - `esc`                  — close (handled by the dialog stack / page).
+ * Two-column Settings dialog. The pure row registry owns order and payloads;
+ * preference hooks own KV reads/writes. j/k navigate, h/l switch levels,
+ * Enter activates, and the surrounding dialog stack owns Escape.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -53,21 +43,11 @@ import { useSettingsPrefs } from "./use-settings-prefs"
 
 export type SettingsDialogProps = {
   kv: KVContext
-  /**
-   * The active orchestrator. Used to expose the "Restart backend" Dev
-   * button only when we're attached to a daemon (RemoteOrchestrator).
-   */
+  /** Enables daemon-only Settings actions when present. */
   orchestrator?: KobeOrchestrator
   onVisualPrefsChange?: () => void
   onClose: () => void
-  /**
-   * True when this dialog is the standalone page surface (`kobe settings`),
-   * rendered OUTSIDE the dialog stack. The page mounts this component
-   * permanently, so when a sub-dialog (engine-command / custom-editor text
-   * input) is open we disable our own key bindings — otherwise the
-   * `j/k/l/h/t` nav would swallow those letters from the text input (the
-   * `{file}` "l-is-eaten" bug).
-   */
+  /** Standalone page mode; suspends navigation while a child dialog edits text. */
   standalone?: boolean
 }
 
@@ -245,6 +225,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     sound: () => prefs.toggleSound(),
     crossTask: () => prefs.toggleCrossTask(),
     keyHints: () => toggleKeyHints(props.kv),
+    prefixTapPresentation: (row) => prefs.selectPrefixTapPresentation(row.presentation),
     splitStyle: (row) => prefs.selectSplitStyle(row.style),
     zenDefaultOn: () => prefs.toggleZenDefaultOn(),
     zenKeepTasks: () => prefs.toggleZenKeepsTasks(),
@@ -419,7 +400,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
               editSetting={(id, key) => void plugins.editSetting(id, key)}
             />
           ) : null}
-          {section === "keys" ? <KeybindingsSettingsSection {...cursorProps} onCreateFile={createKeysFile} /> : null}
+          {section === "keys" ? (
+            <KeybindingsSettingsSection {...cursorProps} prefs={prefs} onCreateFile={createKeysFile} />
+          ) : null}
           {section === "feedback" ? (
             <FeedbackSettingsSection
               {...cursorProps}

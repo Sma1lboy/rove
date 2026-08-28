@@ -2,15 +2,28 @@
 /** Real-render coverage for the prefix guide and its F1 reference view. */
 
 import { afterEach, describe, expect, it } from "bun:test"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { PrefixHud } from "../../src/tui-react/component/prefix-hud"
+import { ShortcutRevealProvider } from "../../src/tui-react/component/shortcut-reveal"
 import { useFocus } from "../../src/tui-react/context/focus"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { PREFIX_GUIDE_DELAY_MS, prefixHudPush, prefixHudSetArmed, resetPrefixHud } from "../../src/tui/lib/prefix-hud"
+import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
+
+function useGuidePreference(): void {
+  const home = mkdtempSync(join(tmpdir(), "rove-which-key-"))
+  const configDir = join(home, ".config", "rove")
+  mkdirSync(configDir, { recursive: true })
+  writeFileSync(join(configDir, "state.json"), JSON.stringify({ [PREFIX_TAP_PRESENTATION_KEY]: "guide" }))
+  process.env.KOBE_HOME_DIR = home
+}
 
 const CLOSED_PAGES: HostPagesState = {
   nav: "terminal",
@@ -81,14 +94,21 @@ describe("F1 keyboard reference", () => {
 
 describe("which-key prefix guide", () => {
   it("stays compact for a fast sequence", async () => {
+    useGuidePreference()
     prefixHudSetArmed(true, [{ stroke: "f", action: "chat.fork.new" }], Date.now() + 10_000)
-    const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, { width: 80, height: 24 })
+    const { frame } = await renderComponent(
+      <ShortcutRevealProvider>
+        <PrefixHud left={1} width={22} />
+      </ShortcutRevealProvider>,
+      { width: 80, height: 24, providers: { kv: true } },
+    )
     const text = await frame()
     expect(text).toContain("ctrl+a ⋯")
     expect(text).not.toContain("more Rove commands")
   })
 
   it("expands reachable commands after the learner delay", async () => {
+    useGuidePreference()
     prefixHudSetArmed(
       true,
       [
@@ -100,7 +120,12 @@ describe("which-key prefix guide", () => {
       ],
       Date.now() - PREFIX_GUIDE_DELAY_MS,
     )
-    const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, { width: 120, height: 30 })
+    const { frame } = await renderComponent(
+      <ShortcutRevealProvider>
+        <PrefixHud left={1} width={22} />
+      </ShortcutRevealProvider>,
+      { width: 120, height: 30, providers: { kv: true } },
+    )
     const text = await frame()
     expect(text).toContain("ctrl+a — more Rove commands")
     expect(text).toContain("Views")

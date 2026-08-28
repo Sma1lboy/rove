@@ -10,10 +10,16 @@ import { TextAttributes, type TextareaRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
 import { tildify } from "../../../lib/path-home"
 import { stripNewlines } from "../../../tui/component/new-task-dialog/state"
-import { devRows, rowIndex } from "../../../tui/component/settings-dialog/model"
+import {
+  devRows,
+  keybindingRows,
+  prefixTapPresentationRowId,
+  rowIndex,
+} from "../../../tui/component/settings-dialog/model"
 import { userKeybindingsReport } from "../../../tui/context/keybindings-user"
 import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
 import { FIXED_BINDING_IDS } from "../../../tui/lib/keymap-overrides"
+import { PREFIX_TAP_PRESENTATIONS } from "../../../tui/lib/prefix-tap-presentation"
 import { useKeymapVersion } from "../../context/keybindings"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -247,6 +253,7 @@ export function KeybindingsSettingsSection(
   props: SectionCursorProps & {
     /** Write the starter YAML — offered only while the file is absent. */
     onCreateFile: () => void
+    prefs: SettingsPrefs
   },
 ) {
   const { theme } = useTheme()
@@ -256,6 +263,7 @@ export function KeybindingsSettingsSection(
   // truthful after a YAML edit.
   useKeymapVersion()
   const report = userKeybindingsReport()
+  const rows = keybindingRows(report.exists)
   const prefix = currentPrefixConfiguration()
   const fixedIds = Object.keys(FIXED_BINDING_IDS).sort()
   const appliedIdWidth = Math.min(
@@ -282,6 +290,37 @@ export function KeybindingsSettingsSection(
       </box>
       <box flexDirection="column" gap={0}>
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
+          {t("settings.keybindings.tapPresentation")}
+        </text>
+        <text fg={theme.textMuted} wrapMode="word">
+          {t("settings.keybindings.tapPresentationHint")}
+        </text>
+        {PREFIX_TAP_PRESENTATIONS.map((presentation) => {
+          const row = rowIndex(rows, prefixTapPresentationRowId(presentation))
+          const selected = props.prefs.prefixTapPresentation() === presentation
+          return (
+            <Row
+              key={presentation}
+              cursor={props.level === "body" && props.bodyRow === row}
+              onMouseUp={() => {
+                props.setLevel("body")
+                props.setBodyRow(row)
+                props.prefs.selectPrefixTapPresentation(presentation)
+              }}
+              fg={selected ? theme.accent : theme.text}
+              bold={selected || (props.level === "body" && props.bodyRow === row)}
+            >
+              {`${selected ? "(●)" : "( )"} ${t(
+                presentation === "local"
+                  ? "settings.keybindings.tapPresentationLocal"
+                  : "settings.keybindings.tapPresentationGuide",
+              )}`}
+            </Row>
+          )
+        })}
+      </box>
+      <box flexDirection="column" gap={0}>
+        <text fg={theme.text} attributes={TextAttributes.BOLD}>
           {t("settings.keybindings.prefixTitle", { prefix: prefix.key ?? t("settings.keybindings.prefixDisabled") })}
         </text>
         <text fg={theme.textMuted} wrapMode="word">
@@ -300,10 +339,10 @@ export function KeybindingsSettingsSection(
             {t("settings.keybindings.createHint")}
           </text>
           <Row
-            cursor={props.level === "body" && props.bodyRow === 0}
+            cursor={props.level === "body" && props.bodyRow === rowIndex(rows, "keys-create")}
             onMouseUp={() => {
               props.setLevel("body")
-              props.setBodyRow(0)
+              props.setBodyRow(rowIndex(rows, "keys-create"))
               props.onCreateFile()
             }}
             fg={theme.text}
