@@ -36,6 +36,12 @@
  * scrolled off screen are banked in a bounded shadow so the copy contains
  * exactly what the highlight covered. During the drag only the anchor follows,
  * because the head belongs to the pointer.
+ *
+ * On the NORMAL screen the displacement is known rather than measured: kobe's
+ * own scrollback is bounded, so a saturated buffer drops one row off the front
+ * per new line and `snapshotWindow.startLine` — the absolute line id the
+ * viewport is already anchored to — gives the exact offset to translate the
+ * endpoints by.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -43,13 +49,16 @@ import { useRenderer } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { copyTextToSystemClipboard } from "../../../tui/lib/clipboard-copy"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
+import type { TerminalSnapshotWindow } from "../../../tui/panes/terminal/pty-types"
 import {
   type CellPoint,
   EMPTY_SHADOW,
   type SelectionRange,
   type SelectionShadow,
+  type SelectionShiftState,
   extractShadowedSelection,
   followContentShift,
+  followWindowShift,
   pointerCell,
 } from "../../../tui/panes/terminal/terminal-selection"
 
@@ -66,6 +75,12 @@ export interface UseTerminalSelectionOpts {
   /** Absolute snapshot row index of the first VISIBLE row (viewport start). */
   visibleRangeStart: number
   snapshot: readonly TerminalRow[]
+  /**
+   * Absolute line id of `snapshot[0]`, or null when the backend can't number
+   * lines (alternate screen, or no scrollback yet). A bounded scrollback trims
+   * from the front, so this is what keeps the selection on its content.
+   */
+  snapshotWindow: TerminalSnapshotWindow | null
   /**
    * Scroll for a drag hanging past an edge: negative goes up into history,
    * positive toward live. The pointer's absolute coords come along because the
@@ -139,6 +154,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     appScrolledRef.current = false
     shadowRef.current = EMPTY_SHADOW
     lastSnapshotRef.current = opts.snapshot
+    lastWindowRef.current = opts.snapshotWindow
     // Mirrored into a ref as well: the drag events of a fast gesture land
     // before React has re-rendered with the new anchor, and the auto-scroll
     // direction check must not read a stale (null) one.
@@ -158,10 +174,19 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   const appScrolledRef = useRef(false)
   const shadowRef = useRef<SelectionShadow>(EMPTY_SHADOW)
   const lastSnapshotRef = useRef(opts.snapshot)
+  const lastWindowRef = useRef(opts.snapshotWindow)
   const autoScrollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // The tick closes over render-derived geometry, so it's refreshed after
   // every render rather than captured once when the interval starts.
   const tickRef = useRef<() => void>(() => {})
+
+  const clearSelectionState = (): void => {
+    anchorRef.current = null
+    appScrolledRef.current = false
+    shadowRef.current = EMPTY_SHADOW
+    setSelAnchor(null)
+    setSelHead(null)
+  }
 
   const stopAutoScroll = (): void => {
     if (!autoScrollRef.current) return
@@ -219,28 +244,59 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     if (at) setSelHead(at.cell)
   }, [opts.visibleRangeStart])
 
-  // App-owned scrolling never moves the viewport — the CONTENT moves under
-  // fixed snapshot rows. Measure each snapshot change and move the selection
-  // with the content; rows that scrolled off are banked so the copy still has
-  // them. Gated on a selection EXISTING rather than on a live drag: the
-  // measurement is an O(rows^2) text comparison and must not run on every PTY
-  // frame for nothing, but a RELEASED selection still belongs to its content.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on snapshot pushes; `selHead` is read from the render that pushed them.
-  useEffect(() => {
-    const prev = lastSnapshotRef.current
-    lastSnapshotRef.current = opts.snapshot
-    if (!anchorRef.current || !appScrolledRef.current || prev === opts.snapshot) return
-    const rolled = followContentShift(
-      { anchor: anchorRef.current, head: selHead, shadow: shadowRef.current },
-      prev,
-      opts.snapshot,
-      draggingRef.current,
-    )
+  const applyShift = (rolled: SelectionShiftState): void => {
     shadowRef.current = rolled.shadow
     anchorRef.current = rolled.anchor
     setSelAnchor(rolled.anchor)
     setSelHead(rolled.head)
-  }, [opts.snapshot])
+  }
+
+  // Two ways the content can move out from under a selection, and they are
+  // mutually exclusive by which layer owns the scrollback:
+  //
+  //  - NORMAL screen: kobe owns a BOUNDED scrollback, so once it saturates
+  //    every new line drops one row off the front and each array index means
+  //    content one line newer. `snapshotWindow.startLine` states that
+  //    displacement exactly (`followWindowShift`) — no matching needed.
+  //  - ALTERNATE screen: the app owns its scrollback, the viewport never moves
+  //    and there is no window to number lines with, so the shift has to be read
+  //    back off the content (`followContentShift`) and the rows that scrolled
+  //    off banked in the shadow so the copy still has them.
+  //
+  // The content measurement only runs when the window did NOT move: a trim
+  // already fully explains the array-coordinate displacement, and re-deriving
+  // it would apply the same shift twice. It stays gated on a wheel having been
+  // forwarded, because it is an O(rows^2) text comparison that must not run on
+  // every PTY frame for nothing — and on a selection EXISTING rather than on a
+  // live drag, because a released selection still belongs to its content.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on snapshot pushes; `selHead` is read from the render that pushed them.
+  useEffect(() => {
+    const prevSnapshot = lastSnapshotRef.current
+    const prevWindow = lastWindowRef.current
+    lastSnapshotRef.current = opts.snapshot
+    lastWindowRef.current = opts.snapshotWindow
+    if (!anchorRef.current) return
+    const state: SelectionShiftState = { anchor: anchorRef.current, head: selHead, shadow: shadowRef.current }
+    const windowed = followWindowShift(
+      state,
+      prevWindow,
+      opts.snapshotWindow,
+      opts.snapshot.length,
+      draggingRef.current,
+    )
+    // Line numbering was reset (a resize reflows history): the selection
+    // addresses content that no longer exists under those ids.
+    if (!windowed) {
+      clearSelectionState()
+      return
+    }
+    if (windowed !== state) {
+      applyShift(windowed)
+      return
+    }
+    if (!appScrolledRef.current || prevSnapshot === opts.snapshot) return
+    applyShift(followContentShift(state, prevSnapshot, opts.snapshot, draggingRef.current))
+  }, [opts.snapshot, opts.snapshotWindow])
 
   // Unmount mid-drag (tab closed, pane swapped) must not leave a timer behind.
   useEffect(
@@ -268,13 +324,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
       dragPointRef.current = null
       stopAutoScroll()
     },
-    clearSelection: () => {
-      anchorRef.current = null
-      appScrolledRef.current = false
-      shadowRef.current = EMPTY_SHADOW
-      setSelAnchor(null)
-      setSelHead(null)
-    },
+    clearSelection: clearSelectionState,
     copySelection,
     noteAppScroll: () => {
       // Armed by a selection, not by a drag — a wheel AFTER the release has to

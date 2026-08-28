@@ -17,6 +17,7 @@
  */
 
 import { charWidth } from "../../../lib/display-width"
+import type { TerminalSnapshotWindow } from "./pty-types"
 import { ATTR, type Chunk } from "./sgr"
 
 export type CellPoint = { readonly row: number; readonly col: number }
@@ -364,4 +365,48 @@ export function overlaySelection(
     const span = rowSpan(range, firstRow + i, width)
     return span ? overlayRowSpan(row, span[0], span[1]) : row
   })
+}
+
+/**
+ * Roll a selection across a snapshot-WINDOW move — the NORMAL screen's
+ * counterpart to {@link followContentShift}.
+ *
+ * The local scrollback is bounded, so once it saturates every new line drops
+ * one row off the front of the snapshot and every array index addresses
+ * content one line newer than it did. `startLine` — the same absolute line id
+ * `resolveViewportScrollOffset` re-derives the viewport from — states that
+ * displacement exactly, so this is arithmetic, not the content matching
+ * `snapshotShift` has to do for an app that owns its own scrollback.
+ *
+ * Rows the trim took are gone from local scrollback, so the endpoints clamp to
+ * what is still addressable rather than being banked in the shadow (that bank
+ * belongs to the alt-screen drag, where the rows still exist inside the app).
+ *
+ * Returns the input by reference when nothing moved, and `null` when line
+ * numbering was RESET (a resize reflows history and bumps `epoch`): the
+ * selection then addresses content that no longer exists under those ids and
+ * must be dropped, not silently mis-mapped.
+ */
+export function followWindowShift(
+  state: SelectionShiftState,
+  prev: TerminalSnapshotWindow | null,
+  next: TerminalSnapshotWindow | null,
+  snapshotLength: number,
+  dragging: boolean,
+): SelectionShiftState | null {
+  if (!state.anchor || !prev || !next) return state
+  if (prev.epoch !== next.epoch) return null
+  const delta = next.startLine - prev.startLine
+  if (delta === 0) return state
+  const follow = (cell: CellPoint): CellPoint => ({
+    row: clampRowToShadow(cell.row - delta, snapshotLength, state.shadow),
+    col: cell.col,
+  })
+  return {
+    shadow: state.shadow,
+    anchor: follow(state.anchor),
+    // The head belongs to the POINTER while the drag is live — the pane
+    // re-derives it from the last pointer position itself.
+    head: dragging || !state.head ? state.head : follow(state.head),
+  }
 }

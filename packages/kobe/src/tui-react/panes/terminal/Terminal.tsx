@@ -245,6 +245,7 @@ export function Terminal(props: TerminalProps) {
     bodyRows,
     visibleRangeStart: visibleRange.start,
     snapshot,
+    snapshotWindow,
     scrollBy: scrollFromPointer,
   })
 
