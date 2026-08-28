@@ -41,7 +41,13 @@ async function storyboard(page: Page): Promise<void> {
   // composer is the engine's, and whatever a previous take left in it stays.
   await click(page, COMPOSER.x, COMPOSER.y)
   await press(page, "ctrl+u")
-  await typeText(page, "Add a test for the timeout, then commit.")
+  // Scoped deliberately. "Add a test for the timeout" invites the engine to
+  // PROVE the test is not vacuous — it reached for `sed` to strip the timeout
+  // and re-run, which is outside the capture's `Bash(git *)`/`Bash(bun test*)`
+  // allowlist, so the take filmed an approval dialog waiting on a human. The
+  // fix is a narrower ask, not a wider allowlist: a README demo should not
+  // need an unattended agent to hold broader permissions.
+  await typeText(page, "Add one test asserting the timeout rejects, then commit.")
   await press(page, "enter")
 
   // Beat 3 — it works while we walk away. A fixed hold, not a marker wait:
