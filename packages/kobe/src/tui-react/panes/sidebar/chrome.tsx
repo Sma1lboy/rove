@@ -195,7 +195,6 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             flexShrink={0}
             paddingLeft={1}
             paddingRight={1}
-            backgroundColor={active ? theme.focusAccent : undefined}
             onMouseUp={(e: { stopPropagation(): void }) => {
               // goToNav hands focus to the page; a bubbled sidebar
               // focus-grab (the pane shell's onMouseUp) took it right back,
@@ -205,10 +204,10 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             }}
           >
             <text
-              // Contrast fg on the accent fill: `background` is alpha-0 in
-              // transparent mode (invisible text); `backgroundElement`
-              // stays opaque in every mode.
-              fg={active ? theme.backgroundElement : theme.textMuted}
+              // Active destination: bold + normal text color. We intentionally
+              // do NOT use the focus-accent fill here, because that same orange
+              // already signals (a) focused pane borders and (b) selected cards.
+              fg={active ? theme.text : theme.textMuted}
               attributes={active ? TextAttributes.BOLD : undefined}
               wrapMode="none"
               flexGrow={1}
