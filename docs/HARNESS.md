@@ -360,9 +360,10 @@ for post-failure inspection and never points at production state.
 
 ## Coverage gate
 
-`coverage-cap` (vitest lcov) and `render-track` (bun-test render lcov) hold every
-file a PR touches to a 50% line floor. Only touched files are gated, so a legacy
-file with thin coverage stays green until someone edits it.
+`render-track` (bun-test render lcov) holds every file a PR touches to a 50%
+line floor. Only touched files are gated, so a legacy file with thin coverage
+stays green until someone edits it. The vitest-side `coverage-cap` job was
+removed — the render track is now the only coverage gate.
 
 ### The escape hatch, and when it is honest
 
