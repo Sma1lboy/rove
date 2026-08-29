@@ -33,6 +33,21 @@ function reposOf(orch: RemoteOrchestrator | null): string[] {
   return seen
 }
 
+function errorHint(error: string, t: ReturnType<typeof useT>): string {
+  const colon = error.indexOf(": ")
+  const kind = colon >= 0 ? error.slice(0, colon) : "failed"
+  switch (kind) {
+    case "no-remote":
+      return t("workItems.errorHint.noRemote")
+    case "gh-missing":
+      return t("workItems.errorHint.ghMissing")
+    case "auth":
+      return t("workItems.errorHint.auth")
+    default:
+      return t("workItems.errorHint.fallback", { message: error })
+  }
+}
+
 function relativeAge(iso: string, now: number): string {
   const at = Date.parse(iso)
   if (!Number.isFinite(at)) return ""
@@ -160,6 +175,9 @@ export function WorkItemsPage(props: {
       {error ? (
         <box flexDirection="column" marginTop={1}>
           <text fg={theme.error}>{error}</text>
+          <box marginTop={1}>
+            <text fg={theme.textMuted}>{errorHint(error, t)}</text>
+          </box>
         </box>
       ) : items === null ? (
         <text fg={theme.textMuted}>{t("common.loading")}</text>

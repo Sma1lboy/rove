@@ -378,17 +378,20 @@ the daemon alive so schedules fire with no TUI attached.
 Walked through end to end, with the page pictured and the cron and precheck
 rules spelled out: [Routines](ROUTINES.md).
 
-### GitHub Issues (`ctrl+a` `3`)
+### GitHub Issues (CLI-only)
 
 A read-only view of the repo's GitHub issues, fetched through the `gh` CLI.
-If `gh` works in your terminal, this page works too; otherwise the page tells
-you exactly what's missing. `a` filters to issues assigned to you, `tab`
-switches repos, `r` refreshes past the cache.
+Today the only supported entry point is `rove api workitem-*`; use it to
+browse issues and start a task from one. The underlying page is wired and
+`ctrl+a 3` still opens it, but it is not yet documented as a TUI shortcut
+because it has not earned a sidebar rail row.
 
-`enter` starts a Rove task from the selected issue: the issue body arrives as
-the first prompt (fenced, and explicitly marked as an untrusted report), and
-the task keeps a `linkedWorkItem` pointer back to the issue. Nothing is
-imported into the local issue store and nothing is written back to GitHub.
+When the page opens, `a` filters to issues assigned to you, `tab` switches
+repos, and `r` refreshes past the cache. `enter` starts a Rove task from the
+selected issue: the issue body arrives as the first prompt (fenced, and
+explicitly marked as an untrusted report), and the task keeps a
+`linkedWorkItem` pointer back to the issue. Nothing is imported into the local
+issue store and nothing is written back to GitHub.
 
 ## Updates and version warnings
 
