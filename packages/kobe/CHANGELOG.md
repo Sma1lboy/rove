@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.7
+
+### Patch Changes
+
+- [#626](https://github.com/Sma1lboy/rove/pull/626) [`1011ada`](https://github.com/Sma1lboy/rove/commit/1011ada2a89680fb457f3313e159dadb1fe6243a) test(render): fix cross-test fragility in render track
+
+  Move the `toast-truncation` Harness toast push from render phase into a mount-only `useEffect`. Calling `useNotifications().notify()` during render set state on `NotificationsProvider` while React was still rendering `Harness`, which corrupted renderer state and leaked across test files, flakily failing later tests such as `worktrees-page-delete`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.6
 
 ### Patch Changes
