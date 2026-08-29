@@ -1,12 +1,11 @@
 /**
  * Unit tests for the file tree's git wrappers (`filetree/git.ts`).
  *
- * Focus: `parseNumstat` rename handling. `git diff --numstat` renders a
- * rename with ` => ` (NOT porcelain's ` -> `) and brace-compacts the
- * unchanged path segments. The Changes tab merges these counts onto the
- * porcelain `R` row by PATH, so the parser must resolve the numstat field
- * to the same canonical post-rename path porcelain reports — otherwise a
- * renamed file silently shows no +/- line counts.
+ * Focus: `parseNumstat` rename handling. `git diff --numstat -z` renders
+ * renames as NUL-delimited old/new path pairs. The Changes tab merges these
+ * counts onto the porcelain `R` row by PATH, so the parser must resolve the
+ * numstat record to the same canonical post-rename path porcelain reports —
+ * otherwise a renamed file silently shows no +/- line counts.
  *
  * Also covers `parseStatusEntries` (headline collapsing), `buildTree` (dir/file
  * grouping), and the `listFiles`/`statusFiles` git-invoking wrappers, whose
@@ -56,43 +55,45 @@ beforeEach(() => {
 
 describe("parseNumstat", () => {
   test("parses a plain modified file", () => {
-    expect(parseNumstat("3\t2\tsrc/app.ts")).toEqual([{ path: "src/app.ts", added: 3, deleted: 2 }])
+    expect(parseNumstat("3\t2\tsrc/app.ts\0")).toEqual([{ path: "src/app.ts", added: 3, deleted: 2 }])
   })
 
   test("surfaces binary `-` counts as null", () => {
-    expect(parseNumstat("-\t-\tassets/logo.png")).toEqual([{ path: "assets/logo.png", added: null, deleted: null }])
+    expect(parseNumstat("-\t-\tassets/logo.png\0")).toEqual([{ path: "assets/logo.png", added: null, deleted: null }])
   })
 
-  test("ignores blank and malformed lines", () => {
-    expect(parseNumstat("\n3\t1\ta.ts\nnotatabline\n")).toEqual([{ path: "a.ts", added: 3, deleted: 1 }])
+  test("ignores malformed fields", () => {
+    expect(parseNumstat("notatabline\0" + "3\t1\ta.ts\0")).toEqual([{ path: "a.ts", added: 3, deleted: 1 }])
   })
 
   // ── Rename forms (the bug this file pins) ────────────────────────────────
-  // git outputs ` => ` with brace-compaction; the canonical NEW path must
-  // match what `git status --porcelain` reports as the `R` row's path.
+  // With `-z`, git emits the old and new paths as separate NUL-delimited
+  // fields; the canonical NEW path must match what `git status --porcelain`
+  // reports as the `R` row's path.
 
   test("resolves a same-directory rename to the new path", () => {
-    // git: `0\t0\tsrc/{old.txt => new.txt}`  (porcelain row: `src/new.txt`)
-    expect(parseNumstat("0\t0\tsrc/{old.txt => new.txt}")).toEqual([{ path: "src/new.txt", added: 0, deleted: 0 }])
+    // git: `0\t0\t\0src/old.txt\0src/new.txt\0`  (porcelain row: `src/new.txt`)
+    expect(parseNumstat("0\t0\t\0src/old.txt\0src/new.txt\0")).toEqual([{ path: "src/new.txt", added: 0, deleted: 0 }])
   })
 
-  test("resolves a cross-directory rename (brace on the leading segment)", () => {
-    // git: `0\t0\t{dir => other}/x.txt`  (porcelain row: `other/x.txt`)
-    expect(parseNumstat("0\t0\t{dir => other}/x.txt")).toEqual([{ path: "other/x.txt", added: 0, deleted: 0 }])
+  test("resolves a cross-directory rename", () => {
+    // git: `0\t0\t\0dir/x.txt\0other/x.txt\0`  (porcelain row: `other/x.txt`)
+    expect(parseNumstat("0\t0\t\0dir/x.txt\0other/x.txt\0")).toEqual([{ path: "other/x.txt", added: 0, deleted: 0 }])
   })
 
-  test("resolves a root-level rename with no common segment (no braces)", () => {
-    // git: `0\t0\troot1.txt => root2.txt`  (porcelain row: `root2.txt`)
-    expect(parseNumstat("0\t0\troot1.txt => root2.txt")).toEqual([{ path: "root2.txt", added: 0, deleted: 0 }])
+  test("resolves a root-level rename", () => {
+    // git: `0\t0\t\0root1.txt\0root2.txt\0`  (porcelain row: `root2.txt`)
+    expect(parseNumstat("0\t0\t\0root1.txt\0root2.txt\0")).toEqual([{ path: "root2.txt", added: 0, deleted: 0 }])
   })
 
   test("keeps content-change counts on a renamed-and-edited file", () => {
-    expect(parseNumstat("8\t1\tsrc/{a.ts => b.ts}")).toEqual([{ path: "src/b.ts", added: 8, deleted: 1 }])
+    expect(parseNumstat("8\t1\t\0src/a.ts\0src/b.ts\0")).toEqual([{ path: "src/b.ts", added: 8, deleted: 1 }])
   })
 
   test("does not mangle a normal path that merely contains a brace", () => {
-    // No ` => ` inside the braces → not a rename → returned verbatim.
-    expect(parseNumstat("1\t0\tsrc/{shared}/util.ts")).toEqual([{ path: "src/{shared}/util.ts", added: 1, deleted: 0 }])
+    expect(parseNumstat("1\t0\tsrc/{shared}/util.ts\0")).toEqual([
+      { path: "src/{shared}/util.ts", added: 1, deleted: 0 },
+    ])
   })
 })
 
@@ -202,7 +203,7 @@ describe("statusFiles", () => {
   test("merges numstat counts onto porcelain rows by path", async () => {
     runGit.mockImplementation(async (_cwd, args) => {
       if (args[0] === "status") return ok(" M a.ts\n")
-      if (args[0] === "diff") return ok("3\t1\ta.ts\n")
+      if (args[0] === "diff" && args.includes("-z")) return ok("3\t1\ta.ts\0")
       throw new Error(`unexpected args ${args.join(" ")}`)
     })
     const rows = await statusFiles("/repo")
@@ -212,7 +213,7 @@ describe("statusFiles", () => {
   test("collapses an untracked dir to one row with children + summed counts", async () => {
     runGit.mockImplementation(async (_cwd, args) => {
       if (args[0] === "status") return ok(" M a.ts\n?? assets/\n")
-      if (args[0] === "diff") return ok("3\t1\ta.ts\n")
+      if (args[0] === "diff" && args.includes("-z")) return ok("3\t1\ta.ts\0")
       if (args[0] === "ls-files") return ok("assets/x.txt\nassets/y.bin\n")
       throw new Error(`unexpected args ${args.join(" ")}`)
     })
@@ -237,7 +238,7 @@ describe("statusFiles", () => {
     runGit.mockImplementation(async (_cwd, args) => {
       if (args[0] === "status") return ok("A  new.ts\n")
       if (args.includes("HEAD")) return fail("no HEAD")
-      if (args.includes("--cached")) return ok("5\t0\tnew.ts\n")
+      if (args.includes("--cached") && args.includes("-z")) return ok("5\t0\tnew.ts\0")
       throw new Error(`unexpected args ${args.join(" ")}`)
     })
     const rows = await statusFiles("/repo")
@@ -298,7 +299,7 @@ describe("statusFilesBranch", () => {
       // Three-dot merge-base range, never a literal $(merge-base) subshell.
       expect(args).toContain("origin/main...HEAD")
       if (args.includes("--name-status")) return ok("M\tsrc/a.ts\nA\tsrc/b.ts\n")
-      if (args.includes("--numstat")) return ok("3\t1\tsrc/a.ts\n10\t0\tsrc/b.ts\n")
+      if (args.includes("--numstat") && args.includes("-z")) return ok("3\t1\tsrc/a.ts\0" + "10\t0\tsrc/b.ts\0")
       throw new Error(`unexpected args ${args.join(" ")}`)
     })
     const rows = await statusFilesBranch("/repo", "origin/main")

@@ -62,7 +62,7 @@ export type StatusEntry = {
   children?: StatusEntry[]
 }
 
-/** A row from `git diff HEAD --numstat`. */
+/** A row from `git diff HEAD --numstat -z`. */
 export type NumstatEntry = {
   path: string
   /** `null` for binary files (git emits `-`). */
@@ -139,7 +139,7 @@ export async function statusFiles(worktreePath: string, signal?: AbortSignal): P
   // handles missing stats by rendering blanks.
   let stats: Map<string, { added: number | null; deleted: number | null }> = new Map()
   try {
-    const diffOut = await runGit(["diff", "--no-color", "--numstat", "HEAD"], worktreePath, signal)
+    const diffOut = await runGit(["diff", "--no-color", "--numstat", "-z", "HEAD"], worktreePath, signal)
     stats = new Map(parseNumstat(diffOut).map((n) => [n.path, { added: n.added, deleted: n.deleted }]))
   } catch {
     // No HEAD yet (initial commit / unborn branch): `git diff HEAD` exits
@@ -149,7 +149,7 @@ export async function statusFiles(worktreePath: string, signal?: AbortSignal): P
     // even that fails, leave stats empty — the rows already render from the
     // porcelain pass, just with "counts unavailable" (blank) cells.
     try {
-      const cachedOut = await runGit(["diff", "--no-color", "--numstat", "--cached"], worktreePath, signal)
+      const cachedOut = await runGit(["diff", "--no-color", "--numstat", "-z", "--cached"], worktreePath, signal)
       stats = new Map(parseNumstat(cachedOut).map((n) => [n.path, { added: n.added, deleted: n.deleted }]))
     } catch {
       stats = new Map()
@@ -281,7 +281,7 @@ export async function statusFilesBranch(
   const range = `${base}...HEAD`
   const [nameStatusOut, numstatOut] = await Promise.all([
     runGit(["diff", "--no-color", "--name-status", range], worktreePath, signal),
-    runGit(["diff", "--no-color", "--numstat", range], worktreePath, signal),
+    runGit(["diff", "--no-color", "--numstat", "-z", range], worktreePath, signal),
   ])
   const counts = new Map(parseNumstat(numstatOut).map((n) => [n.path, { added: n.added, deleted: n.deleted }]))
   const entries: StatusEntry[] = []
@@ -353,13 +353,13 @@ async function countAddedLines(worktreePath: string, relPath: string, signal?: A
 }
 
 /**
- * Pure parser for `git diff --numstat` output, kept as the pane's typed
+ * Pure parser for `git diff --numstat -z` output, kept as the pane's typed
  * façade ({@link NumstatEntry}) over the shared {@link parseNumstatRows}.
- * The shared parser owns the hard parts — C-string unquoting and rename
- * resolution (numstat's ` => ` + brace-compaction → the canonical
- * post-rename path) — so the counts key by the same unquoted path the
- * porcelain `R` row reports. We drop the shared row's `origPath` here to
- * preserve {@link NumstatEntry}'s `{ path, added, deleted }` shape.
+ * The shared parser owns the hard parts — NUL-delimited records, C-string
+ * unquoting, and rename path pairing — so the counts key by the same
+ * unquoted path the porcelain `R` row reports. We drop the shared row's
+ * `origPath` here to preserve {@link NumstatEntry}'s `{ path, added, deleted }
+ * shape.
  */
 export function parseNumstat(raw: string): NumstatEntry[] {
   return parseNumstatRows(raw).map((r) => ({ path: r.path, added: r.added, deleted: r.deleted }))
