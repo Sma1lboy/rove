@@ -230,7 +230,7 @@ the row's own chords already do, so the menu never becomes a second place
 where behavior is decided — the one exception is the project header, which
 the cursor cannot reach at all.
 
-## Create PR
+## Ask agent to create PR
 
 **2026-07-18 — `prefix+p` / `prefix+P`, global scope, no direct chord**
 (superseding the 2026-07-17 files-scoped `ctrl+p`). The direct chord was

@@ -132,7 +132,7 @@ describe("which-key prefix guide", () => {
     expect(text).toContain("Tasks")
     expect(text).toContain("Tools")
     expect(text).toContain("p/P")
-    expect(text).toContain("Create PR")
+    expect(text).toContain("Ask the agent to create a PR from the current task")
   })
 
   it("renders the resolved-action feed on the readable dialog surface", async () => {

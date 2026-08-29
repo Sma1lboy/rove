@@ -122,7 +122,7 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     keys: [],
     prefixKeys: ["p", "shift+p"],
     category: "Files",
-    description: "Create PR from the current task",
+    description: "Ask the agent to create a PR from the current task",
   },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
   // Owner sign-off 2026-07-27: plain letters, diff-tab-scoped raw bindings

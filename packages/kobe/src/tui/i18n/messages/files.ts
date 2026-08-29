@@ -10,7 +10,7 @@ export const en = {
   },
   actions: {
     zen: "Zen",
-    createPR: "Create PR",
+    createPR: "Ask agent to create PR",
   },
   legend: {
     changes: "M modified · A added · D deleted · ? untracked",
@@ -34,7 +34,7 @@ export const en = {
     gitFailed: "git command failed",
   },
   toast: {
-    prOnTargetBranch: "Already on the target branch ({branch}) — create the PR from a task branch",
+    prOnTargetBranch: "Already on the target branch ({branch}) — ask the agent to create the PR from a task branch",
   },
 }
 
@@ -45,7 +45,7 @@ export const zh: typeof en = {
   },
   actions: {
     zen: "专注模式",
-    createPR: "创建 PR",
+    createPR: "让 agent 创建 PR",
   },
   legend: {
     changes: "M 已修改 · A 已添加 · D 已删除 · ? 未跟踪",
@@ -69,6 +69,6 @@ export const zh: typeof en = {
     gitFailed: "git 命令失败",
   },
   toast: {
-    prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上创建 PR",
+    prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
   },
 }
