@@ -97,22 +97,26 @@ describe("Rove package distribution", () => {
     expect(build).toContain('const SKILL_OUT_DIR = "./dist/skills/rove"')
   })
 
-  test.each([
-    [".github/workflows/ci.yml", "\n  coverage-cap:"],
-    [".github/workflows/release.yml", "\n  publish:"],
-  ])("%s builds the Rove artifacts before the visual journey", (path, nextJob) => {
-    const workflow = read(path)
-    const start = workflow.indexOf("\n  visual-ground-truth:")
-    const end = workflow.indexOf(nextJob, start)
-    const job = workflow.slice(start, end)
-    const build = job.indexOf("name: Build canonical Rove artifacts")
-    const visual = job.indexOf("name: Visual journey (browser → PTY → real OpenTUI)")
+  // Slices the visual-ground-truth job by finding the NEXT top-level job, or
+  // end-of-file when it is the last one. Naming a specific successor job made
+  // this test fail the moment that job was deleted (`coverage-cap`), which said
+  // nothing about the property under test: build must run before the visual
+  // step, inside that job.
+  test.each([".github/workflows/ci.yml", ".github/workflows/release.yml"])(
+    "%s builds the Rove artifacts before the visual journey",
+    (path) => {
+      const workflow = read(path)
+      const start = workflow.indexOf("\n  visual-ground-truth:")
+      expect(start, `${path} has no visual-ground-truth job`).toBeGreaterThanOrEqual(0)
+      const nextJob = /\n {2}[a-z][a-z0-9-]*:\n/.exec(workflow.slice(start + 1))
+      const job = nextJob ? workflow.slice(start, start + 1 + nextJob.index) : workflow.slice(start)
+      const build = job.indexOf("name: Build canonical Rove artifacts")
+      const visual = job.indexOf("name: Visual journey (browser → PTY → real OpenTUI)")
 
-    expect(start, `${path} has no visual-ground-truth job`).toBeGreaterThanOrEqual(0)
-    expect(end, `${path} has no job after visual-ground-truth`).toBeGreaterThan(start)
-    expect(build, `${path} does not build dist/ before visual tests`).toBeGreaterThanOrEqual(0)
-    expect(visual, `${path} has no visual journey step`).toBeGreaterThan(build)
-  })
+      expect(build, `${path} does not build dist/ before visual tests`).toBeGreaterThanOrEqual(0)
+      expect(visual, `${path} has no visual journey step`).toBeGreaterThan(build)
+    },
+  )
 
   test("workspace commands address the canonical package name", () => {
     const root = json<{ scripts: Record<string, string> }>("package.json")
