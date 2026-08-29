@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.9.5
+
+### Patch Changes
+
+- [`37369de`](https://github.com/Sma1lboy/rove/commit/37369de66ddad5747bcd91981b4dec9834c75efe) Drop the `coverage-cap` CI job. `render-track` already runs the same
+  touched-file coverage gate against render lcov, so the vitest-side job was a
+  second gate on the same contract — and a second place for an unrelated PR to
+  go red. The floor still applies; `render-track` is now the only job enforcing
+  it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#624](https://github.com/Sma1lboy/rove/pull/624) [`0bb9c4e`](https://github.com/Sma1lboy/rove/commit/0bb9c4e72fa4aac6d5e36417a5b90728a8d2216b) Fix numstat rename parsing for paths containing literal braces
+
+  Switch `git diff --numstat` callers to `--numstat -z` so renames are emitted
+  as NUL-delimited old/new path pairs instead of brace-compacted `src/{old =>
+new}` syntax. The brace form is inherently ambiguous when a path itself
+  contains `{` (e.g. `src/{a{b/f.txt`), which previously produced silently
+  wrong filenames. All three file-tree numstat consumers (working diff, cached
+  fallback, and branch-scope diff) now pass `-z`; the shared parser in
+  `src/lib/git-parsers.ts` no longer tries to split brace-compacted fields. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#623](https://github.com/Sma1lboy/rove/pull/623) [`bb40b81`](https://github.com/Sma1lboy/rove/commit/bb40b8101982f3c5b0ec5b9f4aed8137eb2bcabb) Remove the `task.archived` plugin event and archive diff field
+
+  The archive concept is being retired (issue [#75](https://github.com/Sma1lboy/rove/issues/75)). As the first slice, this
+  change removes the public plugin contract surface:
+
+  - `task.archived` is no longer emitted from the daemon's snapshot-diff reducer.
+  - `archived` is removed from the watched task-diff fields, so `task.changed`
+    will no longer include `archived` in `detail.fields`.
+  - The event is removed from `@sma1lboy/rove-plugin-sdk`'s `PLUGIN_EVENT_NAMES`
+    catalog.
+  - Plugin-author docs (`PLUGIN-AUTHORING.md`, `PLUGIN-EVENTS.md`, and
+    `docs/design/plugin-events.md`) no longer list `task.archived`.
+
+  **Breaking change for plugins:** any plugin subscribing to `task.archived` will
+  stop receiving that event. Use `task.changed` / `task.deleted` / `worktree.created`
+  if you need to observe task lifecycle or worktree transitions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`4f065e0`](https://github.com/Sma1lboy/rove/commit/4f065e0e68dfb7c5a6f598d9fa5305bd26aded60) Stop the workflow-ordering test from naming a specific successor job. It sliced
+  the `visual-ground-truth` job by searching for `coverage-cap:`, so deleting that
+  job broke a test about something else entirely — whether the build step runs
+  before the visual step. It now finds the next top-level job by shape, or
+  end-of-file when there is none. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.4
 
 ### Patch Changes
