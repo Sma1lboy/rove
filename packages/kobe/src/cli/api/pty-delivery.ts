@@ -212,7 +212,10 @@ export async function deliverHostedPrompt(
     // the engine process is up. A paste that never lands is a failed start,
     // not a delivered prompt.
     if (launch.firstMessage) {
-      const delivered = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage)
+      const delivered = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
+        initMarkerPath: launch.initMarkerPath,
+        initTimeoutMs: launch.initTimeoutMs,
+      })
       return {
         session: launch.key,
         pane: launch.key,

@@ -1,3 +1,6 @@
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
 import {
   type HostedSessionRpc,
@@ -128,5 +131,54 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
 
     expect(delivered).toBe(false)
     expect(request).not.toHaveBeenCalledWith("pty.write", expect.anything())
+  })
+
+  it("waits for the init marker before budgeting engine-startup time (issue #73)", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
+    const marker = path.join(tmp, "marker")
+    const request = vi.fn().mockResolvedValue({ sessions: [session("task-a::tab-1")] })
+    const rpc: HostedSessionRpc = { request }
+
+    let engineChecked = false
+    let markerChecked = false
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (!markerChecked) {
+        fs.writeFileSync(marker, "")
+        markerChecked = true
+      }
+    })
+    const snapshot = vi.fn().mockImplementation(async () => {
+      engineChecked = true
+      return withEngine
+    })
+
+    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
+      initMarkerPath: marker,
+      initTimeoutMs: 50,
+      sleep,
+      snapshot,
+    })
+
+    expect(delivered).toBe(true)
+    expect(markerChecked).toBe(true)
+    expect(engineChecked).toBe(true)
+    expect(snapshot).toHaveBeenCalled()
+    fs.rmSync(tmp, { recursive: true, force: true })
+  })
+
+  it("returns false if the session dies while waiting for the init marker", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
+    const marker = path.join(tmp, "marker")
+    const request = vi.fn().mockResolvedValue({ sessions: [{ ...session("task-a::tab-1"), alive: false }] })
+    const rpc: HostedSessionRpc = { request }
+
+    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
+      initMarkerPath: marker,
+      initTimeoutMs: 50,
+      sleep: noSleep,
+    })
+
+    expect(delivered).toBe(false)
+    fs.rmSync(tmp, { recursive: true, force: true })
   })
 })

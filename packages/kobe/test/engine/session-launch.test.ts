@@ -116,6 +116,8 @@ describe("hosted engine session launch", () => {
     expect(script).toContain("sleep 7;")
     expect(script).toContain("worktree-init")
     expect(script.indexOf("sh .rove/init.sh")).toBeLessThan(script.indexOf("claude 'read the repo docs'"))
+    expect(launch.initMarkerPath).toContain("worktree-init")
+    expect(launch.initTimeoutMs).toBe(7_000)
   })
 
   test("writes the init marker in the form the shell reads, not the OS's", () => {
