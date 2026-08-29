@@ -179,7 +179,7 @@ complete navigation table.
 
 ## Create a pull request with the active agent
 
-Choose **Create PR** above Files or press `ctrl+a` `p`. This is an agent
+Choose **Ask agent to create PR** above Files or press `ctrl+a` `p`. This is an agent
 workflow, not a direct GitHub API action: Rove inspects the current branch,
 target branch, upstream, and dirty-file count, then submits a prompt to the
 active engine. The prompt asks the agent to review the diff, commit remaining

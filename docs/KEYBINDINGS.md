@@ -26,7 +26,7 @@ terminal without opening it.
 Tap the configured prefix once to open the command layer. By default, Rove
 opens the complete command guide and also shows shortcuts beside clickable
 controls already on screen, such as **New task**, **Inbox**, **Kanban**,
-**Automations**, **Zen**, **Create PR**, and **Settings**. In **Settings →
+**Automations**, **Zen**, **Ask agent to create PR**, and **Settings**. In **Settings →
 Keybindings → Prefix tap**, choose **Complete guide only** to hide the on-screen
 badges while keeping the guide.
 
