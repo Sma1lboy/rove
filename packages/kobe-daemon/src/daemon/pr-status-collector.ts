@@ -1,7 +1,7 @@
 /**
  * Daemon-side PR-status poller.
  *
- * For every non-archived task with a real branch + local worktree, shell
+ * For every task with a real branch + local worktree, shell
  * `gh pr list --head <branch> --state all --json …` on an interval, map the
  * result to a neutral {@link TaskPRStatus}, and write it through
  * `orch.setPRStatus` → `store.update` → the `task.snapshot` broadcast.
@@ -235,7 +235,6 @@ export function makeGhPrViewRunner(classify: GhFailureClassifier, viewFields: st
 /** A task eligible for PR polling: a real branch on a LOCAL worktree. `main`
  * rows (no branch) and remote projects are skipped. Pure — unit-tested. */
 export function isPrPollable(task: Task): boolean {
-  if (task.archived) return false
   if (task.kind === "main") return false
   if (!task.branch || !task.worktreePath) return false
   if (task.repo.startsWith("ssh://") || task.worktreePath.startsWith("ssh://")) return false
@@ -318,7 +317,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
         continue
       }
       const next = opts.runtime.prStatus.mapView(result.view, opts.at)
-      // Re-read under the live store (the task may have been archived/deleted
+      // Re-read under the live store (the task may have been deleted
       // during the await) and diff before writing.
       const current = orch.getTask(task.id)
       if (!current) {

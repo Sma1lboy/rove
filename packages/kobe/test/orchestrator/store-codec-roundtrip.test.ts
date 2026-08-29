@@ -47,7 +47,6 @@ const FULL_TASK: DeepRequired<Task> = {
   kind: "dir",
   scratch: true,
   status: "in_review",
-  archived: false,
   pinned: true,
   vendor: "claude",
   command: "claude --continue",

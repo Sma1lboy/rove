@@ -91,15 +91,16 @@ export interface EngineHookAdapter {
   removeWorktreeSyncHook(settingsFilePath: string): Promise<void>
 
   /**
-   * Install the global worktree-WATCH hook: an observer that, the moment a
-   * `git worktree remove` runs in ANY engine session, archives the task
-   * pinned to that worktree. (It once also adopted on `add`; removed
-   * 2026-08-24 — creation is mechanical, adoption needs an engine
-   * session-start in a managed root or an explicit adopt.) Unlike the removed
-   * `WorktreeCreate` provider hook, this is a pure OBSERVER fired AFTER the
-   * tool runs (Claude Code's `PostToolUse`), so its presence never changes
-   * git/`--worktree` behaviour. Must be IDEMPOTENT, merge-safe, and never
-   * throw fatally. No-op when {@link supportsHooks} is false.
+   * Install the global worktree-WATCH hook: an observer that fires after a
+   * `git worktree remove` in ANY engine session. (It once also adopted on
+   * `add` and archived the task on `remove`; removed 2026-08-24 — creation
+   * is mechanical, adoption needs an engine session-start in a managed root
+   * or an explicit adopt, and archive concept was removed in issue #75.)
+   * Unlike the removed `WorktreeCreate` provider hook, this is a pure
+   * OBSERVER fired AFTER the tool runs (Claude Code's `PostToolUse`), so its
+   * presence never changes git/`--worktree` behaviour. Must be IDEMPOTENT,
+   * merge-safe, and never throw fatally. No-op when {@link supportsHooks}
+   * is false.
    */
   installWorktreeWatchHook(settingsFilePath: string): Promise<void>
   /** Remove the worktree-watch hook this adapter installed. Idempotent + merge-safe. */

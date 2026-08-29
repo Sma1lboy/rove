@@ -108,8 +108,13 @@ export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, 
   await client.request("task.move", { taskId: String(id), direction: delta < 0 ? "up" : "down" })
 }
 
-export async function setArchivedOp(client: KobeDaemonClient, id: TaskId | string, archived?: boolean): Promise<void> {
-  await client.request("task.archive", { taskId: String(id), archived })
+/** DEPRECATED (issue #75): archive concept removed; no-op on the daemon. */
+export async function setArchivedOp(
+  _client: KobeDaemonClient,
+  _id: TaskId | string,
+  _archived?: boolean,
+): Promise<void> {
+  /* no-op — archive concept removed */
 }
 
 export async function setStatusOp(client: KobeDaemonClient, id: TaskId | string, status: TaskStatus): Promise<void> {
@@ -155,16 +160,15 @@ export async function markAttentionReadOp(
 }
 
 /** Land a task's branch back into its base repo (`task.land`). Merge or
- *  squash; optionally delete the branch / archive the task after. The daemon
- *  throws with a `LAND_CONFLICT`/`MAIN_CHECKOUT_DIRTY` sentinel in the message
- *  on the guarded failures, which the caller matches to prompt/print. */
+ *  squash; optionally delete the branch after. The daemon throws with a
+ *  `LAND_CONFLICT`/`MAIN_CHECKOUT_DIRTY` sentinel in the message on the
+ *  guarded failures, which the caller matches to prompt/print. */
 export async function landTaskOp(
   client: KobeDaemonClient,
   id: TaskId | string,
   opts?: {
     strategy?: "merge" | "squash"
     deleteBranch?: boolean
-    archive?: boolean
     removeWorktree?: boolean
     callerCwd?: string
   },
@@ -173,7 +177,6 @@ export async function landTaskOp(
     taskId: String(id),
     strategy: opts?.strategy,
     deleteBranch: opts?.deleteBranch,
-    archive: opts?.archive,
     removeWorktree: opts?.removeWorktree,
     callerCwd: opts?.callerCwd,
   })

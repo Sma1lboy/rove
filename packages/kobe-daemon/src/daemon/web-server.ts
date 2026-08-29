@@ -159,10 +159,7 @@ async function rpcResponse(req: Request, link: DaemonWebLink, tearDown: (taskId:
     }
     const result = await link.request(name, payload)
     const taskId = (payload as { taskId?: unknown } | undefined)?.taskId
-    if (typeof taskId === "string") {
-      const archiving = name === "task.archive" && (payload as { archived?: unknown }).archived !== false
-      if (name === "task.delete" || archiving) tearDown(taskId)
-    }
+    if (typeof taskId === "string" && name === "task.delete") tearDown(taskId)
     return Response.json({ result })
   } catch (err) {
     return webRpcErrorResponse(err, 500)

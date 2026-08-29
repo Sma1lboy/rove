@@ -1,7 +1,7 @@
 /**
  * In-place task-field edits for the {@link Orchestrator}.
  *
- * The metadata setters — title, branch, vendor, pinned, archived, status,
+ * The metadata setters — title, branch, vendor, pinned, status,
  * PR-status, plus sidebar `move` / web-board `reorder` — are each a small
  * guard around one `store` mutation (a few also touch git, for a branch
  * rename). They're cohesive and independent of task creation / worktree
@@ -160,10 +160,18 @@ export class TaskEditor {
    * the mains' stored order (owner 2026-07-16), so reordering the store IS
    * reordering the project list. Regular tasks move within their REPO's
    * partition (issue #43: the sidebar tree groups tasks under their repo, so
-   * a cross-repo swap would be invisible or jump groups), still split by
-   * archived + pinned flags. Edge-stop: `store.move` past the partition's
-   * first/last is a no-op, never a wrap.
+   * a cross-repo swap would be invisible or jump groups), still split by the
+   * pinned flag. Edge-stop: `store.move` past the partition's first/last is
+   * a no-op, never a wrap.
    */
+  /**
+   * DEPRECATED (issue #75): archive concept removed; no-op. Kept as a shim
+   * so not-yet-cleaned callers still compile while C2 removes them.
+   */
+  async setArchived(_id: TaskId | string, _archived?: boolean): Promise<void> {
+    /* no-op — archive concept removed */
+  }
+
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
     const isMain = task.kind === "main"
@@ -172,28 +180,10 @@ export class TaskEditor {
       .filter((t) =>
         isMain
           ? (t.kind ?? "task") === "main"
-          : (t.kind ?? "task") !== "main" &&
-            t.repo === task.repo &&
-            t.archived === task.archived &&
-            (t.pinned ?? false) === (task.pinned ?? false),
+          : (t.kind ?? "task") !== "main" && t.repo === task.repo && (t.pinned ?? false) === (task.pinned ?? false),
       )
       .map((t) => String(t.id))
     await this.store.move(task.id, delta, groupIds)
-  }
-
-  /**
-   * Toggle / set the `archived` flag. No-op for `kind: "main"`: a main
-   * task is a saved repo's root, removed by un-saving the repo, not by
-   * archiving — mirrors `deleteTask`'s main-row guard so the sidebar's
-   * `a` chord can't silently archive (and kill the session of) a whole
-   * repo entry from the default cursor row.
-   */
-  async setArchived(id: TaskId | string, archived?: boolean): Promise<void> {
-    const task = this.requireTask(id)
-    if (task.kind === "main") return
-    const next = archived ?? !task.archived
-    if (task.archived === next) return
-    await this.store.update(task.id, { archived: next })
   }
 
   /**

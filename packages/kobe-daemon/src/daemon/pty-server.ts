@@ -17,7 +17,7 @@
  * Requests served: `hello` (reachability probe), `pty.open/write/resize/
  * kill/detach/list`, `pty.peek` (read-only ring snapshot — no attach),
  * `pty.warm` (pre-spawn one idle shell for adoption),
- * `pty.sweep` (daemon janitor: kill sessions of archived tasks),
+ * `pty.sweep` (daemon janitor: kill sessions of deleted tasks),
  * `daemon.stop` (reset teardown — shared with `stopDaemonProcess`'s
  * graceful path).
  */

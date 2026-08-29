@@ -233,16 +233,15 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // current tasks (no cold cache).
   const unsubscribeStore = orch.subscribeTasks((snapshot) => {
     bus.publish("task.snapshot", { tasks: snapshot.map(serializeTask) })
-    // Janitor call to the standalone pty host: a task that is archived or
-    // gone must not leave a background engine running forever with no owner
-    // — covers headless archives (`kobe api`) where no TUI sends pty.kill.
-    // Fire-and-forget; never spawns a host, never throws. MUST pass this
-    // server's homeDir (like every other path above): a temp-home daemon
-    // resolving the ambient default sweeps the REAL pty-host with its own
-    // task list — the 2026-07-07/08 "every test run killed my running
-    // engines" incident.
+    // Janitor call to the standalone pty host: a deleted task must not leave
+    // a background engine running forever with no owner — covers headless
+    // deletes (`kobe api`) where no TUI sends pty.kill. Fire-and-forget;
+    // never spawns a host, never throws. MUST pass this server's homeDir
+    // (like every other path above): a temp-home daemon resolving the
+    // ambient default sweeps the REAL pty-host with its own task list —
+    // the 2026-07-07/08 "every test run killed my running engines" incident.
     void sweepPtyHostSessions(
-      snapshot.filter((t) => !t.archived).map((t) => t.id),
+      snapshot.map((t) => t.id),
       options.homeDir,
     )
   })

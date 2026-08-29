@@ -42,14 +42,13 @@ describe("dueQuotaResumes", () => {
     expect(due.map((t) => t.id)).toEqual(["due"])
   })
 
-  it("skips deleting, archived, worktree-less, and unparseable schedules", () => {
+  it("skips deleting, worktree-less, and unparseable schedules", () => {
     const due = dueQuotaResumes(
       [
         task("deleting", {
           quotaResume: schedule(PAST),
           deletion: { phase: "queued", force: false, requestedAt: PAST },
         }),
-        task("archived", { quotaResume: schedule(PAST), archived: true }),
         task("no-wt", { quotaResume: schedule(PAST), worktreePath: "" }),
         task("garbage", { quotaResume: schedule("not-a-date") }),
       ],

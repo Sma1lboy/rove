@@ -160,7 +160,7 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       { id: "sub", repo: "/repo", worktreePath: "/repo/.kobe/worktrees/demo" },
     ]
 
-    it("archives the task whose worktree was removed", async () => {
+    it("is a deprecated no-op (issue #75); never calls setArchived", async () => {
       const archived: Array<[string, boolean | undefined]> = []
       const { ctx } = fakeCtx({
         listTasks: () => TASKS,
@@ -170,8 +170,8 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       })
       await expect(
         dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/demo" }, ctx),
-      ).resolves.toEqual({ archived: true, taskId: "sub" })
-      expect(archived).toEqual([["sub", true]])
+      ).resolves.toEqual({ archived: false })
+      expect(archived).toEqual([])
     })
 
     it("is a no-op when no task matches the removed worktree exactly", async () => {
@@ -182,7 +182,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
           archived.push(id)
         },
       })
-      // An untracked worktree under /repo must NOT archive the main task.
       await expect(
         dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/unknown" }, ctx),
       ).resolves.toEqual({ archived: false })

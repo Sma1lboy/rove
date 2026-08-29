@@ -144,6 +144,9 @@ export type DaemonRequestName =
   | "task.list"
   | "task.get"
   | "task.create"
+  // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
+  // older CLI builds don't get "unknown daemon request" while C2 removes
+  // the CLI verb.
   | "task.archive"
   | "task.rename"
   | "task.setBranch"
@@ -177,14 +180,9 @@ export type DaemonRequestName =
   | "issue.mutate"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
-  // Creation-time auto-adopt (KOB): a `kobe hook worktree-created` (global
-  // PostToolUse) reports that a `git worktree add` just ran in `cwd`. The
-  // daemon adopts the new worktree as a task the MOMENT it's created — no
-  // engine session needed (the complement to session-start auto-adopt).
-  // Removal-time auto-archive (KOB): the same `kobe hook worktree-created`
-  // (global PostToolUse) reports that a `git worktree remove <path>` just ran.
-  // The daemon archives the task whose worktree was that path — the symmetric
-  // symmetric complement to worktree adoption (remove a worktree → its task archives).
+  // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
+  // older CLI builds don't get "unknown daemon request" while C2 removes
+  // the CLI hook path.
   | "worktree.archiveRemoved"
   // Cross-project worktree audit (the standalone worktree-management TUI
   // page): list every worktree of every local saved project (kobe-managed
@@ -265,7 +263,7 @@ export type DaemonRequestName =
   // the calling CONNECTION (spawning on first open, replaying the ring
   // buffer on reattach); output streams back as targeted `pty.data` event
   // frames written only to attached connections. `pty.sweep` is the
-  // daemon→host janitor call: kill sessions whose task got archived.
+  // daemon→host janitor call: kill sessions whose task was deleted.
   | "pty.open"
   | "pty.write"
   | "pty.resize"
@@ -426,8 +424,13 @@ export interface SerializedTask {
   /** Scratch shell task (issue #33) — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
   readonly status: DaemonTask["status"]
-  readonly archived: boolean
   readonly pinned: boolean
+  /**
+   * DEPRECATED (issue #75): archive concept removed. Kept as an optional
+   * shim for not-yet-cleaned wire consumers; always false/absent on new
+   * records and ignored by all logic.
+   */
+  readonly archived?: boolean
   readonly vendor?: DaemonTask["vendor"]
   /** Raw engine launch command as given to `add --command` / `set-command`. */
   readonly command?: DaemonTask["command"]
@@ -472,8 +475,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     kind: task.kind ?? "task",
     ...(task.scratch ? { scratch: true } : {}),
     status: task.status,
-    archived: task.archived,
     pinned: task.pinned ?? false,
+    ...(task.archived ? { archived: true } : {}),
     vendor: task.vendor,
     command: task.command,
     prStatus: task.prStatus,

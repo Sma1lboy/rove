@@ -32,11 +32,10 @@ export interface TaskIndexStoreOptions {
 
 /**
  * Input shape for {@link TaskIndexStore.create}. `id`, `createdAt`,
- * `updatedAt` are auto-assigned. `archived` defaults to false.
+ * `updatedAt` are auto-assigned. `archived` is deprecated (issue #75) and
+ * never written by the store.
  */
-export type TaskCreateInput = Omit<Task, "id" | "createdAt" | "updatedAt" | "archived"> & {
-  readonly archived?: boolean
-}
+export type TaskCreateInput = Omit<Task, "id" | "createdAt" | "updatedAt" | "archived">
 
 const CURRENT_VERSION = 3 as const
 
@@ -231,7 +230,6 @@ export class TaskIndexStore {
     this.assertLoaded()
     const now = new Date().toISOString()
     const task: Task = {
-      archived: false,
       vendor: partial.vendor ?? DEFAULT_TASK_VENDOR,
       ...partial,
       id: toTaskId(ulid()),

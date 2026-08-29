@@ -114,20 +114,6 @@ describe("setPinned", () => {
   })
 })
 
-describe("setArchived", () => {
-  it("toggles and sets explicitly; main rows are refused silently", async () => {
-    const t = await makeTask()
-    await orch.setArchived(t.id)
-    expect(orch.getTask(t.id)?.archived).toBe(true)
-    await orch.setArchived(t.id, false)
-    expect(orch.getTask(t.id)?.archived).toBe(false)
-
-    const main = await makeMainTask()
-    await orch.setArchived(main.id, true)
-    expect(orch.getTask(main.id)?.archived).toBe(false)
-  })
-})
-
 describe("setStatus", () => {
   it("moves between statuses and no-ops on the same status", async () => {
     const t = await makeTask()
@@ -184,18 +170,18 @@ describe("setQuotaResume", () => {
 })
 
 describe("moveTask", () => {
-  it("moves a task within its partition and skips archived/pinned siblings", async () => {
+  it("moves a task within its partition and skips pinned siblings", async () => {
     const a = await makeTask({ title: "a" })
     const b = await makeTask({ title: "b" })
     const c = await makeTask({ title: "c" })
-    await orch.setArchived(b.id, true) // b leaves a+c's partition
+    await orch.setPinned(b.id, true) // b leaves a+c's partition
 
     await orch.moveTask(c.id, -1) // c above a (b not in the way)
     const order = orch
       .listTasks()
       // createTask auto-ensures the repo's main row now — not part of the
       // move partition under test.
-      .filter((t) => !t.archived && t.kind !== "main")
+      .filter((t) => !t.pinned && t.kind !== "main")
       .map((t) => t.title)
     expect(order).toEqual(["c", "a"])
   })

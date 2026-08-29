@@ -58,14 +58,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
+    // older CLI builds don't get "unknown daemon request" while C2 removes
+    // the CLI verb.
     name: "task.archive",
     web: true,
-    async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      const archived = optionalBoolean(payload, "archived")
-      // `task.archived` now derives from the snapshot diff (plugins/task-diff.ts)
-      // so archive-via-worktree-removal and land --then-archive fire it too.
-      await ctx.orch.setArchived(taskId, archived)
+    handle() {
       return {}
     },
   },
@@ -137,7 +135,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const result = await ctx.orch.landTask(taskId, {
         strategy,
         deleteBranch: optionalBoolean(payload, "deleteBranch") === true,
-        archive: optionalBoolean(payload, "archive") === true,
         // Passed through as undefined when absent so the orchestrator's
         // default (remove the landed worktree) applies; only an explicit
         // `false` from the caller keeps it.

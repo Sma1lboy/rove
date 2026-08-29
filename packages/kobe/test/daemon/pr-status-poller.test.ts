@@ -102,15 +102,13 @@ describe("isPrPollable", () => {
     branch: "kobe/x-1",
     worktreePath: "/wt/x",
     status: "backlog",
-    archived: false,
     createdAt: "2026-06-24T00:00:00.000Z",
     updatedAt: "2026-06-24T00:00:00.000Z",
   }
   test("a regular task with a branch + local worktree is pollable", () => {
     expect(isPrPollable(base)).toBe(true)
   })
-  test("archived / main / no-branch / no-worktree are not", () => {
-    expect(isPrPollable({ ...base, archived: true })).toBe(false)
+  test("main / no-branch / no-worktree are not", () => {
     expect(isPrPollable({ ...base, kind: "main", branch: "" })).toBe(false)
     expect(isPrPollable({ ...base, branch: "" })).toBe(false)
     expect(isPrPollable({ ...base, worktreePath: "" })).toBe(false)
@@ -197,10 +195,10 @@ describe("runPrStatusPass", () => {
     expect(schedule.get(id)?.nextAllowedAt).toBe(0 + SETTLED_BACKOFF_MS)
   })
 
-  test("skips archived tasks and forgets their backoff", async () => {
+  test("forgets backoff for tasks that are no longer pollable", async () => {
     const id = await makeTask()
     const schedule: PrPollSchedule = new Map([[id, { nextAllowedAt: 0, failures: 0 }]])
-    await store.update(id, { archived: true })
+    await store.update(id, { branch: "" })
     const changed = await runPrStatusPass(orch, {
       run: prRunner("OPEN", "SUCCESS"),
       now: 1_000,

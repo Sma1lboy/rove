@@ -21,7 +21,7 @@
  * after code changes) never touches running sessions, exactly like a
  * persistent terminal server outliving the TUI. An exited session is kept,
  * scrollback intact, so a reattach can still show how the child died; it is
- * removed by an explicit `kill` or the task-archive sweep (`sweepTasks`).
+ * removed by an explicit `kill` or task deletion (`sweepTasks`).
  *
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
@@ -30,7 +30,7 @@
  * thaws each session as a dead "restored" corpse with its scrollback, and
  * the first `open` respawns the child in place using the caller's launch
  * spec (the TUI's dead-reattach passes its engine `--resume` argv). Only
- * an explicit `kill`, the archive sweep, or `rove reset` (which wipes the
+ * an explicit `kill`, task deletion, or `rove reset` (which wipes the
  * store) forgets a session for good.
  */
 
@@ -245,7 +245,7 @@ export class PtyHost {
     }
   }
 
-  /** End the child AND forget the session (explicit close / archive). */
+  /** End the child AND forget the session (explicit close / task deletion). */
   kill(key: string): Promise<void> {
     const session = this.sessions.get(key)
     if (!session) return Promise.resolve()
@@ -259,7 +259,7 @@ export class PtyHost {
   /**
    * Re-key a running session (`pty.rename`) — the scratch-fold move (issue
    * #40): the shell keeps running untouched, only its ownership label
-   * changes, so the task-archive sweep and every future attach see it under
+   * changes, so task-deletion sweeps and every future attach see it under
    * the adopting task. No-ops (false) when the source is missing or the
    * target key is taken — the caller must pick a free tab id first. The
    * old key's freeze record moves with it; attached sinks keep streaming
@@ -321,9 +321,9 @@ export class PtyHost {
   }
 
   /**
-   * Task-archive sweep: kill every session whose task id (the segment of
+   * Task-deletion sweep: kill every session whose task id (the segment of
    * the key before the first `::` — see the TUI's `tabPtyKey`) is no
-   * longer a live task. Keeps a headless `kobe api task-archive` from
+   * longer a live task. Keeps a headless task deletion from
    * leaking an engine that runs forever with no owner.
    */
   sweepTasks(liveTaskIds: ReadonlySet<string>): void {
@@ -345,7 +345,7 @@ export class PtyHost {
    * FIRST so the next host incarnation can restore it, then end the live
    * children. Unlike killAll this never DROPS freeze records — a host
    * restart is exactly what the freeze store exists for. Explicit kills
-   * (tab close, archive sweep, `rove reset`'s store wipe) stay gone.
+   * (tab close, task-deletion sweep, `rove reset`'s store wipe) stay gone.
    */
   async shutdown(): Promise<void> {
     this.flushFrozen()

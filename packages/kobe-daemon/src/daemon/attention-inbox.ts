@@ -2,7 +2,7 @@
  * Durable, daemon-owned attention Inbox.
  *
  * Live engine activity and Inbox retention are deliberately different state:
- * activity may idle on session close/archive, while the durable queue survives
+ * activity may idle on session close or task deletion, while the durable queue survives
  * daemon restarts. An item leaves when its target is visited/opened, the user
  * removes it, that Task and Terminal Tab start another turn, or the containing
  * Task is hard-deleted. A newer attention event for the same target replaces
