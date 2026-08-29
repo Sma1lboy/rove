@@ -218,9 +218,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ?.append(author.repo, { at: new Date().toISOString(), text, taskId, author: label })
         .then(() => true)
         .catch(() => false)
-      const main = ctx.orch
-        .listTasks()
-        .find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo && !t.archived)
+      const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo)
       // No dispatcher seat, or the dispatcher noting to itself: accepted
       // but unrouted — filing must never error a working agent. Still
       // persisted above, which is why an unrouted note is no longer a loss.

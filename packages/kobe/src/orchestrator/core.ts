@@ -60,7 +60,7 @@ export { PLACEHOLDER_TASK_TITLE }
  * Owner of the task lifecycle.
  *
  * Single source of truth for: which tasks exist, which worktree each
- * lives in, what its status / archived / pinned flag is. The TUI
+ * lives in, what its status / pinned flag is. The TUI
  * subscribes via {@link tasksSignal} or {@link subscribeTasks}.
  */
 export class Orchestrator {
@@ -311,8 +311,8 @@ export class Orchestrator {
     this.worktreeCoordinator.forget(task.id)
   }
 
-  // In-place task-field edits (title / branch / engine / pinned / archived /
-  // status / PR-status / move / reorder) live in the TaskEditor collaborator.
+  // In-place task-field edits (title / branch / engine / pinned / status /
+  // PR-status / move / reorder) live in the TaskEditor collaborator.
   // Terse one-liners below on purpose: they are PURE forwarding (the rules,
   // guards, and doc comments all live on TaskEditor's own methods), and this
   // file sits at the 500-line cap — same shape `remote-orchestrator.ts` uses
@@ -325,6 +325,7 @@ export class Orchestrator {
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
+  /** DEPRECATED (issue #75): archive concept removed; no-op. */
   setArchived = (id: TaskId | string, archived?: boolean): Promise<void> => this.editor.setArchived(id, archived)
   reorderTasks = (moves: ReadonlyArray<{ readonly taskId: string; readonly position: number }>): Promise<void> =>
     this.editor.reorderTasks(moves)
@@ -373,7 +374,6 @@ export class Orchestrator {
   async landTask(id: TaskId | string, opts?: LandTaskOpts): Promise<LandResult> {
     return landTaskWithCleanup(this.requireTask(id), opts ?? {}, {
       worktrees: this.worktrees,
-      setArchived: (tid, archived) => this.editor.setArchived(tid, archived),
       clearWorktreePath: (tid) => this.clearWorktreePath(tid),
     })
   }

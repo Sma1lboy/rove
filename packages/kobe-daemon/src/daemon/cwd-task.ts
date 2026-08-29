@@ -101,12 +101,12 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
  * Return the id of the task whose worktree IS exactly `worktreePath` (not just
  * an ancestor of it), or undefined if none match.
  *
- * Used by the `worktree.archiveRemoved` path: a `git worktree remove <path>`
- * ran, so we archive the task pinned to THAT worktree. Exactness matters here —
- * unlike {@link matchTaskByCwd}'s longest-prefix match, removing an UNTRACKED
- * worktree must not archive a parent `main` task (whose worktreePath is the repo
- * root and would prefix-match a child path). The first exact match wins; task
- * worktree paths are unique, so there is at most one.
+ * Used by `worktree.remove` and `worktree.archiveRemoved`: find the task whose
+ * worktreePath IS exactly `worktreePath` (not just an ancestor). Exactness
+ * matters — unlike {@link matchTaskByCwd}'s longest-prefix match, removing an
+ * UNTRACKED worktree must not match a parent `main` task (whose worktreePath is
+ * the repo root and would prefix-match a child path). The first exact match wins;
+ * task worktree paths are unique, so there is at most one.
  */
 export function matchTaskByWorktreePath(tasks: ReadonlyArray<CwdMatchTask>, worktreePath: string): string | undefined {
   const target = normalize(worktreePath)

@@ -21,7 +21,7 @@
  * Write discipline: atomic tmp+rename per session file, everything
  * best-effort (a freeze hiccup must never take the terminal down), one
  * file per session so a flush rewrites only what drifted. Explicitly
- * killed sessions (`pty.kill`, the archive sweep) drop their record — a
+ * killed sessions (`pty.kill`, task-deletion sweep) drop their record — a
  * close the user asked for is not a restart casualty. `rove reset`'s
  * graceful stop clears the whole directory ("starts fresh" is reset's
  * contract); a bare SIGTERM / crash / reboot leaves it for the next host.

@@ -55,15 +55,14 @@ describe("runAutoTitlePass", () => {
     expect(orch.getTask(placeholderNoWorktree)?.title).toBe(PLACEHOLDER_TASK_TITLE)
   })
 
-  test("skips archived tasks even when still placeholder", async () => {
-    const archived = await makeTask({ worktree: "/wt/arch" })
-    await store.update(archived, { archived: true })
+  test("skips tasks without a worktree even when still placeholder", async () => {
+    const noWorktree = await makeTask({ worktree: undefined })
     const active = await makeTask({ worktree: "/wt/active" })
 
     const renamed = await runAutoTitlePass(orch, async (worktree) => `title-for-${worktree}`)
 
     expect(renamed.map((r) => r.id)).toEqual([active])
-    expect(orch.getTask(archived)?.title).toBe(PLACEHOLDER_TASK_TITLE)
+    expect(orch.getTask(noWorktree)?.title).toBe(PLACEHOLDER_TASK_TITLE)
   })
 
   test("leaves the placeholder when the deriver yields no title", async () => {

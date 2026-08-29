@@ -34,12 +34,12 @@
  * across ticks so its mtime-gated memo survives — a quiescent worktree
  * re-stats the transcript dir but does NOT re-parse the JSONL.
  *
- * Collection scope mirrors the git collector: every NON-ARCHIVED task with
- * a LOCAL worktree. Archived tasks and remote (`ssh://`) projects are
+ * Collection scope mirrors the git collector: every task with
+ * a LOCAL worktree. Remote (`ssh://`) projects are
  * skipped — their transcripts aren't on this filesystem (or shouldn't be
  * polled). Tasks sharing a worktree path collapse to one slot; the first
  * task in list order picks the vendor deterministically (completion markers
- * are vendor-specific). Deleted/archived tasks' entries DROP on the next
+ * are vendor-specific). Deleted tasks' entries DROP on the next
  * tick.
  *
  * Publish contract: the FULL map, republished only when membership or a
@@ -163,7 +163,7 @@ export async function runTranscriptActivity(
 }
 
 /**
- * The worktree → vendor map the collector tracks: non-archived tasks with a
+ * The worktree → vendor map the collector tracks: tasks with a
  * non-empty LOCAL worktree. Remote (`ssh://`) projects are excluded by repo
  * key. Tasks sharing a worktree path collapse; the FIRST task in list order
  * picks the vendor deterministically (completion markers are vendor-specific
@@ -175,7 +175,6 @@ export async function runTranscriptActivity(
 export function trackedWorktrees(tasks: readonly Task[], defaultVendor: VendorId = "claude"): Map<string, VendorId> {
   const map = new Map<string, VendorId>()
   for (const task of tasks) {
-    if (task.archived) continue
     if (!task.worktreePath) continue
     if (isRemoteRepoKey(task.repo) || isRemoteRepoKey(task.worktreePath)) continue
     if (map.has(task.worktreePath)) continue
@@ -213,7 +212,7 @@ export interface TranscriptActivityCollectorOptions {
 
 /**
  * Tick-driven collector. `tick()` is synchronous and never throws: it
- * prunes entries for worktrees no longer tracked (deleted/archived/now-
+ * prunes entries for worktrees no longer tracked (deleted/now-
  * remote tasks), starts guarded probes for due worktrees, and publishes the
  * full map when — and only when — membership or a value changed. Exposed as
  * a class so tests drive `tick()` directly with a fake lister/bus/runner;
@@ -237,7 +236,7 @@ export class TranscriptActivityCollector {
     if (this.options.hasSubscribers && !this.options.hasSubscribers()) return
     try {
       const tracked = trackedWorktrees(this.orch.listTasks(), this.options.defaultVendor)
-      // Prune first: a task deleted/archived since the last tick drops its
+      // Prune first: a task deleted since the last tick drops its
       // entry — and, when it had published facts, triggers a republish so
       // subscribers stop showing it.
       let pruned = false
@@ -283,7 +282,7 @@ export class TranscriptActivityCollector {
       (signal) => run(worktreePath, current.vendor, current.detector, signal),
       (value) => {
         if (this.stopped) return
-        // The entry may have been pruned (task deleted/archived) while the
+        // The entry may have been pruned (task deleted) while the
         // probe ran — a completion for an untracked path must not resurrect
         // it in the published map.
         if (this.entries.get(worktreePath) !== current) return

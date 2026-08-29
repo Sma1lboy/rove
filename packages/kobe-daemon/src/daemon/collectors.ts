@@ -118,7 +118,7 @@ export function createProtocolUpgradeReporter(
  *     watch `~/.rove/settings/keybindings.yaml` and ping the `keybindings`
  *     channel on change, so every pane re-reads + re-applies the file live.
  *   - worktree-changes collector (issue #6): the daemon runs the guarded
- *     `git status` polls for every non-archived local worktree and publishes
+ *     `git status` polls for every local worktree and publishes
  *     the counts map on the `worktree.changes` channel, so panes render
  *     pushes instead of each spawning their own per-row git polls.
  *   - transcript-activity collector (perf): the daemon runs the guarded

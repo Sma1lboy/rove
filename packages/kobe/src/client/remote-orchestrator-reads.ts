@@ -138,7 +138,7 @@ export function taskJobsSignalOp(s: ReadSignals): ReadableState<ReadonlyMap<stri
  *
  * Unlike `engine-state` / `task.jobs` there is NO per-snapshot prune:
  * each push REPLACES the whole map (the daemon publishes the full
- * picture and drops deleted/archived tasks' entries itself on its next
+ * picture and drops deleted tasks' entries itself on its next
  * tick), so stale keys cannot accumulate in a long-lived pane.
  */
 export function worktreeChangesSignalOp(s: ReadSignals): ReadableState<WorktreeChangesMap | null> {

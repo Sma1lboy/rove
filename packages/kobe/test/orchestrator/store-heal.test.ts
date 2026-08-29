@@ -43,28 +43,21 @@ describe("TaskIndexStore self-heal on load", () => {
   }
 
   it("resets a main task stuck at in_progress back to backlog", async () => {
-    await writeTasks([baseRow({ kind: "main", status: "in_progress", archived: false })])
+    await writeTasks([baseRow({ kind: "main", status: "in_progress" })])
     const store = new TaskIndexStore({ homeDir: home })
     const { tasks } = await store.load()
     expect(tasks[0]?.status).toBe("backlog")
   })
 
-  it("resets a non-archived main task stuck at done back to backlog", async () => {
-    await writeTasks([baseRow({ kind: "main", status: "done", archived: false })])
+  it("resets a main task stuck at done back to backlog", async () => {
+    await writeTasks([baseRow({ kind: "main", status: "done" })])
     const store = new TaskIndexStore({ homeDir: home })
     const { tasks } = await store.load()
     expect(tasks[0]?.status).toBe("backlog")
   })
 
-  it("still heals a non-archived done TASK to in_progress (unchanged)", async () => {
-    await writeTasks([baseRow({ id: "01HXTASKAAAAAAAAAAAAAAAAA", kind: "task", status: "done", archived: false })])
-    const store = new TaskIndexStore({ homeDir: home })
-    const { tasks } = await store.load()
-    expect(tasks[0]?.status).toBe("in_progress")
-  })
-
-  it("leaves an archived done TASK alone", async () => {
-    await writeTasks([baseRow({ id: "01HXTASKBBBBBBBBBBBBBBBBB", kind: "task", status: "done", archived: true })])
+  it("leaves a done TASK alone (archive concept removed; done is legitimate)", async () => {
+    await writeTasks([baseRow({ id: "01HXTASKAAAAAAAAAAAAAAAAA", kind: "task", status: "done" })])
     const store = new TaskIndexStore({ homeDir: home })
     const { tasks } = await store.load()
     expect(tasks[0]?.status).toBe("done")

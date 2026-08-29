@@ -35,8 +35,6 @@ export interface LandTaskOpts {
   readonly strategy?: LandStrategy
   /** Delete the task's branch after a successful land. */
   readonly deleteBranch?: boolean
-  /** Archive the task after a successful land (moves it off the active board). */
-  readonly archive?: boolean
   /**
    * Remove the task's worktree after a successful land (the branch stays).
    * Defaults to ON: once a branch is landed its worktree is dead weight, and
@@ -51,7 +49,6 @@ export interface LandTaskOpts {
 /** Collaborators `landTaskWithCleanup` drives for the post-land steps. */
 export interface LandDeps {
   readonly worktrees: Pick<GitWorktreeManager, "deleteBranch" | "remove">
-  readonly setArchived: (id: TaskId | string, archived: boolean) => Promise<void>
   /** Unlink the task's worktreePath after its worktree is removed. */
   readonly clearWorktreePath: (id: TaskId | string) => Promise<void>
 }
@@ -68,8 +65,7 @@ export interface LandWorktreeCleanup {
 
 /**
  * Land `task`'s branch (via {@link landTask}) and then run the cleanup: drop
- * the now-landed worktree (on by default), delete the branch and archive the
- * settled task (both opt-in). The merge has already
+ * the now-landed worktree (on by default), delete the branch after a successful land (both opt-in). The merge has already
  * committed once cleanup runs, so it must stand — a `deleteBranch` failure is
  * best-effort inside `remove`-style deletion, and archiving is a plain store
  * write. Extracted from the orchestrator so `core.ts` stays a thin delegator.
@@ -88,7 +84,6 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   // git is the durable record, the directory is not.
   const worktree = opts.removeWorktree === false ? undefined : await removeLandedWorktree(task, opts.callerCwd, deps)
   if (opts.deleteBranch) await deps.worktrees.deleteBranch(task.repo, result.branch, { force: true })
-  if (opts.archive) await deps.setArchived(task.id, true)
   return worktree ? { ...result, worktree } : result
 }
 

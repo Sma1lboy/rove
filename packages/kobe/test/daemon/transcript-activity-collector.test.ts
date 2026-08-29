@@ -98,10 +98,9 @@ const entry = (mtimeMs: number, completionId: string | null = null, completionAt
 })
 
 describe("trackedWorktrees", () => {
-  test("excludes archived/remote/empty, dedupes shared paths, carries the vendor", () => {
+  test("excludes remote/empty, dedupes shared paths, carries the vendor", () => {
     const tasks = [
       task({ id: "a", vendor: "codex" }),
-      task({ id: "arch", archived: true }),
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
       // Two rows sharing a worktree path — the first in list order wins.
@@ -131,11 +130,10 @@ describe("sameTranscriptActivityEntry", () => {
 })
 
 describe("TranscriptActivityCollector", () => {
-  test("collects local non-archived worktrees, passes the vendor, publishes the full map", async () => {
-    const { collector, published, runs } = harness(
-      [task({ id: "a", vendor: "codex" }), task({ id: "arch", archived: true })],
-      { "/wt/a": entry(100, "c1", 99) },
-    )
+  test("collects local worktrees, passes the vendor, publishes the full map", async () => {
+    const { collector, published, runs } = harness([task({ id: "a", vendor: "codex" })], {
+      "/wt/a": entry(100, "c1", 99),
+    })
     collector.tick()
     await settle()
     expect(runs).toEqual([{ path: "/wt/a", vendor: "codex" }])
@@ -173,7 +171,7 @@ describe("TranscriptActivityCollector", () => {
     expect(published.length).toBe(1)
   })
 
-  test("drops a deleted/archived task's entry from the published map", async () => {
+  test("drops a deleted task's entry from the published map", async () => {
     const { collector, published, setTasks } = harness([task({ id: "a" }), task({ id: "b" })], {
       "/wt/a": entry(1, "ca", 1),
       "/wt/b": entry(2, "cb", 2),
@@ -182,7 +180,7 @@ describe("TranscriptActivityCollector", () => {
     await settle()
     expect(Object.keys(published.at(-1)?.activity ?? {}).sort()).toEqual(["/wt/a", "/wt/b"])
 
-    setTasks([task({ id: "a" }), task({ id: "b", archived: true })])
+    setTasks([task({ id: "a" })])
     collector.tick()
     await settle()
     expect(published.at(-1)).toEqual({ activity: { "/wt/a": { mtimeMs: 1, completionId: "ca", completionAt: 1 } } })

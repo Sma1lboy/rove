@@ -78,8 +78,13 @@ export interface DaemonTask {
    *  in the sidebar's Scratch section; cleared when named or adopted. */
   readonly scratch?: boolean
   readonly status: TaskStatus
-  readonly archived: boolean
   readonly pinned?: boolean
+  /**
+   * DEPRECATED (issue #75): archive concept removed. Kept as an optional
+   * shim so older daemon tests and not-yet-cleaned callers still compile;
+   * the field is ignored by all daemon logic.
+   */
+  readonly archived?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
   readonly command?: string
@@ -152,6 +157,7 @@ export interface DaemonOrchestrator {
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
+  /** DEPRECATED (issue #75): archive concept removed; no-op. */
   setArchived(id: string, archived?: boolean): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null): Promise<void>
@@ -169,7 +175,6 @@ export interface DaemonOrchestrator {
     options?: {
       strategy?: "merge" | "squash"
       deleteBranch?: boolean
-      archive?: boolean
       removeWorktree?: boolean
       callerCwd?: string
     },

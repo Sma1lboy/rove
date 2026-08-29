@@ -385,7 +385,6 @@ export function deserializeTask(s: SerializedTask): Task {
     kind: s.kind,
     ...(s.scratch ? { scratch: true } : {}),
     status: s.status,
-    archived: s.archived,
     pinned: s.pinned,
     vendor: s.vendor,
     prStatus: s.prStatus,

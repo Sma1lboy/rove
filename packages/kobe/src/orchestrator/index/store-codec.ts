@@ -261,32 +261,17 @@ function coerceTask(value: unknown): Task | null {
   }
   if (!isTaskStatus(v.status)) return null
 
-  // Self-heal pre-fix rows. Old kobe builds auto-flipped status to "done"
-  // on every clean turn end, leaving the active sidebar full of `done`
-  // tasks whose `archived` was still false. `done` is now reserved for
-  // user-driven archive — heal those rows back to `in_progress` on load
-  // so the sidebar's ✓ glyph only ever means "user archived this as
-  // complete." Archived `done` rows are left alone.
-  const archived = typeof v.archived === "boolean" ? v.archived : false
+  // A `main` (project root) task has NO session lifecycle that maintains
+  // its status — nothing ever flips it to in_progress on a turn start or
+  // back to backlog on a turn end. So a persisted in_progress/done on a
+  // main row is junk. Reset a main row to a neutral backlog so the
+  // project's liveness comes ONLY from a real live engine handle.
   const kind: Task["kind"] = v.kind === "main" ? "main" : v.kind === "dir" ? "dir" : "task"
   // Scratch only means anything on a dir task — a corrupt flag elsewhere is
   // dropped rather than inventing a Scratch worktree row.
   const scratch = kind === "dir" && v.scratch === true
-  // A `main` (project root) task has NO session lifecycle that maintains
-  // its status — nothing ever flips it to in_progress on a turn start or
-  // back to backlog on a turn end. So a persisted in_progress/done on a
-  // main row is junk (it came from the old auto-done flip, then the
-  // done→in_progress heal below, leaving the project permanently stuck
-  // showing the "working" chip). Reset a main row to a neutral backlog so
-  // the project's liveness comes ONLY from a real live engine handle.
   const healedStatus: TaskStatus =
-    kind === "main"
-      ? v.status === "in_progress" || v.status === "done"
-        ? "backlog"
-        : v.status
-      : v.status === "done" && !archived
-        ? "in_progress"
-        : v.status
+    kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
   const deletion = coerceDeletion(v.deletion)
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
@@ -299,7 +284,6 @@ function coerceTask(value: unknown): Task | null {
     branch: v.branch,
     worktreePath: v.worktreePath,
     status: healedStatus,
-    archived,
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
     kind,
     ...(scratch ? { scratch: true } : {}),

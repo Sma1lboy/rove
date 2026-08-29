@@ -81,8 +81,6 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     expect(request).toHaveBeenCalledWith("task.setVendor", { taskId: "t1", vendor: "codex" })
     await orch.setPinned("t1", true)
     expect(request).toHaveBeenCalledWith("task.pin", { taskId: "t1", pinned: true })
-    await orch.setArchived("t1", true)
-    expect(request).toHaveBeenCalledWith("task.archive", { taskId: "t1", archived: true })
     await orch.setStatus("t1", "in_review")
     expect(request).toHaveBeenCalledWith("task.status", { taskId: "t1", status: "in_review" })
     await orch.deleteTask("t1", { force: true })

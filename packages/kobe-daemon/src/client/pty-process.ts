@@ -182,7 +182,7 @@ export async function ensurePtyHostReachable(): Promise<string> {
 
 /**
  * Fire-and-forget janitor call from the daemon: kill hosted sessions
- * whose task is archived/gone. NEVER spawns a host (nothing to sweep if
+ * whose task is gone. NEVER spawns a host (nothing to sweep if
  * none is running) and never throws — the task snapshot path must not
  * fail on pty-host hiccups.
  *

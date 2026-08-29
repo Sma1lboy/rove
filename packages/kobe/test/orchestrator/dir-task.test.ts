@@ -76,12 +76,6 @@ describe("openDirectoryTask", () => {
     expect(worktrees.pathExists).not.toHaveBeenCalled()
   })
 
-  it("can be archived like a regular task", async () => {
-    const task = await orch.openDirectoryTask({ dir })
-    await orch.setArchived(task.id)
-    expect(orch.getTask(task.id)?.archived).toBe(true)
-  })
-
   it("delete drops the index entry and NEVER removes the directory", async () => {
     const task = await orch.openDirectoryTask({ dir })
     // isDirty returns true — a dir task must skip the dirty gate entirely

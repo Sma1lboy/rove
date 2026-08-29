@@ -31,7 +31,7 @@ export const DEFAULT_QUOTA_RESUME_TICK_MS = 60_000
 export function dueQuotaResumes(tasks: readonly DaemonTask[], nowMs: number): DaemonTask[] {
   return tasks.filter((task) => {
     if (!task.quotaResume || !task.worktreePath) return false
-    if (task.deletion || task.archived) return false
+    if (task.deletion) return false
     const at = Date.parse(task.quotaResume.resumeAt)
     return Number.isFinite(at) && at <= nowMs
   })

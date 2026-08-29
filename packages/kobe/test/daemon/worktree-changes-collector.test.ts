@@ -78,10 +78,9 @@ function harness(initialTasks: Task[], counts: Record<string, WorktreeChanges>) 
 }
 
 describe("trackedWorktreePaths", () => {
-  test("excludes archived tasks, remote projects, and empty worktrees; dedupes shared paths", () => {
+  test("excludes remote projects and empty worktrees; dedupes shared paths", () => {
     const tasks = [
       task({ id: "a" }),
-      task({ id: "arch", archived: true }),
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
       // Two main rows of the same repo share worktreePath = repo root.
@@ -93,13 +92,12 @@ describe("trackedWorktreePaths", () => {
 })
 
 describe("WorktreeChangesCollector", () => {
-  test("collects local non-archived worktrees and publishes the full map", async () => {
-    const { collector, published, runs } = harness([task({ id: "a" }), task({ id: "arch", archived: true })], {
+  test("collects local worktrees and publishes the full map", async () => {
+    const { collector, published, runs } = harness([task({ id: "a" })], {
       "/wt/a": { added: 2, deleted: 1 },
     })
     collector.tick()
     await settle()
-    // The archived task's worktree was never even attempted.
     expect(runs).toEqual(["/wt/a"])
     expect(published.at(-1)).toEqual({ changes: { "/wt/a": { added: 2, deleted: 1 } } })
   })
@@ -136,7 +134,7 @@ describe("WorktreeChangesCollector", () => {
     expect(published.length).toBe(1)
   })
 
-  test("drops a deleted/archived task's entry from the published map", async () => {
+  test("drops a deleted task's entry from the published map", async () => {
     const { collector, published, setTasks } = harness([task({ id: "a" }), task({ id: "b" })], {
       "/wt/a": { added: 1, deleted: 0 },
       "/wt/b": { added: 2, deleted: 2 },
@@ -145,8 +143,8 @@ describe("WorktreeChangesCollector", () => {
     await settle()
     expect(Object.keys(published.at(-1)?.changes ?? {}).sort()).toEqual(["/wt/a", "/wt/b"])
 
-    // b archived → its entry drops and the pruned map is republished.
-    setTasks([task({ id: "a" }), task({ id: "b", archived: true })])
+    // b deleted → its entry drops and the pruned map is republished.
+    setTasks([task({ id: "a" })])
     collector.tick()
     await settle()
     expect(published.at(-1)).toEqual({ changes: { "/wt/a": { added: 1, deleted: 0 } } })

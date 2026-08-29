@@ -201,7 +201,6 @@ describe("landTaskWithCleanup worktree cleanup", () => {
       cleared,
       deps: {
         worktrees: new GitWorktreeManager(),
-        setArchived: async () => {},
         clearWorktreePath: async (id: unknown) => {
           cleared.push(String(id))
         },
@@ -277,7 +276,6 @@ describe("landTaskWithCleanup worktree cleanup", () => {
       {},
       {
         worktrees: new GitWorktreeManager(),
-        setArchived: async () => {},
         clearWorktreePath: async () => {
           throw new Error("tasks.json write failed")
         },

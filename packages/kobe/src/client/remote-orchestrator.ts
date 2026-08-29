@@ -403,8 +403,9 @@ export class RemoteOrchestrator {
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     setCommandOp(this.client, id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => setPinnedOp(this.client, id, pinned)
-  moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => moveTaskOp(this.client, id, delta)
+  /** DEPRECATED (issue #75): archive concept removed; no-op. */
   setArchived = (id: TaskId | string, archived?: boolean): Promise<void> => setArchivedOp(this.client, id, archived)
+  moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => moveTaskOp(this.client, id, delta)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => setStatusOp(this.client, id, status)
   deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
     deleteTaskOp(this.client, id, opts)
