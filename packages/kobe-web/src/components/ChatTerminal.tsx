@@ -12,6 +12,7 @@
  * scrollback ring on re-attach, so reattaching is loss-free.
  */
 
+import { CanvasAddon } from "@xterm/addon-canvas"
 import { ClipboardAddon } from "@xterm/addon-clipboard"
 import { FitAddon } from "@xterm/addon-fit"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
@@ -116,6 +117,16 @@ type ChatTerminalProps = {
   mode: PtyMode
   testId?: string
   disableWebgl?: boolean
+  /**
+   * Let whatever is behind the terminal show through the cells the TUI does
+   * not paint. The product already renders with a transparent background by
+   * default (`transparentBackground` in persisted-ui-prefs) — but xterm paints
+   * its OWN opaque `background` underneath, so the host page's backdrop never
+   * appears. Screencasts turn this on to sit the terminal on a desktop
+   * instead of a flat rectangle; normal use leaves it off, where an opaque
+   * canvas is both correct and cheaper to composite.
+   */
+  transparent?: boolean
   onStatusChange?: (status: WsStatus) => void
   onBufferChange?: (text: string) => void
 }
@@ -137,6 +148,7 @@ export function ChatTerminal({
   mode,
   testId,
   disableWebgl = false,
+  transparent = false,
   onStatusChange,
   onBufferChange,
 }: ChatTerminalProps) {
@@ -193,7 +205,13 @@ export function ChatTerminal({
 
       term = new Terminal({
         // Active TUI-synced palette when loaded; static claude otherwise.
-        theme: xtermTheme() ?? CLAUDE_XTERM_THEME,
+        theme: transparent
+          ? {
+              ...(xtermTheme() ?? CLAUDE_XTERM_THEME),
+              background: "rgba(0,0,0,0.01)",
+            }
+          : (xtermTheme() ?? CLAUDE_XTERM_THEME),
+        allowTransparency: transparent,
         fontFamily: TERMINAL_FONT_FAMILY,
         fontSize: 12,
         cursorBlink: true,
@@ -214,7 +232,25 @@ export function ChatTerminal({
       term.open(el)
       // The visual harness pins the stock renderer so browser screenshots and
       // buffer synchronization do not depend on GPU/WebGL availability.
-      if (!disableWebgl) {
+      // Renderer choice, and it is a three-way trade rather than a preference:
+      //
+      //   DOM    — always available, but each cell is its own span drawn with
+      //            the font, so `customGlyphs` is off and block-drawing
+      //            characters show a seam at every cell boundary.
+      //   WebGL  — tiles those glyphs correctly, but fills default-background
+      //            cells as solid colour, which turns into black boxes the
+      //            moment the background is transparent.
+      //   Canvas — draws glyphs the same way WebGL does, on a 2D context that
+      //            composites over what is behind it.
+      //
+      // So transparency picks canvas and opacity picks WebGL.
+      if (transparent) {
+        try {
+          term.loadAddon(new CanvasAddon())
+        } catch {
+          /* DOM renderer fallback */
+        }
+      } else if (!disableWebgl) {
         try {
           const webgl = new WebglAddon()
           webgl.onContextLoss(() => webgl.dispose())
@@ -293,7 +329,16 @@ export function ChatTerminal({
       term?.dispose()
       wsRef.current = null
     }
-  }, [tabId, taskId, mode, epoch, disableWebgl, onStatusChange, onBufferChange])
+  }, [
+    tabId,
+    taskId,
+    mode,
+    epoch,
+    disableWebgl,
+    transparent,
+    onStatusChange,
+    onBufferChange,
+  ])
 
   const sendPrompt = (): void => {
     const ws = wsRef.current

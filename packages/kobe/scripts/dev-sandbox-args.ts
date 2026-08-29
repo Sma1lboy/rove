@@ -1,6 +1,6 @@
 import { deleteRoveEnv, readRoveEnv, setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 
-export type SandboxMode = "run" | "reset" | "home" | "smoketest"
+export type SandboxMode = "run" | "reset" | "home" | "smoketest" | "seed"
 export type SandboxArgs = {
   readonly mode: SandboxMode
   /** Named sandbox instance (`--name x`): own home/daemon/registry/port. */
@@ -33,7 +33,7 @@ const NAME_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/
 const INHERITED_PATH_OVERRIDES = ["DAEMON_SOCKET_PATH", "DAEMON_PID_PATH", "PTY_SOCKET_PATH", "PTY_PID_PATH"] as const
 
 function isSandboxMode(value: string | undefined): value is SandboxMode {
-  return value === "run" || value === "reset" || value === "home" || value === "smoketest"
+  return value === "run" || value === "reset" || value === "home" || value === "smoketest" || value === "seed"
 }
 
 /**

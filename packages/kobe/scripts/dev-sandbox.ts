@@ -6,6 +6,7 @@
  *   bun dev:sandbox run plugin link <dir>    # plugins register into THIS home's registry
  *   bun dev:sandbox --name ex-a run …        # named instance: own home/daemon/port
  *   bun dev:sandbox --name ex-a smoketest    # plugin-event end-to-end self-check
+ *   bun dev:sandbox [--name x] seed          # a few tasks, each with a chat tab
  *   bun dev:sandbox [--name x] home|reset
  *
  * A named instance (`--name`) lives under `.dev-sandbox/named/<name>/home`
@@ -105,6 +106,66 @@ function runRove(argv: readonly string[], stdio: "inherit" | "pipe" = "inherit")
   })
   return { code: r.status ?? 1, stdout: (r.stdout as string | null) ?? "" }
 }
+
+/**
+ * Fill an empty sandbox with tasks that look like a sandbox someone has been
+ * USING: a couple of repos' worth of work, each task carrying a chat tab.
+ *
+ * A bare `add` creates a task with no tabs, which is a shape the product never
+ * produces on its own — a task comes into existence by starting a session. A
+ * sandbox seeded that way shows childless rows and reads as a mock-up, so each
+ * task here opens a real engine tab. The prompt is deliberately trivial: it
+ * exists to make the engine boot and register the tab, not to produce work.
+ */
+async function seed(): Promise<never> {
+  const repo = dirname(await gitCommonDir())
+  const TASKS: readonly { readonly title: string; readonly prompt: string }[] = [
+    { title: "Trace the engine handshake", prompt: "In one line: what does this repo do?" },
+    { title: "Audit the daemon's restart path", prompt: "In one line: name the package manager this repo uses." },
+    { title: "Tidy the sidebar keybindings", prompt: "In one line: what runtime does this repo target?" },
+  ]
+  const listed = JSON.parse(runRove(["api", "list"], "pipe").stdout || "{}") as {
+    tasks?: { title?: string }[]
+  }
+  const existing = new Set((listed.tasks ?? []).map((task) => task.title))
+
+  for (const task of TASKS) {
+    if (existing.has(task.title)) {
+      console.error(`[rove ${label}] reusing ${task.title}`)
+      continue
+    }
+    const added = JSON.parse(
+      runRove(["api", "add", "--repo", repo, "--title", task.title, "--command", "claude"], "pipe").stdout || "{}",
+    ) as { taskId?: string }
+    if (!added.taskId) {
+      console.error(`[rove ${label}] could not create ${task.title}`)
+      continue
+    }
+    // `--tab new` is what actually creates the tab; `add` alone leaves the
+    // task childless.
+    runRove(
+      [
+        "api",
+        "send",
+        "--task-id",
+        added.taskId,
+        "--tab",
+        "new",
+        "--command",
+        "claude",
+        "--plain",
+        "--prompt",
+        task.prompt,
+      ],
+      "pipe",
+    )
+    console.error(`[rove ${label}] seeded ${task.title}`)
+  }
+  console.error(`[rove ${label}] seeded ${TASKS.length} task(s) with chat tabs`)
+  process.exit(0)
+}
+
+if (mode === "seed") await seed()
 
 /**
  * End-to-end plugin-event self-check: link the SDK's hello-events example

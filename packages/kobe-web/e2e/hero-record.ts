@@ -20,7 +20,7 @@
 import { mkdir, rm } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import type { Page } from "@playwright/test"
-import { REPO_ROOT, click, encode, press, record, type as typeText } from "./hero-capture.ts"
+import { REPO_ROOT, click, encode, gone, press, record, type as typeText } from "./hero-capture.ts"
 
 const args = process.argv.slice(2)
 const outDir = resolve(args.find((arg) => arg.startsWith("--out="))?.slice(6) ?? join(REPO_ROOT, "docs", "assets"))
@@ -33,9 +33,19 @@ const ROW = { taskA: 215, taskB: 247, routines: 103 } as const
 const COMPOSER = { x: 600, y: 711 } as const
 
 async function storyboard(page: Page): Promise<void> {
-  // Beat 1 — one task's finished turn: its own branch, its own commit.
+  // Beat 0 — clear whatever the LAST take left the session sitting on.
+  // Engine sessions are hosted and survive a recording, so a take that ended
+  // on a permission prompt hands the next one that prompt as its opening
+  // frame — which is exactly what shipped: the README demo began on a dialog
+  // waiting for a human. `esc` dismisses it; on a clean session it is a
+  // no-op, so this costs one keystroke and removes a whole class of bad take.
   await click(page, 80, ROW.taskA)
-  await page.waitForTimeout(4_000)
+  await page.waitForTimeout(2_000)
+  await press(page, "esc")
+  await page.waitForTimeout(1_500)
+
+  // Beat 1 — one task's finished turn: its own branch, its own commit.
+  await page.waitForTimeout(2_500)
 
   // Beat 2 — a follow-up typed into that live session. `ctrl+u` first: the
   // composer is the engine's, and whatever a previous take left in it stays.
@@ -50,24 +60,29 @@ async function storyboard(page: Page): Promise<void> {
   await typeText(page, "Add one test asserting the timeout rejects, then commit.")
   await press(page, "enter")
 
-  // Beat 3 — it works while we walk away. A fixed hold, not a marker wait:
-  // the transcript already contains every phrase a finished turn prints, so a
-  // `look` here would return instantly and film nothing.
-  await page.waitForTimeout(90_000)
+  // Beat 3 — enough of the turn to see it start, then leave. A previous cut
+  // held a fixed 90s here and filmed the back half of it frozen on a finished
+  // answer; the point of this beat is that you DON'T sit and watch, so the
+  // camera does not either.
+  await page.waitForTimeout(12_000)
 
   // Beat 4 — the second task, mid-flight the whole time, on its own worktree
   // and branch. This is the claim the whole product rests on.
   await click(page, 80, ROW.taskB)
-  await page.waitForTimeout(9_000)
+  await page.waitForTimeout(8_000)
 
   // Beat 5 — and the work nobody has to sit through: scheduled prompts that
   // spawn their own tasks.
   await click(page, 40, ROW.routines)
   await page.waitForTimeout(6_000)
 
-  // Beat 6 — back to the agent, which has been working the entire time.
+  // Beat 6 — back to the first agent, which finished while we were elsewhere.
+  // Waiting for the working marker to CLEAR is what makes this beat land on a
+  // result instead of on more scrolling: `esc to interrupt` is in the status
+  // line only while a turn runs, so its absence is the turn being done.
   await click(page, 80, ROW.taskA)
-  await page.waitForTimeout(10_000)
+  await gone(page, "esc to interrupt", 150_000)
+  await page.waitForTimeout(7_000)
 }
 
 /** Re-encode the take already on disk — the storyboard costs real turns. */
@@ -76,4 +91,7 @@ if (!args.includes("--encode-only")) {
   await mkdir(workDir, { recursive: true })
   await record(workDir, storyboard)
 }
-await encode({ workDir, outDir, name: "demo", speed: SPEED })
+// `startAt` drops the harness settling into the TUI. Without it the first
+// frame is the black terminal before OpenTUI paints — and that frame is also
+// the poster every embed shows before playback.
+await encode({ workDir, outDir, name: "demo", speed: SPEED, startAt: 1.5 })

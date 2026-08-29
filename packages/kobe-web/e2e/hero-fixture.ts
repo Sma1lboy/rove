@@ -101,8 +101,21 @@ async function seedRepo(): Promise<void> {
   }
 }
 
-/** Sidebar depth: real rows that cost no engine quota. */
+/**
+ * Sidebar depth. Each of these gets a chat tab, because a task WITHOUT one is
+ * not a state the product normally shows: a task is created by starting a
+ * session, so every row in a real sidebar has at least one tab nested under
+ * it. Seeded bare, these two photographed as childless rows and the sidebar
+ * read as a mock-up.
+ *
+ * The tab is opened with a trivial prompt rather than a real piece of work:
+ * enough to make the engine boot and register a tab, without paying for a
+ * turn that produces a transcript nothing frames.
+ */
 const IDLE_TASKS = ["Port the docs snippets to the new client", "Audit token refresh under clock skew"] as const
+
+/** First message for an idle task's tab — short by design; see IDLE_TASKS. */
+const IDLE_TAB_PROMPT = "Read the README and tell me in one line what this package does."
 
 /**
  * Routines for the automations still. Schedules sit in the small hours so a
@@ -162,7 +175,13 @@ async function main(): Promise<void> {
     await mkdir(HERO_HOME, { recursive: true })
     await seedSettings()
     await seedRepo()
-    for (const title of IDLE_TASKS) heroApi(["add", "--repo", HERO_REPO, "--title", title])
+    for (const title of IDLE_TASKS) {
+      const created = heroApi(["add", "--repo", HERO_REPO, "--title", title]) as { taskId?: string }
+      if (!created.taskId) throw new Error(`idle task not created: ${title}`)
+      // `--tab new` boots an engine tab; without it the task has no children
+      // and the sidebar shows a shape the product never produces on its own.
+      heroApi(["send", "--task-id", created.taskId, "--tab", "new", "--command", "claude", "--plain", "--prompt", IDLE_TAB_PROMPT])
+    }
     seedRoutines()
   }
   const listed = heroApi(["list"]) as { tasks?: unknown[] }

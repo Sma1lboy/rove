@@ -85,11 +85,36 @@ function turnStarted(taskId: string): boolean {
   return output.source === "history"
 }
 
+/**
+ * A task RECORD and a live engine session are two different things, and they
+ * drift apart: a capture run that kills panes, a daemon restart, an interrupted
+ * take — any of them leaves the row in `tasks.json` with zero tabs. Reusing on
+ * title alone then "succeeds" while photographing a task with no chat child
+ * under it, which is exactly what a sidebar full of childless tasks turned out
+ * to be. Ask the daemon what the task actually HAS.
+ */
+function hasLiveEngineTab(taskId: string): boolean {
+  const got = heroApi(["get-task", "--task-id", taskId]) as {
+    tabs?: { kind?: string; alive?: boolean }[]
+  }
+  return (got.tabs ?? []).some((tab) => tab.kind === "engine" && tab.alive === true)
+}
+
 const existing = new Map(tasks().map((task) => [task.title, task]))
 const pending: { id: string; seed: Seed }[] = []
 for (const seed of SEEDS) {
-  if (existing.has(seed.title)) {
+  const prior = existing.get(seed.title)
+  if (prior && hasLiveEngineTab(prior.id)) {
     console.log(`[hero] reusing session: ${seed.title}`)
+    continue
+  }
+  if (prior) {
+    // The record survived but its session did not. Restart the engine in the
+    // worktree that already exists rather than paying for a fresh fixture:
+    // `send` boots the canonical engine when a task has no live session.
+    console.log(`[hero] re-opening session (task had no live engine tab): ${seed.title}`)
+    heroApi(["send", "--task-id", prior.id, "--prompt", seed.prompt])
+    pending.push({ id: prior.id, seed })
     continue
   }
   const created = heroApi(["add", "--repo", HERO_REPO, "--title", seed.title, "--command", "claude"]) as {
