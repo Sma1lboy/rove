@@ -1,6 +1,6 @@
 /**
  * One rigorous, shared parser for `git status --porcelain` and
- * `git diff --numstat` output, with correct C-string unquoting.
+ * `git diff --numstat -z` output, with correct C-string unquoting.
  *
  * Why this module exists: the file-tree pane (`tui/panes/filetree/git.ts`)
  * and the sidebar's per-row change chip (`tui/panes/sidebar/worktree-changes.ts`)
@@ -25,11 +25,10 @@
  *   - Porcelain rename: `XY orig -> new`. Each side is quoted INDEPENDENTLY
  *     (only when it needs quoting); the ` -> ` separator is literal. Porcelain
  *     quotes a path that merely contains a space.
- *   - Numstat rename: `<a>\t<d>\t<field>`. When NEITHER side needs C-quoting,
- *     git brace-compacts the unchanged segments: `src/{old => new}.txt`. When
- *     EITHER side needs quoting, git drops the braces and emits each side
- *     quoted independently: `"a\tb" => "a\tc"`. Numstat does NOT quote on a
- *     bare space.
+ *   - Numstat rename (with `-z`): records are NUL-delimited, so git emits the
+ *     old and new paths as separate raw fields. There is no brace-compaction
+ *     and no ` => ` separator to parse, which avoids an inherent ambiguity
+ *     when a path itself contains a literal `{`.
  *   - C-quoting escapes `\a \b \t \n \v \f \r \" \\` and otherwise emits a
  *     three-digit OCTAL escape per BYTE (`\303\274` = the UTF-8 bytes of `ü`),
  *     so octal runs must be decoded as bytes, then UTF-8 decoded.
@@ -179,10 +178,9 @@ export function unquoteGitPath(field: string): string {
 }
 
 /**
- * Split a rename field (`orig<sep>new`) into its two unquoted sides,
- * respecting independent C-quoting on each side. `sep` is `" -> "` for
- * porcelain or `" => "` for numstat. Returns `null` when no separator is
- * present (i.e. not a rename).
+ * Split a porcelain rename field (`orig -> new`) into its two unquoted
+ * sides, respecting independent C-quoting on each side. Returns `null` when
+ * no separator is present (i.e. not a rename).
  */
 function splitRenameField(field: string, sep: string): { orig: string; neu: string } | null {
   if (field[0] === '"') {
@@ -196,57 +194,6 @@ function splitRenameField(field: string, sep: string): { orig: string; neu: stri
   const idx = field.indexOf(sep)
   if (idx < 0) return null
   return { orig: field.slice(0, idx), neu: unquoteGitPath(field.slice(idx + sep.length)) }
-}
-
-/**
- * Rejoin a brace-compacted rename side (`prefix` + the `{…}` segment + `suffix`).
- *
- * When a rename adds or drops a leading/trailing directory level, git empties
- * ONE brace side — `src/{sub => }/a.txt` (moved up out of `sub/`) or
- * `src/{ => sub}/a.txt` (moved down into `sub/`). Naive `prefix + seg + suffix`
- * then doubles the shared separator: `src/` + `""` + `/a.txt` = `src//a.txt`,
- * which no longer key-matches the porcelain row's `src/a.txt` — the exact join
- * this module exists to keep coherent. Collapse the seam: an empty segment
- * flanked by a `/`-terminated prefix and a `/`-led suffix drops one slash.
- */
-function joinBraceParts(prefix: string, seg: string, suffix: string): string {
-  if (seg.length === 0 && prefix.endsWith("/") && suffix.startsWith("/")) {
-    return prefix + suffix.slice(1)
-  }
-  return prefix + seg + suffix
-}
-
-/**
- * Resolve a `git diff --numstat` path field to its canonical (post-rename,
- * unquoted) path, plus the original path when it is a rename.
- *
- * Handles, in order:
- *   1. Brace-compacted rename `a/{old => new}/b` → new `a/new/b`, orig `a/old/b`.
- *      (Brace compaction only ever appears UNQUOTED — git abandons it the
- *      moment either side needs C-quoting.) An empty brace side (a directory
- *      level added/removed) collapses its doubled separator via {@link joinBraceParts}.
- *   2. Non-brace rename `orig => new` (each side independently C-quoted).
- *   3. Plain path (possibly C-quoted, no rename).
- */
-function resolveNumstatField(field: string): { path: string; origPath?: string } {
-  const open = field.indexOf("{")
-  if (open >= 0) {
-    const close = field.indexOf("}", open)
-    const sep = field.indexOf(" => ", open)
-    if (close > open && sep >= 0 && sep < close) {
-      const prefix = field.slice(0, open)
-      const oldSeg = field.slice(open + 1, sep)
-      const newSeg = field.slice(sep + " => ".length, close)
-      const suffix = field.slice(close + 1)
-      return {
-        path: joinBraceParts(prefix, newSeg, suffix),
-        origPath: joinBraceParts(prefix, oldSeg, suffix),
-      }
-    }
-  }
-  const split = splitRenameField(field, " => ")
-  if (split) return { path: split.neu, origPath: split.orig }
-  return { path: unquoteGitPath(field) }
 }
 
 /**
@@ -288,31 +235,54 @@ function parseCount(token: string): number | null {
 }
 
 /**
- * Parse the raw stdout of `git diff --numstat` into typed rows. Each line is
- * `<added>\t<deleted>\t<field>`; binary files use `-` for the counts (→
- * `null`). Renames (brace-compacted or `=>`) resolve to the canonical
- * post-rename, unquoted path so the counts key by the same path the
- * porcelain `R` row reports. Blank / malformed lines are skipped.
+ * Parse the raw stdout of `git diff --numstat -z` into typed rows. Records
+ * are NUL-delimited:
+ *   - non-rename: `<added>\t<deleted>\t<path>\0`
+ *   - rename:     `<added>\t<deleted>\t\0<old>\0<new>\0`
+ *
+ * Binary files use `-` for the counts (→ `null`). Paths are unquoted so the
+ * counts key by the same canonical path the porcelain `R` row reports. With
+ * `-z`, git emits raw paths (no C-quoting), but `unquoteGitPath` is kept as a
+ * harmless no-op for extra robustness. Blank / malformed fields are skipped.
  */
 export function parseNumstatRows(raw: string): NumstatRow[] {
   const rows: NumstatRow[] = []
-  for (const rawLine of raw.split("\n")) {
-    const line = rawLine.replace(/\r$/, "")
-    if (line.length === 0) continue
-    const tab1 = line.indexOf("\t")
-    if (tab1 < 0) continue
-    const tab2 = line.indexOf("\t", tab1 + 1)
-    if (tab2 < 0) continue
-    const field = line.slice(tab2 + 1)
-    if (field.length === 0) continue
-    const resolved = resolveNumstatField(field)
-    if (resolved.path.length === 0) continue
-    rows.push({
-      path: resolved.path,
-      ...(resolved.origPath !== undefined ? { origPath: resolved.origPath } : {}),
-      added: parseCount(line.slice(0, tab1)),
-      deleted: parseCount(line.slice(tab1 + 1, tab2)),
-    })
+  const fields = raw.split("\0")
+  // Real `-z` output ends with a trailing NUL, producing an empty final field.
+  if (fields.length > 0 && fields[fields.length - 1] === "") {
+    fields.pop()
+  }
+  let i = 0
+  while (i < fields.length) {
+    const header = fields[i] as string
+    const tab1 = header.indexOf("\t")
+    if (tab1 < 0) {
+      i++
+      continue
+    }
+    const tab2 = header.indexOf("\t", tab1 + 1)
+    if (tab2 < 0) {
+      i++
+      continue
+    }
+    const added = parseCount(header.slice(0, tab1))
+    const deleted = parseCount(header.slice(tab1 + 1, tab2))
+    const pathField = header.slice(tab2 + 1)
+    if (pathField.length > 0) {
+      // Non-rename: the path is the third field.
+      rows.push({ path: unquoteGitPath(pathField), added, deleted })
+      i++
+    } else {
+      // Rename: the next two fields are the old and new paths.
+      if (i + 2 >= fields.length) break
+      rows.push({
+        path: unquoteGitPath(fields[i + 2] as string),
+        origPath: unquoteGitPath(fields[i + 1] as string),
+        added,
+        deleted,
+      })
+      i += 3
+    }
   }
   return rows
 }
