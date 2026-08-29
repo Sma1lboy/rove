@@ -1,5 +1,5 @@
 /**
- * Dev sandbox — run rove against a throwaway home instead of production.
+ * Dev sandbox -- run rove against a throwaway home instead of production.
  *
  *   bun dev:sandbox                          # TUI, shared default sandbox home
  *   bun dev:sandbox run api list             # any rove argv in the sandbox env
@@ -11,7 +11,7 @@
  *
  * A named instance (`--name`) lives under `.dev-sandbox/named/<name>/home`
  * with its own daemon, PTY host, plugin registry, and a stable per-name web
- * port — so parallel tasks each sandbox their own plugins without colliding
+ * port -- so parallel tasks each sandbox their own plugins without colliding
  * with each other or the shared default home. Plugin configuration needs no
  * special verbs: `run plugin link/install/…` is the ordinary plugin CLI
  * running with the sandbox HOME_DIR, and the sandbox daemon file-watches its
@@ -24,14 +24,10 @@ import { mkdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { stopDaemonProcess } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
-import {
-  defaultDaemonPidPath,
-  defaultDaemonSocketPath,
-  defaultPtyHostPidPath,
-  defaultPtyHostSocketPath,
-} from "@sma1lboy/kobe-daemon/daemon/paths"
 import { pluginStateDir } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
-import { parseSandboxArgs, sandboxChildEnv } from "./dev-sandbox-args.ts"
+import { parseSandboxArgs } from "./dev-sandbox-args.ts"
+import { sandboxChildEnv, sandboxRuntimePaths } from "./dev-sandbox-env.ts"
+import { createTaskWithChatTab } from "./fixture-core.ts"
 
 function usageError(err: unknown): never {
   console.error(err instanceof Error ? err.message : String(err))
@@ -86,8 +82,9 @@ console.error(`[rove ${label}] home: ${home}`)
 const env = sandboxChildEnv(home, process.env, name)
 
 async function stopSandbox(): Promise<void> {
-  await stopDaemonProcess(defaultDaemonSocketPath(home), defaultDaemonPidPath(home))
-  await stopDaemonProcess(defaultPtyHostSocketPath(home), defaultPtyHostPidPath(home))
+  const paths = sandboxRuntimePaths(home)
+  await stopDaemonProcess(paths.daemonSocket, paths.daemonPidPath)
+  await stopDaemonProcess(paths.ptySocket, paths.ptyPidPath)
 }
 
 if (mode === "reset") {
@@ -112,14 +109,14 @@ function runRove(argv: readonly string[], stdio: "inherit" | "pipe" = "inherit")
  * USING: a couple of repos' worth of work, each task carrying a chat tab.
  *
  * A bare `add` creates a task with no tabs, which is a shape the product never
- * produces on its own — a task comes into existence by starting a session. A
+ * produces on its own -- a task comes into existence by starting a session. A
  * sandbox seeded that way shows childless rows and reads as a mock-up, so each
  * task here opens a real engine tab. The prompt is deliberately trivial: it
  * exists to make the engine boot and register the tab, not to produce work.
  */
 async function seed(): Promise<never> {
   const repo = dirname(await gitCommonDir())
-  const TASKS: readonly { readonly title: string; readonly prompt: string }[] = [
+  const TASKS: readonly { title: string; prompt: string }[] = [
     { title: "Trace the engine handshake", prompt: "In one line: what does this repo do?" },
     { title: "Audit the daemon's restart path", prompt: "In one line: name the package manager this repo uses." },
     { title: "Tidy the sidebar keybindings", prompt: "In one line: what runtime does this repo target?" },
@@ -134,30 +131,12 @@ async function seed(): Promise<never> {
       console.error(`[rove ${label}] reusing ${task.title}`)
       continue
     }
-    const added = JSON.parse(
-      runRove(["api", "add", "--repo", repo, "--title", task.title, "--command", "claude"], "pipe").stdout || "{}",
-    ) as { taskId?: string }
-    if (!added.taskId) {
-      console.error(`[rove ${label}] could not create ${task.title}`)
-      continue
-    }
-    // `--tab new` is what actually creates the tab; `add` alone leaves the
-    // task childless.
-    runRove(
-      [
-        "api",
-        "send",
-        "--task-id",
-        added.taskId,
-        "--tab",
-        "new",
-        "--command",
-        "claude",
-        "--plain",
-        "--prompt",
-        task.prompt,
-      ],
-      "pipe",
+    createTaskWithChatTab(
+      "./src/cli/rove.ts",
+      { title: task.title, repo, prompt: task.prompt, command: "claude" },
+      process.cwd(),
+      env,
+      ["--conditions=browser"],
     )
     console.error(`[rove ${label}] seeded ${task.title}`)
   }
@@ -171,7 +150,7 @@ if (mode === "seed") await seed()
  * End-to-end plugin-event self-check: link the SDK's hello-events example
  * into this sandbox's registry, boot a fresh daemon, fire `issue.changed`
  * via `issue-create`, and assert the hook recorded it. Proves the whole
- * chain — registry, PluginHost, event dispatch, env contract — before a
+ * chain -- registry, PluginHost, event dispatch, env contract -- before a
  * task builds anything on top.
  */
 async function smoketest(): Promise<never> {
@@ -179,12 +158,12 @@ async function smoketest(): Promise<never> {
   const exampleDir = join(repoRoot, "packages", "kobe-plugin-sdk", "examples", "hello-events")
   const linked = runRove(["plugin", "link", exampleDir])
   if (linked.code !== 0) {
-    console.error(`[rove ${label}] SMOKETEST FAIL — plugin link exited ${linked.code}`)
+    console.error(`[rove ${label}] SMOKETEST FAIL -- plugin link exited ${linked.code}`)
     process.exit(1)
   }
   const eventsFile = join(pluginStateDir("examples.hello-events", home), "events.jsonl")
 
-  // A scratch git repo — the issue store keys by git common dir.
+  // A scratch git repo -- the issue store keys by git common dir.
   const repo = join(home, "smoke-repo")
   if (!existsSync(join(repo, ".git"))) {
     await mkdir(repo, { recursive: true })
@@ -202,7 +181,7 @@ async function smoketest(): Promise<never> {
   await stopSandbox()
   const created = runRove(["api", "issue-create", "--repo", repo, "--title", `smoke ${Date.now()}`], "pipe")
   if (created.code !== 0) {
-    console.error(`[rove ${label}] SMOKETEST FAIL — issue-create exited ${created.code}`)
+    console.error(`[rove ${label}] SMOKETEST FAIL -- issue-create exited ${created.code}`)
     process.exit(1)
   }
 
@@ -213,7 +192,7 @@ async function smoketest(): Promise<never> {
       const lines = readFileSync(eventsFile, "utf8").trim().split("\n")
       const hit = lines.map((l) => JSON.parse(l) as { event: string }).find((e) => e.event === "issue.changed")
       if (hit) {
-        console.log(`[rove ${label}] SMOKETEST PASS — issue.changed reached examples.hello-events (${eventsFile})`)
+        console.log(`[rove ${label}] SMOKETEST PASS -- issue.changed reached examples.hello-events (${eventsFile})`)
         await stopSandbox()
         process.exit(0)
       }
@@ -222,7 +201,7 @@ async function smoketest(): Promise<never> {
     }
     await new Promise((r) => setTimeout(r, 250))
   }
-  console.error(`[rove ${label}] SMOKETEST FAIL — no issue.changed in ${eventsFile} after 15s`)
+  console.error(`[rove ${label}] SMOKETEST FAIL -- no issue.changed in ${eventsFile} after 15s`)
   console.error(`[rove ${label}] check ${join(home, ".rove", "daemon.log")} and the plugin's log.jsonl`)
   process.exit(1)
 }

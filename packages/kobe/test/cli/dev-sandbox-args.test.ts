@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest"
-import {
-  SANDBOX_DAEMON_WEB_PORT,
-  parseSandboxArgs,
-  sandboxChildEnv,
-  sandboxPortForName,
-} from "../../scripts/dev-sandbox-args"
+import { SANDBOX_DAEMON_WEB_PORT, parseSandboxArgs, sandboxPortForName } from "../../scripts/dev-sandbox-args"
+import { sandboxChildEnv } from "../../scripts/dev-sandbox-env"
 
 describe("parseSandboxArgs", () => {
   it("defaults to the run mode with no rove argv", () => {
@@ -63,8 +59,10 @@ describe("sandboxChildEnv", () => {
   // The prod 2026-08-13 socket hijack: a TUI stamps the production socket onto
   // every task terminal it spawns, and an explicit socket path outranks
   // HOME_DIR — so an inherited one made the sandbox daemon bind the REAL
-  // socket and serve its empty task index to attached TUIs.
-  it("drops inherited socket and pid overrides that would outrank the sandbox home", () => {
+  // socket and serve its empty task index to attached TUIs. Pinning the paths
+  // under the sandbox home fixes it; deleting them only deferred to HOME_DIR,
+  // which a stray override could still poison.
+  it("pins socket and pid paths under the sandbox home so inherited overrides cannot outrank it", () => {
     const env = sandboxChildEnv("/tmp/isolated", {
       KOBE_DAEMON_SOCKET_PATH: "/run/user/1000/kobe.sock",
       ROVE_DAEMON_SOCKET_PATH: "/run/user/1000/kobe.sock",
@@ -76,10 +74,14 @@ describe("sandboxChildEnv", () => {
       ROVE_PTY_PID_PATH: "/home/dev/.kobe/pty.pid",
     })
 
-    for (const key of ["DAEMON_SOCKET_PATH", "DAEMON_PID_PATH", "PTY_SOCKET_PATH", "PTY_PID_PATH"]) {
-      expect(env[`KOBE_${key}`]).toBeUndefined()
-      expect(env[`ROVE_${key}`]).toBeUndefined()
-    }
+    expect(env.ROVE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
+    expect(env.KOBE_DAEMON_SOCKET_PATH).toBe("/tmp/isolated/.rove/daemon.sock")
+    expect(env.ROVE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
+    expect(env.KOBE_PTY_SOCKET_PATH).toBe("/tmp/isolated/.rove/pty.sock")
+    expect(env.ROVE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
+    expect(env.KOBE_DAEMON_PID_PATH).toBe("/tmp/isolated/.rove/daemon.pid")
+    expect(env.ROVE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
+    expect(env.KOBE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
     expect(env.KOBE_HOME_DIR).toBe("/tmp/isolated")
   })
 

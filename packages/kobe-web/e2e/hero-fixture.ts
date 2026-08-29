@@ -1,5 +1,5 @@
 /**
- * `bun e2e/hero-fixture.ts [--fresh]` — build the README capture fixture:
+ * `bun e2e/hero-fixture.ts [--fresh]` -- build the README capture fixture:
  * an isolated Rove home, a realistic repo with history, and the sidebar's
  * idle tasks. Real engine sessions are started separately by `hero-seed.ts`
  * so a re-shoot can reuse the transcripts it already paid for.
@@ -8,29 +8,28 @@
  * `HOME` is the one thing deliberately left alone.
  */
 
-import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
+import { createTaskWithChatTab, runInFixture, runRoveApi, seedGitRepo } from "../../kobe/scripts/fixture-core.ts"
 import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, KOBE_DIR, heroEnv } from "./hero-env.ts"
 import { HERO_COMMITS, HERO_FILES } from "./hero-repo.ts"
 
 const env = heroEnv()
 
 export function heroRun(command: string, args: readonly string[], cwd: string = HERO_REPO): string {
-  return execFileSync(command, [...args], { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
+  return runInFixture(command, args, cwd, env)
 }
 
-/** One `rove api` call through the BUILT cli, so prompt codas read `rove api …`. */
+/** One `rove api` call through the BUILT cli, so prompt codas read `rove api ...`. */
 export function heroApi(args: readonly string[]): Record<string, unknown> {
-  const out = heroRun("bun", [HERO_CLI, "api", ...args])
-  return JSON.parse(out) as Record<string, unknown>
+  return runRoveApi(HERO_CLI, args, HERO_REPO, env) as Record<string, unknown>
 }
 
 /**
  * Engine command for the capture. `acceptEdits` alone is not enough: the demo
  * prompts end in a commit and one of them asks for test coverage, and a bare
- * Bash call stops on an approval nobody is there to answer — the turn never
+ * Bash call stops on an approval nobody is there to answer -- the turn never
  * finishes and the branch stays empty. Allowing exactly the two commands the
  * storyboard needs is the narrow fix; never `bypassPermissions`, which would
  * hand an unattended agent the operator's real HOME.
@@ -38,7 +37,7 @@ export function heroApi(args: readonly string[]): Record<string, unknown> {
  * `--setting-sources project --disable-slash-commands` keeps the operator's
  * USER-level configuration out of the session. `HOME` is deliberately theirs
  * (see `hero-env.ts`), which also means the engine would otherwise inherit
- * their global CLAUDE.md and every skill and plugin installed there — enough
+ * their global CLAUDE.md and every skill and plugin installed there -- enough
  * of a system prompt that the seed prompts came back `Prompt is too long` and
  * both turns stalled before writing a line. Auth still resolves from `HOME`;
  * only the configuration is scoped to this throwaway repo.
@@ -74,7 +73,7 @@ async function seedSettings(): Promise<void> {
   // skill that is merely behind this build takes the *stale* path, which is
   // gated on a version-keyed flag the unversioned one above does not answer.
   // Unseeded, the TUI opens on an interactive "update now? [y/n/d]" prompt
-  // and never renders — every capture then times out waiting for the sidebar.
+  // and never renders -- every capture then times out waiting for the sidebar.
   const skillVersion = await builtSkillVersion()
   if (skillVersion) state[`skillHintSeen:v${skillVersion}`] = "1"
   const dir = join(HERO_CONFIG, "rove")
@@ -84,21 +83,7 @@ async function seedSettings(): Promise<void> {
 }
 
 async function seedRepo(): Promise<void> {
-  await mkdir(HERO_REPO, { recursive: true })
-  heroRun("git", ["init", "-q", "-b", "main"])
-  heroRun("git", ["config", "user.email", "dev@orbit.local"])
-  heroRun("git", ["config", "user.name", "Orbit"])
-  const bodies = new Map(HERO_FILES.map((file) => [file.path, file.body]))
-  for (const commit of HERO_COMMITS) {
-    for (const path of commit.paths) {
-      const body = bodies.get(path)
-      if (body === undefined) throw new Error(`hero commit references unknown file: ${path}`)
-      await mkdir(dirname(join(HERO_REPO, path)), { recursive: true })
-      await writeFile(join(HERO_REPO, path), body)
-    }
-    heroRun("git", ["add", ...commit.paths])
-    heroRun("git", ["commit", "-q", "-m", commit.message])
-  }
+  await seedGitRepo(HERO_REPO, HERO_FILES, HERO_COMMITS, env, { email: "dev@orbit.local", name: "Orbit" })
 }
 
 /**
@@ -108,21 +93,38 @@ async function seedRepo(): Promise<void> {
  * it. Seeded bare, these two photographed as childless rows and the sidebar
  * read as a mock-up.
  *
- * The tab is opened with a trivial prompt rather than a real piece of work:
- * enough to make the engine boot and register a tab, without paying for a
- * turn that produces a transcript nothing frames.
+ * Each opens with a SMALL prompt rather than a real piece of work: enough to
+ * make the engine boot and register a tab, without paying for a turn whose
+ * transcript nothing frames. The prompts differ per task on purpose — a tab's
+ * sidebar label comes from its own first turn, so one shared prompt gives
+ * every row the same child name and the tree reads as generated.
  */
-const IDLE_TASKS = ["Port the docs snippets to the new client", "Audit token refresh under clock skew"] as const
+const IDLE_TASKS: readonly { readonly title: string; readonly prompt: string }[] = [
+  {
+    title: "Port the docs snippets to the new client",
+    prompt: "Which files under src/ does README.md reference? One line.",
+  },
+  {
+    title: "Audit token refresh under clock skew",
+    prompt: "What does src/session.ts cache, and until when? One line.",
+  },
+]
 
-/** First message for an idle task's tab — short by design; see IDLE_TASKS. */
-const IDLE_TAB_PROMPT = "Read the README and tell me in one line what this package does."
+/** First message for the project-main row's tab — short by design. */
+const MAIN_TAB_PROMPT = "What does this package export? One line."
 
 /**
  * Routines for the automations still. Schedules sit in the small hours so a
- * capture session never trips one — an enabled routine really does fire, and
+ * capture session never trips one -- an enabled routine really does fire, and
  * a firing spends a real turn.
  */
-const ROUTINES: readonly { readonly name: string; readonly schedule: string; readonly prompt: string; readonly precheck?: string; readonly disabled?: boolean }[] = [
+const ROUTINES: readonly {
+  readonly name: string
+  readonly schedule: string
+  readonly prompt: string
+  readonly precheck?: string
+  readonly disabled?: boolean
+}[] = [
   {
     name: "Nightly dependency audit",
     schedule: "0 3 * * *",
@@ -144,17 +146,7 @@ const ROUTINES: readonly { readonly name: string; readonly schedule: string; rea
 
 function seedRoutines(): void {
   for (const routine of ROUTINES) {
-    const args = [
-      "routine-create",
-      "--repo",
-      HERO_REPO,
-      "--name",
-      routine.name,
-      "--schedule",
-      routine.schedule,
-      "--prompt",
-      routine.prompt,
-    ]
+    const args = ["routine-create", "--repo", HERO_REPO, "--name", routine.name, "--schedule", routine.schedule, "--prompt", routine.prompt]
     if (routine.precheck) args.push("--precheck", routine.precheck)
     if (routine.disabled) args.push("--disabled")
     heroApi(args)
@@ -175,12 +167,20 @@ async function main(): Promise<void> {
     await mkdir(HERO_HOME, { recursive: true })
     await seedSettings()
     await seedRepo()
-    for (const title of IDLE_TASKS) {
-      const created = heroApi(["add", "--repo", HERO_REPO, "--title", title]) as { taskId?: string }
-      if (!created.taskId) throw new Error(`idle task not created: ${title}`)
-      // `--tab new` boots an engine tab; without it the task has no children
-      // and the sidebar shows a shape the product never produces on its own.
-      heroApi(["send", "--task-id", created.taskId, "--tab", "new", "--command", "claude", "--plain", "--prompt", IDLE_TAB_PROMPT])
+    for (const task of IDLE_TASKS) {
+      createTaskWithChatTab(HERO_CLI, { title: task.title, repo: HERO_REPO, prompt: task.prompt }, HERO_REPO, env)
+    }
+    // The project-main row derives from `savedRepos` rather than being created
+    // here, and the daemon usually opens a tab against the reused checkout
+    // automatically. Send only when it somehow has none: prompting a row that
+    // already has a tab gives it a second identical engine child, which is as
+    // unlike a real sidebar as having none at all.
+    const mainTask = ((heroApi(["list"]) as { tasks?: { id: string; kind?: string }[] }).tasks ?? []).find(
+      (task) => task.kind === "main",
+    )
+    if (mainTask) {
+      const tabs = (heroApi(["get-task", "--task-id", mainTask.id]) as { tabs?: unknown[] }).tabs ?? []
+      if (tabs.length === 0) heroApi(["send", "--task-id", mainTask.id, "--plain", "--prompt", MAIN_TAB_PROMPT])
     }
     seedRoutines()
   }
