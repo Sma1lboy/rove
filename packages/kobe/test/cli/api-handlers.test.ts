@@ -134,6 +134,22 @@ describe("add handler", () => {
     expect(result).toMatchObject({ started: true, engineReady: true, delivered: true, session: "t1::tab-1" })
   })
 
+  it("reports a created task whose prompt never landed (issue #72/#73)", async () => {
+    const task = taskFixture({ kind: "task", vendor: "kimi" })
+    const client = new FakeClient({
+      "task.create": () => ({ taskId: "t1", task }),
+      "task.get": () => ({ task }),
+    })
+    await expectApiError(
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
+          client,
+          runtime: stubRuntime({ deliverPrompt: recordingDelivery({ delivered: false }).deliver }),
+        }),
+      "NOT_DELIVERED",
+    )
+  })
+
   it("keeps the spawn-task alias", async () => {
     const client = new FakeClient({ "task.create": () => ({ taskId: "t1", task: taskFixture() }) })
     const result = (await invokeVerb("spawn-task", ["--repo", "/repo/x"], {

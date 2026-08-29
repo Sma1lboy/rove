@@ -45,7 +45,10 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
     // so a missed paste leaves an idle prompt, not a failed session.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
-      await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage).catch(() => false)
+      await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
+        initMarkerPath: launch.initMarkerPath,
+        initTimeoutMs: launch.initTimeoutMs,
+      }).catch(() => false)
     }
   } finally {
     host.close()
@@ -82,7 +85,10 @@ export async function startTaskSessionWithPromptAdapter(
     // lands means the prompt was not delivered — report false.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
-      return await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage)
+      return await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
+        initMarkerPath: launch.initMarkerPath,
+        initTimeoutMs: launch.initTimeoutMs,
+      })
     }
     return true
   } finally {

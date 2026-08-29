@@ -137,6 +137,17 @@ export interface EngineSessionLaunch {
    * launch argv or there is none.
    */
   readonly firstMessage?: string
+  /**
+   * When the launch includes a repo-init script, this is the marker file the
+   * script creates on success. Paste-delivery spawners wait for it before
+   * starting the engine-startup timer (issue #73).
+   */
+  readonly initMarkerPath?: string
+  /**
+   * How long to wait for {@link initMarkerPath} to appear (ms). Mirrors the
+   * bounded init timeout woven into the launch script.
+   */
+  readonly initTimeoutMs?: number
 }
 
 /** Canonical PTY Host key for a task's interactive engine tab (first by default). */
@@ -184,9 +195,11 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     input.firstMessageDelivery ?? engineEntry(coerceVendorId(input.task.vendor)).firstMessageDelivery ?? "argv"
   const pasteFirstMessage = delivery === "paste" ? launchInit.firstMessage?.text : undefined
   if (launchInit.firstMessage && !pasteFirstMessage) argv = [...argv, launchInit.firstMessage.text]
+  const markerPath = launchInit.initScript ? worktreeInitMarkerPath(input.worktreePath) : undefined
+  const initTimeoutMs = resolveRepoInitTimeoutSeconds(input.initTimeoutSeconds) * 1000
   const script = engineLaunchLine(quoteShellArgv(argv, { bareSafe: true }), {
     initScript: launchInit.initScript,
-    markerPath: launchInit.initScript ? worktreeInitMarkerPath(input.worktreePath) : undefined,
+    markerPath,
     timeoutSeconds: input.initTimeoutSeconds,
   })
   // Session identity as exported env, ahead of everything: the engine's hook
@@ -201,5 +214,6 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     key: engineSessionKey(input.task.id, input.tabId),
     command: [input.shell, "-ilc", identity + script],
     ...(pasteFirstMessage ? { firstMessage: pasteFirstMessage } : {}),
+    ...(markerPath ? { initMarkerPath: markerPath, initTimeoutMs } : {}),
   }
 }

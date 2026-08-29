@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs"
 import { basename } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { ensurePtyHostReachable } from "@sma1lboy/kobe-daemon/client/pty-process"
@@ -9,7 +10,7 @@ import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.t
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { engineEntry } from "./registry.ts"
-import type { EngineSessionLaunch } from "./session-launch.ts"
+import { type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
   request<T = unknown>(name: string, payload?: unknown): Promise<T>
@@ -195,6 +196,12 @@ export interface PasteFirstMessageOptions {
   /** Test seam for the process-table read (see `pty-delivery.ts`'s gate). */
   readonly snapshot?: PsSnapshot
   readonly sleep?: (ms: number) => Promise<void>
+  /** When the launch includes a repo-init script, wait for this marker file
+   *  before budgeting the engine-startup wait. Prevents a short paste-delivery
+   *  window from expiring while dependencies are still installing. */
+  readonly initMarkerPath?: string
+  /** How long to wait for {@link initMarkerPath} to appear (ms). */
+  readonly initTimeoutMs?: number
 }
 
 /**
@@ -216,6 +223,22 @@ export async function pastePromptWhenEngineUp(
 ): Promise<boolean> {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const snapshot = opts.snapshot ?? psSnapshot
+
+  // If the session was launched with a repo-init script, the engine child does
+  // not appear until init finishes. Wait for the init marker before starting
+  // the engine-startup budget so a slow `bun install` does not eat the whole
+  // paste-delivery window (issue #73).
+  if (opts.initMarkerPath) {
+    const initDeadline = Date.now() + (opts.initTimeoutMs ?? REPO_INIT_TIMEOUT_SECONDS * 1000)
+    while (Date.now() < initDeadline) {
+      const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
+      const session = sessions.find((s) => s.key === key)
+      if (!session?.alive) return false
+      if (existsSync(opts.initMarkerPath)) break
+      await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
+    }
+  }
+
   const deadline = Date.now() + (opts.timeoutMs ?? FIRST_MESSAGE_ENGINE_TIMEOUT_MS)
   while (Date.now() < deadline) {
     const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
