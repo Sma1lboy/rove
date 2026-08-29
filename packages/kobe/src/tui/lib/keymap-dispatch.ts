@@ -362,6 +362,7 @@ function dispatchMode(
   evt: KeyEvent,
   candidates: string[],
   prefix: boolean,
+  runCmd: (cmd: () => void) => void,
 ): Binding | null {
   for (let i = snapshot.length - 1; i >= 0; i--) {
     const reg = snapshot[i]
@@ -380,7 +381,7 @@ function dispatchMode(
     }
     if (hit) {
       if (!cfg.modal && isDev()) warnShadowedMatch(snapshot, i, candidates, prefix)
-      hit.cmd(evt, hit.slot)
+      runCmd(() => hit!.cmd(evt, hit!.slot))
       return hit
     }
     if (cfg.modal) return null
@@ -417,10 +418,12 @@ export function dispatchKeyEvent(
     shift?: boolean
   },
   now = Date.now(),
+  opts?: { flushSync?: (fn: () => void) => void },
 ): boolean {
   if (evt.defaultPrevented || dispatching) return false
   const snapshot = bindingStack.slice()
   const candidates = matchKey(evt as KeyEvent)
+  const runCmd = opts?.flushSync ?? ((fn) => fn())
   dispatching = true
   try {
     // A sequence cannot cross the PTY boundary after it is armed: the next
@@ -445,7 +448,7 @@ export function dispatchKeyEvent(
         // A miss is consumed so it cannot type into an input or Terminal pane
         // after the user deliberately started a prefix sequence.
         resetPrefixState()
-        const hit = dispatchMode(snapshot, evt as KeyEvent, candidates, true)
+        const hit = dispatchMode(snapshot, evt as KeyEvent, candidates, true, runCmd)
         prefixHudPush({
           prefixKey: armedPrefixKey,
           stroke: candidates[0] ?? "",
@@ -470,7 +473,7 @@ export function dispatchKeyEvent(
       }
     }
 
-    const direct = dispatchMode(snapshot, evt as KeyEvent, candidates, false)
+    const direct = dispatchMode(snapshot, evt as KeyEvent, candidates, false, runCmd)
     if (direct) {
       // Direct chords land in the HUD too — but only REAL modifier chords
       // (ctrl+t, alt+…): plain pane letters (sidebar j/k) would stream

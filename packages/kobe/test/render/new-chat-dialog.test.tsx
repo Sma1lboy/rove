@@ -8,7 +8,9 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import { type NewChatChoice, NewChatDialogView } from "../../src/tui-react/component/new-chat-dialog"
+import { type NewChatChoice, NewChatDialog, NewChatDialogView } from "../../src/tui-react/component/new-chat-dialog"
+import { useBindings } from "../../src/tui-react/lib/keymap"
+import { type DialogContext, useDialog } from "../../src/tui-react/ui/dialog"
 import { type RenderHandle, act, renderComponent } from "./harness"
 
 function mount(
@@ -28,6 +30,14 @@ function mount(
   ) as Promise<RenderHandle> & { choices: NewChatChoice[] }
   p.choices = choices
   return p
+}
+
+function SiblingBindings(props: { onTab: () => void }) {
+  useBindings(() => ({
+    enabled: true,
+    bindings: [{ key: "tab", cmd: props.onTab }],
+  }))
+  return null
 }
 
 describe("NewChatDialogView", () => {
@@ -77,6 +87,41 @@ describe("NewChatDialogView", () => {
     act(() => mockInput.pressEnter())
     await frame()
     expect(p.choices).toEqual([{ pick: "claude", destination: "fork", context: "fresh" }])
+  })
+
+  test("dialog tab wins over a sibling binding mounted before the overlay", async () => {
+    const dialogRef: { current: DialogContext | null } = { current: null }
+    let siblingTabFired = false
+    function Host() {
+      const dialog = useDialog()
+      dialogRef.current = dialog
+      return (
+        <>
+          <SiblingBindings
+            onTab={() => {
+              siblingTabFired = true
+            }}
+          />
+          <text>workspace</text>
+        </>
+      )
+    }
+    const { frame, mockInput } = await renderComponent(<Host />, { providers: { dialog: true } })
+    expect(await frame()).toContain("workspace")
+    let choice: NewChatChoice | undefined
+    act(() => {
+      void NewChatDialog.show(dialogRef.current!, ["claude", "codex"], "claude", {
+        allowShell: true,
+      }).then((c) => {
+        choice = c
+      })
+    })
+    await frame()
+    expect(await frame()).toContain("new tab in this worktree")
+    act(() => mockInput.pressTab())
+    await frame()
+    expect(siblingTabFired).toBe(false)
+    expect(await frame()).toContain("fork a child task")
   })
 
   test("preset props open the dialog pre-flipped (prefix entries)", async () => {
