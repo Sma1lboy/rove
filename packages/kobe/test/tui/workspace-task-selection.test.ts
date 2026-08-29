@@ -18,7 +18,6 @@ function task(id: string, worktreePath: string): Task {
     worktreePath,
     kind: "task",
     status: "backlog",
-    archived: false,
     pinned: false,
     vendor: "claude",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -171,19 +170,22 @@ describe("pure-TUI workspace task activation", () => {
   // persisted lastActive → newest updatedAt; never raw array position.
   test("selection restore prefers active → persisted lastActive → most recently updated", () => {
     const active = task("active", "/worktrees/active")
-    const archived = { ...task("archived", "/worktrees/archived"), archived: true }
+    const deleting = {
+      ...task("deleting", "/worktrees/deleting"),
+      deletion: { phase: "queued" as const, force: false, requestedAt: "2026-07-15T00:00:00.000Z" },
+    }
     const stale = { ...task("stale", "/worktrees/stale"), updatedAt: "2026-01-01T00:00:00.000Z" }
     const recent = { ...task("recent", "/worktrees/recent"), updatedAt: "2026-07-01T00:00:00.000Z" }
 
-    expect(firstSelectableTask([archived, active, recent], "active")).toBe(active)
+    expect(firstSelectableTask([deleting, active, recent], "active")).toBe(active)
     // Daemon focus missing → the persisted lastActive record wins.
     expect(firstSelectableTask([stale, active, recent], null, "active")).toBe(active)
     expect(firstSelectableTask([stale, active, recent], "missing", "active")).toBe(active)
-    // An archived lastActive is dead — fall through, never resurrect it.
-    expect(firstSelectableTask([archived, stale, recent], null, "archived")).toBe(recent)
-    // No focus records at all → newest unarchived, NOT array-first.
+    // A deleting lastActive is dead — fall through, never resurrect it.
+    expect(firstSelectableTask([deleting, stale, recent], null, "deleting")).toBe(recent)
+    // No focus records at all → newest live task, NOT array-first.
     expect(firstSelectableTask([stale, recent], null)).toBe(recent)
-    expect(firstSelectableTask([archived], null)).toBe(archived)
+    expect(firstSelectableTask([deleting], null)).toBeUndefined()
     expect(firstSelectableTask([], null)).toBeUndefined()
   })
 })

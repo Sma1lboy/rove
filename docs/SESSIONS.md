@@ -117,14 +117,11 @@ local to each one.
   engine tab because a task cannot have zero tabs.
 - **Closing a tab** explicitly kills that tab's hosted PTY and drops its frozen
   record. The last tab cannot be closed with the close action.
-- **Archiving a managed or directory Task** stops all of its hosted sessions and drops their frozen
-  records. The task, worktree, branch, tab snapshot, and engine history stay,
-  so unarchiving can rebuild the sessions.
+- **Deleting a managed or directory Task** stops all of its hosted sessions and drops their frozen
+  records. The task record is removed, but the branch stays; the worktree is
+  removed unless the task is a directory Task.
 - **F5** confirms, kills, and replaces the active terminal PTY. It is a
   per-terminal recovery action, not the same as the global `rove reset`.
-
-A daemon-side janitor applies the archive rule even for headless
-`rove api archive`, so an archived task cannot leave an engine running.
 
 ## Tab and split state
 

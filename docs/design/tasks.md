@@ -35,7 +35,6 @@ classDiagram
         string branch
         path worktreePath
         TaskStatus status
-        bool archived
         PermissionMode? permissionMode
         string? model
     }
@@ -188,11 +187,9 @@ Claude Code's JSONL on disk and is reread via `engine.readHistory`.
   enforced as such by the code — the only enforced rule is the done↔error
   guard above.
 
-`archived` is **orthogonal to status** — a `done` task can be
-archived; so can a `backlog` one. Archiving is non-destructive for durable
-state (worktree stays, engine conversation history stays, sidebar splits
-"Working session" vs. "Archives") but stops the task's live Hosted PTY
-sessions. The user toggles it with `a`.
+There is no separate archived state; a task is either present in the sidebar
+or deleted. `delete` keeps the branch by default and removes the worktree
+after the dirty-worktree safety check.
 
 ---
 
@@ -206,7 +203,6 @@ sessions. The user toggles it with `a`.
 | `permissionMode`   | Task       | Spawn flag for `claude`. Cycled in the composer with shift+tab.      |
 | `model`            | Task       | Same: `claude --model <id>`. Picker in the composer.                 |
 | `status`           | Task       | About the work, not about any single conversation.                   |
-| `archived`         | Task       | Sidebar bucket.                                                      |
 | `sessionId`        | **Tab**    | Each tab is its own resumable Claude session.                        |
 | `title` (chat)     | Tab        | A tab is a conversation; titles are conversation-scoped.             |
 | Conversation       | Tab        | Stored in Claude Code's JSONL, keyed by `sessionId`.                 |

@@ -203,7 +203,7 @@ async function addParallel(
   // sessions are task-id isolated, so N cold-boot waits overlap (5 tasks:
   // ~6s, not ~30s). A mid-loop create failure must NOT orphan the tasks
   // already created — carry them into the PARTIAL_FANOUT payload so a script
-  // can retry/archive them instead of double-spawning.
+  // can retry or delete them instead of double-spawning.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
   // Every sibling records the same dispatcher (issue #21) — the reply

@@ -13,7 +13,7 @@
  * frames, base64).
  *
  * Lifecycle mapping onto {@link TaskPtyLike}:
- *   - `kill()`  → `pty.kill` — ends the REMOTE child (tab close, archive,
+ *   - `kill()`  → `pty.kill` — ends the REMOTE child (tab close, delete,
  *     reset). This is the "I'm done with this session" path.
  *   - `detach()` → `pty.detach` — drops only this handle; the child keeps
  *     running. App teardown calls this via `registry.detachAll()`.
@@ -217,7 +217,7 @@ export class HostedTaskPty extends XtermTaskPty {
     this.sendResize(cols, rows)
   }
 
-  /** kill() path — end the REMOTE child too (tab close / archive / reset). */
+  /** kill() path — end the REMOTE child too (tab close / delete / reset). */
   protected transportKill(): void {
     const client = this.client
     if (client) void client.request("pty.kill", { key: this.taskId }).catch(() => {})

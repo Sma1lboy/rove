@@ -39,13 +39,7 @@ worktree), the shell folds into that Task as a new terminal tab, running
 session and all, instead of becoming a duplicate row.
 
 Each Task has a `status` you set yourself (`backlog`, `in_progress`,
-`in_review`, `done`, `canceled`, `error`) and a separate `archived` flag.
-
-**Archiving a managed or directory Task is safe.** It stops the Task's live
-sessions and removes the row from the sidebar (archived Tasks remain listed by
-`rove api list` and on the web board). Its directory and engine-owned
-conversation history stay. Archive, `done`, and `canceled` never delete files.
-Project-main Tasks cannot be archived.
+`in_review`, `done`, `canceled`, `error`).
 
 **Delete is explicit and kind-aware.** A project-main Task cannot go through
 Task deletion; pressing `d` on its row instead forgets the saved project and

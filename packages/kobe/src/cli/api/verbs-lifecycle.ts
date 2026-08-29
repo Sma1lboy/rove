@@ -1,24 +1,15 @@
 /**
- * The `lifecycle` verb group — archive, pin, land, delete. Split out of
- * `verbs.ts` (file-size cap); spread back into the {@link VERBS} table there,
- * so schema/help/validation see one canonical list.
+ * The `lifecycle` verb group — pin, land, delete. Split out of `verbs.ts`
+ * (file-size cap); spread back into the {@link VERBS} table there, so
+ * schema/help/validation see one canonical list.
  */
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { archive, deleteTask, land } from "./handlers-tasks.ts"
+import { deleteTask, land } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
-  {
-    name: "archive",
-    summary: "Archive (or with --archived=false, unarchive) a task. Non-destructive: worktree/branch/history stay.",
-    flags: [
-      F.taskId(),
-      { name: "archived", type: "bool", default: "true", description: "true to archive, false to unarchive." },
-    ],
-    handler: archive,
-  },
   {
     name: "pin",
     summary: "Pin (or with --pinned=false, unpin) a task to the top of the sidebar.",
@@ -43,7 +34,6 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         description: "merge (--no-ff) or squash into one commit.",
       },
       { name: "delete-branch", type: "bool", description: "Delete the task's branch after a successful land." },
-      { name: "then-archive", type: "bool", description: "Archive the task after a successful land." },
       {
         name: "remove-worktree",
         type: "bool",

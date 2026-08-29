@@ -32,10 +32,9 @@ export interface TaskIndexStoreOptions {
 
 /**
  * Input shape for {@link TaskIndexStore.create}. `id`, `createdAt`,
- * `updatedAt` are auto-assigned. `archived` is deprecated (issue #75) and
- * never written by the store.
+ * `updatedAt` are auto-assigned.
  */
-export type TaskCreateInput = Omit<Task, "id" | "createdAt" | "updatedAt" | "archived">
+export type TaskCreateInput = Omit<Task, "id" | "createdAt" | "updatedAt">
 
 const CURRENT_VERSION = 3 as const
 

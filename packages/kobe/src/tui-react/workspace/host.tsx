@@ -73,7 +73,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // mode / toasts live in useSidebarHostState below.
   const [searchActive, setSearchActive] = useState(false)
 
-  // Selection + adopt-first-focus + the archived-task PTY sweep — extracted
+  // Selection + adopt-first-focus + the deleting-task PTY sweep — extracted
   // verbatim to use-workspace-selection.ts (file-size cap split).
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,

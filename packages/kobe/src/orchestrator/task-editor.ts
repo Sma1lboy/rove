@@ -164,14 +164,6 @@ export class TaskEditor {
    * pinned flag. Edge-stop: `store.move` past the partition's first/last is
    * a no-op, never a wrap.
    */
-  /**
-   * DEPRECATED (issue #75): archive concept removed; no-op. Kept as a shim
-   * so not-yet-cleaned callers still compile while C2 removes them.
-   */
-  async setArchived(_id: TaskId | string, _archived?: boolean): Promise<void> {
-    /* no-op — archive concept removed */
-  }
-
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
     const isMain = task.kind === "main"

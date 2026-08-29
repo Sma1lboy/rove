@@ -29,12 +29,10 @@ A managed Task owns one Worktree and may own several Terminal Tabs. Project-main
 Tasks reuse the saved repository checkout; directory Tasks reuse a user-owned
 directory. Those two variants do not own a Rove-created worktree or branch.
 
-Archive is non-destructive but stops live hosted sessions for managed and
-directory Tasks; project main cannot be archived. Explicit delete is
-kind-aware: the main row's delete action forgets the saved project while
-keeping its repository and managed Tasks, a directory Task removes only its
-Rove record, and a managed Task removes its Worktree after the dirty-worktree
-safety check before attempting to remove its task branch.
+Explicit delete is kind-aware: the main row's delete action forgets the saved
+project while keeping its repository and managed Tasks, a directory Task
+removes only its Rove record, and a managed Task removes its Worktree after
+the dirty-worktree safety check before attempting to remove its task branch.
 
 ### 3. Process ownership is explicit
 

@@ -82,9 +82,9 @@ export interface TaskActionContext {
    */
   readonly reload?: () => Promise<void>
   /**
-   * DIVERGENCE — publish the shared active-task focus after archive/delete
-   *. The Tasks pane sets this; the outer monitor historically
-   * didn't and keeps that behavior.
+   * DIVERGENCE — publish the shared active-task focus after delete.
+   * The Tasks pane sets this; the outer monitor historically didn't and
+   * keeps that behavior.
    */
   readonly updateActiveTask?: boolean
   /**
@@ -96,7 +96,7 @@ export interface TaskActionContext {
 }
 
 export function nextActiveTask(tasks: readonly Task[], excludeId: string): Task | undefined {
-  return tasks.find((t) => t.id !== excludeId && !t.archived)
+  return tasks.find((t) => t.id !== excludeId)
 }
 
 async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefix: string): Promise<void> {
@@ -112,57 +112,18 @@ async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefi
 }
 
 /**
- * True when `taskId` is the CURRENTLY active task, so archive/delete should
- * hand the shared active-task focus to the next task. Archiving/deleting a
- * BACKGROUND task must not steal focus from whatever is active — the old
- * unconditional `setActiveTask(nextTask)` did exactly that (bug #6). Both real
- * orchestrators expose `activeTaskSignal()`; when it's absent (a bare test
- * mock) we fall back to `true` to preserve the pre-guard behavior rather than
- * throw — real usage always resolves the active id and gets the guard.
+ * True when `taskId` is the CURRENTLY active task, so delete should hand the
+ * shared active-task focus to the next task. Deleting a BACKGROUND task must
+ * not steal focus from whatever is active — the old unconditional
+ * `setActiveTask(nextTask)` did exactly that (bug #6). Both real orchestrators
+ * expose `activeTaskSignal()`; when it's absent (a bare test mock) we fall back
+ * to `true` to preserve the pre-guard behavior rather than throw — real usage
+ * always resolves the active id and gets the guard.
  */
 function removedTaskIsActive(orch: KobeOrchestrator, taskId: string): boolean {
   const read = (orch as { activeTaskSignal?: () => () => string | null }).activeTaskSignal
   if (typeof read !== "function") return true
   return read.call(orch)() === taskId
-}
-
-export async function toggleTaskArchivedFlow(opts: {
-  readonly orch: KobeOrchestrator
-  readonly tasks: readonly Task[]
-  readonly taskId: string
-  readonly logger: TaskActionLogger
-  readonly logPrefix: string
-  readonly updateActiveTask?: boolean
-}): Promise<{ archived: boolean; nextTask?: Task } | null> {
-  const task = opts.tasks.find((t) => t.id === opts.taskId)
-  if (!task) return null
-  const archived = !task.archived
-  try {
-    await opts.orch.setArchived(opts.taskId, archived)
-  } catch (err) {
-    opts.logger.error(`${opts.logPrefix} archive failed:`, err)
-    return null
-  }
-  if (!archived) return { archived }
-
-  // Archiving STOPS the task's running engine: clear active-task focus, then
-  // kill its hosted sessions so an archived task doesn't
-  // keep a live engine subprocess burning resources/tokens. Non-destructive to
-  // DATA — the worktree, branch, and chat history stay on disk and the session
-  // is rebuilt fresh on unarchive / next enter. Gated behind a confirm at the
-  // call site (it ends a running session). Mirrors finishDeletedTaskFlow's
-  // teardown; the difference from delete is purely that the task record + its
-  // worktree survive.
-  const nextTask = nextActiveTask(opts.tasks, opts.taskId)
-  // Only re-point the shared active-task focus when the archived task WAS the
-  // active one. Archiving a background task must not yank every surface's focus
-  // onto some other task (mirrors switchClientBeforeKill's current!=target
-  // guard). The active-task channel keeps pointing where it did.
-  if (opts.updateActiveTask && removedTaskIsActive(opts.orch, opts.taskId)) {
-    await opts.orch.setActiveTask(nextTask?.id ?? null).catch(() => {})
-  }
-  await stopHostedTask(opts.taskId, opts.logger, opts.logPrefix)
-  return { archived, nextTask }
 }
 
 export async function finishDeletedTaskFlow(opts: {
@@ -175,44 +136,12 @@ export async function finishDeletedTaskFlow(opts: {
 }): Promise<{ nextTask?: Task }> {
   const nextTask = nextActiveTask(opts.tasks, opts.taskId)
   // Only re-point shared active-task focus when the DELETED task was the active
-  // one — deleting a background task must leave the current focus alone (same
-  // guard as the archive flow above).
+  // one — deleting a background task must leave the current focus alone.
   if (opts.updateActiveTask && opts.orch && removedTaskIsActive(opts.orch, opts.taskId)) {
     await opts.orch.setActiveTask(nextTask?.id ?? null).catch(() => {})
   }
   await stopHostedTask(opts.taskId, opts.logger, opts.logPrefix)
   return { nextTask }
-}
-
-/**
- * Archive (or unarchive) a task. Unarchive is harmless — brings the task
- * back, no confirm. Archiving STOPS the task's running engine session, so
- * it confirms first, then runs the shared stop-and-kill teardown
- * ({@link toggleTaskArchivedFlow}).
- */
-export async function archiveTaskFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
-  if (!ctx.orch) return
-  const task = ctx.tasks().find((t) => t.id === taskId)
-  if (!task) return
-  if (!task.archived) {
-    const ok = await ctx.confirm({
-      title: `Archive "${task.title}"?`,
-      body: "Moves it to Archives and stops its running session. The worktree, branch, and chat history stay — unarchive to bring it back.",
-      cancelLabel: "cancel",
-      confirmLabel: "archive",
-    })
-    if (!ok) return
-  }
-  const result = await toggleTaskArchivedFlow({
-    orch: ctx.orch,
-    tasks: ctx.tasks(),
-    taskId,
-    logger: ctx.logger,
-    logPrefix: ctx.logPrefix,
-    updateActiveTask: ctx.updateActiveTask,
-  })
-  if (!result) return
-  await ctx.reload?.()
 }
 
 /**

@@ -115,7 +115,7 @@ describe("runAutoTitlePass", () => {
     expect(orch.getTask(solo)?.title).toBe("same prompt title")
   })
 
-  test("a lone group member (siblings archived/deleted away) gets no ordinal", async () => {
+  test("a lone group member (siblings deleted away) gets no ordinal", async () => {
     const only = await makeTask({ worktree: "/wt/only", groupId: "g-solo" })
     await runAutoTitlePass(orch, async () => "derived")
     expect(orch.getTask(only)?.title).toBe("derived")

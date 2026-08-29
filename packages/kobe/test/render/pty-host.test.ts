@@ -205,7 +205,7 @@ describe("PtyHost", () => {
     }
   })
 
-  test("sweepTasks kills sessions whose task is archived/gone", async () => {
+  test("sweepTasks kills sessions whose task is gone", async () => {
     const host = makeHost()
     host.open("live-task::tab1", SPEC, {}, collector().sink)
     host.open("dead-task::tab1", SPEC, {}, collector().sink)

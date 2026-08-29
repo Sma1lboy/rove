@@ -69,7 +69,6 @@ function task(branch: string): Task {
     worktreePath: "",
     status: "backlog",
     kind: "task",
-    archived: false,
     createdAt: now,
     updatedAt: now,
   }

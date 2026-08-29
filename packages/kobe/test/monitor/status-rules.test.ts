@@ -17,7 +17,6 @@ const task = (over: Partial<Task>): Task =>
     worktreePath: "/repo/.kobe/worktrees/demo",
     kind: "task",
     status: "backlog",
-    archived: false,
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
     ...over,

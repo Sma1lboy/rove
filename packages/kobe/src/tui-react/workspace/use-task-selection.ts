@@ -46,10 +46,10 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
  * Boot/fallback selection, in trust order: the daemon's active task → the
  * persisted `lastActive` record (survives daemon confusion: a stale or
  * freshly-respawned daemon can replay a null/ancient focus while disk still
- * knows the truth) → the most recently UPDATED unarchived task. Raw array
- * order is never used as a tiebreak — tasks.json leads with the oldest
- * saved repo's main task, which is how every SSH reconnect used to land on
- * an untouched project instead of the one being worked on.
+ * knows the truth) → the most recently UPDATED live task. Raw array order is
+ * never used as a tiebreak — tasks.json leads with the oldest saved repo's
+ * main task, which is how every SSH reconnect used to land on an untouched
+ * project instead of the one being worked on.
  */
 export function firstSelectableTask(
   tasks: readonly Task[],
@@ -57,11 +57,10 @@ export function firstSelectableTask(
   lastActiveId?: string | null,
 ): Task | undefined {
   const alive = (id: string | null | undefined): Task | undefined =>
-    id ? tasks.find((task) => task.id === id && !task.archived && !task.deletion) : undefined
+    id ? tasks.find((task) => task.id === id && !task.deletion) : undefined
   const active = alive(activeId) ?? alive(lastActiveId)
   if (active) return active
-  const unarchived = tasks.filter((task) => !task.archived && !task.deletion)
-  if (unarchived.length > 0)
-    return unarchived.reduce((newest, task) => (task.updatedAt > newest.updatedAt ? task : newest))
+  const live = tasks.filter((task) => !task.deletion)
+  if (live.length > 0) return live.reduce((newest, task) => (task.updatedAt > newest.updatedAt ? task : newest))
   return tasks.find((task) => !task.deletion)
 }

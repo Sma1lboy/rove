@@ -118,14 +118,12 @@ describe("TaskIndexStore multi-process consistency", () => {
     const first = {
       ...input("first"),
       id: "01J000000000000000000FIRST",
-      archived: false,
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     }
     const second = {
       ...input("second"),
       id: "01J00000000000000000SECOND",
-      archived: false,
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     }
@@ -155,7 +153,6 @@ describe("TaskIndexStore multi-process consistency", () => {
           {
             ...input("gone"),
             id: "01J0000000000000000000GONE",
-            archived: false,
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
           },

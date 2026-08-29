@@ -49,7 +49,7 @@ const POLL_MS = 5_000
 /** Tasks whose directory can already own a scratch shell's cwd. */
 export function scratchOwnerTasks(tasks: readonly Task[]): ScratchOwnerTask[] {
   return tasks
-    .filter((task) => !task.archived && !task.deletion && task.scratch !== true && task.worktreePath !== "")
+    .filter((task) => !task.deletion && task.scratch !== true && task.worktreePath !== "")
     .map((task) => ({ id: task.id, kind: task.kind ?? "task", dir: canonPath(task.worktreePath) }))
 }
 

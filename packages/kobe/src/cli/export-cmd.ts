@@ -41,7 +41,7 @@ const EXPORT_USAGE = [
 
 /** Columns emitted per task, in order. The single source of truth for
  *  every format's field set + header labels. */
-const COLUMNS = ["id", "title", "status", "archived", "vendor", "branch", "repo", "worktreePath"] as const
+const COLUMNS = ["id", "title", "status", "vendor", "branch", "repo", "worktreePath"] as const
 type Column = (typeof COLUMNS)[number]
 
 /** Flatten one task to the exported row (vendor normalized to the default). */
@@ -50,7 +50,6 @@ function toRow(task: Task): Record<Column, string> {
     id: task.id,
     title: task.title,
     status: task.status,
-    archived: String(task.archived),
     vendor: task.vendor ?? DEFAULT_TASK_VENDOR,
     branch: task.branch,
     repo: task.repo,
@@ -123,16 +122,10 @@ function renderTable(rows: readonly Record<Column, string>[]): string {
 
 /** Build the export text for a given format (exported for unit tests). */
 export function renderExport(tasks: readonly Task[], format: ExportFormat): string {
-  // JSON keeps `archived` a real boolean (`jq 'select(.archived)'` must work);
-  // the stringified flattening is only for the CSV/table cell shapes.
-  if (format === "json") {
-    return JSON.stringify(
-      tasks.map((t) => ({ ...toRow(t), archived: t.archived })),
-      null,
-      2,
-    )
-  }
   const rows = tasks.map(toRow)
+  if (format === "json") {
+    return JSON.stringify(rows, null, 2)
+  }
   if (format === "csv") return renderCsv(rows)
   return renderTable(rows)
 }

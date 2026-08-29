@@ -26,7 +26,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,
@@ -160,7 +159,7 @@ describe("buildTreeRows", () => {
 
   test("a scratch task whose tabs never mounted keeps its worktree row as the only handle", () => {
     // Zero rows would make the task invisible AND unnavigable; the fallback
-    // row is what the cursor (and delete/archive) can still land on.
+    // row is what the cursor (and delete) can still land on.
     const result = rows({ tasks: [task("s", { kind: "dir", scratch: true, repo: "/Users/me" })] })
     expect(result.map((r) => [r.kind, r.id])).toEqual([
       ["project", SCRATCH_SECTION_ID],

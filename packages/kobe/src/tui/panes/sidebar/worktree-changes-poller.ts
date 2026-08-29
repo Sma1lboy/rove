@@ -16,9 +16,9 @@
  * goes stale or stays hidden rather than flashing a bogus zero, the same
  * "never error, just hide" contract as the sync helper.
  *
- * Archived rows never call `poll()` at all (Sidebar gates on
- * `task.archived`): an Archives listing must not pay git-status for
- * worktrees the user has shelved — that's the exact original bug.
+ * Deleted rows never call `poll()` at all (the Sidebar shows only live
+ * tasks): a deleted task must not pay git-status for worktrees that no
+ * longer matter — that's the exact original bug.
  *
  * Since issue #6 this poller is the NO-DAEMON FALLBACK only: when a
  * connected daemon advertises the `worktree.changes` channel (one

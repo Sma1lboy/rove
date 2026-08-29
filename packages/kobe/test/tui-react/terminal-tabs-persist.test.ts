@@ -1,9 +1,8 @@
 /**
  * Locks the O19 reclamation contract: a DELETED task's `terminalTabs.*`
- * snapshot is dropped, an ARCHIVED task's is kept (unarchive --resume needs
- * it), and the one-time orphan sweep drops only keys whose task id is absent
- * from the live set — with archived task ids in that set so their snapshots
- * survive. Uses a fake kv mirroring kv-core's explicit-undefined delete.
+ * snapshot is dropped, and the one-time orphan sweep drops only keys whose
+ * task id is absent from the live set. Uses a fake kv mirroring kv-core's
+ * explicit-undefined delete.
  */
 
 import { describe, expect, it } from "vitest"
@@ -47,19 +46,16 @@ describe("forgetTaskTabsSnapshot", () => {
 })
 
 describe("sweepOrphanTabsSnapshots", () => {
-  it("drops orphans, keeps live AND archived tasks, ignores non-prefix keys", () => {
+  it("drops orphans, keeps live tasks, ignores non-prefix keys", () => {
     const kv = fakeKv({
       [terminalTabsKey("live")]: { tabs: [] },
-      [terminalTabsKey("archived")]: { tabs: [] },
       [terminalTabsKey("orphan1")]: { tabs: [] },
       [terminalTabsKey("orphan2")]: { tabs: [] },
       activeSortMode: "recent",
     })
-    // liveTaskIds MUST include archived tasks — their snapshots are kept.
-    const swept = sweepOrphanTabsSnapshots(kv, ["live", "archived"])
+    const swept = sweepOrphanTabsSnapshots(kv, ["live"])
     expect(swept).toBe(2)
     expect(kv.store[terminalTabsKey("live")]).toEqual({ tabs: [] })
-    expect(kv.store[terminalTabsKey("archived")]).toEqual({ tabs: [] })
     expect(kv.store[terminalTabsKey("orphan1")]).toBeUndefined()
     expect(kv.store[terminalTabsKey("orphan2")]).toBeUndefined()
     expect(kv.store.activeSortMode).toBe("recent")

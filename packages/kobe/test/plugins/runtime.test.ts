@@ -47,7 +47,6 @@ function snapshotEvent(ids: string[]) {
     worktreePath: "/w",
     kind: "task",
     status: "active",
-    archived: false,
     pinned: false,
     createdAt: "x",
     updatedAt: "x",

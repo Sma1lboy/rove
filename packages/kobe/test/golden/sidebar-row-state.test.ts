@@ -174,7 +174,6 @@ test("every field of SidebarRowView is either recorded in the golden or explicit
       worktreePath: "/wt/x",
       kind: "task",
       status: "in_progress",
-      archived: false,
       pinned: false,
       vendor: "claude",
       createdAt: "2026-01-01T00:00:00.000Z",

@@ -106,15 +106,15 @@ describe("foldScratchShell", () => {
 })
 
 describe("scratchOwnerTasks", () => {
-  it("keeps main/dir/managed rows, drops scratch/archived/pathless ones", () => {
-    const base = { repo: "/r", branch: "", status: "backlog", archived: false } as unknown as Task
+  it("keeps main/dir/managed rows, drops scratch and pathless ones", () => {
+    const base = { repo: "/r", branch: "", status: "backlog" } as unknown as Task
     const tasks = [
       { ...base, id: "a", kind: "main", worktreePath: "/r" },
       { ...base, id: "b", kind: "task", worktreePath: "/w/b" },
       { ...base, id: "c", kind: "dir", scratch: true, worktreePath: "/home" },
-      { ...base, id: "d", kind: "dir", worktreePath: "/r/sub", archived: true },
+      { ...base, id: "d", kind: "dir", worktreePath: "/r/sub" },
       { ...base, id: "e", kind: "task", worktreePath: "" },
     ] as unknown as Task[]
-    expect(scratchOwnerTasks(tasks).map((t) => t.id)).toEqual(["a", "b"])
+    expect(scratchOwnerTasks(tasks).map((t) => t.id)).toEqual(["a", "b", "d"])
   })
 })

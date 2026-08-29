@@ -334,10 +334,9 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
 /**
  * Reclaim a DELETED task's in-process + persisted tab state (O19): drop its
  * `tabsByTask` entry (module-level, otherwise only-grows) and its
- * `terminalTabs.*` kv snapshot. Call from the task-DELETE flow only — never
- * the archived sweep (an archived task must keep its snapshot to
- * unarchive-and-`--resume`). Its PTYs are released separately by the host's
- * archived-task sweep / the tab's own exit path.
+ * `terminalTabs.*` kv snapshot. Call from the task-DELETE flow only. Its PTYs
+ * are released separately by the host's deleting-task sweep / the tab's own
+ * exit path.
  */
 export function forgetTaskTabs(kv: TabsSnapshotKv, taskId: string): void {
   tabsByTask.delete(taskId)

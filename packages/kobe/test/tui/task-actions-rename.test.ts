@@ -1,6 +1,6 @@
 /**
  * Rename/branch/vendor flows from `src/tui/lib/task-actions.ts` — split out
- * of task-actions.test.ts (delete/archive flows) to keep both files under the
+ * of task-actions.test.ts (delete flows) to keep both files under the
  * ~500-line cap. Same harness shape: modal UI arrives as context adapters, so
  * the flows run with plain mocks; engine detection is
  * module-mocked (every export the flows touch is stubbed).
@@ -30,7 +30,6 @@ function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
     branch: `kobe/${overrides.id}`,
     worktreePath: `/wt/${overrides.id}`,
     status: "todo",
-    archived: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,

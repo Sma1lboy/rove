@@ -1,9 +1,9 @@
 /**
  * Workspace task selection — extracted verbatim from WorkspaceRoot
  * (file-size cap split): the selected-task state, the adopt-first-focus
- * rule, the archived/deleted-task PTY sweep, and the select/activate
- * actions. The framework-free activation policy stays in
- * use-task-selection.ts; this hook owns only the React reactivity.
+ * rule, the deleting-task PTY sweep, and the select/activate actions.
+ * The framework-free activation policy stays in use-task-selection.ts; this
+ * hook owns only the React reactivity.
  */
 
 import { useEffect, useRef, useState } from "react"
@@ -34,7 +34,7 @@ export function useWorkspaceSelection(args: {
 }): WorkspaceSelection {
   const { orch, tasks, activeTaskId, kv } = args
   // Seed from the daemon's replayed focus, else the persisted lastActive
-  // record — the adopt/fallback effect below corrects a stale/archived id.
+  // record — the adopt/fallback effect below corrects a stale/deleting id.
   const [selectedId, setSelectedId] = useState<string | null>(() => orch.activeTaskSignal()() ?? readLastActiveTaskId())
 
   const focusRestoredRef = useRef(false)
@@ -59,13 +59,11 @@ export function useWorkspaceSelection(args: {
       bootFocusRef.current = true
       args.focusWorkspace()
     }
-    // An archived/deleting task is NOT a valid selection (issue #34): the
-    // snapshot still contains it, but its sidebar row is gone (#473) and the
-    // PTY sweep below kills its sessions — leaving selection on it kept its
-    // Terminal mounted, which answered the kill with a dead-on-attach RESUME:
-    // a fresh engine spawn (full center-pane repaint, the archive "flash")
-    // that resurrected the very session archiving is documented to stop.
-    if (selectedId && tasks.some((task) => task.id === selectedId && !task.archived && !task.deletion)) return
+    // A deleting task is NOT a valid selection (issue #34): the snapshot
+    // still contains it, but its sidebar row is gone (#473) and the PTY sweep
+    // below kills its sessions — leaving selection on it kept its Terminal
+    // mounted, which answered the kill with a dead-on-attach RESUME.
+    if (selectedId && tasks.some((task) => task.id === selectedId && !task.deletion)) return
     // Fallback carries the persisted lastActive record too — a stale or
     // freshly-respawned daemon can replay a null focus while disk still
     // knows the real one (the "reopens on the oldest project" bug).
@@ -73,9 +71,8 @@ export function useWorkspaceSelection(args: {
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
 
   // One-time orphan sweep (O19): clear `terminalTabs.*` snapshots whose task
-  // no longer exists. Runs once on first hydration (raw signal → archived
-  // tasks kept, their snapshots feed unarchive --resume); ref not dep, so a
-  // later task-list change never re-sweeps a live task's fresh snapshot.
+  // no longer exists. Runs once on first hydration; ref not dep, so a later
+  // task-list change never re-sweeps a live task's fresh snapshot.
   const sweptOrphansRef = useRef(false)
   useEffect(() => {
     if (sweptOrphansRef.current || tasks.length === 0) return
@@ -86,15 +83,15 @@ export function useWorkspaceSelection(args: {
     )
   }, [tasks, kv])
 
-  // PTY lifecycle (issue #16): archiving/deleting a task must end every
-  // engine session it owns — its tab PTYs are keyed `taskId::tabId` in the
-  // default registry, invisible to the pane once unmounted. Watch the task
-  // snapshot and release the corpses; the pane never kills (registry docs),
-  // so this is the one place tab shells die with their task.
+  // PTY lifecycle (issue #16): deleting a task must end every engine session
+  // it owns — its tab PTYs are keyed `taskId::tabId` in the default registry,
+  // invisible to the pane once unmounted. Watch the task snapshot and release
+  // the corpses; the pane never kills (registry docs), so this is the one
+  // place tab shells die with their task.
   const liveTaskIdsRef = useRef<ReadonlySet<string>>(new Set())
   const worktreePathsRef = useRef<ReadonlyMap<string, string>>(new Map())
   useEffect(() => {
-    const next = new Set<string>(tasks.filter((task) => !task.archived).map((task) => task.id))
+    const next = new Set<string>(tasks.filter((task) => !task.deletion).map((task) => task.id))
     const registry = getDefaultPtyRegistry()
     for (const id of liveTaskIdsRef.current) {
       if (!next.has(id)) registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
@@ -106,7 +103,7 @@ export function useWorkspaceSelection(args: {
     // in the tree, its snapshot would respawn them, and their PTYs kept
     // shells alive in a deleted directory. A non-empty → empty transition
     // is the observable edge; task deletion itself is already covered by
-    // the delete flow's forgetTaskTabs + the archived sweep above.
+    // the delete flow's forgetTaskTabs + the live-task sweep above.
     const paths = new Map<string, string>()
     for (const task of tasks) paths.set(task.id, task.worktreePath)
     for (const [id, prevPath] of worktreePathsRef.current) {

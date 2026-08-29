@@ -23,7 +23,6 @@ function task(id: string, overrides: Partial<DaemonTask> = {}): DaemonTask {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     vendor: "claude",
     createdAt: PAST,
     updatedAt: PAST,

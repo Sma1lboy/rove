@@ -77,9 +77,8 @@ export function useSpinnerFrame(active: boolean): number {
 
 /**
  * Per-row `+N −M` counts: daemon-pushed when available, else the local
- * poller cache (poll scheduled in an effect; archived rows never poll).
- * `shared` is structural — the card props and the tree's row props both
- * carry the two fields it reads.
+ * poller cache (poll scheduled in an effect). `shared` is structural — the
+ * card props and the tree's row props both carry the two fields it reads.
  */
 export function useChanges(
   shared: Pick<SidebarRowCardSharedProps, "branchTick" | "worktreeChanges">,
@@ -90,9 +89,9 @@ export function useChanges(
   useEffect(() => {
     // Dependency-only invalidation key: re-poll on the sidebar's ~2s tick.
     void shared.branchTick
-    if (hasPushed || task.archived) return
+    if (hasPushed) return
     pollWorktreeChanges(task.worktreePath)
-  }, [hasPushed, task.archived, task.worktreePath, shared.branchTick])
+  }, [hasPushed, task.worktreePath, shared.branchTick])
   return pushed ?? worktreeChanges(task.worktreePath)
 }
 

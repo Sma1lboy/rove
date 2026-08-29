@@ -17,7 +17,7 @@ import { act, renderComponent } from "./harness"
 // value every call and loops forever. Every snapshot here is a frozen constant.
 const EMPTY = Object.freeze({})
 const NO_TASKS = Object.freeze([]) as readonly Task[]
-const ONE_TASK = Object.freeze([{ id: "t1", archived: false }]) as unknown as readonly Task[]
+const ONE_TASK = Object.freeze([{ id: "t1" }]) as unknown as readonly Task[]
 
 const store = <T,>(value: T) => ({ subscribe: () => () => {}, get: () => value })
 

@@ -36,7 +36,7 @@ function task(): Task {
     worktreePath: "/repo/kobe/worktrees/sidebar",
     kind: "task",
     status: "backlog", // neutral lifecycle so the badge comes purely from activity
-    archived: false,
+
     pinned: false,
     vendor: "claude",
     createdAt: "2026-01-01T00:00:00.000Z",

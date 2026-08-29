@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Zero-tasks welcome panel — the workspace center column's empty state when
- * NO task exists yet (first launch, or everything archived). Passive, never
+ * NO task exists yet (first launch, or no tasks). Passive, never
  * modal: it teaches the three keys QUICKSTART.md teaches (new task / help /
  * command menu), resolved from the LIVE keymap so a rebound chord shows its
  * real cap and an unbound one drops, and it is honest about the environment

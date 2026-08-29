@@ -86,7 +86,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Pin / unpin task at top (Shift+P)",
     hint: { keys: "P" },
   },
-  // `sidebar.view` ([/]) and `sidebar.archive` (a) retired with the Archived
+  // `sidebar.view` ([/]) and `sidebar.archive` (a) retired with the archived
   // view (issue #75) — the sidebar shows only the working set now; both chords
   // are free again.
   {

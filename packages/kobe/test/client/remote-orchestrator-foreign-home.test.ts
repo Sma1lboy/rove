@@ -27,7 +27,6 @@ const FOREIGN_TASK = {
   worktreePath: "/sandbox/wt",
   kind: "main",
   status: "backlog",
-  archived: false,
   pinned: false,
   vendor: "claude",
   createdAt: "2026-08-13T00:00:00.000Z",

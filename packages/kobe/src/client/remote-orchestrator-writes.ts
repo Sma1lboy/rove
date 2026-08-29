@@ -108,15 +108,6 @@ export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, 
   await client.request("task.move", { taskId: String(id), direction: delta < 0 ? "up" : "down" })
 }
 
-/** DEPRECATED (issue #75): archive concept removed; no-op on the daemon. */
-export async function setArchivedOp(
-  _client: KobeDaemonClient,
-  _id: TaskId | string,
-  _archived?: boolean,
-): Promise<void> {
-  /* no-op — archive concept removed */
-}
-
 export async function setStatusOp(client: KobeDaemonClient, id: TaskId | string, status: TaskStatus): Promise<void> {
   await client.request("task.status", { taskId: String(id), status })
 }

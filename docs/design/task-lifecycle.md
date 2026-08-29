@@ -1,24 +1,24 @@
-# Task Lifecycle: Delete Keeps the Branch, Archive Becomes GC
+# Task Lifecycle: Delete Keeps the Branch, Archive Removed
 
-> Design record for issue #29 (2026-08-15). Direction: **the task list is a
-> workbench, not an archive — git is the durable record.** A task row exists
-> while there is live work; once the work is merged, the row should get out of
-> the way and the branch stays behind as history.
+> Design record for issue #29 (2026-08-15), **superseded by issue #75
+> (2026-08-29).** Direction: **the task list is a workbench, not an archive —
+> git is the durable record.** A task row exists while there is live work; once
+> the work is merged, the row should get out of the way and the branch stays
+> behind as history. The original design kept `archive` as an internal GC
+> state; issue #75 removed the concept entirely.
 
-## 1. The three changes
+## 1. The changes
 
 1. **`delete` keeps the branch by default.** Removing a task destroys the
    worktree and the index entry; the git branch survives unless the caller
    passes `--delete-branch` (the same opt-in flag `land` already has).
-   Shipped with this document.
-2. **`archive` is demoted from a user concept to an internal "closed,
-   awaiting GC" state.** The recommended path is: land (or merge via PR) →
-   the worktree is cleaned up automatically → the row disappears from the
-   sidebar. The `archive` verb and the `a` chord remain as compatibility
-   aliases, but docs stop recommending them. Auto-GC is a follow-up issue;
-   this document is its contract.
+2. **`archive` is removed as a user concept and as a task field.** There is no
+   archived state, no Archived sidebar view, no `a` chord, and no `archive`
+   verb. The recommended path is: land (or merge via PR) → the worktree is
+   cleaned up automatically → the row disappears from the sidebar. Auto-GC is
+   a follow-up issue; this document is its contract.
 3. **The sidebar filters by repo context** (a pure view-layer filter — no
-   session or grouping entity is persisted). Shipped with this document.
+   session or grouping entity is persisted).
 
 ## 2. Why delete must not delete the branch
 
@@ -44,15 +44,15 @@ The new contract:
 - Dirty-worktree refusal is unchanged: a dirty worktree still requires
   `--force`.
 
-## 3. Archive → internal GC state
+## 3. Removed task state → internal GC state
 
-### 3.1 What archive is today
+### 3.1 What archive was
 
 `task.archived: boolean` + a sidebar "Archived" view + the `a` chord + the
-`archive` verb. Archiving stops hosted sessions but keeps worktree, branch,
-and history. In practice it is a manual "I'm done with this row" gesture that
-users must remember to perform — the workbench fills up with merged tasks
-until someone sweeps.
+`archive` verb. Archiving stopped hosted sessions but kept worktree, branch,
+and history. It was a manual "I'm done with this row" gesture that users had
+to remember to perform — the workbench filled up with merged tasks until
+someone swept.
 
 ### 3.2 Target state
 
@@ -123,22 +123,17 @@ triggers: abandoned work is a user decision, not a janitor's.
 | Sidebar row | disappears from the workbench view |
 | Git branch | **kept, always** |
 | Engine transcript/history | kept (engine store is keyed by worktree path; the archived-history preview already reads it after worktree removal) |
-| Hosted sessions | stopped (same teardown archive performs today) |
+| Hosted sessions | stopped (same teardown delete performs today) |
 
-Open question for the implementation issue: whether a GCed task keeps its
-`tasks.json` entry (with `archived: true` + no worktree, reachable via the
-existing Archived view) or is dropped entirely. Recommendation: **keep the
-entry** initially — it preserves the archived-history preview and makes GC
-reversible-ish (recreate the worktree from the branch), and dropping rows can
-be a later tightening once trust is established.
+A settled task is dropped from `tasks.json` entirely; the branch remains in
+git and can be re-adopted if needed.
 
 ### 3.5 Compatibility
 
-- `rove api archive` stays, behavior unchanged (manual flag flip + session
-  teardown). Docs describe it as a legacy/manual override, not the
-  recommended path.
-- The sidebar Archived view stays as the window onto settled tasks.
-- The `a` chord stays bound.
+- `rove api archive` was removed in issue #75. Use `delete` to reclaim the
+  worktree while keeping the branch.
+- The sidebar Archived view was removed.
+- The `a` chord was freed.
 
 ### 3.6 Follow-up scope
 

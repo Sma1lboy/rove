@@ -32,7 +32,6 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
     taskIds = []
     for (const t of tasks) {
-      if (t.archived) continue
       if (groupFlag && t.groupId !== groupFlag) continue
       if (target !== null && (await runtime.resolveRepoRoot(t.repo)) !== target) continue
       taskIds.push(t.id)

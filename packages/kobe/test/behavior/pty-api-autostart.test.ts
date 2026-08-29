@@ -9,7 +9,7 @@ import { type BehaviorEnv, makeBehaviorEnv, makeScratchRepo, runRove } from "./h
 
 interface AddResult {
   taskId: string
-  task: { worktreePath: string; archived: boolean }
+  task: { worktreePath: string }
   session: string
   started: boolean
   engineReady: boolean
@@ -21,7 +21,6 @@ interface PtyListResult {
 }
 
 interface GetTaskResult {
-  task: { archived: boolean }
   running: boolean
 }
 
@@ -61,17 +60,16 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     expect(sessions).toContainEqual(expect.objectContaining({ key: session, alive: true }))
   }, 30_000)
 
-  it("send reuses the canonical session and archive tears it down", () => {
+  it("send reuses the canonical session and delete tears it down", () => {
     const sent = runRove(["api", "send", "--task-id", taskId, "--prompt", "follow-up", "--pretty"], env)
     expect(sent.code).toBe(0)
     const afterSend = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
     expect(afterSend.sessions.filter((entry) => entry.key === session && entry.alive)).toHaveLength(1)
 
-    const archived = runRove(["api", "archive", "--task-id", taskId, "--pretty"], env)
-    expect(archived.code).toBe(0)
+    const deleted = runRove(["api", "delete", "--task-id", taskId, "--force"], env)
+    expect(deleted.code).toBe(0)
     const task = JSON.parse(runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout) as GetTaskResult
-    expect(task.task.archived).toBe(true)
     expect(task.running).toBe(false)
-    expect(existsSync(worktreePath)).toBe(true)
+    expect(existsSync(worktreePath)).toBe(false)
   }, 30_000)
 })

@@ -11,7 +11,6 @@ function task(overrides: Partial<Task> = {}): Task {
     branch: "kobe/fix-thing-01",
     worktreePath: "/home/u/.kobe/worktrees/repo/fix-thing-01",
     status: "in_progress",
-    archived: false,
     vendor: "claude",
     createdAt: "2026-06-23T00:00:00.000Z",
     updatedAt: "2026-06-23T00:00:00.000Z",
@@ -27,7 +26,6 @@ describe("renderExport", () => {
       id: "01HZ0000000000000000000001",
       title: "Fix the thing",
       status: "in_progress",
-      archived: false,
       vendor: "claude",
       branch: "kobe/fix-thing-01",
       repo: "/home/u/repo",
@@ -43,7 +41,7 @@ describe("renderExport", () => {
   it("writes a CSV header plus one row per task", () => {
     const csv = renderExport([task(), task({ id: toTaskId("01HZ0000000000000000000002") })], "csv")
     const lines = csv.split("\n")
-    expect(lines[0]).toBe("id,title,status,archived,vendor,branch,repo,worktreePath")
+    expect(lines[0]).toBe("id,title,status,vendor,branch,repo,worktreePath")
     expect(lines).toHaveLength(3)
   })
 
@@ -61,7 +59,7 @@ describe("renderExport", () => {
 
   it("handles an empty task list per format", () => {
     expect(renderExport([], "json")).toBe("[]")
-    expect(renderExport([], "csv")).toBe("id,title,status,archived,vendor,branch,repo,worktreePath")
+    expect(renderExport([], "csv")).toBe("id,title,status,vendor,branch,repo,worktreePath")
   })
 
   it("aligns table columns by terminal display width, not code-unit length (CJK titles)", () => {

@@ -60,7 +60,7 @@ export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boo
  * Pick the DAEMON-pushed counts for a row, or `null` when the local
  * poller must serve it (issue #6). A non-null `pushed` map means a
  * daemon-side collector owns git polling for this process — a worktree
- * absent from the map (just-created task, archived row, remote project)
+ * absent from the map (just-created task, deleted row, remote project)
  * reads as zeros (chip hidden), NEVER as "poll locally": the fallback is
  * per-connection, not per-row, or every pane would re-grow git polls for
  * exactly the rows the daemon deliberately skips. Pure — unit-tested.

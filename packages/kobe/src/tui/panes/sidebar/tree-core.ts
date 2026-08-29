@@ -250,7 +250,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
 
   const rows: TreeRow[] = []
   // Scratch section first — above pinned and every project (issue #33): the
-  // bench of unfiled live shells is what you reach for next, not an archive.
+  // bench of unfiled live shells is what you reach for next.
   // The header reuses the project-row shape (id is a sentinel no repo path
   // can be — see SCRATCH_SECTION_ID); the renderer translates its label.
   if (scratchTasks.length > 0) {

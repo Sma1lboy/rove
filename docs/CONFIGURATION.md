@@ -177,7 +177,6 @@ Off by default. These can change without notice.
 | `experimental.remoteProjects` | Projects over SSH |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
 | `experimental.dispatcher` | Per-repo routing of field notes between sessions |
-| `experimental.archivedHistoryPreview` | Reserved legacy toggle; the current PureTUI has no archived-history viewer |
 
 ## Themes
 
