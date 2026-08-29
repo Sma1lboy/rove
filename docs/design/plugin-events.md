@@ -64,7 +64,6 @@ Support: **C** Claude Code · **X** Codex · **K** Kimi Code. `N` native hook,
 | `task.created` / `task.deleted` | task appears/disappears in the index | ✅ |
 | `task.changed` | any watched field changed (title/branch/status/pin/vendor/…) — snapshot-diff sourced, so EVERY mutation path fires (`detail.fields/from/to`) | ✅ (subsumes the deferred `task.status-changed`) |
 | `task.landed` | branch merged back into the base repo (`detail.strategy/landedOn/commit`) | ✅ |
-| `task.archived` | task archived by ANY path (RPC, `land --then-archive`, worktree-removal sweep); restores don't fire | ✅ (snapshot-diff sourced) |
 | `task.pr-changed` | PR status changed on the task (`detail.from/to`) | ✅ |
 | `worktree.created` | worktree materialized for a task (lazy ensure, adopt, scratch-adopt — snapshot-diff sourced) | ✅ |
 | `issue.changed` | daemon-tracker issue mutated (`detail.repo/op`) | ✅ |
@@ -190,12 +189,11 @@ builds: notify, log, mirror state, auto-file, auto-bootstrap, dashboards.
   lifecycle kinds). Async observers only — a `will-` event precedes the
   action but cannot block it.
 - **Snapshot-diff sourcing (done).** `task.changed` / `task.pr-changed` /
-  `task.archived` / `worktree.created` derive from field-level diffs of
-  consecutive `task.snapshot` publishes (`plugins/task-diff.ts`), NOT from
-  RPC handlers — every mutation path (including worktree-removal sweeps and
-  orchestrator-internal archive) funnels through the store and therefore
-  fires. `task.landed` stays handler-emitted: its detail (strategy/commit)
-  never reaches the snapshot.
+  `worktree.created` derive from field-level diffs of consecutive
+  `task.snapshot` publishes (`plugins/task-diff.ts`), NOT from RPC handlers —
+  every mutation path funnels through the store and therefore fires.
+  `task.landed` stays handler-emitted: its detail (strategy/commit) never
+  reaches the snapshot.
 - **[[shutdown]] hooks (done).** Run at daemon stop, bounded (~3s grace,
   then SIGKILL) — a plugin can flush state without ever delaying shutdown.
 - **`session.exited` (done).** The pty-host is a separate process with no

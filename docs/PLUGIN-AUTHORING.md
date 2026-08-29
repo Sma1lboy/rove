@@ -207,7 +207,6 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `task.created` / `task.deleted` | task appears/disappears in the index | task context |
 | `task.changed` | any watched task field changed (title/branch/status/pin/vendor/…), fired off the snapshot diff, so EVERY mutation path counts | `fields`, `from`, `to` |
 | `task.landed` | a task's branch merged back into its base repo | `strategy`, `landedOn`, `commit` |
-| `task.archived` | a task was archived, by ANY path: the archive RPC, `land --then-archive`, or a `git worktree remove` sweep (restores don't fire) | task context |
 | `task.pr-changed` | the task's PR status changed (open/merged/closed, checks) | `from`, `to` (TaskPRStatus) |
 | `worktree.created` | a task's worktree materialized: lazy ensure, adopt, or scratch-adopt | task context |
 | `issue.changed` | a daemon-tracker issue mutated (create/edit/status) | `repo`, `op` |
