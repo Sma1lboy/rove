@@ -93,6 +93,11 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
             </box>
           ))}
         </box>
+        <box paddingTop={1}>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("workspace.welcome.worktreeExplain")}
+          </text>
+        </box>
         {env !== null ? (
           <box flexDirection="column" paddingTop={1}>
             {env.engines.length > 0 ? (

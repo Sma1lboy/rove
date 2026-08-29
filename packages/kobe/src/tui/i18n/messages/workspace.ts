@@ -17,6 +17,9 @@ export const en = {
   welcome: {
     title: "Welcome to Rove",
     tagline: "Run several AI coding sessions side by side — each task gets its own git worktree and branch.",
+    /** What a worktree is and why every task has one. */
+    worktreeExplain:
+      "Each task creates its own git worktree directory and branch, so multiple AI sessions can edit the same codebase in parallel without colliding.",
     /** {key} is the live new-task chord */
     stepNew: "creates your first task — pick a repo, a base branch, an engine",
     /** {key} is the live help chord */
@@ -67,6 +70,7 @@ export const zh: typeof en = {
   welcome: {
     title: "欢迎使用 Rove",
     tagline: "并行运行多个 AI 编码会话——每个任务都有自己的 git worktree 和分支。",
+    worktreeExplain: "每个任务都会创建独立的 git worktree 目录和分支，多个 AI 会话可以并行修改同一份代码库，互不干扰。",
     stepNew: "创建你的第一个任务——选仓库、基础分支和引擎",
     stepHelp: "查看当前焦点下的全部快捷键",
     stepPrefix: "打开命令菜单",
