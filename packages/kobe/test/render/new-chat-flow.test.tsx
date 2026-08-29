@@ -40,6 +40,22 @@ function git(cwd: string, ...args: string[]): void {
   if (out.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${out.stderr}`)
 }
 
+/** Poll `predicate` until it returns true or `timeout` ms elapse.
+ *  Render tests drive real async FS reads through the engine history seam;
+ *  a fixed `settle()` is occasionally too short, so we wait for the expected
+ *  outcome instead of hard-coding a delay. */
+async function waitFor(
+  predicate: () => boolean | Promise<boolean>,
+  { timeout = 2000, interval = 50 }: { timeout?: number; interval?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if (await predicate()) return
+    await new Promise((resolve) => setTimeout(resolve, interval))
+  }
+  throw new Error(`waitFor timed out after ${timeout}ms`)
+}
+
 beforeAll(() => {
   // realpath: on darwin mkdtemp hands back `/var/…` but git resolves the
   // `/private/var` symlink, and the flow compares repo paths from git.
@@ -173,7 +189,14 @@ describe("requestNewChat dispatch", () => {
     act(() => captured.request({ destination: "fork", context: "continue" }))
     await settle()
     act(() => mockInput.pressEnter())
-    await settle()
+    // `forkChildTask` resolves the handoff plan asynchronously before opening
+    // the QuickTaskComposer. Wait for the composer (or a refusal toast) instead
+    // of relying on a fixed settle window — issue #77 was the composer not
+    // having rendered when the assertion ran.
+    await waitFor(async () => {
+      const f = await frame()
+      return f.includes("Quick task") || captured.errors.length > 0
+    })
     expect(await frame()).toContain("Quick task")
     await act(async () => mockInput.typeText("keep going"))
     act(() => mockInput.pressEnter())
@@ -198,7 +221,9 @@ describe("requestNewChat dispatch", () => {
     act(() => captured.request({ destination: "fork", context: "continue" }))
     await settle()
     act(() => mockInput.pressEnter())
-    await settle()
+    // Same async-plan race as the handoff test above: wait for the refusal
+    // toast instead of assuming it has fired within the fixed settle window.
+    await waitFor(() => captured.errors.length > 0)
     const after = await frame()
     expect(after).not.toContain("Quick task")
     expect(captured.errors).toEqual(["No conversation in this tab to fork yet"])
