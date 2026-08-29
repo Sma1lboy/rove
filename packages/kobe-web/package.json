@@ -69,8 +69,8 @@
     "@xterm/addon-canvas": "^0.7.0",
     "jsdom": "^28.1.0",
     "typescript": "^6.0.2",
-    "vite": "^8.1.4",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
