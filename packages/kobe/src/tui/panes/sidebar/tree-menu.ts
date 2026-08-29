@@ -31,7 +31,7 @@ export type TreeMenuAction =
   | "newTask"
   | "rename"
   | "pin"
-  | "localMerge"
+  | "reorder"
   | "archive"
   | "delete"
 
@@ -66,7 +66,7 @@ function taskVerbs(pinned: boolean): TreeMenuItem[] {
   return [
     { action: "rename", labelKey: "tasks.menu.rename" },
     { action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" },
-    { action: "localMerge", labelKey: "tasks.menu.localMerge" },
+    { action: "reorder", labelKey: "tasks.menu.reorder" },
     { action: "archive", labelKey: "tasks.menu.archive" },
     { action: "delete", labelKey: "tasks.menu.delete", danger: true },
   ]

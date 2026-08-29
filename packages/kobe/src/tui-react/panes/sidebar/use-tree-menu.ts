@@ -159,7 +159,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "pin":
           actions.onPinRequest?.(taskId)
           break
-        case "localMerge":
+        case "reorder":
           actions.onLocalMergeRequest?.(taskId)
           break
         case "archive":

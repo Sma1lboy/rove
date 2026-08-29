@@ -47,7 +47,7 @@ describe("treeMenuItems", () => {
       "newShell",
       "rename",
       "pin",
-      "localMerge",
+      "reorder",
       "archive",
       "delete",
     ])
@@ -61,7 +61,7 @@ describe("treeMenuItems", () => {
       "newShell",
       "rename",
       "pin",
-      "localMerge",
+      "reorder",
       "archive",
       "delete",
     ])
