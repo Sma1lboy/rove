@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.9.3
+
+### Patch Changes
+
+- [`c73e18f`](https://github.com/Sma1lboy/rove/commit/c73e18f2a29474bf0f5ff334397d22dfa4a71291) Rename the sidebar tree menu's misleading "Merge into local" entry to "Reorder row"
+
+  The right-click menu on worktree and tab rows offered a "Merge into local" / "合入本地分支" item that actually toggled reorder mode. The label, action id (`localMerge` → `reorder`), and i18n keys are now aligned with the existing Shift+M keybinding and the move/reorder behavior they invoke. A real land entry is intentionally not added here; that product decision belongs to issue [#66](https://github.com/Sma1lboy/rove/issues/66). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`f43e132`](https://github.com/Sma1lboy/rove/commit/f43e132b23b22822865b20c16b1ee3615e345f37) Add the TUI atlas: a script that photographs every reachable surface of the
+  terminal UI, one frame per keystroke, through the same `/harness` path the docs
+  stills use. Sixteen journeys, forty-nine frames, four parallel lanes, under two
+  minutes. Each frame carries the subject a reviewer is meant to judge, and the
+  shooter hashes consecutive frames so a step that pressed its key and changed
+  nothing is reported rather than shipped as a successful capture. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`985fa27`](https://github.com/Sma1lboy/rove/commit/985fa27d4324148da6826dfae42bead3c886b8d2) Surface land/delete results as toasts in the Worktrees page
+
+  The Worktrees page reported every land outcome (success, merge conflict,
+  dirty base, cleanup warnings, and failures) through `console.error`, which is
+  invisible under an alternate screen. Success now shows a green `done` toast,
+  conflicts/dirty-base/cleanup warnings show a yellow `needs_input` toast, and
+  failures show a red `error` toast, matching the notification pattern already
+  used by the sidebar host. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.2
 
 ### Patch Changes
