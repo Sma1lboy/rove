@@ -25,9 +25,13 @@ import { type Task, toTaskId } from "../../src/types/task.ts"
  * Every property (recursively) present and non-optional. Primitives and
  * primitive unions pass through; records recurse so nested optionals like
  * `deletion.deleteBranch` are forced too.
+ *
+ * Deprecated shim fields that are intentionally NOT persisted (e.g. issue #75
+ * `archived`) are excluded — the fixture must not assert round-tripping for a
+ * field the codec deliberately drops.
  */
 type DeepRequired<T> = {
-  [K in keyof T]-?: NonNullable<T[K]> extends string | number | boolean
+  [K in keyof T as K extends "archived" ? never : K]-?: NonNullable<T[K]> extends string | number | boolean
     ? NonNullable<T[K]>
     : DeepRequired<NonNullable<T[K]>>
 }
