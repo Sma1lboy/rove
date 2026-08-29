@@ -99,7 +99,7 @@ test("renderFullWindowPage renders WorktreesPage", async () => {
   const { frame } = await renderComponent(<box>{renderFullWindowPage(deps({ worktreesOpen: true }))}</box>, {
     width: 70,
     height: 20,
-    providers: { dialog: true },
+    providers: { dialog: true, notifications: true },
   })
   await settle()
   expect(await frame()).toContain("Worktrees")
@@ -309,6 +309,7 @@ test("useHostPagesRender surfaces a full-window page", async () => {
   const { frame } = await renderComponent(<RenderHarness width={80} initial={(pages) => pages.openWorktrees()} />, {
     width: 80,
     height: 24,
+    providers: { notifications: true },
   })
   await settle()
   expect(await frame()).toContain("Worktrees")

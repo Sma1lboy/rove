@@ -44,7 +44,7 @@ test("the row disappears before the daemon delete resolves", async () => {
   })
   const { frame, mockInput } = await renderComponent(
     <WorktreesPage orchestrator={orchestrator(() => pending)} onClose={() => {}} />,
-    { width: 70, height: 20, providers: { dialog: true } },
+    { width: 70, height: 20, providers: { dialog: true, notifications: true } },
   )
   await settle()
   expect(await frame()).toContain("feature-a")
@@ -62,7 +62,7 @@ test("the row disappears before the daemon delete resolves", async () => {
 test("a failed delete puts the row back", async () => {
   const { frame, mockInput } = await renderComponent(
     <WorktreesPage orchestrator={orchestrator(() => Promise.reject(new Error("boom")))} onClose={() => {}} />,
-    { width: 70, height: 20, providers: { dialog: true } },
+    { width: 70, height: 20, providers: { dialog: true, notifications: true } },
   )
   await settle()
   mockInput.typeText("d")

@@ -34,6 +34,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { relativeAgeMs } from "../../tui/history/message-core"
 import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
@@ -59,6 +60,24 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   const { theme } = useTheme()
   const dialog = useDialog()
   const t = useT()
+  const notif = useNotifications()
+
+  /**
+   * Surface action outcomes as on-screen toasts. Under an alternate screen a
+   * bare `console.error` is invisible (it only reaches the daemon log), so a
+   * land/delete result would otherwise look like a silent no-op. Empty
+   * taskId/tabId match the pattern in `useSidebarHostState`: this page is not
+   * scoped to a single chat tab, only the toast queue is consumed.
+   */
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
+  function notifyNeedsInput(message: string): void {
+    notif.notify({ kind: "needs_input", taskId: "", tabId: "", title: message })
+  }
+  function notifyInfo(message: string): void {
+    notif.notify({ kind: "done", taskId: "", tabId: "", title: message })
+  }
 
   const [projects, setProjects] = useState<readonly WorktreeProject[] | null>(null)
   const [reloadTick, setReloadTick] = useState(0)
@@ -146,7 +165,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
         if (confirmed === true) await deleteInBackground(row, true)
         return
       }
-      console.error(`[rove worktrees] ${t("worktrees.delete.failed", { error: String(err) })}`)
+      notifyError(t("worktrees.delete.failed", { error: String(err) }))
+      console.error("[rove worktrees] delete failed:", err)
     }
   }
 
@@ -168,7 +188,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     if (!orch || busyPath) return
     const taskId = taskIdForPath(orch, row.path)
     if (!taskId) {
-      console.error(`[rove worktrees] ${t("worktrees.land.noTask")}`)
+      notifyError(t("worktrees.land.noTask"))
+      console.error("[rove worktrees] land refused: no tracked task for", row.path)
       return
     }
     const ok = await DialogConfirm.show(
@@ -185,30 +206,30 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       // clears itself. `callerCwd` lets the daemon refuse the worktree this
       // TUI is itself running from instead of deleting its own cwd.
       const res = await orch.landTask(taskId, { callerCwd: process.cwd() })
-      console.error(
-        `[rove worktrees] ${t("worktrees.land.done", { branch: res.branch, landedOn: res.landedOn, commit: res.commit })}`,
-      )
+      notifyInfo(t("worktrees.land.done", { branch: res.branch, landedOn: res.landedOn, commit: res.commit }))
       // Two cleanup outcomes carry information, and neither is ever thrown —
-      // nothing surfaces them but this. A refused removal leaves the directory
-      // in place; a removal whose bookkeeping write failed takes the directory
-      // but leaves the task still pointing at it. They need different copy:
-      // `worktreeKept` would be actively wrong for the second.
+      // surface them as attention toasts (yellow) so the user knows there is
+      // manual follow-up. A refused removal leaves the directory in place; a
+      // removal whose bookkeeping write failed takes the directory but leaves
+      // the task still pointing at it. They need different copy: `worktreeKept`
+      // would be actively wrong for the second.
       const cleanup = res.worktree
       if (cleanup && !cleanup.removed) {
-        console.error(`[rove worktrees] ${t("worktrees.land.worktreeKept", { reason: cleanup.reason ?? "refused" })}`)
+        notifyNeedsInput(t("worktrees.land.worktreeKept", { reason: cleanup.reason ?? "refused" }))
       } else if (cleanup?.reason) {
-        console.error(`[rove worktrees] ${t("worktrees.land.worktreePathStale", { reason: cleanup.reason })}`)
+        notifyNeedsInput(t("worktrees.land.worktreePathStale", { reason: cleanup.reason }))
       }
       refetch()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       if (LAND_CONFLICT_RE.test(msg)) {
-        console.error(`[rove worktrees] ${t("worktrees.land.conflict", { files: msg })}`)
+        notifyNeedsInput(t("worktrees.land.conflict", { files: msg }))
       } else if (MAIN_DIRTY_RE.test(msg)) {
-        console.error(`[rove worktrees] ${t("worktrees.land.dirtyBase")}`)
+        notifyNeedsInput(t("worktrees.land.dirtyBase"))
       } else {
-        console.error(`[rove worktrees] ${t("worktrees.land.failed", { error: msg })}`)
+        notifyError(t("worktrees.land.failed", { error: msg }))
       }
+      console.error("[rove worktrees] land failed:", err)
     } finally {
       setBusyPath(null)
     }
