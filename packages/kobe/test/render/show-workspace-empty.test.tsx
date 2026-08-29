@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The center column's two EMPTY states. Which one renders is derived from the
- * orchestrator's task list: zero unarchived tasks teaches (the welcome panel),
- * anything else keeps the terse "select a task" line, so an existing user
- * never gets the onboarding copy back.
+ * orchestrator's task list: zero tasks teaches (the welcome panel), anything
+ * else keeps the terse "select a task" line, so an existing user never gets
+ * the onboarding copy back.
  */
 
 import { describe, expect, it } from "bun:test"
@@ -18,7 +18,6 @@ import { act, renderComponent } from "./harness"
 const EMPTY = Object.freeze({})
 const NO_TASKS = Object.freeze([]) as readonly Task[]
 const ONE_TASK = Object.freeze([{ id: "t1", archived: false }]) as unknown as readonly Task[]
-const ARCHIVED_ONLY = Object.freeze([{ id: "t1", archived: true }]) as unknown as readonly Task[]
 
 const store = <T,>(value: T) => ({ subscribe: () => () => {}, get: () => value })
 
@@ -52,10 +51,6 @@ const frameFor = async (tasks: readonly Task[]): Promise<string> => {
 describe("ShowWorkspace empty states", () => {
   it("teaches when no task exists at all", async () => {
     expect(await frameFor(NO_TASKS)).toContain("Welcome to Rove")
-  })
-
-  it("still teaches when every task is archived", async () => {
-    expect(await frameFor(ARCHIVED_ONLY)).toContain("Welcome to Rove")
   })
 
   it("keeps the terse placeholder once a live task exists", async () => {

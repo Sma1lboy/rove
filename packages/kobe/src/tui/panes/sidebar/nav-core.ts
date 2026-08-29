@@ -1,12 +1,12 @@
 /**
  * The sidebar's top-level navigation rail — one row per destination.
  *
- * Deliberately NOT the same axis as {@link SidebarView} (`active` /
- * `archived`). That one filters WHICH TASKS the list shows and stays inside
- * Workspace; this one chooses WHICH SURFACE is open. Folding them into one
- * enum would put "show archived tasks" and "open the automations page" in the
- * same list, which is how you end up with an Archives tab sitting next to a
- * Kanban tab as if they were the same kind of thing.
+ * Deliberately NOT the same axis as the task list view. The task list
+ * filters WHICH TASKS the sidebar shows and stays inside Workspace; this
+ * rail chooses WHICH SURFACE is open. Folding them into one enum would put
+ * "show archived tasks" and "open the automations page" in the same list,
+ * which is how you end up with an Archives tab sitting next to a Kanban tab
+ * as if they were the same kind of thing.
  *
  * Vertical, one per line (owner call 2026-08-01): the rail is 24 cells wide,
  * so three horizontal chips would truncate the moment a fourth arrives.

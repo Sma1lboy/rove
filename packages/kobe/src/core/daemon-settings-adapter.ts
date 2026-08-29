@@ -59,7 +59,6 @@ export function daemonSettingsSnapshot(): Response {
     editorKind: normalizeEditorKind(state[EDITOR_KIND_KEY] ?? DEFAULT_EDITOR_KIND),
     editorCustomCommand: stringValue(state[EDITOR_CUSTOM_KEY]),
     remoteProjects: state["experimental.remoteProjects"] === true,
-    archivedHistoryPreview: state["experimental.archivedHistoryPreview"] === true,
     autoStatus: state[AUTO_STATUS_KEY] === true,
     dispatcher: state[DISPATCHER_KEY] === true,
     defaultEngine,
@@ -94,7 +93,6 @@ export async function daemonSettingsPatch(request: Request): Promise<Response> {
       patch[EDITOR_KIND_KEY] = body.editorKind
     putString(patch, EDITOR_CUSTOM_KEY, body.editorCustomCommand)
     putBool(patch, "experimental.remoteProjects", body.remoteProjects)
-    putBool(patch, "experimental.archivedHistoryPreview", body.archivedHistoryPreview)
     putBool(patch, AUTO_STATUS_KEY, body.autoStatus)
     putBool(patch, DISPATCHER_KEY, body.dispatcher)
     putString(patch, "defaultVendor", body.defaultEngine)

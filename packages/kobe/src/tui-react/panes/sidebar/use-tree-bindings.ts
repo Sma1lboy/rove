@@ -38,7 +38,6 @@ export interface TreeBindingsOpts {
   readonly cursorRef: React.MutableRefObject<number>
   readonly moveCursorRow: (delta: -1 | 1) => void
   readonly onDeleteRequest?: (id: string) => void
-  readonly onArchiveRequest?: (id: string) => void
   readonly onRenameRequest?: (id: string) => void
   readonly onPinRequest?: (id: string) => void
   readonly onLocalMergeRequest?: (id: string) => void
@@ -57,7 +56,6 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
     cursorRef,
     moveCursorRow,
     onDeleteRequest,
-    onArchiveRequest,
     onRenameRequest,
     onPinRequest,
     onLocalMergeRequest,
@@ -111,11 +109,6 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
         if (moveMode) return
         markKeysUsed()
         withCursorTask(onDeleteRequest)
-      },
-      "sidebar.archive": () => {
-        if (moveMode) return
-        markKeysUsed()
-        withCursorTask(onArchiveRequest)
       },
       "sidebar.rename": () => {
         if (moveMode) return

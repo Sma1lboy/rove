@@ -13,7 +13,7 @@ export const en = {
   empty: {
     selectTask: "Select a task with a worktree",
   },
-  /** Zero-tasks welcome panel (first launch / everything archived) */
+  /** Zero-tasks welcome panel (first launch) */
   welcome: {
     title: "Welcome to Rove",
     tagline: "Run several AI coding sessions side by side — each task gets its own git worktree and branch.",

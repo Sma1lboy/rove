@@ -62,14 +62,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "r" },
   },
   {
-    id: "sidebar.archive",
-    scope: "sidebar",
-    keys: ["a"],
-    category: "Sidebar",
-    description: "Toggle archive",
-    hint: { keys: "a" },
-  },
-  {
     // Explicit shift+m chord (matchKey mints `shift+m` from Shift+M) —
     // previously keys: ["m"] with an evt.shift gate in the handler, which
     // made the id un-rebindable (FIXED_BINDING_IDS).
@@ -94,9 +86,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Pin / unpin task at top (Shift+P)",
     hint: { keys: "P" },
   },
-  // `sidebar.view` ([/]) retired with the Archived view (issue #33 IA
-  // convergence) — the sidebar shows only the working set now; the chord is
-  // free again.
+  // `sidebar.view` ([/]) and `sidebar.archive` (a) retired with the Archived
+  // view (issue #75) — the sidebar shows only the working set now; both chords
+  // are free again.
   {
     id: "sidebar.sort",
     scope: "sidebar",
@@ -118,10 +110,8 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     // top of the sidebar: typed text fuzz-matches against task title +
     // repo basename, up/down navigates the filtered list, enter selects
     // + exits, esc cancels + restores. While search is active the
-    // single-letter sidebar chords (j/k/g/G/d/a/r/P/m) are
+    // single-letter sidebar chords (j/k/g/G/d/r/P/m) are
     // de-registered so they fall through to the input as literal text.
-    // `[` / `]` view switch keeps working so the user can search inside
-    // Archives.
     id: "sidebar.search.enter",
     scope: "sidebar",
     keys: ["/"],
@@ -163,9 +153,8 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
   // pass; they were raw `{ key: "…" }` literals before), so the rows are
   // LIVE bindings there and follow user overrides from
   // `~/.rove/settings/keybindings.yaml`. New-task (n), settings (s),
-  // rename (r), archive (a), delete (d), merge (M), views ([/]), sort (t)
-  // are already covered by the Sidebar / Global rows above and aren't
-  // duplicated here.
+  // rename (r), delete (d), merge (M), sort (t) are already covered by the
+  // Sidebar / Global rows above and aren't duplicated here.
   {
     id: "tasks.openWorktree",
     scope: "sidebar",

@@ -21,7 +21,7 @@
 
 import { errorMessage } from "@/lib/error-message"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { archiveTaskFlow, cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
+import { cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
 import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-create-flow"
 import type { Task } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
@@ -38,14 +38,12 @@ export type WorkspaceTaskActionDeps = {
   setSelectedId: (id: string | null) => void
   selectedTask: () => Task | undefined
   activateTask: (id: string) => Promise<void>
-  /** Reclaim a deleted task's terminal-tab snapshot (O19). Delete only —
-   *  archive keeps the snapshot for unarchive --resume. */
+  /** Reclaim a deleted task's terminal-tab snapshot (O19). */
   forgetTaskTabs: (taskId: string) => void
 }
 
 export type WorkspaceTaskActions = {
   createTask: () => Promise<void>
-  archiveTask: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
@@ -115,7 +113,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
 
   return {
     createTask: () => createTaskFlow(taskActions),
-    archiveTask: (id) => archiveTaskFlow(taskActions, id),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,

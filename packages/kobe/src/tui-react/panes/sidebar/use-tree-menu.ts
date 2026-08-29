@@ -162,9 +162,6 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "reorder":
           actions.onLocalMergeRequest?.(taskId)
           break
-        case "archive":
-          actions.onArchiveRequest?.(taskId)
-          break
         case "delete":
           actions.onDeleteRequest?.(taskId)
           break

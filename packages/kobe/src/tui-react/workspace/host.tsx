@@ -116,9 +116,9 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     noTasksMessage: t("workspace.attention.none"),
   })
 
-  // Task-action callbacks (new/archive/delete/rename/branch/engine/pin/move)
+  // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const { createTask, archiveTask, deleteTask, renameTask, renameBranch, cycleVendor, togglePin, moveTask } =
+  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, togglePin, moveTask } =
     useWorkspaceTaskActions({
       orchestrator: orch,
       tasks: () => tasks,
@@ -297,11 +297,10 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           worktreeChanges={worktreeChanges}
           transcriptActivity={transcriptActivity}
           focused={activePane === "sidebar"}
-          // Task lifecycle (issue #20): the Sidebar's own d/a/r/p/m keys
+          // Task lifecycle (issue #20): the Sidebar's own d/r/p/m keys
           // fire these; the flows are the shared lib/task-actions bodies.
           onAddTask={() => void createTask()}
           onDeleteRequest={(id) => void deleteTask(id)}
-          onArchiveRequest={(id) => void archiveTask(id)}
           onRenameRequest={(id) => void renameTask(id)}
           onPinRequest={(id) => void togglePin(id)}
           moveMode={moveMode}

@@ -22,7 +22,6 @@ import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
-import { filterByView } from "../../../tui/panes/sidebar/groups"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
@@ -66,11 +65,6 @@ export function SidebarTree(props: SidebarTreeProps) {
   const kv = useOptionalKV()
   const focused = props.focused ?? true
   const dims = useTerminalDimensions()
-  // Archived tasks have no sidebar surface (issue #33 IA convergence): the
-  // lifecycle view split is gone — the tree always shows the working set.
-  // Archived rows remain reachable through `rove api list` and the web board
-  // until GC (issue #29) settles what an archive even is.
-  const viewTasks = useMemo(() => filterByView(props.tasks, "active"), [props.tasks])
 
   // The same ~2s branch/changes poll tick the flat sidebar runs — the row
   // cards' `useChanges`/`pollCurrentBranch` effects key on it.
@@ -82,7 +76,7 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })
   const tree = useTreeState({
-    tasks: viewTasks,
+    tasks: props.tasks,
     kv,
     selectedTaskId: props.selectedId,
     selectedTabId: props.selectedTabId ?? null,
@@ -273,7 +267,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     cursorRef,
     moveCursorRow,
     onDeleteRequest: props.onDeleteRequest,
-    onArchiveRequest: props.onArchiveRequest,
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,

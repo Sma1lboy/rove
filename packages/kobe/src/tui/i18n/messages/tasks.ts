@@ -35,7 +35,6 @@ export const en = {
     pin: "Pin",
     unpin: "Unpin",
     reorder: "Reorder row",
-    archive: "Archive",
     delete: "Delete",
   },
   /** Inline chip while move/reorder mode is active */
@@ -133,7 +132,6 @@ export const zh: typeof en = {
     pin: "置顶",
     unpin: "取消置顶",
     reorder: "重新排序",
-    archive: "归档",
     delete: "删除",
   },
   moveChip: " 移动",

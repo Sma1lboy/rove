@@ -248,7 +248,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     devRemoteProjects: () => prefs.toggleRemoteProjects(),
     devAutoStatus: () => prefs.toggleAutoStatus(),
     devDispatcher: () => prefs.toggleDispatcher(),
-    devArchivedHistory: () => prefs.toggleArchivedHistory(),
   }
 
   function activateBodyRow(): void {

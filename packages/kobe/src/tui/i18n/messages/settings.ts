@@ -165,7 +165,7 @@ export const en = {
   dev: {
     reset: "Reset UI state",
     resetHint:
-      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session / Archive lists, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
+      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session list, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
     resetButton: "[enter] Reset",
     restart: "Restart backend",
     restartHint:
@@ -183,9 +183,6 @@ export const en = {
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
     dispatcher: "Field-notes dispatcher",
-    archivedHistoryHint:
-      "Archived history preview (beta): opening an archived task shows a read-only `rove history` pane (session selector + transcript) in the engine slot instead of relaunching the engine. Its transcript survives worktree removal because the engine store is keyed by the worktree path. Shared with the web dashboard.",
-    archivedHistory: "Archived history preview",
   },
 }
 
@@ -340,7 +337,7 @@ export const zh: typeof en = {
   dev: {
     reset: "重置 UI 状态",
     resetHint:
-      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话 / 归档列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
+      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
     resetButton: "[enter] 重置",
     restart: "重启后端",
     restartHint:
@@ -358,8 +355,5 @@ export const zh: typeof en = {
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
     dispatcher: "现场笔记调度器",
-    archivedHistoryHint:
-      "归档历史预览（beta）：打开已归档的任务时，引擎位置改为只读的 `rove history` 面板（会话选择器 + 对话记录），而不是重新启动引擎。引擎记录按 worktree 路径存储，所以 worktree 被删除后历史仍然可读。与 Web 仪表盘共用同一开关。",
-    archivedHistory: "归档历史预览",
   },
 }

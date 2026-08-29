@@ -64,7 +64,7 @@ describe("Orchestrator active task recency", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:03.000Z"))
     await orch.setActiveTask(b.id)
 
-    const rows = buildRows(orch.listTasks(), "active", "", "recent")
+    const rows = buildRows(orch.listTasks(), "", "recent")
     // createTask auto-provisions the repo's `kind:"main"` project row
     // (orchestrator/core.ts) — unfocused noise for this pin, so assert the
     // RELATIVE recency order of just the three focused tasks.
