@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.6
+
+### Patch Changes
+
+- [#625](https://github.com/Sma1lboy/rove/pull/625) [`5bc9807`](https://github.com/Sma1lboy/rove/commit/5bc980705684d0641006226164af930228575058) Remove the archived-task surface from the TUI (issue [#75](https://github.com/Sma1lboy/rove/issues/75) slice B).
+
+  - The sidebar no longer has an "Archived" view; the working set is the only list.
+  - The `a` keybinding for toggling archive is removed.
+  - The tree context menu no longer shows an "Archive" action.
+  - The `experimental.archivedHistoryPreview` beta setting and its Settings → Dev row are removed.
+  - The settings API no longer exposes or persists `archivedHistoryPreview`.
+  - Related i18n keys (`tasks.menu.archive`, `sidebar.archive`, `history.archivedTag`, `settings.dev.archivedHistory*`) are removed in all locales.
+  - Existing `state.json` files with the removed key are tolerated; unknown keys do not cause parse failures. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.5
 
 ### Patch Changes
