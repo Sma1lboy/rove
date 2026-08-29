@@ -24,7 +24,7 @@
  */
 
 import type { KeyEvent, KeyHandler } from "@opentui/core"
-import { useRenderer } from "@opentui/react"
+import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
 import {
   type Binding,
@@ -87,7 +87,15 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   installedRenderer = renderer
   installed = renderer.keyInput
   listener = (evt: KeyEvent) => {
-    dispatchKeyEvent(stack, evt)
+    dispatchKeyEvent(stack, evt, Date.now(), {
+      // OpenTUI's renderer renders synchronously on input. React state updates
+      // scheduled from a non-React event listener (the keyInput emitter) are
+      // batched and would otherwise flush *after* that render pass, which can
+      // drop the just-updated subtree (e.g. a dialog body toggled by tab).
+      // Flush synchronously inside the matched cmd so the new state is
+      // committed before the renderer paints.
+      flushSync,
+    })
   }
   installed.on("keypress", listener)
 }
