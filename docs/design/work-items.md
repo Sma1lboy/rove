@@ -88,10 +88,9 @@ guessing at a fix for something that may not be broken.
 
 ## TUI
 
-**Not on the sidebar rail yet** (owner call 2026-08-01): the page works but has
-had no design pass, so it stays CLI-only until it earns a row. Its `nav` value
-and page component are still wired — re-adding the entry to
-`SIDEBAR_NAV_ITEMS` is the whole change.
+**On the sidebar rail** (owner call 2026-08-29): open it with `ctrl+a` `3` or
+by selecting **Issues** in the rail. The `rove api workitem-*` commands remain
+available when the TUI is not open.
 
 When it is shown, it is pointed at the selected task's project.
 

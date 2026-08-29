@@ -9,6 +9,7 @@
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | SCRATCH ──────────────────── |
 |  …deep/nested/project-dir    |
@@ -16,7 +17,6 @@
 | rove ─────────────────────── |
 |  feat/alpha                  |
 |▌ · build                     |
-|                              |
 |                              |
 |                              |
 |                              |

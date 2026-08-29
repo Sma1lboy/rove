@@ -9,6 +9,7 @@
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | SCRATCH ──────────────────── |
 |  · shell 1                   |
@@ -16,7 +17,6 @@
 | rove ─────────────────────── |
 |  feat/alpha                  |
 |▌ · build                     |
-|                              |
 |                              |
 |                              |
 |                              |

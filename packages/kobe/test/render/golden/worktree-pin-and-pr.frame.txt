@@ -9,6 +9,7 @@
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | rove ─────────────────────── |
 |  feat/alpha              ▴ ✓ |
@@ -16,7 +17,6 @@
 |  · review                    |
 |  feat/bravo                ✗ |
 |  · tests                     |
-|                              |
 |                              |
 |                              |
 |                              |
