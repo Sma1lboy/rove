@@ -63,7 +63,7 @@ describe("ShowWorkspace empty state", () => {
       <ShowWorkspace
         task={undefined}
         worktree={null}
-        orchestrator={fakeOrchestrator([{ id: "t1", archived: false } as unknown as Task])}
+        orchestrator={fakeOrchestrator([{ id: "t1" } as unknown as Task])}
         focused={false}
         onRequestFocus={NOOP}
         onEditorTabReady={NOOP}

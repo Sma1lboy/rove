@@ -298,7 +298,7 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
   const showContent = surface !== "sidebar"
 
   const recentTask = useMemo(
-    () => (narrow ? tasks.find((task) => task.id === activeTaskId && !task.archived) : null) ?? null,
+    () => (narrow ? tasks.find((task) => task.id === activeTaskId && !task.deletion) : null) ?? null,
     [narrow, tasks, activeTaskId],
   )
 

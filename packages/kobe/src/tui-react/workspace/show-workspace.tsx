@@ -41,10 +41,9 @@ export function ShowWorkspace(props: {
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
   const tasks = useAccessor(props.orchestrator.tasksSignal())
   if (!props.worktree) {
-    // Zero unarchived tasks = a brand-new (or fully archived) home: teach
-    // instead of pointing at an empty sidebar. With tasks present, the short
-    // "select a task" line stays.
-    if (!tasks.some((task) => !task.archived)) return <WelcomePane />
+    // Zero tasks = a brand-new home: teach instead of pointing at an empty
+    // sidebar. With tasks present, the short "select a task" line stays.
+    if (!tasks.some((task) => !task.deletion)) return <WelcomePane />
     return (
       <box flexGrow={1} alignItems="center" justifyContent="center">
         <text fg={theme.textMuted}>{t("workspace.empty.selectTask")}</text>

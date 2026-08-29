@@ -325,8 +325,6 @@ export class Orchestrator {
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
-  /** DEPRECATED (issue #75): archive concept removed; no-op. */
-  setArchived = (id: TaskId | string, archived?: boolean): Promise<void> => this.editor.setArchived(id, archived)
   reorderTasks = (moves: ReadonlyArray<{ readonly taskId: string; readonly position: number }>): Promise<void> =>
     this.editor.reorderTasks(moves)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)

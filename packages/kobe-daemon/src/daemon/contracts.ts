@@ -157,8 +157,6 @@ export interface DaemonOrchestrator {
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
-  /** DEPRECATED (issue #75): archive concept removed; no-op. */
-  setArchived(id: string, archived?: boolean): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null): Promise<void>
   /** Stamp the external tracker item a task was started from. */

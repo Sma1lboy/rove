@@ -1,7 +1,7 @@
 /**
  * Orchestrator mutation methods not exercised by the flow-specific suites
  * (adopt / ensure-worktree / branch-follow / main-task / active-task):
- * setVendor, setPinned, setArchived, setStatus (incl. the done↔error refusal),
+ * setVendor, setPinned, setStatus (incl. the done↔error refusal),
  * setPRStatus (incl. the no-op diff guard), moveTask, reorderTasks, and
  * deleteTask's safety ladder (main-row refusal, dirty-worktree guard, force
  * override, remove-failure keeping the index entry).

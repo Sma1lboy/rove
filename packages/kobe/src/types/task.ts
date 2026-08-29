@@ -169,13 +169,6 @@ export interface Task {
    */
   readonly pinned?: boolean
   /**
-   * DEPRECATED (issue #75): archive concept removed. Kept as an optional
-   * shim so the not-yet-cleaned TUI/CLI references still compile while C2
-   * removes them; the field is never persisted and old records load it as
-   * undefined. `setArchived` is a no-op.
-   */
-  readonly archived?: boolean
-  /**
    * Engine PROTOCOL hint — tells the monitor's history reader which
    * adapter to use when parsing this task's transcript. Optional;
    * missing values normalize to {@link DEFAULT_TASK_VENDOR}.

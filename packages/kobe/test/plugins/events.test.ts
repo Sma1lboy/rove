@@ -10,7 +10,6 @@ function task(id: string, extra: Record<string, unknown> = {}) {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "active",
-    archived: false,
     pinned: false,
     createdAt: "2026-01-01",
     updatedAt: "2026-01-01",
@@ -71,17 +70,12 @@ describe("PluginEventReducer", () => {
       from: { title: "t-a", pinned: false },
       to: { title: "renamed", pinned: true },
     })
-    // `archived` is no longer a watched field; changes to it are ignored.
-    const archivedFlip = feed([task("a", { title: "renamed", pinned: true, archived: true })])
-    expect(archivedFlip.map((e) => e.event)).toEqual([])
     // PR status has its own event and is not a `fields` entry.
-    const pr = feed([task("a", { title: "renamed", pinned: true, archived: true, prStatus: { state: "open" } })])
+    const pr = feed([task("a", { title: "renamed", pinned: true, prStatus: { state: "open" } })])
     expect(pr.map((e) => e.event)).toEqual(["task.pr-changed"])
     expect(pr[0]?.detail).toEqual({ to: { state: "open" } })
     // Identical snapshot → silence.
-    expect(feed([task("a", { title: "renamed", pinned: true, archived: true, prStatus: { state: "open" } })])).toEqual(
-      [],
-    )
+    expect(feed([task("a", { title: "renamed", pinned: true, prStatus: { state: "open" } })])).toEqual([])
   })
 
   it("emits agent.* only on state transitions, keyed per task+tab", () => {

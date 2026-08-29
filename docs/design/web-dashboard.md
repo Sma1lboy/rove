@@ -110,12 +110,11 @@ a contract test (`packages/kobe/test/daemon/web-exposure.test.ts`).
 
 ### Teardown Hook
 
-The daemon is the single writer for the task index. For browser task deletion
-and archive, the daemon web route also performs the matching session cleanup:
-a committed `task.delete` / `task.archive` (when actually archiving) triggers
-`tearDownTaskSession`, stopping the task's sessions owned by the standalone PTY
-Host. Browser-sidecar PTYs are a separate owner and are not covered by this
-hook. Un-archive (`archived: false`) deliberately does NOT tear down.
+The daemon is the single writer for the task index. For browser task deletion,
+the daemon web route also performs the matching session cleanup: a committed
+`task.delete` triggers `tearDownTaskSession`, stopping the task's sessions owned
+by the standalone PTY Host. Browser-sidecar PTYs are a separate owner and are
+not covered by this hook.
 
 ## SPA routes
 
@@ -147,9 +146,9 @@ never a column.
 **What lands in each column.** Backlog shows the repo's **issues** plus any
 tasks still in `backlog` status; `in_progress` / `in_review` show **tasks**;
 Done shows both. **Dedup is by link:** an issue linked to a LIVE task (status
-not `done`/`canceled`/`error`, not archived) is hidden — it's represented by
-its task card, which carries a `#<issueId>` back-link chip. Deleting or
-archiving that task resurfaces its issue in Backlog. Issues are non-optimistic
+not `done`/`canceled`/`error`) is hidden — it's represented by its task card,
+which carries a `#<issueId>` back-link chip. Deleting that task resurfaces its
+issue in Backlog. Issues are non-optimistic
 (the daemon `issue.snapshot` push is truth), but an issue is optimistically
 hidden the moment `quickStartIssue` resolves with a `taskId`, so there's no
 flash of a duplicate card before the snapshot catches up.

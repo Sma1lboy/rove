@@ -37,9 +37,9 @@ Ground rules that apply to every event here:
 ## Task lifecycle
 
 Sourced from field-level diffs of consecutive task-index snapshots, so every
-mutation path fires them: RPC handlers, `land --then-archive`, the
-`git worktree remove` sweep, adopt flows. The first snapshot after a daemon
-start is baseline: pre-existing tasks never re-fire.
+mutation path fires them: RPC handlers, `land`, the `git worktree remove`
+sweep, adopt flows. The first snapshot after a daemon start is baseline:
+pre-existing tasks never re-fire.
 
 ### `task.created` / `task.deleted`
 

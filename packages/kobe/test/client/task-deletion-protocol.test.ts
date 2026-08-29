@@ -14,7 +14,6 @@ describe("task deletion wire state", () => {
       worktreePath: "/wt/task",
       kind: "task",
       status: "backlog",
-      archived: false,
       deletion: {
         phase: "error",
         force: true,
@@ -40,7 +39,6 @@ describe("task deletion wire state", () => {
       kind: "dir",
       scratch: true,
       status: "backlog",
-      archived: false,
       createdAt: "2026-08-16T00:00:00.000Z",
       updatedAt: "2026-08-16T00:00:00.000Z",
     }

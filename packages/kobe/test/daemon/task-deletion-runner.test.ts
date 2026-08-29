@@ -11,7 +11,6 @@ function task(id: string, phase: "queued" | "running" | "error"): DaemonTask {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "backlog",
-    archived: false,
     deletion: { phase, force: false, requestedAt: "2026-07-15T00:00:00.000Z" },
     createdAt: "2026-07-15T00:00:00.000Z",
     updatedAt: "2026-07-15T00:00:00.000Z",

@@ -36,7 +36,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     pinned: false,
     vendor: "claude",
     createdAt: "2026-08-01T00:00:00.000Z",

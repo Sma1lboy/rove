@@ -143,7 +143,7 @@ export function useAttention(args: {
   }, [engineState, engineTabState, selectedId, tasks, kv, notif])
 
   function jumpToNextAttention(): void {
-    const order = tasks.filter((t) => !t.archived).map((t) => t.id)
+    const order = tasks.filter((t) => !t.deletion).map((t) => t.id)
     const target = nextAttentionInboxTarget(
       inboxItems,
       order,

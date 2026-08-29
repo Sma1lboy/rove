@@ -87,8 +87,8 @@ function flagValue(argv: readonly string[], name: string): string | undefined {
 }
 
 /** The verb of the global `PostToolUse` (Bash) hook that keeps tasks in sync
- *  with git-worktree lifecycle commands (adopt on `worktree add`, archive on
- *  `worktree remove`). Kept in sync with the engine adapter's
+ *  with git-worktree lifecycle commands (`worktree remove` drops the task
+ *  pinned to that worktree). Kept in sync with the engine adapter's
  *  `WORKTREE_SYNC_MARKER` (the command substring the hook is installed with). */
 const WORKTREE_CREATED_VERB = "worktree-created"
 
@@ -138,7 +138,7 @@ export function parseWorktreeRemovePath(command: string): string | undefined {
  * `kobe hook worktree-created` — the global `PostToolUse` (Bash) callback.
  * Reads the hook payload and asks the daemon (non-spawning) to keep tasks in
  * sync with worktree REMOVAL only:
- *  - `git worktree remove <path>` → archive the task pinned to that worktree.
+ *  - `git worktree remove <path>` → delete the task pinned to that worktree.
  *
  * `git worktree add` no longer adopts (owner decision 2026-08-24): creating a
  * worktree is a mechanical act — agents mint them for PR isolation and no
@@ -349,7 +349,7 @@ export async function ensureGlobalKobeHooks(): Promise<void> {
       if (!enginePath) continue
       await a.installActivityHooks(enginePath, { toolEvents })
       // PostToolUse(Bash) observer: a `git worktree remove` in ANY session
-      // archives the worktree's task. Pure observer — unlike the removed
+      // removes the worktree's task. Pure observer — unlike the removed
       // WorktreeCreate provider hook, it can't break `claude --worktree`.
       await a.installWorktreeWatchHook(enginePath)
     }

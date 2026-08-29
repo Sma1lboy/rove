@@ -3,14 +3,14 @@
  * polling) — the single filesystem collector that replaces every Ops pane
  * stat'ing + parsing the transcript store on its own timers. What matters:
  *
- *   - **Scope + vendor pick**: archived tasks and remote (`ssh://`) projects
- *     are never collected; tasks sharing a worktree path collapse to one
- *     slot and the FIRST task in list order picks the vendor (completion
- *     markers are vendor-specific).
+ *   - **Scope + vendor pick**: remote (`ssh://`) projects are never
+ *     collected; tasks sharing a worktree path collapse to one slot and the
+ *     FIRST task in list order picks the vendor (completion markers are
+ *     vendor-specific).
  *   - **Publish-on-change only**: a probe round-tripping to the same facts
  *     publishes nothing — subscribed Ops panes must not re-run effects on
  *     unchanged ticks.
- *   - **Pruning**: a task deleted/archived between ticks drops its entry
+ *   - **Pruning**: a task deleted between ticks drops its entry
  *     (with a republish), and a probe completing AFTER its entry was pruned
  *     must not resurrect it.
  *   - **In-flight dedupe + subscriber gate**: ticks landing mid-probe start
@@ -53,7 +53,6 @@ function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {
     worktreePath: `/wt/${id}`,
     vendor: "claude",
     status: "backlog",
-    archived: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...rest,

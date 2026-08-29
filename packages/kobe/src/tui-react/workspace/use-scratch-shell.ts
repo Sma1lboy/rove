@@ -7,7 +7,7 @@
  *     bare shell (TerminalTabs' scratch mode); the row lives in the
  *     sidebar's Scratch section.
  *   - `onScratchExit`: the last shell exited — delete the row outright,
- *     zero ceremony (no archive, no confirm; a scratch task owns no
+ *     zero ceremony (no confirm; a scratch task owns no
  *     worktree/branch, deletion only drops the index entry).
  *   - the fold finish (issue #40): the adoption loop moved the shell's
  *     sessions under an existing task — quietly re-point selection to the

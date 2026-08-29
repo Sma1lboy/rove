@@ -3,7 +3,7 @@
  * load() recovery (missing file, corrupt JSON, unsupported version, non-object
  * root, malformed rows), prStatus load coercion, the loaded-guard, update/move
  * error paths, the subscribe contract (eager fire, unsubscribe, throwing
- * listener isolation), and the archive/remove conveniences.
+ * listener isolation), and the remove convenience.
  *
  * Why they matter: load() recovery is the difference between "Rove boots with
  * an empty sidebar and a warning" and "Rove crashes on a half-written

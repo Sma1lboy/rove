@@ -11,7 +11,6 @@ function task(extra: Partial<SerializedTask> = {}): SerializedTask {
     worktreePath: "/wt",
     kind: "task",
     status: "active",
-    archived: false,
     pinned: false,
     createdAt: "x",
     updatedAt: "x",

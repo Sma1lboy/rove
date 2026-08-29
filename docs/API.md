@@ -72,7 +72,7 @@ rove api land --task-id a              # merge the winning branch
 - `rove api <verb> --help` prints that verb's usage and exits 0.
 
 Flag parsing: `--key value` and `--key=value` both work; boolean flags may
-be given bare (`--force` ⇒ true) or explicitly (`--archived=false`);
+be given bare (`--force` ⇒ true) or explicitly (`--pinned=false`);
 `--tab` / enum / positive-int values are validated against the verb's
 spec, and unknown flags are rejected (exit 2). `--repo` resolves relative
 paths against `$PWD` (`~` expanded). `spawn-task` is an alias of `add`.
@@ -105,7 +105,7 @@ replacement in `nextCommandArgs`.
 
 ## read
 
-- `list`: list all tasks (incl. archived). Returns `{ tasks }`.
+- `list`: list all tasks. Returns `{ tasks }`.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
@@ -126,8 +126,7 @@ replacement in `nextCommandArgs`.
   health snapshot of a parallel round — the one read that answers "what is
   this round's status right now" without fanning out to `get-task` per task.
   Select the tasks by fan-out round (`--group`, the `groupId` that
-  `add --count` returns), by repo, or by explicit ids; `--group` spans repos
-  and skips archived siblings.
+  `add --count` returns), by repo, or by explicit ids.
 
   Per task: identity, branch, lineage (`.dispatcher`, `.groupId`), plus
 
@@ -388,16 +387,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 ## lifecycle
 
-- `archive --task-id ID [--archived=false]`: archive/unarchive.
-  Non-destructive: worktree, branch, and history stay. A manual "hide the
-  row" override. Archiving stops the task's live engine session (the data
-  survives; unarchiving rebuilds it on next entry). Once work is merged, `delete` (branch survives) is the
-  normal cleanup path; see
-  [`design/task-lifecycle.md`](./design/task-lifecycle.md).
 - `pin --task-id ID [--pinned=false]`: pin/unpin a task to the top of the
   sidebar.
 - `land --task-id ID [--strategy merge|squash] [--delete-branch]
-  [--then-archive] [--remove-worktree=false]`: merge a task's branch back into its
+  [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
   a dirty base checkout and a branch with no commits ahead of base
   (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when uncommitted work is

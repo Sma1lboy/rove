@@ -29,7 +29,7 @@ Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
 [narrow-terminal layout](#narrow-terminals-phone-ssh) takes over instead.
 
-With no tasks at all (a first launch, or everything archived), the workspace
+With no tasks at all (a first launch, or all tasks deleted), the workspace
 column shows a welcome panel instead of an empty pane: the keys to create a
 task and open help (read from your live keymap, so rebinds show correctly),
 which engine CLIs were detected, and — when something is missing (no engine

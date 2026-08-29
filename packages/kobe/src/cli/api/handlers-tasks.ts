@@ -234,22 +234,6 @@ export async function setActive(ctx: VerbContext): Promise<unknown> {
   return { ok: true, activeTaskId: taskId }
 }
 
-export async function archive(ctx: VerbContext): Promise<unknown> {
-  const daemon = daemonOf(ctx)
-  const taskId = ctx.args.require("task-id")
-  const archived = ctx.args.bool("archived") ?? true
-  const res = await daemon.request("task.archive", { taskId, archived })
-  // Archiving STOPS the engine (matching the TUI's archiveTaskFlow + the verb's
-  // own "non-destructive: worktree/branch/history stay" contract): the data
-  // survives, but the live hosted session + engine subprocess must not keep
-  // burning resources. Unarchive is the inverse — it must NOT kill (the session
-  // is rebuilt fresh on next enter), so teardown is gated on `archived === true`.
-  // Hosted-session teardown runs here in the CLI process,
-  // only after the RPC has committed the flag.
-  if (archived) await ctx.runtime.tearDownSession(taskId)
-  return res
-}
-
 export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
@@ -277,7 +261,6 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       taskId,
       strategy,
       deleteBranch: ctx.args.bool("delete-branch") ?? false,
-      archive: ctx.args.bool("then-archive") ?? false,
       // Left UNDEFINED when the flag is absent so the orchestrator's default
       // (remove it) applies; only an explicit `--remove-worktree=false` keeps
       // the worktree. Coercing undefined to false here would pin the CLI to

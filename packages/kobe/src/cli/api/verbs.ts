@@ -96,7 +96,7 @@ export const VERB_GROUPS: Readonly<Record<string, readonly string[]>> = {
     "routine-run-now",
     "routine-runs",
   ],
-  lifecycle: ["archive", "pin", "land", "delete"],
+  lifecycle: ["pin", "land", "delete"],
   worktree: ["ensure-worktree", "adopt", "discover-adoptable"],
   feedback: ["feedback"],
 }

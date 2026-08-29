@@ -15,7 +15,7 @@ import { READ_OUTPUT_VERB } from "./read-output.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const READ_VERBS: readonly VerbSpec[] = [
-  { name: "list", summary: "List all tasks (incl. archived). Returns { tasks }.", flags: [], handler: list },
+  { name: "list", summary: "List all tasks. Returns { tasks }.", flags: [], handler: list },
   {
     name: "get-task",
     summary:
@@ -41,7 +41,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
         name: "group",
         type: "string",
         placeholder: "GROUPID",
-        description: "Every unarchived task of one fan-out round (the `groupId` that `add --count` returns).",
+        description: "Every task of one fan-out round (the `groupId` that `add --count` returns).",
       },
       F.repo(false),
     ],

@@ -189,7 +189,7 @@ rove export [--json | --csv | --format <json|csv|table>]   # --format=<fmt> work
 
 Prints your task list. Read-only and **works with the daemon down**, which is
 what makes it different from `rove api list`. Columns: `id, title, status,
-archived, vendor, branch, repo, worktreePath`. Default is JSON; `--format
+vendor, branch, repo, worktreePath`. Default is JSON; `--format
 table` aligns it for humans.
 
 ## config

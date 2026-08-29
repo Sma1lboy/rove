@@ -181,10 +181,10 @@ export interface ApiRuntime {
     diff: { files: number; insertions: number; deletions: number } | null
   }>
   /**
-   * Stop every hosted session for a task, mirroring the TUI's delete/archive
-   * teardown. Run only after the matching `task.delete`/`task.archive` RPC
-   * succeeds. Best-effort: a teardown failure must not fail the
-   * already-committed RPC, so it never throws.
+   * Stop every hosted session for a task, mirroring the TUI's delete teardown.
+   * Run only after the matching `task.delete` RPC succeeds. Best-effort: a
+   * teardown failure must not fail the already-committed RPC, so it never
+   * throws.
    */
   tearDownSession(taskId: string): Promise<void>
 }

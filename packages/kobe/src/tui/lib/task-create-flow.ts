@@ -1,7 +1,7 @@
 /**
  * The shared create/adopt flow behind the NewTaskDialog — split from
  * task-actions.ts (which keeps the mutation flows on EXISTING tasks:
- * archive / delete / rename / vendor). Same testability rule: NO `@opentui`
+ * delete / rename / vendor). Same testability rule: NO `@opentui`
  * imports; the dialog reaches this module only as the `promptNewTask`
  * adapter callback, so the flow runs under plain vitest with mocks
  * (`test/tui/create-task-flow.test.ts`).

@@ -160,32 +160,18 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       { id: "sub", repo: "/repo", worktreePath: "/repo/.kobe/worktrees/demo" },
     ]
 
-    it("is a deprecated no-op (issue #75); never calls setArchived", async () => {
-      const archived: Array<[string, boolean | undefined]> = []
-      const { ctx } = fakeCtx({
-        listTasks: () => TASKS,
-        setArchived: async (id: string, value?: boolean) => {
-          archived.push([id, value])
-        },
-      })
+    it("is a deprecated no-op (issue #75)", async () => {
+      const { ctx } = fakeCtx({ listTasks: () => TASKS })
       await expect(
         dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/demo" }, ctx),
       ).resolves.toEqual({ archived: false })
-      expect(archived).toEqual([])
     })
 
     it("is a no-op when no task matches the removed worktree exactly", async () => {
-      const archived: unknown[] = []
-      const { ctx } = fakeCtx({
-        listTasks: () => TASKS,
-        setArchived: async (id: string) => {
-          archived.push(id)
-        },
-      })
+      const { ctx } = fakeCtx({ listTasks: () => TASKS })
       await expect(
         dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/unknown" }, ctx),
       ).resolves.toEqual({ archived: false })
-      expect(archived).toEqual([])
     })
   })
 

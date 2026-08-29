@@ -4,7 +4,7 @@
  * Deliberately NOT the same axis as the task list view. The task list
  * filters WHICH TASKS the sidebar shows and stays inside Workspace; this
  * rail chooses WHICH SURFACE is open. Folding them into one enum would put
- * "show archived tasks" and "open the automations page" in the same list,
+ * unrelated view toggles and "open the automations page" in the same list,
  * which is how you end up with an Archives tab sitting next to a Kanban tab
  * as if they were the same kind of thing.
  *

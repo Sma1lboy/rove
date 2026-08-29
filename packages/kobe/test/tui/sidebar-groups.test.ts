@@ -18,7 +18,6 @@ function task(overrides: Omit<Partial<Task>, "id"> & { id: string; title: string
     worktreePath: `/repo/kobe/${overrides.id}`,
     kind: "task",
     status: "backlog",
-    archived: false,
     pinned: false,
     vendor: "claude",
     createdAt: "2026-01-01T00:00:00.000Z",

@@ -22,7 +22,7 @@ import type { VerbContext, VerbSpec } from "./types.ts"
 const DEFAULT_SINCE_DAYS = 7
 
 export interface TaskDigest {
-  /** Tasks touched inside the window (by `updatedAt`), archived included. */
+  /** Tasks touched inside the window (by `updatedAt`). */
   readonly total: number
 }
 
