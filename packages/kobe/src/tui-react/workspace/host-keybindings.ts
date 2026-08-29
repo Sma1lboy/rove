@@ -57,6 +57,8 @@ export type WorkspaceKeybindingDeps = {
   enterMoveMode: () => void
   /** prefix+p / prefix+P — send the Create PR prompt into the engine pane. */
   createPR: () => void
+  /** `t` — flip the sidebar task sort between default and recent. */
+  toggleSortMode: () => void
 }
 
 export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
@@ -189,6 +191,9 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       // gesture (tasks.focusEngine), same row, pure-TUI equivalent: focus
       // the workspace terminal.
       "tasks.focusEngine": () => focus.setFocused("workspace"),
+      // `t` toggles the global task sort. The state lives in
+      // useSidebarHostState; this just exposes the existing flip.
+      "sidebar.sort": () => deps.toggleSortMode(),
     }),
   }))
   // Page-level close keys for the settings swap — mirrors settings/host.tsx's

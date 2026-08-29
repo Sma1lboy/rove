@@ -72,6 +72,7 @@ describe("workspace open-worktree bindings", () => {
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),
+      toggleSortMode: vi.fn(),
     })
 
     const registrations = mocks.bindingFactories.map((factory) => factory())
@@ -137,6 +138,7 @@ describe("workspace open-worktree bindings", () => {
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),
+      toggleSortMode: vi.fn(),
     })
 
     const registrations = mocks.bindingFactories.map((factory) => factory())

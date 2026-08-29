@@ -168,6 +168,18 @@ describe("buildTreeRows", () => {
     ])
   })
 
+  test("recent sort reorders regular worktrees by updatedAt while keeping main first", () => {
+    const result = rows({
+      sortMode: "recent",
+      tasks: [
+        task("older", { repo: "/repos/rove", updatedAt: "2026-08-01T00:00:00.000Z" }),
+        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
+        task("newer", { repo: "/repos/rove", updatedAt: "2026-08-02T00:00:00.000Z" }),
+      ],
+    })
+    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "newer", "older"])
+  })
+
   test("a scratch task never mints a project header for its directory", () => {
     // Same dir, one scratch + one ordinary dir task: only the ordinary one
     // groups under the directory; the scratch row lives in Scratch.

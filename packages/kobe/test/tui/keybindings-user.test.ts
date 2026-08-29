@@ -84,11 +84,11 @@ describe("applyUserKeybindings", () => {
   })
 
   test("adds a prefix chord alongside a direct row through legacy prefix.bindings", () => {
-    fileState.doc = { prefix: { bindings: { "sidebar.projectFilter": "p" } } }
+    fileState.doc = { prefix: { bindings: { "sidebar.delete": "p" } } }
     const report = userKb.reloadUserKeybindings()
 
-    expect(findBinding("sidebar.projectFilter")?.keys).toEqual(["ctrl+p"])
-    expect(findBinding("sidebar.projectFilter")?.prefixKeys).toEqual(["p"])
+    expect(findBinding("sidebar.delete")?.keys).toEqual(["d"])
+    expect(findBinding("sidebar.delete")?.prefixKeys).toEqual(["p"])
     expect(report.warnings).toEqual([])
   })
 

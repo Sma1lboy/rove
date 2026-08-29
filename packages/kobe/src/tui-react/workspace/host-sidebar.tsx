@@ -9,6 +9,7 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useCallback } from "react"
+import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
 import { PaneKeyHint } from "../component/keyboard-hints"
@@ -56,6 +57,8 @@ export interface HostSidebarProps {
   readonly onFocusRequest: () => void
   /** Narrow mode's "↩ recent" jump row target (issue #14, 2A). */
   readonly recentTask?: Task | null
+  /** Global task sort mode driven by the `t` chord. */
+  readonly sortMode?: TaskSortMode
 }
 
 export function HostSidebar(props: HostSidebarProps) {
@@ -126,6 +129,7 @@ export function HostSidebar(props: HostSidebarProps) {
     onHeaderStatusClick: props.onHeaderStatusClick,
     zenActive: props.zenActive,
     onZenClick: props.onZenClick,
+    sortMode: props.sortMode,
   }
   return (
     <box
