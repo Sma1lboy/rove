@@ -59,6 +59,15 @@ export type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpaw
 export const DEFAULT_SCROLLBACK_CAP = 512 * 1024
 /** Raw ring tail captured into a session's death record. */
 const EXIT_TAIL_BYTES = 16 * 1024
+/** Default grace after a human keystroke before headless delivery is allowed. */
+const DEFAULT_HUMAN_WRITE_QUIET_MS = 10_000
+
+function resolveHumanWriteQuietMs(): number {
+  const raw = process.env.KOBE_PTY_HUMAN_WRITE_QUIET_MS
+  if (raw === undefined) return DEFAULT_HUMAN_WRITE_QUIET_MS
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_HUMAN_WRITE_QUIET_MS
+}
 
 /** Minimum gap between a session's periodic freeze writes (crash-loss bound).
  *  Exits and shutdowns flush immediately; this only throttles the live stream. */
@@ -68,6 +77,7 @@ export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
   private readonly opts: PtyHostOptions
   private readonly scrollbackCap: number
+  private readonly humanWriteQuietMs: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
   /** One session's child-process lifecycle (split out for the file-size cap). */
@@ -78,6 +88,7 @@ export class PtyHost {
   constructor(opts: PtyHostOptions = {}) {
     this.opts = opts
     this.scrollbackCap = opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP
+    this.humanWriteQuietMs = opts.humanWriteQuietMs ?? resolveHumanWriteQuietMs()
     this.childController = new PtyChildController({
       driver: opts.driver,
       scrollbackCap: this.scrollbackCap,
@@ -221,10 +232,15 @@ export class PtyHost {
     this.warmSpare.warm(cwd, shell, cols, rows)
   }
 
-  /** Forward client input (already UTF-8 text from xterm) to the child. */
-  write(key: string, data: string): void {
+  /** Forward client input (already UTF-8 text from xterm) to the child.
+   *  `client` identifies the connection; writes from attached sinks are
+   *  recorded as human typing for the delivery gate. */
+  write(key: string, data: string, client?: object): void {
     const session = this.sessions.get(key)
     if (!session?.alive || data.length === 0) return
+    if (client !== undefined && session.sinks.has(client)) {
+      session.lastHumanWriteMs = Date.now()
+    }
     try {
       session.proc?.write(data)
     } catch {
@@ -312,7 +328,7 @@ export class PtyHost {
 
   /** Read-only ring peek (`pty.peek`) — no attach, no spawn, no resize. */
   peek(key: string, sinceOffset?: number): PtyPeekResult {
-    return peekRing(this.sessions.get(key), sinceOffset)
+    return peekRing(this.sessions.get(key), sinceOffset, this.humanWriteQuietMs)
   }
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */

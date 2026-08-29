@@ -16,6 +16,7 @@ import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
 import {
+  ComposerBusyError,
   type HostedSessionRpc,
   deliverToHostedKey,
   ensureHostedSessionHost,
@@ -27,9 +28,13 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
   writeHostedPrompt,
+  writeHostedPromptIfClear,
 } from "../../engine/hosted-session.ts"
+import { engineEntry } from "../../engine/registry.ts"
+import type { EngineScreenManifest } from "../../engine/screen-state.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
+import type { VendorId } from "../../types/vendor.ts"
 import { ApiError, type DeliveredPrompt } from "./types.ts"
 
 /**
@@ -106,7 +111,7 @@ export const listSessions = listHostedSessions
  */
 export const deliverToKey = deliverToHostedKey
 
-const writePrompt = writeHostedPrompt
+const writePrompt = writeHostedPromptIfClear
 
 /**
  * Deliver to an existing hosted engine tab, or — ONLY when the task has no
@@ -128,7 +133,7 @@ export async function deliverHostedPrompt(
   cwd: string,
   prompt: string,
   launch: EngineSessionLaunch,
-  opts?: { readonly forceNew?: boolean; readonly snapshot?: PsSnapshot },
+  opts?: { readonly forceNew?: boolean; readonly snapshot?: PsSnapshot; readonly vendor?: VendorId },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
   // `forceNew` (send --tab new): the caller minted a fresh tab key and wants
@@ -153,7 +158,11 @@ export async function deliverHostedPrompt(
     // No pty.detach: delivery peeks + writes without ever attaching, and a
     // detach from a never-attached client would clear a parked TUI's
     // exact-delta restore state as a side effect.
-    const delivered = await deliverToKey(rpc, existingKey, prompt)
+    const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
+    const delivered = await deliverToKey(rpc, existingKey, prompt, deliveryOpts).catch((err) => {
+      if (err instanceof ComposerBusyError) throw composerBusyApiError(err, target.id, prompt)
+      throw err
+    })
     return {
       session: existingKey,
       pane: existingKey,
@@ -215,6 +224,10 @@ export async function deliverHostedPrompt(
       const delivered = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
         initMarkerPath: launch.initMarkerPath,
         initTimeoutMs: launch.initTimeoutMs,
+        screenManifest: resolveComposerManifest(opts?.vendor),
+      }).catch((err) => {
+        if (err instanceof ComposerBusyError) throw composerBusyApiError(err, target.id, prompt)
+        throw err
       })
       return {
         session: launch.key,
@@ -228,7 +241,14 @@ export async function deliverHostedPrompt(
     // launch spec wins, so ours did not carry this prompt; deliver it now.
     // A RESPAWNED restored corpse is the opposite: our launch DID run (the
     // prompt rode its argv), so pasting here would deliver it twice.
-    if (open.created === false && open.respawned !== true) await writePrompt(rpc, launch.key, prompt)
+    if (open.created === false && open.respawned !== true) {
+      await writePrompt(rpc, launch.key, prompt, { screenManifest: resolveComposerManifest(opts?.vendor) }).catch(
+        (err: unknown) => {
+          if (err instanceof ComposerBusyError) throw composerBusyApiError(err, target.id, prompt)
+          throw err
+        },
+      )
+    }
     const delivered = true
     return {
       session: launch.key,
@@ -253,7 +273,7 @@ export async function deliverToExactTab(
   tabId: string,
   cwd: string,
   prompt: string,
-  opts?: { readonly engineBin?: string; readonly snapshot?: PsSnapshot },
+  opts?: { readonly engineBin?: string; readonly snapshot?: PsSnapshot; readonly vendor?: VendorId },
 ): Promise<DeliveredPrompt> {
   const key = `${taskId}::${tabId}`
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
@@ -279,8 +299,25 @@ export async function deliverToExactTab(
     )
   }
   // No pty.detach — see deliverHostedPrompt's existing-key path.
-  const delivered = await deliverToKey(rpc, key, prompt)
+  const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
+  const delivered = await deliverToKey(rpc, key, prompt, deliveryOpts).catch((err) => {
+    if (err instanceof ComposerBusyError) throw composerBusyApiError(err, taskId, prompt)
+    throw err
+  })
   return { session: key, pane: key, started: false, engineReady: delivered, delivered }
+}
+
+function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
+  return vendor ? engineEntry(vendor).screenManifest : undefined
+}
+
+function composerBusyApiError(error: ComposerBusyError, taskId: string, prompt: string): ApiError {
+  const layerText = error.layer === "recent-human-write" ? "user was typing recently" : "composer has text"
+  return new ApiError(`task ${taskId}'s composer is busy (${layerText})`, "COMPOSER_BUSY", {
+    layer: error.layer,
+    hint: "wait a moment and retry, or spawn a fresh engine tab with --tab new",
+    nextCommandArgs: ["api", "send", "--task-id", taskId, "--prompt", prompt],
+  })
 }
 
 /** Kill every hosted session for a task (its engine + any tabs). */

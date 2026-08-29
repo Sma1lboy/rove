@@ -21,4 +21,15 @@ export const KIMI_SCREEN_MANIFEST: EngineScreenManifest = {
       lineRegex: ["^\\s*(🌕|🌖|🌗|🌘|🌑|🌒|🌓|🌔)", "^\\s*[\\u2800-\\u28FF]+\\s*(thinking|working|using )"],
     },
   ],
+  composerEmpty: [
+    // Empty composer observed in production:
+    //   " │ >                    …│ "
+    // The prompt glyph `>` is required; optional border bars and ellipsis
+    // status are allowed. Any user text after `>` makes the line non-empty.
+    {
+      bottomLines: 2,
+      all: [">"],
+      lineRegex: ["^\\s*│?\\s*>\\s*[…]?\\s*│?\\s*$"],
+    },
+  ],
 }

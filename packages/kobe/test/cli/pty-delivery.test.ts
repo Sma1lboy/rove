@@ -140,7 +140,7 @@ describe("deliverToKey", () => {
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push({ name, payload })
-        if (name === "pty.peek") return { exists: true, alive: true } as T
+        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
         return {} as T
       },
     }
@@ -214,6 +214,7 @@ describe("deliverHostedPrompt", () => {
         calls.push({ name, payload })
         if (name === "pty.list") return { sessions: [] } as T
         if (name === "pty.open") return { replay: "", alive: true, created: false } as T
+        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
         return {} as T
       },
     }
@@ -223,7 +224,14 @@ describe("deliverHostedPrompt", () => {
       command: ["/bin/zsh", "-ilc", "claude 'fix it'"],
     })
 
-    expect(calls.map((call) => call.name)).toEqual(["pty.list", "pty.open", "pty.write", "pty.write", "pty.detach"])
+    expect(calls.map((call) => call.name)).toEqual([
+      "pty.list",
+      "pty.open",
+      "pty.peek",
+      "pty.write",
+      "pty.write",
+      "pty.detach",
+    ])
     expect(result).toMatchObject({ started: false, delivered: true })
   })
 
@@ -233,7 +241,7 @@ describe("deliverHostedPrompt", () => {
       request: async <T>(name: string): Promise<T> => {
         calls.push(name)
         if (name === "pty.list") return { sessions: [session("t1::tab-1", ["claude"])] } as T
-        if (name === "pty.peek") return { exists: true, alive: true } as T
+        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
         return {} as T
       },
     }
@@ -264,7 +272,7 @@ describe("deliverHostedPrompt", () => {
               session("t1::tab-2", ["/bin/zsh", "-ilc", "claude '--resume' 'x'"]),
             ],
           } as T
-        if (name === "pty.peek") return { exists: true, alive: true } as T
+        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
         return {} as T
       },
     }
@@ -319,7 +327,7 @@ describe("deliverHostedPrompt", () => {
           return {
             sessions: [session("t1::tab-22", ["/bin/zsh", "-ilc", "export KOBE_TAB_ID='tab-22'\nclaude"])],
           } as T
-        if (name === "pty.peek") return { exists: true, alive: true } as T
+        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
         return {} as T
       },
     }
@@ -411,7 +419,7 @@ describe("deliverToExactTab", () => {
       request: async <T>(name: string): Promise<T> => {
         calls.push(name)
         if (name === "pty.list") return { sessions } as T
-        if (name === "pty.peek") return { exists: true, alive: true } as T
+        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
         return {} as T
       },
     }

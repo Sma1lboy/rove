@@ -407,6 +407,14 @@ export interface PtyPeekResult {
   /** How the child died when `alive` is false — null while alive, absent
    *  from pre-exit-info hosts. */
   readonly exit?: PtySessionExit | null
+  /** Epoch ms of the most recent attached-client write. Absent when the host
+   *  predates human-write tracking; callers treat absence as "no recent
+   *  write" (fail-open for the A-layer gate). */
+  readonly lastHumanWriteMs?: number
+  /** The host's configured human-write quiet period (ms). Callers compare
+   *  `lastHumanWriteMs + humanWriteQuietMs` against now to decide whether a
+   *  paste is safe. Absent from older hosts. */
+  readonly humanWriteQuietMs?: number
 }
 
 export interface DaemonError {

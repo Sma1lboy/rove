@@ -3,7 +3,9 @@ import os from "node:os"
 import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
 import {
+  ComposerBusyError,
   type HostedSessionRpc,
+  deliverToHostedKey,
   ensureHostedEngine,
   hostedTaskKeys,
   isHostedTaskKey,
@@ -86,6 +88,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
     const writes: unknown[] = []
     const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
       if (name === "pty.list") return Promise.resolve({ sessions: [session("task-a::tab-1")] })
+      if (name === "pty.peek") return Promise.resolve({ exists: true, alive: true, data: "" })
       if (name === "pty.write") {
         writes.push(payload)
         return Promise.resolve({})
@@ -180,5 +183,86 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
 
     expect(delivered).toBe(false)
     fs.rmSync(tmp, { recursive: true, force: true })
+  })
+})
+
+describe("deliverToHostedKey A+C gates (issue #78)", () => {
+  function rpcWith(
+    peek: Partial<{ alive: boolean; data: string; lastHumanWriteMs: number; humanWriteQuietMs: number }>,
+  ) {
+    return {
+      request: async <T>(name: string): Promise<T> => {
+        if (name === "pty.peek") {
+          return {
+            exists: true,
+            alive: peek.alive !== false,
+            pid: 42,
+            offset: 0,
+            data: peek.data ?? "",
+            sinceValid: false,
+            exit: null,
+            ...(peek.lastHumanWriteMs !== undefined ? { lastHumanWriteMs: peek.lastHumanWriteMs } : {}),
+            ...(peek.humanWriteQuietMs !== undefined ? { humanWriteQuietMs: peek.humanWriteQuietMs } : {}),
+          } as T
+        }
+        return {} as T
+      },
+    }
+  }
+
+  const manifest = {
+    rules: [],
+    composerEmpty: [{ bottomLines: 2, all: ["❯"], lineRegex: ["^\\s*❯\\s*$"] }],
+  }
+
+  it("throws ComposerBusyError when a human write is recent", async () => {
+    const rpc = rpcWith({ alive: true, lastHumanWriteMs: 1_000, humanWriteQuietMs: 10_000 })
+    const err = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", {
+      now: () => 5_000,
+    }).then(
+      () => null,
+      (e) => e,
+    )
+    expect(err).toBeInstanceOf(ComposerBusyError)
+    expect((err as ComposerBusyError).layer).toBe("recent-human-write")
+  })
+
+  it("throws ComposerBusyError when the composer is not empty", async () => {
+    const rpc = rpcWith({ alive: true, data: Buffer.from("❯ hello", "utf8").toString("base64") })
+    const err = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", {
+      screenManifest: manifest,
+    }).then(
+      () => null,
+      (e) => e,
+    )
+    expect(err).toBeInstanceOf(ComposerBusyError)
+    expect((err as ComposerBusyError).layer).toBe("composer-not-empty")
+  })
+
+  it("delivers when both gates pass", async () => {
+    const writes: string[] = []
+    const rpc = {
+      request: async <T>(name: string): Promise<T> => {
+        if (name === "pty.peek") {
+          return {
+            exists: true,
+            alive: true,
+            pid: 42,
+            offset: 0,
+            data: Buffer.from("❯", "utf8").toString("base64"),
+            sinceValid: false,
+            exit: null,
+          } as T
+        }
+        if (name === "pty.write") {
+          writes.push(name)
+          return {} as T
+        }
+        return {} as T
+      },
+    }
+    const ok = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", { screenManifest: manifest })
+    expect(ok).toBe(true)
+    expect(writes).toEqual(["pty.write", "pty.write"])
   })
 })

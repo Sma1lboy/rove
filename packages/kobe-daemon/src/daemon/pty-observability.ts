@@ -189,6 +189,8 @@ export interface PtyRingView {
   readonly proc: { readonly pid: number } | null
   /** Recorded death cause, when the child already exited. */
   readonly exit?: PtySessionExit | null
+  /** Epoch ms of the most recent attached-client write, or 0 if none. */
+  readonly lastHumanWriteMs?: number
 }
 
 /**
@@ -196,7 +198,11 @@ export interface PtyRingView {
  * (or the exact delta since `sinceOffset` when it is still inside the ring
  * window) without attaching, spawning, or resizing anything.
  */
-export function peekRing(session: PtyRingView | undefined, sinceOffset?: number): PtyPeekResult {
+export function peekRing(
+  session: PtyRingView | undefined,
+  sinceOffset?: number,
+  humanWriteQuietMs?: number,
+): PtyPeekResult {
   if (!session) {
     return { exists: false, alive: false, pid: null, offset: 0, data: "", sinceValid: false, exit: null }
   }
@@ -215,5 +221,8 @@ export function peekRing(session: PtyRingView | undefined, sinceOffset?: number)
     data: buf.toString("base64"),
     sinceValid,
     exit: session.exit ?? null,
+    ...(session.lastHumanWriteMs && session.lastHumanWriteMs > 0
+      ? { lastHumanWriteMs: session.lastHumanWriteMs, humanWriteQuietMs }
+      : {}),
   }
 }
