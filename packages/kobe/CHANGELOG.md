@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.9.4
+
+### Patch Changes
+
+- [#617](https://github.com/Sma1lboy/rove/pull/617) [`107311e`](https://github.com/Sma1lboy/rove/commit/107311e399668b320ccc2933977c3a340efe3899) Fix F1 advertising four dead sidebar keys
+
+  - Wire `t` (`sidebar.sort`) to the existing global sort toggle and make the
+    tree sidebar actually reorder worktrees by recency when the sort is `recent`.
+  - Remove the unimplemented `i` (live preview), `ctrl+p` (project filter), and
+    `?` (Tasks-pane legend toggle) rows from the keymap and their i18n strings so
+    F1 no longer lists chords that do nothing. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#620](https://github.com/Sma1lboy/rove/pull/620) [`9e49db2`](https://github.com/Sma1lboy/rove/commit/9e49db28bb5c4300c977d630130f85321f96968d) Explain the worktree concept on the zero-tasks welcome pane so first-time users understand why each Rove task gets its own directory and branch. Onboarding wizard pages and keybindings are unchanged; review/land concepts are left out per [#66](https://github.com/Sma1lboy/rove/issues/66). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#619](https://github.com/Sma1lboy/rove/pull/619) [`689f23d`](https://github.com/Sma1lboy/rove/commit/689f23de3d318257ffded6ae2df4b2fa30eaa505) Align GitHub Issues docs with the TUI and improve the page's empty state
+
+  The GitHub Issues page is wired behind `ctrl+a 3` but intentionally has no
+  sidebar rail row until it earns one through a design pass. The user-facing
+  docs previously advertised `ctrl+a 3` as a formal shortcut; they now describe
+  `rove api workitem-*` as the only supported entry point. When the current repo
+  has no GitHub remote (or `gh` is missing / not authenticated), the page now
+  shows an actionable hint and a `q` / `esc` close reminder instead of a bare
+  error line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#622](https://github.com/Sma1lboy/rove/pull/622) [`4db9104`](https://github.com/Sma1lboy/rove/commit/4db9104f5beec34be173995885f85d01cd5bd3f3) Rename "Create PR" labels to "Ask agent to create PR" across the Files pane chip, prefix guide, F1 help, and target-branch toast so the UI honestly reflects that the action pastes a prompt into the active engine session rather than creating the PR directly. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#618](https://github.com/Sma1lboy/rove/pull/618) [`f015b18`](https://github.com/Sma1lboy/rove/commit/f015b187f6bac40258fed566300159b5f12e5170) Fix new-conversation dialog tab toggle closing the dialog
+
+  `tab` and `ctrl+f` inside the New conversation dialog (ctrl+e) now toggle
+  destination and context without dismissing the card. OpenTUI keypress events are
+  not React events, so state updates scheduled from the keymap listener were
+  batched and committed after the renderer had already painted, dropping the
+  updated dialog subtree. The dispatcher now wraps matched commands with
+  `flushSync` so React commits the new state before OpenTUI paints. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#616](https://github.com/Sma1lboy/rove/pull/616) [`0478fb7`](https://github.com/Sma1lboy/rove/commit/0478fb71842b636b394b93d80cf71acbf812e182) Wait for repo-init marker before paste-delivery engine timeout (issue [#73](https://github.com/Sma1lboy/rove/issues/73))
+
+  Paste-delivery engines (kimi) bracketed-paste the first message once the engine process appears, but the engine does not start until `.rove/init.sh` finishes. The 20s engine-startup budget was being consumed by `bun install`, so fresh worktrees silently dropped their first prompt. The spawner now waits for the init marker before starting that budget, and `add` surfaces a `NOT_DELIVERED` error when a prompt still fails to land (issue [#72](https://github.com/Sma1lboy/rove/issues/72)). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.3
 
 ### Patch Changes
