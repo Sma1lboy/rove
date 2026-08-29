@@ -53,12 +53,8 @@ shows only actions that can run right now.
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `w` | Close the active split |
-| `ctrl+a` `1` / `2` | Kanban / Automations |
+| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
-
-The GitHub Issues view is currently a CLI-only preview; use `rove api
-workitem-*` to browse and start work from issues. `ctrl+a 3` is still wired
-but is not a documented shortcut until the page earns a sidebar rail row.
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` / `P` | Create a PR from the active task |
 

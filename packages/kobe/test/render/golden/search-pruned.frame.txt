@@ -11,11 +11,11 @@
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | rove ─────────────────────── |
 |▌ feat/bravo                  |
 |  · tests                     |
-|                              |
 |                              |
 |                              |
 |                              |

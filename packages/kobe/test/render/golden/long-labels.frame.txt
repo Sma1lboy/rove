@@ -9,13 +9,13 @@
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | rove ─────────────────────── |
 |  refactor/tab-strip-res… ▴ ✓ |
 |  · persist scrollback acros… |
 |  feat/alpha                  |
 |▌ · build                     |
-|                              |
 |                              |
 |                              |
 |                              |

@@ -9,11 +9,11 @@
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 |                              |
 | No active tasks — create one |
 | above.                       |
-|                              |
 |                              |
 |                              |
 |                              |
