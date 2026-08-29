@@ -14,6 +14,16 @@ describe("formatBytes", () => {
     expect(formatBytes(128 * 1024)).toBe("128 KB")
   })
 
+  test("a quotient that rounds up to 100 renders as an integer, not 100.0", () => {
+    // 99.9502 KB: below 100 raw, but toFixed(1) rounds it to "100.0" — a
+    // three-digit magnitude with a decimal, exactly what the >= 100 branch kills.
+    expect(formatBytes(102349)).toBe("100 KB")
+    // Same edge one unit up (99.95 MB) must behave identically.
+    expect(formatBytes(Math.round(99.96 * 1024 * 1024))).toBe("100 MB")
+    // Just under the round-up point still keeps its decimal.
+    expect(formatBytes(102297)).toBe("99.9 KB")
+  })
+
   test("promotes at the unit boundary instead of rendering 1024", () => {
     // The bug this helper exists to kill: doctor's old copy compared the raw
     // value against the threshold before rounding and printed "1024.0 KB".
