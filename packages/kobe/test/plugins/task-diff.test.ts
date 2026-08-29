@@ -33,11 +33,6 @@ describe("diffTask", () => {
     })
   })
 
-  it("flags archivedNow only on the false→true flip", () => {
-    expect(diffTask(task(), task({ archived: true }))?.archivedNow).toBe(true)
-    expect(diffTask(task({ archived: true }), task())?.archivedNow).toBe(false)
-  })
-
   it("flags prChanged via deep compare, outside `fields`", () => {
     const withPr = task({ prStatus: { state: "open" } as never })
     const diff = diffTask(task(), withPr)

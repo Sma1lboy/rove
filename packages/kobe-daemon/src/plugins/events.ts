@@ -5,7 +5,7 @@
  * edges. This reducer is fed every `bus.publish` and emits the transitions:
  *
  *   task.snapshot diff       → task.created / task.deleted / task.changed /
- *                              task.pr-changed / task.archived / worktree.created
+ *                              task.pr-changed / worktree.created
  *   engine-state transitions → agent.* (per task+tab, deduped)
  *
  * `worktree.created` is snapshot-derived (empty → non-empty worktreePath, or
@@ -160,7 +160,6 @@ export class PluginEventReducer {
           at,
         })
       }
-      if (diff.archivedNow) out.push({ event: "task.archived", taskId: id, task: ctx, at })
       if (diff.worktreeCreated) out.push({ event: "worktree.created", taskId: id, task: ctx, at })
     }
     for (const [id, task] of prev) {

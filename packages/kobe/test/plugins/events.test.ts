@@ -59,27 +59,29 @@ describe("PluginEventReducer", () => {
     ).toEqual([])
   })
 
-  it("emits task.changed with fields/from/to, task.archived on the flip, and task.pr-changed", () => {
+  it("emits task.changed with fields/from/to and task.pr-changed", () => {
     const reducer = new PluginEventReducer(() => 9)
     const feed = (tasks: Record<string, unknown>[]) =>
       reducer.reduce({ channel: "task.snapshot", payload: { tasks } } as never)
     feed([task("a")])
-    const changed = feed([task("a", { title: "renamed", archived: true })])
-    expect(changed.map((e) => e.event)).toEqual(["task.changed", "task.archived"])
+    const changed = feed([task("a", { title: "renamed", pinned: true })])
+    expect(changed.map((e) => e.event)).toEqual(["task.changed"])
     expect(changed[0]?.detail).toEqual({
-      fields: ["title", "archived"],
-      from: { title: "t-a", archived: false },
-      to: { title: "renamed", archived: true },
+      fields: ["title", "pinned"],
+      from: { title: "t-a", pinned: false },
+      to: { title: "renamed", pinned: true },
     })
-    // Unarchive is a restore: task.changed only, no task.archived.
-    const restored = feed([task("a", { title: "renamed" })])
-    expect(restored.map((e) => e.event)).toEqual(["task.changed"])
+    // `archived` is no longer a watched field; changes to it are ignored.
+    const archivedFlip = feed([task("a", { title: "renamed", pinned: true, archived: true })])
+    expect(archivedFlip.map((e) => e.event)).toEqual([])
     // PR status has its own event and is not a `fields` entry.
-    const pr = feed([task("a", { title: "renamed", prStatus: { state: "open" } })])
+    const pr = feed([task("a", { title: "renamed", pinned: true, archived: true, prStatus: { state: "open" } })])
     expect(pr.map((e) => e.event)).toEqual(["task.pr-changed"])
     expect(pr[0]?.detail).toEqual({ to: { state: "open" } })
     // Identical snapshot → silence.
-    expect(feed([task("a", { title: "renamed", prStatus: { state: "open" } })])).toEqual([])
+    expect(feed([task("a", { title: "renamed", pinned: true, archived: true, prStatus: { state: "open" } })])).toEqual(
+      [],
+    )
   })
 
   it("emits agent.* only on state transitions, keyed per task+tab", () => {

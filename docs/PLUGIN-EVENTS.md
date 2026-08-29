@@ -56,7 +56,7 @@ noise), `updatedAt`/`createdAt` (ride every change), `quotaResume` (the
 
 | detail field | type | meaning |
 |---|---|---|
-| `fields` | `string[]` | which fields changed, from: `title`, `branch`, `worktreePath`, `status`, `archived`, `pinned`, `vendor`, `command`, `modelEffort`, `linkedWorkItem`, `scratch` |
+| `fields` | `string[]` | which fields changed, from: `title`, `branch`, `worktreePath`, `status`, `pinned`, `vendor`, `command`, `modelEffort`, `linkedWorkItem`, `scratch` |
 | `from` | object | previous value per changed field (omitted when it was unset) |
 | `to` | object | new value per changed field (omitted when now unset) |
 
@@ -66,12 +66,6 @@ noise), `updatedAt`/`createdAt` (ride every change), `quotaResume` (the
               "from": { "title": "scratch", "pinned": false },
               "to":   { "title": "fix flaky test", "pinned": true } } }
 ```
-
-### `task.archived`
-
-`archived` flipped false→true, by any path. Restores (true→false) do NOT
-fire this; they show up as a `task.changed` with `archived` in `fields`.
-No extra detail; the task context is the payload.
 
 ### `task.landed`
 

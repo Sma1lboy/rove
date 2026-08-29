@@ -11,7 +11,6 @@
  * Emitted per changed task:
  *   - `task.changed`     — any watched field changed (`detail.fields/from/to`)
  *   - `task.pr-changed`  — prStatus changed (its own event, not in `fields`)
- *   - `task.archived`    — archived flipped false→true (restores don't fire)
  *   - `worktree.created` — a `task`-kind row gained a worktree path (lazy
  *     ensure, adopt, and scratch-adopt all land here; main/dir tasks reuse
  *     user-owned directories and never "materialize" one)
@@ -27,7 +26,6 @@ const WATCHED_FIELDS = [
   "branch",
   "worktreePath",
   "status",
-  "archived",
   "pinned",
   "vendor",
   "command",
@@ -42,7 +40,6 @@ export interface TaskFieldDiff {
   readonly fields: readonly WatchedTaskField[]
   readonly from: Record<string, unknown>
   readonly to: Record<string, unknown>
-  readonly archivedNow: boolean
   readonly prChanged: boolean
   readonly worktreeCreated: boolean
 }
@@ -88,7 +85,6 @@ export function diffTask(prev: SerializedTask, next: SerializedTask): TaskFieldD
     fields,
     from,
     to,
-    archivedNow: !prev.archived && next.archived,
     prChanged,
     worktreeCreated: next.kind === "task" && !prev.worktreePath && !!next.worktreePath,
   }

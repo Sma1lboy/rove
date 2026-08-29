@@ -14,7 +14,6 @@ export const PLUGIN_EVENT_NAMES = [
   "task.deleted",
   "task.changed",
   "task.landed",
-  "task.archived",
   "task.pr-changed",
   "worktree.created",
   "issue.changed",
