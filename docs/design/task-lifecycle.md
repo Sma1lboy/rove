@@ -157,6 +157,6 @@ A pure view-layer filter over the tree sidebar: pick one project and the tree
 shows only that project's rows. No persistence, no session entity, no
 grouping model change — `buildTreeRows` input is filtered before shaping. The
 filter chip renders in the sidebar; clearing it restores the full tree.
-Keybinding: `ctrl+p` cycles all → project A → project B → … → all (the chord
-history: it was the flat sidebar's project-filter chord, freed when the tree
-retired the fold-based project focus — see `docs/design/keybinding-decisions.md`).
+Keybinding: **TBD** — no chord is bound today. The former `ctrl+p` project-
+filter chord was revoked in `docs/design/keybinding-decisions.md` because the
+session model is heading toward repo-set grouping, not a single-repo cycle.

@@ -68,6 +68,7 @@ function WorkspaceHelpDriver() {
     openInbox: NOOP,
     enterMoveMode: NOOP,
     createPR: NOOP,
+    toggleSortMode: NOOP,
   })
   return <text>workspace base</text>
 }

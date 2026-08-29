@@ -113,7 +113,7 @@ is active.
 | `d` | Delete Task / forget project | | `/` | Search |
 | `gg` / `shift+g` | Top / bottom | | `x` | Worktrees page |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
-| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | | |
+| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Switch task sort (default ↔ recent) |
 
 In reorder mode, `j`/`k` moves the highlighted project and `enter` or `esc`
 finishes. Project headings themselves aren't cursor rows; the move routes

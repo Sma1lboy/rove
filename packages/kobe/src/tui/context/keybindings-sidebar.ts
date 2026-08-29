@@ -94,18 +94,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Pin / unpin task at top (Shift+P)",
     hint: { keys: "P" },
   },
-  {
-    // `i` opens the cursor task in a live read-only preview (the `kobe history`
-    // renderer tailing the transcript) in the engine pane slot instead of the
-    // engine, and toggles back on a second press. For inspecting a task an agent
-    // is working in without driving it. Same beta gate as the archived preview.
-    id: "sidebar.previewToggle",
-    scope: "sidebar",
-    keys: ["i"],
-    category: "Sidebar",
-    description: "Toggle live preview for task (i)",
-    hint: { keys: "i" },
-  },
   // `sidebar.view` ([/]) retired with the Archived view (issue #33 IA
   // convergence) — the sidebar shows only the working set now; the chord is
   // free again.
@@ -116,14 +104,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     category: "Sidebar",
     description: "Switch task sort (default ↔ recent)",
     hint: { keys: "t" },
-  },
-  {
-    id: "sidebar.projectFilter",
-    scope: "sidebar",
-    keys: ["ctrl+p"],
-    category: "Sidebar",
-    description: "Cycle task project filter",
-    hint: { keys: "ctrl+p" },
   },
   {
     id: "sidebar.delete",
@@ -252,18 +232,5 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     category: "Tasks pane",
     description: "Focus the engine pane of the current window",
     hint: { keys: "→" },
-  },
-  {
-    // `?` (shift+/ — terminals deliver the literal character) folds the
-    // Tasks pane's `── keys ──` legend down to its header line and back.
-    // The legend is ~20 rows tall with the tmux session chords included;
-    // on short terminals it crowds out the task list. The collapsed state
-    // persists via KV so the preference survives pane respawns.
-    id: "tasks.toggleKeys",
-    scope: "sidebar",
-    keys: ["?"],
-    category: "Tasks pane",
-    description: "Collapse / expand the keys legend",
-    hint: { keys: "?" },
   },
 ]

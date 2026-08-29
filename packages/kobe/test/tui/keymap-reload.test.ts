@@ -36,8 +36,8 @@ describe("resetKeymapToDefaults", () => {
   })
 
   test("non-ChatPane bindings retain their direct Ctrl chords", () => {
-    expect(findBinding("sidebar.projectFilter")?.keys).toEqual(["ctrl+p"])
-    expect(findBinding("sidebar.projectFilter")?.prefixKeys).toBeUndefined()
+    expect(findBinding("focus.sidebar")?.keys).toEqual(["ctrl+q"])
+    expect(findBinding("focus.sidebar")?.prefixKeys).toBeUndefined()
     expect(findBinding("terminal.scroll-up")?.keys).toEqual(["ctrl+pageup"])
     expect(findBinding("terminal.scroll-up")?.prefixKeys).toBeUndefined()
   })

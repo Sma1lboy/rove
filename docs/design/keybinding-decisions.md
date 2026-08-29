@@ -63,20 +63,28 @@ chord-selection rationale ("yank from history"; `ctrl+r` is the prompt
 history palette, `ctrl+h` is the backspace byte), and the i18n strings
 are in git history at `2360b2e48`.
 
-## Open calls
+## Sidebar dead keys cleanup (issue #67)
 
-- **Inert table rows.** `sidebar.sort` (`t`), `sidebar.projectFilter`
-  (`ctrl+p`), `sidebar.previewToggle` (`i`), and `tasks.toggleKeys` (`?`) are
-  registered in the keymap table but have **no handler**, so pressing them
-  does nothing today. F1 filters them out by reachability, so they aren't
-  advertised either. Whether to wire them back or drop the rows is an open
-  owner call.
-  - For `sidebar.sort` specifically: a tree already carries an order (project
-    → worktree → tab) and manual placement lives in move mode, so a second
-    automatic ordering would only fight the structure. But the row was never
-    removed and `activeSortMode` is still read at startup, so today the sort
-    mode changes only by hand-editing `state.json`.
-  - `sidebar.projectFilter`'s project filter was a fold, and the fold is gone.
+**2026-08-29 — `sidebar.sort` (`t`) wired; `sidebar.previewToggle` (`i`),
+`sidebar.projectFilter` (`ctrl+p`), and `tasks.toggleKeys` (`?`) removed.**
+All four were advertised in F1 but had no handler. `t` was the cheapest to
+connect: the global sort preference (`activeSortMode`) and its toggle already
+existed in `useSidebarHostState`; the missing piece was a keybinding handler
+and plumbing the sort mode into the tree sidebar so `recent` actually reorders
+worktrees by `updatedAt`. The other three were product calls with no current
+implementation:
+
+- `sidebar.previewToggle` (`i`) described a live read-only task preview rail
+  that was never shipped.
+- `sidebar.projectFilter` (`ctrl+p`) described a per-repo filter; the design
+  moved away from single-repo filters toward session-as-repo-set, and the
+  chord was already revoked once (see "Repo context filter" above).
+- `tasks.toggleKeys` (`?`) folded the standalone Tasks pane's footer legend;
+  that pane no longer exists in the React workspace.
+
+Removed the rows and their i18n strings rather than leaving dead entries in
+F1. If any of the features return, they need a fresh chord decision recorded
+here.
 
 ## The unified new-conversation dialog
 

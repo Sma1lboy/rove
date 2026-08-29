@@ -24,7 +24,7 @@ import { homedir } from "node:os"
 import type { Task } from "@/types/task"
 import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
-import { repoBasename, sidebarProjectKey } from "./groups"
+import { compareRecent, repoBasename, sidebarProjectKey } from "./groups"
 
 /** Separator between a task id and a tab id in a tab row's id. Matches the
  *  PTY registry's key format so one parse rule covers both. */
@@ -161,6 +161,8 @@ export interface TreeInput {
   /** Tabs per task id. A task absent from the map contributes no tab rows —
    *  its tabs have never mounted, which is not the same as having none. */
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
+  /** Task sort applied within each project group. Defaults to input order. */
+  readonly sortMode?: import("./groups").TaskSortMode
 }
 
 /**
@@ -187,6 +189,7 @@ export interface TreeInput {
  */
 export function buildTreeRows(input: TreeInput): TreeRow[] {
   const { tasks, tabsByTask } = input
+  const sortMode = input.sortMode ?? "default"
   const byProject = new Map<string, { repo: string; tasks: Task[] }>()
 
   // Scratch tasks (issue #33) never mint a project header: their cwd is
@@ -194,6 +197,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   // directory would name a home they don't have. They render in one
   // Scratch section ABOVE every project — the "unfiled live sessions" bench.
   const scratchTasks = tasks.filter((task) => task.kind === "dir" && task.scratch === true)
+  if (sortMode === "recent") scratchTasks.sort(compareRecent)
 
   for (const task of tasks) {
     if (task.kind === "dir" && task.scratch === true) continue
@@ -229,6 +233,18 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     if (!seen.has(key)) {
       seen.add(key)
       orderedKeys.push(key)
+    }
+  }
+
+  if (sortMode === "recent") {
+    for (const entry of byProject.values()) {
+      entry.tasks.sort((a, b) => {
+        // Keep the repo's main checkout as the first worktree row under its
+        // project header; only the regular worktrees reorder by recency.
+        if (a.kind === "main" && b.kind !== "main") return -1
+        if (b.kind === "main" && a.kind !== "main") return 1
+        return compareRecent(a, b)
+      })
     }
   }
 

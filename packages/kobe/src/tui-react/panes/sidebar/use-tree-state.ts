@@ -54,6 +54,8 @@ export interface TreeStateOpts {
    *  row. Hidden while a search query is open (you are hunting, not going
    *  back). Absent/null = no row. */
   readonly recentTask?: Task | null
+  /** Global task sort applied before shaping the tree. */
+  readonly sortMode?: import("../../../tui/panes/sidebar/groups").TaskSortMode
 }
 
 export interface TreeState {
@@ -218,11 +220,12 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   }, [snapshotTabs, orphansByTask])
 
   const recentTask = opts.recentTask ?? null
+  const sortMode = opts.sortMode ?? "default"
   const { rows, totalCount } = useMemo(() => {
-    const all = buildTreeRows({ tasks, tabsByTask })
+    const all = buildTreeRows({ tasks, tabsByTask, sortMode })
     const total = treeFlatIds(all).length
     return { rows: searching ? filterTreeRows(all, query) : withRecentRow(all, recentTask), totalCount: total }
-  }, [tasks, tabsByTask, searching, query, recentTask])
+  }, [tasks, tabsByTask, searching, query, recentTask, sortMode])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
   // The active row is the selected task's ACTIVE TAB, else the worktree row

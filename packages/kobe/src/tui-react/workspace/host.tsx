@@ -229,6 +229,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       setSelectedId(String(target))
       setMoveMode(true)
     },
+    toggleSortMode,
   })
 
   // Keybinding focus is suppressed while a dialog overlay is up: pane focus
@@ -308,6 +309,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onMoveModeExit={() => setMoveMode(false)}
           onLocalMergeRequest={onLocalMergeRequest}
           onSearchActiveChange={setSearchActive}
+          sortMode={sortMode}
           headerStatus={{
             label: `${t("workspace.inbox.title")} ${inbox.counts.total}`,
             emphasize: inbox.counts.total > 0,
