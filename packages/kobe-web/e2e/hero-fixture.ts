@@ -93,14 +93,25 @@ async function seedRepo(): Promise<void> {
  * it. Seeded bare, these two photographed as childless rows and the sidebar
  * read as a mock-up.
  *
- * The tab is opened with a trivial prompt rather than a real piece of work:
- * enough to make the engine boot and register a tab, without paying for a
- * turn that produces a transcript nothing frames.
+ * Each opens with a SMALL prompt rather than a real piece of work: enough to
+ * make the engine boot and register a tab, without paying for a turn whose
+ * transcript nothing frames. The prompts differ per task on purpose — a tab's
+ * sidebar label comes from its own first turn, so one shared prompt gives
+ * every row the same child name and the tree reads as generated.
  */
-const IDLE_TASKS = ["Port the docs snippets to the new client", "Audit token refresh under clock skew"] as const
+const IDLE_TASKS: readonly { readonly title: string; readonly prompt: string }[] = [
+  {
+    title: "Port the docs snippets to the new client",
+    prompt: "Which files under src/ does README.md reference? One line.",
+  },
+  {
+    title: "Audit token refresh under clock skew",
+    prompt: "What does src/session.ts cache, and until when? One line.",
+  },
+]
 
-/** First message for an idle task's tab -- short by design; see IDLE_TASKS. */
-const IDLE_TAB_PROMPT = "Read the README and tell me in one line what this package does."
+/** First message for the project-main row's tab — short by design. */
+const MAIN_TAB_PROMPT = "What does this package export? One line."
 
 /**
  * Routines for the automations still. Schedules sit in the small hours so a
@@ -156,8 +167,20 @@ async function main(): Promise<void> {
     await mkdir(HERO_HOME, { recursive: true })
     await seedSettings()
     await seedRepo()
-    for (const title of IDLE_TASKS) {
-      createTaskWithChatTab(HERO_CLI, { title, repo: HERO_REPO, prompt: IDLE_TAB_PROMPT }, HERO_REPO, env)
+    for (const task of IDLE_TASKS) {
+      createTaskWithChatTab(HERO_CLI, { title: task.title, repo: HERO_REPO, prompt: task.prompt }, HERO_REPO, env)
+    }
+    // The project-main row derives from `savedRepos` rather than being created
+    // here, and the daemon usually opens a tab against the reused checkout
+    // automatically. Send only when it somehow has none: prompting a row that
+    // already has a tab gives it a second identical engine child, which is as
+    // unlike a real sidebar as having none at all.
+    const mainTask = ((heroApi(["list"]) as { tasks?: { id: string; kind?: string }[] }).tasks ?? []).find(
+      (task) => task.kind === "main",
+    )
+    if (mainTask) {
+      const tabs = (heroApi(["get-task", "--task-id", mainTask.id]) as { tabs?: unknown[] }).tabs ?? []
+      if (tabs.length === 0) heroApi(["send", "--task-id", mainTask.id, "--plain", "--prompt", MAIN_TAB_PROMPT])
     }
     seedRoutines()
   }

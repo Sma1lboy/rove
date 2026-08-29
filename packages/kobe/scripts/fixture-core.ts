@@ -282,9 +282,16 @@ export function createTaskWithChatTab(
     taskId?: string
   }
   if (!added.taskId) throw new Error(`fixture task not created: ${task.title}`)
+  // Do NOT pass --command on send: an explicit command overrides the
+  // engineCommand.* setting stored in state.json, which is where hero-fixture
+  // pins --setting-sources project. Use the task's vendor/default instead.
+  //
+  // No `--tab new` either. A prompted `send` already ENSURES a target engine
+  // tab, so forcing a new one leaves the row with TWO identical engine
+  // children — which is just as unlike a real sidebar as having none.
   runRoveApiWithExecArgs(
     cliPath,
-    ["send", "--task-id", added.taskId, "--tab", "new", "--command", command, "--plain", "--prompt", task.prompt],
+    ["send", "--task-id", added.taskId, "--plain", "--prompt", task.prompt],
     cwd,
     env,
     execArgs,
