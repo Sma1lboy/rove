@@ -300,6 +300,7 @@ test("useHostPagesRender surfaces the settings page", async () => {
   const { frame } = await renderComponent(<RenderHarness width={80} initial={(pages) => pages.openSettings()} />, {
     width: 80,
     height: 24,
+    providers: { dialog: true },
   })
   await settle()
   expect(await frame()).toContain("Settings")
@@ -309,7 +310,7 @@ test("useHostPagesRender surfaces a full-window page", async () => {
   const { frame } = await renderComponent(<RenderHarness width={80} initial={(pages) => pages.openWorktrees()} />, {
     width: 80,
     height: 24,
-    providers: { notifications: true },
+    providers: { dialog: true, notifications: true },
   })
   await settle()
   expect(await frame()).toContain("Worktrees")
