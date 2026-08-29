@@ -42,7 +42,6 @@ export interface HostSidebarProps {
   readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
   readonly onAddTask: () => void
   readonly onDeleteRequest: (taskId: string) => void
-  readonly onArchiveRequest: (taskId: string) => void
   readonly onRenameRequest: (taskId: string) => void
   readonly onPinRequest: (taskId: string) => void
   readonly moveMode: boolean
@@ -116,7 +115,6 @@ export function HostSidebar(props: HostSidebarProps) {
     transcriptActivity: props.transcriptActivity,
     focused: props.focused,
     onDeleteRequest: props.onDeleteRequest,
-    onArchiveRequest: props.onArchiveRequest,
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,

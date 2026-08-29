@@ -11,7 +11,7 @@ import { toTaskId } from "@/types/task"
 
 export const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
 
-/** A representative task list: project row, running/pinned/backlog/archived. */
+/** A representative task list: project row, running/pinned/backlog. */
 export function seedSidebarTasks(): readonly Task[] {
   const ts = "2026-07-01T00:00:00.000Z"
   const base = {
@@ -114,17 +114,6 @@ export function seedSidebarTasks(): readonly Task[] {
       status: "backlog",
       archived: false,
       vendor: "codex",
-    },
-    {
-      ...base,
-      id: toTaskId("mock-archived"),
-      title: "Old shipped experiment",
-      branch: "feat/old-experiment",
-      worktreePath: "/mock/worktrees/old-experiment",
-      kind: "task",
-      status: "done",
-      archived: true,
-      vendor: "claude",
     },
   ]
 }

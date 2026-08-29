@@ -18,9 +18,7 @@ export const SIDEBAR_WIDTH = 24
 export const MAIN_BRANCH_POLL_MS = 2_000
 
 // VIEW_TABS / viewTabLabelKey / cycleViewTarget were retired with the
-// Archived sidebar view (issue #33 IA convergence): the sidebar always
-// shows the working set; `archived` remains a task flag readable via
-// `rove api list` and the web board.
+// Archived sidebar view (issue #75): the sidebar always shows the working set.
 
 /**
  * Two-line card budgets. Line 1: selection marker (1) + badge (1) +
@@ -72,8 +70,7 @@ export function projectScrollMaxHeightFor(terminalHeight: number, projectRowCoun
 /**
  * i18n key for the task list's empty-state / scoped-empty placeholder.
  * `searching` wins (no fuzzy match), then a project-scoped empty, then the
- * plain empty copy. (The per-view archived variants left with the Archived
- * view — issue #33.)
+ * plain empty copy.
  */
 export function sidebarEmptyStateKey(opts: { readonly searching: boolean; readonly projectFilter: boolean }): string {
   if (opts.searching) return "tasks.empty.noMatchSearch"

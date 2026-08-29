@@ -58,24 +58,6 @@ function fakeOrchestrator(tasks: Task[]): RemoteOrchestrator {
 }
 
 describe("ShowWorkspace empty state", () => {
-  it("shows the welcome panel when no unarchived task exists", async () => {
-    const { frame } = await renderComponent(
-      <ShowWorkspace
-        task={undefined}
-        worktree={null}
-        orchestrator={fakeOrchestrator([{ id: "t1", archived: true } as unknown as Task])}
-        focused={false}
-        onRequestFocus={NOOP}
-        onEditorTabReady={NOOP}
-        onEngineSendReady={NOOP}
-        onDiffTabReady={NOOP}
-        onQuickFork={NOOP}
-      />,
-    )
-    await act(async () => {})
-    expect(await frame()).toContain("Welcome to Rove")
-  })
-
   it("keeps the select-a-task line while tasks exist", async () => {
     const { frame } = await renderComponent(
       <ShowWorkspace

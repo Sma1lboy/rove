@@ -23,7 +23,6 @@ export type { SidebarHover } from "../../../tui/panes/sidebar/types"
  */
 export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
-  onArchiveRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
   /** Scope-aware reorder mode (issue #43): j/k move the cursor row's LEVEL

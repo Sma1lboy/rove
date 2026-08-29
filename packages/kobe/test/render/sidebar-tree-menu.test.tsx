@@ -70,7 +70,6 @@ test("right-click on a worktree row opens that row's menu", async () => {
   const after = await frame()
   expect(after).toContain("Open")
   expect(after).toContain("Rename")
-  expect(after).toContain("Archive")
   expect(after).toContain("Delete")
 })
 
@@ -94,8 +93,7 @@ test("a menu entry fires the row's real callback", async () => {
 
   expect(renamed).toEqual(["a"])
   // The menu closes on pick — leaving it up under a rename prompt would read
-  // as two live surfaces. ("Delete", not "Archive": the Archives view tab is
-  // permanent chrome and would match either way.)
+  // as two live surfaces.
   expect(await frame()).not.toContain("Delete")
 })
 

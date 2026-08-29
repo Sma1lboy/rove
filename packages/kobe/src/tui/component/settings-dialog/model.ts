@@ -76,7 +76,6 @@ export type SettingsRow =
   | { id: "remote-projects"; kind: "devRemoteProjects" }
   | { id: "auto-status"; kind: "devAutoStatus" }
   | { id: "dispatcher"; kind: "devDispatcher" }
-  | { id: "archived-history"; kind: "devArchivedHistory" }
 
 /** Stable row ids for payload-bearing rows (shared by builders + views). */
 export function themeRowId(name: string): string {
@@ -218,7 +217,6 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
     { id: "remote-projects", kind: "devRemoteProjects" },
     { id: "auto-status", kind: "devAutoStatus" },
     { id: "dispatcher", kind: "devDispatcher" },
-    { id: "archived-history", kind: "devArchivedHistory" },
   ]
 }
 

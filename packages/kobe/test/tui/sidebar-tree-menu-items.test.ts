@@ -41,16 +41,7 @@ describe("treeMenuItems", () => {
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {
-    expect(actions(worktreeRow())).toEqual([
-      "open",
-      "newChat",
-      "newShell",
-      "rename",
-      "pin",
-      "reorder",
-      "archive",
-      "delete",
-    ])
+    expect(actions(worktreeRow())).toEqual(["open", "newChat", "newShell", "rename", "pin", "reorder", "delete"])
   })
 
   test("a tab row carries the same session + task verbs, plus its own close", () => {
@@ -62,7 +53,6 @@ describe("treeMenuItems", () => {
       "rename",
       "pin",
       "reorder",
-      "archive",
       "delete",
     ])
   })

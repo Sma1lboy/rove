@@ -243,12 +243,6 @@ export const SCENES: readonly Scene[] = [
     keys: ["/", "review"],
   },
   {
-    name: "view-tabs-archived",
-    about: "archived tasks have no sidebar surface — no view tabs, no charlie row (issue #33)",
-    setup: seedStandard,
-    element: tree({ tasks: [ALPHA, BRAVO, task("charlie", { archived: true })] }),
-  },
-  {
     name: "move-mode",
     about: "scope-aware reorder mode (issue #43) — the dragged ROW wears the chip and j/k drag instead of walking",
     setup: seedStandard,

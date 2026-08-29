@@ -230,13 +230,6 @@ export function DevSettingsSection(
           "settings.dev.dispatcher",
           prefs.toggleDispatcher,
         )}
-        {toggleRow(
-          "archived-history",
-          prefs.archivedHistoryOn(),
-          "settings.dev.archivedHistoryHint",
-          "settings.dev.archivedHistory",
-          prefs.toggleArchivedHistory,
-        )}
       </box>
     </box>
   )

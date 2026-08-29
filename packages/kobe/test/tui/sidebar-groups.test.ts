@@ -41,7 +41,6 @@ describe("sidebar task ordering", () => {
         task({ id: "regular-b", title: "b" }),
         task({ id: "pinned", title: "pinned", pinned: true }),
       ],
-      "active",
       "",
       "default",
     )
@@ -57,7 +56,6 @@ describe("sidebar task ordering", () => {
         task({ id: "pinned-old", title: "pinned old", pinned: true, updatedAt: "2026-01-02T00:00:00.000Z" }),
         task({ id: "pinned-new", title: "pinned new", pinned: true, updatedAt: "2026-01-04T00:00:00.000Z" }),
       ],
-      "active",
       "",
       "recent",
     )
@@ -87,7 +85,6 @@ describe("sidebar task ordering", () => {
         }),
         task({ id: "reg", title: "reg" }),
       ],
-      "active",
       "",
       "recent",
     )
@@ -102,7 +99,6 @@ describe("sidebar task ordering", () => {
         task({ id: "project-b", title: "kobe copy", kind: "main", repo: "/repo/kobe/" }),
         task({ id: "regular", title: "task" }),
       ],
-      "active",
       "",
       "default",
     )
@@ -116,7 +112,6 @@ describe("sidebar task ordering", () => {
         task({ id: "project-a", title: "kobe", kind: "main", repo: "/repo/a/kobe" }),
         task({ id: "project-b", title: "kobe", kind: "main", repo: "/repo/b/kobe" }),
       ],
-      "active",
       "",
       "default",
     )
@@ -132,7 +127,6 @@ describe("sidebar task ordering", () => {
         task({ id: "kobe-a", title: "kobe a", repo: "/repo/kobe" }),
         task({ id: "pochi-a", title: "pochi a", repo: "/repo/pochi" }),
       ],
-      "active",
       "",
       "default",
       "/repo/kobe",
@@ -148,7 +142,6 @@ describe("sidebar task ordering", () => {
         task({ id: "pochi-new", title: "other", repo: "/repo/pochi", updatedAt: "2026-01-05T00:00:00.000Z" }),
         task({ id: "kobe-new", title: "new", repo: "/repo/kobe", updatedAt: "2026-01-03T00:00:00.000Z" }),
       ],
-      "active",
       "",
       "recent",
       "/repo/kobe",
@@ -167,7 +160,6 @@ describe("sidebar row sections", () => {
         task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
         task({ id: "task-b", title: "task b", repo: "/repo/pochi" }),
       ],
-      "active",
       "",
       "default",
     )
@@ -183,15 +175,11 @@ describe("sidebar row sections", () => {
 
 describe("sidebar project filter options", () => {
   it("includes saved project rows even when the current view has no tasks for them", () => {
-    const options = buildProjectOptions(
-      [
-        task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
-        task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
-        task({ id: "kobe-active", title: "active", repo: "/repo/kobe" }),
-        task({ id: "pochi-archived", title: "archived", repo: "/repo/pochi", archived: true }),
-      ],
-      "active",
-    )
+    const options = buildProjectOptions([
+      task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
+      task({ id: "project-pochi", title: "pochi", kind: "main", repo: "/repo/pochi" }),
+      task({ id: "kobe-active", title: "active", repo: "/repo/kobe" }),
+    ])
 
     expect(options).toEqual([
       { repo: "/repo/kobe", label: "kobe", count: 1 },
@@ -200,15 +188,12 @@ describe("sidebar project filter options", () => {
   })
 
   it("counts tasks in the active view and disambiguates basename collisions", () => {
-    const options = buildProjectOptions(
-      [
-        task({ id: "project-a", title: "kobe", kind: "main", repo: "/repo/a/kobe" }),
-        task({ id: "project-b", title: "kobe", kind: "main", repo: "/repo/b/kobe" }),
-        task({ id: "task-a", title: "a", repo: "/repo/a/kobe" }),
-        task({ id: "task-b", title: "b", repo: "/repo/b/kobe" }),
-      ],
-      "active",
-    )
+    const options = buildProjectOptions([
+      task({ id: "project-a", title: "kobe", kind: "main", repo: "/repo/a/kobe" }),
+      task({ id: "project-b", title: "kobe", kind: "main", repo: "/repo/b/kobe" }),
+      task({ id: "task-a", title: "a", repo: "/repo/a/kobe" }),
+      task({ id: "task-b", title: "b", repo: "/repo/b/kobe" }),
+    ])
 
     expect(options).toEqual([
       { repo: "/repo/a/kobe", label: "a/kobe", count: 1 },
@@ -226,7 +211,6 @@ describe("sidebar project filter cursor", () => {
         task({ id: "marketing-a", title: "marketing a", repo: "/repo/marketingharness" }),
         task({ id: "kobe-a", title: "kobe a", repo: "/repo/kobe" }),
       ],
-      "active",
       "",
       "default",
       "/repo/kobe",
@@ -243,7 +227,6 @@ describe("sidebar project filter cursor", () => {
         task({ id: "project-marketing", title: "marketing", kind: "main", repo: "/repo/marketingharness" }),
         task({ id: "marketing-a", title: "marketing a", repo: "/repo/marketingharness" }),
       ],
-      "active",
       "",
       "default",
       "/repo/kobe",
@@ -259,7 +242,6 @@ describe("sidebar project filter cursor", () => {
         task({ id: "project-kobe", title: "kobe", kind: "main", repo: "/repo/kobe" }),
         task({ id: "kobe-a", title: "kobe a", repo: "/repo/kobe" }),
       ],
-      "active",
       "",
       "default",
       null,
@@ -287,16 +269,15 @@ describe("sidebar project filter cursor", () => {
 describe("reconcileSidebarRows", () => {
   it("a content-identical snapshot push returns the PREVIOUS array itself (no downstream notify)", () => {
     // Simulates the daemon echo: all-new Task objects, identical content.
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })], "active", "", "default")
-    const next = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })], "active", "", "default")
+    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
     expect(reconcileSidebarRows(prev, next)).toBe(prev)
   })
 
   it("an updatedAt-only bump (setActiveTask recency touch) does not re-key any row", () => {
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })], "active", "", "default")
+    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
     const next = buildRows(
       [task({ id: "a", title: "a", updatedAt: "2026-06-10T12:00:00.000Z" }), task({ id: "b", title: "b" })],
-      "active",
       "",
       "default",
     )
@@ -304,13 +285,8 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("a changed task gets a fresh row; unchanged siblings keep their previous object identity", () => {
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })], "active", "", "default")
-    const next = buildRows(
-      [task({ id: "a", title: "renamed" }), task({ id: "b", title: "b" })],
-      "active",
-      "",
-      "default",
-    )
+    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = buildRows([task({ id: "a", title: "renamed" }), task({ id: "b", title: "b" })], "", "default")
     const out = reconcileSidebarRows(prev, next)
     expect(out).not.toBe(prev)
     expect(out[0]).toBe(next[0]) // title changed → fresh object (renderer captures task non-reactively)
@@ -318,8 +294,8 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("a reorder breaks reuse via flatIndex (renderer captures flatIndex non-reactively)", () => {
-    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })], "active", "", "default")
-    const next = buildRows([task({ id: "b", title: "b" }), task({ id: "a", title: "a" })], "active", "", "default")
+    const prev = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
+    const next = buildRows([task({ id: "b", title: "b" }), task({ id: "a", title: "a" })])
     const out = reconcileSidebarRows(prev, next)
     expect(out).not.toBe(prev)
     expect(out[0]).toBe(next[0])
@@ -327,8 +303,8 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("appending a task reuses every existing row", () => {
-    const prev = buildRows([task({ id: "a", title: "a" })], "active", "", "default")
-    const next = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })], "active", "", "default")
+    const prev = buildRows([task({ id: "a", title: "a" })])
+    const next = buildRows([task({ id: "a", title: "a" }), task({ id: "b", title: "b" })])
     const out = reconcileSidebarRows(prev, next)
     expect(out).not.toBe(prev)
     expect(out[0]).toBe(prev[0])
@@ -336,7 +312,7 @@ describe("reconcileSidebarRows", () => {
   })
 
   it("empty prev passes next through untouched", () => {
-    const next = buildRows([task({ id: "a", title: "a" })], "active", "", "default")
+    const next = buildRows([task({ id: "a", title: "a" })])
     expect(reconcileSidebarRows([], next)).toBe(next)
   })
 })
@@ -348,7 +324,6 @@ describe("sameSidebarRowTask", () => {
     expect(sameSidebarRowTask(base, task({ id: "a", title: "a", status: "in_progress" }))).toBe(false)
     expect(sameSidebarRowTask(base, task({ id: "a", title: "a", branch: "feat/x" }))).toBe(false)
     expect(sameSidebarRowTask(base, task({ id: "a", title: "a", pinned: true }))).toBe(false)
-    expect(sameSidebarRowTask(base, task({ id: "a", title: "a", archived: true }))).toBe(false)
     expect(sameSidebarRowTask(base, task({ id: "a", title: "a", vendor: "codex" }))).toBe(false)
   })
 })

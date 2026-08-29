@@ -7,7 +7,7 @@
  * mouse users rather than a second set of rules to keep in sync. That is also
  * why a tab row lists the per-task verbs: the chords behave that way already
  * (`withCursorTask` walks up from a tab to its worktree, because rename /
- * archive / delete have no tab-level meaning).
+ * delete have no tab-level meaning).
  *
  * The new-conversation pair reads the same rule one pane over (owner ask
  * 2026-08-18): ctrl+e already opens the engine/shell picker for the task the
@@ -32,7 +32,6 @@ export type TreeMenuAction =
   | "rename"
   | "pin"
   | "reorder"
-  | "archive"
   | "delete"
 
 export interface TreeMenuItem {
@@ -67,7 +66,6 @@ function taskVerbs(pinned: boolean): TreeMenuItem[] {
     { action: "rename", labelKey: "tasks.menu.rename" },
     { action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" },
     { action: "reorder", labelKey: "tasks.menu.reorder" },
-    { action: "archive", labelKey: "tasks.menu.archive" },
     { action: "delete", labelKey: "tasks.menu.delete", danger: true },
   ]
 }
