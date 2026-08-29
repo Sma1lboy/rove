@@ -6,6 +6,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
+import { useEffect, useRef } from "react"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
 import { useNotifications } from "../../src/tui-react/context/notifications"
 import { act, renderComponent } from "./harness"
@@ -13,11 +14,15 @@ import { act, renderComponent } from "./harness"
 const LONG_TITLE = "Fix the sidebar unread lamp across every repository group"
 const LONG_BODY = "fixture-repo › second opinion: root-cause the stale badge before the sweep"
 
-/** Pushes one toast on mount, then renders the overlay under test. */
+/** Pushes one toast after mount, then renders the overlay under test. */
 function Harness() {
   const notif = useNotifications()
-  if (notif.toasts.length === 0)
+  const pushed = useRef(false)
+  useEffect(() => {
+    if (pushed.current) return
+    pushed.current = true
     notif.notify({ kind: "done", taskId: "t1", tabId: "tab-1", title: LONG_TITLE, body: LONG_BODY })
+  }, [notif])
   return <ToastOverlay />
 }
 
