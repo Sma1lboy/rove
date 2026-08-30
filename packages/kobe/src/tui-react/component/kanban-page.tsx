@@ -3,17 +3,15 @@
  * KanbanPage — the daemon-owned issue store as a Backlog / In progress /
  * Parked / Done board. One PROJECT at a time (tab/←/→ or click cycles the
  * rolling selector), four full-height bordered columns matching the workspace
- * host's border grammar. Full-page swap in the workspace host, same shape as
- * WorktreesPage (issue #23 precedent): esc/ctrl+c closes, `r` refetches, plus
- * a light poll so agent-driven moves (`kobe api issue-update --task`) show up
- * while the page is open.
+ * host's border grammar. Full-page swap like WorktreesPage (issue #23
+ * precedent): esc/ctrl+c closes, `r` refetches, plus a light poll so
+ * agent-driven moves (`kobe api issue-update --task`) show up while open.
  *
  * The BOARD stays read-only (agents move cards via `kobe api issue-*`); the
- * human surface on top of it is selection + the detail drawer: ←↓↑→ moves the
- * card cursor, Enter opens {@link IssueDetailDialog}, whose Start action hands
- * an {@link IssueChatStart} up to the host. Column math is the framework-free
- * `state/issue-board.ts` — columns derive from the issue's own lifecycle
- * (done > parked > linked-task > backlog), never from task status.
+ * human surface is selection + the detail drawer (←↓↑→ moves the cursor,
+ * Enter opens {@link IssueDetailDialog}, whose Start hands an
+ * {@link IssueChatStart} to the host). Column math is framework-free
+ * (`state/issue-board.ts`): done > parked > linked-task > backlog.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -71,13 +69,10 @@ export function KanbanPage(props: {
   const columnBorder = transparentBackground ? theme.border : theme.borderSubtle
   const t = useT()
   const dialog = useDialog()
-  /**
-   * Surface mutation failures as on-screen toasts. Under an alternate screen a
-   * bare `console.error` is invisible (it only reaches the daemon log), so a
-   * failed create/delete would look like a silent no-op — the card just stays.
-   * Empty taskId/tabId match the pattern in `WorktreesPage`: this page is not
-   * scoped to a single chat tab, only the toast queue is consumed.
-   */
+  // Surface mutation failures as on-screen toasts: under an alternate screen
+  // a bare console.error is invisible (it only reaches the daemon log), so a
+  // failed create/delete would look like a silent no-op. taskId/tabId match
+  // WorktreesPage — this page is not scoped to a single chat tab.
   const notif = useNotifications()
   function notifyError(message: string): void {
     notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
@@ -214,11 +209,6 @@ export function KanbanPage(props: {
     })
   }
 
-  function openSelectedDetail(): void {
-    const issue = activeBoard?.issues.find((entry) => entry.id === selectedId)
-    if (issue) openDetail(issue)
-  }
-
   /** `n` — the new-story intake: the detail drawer in create mode. ctrl+s
    *  files the story; enter/ctrl+enter files it AND starts it immediately
    *  at the chosen engine/placement (the web intake's Execute button). */
@@ -311,7 +301,13 @@ export function KanbanPage(props: {
       { key: "down", cmd: () => moveCursor("down") },
       { key: "right", cmd: () => moveOrCycle("right") },
       { key: "left", cmd: () => moveOrCycle("left") },
-      { key: "return", cmd: () => openSelectedDetail() },
+      {
+        key: "return",
+        cmd: () => {
+          const issue = activeBoard?.issues.find((entry) => entry.id === selectedId)
+          if (issue) openDetail(issue)
+        },
+      },
       { key: "n", cmd: () => openIntake() },
       { key: "d", cmd: () => requestDelete() },
     ],

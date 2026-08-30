@@ -84,6 +84,9 @@ test("kanban: a failed issue delete shows an error toast, not just a log line", 
   mockInput.typeText("d")
   await settle()
   expect(await frame()).toContain("Delete story #1?")
+  // Danger confirms open focused on Cancel — move onto the confirm button.
+  mockInput.pressArrow("right")
+  await settle()
   mockInput.pressEnter()
   await settle(150)
   const text = await frame()
@@ -163,6 +166,9 @@ test("automations: a failed delete shows an error toast instead of a muted line"
   mockInput.typeText("d")
   await settle()
   expect(await frame()).toContain("Delete routine?")
+  // Danger confirms open focused on Cancel — move onto the confirm button.
+  mockInput.pressArrow("right")
+  await settle()
   mockInput.pressEnter()
   await settle(150)
   await expectErrorToast(await frame(), spans, "daemon refused", "in 1h")
