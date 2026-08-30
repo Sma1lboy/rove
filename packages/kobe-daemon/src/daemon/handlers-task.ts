@@ -334,6 +334,19 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    // NOT web-exposed: the only writer is the CLI `add` path, which records
+    // the brief AFTER the prompt is confirmed delivered into the engine. The
+    // field then means exactly "this is the prompt the engine was given" —
+    // an agent reading `get-task` can assert on it without wondering whether
+    // delivery happened.
+    name: "task.setPrompt",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      await ctx.orch.setPrompt(taskId, requireString(payload, "prompt"))
+      return {}
+    },
+  },
+  {
     name: "task.setActive",
     web: true,
     async handle(payload, ctx) {

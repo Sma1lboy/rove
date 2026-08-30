@@ -35,6 +35,12 @@ will conflict — that's a feature when you asked for a helper, a bug when you
 wanted parallel attempts. When in doubt, take a new task: it is the only
 choice whose isolation cannot corrupt work in progress.
 
+One boundary the worktree isolation does NOT cover: **`git stash` is never
+safe in a managed worktree.** The stash stack lives in the repo's common dir
+(`.git/refs/stash`) and is shared by every linked worktree — two parallel
+tasks that stash can pop or drop each other's work. Commit instead; a commit
+is per-branch and isolates exactly the way the model promises.
+
 ## Fan out
 
 `add` creates one task; `--count` makes it a parallel round — N sibling

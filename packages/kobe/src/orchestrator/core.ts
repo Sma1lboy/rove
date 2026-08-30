@@ -229,11 +229,13 @@ export class Orchestrator {
       ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
       ...(input.groupId ? { groupId: input.groupId } : {}),
       ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
+      // Persisted ON the task (not a one-shot side-map): `ensureWorktree`
+      // reads it whenever the worktree materialises — including after a
+      // daemon restart between create and first enter — and `collect`'s
+      // branch signals compare against the recorded fork point instead of
+      // re-guessing the base.
+      ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
     })
-    // Remember the optional baseRef on a side-map so `ensureWorktree`
-    // can use it. Not on the Task itself: base-ref is one-shot input
-    // to the worktree create, not durable state.
-    if (input.baseRef) this.worktreeCoordinator.setPendingBaseRef(task.id, input.baseRef)
     return task
   }
 
@@ -354,6 +356,8 @@ export class Orchestrator {
     this.editor.setLinkedWorkItem(id, item)
   setQuotaResume = (id: TaskId | string, state: NonNullable<Task["quotaResume"]> | null): Promise<void> =>
     this.editor.setQuotaResume(id, state)
+  /** Record the task brief (the delivered `add --prompt` text) on the task. */
+  setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
 
   /**
    * Permanently remove a task. Refuses to delete `kind: "main"`

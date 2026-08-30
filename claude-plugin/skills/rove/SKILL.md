@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 37 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 38 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -105,6 +105,12 @@ wants a helper in the same checkout, and a bug when they wanted parallel
 attempts. A split isolates nothing at all: it is a layout, for watching
 something (logs, `btop`, a test loop) next to the work — never the answer to
 "do this work".
+
+One boundary the isolation model does NOT cover: **never `git stash` in a
+managed worktree.** The stash stack lives in the repo's common dir
+(`.git/refs/stash`) and is shared by every linked worktree — two tasks that
+stash in parallel can pop or drop each other's work. Commit instead; a
+commit is per-branch and isolates exactly the way the model promises.
 
 ### Where does this work land?
 

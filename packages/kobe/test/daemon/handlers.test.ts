@@ -48,6 +48,7 @@ describe("daemon handler registry", () => {
       "task.pin",
       "task.move",
       "task.status",
+      "task.setPrompt",
       "task.reorder",
       "task.ensureMain",
       "task.openDir",

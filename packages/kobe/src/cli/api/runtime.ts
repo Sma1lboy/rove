@@ -247,7 +247,8 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   readWorktreeChanges: async (worktreePath) =>
     (await import("../../tui/panes/sidebar/worktree-changes.ts")).readWorktreeChanges(worktreePath),
-  readBranchSignals: async (worktreePath) => (await import("./branch-signals.ts")).readBranchSignals(worktreePath),
+  readBranchSignals: async (worktreePath, recordedBaseRef) =>
+    (await import("./branch-signals.ts")).readBranchSignals(worktreePath, recordedBaseRef),
   tearDownSession: async (taskId) => {
     const host = await openPtyHost()
     if (host) {

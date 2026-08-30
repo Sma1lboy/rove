@@ -188,8 +188,11 @@ never pushed. Delete one you no longer need with
 
 - **Land says the worktree is not tracked.** Adopt it as a Task first, or
   merge the branch manually.
-- **Land refuses a dirty base checkout.** Commit or stash changes in the base
-  checkout, verify its current branch, then retry.
+- **Land refuses a dirty base checkout.** Commit the changes in the base
+  checkout, verify its current branch, then retry. Don't reach for
+  `git stash`: the stash stack lives in the repo's common dir
+  (`.git/refs/stash`) and is shared by every linked worktree, so a stash
+  here can entangle — or be popped by — parallel tasks' work.
 - **Land reports conflicts.** Rove has already aborted the merge. Resolve the
   branch relationship manually before retrying.
 - **A removed row comes back.** The daemon operation failed or git still lists

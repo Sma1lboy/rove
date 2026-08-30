@@ -114,11 +114,12 @@ describe("add handler", () => {
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x", command: "my-wrapper --go", vendor: "generic" })
   })
 
-  it("delivers an explicit prompt to the created task", async () => {
+  it("delivers an explicit prompt to the created task and persists the brief on the record", async () => {
     const task = taskFixture({ kind: "task", vendor: "codex", modelEffort: "high" })
     const client = new FakeClient({
       "task.create": () => ({ taskId: "t1", task }),
       "task.get": () => ({ task }),
+      "task.setPrompt": () => ({}),
     })
     const { calls, deliver } = recordingDelivery()
     const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
@@ -132,6 +133,10 @@ describe("add handler", () => {
       prompt: "do it",
     })
     expect(result).toMatchObject({ started: true, engineReady: true, delivered: true, session: "t1::tab-1" })
+    // The brief is written to the task record AFTER delivery confirms — the
+    // engine transcript is not durable, and this field is the copy that
+    // survives a dead engine. Never recorded when the paste never landed.
+    expect(client.requests).toContainEqual({ name: "task.setPrompt", payload: { taskId: "t1", prompt: "do it" } })
   })
 
   it("reports a created task whose prompt never landed (issue #72/#73)", async () => {
@@ -139,6 +144,7 @@ describe("add handler", () => {
     const client = new FakeClient({
       "task.create": () => ({ taskId: "t1", task }),
       "task.get": () => ({ task }),
+      "task.setPrompt": () => ({}),
     })
     await expectApiError(
       () =>
@@ -148,6 +154,9 @@ describe("add handler", () => {
         }),
       "NOT_DELIVERED",
     )
+    // A prompt that never reached the engine is never persisted: `get-task`'s
+    // `.task.prompt` must always mean "the engine was given exactly this".
+    expect(client.requestNames).not.toContain("task.setPrompt")
   })
 
   it("keeps the spawn-task alias", async () => {

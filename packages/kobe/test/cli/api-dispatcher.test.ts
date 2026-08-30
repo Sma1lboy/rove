@@ -188,6 +188,7 @@ describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
     await asSession("boccha", "tab-1", { detached: true })
     const client = new FakeClient({
       "task.create": (_payload, i) => ({ taskId: `t${i}`, task: taskFixture({ id: `t${i}` }) }),
+      "task.setPrompt": () => ({}),
     })
     const { deliver } = recordingDelivery()
     await invokeVerb("add", ["--repo", "/repo/x", "--count", "2", "--prompt", "go"], {
@@ -203,6 +204,7 @@ describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
     await asSession("disp-1", "tab-3")
     const client = new FakeClient({
       "task.create": (_payload, i) => ({ taskId: `t${i}`, task: taskFixture({ id: `t${i}` }) }),
+      "task.setPrompt": () => ({}),
     })
     const { deliver } = recordingDelivery()
     await invokeVerb("add", ["--repo", "/repo/x", "--count", "2", "--prompt", "go"], {
@@ -213,6 +215,12 @@ describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
     expect(creates).toHaveLength(2)
     for (const create of creates) {
       expect(create.payload).toMatchObject({ dispatcherTaskId: "disp-1", dispatcherTabId: "tab-3" })
+    }
+    // Every delivered sibling's brief is persisted on its own task record.
+    const persists = client.requests.filter((r) => r.name === "task.setPrompt")
+    expect(persists).toHaveLength(2)
+    for (const persist of persists) {
+      expect(persist.payload).toMatchObject({ prompt: "go" })
     }
   })
 })

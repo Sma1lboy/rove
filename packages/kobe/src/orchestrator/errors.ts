@@ -92,7 +92,9 @@ export const MAIN_CHECKOUT_DIRTY_CODE = "MAIN_CHECKOUT_DIRTY"
  * Thrown by `landTask` when the base repo's checkout has uncommitted changes.
  * Landing merges the task branch INTO that checkout, so a dirty tree would
  * entangle the user's in-progress work with the landed branch — we refuse and
- * let them commit/stash first.
+ * let them commit first. (Never `git stash` here: the stash stack lives in
+ * the repo's common dir and is shared by every linked worktree, so a stash in
+ * the base checkout can entangle parallel tasks' work.)
  */
 export class MainCheckoutDirtyError extends Error {
   constructor(
@@ -100,7 +102,7 @@ export class MainCheckoutDirtyError extends Error {
     public readonly dir: string,
   ) {
     super(
-      `${MAIN_CHECKOUT_DIRTY_CODE}: base checkout at ${dir} has uncommitted changes; commit or stash them before landing`,
+      `${MAIN_CHECKOUT_DIRTY_CODE}: base checkout at ${dir} has uncommitted changes; commit them before landing (never git stash — the stash stack is shared by every worktree of this repo)`,
     )
     this.name = "MainCheckoutDirtyError"
   }

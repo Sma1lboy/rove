@@ -175,6 +175,12 @@ export type DaemonRequestName =
   | "task.pin"
   | "task.move"
   | "task.status"
+  // Record the task brief on the task row AFTER the prompt was confirmed
+  // delivered into the engine — the engine's own transcript is not durable,
+  // and this field is the copy that survives a dead engine/context loss.
+  // Deliberately NOT web-exposed: the browser has no reason to write another
+  // task's brief, and the web allowlist is a security contract.
+  | "task.setPrompt"
   // Web-board ordering (docs/design/web-kanban.md M3): batch-assign sparse
   // fractional `position` keys for per-status column order. ONE snapshot
   // push per batch; the TUI never reads `position`.
@@ -368,6 +374,10 @@ export interface SerializedTask {
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The kobe session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
+  /** The task brief: the full delivered `add --prompt` text (never truncated). */
+  readonly prompt?: DaemonTask["prompt"]
+  /** The recorded fork point (`add --base-branch`) branch signals measure against. */
+  readonly baseRef?: DaemonTask["baseRef"]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -407,6 +417,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     quotaResume: task.quotaResume,
     linkedWorkItem: task.linkedWorkItem,
     dispatcher: task.dispatcher,
+    prompt: task.prompt,
+    baseRef: task.baseRef,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }

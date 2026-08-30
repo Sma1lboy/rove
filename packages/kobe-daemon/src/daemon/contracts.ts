@@ -97,6 +97,15 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** The task brief: the full text of the prompt `add --prompt` delivered
+   *  into this task's engine, persisted so it survives the engine's own
+   *  transcript. Verbatim, never truncated. Absent until delivered. */
+  readonly prompt?: string
+  /** The base ref the task branch was cut from (`add --base-branch`),
+   *  persisted so branch signals measure against the real fork point.
+   *  Absent on records that predate the field (signals fall back to a
+   *  base guess). */
+  readonly baseRef?: string
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -168,6 +177,8 @@ export interface DaemonOrchestrator {
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
+  /** Record the task brief (the delivered `add --prompt` text) on the task. */
+  setPrompt(id: string, prompt: string): Promise<void>
   reorderTasks(moves: ReadonlyArray<{ taskId: string; position: number }>): Promise<void>
   deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>

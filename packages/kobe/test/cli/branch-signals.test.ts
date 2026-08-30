@@ -70,3 +70,49 @@ describe("readBranchSignals", () => {
     expect(resolveBaseRef(dir)).toBeNull()
   })
 })
+
+describe("readBranchSignals with a recorded baseRef", () => {
+  /**
+   * main (A) → release/2.x (adds B) → kobe/task cut FROM release/2.x (adds
+   * C). The base guess resolves local `main`; the recorded fork point is
+   * `release/2.x` — measuring against the guess over-counts ahead and
+   * folds the release work into the task's diffstat.
+   */
+  function makeForkedRepo(): string {
+    const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-forked-"))
+    cleanups.push(repo)
+    git(repo, "init", "-q", "-b", "main")
+    writeFileSync(join(repo, "a.txt"), "one\n")
+    git(repo, "add", "a.txt")
+    git(repo, "commit", "-q", "-m", "base")
+    git(repo, "checkout", "-q", "-b", "release/2.x")
+    writeFileSync(join(repo, "release.txt"), "rel\n")
+    git(repo, "add", "release.txt")
+    git(repo, "commit", "-q", "-m", "release work")
+    git(repo, "checkout", "-q", "-b", "kobe/task")
+    writeFileSync(join(repo, "task.txt"), "task\n")
+    git(repo, "add", "task.txt")
+    git(repo, "commit", "-q", "-m", "task work")
+    return repo
+  }
+
+  it("measures against the recorded fork point instead of the guess", () => {
+    const repo = makeForkedRepo()
+    const signals = readBranchSignals(repo, "release/2.x")
+    expect(signals.baseRef).toBe("release/2.x")
+    expect(signals.ahead).toBe(1)
+    expect(signals.diff).toEqual({ files: 1, insertions: 1, deletions: 0 })
+    // Sanity anchor: with NO record the guess resolves local main and
+    // over-counts (2 ahead, release work folded into the diffstat).
+    const guessed = readBranchSignals(repo)
+    expect(guessed.baseRef).toBe("main")
+    expect(guessed.ahead).toBe(2)
+  })
+
+  it("falls back to the guess when the recorded ref no longer resolves", () => {
+    const repo = makeForkedRepo()
+    const signals = readBranchSignals(repo, "deleted-branch")
+    expect(signals.baseRef).toBe("main")
+    expect(signals.ahead).toBe(2)
+  })
+})

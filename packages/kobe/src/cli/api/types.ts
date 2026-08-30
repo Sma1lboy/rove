@@ -233,8 +233,13 @@ export interface ApiRuntime {
   defaultVendor(repo?: string): Promise<VendorId | undefined>
   /** Uncommitted +/− counts for a worktree. */
   readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number }>
-  /** Committed work vs the branch's base: ahead count + diffstat (`collect`). */
-  readBranchSignals(worktreePath: string): Promise<{
+  /** Committed work vs the branch's base: ahead count + diffstat (`collect`).
+   *  `recordedBaseRef` is the task's persisted fork point (`add --base-branch`);
+   *  when present it wins over the base guess; absent/unresolvable falls back. */
+  readBranchSignals(
+    worktreePath: string,
+    recordedBaseRef?: string,
+  ): Promise<{
     baseRef: string | null
     ahead: number | null
     diff: { files: number; insertions: number; deletions: number } | null
