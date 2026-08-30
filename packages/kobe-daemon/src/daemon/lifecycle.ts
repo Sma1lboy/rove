@@ -37,8 +37,13 @@ export interface StopDaemonResult {
 }
 
 /** `kill(pid, 0)` throws ESRCH once a process is gone; EPERM means it's
- *  alive but owned by another user. */
-function isProcessAlive(pid: number): boolean {
+ *  alive but owned by another user.
+ *
+ *  Exported because it is the ONLY honest liveness answer we have: a socket
+ *  probe reports whether the daemon ANSWERED, which a busy daemon can fail
+ *  while being perfectly healthy. Callers deciding whether to kill anything
+ *  must ask the OS, not the socket. */
+export function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true

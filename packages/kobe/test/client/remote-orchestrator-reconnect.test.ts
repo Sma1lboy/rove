@@ -143,7 +143,10 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     })
     h.triggerClose()
     expect(orch.connectionStateSignal()()).toBe("disconnected")
-    await sleep(50)
+    // The first GUI attempt carries up to 400ms of jitter (so concurrent
+    // GUIs don't all probe a cold-starting daemon at the same instant);
+    // wait past that window rather than assuming an immediate retry.
+    await sleep(600)
     expect(ensureCalls).toBe(1)
     expect(h.helloCount()).toBe(1)
     expect(orch.connectionStateSignal()()).toBe("online")
@@ -161,7 +164,8 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     })
 
     h.triggerClose()
-    await sleep(800)
+    // jitter (≤400ms) + the failed first attempt's 500ms backoff.
+    await sleep(1400)
 
     expect(ensureCalls).toBe(2)
     expect(h.helloCount()).toBe(1)

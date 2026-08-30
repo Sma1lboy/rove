@@ -170,3 +170,81 @@ describe("ensureDaemonReachable under a held spawn lock", () => {
     }
   })
 })
+
+describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
+  it("waits out a live-but-slow daemon instead of stopping it", async () => {
+    // The 2026-08-29 succession storm: a busy daemon misses the hello
+    // deadline, the client concludes it is dead and kills it, the
+    // replacement's arrival makes the old one self-stop, every client
+    // reconnects at once onto a cold-starting daemon, repeat (11 times in
+    // 50 minutes). The fix asks the OS whether the PROCESS exists rather
+    // than whether the socket was quick.
+    //
+    // The observable difference is TIMING, and that is what this asserts:
+    // with the liveness check, a live pid buys a grace window, so a daemon
+    // that starts answering at 400ms is simply waited out and the call
+    // returns shortly after. Without it, the client goes straight into
+    // stopDaemonProcess — whose graceful-RPC leg alone budgets 2s before
+    // it even begins polling — so the call cannot come back this fast.
+    const dir = mkdtempSync(join(tmpdir(), "kobe-busy-daemon-"))
+    const socketPath = join(SOCK_DIR, `kobe-dpr-busy-${process.pid}.sock`)
+    const pidPath = join(dir, "daemon.pid")
+    const saved = {
+      sock: process.env.KOBE_DAEMON_SOCKET_PATH,
+      pid: process.env.KOBE_DAEMON_PID_PATH,
+      home: process.env.KOBE_HOME_DIR,
+      task: process.env.KOBE_TASK_ID,
+      roveTask: process.env.ROVE_TASK_ID,
+    }
+    process.env.KOBE_DAEMON_SOCKET_PATH = socketPath
+    process.env.KOBE_DAEMON_PID_PATH = pidPath
+    process.env.KOBE_HOME_DIR = dir
+    // MUST be cleared, or this test measures nothing: `ensureDaemonReachable`
+    // bails out early for a wedged socket when it believes it is running
+    // inside an engine session, never reaching the liveness check under
+    // test. The suite itself routinely runs inside a Rove engine tab, where
+    // KOBE_TASK_ID is set — inheriting it made an earlier version of this
+    // test pass with the fix deleted.
+    Reflect.deleteProperty(process.env, "KOBE_TASK_ID")
+    Reflect.deleteProperty(process.env, "ROVE_TASK_ID")
+
+    // A socket that ACCEPTS but never replies — indistinguishable from a
+    // busy daemon, which is exactly the case that used to get it killed.
+    await listenAt(socketPath, () => {
+      /* accept and stay silent */
+    })
+    // A pidfile naming a process that is definitely alive: this one. A
+    // real daemon's pid would do the same job; using ours keeps the test
+    // from having to stage (and reap) a second process.
+    writeFileSync(pidPath, String(process.pid))
+
+    try {
+      // The daemon "finishes what it was doing" and starts answering while
+      // ensureDaemonReachable is inside its grace window.
+      const timer = setTimeout(() => {
+        for (const socket of openSockets) socket.destroy()
+        void listenAt(socketPath, helloResponder)
+      }, 400)
+      const startedAt = Date.now()
+      const resolved = await ensureDaemonReachable()
+      const elapsed = Date.now() - startedAt
+      clearTimeout(timer)
+      expect(resolved).toBe(socketPath)
+      // Returned by waiting, not by killing: stopDaemonProcess's graceful
+      // leg alone would push this past 2s.
+      expect(elapsed).toBeLessThan(2000)
+    } finally {
+      for (const [env, value] of [
+        ["KOBE_DAEMON_SOCKET_PATH", saved.sock],
+        ["KOBE_DAEMON_PID_PATH", saved.pid],
+        ["KOBE_HOME_DIR", saved.home],
+        ["KOBE_TASK_ID", saved.task],
+        ["ROVE_TASK_ID", saved.roveTask],
+      ] as const) {
+        if (value === undefined) Reflect.deleteProperty(process.env, env)
+        else process.env[env] = value
+      }
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 30_000)
+})
