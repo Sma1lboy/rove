@@ -37,6 +37,13 @@ export interface ConfirmPrompt {
   readonly body: string
   readonly cancelLabel: string
   readonly confirmLabel: string
+  /**
+   * Destructive action (delete / force delete): the confirm dialog starts
+   * focused on Cancel and draws the confirm button in the error color, so a
+   * stray Enter cannot commit it. Flows own this — the host adapter only
+   * forwards it to `DialogConfirm.show`.
+   */
+  readonly danger?: boolean
 }
 
 /** Optional labels for {@link TaskActionContext.promptText} (RenameTaskDialog reuses). */
@@ -190,6 +197,7 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
         : "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
     cancelLabel: "cancel",
     confirmLabel: "delete",
+    danger: true,
   })
   if (!ok) return
   let deleted = false
@@ -204,6 +212,7 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
         body: "Its worktree has uncommitted or untracked work that will be permanently deleted. Force delete anyway?",
         cancelLabel: "cancel",
         confirmLabel: "force delete",
+        danger: true,
       })
       if (forceOk) {
         try {

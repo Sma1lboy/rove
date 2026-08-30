@@ -28,12 +28,19 @@ export type DialogConfirmProps = {
   label?: string
   /** Custom label for the confirm button (default: `confirm`). Titlecased on render. */
   confirmLabel?: string
-  /** Which button receives initial keyboard focus (default: `confirm`). */
+  /**
+   * Destructive action: initial focus lands on Cancel (a stray Enter must not
+   * commit it) and the confirm button is drawn in the error color — the same
+   * `danger` → `theme.error` convention `ContextMenuEntry` uses.
+   */
+  danger?: boolean
+  /** Which button receives initial keyboard focus (default: `confirm`, or `cancel` when `danger`). */
   initialActive?: "confirm" | "cancel"
 }
 
 export type DialogConfirmResult = boolean | undefined
 export type DialogConfirmOptions = {
+  danger?: boolean
   initialActive?: "confirm" | "cancel"
 }
 
@@ -42,7 +49,9 @@ export function DialogConfirm(props: DialogConfirmProps) {
   const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
-  const [active, setActive] = useState<"confirm" | "cancel">(props.initialActive ?? "confirm")
+  const [active, setActive] = useState<"confirm" | "cancel">(
+    props.initialActive ?? (props.danger ? "cancel" : "confirm"),
+  )
 
   useBindings(() => ({
     bindings: [
@@ -73,25 +82,31 @@ export function DialogConfirm(props: DialogConfirmProps) {
       </box>
       <text fg={theme.textMuted}>{props.message}</text>
       <box flexDirection="row" justifyContent="flex-end" paddingTop={1}>
-        {(["cancel", "confirm"] as const).map((key) => (
-          <box
-            key={key}
-            paddingLeft={1}
-            paddingRight={1}
-            backgroundColor={key === active ? theme.primary : undefined}
-            onMouseUp={() => {
-              if (key === "confirm") props.onConfirm?.()
-              if (key === "cancel") props.onCancel?.()
-              dialog.clear()
-            }}
-          >
-            <text fg={key === active ? theme.selectedListItemText : theme.textMuted}>
-              {titlecase(
-                key === "cancel" ? (props.label ?? t("common.cancel")) : (props.confirmLabel ?? t("common.confirm")),
-              )}
-            </text>
-          </box>
-        ))}
+        {(["cancel", "confirm"] as const).map((key) => {
+          // A danger confirm commits something destructive: the active fill
+          // and the idle label both carry the error color (context-menu
+          // `danger` convention) so the risky button reads as risky.
+          const dangerConfirm = key === "confirm" && props.danger
+          return (
+            <box
+              key={key}
+              paddingLeft={1}
+              paddingRight={1}
+              backgroundColor={key === active ? (dangerConfirm ? theme.error : theme.primary) : undefined}
+              onMouseUp={() => {
+                if (key === "confirm") props.onConfirm?.()
+                if (key === "cancel") props.onCancel?.()
+                dialog.clear()
+              }}
+            >
+              <text fg={key === active ? theme.selectedListItemText : dangerConfirm ? theme.error : theme.textMuted}>
+                {titlecase(
+                  key === "cancel" ? (props.label ?? t("common.cancel")) : (props.confirmLabel ?? t("common.confirm")),
+                )}
+              </text>
+            </box>
+          )
+        })}
       </box>
     </box>
   )
@@ -117,6 +132,7 @@ DialogConfirm.show = (
         onCancel={() => resolve(false)}
         label={label}
         confirmLabel={confirmLabel}
+        danger={options?.danger}
         initialActive={options?.initialActive}
       />
     ),

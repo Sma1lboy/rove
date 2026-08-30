@@ -270,6 +270,9 @@ export function KanbanPage(props: {
       dialog,
       t("kanban.confirmDelete.title", { id: String(issue.id) }),
       t("kanban.confirmDelete.body", { title: issue.title }),
+      undefined,
+      undefined,
+      { danger: true },
     ).then((confirmed) => {
       if (!confirmed) return
       void props.orchestrator

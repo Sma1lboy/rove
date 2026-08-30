@@ -161,6 +161,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
           t("worktrees.delete.forceBody", { branch: row.branch || row.path }),
           t("common.cancel"),
           t("worktrees.delete.button"),
+          { danger: true },
         )
         if (confirmed === true) await deleteInBackground(row, true)
         return
@@ -178,6 +179,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       t("worktrees.delete.confirmBody", { branch: row.branch || row.path }),
       t("common.cancel"),
       t("worktrees.delete.button"),
+      { danger: true },
     )
     if (ok !== true) return
     void deleteInBackground(row, false)
