@@ -301,7 +301,25 @@ describe("send handler", () => {
       // The self-teach pointer: a receiver that has never seen kobe learns
       // where the rest of the coordination verbs live.
       expect(calls[0].prompt).toContain("Rove agent skill")
-      expect(calls[0].prompt).toMatch(/: hi$/)
+      // The sender's text is LAST and whole, after a blank line — not the
+      // object of the provenance sentence. A model generates in the language
+      // of the tokens nearest its turn, so a non-English prompt wrapped in an
+      // English clause came back in English.
+      expect(calls[0].prompt).toMatch(/\)\n\nhi$/)
+    })
+
+    it("keeps a non-English prompt intact and last, so nothing follows it", async () => {
+      const { calls, deliver } = recordingDelivery()
+      await invokeVerb("send", ["--task-id", "abc", "--prompt", "帮我重构登录模块"], {
+        client: peerClient(),
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })
+      expect(calls[0].prompt.endsWith("帮我重构登录模块")).toBe(true)
+      // The prompt is not spliced into the sentence: everything before it is
+      // provenance, and the last thing the receiver reads is the sender's own words.
+      const [provenance, ...rest] = calls[0].prompt.split("\n\n")
+      expect(rest.join("\n\n")).toBe("帮我重构登录模块")
+      expect(provenance).not.toContain("帮我重构登录模块")
     })
 
     it("--plain sends verbatim", async () => {

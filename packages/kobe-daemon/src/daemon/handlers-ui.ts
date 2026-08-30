@@ -226,7 +226,10 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (routed && main) {
         ctx.bus.publish("session.deliver", {
           taskId: main.id,
-          text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId}): ${text}`,
+          // Note text last and whole, same rule as the [ROVE PEER] prefix
+          // in `cli/api/handlers-tasks.ts`: the dispatcher reads a note in
+          // the filer's own language, not as the tail of an English clause.
+          text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId})\n\n${text}`,
           at: Date.now(),
           source: "note",
         })

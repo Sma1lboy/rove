@@ -37,6 +37,25 @@ describe("note.file", () => {
     expect((delivered?.payload as { text: string }).text).toContain("build needs --no-sandbox")
   })
 
+  it("relays the note text LAST and whole, not as the tail of the provenance sentence", async () => {
+    const { ctx, rec } = fakeCtx({
+      getTask: (id: string) => (id === "t1" ? TASK : undefined),
+      listTasks: () => [MAIN, TASK],
+    })
+    await dispatch("note.file", { taskId: "t1", text: "构建要先跑 bun install" }, ctx)
+
+    const delivered = rec.published.find((p) => p.channel === "session.deliver")
+    const text = (delivered?.payload as { text: string }).text
+    // The dispatcher reads the note in the filing session's own language: a
+    // model generates in the language of the tokens nearest its turn, so a
+    // note appended to an English clause came back in English.
+    expect(text.endsWith("构建要先跑 bun install")).toBe(true)
+    const [provenance, ...rest] = text.split("\n\n")
+    expect(rest.join("\n\n")).toBe("构建要先跑 bun install")
+    expect(provenance).toContain("[ROVE FIELD NOTE]")
+    expect(provenance).not.toContain("构建要先跑")
+  })
+
   it("still persists when there is no dispatcher seat — an unrouted note is no longer a loss", async () => {
     const { ctx, rec } = fakeCtx({ getTask: () => TASK, listTasks: () => [TASK] })
     const result = await dispatch("note.file", { taskId: "t1", text: "flaky auth test" }, ctx)

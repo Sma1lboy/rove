@@ -55,7 +55,12 @@ async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, promp
   // improvises verbs and side-channels (2026-08-10: a peer coordination
   // round-trip fell back to a human relay because neither side had the
   // skill's contract in context).
-  return `[ROVE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`): ${prompt}`
+  // The sender's text goes LAST, whole, after a blank line — never as the
+  // object of this English sentence. A model generates in the language of
+  // the tokens nearest its turn, so wrapping a Chinese prompt in an English
+  // clause pulled replies into English; ending on the sender's own words
+  // removes that pull without changing what the prefix says.
+  return `[ROVE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
 }
 
 export async function issueUpdate(ctx: VerbContext): Promise<unknown> {

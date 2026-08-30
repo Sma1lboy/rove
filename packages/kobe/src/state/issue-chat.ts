@@ -18,9 +18,19 @@
  */
 
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+import {
+  issueProjectPrompt as buildIssueProjectPrompt,
+  issueWorktreePrompt as buildIssueWorktreePrompt,
+} from "@sma1lboy/kobe-daemon/prompts/issue-prompts"
+import { ROVE_PRODUCT_NAME } from "../product.ts"
 import { attachmentLabel } from "../tui/lib/attachments"
 
 export type IssueChatPlacement = "worktree" | "projectWorktree" | "project"
+
+/** Capitalized product name ("Rove") — mirror of kobe-web's `cli-name.ts`. */
+function displayProductName(): string {
+  return ROVE_PRODUCT_NAME.charAt(0).toUpperCase() + ROVE_PRODUCT_NAME.slice(1)
+}
 
 /** Next `images[N]:`/`pdf[N]:` placeholder index in a body draft. */
 export function nextPlaceholderIndex(body: string): number {
@@ -53,31 +63,15 @@ export function issueChatTaskTitle(issue: Issue): string {
   return `#${issue.id} ${issue.title}`
 }
 
-function promptHeader(issue: Issue): string[] {
-  const lines = [`Work on user story #${issue.id}: ${issue.title}`, ""]
-  const body = issue.body.trim()
-  if (body) lines.push(body, "")
-  return lines
-}
-
-/** First message for a worktree-task session (web quickStartPrompt parity). */
+/**
+ * Re-exports of the shared builders in `kobe-daemon/prompts/issue-prompts` —
+ * the exact text the web board sends, built once. Thin wrappers so the TUI's
+ * call sites keep their `api`-defaulted signature.
+ */
 export function issueWorktreePrompt(issue: Issue, api = "rove api"): string {
-  return [
-    ...promptHeader(issue),
-    "Treat this as the story's dedicated Rove task session: work only in this task worktree, and preserve any repo init instructions already delivered to the session.",
-    "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
-    "Then merge the task branch back into the current project's main branch after the worktree is clean and checks pass.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
-  ].join("\n")
+  return buildIssueWorktreePrompt(issue, api, displayProductName())
 }
 
-/** First message for a chat directly on the project checkout — no worktree,
- *  so the worktree/merge instructions are replaced with a stay-put note. */
 export function issueProjectPrompt(issue: Issue, api = "rove api"): string {
-  return [
-    ...promptHeader(issue),
-    "You are working directly in the project checkout — no dedicated worktree or branch was created. Keep changes reviewable and do not switch branches unless asked.",
-    "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
-  ].join("\n")
+  return buildIssueProjectPrompt(issue, api)
 }

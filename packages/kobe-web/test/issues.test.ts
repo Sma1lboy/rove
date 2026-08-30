@@ -9,11 +9,8 @@ import {
   groupByStatus,
   type Issue,
   ISSUE_STATUSES,
-  issueMergePrompt,
   issueRepoOptions,
   overviewRows,
-  projectChatPrompt,
-  quickStartPrompt,
   type RepoIssues,
   resolveIssueRepoSelection,
 } from "../src/lib/issues.ts"
@@ -315,64 +312,11 @@ describe("canQuickStart", () => {
   })
 })
 
-describe("quickStartPrompt", () => {
-  it("contains the issue reference, title, body, and done instruction", () => {
-    const prompt = quickStartPrompt(
-      issue({
-        id: 42,
-        title: "Wire the flux capacitor",
-        body: "It needs 1.21 gigawatts.\nSee the schematic.",
-      }),
-    )
-    expect(prompt).toContain("user story #42")
-    expect(prompt).toContain("Wire the flux capacitor")
-    expect(prompt).toContain("It needs 1.21 gigawatts.\nSee the schematic.")
-    expect(prompt).toContain("dedicated Rove task session")
-    expect(prompt).toContain("verify the acceptance criteria")
-    expect(prompt).toContain(
-      "merge the task branch back into the current project's main branch",
-    )
-    expect(prompt).toContain(
-      "rove api issue-set-status --repo . --id 42 --status done",
-    )
-    // The caller flips to doing; the prompt must NOT tell the agent to.
-    expect(prompt).not.toContain('"doing"')
-  })
-
-  it("omits the body section when the body is blank", () => {
-    const prompt = quickStartPrompt(issue({ id: 7, title: "T", body: "  " }))
-    expect(prompt).toContain("story #7")
-    expect(prompt).not.toContain("\n\n\n")
-  })
-})
-
-describe("issueMergePrompt", () => {
-  it("asks the linked task to summarize, merge to project main, and mark the issue done", () => {
-    const prompt = issueMergePrompt(issue({ id: 9, title: "Ship it" }))
-    expect(prompt).toContain("Finish user story #9")
-    expect(prompt).toContain("Verify the acceptance criteria")
-    expect(prompt).toContain(
-      "merge this task branch back into the current project's main branch",
-    )
-    expect(prompt).toContain(
-      "rove api issue-set-status --repo . --id 9 --status done",
-    )
-  })
-})
-
-describe("projectChatPrompt", () => {
-  it("frames the story without worktree/merge instructions", () => {
-    const prompt = projectChatPrompt(
-      issue({ id: 9, title: "Tune it", body: "the details" }),
-      "kobe api",
-    )
-    expect(prompt).toContain("Work on user story #9: Tune it")
-    expect(prompt).toContain("the details")
-    expect(prompt).toContain("directly in the project checkout")
-    expect(prompt).not.toContain("task worktree")
-    expect(prompt).not.toContain("merge the task branch")
-    expect(prompt).toContain(
-      "kobe api issue-set-status --repo . --id 9 --status done",
-    )
-  })
-})
+/*
+ * The prompt CONTENT contract moved with its single implementation:
+ * `packages/kobe/test/state/issue-chat.test.ts` covers the shared builders in
+ * `kobe-daemon/prompts/issue-prompts.ts` that this dashboard and the TUI both
+ * call, including a parity assertion that fails if a second copy reappears.
+ * `issues-actions.test.ts` still pins that this file delivers exactly those
+ * strings.
+ */
