@@ -30,10 +30,16 @@ const REPO_INIT = path.resolve(__dirname, "./fixtures/repo-init.sh")
 class FlakyStore extends TaskIndexStore {
   failNextUpdate = false
   deleteAfterNextUpdate = false
+  /** Leave an untracked file in the new worktree before failing the write. */
+  dirtyWorktreeBeforeFailing = false
 
   override async update(id: string, patch: Partial<Parameters<TaskIndexStore["update"]>[1]>) {
     if (this.failNextUpdate) {
       this.failNextUpdate = false
+      const created = (patch as { worktreePath?: string }).worktreePath
+      if (this.dirtyWorktreeBeforeFailing && created) {
+        fs.writeFileSync(path.join(created, "scratch.txt"), "left behind by the engine\n")
+      }
       throw new Error("simulated store write failure")
     }
     const result = await super.update(id, patch as never)
@@ -109,6 +115,25 @@ describe("ensureWorktree — partial-failure cleanup (no orphans)", () => {
     // ...and nothing was left on disk: no kobe-managed worktree, no orphan dir
     // under the worktrees root that a retry would collide with.
     expect(await new GitWorktreeManager().list(repo)).toEqual([])
+  })
+
+  test("a DIRTY worktree still rolls back — the rollback removal is forced", async () => {
+    // Realistic: the engine's init script (or a baseRef checkout) already
+    // wrote into the worktree by the time the store write fails. The rollback
+    // must remove it anyway.
+    //
+    // Drop `{ force: true }` from `rollbackWorktree` (worktree-coordinator.ts
+    // :212) and this goes red: `remove()` refuses a dirty worktree, the
+    // rollback swallows that error into a console warning, and the directory
+    // survives as debris a retry then collides with.
+    const task = await orch.createTask({ repo })
+    store.failNextUpdate = true
+    store.dirtyWorktreeBeforeFailing = true
+
+    await expect(orch.ensureWorktree(task.id)).rejects.toThrow(/simulated store write failure/)
+
+    expect(await new GitWorktreeManager().list(repo)).toEqual([])
+    expect(orch.getTask(task.id)?.worktreePath).toBe("")
   })
 
   test("retry after a failed write succeeds cleanly (operation is idempotent/retryable)", async () => {

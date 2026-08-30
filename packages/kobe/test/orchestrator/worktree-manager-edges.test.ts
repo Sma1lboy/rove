@@ -108,3 +108,59 @@ describe("renameBranch() convergence (issue #44)", () => {
     expect(await manager.currentBranch(wt)).toBe("rename-a")
   })
 })
+
+/**
+ * `remove({ deleteBranch })` against REAL git. Every other layer (api handler →
+ * daemon → coordinator) asserts the flag as a value being passed along; this is
+ * the only place that asks git whether the branch is actually still there.
+ */
+describe("remove({ deleteBranch }) — the branch actually lives or dies", () => {
+  function branchExists(name: string): boolean {
+    const out = execSync(`git branch --list ${JSON.stringify(name)}`, { cwd: repo, env: gitEnv, encoding: "utf8" })
+    return out.trim().length > 0
+  }
+
+  it("deleteBranch: true removes the branch from the owning repo", async () => {
+    const wt = join(root, "wt-branch-doomed")
+    await manager.create(repo, "kobe/doomed", wt)
+    expect(branchExists("kobe/doomed")).toBe(true)
+
+    await manager.remove(wt, { deleteBranch: true })
+
+    // Red if `deleteBranchIn` is never reached — including if the HEAD capture
+    // moves to AFTER the worktree is removed (manager.ts:225-228): the
+    // worktree is gone by then, `currentBranch` throws, the `.catch(() => null)`
+    // makes `branch` null and the delete is silently skipped.
+    expect(branchExists("kobe/doomed")).toBe(false)
+  })
+
+  it("without the opt-in the branch survives — git is the durable record", async () => {
+    const wt = join(root, "wt-branch-kept")
+    await manager.create(repo, "kobe/kept", wt)
+
+    await manager.remove(wt)
+
+    expect(branchExists("kobe/kept")).toBe(true)
+  })
+
+  it("an unmerged branch is refused by `-d` and force escalates to `-D`", async () => {
+    // The `-d`/`-D` choice in manager-branch.ts:50. Swap the ternary and both
+    // halves of this go red: `-D` would nuke the unmerged branch on the
+    // no-force path, `-d` would refuse it on the force path.
+    const wt = join(root, "wt-branch-unmerged")
+    await manager.create(repo, "kobe/unmerged", wt)
+    writeFileSync(join(wt, "work.txt"), "unmerged work")
+    execSync("git add -A && git commit -q -m work", { cwd: wt, env: gitEnv })
+
+    // Safe delete: the commit isn't on main, so `-d` refuses. Best-effort —
+    // the refusal is swallowed and the worktree removal still succeeds.
+    await manager.remove(wt, { deleteBranch: true })
+    expect(branchExists("kobe/unmerged")).toBe(true)
+
+    // Same branch, re-materialised, this time with force: `-D` drops it.
+    const wt2 = join(root, "wt-branch-unmerged-2")
+    await manager.create(repo, "kobe/unmerged", wt2)
+    await manager.remove(wt2, { force: true, deleteBranch: true })
+    expect(branchExists("kobe/unmerged")).toBe(false)
+  })
+})

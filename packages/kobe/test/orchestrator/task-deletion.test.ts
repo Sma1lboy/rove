@@ -219,3 +219,53 @@ describe("durable background task deletion", () => {
     await expect(orch.ensureWorktree(task.id)).rejects.toThrow(TaskDeletingError)
   })
 })
+
+describe("dir tasks on the daemon's prepare→begin→finish path", () => {
+  it("NEVER removes the user's own directory, and never probes it for dirt", async () => {
+    // This is the path `rove api delete` takes. `finish()` has its OWN
+    // `kind !== "dir"` guard, separate from the one `deleteNow()` reaches
+    // through `prepare()` — dir-task.test.ts covers only the latter, so
+    // deleting the guard at task-deletion.ts:78 goes unnoticed there.
+    //
+    // What the guard protects: a dir task's `worktreePath` IS the user's own
+    // directory (`rove .` — their project root, possibly their $HOME). A
+    // `git worktree remove --force` on it deletes their files.
+    const dir = await mkdtemp(join(tmpdir(), "kobe-user-dir-"))
+    try {
+      const task = await orch.openDirectoryTask({ dir })
+      // Dirty on purpose: a dir task must skip the gate rather than pass it.
+      worktrees.isDirty.mockResolvedValue(true)
+
+      await expect(orch.prepareTaskDeletion(task.id)).resolves.toBe(true)
+      await expect(orch.beginTaskDeletion(task.id)).resolves.toBe(true)
+      await orch.finishTaskDeletion(task.id)
+
+      // Delete the `&& task.kind !== "dir"` in finish() and this goes red.
+      expect(worktrees.remove).not.toHaveBeenCalled()
+      // Delete it in prepare() and this goes red (a dirty dir would also
+      // have thrown DirtyWorktreeError above, blocking a legitimate delete).
+      expect(worktrees.isDirty).not.toHaveBeenCalled()
+      // The row is gone — dropping the index entry is the whole job.
+      expect(orch.getTask(task.id)).toBeUndefined()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it("force + deleteBranch on a dir task still removes nothing on disk", async () => {
+    // The escalating flags (`rove api delete --force --delete-branch`) must
+    // not talk the coordinator past the kind check.
+    const dir = await mkdtemp(join(tmpdir(), "kobe-user-dir-"))
+    try {
+      const task = await orch.openDirectoryTask({ dir })
+      await orch.prepareTaskDeletion(task.id, { force: true, deleteBranch: true })
+      await orch.beginTaskDeletion(task.id)
+      await orch.finishTaskDeletion(task.id)
+
+      expect(worktrees.remove).not.toHaveBeenCalled()
+      expect(orch.getTask(task.id)).toBeUndefined()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+})
