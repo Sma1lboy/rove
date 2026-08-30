@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.28
+
+### Patch Changes
+
+- [#661](https://github.com/Sma1lboy/rove/pull/661) [`24ed0c2`](https://github.com/Sma1lboy/rove/commit/24ed0c2b05d8f8d6a12b4c0092334363d7098ded) Engines declare their own fork verb, and `rove doctor` lists every engine
+
+  Forking a chat was gated on a hardcoded `claude || codex` list, so an engine
+  that ships a fork verb could not fork until someone edited a shared file, and a
+  custom preset declaring a built-in protocol was refused despite launching that
+  exact binary. The verb is now declared by each engine and resolved through the
+  preset's protocol, like its session-id flags.
+
+  `rove doctor` listed three hardcoded engines, so Kimi never appeared even
+  though Rove detects its login, and no engine you added could show up at all.
+  Doctor now loops over the registered engines, and an engine whose login Rove
+  cannot read says so instead of reporting a missing account. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.27
 
 ### Patch Changes
