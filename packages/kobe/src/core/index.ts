@@ -11,6 +11,7 @@ import { auditDeletionSalvaged } from "@sma1lboy/kobe-daemon/daemon/task-deletio
 import { Orchestrator } from "../orchestrator/core.ts"
 import { TaskIndexStore } from "../orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
+import { tearDownTaskSessionAdapter } from "./daemon-session-adapter.ts"
 
 export interface KobeCoreOptions {
   readonly homeDir?: string
@@ -37,6 +38,10 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
     // user asking "what happened to my task".
     onSalvage: (taskId, salvage) =>
       auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo),
+    // A landed worktree is about to be unlinked; anything the engine writes
+    // into it after that is written to nothing. Same ordering the task-
+    // deletion runner already uses.
+    tearDownSession: (taskId) => tearDownTaskSessionAdapter(String(taskId)),
   })
 
   return {

@@ -23,6 +23,7 @@ import type { Task, TaskId } from "../types/task.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, LandConflictError, MainCheckoutDirtyError } from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
+import type { SalvageRecord } from "./worktree/salvage.ts"
 
 export type LandStrategy = "merge" | "squash"
 
@@ -51,6 +52,13 @@ export interface LandDeps {
   readonly worktrees: Pick<GitWorktreeManager, "deleteBranch" | "remove">
   /** Unlink the task's worktreePath after its worktree is removed. */
   readonly clearWorktreePath: (id: TaskId | string) => Promise<void>
+  /**
+   * Kill the task's engine session before its worktree directory goes.
+   * Injected rather than imported: the session host lives in `core/`, which
+   * already imports this layer. Unset (a TUI-local orchestrator, a test) means
+   * no session to tear down.
+   */
+  readonly tearDownSession?: (id: TaskId | string) => Promise<void>
 }
 
 /**
@@ -83,8 +91,27 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   // `removeWorktree: false` keeps it. The BRANCH is untouched either way —
   // git is the durable record, the directory is not.
   const worktree = opts.removeWorktree === false ? undefined : await removeLandedWorktree(task, opts.callerCwd, deps)
-  if (opts.deleteBranch) await deps.worktrees.deleteBranch(task.repo, result.branch, { force: true })
-  return worktree ? { ...result, worktree } : result
+  // `deleteBranch` is `branch -D`, which drops the branch's reflog as well as
+  // its ref — and the worktree removed on the line above took the only OTHER
+  // reflog (`.git/worktrees/<slug>/logs/HEAD`) with it. Under `--strategy
+  // squash` the base's new commit has no link back to the branch's commits,
+  // so without an anchor those commits are reachable from nothing at all.
+  // `deleteBranch` writes one and reports it here; on a `--no-ff` merge it
+  // finds the merge commit already reaches the tip and writes nothing.
+  let branchAnchor: SalvageRecord | null = null
+  if (opts.deleteBranch) {
+    await deps.worktrees.deleteBranch(task.repo, result.branch, {
+      force: true,
+      onAnchor: (record) => {
+        branchAnchor = record
+      },
+    })
+  }
+  return {
+    ...result,
+    ...(worktree ? { worktree } : {}),
+    ...(branchAnchor ? { branchAnchor } : {}),
+  }
 }
 
 /** Best-effort realpath for containment/identity checks (`/var` vs `/private/var`). */
@@ -121,6 +148,27 @@ async function removeLandedWorktree(
       }
     }
   }
+  // Kill the engine BEFORE unlinking the directory it is working in. The
+  // dirty check that let this land through ran seconds ago, in `landTask`; an
+  // engine still running has kept writing since. `git worktree remove`
+  // succeeds against a live process anyway — POSIX unlink does not care that
+  // something holds the directory as its cwd — and every write it makes after
+  // that goes to an unlinked inode: not on disk, not on the branch, not
+  // anywhere. Placed after the refusal checks so a land that is not going to
+  // remove anything does not kill a session for nothing.
+  //
+  // Ordering, not gating: the merge has already committed, so a teardown
+  // failure must not strand the worktree. `remove()` without force still
+  // refuses a dirty tree, which is the real guard on unsaved work; a stuck
+  // session that keeps writing is reported through that refusal, not by
+  // aborting here.
+  if (deps.tearDownSession) {
+    try {
+      await deps.tearDownSession(task.id)
+    } catch {
+      // best-effort; the dirty-refusal in remove() below is the real guard
+    }
+  }
   try {
     await deps.worktrees.remove(worktreePath)
   } catch (err) {
@@ -153,6 +201,15 @@ export interface LandResult {
   /** The post-land worktree cleanup outcome. Present unless removal was
    *  explicitly declined (`removeWorktree: false`). */
   readonly worktree?: LandWorktreeCleanup
+  /**
+   * The ref anchoring the deleted branch's tip, when `deleteBranch` deleted a
+   * branch nothing else kept reachable — i.e. after a squash land, where the
+   * base's new commit has no link back to the branch's own commits. Absent on
+   * a `--no-ff` merge (the merge commit already reaches them) and when no
+   * branch was deleted. Reported so a user can recover the pre-squash history
+   * without knowing `refs/rove/salvage` exists.
+   */
+  readonly branchAnchor?: { readonly ref: string; readonly commit: string }
 }
 
 /** Resolve the git working dir + ExecHost for the base repo — local path or remote basePath. */

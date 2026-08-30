@@ -59,6 +59,25 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const path = requireString(payload, "path")
       const force = payload.force === true
+      // Tear the engine down BEFORE unlinking its directory. `git worktree
+      // remove` succeeds against a live process — POSIX unlink does not care
+      // that something holds the directory as its cwd — and every write that
+      // engine makes afterwards lands in an unlinked inode: not on disk, not
+      // in the branch, and not in the salvage snapshot (which ran before
+      // them). The task-deletion path already orders it this way
+      // (`task-deletion-runner.ts`); this one did not.
+      //
+      // Ordering, not gating: teardown failure must not block a removal the
+      // user confirmed (the worktrees page's delete is optimistic — the row
+      // is already gone from their screen), and a dead/absent session throws
+      // the same way a stuck one does, which would strand every already-dead
+      // task's worktree. Logged, then the removal proceeds.
+      const taskId = ctx.orch ? matchTaskByWorktreePath(ctx.orch.listTasks(), path) : undefined
+      if (taskId) {
+        await ctx.runtime
+          .tearDownTaskSession(taskId)
+          .catch((err) => logDaemonError("worktree-remove-session-teardown", err))
+      }
       await ctx.runtime.removeWorktree(path, force)
       // Self-heal the task index: a worktree removed here (worktrees page /
       // web) otherwise leaves the owning task pointing at a dead dir, so the
@@ -67,8 +86,7 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // Exact-path match; unmatched (untracked worktree) is a harmless no-op.
       // Guarded on `ctx.orch` — this handler historically composes runtime
       // primitives directly, so a caller may not wire an orchestrator.
-      const taskId = ctx.orch ? matchTaskByWorktreePath(ctx.orch.listTasks(), path) : undefined
-      if (taskId) await ctx.orch.clearWorktreePath(taskId)
+      if (taskId && ctx.orch) await ctx.orch.clearWorktreePath(taskId)
       return { removed: true }
     },
   },

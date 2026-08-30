@@ -79,10 +79,16 @@ test("a force-removed worktree's uncommitted work is recoverable from the salvag
   expect(git(repo, "for-each-ref", "refs/rove/salvage", "--format=%(refname)")).toContain(record?.ref)
 })
 
-test("ignored files stay out of the snapshot", async () => {
+test("a bulk ignored tree stays out of the snapshot", async () => {
+  // The exclusion is by SIZE, not by ignored-ness — `.gitignore` says "don't
+  // track this", not "this isn't the user's work", and gitignored notes are
+  // now rescued (see `salvage-ignored.test.ts` for both directions). What
+  // still has to hold is that a dependency tree cannot bloat the snapshot, so
+  // this one is genuinely over the per-entry budget: 70 MB of real bytes, not
+  // a sparse file (`du` reports a sparse file's allocated size, which is 0).
   const wt = dirtyWorktree("ignored")
   fs.mkdirSync(path.join(wt, "node_modules"))
-  fs.writeFileSync(path.join(wt, "node_modules", "big.bin"), "vendor junk\n")
+  fs.writeFileSync(path.join(wt, "node_modules", "big.bin"), Buffer.alloc(70 * 1024 * 1024))
 
   let salvaged: { ref: string; commit: string } | null = null
   await new GitWorktreeManager().remove(wt, {
@@ -94,6 +100,9 @@ test("ignored files stay out of the snapshot", async () => {
 
   const ref = (salvaged as { ref: string } | null)?.ref
   expect(git(repo, "ls-tree", "-r", "--name-only", String(ref))).not.toContain("node_modules")
+  // The ordinary dirty work is still there — the budget skipped one entry,
+  // it did not abandon the snapshot.
+  expect(git(repo, "show", `${ref}:never-added.txt`)).toBe("brand new file\n")
 })
 
 test("a clean worktree salvages nothing", async () => {
