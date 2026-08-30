@@ -121,11 +121,16 @@ Mechanics: [design/engine-internals.md](./design/engine-internals.md).
 
 ## Resuming and forking
 
-**Resume.** A Claude tab whose process is gone (reboot, unarchive) relaunches
-into the same conversation instead of a blank one. A tab that never sent a
-first message isn't resumed; there's no transcript yet. Codex, Copilot,
-Kimi, and custom engines can't take a caller-set session id, so their tabs
-relaunch fresh.
+**Resume.** Whether a restarted tab comes back into its old conversation
+depends on the engine. Claude Code accepts a caller-set session id, so Rove
+pins one at launch and a tab whose process is gone (a reboot, say) relaunches
+into the same conversation instead of a blank one. Codex and Kimi mint their
+own ids — Codex announces its in the terminal title, Kimi's is discovered
+from its session store after the fact — and each reopens the last
+conversation with its own resume verb (`codex resume <id>`, `kimi -S <id>`).
+Copilot and custom engines have no resume verb Rove knows, so their tabs
+relaunch fresh. A tab that never sent a first message isn't resumed; there's
+no transcript yet.
 
 **Continue in a new tab.** `ctrl+a` `c` opens the continuation flow in the
 *same* worktree. What happens depends on the source and destination engines:

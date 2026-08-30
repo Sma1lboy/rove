@@ -46,10 +46,13 @@ other.
 ## Settings reference
 
 Keys not listed here are internal UI state (saved repos, tab layouts) that
-happen to share the file. Two exceptions worth knowing: `repoConfigs` is what
+happen to share the file. Three exceptions worth knowing: `repoConfigs` is what
 `rove repo set` writes (a map of git toplevel → `{initScript, initPrompt}`,
-see [Per-repo init](#per-repo-init)), and `lastSelectedVendor` is the legacy
-engine fallback below `defaultVendor`.
+see [Per-repo init](#per-repo-init)); `lastSelectedVendor` is the legacy
+engine fallback below `defaultVendor`; and `externalWorktreeSync` is not a
+setting you configure but a cleanup marker Rove writes — it records where the
+retired worktree-sync hook was once installed so the next launch (or
+`rove hook cleanup`) can remove it, flipping to `"off"` once cleaned.
 
 ### Appearance
 
@@ -166,9 +169,11 @@ discoverable. No restart needed.
 ### Sidebar
 
 The current tree sidebar follows persisted project/task order and supports
-manual project reordering with `shift+m`. Older state files may contain
-`activeSortMode` and `tasksPane.projectFilter`; the daemon still mirrors those
-compatibility values, but the current PureTUI tree does not consume them.
+manual project reordering with `shift+m`. The `t` key switches the task sort
+between that persisted order and most-recently-touched; the choice is saved
+as `activeSortMode` and read back on startup. Older state files may contain
+`tasksPane.projectFilter`; the daemon still mirrors that compatibility value
+for background consumers, but the current PureTUI tree does not consume it.
 
 ### Experimental
 

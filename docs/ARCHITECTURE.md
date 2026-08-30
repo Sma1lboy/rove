@@ -90,7 +90,7 @@ The standalone host periodically freezes bounded terminal rings plus launch
 metadata. After a host restart or reboot, it restores dead session records;
 the first attachment replays the last snapshot and respawns the recorded
 command. This recovery is distinct from a still-live child surviving a TUI or
-daemon restart. Explicit close/archive/reset operations remove their frozen
+daemon restart. Explicit close/delete/reset operations remove their frozen
 records.
 
 Tmux is not a session backend. The CLI retains one quarantined compatibility

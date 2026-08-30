@@ -158,7 +158,7 @@ under `~/.rove/` (or the selected Rove home):
 - `pty-sessions/` freezes each hosted session's launch metadata and bounded
   scrollback ring so a PTY-host crash, restart, or machine reboot can restore
   the old screen and respawn the launch command. An explicit tab close or task
-  archive drops that session's frozen record; a reset asks the running host to
+  delete drops that session's frozen record; a reset asks the running host to
   start fresh.
 
 These files can contain text that was visible in the embedded terminal. Treat
@@ -423,7 +423,7 @@ setting, not a Rove one.
 fallback below.
 
 **Fallback that works everywhere:** every row-menu entry is also a direct
-chord on the row itself (`r` rename, `a` archive, `d` delete, and so on); see
+chord on the row itself (`r` rename, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
 
