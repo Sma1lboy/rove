@@ -124,7 +124,15 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   }
   if (sender.kind === "main" || sender.kind === "dir") return
   if (!sender.worktreePath) return
-  const { ahead } = await ctx.runtime.readBranchSignals(sender.worktreePath)
+  // Every failure mode here is an UNKNOWN, and the rule this guard states for
+  // itself is that an unknown never refuses — so a read that throws delivers,
+  // exactly like the `ahead: null` it returns for an unresolvable base.
+  let ahead: number | null
+  try {
+    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath)).ahead
+  } catch {
+    return
+  }
   if (ahead !== 0) return
   const branch = sender.branch || "your branch"
   throw new ApiError(

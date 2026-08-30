@@ -190,6 +190,20 @@ describe("send delivers everything the guard has no business refusing", () => {
     expect(calls).toHaveLength(1)
   })
 
+  it("a branch read that THROWS — every failure mode here is an unknown", async () => {
+    const { calls, deliver } = recordingDelivery()
+    await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
+      client: clientWith(),
+      runtime: stubRuntime({
+        deliverPrompt: deliver,
+        readBranchSignals: async () => {
+          throw new Error("git exploded")
+        },
+      }),
+    })
+    expect(calls).toHaveLength(1)
+  })
+
   it("prose that merely mentions the word, rather than opening with the marker", async () => {
     const { calls, deliver } = recordingDelivery()
     await invokeVerb("send", ["--task-id", "coord-1", "--prompt", "the build succeeded: here is the log"], {
