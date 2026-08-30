@@ -11,10 +11,11 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { readLastActiveTaskId } from "../../state/last-active.ts"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { Task } from "../../types/task.ts"
+import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import { type TabsSnapshotKv, sweepOrphanTabsSnapshots } from "./terminal-tabs-persist"
 import { forgetTaskTabs, knownTaskTabs } from "./terminal-tabs-shared"
-import { activateWorkspaceTask, firstSelectableTask } from "./use-task-selection"
+import { activateWorkspaceTask, activationErrorMessage, firstSelectableTask } from "./use-task-selection"
 
 /** What {@link useWorkspaceSelection} reports when a worktree vanishes under a task. */
 export interface WorktreeGoneEvent {
@@ -43,8 +44,12 @@ export function useWorkspaceSelection(args: {
   readonly kv: TabsSnapshotKv
   /** A task's worktree disappeared out-of-band and its tabs were dropped. */
   readonly notifyWorktreeGone?: (event: WorktreeGoneEvent) => void
+  /** Refused activation (mid-delete, non-git project, worktree failure) —
+   *  the on-screen half of `reportError`. */
+  readonly notifyError?: (message: string) => void
 }): WorkspaceSelection {
   const { orch, tasks, activeTaskId, kv } = args
+  const t = useT()
   // Seed from the daemon's replayed focus, else the persisted lastActive
   // record — the adopt/fallback effect below corrects a stale/deleting id.
   const [selectedId, setSelectedId] = useState<string | null>(() => orch.activeTaskSignal()() ?? readLastActiveTaskId())
@@ -176,11 +181,16 @@ export function useWorkspaceSelection(args: {
       // record, and without this the first Enter never wrote lastActive —
       // so narrow mode's "↩ recent" row (and every lastActive consumer)
       // stayed empty until the user switched tasks once.
+      // Focus bookkeeping, not a user gesture — the pane has already switched
+      // locally, so the only casualty is the lastActive record. A toast would
+      // report a failure the user just watched succeed.
       if (orch.activeTaskSignal()() !== id)
+        // silent-catch-ok: focus bookkeeping, see above.
         void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
       return
     }
     setSelectedId(id)
+    // silent-catch-ok: same focus-bookkeeping write as above.
     void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
     // Plugin UI events: entering a task/project is an observable moment.
     const kind = tasks.find((task) => task.id === id)?.kind === "main" ? "project.opened" : "task.opened"
@@ -198,7 +208,13 @@ export function useWorkspaceSelection(args: {
         ensureWorktree: (taskId) => orch.ensureWorktree(taskId),
         selectTask,
         focusWorkspace: args.focusWorkspace,
-        reportError: (error) => console.error("[rove workspace] task.ensureWorktree failed:", error),
+        reportError: (error) => {
+          // Keep the log line for forensics; the toast is the on-screen half.
+          // Without it a refused Enter is a total no-op — the row never moves,
+          // so the user just presses it again, forever.
+          console.error("[rove workspace] task.ensureWorktree failed:", error)
+          args.notifyError?.(activationErrorMessage(error, t))
+        },
         isCurrent: () => activationGenerationRef.current === generation,
       },
       id,

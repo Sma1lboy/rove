@@ -86,6 +86,16 @@ export const en = {
   deleteFailed: "Couldn't delete story #{id}: {error}",
   /** Error-toast title when the new-story intake fails. `{error}` = the daemon's message. */
   createFailed: "Couldn't create the story: {error}",
+  /** The detail drawer's title/body edit was rejected — the board redraws from
+   *  the store, so without this the card silently keeps its OLD text and the
+   *  edit reads as never having been made. `{error}` = the daemon's message. */
+  updateFailed: "Couldn't save story #{id}: {error}",
+  /** A story's status write was rejected while starting its chat. The chat
+   *  still starts (best-effort), but the card stays in its old column. */
+  statusFailed: "Story #{id} stays in its old column: {error}",
+  /** Linking a story to its new task was rejected. The task exists and runs;
+   *  only the story↔task link is missing, so no `linked` badge appears. */
+  linkFailed: "Story #{id} isn't linked to its task: {error}",
 }
 
 export const zh: typeof en = {
@@ -149,4 +159,7 @@ export const zh: typeof en = {
   deleteFailed: "删除 story #{id} 失败：{error}",
   /** 新建 story 失败时的错误 toast 标题。`{error}` = daemon 返回的信息。 */
   createFailed: "创建 story 失败：{error}",
+  updateFailed: "保存 story #{id} 失败：{error}",
+  statusFailed: "Story #{id} 仍留在原来的列：{error}",
+  linkFailed: "Story #{id} 未能关联到它的任务：{error}",
 }

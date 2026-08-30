@@ -59,6 +59,7 @@ import { useTerminalBindings } from "./keys"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
 import { useTerminalPty } from "./use-terminal-pty"
+import { useTerminalReset } from "./use-terminal-reset"
 import { useTerminalSelection } from "./use-terminal-selection"
 
 /* --------------------------------------------------------------------- */
@@ -309,30 +310,15 @@ export function Terminal(props: TerminalProps) {
   // does not: the visible terminal remains the stable IME fallback there.
   const imeAnchorActive = (props.imeAnchorActive ?? true) && dialog.stack.length === 0
   const unfocusedAttachmentTarget = props.imeAnchorActive === true && dialog.stack.length === 0
-  const resetTaskIdRef = useLatest(props.taskId)
-  const resetCwdRef = useLatest(props.cwd)
-  const mountedRef = useRef(true)
-  useLayoutEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-  const requestReset = (): void => {
-    if (!pty) return
-    // Snapshot at click-time so a task switch mid-confirm doesn't reset
-    // the wrong shell.
-    const ptyAtClick = pty
-    const cwdAtClick = props.cwd
-    const taskIdAtClick = props.taskId
-    const geometryAtClick = bodyGeometry
-    if (!cwdAtClick || !taskIdAtClick || !geometryAtClick) return
-    void DialogConfirm.show(dialog, t("terminal.reset.title"), t("terminal.reset.body"), "cancel").then((ok) => {
-      if (ok !== true || !mountedRef.current) return
-      if (resetTaskIdRef.current !== taskIdAtClick || resetCwdRef.current !== cwdAtClick) return
-      forceReacquire(cwdAtClick, taskIdAtClick, geometryAtClick, ptyAtClick)
-    })
-  }
+  const requestReset = useTerminalReset({
+    pty,
+    acquireError,
+    cwd: props.cwd,
+    taskId: props.taskId,
+    bodyGeometry,
+    forceReacquire,
+    dialog,
+  })
 
   useTerminalBindings({
     focused,
@@ -481,6 +467,7 @@ export function Terminal(props: TerminalProps) {
                 <text fg={theme.textMuted} wrapMode="word">
                   {acquireError}
                 </text>
+                <text fg={theme.textMuted}>{t("terminal.unavailable.retry")}</text>
               </>
             ) : (
               <text fg={theme.textMuted}>{t("terminal.noTask")}</text>

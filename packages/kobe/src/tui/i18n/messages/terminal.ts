@@ -43,6 +43,9 @@ export const en = {
   unavailable: {
     shellMissing: "terminal unavailable — configured shell is not available",
     spawnFailed: "terminal unavailable — shell could not start",
+    // The pane is otherwise a dead end: there is no PTY to key into, so the
+    // only way out has to be named on screen.
+    retry: "F5 tries again",
   },
   reset: {
     title: "Reset terminal?",
@@ -82,6 +85,7 @@ export const zh: typeof en = {
   unavailable: {
     shellMissing: "终端不可用 —— 配置的 shell 不存在",
     spawnFailed: "终端不可用 —— shell 启动失败",
+    retry: "按 F5 重试",
   },
   reset: {
     title: "重置终端？",

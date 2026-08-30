@@ -144,6 +144,12 @@ jobs:
         # + build. Biome at root sees all packages.
         run: bun run lint
 
+      - name: No silent catch handlers in the TUI
+        # Under an alternate screen a bare `console.error` in a catch reaches
+        # the daemon log only, so the failed gesture looks like a no-op. Biome
+        # can't express "console.error inside a catch", hence a script gate.
+        run: node scripts/no-silent-catch.mjs
+
       - name: Typecheck (kobe package)
         # Workspaces hoist deps; per-package commands run via `bun --filter`.
         run: bun run typecheck

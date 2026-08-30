@@ -91,7 +91,10 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   addSavedRepo(result.repo)
   ctx.onRepoSaved?.()
   if (!orch) {
+    // The dialog has already closed by here. Without a toast the submit reads
+    // as a success that produced no task.
     ctx.logger.error(`${ctx.logPrefix} no daemon; cannot create task`)
+    ctx.notifyError?.(t("tasks.toast.noDaemonWorktree"))
     return
   }
   // The create/adopt awaits a real git-worktree operation with no other
