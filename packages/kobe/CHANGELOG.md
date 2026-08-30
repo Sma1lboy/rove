@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.22
+
+### Patch Changes
+
+- [#655](https://github.com/Sma1lboy/rove/pull/655) [`1ecac71`](https://github.com/Sma1lboy/rove/commit/1ecac712c9b669b8292937bd3cdda1143c916c3f) Destructive confirms no longer arm the destroy button
+
+  Every confirm dialog used to open with the cursor on the confirm button, so a
+  single stray Enter on "Force delete worktree?" — the one that warns
+  uncommitted work will be PERMANENTLY LOST — destroyed it. The `initialActive`
+  escape hatch existed but no caller used it.
+
+  Confirm dialogs now understand `danger`, modeled on the context menu's
+  `danger` flag: destructive confirms (task delete and force delete, worktree
+  delete and force delete, issue delete, routine delete, reset UI state) open
+  with focus on Cancel, and their confirm button is drawn in the error color.
+  Plain confirms — quit, restart backend, land branch, and the dismiss-only
+  "that input is invalid" notices — keep confirm-first focus. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#642](https://github.com/Sma1lboy/rove/pull/642) [`d853dde`](https://github.com/Sma1lboy/rove/commit/d853dde4353c9f29ea886f1ba2cf7465a0df4453) Stop reporting a daemon that is shutting down as healthy. `probeDaemonSocket` treated a hello that rejected the same as one that answered, so a probe landing in the shutdown window — where the daemon destroys every client socket — was told the daemon was fine and handed back a socket that vanished milliseconds later. A connection the peer drops before answering is now `absent`, so callers recover instead of using a dying socket. A daemon that answers with a protocol-mismatch error still counts as alive: it is running and serving other clients, and killing it is how split-brain starts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.21
 
 ### Patch Changes
