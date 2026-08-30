@@ -31,6 +31,7 @@ export async function branchExists(deps: BranchDeps, ctx: ExecCtx, branch: strin
   const out = await deps.runGit(ctx.exec, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
     cwd: ctx.dir,
     allowFail: true,
+    readOnly: true,
   })
   return out.exitCode === 0
 }
@@ -91,6 +92,7 @@ export async function branchHasUpstream(deps: BranchDeps, worktreePath: string, 
     ["for-each-ref", "--format=%(upstream)", `refs/heads/${branch}`],
     {
       cwd: worktreePath,
+      readOnly: true,
     },
   )
   return out.stdout.trim().length > 0
@@ -104,6 +106,7 @@ export async function hasLocalBranch(deps: BranchDeps, worktreePath: string, bra
     {
       cwd: worktreePath,
       allowFail: true,
+      readOnly: true,
     },
   )
   return out.exitCode === 0

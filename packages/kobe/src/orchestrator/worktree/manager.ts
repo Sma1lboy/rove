@@ -25,9 +25,9 @@
  * for cleanup invariants and dirty-state semantics.
  */
 
-import fs from "node:fs"
 import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
@@ -68,7 +68,13 @@ export class GitWorktreeManager implements WorktreeManager {
     if (!opts.cwd) {
       throw new Error("runGit(): cwd is required; refusing to inherit from process.cwd()")
     }
-    const r = await exec.run(["git", ...args], { cwd: opts.cwd, env: opts.env })
+    // Read-only probes (status/log/rev-parse/show-ref/for-each-ref/worktree
+    // list) must not compete with an engine's `git commit` for
+    // `.git/index.lock` — see lib/git-env.ts and GitRunOpts.readOnly. The
+    // policy flag merges over any caller env; ExecHost layers it over
+    // process.env locally and prefixes it onto the remote command.
+    const env = opts.readOnly ? { ...opts.env, ...READ_ONLY_GIT_ENV } : opts.env
+    const r = await exec.run(["git", ...args], { cwd: opts.cwd, env })
     const result: GitRunResult = { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
     if (result.exitCode !== 0 && !opts.allowFail) {
       throw new GitCommandError(args, opts.cwd, result)
@@ -313,9 +319,9 @@ export class GitWorktreeManager implements WorktreeManager {
   private listDeps(): ListDeps {
     return {
       ctxFor: (repoKey) => this.ctxFor(repoKey),
-      runGitStdout: async (ctx, args) => (await this.runGit(ctx.exec, args, { cwd: ctx.dir })).stdout,
+      runGitStdout: async (ctx, args) => (await this.runGit(ctx.exec, args, { cwd: ctx.dir, readOnly: true })).stdout,
+      runGitStdoutAt: async (ctx, cwd, args) => (await this.runGit(ctx.exec, args, { cwd, readOnly: true })).stdout,
       isDirty: (worktreePath) => this.isDirty(worktreePath),
-      lastActivityMs: (ctx, worktreePath) => this.lastActivityMs(ctx.exec, worktreePath),
     }
   }
 
@@ -373,32 +379,6 @@ export class GitWorktreeManager implements WorktreeManager {
   }
 
   /**
-   * Last-activity time of a worktree in epoch ms — the HEAD commit's
-   * committer time, falling back to the directory's mtime when the log
-   * read fails (e.g. an unborn branch). Best-effort: returns 0 on total
-   * failure so sorting still works. Used to order the adopt list.
-   */
-  private async lastActivityMs(exec: ExecHost, worktreePath: string): Promise<number> {
-    try {
-      const out = await this.runGit(exec, ["log", "-1", "--format=%ct"], { cwd: worktreePath })
-      const secs = Number.parseInt(out.stdout.trim(), 10)
-      if (Number.isFinite(secs) && secs > 0) return secs * 1000
-    } catch {
-      // no commits yet / not readable — fall through to mtime
-    }
-    // mtime fallback is a local-only convenience; on a remote the git-log
-    // path above is the source of truth and a miss simply sorts as 0.
-    if (!exec.isRemote) {
-      try {
-        return fs.statSync(worktreePath).mtimeMs
-      } catch {
-        // unreadable — fall through to 0
-      }
-    }
-    return 0
-  }
-
-  /**
    * `git -C <path> status --porcelain` non-empty.
    *
    * Untracked files count as dirty (matches `--porcelain` default) —
@@ -406,7 +386,10 @@ export class GitWorktreeManager implements WorktreeManager {
    * yet committed should not be silently nuked by `remove()`.
    */
   async isDirty(worktreePath: string): Promise<boolean> {
-    const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], { cwd: worktreePath })
+    const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], {
+      cwd: worktreePath,
+      readOnly: true,
+    })
     return out.stdout.length > 0
   }
 
@@ -421,6 +404,7 @@ export class GitWorktreeManager implements WorktreeManager {
   async currentBranch(worktreePath: string): Promise<string> {
     const out = await this.runGit(this.execAt(worktreePath), ["rev-parse", "--abbrev-ref", "HEAD"], {
       cwd: worktreePath,
+      readOnly: true,
     })
     const name = out.stdout.trim()
     if (!name || name === "HEAD") {
@@ -453,7 +437,7 @@ export class GitWorktreeManager implements WorktreeManager {
    * distinguishes "already done" from "stale debris".
    */
   private async tryDescribe(ctx: ExecCtx, worktreePath: string): Promise<WorktreeInfo | null> {
-    const out = await this.runGit(ctx.exec, ["worktree", "list", "--porcelain"], { cwd: ctx.dir })
+    const out = await this.runGit(ctx.exec, ["worktree", "list", "--porcelain"], { cwd: ctx.dir, readOnly: true })
     const entries = parseWorktreeListPorcelain(out.stdout)
     // Remote paths can't be realpath'd locally; compare them verbatim.
     const norm = (p: string) => (ctx.remote ? p : canonicalize(p))
@@ -483,7 +467,11 @@ export class GitWorktreeManager implements WorktreeManager {
    */
   private async findRepoFor(exec: ExecHost, worktreePath: string): Promise<string | null> {
     try {
-      const out = await this.runGit(exec, ["rev-parse", "--git-common-dir"], { cwd: worktreePath, allowFail: true })
+      const out = await this.runGit(exec, ["rev-parse", "--git-common-dir"], {
+        cwd: worktreePath,
+        allowFail: true,
+        readOnly: true,
+      })
       if (out.exitCode !== 0) return null
       const gitDir = out.stdout.trim()
       if (!gitDir) return null
