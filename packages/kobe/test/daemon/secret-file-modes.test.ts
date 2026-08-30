@@ -14,8 +14,8 @@ import { mkdtempSync, rmSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AgentTurnsStore } from "@sma1lboy/kobe-daemon/daemon/agent-turns-store"
-import { fileFreezeSink, freezeSession } from "@sma1lboy/kobe-daemon/daemon/pty-freeze-store"
 import { recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
+import { fileFreezeSink, freezeSession } from "@sma1lboy/kobe-daemon/daemon/pty-freeze-store"
 import { pluginConfigDir } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import { writePluginSettings } from "@sma1lboy/kobe-daemon/plugins/settings-env"
 import { afterEach, describe, expect, it } from "vitest"
@@ -50,6 +50,7 @@ describe("stores that hold agent output or credentials are owner-only", () => {
         exit: null,
         // The thing we are protecting: scrollback the agent produced.
         chunks: [Buffer.from("AWS_SECRET_ACCESS_KEY=wJalr")],
+        bytes: 26,
       }),
     )
     expect(mode(join(dir, "t%3A%3Atab-1.json"))).toBe(0o600)

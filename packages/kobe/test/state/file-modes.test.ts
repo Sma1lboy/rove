@@ -23,6 +23,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  // biome-ignore lint/performance/noDelete: env cleanup must fully unset when the var was unset before the test (assigning undefined leaves it as the string "undefined"). Same pattern as test/state/store.test.ts.
   if (originalHome === undefined) delete process.env.KOBE_HOME_DIR
   else process.env.KOBE_HOME_DIR = originalHome
   fs.rmSync(tmpHome, { recursive: true, force: true })
