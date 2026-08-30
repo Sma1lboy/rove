@@ -6,11 +6,14 @@ vi.mock("../src/lib/terminal.ts", () => ({ sendPtyText: vi.fn() }))
 
 import {
   issueMergePrompt,
+  issueProjectPrompt,
+  issueWorktreePrompt,
+} from "@sma1lboy/kobe-daemon/prompts/issue-prompts"
+import { displayProductName } from "../src/lib/cli-name.ts"
+import {
   linkIssue,
-  projectChatPrompt,
   promptIssueMerge,
   quickStartIssue,
-  quickStartPrompt,
   type RepoIssues,
   startIssueChat,
   unlinkIssue,
@@ -54,7 +57,7 @@ describe("quickStartIssue", () => {
     expect(rpc).toHaveBeenCalledWith("task.setActive", { taskId: "task-1" })
     expect(rpc).not.toHaveBeenCalledWith("task.ensureWorktree", expect.anything())
     expect(ensureEngineTab).toHaveBeenCalledWith("task-1")
-    expect(sendPtyText).toHaveBeenCalledWith("tab-1", "task-1", quickStartPrompt(target, "bun ./src/cli/index.ts api"))
+    expect(sendPtyText).toHaveBeenCalledWith("tab-1", "task-1", issueWorktreePrompt(target, "bun ./src/cli/index.ts api", displayProductName()))
     const issuesPost = fetchMock.mock.calls.find(
       ([url, opts]) => url === "/api/issues" && (opts as RequestInit | undefined)?.method === "POST",
     )
@@ -166,7 +169,7 @@ describe("quickStartIssue", () => {
     ).resolves.toEqual({ taskId: "task-w", workspaceTaskId: "main-1" })
     expect(rpc).toHaveBeenCalledWith("task.ensureMain", { repo: "/u/p/kobe" })
     expect(addTab).toHaveBeenCalledWith("main-1", "task-w")
-    expect(sendPtyText).toHaveBeenCalledWith("tab-w", "task-w", quickStartPrompt(target, "kobe api"))
+    expect(sendPtyText).toHaveBeenCalledWith("tab-w", "task-w", issueWorktreePrompt(target, "kobe api", displayProductName()))
     expect(rpc).toHaveBeenCalledWith("task.setActive", { taskId: "main-1" })
     expect(ensureEngineTab).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
@@ -189,7 +192,7 @@ describe("quickStartIssue", () => {
     expect(rpc).not.toHaveBeenCalledWith("task.create", expect.anything())
     expect(rpc).toHaveBeenCalledWith("task.setVendor", { taskId: "main-2", vendor: "claude" })
     expect(addTab).toHaveBeenCalledWith("main-2")
-    expect(sendPtyText).toHaveBeenCalledWith("tab-p", "main-2", projectChatPrompt(target, "kobe api"))
+    expect(sendPtyText).toHaveBeenCalledWith("tab-p", "main-2", issueProjectPrompt(target, "kobe api"))
     const issuesPost = fetchMock.mock.calls.find(
       ([url, opts]) => url === "/api/issues" && (opts as RequestInit | undefined)?.method === "POST",
     )

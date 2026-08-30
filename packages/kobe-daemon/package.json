@@ -79,7 +79,8 @@
     "./plugins/settings-env": "./src/plugins/settings-env.ts",
     "./daemon/pty-exit-watch": "./src/daemon/pty-exit-watch.ts",
     "./plugins/task-diff": "./src/plugins/task-diff.ts",
-    "./daemon/quota-resume": "./src/daemon/quota-resume.ts"
+    "./daemon/quota-resume": "./src/daemon/quota-resume.ts",
+    "./prompts/issue-prompts": "./src/prompts/issue-prompts.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
