@@ -11,6 +11,28 @@ import { describe, expect, it, vi } from "vitest"
 import { SERIALIZED_TASK, TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 describe("daemon handler registry — tasks, issues, worktrees", () => {
+  describe("task.list", () => {
+    // `activeTaskId` is the only read of the shared focus that verbs using
+    // the implicit target (`send`/`pane-open`/`pane-close`/`read-output`
+    // without `--task-id`) actually landed on — without it a misdirected
+    // delivery is unauditable.
+    it("returns the serialized tasks plus the active task id", async () => {
+      const { ctx } = fakeCtx({
+        listTasks: () => [TASK],
+        activeTaskSignal: () => () => "t-active",
+      })
+      await expect(dispatch("task.list", {}, ctx)).resolves.toEqual({
+        tasks: [SERIALIZED_TASK],
+        activeTaskId: "t-active",
+      })
+    })
+
+    it("reports activeTaskId: null when no task is active or the signal is unavailable", async () => {
+      const { ctx } = fakeCtx({ listTasks: () => [TASK] })
+      await expect(dispatch("task.list", {}, ctx)).resolves.toEqual({ tasks: [SERIALIZED_TASK], activeTaskId: null })
+    })
+  })
+
   describe("task CRUD", () => {
     it("task.create returns { taskId, task } and forwards normalized options", async () => {
       const calls: unknown[] = []

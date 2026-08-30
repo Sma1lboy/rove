@@ -18,7 +18,15 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "task.list",
     web: true,
     handle(_payload, ctx: DaemonHandlerContext) {
-      return { tasks: ctx.orch.listTasks().map(serializeTask) }
+      // `activeTaskId` is the shared focus every verb using the implicit
+      // target reads when `--task-id` is omitted — without it in the list
+      // envelope, a misdirected delivery is unauditable. The signal is the
+      // same source server.ts seeds the active-task channel from; test
+      // doubles may not stub it, so absence reads as "no focus".
+      return {
+        tasks: ctx.orch.listTasks().map(serializeTask),
+        activeTaskId: ctx.orch.activeTaskSignal?.()?.() ?? null,
+      }
     },
   },
   {

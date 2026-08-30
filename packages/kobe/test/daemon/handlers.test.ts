@@ -168,7 +168,7 @@ describe("daemon handler registry", () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const before = Date.now()
       const result = await dispatch("tab.close", { taskId: "t1", title: "demo" }, ctx)
-      expect(result).toEqual({ ok: true })
+      expect(result).toEqual({ ok: true, clients: 1 })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("tab.close")
       expect(event.payload).toMatchObject({ taskId: "t1", title: "demo" })
@@ -190,7 +190,7 @@ describe("daemon handler registry", () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const before = Date.now()
       const result = await dispatch("tab.open", { taskId: "t1", argv: ["sh", "-lc", "true"], title: "demo" }, ctx)
-      expect(result).toEqual({ ok: true })
+      expect(result).toEqual({ ok: true, clients: 1 })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("tab.open")
       expect(event.payload).toMatchObject({ taskId: "t1", argv: ["sh", "-lc", "true"], title: "demo" })
@@ -242,7 +242,7 @@ describe("daemon handler registry", () => {
       const { ctx, rec } = fakeCtx()
       const before = Date.now()
       const result = await dispatch("notice.send", { title: "build done" }, ctx)
-      expect(result).toEqual({ ok: true })
+      expect(result).toEqual({ ok: true, clients: 1 })
       expect(rec.published).toHaveLength(1)
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("notice.event")
@@ -280,6 +280,27 @@ describe("daemon handler registry", () => {
       )
       await expect(dispatch("notice.send", { title: "x", taskId: "nope" }, ctx)).rejects.toThrow("task not found: nope")
       expect(rec.published).toHaveLength(0)
+    })
+  })
+
+  describe("broadcast reach (clients)", () => {
+    // Broadcast-only handlers used to return a bare { ok: true } — an agent
+    // headless (no TUI attached) read that as "the pane opened" and reported
+    // a thing that never happened. `clients` is the same reach signal
+    // `session.deliver` already reports (#499): connection count, where 0 is
+    // the unambiguous "nobody performed it".
+    it("tab.open / tab.close / notice.send report clients: 0 when nothing is attached", async () => {
+      const { ctx } = fakeCtx({ getTask: () => TASK })
+      ;(ctx.daemon as { clientCount: () => number }).clientCount = () => 0
+      await expect(dispatch("tab.open", { taskId: "t1", argv: ["x"], title: "t" }, ctx)).resolves.toEqual({
+        ok: true,
+        clients: 0,
+      })
+      await expect(dispatch("tab.close", { taskId: "t1", title: "t" }, ctx)).resolves.toEqual({
+        ok: true,
+        clients: 0,
+      })
+      await expect(dispatch("notice.send", { title: "t" }, ctx)).resolves.toEqual({ ok: true, clients: 0 })
     })
   })
 

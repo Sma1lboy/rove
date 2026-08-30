@@ -155,7 +155,12 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(direction === "right" || direction === "down" ? { direction } : {}),
         at: Date.now(),
       })
-      return { ok: true }
+      // Same reach report as `session.deliver` (#499): the split is performed
+      // by an attached TUI, so with nothing listening the pane goes nowhere
+      // while a bare `ok` would read as "opened". `clients` counts CONNECTIONS
+      // — the calling CLI is one, so 1 does not prove a host is listening; 0
+      // is the unambiguous "nobody performed it".
+      return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
@@ -174,7 +179,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(tabId !== undefined ? { tabId } : {}),
         at: Date.now(),
       })
-      return { ok: true }
+      // A close with no attached TUI silently matched nothing — without this
+      // the caller cannot tell "pane closed" from "nobody was listening".
+      return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
@@ -192,7 +199,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (taskId !== undefined && !ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       const source = optionalString(payload, "source")
       ctx.bus.publish("notice.event", { title, kind, taskId, at: Date.now(), source })
-      return { ok: true }
+      // Headless honesty: with no attached UI the toast reaches nobody, and
+      // `clients` is the only signal (same reach report as session.deliver).
+      return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
