@@ -15,7 +15,7 @@ import { spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
-import { npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
+import { isNpxMissing, markSkillHintSeen, npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
 import { getPersistedBool, setPersistedBool } from "../state/store.ts"
 import { t } from "../tui/i18n"
 import { activeCliName } from "./rename-compat.ts"
@@ -88,15 +88,27 @@ export function applyOnboardingChoices(choices: OnboardingChoices, shell: ShellK
     }
   }
   if (choices.skill) {
-    out(t("onboarding.installingSkill", { command: npxSkillsCommand() }))
-    const result = spawnSync("npx", npxSkillsArgv(), { stdio: "inherit" })
-    if (result.status !== 0) out(t("onboarding.skillFailed", { command: skillInstall }))
+    if (isNpxMissing()) {
+      // The install.sh path in the QUICKSTART installs Bun and Rove but never
+      // Node, so a missing `npx` is ordinary here. Say what's missing instead
+      // of pointing at `rove skill install`, which needs the same binary.
+      out(t("onboarding.skillNeedsNode", { command: skillInstall }))
+    } else {
+      out(t("onboarding.installingSkill", { command: npxSkillsCommand() }))
+      const result = spawnSync("npx", npxSkillsArgv(), { stdio: "inherit" })
+      if (result.status !== 0) out(t("onboarding.skillFailed", { command: skillInstall }))
+    }
   } else {
     out(t("onboarding.skippedSkill", { command: skillInstall }))
+    // The user just answered this question. Suppress the one-time startup
+    // hint so the next `rove` doesn't ask it again on stderr.
+    markSkillHintSeen()
   }
   out("")
   out(t("onboarding.ready"))
-  out(t("onboarding.readyHint"))
+  // The package ships BOTH bins; every other line here interpolates the name
+  // the user actually invoked, so this one must too.
+  out(t("onboarding.readyHint", { command: cli }))
 }
 
 /**

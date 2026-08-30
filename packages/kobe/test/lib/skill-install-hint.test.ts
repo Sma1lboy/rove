@@ -19,7 +19,12 @@ vi.mock("node:os", async (importOriginal) => {
   return { ...actual, homedir: () => tmpHome, default: { ...actual, homedir: () => tmpHome } }
 })
 
-import { KOBE_SKILL_VERSION, kobeSkillState, maybeHintSkillInstall } from "../../src/lib/skill-install.ts"
+import {
+  KOBE_SKILL_VERSION,
+  kobeSkillState,
+  markSkillHintSeen,
+  maybeHintSkillInstall,
+} from "../../src/lib/skill-install.ts"
 import { getPersistedString } from "../../src/state/repos.ts"
 
 let cwd: string
@@ -88,6 +93,19 @@ describe("maybeHintSkillInstall", () => {
 
     await maybeHintSkillInstall()
     expect(stderrSpy).toHaveBeenCalledTimes(1)
+  })
+
+  // The onboarding wizard's DECLINE branch calls markSkillHintSeen(). That
+  // test mocks skill-install.ts, so it can only prove the CALL happens — this
+  // one proves the call actually silences the hint. Without both, gutting
+  // markSkillHintSeen's body leaves every test green while the user gets
+  // nagged on stderr about a question they answered seconds earlier.
+  it("markSkillHintSeen suppresses the absent-skill hint entirely", async () => {
+    markSkillHintSeen()
+    expect(getPersistedString("skillHintSeen")).toBe("1")
+
+    await maybeHintSkillInstall()
+    expect(stderrSpy).not.toHaveBeenCalled()
   })
 
   it("uses the compatibility command when invoked through kobe", async () => {

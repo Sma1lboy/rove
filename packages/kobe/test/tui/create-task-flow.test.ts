@@ -16,8 +16,11 @@ import { describe, expect, test, vi } from "vitest"
 
 vi.mock("../../src/state/repos", () => ({
   getSavedRepos: () => ["/repo"],
-  addSavedRepo: vi.fn(() => ({ added: false, path: "/repo", total: 1 })),
+  addSavedRepo: (p: string) => mockAddSavedRepo(p),
 }))
+// addSavedRepo normalizes to the git toplevel and returns it. Default: the
+// identity case; the subdirectory test below makes it actually normalize.
+const mockAddSavedRepo = vi.fn((path: string) => ({ added: false, path, total: 1 }))
 vi.mock("../../src/engine/account-detect", () => ({
   availableEngineIds: () => mockAvailableEngineIds(),
 }))
@@ -231,6 +234,28 @@ describe("createTaskFlow — create mode + guards", () => {
 
     expect(notifyInfo).toHaveBeenCalledWith(expect.stringContaining("No engine CLI detected"))
     expect(createTask).toHaveBeenCalled()
+  })
+
+  // The dialog submits whatever the user typed. If they ran `rove` inside
+  // `my-monorepo/packages/app`, that subdirectory is the prefill and it passes
+  // validation. `addSavedRepo` already normalized to the git toplevel — but
+  // its RETURN was thrown away, so the saved repo list, the vendor preference
+  // key, and the task record all disagreed. This pins that the flow forwards
+  // the normalized path to every downstream consumer.
+  test("forwards addSavedRepo's normalized root to createTask and rememberVendor", async () => {
+    mockAddSavedRepo.mockImplementationOnce(() => ({ added: true, path: "/repo", total: 1 }))
+    const promptNewTask = vi.fn(async () => ({
+      mode: "create" as const,
+      repo: "/repo/packages/app",
+      baseRef: "main",
+      vendor: "claude",
+    }))
+    const { ctx, createTask, rememberVendor } = makeCreateCtx({ promptNewTask })
+
+    await createTaskFlow(ctx)
+
+    expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ repo: "/repo" }))
+    expect(rememberVendor).toHaveBeenCalledWith("/repo", "claude")
   })
 
   test("no daemon (orch null): saves the repo/vendor choice but logs instead of creating", async () => {

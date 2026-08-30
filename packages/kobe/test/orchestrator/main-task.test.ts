@@ -56,6 +56,31 @@ describe("ensureMainTask", () => {
     expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(1)
   })
 
+  // `rove` run from a monorepo SUBDIRECTORY (`my-monorepo/packages/app`) used
+  // to split the sidebar into two projects: `ensureMainTask` normalized to the
+  // git toplevel, but the task record two lines below kept `input.repo` raw.
+  // The sidebar groups by string comparison of `task.repo`, so the main row
+  // keyed on `/my-monorepo` and the task on `/my-monorepo/packages/app` — a
+  // ghost project named after a subdirectory, with its own worktree root
+  // (worktreeRootFor hashes path.resolve(repo)). `rove add` and `rove api add`
+  // already resolved to the toplevel; this closes the last entry point.
+  test("a task created from a subdirectory is filed under the repo root, not a ghost project", async () => {
+    const sub = path.join(repo, "packages", "app")
+    fs.mkdirSync(sub, { recursive: true })
+
+    const task = await orch.createTask({ repo: sub, title: "from-subdir" })
+
+    // The subdirectory must not survive into the record at all.
+    expect(task.repo).not.toBe(sub)
+    expect(task.repo.endsWith(path.join("packages", "app"))).toBe(false)
+    // One project row, not two: the sidebar groups by string comparison on
+    // this exact field, so task and main agreeing IS the fix.
+    const mains = orch.listTasks().filter((t) => t.kind === "main")
+    expect(mains).toHaveLength(1)
+    expect(task.repo).toBe(mains[0]?.repo)
+    expect(new Set(orch.listTasks().map((t) => t.repo)).size).toBe(1)
+  })
+
   test("promotes an existing directory task on the same root instead of adding a second row", async () => {
     // Both rows pin the SAME checkout, so minting a main beside a dir task
     // put two rows with the same diff under one project header — one labelled

@@ -27,6 +27,8 @@ let root: string
 let repo: string
 let notRepo: string
 let plainFile: string
+let emptyRepo: string
+let subdir: string
 
 function git(cwd: string, ...args: string[]): void {
   const out = spawnSync("git", args, { cwd, encoding: "utf-8" })
@@ -38,12 +40,19 @@ beforeAll(() => {
   repo = path.join(root, "repo")
   notRepo = path.join(root, "not-repo")
   plainFile = path.join(root, "file.txt")
+  emptyRepo = path.join(root, "empty-repo")
+  subdir = path.join(repo, "packages", "app")
   fs.mkdirSync(repo)
   fs.mkdirSync(notRepo)
   fs.writeFileSync(plainFile, "x")
   git(repo, "init", "-b", "zeta")
   git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-m", "init")
   for (const b of ["develop", "master", "main", "feature-x"]) git(repo, "branch", b)
+  // `git init` with nothing committed: HEAD points at a branch that does not
+  // exist yet (an "unborn" HEAD).
+  fs.mkdirSync(emptyRepo)
+  git(emptyRepo, "init", "-b", "main")
+  fs.mkdirSync(subdir, { recursive: true })
 })
 
 afterAll(() => {
@@ -63,6 +72,48 @@ describe("validateRepoPath", () => {
 
   it("returns null for a usable git repo", () => {
     expect(validateRepoPath(repo)).toBeNull()
+  })
+
+  // A freshly `git init`ed repo passes `rev-parse --git-dir`, so the dialog
+  // used to accept it, prefill baseRef with DEFAULT_BASE_REF (getCurrentBranch
+  // returns null on an unborn HEAD), and only fail later inside ensureWorktree
+  // with `fatal: invalid reference: main` — on a path whose sole error handler
+  // is a console.error invisible under alt-screen. The user was left on a task
+  // row with an empty worktreePath telling them to select a task.
+  it("rejects a repo with no commits, and says so", () => {
+    const reason = validateRepoPath(emptyRepo)
+    expect(reason).not.toBeNull()
+    expect(reason).toContain("no commits")
+    // It must NOT be misreported as "not a git repository" — it IS one.
+    expect(reason).not.toContain("isn't a git repository")
+  })
+
+  // A subdirectory of a repo also passes `rev-parse --git-dir`; validation
+  // stays permissive there on purpose (normalization to the toplevel happens
+  // in createTask). Pinned so the no-commits check above can't over-reject.
+  it("still accepts a subdirectory of a committed repo", () => {
+    expect(validateRepoPath(subdir)).toBeNull()
+  })
+
+  // git absent from PATH makes spawnSync return `status: null` + ENOENT, which
+  // used to satisfy `status !== 0` and produce the not-a-repo copy — telling a
+  // user with no git to run `git init && git add -A && git commit`, three
+  // commands that would each also be `command not found`. The WelcomePane's
+  // own probe already got this right; both surfaces now say the same thing.
+  it("says git is missing, not that the folder isn't a repo, when git is absent", () => {
+    const realPath = process.env.PATH
+    // An empty dir as the entire PATH: no `git` binary is reachable.
+    process.env.PATH = path.join(root, "no-bin")
+    fs.mkdirSync(path.join(root, "no-bin"), { recursive: true })
+    try {
+      const reason = validateRepoPath(repo)
+      expect(reason).not.toBeNull()
+      expect(reason).toContain("git")
+      expect(reason).not.toContain("isn't a git repository")
+      expect(reason).not.toContain("git init")
+    } finally {
+      process.env.PATH = realPath
+    }
   })
 })
 

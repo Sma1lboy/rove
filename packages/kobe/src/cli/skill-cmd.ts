@@ -21,6 +21,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import {
+  NPX_MISSING_EXIT,
   bundledSkillDir,
   kobeSkillPaths,
   kobeSkillState,
@@ -164,10 +165,17 @@ export async function runSkillSubcommand(argv: readonly string[]): Promise<void>
   )
   const code = await runNpxSkillsInstall(agents, global)
   if (code !== 0) {
-    process.stderr.write(
-      `\n${CLI_NAME} skill install failed (npx exited ${code}). Is \`npx\` on PATH?\n` +
-        `You can run it yourself: ${npxSkillsCommand({ agent: agents, global })}\n`,
-    )
+    // NPX_MISSING_EXIT means runNpxSkillsInstall already explained that Node
+    // is missing — don't follow it with "run it yourself", which needs the
+    // same absent binary. (Its old "Is `npx` on PATH?" text was unreachable:
+    // it only ran on a non-zero EXIT, and a missing binary made Bun.spawn
+    // throw straight past it.)
+    if (code !== NPX_MISSING_EXIT) {
+      process.stderr.write(
+        `\n${CLI_NAME} skill install failed (npx exited ${code}).\n` +
+          `You can run it yourself: ${npxSkillsCommand({ agent: agents, global })}\n`,
+      )
+    }
     process.exit(code || 1)
   }
   process.stdout.write(`${CLI_NAME} skill: installed.\n`)
