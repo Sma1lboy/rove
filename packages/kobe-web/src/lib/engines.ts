@@ -23,9 +23,23 @@ export interface EngineOption {
   effortLevels?: readonly string[]
 }
 
+/**
+ * The built-in engines, for the window before `/api/engines` answers and for
+ * a bridge too old to serve the route. Kept in sync with `BUILTIN_VENDORS`
+ * (kobe `src/types/vendor.ts`) — it went stale when copilot and kimi shipped,
+ * and because this list is the ONLY other path to a vendor, the picker
+ * silently offered two of the four with no way to reach the rest.
+ *
+ * Built-ins only, deliberately: contrib and custom engines are user state the
+ * SPA cannot know without the bridge, so they appear when the fetch lands.
+ * No effort levels here either — those are engine-owned and arrive with the
+ * real list, and guessing one would offer a level the engine may not take.
+ */
 const FALLBACK: readonly EngineOption[] = [
   { id: "claude", label: "Claude" },
   { id: "codex", label: "Codex" },
+  { id: "copilot", label: "Copilot" },
+  { id: "kimi", label: "Kimi" },
 ]
 
 const store = createExternalStore<readonly EngineOption[]>(FALLBACK)

@@ -4,8 +4,8 @@ import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
 import { type VendorId, coerceVendorId } from "../types/vendor.ts"
-import { withDispatcherProtocol, withWorktreeProtocol } from "./interactive-command.ts"
 import { engineEntry } from "./registry.ts"
+import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
 
 export const SIGINT_GUARD = "trap ':' INT; "
 

@@ -6,7 +6,7 @@ import {
   withDispatcherProtocol,
   withWorktreeProtocol,
   worktreeProtocol,
-} from "../../src/engine/interactive-command.ts"
+} from "../../src/engine/worktree-protocol.ts"
 
 /**
  * Protocol injection (web-kanban.md M5 + docs/design/dispatcher.md).
