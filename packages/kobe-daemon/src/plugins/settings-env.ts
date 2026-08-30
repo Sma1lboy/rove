@@ -32,6 +32,18 @@ export function readPluginSettings(pluginId: string, homeDir?: string): Record<s
 }
 
 /**
+ * A value is one `KEY=value` line, so it may not contain a line break. A
+ * newline in the middle of a value would end the assignment early and let
+ * everything after it parse as its own `KEY=` line — the user edits one
+ * innocuous-looking setting and silently defines a second variable in a file
+ * plugin commands source. Strip rather than reject: the store is called from
+ * a dialog with no error channel, and no legitimate value wants a newline.
+ */
+function oneLine(value: string): string {
+  return value.replace(/[\r\n]/g, "")
+}
+
+/**
  * Merge `values` into the .env, preserving unrelated lines/comments. An
  * empty-string value REMOVES the key (booleans store "1" or absent).
  */
@@ -49,14 +61,15 @@ export function writePluginSettings(pluginId: string, values: Record<string, str
     const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=/)
     const key = m?.[1]
     if (key && key in remaining) {
-      const value = remaining[key] as string
+      const value = oneLine(remaining[key] as string)
       delete remaining[key]
       if (value !== "") next.push(`${key}=${value}`)
       continue // empty → drop the line
     }
     next.push(line)
   }
-  for (const [key, value] of Object.entries(remaining)) {
+  for (const [key, raw] of Object.entries(remaining)) {
+    const value = oneLine(raw)
     if (value !== "") next.push(`${key}=${value}`)
   }
   while (next.length > 0 && next[next.length - 1] === "") next.pop()

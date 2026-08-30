@@ -11,7 +11,7 @@ import { TextAttributes } from "@opentui/core"
 import { relativeAgeMs } from "../../../tui/history/message-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { type PluginSettingRowView, isBooleanOn } from "./plugin-settings-core"
+import { type PluginSettingRowView, displaySettingValue, isBooleanOn } from "./plugin-settings-core"
 import type { PluginRowView } from "./plugins-core"
 import type { SectionCursorProps } from "./rows"
 
@@ -44,7 +44,7 @@ function SettingRow(props: { setting: PluginSettingRowView; cursor: boolean; onA
       ? isBooleanOn(setting.value)
         ? t("settings.general.on")
         : t("settings.general.off")
-      : setting.value || t("settings.plugins.settingUnset")
+      : displaySettingValue(setting) || t("settings.plugins.settingUnset")
   return (
     <box
       flexDirection="row"

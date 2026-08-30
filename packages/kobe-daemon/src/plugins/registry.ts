@@ -64,7 +64,8 @@ function isEntry(v: unknown): v is PluginRegistryEntry {
 export function savePluginRegistry(registry: PluginRegistry, homeDir?: string): void {
   const path = pluginRegistryPath(homeDir)
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, `${JSON.stringify(registry, null, 2)}\n`)
+  // 0600: the registry names every installed plugin and its checkout path.
+  writeFileSync(path, `${JSON.stringify(registry, null, 2)}\n`, { mode: 0o600 })
 }
 
 /** Insert or replace the entry with the same id. */

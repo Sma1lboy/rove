@@ -13,6 +13,7 @@ const name = setting(ctx.configDir, "EX_DEMO_NAME", "Rover")
 const theme = setting(ctx.configDir, "EX_DEMO_THEME", "system")
 const notifyRaw = setting(ctx.configDir, "EX_DEMO_NOTIFY", "1")
 const notify = notifyRaw === "1" || notifyRaw.toLowerCase() === "true"
+const apiKey = setting(ctx.configDir, "EX_DEMO_API_KEY", "")
 
 console.log("settings-demo effective config:")
 console.log(`  actionId:   ${ctx.actionId ?? "<none>"}`)
@@ -20,7 +21,10 @@ console.log(`  invokeCwd:  ${ctx.invokeCwd ?? "<none>"}`)
 console.log(`  name:       ${name}`)
 console.log(`  theme:      ${theme}`)
 console.log(`  notify:     ${notify}`)
+// A `secret` is masked in Settings; print it the same way. Plugin stdout is
+// captured into log.jsonl, which `rove plugin log` then displays.
+console.log(`  apiKey:     ${apiKey ? "<set>" : "<unset>"}`)
 console.log("raw .env:")
 for (const [key, value] of Object.entries(readSettings(ctx.configDir))) {
-  console.log(`  ${key}=${value}`)
+  console.log(`  ${key}=${key === "EX_DEMO_API_KEY" ? "<redacted>" : value}`)
 }

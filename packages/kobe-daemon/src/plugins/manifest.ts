@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { PLUGIN_EVENT_NAMES, type PluginEventName } from "@sma1lboy/rove-plugin-sdk/contract"
 import { parse as parseToml } from "smol-toml"
+import { settingKeyRejection } from "./setting-keys.ts"
 
 export type PluginPlatform = "macos" | "linux" | "windows"
 
@@ -47,7 +48,10 @@ export interface PluginSetting {
   /** Env var name written to the config .env (conventionally ROVE_<PLUGIN>_*). */
   readonly key: string
   readonly label: string
-  readonly type: "string" | "number" | "boolean" | "enum"
+  /** `secret` is a string whose value is masked wherever it is displayed —
+   *  the row shows `••••` instead of the API key the user pasted. Storage is
+   *  unchanged; only rendering differs. */
+  readonly type: "string" | "number" | "boolean" | "enum" | "secret"
   /** Enum choices (required for type = "enum"). */
   readonly options?: readonly string[]
   /** Default shown when the .env has no value; storage is always a string. */
@@ -328,8 +332,8 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
 
   const settings = asTableArray(raw.settings, "settings").map((t, i) => {
     const type = asString(t.type, `settings[${i}].type`)
-    if (type !== "string" && type !== "number" && type !== "boolean" && type !== "enum") {
-      fail(`settings[${i}].type must be string | number | boolean | enum`)
+    if (type !== "string" && type !== "number" && type !== "boolean" && type !== "enum" && type !== "secret") {
+      fail(`settings[${i}].type must be string | number | boolean | enum | secret`)
     }
     const options =
       t.options === undefined
@@ -338,10 +342,13 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
           ? (t.options as string[])
           : fail(`settings[${i}].options must be an array of strings`)
     if (type === "enum" && (!options || options.length === 0)) fail(`settings[${i}] enum needs \`options\``)
+    const key = asString(t.key, `settings[${i}].key`)
+    const rejection = settingKeyRejection(key)
+    if (rejection) fail(`settings[${i}].key ${rejection}`)
     return {
-      key: asString(t.key, `settings[${i}].key`),
+      key,
       label: asString(t.label, `settings[${i}].label`),
-      type: type as "string" | "number" | "boolean" | "enum",
+      type: type as PluginSetting["type"],
       ...(options ? { options } : {}),
       ...(t.default === undefined ? {} : { default: asString(t.default, `settings[${i}].default`) }),
     }
