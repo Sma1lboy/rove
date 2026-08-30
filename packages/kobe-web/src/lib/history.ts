@@ -1,9 +1,11 @@
 /**
  * Engine-history client — browser mirrors of the engine's neutral history
- * shapes (packages/kobe/src/types/engine.ts Message / ContentBlock) plus
- * the fetchers for the bridge's /api/history routes and the usage math the
- * transcript header renders. Mirrored locally (like types.ts) so no server
- * code leaks into the client bundle.
+ * shapes (packages/kobe/src/types/engine.ts Message / ContentBlock /
+ * EngineUsageSnapshot) plus the fetchers for the bridge's /api/history
+ * routes. Mirrored locally (like types.ts) so no server code leaks into
+ * the client bundle. Usage arrives as the reader's normalized snapshot —
+ * the client never sums per-message vendor fields or re-derives context
+ * math (engine-owned UI data, AGENTS.md).
  */
 
 import { api } from "./api-client.ts"
@@ -14,11 +16,25 @@ export type ContentBlock =
   | { type: "tool_result"; callId: string; output: unknown; isError: boolean }
   | { type: "thinking"; text: string }
 
-export interface MessageUsage {
-  input_tokens: number
-  output_tokens: number
-  cache_read_input_tokens?: number
-  cache_creation_input_tokens?: number
+/**
+ * Browser mirror of the engine-neutral `EngineUsageSnapshot`
+ * (kobe/src/types/engine.ts) — the session-aggregate figures the adapter
+ * derived from its own transcript. Absent from the wire when the engine
+ * doesn't surface usage; that is "not reported", not "zero".
+ */
+export interface EngineUsageSnapshot {
+  readonly input_tokens: number
+  readonly output_tokens: number
+  readonly cache_read_input_tokens?: number
+  readonly cache_creation_input_tokens?: number
+  /** Tokens currently in the session's context window, when known. */
+  readonly context_tokens?: number
+  /** True when `context_tokens` is engine-estimated rather than engine-reported. */
+  readonly context_tokens_approximate?: boolean
+  /** Model context window, when known. */
+  readonly context_window_tokens?: number
+  /** Tokens/sec across the whole session, when derivable. */
+  readonly total_speed_tokens_per_second?: number
 }
 
 export interface HistoryMessage {
@@ -26,7 +42,6 @@ export interface HistoryMessage {
   blocks: ContentBlock[]
   timestamp: string
   sessionId: string
-  usage?: MessageUsage
 }
 
 export interface SessionsResult {
@@ -34,6 +49,12 @@ export interface SessionsResult {
   sessions: string[]
   /** Newest transcript mtime for the worktree; 0 = none yet. */
   latestMtime: number
+}
+
+export interface MessagesResult {
+  messages: HistoryMessage[]
+  /** The reader's neutral usage snapshot; absent = the engine doesn't report usage. */
+  usage?: EngineUsageSnapshot
 }
 
 export function fetchSessions(
@@ -46,49 +67,40 @@ export function fetchSessions(
   })
 }
 
-export async function fetchMessages(
+export function fetchMessages(
   vendor: string,
   sessionId: string,
-): Promise<HistoryMessage[]> {
-  const { messages } = await api.get<{ messages: HistoryMessage[] }>(
-    "/api/history/messages",
-    {
-      query: { vendor, sessionId },
-      label: "/api/history/messages",
-    },
-  )
-  return messages
+): Promise<MessagesResult> {
+  return api.get<MessagesResult>("/api/history/messages", {
+    query: { vendor, sessionId },
+    label: "/api/history/messages",
+  })
 }
 
 export interface UsageSummary {
-  /** Sum of fresh input tokens across the session. */
+  /** Session's fresh input tokens (engine-reported aggregate). */
   inputTokens: number
-  /** Sum of output tokens across the session. */
+  /** Session's output tokens (engine-reported aggregate). */
   outputTokens: number
-  /** Last assistant turn's full prompt size — the live context estimate
-   *  (input + cache read + cache creation), ccstatusline's derivation. */
+  /** Live context estimate, when the engine reports one. */
   contextTokens: number
 }
 
-/** Aggregate per-message usage (claude persists it inline; other vendors may
- *  not — all-zero means "no usage data", render nothing). */
+/**
+ * Unpack the bridge's neutral snapshot into the header's display numbers.
+ * No math here — the adapter owns every derivation. `undefined` means the
+ * engine doesn't surface usage (kimi's unverified wire, custom engines):
+ * the header renders no chips, mirroring read-output's `engine_unsupported`
+ * honesty — "not reported" must never display as zero.
+ */
 export function summarizeUsage(
-  messages: readonly HistoryMessage[],
+  usage: EngineUsageSnapshot | undefined,
 ): UsageSummary {
-  let inputTokens = 0
-  let outputTokens = 0
-  let contextTokens = 0
-  for (const message of messages) {
-    const usage = message.usage
-    if (!usage) continue
-    inputTokens += usage.input_tokens
-    outputTokens += usage.output_tokens
-    contextTokens =
-      usage.input_tokens +
-      (usage.cache_read_input_tokens ?? 0) +
-      (usage.cache_creation_input_tokens ?? 0)
+  return {
+    inputTokens: usage?.input_tokens ?? 0,
+    outputTokens: usage?.output_tokens ?? 0,
+    contextTokens: usage?.context_tokens ?? 0,
   }
-  return { inputTokens, outputTokens, contextTokens }
 }
 
 /** Compact token formatting: 1234 → "1.2k", 1234567 → "1.2m". */

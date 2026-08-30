@@ -26,7 +26,7 @@
  * Must stay importable from vitest and MUST NOT import from `src/tui/`.
  */
 
-import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, Message } from "@/types/engine"
+import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, EngineUsageSnapshot, Message } from "@/types/engine"
 import { type VendorId, isBuiltinVendor } from "@/types/vendor"
 import type {
   ClaudeAccount,
@@ -68,6 +68,16 @@ export interface EngineHistoryReader {
   listSessionIdsForWorktree(worktree: string): Promise<readonly string[]>
   /** Neutral messages for one session id; `[]` when not found. */
   readHistory(sessionId: string): Promise<Message[]>
+  /**
+   * Session-aggregate usage in the neutral {@link EngineUsageSnapshot} —
+   * the vendor-specific token math (what counts as "context", what's
+   * cached vs fresh input) is the ADAPTER's job, computed here from its
+   * own parsed transcript, never in UI layers. Absent when the engine
+   * doesn't surface usage (kimi's unverified wire, custom engines): that
+   * is "not reported", distinct from a reported zero, so consumers can
+   * decline to render rather than assert emptiness.
+   */
+  readUsageSnapshot?(sessionId: string): Promise<EngineUsageSnapshot | undefined>
   /**
    * Absolute path of the on-disk transcript for `sessionId`, or null when
    * the engine has no file to point at. Not for kobe to PARSE (that's

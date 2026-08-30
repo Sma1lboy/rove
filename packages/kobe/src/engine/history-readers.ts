@@ -50,6 +50,7 @@ export const claudeHistoryReader: EngineHistoryReader = {
     return [...files].sort((a, b) => a.mtimeMs - b.mtimeMs).map((f) => f.sessionId)
   },
   readHistory: (sessionId) => claudeHistory.readHistory(sessionId),
+  readUsageSnapshot: (sessionId) => claudeHistory.readUsageSnapshot(sessionId),
   async transcriptPath(sessionId, worktree) {
     const files = await claudeHistory.listSessionFilesForWorktree(worktree)
     return files.find((f) => f.sessionId === sessionId)?.path ?? null
@@ -61,6 +62,7 @@ export const claudeHistoryReader: EngineHistoryReader = {
 export const codexHistoryReader: EngineHistoryReader = {
   listSessionIdsForWorktree: (worktree) => codexHistory.listSessionIdsForWorktree(worktree),
   readHistory: (sessionId) => codexHistory.readHistory(sessionId),
+  readUsageSnapshot: async (sessionId) => (await codexHistory.readHistoryWithMetrics(sessionId)).usageMetrics,
   // The rollout filename embeds the UUID; the store is date-keyed, not
   // worktree-keyed, so the worktree argument is unused here.
   transcriptPath: async (sessionId) => (await codexHistory.findRolloutFile(sessionId)) ?? null,
@@ -70,6 +72,7 @@ export const codexHistoryReader: EngineHistoryReader = {
 export const copilotHistoryReader: EngineHistoryReader = {
   listSessionIdsForWorktree: (worktree) => copilotHistory.listSessionIdsForWorktree(worktree),
   readHistory: (sessionId) => copilotHistory.readHistory(sessionId),
+  readUsageSnapshot: async (sessionId) => (await copilotHistory.readHistoryWithMetrics(sessionId)).usageMetrics,
   // Each session is a dir holding the `events.jsonl` this reader already
   // parses — so the handoff has a file to name (the earlier "not mapped to
   // a per-session file" note predated `findSessionDir`).
