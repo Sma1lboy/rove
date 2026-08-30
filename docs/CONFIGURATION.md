@@ -59,7 +59,7 @@ retired worktree-sync hook was once installed so the next launch (or
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `activeTheme` | theme name | `"claude"` | See [Themes](#themes) |
-| `transparentBackground` | boolean | `true` | Let the terminal background show through |
+| `transparentBackground` | boolean | `true` | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and lifts body/muted text to stay readable on it — no setting needed |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |

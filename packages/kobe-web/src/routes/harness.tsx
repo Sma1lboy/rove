@@ -29,6 +29,14 @@ function PtyHarness() {
     "wallpaper",
   )
   const wallpaper = wallpaperParam?.startsWith("/") ? wallpaperParam : null
+  // `?hostbg=<#rrggbb>` simulates a host terminal whose background IS that
+  // color (light-theme terminal, dark-theme terminal — the contrast-guard
+  // matrix). The page paints it behind the terminal AND hands it to xterm as
+  // its `theme.background`, so OSC 11 queries report the color the user
+  // actually sees and the TUI adapts to it through the real detection path.
+  const hostbgParam = new URLSearchParams(window.location.search).get("hostbg")
+  const hostbg =
+    hostbgParam && /^#[0-9a-fA-F]{6}$/.test(hostbgParam) ? hostbgParam : null
   const sessionId = `visual-${runId}`
   const [status, setStatus] = useState<WsStatus>("connecting")
   const [buffer, setBuffer] = useState("")
@@ -44,10 +52,11 @@ function PtyHarness() {
         // transparent background (`transparentBackground`, persisted-ui-prefs),
         // so whatever sits here shows through the cells the product does not
         // paint — which is how a capture can look like a terminal on a desktop
-        // instead of a rectangle of #141413. Plain colour when unset.
+        // instead of a rectangle of #141413. Plain colour when unset;
+        // `?hostbg=` replaces it with the simulated host terminal color.
         background: wallpaper
           ? `#0F0E0D url("${wallpaper}") center/cover no-repeat`
-          : "#141413",
+          : (hostbg ?? "#141413"),
       }}
     >
       {/*
@@ -55,10 +64,11 @@ function PtyHarness() {
         regardless of the theme background or `allowTransparency`, so a page
         backdrop never shows through no matter how transparent every other
         layer is. Overriding it is what actually makes the terminal sit ON the
-        wallpaper. Scoped to the wallpaper case so normal use keeps xterm's own
-        (correct, cheaper) opaque surface.
+        wallpaper (or the simulated host color). Scoped to the transparent
+        cases so normal use keeps xterm's own (correct, cheaper) opaque
+        surface.
       */}
-      {wallpaper ? (
+      {wallpaper || hostbg ? (
         <style>
           {".xterm-viewport{background-color:transparent !important}"}
         </style>
@@ -69,7 +79,8 @@ function PtyHarness() {
         mode="shell"
         testId="opentui-terminal"
         disableWebgl={!useWebgl}
-        transparent={wallpaper !== null}
+        transparent={wallpaper !== null || hostbg !== null}
+        hostBackground={hostbg ?? undefined}
         onStatusChange={setStatus}
         onBufferChange={setBuffer}
       />

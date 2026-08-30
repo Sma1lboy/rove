@@ -125,8 +125,15 @@ type ChatTerminalProps = {
    * appears. Screencasts turn this on to sit the terminal on a desktop
    * instead of a flat rectangle; normal use leaves it off, where an opaque
    * canvas is both correct and cheaper to composite.
+   *
+   * `hostBackground` (harness only) goes one step further for the
+   * contrast-guard capture: it sets xterm's `theme.background` to the SAME
+   * opaque color the page paints behind the terminal, so OSC 11 background
+   * queries report the color the user actually sees — the TUI's transparent-
+   * mode contrast guard adapts to it exactly as it would in a real terminal.
    */
   transparent?: boolean
+  hostBackground?: string
   onStatusChange?: (status: WsStatus) => void
   onBufferChange?: (text: string) => void
 }
@@ -149,6 +156,7 @@ export function ChatTerminal({
   testId,
   disableWebgl = false,
   transparent = false,
+  hostBackground,
   onStatusChange,
   onBufferChange,
 }: ChatTerminalProps) {
@@ -208,7 +216,10 @@ export function ChatTerminal({
         theme: transparent
           ? {
               ...(xtermTheme() ?? CLAUDE_XTERM_THEME),
-              background: "rgba(0,0,0,0.01)",
+              // Opaque host color when the harness simulates one (so OSC 11
+              // reports it); near-invisible black otherwise so the page
+              // backdrop shows through the unpainted cells.
+              background: hostBackground ?? "rgba(0,0,0,0.01)",
             }
           : (xtermTheme() ?? CLAUDE_XTERM_THEME),
         allowTransparency: transparent,
@@ -336,6 +347,7 @@ export function ChatTerminal({
     epoch,
     disableWebgl,
     transparent,
+    hostBackground,
     onStatusChange,
     onBufferChange,
   ])
