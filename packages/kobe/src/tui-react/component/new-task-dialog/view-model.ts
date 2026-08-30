@@ -19,6 +19,7 @@
 
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import {
   type DialogTab,
@@ -33,6 +34,7 @@ import {
   nextDialogTab,
   nextField,
   pickerModeFor,
+  pickerVisibleRows,
   prevDialogTab,
   resolveBaseRef,
   stripNewlines,
@@ -100,16 +102,19 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     () => computeRepoOptions(props.defaultRepo, props.savedRepos),
     [props.defaultRepo, props.savedRepos],
   )
+  // Live per render — opentui re-renders on resize, so a terminal dragged
+  // short re-windows the pickers instead of clipping the Create button.
+  const pickerRows = pickerVisibleRows(useTerminalDimensions().height)
   const mode = pickerModeFor(repo, repoOptions)
   const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(repo)
   const savedFiltered = useMemo(() => filterRepos(repoOptions, repo), [repoOptions, repo])
   const activeList = mode === "browse" ? subdirFiltered : savedFiltered
-  const activeWindow: PickerWindow = windowAround(activeList, repoCursor)
+  const activeWindow: PickerWindow = windowAround(activeList, repoCursor, pickerRows)
 
   const expandedRepo = expandHome(repo.trim())
   const branches = useMemo(() => listLocalBranches(expandedRepo), [expandedRepo])
   const branchFiltered = useMemo(() => filterBranches(branches, baseRef), [branches, baseRef])
-  const branchWindow: PickerWindow = windowAround(branchFiltered, branchCursor)
+  const branchWindow: PickerWindow = windowAround(branchFiltered, branchCursor, pickerRows)
 
   const clone = useCloneState({
     defaultCloneParent: props.defaultCloneParent,

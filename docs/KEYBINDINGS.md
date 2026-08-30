@@ -91,7 +91,9 @@ is split, otherwise the tab. `F2` follows the same rule.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);
-reserving `ctrl+\` also costs the embedded shell its SIGQUIT.
+reserving `ctrl+\` also costs the embedded shell its SIGQUIT. If a split
+chord does nothing, `rove doctor` says whether your terminal answers the
+protocol query — that is the first thing to check.
 
 **Jump digits.** There is no `ctrl+1`; the terminal protocol can't encode it,
 so the first row answers to `2`.

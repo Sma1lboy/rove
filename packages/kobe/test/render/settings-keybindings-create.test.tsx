@@ -11,6 +11,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { SettingsDialog } from "../../src/tui-react/component/settings-dialog"
 import { useKV } from "../../src/tui-react/context/kv"
+import { reloadUserKeybindings } from "../../src/tui/context/keybindings-user"
 import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
@@ -23,6 +24,13 @@ function Driver() {
 test("the Keybindings page writes the starter YAML on enter", async () => {
   const home = mkdtempSync(join(tmpdir(), "kobe-keys-create-"))
   process.env.KOBE_HOME_DIR = home
+  // `userKeybindingsReport()` memoizes the resolved path on first call, and
+  // bun runs every render test in ONE process — so any earlier test that
+  // mounted Settings already froze that path against ITS temp home, and the
+  // create action would write there instead of here. Dropping the cache
+  // after the env var is set makes this test isolated instead of dependent
+  // on being the first Settings mount in the run.
+  reloadUserKeybindings()
   const yaml = join(home, ".rove", "settings", "keybindings.yaml")
   expect(existsSync(yaml)).toBe(false)
 

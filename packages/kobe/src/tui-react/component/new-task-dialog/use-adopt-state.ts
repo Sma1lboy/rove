@@ -7,12 +7,14 @@
 
 import type { VendorId } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   type NewTaskInput,
   type PickerWindow,
   clampCursor,
   filterAdoptableByGlob,
+  pickerVisibleRows,
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
@@ -39,6 +41,7 @@ export function useAdoptState(args: {
   const adoptWindow: PickerWindow = windowAround(
     adoptList.map((w) => w.path),
     adoptCursor,
+    pickerVisibleRows(useTerminalDimensions().height),
   )
   const adoptVisible = adoptList.slice(adoptWindow.start, adoptWindow.start + adoptWindow.items.length)
   const adoptDiscoveredCount = (adoptable ?? []).length

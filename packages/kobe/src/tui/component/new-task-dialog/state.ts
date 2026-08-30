@@ -155,8 +155,39 @@ export function pickerModeFor(value: string, repoOptions: readonly string[]): Pi
   return "saved"
 }
 
-/** Picker windowing cap. Matches the slash dropdown's `slashWindow`. */
+/** Picker windowing cap on a terminal with room. Matches the slash
+ *  dropdown's `slashWindow`. */
 export const PICKER_MAX_VISIBLE = 8
+
+/**
+ * Terminal rows the dialog needs for everything that is NOT the open picker.
+ * Counted off the rendered Existing tab (the tallest of the three): title,
+ * mode row, engine label + choices, both field labels + inputs, the picker's
+ * overflow lines, the action row and the card's padding — plus the vertical
+ * margin `Dialog` keeps outside the card, since the budget here is the
+ * TERMINAL's height, not the card's.
+ */
+const PICKER_CHROME_ROWS = 22
+/** The floor. Two rows plus the `↓ N more` line still reads as a list and
+ *  still scrolls under the cursor, so nothing becomes unreachable; going
+ *  lower would leave the cursor with nowhere to sit. */
+const PICKER_MIN_VISIBLE = 2
+
+/**
+ * Visible picker rows for a viewport `height` rows tall.
+ *
+ * The cap used to be a flat 8 regardless of terminal height, so the dialog's
+ * own height was a constant while the space for it was not: on a 24-row
+ * terminal the card overran `maxCardHeight` and the bottom rows — the Create
+ * button and, worse, `submitError` — were clipped away with nothing to
+ * scroll them back. A failed create then looked like nothing happening at
+ * all. Shrinking the window is what gives those rows back; the list is
+ * already windowed and scrolls under the cursor, so a shorter window costs
+ * only how much is visible at once, never reachability.
+ */
+export function pickerVisibleRows(height: number, cap = PICKER_MAX_VISIBLE): number {
+  return Math.max(PICKER_MIN_VISIBLE, Math.min(cap, height - PICKER_CHROME_ROWS))
+}
 
 export type PickerWindow = {
   items: readonly string[]

@@ -32,6 +32,7 @@ import {
   skillInstallFix,
 } from "./doctor-fix.ts"
 import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
+import { terminalDoctorLines } from "./doctor-terminal.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
 import { activeCliName } from "./rename-compat.ts"
 
@@ -119,14 +120,6 @@ function tailFile(path: string, count: number): string {
   }
 }
 
-function terminalDoctorLines(): string[] {
-  const show = (value: string | undefined): string => (value && value.length > 0 ? value : "(unset)")
-  const program = process.env.TERM_PROGRAM
-    ? `${process.env.TERM_PROGRAM}${process.env.TERM_PROGRAM_VERSION ? ` v${process.env.TERM_PROGRAM_VERSION}` : ""}`
-    : "(unset)"
-  return [`terminal: TERM=${show(process.env.TERM)}  TERM_PROGRAM=${program}  COLORTERM=${show(process.env.COLORTERM)}`]
-}
-
 /** `git --version` if git is on PATH, else a not-found marker. */
 async function gitDoctorLine(): Promise<{ line: string; found: boolean }> {
   try {
@@ -208,7 +201,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
     `  build:  v${CURRENT_VERSION} (${process.platform} ${process.arch}, bun ${Bun.version})`,
     `  home:   ${homeDir()}`,
     "",
-    ...terminalDoctorLines(),
+    ...(await terminalDoctorLines()),
     git.line,
     "",
     ...engines.lines,

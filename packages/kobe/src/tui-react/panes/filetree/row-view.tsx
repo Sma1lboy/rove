@@ -18,6 +18,7 @@
 
 import { TextAttributes } from "@opentui/core"
 import { memo } from "react"
+import { displayWidth } from "../../../lib/display-width"
 import { type StatWidths, statCell, statusToken } from "../../../tui/panes/filetree/pane-core"
 import { type Row, truncatePathTail } from "../../../tui/panes/filetree/rows"
 import { useTheme } from "../../context/theme"
@@ -94,7 +95,11 @@ export const FileTreeRowView = memo(function FileTreeRowView(props: FileTreeRowP
   const marker = isUntrackedDir ? (row.expanded ? "▾ " : "▸ ") : ""
   const countSuffix = isUntrackedDir ? ` (${row.fileCount})` : ""
   const indent = row.child ? "  " : ""
-  const pathBudget = props.pathBudget - marker.length - countSuffix.length - indent.length
+  // Everything sharing the row's line spends the same CELL budget the path
+  // does — `.length` would under-charge a wide glyph and reopen the overflow
+  // `truncatePathTail` closes (`▾ ` and `(12)` are ASCII today, but the
+  // budget is the row's one arithmetic and must stay in one unit).
+  const pathBudget = props.pathBudget - displayWidth(marker) - displayWidth(countSuffix) - displayWidth(indent)
   const tone = statusToken(row.status)
   const statusColor =
     tone === "success"

@@ -269,3 +269,47 @@ export function humanizeSlug(id: string): string {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ")
 }
+
+/** Cells the section sidebar reserves, and the gap between it and the body. */
+export const SECTIONS_SIDEBAR_WIDTH = 14
+const SECTIONS_COLUMN_GAP = 2
+/** `Row` adds `paddingLeft={1} paddingRight={1}` around its own content. */
+const ROW_PADDING_X = 2
+/** Widest the label column is ever worth — it lines the inline hints up into
+ *  a column on a desktop terminal. */
+export const LABEL_COLUMN_MAX = 30
+/** The longest General label actually renders in ~24 cells (`[x] Show
+ *  keyboard hints`), so a column narrower than this stops being a column and
+ *  starts being a clip. */
+const LABEL_NATURAL_MAX = 24
+/** The shortest hint (`bottom-right popup`) needs 18 cells; below that a hint
+ *  is a fragment, and a fragment beside a clipped label reads as corruption. */
+const HINT_MIN_CELLS = 18
+
+/**
+ * How many cells a General row may spend padding its label, and whether the
+ * inline hint fits at all, for a terminal `width` cells wide.
+ *
+ * A settings row is not free-floating text: it sits right of the fixed
+ * 14-cell section sidebar, inside the dialog's own horizontal padding, and
+ * its `Row` is `overflow="hidden"` + `wrapMode="none"` — so anything wider
+ * than the real budget is cut, without an ellipsis to say it happened.
+ * Padding every label to a flat 30 therefore did the most damage exactly
+ * where there was least room: at 46 columns the row owns 26 cells, so the
+ * padding alone overran the row and took the label with it, and at 50 it
+ * consumed the budget exactly, leaving the hint structurally unreachable.
+ *
+ * Three outcomes, in order of how much room there is:
+ *  - room for the full column plus a readable hint → both, aligned;
+ *  - room for the longest label plus a readable hint → hint keeps its 18
+ *    cells and the label column takes what is left;
+ *  - anything less → drop the hint and stop padding entirely. The label then
+ *    renders at its natural width and nothing is cut; the SubSection
+ *    paragraph above the rows still explains what the group does.
+ */
+export function generalLabelLayout(width: number, dialogPadX: number): { labelColumn: number; showHint: boolean } {
+  const rowCells = width - dialogPadX * 2 - SECTIONS_SIDEBAR_WIDTH - SECTIONS_COLUMN_GAP - ROW_PADDING_X
+  if (rowCells >= LABEL_COLUMN_MAX + HINT_MIN_CELLS) return { labelColumn: LABEL_COLUMN_MAX, showHint: true }
+  if (rowCells >= LABEL_NATURAL_MAX + HINT_MIN_CELLS) return { labelColumn: rowCells - HINT_MIN_CELLS, showHint: true }
+  return { labelColumn: 0, showHint: false }
+}

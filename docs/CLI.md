@@ -287,7 +287,14 @@ rove doctor [--report] [--fix]
 ```
 
 Read-only check of your build, terminal, git, engine CLIs and logins, daemon,
-running sessions, agent skill, and state files. Every registered engine gets a
+running sessions, agent skill, and state files. The terminal section names
+`TERM`/`TERM_PROGRAM`/`COLORTERM`, whether you are inside a multiplexer (tmux,
+zellij, screen — all three rewrite keys on the way in), and asks the terminal
+live whether it speaks the kitty keyboard protocol. That last answer settles
+keyboard reports on its own: without the protocol, `ctrl+h`/`ctrl+j` arrive as
+plain C0 bytes and the two split chords cannot be encoded at all (see
+[Keybindings](./KEYBINDINGS.md)). Piped output skips the live probe rather
+than writing escape bytes into the pipe. Every registered engine gets a
 row — the built-ins plus any engine you added — so a login Rove can't read is
 reported as such rather than as a missing account. The plain run never changes
 anything. `--report` also writes a bug bundle (diagnosis + recent logs + env)
