@@ -33,7 +33,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         default: "merge",
         description: "merge (--no-ff) or squash into one commit.",
       },
-      { name: "delete-branch", type: "bool", description: "Delete the task's branch after a successful land." },
+      {
+        name: "delete-branch",
+        type: "bool",
+        description:
+          "Delete the task's branch after a successful land. Uses `git branch -D`, which drops the branch's reflog too; with --strategy squash the base's new commit does not reach the branch's own commits, so Rove first anchors the tip at refs/rove/salvage/<branch>-<stamp> and returns it as `branchAnchor`.",
+      },
       {
         name: "remove-worktree",
         type: "bool",

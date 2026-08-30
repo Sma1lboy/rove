@@ -19,8 +19,11 @@
  *     git commit-tree <tree> -p HEAD          → a commit rooted at real history
  *     git update-ref refs/rove/salvage/<slug> → a named, gc-proof anchor
  *
- * `git add -A` honours `.gitignore`, so `node_modules/` and build output stay
- * out; only files a user could actually have authored are captured.
+ * `git add -A` honours `.gitignore` — which keeps `node_modules/` out, and
+ * ALSO threw away real work: `HANDOFF.md`, `.scratch/**`, `.env*` and
+ * `.rove/*` are all gitignored in this very repo. So a second, forced `git
+ * add -f` pass adds back the ignored entries small enough to be a person's
+ * work rather than a dependency tree ({@link smallIgnoredPaths}).
  *
  * The ref (not just the loose object) is the point: a dangling commit is
  * findable only via `git fsck` and expires with gc, while
@@ -30,6 +33,7 @@
 
 import type { ExecHost } from "../../exec/exec-host.ts"
 import type { GitRunOpts, GitRunResult } from "./git.ts"
+import { smallIgnoredPaths } from "./salvage-ignored.ts"
 
 /** The git primitives salvage borrows from the manager. */
 export interface SalvageDeps {
@@ -43,8 +47,11 @@ export interface SalvageRecord {
 }
 
 /** `refs/rove/salvage/<branch>-<utc-stamp>` — a ref name git accepts, keyed by
- *  the two things a user remembers: which branch, and roughly when. */
-function salvageRef(branch: string | null, now: Date): string {
+ *  the two things a user remembers: which branch, and roughly when. Exported
+ *  so {@link anchorBranchTip} writes into the SAME namespace: a user who lost
+ *  work has one place to look and one `for-each-ref` to run, whether the loss
+ *  was a force-removed worktree or a squash-landed branch. */
+export function salvageRef(branch: string | null, now: Date): string {
   const stamp = now
     .toISOString()
     .replace(/[-:]/g, "")
@@ -84,6 +91,12 @@ export async function salvageWorktree(
 
     try {
       if ((await withIndex(["add", "-A"])).exitCode !== 0) return null
+      // Second pass: the ignored entries that are a person's work rather than
+      // build output. `-f` is what overrides `.gitignore`; without it the
+      // first pass silently dropped them. Best-effort — a failure here leaves
+      // the tracked+untracked snapshot the first pass already staged.
+      const ignored = await smallIgnoredPaths(exec, worktreePath)
+      if (ignored.length > 0) await withIndex(["add", "-f", "--", ...ignored])
       const tree = (await withIndex(["write-tree"])).stdout.trim()
       if (!tree) return null
 

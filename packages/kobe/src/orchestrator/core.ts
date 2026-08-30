@@ -55,6 +55,13 @@ export interface OrchestratorDeps {
    *  local orchestrator leaves it unset and the snapshot is still findable
    *  via `git for-each-ref refs/rove/salvage`. */
   readonly onSalvage?: (taskId: TaskId, salvage: { readonly ref: string; readonly commit: string }) => void
+  /**
+   * Kill a task's engine session. Bound by the composition root to the hosted
+   * session host; a TUI-local orchestrator leaves it unset. `landTask` calls
+   * it before removing a landed worktree — an engine still writing into a
+   * directory that is about to be unlinked loses everything it writes next.
+   */
+  readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 }
 
 // Re-exported from `title.ts` (its single source of truth) so existing
@@ -81,10 +88,13 @@ export class Orchestrator {
   private readonly unsubscribeStore: TaskIndexUnsubscribe
   /** Owns the `kind:"main"` project row (create / adopt / forget). */
   private readonly mainTasks: MainTaskCoordinator
+  /** Injected engine-session teardown — see {@link OrchestratorDeps.tearDownSession}. */
+  private readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 
   constructor(deps: OrchestratorDeps) {
     this.store = deps.store
     this.worktrees = deps.worktrees
+    this.tearDownSession = deps.tearDownSession
     this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, canonPath, (repo) =>
       this.ensureMainTask(repo),
     )
@@ -383,6 +393,7 @@ export class Orchestrator {
     return landTaskWithCleanup(this.requireTask(id), opts ?? {}, {
       worktrees: this.worktrees,
       clearWorktreePath: (tid) => this.clearWorktreePath(tid),
+      tearDownSession: this.tearDownSession,
     })
   }
 

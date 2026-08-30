@@ -126,12 +126,41 @@ The first confirmation can never silently turn into a force deletion. The
 second confirmation is the boundary that authorizes data loss. The branch is
 still retained, but uncommitted and untracked files are not part of it.
 
+### Landing with `--delete-branch`
+
+`land --delete-branch` deletes the branch with `git branch -D`, which removes
+the branch's reflog along with its ref — and the worktree removed just before
+it held the only other reflog for that branch. After a `--strategy merge`
+land that costs nothing: the merge commit on the base still reaches every
+commit. After a `--strategy squash` land it would, because the squash writes
+one new commit that has no link back to the branch's own commits.
+
+So before deleting a branch nothing else keeps reachable, Rove writes its tip
+to `refs/rove/salvage/<branch>-<timestamp>` — the same namespace as the
+force-delete snapshots below, listed by the same command. `rove api land`
+returns it as `branchAnchor`. Recover the pre-squash history with:
+
+```
+git log refs/rove/salvage/<branch>-<timestamp>
+git branch <recovered-name> refs/rove/salvage/<branch>-<timestamp>
+```
+
+No anchor is written when another ref already reaches the tip, which is the
+ordinary merge case.
+
 ### Recovering work a force delete destroyed
 
-Before any forced removal, Rove snapshots everything the removal is about to
+Before any forced removal, Rove snapshots what the removal is about to
 destroy — modified tracked files and files you never `git add`ed — into a git
-ref in the owning repo. Files matched by `.gitignore` (`node_modules/`, build
-output) are excluded.
+ref in the owning repo.
+
+Files matched by `.gitignore` are included too, but only up to 64 MB per
+top-level entry. That threshold is the whole rule: a gitignored note or
+scratch directory is kilobytes and gets snapshotted; `node_modules/` or a
+build directory is far larger and is skipped, because a snapshot carrying one
+is too big to be useful. An ignored entry whose size cannot be read is
+skipped. So a gitignored `HANDOFF.md` or `.scratch/` is recoverable, and a
+gitignored 200 MB `dist/` is not.
 
 List the snapshots, newest last:
 

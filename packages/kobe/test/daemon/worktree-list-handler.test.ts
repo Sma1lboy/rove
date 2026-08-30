@@ -11,7 +11,7 @@
  */
 
 import { execSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
@@ -108,5 +108,75 @@ describe("worktree.remove", () => {
 
   it("rejects a missing path", async () => {
     await expect(dispatch("worktree.remove", {})).rejects.toThrow("path is required")
+  })
+
+  /**
+   * The engine must be killed BEFORE the directory is unlinked.
+   *
+   * `git worktree remove` succeeds against a live process — POSIX unlink does
+   * not care that something holds the directory as its cwd — so an engine
+   * still running writes every subsequent file into an unlinked inode: not on
+   * disk, not in the branch, and not in the salvage snapshot (which ran
+   * before those writes). The task-deletion path already ordered it this way;
+   * this handler did not.
+   *
+   * The assertion is the ORDER, recorded by the teardown fake at the moment
+   * it runs. Asserting only "teardown was called" would pass just as happily
+   * with the calls the wrong way round, which is the bug.
+   */
+  it("tears the engine session down BEFORE unlinking the directory", async () => {
+    const wt = join(root, "live-worktree")
+    execSync(`git worktree add -b feature/live ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+
+    const order: string[] = []
+    const ctx = {
+      runtime: {
+        ...daemonRuntime,
+        tearDownTaskSession: async (taskId: string) => {
+          // Existing at teardown time is the whole point: after the removal
+          // this is false, and an engine writing here would write to nothing.
+          order.push(`teardown:${taskId}:dirExists=${existsSync(wt)}`)
+        },
+      },
+      orch: {
+        listTasks: () => [{ id: "task-live", worktreePath: wt }],
+        clearWorktreePath: async () => {
+          order.push("clearWorktreePath")
+        },
+      },
+    } as unknown as DaemonHandlerContext
+
+    await expect(
+      dispatchDaemonRequest(createDaemonHandlerRegistry(), "worktree.remove", { path: wt }, ctx),
+    ).resolves.toEqual({ removed: true })
+
+    expect(order).toEqual(["teardown:task-live:dirExists=true", "clearWorktreePath"])
+    expect(existsSync(wt)).toBe(false)
+  })
+
+  /**
+   * Ordering, not gating. The worktrees page's delete is optimistic — the row
+   * has already left the user's screen — and a task whose engine is already
+   * dead throws here the same way a stuck one does. Blocking on that would
+   * strand every such worktree permanently.
+   */
+  it("still removes the worktree when session teardown fails", async () => {
+    const wt = join(root, "teardown-fails")
+    execSync(`git worktree add -b feature/teardown-fails ${JSON.stringify(wt)}`, { cwd: repo, env: gitEnv })
+
+    const ctx = {
+      runtime: {
+        ...daemonRuntime,
+        tearDownTaskSession: async () => {
+          throw new Error("session host unreachable")
+        },
+      },
+      orch: { listTasks: () => [{ id: "task-x", worktreePath: wt }], clearWorktreePath: async () => {} },
+    } as unknown as DaemonHandlerContext
+
+    await expect(
+      dispatchDaemonRequest(createDaemonHandlerRegistry(), "worktree.remove", { path: wt }, ctx),
+    ).resolves.toEqual({ removed: true })
+    expect(existsSync(wt)).toBe(false)
   })
 })

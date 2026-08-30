@@ -285,6 +285,79 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     expect(fs.existsSync(wt)).toBe(false)
   })
 
+  /**
+   * Same ordering bug as the worktrees page, reached through land: the dirty
+   * check that let this land through ran seconds earlier in `landTask`, and
+   * an engine still running has kept writing since. Removing its directory
+   * first means every write after that goes to an unlinked inode.
+   *
+   * The assertion is the ORDER — recorded at the moment teardown runs, when
+   * the directory must still exist. "teardown was called" alone would pass
+   * with the calls reversed, which is the bug.
+   */
+  test("tears the engine session down before removing the landed worktree", async () => {
+    makeWorktree()
+    const order: string[] = []
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      {},
+      {
+        worktrees: new GitWorktreeManager(),
+        clearWorktreePath: async () => {
+          order.push("clearWorktreePath")
+        },
+        tearDownSession: async (id) => {
+          order.push(`teardown:${String(id)}:dirExists=${fs.existsSync(wt)}`)
+        },
+      },
+    )
+    expect(res.worktree).toEqual({ removed: true })
+    expect(order).toEqual(["teardown:t-land:dirExists=true", "clearWorktreePath"])
+    expect(fs.existsSync(wt)).toBe(false)
+  })
+
+  test("a refused removal does not tear down the session", async () => {
+    // No directory is going anywhere, so killing a live engine would be pure
+    // collateral damage — the caller keeps working in that worktree.
+    makeWorktree()
+    fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted\n")
+    const torn: string[] = []
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      { callerCwd: wt },
+      {
+        worktrees: new GitWorktreeManager(),
+        clearWorktreePath: async () => {},
+        tearDownSession: async (id) => {
+          torn.push(String(id))
+        },
+      },
+    )
+    expect(res.worktree?.removed).toBe(false)
+    expect(torn).toEqual([])
+    expect(fs.existsSync(path.join(wt, "wip.txt"))).toBe(true)
+  })
+
+  test("a failing teardown does not strand the landed worktree", async () => {
+    // The merge has already committed; a dead or unreachable session must not
+    // leave the directory behind forever. `remove()`'s own dirty refusal is
+    // the real guard on unsaved work.
+    makeWorktree()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      {},
+      {
+        worktrees: new GitWorktreeManager(),
+        clearWorktreePath: async () => {},
+        tearDownSession: async () => {
+          throw new Error("session host unreachable")
+        },
+      },
+    )
+    expect(res.worktree).toEqual({ removed: true })
+    expect(fs.existsSync(wt)).toBe(false)
+  })
+
   test("never removes the base checkout even if worktreePath points at it", async () => {
     makeWorktree()
     const { deps: d } = deps()

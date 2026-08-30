@@ -112,6 +112,10 @@ export interface LandResult {
    *  failure-only: it also rides with `removed: true` when the directory went
    *  but clearing the task's worktree path did not. */
   readonly worktree?: { readonly removed: boolean; readonly reason?: string }
+  /** Ref anchoring a deleted branch's tip when nothing else reached it (the
+   *  squash-land case). Absent on a `--no-ff` merge and when no branch was
+   *  deleted. */
+  readonly branchAnchor?: { readonly ref: string; readonly commit: string }
 }
 
 export interface AdoptableWorktree {

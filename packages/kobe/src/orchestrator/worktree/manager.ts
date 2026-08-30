@@ -35,7 +35,7 @@ import {
   type BranchDeps,
   branchExists,
   branchHasUpstream,
-  deleteBranchIn,
+  deleteBranchAnchored,
   hasLocalBranch,
   renameBranch,
 } from "./manager-branch.ts"
@@ -237,10 +237,7 @@ export class GitWorktreeManager implements WorktreeManager {
 
     // Capture the branch BEFORE removal (once the worktree is gone we can't
     // read its HEAD) so an opt-in `deleteBranch` can clean it up after.
-    let branch: string | null = null
-    if (opts?.deleteBranch) {
-      branch = await this.currentBranch(worktreePath).catch(() => null)
-    }
+    const branch = opts?.deleteBranch ? await this.currentBranch(worktreePath).catch(() => null) : null
 
     if (force) {
       // The last moment at which the doomed files still exist. The dirty check
@@ -269,14 +266,30 @@ export class GitWorktreeManager implements WorktreeManager {
     // remove left it behind (rare, but documented in vibe-kanban).
     await this.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
 
-    if (branch) await deleteBranchIn(this.branchDeps(), exec, repo, branch, force)
+    // Anchored like `deleteBranch`: `-D` takes the reflog too, and this
+    // worktree's own reflog died with the directory a few lines up.
+    if (branch) await deleteBranchAnchored(this.branchDeps(), exec, repo, branch, { force })
   }
 
-  /** Delete a branch in `repo` — body in `manager-branch.ts`. */
-  async deleteBranch(repo: string, branch: string, opts?: { readonly force?: boolean }): Promise<void> {
+  /** Delete a branch in `repo` — body in `manager-branch.ts`. A forced delete
+   *  anchors the tip first when nothing else would keep it reachable (see
+   *  {@link deleteBranchAnchored}); `onAnchor` reports the ref it wrote. */
+  async deleteBranch(
+    repo: string,
+    branch: string,
+    opts?: {
+      readonly force?: boolean
+      /** Notified with the anchor a forced delete took (null = not needed,
+       *  or the anchor could not be written). */
+      readonly onAnchor?: (record: SalvageRecord | null) => void
+    },
+  ): Promise<void> {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
-    await deleteBranchIn(this.branchDeps(), ctx.exec, ctx.dir, branch, opts?.force === true)
+    await deleteBranchAnchored(this.branchDeps(), ctx.exec, ctx.dir, branch, {
+      force: opts?.force === true,
+      onAnchor: opts?.onAnchor,
+    })
   }
 
   /** ExecHost for a worktree path, with the absolute-path check bound in — the

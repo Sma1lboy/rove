@@ -9,8 +9,10 @@
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { anchorBranchTip } from "./branch-anchor.ts"
 import type { ExecCtx } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
+import type { SalvageRecord } from "./salvage.ts"
 
 /** The manager primitives the branch functions borrow. */
 export interface BranchDeps {
@@ -48,6 +50,33 @@ export async function deleteBranchIn(
 ): Promise<void> {
   if (!branch || branch === "HEAD") return
   await deps.runGit(exec, ["branch", force ? "-D" : "-d", branch], { cwd: repo, allowFail: true })
+}
+
+/**
+ * Delete a branch, anchoring its tip first when `force` would otherwise strand
+ * it.
+ *
+ * `git branch -D` drops the branch ref AND its reflog, so a tip no other ref
+ * reaches becomes a dangling object — findable only by `git fsck` and
+ * collected by `gc` after `gc.pruneExpire`. `land --strategy squash
+ * --delete-branch` produces exactly that: the squash writes an unrelated
+ * commit onto the base, and the worktree (holding the only other reflog) is
+ * already removed by the time this runs.
+ *
+ * {@link anchorBranchTip} no-ops when another ref already contains the tip,
+ * which is the ordinary `--no-ff` merge case, so this only writes a ref when
+ * one is genuinely load-bearing. A failed anchor never fails the deletion the
+ * caller asked for.
+ */
+export async function deleteBranchAnchored(
+  deps: BranchDeps,
+  exec: ExecHost,
+  repo: string,
+  branch: string,
+  opts: { readonly force: boolean; readonly onAnchor?: (record: SalvageRecord | null) => void },
+): Promise<void> {
+  if (opts.force) opts.onAnchor?.(await anchorBranchTip(deps, exec, repo, branch))
+  await deleteBranchIn(deps, exec, repo, branch, opts.force)
 }
 
 /**
