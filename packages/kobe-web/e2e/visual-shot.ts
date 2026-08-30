@@ -11,6 +11,7 @@
  *   bun run visual:shot -- ctrl+a c            # Kanban board (prefix chord)
  *   bun run visual:shot -- ctrl+a c n "text:Draft title"
  *   bun run visual:shot -- --scale=2 --out=docs/assets/workspace.png
+ *   bun run visual:shot -- --hostbg=#FFFFFF    # simulated light host terminal
  */
 
 import { resolve } from "node:path"
@@ -47,6 +48,14 @@ const deviceScaleFactor = scaleArg === undefined ? 1 : Number(scaleArg)
 if (!Number.isFinite(deviceScaleFactor) || deviceScaleFactor <= 0) {
   throw new Error(`--scale must be a positive number, got ${JSON.stringify(scaleArg)}`)
 }
+// `--hostbg=#rrggbb` simulates a host terminal with that background color
+// (light-theme terminal being the contrast worst case) — the harness paints
+// it behind the terminal AND makes xterm report it via OSC 11, so the TUI's
+// transparent-mode contrast guard adapts through the real detection path.
+const hostbgArg = args.find((arg) => arg.startsWith("--hostbg="))?.slice(9)
+if (hostbgArg !== undefined && !/^#[0-9a-fA-F]{6}$/.test(hostbgArg)) {
+  throw new Error(`--hostbg must be #rrggbb, got ${JSON.stringify(hostbgArg)}`)
+}
 const tokens = args.filter((arg) => !arg.startsWith("--"))
 const runId = `shot-${Date.now()}`
 
@@ -55,9 +64,12 @@ const browser = await chromium.launch({ headless: true }).catch((error: unknown)
 })
 try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor })
-  await page.goto(`http://localhost:${VISUAL_WEB_PORT}/harness?run=${runId}`).catch(() => {
-    throw new Error(`no server on :${VISUAL_WEB_PORT} — start \`bun run visual:serve\` first`)
-  })
+  const hostbgQuery = hostbgArg ? `&hostbg=${encodeURIComponent(hostbgArg)}` : ""
+  await page
+    .goto(`http://localhost:${VISUAL_WEB_PORT}/harness?run=${runId}${hostbgQuery}`)
+    .catch(() => {
+      throw new Error(`no server on :${VISUAL_WEB_PORT} — start \`bun run visual:serve\` first`)
+    })
   const harness = page.getByTestId("opentui-harness")
   await harness.waitFor({ timeout: 10_000 })
   // TUI takeover: the fixture project row is the workspace's earliest stable

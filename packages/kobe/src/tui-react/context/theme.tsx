@@ -18,7 +18,7 @@
 
 import { RGBA } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { type ReactNode, createContext, useContext, useEffect, useMemo } from "react"
+import { type ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react"
 import { createExternalStore } from "../../lib/external-store"
 import {
   BUNDLED_THEMES,
@@ -120,6 +120,13 @@ export type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
+/**
+ * How long the transparent-mode host-background query waits for the
+ * terminal's OSC 11 reply before falling back to the unguarded palette.
+ * Terminals that never answer must not stall the theme.
+ */
+const HOST_PALETTE_QUERY_TIMEOUT_MS = 2_000
+
 function resolveActive(state: State): Theme {
   const active = state.themes[state.active]
   if (active) return resolveTheme(active, state.mode)
@@ -148,9 +155,41 @@ export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "li
   const state = useAccessor(store)
   const renderer = useRenderer()
 
+  // Host-background detection for the transparent-mode contrast guard
+  // (contrast-guard.ts). The theme's muted ink renders directly on the
+  // host terminal's background, which the palette author never saw; the
+  // renderer's palette query (OSC 11) is the only honest source of that
+  // color. One-shot per transparent toggle is enough — a terminal
+  // background rarely mid-session changes, and a missed detection just
+  // means the status quo (unguarded) palette. Inline hosts (split-footer)
+  // skip: their stdin is not an interactive terminal worth querying.
+  const [hostBackground, setHostBackground] = useState<RGBA | null>(null)
+  useEffect(() => {
+    if (!state.transparentBackground) return
+    if (renderer?.screenMode === "split-footer") return
+    if (!renderer) return
+    let cancelled = false
+    renderer
+      .getPalette({ timeout: HOST_PALETTE_QUERY_TIMEOUT_MS })
+      .then((colors) => {
+        if (cancelled || !colors.defaultBackground) return
+        setHostBackground(RGBA.fromHex(colors.defaultBackground))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [renderer, state.transparentBackground])
+
   const theme = useMemo(
-    () => applyDisplayOverlay(resolveActive(state), state.focusAccent, state.transparentBackground),
-    [state],
+    () =>
+      applyDisplayOverlay(
+        resolveActive(state),
+        state.focusAccent,
+        state.transparentBackground,
+        hostBackground ?? undefined,
+      ),
+    [state, hostBackground],
   )
 
   // Push background to the renderer so the terminal background matches
