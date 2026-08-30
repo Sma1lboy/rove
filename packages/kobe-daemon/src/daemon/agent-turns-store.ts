@@ -65,6 +65,15 @@ function keyOf(turn: Pick<AgentTurnRecord, "taskId" | "id">): string {
   return `${turn.taskId}\0${turn.id}`
 }
 
+/** Whether a re-read of the same turn carries the same fields. Both sides are
+ *  {@link normalize} output, so their top-level key order is fixed and a stable
+ *  serialization is a sound equality check — it never misses a real field
+ *  change; at worst a differently-ordered `usage` triggers one redundant, and
+ *  harmless, write. */
+function sameRecord(a: AgentTurnRecord, b: AgentTurnRecord): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
 export class AgentTurnsStore {
   private readonly turns = new Map<string, AgentTurnRecord>()
   private tail: Promise<void> = Promise.resolve()
@@ -86,16 +95,23 @@ export class AgentTurnsStore {
   async record(turns: readonly AgentTurnRecord[]): Promise<number> {
     return await this.enqueue(async () => {
       let added = 0
+      let changed = false
       for (const raw of turns) {
         const turn = normalize(raw)
         if (!turn) continue
         const key = keyOf(turn)
-        if (!this.turns.has(key)) added++
+        const prev = this.turns.get(key)
+        if (prev === undefined) added++
+        // Last write wins on the fields: a turn re-read after more assistant
+        // records landed is the more complete one, and that update has to reach
+        // disk. Keying the write only on NEW turns kept it in memory and lost it
+        // on the next restart.
+        else if (!sameRecord(prev, turn)) changed = true
         // Re-insert so Map order tracks recency; the cap evicts from the head.
         this.turns.delete(key)
         this.turns.set(key, turn)
       }
-      if (added === 0) return 0
+      if (added === 0 && !changed) return 0
       while (this.turns.size > MAX_TURNS) {
         const oldest = this.turns.keys().next().value
         if (oldest === undefined) break
