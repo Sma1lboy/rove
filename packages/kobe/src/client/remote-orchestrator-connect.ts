@@ -43,7 +43,13 @@ export async function runReconnectLoop(deps: {
   readonly init: () => Promise<void>
   readonly shouldLogAttempt: (attempt: number) => boolean
 }): Promise<void> {
-  let delayMs = deps.spawnDaemon ? 0 : 500
+  // A GUI used to retry with ZERO delay, which made every GUI in the process
+  // wake at the same instant after a shared daemon drop and probe a daemon
+  // that is still cold-starting. Jitter the first GUI attempt so they arrive
+  // staggered: the first one through does the work, the rest find a live
+  // daemon and never enter the spawn path at all. Small enough to stay
+  // imperceptible, wide enough to separate same-tick wakeups.
+  let delayMs = deps.spawnDaemon ? Math.floor(Math.random() * 400) : 500
   let attempt = 0
   while (!deps.isDisposed()) {
     if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs))

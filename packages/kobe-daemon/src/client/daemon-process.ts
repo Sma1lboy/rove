@@ -3,9 +3,10 @@ import { closeSync, existsSync, mkdirSync, openSync, statSync, unlinkSync } from
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { LEGACY_KOBE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../compat-env.ts"
-import { stopDaemonProcess } from "../daemon/lifecycle.ts"
+import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "../daemon/paths.ts"
 import { DAEMON_PROTOCOL_VERSION } from "../daemon/protocol.ts"
+import { readPidFile } from "../daemon/socket-guard.ts"
 import { KobeDaemonClient } from "./index.ts"
 
 const DAEMON_START_ARGS = ["daemon", "start"] as const
@@ -17,6 +18,16 @@ const DAEMON_START_ARGS = ["daemon", "start"] as const
  * so a momentarily-busy daemon is never mistaken for a wedged one.
  */
 const DAEMON_HELLO_TIMEOUT_MS = 3000
+
+/**
+ * How long a daemon whose PROCESS is alive gets to answer hello before we
+ * call it wedged. Deliberately much longer than {@link
+ * DAEMON_HELLO_TIMEOUT_MS}: that timeout decides "is this daemon quick",
+ * this one decides "is this daemon dead", and only the second one licenses
+ * a kill. Covers a cold-start plugin-host scan plus a burst of concurrent
+ * task creation — the shape that produced the 2026-08-29 succession storm.
+ */
+const BUSY_DAEMON_GRACE_MS = 15_000
 
 /**
  * How a background child is cut loose from this process.
@@ -116,11 +127,18 @@ export function autospawnDaemonEnv(env: NodeJS.ProcessEnv = process.env): NodeJS
  * socket, which is how split-brain succession starts. One `wx` lockfile
  * next to the pidfile serializes them; losers wait for the winner's daemon
  * instead of spawning their own. Stale threshold covers the winner's worst
- * case (stop escalation ~7s + spawn poll 5s) so a crashed winner never
- * blocks recovery for long.
+ * case so a crashed winner never blocks recovery for long — see the budget
+ * arithmetic on the constants below.
  */
-const SPAWN_LOCK_STALE_MS = 20_000
-const SPAWN_LOCK_WAIT_MS = 15_000
+// Both budgets must cover the WINNER's worst case, or the losers give up
+// (or steal the lock as stale) while it is still legitimately working:
+//   BUSY_DAEMON_GRACE_MS (15s waiting out a busy daemon)
+// + stopDaemonProcess escalation (~7s graceful → SIGTERM → SIGKILL)
+// + spawn poll (5s)
+// ≈ 27s. Stale must exceed wait so a still-working winner is never robbed
+// of its own lock by a peer that merely got bored.
+const SPAWN_LOCK_STALE_MS = 40_000
+const SPAWN_LOCK_WAIT_MS = 30_000
 
 /** Try to take the spawn lock; returns false when a fresh lock is held by
  *  someone else. Reclaims stale locks. Exported for tests. */
@@ -191,6 +209,42 @@ export async function ensureDaemonReachable(): Promise<string> {
     // Re-probe under the lock: the previous holder may have brought a
     // daemon up between our probe above and the lock acquisition.
     if ((await probeDaemonSocket(socketPath)) === "alive") return socketPath
+
+    // A SLOW HELLO IS NOT A DEAD DAEMON. `probeDaemonSocket` reports
+    // whether the daemon ANSWERED within `DAEMON_HELLO_TIMEOUT_MS`, which a
+    // healthy-but-busy daemon can miss — spawning three tasks at once was
+    // enough on the owner's machine (2026-08-29). Treating that as death
+    // starts a succession storm that feeds itself:
+    //
+    //   busy daemon misses hello → client kills it and unlinks the socket →
+    //   spawns a replacement → the old daemon's ownership guard sees a
+    //   different inode and self-stops → every client's connection drops →
+    //   each GUI reconnects with ZERO delay → they all probe a daemon that
+    //   is now cold-starting → it misses hello → repeat.
+    //
+    // Eleven successions in one 50-minute window, with `rove api` failing
+    // intermittently throughout. The spawn lock does not help: it
+    // serializes the killing, it does not question it.
+    //
+    // So before killing anything, ask the OS. `kill(pid, 0)` answers
+    // whether the PROCESS exists, which is the question we actually have;
+    // the socket only ever answered whether it was quick enough. A live pid
+    // means the daemon is busy, not wedged — back off and let it finish.
+    // Only an absent (or unreadable) pidfile justifies the stop+spawn.
+    const livePid = await readPidFile(defaultDaemonPidPath())
+    if (livePid !== null && livePid !== process.pid && isProcessAlive(livePid)) {
+      const deadline = Date.now() + BUSY_DAEMON_GRACE_MS
+      while (Date.now() < deadline) {
+        await new Promise((resolveTimer) => setTimeout(resolveTimer, 250))
+        if (await testDaemonResponds(socketPath)) return socketPath
+        // It died on its own while we waited (crash, or a legitimate idle
+        // stop): the pid is gone, so the stop+spawn below is now correct.
+        if (!isProcessAlive(livePid)) break
+      }
+      // Still alive and still not answering after the grace window — this
+      // is a genuinely wedged daemon, and stopDaemonProcess's escalation
+      // (graceful → SIGTERM → SIGKILL) is the right tool.
+    }
 
     // Absent, or wedged outside a session: kill any wedged process FIRST —
     // `stopDaemonProcess` is idempotent (just clears stale socket/pidfile
