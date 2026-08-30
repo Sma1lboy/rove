@@ -60,8 +60,10 @@ export function writePluginSettings(pluginId: string, values: Record<string, str
     if (value !== "") next.push(`${key}=${value}`)
   }
   while (next.length > 0 && next[next.length - 1] === "") next.pop()
-  mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true })
-  writeFileSync(path, next.length > 0 ? `${next.join("\n")}\n` : "")
+  // 0700/0600: this .env is where PLUGIN-AUTHORING tells authors to keep API
+  // keys, so it must not be world-readable like the manifest beside it.
+  mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
+  writeFileSync(path, next.length > 0 ? `${next.join("\n")}\n` : "", { mode: 0o600 })
 }
 
 /**

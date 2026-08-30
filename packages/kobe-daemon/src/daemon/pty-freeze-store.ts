@@ -193,10 +193,13 @@ export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
   return {
     save(record) {
       try {
-        mkdirSync(dir, { recursive: true })
+        // 0700/0600: `ringB64` is the session's whole scrollback, so this file
+        // holds every byte the agent printed — `env` output, `cat`ed credential
+        // files, a git remote carrying a PAT. Owner-only, like a private key.
+        mkdirSync(dir, { recursive: true, mode: 0o700 })
         const target = recordFile(dir, record.key)
         const staging = `${target}.${process.pid}.tmp`
-        writeFileSync(staging, JSON.stringify(record), "utf8")
+        writeFileSync(staging, JSON.stringify(record), { encoding: "utf8", mode: 0o600 })
         renameSync(staging, target)
       } catch {
         /* best-effort by contract — a freeze hiccup never kills the terminal */

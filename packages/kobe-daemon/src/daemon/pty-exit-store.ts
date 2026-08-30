@@ -181,5 +181,7 @@ function writeRecord(storeKey: string, record: PtyExitRecord, path: string): voi
     .sort(([, a], [, b]) => (a.at < b.at ? 1 : -1))
     .slice(0, MAX_RECORDS)
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, JSON.stringify(Object.fromEntries(newest), null, 2), "utf8")
+  // 0600: every record carries `plainTail` — the dying process's last output,
+  // same class of content as the scrollback in pty-freeze-store.
+  writeFileSync(path, JSON.stringify(Object.fromEntries(newest), null, 2), { encoding: "utf8", mode: 0o600 })
 }

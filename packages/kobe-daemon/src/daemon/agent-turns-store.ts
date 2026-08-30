@@ -149,7 +149,9 @@ export class AgentTurnsStore {
     const tmp = `${this.path}.tmp-${process.pid}-${randomUUID()}`
     try {
       await mkdir(dirname(this.path), { recursive: true })
-      await writeFile(tmp, `${JSON.stringify(body)}\n`, "utf8")
+      // 0600: no credentials here, but the records do name every repo you work
+      // in and when — defense in depth, and free.
+      await writeFile(tmp, `${JSON.stringify(body)}\n`, { encoding: "utf8", mode: 0o600 })
       await rename(tmp, this.path)
     } catch (err) {
       logDaemonError("agent-turns-write", err)
