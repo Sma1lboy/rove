@@ -46,6 +46,8 @@ export const en = {
   deleteTitle: "Delete routine?",
   deleteBody: "{name} and its run history will be removed. Tasks it already created are untouched.",
   deleteButton: "Delete",
+  /** Error-toast title for a failed create/delete/toggle/run. `{error}` = the daemon's own message. */
+  failed: "{error}",
 }
 
 export const zh: typeof en = {
@@ -91,4 +93,6 @@ export const zh: typeof en = {
   deleteTitle: "删除这条例行任务？",
   deleteBody: "将删除 {name} 及其执行记录。它已经创建的任务不受影响。",
   deleteButton: "删除",
+  /** 创建/删除/开关/立即运行失败时的错误 toast 标题。`{error}` = daemon 返回的信息。 */
+  failed: "{error}",
 }

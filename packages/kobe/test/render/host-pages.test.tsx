@@ -118,7 +118,7 @@ test("renderContentPage returns null when no content page is open", async () => 
   const { frame } = await renderComponent(<box>{renderContentPage(deps({}))}</box>, {
     width: 80,
     height: 24,
-    providers: { dialog: true },
+    providers: { dialog: true, notifications: true },
   })
   await settle()
   expect(await frame()).not.toContain("ROUTINES")
@@ -130,7 +130,7 @@ test("renderContentPage renders AutomationsPage with focus repo", async () => {
     {
       width: 70,
       height: 16,
-      providers: { dialog: true },
+      providers: { dialog: true, notifications: true },
     },
   )
   await settle()
@@ -143,7 +143,7 @@ test("renderContentPage renders WorkItemsPage with a selected task repo", async 
     {
       width: 80,
       height: 24,
-      providers: { dialog: true },
+      providers: { dialog: true, notifications: true },
     },
   )
   await settle()
@@ -167,7 +167,7 @@ test("renderContentPage renders AutomationsPage without a selected task", async 
   const { frame } = await renderComponent(<box>{renderContentPage(deps({ automationsOpen: true }))}</box>, {
     width: 70,
     height: 16,
-    providers: { dialog: true },
+    providers: { dialog: true, notifications: true },
   })
   await settle()
   expect(await frame()).toContain("ROUTINES")
@@ -177,7 +177,7 @@ test("renderContentPage renders WorkItemsPage without a selected task", async ()
   const { frame } = await renderComponent(<box>{renderContentPage(deps({ workItemsOpen: true }))}</box>, {
     width: 80,
     height: 24,
-    providers: { dialog: true },
+    providers: { dialog: true, notifications: true },
   })
   await settle()
   expect(await frame()).toContain("ISSUES")
@@ -300,7 +300,7 @@ test("useHostPagesRender surfaces the settings page", async () => {
   const { frame } = await renderComponent(<RenderHarness width={80} initial={(pages) => pages.openSettings()} />, {
     width: 80,
     height: 24,
-    providers: { dialog: true },
+    providers: { dialog: true, notifications: true },
   })
   await settle()
   expect(await frame()).toContain("Settings")
