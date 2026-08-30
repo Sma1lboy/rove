@@ -8,6 +8,7 @@
  * owns) so the class methods stay thin delegators — no behaviour change.
  */
 
+import fs from "node:fs"
 import path from "node:path"
 import type { AdoptableWorktree, WorktreeInfo } from "../../types/worktree.ts"
 import { PROBE_CONCURRENCY, mapWithLimit } from "./concurrency.ts"
@@ -25,8 +26,35 @@ import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 export interface ListDeps {
   ctxFor(repoKey: string): ExecCtx
   runGitStdout(ctx: ExecCtx, args: readonly string[]): Promise<string>
+  /** Read-only git at an arbitrary (worktree) cwd — the last-activity probe. */
+  runGitStdoutAt(ctx: ExecCtx, cwd: string, args: readonly string[]): Promise<string>
   isDirty(worktreePath: string): Promise<boolean>
-  lastActivityMs(ctx: ExecCtx, worktreePath: string): Promise<number>
+}
+
+/**
+ * Last-activity time of a worktree in epoch ms — the HEAD commit's
+ * committer time, falling back to the directory's mtime when the log
+ * read fails (e.g. an unborn branch). Best-effort: returns 0 on total
+ * failure so sorting still works. Used to order the adopt list.
+ */
+export async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string): Promise<number> {
+  try {
+    const stdout = await deps.runGitStdoutAt(ctx, worktreePath, ["log", "-1", "--format=%ct"])
+    const secs = Number.parseInt(stdout.trim(), 10)
+    if (Number.isFinite(secs) && secs > 0) return secs * 1000
+  } catch {
+    // no commits yet / not readable — fall through to mtime
+  }
+  // mtime fallback is a local-only convenience; on a remote the git-log
+  // path above is the source of truth and a miss simply sorts as 0.
+  if (!ctx.exec.isRemote) {
+    try {
+      return fs.statSync(worktreePath).mtimeMs
+    } catch {
+      // unreadable — fall through to 0
+    }
+  }
+  return 0
 }
 
 /**
@@ -111,7 +139,7 @@ export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<re
   // Probe dirty + last-activity for every survivor concurrently (bounded) — two
   // git spawns / ssh round-trips each, the slow part of this call.
   const infos = await mapWithLimit(adoptable, PROBE_CONCURRENCY, async (entry) => {
-    const [dirty, lastActivityMs] = await Promise.all([deps.isDirty(entry.path), deps.lastActivityMs(ctx, entry.path)])
+    const [dirty, activityMs] = await Promise.all([deps.isDirty(entry.path), lastActivityMs(deps, ctx, entry.path)])
     return {
       path: entry.path,
       branch: entry.branch,
@@ -120,7 +148,7 @@ export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<re
       kobeManaged: ctx.remote
         ? remoteManagedRootForPath(ctx.dir, entry.path) !== null
         : isKobeManagedPath(repo, entry.path),
-      lastActivityMs,
+      lastActivityMs: activityMs,
     }
   })
   // Most recently active first.

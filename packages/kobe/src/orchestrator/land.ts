@@ -19,6 +19,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import type { ExecHost } from "../exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, LandConflictError, MainCheckoutDirtyError } from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
@@ -222,19 +223,24 @@ async function git(
   exec: ExecHost,
   dir: string,
   args: readonly string[],
+  opts?: { readonly readOnly?: boolean },
 ): Promise<{ stdout: string; exitCode: number }> {
-  const r = await exec.run(["git", ...args], { cwd: dir })
+  // Read-only probes (status/diff/rev-parse/rev-list) run lock-free per
+  // READ_ONLY_GIT_ENV — land inspects worktrees an engine may be
+  // committing in right now. Writes (merge/abort/reset/commit) never set
+  // readOnly: they genuinely need `.git/index.lock`.
+  const r = await exec.run(["git", ...args], { cwd: dir, env: opts?.readOnly ? READ_ONLY_GIT_ENV : undefined })
   return { stdout: r.stdout, exitCode: r.exitCode }
 }
 
 /** `git status --porcelain` non-empty in `dir` (untracked counts). */
 async function isDirty(exec: ExecHost, dir: string): Promise<boolean> {
-  return (await git(exec, dir, ["status", "--porcelain"])).stdout.trim().length > 0
+  return (await git(exec, dir, ["status", "--porcelain"], { readOnly: true })).stdout.trim().length > 0
 }
 
 /** Conflicted paths after a failed merge: `git diff --name-only --diff-filter=U`. */
 async function conflictedFiles(exec: ExecHost, dir: string): Promise<string[]> {
-  const out = await git(exec, dir, ["diff", "--name-only", "--diff-filter=U"])
+  const out = await git(exec, dir, ["diff", "--name-only", "--diff-filter=U"], { readOnly: true })
   return out.stdout
     .split("\n")
     .map((l) => l.trim())
@@ -267,7 +273,7 @@ async function assertBranchHasWork(
   dir: string,
   deps: WorktreeExecDeps,
 ): Promise<void> {
-  const aheadOut = await git(exec, dir, ["rev-list", "--count", `${landedOn}..${branch}`])
+  const aheadOut = await git(exec, dir, ["rev-list", "--count", `${landedOn}..${branch}`], { readOnly: true })
   const ahead = Number.parseInt(aheadOut.stdout.trim(), 10)
   if (!Number.isFinite(ahead) || ahead > 0) return
   const worktreePath = task.worktreePath.trim()
@@ -281,7 +287,9 @@ async function assertBranchHasWork(
     }
     if (dirty) {
       const wtExec = deps.execForPath(worktreePath)
-      const files = porcelainPaths((await git(wtExec, worktreePath, ["status", "--porcelain"])).stdout)
+      const files = porcelainPaths(
+        (await git(wtExec, worktreePath, ["status", "--porcelain"], { readOnly: true })).stdout,
+      )
       throw new EmptyBranchDirtyWorktreeError(branch, landedOn, worktreePath, files)
     }
   }
@@ -316,7 +324,7 @@ export async function landTask(
   const { exec, dir } = baseRepoCtx(task.repo, deps)
 
   // The base branch we land onto — surfaced in the result + the merge commit msg.
-  const headOut = await git(exec, dir, ["rev-parse", "--abbrev-ref", "HEAD"])
+  const headOut = await git(exec, dir, ["rev-parse", "--abbrev-ref", "HEAD"], { readOnly: true })
   const landedOn = headOut.stdout.trim()
   if (!landedOn || landedOn === "HEAD") {
     throw new Error(`landTask: base checkout at ${dir} is in detached-HEAD state; check out a branch first`)
@@ -349,7 +357,7 @@ export async function landTask(
       throw new Error(`landTask: '${branch}' has nothing to land onto '${landedOn}' (already merged or empty)`)
     }
   } else {
-    const before = (await git(exec, dir, ["rev-parse", "HEAD"])).stdout.trim()
+    const before = (await git(exec, dir, ["rev-parse", "HEAD"], { readOnly: true })).stdout.trim()
     const merge = await git(exec, dir, ["merge", "--no-ff", "-m", `Land ${branch}`, branch])
     if (merge.exitCode !== 0) {
       const files = await conflictedFiles(exec, dir)
@@ -361,12 +369,12 @@ export async function landTask(
     // it the same way the squash path guards its empty `git commit`, so both
     // strategies reject a nothing-to-land branch instead of the merge path
     // reporting a fake success on the unchanged base commit.
-    const after = (await git(exec, dir, ["rev-parse", "HEAD"])).stdout.trim()
+    const after = (await git(exec, dir, ["rev-parse", "HEAD"], { readOnly: true })).stdout.trim()
     if (before === after) {
       throw new Error(`landTask: '${branch}' has nothing to land onto '${landedOn}' (already merged or empty)`)
     }
   }
 
-  const shaOut = await git(exec, dir, ["rev-parse", "--short", "HEAD"])
+  const shaOut = await git(exec, dir, ["rev-parse", "--short", "HEAD"], { readOnly: true })
   return { branch, strategy, landedOn, commit: shaOut.stdout.trim() }
 }

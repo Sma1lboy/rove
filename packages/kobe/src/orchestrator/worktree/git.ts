@@ -21,6 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 
 export interface GitRunOpts {
   /** Working directory for git. Required — we never default. */
@@ -29,6 +30,14 @@ export interface GitRunOpts {
   readonly allowFail?: boolean
   /** Extra environment to merge with `process.env`. */
   readonly env?: Readonly<Record<string, string>>
+  /**
+   * Read-only probe: merge {@link READ_ONLY_GIT_ENV} (GIT_OPTIONAL_LOCKS=0)
+   * into the child env so `git status` / diff / ref probes never take
+   * `.git/index.lock` from an engine mid-commit (see lib/git-env.ts).
+   * ONLY for commands that never write the repo — marking a writer
+   * read-only would strip a lock it genuinely needs and corrupt the index.
+   */
+  readonly readOnly?: boolean
 }
 
 export interface GitRunResult {
@@ -69,9 +78,10 @@ export function git(args: readonly string[], opts: GitRunOpts): GitRunResult {
     throw new Error("git(): cwd is required; refusing to inherit from process.cwd()")
   }
 
+  const env = { ...process.env, ...opts.env, ...(opts.readOnly ? READ_ONLY_GIT_ENV : {}) }
   const proc = spawnSync("git", [...args], {
     cwd: opts.cwd,
-    env: opts.env ? { ...process.env, ...opts.env } : process.env,
+    env,
     encoding: "utf8",
     // Refuse to fall back to a shell parser. `args` is already an
     // array; if the host adds `shell: true` somewhere upstream, this
