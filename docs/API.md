@@ -105,7 +105,11 @@ replacement in `nextCommandArgs`.
 
 ## read
 
-- `list`: list all tasks. Returns `{ tasks }`.
+- `list`: list all tasks. Returns `{ tasks, activeTaskId }` — `activeTaskId`
+  is the shared focus that verbs using the implicit target (`send`,
+  `pane-open`, `pane-close`, `read-output` without `--task-id`) default to;
+  `null` means no active task. Reading it back is the audit trail for any
+  delivery that omitted `--task-id`.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
@@ -287,7 +291,13 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   shell (`-ilc`, so shell-rc `PATH`/exports apply, same as the engine tab)
   and the pane closes when it exits; omit it for an interactive
   shell. Broadcast over the daemon's `tab.open` channel, so an attached TUI
-  showing the task performs the split (headless, nothing happens). Task
+  showing the task performs the split (headless, nothing happens). The result
+  carries the resolved `title` — the label `pane-close --title` must match,
+  derived from the command's first word when `--title` is omitted — and
+  `clients`, the attached-connection count: `0` means nobody performed the
+  split, so an agent must not report "pane opened" on that verdict. (The
+  calling CLI is itself one connection, so `1` does not prove a TUI is
+  listening; `0` is the unambiguous case.) Task
   defaults to `$ROVE_TASK_ID` (or its Kobe alias), then the active task. How far splits can go
   is decided by the terminal's size: a split that would shrink any pane
   below the minimum usable size (20×6 cells) falls back to a tab.
@@ -296,10 +306,12 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   `--title`, the title it was opened with; `--tab tab-N` scopes the match to
   one tab. Engine panes are never closed. Broadcast over the daemon's
   `tab.close` channel; an attached TUI performs the close (headless, nothing
-  happens).
+  happens). The result's `clients` is the reach signal: `0` = no attached TUI
+  performed the close (same semantics as `dispatch`'s).
 - `notify --title TEXT [--kind KIND] [--task-id ID] [--source TAG]`: show
   a toast in every attached Rove UI. `done` / `needs_input` / `error` get
-  severity styling; any other kind renders neutrally.
+  severity styling; any other kind renders neutrally. The result's `clients`
+  is the reach signal: `0` = no attached UI showed the toast (headless).
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters

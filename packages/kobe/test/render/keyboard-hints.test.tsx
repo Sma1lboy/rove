@@ -25,8 +25,9 @@ import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keyb
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/keyboard-hints"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
+import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -137,14 +138,14 @@ function withGuideKvHome(): void {
   process.env.KOBE_HOME_DIR = home
 }
 
-async function waitForFrameText(frame: () => Promise<string>, text: string): Promise<string> {
-  const deadline = Date.now() + 1_000
-  let current = await frame()
-  while (!current.includes(text) && Date.now() < deadline) {
-    await settle(25)
-    current = await frame()
-  }
-  return current
+// The which-key guide is a deliberate delayed reveal: PrefixHud only opens it
+// PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
+// product delay plus frame latency on a loaded CI runner (same flake as
+// issue #82 in shortcut-reveal).
+const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
+
+async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {
+  return waitForFrameText(frame, text, { timeoutMs: GUIDE_REVEAL_TIMEOUT_MS })
 }
 
 describe("StatusKeyHintBar", () => {
@@ -194,7 +195,7 @@ describe("StatusKeyHintBar", () => {
     await settle()
 
     act(() => mockInput.pressKey("a", { ctrl: true }))
-    expect(await waitForFrameText(frame, "more Rove commands")).toContain("more Rove commands")
+    expect(await waitForGuideText(frame, "more Rove commands")).toContain("more Rove commands")
 
     act(() => mockInput.pressKey("z"))
     await settle()
@@ -285,7 +286,7 @@ describe("footer hint clicks", () => {
     await settle()
     const spot = locate(await frame(), "commands")
     await mockMouse.click(spot.x + 1, spot.y)
-    expect(await waitForFrameText(frame, "more Rove commands")).toContain("more Rove commands")
+    expect(await waitForGuideText(frame, "more Rove commands")).toContain("more Rove commands")
     act(() => resetPrefixState())
   })
 })

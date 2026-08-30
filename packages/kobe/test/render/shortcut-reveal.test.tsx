@@ -10,8 +10,9 @@ import { useBindings } from "../../src/tui-react/lib/keymap"
 import { SidebarNavRail } from "../../src/tui-react/panes/sidebar/chrome"
 import { bindByIds } from "../../src/tui/context/keybindings"
 import { prefixAction } from "../../src/tui/lib/keymap-dispatch"
+import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 function locate(frame: string, text: string): { x: number; y: number } {
   const lines = frame.split("\n")
@@ -46,14 +47,14 @@ function tempHome(mode?: "local" | "guide"): string {
   return home
 }
 
-async function waitForFrameText(frame: () => Promise<string>, text: string): Promise<string> {
-  const deadline = Date.now() + 1_000
-  let current = await frame()
-  while (!current.includes(text) && Date.now() < deadline) {
-    await settle(25)
-    current = await frame()
-  }
-  return current
+// The complete guide is a deliberate delayed reveal: PrefixHud only opens it
+// PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
+// product delay plus frame latency on a loaded CI runner (issue #82: a bare
+// 1s budget flaked at ~1.1s test wall-clock).
+const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
+
+async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {
+  return waitForFrameText(frame, text, { timeoutMs: GUIDE_REVEAL_TIMEOUT_MS })
 }
 
 test("the default prefix tap shows local badges and the complete command guide together", async () => {
@@ -66,7 +67,7 @@ test("the default prefix tap shows local badges and the complete command guide t
   )
 
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  const local = await waitForFrameText(frame, "more Rove commands")
+  const local = await waitForGuideText(frame, "more Rove commands")
   expect(local).toContain("⌃ A 1")
   expect(local).toContain("⌃ A 2")
   expect(local).toContain("more Rove commands")
@@ -89,7 +90,7 @@ test("a complete-guide row is a real clickable entry in local mode", async () =>
   )
 
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  const revealed = await waitForFrameText(frame, "Open active Task directory in editor")
+  const revealed = await waitForGuideText(frame, "Open active Task directory in editor")
   const at = locate(revealed, "Open active Task directory in editor")
   await mockMouse.click(at.x + 1, at.y)
   await settle()
@@ -108,7 +109,7 @@ test("the guide setting routes the same prefix tap to the global command guide",
   )
 
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  const guide = await waitForFrameText(frame, "more Rove commands")
+  const guide = await waitForGuideText(frame, "more Rove commands")
   expect(guide).toContain("more Rove commands")
   expect(guide).toContain("Open active Task directory in editor")
   expect(guide).not.toContain("⌃ A 1")

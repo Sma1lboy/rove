@@ -122,6 +122,34 @@ export function settle(ms = 60): Promise<void> {
 }
 
 /**
+ * Poll `frame()` until the captured frame contains `text` and return that
+ * frame. Throws with the last frame on timeout.
+ *
+ * Call sites that wait on an INTENTIONAL product delay — e.g. the prefix-HUD
+ * command guide, which only opens PREFIX_GUIDE_DELAY_MS after the tap — must
+ * pass a `timeoutMs` anchored to that product constant, not a bare estimate:
+ * the deadline has to cover the delay plus frame latency on a loaded CI
+ * runner, or the test flakes at random on unrelated PRs (issue #82: a 1s
+ * budget failed at ~1.1s of test wall-clock on a slow runner).
+ */
+export async function waitForFrameText(
+  frame: () => Promise<string>,
+  text: string,
+  { timeoutMs = 5_000, intervalMs = 25 }: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<string> {
+  const deadline = Date.now() + timeoutMs
+  let current = await frame()
+  while (!current.includes(text)) {
+    if (Date.now() >= deadline) {
+      throw new Error(`frame did not contain ${JSON.stringify(text)} within ${timeoutMs}ms:\n${current}`)
+    }
+    await settle(intervalMs)
+    current = await frame()
+  }
+  return current
+}
+
+/**
  * Mount `ui` against a real opentui React test renderer and return a handle to
  * drive/inspect it. Renders one initial frame before resolving, so `frame()`
  * immediately after `renderComponent()` reflects the mounted state.

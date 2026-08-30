@@ -10,6 +10,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { renderComponent } from "./harness"
 
@@ -27,8 +28,15 @@ const AUTOMATION = {
   updatedAt: "2026-07-01T00:00:00Z",
 }
 
+/** Hoisted: `useSyncExternalStore` re-subscribes whenever the store identity
+ *  changes, so a cell built inside the accessor would churn every render. */
+const ONLINE = createStateCell("online")
+
 function orchestrator(automations: unknown[] = []) {
   return {
+    // The page reads the connection signal to decide whether its daemon-hold
+    // state is still a claim it can make (see daemon-down-banner.test.tsx).
+    connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),
     listTasks: () => [{ repo: "/x/kobe" }],
@@ -38,7 +46,7 @@ function orchestrator(automations: unknown[] = []) {
 test("n opens the create flow", async () => {
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
-    { width: 60, height: 16, providers: { dialog: true } },
+    { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
   mockInput.typeText("n")
@@ -51,7 +59,7 @@ test("esc closes the create flow", async () => {
   // as a modal MEMBER it outranked the barrier, so the card never popped.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
-    { width: 60, height: 16, providers: { dialog: true } },
+    { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
   mockInput.typeText("n")
@@ -72,7 +80,7 @@ test("esc closes the page", async () => {
         closed = true
       }}
     />,
-    { width: 60, height: 16, providers: { dialog: true } },
+    { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
   mockInput.pressEscape()
@@ -85,7 +93,7 @@ test("keys stay dead while another pane holds focus", async () => {
   // pages no longer disable the workspace chords, so the page must yield.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={false} onClose={() => {}} />,
-    { width: 60, height: 16, providers: { dialog: true } },
+    { width: 60, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 100))
   mockInput.typeText("n")
@@ -96,7 +104,7 @@ test("keys stay dead while another pane holds focus", async () => {
 test("each automation renders as a boxed strip", async () => {
   const { frame } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator([AUTOMATION])} focused={true} onClose={() => {}} />,
-    { width: 70, height: 16, providers: { dialog: true } },
+    { width: 70, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 120))
   const lines = (await frame()).split("\n")
@@ -115,7 +123,7 @@ test("the schedule row is five editable cells, not a text field", async () => {
   // cron means knowing the field order before you can say anything.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
-    { width: 72, height: 30, providers: { dialog: true } },
+    { width: 72, height: 30, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 120))
   mockInput.typeText("n")
@@ -150,7 +158,7 @@ test("the detail frame stays mounted with nothing selected", async () => {
   // frame is where a first-time user reads what a routine even carries.
   const { frame } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
-    { width: 74, height: 16, providers: { dialog: true } },
+    { width: 74, height: 16, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 120))
   const text = await frame()
@@ -163,7 +171,7 @@ test("a selected routine offers an on-demand run", async () => {
   // schedule — the reason it is a visible button, not only the `s` key.
   const { frame } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator([AUTOMATION])} focused={true} onClose={() => {}} />,
-    { width: 74, height: 20, providers: { dialog: true } },
+    { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
   await new Promise((r) => setTimeout(r, 150))
   expect(await frame()).toContain("run now")

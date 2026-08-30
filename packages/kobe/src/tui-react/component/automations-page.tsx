@@ -17,11 +17,14 @@ import { TextAttributes } from "@opentui/core"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { errorMessage } from "../../lib/error-message"
 import { relativeBuckets } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useDaemonDown } from "../lib/use-accessor"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { AutomationComposer } from "./automation-composer-dialog"
@@ -69,6 +72,17 @@ export function AutomationsPage(props: {
   const { theme } = useTheme()
   const dialog = useDialog()
   const t = useT()
+  /**
+   * Failures go to the toast queue, not the inline notice line — a muted
+   * `textMuted` line reads as a hint, not a failure, and error toasts show
+   * even when toasts are disabled (shared notify-state invariant). Same
+   * empty taskId/tabId pattern as `WorktreesPage`: only the toast queue is
+   * consumed here.
+   */
+  const notif = useNotifications()
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
 
   const [automations, setAutomations] = useState<readonly Automation[] | null>(null)
   const [keepsDaemonAlive, setKeepsDaemonAlive] = useState(false)
@@ -95,7 +109,11 @@ export function AutomationsPage(props: {
           setKeepsDaemonAlive(result.keepsDaemonAlive)
         })
         .catch(() => {
-          // A failed read leaves the previous rows rather than crashing the page.
+          // A failed read leaves the previous rows rather than crashing the
+          // page. Keeping them IS not calling setState, so there is nothing to
+          // do here — the empty array only covers the very first load, which
+          // has no rows to keep. What the failure means for those rows is the
+          // daemon-down banner's job (`useDaemonDown`), not a per-page catch.
           if (!disposed) setAutomations((prev) => prev ?? [])
         })
     }
@@ -147,7 +165,8 @@ export function AutomationsPage(props: {
       await orch.setAutomationEnabled(selected.id, !selected.enabled)
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] toggle failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -163,7 +182,8 @@ export function AutomationsPage(props: {
       setNotice(t("automations.ranWith", { name: selected.name, status: result.status }))
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] run now failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -189,9 +209,10 @@ export function AutomationsPage(props: {
       await orch.createAutomation(draft)
       refetch()
     } catch (err) {
-      // The daemon re-validates the cron; surface its message, since the fix
-      // is in the input the user just typed.
-      setNotice(err instanceof Error ? err.message : String(err))
+      // The daemon re-validates the cron; its message names the fix, so it
+      // leads the error toast.
+      console.error("[rove automations] create failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -214,7 +235,8 @@ export function AutomationsPage(props: {
       await orch.deleteAutomation(selected.id)
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] delete failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -244,6 +266,11 @@ export function AutomationsPage(props: {
   }))
 
   const now = Date.now()
+  // `keepsDaemonAlive` came off the last successful read. With the socket
+  // down it is a claim about a process that is not answering — rendered in
+  // `theme.success` green, it asserted "holding daemon" about a daemon that
+  // was gone. The daemon being down is the more specific fact, so it wins.
+  const daemonDown = useDaemonDown(props.orchestrator)
 
   return (
     <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={2} paddingRight={2}>
@@ -256,8 +283,16 @@ export function AutomationsPage(props: {
         <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
           {"─".repeat(240)}
         </text>
-        <text fg={keepsDaemonAlive ? theme.success : theme.textMuted} wrapMode="none" flexShrink={0}>
-          {keepsDaemonAlive ? t("automations.holdingDaemon") : t("automations.notHolding")}
+        <text
+          fg={daemonDown ? theme.error : keepsDaemonAlive ? theme.success : theme.textMuted}
+          wrapMode="none"
+          flexShrink={0}
+        >
+          {daemonDown
+            ? t("automations.daemonUnreachable")
+            : keepsDaemonAlive
+              ? t("automations.holdingDaemon")
+              : t("automations.notHolding")}
         </text>
       </box>
 

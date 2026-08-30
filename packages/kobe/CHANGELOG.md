@@ -1,5 +1,149 @@
 # Changelog
 
+## 0.9.19
+
+### Patch Changes
+
+- [#651](https://github.com/Sma1lboy/rove/pull/651) [`0706f27`](https://github.com/Sma1lboy/rove/commit/0706f27016cdcc93f9f758660d1973392c950c2a) Surface failed mutations as error toasts instead of invisible logs or muted hint lines
+
+  Three pages told the user nothing (or something easy to miss) when a mutation failed:
+
+  - Kanban: a failed issue create/delete logged to the daemon log only — under the alternate screen a bare `console.error` is invisible, so the card just stayed on the board.
+  - Routines: create/delete/toggle/run-now failures rendered as a gray muted line, reading like a hint rather than a failure.
+  - GitHub issues: a failed "start work" did the same.
+
+  All three now send failures through the shared toast queue as `error` toasts (red accent, always shown even with toasts disabled), keeping the daemon-log line for forensics and leaving the muted inline line for non-failure status only. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#652](https://github.com/Sma1lboy/rove/pull/652) [`e198cb4`](https://github.com/Sma1lboy/rove/commit/e198cb4c856e80c7e28fdca0a4d848b0fce344ec) Teach the agent skill the verbs that actually exist
+
+  The bundled agent skill still taught `archive` (removed with issue [#75](https://github.com/Sma1lboy/rove/issues/75)) and a
+  `land --then-archive` flag that never existed, so an agent closing a parallel
+  round hit `BAD_VERB`/`BAD_FLAG` with no useful pointer. `archive` is now a
+  retired verb whose rejection names `delete` and says the branch survives, the
+  skill's closing-a-round example uses `delete` for losers, and the `send --tab`
+  docs warn that an explicit `--tab` without `--task-id` inside a dispatched
+  task delivers to that tab on the _dispatcher_'s task. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.18
+
+### Patch Changes
+
+- [#648](https://github.com/Sma1lboy/rove/pull/648) [`36b6da6`](https://github.com/Sma1lboy/rove/commit/36b6da680651ac4fedc9b091ee352cc00d7b138d) Boxed tab strip, on by default
+
+  Every workspace tab now renders as a bordered rounded box; the active tab
+  omits its bottom edge so its frame reads as a notch opening into the pane it
+  shows (claude-squad's `activeTabBorder`). Tabs sit flush — the frames are the
+  gutter — and the workspace/files-pane chrome picks up rounded borders with a
+  more visible inactive border color.
+
+  The strip also switches its default from `never` to `always`: the sidebar
+  tree lists every tab, but the strip is the affordance that says WHICH tab
+  the pane below is showing. Users who preferred the tree alone can set
+  `chat.tabStrip.mode` to `never` (Settings → General → Terminal). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.17
+
+### Patch Changes
+
+- [#650](https://github.com/Sma1lboy/rove/pull/650) [`ab2c979`](https://github.com/Sma1lboy/rove/commit/ab2c9795966d0c84e1f0fcf6f7db4c184294266a) Fix a render-track flake that red-lit unrelated PRs (issue [#82](https://github.com/Sma1lboy/rove/issues/82))
+
+  The prefix-tap shortcut tests polled for the command guide with a hardcoded
+  1s deadline. The guide is a deliberate delayed reveal — `PrefixHud` opens it
+  `PREFIX_GUIDE_DELAY_MS` after the tap — and on a loaded CI runner the 1s
+  window expired before the delayed frame rendered, failing PRs that touched no
+  TUI code. The wait budget is now anchored to `PREFIX_GUIDE_DELAY_MS` with
+  room for slow-runner frame latency, the poll helper is shared from the render
+  harness, and a timeout now names the missing text instead of failing an
+  unrelated `toContain`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.16
+
+### Patch Changes
+
+- [#647](https://github.com/Sma1lboy/rove/pull/647) [`b5e2ab7`](https://github.com/Sma1lboy/rove/commit/b5e2ab714cc4ca113fd378d03235f1288d9116de) One activity state machine instead of two copies
+
+  The reducer that decides a task's engine-activity badge (the ● lamp, the ?
+  attention badge) existed twice — once in `kobe/src/engine/hook-events.ts`, once
+  in `kobe-daemon/src/daemon/activity-reduce.ts` — with the daemon copy carrying
+  a `// Mirrors kobe's hook-events reducer.` note asking readers to keep them in
+  step by hand. Both copies also recorded the same two production bugs, which is
+  what a copy that has already drifted once looks like.
+
+  The daemon copy is now the only definition (kobe depends on kobe-daemon, never
+  the reverse; the daemon's activity registry is the reducer's only production
+  caller), and `hook-events.ts` re-exports it. Every comment that a real incident
+  paid for is preserved at that one definition: Kimi firing Interrupt instead of
+  Stop, a Stop landing on a cold registry after a daemon restart, and the
+  automated wake that used to light the ● lamp for a turn nobody started.
+
+  No behavior change. The daemon's own tests now pin the cold-registry
+  completion and the Kimi interrupt through the registry — before this, breaking
+  either one left the daemon-path tests green. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.15
+
+### Patch Changes
+
+- [#646](https://github.com/Sma1lboy/rove/pull/646) [`3d47896`](https://github.com/Sma1lboy/rove/commit/3d478960d457f145ebf8dd63d85eafffed647659) Call each thing by one name: docs, F1, and pane hints now agree
+
+  Four places where the same feature had two names — or a doc promised
+  something that no longer exists — are straightened out:
+
+  - The sidebar's `a` key no longer has a documented action: the archived view
+    it drove retired with issue [#75](https://github.com/Sma1lboy/rove/issues/75), and the keybindings page still listed
+    "Archive non-main Task". The same doc page now uses `n`/`d`/`r` as its
+    bare-letter examples instead of the retired `a`.
+  - The page, the sidebar nav, and `ctrl+a` `2` all say "Routines"; the F1
+    guide and the prefix command map said "automations". Both now say
+    "routines".
+  - The Files pane's first-use hint taught `h`/`l` as "fold", which collides
+    with the sidebar's promise that nothing ever folds. It now says
+    "collapse", matching the binding's own description.
+  - The Inbox footer taught `d` as "delete", but the action clears a
+    notification without confirming — unlike every other `d`, which deletes
+    with a confirm. It now says "clear", matching the Inbox section of the
+    keybindings doc and the F1 description. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.14
+
+### Patch Changes
+
+- [#645](https://github.com/Sma1lboy/rove/pull/645) [`e1e9880`](https://github.com/Sma1lboy/rove/commit/e1e988044a1eb5ee74f635548fdbf309abe309e8) New tasks start with your prompt and nothing else
+
+  Every new task's first prompt used to arrive with two English paragraphs
+  stapled to it — how to rename the branch, and how to report the outcome home.
+  Writing in any other language, your own words reached the agent trailed by
+  English, which pulled its replies to English too.
+
+  Both were standing instructions rather than facts about the task, so they now
+  live in the Rove agent skill, which the agent reads once. Your prompt reaches
+  the engine exactly as you wrote it. Facts that only apply to this worktree —
+  the missing-dependency warning — still ride along, because nothing else can
+  know them.
+
+  Agents without the Rove skill installed will no longer rename their task
+  branch; run `rove skill install` if branches are staying on their generated
+  placeholder names. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.13
+
+### Patch Changes
+
+- [#643](https://github.com/Sma1lboy/rove/pull/643) [`1c04f4b`](https://github.com/Sma1lboy/rove/commit/1c04f4bfb2d48b60c8c5cd0772b6da8b3299090e) Prompts Rove injects follow the language you write in
+
+  Text Rove sends into a session on its own — the missing-dependencies warning
+  on a fresh worktree, and the continuation typed in after a rate limit clears —
+  was always English, so a session you were running entirely in Chinese kept
+  getting pulled back to English.
+
+  Rove now notices which language your first prompt is written in and keeps
+  using it. Nothing to configure and no setting to find: if you write Chinese,
+  the text Rove adds comes back in Chinese.
+
+  The quota-resume case is the one that needs this most — it fires from a timer
+  long after you last typed anything, so there is no message in hand to take the
+  language from. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.12
 
 ### Patch Changes

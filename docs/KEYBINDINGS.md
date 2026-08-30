@@ -14,7 +14,7 @@ Which gives you three patterns:
 
 | Pattern | Example | Used for |
 |---|---|---|
-| Bare letter | `n`, `a`, `d` | Actions in the focused pane |
+| Bare letter | `n`, `d`, `r` | Actions in the focused pane |
 | One press | `ctrl+t`, `ctrl+w` | Frequent Rove-wide actions |
 | Prefix sequence | `ctrl+a` then `i` | Everything less frequent |
 
@@ -26,7 +26,7 @@ terminal without opening it.
 Tap the configured prefix once to open the command layer. By default, Rove
 opens the complete command guide and also shows shortcuts beside clickable
 controls already on screen, such as **New task**, **Inbox**, **Kanban**,
-**Automations**, **Zen**, **Ask agent to create PR**, and **Settings**. In **Settings →
+**Routines**, **Zen**, **Ask agent to create PR**, and **Settings**. In **Settings →
 Keybindings → Prefix tap**, choose **Complete guide only** to hide the on-screen
 badges while keeping the guide.
 
@@ -109,9 +109,9 @@ is active.
 | `enter` | Open | | `b` | Rename branch |
 | `l` / `space` | Open the row under the cursor | | `v` | Change engine |
 | `o` | Open Task directory in your editor | | `s` | Settings |
-| `a` | Archive non-main Task | | `u` | Update page |
-| `d` | Delete Task / forget project | | `/` | Search |
-| `gg` / `shift+g` | Top / bottom | | `x` | Worktrees page |
+| `u` | Update page | | `/` | Search |
+| `d` | Delete Task / forget project | | `x` | Worktrees page |
+| `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
 | `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Switch task sort (default ↔ recent) |
 
@@ -192,7 +192,7 @@ active only while the page has focus.
 | Page | Keys |
 |---|---|
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
-| Automations | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
+| Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |

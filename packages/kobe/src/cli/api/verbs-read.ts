@@ -15,7 +15,13 @@ import { READ_OUTPUT_VERB } from "./read-output.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const READ_VERBS: readonly VerbSpec[] = [
-  { name: "list", summary: "List all tasks. Returns { tasks }.", flags: [], handler: list },
+  {
+    name: "list",
+    summary:
+      "List all tasks. Returns { tasks, activeTaskId } — `activeTaskId` is the shared focus verbs default to when --task-id is omitted (null = no active task), the audit read for any implicit-target delivery.",
+    flags: [],
+    handler: list,
+  },
   {
     name: "get-task",
     summary:

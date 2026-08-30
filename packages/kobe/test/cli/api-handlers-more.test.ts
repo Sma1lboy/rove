@@ -111,6 +111,10 @@ describe("schema drill-ins", () => {
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
       ["set-vendor", ["api", "set-command", "--help"], /set-command/],
+      // archive died with issue #75; the rejection must point at delete AND
+      // say the branch survives — a coordinator closing a round should not
+      // have to guess between delete and --delete-branch.
+      ["archive", ["api", "delete", "--help"], /branch.*survives/s],
     ])("%s fails with UNKNOWN_VERB and the replacement command", async (verb, nextArgs, hintPattern) => {
       const err = await rejectionOf(verb)
       expect(err.code).toBe("UNKNOWN_VERB")

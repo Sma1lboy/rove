@@ -7,6 +7,10 @@ export const en = {
   title: "ROUTINES",
   holdingDaemon: "keeping the daemon awake",
   notHolding: "none active",
+  /** Replaces both of the above while the socket is down: the hold state came
+   *  off the last successful read, so it is a claim about a process that is
+   *  not answering. */
+  daemonUnreachable: "daemon unreachable",
   paused: "paused",
   newTitle: "New routine",
   fieldName: "name",
@@ -46,12 +50,15 @@ export const en = {
   deleteTitle: "Delete routine?",
   deleteBody: "{name} and its run history will be removed. Tasks it already created are untouched.",
   deleteButton: "Delete",
+  /** Error-toast title for a failed create/delete/toggle/run. `{error}` = the daemon's own message. */
+  failed: "{error}",
 }
 
 export const zh: typeof en = {
   title: "例行任务",
   holdingDaemon: "正在保持守护进程常驻",
   notHolding: "无启用项",
+  daemonUnreachable: "守护进程无响应",
   paused: "已暂停",
   newTitle: "新建例行任务",
   fieldName: "名称",
@@ -91,4 +98,6 @@ export const zh: typeof en = {
   deleteTitle: "删除这条例行任务？",
   deleteBody: "将删除 {name} 及其执行记录。它已经创建的任务不受影响。",
   deleteButton: "删除",
+  /** 创建/删除/开关/立即运行失败时的错误 toast 标题。`{error}` = daemon 返回的信息。 */
+  failed: "{error}",
 }

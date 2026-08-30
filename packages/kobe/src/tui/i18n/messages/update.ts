@@ -7,6 +7,9 @@ export const en = {
   pageTitle: "ROVE UPDATE",
   current: "current",
   latest: "latest",
+  /** The registry check failed (offline, npm down, timeout). Distinct from
+   *  "you are up to date" — those two used to render identically. */
+  latestUnknown: "unknown — could not reach the registry",
   releaseUrlUnavailable: "release URL unavailable",
   statusReleaseOpened: "Opened release page in your browser.",
   statusReleaseError: "Could not open release URL.",
@@ -44,6 +47,7 @@ export const zh: typeof en = {
   pageTitle: "ROVE 更新",
   current: "当前",
   latest: "最新",
+  latestUnknown: "未知 —— 无法连接到 registry",
   releaseUrlUnavailable: "发布链接不可用",
   statusReleaseOpened: "已在浏览器中打开发布说明页面。",
   statusReleaseError: "无法打开发布链接。",

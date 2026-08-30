@@ -16,7 +16,7 @@ import { ApiError, type VerbSpec } from "./types.ts"
 export const PANE_VERB: VerbSpec = {
   name: "pane-open",
   summary:
-    "Open a terminal pane in a task's workspace: split the focused tab (default, or --tab's tab) or open a separate command tab, optionally running a command. Broadcast over the daemon's tab.open channel — an attached TUI showing the task performs the split. Task defaults to $ROVE_TASK_ID, then the active task.",
+    "Open a terminal pane in a task's workspace: split the focused tab (default, or --tab's tab) or open a separate command tab, optionally running a command. Broadcast over the daemon's tab.open channel — an attached TUI showing the task performs the split. Task defaults to $ROVE_TASK_ID, then the active task. Returns the resolved `title` (the label `pane-close --title` must match — derived from the command's first word when --title is omitted) plus `clients` (attached connections; 0 = nobody performed the split).",
   flags: [
     F.taskId(false),
     {
@@ -70,21 +70,25 @@ export const PANE_VERB: VerbSpec = {
     const argv = command ? [shell, "-ilc", command] : [shell, "-il"]
     const title = ctx.args.str("title") ?? (command ? (command.trim().split(/\s+/)[0] ?? "shell") : "shell")
     const tabId = ctx.args.str("tab")
-    return simpleRpc(ctx, "tab.open", {
+    const reply = (await simpleRpc(ctx, "tab.open", {
       taskId,
       argv,
       title,
       ...(tabId !== undefined ? { tabId } : {}),
       placement: ctx.args.str("placement") ?? "split",
       direction: ctx.args.str("direction") ?? "right",
-    })
+    })) as Record<string, unknown> | undefined
+    // Echo the resolved title back: it is the label `pane-close --title`
+    // must match, and without this in the result a derived title (the
+    // command's first word) is unguessable.
+    return { ...reply, title }
   },
 }
 
 export const PANE_CLOSE_VERB: VerbSpec = {
   name: "pane-close",
   summary:
-    "Close panes opened by pane-open: every split pane / command tab in the task whose label matches --title. Broadcast over the daemon's tab.close channel — an attached TUI showing the task performs the close (headless no-op). Task defaults to $ROVE_TASK_ID, then the active task.",
+    "Close panes opened by pane-open: every split pane / command tab in the task whose label matches --title. Broadcast over the daemon's tab.close channel — an attached TUI showing the task performs the close (headless no-op). Task defaults to $ROVE_TASK_ID, then the active task. Returns `clients` (attached connections; 0 = nobody performed the close).",
   flags: [
     F.taskId(false),
     {

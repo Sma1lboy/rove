@@ -55,40 +55,17 @@ export type PromptDeliveryIntent =
   /**
    * The FIRST prompt of a freshly created worktree task (`add --prompt`,
    * `fan-out`, quick-fork, work-item/automation starts). Delivered like
-   * `explicit`, plus a branch-rename coda — the task's branch is an
-   * auto-generated placeholder, and the agent reading this prompt is the one
-   * party that knows what the work is actually about. Prompts into EXISTING
-   * sessions (`send`, `send --tab new`, dispatch, cross-engine handoff) must
-   * stay `explicit` so they never re-append the coda.
+   * `explicit`, plus the codas that describe THIS worktree's state — today
+   * the missing-dependencies warning. Prompts into EXISTING sessions (`send`,
+   * `send --tab new`, dispatch, cross-engine handoff) stay `explicit` so they
+   * never re-append them.
    *
-   * `spawnerTaskId`: the Rove task whose agent created THIS task, when known.
-   * Only the CLI layer may supply it (from its own $KOBE_TASK_ID) — never read
-   * env here: the daemon can be auto-spawned from inside an engine tab and
-   * would bake that stale id into every future automation task.
+   * Standing instructions for a worker (name your branch, report your outcome
+   * home) are NOT here: they live in the Rove agent skill, which the agent
+   * reads once instead of being told again in every prompt.
    */
-  | { readonly kind: "new-task"; readonly prompt: string; readonly spawnerTaskId?: string }
+  | { readonly kind: "new-task"; readonly prompt: string }
   | { readonly kind: "none" }
-
-/**
- * Coda appended to a new worktree task's first prompt. The concrete task id
- * is baked in at spawn time (ids are immutable) — same convention as the
- * status-report protocol. `api` defaults to the environment-correct CLI
- * invocation; tests pass a literal.
- */
-export function newTaskBranchCoda(taskId: string, api: string = kobeApiInvocation(), spawnerTaskId?: string): string {
-  const rename = `PS: this task's git branch name is an auto-generated placeholder. Once you understand the work, rename it to a short descriptive name following this repo's branch-naming convention: \`${api} set-branch --task-id ${taskId} --branch <descriptive-slug>\``
-  if (!spawnerTaskId || spawnerTaskId === taskId) return rename
-  // Send-back, not `report`: a stored report only surfaces if the spawner
-  // explicitly awaits, which in practice it never does — outcomes silently
-  // vanished. `send` lands a full turn in the spawner's chat tab.
-  //
-  // BARE send, no --task-id: only the bare form resolves the dispatcher's
-  // exact TAB (recorded at creation). An explicit `--task-id ${spawnerTaskId}`
-  // skips dispatcher routing and lands on that task's canonical engine tab —
-  // on a main task whose dispatching chat is a command tab, that is a
-  // DIFFERENT agent's session, and outcomes reported to a stranger.
-  return `${rename}\n\nYou were spawned by Rove task ${spawnerTaskId}. When the work is finished, send your outcome back — include the final branch name: \`${api} send --prompt "<succeeded|failed>: <one-line summary> (branch <final-branch>)"\` (bare send, no --task-id: it routes to the exact tab that dispatched you)`
-}
 
 /**
  * Lockfile → the directory its install step produces. A committed lockfile
@@ -189,9 +166,6 @@ function firstMessageFor(
   if (intent.kind === "none") return undefined
   if (intent.kind === "explicit") return { source: "explicit", text: intent.prompt }
   if (intent.kind === "new-task") {
-    // `$ROVE_TASK_ID` fallback: exported into every engine tab's env, so the
-    // agent's shell expands it even if a caller never threaded the id here.
-    const branch = newTaskBranchCoda(taskId ?? '"$ROVE_TASK_ID"', undefined, intent.spawnerTaskId)
     // Only when the repo has no init script: with one, the install already ran
     // (or the repo chose not to), and the warning would be noise. Scoped to
     // new-task so `send`/handoff prompts into existing sessions never see it.
@@ -200,7 +174,7 @@ function firstMessageFor(
       : missingDependenciesCoda(worktreePath, detectLanguage(intent.prompt) ?? undefined)
     return {
       source: "explicit",
-      text: [intent.prompt, branch, deps].filter(Boolean).join("\n\n"),
+      text: [intent.prompt, deps].filter(Boolean).join("\n\n"),
     }
   }
   const text = init.initPrompt?.trim()

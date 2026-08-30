@@ -217,7 +217,7 @@ export const KobeKeymap: readonly KobeBinding[] = [
     keys: [],
     prefixKeys: ["2"],
     category: "Global",
-    description: "Open automations (scheduled tasks)",
+    description: "Open routines (scheduled tasks)",
   },
   {
     // Rail row 3 — see kanban.open above.
