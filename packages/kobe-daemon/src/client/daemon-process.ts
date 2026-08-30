@@ -323,11 +323,11 @@ export type DaemonSocketState = "alive" | "absent" | "wedged"
  * inside an engine session rather than recover.
  *
  * The discriminator is the CONNECTION dying, not the promise rejecting —
- * conflating the two is what would kill a version-mismatched daemon. We
- * read it off the client's `close` lifecycle rather than the rejection:
- * `onSocketClose` fails pending requests and THEN emits `close`, both
- * synchronously, so by the time the awaited race resumes (a microtask) the
- * flag is already set.
+ * conflating the two is what would kill a version-mismatched daemon, whose
+ * hello rejects while the daemon is perfectly alive. We read it off the
+ * client's `close` lifecycle instead: `onSocketClose` fails the pending
+ * request and emits `close` in the same synchronous step, so the flag is
+ * set before the awaited race resumes on the following microtask.
  *
  * Exported for tests.
  */
@@ -356,6 +356,10 @@ export async function probeDaemonSocket(
   })
   const settled = await Promise.race([replied, timedOut])
   if (timer) clearTimeout(timer)
+  // Unsubscribe before `close()`: plain listener hygiene. `close()` nulls the
+  // socket first, so its own OS close event trips `onSocketClose`'s stale
+  // guard and emits nothing — but the verdict below must depend on the PEER
+  // dropping us, never on our own teardown, so don't leave the listener armed.
   offClose()
   probe.close()
   if (droppedByPeer) return "absent"
