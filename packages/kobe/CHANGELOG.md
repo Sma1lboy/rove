@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.20
+
+### Patch Changes
+
+- [#654](https://github.com/Sma1lboy/rove/pull/654) [`4dd8256`](https://github.com/Sma1lboy/rove/commit/4dd82561b5a6f414d3c7ccdb259a6a175ba5d64d) Broadcast verbs report reach, pane-open returns its title, list exposes the active task
+
+  `pane-open`, `pane-close`, and `notify` are broadcast-only: an attached TUI performs the split/close/toast, so headless they did nothing while still returning `ok: true` — and an agent had no way to know. Their results now carry `clients`, the same attached-connection reach signal `dispatch` already reports (`0` = nobody performed it; the calling CLI counts itself, so `1` is not proof a UI listened).
+
+  `pane-open` also returns the resolved `title` — the label `pane-close --title` must match. Previously the title was silently derived (the command's first word) and never surfaced, so closing a pane opened without `--title` was guesswork, and a `pane-close` that matched nothing was invisible.
+
+  `list` now returns `activeTaskId`, the shared focus that `send` / `pane-open` / `pane-close` / `read-output` default to when `--task-id` is omitted. A delivery that rode the implicit target can now be audited after the fact. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#653](https://github.com/Sma1lboy/rove/pull/653) [`d8caa66`](https://github.com/Sma1lboy/rove/commit/d8caa664e1eb691e414231b3e3adf48a84346300) Show when the daemon has disconnected instead of rendering the last snapshot as live.
+
+  The client already knew: `connectionStateSignal` flips to `disconnected` the moment the socket closes, and it had no production readers — only tests. Every page swallowed its own failed read and kept painting the last good state, so a dead daemon rendered as a healthy routine list counting down to a run that would never fire, and the Routines page asserted "keeping the daemon awake" in green about a process that was gone. A red banner now sits above every workspace surface while the socket is down, and the Routines header reads "daemon unreachable" instead of the stale hold state.
+
+  The update page had the same shape from a different cause: a failed registry fetch fell back to the current version and painted it green, so "could not reach npm" and "you are up to date" were the same pixels. It now says the check failed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.19
 
 ### Patch Changes
