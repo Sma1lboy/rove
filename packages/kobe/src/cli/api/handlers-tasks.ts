@@ -241,7 +241,17 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   // Branch deletion is opt-in (same flag as `land`): delete drops the
   // worktree + task entry, git keeps the branch as the durable record.
   const deleteBranch = ctx.args.bool("delete-branch") ?? false
-  const res = await daemon.request("task.delete", { taskId, force, deleteBranch })
+  // Deleting somebody else's task destroys their worktree and every tab in
+  // it, so the daemon's audit line has to name WHO asked. Same verified
+  // identity `send`/`add` use (never the bare env — issue #24): unverifiable
+  // stays unattributed rather than blaming a stranger's session.
+  const self = await verifiedSelfSession()
+  const res = await daemon.request("task.delete", {
+    taskId,
+    force,
+    deleteBranch,
+    ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
+  })
   // The daemon's task.delete removes the worktree + index entry but never the
   // hosted session. Without this, a scripted delete
   // orphans the `kobe-<id>` session + its engine — invisible to every kobe UI

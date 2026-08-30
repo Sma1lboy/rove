@@ -11,6 +11,7 @@ import { logDaemonError } from "./crash-log.ts"
 import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
+import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -114,10 +115,26 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      const accepted = await ctx.orch.prepareTaskDeletion(taskId, {
-        force: optionalBoolean(payload, "force"),
-        deleteBranch: optionalBoolean(payload, "deleteBranch"),
-      })
+      const force = optionalBoolean(payload, "force")
+      const deleteBranch = optionalBoolean(payload, "deleteBranch")
+      // Audit BEFORE the accept: `prepareTaskDeletion` can throw
+      // (DirtyWorktreeError), and a refused destructive request is exactly as
+      // worth recording as an accepted one. Read the task here too — by the
+      // time the background runner finishes, it is gone from the index.
+      const task = ctx.orch.getTask(taskId)
+      const byTaskId = optionalString(payload, "requestedByTaskId")
+      auditDeletionRequested(
+        taskId,
+        task,
+        {
+          clientId: ctx.clientId,
+          ...(byTaskId
+            ? { requestedBy: { taskId: byTaskId, tabId: optionalString(payload, "requestedByTabId") || "tab-1" } }
+            : {}),
+        },
+        { force, deleteBranch },
+      )
+      const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch })
       ctx.activity.clearTask(taskId)
       // A hard task delete is an explicit user deletion, so it is the one
       // lifecycle action allowed to cascade its durable Inbox episodes.

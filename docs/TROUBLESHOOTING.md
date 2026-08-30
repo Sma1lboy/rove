@@ -73,9 +73,38 @@ The raw logs live under the active Rove home (normally your OS home):
 
 | Path | Contains |
 |---|---|
-| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures |
+| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures, task-deletion audit |
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+
+## Who deleted my task?
+
+Every task deletion is recorded in `~/.rove/daemon.log`, whether it succeeds
+or fails:
+
+```
+grep task-deletion-audit ~/.rove/daemon.log
+```
+
+Each deletion writes a `requested` line when the RPC arrives, then either
+`removed` or `failed`. The `requested` line names the task, its branch and
+worktree path, the `--force`/`--delete-branch` flags, and who asked:
+
+- `by=<taskId>::<tabId>` — another Rove session ran `rove api delete` from
+  inside that tab. This is a verified identity, not the inherited
+  `$ROVE_TASK_ID` env, so an unverifiable caller is simply absent rather than
+  misattributed.
+- `spawnedBy=<taskId>::<tabId>` — the deleted task's own spawner. Useful
+  context, but it names who CREATED the task, not who deleted it.
+- `client=<n>` — the daemon connection id, which distinguishes concurrent
+  callers when neither identity above is present (a TUI keypress, the web UI).
+
+A `failed` line means the deletion ran only partway: the hosted session was
+torn down and the Inbox/activity state cleared, but the worktree directory and
+the task entry remain, and the task is left in `deletion.phase === "error"`
+(the sidebar row shows it). Delete it again once you have fixed whatever the
+reason names — a common one is a worktree directory that is no longer a git
+worktree, which `rove doctor` also reports.
 
 (Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
 directory; runtime files now live under `~/.rove`, with legacy paths honoured

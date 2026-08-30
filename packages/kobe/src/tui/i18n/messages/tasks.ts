@@ -103,6 +103,9 @@ export const en = {
     scratchAdopted: "Adopted into {repo} — save it as a project from New Task if you want it in the picker",
     scratchOpenFailed: "Couldn't open a scratch shell: {message}",
     scratchCloseFailed: "Couldn't close the scratch task: {message}",
+    worktreeGoneTitle: 'Worktree for "{title}" is gone',
+    worktreeGoneBody:
+      "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
   },
 }
 
@@ -188,5 +191,7 @@ export const zh: typeof en = {
     scratchAdopted: "已归入 {repo}——若要出现在项目选择器里,可在新建任务中保存为项目",
     scratchOpenFailed: "无法打开临时 Shell:{message}",
     scratchCloseFailed: "无法关闭临时任务:{message}",
+    worktreeGoneTitle: '"{title}" 的 worktree 已消失',
+    worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
   },
 }
