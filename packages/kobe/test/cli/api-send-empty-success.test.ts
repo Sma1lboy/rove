@@ -113,6 +113,19 @@ describe("send refuses an empty-branch success report", () => {
     expect(calls).toHaveLength(1)
   })
 
+  it("a FULLWIDTH colon — what a CJK IME types, and what this repo's agents write", async () => {
+    const { calls, deliver } = recordingDelivery()
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded：全部通过，CI 绿了"], {
+          client: clientWith(),
+          runtime: stubRuntime({ deliverPrompt: deliver, ...emptyBranch }),
+        }),
+      "EMPTY_SUCCESS_REPORT",
+    )
+    expect(calls).toHaveLength(0)
+  })
+
   it("--plain is not an escape hatch — a verbatim false claim is the same false claim", async () => {
     const { calls, deliver } = recordingDelivery()
     await expectApiError(

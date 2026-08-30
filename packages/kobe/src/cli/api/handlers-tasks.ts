@@ -113,7 +113,10 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
  */
 async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt: string): Promise<void> {
   if (ctx.args.bool("allow-empty")) return
-  if (!/^\s*succeeded\s*:/i.test(prompt)) return
+  // The fullwidth colon is not a typo — an agent writing Chinese types
+  // `succeeded：` from a CJK IME without noticing, and matching only U+003A
+  // would let exactly the reports this repo's agents write walk past.
+  if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
   const self = await verifiedSelfSession()
   if (!self) return
   let sender: SerializedTask
