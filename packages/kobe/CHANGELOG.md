@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.9.52
+
+### Patch Changes
+
+- [#685](https://github.com/Sma1lboy/rove/pull/685) [`19f5c62`](https://github.com/Sma1lboy/rove/commit/19f5c622cc76c7e993b63d44389d15ac17097a04) Show engine deaths, and tell a rate limit apart from a crash
+
+  A killed engine used to be a UI no-op. The exit record (code, signal, the
+  403/quota text) was already written to `pty-exits.json`, but the only consumer
+  was the CLI: the observer folded the death into idle, so a dead tab rendered
+  identically to a shell that had never run anything. Deaths now reach the
+  sidebar and the tab strip as `†`, and land in the Inbox as their own episode.
+
+  The tab strip drew `rate_limited` and `error` with the same `!`, while the
+  sidebar has always drawn them apart — one tab, two surfaces, two answers. The
+  strip now uses the rail's own glyphs (`◷` rate limited, `†` dead), and a
+  rate-limited Inbox card shows when its auto-resume fires ("resumes 3:14 PM")
+  — a time the daemon has always persisted and nothing ever displayed.
+
+  Kimi can now classify its own failures, so a Kimi rate limit reaches
+  `rate_limited` (and arms auto-resume) instead of reducing to a generic error. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#684](https://github.com/Sma1lboy/rove/pull/684) [`fa198ff`](https://github.com/Sma1lboy/rove/commit/fa198ffbfcadf01a947ca5aea56f70b280115bcb) Fix six visual defects across the TUI: three rail pages (Kanban, Routines,
+  Issues) swap the same content panel but each picked its own left inset, so
+  the body jumped sideways on every switch — they now share the x=2 inset the
+  sibling Versions/Worktrees pages already used, and their static page titles
+  render in the neutral text color instead of the accent, which on the default
+  palette is the same hue as the focus indicator.
+
+  The running-tab chip moves from `focusAccent` to the semantic `info` color:
+  several tabs can run at once, so painting them the focus hue drowned the
+  "you are here" signal. In transparent mode the condensed tab strip no longer
+  paints a row background (matching its own wide branch, and letting the host
+  wallpaper through), while the scrolled-back hint gains one — it is an overlay
+  you must read, and the panel token it used is forced to alpha-0. The sidebar's
+  "New task" row drops its vertical padding, returning two rows to the most
+  height-pressured panel in the product.
+
+  `visual:shot` gains `--width`/`--height` (narrow-layout captures),
+  `--wallpaper` (transparent-mode captures), and a `click:X,Y` token. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.51
 
 ### Patch Changes
