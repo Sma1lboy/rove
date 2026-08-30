@@ -132,8 +132,11 @@ describe("observer → reporter relay", () => {
             sessions.map((s) => ({ key: s.key, alive: true, pid: s.pid, title: s.title, totalBytes: 1 })),
           ),
         foregroundEngines: (pids) => {
-          const out = new Map<number, string | null>()
-          for (const pid of pids) out.set(pid, engines.get(pid) ?? null)
+          const out = new Map<number, { vendor: string; pid: number } | null>()
+          for (const pid of pids) {
+            const vendor = engines.get(pid)
+            out.set(pid, vendor ? { vendor, pid: pid + 1 } : null)
+          }
           return Promise.resolve(out)
         },
         titleTurnHint: engineTitleTurnHint,

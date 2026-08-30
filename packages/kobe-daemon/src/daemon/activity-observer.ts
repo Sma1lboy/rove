@@ -23,6 +23,15 @@
  *     each session. Walk evidence gates every claim, and "no engine" is
  *     positive proof a `running` claim is stale.
  *
+ * The walk's vendor→no-engine EDGE is also the only place an engine death
+ * inside a still-living PTY is observable: the tab's shell wrapper reaps the
+ * engine and `exec`s a fallback shell, so `pty.list` still reports the
+ * session alive and the PTY-layer exit hook never fires. That edge is
+ * persisted via `onEngineExit` (issue: seven engines died to a provider
+ * usage limit and left zero records). Detection latency is one walk cadence
+ * (~60s) — a sampler, not an event; the tail it captures is what makes it
+ * useful, not the timestamp's precision.
+ *
  * Findings fold into the registry via `observeTab` (hook events outrank
  * observation; only a stale hook `running` is ever corrected — see there).
  * The FIRST tick runs immediately and includes a walk, so a daemon restart
@@ -33,7 +42,8 @@
 import { KobeDaemonClient } from "../client/index.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { logDaemonInfo } from "./crash-log.ts"
-import { defaultPtyHostSocketPath } from "./paths.ts"
+import { defaultPtyExitsPath, defaultPtyHostSocketPath } from "./paths.ts"
+import { recordEngineExit } from "./pty-exit-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** Poll cadence — bounds state-flip latency; `pty.list` is one local RPC. */
@@ -68,9 +78,9 @@ export interface ActivityObserverIo {
   /** Current pty-host inventory; `null` when the host is unreachable
    *  (never spawns one). */
   listSessions(): Promise<readonly ObservedPtySession[] | null>
-  /** Foreground engine per session pid (ONE `ps` snapshot walk) — vendor id
-   *  or null for "no engine in this tree". */
-  foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, string | null>>
+  /** Foreground engine per session pid (ONE `ps` snapshot walk) — the
+   *  engine's vendor + its own pid, or null for "no engine in this tree". */
+  foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, { vendor: string; pid: number } | null>>
   /** Engine-owned title verdict — see kobe's `engineTitleTurnHint`. */
   titleTurnHint(vendor: string, title: string): "working" | "rest" | null
   /**
@@ -84,6 +94,13 @@ export interface ActivityObserverIo {
     tabId: string,
     evidence: { readonly walkVendor: string | null; readonly title: string },
   ): void
+  /**
+   * An engine vanished from a session whose PTY is STILL ALIVE — the blind
+   * spot the PTY-layer exit hook cannot see. Fired once per transition
+   * (vendor → no-engine), never on a repeat poll and never for a session
+   * that was never walked with an engine. Optional.
+   */
+  onEngineExit?(info: { taskId: string; tabId: string; vendor: string; pid: number | null }): void
 }
 
 export interface ActivityObserverOptions {
@@ -108,6 +125,10 @@ interface SessionTrack {
   lastActivityAt: number | null
   /** Last walk verdict: vendor id, null = no engine, undefined = never walked. */
   vendor: string | null | undefined
+  /** Pid of the ENGINE the last walk found — what a death record names as
+   *  the process that died. Distinct from the session pid, which outlives
+   *  it; null while no engine is running. */
+  enginePid: number | null
 }
 
 /**
@@ -191,6 +212,7 @@ export function startActivityObserver(
             lastTitle: s.title,
             lastActivityAt: null,
             vendor: undefined,
+            enginePid: null,
           }
           tracks.set(s.key, track)
           newborn.add(s.key)
@@ -225,7 +247,24 @@ export function startActivityObserver(
           const verdicts = await io.foregroundEngines(pids)
           for (const track of toWalk) {
             const pid = pidByKey.get(`${track.taskId}::${track.tabId}`)
-            if (pid !== undefined && verdicts.has(pid)) track.vendor = verdicts.get(pid) ?? null
+            if (pid === undefined || !verdicts.has(pid)) continue
+            const found = verdicts.get(pid) ?? null
+            // The engine-death edge: this walk found no engine where the
+            // previous one found `track.vendor`, and the session is still
+            // alive (it is in `live`). That is the shape the PTY exit hook
+            // structurally cannot report — record it, once, on the edge.
+            // `enginePid` is the DEAD engine's pid, captured on the last
+            // walk that still saw it (it is unresolvable now, by definition).
+            if (found === null && typeof track.vendor === "string") {
+              io.onEngineExit?.({
+                taskId: track.taskId,
+                tabId: track.tabId,
+                vendor: track.vendor,
+                pid: track.enginePid,
+              })
+            }
+            track.vendor = found?.vendor ?? null
+            track.enginePid = found?.pid ?? null
           }
         } catch {
           // ps failed — keep prior verdicts; sessions never walked stay
@@ -290,7 +329,31 @@ export function createActivityObserverIo(
   homeDir: string | undefined,
   runtime: Pick<DaemonRuntimeAdapter, "foregroundEngines" | "titleTurnHint">,
 ): ActivityObserverIo {
+  const peek = async (key: string): Promise<string> => {
+    const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
+    try {
+      await client.connect()
+      const result = await client.request<{ data?: string }>("pty.peek", { key })
+      return Buffer.from(result.data ?? "", "base64").toString("utf8")
+    } catch {
+      return ""
+    } finally {
+      client.close()
+    }
+  }
   return {
+    // The engine died inside a living PTY: grab that PTY's tail (the
+    // provider error / usage-limit line lives there) and persist a record
+    // the PTY-layer hook would never write. Best-effort by contract.
+    onEngineExit({ taskId, tabId, vendor, pid }) {
+      const key = `${taskId}::${tabId}`
+      void peek(key)
+        .then((tail) =>
+          recordEngineExit({ key, vendor, pid, at: new Date().toISOString(), tail }, defaultPtyExitsPath(homeDir)),
+        )
+        .catch((err) => logDaemonInfo("engine-exit", `record failed for ${key}: ${String(err)}`))
+      logDaemonInfo("engine-exit", `${vendor} (pid ${pid ?? "?"}) gone from live session ${key}`)
+    },
     async listSessions() {
       const client = new KobeDaemonClient(defaultPtyHostSocketPath(homeDir))
       try {

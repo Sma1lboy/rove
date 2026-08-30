@@ -47,10 +47,12 @@ export interface DaemonRuntimeAdapter {
   /**
    * Foreground engine per session root pid — ONE `ps` snapshot walked per
    * pid (kobe's `engine/foreground.ts`, the same primitive `kobe api
-   * inspect` uses). Vendor id, or null for "no engine in this tree".
-   * Consumed by the daemon activity observer's reconciler (issues #11/#16).
+   * inspect` uses). The engine's own vendor AND pid, or null for "no engine
+   * in this tree". Consumed by the daemon activity observer's reconciler
+   * (issues #11/#16); the pid is what a death record names as the process
+   * that actually died, distinct from the PTY that outlived it.
    */
-  foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, VendorId | null>>
+  foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, { vendor: VendorId; pid: number } | null>>
   /**
    * Engine-owned verdict on a live OSC title (`engineTitleTurnHint`):
    * "working" while the vendor's animated frame prefixes it, "rest" when a
