@@ -1,5 +1,90 @@
 # Changelog
 
+## 0.9.8
+
+### Patch Changes
+
+- [#638](https://github.com/Sma1lboy/rove/pull/638) [`e8e6a7f`](https://github.com/Sma1lboy/rove/commit/e8e6a7f40a63810792318f31dffcdadb6b75ee88) Fix the CI behavior and visual-ground-truth gates on main (issue [#79](https://github.com/Sma1lboy/rove/issues/79)). The hosted-PTY lifecycle behavior test still asserted the removed archive semantics and raced the daemon's asynchronous delete pipeline; it now polls for the converged deleted state. The visual fixture no longer seeds an engine tab for the fixture task, which CI (no engine binary) booted straight into a code-127 dead-engine state, hiding the sidebar row every journey asserts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#633](https://github.com/Sma1lboy/rove/pull/633) [`14ec99d`](https://github.com/Sma1lboy/rove/commit/14ec99d25d9b4114d581e0a5bb4439930c1c8b20) Add A+C delivery gates so `rove api send` no longer pastes into a busy composer (issue [#78](https://github.com/Sma1lboy/rove/issues/78)).
+
+  - A-layer: the PTY host now records `lastHumanWriteMs` for writes that come from an attached client. `pty.peek` returns the timestamp and the configurable quiet period (`KOBE_PTY_HUMAN_WRITE_QUIET_MS`, default 10s); delivery is refused while the window is open.
+  - C-layer: new pure `isComposerEmpty(ringBytes, manifest)` renders ring bytes through headless xterm and evaluates engine-owned `composerEmpty` rules. Manifests added for Claude, Kimi, and Codex; engines without a manifest skip this gate (fail-open).
+  - Delivery paths (`api send`, `api add --prompt`, exact-tab send, daemon quota-resume) now refuse with a typed `COMPOSER_BUSY` error naming the blocking layer instead of silently concatenating peer text with user input.
+  - Layer B (accept-and-defer) lands separately — see the deferred-prompt-inbox changeset in this release. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#639](https://github.com/Sma1lboy/rove/pull/639) [`65698fc`](https://github.com/Sma1lboy/rove/commit/65698fcb2737a85d672ad9ee6bcb4207401c2748) Accept-and-defer busy-composer prompts into the inbox (issue [#78](https://github.com/Sma1lboy/rove/issues/78) B), completing the delivery gates.
+
+  When the A (recent keystroke) or C (composer non-empty) gate blocks a paste, the prompt is no longer dropped or hard-rejected — ownership transfers to the daemon. The text is stored in a new daemon-owned `DeferredPromptsStore` (one record per task+tab, 24h TTL; displacement, expiry, and task-deletion are all written to the daemon log — never silently dropped) and a `prompt_deferred` attention-inbox episode is recorded pointing at the record by id.
+
+  - `send` / `add --prompt` return an accepted-but-deferred outcome (`deferred: {id, layer}`) which is a SUCCESS — callers must not retry, or the same message stacks in the queue.
+  - Exit path: opening the `prompt_deferred` inbox item jumps to the tab and inserts the queued message with a fresh A/C gate (reusing the existing open action, no new chord), then resolves the record + episode; a still-busy composer keeps it queued.
+  - Toast on deferral plus inbox entry copy, in both locales. The `deferredPrompt.*` verbs are socket-only, off the pinned browser-reachable allowlist. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#632](https://github.com/Sma1lboy/rove/pull/632) [`1b5225b`](https://github.com/Sma1lboy/rove/commit/1b5225b89d57c2244df0e62e87de15178122e6c7) Refresh monorepo dependencies to clear audit advisories that have safe fixes.
+
+  - `@sma1lboy/kobe-docs`: `next` 16.2.12 → 16.3.3 (pulls `sharp` 0.35.4 and resolves GHSA-f88m-g3jw-g9cj); `fumadocs-core`, `fumadocs-mdx`, `fumadocs-ui` to latest compatible minors.
+  - `kobe-web`: `vite` 8.1.4 → 8.2.2; `vitest` 4.1.10 → 4.1.11.
+
+  21 advisories remain because they require upstream releases or major-version bumps; see PR description for the full before/after comparison. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#634](https://github.com/Sma1lboy/rove/pull/634) [`7559b67`](https://github.com/Sma1lboy/rove/commit/7559b6754b0b9a2c2252b208f283e82431973bbd) Drop the Claude Code Review CI workflow. Its findings never gated a merge — an
+  empty `ANTHROPIC_API_KEY` in Actions made it fail spuriously often enough that
+  AGENTS.md carried a standing rule to wave those failures through. The hard gates
+  (typecheck/test, behavior, file-size-cap, coverage-cap, changeset) are unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [`813cdfe`](https://github.com/Sma1lboy/rove/commit/813cdfe774a7a2ba86c27695223a2d173b73d918) Extract shared fixture isolation and seeding primitives
+
+  `packages/kobe/scripts/fixture-core.ts` now owns the isolation and seeding
+  logic that was duplicated across the README capture fixture, the visual CI
+  fixture, and the dev sandbox. The shared helper pins daemon/PTY socket and
+  pid paths under the fixture home, scrubs inherited Claude/Rove session
+  markers, seeds a throwaway git repo, and creates tasks with a real chat tab.
+
+  `HOME` policy remains a caller decision: the hero fixture keeps the
+  operator's `HOME` so the real engine can find credentials, while visual and
+  sandbox fixtures redirect it for determinism. Every fixture now asserts
+  isolation via `assertFixtureIsolation`, catching a `.kobe/daemon.sock`
+  compatibility symlink that points outside the fixture root. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#628](https://github.com/Sma1lboy/rove/pull/628) [`a00c43d`](https://github.com/Sma1lboy/rove/commit/a00c43d2be5d950463da071fc23274336c779a91) test(render): eliminate timing flake in new-chat-flow fork+continue cases
+
+  Replace the fixed `settle()` window after submitting the new-chat dialog
+  with a `waitFor` poll that waits for the async handoff/refusal plan to
+  resolve and the next dialog to render. The flake was test-side timing,
+  not a product race in reading the transcript file. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#627](https://github.com/Sma1lboy/rove/pull/627) [`66420c3`](https://github.com/Sma1lboy/rove/commit/66420c39a098f70a4edfa3627ca50e4eb28de8f8) Remove the archive concept from the type layer, orchestrator, and daemon (issue [#75](https://github.com/Sma1lboy/rove/issues/75) slice C1).
+
+  - `Task.archived`, `DaemonTask.archived`, and `SerializedTask.archived` are deprecated optional shims; `setArchived` is now a no-op.
+  - Store codec no longer reads or writes `archived`. Existing `tasks.json` files that still carry the field load without error; the field is silently dropped on the next save, while every other field is preserved.
+  - `done` is no longer auto-healed to `in_progress` on load, because archive is no longer a distinct state.
+  - Daemon collectors and pollers (worktree changes, transcript activity, PR status, auto-title, quota resume) no longer skip tasks based on `archived`.
+  - `worktree.archiveRemoved` and `task.archive` RPCs remain as deprecated no-ops so older clients do not see "unknown request" errors. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#631](https://github.com/Sma1lboy/rove/pull/631) [`e52d313`](https://github.com/Sma1lboy/rove/commit/e52d3130ae65f4c69e1bd5353f945e69f602def9) Remove the remaining archive concept from the TUI, CLI, and type shim (issue [#75](https://github.com/Sma1lboy/rove/issues/75) slice C2).
+
+  - Remove the `archived?: boolean` shim from `Task`. The field is no longer part of the task model.
+  - Remove the `rove api archive` verb and the `land --then-archive` flag.
+  - Remove all `task.archived` filters from the TUI (`tui/`, `tui-react/`) and the CLI (`export`, `collect`, etc.).
+  - Remove the no-op `setArchived` shims from `Orchestrator`, `TaskEditor`, `RemoteOrchestrator`, and `DaemonOrchestrator`.
+  - Update user-facing docs (API, CLI, Concepts, Sessions, Design, Orchestration, Configuration, plugin events, daemon/task design) to remove archive references.
+  - `rove export` no longer emits an `archived` column/field.
+  - Data compatibility: `tasks.json` files that still carry `archived` continue to load without error; the field is ignored by the codec and dropped on the next save. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#630](https://github.com/Sma1lboy/rove/pull/630) [`c8716c7`](https://github.com/Sma1lboy/rove/commit/c8716c71f10cbc6c4cab2dbcab7f9f78dcd1ecd7) Add GitHub Issues to the sidebar navigation rail.
+
+  - `SIDEBAR_NAV_ITEMS` now includes `{ nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" }`.
+  - Removed the stale comment that kept Issues off the rail pending a design pass.
+  - Updated `docs/KEYBINDINGS.md`, `docs/TUI.md`, and `docs/design/work-items.md` to describe Issues as a first-class rail destination.
+  - Updated sidebar navigation unit and render tests to expect the new row and cycling order. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#629](https://github.com/Sma1lboy/rove/pull/629) [`82372a5`](https://github.com/Sma1lboy/rove/commit/82372a55a7fb02032f0d32562742e8fc7c485db7) Mute the sidebar rail's active-page indicator so it no longer competes with pane-focus and card-selection oranges.
+
+  - Removed the `theme.focusAccent` background fill from `SidebarNavRail` active items (`src/tui-react/panes/sidebar/chrome.tsx`).
+  - Active destination now reads as bold normal text (`theme.text`) against the panel background; inactive destinations stay muted.
+  - Updated the inline contrast comment to explain why the accent fill was intentionally dropped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.7
 
 ### Patch Changes
