@@ -133,6 +133,21 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("legacy tmux: tmux 3.6b — no sessions on `kobe`")
   })
 
+  it("prints the whole terminal section, multiplexer and kitty probe included", async () => {
+    // Regression guard: the section shrank to a single env line when the tmux
+    // RUNTIME was removed (b5e3bfd2a) — collateral damage, since multiplexer
+    // NESTING and the kitty probe were never about Rove hosting tmux. The
+    // consequence is real: docs/KEYBINDINGS.md says both split chords need
+    // the kitty protocol, so with the probe gone doctor could not answer a
+    // "split doesn't work" report at all.
+    mocks.request.mockResolvedValue(null)
+    await runDoctorSubcommand([])
+    const text = output()
+    expect(text).toContain("terminal: TERM=")
+    expect(text).toContain("running inside a multiplexer:")
+    expect(text).toContain("kitty keyboard protocol:")
+  })
+
   it("reports legacy process counts and RSS from a single inspect pass", async () => {
     mocks.request.mockRejectedValue(new Error("not running"))
     mocks.inspectLegacyTmux.mockResolvedValue({

@@ -13,6 +13,7 @@
  */
 
 import { describe, expect, test } from "vitest"
+import { displayWidth } from "../../src/lib/display-width.ts"
 import {
   type Row,
   reconcileRows,
@@ -106,10 +107,34 @@ describe("truncatePathTail", () => {
   })
 
   test("never bisects a surrogate pair — emoji stay intact", () => {
-    // Each 🎉 is one code point but two UTF-16 code units. Counting by code
-    // point keeps the tail on a character boundary; the old `.slice` by
-    // .length would start mid-emoji and emit a lone surrogate (→ �).
-    expect(truncatePathTail("src/aaaaa-🎉🎉🎉.ts", 8)).toBe("…-🎉🎉🎉.ts")
+    // Each 🎉 is one code point, two UTF-16 code units, and TWO CELLS. The
+    // budget is cells: 8 less one for the `…` leaves 7, which buys `.ts` (3)
+    // and two 🎉 (4). A third would need 9. Whatever the budget, the cut
+    // lands on a character boundary — a `.slice` by .length would start
+    // mid-emoji and emit a lone surrogate (→ the replacement glyph).
+    expect(truncatePathTail("src/aaaaa-🎉🎉🎉.ts", 8)).toBe("…🎉🎉.ts")
+  })
+
+  test("spends the budget in CELLS, so a CJK path cannot overrun the pane", () => {
+    // THE regression this owns. `文档/设计/终端渲染说明书笔记.md` is 18 code
+    // points but 31 cells; a file pane 34 wide budgets 26. Counting code
+    // points said "18 ≤ 26, fits" and drew 31 cells — five straight through
+    // the pane border and into the workspace beside it.
+    const path = "文档/设计/终端渲染说明书笔记.md"
+    expect([...path].length).toBeLessThan(26) // why the code-point check passed
+    expect(displayWidth(path)).toBe(31) // what it actually costs
+    expect(displayWidth(truncatePathTail(path, 26))).toBeLessThanOrEqual(26)
+    // The leaf survives; only the leading directories elide.
+    expect(truncatePathTail(path, 26)).toContain(".md")
+    expect(truncatePathTail(path, 26).startsWith("…")).toBe(true)
+  })
+
+  test("an ASCII path of the same code-point count is unaffected", () => {
+    // The guard against a CJK-only fix: a 1-cell-per-glyph path spends
+    // exactly what it did before, so the desktop layout is byte-identical.
+    const ascii = "docs/design/terminal-rendering-notes.md"
+    expect(truncatePathTail(ascii, 26)).toBe("…rminal-rendering-notes.md")
+    expect(displayWidth(truncatePathTail(ascii, 26))).toBe(26)
   })
 
   test("max <= 0 leaves no room, so yields the empty string", () => {

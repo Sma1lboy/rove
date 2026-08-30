@@ -17,8 +17,9 @@
  * native churn drops to "rows that actually changed".
  */
 
+import { charWidth } from "@/lib/display-width"
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
-import { truncateStart } from "@/tui/lib/truncate"
+import { truncateStartCells } from "@/tui/lib/truncate"
 import type { FileStatus, StatusEntry } from "./git"
 import type { TreeNode } from "./tree"
 
@@ -67,12 +68,20 @@ export function flattenTree(node: TreeNode, expanded: ReadonlySet<string>, depth
  * Truncate a path keeping its TAIL — the leaf (filename) carries the
  * meaning, so on a narrow pane we drop the leading directories and show
  * `…components/sidebar/Sidebar.tsx` rather than clipping the filename off
- * the right. Thin alias over the shared {@link truncateStart} owner, which
- * counts by code point so a surrogate pair (emoji / astral char in a
- * filename) is never bisected into a `�` replacement glyph.
+ * the right. Thin alias over the shared {@link truncateStartCells} owner,
+ * which never bisects a surrogate pair (emoji / astral char in a filename)
+ * into a replacement glyph.
+ *
+ * `maxCells` is a CELL budget, not a code-point count, because the caller
+ * (`computePathBudget`) derives it from the pane's real width and the row
+ * has a hard right edge: the status glyph, the `+N`/`−N` stat columns and
+ * the pane border all sit there. A Chinese path spends 2 cells per glyph,
+ * so counting code points here let `文档/设计/终端渲染说明书笔记.md` (18 code
+ * points, 31 cells) "fit" a 26-cell budget and draw through the border into
+ * the workspace pane, dragging the stat columns out of alignment with it.
  */
-export function truncatePathTail(path: string, max: number): string {
-  return truncateStart(path, max)
+export function truncatePathTail(path: string, maxCells: number): string {
+  return truncateStartCells(path, maxCells, charWidth)
 }
 
 const NO_EXPANSION: ReadonlySet<string> = new Set()

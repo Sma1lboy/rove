@@ -7,6 +7,7 @@
  */
 
 import type { VendorId } from "@/types/vendor"
+import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useState } from "react"
 import {
   cloneRepo,
@@ -21,6 +22,7 @@ import {
   type NewTaskInput,
   type PickerWindow,
   clampCursor,
+  pickerVisibleRows,
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
@@ -50,7 +52,11 @@ export function useCloneState(args: {
   const [cloneParentPicked, setCloneParentPicked] = useState(false)
 
   const { split: cloneParentSplit, filtered: cloneParentFiltered } = useDerivedDir(cloneParent)
-  const cloneParentWindow: PickerWindow = windowAround(cloneParentFiltered, cloneParentCursor)
+  const cloneParentWindow: PickerWindow = windowAround(
+    cloneParentFiltered,
+    cloneParentCursor,
+    pickerVisibleRows(useTerminalDimensions().height),
+  )
 
   // Folder name follows the URL until manually edited; auto-suffixes on
   // collision inside the chosen parent dir.

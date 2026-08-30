@@ -422,7 +422,12 @@ is no setting: it follows the terminal width.
   counter. The usual tab chords still switch.
 - The footer keeps one quota chip per engine (`CLAUDE 42%`) and shrinks the
   hints to bare keycaps.
-- Dialogs center themselves with tighter padding.
+- Dialogs center themselves with tighter padding, and Settings drops the
+  inline hint beside each switch so the switch's own label fits. The
+  paragraph above each group still explains what it does.
+- Dialogs with a picker (new task, branch picker) shrink the picker's visible
+  rows on a short terminal instead of pushing their own Create button off the
+  bottom. The list still scrolls, so every entry stays reachable.
 
 ## Attachments: drag and drop, paste
 

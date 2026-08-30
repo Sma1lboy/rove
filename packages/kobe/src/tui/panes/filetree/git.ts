@@ -100,7 +100,13 @@ export async function listFiles(worktreePath: string, signal?: AbortSignal): Pro
     worktreePath,
     signal,
   )
-  const lines = out.split("\n").map((l) => l.replace(/\r$/, ""))
+  // `unquoteGitPath` for the same reason the porcelain parser calls it:
+  // git octal-escapes any non-ASCII byte in a path by default, so
+  // `文档/设计/笔记.md` arrives as `"\346\226\207…"`, quotes and all. The
+  // Changes tab has always decoded it; the All tab did not, so a Chinese
+  // filename — the ordinary case in a zh-default product — rendered as
+  // escape gibberish that no width budget can rescue.
+  const lines = out.split("\n").map((l) => unquoteGitPath(l.replace(/\r$/, "")))
   // De-dup: --cached + --others can in theory list the same file twice
   // when the working tree has both an index entry and an untracked
   // counterpart — rare but possible during merges.

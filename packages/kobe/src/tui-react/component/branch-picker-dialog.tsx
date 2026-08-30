@@ -15,11 +15,13 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import { useMemo, useState } from "react"
 import {
   type PickerWindow,
   clampCursor,
   filterBranches,
+  pickerVisibleRows,
   resolveBaseRef,
   stripNewlines,
   windowAround,
@@ -50,7 +52,7 @@ export function BranchPickerDialogView(props: {
   // One-shot enumeration on open (repo is fixed for the dialog's lifetime).
   const branches = useMemo(() => listLocalBranches(props.repo), [props.repo])
   const filtered = useMemo(() => filterBranches(branches, value), [branches, value])
-  const window: PickerWindow = windowAround(filtered, cursor)
+  const window: PickerWindow = windowAround(filtered, cursor, pickerVisibleRows(useTerminalDimensions().height))
 
   function move(delta: 1 | -1): void {
     if (filtered.length === 0) return
