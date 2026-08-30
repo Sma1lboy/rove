@@ -164,6 +164,7 @@ export type DaemonRequestName =
   | "task.archive"
   | "task.rename"
   | "task.setBranch"
+  | "task.observeLanguage"
   | "task.setVendor"
   // Set a task's RAW engine launch command (the dispatch face's
   // `set-command`). The caller resolves the command's protocol — engine
@@ -372,6 +373,8 @@ export interface SerializedTask {
   readonly modelEffort?: string
   /** Fan-out round marker shared by the siblings of one fan-out call. */
   readonly groupId?: string
+  /** Language this task's user writes in, observed from their own prompts. */
+  readonly observedLanguage?: DaemonTask["observedLanguage"]
   /** Durable daemon-owned background deletion state. */
   readonly deletion?: DaemonTask["deletion"]
   /** Durable rate-limit auto-resume schedule. */
@@ -414,6 +417,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     position: task.position,
     modelEffort: task.modelEffort,
     groupId: task.groupId,
+    observedLanguage: task.observedLanguage,
     deletion: task.deletion,
     quotaResume: task.quotaResume,
     linkedWorkItem: task.linkedWorkItem,

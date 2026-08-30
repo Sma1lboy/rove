@@ -171,6 +171,17 @@ export async function deliverPrompt(
   }
   if (!worktree) throw new ApiError(`task ${target.id} has no worktree`, "NO_WORKTREE")
 
+  // Learn the user's language from the first prompt of a NEW task, so text
+  // Rove injects later — when no user message is in hand (a quota resume
+  // fired by a timer) — comes out in the language they actually write.
+  // Scoped to task creation: a follow-up `send` is a different question
+  // (which of several tabs, whose text) and is not answered here.
+  //
+  // Best-effort: an observation must never block the prompt it came from.
+  if (target.newTask) {
+    await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
+  }
+
   // The deferral sink hands a composer-busy prompt to daemon ownership
   // (issue #78 B-layer): the daemon stores the text and queues an inbox
   // episode, and this send reports accepted-but-deferred — a SUCCESS the

@@ -20,6 +20,7 @@ export type TaskId = string & { readonly [TaskIdBrand]: never }
 export const toTaskId = (id: string): TaskId => id as TaskId
 
 export type { VendorId } from "./vendor.ts"
+import type { ObservedLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import type { VendorId } from "./vendor.ts"
 
 /**
@@ -212,6 +213,17 @@ export interface Task {
    * additive: single tasks never get one.
    */
   readonly groupId?: string
+  /**
+   * The language this task's user writes in, observed from their own prompts
+   * (`prompts/observed-language.ts`) — NOT a setting. Text Rove injects into
+   * the session at moments when no user message is in hand (a quota resume
+   * fired by a timer, the Create-PR prompt behind a keypress) reads this so
+   * it comes out in the language the person is actually using.
+   *
+   * Absent until the first prompt with an opinion in it; absent means
+   * English, which is what every record predating the field loads as.
+   */
+  readonly observedLanguage?: ObservedLanguage
   /** Present while background deletion is queued/running or after it failed. */
   readonly deletion?: TaskDeletionState
   /** Present while a rate-limited engine waits for its quota window to reset. */

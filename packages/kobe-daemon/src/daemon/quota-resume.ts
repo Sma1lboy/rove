@@ -15,14 +15,30 @@
  */
 
 import type { PluginHost } from "../plugins/runtime.ts"
+import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
-/** Engine-neutral continuation instruction typed into the resumed session. */
-export const QUOTA_RESUME_CONTINUE_PROMPT =
-  "Continue the task from where it stopped. The transcript above shows the work already completed — do not redo it."
+/**
+ * Engine-neutral continuation instruction typed into the resumed session,
+ * in the language this task's user writes in.
+ *
+ * This is the case the observation exists for: the resume fires from a timer
+ * minutes-to-hours after any human turn, so there is no user message in hand
+ * to take the language from — only what was observed when the task started.
+ * A task with no observation (or one created before the field) reads English,
+ * which is what it always did.
+ *
+ * A FUNCTION, not a constant: the daemon outlives any one task, so a
+ * module-level string would bake in whichever language happened to load first.
+ */
+export function quotaResumeContinuePrompt(language: ObservedLanguage | undefined): string {
+  return language === "zh"
+    ? "从中断的地方继续这个任务。上面的对话记录里已经完成的工作不要重做。"
+    : "Continue the task from where it stopped. The transcript above shows the work already completed — do not redo it."
+}
 
 /** How often the runner scans for due resumes. */
 export const DEFAULT_QUOTA_RESUME_TICK_MS = 60_000
@@ -105,7 +121,7 @@ async function resumeDueTask(
   await orch.setQuotaResume(task.id, null)
   const delivered = await runtime.deliverPromptToLiveEngine(
     { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
-    QUOTA_RESUME_CONTINUE_PROMPT,
+    quotaResumeContinuePrompt(task.observedLanguage),
   )
   logDaemonInfo("quota-resume", `resume task=${task.id} delivered=${delivered}`)
   plugins?.()?.handleUiReport({ kind: "quota.resumed", taskId: task.id, detail: { delivered } })

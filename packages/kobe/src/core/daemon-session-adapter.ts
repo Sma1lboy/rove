@@ -74,6 +74,12 @@ export async function startTaskSessionWithPromptAdapter(
   prompt: string,
 ): Promise<boolean> {
   const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
+  // Learn the user's language from their own first prompt, so the text Rove
+  // injects LATER — when no user message is in hand (a quota resume fired by
+  // a timer) — comes out in the language they actually write. Best-effort:
+  // this is an observation, and failing to record it must never block the
+  // session it was observed from.
+  await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
   // "new-task", not "explicit": both callers (automation runner, work-item
   // start) create the task right before this call, so the first prompt gets
   // the branch-rename coda like every other new-worktree entry point.

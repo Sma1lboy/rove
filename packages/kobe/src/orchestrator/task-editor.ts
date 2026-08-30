@@ -10,6 +10,7 @@
  * unchanged. Moved verbatim from `core.ts` — no behaviour change.
  */
 
+import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { samePrStatus } from "../monitor/pr-status.ts"
 import type {
   Task,
@@ -124,6 +125,23 @@ export class TaskEditor {
    * Change a task's engine vendor. Pure metadata with no git or process side
    * effects; the next fresh engine session uses the new vendor.
    */
+  /**
+   * Record the language this task's user writes in, learned from one of
+   * their own prompts. Called on the delivery path, so it costs a store
+   * write only when the answer actually changes.
+   *
+   * Text with no opinion in it (`detectLanguage` → null: empty, digits,
+   * punctuation) is ignored rather than written: a one-word "ok" must not
+   * erase what a paragraph established.
+   */
+  async observeLanguage(id: TaskId | string, text: string): Promise<void> {
+    const observed = detectLanguage(text)
+    if (!observed) return
+    const task = this.requireTask(id)
+    if (task.observedLanguage === observed) return
+    await this.store.update(task.id, { observedLanguage: observed })
+  }
+
   async setVendor(id: TaskId | string, vendor: VendorId): Promise<void> {
     const task = this.requireTask(id)
     if (task.vendor === vendor) return

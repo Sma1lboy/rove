@@ -302,6 +302,11 @@ function coerceTask(value: unknown): Task | null {
     // Fan-out round marker — must survive the load coercion or siblings
     // lose their grouping on every daemon restart.
     ...(typeof v.groupId === "string" && v.groupId.length > 0 ? { groupId: v.groupId } : {}),
+    // Observed user language — must survive the load coercion or a daemon
+    // restart silently reverts injected prompts to English for a user who
+    // never writes it. Same failure mode as the fields above: absent from
+    // this list, the field writes fine and vanishes on load.
+    ...(v.observedLanguage === "zh" || v.observedLanguage === "en" ? { observedLanguage: v.observedLanguage } : {}),
     ...(deletion ? { deletion } : {}),
     // The optional records below were written to disk but silently dropped
     // on load, so each survived only until the next daemon restart: a

@@ -41,6 +41,7 @@ describe("daemon handler registry", () => {
       "task.archive",
       "task.rename",
       "task.setBranch",
+      "task.observeLanguage",
       "task.setVendor",
       "task.setCommand",
       "task.delete",

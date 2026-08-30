@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 33 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 34 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -256,6 +256,10 @@ rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
 # Follow up. Use an explicit id for unattended work; the active task can drift.
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance
 # (sender + reply command); --plain sends verbatim.
+#
+# SINGLE-QUOTE a prompt containing backticks, or your shell runs them as
+# command substitution and the words vanish from the message you send. In
+# double quotes `rove api send` becomes the OUTPUT of running that command.
 rove api send --task-id <id> --prompt "<complete next turn>"
 
 # Reply home: no --task-id inside a dispatched task = the dispatcher's tab.

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
 import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "../../../kobe-daemon/src/daemon/contracts.ts"
 import {
-  QUOTA_RESUME_CONTINUE_PROMPT,
   dueQuotaResumes,
   exhaustedResetAtMs,
+  quotaResumeContinuePrompt,
   scheduleQuotaResume,
   startQuotaResumeRunner,
 } from "../../../kobe-daemon/src/daemon/quota-resume.ts"
@@ -155,8 +155,29 @@ describe("startQuotaResumeRunner", () => {
     expect(orch.setQuotaResume).toHaveBeenCalledWith("t1", null)
     expect(deliverPromptToLiveEngine).toHaveBeenCalledWith(
       { id: "t1", vendor: "claude", worktreePath: "/wt/t1" },
-      QUOTA_RESUME_CONTINUE_PROMPT,
+      quotaResumeContinuePrompt(undefined),
     )
+  })
+
+  it("resumes in the language the task's user writes in", async () => {
+    // The resume fires from a TIMER with no user message in hand, so the
+    // observation recorded at task creation is the only thing that can carry
+    // the language this far.
+    const orch = fakeOrch([task("t1", { quotaResume: schedule(PAST), observedLanguage: "zh" })])
+    const prompts: string[] = []
+    const deliverPromptToLiveEngine = vi.fn(async (_target: unknown, prompt: string) => {
+      prompts.push(prompt)
+      return true
+    })
+    const runtime = { deliverPromptToLiveEngine } as unknown as DaemonRuntimeAdapter
+
+    const stop = startQuotaResumeRunner(orch, runtime, 5, () => NOW)
+    try {
+      await vi.waitFor(() => expect(deliverPromptToLiveEngine).toHaveBeenCalled())
+    } finally {
+      stop()
+    }
+    expect(prompts[0]).toContain("继续这个任务")
   })
 
   it("leaves future schedules untouched", async () => {
