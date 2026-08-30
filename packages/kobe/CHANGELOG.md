@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.25
+
+### Patch Changes
+
+- [#649](https://github.com/Sma1lboy/rove/pull/649) [`fc5842d`](https://github.com/Sma1lboy/rove/commit/fc5842d3134e8fe46c3e52609171e819a2f19d25) Remove sidebar leftovers that promised UI nobody could reach
+
+  The sidebar hover-tooltip path was cut end to end: the flat row cards that
+  fed it are gone from the product, the tree sidebar never had hover handlers,
+  nothing rendered the tooltip, and the `sidebar.hover.enabled` setting never
+  existed outside a comment — so the `hoverEnabled` / `onHoverChange` props and
+  the tooltip-line builder were dead weight. Also removed two orphaned task
+  callbacks (`onSortModeToggle`, `onPreviewToggleRequest`) whose bindings left
+  the keymap in earlier changes, and clarified the doc comment on the pin
+  callback: a bare `p` binds nothing, so a mistyped press matches no chord
+  rather than churning the pin flag. No visible behavior changes; the `t`
+  sort chord keeps working exactly as shipped. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.24
 
 ### Patch Changes
