@@ -8,8 +8,10 @@ import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
+import { isComposerEmpty } from "./composer-state.ts"
 import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
 import { engineEntry } from "./registry.ts"
+import type { EngineScreenManifest } from "./screen-state.ts"
 import { type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
@@ -139,6 +141,63 @@ export function findHostedEngineKey(
 /** Delay between bracketed paste and submit CR so the engine reads two tty events. */
 const SUBMIT_DELAY_MS = 150
 
+/** Typed rejection from the delivery gate (issue #78). Neutral code catches
+ *  this and surfaces a `COMPOSER_BUSY` ApiError to the user/agent. */
+export class ComposerBusyError extends Error {
+  constructor(
+    readonly layer: "recent-human-write" | "composer-not-empty",
+    readonly key: string,
+  ) {
+    super(`composer busy on ${key}: ${layer}`)
+  }
+}
+
+/** Options for gated prompt delivery. */
+export interface HostedPromptDeliveryOpts {
+  /** Engine-owned composer-empty manifest. Absence skips the C-layer gate. */
+  readonly screenManifest?: EngineScreenManifest
+  /** Override for the A-layer quiet period (ms). Defaults to the host's
+   *  reported `humanWriteQuietMs` or 10s when the host omits it. */
+  readonly humanWriteQuietMs?: number
+  /** Test seam for `Date.now()`. */
+  readonly now?: () => number
+}
+
+function recentHumanWriteBlocks(peek: PtyPeekResult, opts: HostedPromptDeliveryOpts, now: number): boolean {
+  if (peek.lastHumanWriteMs === undefined || peek.lastHumanWriteMs <= 0) return false
+  const quiet = opts.humanWriteQuietMs ?? peek.humanWriteQuietMs ?? 10_000
+  return now - peek.lastHumanWriteMs < quiet
+}
+
+async function composerNonEmpty(peek: PtyPeekResult, manifest: EngineScreenManifest | undefined): Promise<boolean> {
+  if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return false
+  const bytes = Buffer.from(peek.data, "base64")
+  const empty = await isComposerEmpty(bytes, manifest)
+  return empty === false
+}
+
+async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: HostedPromptDeliveryOpts): Promise<void> {
+  const now = opts?.now?.() ?? Date.now()
+  if (recentHumanWriteBlocks(peek, opts ?? {}, now)) {
+    throw new ComposerBusyError("recent-human-write", key)
+  }
+  if (await composerNonEmpty(peek, opts?.screenManifest)) {
+    throw new ComposerBusyError("composer-not-empty", key)
+  }
+}
+
+export async function writeHostedPromptIfClear(
+  rpc: HostedSessionRpc,
+  key: string,
+  prompt: string,
+  opts?: HostedPromptDeliveryOpts,
+): Promise<void> {
+  const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
+  if (!peek.alive) return
+  await assertComposerClear(peek, key, opts)
+  await writeHostedPrompt(rpc, key, prompt)
+}
+
 /** Bracketed-paste the prompt, wait, then submit — the pty twin of `pasteAndSubmit`. */
 export async function writeHostedPrompt(rpc: HostedSessionRpc, key: string, prompt: string): Promise<void> {
   await rpc.request("pty.write", { key, data: `\x1b[200~${prompt}\x1b[201~` })
@@ -157,9 +216,15 @@ export async function writeHostedPrompt(rpc: HostedSessionRpc, key: string, prom
  * shell and paste the prompt into it. Peek never attaches, spawns, or
  * resizes — delivery is pure `pty.write`, exactly like keyboard input.
  */
-export async function deliverToHostedKey(rpc: HostedSessionRpc, key: string, prompt: string): Promise<boolean> {
+export async function deliverToHostedKey(
+  rpc: HostedSessionRpc,
+  key: string,
+  prompt: string,
+  opts?: HostedPromptDeliveryOpts,
+): Promise<boolean> {
   const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
   if (!peek.alive) return false
+  await assertComposerClear(peek, key, opts)
   await writeHostedPrompt(rpc, key, prompt)
   return true
 }
@@ -189,7 +254,7 @@ export const FIRST_MESSAGE_POLL_INTERVAL_MS = 500
 /** Post-detection grace so the TUI finishes booting (bracketed-paste mode on). */
 export const FIRST_MESSAGE_SETTLE_MS = 1_500
 
-export interface PasteFirstMessageOptions {
+export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
   readonly timeoutMs?: number
   readonly intervalMs?: number
   readonly settleMs?: number
@@ -253,7 +318,7 @@ export async function pastePromptWhenEngineUp(
       }
       if (up) {
         await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
-        await writeHostedPrompt(rpc, key, prompt)
+        await writeHostedPromptIfClear(rpc, key, prompt, opts)
         return true
       }
     }

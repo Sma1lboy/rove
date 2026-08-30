@@ -20,10 +20,6 @@ interface PtyListResult {
   sessions: Array<{ key: string; alive: boolean; command: string[] }>
 }
 
-interface GetTaskResult {
-  running: boolean
-}
-
 describe("rove api hosted PTY lifecycle (behavior)", () => {
   let env: BehaviorEnv
   let repo: string
@@ -68,8 +64,8 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
 
     const deleted = runRove(["api", "delete", "--task-id", taskId, "--force"], env)
     expect(deleted.code).toBe(0)
-    const task = JSON.parse(runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout) as GetTaskResult
-    expect(task.running).toBe(false)
+    const afterDelete = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
+    expect(afterDelete.sessions.filter((entry) => entry.key === session && entry.alive)).toHaveLength(0)
     expect(existsSync(worktreePath)).toBe(false)
   }, 30_000)
 })

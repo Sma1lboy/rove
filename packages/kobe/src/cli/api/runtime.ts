@@ -61,7 +61,10 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         vendor: target.vendor,
         effort: target.modelEffort,
       })[0]
-      return await deliverToExactTab(host.rpc, target.id, target.tab, worktree, prompt, { engineBin })
+      return await deliverToExactTab(host.rpc, target.id, target.tab, worktree, prompt, {
+        engineBin,
+        vendor: target.vendor,
+      })
     }
     const newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
     // A `--tab new` pin (command and/or protocol) applies to THIS launch
@@ -106,6 +109,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       launch,
       {
         forceNew: newTab !== undefined,
+        vendor: launchVendor,
       },
     )
     if (result.started && !result.engineReady) {

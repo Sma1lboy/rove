@@ -44,11 +44,13 @@ import type { EngineTurnReader } from "./agent-turn.ts"
 import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
 import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
 import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
+import { CLAUDE_SCREEN_MANIFEST } from "./claude-code-local/screen.ts"
 import { trustClaudeWorktree } from "./claude-code-local/trust.ts"
 import { readClaudeTurns } from "./claude-code-local/turns.ts"
 import { codexCapabilities, codexIdentity } from "./codex-local/capabilities.ts"
 import { CodexHookAdapter } from "./codex-local/hook-adapter.ts"
 import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
+import { CODEX_SCREEN_MANIFEST } from "./codex-local/screen.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
 import { contribEngineEntry, isContribEngine } from "./contrib-engines.ts"
@@ -247,6 +249,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     },
     quotaUsage: () => fetchClaudeQuotaUsage(),
     readTurns: readClaudeTurns,
+    screenManifest: CLAUDE_SCREEN_MANIFEST,
   },
   codex: {
     vendor: "codex",
@@ -267,6 +270,7 @@ const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineReg
     // Codex's default is activity + project-name, which makes every tab in
     // one repo say "rove". Keep its native activity state, but ask Codex to
     // pair it with the thread title it already owns in its local store.
+    screenManifest: CODEX_SCREEN_MANIFEST,
     terminalTitle: {
       ownsStatus: true,
       launchArgs: ["-c", 'tui.terminal_title=["activity","thread-title"]'],

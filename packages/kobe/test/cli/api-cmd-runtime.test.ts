@@ -271,7 +271,7 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
       "/wt/t1",
       "go",
       expect.objectContaining({ key: "t1::tab-1" }),
-      { forceNew: false },
+      { forceNew: false, vendor: "claude" },
     )
     expect(mocks.closePtyHost).toHaveBeenCalledOnce()
     expect(result).toEqual({

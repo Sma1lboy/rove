@@ -3,6 +3,7 @@ import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
+  ComposerBusyError,
   deliverToHostedKey,
   ensureHostedEngine,
   ensureHostedSessionHost,
@@ -13,6 +14,7 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
+import { engineEntry } from "../engine/registry.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
@@ -140,9 +142,13 @@ export async function deliverPromptToLiveEngineAdapter(
     const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor })[0]
     const key = findHostedEngineKey(sessions, task.id, engineBin)
     if (!key) return false
-    const delivered = await deliverToHostedKey(host.rpc, key, prompt)
+    const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
+    const delivered = await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })
     return delivered
-  } catch {
+  } catch (err) {
+    // Composer-busy is not a silent failure: let the quota-resume runner log
+    // it instead of dropping the prompt without a trace.
+    if (err instanceof ComposerBusyError) throw err
     return false
   } finally {
     host.close()

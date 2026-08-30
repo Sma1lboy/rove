@@ -35,10 +35,27 @@ export interface ScreenRule {
   readonly lineRegex?: readonly string[]
 }
 
+/** A composer-empty detection rule. Matching a rule means "the composer is
+ *  empty" (only the prompt glyph + allowed status decoration is present). */
+export interface ComposerEmptyRule {
+  /** Trailing NON-EMPTY capture lines the rule looks at (default 3). */
+  readonly bottomLines?: number
+  /** Every string must appear (case-insensitive) somewhere in the region. */
+  readonly all?: readonly string[]
+  /** At least one of these strings must appear (case-insensitive). */
+  readonly any?: readonly string[]
+  /** At least one region line must match one of these regexes (case-insensitive). */
+  readonly lineRegex?: readonly string[]
+}
+
 /** An engine's screen-state manifest. Rules are evaluated in order; the
  *  first match wins (declare blocked before working). */
 export interface EngineScreenManifest {
   readonly rules: readonly ScreenRule[]
+  /** Rules that identify an empty composer. If the manifest has rules and
+   *  none match, the composer is treated as non-empty (fail-closed). If the
+   *  manifest is absent, the C-layer gate is skipped (fail-open). */
+  readonly composerEmpty?: readonly ComposerEmptyRule[]
 }
 
 const DEFAULT_BOTTOM_LINES = 12

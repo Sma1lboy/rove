@@ -52,6 +52,8 @@ export interface FrozenPtySession {
   readonly totalBytes: number
   /** How the child died when it did; null for a host-death casualty. */
   readonly exit: PtySessionExit | null
+  /** Epoch ms of the most recent attached-client write. Absent means none. */
+  readonly lastHumanWriteMs?: number
   readonly ringB64: string
   readonly updatedAt: string
 }
@@ -75,6 +77,7 @@ export interface FreezeableSession {
   readonly exit: PtySessionExit | null
   readonly chunks: readonly Buffer[]
   readonly bytes: number
+  readonly lastHumanWriteMs?: number
 }
 
 /** Session state → its durable record. Pure. */
@@ -89,6 +92,7 @@ export function freezeSession(session: FreezeableSession, now = new Date()): Fro
     title: session.title,
     totalBytes: session.totalBytes,
     exit: session.exit,
+    ...(session.lastHumanWriteMs ? { lastHumanWriteMs: session.lastHumanWriteMs } : {}),
     ringB64: Buffer.concat(session.chunks as Buffer[]).toString("base64"),
     updatedAt: now.toISOString(),
   }
@@ -140,6 +144,7 @@ export function thawSession(record: FrozenPtySession, cap: number): PtySessionSt
     exit: record.exit,
     restored: true,
     lastFreezeAtMs: 0,
+    lastHumanWriteMs: record.lastHumanWriteMs ?? 0,
   }
 }
 
