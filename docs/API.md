@@ -289,6 +289,22 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   managed (non-`main`, non-`dir`) task, and a definite `ahead === 0` — an
   unresolvable base reads `null` and never refuses. `--allow-empty` states an
   intentional empty success (an investigation, a review) and delivers.
+
+  **Delivery result fields.** Before writing a byte, delivery waits for the
+  engine to announce bracketed paste (DECSET 2004), which is the engine
+  saying it has taken its tty into raw mode and started reading. This is not
+  a nicety: a pty in canonical mode DISCARDS input past the tty's 1024-byte
+  buffer rather than blocking, so a prompt written into a still-booting
+  engine used to arrive as a 1024-byte prefix with no error anywhere.
+
+  - `engineReady` — the engine was confirmed reading when the write happened.
+  - `delivered` — the prompt was written to the engine's pty.
+  - `bytes` — how many bytes were written (prompt plus paste wrapper).
+  - `promptEcho` — `"confirmed"` when the prompt's tail was seen echoed back,
+    `"unconfirmed"` otherwise. Unconfirmed is INCONCLUSIVE, not failure:
+    engines that collapse a large paste into a `[Pasted text #1]` placeholder
+    never echo the text, so a positive proves delivery while a negative
+    merely fails to.
 - `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a
   task's live session via the daemon's `session.deliver` channel (the
   dispatcher's messenger; see

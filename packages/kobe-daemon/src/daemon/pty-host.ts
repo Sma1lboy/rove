@@ -55,6 +55,11 @@ export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 export { foldOscTitle } from "./pty-observability.ts"
 export type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 
+/** Writes at or above this size get a `daemon.log` line. Above the tty's
+ *  1024-byte canonical buffer, so anything big enough to have been silently
+ *  truncated by the old delivery path is recorded. */
+const LOGGED_WRITE_BYTES = 1024
+
 /** Per-session scrollback cap — same order as the web PTY sidecar's 256KB. */
 export const DEFAULT_SCROLLBACK_CAP = 512 * 1024
 /** Raw ring tail captured into a session's death record. */
@@ -241,11 +246,24 @@ export class PtyHost {
     if (client !== undefined && session.sinks.has(client)) {
       session.lastHumanWriteMs = Date.now()
     }
+    // Audit trail for prompt delivery. `daemon.log` recorded activity only
+    // once the daemon OBSERVED engine output, so there was no record of a
+    // prompt having been written at all — which made a delivered prompt and
+    // a lost one indistinguishable after the fact. Only large writes are
+    // logged: keystrokes would drown the log, and size is what the
+    // truncation bug turned on.
+    if (data.length >= LOGGED_WRITE_BYTES) {
+      this.opts.log?.("pty", `wrote ${data.length} bytes to ${key}`)
+    }
     try {
       session.proc?.write(data)
-    } catch {
-      // A terminal stream error is not proof the subprocess exited. Bun's
-      // `proc.exited` promise below is the single source of truth.
+    } catch (error) {
+      // Still not fatal — a terminal stream error is not proof the subprocess
+      // exited, and `proc.exited` remains the single source of truth for that.
+      // But swallowing it SILENTLY made a failed write indistinguishable from
+      // a successful one all the way up to the API's `delivered: true`, so it
+      // gets a log line even though it does not change control flow.
+      this.opts.log?.("pty", `write failed on ${key} (${data.length} bytes): ${String(error)}`)
     }
   }
 

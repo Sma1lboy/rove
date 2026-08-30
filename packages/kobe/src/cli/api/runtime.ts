@@ -118,7 +118,11 @@ async function deliverHosted(
         defer,
       },
     )
-    if (result.started && !result.engineReady) {
+    // `started && !delivered` is the real failure: the session was created but
+    // the prompt never reached it. `engineReady` no longer stands in for that
+    // — it is now an independent readiness observation, and an engine that
+    // never announced bracketed paste can still have been written to.
+    if (result.started && !result.delivered && !result.deferred) {
       throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
     }
     // Make the session visible to the sidebar tree, which lists a worktree's

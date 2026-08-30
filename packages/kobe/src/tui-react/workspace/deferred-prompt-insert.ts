@@ -38,7 +38,7 @@ export async function insertDeferredPrompt(args: {
     const key = `${args.taskId}::${args.tabId}`
     let delivered: boolean
     try {
-      delivered = await deliverToHostedKey(host.rpc, key, args.prompt, { screenManifest: args.manifest })
+      delivered = (await deliverToHostedKey(host.rpc, key, args.prompt, { screenManifest: args.manifest })) !== null
     } catch (err) {
       if (err instanceof ComposerBusyError) return "deferred-again"
       throw err

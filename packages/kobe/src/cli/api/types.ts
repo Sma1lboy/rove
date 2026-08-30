@@ -132,15 +132,45 @@ export interface PromptTarget {
 export interface DeliveredPrompt {
   readonly session: string
   readonly pane: string
+  /** A NEW session was created by this call (never "delivered into one"). */
   readonly started: boolean
+  /**
+   * The engine had its tty in raw mode and was READING when we wrote —
+   * observed via DECSET 2004 in the session ring, not inferred from the
+   * process table. This is the field that decides whether a large prompt
+   * can survive: a write before this is true is silently truncated to the
+   * tty's 1024-byte canonical buffer.
+   *
+   * It used to be a literal copy of {@link delivered}, which made it a
+   * second voice repeating one guess rather than an independent signal.
+   */
   readonly engineReady: boolean
   /**
-   * Whether the paste was CONFIRMED in the engine's composer (its tail
-   * appeared on capture). `false` on a cold boot where the pane never
-   * settled — surfaced so a scripted parallel round's dropped first prompt never
-   * looks like a clean success.
+   * The prompt was written to the engine's pty AFTER it was confirmed
+   * reading. This is a real observation now — previously the spawn path
+   * hardcoded `true` without checking anything.
+   *
+   * It does NOT promise the engine's composer rendered the text; that is
+   * {@link promptEcho}. Delivery is byte-level truth, echo is UI-level
+   * truth, and they are reported separately because an engine may accept a
+   * prompt perfectly while showing only a `[Pasted text #1]` placeholder.
    */
   readonly delivered: boolean
+  /**
+   * Bytes handed to the pty for this prompt (including the bracketed-paste
+   * wrapper when one was used). Present whenever a write was attempted;
+   * pairs with the daemon's `pty` log line for after-the-fact auditing.
+   */
+  readonly bytes?: number
+  /**
+   * Whether the prompt's tail was seen echoed back on capture — the capture
+   * confirmation `delivered` used to claim in its docs but never performed.
+   *
+   * `"confirmed"` is positive proof. `"unconfirmed"` is INCONCLUSIVE, not
+   * failure: engines that collapse a big paste into a placeholder never echo
+   * the text. Absent when no write was attempted.
+   */
+  readonly promptEcho?: "confirmed" | "unconfirmed"
   /**
    * Present when the delivery gate found the composer busy and the prompt was
    * accepted-but-deferred rather than dropped (issue #78 B-layer): the daemon

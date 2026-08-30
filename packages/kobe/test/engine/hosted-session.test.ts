@@ -86,10 +86,21 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
 
   it("waits for the engine process, then bracketed-pastes and submits the prompt", async () => {
     const writes: unknown[] = []
+    let written = ""
     const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
       if (name === "pty.list") return Promise.resolve({ sessions: [session("task-a::tab-1")] })
-      if (name === "pty.peek") return Promise.resolve({ exists: true, alive: true, data: "" })
+      // A READY engine: bracketed paste announced (raw mode, reading) and
+      // the prompt echoed back, so both the readiness wait and the capture
+      // confirmation settle immediately.
+      if (name === "pty.peek")
+        return Promise.resolve({
+          exists: true,
+          alive: true,
+          offset: 0,
+          data: Buffer.from(`\x1b[?2004h${written}`).toString("base64"),
+        })
       if (name === "pty.write") {
+        written += (payload as { data?: string })?.data ?? ""
         writes.push(payload)
         return Promise.resolve({})
       }
@@ -102,7 +113,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
       sleep: noSleep,
     })
 
-    expect(delivered).toBe(true)
+    expect(delivered).not.toBeNull()
     expect(writes).toEqual([
       { key: "task-a::tab-1", data: "\x1b[200~fix it\x1b[201~" },
       { key: "task-a::tab-1", data: "\r" },
@@ -118,7 +129,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
       sleep: noSleep,
     })
 
-    expect(delivered).toBe(false)
+    expect(delivered).toBeNull()
     expect(request).not.toHaveBeenCalledWith("pty.write", expect.anything())
   })
 
@@ -132,14 +143,30 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
       sleep: noSleep,
     })
 
-    expect(delivered).toBe(false)
+    expect(delivered).toBeNull()
     expect(request).not.toHaveBeenCalledWith("pty.write", expect.anything())
   })
 
   it("waits for the init marker before budgeting engine-startup time (issue #73)", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
     const marker = path.join(tmp, "marker")
-    const request = vi.fn().mockResolvedValue({ sessions: [session("task-a::tab-1")] })
+    let written = ""
+    const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
+      // A ready engine (bracketed paste on) that echoes what it is written,
+      // so the readiness wait and the capture confirmation both settle.
+      if (name === "pty.peek")
+        return Promise.resolve({
+          exists: true,
+          alive: true,
+          offset: 0,
+          data: Buffer.from(`\x1b[?2004h${written}`).toString("base64"),
+        })
+      if (name === "pty.write") {
+        written += (payload as { data?: string })?.data ?? ""
+        return Promise.resolve({})
+      }
+      return Promise.resolve({ sessions: [session("task-a::tab-1")] })
+    })
     const rpc: HostedSessionRpc = { request }
 
     let engineChecked = false
@@ -162,7 +189,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
       snapshot,
     })
 
-    expect(delivered).toBe(true)
+    expect(delivered).not.toBeNull()
     expect(markerChecked).toBe(true)
     expect(engineChecked).toBe(true)
     expect(snapshot).toHaveBeenCalled()
@@ -181,7 +208,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
       sleep: noSleep,
     })
 
-    expect(delivered).toBe(false)
+    expect(delivered).toBeNull()
     fs.rmSync(tmp, { recursive: true, force: true })
   })
 })
@@ -190,15 +217,29 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
   function rpcWith(
     peek: Partial<{ alive: boolean; data: string; lastHumanWriteMs: number; humanWriteQuietMs: number }>,
   ) {
+    let written = ""
     return {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        if (name === "pty.write") {
+          written += (payload as { data?: string })?.data ?? ""
+          return {} as T
+        }
         if (name === "pty.peek") {
           return {
             exists: true,
             alive: peek.alive !== false,
             pid: 42,
             offset: 0,
-            data: peek.data ?? "",
+            // `pty.peek` returns BASE64, so the fake must encode too: the
+            // readiness check decodes before looking for DECSET 2004.
+            // Prefixed with 2004h so readiness passes and suffixed with the
+            // echo so the capture confirmation does — the gates under test
+            // here are the human-write and composer-empty ones.
+            data: Buffer.concat([
+              Buffer.from("\x1b[?2004h"),
+              Buffer.from(peek.data ?? "", "base64"),
+              Buffer.from(written),
+            ]).toString("base64"),
             sinceValid: false,
             exit: null,
             ...(peek.lastHumanWriteMs !== undefined ? { lastHumanWriteMs: peek.lastHumanWriteMs } : {}),
@@ -241,20 +282,25 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
 
   it("delivers when both gates pass", async () => {
     const writes: string[] = []
+    let written = ""
     const rpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         if (name === "pty.peek") {
           return {
             exists: true,
             alive: true,
             pid: 42,
             offset: 0,
-            data: Buffer.from("❯", "utf8").toString("base64"),
+            // DECSET 2004 (engine is reading) + the empty-composer glyph +
+            // whatever it has been written, so readiness and the capture
+            // confirmation both settle on the first poll.
+            data: Buffer.from(`\x1b[?2004h❯${written}`, "utf8").toString("base64"),
             sinceValid: false,
             exit: null,
           } as T
         }
         if (name === "pty.write") {
+          written += (payload as { data?: string })?.data ?? ""
           writes.push(name)
           return {} as T
         }
@@ -262,7 +308,8 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
       },
     }
     const ok = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", { screenManifest: manifest })
-    expect(ok).toBe(true)
+    // An observed outcome now, not a bare boolean.
+    expect(ok).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
   })
 })

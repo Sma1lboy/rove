@@ -27,6 +27,32 @@ function psWith(child: string): () => Promise<string> {
   return async () => `123 1 -zsh\n456 123 ${child}\n`
 }
 
+/**
+ * A `pty.peek` reply from an engine that has announced bracketed paste, i.e.
+ * one that is in raw mode and READING. Delivery now waits for exactly this
+ * before writing — a prompt written into the pre-raw window is truncated at
+ * the tty's 1024-byte canonical buffer (see `pty-large-prompt.test.ts`).
+ */
+function readyPeek(echo = ""): { exists: boolean; alive: boolean; data: string; offset: number } {
+  return { exists: true, alive: true, data: Buffer.from(`\x1b[?2004h${echo}`).toString("base64"), offset: 0 }
+}
+
+/**
+ * A fake engine that echoes what it was written, the way a real composer
+ * redraws pasted text. Delivery confirms the prompt's tail on capture, so a
+ * fake that stayed silent would poll until its confirm budget expired.
+ */
+function echoingPeek(): { seen: () => string; onWrite: (data: string) => void; peek: () => unknown } {
+  let buffer = ""
+  return {
+    seen: () => buffer,
+    onWrite: (data: string) => {
+      buffer += data
+    },
+    peek: () => readyPeek(buffer),
+  }
+}
+
 describe("findEngineKey", () => {
   it("① picks the deterministic <taskId>::tab-1 engine", () => {
     const sessions = [session("t1::tab-1", ["claude"])]
@@ -137,10 +163,12 @@ describe("isTaskKey / taskKeys", () => {
 describe("deliverToKey", () => {
   function recorder() {
     const calls: Array<{ name: string; payload: unknown }> = []
+    const engine = echoingPeek()
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push({ name, payload })
-        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
@@ -150,15 +178,18 @@ describe("deliverToKey", () => {
   it("peeks (never attaches/resizes) then writes bracketed prompt + deferred CR", async () => {
     const { rpc, calls } = recorder()
     const ok = await deliverToKey(rpc, "t1::tab-1", "do the thing")
-    expect(ok).toBe(true)
+    // The outcome is OBSERVED now, not assumed: it carries the byte count,
+    // the readiness verdict, and whether the tail was echoed back.
+    expect(ok).toMatchObject({ ready: true, confirmed: true })
     // pty.peek, NOT pty.open: an open would last-attach-wins resize the
     // live session away from its attached TUI (issue #18) — delivery must
     // be indistinguishable from keyboard input (pure pty.write).
-    expect(calls.map((c) => c.name)).toEqual(["pty.peek", "pty.write", "pty.write"])
+    // Peeks (gate, readiness, confirm) then two writes — still no open/resize.
+    expect(calls.map((c) => c.name)).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
     expect(calls[0].payload).toEqual({ key: "t1::tab-1" })
     // Bracketed paste markers wrap the prompt; the CR is a SEPARATE write.
-    expect(calls[1].payload).toEqual({ key: "t1::tab-1", data: "\x1b[200~do the thing\x1b[201~" })
-    expect(calls[2].payload).toEqual({ key: "t1::tab-1", data: "\r" })
+    expect(calls[2].payload).toEqual({ key: "t1::tab-1", data: "\x1b[200~do the thing\x1b[201~" })
+    expect(calls[3].payload).toEqual({ key: "t1::tab-1", data: "\r" })
   })
 
   it("returns false without writing when the session is dead", async () => {
@@ -166,11 +197,11 @@ describe("deliverToKey", () => {
     const rpc = {
       request: async <T>(name: string): Promise<T> => {
         calls.push({ name })
-        if (name === "pty.peek") return { exists: true, alive: false } as T
+        if (name === "pty.peek") return { exists: true, alive: false, data: "", offset: 0 } as T
         return {} as T
       },
     }
-    expect(await deliverToKey(rpc, "t1::tab-1", "x")).toBe(false)
+    expect(await deliverToKey(rpc, "t1::tab-1", "x")).toBeNull()
     expect(calls.map((c) => c.name)).toEqual(["pty.peek"]) // no write into a dead pty
   })
 })
@@ -209,12 +240,14 @@ describe("deliverHostedPrompt", () => {
 
   it("delivers once when another caller wins the create race", async () => {
     const calls: Array<{ name: string; payload: unknown }> = []
+    const engine = echoingPeek()
     const rpc = {
       request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push({ name, payload })
         if (name === "pty.list") return { sessions: [] } as T
         if (name === "pty.open") return { replay: "", alive: true, created: false } as T
-        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
@@ -228,20 +261,24 @@ describe("deliverHostedPrompt", () => {
       "pty.list",
       "pty.open",
       "pty.peek",
+      "pty.peek",
       "pty.write",
       "pty.write",
+      "pty.peek",
       "pty.detach",
     ])
-    expect(result).toMatchObject({ started: false, delivered: true })
+    expect(result).toMatchObject({ started: false, delivered: true, promptEcho: "confirmed" })
   })
 
   it("delivers into an existing engine when the foreground gate sees the engine process", async () => {
     const calls: string[] = []
+    const engine = echoingPeek()
     const rpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)
         if (name === "pty.list") return { sessions: [session("t1::tab-1", ["claude"])] } as T
-        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
@@ -262,8 +299,9 @@ describe("deliverHostedPrompt", () => {
     // Pre-fix this spawned a fresh unsandboxed engine at launch.key and
     // returned ok while tab-2 never saw the prompt.
     const calls: string[] = []
+    const engine = echoingPeek()
     const rpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)
         if (name === "pty.list")
           return {
@@ -272,7 +310,8 @@ describe("deliverHostedPrompt", () => {
               session("t1::tab-2", ["/bin/zsh", "-ilc", "claude '--resume' 'x'"]),
             ],
           } as T
-        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
@@ -293,8 +332,9 @@ describe("deliverHostedPrompt", () => {
     // brand-new engine at tab-1 and reported ok — sender and receiver both
     // believed the message arrived. It must be a typed error instead.
     const calls: string[] = []
+    const engine = echoingPeek()
     const rpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)
         if (name === "pty.list") return { sessions: [session("t1::tab-2", ["/bin/zsh", "-il"])] } as T
         return {} as T
@@ -320,14 +360,16 @@ describe("deliverHostedPrompt", () => {
     // preset. Pre-fix the resolver returned null and this threw
     // NO_ENGINE_TAB with the engine sitting right there.
     const calls: string[] = []
+    const engine = echoingPeek()
     const rpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)
         if (name === "pty.list")
           return {
             sessions: [session("t1::tab-22", ["/bin/zsh", "-ilc", "export KOBE_TAB_ID='tab-22'\nclaude"])],
           } as T
-        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }
@@ -415,11 +457,13 @@ describe("deliverHostedPrompt", () => {
 describe("deliverToExactTab", () => {
   function rpcWith(sessions: PtySessionInfo[]) {
     const calls: string[] = []
+    const engine = echoingPeek()
     const rpc = {
-      request: async <T>(name: string): Promise<T> => {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
         calls.push(name)
         if (name === "pty.list") return { sessions } as T
-        if (name === "pty.peek") return { exists: true, alive: true, data: "" } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
         return {} as T
       },
     }

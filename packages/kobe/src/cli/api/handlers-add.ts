@@ -128,6 +128,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     engineReady: delivered.engineReady,
     session: delivered.session,
     delivered: delivered.delivered,
+    ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
+    ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
     ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
   }
 }
