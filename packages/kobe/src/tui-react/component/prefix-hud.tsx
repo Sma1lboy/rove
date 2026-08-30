@@ -11,6 +11,7 @@
 
 import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useState } from "react"
+import { displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudState } from "../../tui/lib/prefix-hud"
@@ -117,9 +118,12 @@ export function PrefixHud(props: { left: number; width: number }) {
     const groupWidth = narrow ? guideWidth - 4 : Math.max(18, Math.floor((guideWidth - 4) / columns))
     const actionHeight = (action: GuideAction): number => {
       const strokes = action.strokes.join("/")
-      const keyWidth = Math.min(9, Math.max(3, strokes.length))
+      // Cell widths, not String.length: CJK action labels and ⌘-class chord
+      // glyphs occupy 2 (or ambiguous) cells — .length under-measures them
+      // and the guide's height estimate runs off the screen bottom.
+      const keyWidth = Math.min(9, Math.max(3, displayWidth(strokes)))
       const labelWidth = Math.max(1, groupWidth - keyWidth - 1)
-      return Math.max(1, Math.ceil(actionLabel(action.action).length / labelWidth))
+      return Math.max(1, Math.ceil(displayWidth(actionLabel(action.action)) / labelWidth))
     }
     const guideHeight = groupRows.reduce(
       (height, row) =>
@@ -165,7 +169,7 @@ export function PrefixHud(props: { left: number; width: number }) {
                           if (stroke) invokeArmedPrefixActionFromCurrentStack(action.action, stroke)
                         }}
                       >
-                        <box width={Math.min(9, Math.max(3, strokes.length))}>
+                        <box width={Math.min(9, Math.max(3, displayWidth(strokes)))}>
                           <text fg={theme.primary}>{strokes}</text>
                         </box>
                         <text fg={theme.text} wrapMode="word" flexGrow={1} flexShrink={1}>

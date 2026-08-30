@@ -8,7 +8,7 @@
  */
 
 import { useTerminalDimensions } from "@opentui/react"
-import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
+import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { FileTree } from "../panes/filetree/FileTree"
@@ -32,7 +32,7 @@ export function HostFilesPane(props: {
   const focus = useFocus()
   const dims = useTerminalDimensions()
   const inactiveBorder = theme.borderActive
-  const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - SIDEBAR_WIDTH)
+  const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - sidebarWidthFor(dims.width))
   const width = Math.max(WORKTREE_TOOLS_MIN_WIDTH, Math.min(WORKTREE_TOOLS_MAX_WIDTH, Math.floor(available / 3)))
   return (
     <box

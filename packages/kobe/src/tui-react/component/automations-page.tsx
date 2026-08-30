@@ -14,6 +14,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
@@ -24,6 +25,7 @@ import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { dividerRule } from "../lib/rule-divider"
 import { useDaemonDown } from "../lib/use-accessor"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
@@ -72,6 +74,7 @@ export function AutomationsPage(props: {
   const { theme } = useTheme()
   const dialog = useDialog()
   const t = useT()
+  const dims = useTerminalDimensions()
   /**
    * Failures go to the toast queue, not the inline notice line — a muted
    * `textMuted` line reads as a hint, not a failure, and error toasts show
@@ -281,7 +284,7 @@ export function AutomationsPage(props: {
           {t("automations.title")}
         </text>
         <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {"─".repeat(240)}
+          {dividerRule(dims.width)}
         </text>
         <text
           fg={daemonDown ? theme.error : keepsDaemonAlive ? theme.success : theme.textMuted}
@@ -340,7 +343,7 @@ export function AutomationsPage(props: {
                     two run together, and the strip has no marker column to
                     separate them the way the sidebar's cards do. */}
                 <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-                  {"─".repeat(240)}
+                  {dividerRule(dims.width)}
                 </text>
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
                   {`${repoLabel(automation.repo)} · ${automation.schedule}`}

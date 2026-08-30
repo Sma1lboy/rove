@@ -10,7 +10,7 @@ import { useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
+import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
@@ -332,7 +332,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           the only boundary; sidebar focus shows on the KOBE brand text. */}
       {pageRender.showSidebar ? (
         <HostSidebar
-          width={pageRender.showContent ? SIDEBAR_WIDTH : dims.width}
+          width={pageRender.showContent ? sidebarWidthFor(dims.width) : dims.width}
           nav={pages.nav}
           onNavChange={pages.goToNav}
           tasks={tasks}
@@ -460,7 +460,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           terminal column is off-limits: it collided with the engine's own
           status line). Width-capped to the rail so lines never spill into
           the terminal. */}
-      <PrefixHud left={1} width={SIDEBAR_WIDTH - 2} />
+      <PrefixHud left={1} width={sidebarWidthFor(dims.width) - 2} />
     </WorkspaceFrame>
   )
 }
