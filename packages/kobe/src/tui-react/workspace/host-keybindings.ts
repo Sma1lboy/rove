@@ -149,8 +149,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     enabled: pagesClosed && focus.focused !== "sidebar",
     bindings: bindByIds({ "focus.sidebar": () => focus.setFocused("sidebar") }),
   }))
+  // Same search-inactive gate as the task-lifecycle group below: while the
+  // sidebar search box is active, `s`/`x`/`u` (and the group's bare `q`
+  // quit chord) must land in the query, not dispatch — the raw search
+  // listener only sees keystrokes the keymap left unclaimed.
   useBindings(() => ({
-    enabled: pagesClosed && focus.focused === "sidebar",
+    enabled: pagesClosed && focus.focused === "sidebar" && !deps.searchActive,
     bindings: bindByIds({
       // Slot dispatch (SLOT_CONTRACTS): slot 0 = quit confirm, slot 1 =
       // hard exit — so user rebinds keep both verbs without inspecting

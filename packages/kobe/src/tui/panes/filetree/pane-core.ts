@@ -113,23 +113,38 @@ export type NavAction = { type: "expand" | "collapse"; path: string } | { type: 
  * an open dir, step into its first child; on a file, no-op (use
  * `enter` to open). Keeping `l` purely structural lets the user roam
  * through the tree without accidentally pulling the file into the
- * preview pane. */
+ * preview pane. Changes-tab untracked dirs (status rows carrying a
+ * `fileCount`) follow the same expand/descend semantics. */
 export function expandOrDescendAction(rows: readonly Row[], cursorIndex: number): NavAction | null {
   const row = rows[cursorIndex]
-  if (!row || row.kind !== "dir") return null
+  if (!row) return null
+  if (row.kind === "status") {
+    // Untracked-dir row → expand; already open → step onto its first child.
+    // Plain status rows (incl. children under an expanded untracked dir)
+    // never expand.
+    if (row.fileCount == null) return null
+    if (!row.expanded) return { type: "expand", path: row.path }
+    return cursorIndex + 1 < rows.length ? { type: "cursor", index: cursorIndex + 1 } : null
+  }
+  if (row.kind !== "dir") return null
   if (!row.expanded && row.hasChildren) return { type: "expand", path: row.path }
   if (row.expanded && cursorIndex + 1 < rows.length) return { type: "cursor", index: cursorIndex + 1 }
   return null
 }
 
 /** `h` — collapse the current directory, or jump to the parent dir
- * (depth - 1) walking upward in rows. All-tab behavior; the caller
- * gates on the active tab. */
+ * (depth - 1) walking upward in rows. Tab-agnostic: Changes-tab
+ * untracked dirs (status rows carrying a `fileCount`) collapse too;
+ * the status list is flat (no depth), so its other rows have no
+ * parent to jump to and no-op. */
 export function collapseOrParentAction(rows: readonly Row[], cursorIndex: number): NavAction | null {
   const row = rows[cursorIndex]
   if (!row) return null
   // Open dir → collapse.
   if (row.kind === "dir" && row.expanded) return { type: "collapse", path: row.path }
+  if (row.kind === "status") {
+    return row.fileCount != null && row.expanded ? { type: "collapse", path: row.path } : null
+  }
   if (row.kind !== "dir" && row.kind !== "file") return null
   const targetDepth = row.depth - 1
   if (targetDepth < 0) return null
