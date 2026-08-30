@@ -28,11 +28,18 @@
  *     index) is much worse than the cost of a false positive (kobe refuses
  *     to start, user kills the lockfile manually).
  *
+ * {@link acquireSync}/{@link releaseSync} are the blocking twins, for callers
+ * that cannot be async (worktree pre-trust runs inside a React render path).
+ * They write the SAME `pid:token` format through the same link-or-fail dance,
+ * so a sync holder blocks an async acquirer and vice versa — the two variants
+ * are one lock, not two.
+ *
  * Not goals: cross-machine locking (NFS-safe), advisory POSIX locks
  * (flock — Bun coverage uneven), retry/backoff (caller's choice).
  */
 
 import { randomBytes } from "node:crypto"
+import { linkSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import { link, mkdir, readFile, unlink, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 
@@ -156,5 +163,77 @@ export async function release(lockPath: string, token: string): Promise<void> {
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return
     throw err
+  }
+}
+
+/** Block the calling thread for `ms`. `Atomics.wait` on a throwaway buffer is
+ *  the only real sync sleep in JS; a busy spin would peg a core. */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/**
+ * Blocking {@link acquire}: same protocol, same on-disk format, but it spins on
+ * a live holder instead of rejecting (the async wait policy lives in
+ * `store-codec.ts#acquireWithRetry`; a sync caller has nowhere to put it).
+ * Throws {@link LockfileError} once `timeoutMs` elapses — callers here are all
+ * best-effort and treat that as "skip the write", never as a blocked launch.
+ */
+export function acquireSync(lockPath: string, timeoutMs = 5_000): string {
+  mkdirSync(dirname(lockPath), { recursive: true })
+  const token = `${process.pid}:${randomBytes(8).toString("hex")}`
+  const sidecar = `${lockPath}.${token.replace(":", "-")}`
+  const deadline = Date.now() + timeoutMs
+
+  for (;;) {
+    writeFileSync(sidecar, token)
+    try {
+      linkSync(sidecar, lockPath)
+      return token
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err
+    } finally {
+      try {
+        unlinkSync(sidecar)
+      } catch {
+        /* linked into place, or never created */
+      }
+    }
+
+    let holder: string
+    try {
+      holder = readFileSync(lockPath, "utf8").trim()
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+      continue // released between our EEXIST and the read
+    }
+
+    const holderPid = Number.parseInt(holder, 10)
+    if (Number.isFinite(holderPid) && holderPid > 0 && isProcessAlive(holderPid)) {
+      if (Date.now() >= deadline) {
+        throw new LockfileError(`${lockPath} is locked by another Rove instance (pid ${holderPid})`, holderPid)
+      }
+      sleepSync(25)
+      continue
+    }
+    // Stale holder — same takeover as the async path, warned for the same
+    // reason (a silent takeover in a concurrent context is scary).
+    console.warn(`[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}, process gone)`)
+    try {
+      unlinkSync(lockPath)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+    }
+  }
+}
+
+/** Blocking {@link release}: same ownership check — never unlink a lock that a
+ *  takeover already handed to somebody else. */
+export function releaseSync(lockPath: string, token: string): void {
+  try {
+    if (readFileSync(lockPath, "utf8").trim() !== token) return
+    unlinkSync(lockPath)
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
   }
 }

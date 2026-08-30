@@ -12,8 +12,6 @@
  * adapter file." For a same-shape engine that file is ~3 members.
  */
 
-import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { dirname } from "node:path"
 import type { VendorId } from "../types/vendor.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "./hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
@@ -24,24 +22,19 @@ import {
   mergeActivityHooks,
   mergeWorktreeWatchHook,
 } from "./json-hooks.ts"
-
-/** Read a JSON object from `path`. A missing file starts empty; any other read
- * or parse failure returns undefined so a best-effort install cannot clobber
- * an existing engine configuration it could not understand. */
-async function readJsonObject(path: string): Promise<Record<string, unknown> | undefined> {
-  try {
-    const parsed = JSON.parse(await readFile(path, "utf8")) as unknown
-    return isObject(parsed) ? parsed : undefined
-  } catch (error) {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return {}
-    return undefined
-  }
-}
+import { updateSharedJson } from "./shared-config-write.ts"
 
 /**
  * Read → transform → write a SHARED settings file, skipping the write when the
  * transform is a no-op (the default-on installers run on every launch; don't
  * churn the user's file mtime / VCS status when the hooks are already in place).
+ *
+ * The file is shared with the engine itself and with Rove's other two
+ * processes, so the read-merge-write runs under the compare-and-swap in
+ * `./shared-config-write.ts` (read its module doc — the guarantee is partial by
+ * design) and lands via tmp+rename, never a write straight onto the live file a
+ * starting session may be reading.
+ *
  * Best-effort: a failure to read/parse/write must never block a launch.
  */
 export async function editJsonSettings(
@@ -49,12 +42,26 @@ export async function editJsonSettings(
   transform: (current: Record<string, unknown>) => Record<string, unknown>,
 ): Promise<void> {
   try {
-    const current = await readJsonObject(settingsFilePath)
-    if (!current) return
-    const next = transform(current)
-    if (JSON.stringify(next) === JSON.stringify(current)) return
-    await mkdir(dirname(settingsFilePath), { recursive: true })
-    await writeFile(settingsFilePath, `${JSON.stringify(next, null, 2)}\n`)
+    await updateSharedJson(
+      settingsFilePath,
+      (raw) => {
+        // A missing file starts empty; any other read or parse failure abandons
+        // the write so a best-effort install cannot clobber an existing engine
+        // configuration it could not understand.
+        if (raw === undefined) return {}
+        try {
+          const parsed = JSON.parse(raw) as unknown
+          return isObject(parsed) ? parsed : undefined
+        } catch {
+          return undefined
+        }
+      },
+      (current) => {
+        const next = transform(current)
+        const json = JSON.stringify(next, null, 2)
+        return json === JSON.stringify(current, null, 2) ? undefined : `${json}\n`
+      },
+    )
   } catch {
     /* best-effort — never block launch */
   }

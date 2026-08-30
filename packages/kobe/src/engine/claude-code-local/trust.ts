@@ -9,29 +9,34 @@
  * The store is `~/.claude.json` → `projects[<abspath>].hasTrustDialogAccepted`
  * (existing entries also carry `hasCompletedProjectOnboarding`). MERGE, never
  * clobber: project entries accumulate per-project state (allowedTools, MCP
- * choices) that must survive.
+ * choices) that must survive — and claude itself rewrites this file wholesale
+ * on every save, so the merge runs under the compare-and-swap in
+ * `../shared-config-write.ts`. Read its module doc before changing the write.
  */
 
-import { readFileSync, renameSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
+import { updateSharedJsonSync } from "../shared-config-write.ts"
 
 export function trustClaudeWorktree(worktreePath: string, home: string = homedir()): void {
-  const file = path.join(home, ".claude.json")
-  let doc: Record<string, unknown> = {}
-  try {
-    doc = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>
-  } catch {
-    // Missing or corrupt — start from an empty doc; corrupt is claude's own
-    // recovery behavior too (it rewrites the file wholesale on every save).
-  }
-  const projects = { ...((doc.projects as Record<string, unknown> | undefined) ?? {}) }
-  const existing = (projects[worktreePath] ?? {}) as Record<string, unknown>
-  if (existing.hasTrustDialogAccepted === true) return
-  projects[worktreePath] = { ...existing, hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true }
-  doc.projects = projects
-  // tmp + rename so a crash mid-write can't truncate the store.
-  const tmp = `${file}.rove-${process.pid}`
-  writeFileSync(tmp, JSON.stringify(doc, null, 2))
-  renameSync(tmp, file)
+  updateSharedJsonSync(
+    path.join(home, ".claude.json"),
+    (raw) => {
+      if (raw === undefined) return {}
+      try {
+        return JSON.parse(raw) as Record<string, unknown>
+      } catch {
+        // Corrupt — start from an empty doc; that is claude's own recovery
+        // behavior too (it rewrites the file wholesale on every save).
+        return {}
+      }
+    },
+    (doc) => {
+      const projects = { ...((doc.projects as Record<string, unknown> | undefined) ?? {}) }
+      const existing = (projects[worktreePath] ?? {}) as Record<string, unknown>
+      if (existing.hasTrustDialogAccepted === true) return undefined
+      projects[worktreePath] = { ...existing, hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true }
+      return JSON.stringify({ ...doc, projects }, null, 2)
+    },
+  )
 }
