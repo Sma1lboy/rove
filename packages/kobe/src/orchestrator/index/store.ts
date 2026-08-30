@@ -182,7 +182,9 @@ export class TaskIndexStore {
       // survivor's rename with ENOENT (issue #53).
       const tmpPath = `${this.path}.${process.pid}.${ulid()}.tmp`
       try {
-        const handle = await open(tmpPath, "w", 0o644)
+        // 0600: task titles are free-form user prose and every record names a
+        // repo path — not credentials, but nobody else's business either.
+        const handle = await open(tmpPath, "w", 0o600)
         try {
           await handle.writeFile(json, "utf8")
           await handle.sync()

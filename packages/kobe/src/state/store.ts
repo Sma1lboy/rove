@@ -97,7 +97,10 @@ function writeStateFile(state: StateSnapshot): void {
   mkdirSync(dirname(path), { recursive: true })
   const nonce = Math.random().toString(36).slice(2)
   const tmp = `${path}.${process.pid}.${nonce}.tmp`
-  writeFileSync(tmp, JSON.stringify(state, null, 2), "utf8")
+  // 0600: `engineCommand.*` holds a user-authored shell line, which is exactly
+  // where someone pastes `--api-key=…`. Owner-only costs nothing here — the file
+  // already lives under a single user's ~/.config.
+  writeFileSync(tmp, JSON.stringify(state, null, 2), { encoding: "utf8", mode: 0o600 })
   renameSync(tmp, path)
 }
 
