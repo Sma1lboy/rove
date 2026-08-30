@@ -33,6 +33,7 @@
     "./daemon/crash-log": "./src/daemon/crash-log.ts",
     "./daemon/collectors": "./src/daemon/collectors.ts",
     "./daemon/cwd-task": "./src/daemon/cwd-task.ts",
+    "./daemon/deferred-prompts-store": "./src/daemon/deferred-prompts-store.ts",
     "./daemon/engine-events-log": "./src/daemon/engine-events-log.ts",
     "./daemon/event-bus": "./src/daemon/event-bus.ts",
     "./daemon/file-watch-trigger": "./src/daemon/file-watch-trigger.ts",

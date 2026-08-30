@@ -46,6 +46,7 @@ const IDENTITY_FLOOR_CELLS = 16
 function itemColor(state: AttentionInboxItem["state"], theme: ReturnType<typeof useTheme>["theme"]) {
   if (state === "permission_needed") return theme.warning
   if (state === "turn_complete") return theme.success
+  if (state === "prompt_deferred") return theme.warning
   return theme.error
 }
 
@@ -57,6 +58,8 @@ function itemGlyph(state: AttentionInboxItem["state"]): string {
   // AppleColorEmoji — a 2.13-cell colour glyph in a 1-cell column, which
   // both overflowed and broke the pane's monochrome ink (2026-08-15).
   if (state === "rate_limited") return "◷"
+  // `≡` (no Emoji property) for a queued message — a stack, not a failure.
+  if (state === "prompt_deferred") return "≡"
   return "!"
 }
 
@@ -65,6 +68,7 @@ function itemStateKey(state: AttentionInboxItem["state"]): string {
   if (state === "permission_needed") return "workspace.inbox.state.needsInput"
   if (state === "turn_complete") return "workspace.inbox.state.done"
   if (state === "rate_limited") return "workspace.inbox.state.rateLimited"
+  if (state === "prompt_deferred") return "workspace.inbox.state.promptDeferred"
   return "workspace.inbox.state.error"
 }
 

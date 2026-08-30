@@ -141,11 +141,40 @@ export interface DeliveredPrompt {
    * looks like a clean success.
    */
   readonly delivered: boolean
+  /**
+   * Present when the delivery gate found the composer busy and the prompt was
+   * accepted-but-deferred rather than dropped (issue #78 B-layer): the daemon
+   * stored the text and queued a `prompt_deferred` inbox episode. This is a
+   * SUCCESS outcome for the caller — the daemon now owns the message and will
+   * hold it for a human to release from the Inbox. Callers MUST NOT retry a
+   * deferred send: a retry would stack a duplicate of the same message in the
+   * queue. Absent on direct delivery and on genuine failure.
+   */
+  readonly deferred?: { readonly id: string; readonly layer: "recent-human-write" | "composer-not-empty" }
+}
+
+/** What the delivery layer calls to hand a blocked prompt to daemon ownership. */
+export interface PromptDeferralSink {
+  /**
+   * Store the blocked prompt and return the daemon's record id. Implementations
+   * perform the `deferredPrompt.file` daemon RPC; tests inject a fake.
+   */
+  defer(info: {
+    readonly taskId: string
+    readonly tabId: string
+    readonly prompt: string
+    readonly layer: "recent-human-write" | "composer-not-empty"
+  }): Promise<string>
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
 export interface PromptDeliveryOps {
-  deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
+  deliverHosted(
+    target: PromptTarget,
+    worktree: string,
+    prompt: string,
+    defer?: PromptDeferralSink,
+  ): Promise<DeliveredPrompt>
 }
 
 // ── Runtime (the side-effect seam handlers run against) ─────────────────────

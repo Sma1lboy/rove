@@ -53,7 +53,17 @@ export const en = {
       error: "error",
       rateLimited: "rate limited",
       running: "running",
+      /** A peer/API message accepted by the daemon but not yet pasted (issue #78). */
+      promptDeferred: "message queued",
     },
+    /** Toast title when a message is deferred because the composer was busy. */
+    deferredToast: "Message queued — composer busy",
+    /** Insert feedback: the A/C gate still blocked at release time. */
+    deferredStillQueued: "Still typing? The queued message stays in the Inbox — open it again to send.",
+    /** Insert feedback: the target tab has no live session to receive the paste. */
+    deferredUnavailable: "That tab isn't running — the queued message stays in the Inbox.",
+    /** Insert feedback: the release attempt errored (RPC/PTY hiccup). */
+    deferredInsertFailed: "Couldn't insert the queued message — it's still in the Inbox.",
   },
   terminalComing: "Embedded terminal is starting...",
 }
@@ -99,7 +109,17 @@ export const zh: typeof en = {
       error: "出错",
       rateLimited: "限流",
       running: "进行中",
+      /** peer/API 消息已被 daemon 受理但尚未插入（issue #78）。 */
+      promptDeferred: "消息已排队",
     },
+    /** composer 忙、消息被受理延后的 toast 标题。 */
+    deferredToast: "消息已排队——composer 正忙",
+    /** 插入反馈：放行那一刻 A/C 闸门仍拦住。 */
+    deferredStillQueued: "还在打字？排队的消息留在收件箱——再打开一次即可发送。",
+    /** 插入反馈：目标 tab 没有存活会话可接收。 */
+    deferredUnavailable: "该标签页未运行——排队的消息留在收件箱。",
+    /** 插入反馈：放行过程出错（RPC/PTY 故障）。 */
+    deferredInsertFailed: "无法插入排队的消息——它仍在收件箱中。",
   },
   terminalComing: "嵌入终端正在启动……",
 }
