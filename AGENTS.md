@@ -46,12 +46,11 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ## Hard rules (non-negotiable)
 
 ### How work lands on `main`
-- **Default: PR.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap, Review CI) → `gh pr merge --squash --delete-branch`. The PR gates are where the hard rules below get enforced, so unattended/agent-driven work always takes this path.
+- **Default: PR.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. The PR gates are where the hard rules below get enforced, so unattended/agent-driven work always takes this path.
 - **Owner-supervised local iteration may skip the PR**: work in a worktree, get green, then merge/cherry-pick into local `main`. Same quality gates (lint, typecheck, tests, changeset) still apply. Only when the owner is in the loop that turn.
 - A direct push to `main` needs the owner to say so **in that turn** — never inferred, never carried over to the next task.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag (see [`docs/RELEASING.md`](./docs/RELEASING.md)).
 - Never force-push; `git fetch` before pushing.
-- **`claude-review` failing is NOT a merge blocker when it fails for lack of a token.** Its `ANTHROPIC_API_KEY` is frequently empty in Actions, and the run then dies ~0.3s after `Claude Code initialized` with `is_error: true` and no findings. Confirm that shape before waving it through — read the job log for the empty-key signature, and check `gh run list --workflow=claude-review.yml` to see whether unrelated branches fail identically. A review that actually RAN and reported findings still blocks.
 
 ### Commits
 - Commit at the end of each stream when green (per-stream commits are pre-authorized). Message: `<type>: <summary>` + a 2-3 sentence body.
@@ -73,7 +72,7 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 
 ### File size cap: ~500 lines (code-review gate)
 - Every source file should stay at or under ~500 lines.
-- If your change touches a file that is over 500 lines, the change is NOT done until that file is refactored/split back to ~500 or below — touch it → you own shrinking it. CI hard-gates this (`ci.yml` file-size-cap job on touched files) and the Review CI flags it as Blocking.
+- If your change touches a file that is over 500 lines, the change is NOT done until that file is refactored/split back to ~500 or below — touch it → you own shrinking it. CI hard-gates this (`ci.yml` file-size-cap job on touched files).
 - New files must not be born over 500 lines.
 - Exemptions: generated files, lockfiles, snapshots/test fixtures, and `refs/`. A deliberate exception needs a one-line justification in the PR/commit.
 
