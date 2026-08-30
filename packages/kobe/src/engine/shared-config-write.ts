@@ -13,11 +13,12 @@
  *
  * TWO writer classes, so two layers — neither alone is enough:
  *
- *   1. **Lock** (`~/.rove/locks/`, reusing `orchestrator/index/lockfile.ts`)
- *      excludes the three Rove processes from each other, which a bare
- *      compare-and-swap cannot: check-then-rename is itself a TOCTOU, and two
- *      Rove writers can both pass the re-read and both rename. Measured on a
- *      3-writer sandbox run, CAS alone dropped ~40% of concurrent Rove updates.
+ *   1. **Lock** (`~/.rove/shared-config-<hash>.lock`, reusing
+ *      `orchestrator/index/lockfile.ts`) excludes the three Rove processes from
+ *      each other, which a bare compare-and-swap cannot: check-then-rename is
+ *      itself a TOCTOU, and two Rove writers can both pass the re-read and both
+ *      rename. Measured on a 3-writer sandbox run, CAS alone dropped ~40% of
+ *      concurrent Rove updates.
  *   2. **Compare-and-swap** (re-read the raw bytes immediately before the
  *      rename, retry when they moved) covers THE ENGINE, which will never take
  *      our lock — it is not our process and has no idea Rove exists.
