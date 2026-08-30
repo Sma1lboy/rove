@@ -36,7 +36,6 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import { completionSeenAt, completionSeenKey, markCompletionSeen } from "../../workspace/completion-seen"
-import type { SidebarHover } from "./types"
 
 export type SidebarRowCardSharedProps = {
   readonly selectedId: string | null
@@ -46,8 +45,6 @@ export type SidebarRowCardSharedProps = {
   readonly onSelect: (id: string) => void
   readonly activateRow: (id: string) => void
   readonly activateOnClick?: boolean
-  readonly setHover: (hover: SidebarHover | null) => void
-  readonly clearHoverForTask: (taskId: string) => void
   readonly branchTick: number
   readonly titleBudget: number
   readonly subtitleBudget: number
@@ -156,7 +153,6 @@ function RowBody(props: {
   const flatIndex = props.row.flatIndex
   const shared = props.shared
   return (
-    // biome-ignore lint/a11y/useKeyWithMouseEvents: opentui terminal UI has no DOM focus model; hover is pointer-only while keyboard nav exposes the same row detail by selection.
     <box
       ref={(renderable: BoxRenderable | null) => {
         if (!renderable) return
@@ -175,8 +171,6 @@ function RowBody(props: {
         shared.onSelect(task.id)
         if (shared.activateOnClick) shared.activateRow(task.id)
       }}
-      onMouseOver={(event) => shared.setHover({ task, x: event.x, y: event.y })}
-      onMouseOut={() => shared.clearHoverForTask(task.id)}
     >
       {props.children}
     </box>
