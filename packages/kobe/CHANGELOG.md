@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.26
+
+### Patch Changes
+
+- [#659](https://github.com/Sma1lboy/rove/pull/659) [`f8ac6da`](https://github.com/Sma1lboy/rove/commit/f8ac6daa84cf2a0e5dadf2a34ac19ef288f2b6f2) Cover the destructive paths that could silently stop being guarded: deleting a
+  `dir` task on the daemon's `prepare → begin → finish` sequence (the path
+  `rove api delete` takes) never touches the user's own directory; `remove({
+deleteBranch })` is asserted against real git rather than a mock, including the
+  `-d`/`-D` choice and the read-HEAD-before-removal ordering; `rove reset --hard`
+  still refuses without `--yes`; and a worktree rollback removes a dirty
+  directory instead of leaving debris behind. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.25
 
 ### Patch Changes
