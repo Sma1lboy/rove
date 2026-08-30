@@ -148,42 +148,30 @@ describe("resolveEngineLaunchInit", () => {
     expect(resolveEngineLaunchInit(wt, wt, { kind: "none" })).toEqual({ initScript: "sh .kobe/init.sh" })
   })
 
-  // Why: issue #8 — a freshly created worktree task carries an auto-generated
-  // placeholder branch; ONLY its first prompt gets the rename coda. Prompts
-  // into existing sessions (send / handoff) ride "explicit" and stay verbatim
-  // — pinned above by the explicit test's exact-equality assertion.
-  test("new-task intent appends the branch-rename coda with the task id baked in", () => {
+  // Why: standing instructions for a worker — name your branch, report your
+  // outcome home — moved to the Rove agent skill, which the agent reads once.
+  // They used to be appended to EVERY new task's first prompt, which meant a
+  // user writing Chinese had their own words trailed by two English
+  // paragraphs, and the send-back half duplicated what SKILL.md already said.
+  //
+  // What must survive: the user's prompt reaches the engine unchanged, and
+  // the per-worktree FACTS (the missing-dependency warning below) still ride
+  // along, because no skill can know them.
+  test("new-task delivers the user's prompt verbatim — no appended instructions", () => {
     const wt = makeWorktree()
     const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }, "task-9").firstMessage
     expect(msg?.source).toBe("explicit")
-    expect(msg?.text.startsWith("fix the bug\n\n")).toBe(true)
-    expect(msg?.text).toContain("set-branch --task-id task-9 --branch")
+    expect(msg?.text).toBe("fix the bug")
   })
 
-  test("new-task without a threaded task id falls back to the $ROVE_TASK_ID env", () => {
+  test("no branch-rename or send-back instruction is injected any more", () => {
+    // Pins the deletion: these strings coming back means the coda returned,
+    // and the user's prompt is once again trailed by English boilerplate.
     const wt = makeWorktree()
-    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }).firstMessage
-    expect(msg?.text).toContain('set-branch --task-id "$ROVE_TASK_ID" --branch')
-  })
-
-  // Why: outcomes travel as chat back to the spawner, not stored reports —
-  // and the coda MUST teach the bare form. Only a bare `send` (no --task-id)
-  // resolves the dispatcher's exact tab; an explicit `--task-id` lands on the
-  // spawner task's canonical engine tab, which on a main task can be a
-  // different agent's session entirely (the 2026-08-24 misrouted reports).
-  test("new-task with a spawner appends the bare send-back coda; without one it does not", () => {
-    const wt = makeWorktree()
-    const spawned = resolveEngineLaunchInit(
-      wt,
-      wt,
-      { kind: "new-task", prompt: "fix the bug", spawnerTaskId: "spawner-1" },
-      "task-9",
-    ).firstMessage
-    expect(spawned?.text).toContain("spawned by Rove task spawner-1")
-    expect(spawned?.text).toContain('send --prompt "<succeeded|failed>')
-    expect(spawned?.text).not.toContain("send --task-id")
-    const solo = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "fix the bug" }, "task-9").firstMessage
-    expect(solo?.text).not.toContain("spawned by")
+    const msg = resolveEngineLaunchInit(wt, wt, { kind: "new-task", prompt: "修一下这个 bug" }, "task-9").firstMessage
+    expect(msg?.text).not.toContain("set-branch")
+    expect(msg?.text).not.toContain("spawned by Rove task")
+    expect(msg?.text).toBe("修一下这个 bug")
   })
 })
 
