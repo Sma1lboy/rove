@@ -1,6 +1,6 @@
 /**
- * Theme palettes for the web dashboard — the same 7 theme JSONs the TUI
- * ships (tui/context/theme/*.json), resolved to flat hex palettes in the
+ * Theme palettes for the web dashboard — the same bundled theme JSONs the
+ * TUI ships (tui/context/theme/*.json), resolved to flat hex palettes in the
  * web's token vocabulary (the `--color-*` custom properties in
  * packages/kobe-web/src/styles.css). One source of truth for brand colors:
  * a TUI theme switch fans out over the daemon's `ui-prefs` channel and the
@@ -15,6 +15,7 @@
 
 import claude from "../tui/context/theme/claude.json" with { type: "json" }
 import conductor from "../tui/context/theme/conductor.json" with { type: "json" }
+import { normalizeHex } from "../tui/context/theme/hex.ts"
 import tokyonight from "../tui/context/theme/tokyonight.json" with { type: "json" }
 
 type Variant = { dark: string; light: string }
@@ -53,11 +54,22 @@ const THEME_JSONS: Record<string, ThemeJson> = {
   tokyonight: tokyonight as ThemeJson,
 }
 
-function resolveHex(themeJson: ThemeJson, value: ColorValue | undefined, chain: string[] = []): string | null {
+/**
+ * Resolve a slot value to a canonical `#rrggbb` string (or `null` to skip),
+ * following def/slot refs and `{dark,light}` variants. A hex literal is run
+ * through the TUI's shared {@link normalizeHex} — the schema permits `#abc`,
+ * `#aabbcc`, and `#aabbccdd` (theme.schema.json), so shorthand must expand
+ * and the alpha byte must drop, exactly as `resolveTheme()`/`hex.ts` do for
+ * the TUI. Returning the literal verbatim (the earlier behavior) fed `#abc`
+ * and `#aabbccdd` straight into {@link mix}, which parses only 6 digits and
+ * so blended the wrong channels for derived slots. A malformed hex resolves
+ * to `null` (skip the option) rather than a garbage colour.
+ */
+export function resolveHex(themeJson: ThemeJson, value: ColorValue | undefined, chain: string[] = []): string | null {
   if (value === undefined) return null
   if (typeof value !== "string") return resolveHex(themeJson, value.dark, chain)
   if (value === "transparent" || value === "none") return null
-  if (value.startsWith("#")) return value
+  if (value.startsWith("#")) return normalizeHex(value)
   if (chain.includes(value)) return null
   const next = themeJson.defs?.[value] ?? themeJson.theme[value]
   return resolveHex(themeJson, next, [...chain, value])
@@ -68,8 +80,10 @@ function clampByte(n: number): number {
 }
 
 /** Blend `a` toward `b` by `t` (0..1) — for derived slots the theme JSONs
- *  don't carry (subtle text, hover states). */
-function mix(a: string, b: string, t: number): string {
+ *  don't carry (subtle text, hover states). Both inputs are canonical
+ *  `#rrggbb` (resolveHex normalizes, and this returns the same shape), so the
+ *  6-digit parse below is always exact. */
+export function mix(a: string, b: string, t: number): string {
   const pa = Number.parseInt(a.slice(1), 16)
   const pb = Number.parseInt(b.slice(1), 16)
   const ch = (p: number, shift: number): number => (p >> shift) & 0xff
