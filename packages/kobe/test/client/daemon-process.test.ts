@@ -92,17 +92,75 @@ describe("testDaemonResponds", () => {
     expect(await testDaemonResponds(path, 300)).toBe(false)
   })
 
-  // KNOWN GAP, pinned deliberately as the behavior that ships today rather
-  // than as a wish. `probeDaemonSocket` treats a hello that REJECTS the same
-  // as one that resolves (`.catch(() => true)`), so a daemon that accepts the
-  // connection and then drops it reads as "alive". A daemon in its shutdown
-  // path does exactly that — `daemon.stopping` destroys every client socket —
-  // so a client probing during that window is told the daemon is fine and
-  // returns a socket that is about to disappear. Change the verdict to
-  // "absent" and this expectation is what tells you the contract moved.
-  it("counts a connection dropped mid-hello as alive", async () => {
+  // CONTRACT CHANGE, 2026-08-30 (issue #83). This was a characterization
+  // test asserting "alive" — pinned as the behavior that shipped, with a
+  // note saying it was not the DESIRED behavior. It is now the assertion it
+  // always wanted to be.
+  //
+  // Before: the hello was `.catch(() => true)`, so a peer that dropped the
+  // connection counted as having ANSWERED. A daemon in its shutdown path
+  // does exactly that (`server.ts` close() destroys every client socket
+  // after broadcasting `daemon.stopping`), so a probe landing in that
+  // window reported a healthy daemon and handed its caller a socket that
+  // disappeared milliseconds later.
+  //
+  // After: a connection the peer drops before answering is `absent`. Not
+  // `wedged` — a closing daemon is LEAVING, so the caller should stop+spawn
+  // (what absent means), whereas wedged makes `ensureDaemonReachable` throw
+  // instead of recover when called from inside an engine session.
+  it("reports a connection dropped mid-hello as absent, not alive", async () => {
     const path = await listen((sock) => {
       setTimeout(() => sock.destroy(), 50)
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("absent")
+  })
+
+  // The shutdown shape verbatim: broadcast `daemon.stopping`, THEN destroy
+  // the socket. The event frame is not a response to our hello, so it must
+  // not be mistaken for one — the drop still decides the verdict.
+  it("reports a daemon that broadcasts daemon.stopping then drops as absent", async () => {
+    const path = await listen((sock) => {
+      sock.on("data", () => {
+        sock.write(`${JSON.stringify({ type: "event", name: "daemon.stopping", payload: {} })}\n`)
+        setTimeout(() => sock.destroy(), 10)
+      })
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("absent")
+  })
+
+  // The other half of the contract, and the reason the discriminator is
+  // "the CONNECTION died" rather than "the hello promise rejected". A daemon
+  // on an incompatible protocol answers hello with an ERROR frame: the
+  // promise rejects, but the daemon is running and serving other clients.
+  // Reading that as absent would send the caller into stop+spawn — killing
+  // a live daemon out from under its attached TUI, which is precisely the
+  // split-brain succession this file's scar tissue exists to prevent.
+  it("still counts a version-mismatch error reply as alive", async () => {
+    const path = await listen((sock) => {
+      sock.on("data", (chunk) => {
+        for (const line of chunk.toString().split("\n").filter(Boolean)) {
+          const frame = JSON.parse(line) as { id: string; name: string }
+          if (frame.name !== "hello") continue
+          sock.write(
+            `${JSON.stringify({
+              type: "response",
+              id: frame.id,
+              error: { name: "Error", message: "daemon is protocol v9; this client is v2. Upgrade Rove." },
+            })}\n`,
+          )
+        }
+      })
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("alive")
+  })
+
+  // A daemon that answers and only THEN closes (the ordinary case where our
+  // own `probe.close()` races the peer's teardown) answered — it is alive.
+  // The drop only decides the verdict when it beats the reply.
+  it("counts a reply followed by a drop as alive", async () => {
+    const path = await listen((sock) => {
+      helloResponder(sock)
+      setTimeout(() => sock.destroy(), 100)
     })
     expect(await probeDaemonSocket(path, 1000)).toBe("alive")
   })

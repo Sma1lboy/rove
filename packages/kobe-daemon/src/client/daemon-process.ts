@@ -294,16 +294,41 @@ export async function connectIfRunning(): Promise<KobeDaemonClient | null> {
   return client
 }
 
-/** What a socket probe found: answering, nothing there, or a socket that
- *  connects but won't answer hello (busy past the timeout, or truly hung). */
+/** What a socket probe found: answering, nothing usable there, or a socket
+ *  that connects but won't answer hello (busy past the timeout, or hung). */
 export type DaemonSocketState = "alive" | "absent" | "wedged"
 
 /**
  * Probe the daemon at `socketPath`: does it accept a connection, and does
- * it answer `hello` within `timeoutMs`? A socket that connects but never
- * replies is WEDGED — distinct from an absent one, and the reason we probe
- * `hello` rather than just `connect` (KOB). Any reply (even a
- * version-mismatch error) counts as alive; only a timeout means wedged.
+ * it answer `hello` within `timeoutMs`? Three outcomes, and each one is a
+ * different question about the SAME socket:
+ *
+ *  - `alive` — the daemon ANSWERED. Any response frame counts, including a
+ *    version-mismatch error: an old daemon that talks back is running and
+ *    serving other clients, and the caller's real connect is where that
+ *    mismatch belongs. Never kill something that answered.
+ *  - `wedged` — connected, STILL connected, and silent past the deadline.
+ *    Busy or genuinely hung; the caller decides which (see
+ *    {@link ensureDaemonReachable}'s pid check).
+ *  - `absent` — nothing usable here: the connect failed, OR the peer
+ *    dropped the connection before answering.
+ *
+ * That last clause is the 2026-08-30 fix (issue #83). A daemon in its
+ * shutdown path destroys every client socket (`server.ts` close()), so a
+ * probe landing in that window used to connect, get dropped, and — because
+ * the hello was `.catch(() => true)` — be reported ALIVE. The caller then
+ * held a socket that vanished milliseconds later. A closing daemon is
+ * `absent`, not `wedged`: it is leaving, so stop+spawn is the right
+ * recovery, whereas `wedged` would make `ensureDaemonReachable` throw
+ * inside an engine session rather than recover.
+ *
+ * The discriminator is the CONNECTION dying, not the promise rejecting —
+ * conflating the two is what would kill a version-mismatched daemon, whose
+ * hello rejects while the daemon is perfectly alive. We read it off the
+ * client's `close` lifecycle instead: `onSocketClose` fails the pending
+ * request and emits `close` in the same synchronous step, so the flag is
+ * set before the awaited race resumes on the following microtask.
+ *
  * Exported for tests.
  */
 export async function probeDaemonSocket(
@@ -317,6 +342,10 @@ export async function probeDaemonSocket(
     probe.close()
     return "absent"
   }
+  let droppedByPeer = false
+  const offClose = probe.onLifecycle("close", () => {
+    droppedByPeer = true
+  })
   const replied = probe
     .request("hello", { protocolVersion: DAEMON_PROTOCOL_VERSION })
     .then(() => true)
@@ -325,10 +354,16 @@ export async function probeDaemonSocket(
   const timedOut = new Promise<boolean>((resolve) => {
     timer = setTimeout(() => resolve(false), timeoutMs)
   })
-  const alive = await Promise.race([replied, timedOut])
+  const settled = await Promise.race([replied, timedOut])
   if (timer) clearTimeout(timer)
+  // Unsubscribe before `close()`: plain listener hygiene. `close()` nulls the
+  // socket first, so its own OS close event trips `onSocketClose`'s stale
+  // guard and emits nothing — but the verdict below must depend on the PEER
+  // dropping us, never on our own teardown, so don't leave the listener armed.
+  offClose()
   probe.close()
-  return alive ? "alive" : "wedged"
+  if (droppedByPeer) return "absent"
+  return settled ? "alive" : "wedged"
 }
 
 /** Back-compat boolean view of {@link probeDaemonSocket}. */
