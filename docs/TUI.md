@@ -97,11 +97,6 @@ row or one of its tab rows:
   Task, a Task moves within its repo group, and a project-main row moves the
   whole project. Moves stop at the edges (no wrap-around), and the new order
   persists across restarts.
-- `a` archives a managed or directory Task after confirmation, stopping its
-  hosted sessions but preserving its directory, branch, tab snapshot, and
-  engine history. Archived Tasks leave the sidebar entirely; they remain
-  listed by `rove api list` and on the web board, and unarchiving from there
-  brings the row back.
 - `d` is kind-aware: it forgets a project-main row, removes only the Rove
   record for a directory Task, or removes a managed Task and its worktree after
   the dirty-worktree safety check.

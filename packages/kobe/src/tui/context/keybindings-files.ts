@@ -46,9 +46,9 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "enter" },
   },
   {
-    // `[` / `]` cycle the All / Changes tabs. Bracket pair matches
-    // the sidebar's Working/Archives view-switcher so the muscle
-    // memory is consistent across panes.
+    // `[` / `]` cycle the All / Changes tabs. A bracket pair, the same
+    // shape as the `ctrl+[` / `ctrl+]` terminal-tab cycle one tier up —
+    // brackets mean "adjacent tab" everywhere.
     // POSITIONAL: [previous tab, next tab] pairs (slot dispatch).
     id: "files.tab",
     scope: "files",
