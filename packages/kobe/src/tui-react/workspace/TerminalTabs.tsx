@@ -37,8 +37,8 @@
 
 import type { TranscriptActivity } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
-import { engineLaunchArgv } from "@/engine/engine-presets"
-import { withClaudeSessionId } from "@/engine/interactive-command"
+import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
+
 import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@/state/vendor-prefs"
@@ -172,7 +172,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
    *  the tmux `@kobe_session_id` stash. */
   const pinSession = (s: TabsState, vendor: VendorId | undefined): TabsState => {
     const base = vendor ? engineLaunchArgv({ vendor, effort: props.modelEffort }) : props.command
-    const { sessionId } = withClaudeSessionId(base, vendor ?? props.vendor)
+    const { sessionId } = withPinnedSessionId(base, vendor ?? props.vendor)
     return setTabSessionId(s, s.activeId, sessionId)
   }
 

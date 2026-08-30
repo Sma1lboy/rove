@@ -12,7 +12,10 @@ import {
   buildEngineSessionLaunch,
 } from "@/engine/session-launch"
 import { trustEngineWorktree } from "@/engine/trust-worktree"
+import { engineResumeArgv, withPinnedSessionId } from "../../engine/engine-presets"
 import { forkSessionArgv } from "../../engine/interactive-command"
+
+import type { VendorId } from "../../types/vendor"
 import type { TabSpawn } from "./terminal-tab-spawn"
 import type { EngineTab, TabsState, TerminalTab } from "./terminal-tabs-core"
 
@@ -22,13 +25,19 @@ import type { EngineTab, TabsState, TerminalTab } from "./terminal-tabs-core"
  * exists in the registry. A fork tab (see `EngineTab.forkFrom`) opens ON
  * the source conversation's history — engine-owned flag shapes, and it only
  * applies to the tab's FIRST spawn (afterwards the fork is its own session,
- * resumed by id like any other). No pinned session id → the bare command
- * (codex/custom vendors). A tab that already spawned but has NO live PTY
- * (host restart, degrade re-acquire) resumes its conversation; otherwise the
- * id is pinned fresh — the flag shapes ride `withClaudeSessionId`'s existing
- * per-vendor contract, verbatim from the component it was extracted from.
+ * resumed by id like any other). No recorded session id → the bare command.
+ * A tab that already spawned but has NO live PTY (host restart, degrade
+ * re-acquire) resumes its conversation; otherwise the id is pinned fresh.
+ * Every flag shape comes from the engine's own `sessionIdentity`
+ * declaration — `fallbackVendor` is the TASK's engine, used when the tab
+ * pinned no vendor of its own.
  */
-export function engineTabArgv(tab: EngineTab, base: readonly string[], live: boolean): readonly string[] {
+export function engineTabArgv(
+  tab: EngineTab,
+  base: readonly string[],
+  live: boolean,
+  fallbackVendor?: VendorId,
+): readonly string[] {
   if (tab.forkFrom && !tab.spawned && !live) {
     // `tab.vendor` is always concrete on a fork tab (the chord pins it) —
     // guard anyway so an inherited-vendor tab can never get claude's flags.
@@ -36,8 +45,17 @@ export function engineTabArgv(tab: EngineTab, base: readonly string[], live: boo
     if (forked) return forked
   }
   if (!tab.sessionId) return base
-  if (tab.spawned && !live) return [...base, "--resume", tab.sessionId]
-  return [...base, "--session-id", tab.sessionId]
+  const vendor = tab.vendor ?? fallbackVendor
+  // Restart / degrade re-acquire: the conversation exists, so REOPEN it with
+  // whatever verb this engine declared (claude `--resume <id>`, kimi
+  // `-S <id>`, codex `resume <id>`). An engine with no resume verb answers
+  // null and gets the bare command — a fresh conversation, honestly, rather
+  // than a flag that would kill the launch.
+  if (tab.spawned && !live) return engineResumeArgv(base, vendor, tab.sessionId) ?? base
+  // Fresh spawn: re-pin the recorded id, but only for engines that accept a
+  // caller-set one. Kimi's id was DISCOVERED from its session store, so
+  // passing it back as a pin is not a thing its CLI can do.
+  return withPinnedSessionId(base, vendor, () => tab.sessionId as string).argv
 }
 
 /**
@@ -93,7 +111,7 @@ export function engineTabSpawnFor(
     task: ref ? { ...opts.task, id: ref.id, kind: "task" } : opts.task,
     worktreePath: ref?.worktree ?? opts.worktreePath,
     shell,
-    argv: engineTabArgv(tab, base, live),
+    argv: engineTabArgv(tab, base, live, opts.task.vendor),
     promptIntent,
     protocolGates: opts.protocolGates,
     // No firstMessageDelivery override: the registry contract applies, so a

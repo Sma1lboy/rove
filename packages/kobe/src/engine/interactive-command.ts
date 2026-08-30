@@ -23,9 +23,9 @@
  * the built-in default.
  */
 
-import { randomUUID } from "node:crypto"
 import { kobeCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
+import { controlsOwnSession } from "@/engine/session-identity"
 import { autoStatusEnabled } from "@/state/auto-status"
 import { dispatcherEnabled } from "@/state/dispatcher"
 import { getPersistedString } from "@/state/repos"
@@ -188,38 +188,14 @@ export function argvHasFlag(argv: readonly string[], flag: string): boolean {
 }
 
 /**
- * Claude flags that already pin / fork the conversation's session. If the
- * launch command carries one of these, we must NOT also append our own
- * `--session-id` (claude would reject two, or our id would lose to the
- * resumed one). Covers both long and short forms.
+ * `withClaudeSessionId` lived here (removed 2026-08-29). Its first line was
+ * `coerceVendorId(vendor) !== "claude"`, so only an engine literally NAMED
+ * claude ever got a session id — kimi tabs and custom wrappers (`claudecpa`)
+ * silently got none and lost their conversation on every restart. The pin
+ * flag, the "already controls its own session" flags, and the resume verb
+ * are now DECLARED by each engine (`engine/session-identity.ts`) and read
+ * through `withPinnedSessionId` / `engineResumeArgv` in `registry.ts`.
  */
-const CLAUDE_SESSION_CONTROL_FLAGS = ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"] as const
-
-/** The command already controls its own claude session (either flag form). */
-function pinsClaudeSession(argv: readonly string[]): boolean {
-  return CLAUDE_SESSION_CONTROL_FLAGS.some((flag) => argvHasFlag(argv, flag))
-}
-
-/**
- * For a Claude launch, append a kobe-generated `--session-id <uuid>` so the
- * hosted session can be mapped to its transcript (recorded as the
- * `@kobe_session_id` window option) and auto-named from its first prompt
- * (KOB — per-tab naming). Returns `{ argv, sessionId }` where `sessionId`
- * is the forced UUID, or `null` when not applicable:
- *   - the vendor isn't Claude (Codex/Copilot can't take a caller-set id), or
- *   - the command already controls its session (`--resume`/`--continue`/…).
- * `--session-id` is a documented Claude flag (`<uuid>` required); we leave a
- * non-default custom command that pins its own session untouched.
- */
-export function withClaudeSessionId(
-  argv: readonly string[],
-  vendor: string | undefined,
-): { argv: readonly string[]; sessionId: string | null } {
-  if (coerceVendorId(vendor) !== "claude") return { argv, sessionId: null }
-  if (pinsClaudeSession(argv)) return { argv, sessionId: null }
-  const sessionId = randomUUID()
-  return { argv: [...argv, "--session-id", sessionId], sessionId }
-}
 
 /**
  * Engines whose CLI can BRANCH a conversation into a new session. Probed
@@ -249,7 +225,7 @@ export function canForkSession(vendor: VendorId | undefined): boolean {
  * Returns null when the vendor has no fork verb (copilot/custom), there is
  * no source id, or a claude base already controls its own session (a second
  * `--resume` would make claude refuse to launch — the user's override wins,
- * the {@link withClaudeSessionId} precedent) — the caller then opens an
+ * the user-flag-wins precedent) — the caller then opens an
  * ordinary tab on the base command.
  */
 export function forkSessionArgv(
@@ -261,7 +237,7 @@ export function forkSessionArgv(
   if (!sourceSessionId) return null
   const v: VendorId = coerceVendorId(vendor)
   if (v === "claude") {
-    if (pinsClaudeSession(base)) return null
+    if (controlsOwnSession(engineEntry(v).sessionIdentity, base)) return null
     const forked = [...base, "--resume", sourceSessionId, "--fork-session"]
     return newSessionId ? [...forked, "--session-id", newSessionId] : forked
   }
@@ -390,8 +366,7 @@ export function worktreeProtocol(
  * Gates, in order: there is a task to report, the launch targets claude
  * (other vendors have no equivalent flag yet — their cards move by hand
  * until their adapters grow an injection point), a custom command that
- * already sets the flag is left alone (the {@link withClaudeSessionId}
- * precedent), and at least one protocol switch is on.
+ * already sets the flag is left alone (the user-flag-wins precedent), and at least one protocol switch is on.
  */
 export function withWorktreeProtocol(
   argv: readonly string[],

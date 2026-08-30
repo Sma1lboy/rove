@@ -7,8 +7,8 @@
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { withClaudeSessionId } from "../../engine/interactive-command.ts"
+import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
+
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
@@ -71,12 +71,14 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
     // only; the task's own engine is left alone.
     const launchVendor = target.tabVendor ?? target.vendor
     const launchCommand = target.tabCommand ?? (target.tabVendor ? undefined : target.command)
-    // Pin the conversation's session id up front (claude only — the same
-    // `withClaudeSessionId` contract the TUI launches with), so a LATER
-    // reattach after a pty-host restart can resume THIS conversation
-    // instead of opening a blank one. The id lands in the persisted tab
-    // snapshot below once the session actually started.
-    const { argv, sessionId } = withClaudeSessionId(
+    // Pin the conversation's session id up front when the engine accepts
+    // one (the same `withPinnedSessionId` contract the TUI launches with),
+    // so a LATER reattach after a pty-host restart can resume THIS
+    // conversation instead of opening a blank one. Engines that mint their
+    // own id (kimi/codex) answer null here and are discovered post-spawn
+    // instead. The id lands in the persisted tab snapshot below once the
+    // session actually started.
+    const { argv, sessionId } = withPinnedSessionId(
       engineLaunchArgv({ command: launchCommand, vendor: launchVendor, effort: target.modelEffort }),
       launchVendor,
     )
