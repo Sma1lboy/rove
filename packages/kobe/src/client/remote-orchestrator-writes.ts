@@ -8,6 +8,7 @@
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import type { DeferredPromptRecord } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
@@ -148,6 +149,18 @@ export async function markAttentionReadOp(
     at,
   })
   return res.updated
+}
+
+/** Read one deferred prompt back by id (issue #78 B-layer exit path). */
+export async function getDeferredPromptOp(client: KobeDaemonClient, id: string): Promise<DeferredPromptRecord | null> {
+  const res = await client.request<{ record: DeferredPromptRecord | null }>("deferredPrompt.get", { id })
+  return res.record
+}
+
+/** Release one deferred prompt after its text was inserted (or on dismiss). */
+export async function resolveDeferredPromptOp(client: KobeDaemonClient, id: string): Promise<boolean> {
+  const res = await client.request<{ removed: boolean }>("deferredPrompt.resolve", { id })
+  return res.removed
 }
 
 /** Land a task's branch back into its base repo (`task.land`). Merge or

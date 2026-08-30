@@ -22,6 +22,7 @@ import { startDaemonCollectors } from "./collectors.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { DeferredPromptsStore, defaultDeferredPromptsPath } from "./deferred-prompts-store.ts"
 import { EngineEventLog } from "./engine-events-log.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import {
@@ -156,6 +157,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     inbox
       .deleteTaskBestEffort(taskId)
       .finally(() => agentTurns.deleteTask(taskId).catch((err) => logDaemonError("agent-turns-delete", err)))
+      .finally(() => deferredPrompts.deleteTask(taskId).catch((err) => logDaemonError("deferred-prompts-delete", err)))
       .finally(() => activity.clearTask(taskId))
   const deletions = new TaskDeletionRunner(orch, runtime, clearTaskState)
   // Daemon-owned issue tracker (web Issues panel) — a single store keyed by
@@ -166,6 +168,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // homeDir isolation as the issue store. Written by `note.file`, read back at
   // worktree launch so a fresh session starts with the repo's known gotchas.
   const notes = new NotesStore(defaultNotesStorePath(options.homeDir))
+  // Deferred prompts (issue #78 B-layer) — the delivery gate hands blocked
+  // prompts to daemon ownership; same homeDir isolation as the other stores.
+  const deferredPrompts = new DeferredPromptsStore(defaultDeferredPromptsPath(options.homeDir))
   // Daemon-owned scheduled automations. The sweep that fires them is started
   // with the other collectors; this only loads the persisted schedules.
   const automations = await initAutomationsStore(options.homeDir)
@@ -389,6 +394,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       deletions,
       issues,
       notes,
+      deferredPrompts,
       automations,
       workItems,
       selfLink,
