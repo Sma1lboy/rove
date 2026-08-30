@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.9.40
+
+### Patch Changes
+
+- [#673](https://github.com/Sma1lboy/rove/pull/673) [`2b14a5a`](https://github.com/Sma1lboy/rove/commit/2b14a5a5296689a792c5b8b64547e1c01091688b) Fix four keyboard gates that let a key look live while doing nothing.
+
+  Typing into the sidebar search box no longer triggers the `s`, `x`, `u` and `q` chords — a query containing any of those letters used to dispatch Settings, Worktrees or the Update page instead of reaching the box, because the search reader only sees keystrokes the keymap left unclaimed.
+
+  The four `diff.review.*` rows in the keybindings table are now rejected as non-rebindable. They are raw bindings that no keymap handler reads, so an override used to apply cleanly, update the help panel, and change nothing.
+
+  The Inbox footer dims its `d clear` hint on RECENT rows, which have nothing to drop.
+
+  `h` and `l` now fold untracked directories on the Files Changes tab. Both were dead there — `l` was rejected before it reached the row and `h` was gated off the tab entirely — leaving those rows expandable only by mouse or `enter`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#672](https://github.com/Sma1lboy/rove/pull/672) [`58780e1`](https://github.com/Sma1lboy/rove/commit/58780e13dd7fc835accbcee0788c09b911fd4949) The task tree stops going quiet when you run many tasks across many repos
+
+  Three things in the sidebar only broke once the rail was full, which is when
+  you most need to read it.
+
+  Fanning out with `--count N` used to look like nothing was happening. Every
+  sibling starts life with the same placeholder name and no branch, and on a
+  large repo `git worktree add` runs for minutes — so five identical, motionless
+  rows was all you saw for the whole wait. The daemon was reporting progress the
+  entire time; only the row that could have shown it was a tab row that does not
+  exist until the worktree is ready. A worktree being created is now visible on
+  the worktree row itself, so a fan-out animates from the moment you launch it.
+
+  Two repos whose folders share a name — `~/work/api` and `~/oss/api` — drew two
+  headers both reading `api`, while a toast that had just named one of them said
+  `work/api`. Headers now include enough of the path to tell them apart, and only
+  when there is something to tell apart.
+
+  `/` search could not find a project's own main row by the branch printed on it,
+  because that name is read live from the checkout rather than stored. A
+  directory row had the mirror problem: it displays its path but was searchable
+  only by an auto-generated name it never shows. Search now matches what the row
+  actually displays, in both directions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.39
 
 ### Patch Changes
