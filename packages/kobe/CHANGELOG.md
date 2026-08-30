@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.9
+
+### Patch Changes
+
+- [#640](https://github.com/Sma1lboy/rove/pull/640) [`89e3f38`](https://github.com/Sma1lboy/rove/commit/89e3f3830699ef8ec99114f153304d93fb8886d8) Internal: split the daemon composition root (`server.ts`) into a `stores.ts` store-wiring module and add render-track coverage for the deferred-prompt inbox exit path and deferral toast. No user-visible behavior change — completes the CI gates for the issue [#78](https://github.com/Sma1lboy/rove/issues/78) B layer. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.8
 
 ### Patch Changes
