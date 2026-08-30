@@ -96,8 +96,8 @@ async function rotateClientLogIfNeeded(path: string): Promise<void> {
  * On the first write of a fresh home the `.kobe/` dir may not exist yet — an
  * ENOENT triggers one mkdir + retry; any other failure warns once.
  */
-function append(line: string): void {
-  const path = defaultClientLogPath()
+function append(line: string, logPath?: string): void {
+  const path = logPath ?? defaultClientLogPath()
   writeChain = writeChain
     .then(async () => {
       await rotateClientLogIfNeeded(path)
@@ -120,9 +120,16 @@ export function flushClientLog(): Promise<void> {
   return writeChain
 }
 
-/** Record a tagged client info line (connect, subscribe, reconnect, fallback…). */
-export function logClient(subsystem: string, message: string): void {
-  append(formatClientEntry(subsystem, message))
+/**
+ * Record a tagged client info line (connect, subscribe, reconnect, fallback…).
+ *
+ * `logPath` overrides the ambient `<home>/.rove/client.log`. Callers that
+ * already know which home they are operating on (a store constructed with an
+ * explicit `homeDir`) MUST pass it: resolving the ambient default there would
+ * write one home's diagnostics into another's log.
+ */
+export function logClient(subsystem: string, message: string, logPath?: string): void {
+  append(formatClientEntry(subsystem, message), logPath)
 }
 
 /** Record a tagged client error line with the error's message + stack. */

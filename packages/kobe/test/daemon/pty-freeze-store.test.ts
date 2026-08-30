@@ -6,10 +6,12 @@
  * ring cap on thaw, and the reset semantics (clear = starts fresh).
  */
 
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
+  FREEZE_MAX_RECORDS,
+  FREEZE_TTL_MS,
   type FreezeableSession,
   type FrozenPtySession,
   clearFrozenSessions,
@@ -127,5 +129,97 @@ describe("pty freeze store", () => {
     const thawed = thawSession(record, 1024)
     expect(thawed?.restored).toBe(true)
     expect(thawed?.bytes).toBe(0)
+  })
+})
+
+describe("existing-permission remediation", () => {
+  // The whole point: `mode:` on mkdirSync/writeFileSync binds only at
+  // CREATION. An install that froze sessions before PR #662 keeps a 0755
+  // directory and 0644 records, so a mode argument alone fixes nobody who
+  // was already exposed. Asserting the call arguments would pass while the
+  // bug persists — these read the real filesystem bits back.
+  function modeOf(path: string): string {
+    return (statSync(path).mode & 0o777).toString(8)
+  }
+
+  it("tightens a pre-existing 0755 directory and its 0644 records", () => {
+    const legacy = join(dir, "legacy")
+    mkdirSync(legacy, { mode: 0o755 })
+    chmodSync(legacy, 0o755) // umask can shave the mkdir mode; pin it
+    const record = join(legacy, "t1%3A%3Atab-1.json")
+    writeFileSync(record, JSON.stringify(freezeSession(fakeSession())), { encoding: "utf8", mode: 0o644 })
+    chmodSync(record, 0o644)
+
+    expect(modeOf(legacy)).toBe("755")
+    expect(modeOf(record)).toBe("644")
+
+    fileFreezeSink(legacy)
+
+    expect(modeOf(legacy)).toBe("700")
+    expect(modeOf(record)).toBe("600")
+  })
+
+  it("tightens every pre-existing record, not just the one that gets re-frozen", () => {
+    const legacy = join(dir, "many")
+    mkdirSync(legacy, { mode: 0o755 })
+    const names = ["a%3A%3Atab-1.json", "b%3A%3Atab-1.json", "c%3A%3Atab-1.json"]
+    for (const name of names) {
+      writeFileSync(join(legacy, name), JSON.stringify(freezeSession(fakeSession())), "utf8")
+      chmodSync(join(legacy, name), 0o644)
+    }
+
+    // Re-freeze only ONE session; the other two are the upgraded-but-never-
+    // touched-again case that a forward-only fix leaves world-readable.
+    fileFreezeSink(legacy).save(freezeSession(fakeSession({ key: "a::tab-1" })))
+
+    for (const name of names) expect(modeOf(join(legacy, name))).toBe("600")
+  })
+
+  it("survives a directory that does not exist yet", () => {
+    expect(() => fileFreezeSink(join(dir, "absent"))).not.toThrow()
+  })
+})
+
+describe("pruning stale + over-cap records", () => {
+  const DAY = 24 * 60 * 60 * 1000
+
+  function writeRecord(key: string, updatedAt: string): void {
+    fileFreezeSink(dir).save({ ...freezeSession(fakeSession({ key })), updatedAt })
+  }
+
+  it("deletes records past the TTL instead of thawing them", () => {
+    const now = Date.parse("2026-08-30T00:00:00.000Z")
+    writeRecord("fresh::tab-1", new Date(now - DAY).toISOString())
+    // A task deleted while the host was down: `pty.sweep` only reaches a
+    // RUNNING host, so nothing ever removed this record.
+    writeRecord("orphan::tab-1", new Date(now - 30 * DAY).toISOString())
+
+    const loaded = loadFrozenSessions(dir, now)
+
+    expect(loaded.map((r) => r.key)).toEqual(["fresh::tab-1"])
+    // Deleted, not merely skipped — otherwise every later boot re-reads it.
+    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toHaveLength(1)
+  })
+
+  it("keeps the newest FREEZE_MAX_RECORDS and deletes the rest", () => {
+    const now = Date.parse("2026-08-30T00:00:00.000Z")
+    const total = FREEZE_MAX_RECORDS + 5
+    for (let i = 0; i < total; i++) {
+      // i=0 newest, ascending index = older.
+      writeRecord(`t${i}::tab-1`, new Date(now - i * 60_000).toISOString())
+    }
+
+    const loaded = loadFrozenSessions(dir, now)
+
+    expect(loaded).toHaveLength(FREEZE_MAX_RECORDS)
+    expect(loaded[0]?.key).toBe("t0::tab-1")
+    expect(loaded.map((r) => r.key)).not.toContain(`t${total - 1}::tab-1`)
+    expect(readdirSync(dir).filter((n) => n.endsWith(".json"))).toHaveLength(FREEZE_MAX_RECORDS)
+  })
+
+  it("keeps a record right at the TTL edge", () => {
+    const now = Date.parse("2026-08-30T00:00:00.000Z")
+    writeRecord("edge::tab-1", new Date(now - FREEZE_TTL_MS).toISOString())
+    expect(loadFrozenSessions(dir, now).map((r) => r.key)).toEqual(["edge::tab-1"])
   })
 })

@@ -22,6 +22,8 @@ import {
   mergeTasksWithDisk,
   normalizeIndex,
   readDiskIndex,
+  recoverUnsupportedVersion,
+  warnManifestRecovery,
 } from "./store-codec.ts"
 import { ulid } from "./ulid.ts"
 
@@ -129,11 +131,22 @@ export class TaskIndexStore {
       // from this empty recovery base and replaces the corrupt file, so
       // without a copy the user's tasks are gone for good (PR #276).
       const backup = await backupCorruptManifest(sourcePath)
-      console.warn(
+      warnManifestRecovery(
         `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
           backup ? ` Original bytes backed up to ${backup}.` : " Backup copy failed; the stale file is left in place."
         }`,
+        sourcePath,
       )
+      this.cache = { version: CURRENT_VERSION, tasks: [] }
+      this.loaded = true
+      this.notifyListeners()
+      return this.snapshot()
+    }
+
+    // A future build's manifest empties the index just as thoroughly as a
+    // corrupt one does, and the next save replaces the file — so its bytes
+    // get the same copy-aside before we recover empty.
+    if (await recoverUnsupportedVersion(parsed, sourcePath)) {
       this.cache = { version: CURRENT_VERSION, tasks: [] }
       this.loaded = true
       this.notifyListeners()

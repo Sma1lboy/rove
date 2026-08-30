@@ -27,7 +27,7 @@
  * contract); a bare SIGTERM / crash / reboot leaves it for the next host.
  */
 
-import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { defaultPtyFreezeDir } from "./paths.ts"
@@ -167,39 +167,133 @@ function parseRecord(raw: string): FrozenPtySession | null {
   }
 }
 
-/** Every restorable record in `dir`; missing/corrupt entries read as none. */
-export function loadFrozenSessions(dir = defaultPtyFreezeDir()): FrozenPtySession[] {
+/**
+ * How stale a record may be before a host boot discards it instead of
+ * thawing it. Restore exists so the session you were just looking at
+ * survives a host restart; a snapshot nobody has touched in a fortnight is
+ * a dead task's leftovers, not a work scene. Two weeks is well past any
+ * plausible "I'll come back to that tab on Monday" and still short enough
+ * that the directory can't grow without bound.
+ */
+export const FREEZE_TTL_MS = 14 * 24 * 60 * 60 * 1000
+
+/**
+ * Hard ceiling on restored sessions, newest first. The TTL handles the
+ * ordinary case; this bounds the pathological one (a burst of tasks inside
+ * the window). 64 is several times any realistic number of open terminal
+ * tabs, and at the 512KB scrollback cap it bounds the boot read at ~32MB
+ * rather than the unbounded read that made a 54MB directory possible.
+ */
+export const FREEZE_MAX_RECORDS = 64
+
+/** Newest-first by `updatedAt`; unparseable stamps sort oldest. */
+function updatedAtMs(record: FrozenPtySession): number {
+  const t = Date.parse(record.updatedAt)
+  return Number.isFinite(t) ? t : 0
+}
+
+/**
+ * Every restorable record in `dir`; missing/corrupt entries read as none.
+ *
+ * Pruned on the way out — expired (older than {@link FREEZE_TTL_MS}) and
+ * over-cap records are DELETED, not merely skipped. Without this the
+ * directory only ever grows: `pty.sweep` reaches only a RUNNING host, so a
+ * task deleted while the host was down leaves its record behind forever,
+ * and every subsequent boot pays the full read AND thaws the dead task's
+ * session back into the live table.
+ */
+export function loadFrozenSessions(dir = defaultPtyFreezeDir(), now = Date.now()): FrozenPtySession[] {
   let names: string[]
   try {
     names = readdirSync(dir)
   } catch {
     return []
   }
-  const out: FrozenPtySession[] = []
+  const kept: Array<{ name: string; record: FrozenPtySession }> = []
+  const stale: string[] = []
   for (const name of names) {
     if (!name.endsWith(".json")) continue
+    let record: FrozenPtySession | null = null
     try {
-      const record = parseRecord(readFileSync(join(dir, name), "utf8"))
-      if (record) out.push(record)
+      record = parseRecord(readFileSync(join(dir, name), "utf8"))
     } catch {
       // One unreadable file must not cost the rest.
     }
+    if (!record) continue
+    if (now - updatedAtMs(record) > FREEZE_TTL_MS) stale.push(name)
+    else kept.push({ name, record })
   }
-  return out
+  kept.sort((a, b) => updatedAtMs(b.record) - updatedAtMs(a.record))
+  for (const over of kept.splice(FREEZE_MAX_RECORDS)) stale.push(over.name)
+  for (const name of stale) {
+    try {
+      rmSync(join(dir, name), { force: true })
+    } catch {
+      /* best-effort: a record we couldn't delete is simply skipped this boot */
+    }
+  }
+  return kept.map((entry) => entry.record)
+}
+
+/** Owner-only. See {@link tightenExistingPermissions} for why the mode
+ *  arguments on mkdir/write are not enough on their own. */
+const DIR_MODE = 0o700
+const FILE_MODE = 0o600
+
+/**
+ * Re-`chmod` the freeze directory and every record already in it.
+ *
+ * The `mode` options on `mkdirSync` / `writeFileSync` apply ONLY when the
+ * path is created — for a path that already exists they are a silent no-op.
+ * So an install that had been freezing sessions before those options landed
+ * keeps its 0755 directory and its 0644 records forever: the directory stays
+ * traversable by every local user, and any session not re-frozen since the
+ * upgrade keeps world-readable scrollback. A one-time remediation is what
+ * actually closes that, and it has to run for the already-affected install,
+ * not only for files created from here on.
+ *
+ * Best-effort and idempotent, like every other write in this module: a
+ * chmod that fails (foreign owner, read-only mount) must never take the
+ * terminal down.
+ */
+export function tightenExistingPermissions(dir: string): void {
+  try {
+    chmodSync(dir, DIR_MODE)
+  } catch {
+    /* absent, or not ours to chmod — the mkdir below still creates it 0700 */
+  }
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch {
+    return // no directory yet: nothing pre-existing to tighten
+  }
+  for (const name of names) {
+    if (!name.endsWith(".json")) continue
+    try {
+      chmodSync(join(dir, name), FILE_MODE)
+    } catch {
+      /* one stubborn file must not cost the rest */
+    }
+  }
 }
 
 /** The real sink: per-session atomic files under `dir`. Never throws. */
 export function fileFreezeSink(dir = defaultPtyFreezeDir()): PtyFreezeSink {
+  // Remediate on construction (once per host boot), not per save: the mode
+  // arguments below only bind at creation time, so a pre-existing 0755
+  // directory / 0644 record would otherwise stay wide open forever.
+  tightenExistingPermissions(dir)
   return {
     save(record) {
       try {
         // 0700/0600: `ringB64` is the session's whole scrollback, so this file
         // holds every byte the agent printed — `env` output, `cat`ed credential
         // files, a git remote carrying a PAT. Owner-only, like a private key.
-        mkdirSync(dir, { recursive: true, mode: 0o700 })
+        mkdirSync(dir, { recursive: true, mode: DIR_MODE })
         const target = recordFile(dir, record.key)
         const staging = `${target}.${process.pid}.tmp`
-        writeFileSync(staging, JSON.stringify(record), { encoding: "utf8", mode: 0o600 })
+        writeFileSync(staging, JSON.stringify(record), { encoding: "utf8", mode: FILE_MODE })
         renameSync(staging, target)
       } catch {
         /* best-effort by contract — a freeze hiccup never kills the terminal */
