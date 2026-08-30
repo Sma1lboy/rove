@@ -54,7 +54,9 @@ describe("SettingsDialog", () => {
     expect(text).toContain("5000ms second-stroke window")
     expect(text).toContain("On-screen entries + complete guide (default)")
     expect(text).toContain("Complete guide only")
-    expect(text).not.toContain("Fixed (not rebindable)") // FIXED_BINDING_IDS is empty
+    expect(text).toContain("Fixed (not rebindable)") // the four diff.review.* raw bindings
+    expect(text).toContain("diff.review.cursor")
+    expect(text).toContain("review.send") // the line wraps mid-id at this width
     text = await press("j") // → Feedback
     expect(text).toContain("GitHub Discussion")
     text = await press("j") // → Dev

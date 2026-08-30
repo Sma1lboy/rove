@@ -43,6 +43,16 @@ const statusRowsFixture: Row[] = [
   { kind: "status", path: "bin.dat", status: "A", added: null, deleted: null },
 ]
 
+// A small Changes-tab list: a plain modified file, then an untracked
+// directory (collapsed) with its children following once expanded.
+const changesRows: Row[] = [
+  { kind: "status", path: "src/index.ts", status: "M", added: 12, deleted: 202 },
+  { kind: "status", path: "untracked/", status: "?", added: 3, deleted: 0, fileCount: 2, expanded: false },
+  { kind: "status", path: "untracked/a.ts", status: "?", added: 1, deleted: 0, child: true },
+  { kind: "status", path: "untracked/b.ts", status: "?", added: 2, deleted: 0, child: true },
+]
+const changesRowsOpen: Row[] = changesRows.map((row) => (row.path === "untracked/" ? { ...row, expanded: true } : row))
+
 describe("statusToken", () => {
   test("maps every status to its theme token", () => {
     expect(statusToken("M")).toBe("warning")
@@ -120,6 +130,16 @@ describe("expandOrDescendAction (`l`)", () => {
     expect(expandOrDescendAction(treeRows, 1)).toBeNull()
     expect(expandOrDescendAction(treeRows, 99)).toBeNull()
   })
+  test("Changes-tab untracked dir (collapsed) → expand", () => {
+    expect(expandOrDescendAction(changesRows, 1)).toEqual({ type: "expand", path: "untracked/" })
+  })
+  test("Changes-tab untracked dir (open) → step onto its first child", () => {
+    expect(expandOrDescendAction(changesRowsOpen, 1)).toEqual({ type: "cursor", index: 2 })
+  })
+  test("Changes-tab plain status rows (incl. children) → no-op", () => {
+    expect(expandOrDescendAction(changesRows, 0)).toBeNull()
+    expect(expandOrDescendAction(changesRowsOpen, 2)).toBeNull()
+  })
 })
 
 describe("collapseOrParentAction (`h`)", () => {
@@ -130,10 +150,17 @@ describe("collapseOrParentAction (`h`)", () => {
     expect(collapseOrParentAction(treeRows, 1)).toEqual({ type: "cursor", index: 0 })
     expect(collapseOrParentAction(treeRows, 2)).toEqual({ type: "cursor", index: 0 })
   })
-  test("top-level file / status rows / empty → no-op", () => {
+  test("top-level file / empty → no-op", () => {
     expect(collapseOrParentAction(treeRows, 3)).toBeNull()
-    expect(collapseOrParentAction(statusRowsFixture, 0)).toBeNull()
     expect(collapseOrParentAction([], 0)).toBeNull()
+  })
+  test("Changes-tab untracked dir (open) → collapse it", () => {
+    expect(collapseOrParentAction(changesRowsOpen, 1)).toEqual({ type: "collapse", path: "untracked/" })
+  })
+  test("Changes-tab other status rows → no-op (flat list, no parent to jump to)", () => {
+    expect(collapseOrParentAction(changesRows, 1)).toBeNull()
+    expect(collapseOrParentAction(changesRows, 0)).toBeNull()
+    expect(collapseOrParentAction(changesRowsOpen, 2)).toBeNull()
   })
 })
 

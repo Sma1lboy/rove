@@ -430,7 +430,14 @@ export function AttentionInboxPane(props: {
         <text fg={theme.textMuted} wrapMode="none">
           {t("workspace.inbox.openHint")}
         </text>
-        <text fg={theme.textMuted} wrapMode="none">
+        {/* Only attention rows are dismissible — dim the hint on any other
+         row (a recent task has nothing to drop) so the footer doesn't
+         advertise a chord that would silently no-op. */}
+        <text
+          fg={theme.textMuted}
+          attributes={selected()?.kind === "attention" ? undefined : TextAttributes.DIM}
+          wrapMode="none"
+        >
           {t("workspace.inbox.clearHint")}
         </text>
       </box>

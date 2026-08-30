@@ -49,13 +49,19 @@ export type AppliedOverride = {
 
 /**
  * Ids whose event-shape or handler contract cannot be expressed by a rebind.
- * Currently empty — the last entries (`chat.question.*`) left with their
- * display-only rows — but the seam stays: `applyKeymapOverrides` rejects any
- * id listed here, and Settings → Keybindings surfaces the list when non-empty.
- * (sidebar.goto / sidebar.pin / sidebar.localMerge left 2026-07-17 when
- * shift+<letter> chords became expressible.)
+ * The four diff-review chords are raw literal bindings registered by
+ * preview-review.tsx (owner sign-off 2026-07-27: fixed, docs/KEYBINDINGS.md
+ * "Diff review") — the table rows exist so F1 lists them, but no handler
+ * reads the keymap, so an override would apply cleanly and change nothing.
+ * `applyKeymapOverrides` rejects any id listed here, and Settings →
+ * Keybindings surfaces the list.
  */
-export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {}
+export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
+  "diff.review.cursor": "diff-review cursor is a fixed raw binding (j/k), not keymap-driven",
+  "diff.review.range": "diff-review range anchor is a fixed raw binding (v), not keymap-driven",
+  "diff.review.note": "diff-review note is a fixed raw binding (c), not keymap-driven",
+  "diff.review.send": "diff-review send is a fixed raw binding (s), not keymap-driven",
+}
 
 /**
  * Positional slot contract for a direction-multiplexed binding id. The
@@ -123,8 +129,8 @@ function scopesOverlap(a: string, b: string): boolean {
 export function applyKeymapOverrides(
   keymap: readonly OverridableBinding[],
   entries: readonly KeymapOverrideEntry[],
-  // Injectable so the fixed-id rejection stays testable while the shipped
-  // map is empty (FIXED_BINDING_IDS above).
+  // Injectable so the fixed-id rejection stays testable against a synthetic
+  // map (parameter defaults to the shipped FIXED_BINDING_IDS above).
   fixedIds: Readonly<Record<string, string>> = FIXED_BINDING_IDS,
 ): { applied: AppliedOverride[]; warnings: string[] } {
   const warnings: string[] = []

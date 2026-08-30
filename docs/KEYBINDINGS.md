@@ -109,7 +109,7 @@ is active.
 | `enter` | Open | | `b` | Rename branch |
 | `l` / `space` | Open the row under the cursor | | `v` | Change engine |
 | `o` | Open Task directory in your editor | | `s` | Settings |
-| `u` | Update page | | `/` | Search |
+| `u` | Update page — version check + release notes | | `/` | Search |
 | `d` | Delete Task / forget project | | `x` | Worktrees page |
 | `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
@@ -132,6 +132,9 @@ through a Task row in that project.
 | `o` | Open audio, video, or PDF files in the system application |
 | `a` | Insert an `@path` mention into the engine pane |
 | `[` / `]` | Switch file tabs |
+
+`h` / `l` fold directories on both tabs — on Changes they also expand
+and collapse untracked-directory rows.
 
 The sidebar is a tree (project → Task → Terminal Tab) and it never folds, so
 everything is always visible. Search (`/`) matches titles, repos, branches,

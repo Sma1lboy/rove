@@ -392,10 +392,7 @@ export function FileTree(props: FileTreeProps) {
         props.onOpenDiff?.(row.path, scope === "branch" && base != null ? base : undefined)
       },
       expandOrDescend: () => applyNav(expandOrDescendAction(rows, cursorIndex)),
-      collapseOrParent: () => {
-        if (tab !== "all") return
-        applyNav(collapseOrParentAction(rows, cursorIndex))
-      },
+      collapseOrParent: () => applyNav(collapseOrParentAction(rows, cursorIndex)),
     }),
   }))
 

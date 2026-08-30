@@ -184,7 +184,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     scope: "sidebar",
     keys: ["u"],
     category: "Tasks pane",
-    description: "Open the update page (when a new version is available)",
+    description: "Open the update page — version check + release notes",
     hint: { keys: "u" },
   },
   {
