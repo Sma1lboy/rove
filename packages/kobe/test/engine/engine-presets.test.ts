@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { engineLaunchArgv, engineLaunchBin } from "../../src/engine/engine-presets.ts"
+import { engineCanFork, engineForkArgv, engineLaunchArgv, engineLaunchBin } from "../../src/engine/engine-presets.ts"
 
 let home: string
 let originalHome: string | undefined
@@ -107,5 +107,46 @@ describe("engineLaunchArgv", () => {
     writeState({ customEngineIds: ["pi"], "engineCommand.pi": "pi-cli --interactive" })
     expect(engineLaunchBin({ command: "pi" })).toBe("pi-cli")
     expect(engineLaunchBin({ command: "aider --model sonnet" })).toBe("aider")
+  })
+})
+
+// Why: `engine-presets.ts:22-26` promises a declared protocol makes the
+// built-in adapter's knowledge apply — but fork used to read the RAW vendor
+// id, find the empty custom entry, and refuse. A `claudecpa` wrapper launches
+// the claude binary and forks exactly like claude; resolving the protocol
+// first is what makes the promise true. Needs state, so it lives here rather
+// than beside the other fork tests.
+describe("fork through a declared protocol", () => {
+  it("forks a custom preset that declares a built-in protocol", () => {
+    writeState({
+      customEngineIds: ["claudecpa"],
+      "engineCommand.claudecpa": "claudecpa",
+      "engineProtocol.claudecpa": "claude",
+    })
+    expect(engineCanFork("claudecpa")).toBe(true)
+    expect(engineForkArgv(["claudecpa"], "claudecpa", "src", "new")).toEqual([
+      "claudecpa",
+      "--resume",
+      "src",
+      "--fork-session",
+      "--session-id",
+      "new",
+    ])
+  })
+
+  it("still refuses a preset with no declared protocol — kobe knows no verb for it", () => {
+    writeState({ customEngineIds: ["mystery"], "engineCommand.mystery": "mystery-cli" })
+    expect(engineCanFork("mystery")).toBe(false)
+    expect(engineForkArgv(["mystery-cli"], "mystery", "src")).toBeNull()
+  })
+
+  it("refuses a preset whose declared protocol has no fork verb", () => {
+    writeState({
+      customEngineIds: ["mykimi"],
+      "engineCommand.mykimi": "kimi-wrapper",
+      "engineProtocol.mykimi": "kimi",
+    })
+    expect(engineCanFork("mykimi")).toBe(false)
+    expect(engineForkArgv(["kimi-wrapper"], "mykimi", "src")).toBeNull()
   })
 })

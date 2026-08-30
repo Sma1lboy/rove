@@ -43,7 +43,13 @@ import {
   withEngineEffort,
   withEngineTerminalTitle,
 } from "./interactive-command.ts"
-import { acceptsPinnedSession, pinSessionArgv, resumeSessionArgv } from "./session-identity.ts"
+import {
+  acceptsPinnedSession,
+  acceptsSessionFork,
+  forkSessionArgvFor,
+  pinSessionArgv,
+  resumeSessionArgv,
+} from "./session-identity.ts"
 
 /**
  * The protocol id for "kobe cannot name this engine". Deliberately not a
@@ -240,4 +246,34 @@ export function engineResumeArgv(
   sessionId: string,
 ): readonly string[] | null {
   return resumeSessionArgv(engineEntry(sessionProtocol(vendor)).sessionIdentity, base, sessionId)
+}
+
+/**
+ * True when this engine can BRANCH a conversation — declared by the adapter
+ * (`EngineSessionIdentity.forkArgv`), not listed here. Claude and codex ship
+ * a fork verb; copilot's `--resume` and kimi's `-S` only REOPEN a session,
+ * which would put two live processes on one transcript, so Rove refuses
+ * instead of pretending.
+ *
+ * Protocol-resolved like {@link withPinnedSessionId}: a preset `claudecpa`
+ * declaring the claude protocol IS a claude launch, so it forks. Keying off
+ * the raw id instead found the empty custom entry and refused — the same
+ * silent gap `withClaudeSessionId` had.
+ */
+export function engineCanFork(vendor: VendorId | undefined): boolean {
+  return acceptsSessionFork(engineEntry(sessionProtocol(vendor)).sessionIdentity)
+}
+
+/**
+ * Argv that FORKS `sourceId` into a new diverging session, or null when the
+ * engine has no fork verb, there is no source id, or the command already
+ * controls its own session. The caller then opens an ordinary tab.
+ */
+export function engineForkArgv(
+  base: readonly string[],
+  vendor: VendorId | undefined,
+  sourceId: string,
+  newId?: string | null,
+): readonly string[] | null {
+  return forkSessionArgvFor(engineEntry(sessionProtocol(vendor)).sessionIdentity, base, sourceId, newId)
 }

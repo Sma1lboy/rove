@@ -8,7 +8,7 @@
  * on every re-render/restart would replay the parent's history forever.
  */
 
-import { canForkSession, forkSessionArgv } from "@/engine/interactive-command"
+import { engineCanFork, engineForkArgv } from "@/engine/engine-presets"
 import { buildHandoffPrompt } from "@/engine/session-handoff"
 import { planChatContinuation } from "@/tui-react/workspace/fork-chat-tab"
 import { type EngineTab, type TabsState, engineTabArgv, engineTabSpawnFor } from "@/tui/workspace/terminal-tabs-core"
@@ -22,9 +22,9 @@ const tab = (over: Partial<EngineTab>): EngineTab => ({
   ...over,
 })
 
-describe("forkSessionArgv", () => {
+describe("engineForkArgv", () => {
   it("resumes-and-forks claude into the id we pinned", () => {
-    expect(forkSessionArgv(["claude"], "claude", "src", "new")).toEqual([
+    expect(engineForkArgv(["claude"], "claude", "src", "new")).toEqual([
       "claude",
       "--resume",
       "src",
@@ -35,11 +35,11 @@ describe("forkSessionArgv", () => {
   })
 
   it("forks claude without pinning when the caller has no new id", () => {
-    expect(forkSessionArgv(["claude"], "claude", "src", null)).toEqual(["claude", "--resume", "src", "--fork-session"])
+    expect(engineForkArgv(["claude"], "claude", "src", null)).toEqual(["claude", "--resume", "src", "--fork-session"])
   })
 
   it("uses codex's fork subcommand, options before the positional id", () => {
-    expect(forkSessionArgv(["codex", "-c", "model_reasoning_effort=high"], "codex", "src")).toEqual([
+    expect(engineForkArgv(["codex", "-c", "model_reasoning_effort=high"], "codex", "src")).toEqual([
       "codex",
       "fork",
       "-c",
@@ -49,19 +49,19 @@ describe("forkSessionArgv", () => {
   })
 
   it("declines when the vendor has no fork verb, or there is no source", () => {
-    expect(forkSessionArgv(["copilot"], "copilot", "src")).toBeNull()
-    expect(forkSessionArgv(["kimi"], "kimi", "src")).toBeNull()
-    expect(forkSessionArgv(["opencode"], "opencode", "src")).toBeNull()
-    expect(forkSessionArgv(["claude"], "claude", "")).toBeNull()
+    expect(engineForkArgv(["copilot"], "copilot", "src")).toBeNull()
+    expect(engineForkArgv(["kimi"], "kimi", "src")).toBeNull()
+    expect(engineForkArgv(["opencode"], "opencode", "src")).toBeNull()
+    expect(engineForkArgv(["claude"], "claude", "")).toBeNull()
   })
 
   it("declines a claude base that already controls its own session — either flag form (issue #58)", () => {
     // A second --resume makes claude refuse to launch; the user's override
     // wins and the caller opens an ordinary tab on the base command.
-    expect(forkSessionArgv(["claude", "--resume", "pinned"], "claude", "src", "new")).toBeNull()
-    expect(forkSessionArgv(["claude", "--resume=pinned"], "claude", "src", "new")).toBeNull()
-    expect(forkSessionArgv(["claude", "--session-id=pinned"], "claude", "src", "new")).toBeNull()
-    expect(forkSessionArgv(["claude", "-c"], "claude", "src", "new")).toBeNull()
+    expect(engineForkArgv(["claude", "--resume", "pinned"], "claude", "src", "new")).toBeNull()
+    expect(engineForkArgv(["claude", "--resume=pinned"], "claude", "src", "new")).toBeNull()
+    expect(engineForkArgv(["claude", "--session-id=pinned"], "claude", "src", "new")).toBeNull()
+    expect(engineForkArgv(["claude", "-c"], "claude", "src", "new")).toBeNull()
   })
 })
 
@@ -69,13 +69,13 @@ describe("forkSessionArgv", () => {
 // would put a second live process on one transcript — the chord must refuse
 // with a reason, not silently hand the user a blank tab. Custom engines
 // (opencode &c) are launch-command-only: no flags, no session store.
-describe("canForkSession", () => {
+describe("engineCanFork", () => {
   it("is true only for the engines whose CLI branches a conversation", () => {
-    expect(canForkSession("claude")).toBe(true)
-    expect(canForkSession("codex")).toBe(true)
-    expect(canForkSession("copilot")).toBe(false)
-    expect(canForkSession("kimi")).toBe(false)
-    expect(canForkSession("opencode")).toBe(false)
+    expect(engineCanFork("claude")).toBe(true)
+    expect(engineCanFork("codex")).toBe(true)
+    expect(engineCanFork("copilot")).toBe(false)
+    expect(engineCanFork("kimi")).toBe(false)
+    expect(engineCanFork("opencode")).toBe(false)
   })
 })
 

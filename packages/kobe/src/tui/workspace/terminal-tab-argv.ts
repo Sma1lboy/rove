@@ -12,8 +12,7 @@ import {
   buildEngineSessionLaunch,
 } from "@/engine/session-launch"
 import { trustEngineWorktree } from "@/engine/trust-worktree"
-import { engineResumeArgv, withPinnedSessionId } from "../../engine/engine-presets"
-import { forkSessionArgv } from "../../engine/interactive-command"
+import { engineForkArgv, engineResumeArgv, withPinnedSessionId } from "../../engine/engine-presets"
 
 import type { VendorId } from "../../types/vendor"
 import type { TabSpawn } from "./terminal-tab-spawn"
@@ -41,7 +40,7 @@ export function engineTabArgv(
   if (tab.forkFrom && !tab.spawned && !live) {
     // `tab.vendor` is always concrete on a fork tab (the chord pins it) —
     // guard anyway so an inherited-vendor tab can never get claude's flags.
-    const forked = tab.vendor ? forkSessionArgv(base, tab.vendor, tab.forkFrom, tab.sessionId ?? null) : null
+    const forked = tab.vendor ? engineForkArgv(base, tab.vendor, tab.forkFrom, tab.sessionId ?? null) : null
     if (forked) return forked
   }
   if (!tab.sessionId) return base

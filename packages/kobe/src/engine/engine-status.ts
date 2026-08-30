@@ -124,3 +124,42 @@ export function detectEngineStatuses(
 ): Promise<EngineStatus[]> {
   return Promise.all(vendors.map((v) => detectEngineStatus(v, over)))
 }
+
+/**
+ * One-line description of any built-in engine's account, for plain-text
+ * surfaces (`rove doctor`). Switches on the account KIND, never on a vendor:
+ * the arms (`oauth` / `chatgpt` / `apikey` / `token` / `none`) are already
+ * shared across the union, which is why one function covers every engine —
+ * and why doctor's three per-vendor label functions were three copies of
+ * this. Settings renders the same union its own way (themed + i18n); this is
+ * the string form.
+ *
+ * `null` = no account detector for this engine (contrib / plugin / custom),
+ * which is NOT "not logged in" — say so rather than implying a logged-out
+ * account we never looked for.
+ */
+export function describeAccount(account: EngineAccount | null): string {
+  if (account === null) return "login not detectable"
+  switch (account.kind) {
+    case "oauth":
+      // Claude's oauth carries an identity; copilot's and kimi's don't.
+      return "email" in account
+        ? `logged in (${account.email}${account.organization ? `, ${account.organization}` : ""})`
+        : "logged in"
+    case "chatgpt":
+      return `logged in (${account.email}${account.plan ? `, ${account.plan}` : ""})`
+    case "apikey":
+      return "API key"
+    case "token":
+      return `token (${account.source})`
+    default:
+      return "no account"
+  }
+}
+
+/** True when this engine could actually run a task: its binary is present
+ *  and, for engines whose login Rove CAN read, an account exists. A null
+ *  account (no detector) does not veto — the binary is all we can know. */
+export function engineUsable(status: EngineStatus): boolean {
+  return status.binary.found && status.account?.kind !== "none"
+}

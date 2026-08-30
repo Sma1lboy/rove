@@ -71,7 +71,7 @@ export const en = {
     /** No engine has both a CLI binary and an account */
     noEngine: "no usable engine — no engine CLI is both installed and logged in",
     /** The manual action for {@link noEngine} */
-    noEngineAction: "install the claude, codex, or copilot CLI and log in",
+    noEngineAction: "install an engine CLI (claude, codex, copilot, or kimi) and log in",
     /** Windows only: no node, so the PTY host cannot start */
     windowsNode: "Node.js is missing — the Windows PTY host cannot start",
     /** The manual action for {@link windowsNode} */
@@ -115,7 +115,7 @@ export const zh: typeof en = {
     git: "PATH 上找不到 git",
     gitAction: "用你的系统包管理器安装 git",
     noEngine: "没有可用引擎 — 没有任何引擎 CLI 同时满足已安装且已登录",
-    noEngineAction: "安装 claude、codex 或 copilot CLI 并登录",
+    noEngineAction: "安装任一引擎 CLI（claude、codex、copilot 或 kimi）并登录",
     windowsNode: "缺少 Node.js — Windows PTY host 无法启动",
     windowsNodeAction: "从 https://nodejs.org 安装 Node.js",
   },

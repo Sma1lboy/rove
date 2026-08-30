@@ -287,7 +287,9 @@ rove doctor [--report] [--fix]
 ```
 
 Read-only check of your build, terminal, git, engine CLIs and logins, daemon,
-running sessions, agent skill, and state files. The plain run never changes
+running sessions, agent skill, and state files. Every registered engine gets a
+row — the built-ins plus any engine you added — so a login Rove can't read is
+reported as such rather than as a missing account. The plain run never changes
 anything. `--report` also writes a bug bundle (diagnosis + recent logs + env)
 and prints its path; attach that to bug reports.
 
