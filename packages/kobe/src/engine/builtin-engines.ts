@@ -106,6 +106,7 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     // Effort levels real `codex exec` accepts (the broken `minimal` is
     // deliberately excluded — CHANGELOG 0.5.17).
     effortLevels: ["none", "low", "medium", "high", "xhigh"],
+    effortArgv: (base, level) => [...base, "-c", `model_reasoning_effort=${level}`],
     history: codexHistoryReader,
 
     detectAccount: (deps) => detectCodexAccount(deps),

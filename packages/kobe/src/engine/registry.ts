@@ -100,12 +100,30 @@ export interface EngineRegistryEntry {
    */
   readonly defaultCommand: readonly string[]
   /**
-   * Reasoning/effort levels this engine accepts, lowest→highest. Codex maps
-   * a selected level to `-c model_reasoning_effort=<level>` at launch (see
-   * `interactive-command.ts`). Undefined for engines with no kobe-driveable
-   * effort flag (claude picks reasoning at runtime; copilot/custom have none).
+   * Reasoning/effort levels this engine accepts, lowest→highest. Undefined
+   * for engines with no kobe-driveable effort flag (claude picks reasoning at
+   * runtime; copilot/custom have none).
+   *
+   * Declaring levels only says the picker may OFFER them — {@link effortArgv}
+   * is what carries a chosen level to the process. An engine that declares
+   * levels without argv has its selection accepted by every gate and then
+   * dropped at launch, silently.
    */
   readonly effortLevels?: readonly string[]
+  /**
+   * Argv that asks this engine for reasoning `level` (already validated
+   * against {@link effortLevels}). A full-argv rewrite for the same reason
+   * {@link EngineSessionIdentity.resumeArgv} is one: the shapes differ in
+   * kind, not just spelling — codex takes a config pair
+   * (`-c model_reasoning_effort=high`), and the next engine to grow one may
+   * take a flag or a subcommand.
+   *
+   * Absent = Rove knows no way to pass an effort to this engine, so a level
+   * is dropped rather than guessed at. Pair it with {@link effortLevels}: a
+   * hardcoded `if (vendor === "codex")` here is exactly what let a declared
+   * level reach the UI and die at launch.
+   */
+  readonly effortArgv?: (base: readonly string[], level: string) => readonly string[]
   /** Transcript store reader. Empty (not claude's!) for custom engines. */
   readonly history: EngineHistoryReader
   /**
