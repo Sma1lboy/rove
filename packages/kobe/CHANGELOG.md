@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.31
+
+### Patch Changes
+
+- [#514](https://github.com/Sma1lboy/rove/pull/514) [`a9d46ca`](https://github.com/Sma1lboy/rove/commit/a9d46ca0e37b27f5b6702e72246cdc38d0b0acb1) The web dashboard now resolves theme colours through the TUI's shared hex normalizer, so a theme slot written in the schema-sanctioned `#abc` shorthand or `#aabbccdd` (alpha) form gets the same expanded, alpha-stripped `#rrggbb` the TUI uses — previously the web kept the literal verbatim and fed it into its colour-blend helper, which reads only six digits, so every derived slot (subtle text, hover, border tones) blended the wrong channels; a malformed hex now skips the slot instead of producing a garbage colour. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.30
 
 ### Patch Changes
