@@ -124,8 +124,36 @@ Dirty removal is deliberately two-stage:
 
 The first confirmation can never silently turn into a force deletion. The
 second confirmation is the boundary that authorizes data loss. The branch is
-still retained, but uncommitted and untracked files are not recoverable from
-that branch.
+still retained, but uncommitted and untracked files are not part of it.
+
+### Recovering work a force delete destroyed
+
+Before any forced removal, Rove snapshots everything the removal is about to
+destroy — modified tracked files and files you never `git add`ed — into a git
+ref in the owning repo. Files matched by `.gitignore` (`node_modules/`, build
+output) are excluded.
+
+List the snapshots, newest last:
+
+```
+git for-each-ref refs/rove/salvage
+```
+
+Then inspect and restore from one, run inside the owning repository:
+
+```
+git show refs/rove/salvage/<branch>-<timestamp>
+git restore --source=refs/rove/salvage/<branch>-<timestamp> -- path/to/file
+```
+
+The snapshot's exact ref is also written to `~/.rove/daemon.log` beside the
+deletion's audit lines, with the recovery commands filled in — see
+[TROUBLESHOOTING](./TROUBLESHOOTING.md#who-deleted-my-task) for how to find the
+deletion by task title and time.
+
+The refs are ordinary git refs: they are not garbage-collected, and they are
+never pushed. Delete one you no longer need with
+`git update-ref -d refs/rove/salvage/<branch>-<timestamp>`.
 
 ## Troubleshooting
 

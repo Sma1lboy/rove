@@ -18,6 +18,7 @@
  *
  * One line per phase so a partial deletion is legible as such:
  *   requested → the RPC was accepted (carries the origin)
+ *   salvaged  → a FORCED removal snapshotted uncommitted work first
  *   removed   → the worktree + index entry are gone
  *   failed    → the worktree removal threw; the task is retained in `error`
  */
@@ -105,4 +106,42 @@ export function auditDeletionFailed(taskId: string, task: DaemonTask | undefined
   const frames = cause.stack?.split("\n").slice(1) ?? []
   if (frames.length > 0) line.stack = [`${line.name}: ${line.message}`, ...frames].join("\n")
   logDaemonError(SUBSYSTEM, line)
+}
+
+/**
+ * The recovery half of a salvage line: where the snapshot is and what to type.
+ * A bare SHA leaves the last step as an exercise for somebody who has just
+ * lost work, so the commands ship with it. `repo` scopes them with `-C` when
+ * known (a task carries its repo; a bare worktree path does not).
+ */
+function recoveryText(ref: string, commit: string, repo?: string): string {
+  const at = repo ? ` -C ${repo}` : ""
+  return (
+    `uncommitted work saved to ${ref} (${commit}). Recover with: ` +
+    `git${at} show ${ref}  |  git${at} restore --source=${ref} -- <path>  |  ` +
+    `list all: git${at} for-each-ref refs/rove/salvage`
+  )
+}
+
+/**
+ * A forced task deletion snapshotted the uncommitted work it was about to
+ * destroy.
+ *
+ * Logged next to the `requested`/`removed` pair on purpose: someone who has
+ * just noticed that work is gone knows the task title and roughly when, which
+ * is exactly how this log reads. Finding the snapshot from a bare git ref
+ * listing would instead require already knowing that it exists.
+ */
+export function auditDeletionSalvaged(taskId: string, ref: string, commit: string, repo?: string): void {
+  logDaemonInfo(SUBSYSTEM, `salvaged task ${taskId} — ${recoveryText(ref, commit, repo)}`)
+}
+
+/**
+ * A forced worktree removal outside the task lifecycle (worktrees page / web
+ * DELETE) salvaged uncommitted work. Same subsystem as the task-deletion
+ * lines: this is the same class of loss, and a user searching `daemon.log`
+ * for their vanished work should not have to know which UI destroyed it.
+ */
+export function auditWorktreeSalvaged(worktreePath: string, ref: string, commit: string): void {
+  logDaemonInfo(SUBSYSTEM, `salvaged worktree ${worktreePath} — ${recoveryText(ref, commit)}`)
 }

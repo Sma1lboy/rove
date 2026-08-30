@@ -50,6 +50,11 @@ export type TaskListListener = (snapshot: readonly Task[]) => void
 export interface OrchestratorDeps {
   readonly store: TaskIndexStore
   readonly worktrees: GitWorktreeManager
+  /** Called when a forced task deletion snapshotted uncommitted work before
+   *  destroying it. The daemon binds this to its deletion audit log; a TUI-
+   *  local orchestrator leaves it unset and the snapshot is still findable
+   *  via `git for-each-ref refs/rove/salvage`. */
+  readonly onSalvage?: (taskId: TaskId, salvage: { readonly ref: string; readonly commit: string }) => void
 }
 
 // Re-exported from `title.ts` (its single source of truth) so existing
@@ -85,8 +90,11 @@ export class Orchestrator {
     )
     this.mainTasks = new MainTaskCoordinator(this.store, (id) => this.worktreeCoordinator.forget(id))
     this.editor = new TaskEditor(this.store, this.worktrees)
-    this.deletions = new TaskDeletionCoordinator(this.store, this.worktrees, (id) =>
-      this.worktreeCoordinator.forget(id),
+    this.deletions = new TaskDeletionCoordinator(
+      this.store,
+      this.worktrees,
+      (id) => this.worktreeCoordinator.forget(id),
+      deps.onSalvage,
     )
     this.tasksAcc = createStateCell<Task[]>(this.store.list())
     // Seed focus from the persisted `lastActive` record (state/last-active

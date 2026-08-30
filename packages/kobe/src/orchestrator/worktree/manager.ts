@@ -41,6 +41,7 @@ import {
 } from "./manager-branch.ts"
 import { type ListDeps, adoptablePaths, listAllAdoptable, listBranchNames, listManaged } from "./manager-list.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
+import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
 export class GitWorktreeManager implements WorktreeManager {
@@ -195,10 +196,23 @@ export class GitWorktreeManager implements WorktreeManager {
    * is best-effort: it runs after the worktree is gone and a failure (branch
    * checked out elsewhere, name gone) is swallowed, never masking a successful
    * removal.
+   *
+   * `force` bypasses the dirty check, so uncommitted edits and untracked files
+   * are destroyed. Every force path first takes a salvage snapshot
+   * ({@link salvageWorktree}) into `refs/rove/salvage/<branch>-<stamp>` — this
+   * is the one chokepoint all three force callers share, so the guard lives
+   * here rather than in each of them. `onSalvage` reports the ref so the caller
+   * can surface it; salvage never fails the removal the caller asked for.
    */
   async remove(
     worktreePath: string,
-    opts?: { readonly force?: boolean; readonly deleteBranch?: boolean },
+    opts?: {
+      readonly force?: boolean
+      readonly deleteBranch?: boolean
+      /** Notified with the snapshot a force-removal took (null = nothing to
+       *  save, or the snapshot could not be written). */
+      readonly onSalvage?: (record: SalvageRecord | null) => void
+    },
   ): Promise<void> {
     requireAbsolute("path", worktreePath)
     const exec = this.execDeps.execForPath(worktreePath)
@@ -228,7 +242,13 @@ export class GitWorktreeManager implements WorktreeManager {
       branch = await this.currentBranch(worktreePath).catch(() => null)
     }
 
-    if (!force) {
+    if (force) {
+      // The last moment at which the doomed files still exist. The dirty check
+      // below is exactly what `force` skips, so this is also the only place
+      // that still sees what is being skipped over.
+      const salvaged = await salvageWorktree({ runGit: (e, a, o) => this.runGit(e, a, o) }, exec, worktreePath)
+      opts?.onSalvage?.(salvaged)
+    } else {
       const dirty = await this.isDirty(worktreePath)
       if (dirty) {
         throw new Error(
