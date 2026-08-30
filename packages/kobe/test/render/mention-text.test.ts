@@ -10,7 +10,7 @@
  * breaking the paste call must fail a test, not just the wiring above it.
  */
 
-import { describe, expect, test } from "vitest"
+import { describe, expect, test } from "bun:test"
 import { mentionAction, mentionText } from "../../src/tui-react/workspace/use-editor-handles"
 
 describe("mentionText", () => {
