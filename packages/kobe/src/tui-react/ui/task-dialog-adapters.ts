@@ -30,7 +30,8 @@ export function taskDialogAdapters(dialog: DialogContext): {
   ) => ReturnType<typeof NewTaskDialog.show>
 } {
   return {
-    confirm: async (p) => (await DialogConfirm.show(dialog, p.title, p.body, p.cancelLabel, p.confirmLabel)) === true,
+    confirm: async (p) =>
+      (await DialogConfirm.show(dialog, p.title, p.body, p.cancelLabel, p.confirmLabel, { danger: p.danger })) === true,
     promptText: (initial, opts) => RenameTaskDialog.show(dialog, initial, opts),
     promptNewTask: (defaultRepo, repos, opts) => NewTaskDialog.show(dialog, defaultRepo, repos, opts),
   }

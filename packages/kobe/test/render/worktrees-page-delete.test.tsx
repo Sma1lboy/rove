@@ -51,6 +51,10 @@ test("the row disappears before the daemon delete resolves", async () => {
 
   mockInput.typeText("d")
   await settle()
+  // Danger confirms open focused on Cancel (a stray Enter must not delete) —
+  // move right onto the confirm button before committing.
+  mockInput.pressArrow("right")
+  await settle()
   mockInput.pressEnter() // confirm
   await settle()
 
@@ -66,6 +70,8 @@ test("a failed delete puts the row back", async () => {
   )
   await settle()
   mockInput.typeText("d")
+  await settle()
+  mockInput.pressArrow("right")
   await settle()
   mockInput.pressEnter()
   await settle()

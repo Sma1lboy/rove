@@ -227,6 +227,7 @@ export function AutomationsPage(props: {
       t("automations.deleteBody", { name: selected.name }),
       t("common.cancel"),
       t("automations.deleteButton"),
+      { danger: true },
     )
     if (ok !== true) return
     setBusyId(selected.id)

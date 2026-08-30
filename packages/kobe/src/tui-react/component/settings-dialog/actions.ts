@@ -32,6 +32,8 @@ export async function confirmResetState(
     "Reset UI state?",
     "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch for a fresh start with an empty working session list. Worktrees on disk and engine session history are NOT touched.",
     "cancel",
+    undefined,
+    { danger: true },
   )
   if (ok !== true) return
   kv.clear()
