@@ -43,7 +43,6 @@ describe("NoopHookAdapter", () => {
     await expect(noop.installActivityHooks()).resolves.toBeUndefined()
     await expect(noop.removeActivityHooks()).resolves.toBeUndefined()
     await expect(noop.removeWorktreeSyncHook()).resolves.toBeUndefined()
-    await expect(noop.installWorktreeWatchHook()).resolves.toBeUndefined()
     await expect(noop.removeWorktreeWatchHook()).resolves.toBeUndefined()
   })
 })

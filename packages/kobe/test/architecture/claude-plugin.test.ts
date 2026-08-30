@@ -19,7 +19,6 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, expect, test } from "vitest"
 import { CLAUDE_HOOK_EVENT_MAP } from "../../src/engine/claude-code-local/hook-adapter.ts"
-import { WORKTREE_WATCH_EVENT, WORKTREE_WATCH_MARKER, WORKTREE_WATCH_MATCHER } from "../../src/engine/json-hooks.ts"
 
 const ROOT = fileURLToPath(new URL("../../../../", import.meta.url))
 const PLUGIN = join(ROOT, "claude-plugin")
@@ -55,10 +54,12 @@ describe("claude-plugin hooks.json mirrors the Claude hook adapter", () => {
     }
   })
 
-  test("the worktree-watch observer is present with its Bash matcher", () => {
-    const groups = (pluginHooks()[WORKTREE_WATCH_EVENT] ?? []).filter((g) => g.matcher === WORKTREE_WATCH_MATCHER)
-    expect(groups).toHaveLength(1)
-    expect(groups[0].hooks[0].command).toBe(`"\${CLAUDE_PLUGIN_ROOT}/bin/rove" hook ${WORKTREE_WATCH_MARKER}`)
+  // The retired PostToolUse(Bash) observer fired `hook worktree-created` after
+  // EVERY Bash call to archive the task pinned to a removed worktree. Archive
+  // was removed (issue #75), leaving a ~170ms process spawn per Bash call that
+  // did nothing. A plugin install pays that too, so the plugin must not ship it.
+  test("the retired worktree-watch observer is NOT shipped", () => {
+    expect(JSON.stringify(pluginHooks())).not.toContain("worktree-created")
   })
 
   test("no extra events beyond the adapter's map", () => {

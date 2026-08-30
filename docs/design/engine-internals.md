@@ -114,20 +114,24 @@ enabled plugin declares a `tool.*` event hook** (`pluginsWantToolEvents` in
 such a plugin takes effect on the next Rove start). The other activity hooks
 are always installed.
 
-### Worktree watch
+### Retired worktree hooks
 
-A global `PostToolUse` (Bash) observer hook reports
-`kobe hook worktree-created` after every Bash call; it no-ops fast unless the
-command was `git worktree remove` (archive the pinned task). It once also
-adopted on `git worktree add`; removed 2026-08-24 — creation is mechanical
-(agents mint worktrees for PR isolation and no engine session ever enters),
-so adoption now requires intent: an engine `session-start` inside a managed
-worktree root, or an explicit adopt (`rove add .` / New task → Adopt
-Worktree). This is a pure *observer*
-fired after the tool runs, unlike the old `WorktreeCreate` *provider* hook
-(0.7.4–0.7.9) whose mere presence broke `claude --worktree` everywhere. Rove
-removes any such legacy hook it ever wrote; `kobe hook setup` survives only
-as a deprecated cleanup no-op.
+Rove installs no worktree hook today. Two were removed, and each launch
+uninstalls both wherever they were written:
+
+- **`PostToolUse` (Bash) watch observer** — fired `kobe hook worktree-created`
+  after every Bash call to archive the task pinned to a removed worktree.
+  Archive was removed (issue #75), leaving a hook that did nothing while still
+  spawning a process — ~170ms per Bash call, in every session on the machine.
+  Retired 2026-08-30; the removal path stays so already-registered users get
+  the entry dropped on their next launch.
+- **`WorktreeCreate` provider hook** (0.7.4–0.7.9) — a *provider* hook, so its
+  mere presence made Claude Code delegate worktree creation to Rove's observer
+  (which returns no path) and broke `claude --worktree` everywhere. `kobe hook
+  setup` survives only as a deprecated cleanup no-op.
+
+Adoption is intent-driven instead: an engine `session-start` inside a managed
+worktree root, or an explicit adopt (`rove add .` / New task → Adopt Worktree).
 
 ### Invocation contract
 

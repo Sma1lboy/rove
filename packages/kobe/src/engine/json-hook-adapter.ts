@@ -18,9 +18,9 @@ import type { EngineActivityDetail, EngineActivityKind } from "./hook-events.ts"
 import {
   GATED_TOOL_VERBS,
   type HookEventSpec,
+  removeWorktreeWatchHook as dropWorktreeWatchHook,
   isObject,
   mergeActivityHooks,
-  mergeWorktreeWatchHook,
 } from "./json-hooks.ts"
 import { updateSharedJson } from "./shared-config-write.ts"
 
@@ -127,11 +127,7 @@ export abstract class JsonHookAdapter implements EngineHookAdapter {
     await editJsonSettings(settingsFilePath, (cur) => mergeActivityHooks(cur, false, this.eventMap))
   }
 
-  async installWorktreeWatchHook(settingsFilePath: string): Promise<void> {
-    await editJsonSettings(settingsFilePath, (cur) => mergeWorktreeWatchHook(cur, true))
-  }
-
   async removeWorktreeWatchHook(settingsFilePath: string): Promise<void> {
-    await editJsonSettings(settingsFilePath, (cur) => mergeWorktreeWatchHook(cur, false))
+    await editJsonSettings(settingsFilePath, dropWorktreeWatchHook)
   }
 }

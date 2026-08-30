@@ -91,19 +91,14 @@ export interface EngineHookAdapter {
   removeWorktreeSyncHook(settingsFilePath: string): Promise<void>
 
   /**
-   * Install the global worktree-WATCH hook: an observer that fires after a
-   * `git worktree remove` in ANY engine session. (It once also adopted on
-   * `add` and archived the task on `remove`; removed 2026-08-24 — creation
-   * is mechanical, adoption needs an engine session-start in a managed root
-   * or an explicit adopt, and archive concept was removed in issue #75.)
-   * Unlike the removed `WorktreeCreate` provider hook, this is a pure
-   * OBSERVER fired AFTER the tool runs (Claude Code's `PostToolUse`), so its
-   * presence never changes git/`--worktree` behaviour. Must be IDEMPOTENT,
-   * merge-safe, and never throw fatally. No-op when {@link supportsHooks}
-   * is false.
+   * Remove the retired worktree-WATCH hook — a global `PostToolUse` (Bash)
+   * observer Rove used to install, which spawned `kobe hook worktree-created`
+   * after EVERY Bash call to archive the task pinned to a removed worktree.
+   * Archive was removed (issue #75), leaving the hook a pure ~170ms-per-Bash-call
+   * tax, so it is no longer installed — only uninstalled, on every launch,
+   * until every user's settings file is clean. Idempotent + merge-safe
+   * (touches only Rove's own group). No-op when {@link supportsHooks} is false.
    */
-  installWorktreeWatchHook(settingsFilePath: string): Promise<void>
-  /** Remove the worktree-watch hook this adapter installed. Idempotent + merge-safe. */
   removeWorktreeWatchHook(settingsFilePath: string): Promise<void>
 }
 
@@ -146,9 +141,6 @@ export class NoopHookAdapter implements EngineHookAdapter {
   }
   async removeWorktreeSyncHook(): Promise<void> {
     /* no-op */
-  }
-  async installWorktreeWatchHook(): Promise<void> {
-    /* no-op until this engine's hook format is implemented */
   }
   async removeWorktreeWatchHook(): Promise<void> {
     /* no-op */

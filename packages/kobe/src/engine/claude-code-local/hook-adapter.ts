@@ -31,13 +31,12 @@ import { JsonHookAdapter, editJsonSettings } from "../json-hook-adapter.ts"
 import {
   type HookEventSpec,
   buildActivityHooks,
-  buildWorktreeWatchHook,
   isObject,
   mergeActivityHooks as mergeActivityHooksCore,
-  mergeWorktreeWatchHook,
+  removeWorktreeWatchHook,
 } from "../json-hooks.ts"
 
-export { buildWorktreeWatchHook, mergeWorktreeWatchHook }
+export { removeWorktreeWatchHook }
 
 /** Claude Code hook event → normalized kobe verb. The ONE place Claude event
  *  names live. `matcher` narrows which Notification types fire. */

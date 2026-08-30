@@ -33,7 +33,7 @@ tricks — rejected as not worth it, same call as the original daemon doc).
   conversation resume composes with scrollback restore with no TUI change.
   A failed respawn clears `restored` and degrades to the ordinary view-only
   corpse behavior (the one-shot resume guard TUI-side stays the backstop).
-- **Forgetting**: explicit `pty.kill` (tab close, archive sweep) drops the
+- **Forgetting**: explicit `pty.kill` (tab close, task delete) drops the
   record — an intentional end is not a restart casualty. `rove reset`'s
   graceful `daemon.stop` wipes the whole store ("starts fresh"); a bare
   SIGTERM/crash/reboot keeps it.

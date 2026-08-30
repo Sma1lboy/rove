@@ -186,12 +186,8 @@ export class KimiHookAdapter implements EngineHookAdapter {
     /* Kimi never installed the legacy WorktreeCreate hook. */
   }
 
-  async installWorktreeWatchHook(): Promise<void> {
-    /* Not wired — see module doc (Bash tool-name matcher unverified). */
-  }
-
   async removeWorktreeWatchHook(): Promise<void> {
-    /* Never installed. */
+    /* Never installed the retired PostToolUse watch hook. */
   }
 }
 

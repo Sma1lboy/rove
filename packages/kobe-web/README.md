@@ -55,11 +55,11 @@ rove web --port 5180
 ## What it does
 
 - **Left rail** — live tasks from the daemon (sort, filter, `j`/`k` nav, change
-  chips, PR/activity, archived restore). New Task + Adopt-worktree dialogs.
+  chips, PR/activity). New Task + Adopt-worktree dialogs.
 - **Center** — per-task workspace tabs (client-owned, localStorage): engine PTY
   (with a prompt composer + reattach), shell PTY, structured Chat transcript,
   and diff file previews.
-- **Right** — task metadata (rename/branch/status/vendor/pin/archive/delete),
+- **Right** — task metadata (rename/branch/status/vendor/pin/delete),
   a markdown notes scratchpad (with preview), and a live Changes/diff rail.
 - **More** — command palette (Cmd/Ctrl+K), `?` keyboard help, an Overview
   triage route (`/overview`), deep links (`/task/:id`), live theme sync + a
