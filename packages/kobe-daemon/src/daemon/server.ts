@@ -168,8 +168,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // homeDir isolation as the issue store. Written by `note.file`, read back at
   // worktree launch so a fresh session starts with the repo's known gotchas.
   const notes = new NotesStore(defaultNotesStorePath(options.homeDir))
-  // Deferred prompts (issue #78 B-layer) — the delivery gate hands blocked
-  // prompts to daemon ownership; same homeDir isolation as the other stores.
   const deferredPrompts = new DeferredPromptsStore(defaultDeferredPromptsPath(options.homeDir))
   // Daemon-owned scheduled automations. The sweep that fires them is started
   // with the other collectors; this only loads the persisted schedules.
