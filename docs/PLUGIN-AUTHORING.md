@@ -149,11 +149,19 @@ placement = "split"              # split (default: joins the focused chattab's
 command = ["node", "$ROVE_PLUGIN_ROOT/board.js"]   # cwd = the TASK WORKTREE
 
 [[settings]]                     # rendered as an editor in Settings → Plugins
-key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env
+key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
+                                 # must be a plain env var name, and may not
+                                 # be one that steers how a process runs
+                                 # (PATH, LD_PRELOAD, NODE_OPTIONS, …)
 label = "Mode"
-type = "enum"                    # string | number | boolean | enum
+type = "enum"                    # string | number | boolean | enum | secret
 options = ["fast", "fancy"]
 default = "fast"
+
+[[settings]]                     # `secret` masks the value everywhere it is
+key = "YOU_EXAMPLE_TOKEN"        # shown, for keys the user pastes in
+label = "API token"
+type = "secret"
 
 [[file_handlers]]                # claim Files-pane opens by filename pattern
 pattern = "\\.(png|jpg)$"        # JS regex, case-insensitive, vs the file name
@@ -277,6 +285,16 @@ Never write durable state under `ROVE_PLUGIN_ROOT`. GitHub installs are
 managed checkouts replaced on reinstall. Settings you declare in
 `[[settings]]` arrive as plain vars in your config `.env`; source it
 (`. "$ROVE_PLUGIN_CONFIG_DIR/.env"`) or read it yourself.
+
+Because that file is sourced, a settings `key` must be a plain env var name
+(`^[A-Za-z_][A-Za-z0-9_]*$`), and a small set of names is refused outright:
+those that change how a process runs rather than what it reads — `PATH`,
+`HOME`, `SHELL`, the `LD_*`/`DYLD_*` loader vars, `NODE_OPTIONS` and its
+per-language siblings, `BASH_ENV`, `GIT_SSH_COMMAND`, `EDITOR`/`PAGER`.
+A rejected key fails the whole manifest at parse time, so fix it before
+publishing. Asking for an API key is fine and expected — use `type =
+"secret"` so the value is masked in Settings. Your config `.env`, state
+directory, and `log.jsonl` are all owner-only (0600/0700).
 
 ## Calling back into Rove
 

@@ -26,6 +26,13 @@ label = "Send notifications"
 type = "boolean"
 default = "1"
 
+# `secret` stores like a string but is masked wherever it is displayed, so a
+# pasted key does not sit on screen during a screen share or a recording.
+[[settings]]
+key = "EX_DEMO_API_KEY"
+label = "API key"
+type = "secret"
+
 [[actions]]
 id = "print"
 title = "Print effective settings"

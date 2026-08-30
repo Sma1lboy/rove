@@ -46,6 +46,21 @@ export function pluginSettingRows(
 }
 
 /**
+ * What a row shows in place of its value. A `secret` holds an API key the
+ * user pasted, and the settings dialog is on screen during screen shares,
+ * screenshots, and recordings — so the stored value never reaches the
+ * renderer. Length is hidden too (a fixed run of dots, not one per
+ * character), since the length of a token is itself a hint.
+ *
+ * A secret that is unset must stay visibly unset: masking "" into dots would
+ * claim a key is configured when none is.
+ */
+export function displaySettingValue(row: Pick<PluginSettingRowView, "type" | "value">): string {
+  if (row.type !== "secret" || row.value === "") return row.value
+  return "••••••••"
+}
+
+/**
  * A boolean is on unless it's absent or an explicit falsy token. Shells
  * source these files, so "0"/"false" are the spellings a plugin author
  * would write by hand.

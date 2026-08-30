@@ -98,13 +98,18 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
         store(pluginId, key, toggledBooleanValue(setting))
         return
       }
-      const next = await RenameTaskDialog.show(dialog, setting.value, {
+      // A secret opens EMPTY rather than pre-filled: the dialog would
+      // otherwise print the stored key in full, which is exactly what the
+      // masked row exists to prevent. Cancelling still leaves it stored;
+      // submitting empty clears it, like any other string row.
+      const initial = setting.type === "secret" ? "" : setting.value
+      const next = await RenameTaskDialog.show(dialog, initial, {
         // The label is plugin-owned copy, like an action title — shown raw.
         dialogTitle: setting.label,
         fieldLabel: key,
         submitLabel: "save",
         allowEmpty: true,
-        placeholder: setting.defaultValue,
+        placeholder: setting.type === "secret" && setting.value !== "" ? "••••••••" : setting.defaultValue,
       })
       if (next === undefined) return
       if (setting.type !== "number") {

@@ -16,6 +16,7 @@
 import { spawn } from "node:child_process"
 import { appendFileSync, mkdirSync, statSync } from "node:fs"
 import type { ChannelEvent } from "../daemon/event-bus.ts"
+import { rotateLogIfNeeded } from "../daemon/log-rotate.ts"
 import { buildPluginEnv } from "./env.ts"
 import { type PluginEvent, PluginEventReducer, lifecycleEventFor } from "./events.ts"
 import {
@@ -43,6 +44,12 @@ interface LoadedPlugin {
 }
 
 const OUTPUT_CAP = 8 * 1024
+
+/** Cap for a single plugin's log.jsonl. Smaller than daemon.log's 10MB
+ *  because this is per plugin and every enabled one keeps its own: a plugin
+ *  hooked to `tool.pre`/`tool.post` appends a record per tool call, forever,
+ *  and before this there was no cap at all. One `.old` generation is kept. */
+const PLUGIN_LOG_CAP_BYTES = 4 * 1024 * 1024
 const RELOAD_DEBOUNCE_MS = 150
 /** Registry stat-poll cadence; reload latency is this + the debounce. */
 const REGISTRY_POLL_MS = 200
@@ -309,8 +316,10 @@ export class PluginHost {
   ): Promise<void> {
     const id = plugin.manifest.id
     const startedAt = Date.now()
-    mkdirSync(pluginConfigDir(id, this.opts.homeDir), { recursive: true })
-    mkdirSync(pluginStateDir(id, this.opts.homeDir), { recursive: true })
+    // 0700: config holds the settings .env (documented home for API keys) and
+    // state is plugin-owned durable data; neither is anyone else's business.
+    mkdirSync(pluginConfigDir(id, this.opts.homeDir), { recursive: true, mode: 0o700 })
+    mkdirSync(pluginStateDir(id, this.opts.homeDir), { recursive: true, mode: 0o700 })
     let exitCode: number | null = null
     let stdout = ""
     let stderr = ""
@@ -361,7 +370,12 @@ export class PluginHost {
       ...(spawnError ? { spawnError } : {}),
     }
     try {
-      appendFileSync(pluginLogPath(id, this.opts.homeDir), `${JSON.stringify(record)}\n`)
+      const logPath = pluginLogPath(id, this.opts.homeDir)
+      // The record carries the plugin's captured stdout/stderr, so a plugin
+      // that prints its own token on failure writes it here — 0600, and
+      // capped like daemon.log so a per-tool-call hook can't fill the disk.
+      rotateLogIfNeeded(logPath, PLUGIN_LOG_CAP_BYTES)
+      appendFileSync(logPath, `${JSON.stringify(record)}\n`, { mode: 0o600 })
     } catch {
       // Log write failure must never take the daemon down.
     }
