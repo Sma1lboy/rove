@@ -431,7 +431,7 @@ export function AttentionInboxPane(props: {
           {t("workspace.inbox.openHint")}
         </text>
         <text fg={theme.textMuted} wrapMode="none">
-          {t("workspace.inbox.deleteHint")}
+          {t("workspace.inbox.clearHint")}
         </text>
       </box>
     </box>

@@ -40,7 +40,7 @@ export const en = {
     title: "INBOX",
     empty: "No pending attention",
     openHint: "enter open",
-    deleteHint: "d delete",
+    clearHint: "d clear",
     /** Cards clipped past the visible window. `{count}` = hidden card count. */
     more: "+{count} more",
     section: {
@@ -97,7 +97,7 @@ export const zh: typeof en = {
     title: "收件箱",
     empty: "暂无待处理",
     openHint: "enter 打开",
-    deleteHint: "d 删除",
+    clearHint: "d 清除",
     more: "还有 {count} 条",
     section: {
       attention: "待处理",
