@@ -18,7 +18,13 @@ import { type ReactNode, useEffect } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { NO_STATE_GLYPH, buildSidebarRowView, prCheckChip, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
+import {
+  IN_PROGRESS_SPINNER,
+  NO_STATE_GLYPH,
+  buildSidebarRowView,
+  prCheckChip,
+  withSpinnerFrame,
+} from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
@@ -162,10 +168,28 @@ function RowShell(props: {
 }
 
 /**
- * A worktree row carries NO state glyph (owner call 2026-08-01, round 6):
- * the session state belongs to the chattab that runs it, so the glyph lives
- * on the tab row below. What stays here is worktree-level fact — branch,
- * pin, PR chip, ±change stats.
+ * A worktree row carries NO ENGINE state glyph (owner call 2026-08-01, round
+ * 6): the session state belongs to the chattab that runs it, so that glyph
+ * lives on the tab row below. What stays here is worktree-level fact — branch,
+ * pin, PR chip, ±change stats — and a worktree being MATERIALIZED is the most
+ * worktree-level fact there is.
+ *
+ * Why the job spinner has to live here rather than on the tab row: during
+ * `git worktree add` a freshly created task has no engine activity (the engine
+ * has not started) and no tab rows at all (a tab is only recorded once
+ * delivery succeeds). The tab row that renders the job today is therefore the
+ * one row that does not yet exist, which is why `rove api add --count 5` on a
+ * big repo showed five frozen `(new task)` rows for the whole minutes-long
+ * materialization while the daemon published `task.jobs {phase:"running"}` the
+ * entire time.
+ *
+ * It reads `taskJobs` DIRECTLY and nothing else — deliberately not through
+ * `buildSidebarRowView`, whose `loading` also folds in engine activity. Taking
+ * the derived flag would put the task-level activity rollup back on the
+ * worktree row, which is the leak the tab row's `carriesState` gate exists to
+ * stop. A job is genuinely task-scoped (the daemon publishes one entry per
+ * taskId, and a task has exactly one worktree), so it is the one signal a
+ * worktree row may read without a tab to attribute it to.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
@@ -193,7 +217,14 @@ export function WorktreeTreeRow(props: {
   }, [livePath, shared.branchTick])
   const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
   const moving = shared.movingRowId === props.rowId
+  // Presence in the map IS "running" — the daemon removes the entry on both
+  // terminal phases (see `TaskJobState`).
+  const materializing = shared.taskJobs?.get(task.id) !== undefined
+  const frame = useSpinnerFrame(materializing)
   const reserved =
+    // The spinner column exists only while a job runs, so a quiet row's label
+    // budget and layout are byte-identical to before.
+    (materializing ? 2 : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
@@ -201,6 +232,11 @@ export function WorktreeTreeRow(props: {
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
+      {materializing ? (
+        <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
+          {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
+        </text>
+      ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         <text fg={theme.text} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
           {truncateEndCells(label, treeLabelBudget(shared, reserved), charWidth)}

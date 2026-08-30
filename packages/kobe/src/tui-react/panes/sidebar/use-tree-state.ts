@@ -18,6 +18,7 @@
 import type { Task } from "@/types/task"
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { currentBranch } from "../../../tui/panes/sidebar/git-head"
 import { sidebarProjectKey } from "../../../tui/panes/sidebar/groups"
 import {
   type TreeRow,
@@ -26,6 +27,7 @@ import {
   filterTreeRows,
   mainTaskIdOfProject,
   parseRowId,
+  rowLiveBranchPath,
   tabRowId,
   treeFlatIds,
   withRecentRow,
@@ -56,6 +58,10 @@ export interface TreeStateOpts {
   readonly recentTask?: Task | null
   /** Global task sort applied before shaping the tree. */
   readonly sortMode?: import("../../../tui/panes/sidebar/groups").TaskSortMode
+  /** The sidebar's ~2s poll tick. Re-runs the search over freshly resolved
+   *  HEADs, so a `main` row becomes findable by its branch as soon as the
+   *  poller answers rather than only on the next unrelated re-render. */
+  readonly branchTick?: number
 }
 
 export interface TreeState {
@@ -224,8 +230,25 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const { rows, totalCount } = useMemo(() => {
     const all = buildTreeRows({ tasks, tabsByTask, sortMode })
     const total = treeFlatIds(all).length
-    return { rows: searching ? filterTreeRows(all, query) : withRecentRow(all, recentTask), totalCount: total }
-  }, [tasks, tabsByTask, searching, query, recentTask, sortMode])
+    // Dependency-only invalidation key: re-run the search when the poll tick
+    // moves, so a `main` row becomes findable by its branch as soon as the
+    // HEAD poller answers (the read below is a plain cache lookup, which on
+    // its own would never re-trigger this memo).
+    void opts.branchTick
+    // Search matches a worktree row on the label it RENDERS, and the rows that
+    // own no branch (main / dir) are labelled by their polled HEAD — the same
+    // cached read `WorktreeTreeRow` renders through, so the query sees exactly
+    // the branch name printed on the row. The poll itself is the row's effect;
+    // this is a plain synchronous cache read.
+    const liveBranch = (task: Task): string => {
+      const path = rowLiveBranchPath(task)
+      return path ? currentBranch(path) : ""
+    }
+    return {
+      rows: searching ? filterTreeRows(all, query, liveBranch) : withRecentRow(all, recentTask),
+      totalCount: total,
+    }
+  }, [tasks, tabsByTask, searching, query, recentTask, sortMode, opts.branchTick])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
   // The active row is the selected task's ACTIVE TAB, else the worktree row

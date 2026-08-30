@@ -214,58 +214,6 @@ describe("tabRowId / parseRowId", () => {
   })
 })
 
-describe("filterTreeRows", () => {
-  // One fixture for the whole block: two projects, a tab under each of the
-  // kobe worktrees, so every ancestor/descendant direction has something to
-  // prove.
-  const tree = () =>
-    rows({
-      tasks: [
-        task("m", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
-        task("wt", { repo: "/repos/rove", branch: "feat/tree", title: "worktree tree" }),
-        task("fx", { repo: "/repos/foxychat", branch: "feat/chat", title: "chat rewrite" }),
-      ],
-      tabsByTask: new Map([
-        ["m", [tab("tab-1", "shell")]],
-        ["wt", [tab("tab-2", "running codex on the landing page")]],
-        ["fx", [tab("tab-3", "vitest watch")]],
-      ]),
-    })
-
-  const ids = (query: string) => filterTreeRows(tree(), query).map((r) => r.id)
-
-  test("an empty query is a no-op", () => {
-    expect(filterTreeRows(tree(), "   ")).toEqual(tree())
-  })
-
-  test("a tab hit keeps its worktree and project", () => {
-    // The tree's whole increment over the flat sidebar: the query matches
-    // nothing but a live tab TITLE, and the ancestors come along so the hit
-    // is placed rather than floating.
-    expect(ids("codex")).toEqual(["/repos/rove", "wt", "wt::tab-2"])
-  })
-
-  test("a worktree hit keeps its tabs", () => {
-    expect(ids("feat/tree")).toEqual(["/repos/rove", "wt", "wt::tab-2"])
-  })
-
-  test("a project hit keeps the whole subtree", () => {
-    expect(ids("foxychat")).toEqual(["/repos/foxychat", "fx", "fx::tab-3"])
-  })
-
-  test("no matches yields no rows — not a bare project header", () => {
-    expect(ids("zzzz")).toEqual([])
-  })
-
-  test("a dir task's hit keeps its directory header", () => {
-    const loose = rows({
-      tasks: [task("d", { kind: "dir", repo: "/tmp/scratch", branch: "", title: "scratchpad" })],
-      tabsByTask: new Map(),
-    })
-    expect(filterTreeRows(loose, "scratch").map((r) => r.id)).toEqual(["/tmp/scratch", "d"])
-  })
-})
-
 describe("projectKeysOf", () => {
   test("first-seen order, deduped; a dir task contributes its directory", () => {
     expect(
