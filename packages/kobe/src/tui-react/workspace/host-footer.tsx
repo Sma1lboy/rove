@@ -88,6 +88,10 @@ export function WorkspaceFrame(props: {
   orchestrator: RemoteOrchestrator
   /** Wires the footer's clickable [settings] button; absent = no settings segment. */
   onOpenSettings?: () => void
+  /** Top-of-window strip (the daemon-down banner) — rendered above the pane
+   *  row. The host owns it because the surfaces that BYPASS this frame
+   *  (settings, worktrees, update) need the same strip. */
+  banner?: ReactNode
   children: ReactNode
 }) {
   const { theme } = useTheme()
@@ -99,6 +103,7 @@ export function WorkspaceFrame(props: {
   return (
     <ShortcutRevealProvider>
       <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
+        {props.banner}
         <box flexDirection="row" flexGrow={1}>
           {props.children}
         </box>

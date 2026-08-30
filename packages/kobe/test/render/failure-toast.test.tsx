@@ -15,6 +15,7 @@
  * overlay draws, which no pre-fix rendering produced.
  */
 import { expect, test } from "bun:test"
+import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { KanbanPage } from "../../src/tui-react/component/kanban-page"
 import { ToastOverlay } from "../../src/tui-react/component/toast-overlay"
@@ -136,8 +137,14 @@ const AUTOMATION = {
   updatedAt: "2026-07-01T00:00:00Z",
 }
 
+/** The page reads the daemon connection signal to decide whether its
+ *  daemon-hold state is still a claim it can make (daemon-down-banner.test.tsx).
+ *  Hoisted so `useSyncExternalStore` sees one stable store identity. */
+const ONLINE = createStateCell("online")
+
 test("automations: a failed delete shows an error toast instead of a muted line", async () => {
   const orch = {
+    connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations: [AUTOMATION], keepsDaemonAlive: true }),
     automationRuns: async () => ({ runs: [] }),
     listTasks: () => [{ repo: "/x/kobe" }],
@@ -163,6 +170,7 @@ test("automations: a failed delete shows an error toast instead of a muted line"
 
 test("automations: a failed toggle shows an error toast", async () => {
   const orch = {
+    connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations: [AUTOMATION], keepsDaemonAlive: true }),
     automationRuns: async () => ({ runs: [] }),
     listTasks: () => [{ repo: "/x/kobe" }],

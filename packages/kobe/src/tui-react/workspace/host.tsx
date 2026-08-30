@@ -14,12 +14,14 @@ import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
+import { DaemonDownBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
+import { useDaemonDown } from "../lib/use-accessor"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -258,11 +260,38 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
 
-  if (pageRender.settingsPage) return pageRender.settingsPage
-  if (pageRender.fullWindowPage) return pageRender.fullWindowPage
+  // The one production consumer of `connectionStateSignal()`. Every surface
+  // below is fed by the daemon and every one of them swallows its own failed
+  // read and keeps painting the last good snapshot — a dead daemon rendered
+  // as a healthy routine list counting down to a run that will never happen.
+  // One banner above the surface switch answers it for all of them, including
+  // pages added later; the alternative is a catch block per page, which is
+  // where the silence came from in the first place.
+  const daemonDown = useDaemonDown(orch)
+  const banner = <DaemonDownBanner down={daemonDown} width={dims.width} />
+
+  // Settings and the full-window pages replace the WHOLE window, frame
+  // included, so each needs the banner wrapped around it rather than relying
+  // on WorkspaceFrame.
+  if (pageRender.settingsPage) {
+    return (
+      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
+        {banner}
+        {pageRender.settingsPage}
+      </box>
+    )
+  }
+  if (pageRender.fullWindowPage) {
+    return (
+      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
+        {banner}
+        {pageRender.fullWindowPage}
+      </box>
+    )
+  }
 
   return (
-    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings}>
+    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings} banner={banner}>
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
           ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —

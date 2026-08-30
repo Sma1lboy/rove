@@ -10,6 +10,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { createStateCell } from "../../src/lib/external-store"
 import { AutomationsPage } from "../../src/tui-react/component/automations-page"
 import { renderComponent } from "./harness"
 
@@ -27,8 +28,15 @@ const AUTOMATION = {
   updatedAt: "2026-07-01T00:00:00Z",
 }
 
+/** Hoisted: `useSyncExternalStore` re-subscribes whenever the store identity
+ *  changes, so a cell built inside the accessor would churn every render. */
+const ONLINE = createStateCell("online")
+
 function orchestrator(automations: unknown[] = []) {
   return {
+    // The page reads the connection signal to decide whether its daemon-hold
+    // state is still a claim it can make (see daemon-down-banner.test.tsx).
+    connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),
     listTasks: () => [{ repo: "/x/kobe" }],

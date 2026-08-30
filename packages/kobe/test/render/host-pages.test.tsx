@@ -15,6 +15,7 @@
 import { expect, test } from "bun:test"
 import { useEffect, useRef } from "react"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
+import { createStateCell } from "../../src/lib/external-store"
 import type { FocusContextValue } from "../../src/tui-react/context/focus"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import type { DialogContext } from "../../src/tui-react/ui/dialog"
@@ -48,12 +49,16 @@ const WT_ROW = {
 
 const SELECTED_TASK = { id: "t1", repo: "/x/kobe" } as unknown as Task
 
+/** Hoisted so `useSyncExternalStore` sees one stable store identity. */
+const ONLINE = createStateCell("online")
+
 function fakeOrchestrator(): RemoteOrchestrator {
   return {
     listWorktrees: async (opts?: { network?: boolean }) => [
       { repo: "/x/kobe", worktrees: opts?.network === false ? [WT_ROW] : [WT_ROW] },
     ],
     listTasks: () => [SELECTED_TASK],
+    connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations: [], keepsDaemonAlive: false }),
     automationRuns: async () => ({ runs: [] }),
     listIssues: async () => ({ repoRoot: "/x/kobe", exists: true, nextId: 99, issues: [] }),
