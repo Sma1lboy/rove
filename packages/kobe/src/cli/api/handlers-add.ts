@@ -252,7 +252,12 @@ async function addParallel(
   const failures: unknown[] = []
   settled.forEach((r, i) => {
     const { taskId, vendor } = created[i]
-    if (r.status === "fulfilled" && r.value.delivered) {
+    if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
+      // Deferred (issue #78 B-layer) is a SUCCESS, exactly as `addOne`/`send`
+      // treat it: the daemon took ownership of the prompt and queued an inbox
+      // episode, so the caller must NOT retry (a retry stacks a duplicate). It
+      // resolves with `delivered:false`, so route it here — not to `failures` —
+      // and carry the marker through so a script can see it was queued.
       tasks.push({
         ok: true,
         taskId,
@@ -260,12 +265,14 @@ async function addParallel(
         started: r.value.started,
         engineReady: r.value.engineReady,
         session: r.value.session,
+        ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
       })
       return
     }
-    // Either deliverPrompt threw, or it resolved but the paste never landed.
-    // The task IS created (engine already burning tokens) — always carry its
-    // taskId so a script can find/retry it instead of orphaning it.
+    // Either deliverPrompt threw, or it resolved un-delivered AND un-deferred
+    // (the paste never landed). The task IS created (engine already burning
+    // tokens) — always carry its taskId so a script can find/retry it instead
+    // of orphaning it.
     const err =
       r.status === "rejected"
         ? r.reason
