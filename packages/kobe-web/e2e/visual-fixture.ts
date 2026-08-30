@@ -3,7 +3,6 @@ import { basename, join, relative, resolve, sep } from "node:path"
 import {
   assertFixtureIsolation,
   buildFixtureEnv,
-  createTaskWithChatTab,
   fixturePaths,
   fixturePortBase,
   runInFixture,
@@ -88,7 +87,7 @@ export const VISUAL_PTY_COMMAND = `${[
 ].join(" ")} bun run dev:sandbox`
 
 /** Bump when the fixture shape changes so warm reuse rebuilds. */
-const FIXTURE_VERSION = "4"
+const FIXTURE_VERSION = "5"
 const FIXTURE_MARKER = join(VISUAL_ROOT, "fixture-ok")
 
 function assertSafeVisualRoot(): void {
@@ -201,17 +200,24 @@ export default async function setupVisualFixture(): Promise<void> {
     { email: "visual@kobe.local", name: "kobe visual" },
   )
 
-  const taskId = createTaskWithChatTab(
-    ROVE_CLI,
-    {
-      title: "Visual Fixture",
-      repo: VISUAL_REPO,
-      prompt: "Read the README and tell me in one line what this package does.",
-      command: "claude",
-    },
-    KOBE_DIR,
-    VISUAL_ENV,
-  )
+  // Bare task, NO chat tab. The journeys assert the sidebar row label
+  // "Visual Fixture", which a seeded engine tab overwrites with its own
+  // first-turn title — and CI has no engine binary at all, so the tab would
+  // boot straight into the code-127 dead-engine state (issue #79). The
+  // pre-fixture-core seeding did exactly this bare `add`; only hero fixtures
+  // (which run where a real engine exists) seed chat tabs.
+  const added = runRove([
+    "add",
+    "--repo",
+    VISUAL_REPO,
+    "--title",
+    "Visual Fixture",
+    "--command",
+    "claude",
+    "--activate",
+  ]) as { taskId?: unknown }
+  if (typeof added.taskId !== "string") throw new Error("visual fixture task creation returned no taskId")
+  const taskId = added.taskId
 
   const backlogTitle = "Backlog fixture"
   const progressTitle = "In progress fixture"
