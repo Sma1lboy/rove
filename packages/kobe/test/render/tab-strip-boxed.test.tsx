@@ -20,7 +20,7 @@ import { join } from "node:path"
 import { useState } from "react"
 import type { ChatTabTurnState } from "../../src/engine/turn-detector"
 import { useBindings } from "../../src/tui-react/lib/keymap"
-import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
+import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
@@ -99,4 +99,44 @@ test("the scroll window follows key-driven tab switches and keeps the active tab
   // Wrap back to the first tab: the window returns with it.
   mockInput.pressTab()
   expect(await frame()).toContain("workspace-1")
+})
+
+test("the running chip uses the semantic info color, never the focus accent", async () => {
+  const tabs: readonly TerminalTab[] = [
+    { kind: "engine", id: "tab-1", title: "one", ordinal: 1 },
+    { kind: "engine", id: "tab-2", title: "two", ordinal: 2 },
+    { kind: "engine", id: "tab-3", title: "three", ordinal: 3 },
+  ]
+  const { spans } = await renderComponent(
+    <TabStrip
+      tabs={tabs}
+      activeId="tab-3"
+      turnStates={
+        new Map<string, ChatTabTurnState>([
+          ["tab-1", "running"],
+          ["tab-2", "running"],
+        ])
+      }
+      onSelect={() => {}}
+      vendor="claude"
+      liveTitles={new Map()}
+      turnVendors={new Map()}
+    />,
+    { width: 100, height: 4, providers: { kv: true } },
+  )
+  const chips = (await spans()).lines
+    .flatMap((line) => line.spans)
+    .filter((span) => span.text.includes(TURN_GLYPHS.running))
+  // Two running tabs → two chips. The defect painted them with
+  // `focusAccent`: on the default claude theme that is the SAME #CC785C as
+  // the active tab's frame, so several running tabs drowned the "you are
+  // here" signal. The semantic `info` slot (claude dark: #61AAF2) keeps
+  // activity distinct from focus on every bundled theme.
+  expect(chips.length).toBe(2)
+  const INFO: [number, number, number, number] = [97, 170, 242, 255]
+  const FOCUS: [number, number, number, number] = [204, 120, 92, 255]
+  for (const chip of chips) {
+    expect(chip.fg?.toInts()).toEqual(INFO)
+    expect(chip.fg?.toInts()).not.toEqual(FOCUS)
+  }
 })

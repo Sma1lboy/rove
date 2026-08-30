@@ -428,7 +428,11 @@ export function Terminal(props: TerminalProps) {
           flexDirection="row"
           paddingLeft={1}
           paddingRight={1}
-          backgroundColor={theme.backgroundPanel}
+          // `backgroundElement`, not `backgroundPanel`: the panel slot is
+          // forced alpha-0 in transparent mode, and this is an overlay you
+          // must read — the policy (theme-core) never lets readable overlays
+          // go transparent. The split-leaf name tag does the same.
+          backgroundColor={theme.backgroundElement}
         >
           <text fg={theme.warning} wrapMode="none">
             {t("terminal.scrolledBack", { lines: scrollOffset })}

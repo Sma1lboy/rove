@@ -51,3 +51,15 @@ test("clicking anywhere on the action row creates a task", async () => {
   await mockMouse.click(12, lineOf(text, "New task"))
   expect(calls).toBe(1)
 })
+
+test("the action row costs exactly one line — no vertical padding", async () => {
+  // The sidebar is the most row-starved panel in the product; a one-line
+  // button wrapped in vertical padding burned three rows for one row of
+  // content. The row must start on the very first line of its own subtree.
+  const { frame } = await renderComponent(<SidebarCreateAction onAddTask={() => {}} />, {
+    width: 24,
+    height: 3,
+  })
+  const lines = (await frame()).split("\n")
+  expect(lines[0]).toContain("New task")
+})
