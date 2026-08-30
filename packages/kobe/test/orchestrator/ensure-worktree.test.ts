@@ -169,3 +169,32 @@ describe("ensureWorktree — concurrent delete after a successful write", () => 
     expect(orch.getTask(task.id)).toBeUndefined()
   })
 })
+
+describe("ensureWorktree — recorded baseRef (durable fork point)", () => {
+  test("persists baseRef on the task and cuts from it even after a daemon restart", async () => {
+    // Stage a side branch with a distinct commit, then move HEAD back to
+    // main so the base choice is observable in the worktree's contents.
+    spawnSync("git", ["checkout", "-q", "-b", "side-base"], { cwd: repo })
+    fs.writeFileSync(path.join(repo, "SIDE.md"), "side\n")
+    spawnSync("git", ["add", "SIDE.md"], { cwd: repo })
+    spawnSync("git", ["commit", "-q", "-m", "side base"], { cwd: repo })
+    const sideSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).stdout.trim()
+    spawnSync("git", ["checkout", "-q", "main"], { cwd: repo })
+
+    const task = await orch.createTask({ repo, baseRef: "side-base" })
+    // The fork point is durable Task state, not a one-shot in-memory side-map:
+    // it must be ON the record — this is what lets a consumer compare against
+    // the real fork point, and what survives a daemon restart before the
+    // lazy worktree materialises.
+    expect(orch.getTask(task.id)?.baseRef).toBe("side-base")
+
+    // Simulated daemon restart: a brand-new Orchestrator over the SAME store
+    // (the old side-map died with the "process"). The worktree must still
+    // cut from side-base, not silently from the repo's current HEAD.
+    const restarted = new Orchestrator({ store, worktrees: new GitWorktreeManager() })
+    const p = await restarted.ensureWorktree(task.id)
+    const ancestry = spawnSync("git", ["merge-base", "--is-ancestor", sideSha, "HEAD"], { cwd: p })
+    expect(ancestry.status).toBe(0)
+    expect(fs.existsSync(path.join(p, "SIDE.md"))).toBe(true)
+  })
+})

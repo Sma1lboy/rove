@@ -261,4 +261,19 @@ export class TaskEditor {
     if ((task.linkedWorkItem?.url ?? null) === (item?.url ?? null)) return
     await this.store.update(task.id, { linkedWorkItem: item ?? undefined })
   }
+
+  /**
+   * Record the task brief: the full text of the prompt `add --prompt`
+   * delivered into this task's engine. Written on the delivery path so the
+   * brief survives the engine's own transcript — a dead engine used to take
+   * the only copy down with it. Stored verbatim (never truncated); a
+   * whitespace-only prompt is rejected. No-op when the stored text already
+   * matches, so a redundant call never churns a write + broadcast.
+   */
+  async setPrompt(id: TaskId | string, prompt: string): Promise<void> {
+    if (prompt.trim().length === 0) throw new Error("setPrompt: prompt is required (empty or whitespace-only rejected)")
+    const task = this.requireTask(id)
+    if (task.prompt === prompt) return
+    await this.store.update(task.id, { prompt })
+  }
 }

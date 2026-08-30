@@ -125,7 +125,13 @@ replacement in `nextCommandArgs`.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
   task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
-  = the protocol derived from it.
+  = the protocol derived from it. `.task.prompt` = the full text of the
+  prompt `add --prompt` delivered into the task's engine (verbatim, never
+  truncated), recorded at delivery time — it is the durable copy of the task
+  brief, surviving a dead engine or lost context where the engine transcript
+  does not; absent when the task was created without a prompt or the paste
+  never landed. `.task.baseRef` = the branch the task was cut from
+  (`add --base-branch`), the fork point `collect` measures against.
   `.task.prStatus` = the branch's PR as the daemon last polled it
   (`lifecycle`, `number`, `url`, `lastCheckedAt`) — including
   `.prStatus.checkState`: `none` (no PR) / `pending` / `passing` / `failing` /
@@ -160,7 +166,12 @@ replacement in `nextCommandArgs`.
     task cannot land as-is, however it reported itself.
   - `.base` — committed work: `ahead` (commits vs the base branch) and a
     diffstat. `ahead: 0` against a resolved `baseRef` is the "reported
-    succeeded, committed nothing" tell.
+    succeeded, committed nothing" tell. `baseRef` is the task's RECORDED fork
+    point (`add --base-branch`) when it has one — tasks cut from
+    `release/2.x` are measured against `release/2.x`, not against a guessed
+    `main`; only records predating the field (or a recorded ref that no
+    longer resolves) fall back to the `origin/HEAD` → `main` → `master`
+    guess.
 
   Read-only by contract: it starts no engines, writes nothing, and changes
   no task state.
@@ -215,6 +226,12 @@ replacement in `nextCommandArgs`.
   convention (inferred from its existing local + origin branches, e.g.
   `feat/login-flow` in a type-prefixed repo, `login-flow` in a bare-slug or
   empty repo; name collisions get a short `-2`/`-3` suffix).
+  `--base-branch` cuts the new branch from that ref instead of the repo's
+  current HEAD and is persisted on the task (`.task.baseRef`) — the fork
+  point `collect` measures against, durable across daemon restarts. The
+  delivered `--prompt` text is persisted too (`.task.prompt`) — the durable
+  copy of the task brief; it survives a dead engine or lost context, where
+  the engine's own transcript does not.
 
   **Parallel attempts** live here too: `--count N` spawns N sibling tasks of
   the SAME prompt, each with its own worktree and branch, sharing one

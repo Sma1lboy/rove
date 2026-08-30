@@ -108,7 +108,6 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     },
     prompt,
   )
-  task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   // A prompt that never confirmed AND was not deferred is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.
   // Deferred (issue #78 B-layer) is a SUCCESS: the daemon owns the message now.
@@ -121,6 +120,14 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       },
     )
   }
+  // Persist the brief on the task record — the engine's own transcript is
+  // NOT durable, and a delivered prompt that only lived in the session died
+  // with the engine. Recorded only AFTER delivery confirms, so `get-task`'s
+  // `.task.prompt` always means "the engine was given exactly this text".
+  // Best-effort: the engine already has the prompt, so a persist failure
+  // must not turn a delivered task into an error.
+  await daemon.request("task.setPrompt", { taskId, prompt }).catch(() => undefined)
+  task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   return {
     taskId,
     task,
@@ -252,6 +259,10 @@ async function addParallel(
 
   const tasks: unknown[] = []
   const failures: unknown[] = []
+  // Best-effort per-sibling brief persistence (same contract as addOne) —
+  // collected here, awaited below. A persist failure must NOT flip a
+  // delivered sibling into a failure row: the engine already has the prompt.
+  const persistedPrompts: Promise<unknown>[] = []
   settled.forEach((r, i) => {
     const { taskId, vendor } = created[i]
     if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
@@ -269,6 +280,7 @@ async function addParallel(
         session: r.value.session,
         ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
       })
+      persistedPrompts.push(daemon.request("task.setPrompt", { taskId, prompt }).catch(() => undefined))
       return
     }
     // Either deliverPrompt threw, or it resolved un-delivered AND un-deferred
@@ -288,6 +300,7 @@ async function addParallel(
   // created for it) — but the siblings created before it are real, engine-
   // burning tasks whose ids must reach the script.
   if (createFailure) failures.push({ ok: false, vendor: createFailure.vendor, error: createFailure.error })
+  await Promise.all(persistedPrompts)
 
   const result = { count: created.length, requested: plan.length, groupId, tasks, failures }
   // Partial (or total) create/delivery failure must not exit 0 — carry the

@@ -79,6 +79,18 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.rename", { taskId: "t1" }, ctx)).rejects.toThrow("title is required")
     })
 
+    it("task.setPrompt records the delivered brief and validates both fields", async () => {
+      const prompts: Array<[string, string]> = []
+      const { ctx } = fakeCtx({
+        setPrompt: async (id: string, prompt: string) => {
+          prompts.push([id, prompt])
+        },
+      })
+      await expect(dispatch("task.setPrompt", { taskId: "t1", prompt: "the brief" }, ctx)).resolves.toEqual({})
+      expect(prompts).toEqual([["t1", "the brief"]])
+      await expect(dispatch("task.setPrompt", { taskId: "t1" }, ctx)).rejects.toThrow("prompt is required")
+    })
+
     it("task.reorder forwards a validated batch and returns the empty object", async () => {
       const batches: unknown[] = []
       const { ctx } = fakeCtx({

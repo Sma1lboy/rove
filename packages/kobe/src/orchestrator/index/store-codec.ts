@@ -319,6 +319,15 @@ function coerceTask(value: unknown): Task | null {
     // load coercion or a daemon restart severs every sub-task's route home.
     // Records that predate the field normalize to undefined.
     ...(dispatcher ? { dispatcher } : {}),
+    // The task brief (`add --prompt`) — must survive the load coercion or a
+    // daemon restart destroys the only durable copy of what the task was
+    // asked to do (the engine transcript does not survive the engine).
+    ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
+    // Recorded fork point (`add --base-branch`) — must survive the load
+    // coercion or a daemon restart loses it before the lazy worktree
+    // materialises (branches then silently cut from the guessed base), and
+    // `collect`'s ahead/diffstat signals revert to the wrong comparison ref.
+    ...(typeof v.baseRef === "string" && v.baseRef.trim().length > 0 ? { baseRef: v.baseRef } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }

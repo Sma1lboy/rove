@@ -90,6 +90,8 @@ const FULL_TASK: DeepRequired<Task> = {
     taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB1",
     tabId: "tab-1",
   },
+  prompt: "the full task brief — never truncated on the way to disk",
+  baseRef: "release/2.x",
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 }

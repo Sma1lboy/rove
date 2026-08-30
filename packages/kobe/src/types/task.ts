@@ -232,6 +232,26 @@ export interface Task {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /**
+   * The task brief: the full text of the prompt `add --prompt` delivered
+   * into this task's engine, recorded on the delivery path. The engine's
+   * own transcript is NOT durable — a dead engine used to take the brief
+   * down with it, and the only recovery was the user re-pasting it. Stored
+   * verbatim (never truncated: the constraints an agent needs most often
+   * sit at the END of a long brief). Optional + additive: tasks created
+   * without a prompt never get one.
+   */
+  readonly prompt?: string
+  /**
+   * The base ref the task branch was cut from (`add --base-branch`),
+   * persisted so `collect`'s branch signals (ahead count / diffstat)
+   * compare against the REAL fork point instead of re-guessing
+   * `origin/HEAD` → `main` → `master`, and a daemon restart between
+   * create and lazy worktree materialise cannot silently drop it.
+   * Optional + additive: records predating the field fall back to the
+   * guess.
+   */
+  readonly baseRef?: string
   readonly createdAt: string
   readonly updatedAt: string
 }
