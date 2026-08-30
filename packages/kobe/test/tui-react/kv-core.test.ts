@@ -148,6 +148,18 @@ describe("createKvCore", () => {
     expect(readState(home)).toEqual({})
   })
 
+  it("writes state.json compact — no pretty-print indentation", () => {
+    const home = isolatedHome({})
+    const kv = createKvCore()
+    kv.set("nested", { a: 1, b: [1, 2] })
+    expect(kv.flush()).toBe(true)
+    // The file is rewritten whole on EVERY flush and read only by machines;
+    // `null, 2` used to triple its bytes. Round-tripping through parse must
+    // reproduce the exact bytes — the cheapest compactness invariant.
+    const raw = readFileSync(statePath(home), "utf8")
+    expect(raw).toBe(JSON.stringify(JSON.parse(raw)))
+  })
+
   it("notifies subscribers on set and supports unsubscribe", () => {
     isolatedHome()
     const kv = createKvCore()

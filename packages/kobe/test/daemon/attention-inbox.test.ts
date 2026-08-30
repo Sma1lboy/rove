@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { AttentionInboxStore } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
+import { AttentionInboxStore, MAX_EPISODES } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { afterEach, describe, expect, it } from "vitest"
 
@@ -138,6 +138,53 @@ describe("daemon attention inbox", () => {
     await store.deleteTask("task-1")
 
     expect(store.snapshot().map((item) => item.taskId)).toEqual(["task-2"])
+  })
+
+  it("prunes the oldest episodes past the retention cap", async () => {
+    let now = 1000
+    const { store, path } = await create(() => now)
+    // MAX_EPISODES + 10 distinct episodes, oldest first — the ten oldest
+    // must fall off the tail-ward end and stay off after a reload. Without
+    // the cap these would all persist: episodes of forgotten tasks leave
+    // only on visit / turn-start / hard-delete, so this queue used to grow
+    // without bound (one whole-file rewrite per recorded episode).
+    for (let i = 0; i < MAX_EPISODES + 10; i++) {
+      await store.record(`task-${i}`, "turn-complete", undefined, "tab-1")
+      now += 1
+    }
+    const snapshot = store.snapshot()
+    expect(snapshot).toHaveLength(MAX_EPISODES)
+    expect(snapshot[0]).toMatchObject({ taskId: "task-10" })
+    expect(snapshot.at(-1)).toMatchObject({ taskId: `task-${MAX_EPISODES + 9}` })
+
+    const reloaded = new AttentionInboxStore(path, new DaemonEventBus())
+    await reloaded.init()
+    expect(reloaded.snapshot()).toHaveLength(MAX_EPISODES)
+    expect(reloaded.snapshot()[0]).toMatchObject({ taskId: "task-10" })
+  })
+
+  it("a fresh episode on a capped task re-stamps it to the tail, not past the cap", async () => {
+    let now = 1000
+    const { store } = await create(() => now)
+    for (let i = 0; i < MAX_EPISODES; i++) {
+      await store.record(`task-${i}`, "turn-complete", undefined, "tab-1")
+      now += 1
+    }
+    // Re-recording a task already under the cap REPLACES its episode (dedupe
+    // rule) — nothing is pruned yet, and the re-stamped episode sits at the
+    // newest slot.
+    await store.record("task-0", "awaiting-input", { waiting: "permission" }, "tab-1")
+    let snapshot = store.snapshot()
+    expect(snapshot).toHaveLength(MAX_EPISODES)
+    expect(snapshot.at(-1)).toMatchObject({ taskId: "task-0", state: "permission_needed" })
+
+    // The next NEW episode is the 501st — the cap prunes the OLDEST, which
+    // is task-1 (task-0 just re-stamped itself out of the danger slot).
+    await store.record("task-501", "turn-complete", undefined, "tab-1")
+    snapshot = store.snapshot()
+    expect(snapshot).toHaveLength(MAX_EPISODES)
+    expect(snapshot.some((item) => item.taskId === "task-1")).toBe(false)
+    expect(snapshot.at(-1)).toMatchObject({ taskId: "task-501" })
   })
 
   it("classifies waiting, rate limits, billing failures, and other failures", async () => {

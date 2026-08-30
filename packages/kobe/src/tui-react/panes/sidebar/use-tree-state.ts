@@ -39,7 +39,7 @@ import { tabPtyKeyFor } from "../../../tui/workspace/terminal-tabs-core"
 import { adoptTaskTabs } from "../../workspace/terminal-tabs-adopt"
 import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
 import { knownTaskTabs } from "../../workspace/terminal-tabs-shared"
-import { orphanTabsByTask } from "./orphan-tabs"
+import { filterKnownOrphanTabs, orphanTabsByTask } from "./orphan-tabs"
 import { useHostSessions } from "./use-host-sessions"
 
 export interface TreeStateOpts {
@@ -186,15 +186,12 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     const registered = new Set<string>()
     for (const [taskId, tabs] of snapshotTabs) for (const tab of tabs) registered.add(tabRowId(taskId, tab.id))
-    const map = new Map<string, readonly TreeTab[]>()
     // A just-closed tab's session can outlive its state in the 2s poll —
     // treating it as an orphan would adopt it right back (see
     // closed-tab-suppress.ts).
     const sessions = hostSessions.filter((session) => !isRecentlyClosedPtyKey(session.key))
-    for (const [taskId, orphans] of orphanTabsByTask(sessions, registered)) {
-      if (tasks.some((task) => task.id === taskId)) map.set(taskId, orphans)
-    }
-    return map
+    // Membership via one Set build (tree-core), not a per-orphan `tasks.some`.
+    return filterKnownOrphanTabs(tasks, orphanTabsByTask(sessions, registered))
   }, [snapshotTabs, hostSessions, tasks])
 
   // …and then it stops being unregistered: a row nobody can open or close is

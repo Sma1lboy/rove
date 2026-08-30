@@ -14,7 +14,7 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type BoxRenderable, MouseButton } from "@opentui/core"
-import { type ReactNode, useEffect } from "react"
+import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
@@ -259,6 +259,40 @@ export function WorktreeTreeRow(props: {
   )
 }
 
+/**
+ * The tab row's `buildSidebarRowView`, memoized on the real inputs so the
+ * ~10Hz spinner tick (a fresh `shared` object every render) doesn't
+ * re-derive idle tab rows. Same shape as the flat cards' `useRowCardChrome`
+ * (row-cards.tsx) — non-loading rows come back as the same object and never
+ * subscribe to the tick. Extracted + exported so the memo contract has a
+ * direct test; TabTreeRow is the only caller.
+ */
+export function useTabRowBaseView(args: {
+  readonly task: Task
+  readonly activity: TaskEngineState | undefined
+  readonly lifecycle: { readonly subagents: number } | undefined
+  readonly job: TaskJobState | undefined
+  readonly completionSeen: boolean
+}): ReturnType<typeof buildSidebarRowView> {
+  const t = useT()
+  const { task, activity, lifecycle, job, completionSeen } = args
+  return useMemo(() => {
+    // Dependency-only invalidation key: rebuild when the language changes —
+    // buildSidebarRowView reads the global `t` through the locale store.
+    void t
+    return buildSidebarRowView({
+      task,
+      activity,
+      lifecycle,
+      job,
+      spinnerFrame: 0,
+      subtitleBudget: 0,
+      truncateBranch: truncateBranchLabel,
+      completionSeen,
+    })
+  }, [task, activity, lifecycle, job, completionSeen, t])
+}
+
 export function TabTreeRow(props: {
   readonly rowId: string
   readonly flatIndex: number
@@ -317,14 +351,11 @@ export function TabTreeRow(props: {
   const completionSeen = carriesState
     ? completionSeenFor(props.task.id, activity?.state, viewing, props.tab.id, durableSeen)
     : false
-  const baseView = buildSidebarRowView({
+  const baseView = useTabRowBaseView({
     task: props.task,
     activity,
     lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
     job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
-    spinnerFrame: 0,
-    subtitleBudget: 0,
-    truncateBranch: truncateBranchLabel,
     completionSeen,
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)

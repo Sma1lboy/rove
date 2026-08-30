@@ -82,9 +82,15 @@ export function useWorkspaceSelection(args: {
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
 
-  // One-time orphan sweep (O19): clear `terminalTabs.*` snapshots whose task
-  // no longer exists. Runs once on first hydration; ref not dep, so a later
-  // task-list change never re-sweeps a live task's fresh snapshot.
+  // Orphan sweep (O19): clear `terminalTabs.*` snapshots whose task no longer
+  // exists. Runs on EVERY task-list identity change, not once per session:
+  // a sibling client (`rove api` / web board) deleting a task only lands here
+  // as a changed list — forgetTaskTabs is wired to THIS client's delete flow
+  // alone, so a once-per-session sweep left those orphans taxing every later
+  // kv write until the next launch. The sweep itself is idempotent and cheap
+  // (one Set lookup per snapshot key), so re-running it on every list echo
+  // costs nothing: a live task's id is always in the list, so its snapshots
+  // can never be swept by a re-run.
   //
   // The `tasks.length === 0` guard is load-bearing and SUFFICIENT, despite
   // reading like a weak null-check: this list is only ever assigned from the
@@ -96,10 +102,8 @@ export function useWorkspaceSelection(args: {
   // orphan. Do not relax the empty check — empty is exactly the shape a
   // pre-connection render and a corrupt-manifest recovery both take, and
   // sweeping on it would wipe every live snapshot on the machine.
-  const sweptOrphansRef = useRef(false)
   useEffect(() => {
-    if (sweptOrphansRef.current || tasks.length === 0) return
-    sweptOrphansRef.current = true
+    if (tasks.length === 0) return
     sweepOrphanTabsSnapshots(
       kv,
       tasks.map((task) => task.id),
