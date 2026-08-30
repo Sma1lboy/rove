@@ -81,9 +81,6 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function selectPrefixTapPresentation(next: PrefixTapPresentation): void {
     kv.set(PREFIX_TAP_PRESENTATION_KEY, next)
   }
-  // Sidebar hover tooltips: opt-in, default OFF (owner call 2026-07-28) —
-  // the item info they show is nice-to-have, not essential.
-
   // Appearance: how split leaves draw — full box frames or single dividers.
   function splitStyle(): SplitStyle {
     return normalizeSplitStyle(kv.get(SPLIT_STYLE_KEY))

@@ -30,10 +30,11 @@ describe("workspace open-worktree bindings", () => {
     mocks.bindingFactories.length = 0
   })
 
-  test("the workspace hook registers both open-worktree bindings", () => {
+  test("the workspace hook registers the sidebar-scoped task bindings", () => {
     const openTaskWorktree = vi.fn()
     const renameBranch = vi.fn()
     const cycleVendor = vi.fn()
+    const toggleSortMode = vi.fn()
     const pages: HostPagesState = {
       nav: "terminal",
       setNav: vi.fn(),
@@ -72,7 +73,7 @@ describe("workspace open-worktree bindings", () => {
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),
-      toggleSortMode: vi.fn(),
+      toggleSortMode,
     })
 
     const registrations = mocks.bindingFactories.map((factory) => factory())
@@ -81,18 +82,22 @@ describe("workspace open-worktree bindings", () => {
     const sidebarOpen = sidebarBindings.find((binding) => binding.key === "o" && !binding.prefix)
     const rename = sidebarBindings.find((binding) => binding.key === "b")
     const cycleEngine = sidebarBindings.find((binding) => binding.key === "v")
+    const sort = sidebarBindings.find((binding) => binding.key === "t")
 
     expect(globalOpen).toBeDefined()
     expect(sidebarOpen).toBeDefined()
     expect(rename).toBeDefined()
     expect(cycleEngine).toBeDefined()
+    expect(sort).toBeDefined()
     globalOpen?.cmd({} as never)
     sidebarOpen?.cmd({} as never)
     rename?.cmd({} as never)
     cycleEngine?.cmd({} as never)
+    sort?.cmd({} as never)
     expect(openTaskWorktree).toHaveBeenCalledTimes(2)
     expect(renameBranch).toHaveBeenCalledWith("task-1")
     expect(cycleVendor).toHaveBeenCalledWith("task-1")
+    expect(toggleSortMode).toHaveBeenCalledTimes(1)
   })
 
   // Boot now lands focus in the content pane when a session is restorable,

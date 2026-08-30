@@ -1,11 +1,14 @@
 import { approxCellWidth } from "../../../lib/display-width"
-import { repoBasename } from "./groups"
-import type { SidebarHover } from "./types"
 
 // Cell measurement moved to the shared width module; re-exported so
 // existing importers (tests, panes) keep compiling.
 export { approxCellWidth }
 
+// The hover TOOLTIP itself was cut with the flat sidebar's row cards
+// (2026-08-30): nothing feeds a SidebarHover anymore and no renderer
+// consumed one. What survives here is the placement math, reused by the
+// right-click ContextMenu — same "a box of text lines pinned near the
+// pointer" problem.
 export const SIDEBAR_HOVER_TOOLTIP_Z_INDEX = 2750
 export const SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH = 72
 
@@ -21,16 +24,6 @@ export type SidebarHoverTooltipLayout = {
   readonly boxHeight: number
   readonly left: number
   readonly top: number
-}
-
-export function sidebarHoverTooltipLines(hover: SidebarHover): SidebarHoverTooltipLine[] {
-  const task = hover.task
-  const out: SidebarHoverTooltipLine[] = []
-  out.push({ text: task.kind === "main" ? repoBasename(task.repo) : task.title, bold: true })
-  if (task.branch.length > 0) out.push({ text: `⎇ ${task.branch}` })
-  // No worktree path line (owner call 2026-07-28): it's noise here — the
-  // path lives in the workspace header when the task is selected.
-  return out
 }
 
 export function resolveSidebarHoverTooltipLayout(opts: {
