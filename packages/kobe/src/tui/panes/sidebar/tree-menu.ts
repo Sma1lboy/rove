@@ -21,6 +21,7 @@
  * so the menu follows a language switch like everything else.
  */
 
+import type { Task } from "@/types/task"
 import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
@@ -60,14 +61,16 @@ function newTabVerbs(): TreeMenuItem[] {
 }
 
 /** The per-task verbs, shared by worktree and tab rows (see the module note
- *  on why a tab row carries them). */
-function taskVerbs(pinned: boolean): TreeMenuItem[] {
-  return [
-    { action: "rename", labelKey: "tasks.menu.rename" },
-    { action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" },
-    { action: "reorder", labelKey: "tasks.menu.reorder" },
-    { action: "delete", labelKey: "tasks.menu.delete", danger: true },
-  ]
+ *  on why a tab row carries them). Gated by the row's task kind: a `main` row
+ *  is always pinned and `setPinned` silently no-ops on it (task-editor.ts),
+ *  and an entry that does nothing is worse than no entry — the same rule
+ *  `closeTab` follows above. */
+function taskVerbs(pinned: boolean, kind: Task["kind"]): TreeMenuItem[] {
+  const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename" }]
+  if (kind !== "main") verbs.push({ action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" })
+  verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder" })
+  verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
+  return verbs
 }
 
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
@@ -75,9 +78,13 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     return [{ action: "newTask", labelKey: "tasks.menu.newTask" }]
   }
   if (row.kind === "worktree") {
-    return [{ action: "open", labelKey: "tasks.menu.open" }, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true)]
+    return [
+      { action: "open", labelKey: "tasks.menu.open" },
+      ...newTabVerbs(),
+      ...taskVerbs(row.task.pinned === true, row.task.kind),
+    ]
   }
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab" }]
   if ((ctx.tabCount ?? 0) > 1) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
-  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true)]
+  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true, row.task.kind)]
 }

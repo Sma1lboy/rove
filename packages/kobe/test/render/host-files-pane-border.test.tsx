@@ -39,6 +39,7 @@ function mounted(worktree: string, initial: "workspace" | "files") {
         focused={false}
         onOpenFile={NOOP}
         onOpenDiff={NOOP}
+        onMention={NOOP}
         onZenToggle={NOOP}
         onCreatePR={NOOP}
       />

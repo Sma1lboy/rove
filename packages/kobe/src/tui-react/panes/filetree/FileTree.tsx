@@ -79,9 +79,10 @@ export type FileTreeProps = {
   /** `d` — open the current file's read-only diff in a workspace content tab.
    *  `base` (Branch scope) makes it a vs-base diff; omitted = diff vs HEAD. */
   onOpenDiff?: (relPath: string, base?: string) => void
-  /** `a` — inject the current file as an `@<path>` mention (Ops host only). */
+  /** `a` — paste an `@<path>` mention into the engine's composer, no submit
+   *  (workspace host only; see docs/TUI.md). */
   onMention?: (relPath: string) => void
-  /** `p` — request PR creation (Ops host only); also rendered as a chip. */
+  /** `p` — request PR creation (workspace host only); also rendered as a chip. */
   onCreatePR?: () => void
   /** Zen-mode chip left of Create PR (enter-only, see the Solid pane doc). */
   onZenToggle?: () => void

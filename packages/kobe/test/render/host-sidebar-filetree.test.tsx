@@ -12,6 +12,7 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { FileTree } from "../../src/tui-react/panes/filetree/FileTree"
+import { HostFilesPane } from "../../src/tui-react/workspace/host-files-pane"
 import { HostSidebar, type HostSidebarProps } from "../../src/tui-react/workspace/host-sidebar"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
@@ -149,5 +150,47 @@ describe("FileTree", () => {
     })
     const text = await frame()
     expect(text.length).toBeGreaterThan(0)
+  })
+})
+
+describe("HostFilesPane", () => {
+  it("`a` on a file row delivers the worktree-relative path to the host's mention handler", async () => {
+    const repo = mkdtempSync(join(tmpdir(), "kobe-mention-"))
+    execSync("git init -q -b main && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m init", {
+      cwd: repo,
+    })
+    writeFileSync(join(repo, "alpha.ts"), "export {}\n")
+    execSync("git add . && git -c user.email=t@t -c user.name=t commit -q -m files", { cwd: repo })
+
+    const mentions: string[] = []
+    const { frame, mockInput } = await renderComponent(
+      inFrameRow(
+        <HostFilesPane
+          worktree={repo}
+          prBaseRef={undefined}
+          focused={true}
+          onOpenFile={NOOP}
+          onOpenDiff={NOOP}
+          onMention={(p) => mentions.push(p)}
+          onZenToggle={NOOP}
+          onCreatePR={NOOP}
+        />,
+        24,
+      ),
+      { width: 90, height: 24, providers: { focus: true } },
+    )
+    // The listing loads through an async git read — poll the real frame.
+    let text = ""
+    for (let i = 0; i < 40 && !text.includes("alpha.ts"); i++) {
+      await settle(100)
+      text = await frame()
+    }
+    expect(text).toContain("alpha.ts")
+
+    // The `a` chord fires the pane's onMention with the row's path — the
+    // host pastes `@<path>` into the engine composer (mentionText).
+    act(() => mockInput.pressKey("a"))
+    await settle()
+    expect(mentions).toEqual(["alpha.ts"])
   })
 })
