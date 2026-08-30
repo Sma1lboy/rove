@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.37
+
+### Patch Changes
+
+- [#663](https://github.com/Sma1lboy/rove/pull/663) [`3faca9b`](https://github.com/Sma1lboy/rove/commit/3faca9b31c91f2695431df1fa65e0aca23d8aff4) Fix `add --count`/`--agents` reporting a deferred sibling as a delivery failure. A parallel round only accepted `delivered === true` as success, so a sibling whose prompt was accepted-but-deferred (issue [#78](https://github.com/Sma1lboy/rove/issues/78) B-layer: the composer was briefly busy, the daemon took ownership of the message and queued an inbox episode) landed in the failure list, tripped `PARTIAL_FANOUT`, and exited non-zero — even though the single-task `add` and `send` paths both treat a deferred delivery as a success the caller must NOT retry. The round now routes a deferred sibling to the success rows with its `deferred` marker, so a scripted fan-out no longer sees a phantom failure and can't double-deliver the same message. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.36
 
 ### Patch Changes
