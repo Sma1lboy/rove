@@ -286,7 +286,13 @@ command, or content tab alone does not count.
 Omitting BOTH `--task-id` and `--tab` inside a task that has a dispatcher
 targets that dispatcher's tab (see the reply rule above); otherwise the
 target is the active task. Omitting only `--tab` targets a live engine tab
-(`tab-1` first, then any surviving engine tab). Only when the task has NO live session at all does `send`
+(`tab-1` first, then any surviving engine tab). **Trap: omitting only
+`--task-id` while giving `--tab tab-N` inside a dispatched task delivers to
+`tab-N` of the DISPATCHER's task** — the dispatcher's id fills in for
+`--task-id`, but an explicit `--tab` is kept, so your `send --tab tab-3`
+lands in the middle of another session's tab-3, not yours. Target your own
+task's tab with `--task-id "$ROVE_TASK_ID" --tab tab-N`. Only when the task
+has NO live session at all does `send`
 auto-start the canonical engine in the task's worktree (`started: true` in
 the result marks that fresh session). If live tabs exist but none resolves
 as an engine, it refuses with `NO_ENGINE_TAB` — address one with `--tab
@@ -330,18 +336,19 @@ logs, dashboards), don't scatter panes for work `add` should own.
 | `set-branch --task-id ID --branch B` | Rename its branch |
 | `set-command --task-id ID --command CMD` | Change the engine launch command for the next launch |
 | `set-status --task-id ID --status S` | Set lifecycle status |
-| `archive --task-id ID [--archived=false]` | Archive/unarchive; stops live sessions |
 | `pin --task-id ID [--pinned=false]` | Pin/unpin |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
-| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--then-archive] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
+| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |
 
 Once a task's work is merged, `delete` is the normal cleanup — the branch is
-git's durable record and survives. `archive` remains as a manual "hide the
-row" override. `--delete-branch` (or a dirty-worktree `--force`) still needs
+git's durable record and survives. There is no "hide the row without
+deleting" verb anymore (`archive` was removed); a merged task you want out of
+the way is a `delete`, and its branch is still there if you need the history
+back. `--delete-branch` (or a dirty-worktree `--force`) still needs
 explicit user authorization.
 
 ## Issue tracker
@@ -462,15 +469,17 @@ After comparing attempts, finish the round instead of leaving tasks behind:
 ```bash
 # Land the winner: merge its branch into the base repo's CURRENT branch.
 # Verify the base checkout is on the intended branch first.
-rove api land --task-id <winner> --then-archive
+rove api land --task-id <winner>
 
-# Archive the losers (non-destructive; branches survive).
-rove api archive --task-id <loser1>
-rove api archive --task-id <loser2>
+# Delete the losers: task + worktree go away, the git branch survives
+# (recoverable). NOT --delete-branch — that destroys history and needs
+# explicit user authorization.
+rove api delete --task-id <loser1>
+rove api delete --task-id <loser2>
 ```
 
 `land` refuses a dirty base checkout; on merge conflict it aborts cleanly and
-returns the conflicted files for manual resolution. `delete` removes a loser's
-Worktree but keeps its branch (recoverable); still don't use it — or
-`--delete-branch`, which destroys the history — without explicit user
-authorization.
+returns the conflicted files for manual resolution. `delete` removes a
+loser's Worktree but keeps its branch (recoverable); `--delete-branch`
+destroys the history and is never part of closing a round without explicit
+user authorization.
