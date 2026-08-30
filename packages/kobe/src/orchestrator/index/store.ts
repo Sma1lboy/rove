@@ -175,7 +175,9 @@ export class TaskIndexStore {
         tasks: merged.tasks,
         ...(merged.removed.length > 0 ? { removed: merged.removed } : {}),
       }
-      const json = `${JSON.stringify(payload, null, 2)}\n`
+      // Compact (no `null, 2`): every mutation rewrites the whole file, the
+      // file is read only by machines, and pretty-printing tripled the bytes.
+      const json = `${JSON.stringify(payload)}\n`
 
       // Unique per save: a shared `<path>.tmp` let a second writer clobber the
       // first's staging file whenever mutual exclusion broke, failing the

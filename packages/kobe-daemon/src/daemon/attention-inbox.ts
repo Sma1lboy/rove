@@ -30,6 +30,17 @@ interface AttentionInboxFile {
   readonly items: AttentionInboxItem[]
 }
 
+/**
+ * Retention cap (prune-oldest, shape of `pty-exit-store.ts`'s MAX_RECORDS):
+ * an episode leaves only on visit / dismiss / a newer turn on the same
+ * task+tab / task hard-delete — a task you never revisit keeps its episode
+ * forever, and every recorded episode rewrites the whole file. Without a
+ * cap the queue grows without bound; the size of a real install's task list
+ * is the natural ceiling on live episodes, but forgotten tasks must not
+ * accumulate tax forever.
+ */
+export const MAX_EPISODES = 500
+
 export function defaultAttentionInboxPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "attention-inbox.json")
 }
@@ -227,7 +238,8 @@ export class AttentionInboxStore {
 
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private async commit(next: ReadonlyMap<string, AttentionInboxItem>): Promise<void> {
-    const items = [...next.values()].sort(compareItems)
+    // Sorted ascending by `at`, so the tail is the newest — prune-oldest.
+    const items = [...next.values()].sort(compareItems).slice(-MAX_EPISODES)
     await writeStore(this.path, items)
     this.items.clear()
     for (const item of items) this.items.set(attentionInboxItemKey(item), item)

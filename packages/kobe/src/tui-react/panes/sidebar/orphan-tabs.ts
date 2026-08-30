@@ -20,6 +20,7 @@
  * ordinals, kinds and split state a session key can't.
  */
 
+import type { Task } from "@/types/task"
 import { stripEngineStatusPrefix } from "../../../engine/registry"
 import { type TreeTab, parseRowId, tabRowId } from "../../../tui/panes/sidebar/tree-core"
 
@@ -79,4 +80,22 @@ export function orphanTabsByTask(
     byTask.set(taskId, tabs)
   }
   return byTask
+}
+
+/**
+ * Keep only orphan tabs whose task is still in the task list — membership
+ * via ONE Set build, not a per-orphan `tasks.some` scan. This runs inside
+ * the tree's orphan memo; with a few hundred tasks, every orphan row used
+ * to re-scan the whole array to prove its task exists.
+ */
+export function filterKnownOrphanTabs(
+  tasks: readonly Task[],
+  orphans: ReadonlyMap<string, readonly TreeTab[]>,
+): ReadonlyMap<string, readonly TreeTab[]> {
+  const taskIds = new Set<string>(tasks.map((task) => task.id))
+  const known = new Map<string, readonly TreeTab[]>()
+  for (const [taskId, tabs] of orphans) {
+    if (taskIds.has(taskId)) known.set(taskId, tabs)
+  }
+  return known
 }

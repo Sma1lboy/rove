@@ -124,10 +124,14 @@ export function useAttention(args: {
     prevStates.current = next
     if (kv.get(CROSS_TASK_KEY, true) === false) return
     const repos = [...new Set(tasks.map((t) => t.repo))]
+    // One O(n) index build instead of a per-edge `tasks.find` scan: with a
+    // few hundred tasks and one edge each, the loop used to re-scan the
+    // whole array for every notification.
+    const taskById = new Map<string, Task>(tasks.map((task) => [task.id, task]))
     for (const { key, kind } of edges) {
       const target = targets.get(key)
       if (!target || target.taskId === selectedId) continue
-      const task = tasks.find((t) => t.id === target.taskId)
+      const task = taskById.get(target.taskId)
       // Toast identity mirrors the Inbox card: task title leads, project
       // (repo label) is the context body line — plus the tab when one is
       // known, so two tabs of one task finishing don't read identically.
@@ -163,9 +167,11 @@ export function useAttention(args: {
     if (prev === null) return // seed — replayed history must not re-fire toasts
     if (kv.get(CROSS_TASK_KEY, true) === false) return
     const repos = [...new Set(tasks.map((t) => t.repo))]
+    // Same hoist as the engine-state effect above: no per-item `tasks.find`.
+    const taskById = new Map<string, Task>(tasks.map((task) => [task.id, task]))
     for (const [key, entry] of next) {
       if (prev.get(key)?.at === entry.at) continue // same episode, not a fresh edge
-      const task = tasks.find((t) => t.id === entry.taskId)
+      const task = taskById.get(entry.taskId)
       const tab = knownTaskTab(kv, entry.taskId, entry.tabId)
       const tabLabel = tab ? tabTitleStable(tab, task?.vendor ?? DEFAULT_TASK_VENDOR) : ""
       const project = task ? sidebarProjectLabel(task.repo, repos) : ""
