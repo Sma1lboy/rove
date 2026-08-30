@@ -100,10 +100,12 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
   // Set-branch (`b`): pick from the repo's local branches (filter-as-you-type)
   // or type a new name — the shared `renameBranchFlow`'s bare text prompt
   // replaced by the branch-listing dialog (issue #10). `setBranch` no-ops on
-  // an unchanged name and rejects a main row, so we only guard/notify here.
+  // an unchanged name and rejects main/dir rows, so we guard/notify here:
+  // opening the picker for a task whose branch can't be set would send the
+  // user through a choice that only ever ends in the error toast.
   async function renameBranch(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
-    if (!task || task.kind === "main") return
+    if (!task || task.kind === "main" || task.kind === "dir") return
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {

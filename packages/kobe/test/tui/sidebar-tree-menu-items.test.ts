@@ -43,6 +43,33 @@ describe("treeMenuItems", () => {
     expect(actions(worktreeRow())).toEqual(["open", "newChat", "newShell", "rename", "pin", "reorder", "delete"])
   })
 
+  test("a main row (the project's own checkout) is not offered a pin — setPinned silently no-ops on it", () => {
+    const mainRow = worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" })
+    expect(actions(mainRow)).toEqual(["open", "newChat", "newShell", "rename", "reorder", "delete"])
+    const mainTab: TreeRow = {
+      kind: "tab",
+      id: "a::tab-2",
+      task: task({ kind: "main", branch: "", worktreePath: "/repos/rove" }),
+      tab: { id: "tab-2", label: "tab 2" },
+      depth: 2,
+    }
+    expect(actions(mainTab, { tabCount: 2 })).toEqual([
+      "open",
+      "closeTab",
+      "newChat",
+      "newShell",
+      "rename",
+      "reorder",
+      "delete",
+    ])
+  })
+
+  test("a dir row keeps every verb — pin and title-rename both work there", () => {
+    const dirRow = worktreeRow({ kind: "dir", branch: "" })
+    expect(actions(dirRow)).toContain("pin")
+    expect(actions(dirRow)).toContain("rename")
+  })
+
   test("a tab row carries the same session + task verbs, plus its own close", () => {
     expect(actions(tabRow, { tabCount: 2 })).toEqual([
       "open",

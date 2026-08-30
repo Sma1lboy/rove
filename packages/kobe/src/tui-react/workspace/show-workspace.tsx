@@ -25,6 +25,10 @@ export function ShowWorkspace(props: {
   onRequestFocus: () => void
   onEditorTabReady: (open: (command: readonly string[], label: string) => void) => void
   onEngineSendReady: (send: (text: string) => void) => void
+  /** Paste-only sibling of `onEngineSendReady` (no submit) — the FileTree `a` @path mention.
+   *  Required like its sibling: optional here, dropping the host's wire would
+   *  silently make the `a` key dead again instead of failing the typecheck. */
+  onEnginePasteReady: (paste: (text: string) => void) => void
   onDiffTabReady: (open: (relPath: string, label: string, base?: string) => void) => void
   onQuickFork: (repo: string, result: QuickTaskResult) => void
   initialPrompt?: string
@@ -95,6 +99,7 @@ export function ShowWorkspace(props: {
       onRequestFocus={props.onRequestFocus}
       onEditorTabReady={props.onEditorTabReady}
       onEngineSendReady={props.onEngineSendReady}
+      onEnginePasteReady={props.onEnginePasteReady}
       onDiffTabReady={props.onDiffTabReady}
       onQuickFork={props.onQuickFork}
       initialPrompt={props.initialPrompt}

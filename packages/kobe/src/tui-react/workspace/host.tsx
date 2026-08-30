@@ -387,6 +387,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
               onRequestFocus={() => focus.setFocused("workspace")}
               onEditorTabReady={editor.onEditorTabReady}
               onEngineSendReady={editor.onEngineSendReady}
+              onEnginePasteReady={editor.onEnginePasteReady}
               onDiffTabReady={editor.onDiffTabReady}
               onQuickFork={quickFork.onQuickFork}
               initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
@@ -409,6 +410,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           focused={activePane === "files"}
           onOpenFile={(relPath) => void editor.onOpenFile(relPath)}
           onOpenDiff={editor.onOpenDiff}
+          onMention={editor.onMention}
           onZenToggle={toggleZen}
           onCreatePR={() => void editor.onCreatePR()}
         />

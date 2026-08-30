@@ -29,6 +29,7 @@ export interface TabHandoffIO {
       readonly worktree: string
       readonly onEditorTabReady?: (open: (command: readonly string[], label: string) => void) => void
       readonly onEngineSendReady?: (send: (text: string) => void) => void
+      readonly onEnginePasteReady?: (paste: (text: string) => void) => void
       readonly onDiffTabReady?: (open: (relPath: string, label: string, base?: string) => void) => void
     }
   }
@@ -38,36 +39,52 @@ export interface TabHandoffIO {
   readonly bumpResetToken: () => void
 }
 
-/**
- * Paste `text` into the task's engine tab PTY and submit — the active tab
- * when it's an engine, else the first engine tab. Reads everything through
- * the latest-render refs, so one closure stays valid for the mount's life.
- */
-function buildEngineSend(
-  io: Pick<TabHandoffIO, "stateRef" | "propsRef" | "engineTabSpawnRef">,
-): (text: string) => void {
+type EnginePtyIO = Pick<TabHandoffIO, "stateRef" | "propsRef" | "engineTabSpawnRef">
+
+/** The engine tab's live PTY — the active tab when it's an engine, else the
+ *  first engine tab; a parked background tab (issue #28) is re-acquired
+ *  (reattach + replay, then the paste lands). Reads everything through the
+ *  latest-render refs, so one closure stays valid for the mount's life. */
+function resolveEnginePty(io: EnginePtyIO): ReturnType<ReturnType<typeof getDefaultPtyRegistry>["get"]> | null {
   const { stateRef, propsRef, engineTabSpawnRef } = io
-  return (text) => {
-    const activeTab = stateRef.current.tabs.find((tab) => tab.id === stateRef.current.activeId)
-    const target = activeTab?.kind === "engine" ? activeTab : stateRef.current.tabs.find((t) => t.kind === "engine")
-    if (!target) return
-    const reg = getDefaultPtyRegistry()
-    const key = tabPtyKey(propsRef.current.taskId, target.id)
-    let pty = reg.get(key)
-    if (!pty && target.kind === "engine") {
-      // Parked background tab (issue #28): the host still runs the
-      // session — re-acquire reattaches + replays, then the paste lands.
-      // Default geometry until the tab is next mounted; the engine
-      // rewraps on the real resize like any terminal.
-      try {
-        pty = reg.acquire(key, propsRef.current.worktree, { ...engineTabSpawnRef.current(target) })
-      } catch {
-        return
-      }
+  const activeTab = stateRef.current.tabs.find((tab) => tab.id === stateRef.current.activeId)
+  const target = activeTab?.kind === "engine" ? activeTab : stateRef.current.tabs.find((t) => t.kind === "engine")
+  if (!target) return null
+  const reg = getDefaultPtyRegistry()
+  const key = tabPtyKey(propsRef.current.taskId, target.id)
+  let pty = reg.get(key)
+  if (!pty && target.kind === "engine") {
+    // Default geometry until the tab is next mounted; the engine rewraps on
+    // the real resize like any terminal.
+    try {
+      pty = reg.acquire(key, propsRef.current.worktree, { ...engineTabSpawnRef.current(target) })
+    } catch {
+      return null
     }
-    if (!pty || pty.killed) return
+  }
+  if (!pty || pty.killed) return null
+  return pty
+}
+
+/** Paste `text` into the task's engine tab PTY and submit. Exported for the
+ *  send-vs-paste contract test — the mention must NOT submit. */
+export function buildEngineSend(io: EnginePtyIO): (text: string) => void {
+  return (text) => {
+    const pty = resolveEnginePty(io)
+    if (!pty) return
     pty.paste(text)
     pty.write("\r")
+  }
+}
+
+/** Paste `text` into the task's engine tab PTY WITHOUT submitting — the
+ *  FileTree `a` mention leaves the `@path` in the engine's composer for the
+ *  user to keep typing around (docs/TUI.md). */
+export function buildEnginePaste(io: EnginePtyIO): (text: string) => void {
+  return (text) => {
+    const pty = resolveEnginePty(io)
+    if (!pty) return
+    pty.paste(text)
   }
 }
 
@@ -77,9 +94,13 @@ function buildEngineSend(
  * engine-send closure so the owning component can use it directly (the diff
  * review's send-notes action).
  */
-export function useTabHandoffs(io: TabHandoffIO): { sendToEngine: (text: string) => void } {
+export function useTabHandoffs(io: TabHandoffIO): {
+  sendToEngine: (text: string) => void
+  pasteToEngine: (text: string) => void
+} {
   const { stateRef, propsRef, update } = io
   const sendToEngine = buildEngineSend(io)
+  const pasteToEngine = buildEnginePaste(io)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once handoff; the callback reads propsRef/stateRef for freshness.
   useEffect(() => {
@@ -112,5 +133,11 @@ export function useTabHandoffs(io: TabHandoffIO): { sendToEngine: (text: string)
     propsRef.current.onEngineSendReady?.(sendToEngine)
   }, [])
 
-  return { sendToEngine }
+  // Paste-only sibling (no submit): the FileTree `a` @path mention.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once handoff; same ref-freshness contract as onEngineSendReady above.
+  useEffect(() => {
+    propsRef.current.onEnginePasteReady?.(pasteToEngine)
+  }, [])
+
+  return { sendToEngine, pasteToEngine }
 }

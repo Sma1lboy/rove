@@ -23,6 +23,8 @@ export function HostFilesPane(props: {
   readonly focused: boolean
   readonly onOpenFile: (relPath: string) => void
   readonly onOpenDiff: (relPath: string, base?: string) => void
+  /** `a` — paste an `@<path>` mention into the engine's composer (no submit). */
+  readonly onMention: (relPath: string) => void
   readonly onZenToggle: () => void
   readonly onCreatePR: () => void
 }) {
@@ -47,6 +49,7 @@ export function HostFilesPane(props: {
         focused={props.focused}
         onOpenFile={props.onOpenFile}
         onOpenDiff={props.onOpenDiff}
+        onMention={props.onMention}
         onZenToggle={props.onZenToggle}
         onCreatePR={props.onCreatePR}
       />

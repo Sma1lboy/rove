@@ -49,7 +49,8 @@ export type FileTreeController = {
   currentTab: () => FileTreeTab
   /** Activate the row under the cursor (calls `onOpenFile` upstream). */
   openCurrent: () => void
-  /** `a` — inject the current file as an `@<path>` mention (Ops host only). */
+  /** `a` — inject the current file as an `@<path>` mention into the engine's
+   *  composer (workspace host only). */
   mentionCurrent?: () => void
   /** Hand the current row off to the OS default app (audio, video, PDF). */
   openExternal: () => void

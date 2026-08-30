@@ -37,6 +37,7 @@ const props = (tasks: readonly Task[]) =>
     onRequestFocus: () => {},
     onEditorTabReady: () => {},
     onEngineSendReady: () => {},
+    onEnginePasteReady: () => {},
     onDiffTabReady: () => {},
     onQuickFork: () => {},
   }) as const

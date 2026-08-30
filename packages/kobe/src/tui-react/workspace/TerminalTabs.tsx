@@ -126,6 +126,8 @@ export interface TerminalTabsProps {
   /** Hands the parent an imperative "paste this into the active engine tab
    *  and submit" function, once per mount (see file header). */
   onEngineSendReady?: (send: (text: string) => void) => void
+  /** Paste-only sibling of `onEngineSendReady` (no submit) — the FileTree `a` @path mention. */
+  onEnginePasteReady?: (paste: (text: string) => void) => void
   /** Hands the parent an imperative "open this file's read-only diff in a
    *  content tab" function, once per mount — the FileTree `d` action (issue
    *  #21). Opening is a content swap, not a focus grab (KOB-25). */
@@ -168,8 +170,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // effects below (see file header).
   const propsRef = useLatest(props)
 
-  /** Pin a fresh engine-session id on the just-created active engine tab —
-   *  the tmux `@kobe_session_id` stash. */
+  /** Pin a fresh engine-session id on the just-created active engine tab (the tmux `@kobe_session_id` stash). */
   const pinSession = (s: TabsState, vendor: VendorId | undefined): TabsState => {
     const base = vendor ? engineLaunchArgv({ vendor, effort: props.modelEffort }) : props.command
     const { sessionId } = withPinnedSessionId(base, vendor ?? props.vendor)
@@ -249,8 +250,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       worktreePath: props.worktree,
     })
   }
-  // Latest-render mirror for the mount-once engine-send closure below —
-  // same freshness convention as propsRef/stateRef (file header).
+  // Latest-render mirror for the mount-once engine-send closure — same freshness convention as propsRef/stateRef (file header).
   const engineTabSpawnRef = useLatest(engineTabSpawn)
 
   /** Nudge Terminal to re-acquire under the CURRENTLY visible tab's key —
