@@ -44,7 +44,10 @@ describe("hosted engine session launch", () => {
     expect(launch.command[2]).toContain('exec "${SHELL:-/bin/sh}"')
   })
 
-  test("new-task intent bakes the launch task's id into the branch-rename coda", () => {
+  test("new-task intent puts the user's prompt on the argv, with nothing appended", () => {
+    // Standing worker instructions (name your branch, report home) moved to
+    // the Rove agent skill; the first prompt is now the user's text plus only
+    // facts about THIS worktree, which no skill can know.
     const launch = buildEngineSessionLaunch({
       task: { id: "task-9", kind: "task", vendor: "claude", repo: "/repo" },
       worktreePath: "/repo/.worktrees/task-9",
@@ -53,8 +56,8 @@ describe("hosted engine session launch", () => {
       promptIntent: { kind: "new-task", prompt: "fix it" },
       protocolGates: { status: () => false, notes: () => false, dispatcher: () => false },
     })
-    expect(launch.command[2]).toContain("fix it")
-    expect(launch.command[2]).toContain("set-branch --task-id task-9")
+    expect(launch.command[2]).toContain("claude 'fix it'")
+    expect(launch.command[2]).not.toContain("set-branch")
   })
 
   test("keeps a paste vendor's first message OUT of the argv and hands it to the spawner (issue #25)", () => {

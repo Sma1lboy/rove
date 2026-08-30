@@ -348,9 +348,10 @@ describe("terminal tabs state", () => {
     const firstSpawn = engineTabSpawnFor(s, first, base, opts)
     expect(firstSpawn.command.slice(0, 2)).toEqual(["/bin/zsh", "-ilc"])
     expect(firstSpawn.command[2]).toContain("claude 'fix the bug")
-    // A quick-fork prompt is a fresh worktree task's FIRST prompt — it
-    // carries the branch-rename coda with this task's id (issue #8).
-    expect(firstSpawn.command[2]).toContain("set-branch --task-id task-1")
+    // A quick-fork prompt is a fresh worktree task's FIRST prompt. It used to
+    // carry a branch-rename coda; that standing instruction now lives in the
+    // Rove agent skill, so the prompt reaches the engine as the user wrote it.
+    expect(firstSpawn.command[2]).not.toContain("set-branch")
     // Second engine tab: never gets the prompt.
     expect(engineTabSpawnFor(s, second, base, opts).command[2]).not.toContain("fix the bug")
     // Already spawned: the conversation has begun — never re-deliver.
