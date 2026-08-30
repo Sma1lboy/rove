@@ -1,4 +1,5 @@
 import { type EffectiveActivity, type HookSlot, type ObservedSlot, recomputeTabActivity } from "./activity-arbitrate.ts"
+import { type ActivityDebugSnapshot, buildActivityDebugSnapshot } from "./activity-debug-dump.ts"
 import {
   type ActivityLiveness,
   type ActivityLivenessProbe,
@@ -352,6 +353,59 @@ export class DaemonActivityRegistry {
     return prev?.source === "hook" ? "corrected-hook-running" : "observed-idle"
   }
 
+  /**
+   * Record that a tab's ENGINE PROCESS died, from the pty-host's durable exit
+   * record (`pty-exits.json` via `pty-exit-watch.ts`).
+   *
+   * This is the one activity fact no hook can ever report: a killed engine
+   * (SIGTERM/SIGKILL, or a wrapper that exits under it) runs no Stop, no
+   * SessionEnd, nothing. Before this existed the death reached the UI as
+   * `applyRest(... "no engine in foreground")` — folded into idle — so a dead
+   * tab rendered byte-identically to a shell that never ran anything.
+   *
+   * Written into the HOOK slot, because it is a claim about the engine, and
+   * arbitrated by rule 0 (see activity-arbitrate.ts): it outranks a stale
+   * `running`, and a NEWER hook event (a fresh session in the tab) displaces
+   * it. A clean exit is not a death — the caller filters those, matching the
+   * exit store's own noise rule.
+   */
+  recordEngineDeath(
+    taskId: string,
+    tabId: string,
+    exit: { code?: number | null; signal?: string | null; lastLine?: string },
+    at: number,
+  ): void {
+    const tabs = this.tabActivity.get(taskId) ?? new Map<string, TabEntry>()
+    const prev = tabs.get(tabId)
+    // A hook event from AFTER the death is a new session in this tab — the
+    // record is history by then and must not bury a live engine.
+    if (prev?.hook && prev.hook.at > at) return
+    if (prev?.hook?.lapse) clearTimeout(prev.hook.lapse)
+    const detail: EngineActivityDetail = {
+      exit: {
+        ...(exit.code !== undefined ? { code: exit.code } : {}),
+        ...(exit.signal !== undefined ? { signal: exit.signal } : {}),
+        ...(exit.lastLine ? { lastLine: exit.lastLine } : {}),
+      },
+    }
+    const vendor = prev?.hook?.vendor ?? prev?.observed?.vendor
+    const session = prev?.hook?.session ?? prev?.observed?.session
+    // No lapse watchdog: `dead` is sticky (a dead engine writes nothing, so
+    // the liveness probe would idle exactly the tab that needs the badge).
+    const hook: TabHookEntry = {
+      state: "dead",
+      at,
+      detail,
+      ...(vendor ? { vendor } : {}),
+      ...(session ? { session } : {}),
+    }
+    const effective = recomputeTabActivity({ hook, ...(prev?.observed ? { observed: prev.observed } : {}) }, at)
+    if (!effective) return
+    tabs.set(tabId, { hook, ...(prev?.observed ? { observed: prev.observed } : {}), effective })
+    this.tabActivity.set(taskId, tabs)
+    this.bus.publish("engine-state", this.payload(taskId, effective, tabId))
+  }
+
   clearTask(taskId: string): void {
     const gone = this.activity.get(taskId)
     if (gone?.lapse) clearTimeout(gone.lapse)
@@ -394,52 +448,12 @@ export class DaemonActivityRegistry {
   }
 
   /**
-   * Raw diagnostic dump for `kobe api inspect` — every task/tab entry with
-   * the fields the wire payload deliberately omits (probe vendor, whether a
-   * lapse watchdog is armed, which source won the arbitration). Read-only;
-   * production bug reports need to see what the registry ACTUALLY holds, not
-   * the projected payload.
+   * Raw diagnostic dump for `kobe api inspect` — see
+   * {@link buildActivityDebugSnapshot} for what it shows and why it is not
+   * the wire payload.
    */
-  debugSnapshot(): {
-    tasks: Record<string, { state: TaskActivityState; at: number; vendor?: string; lapseArmed: boolean }>
-    tabs: Record<
-      string,
-      Record<
-        string,
-        {
-          state: TaskActivityState
-          at: number
-          vendor?: string
-          lapseArmed: boolean
-          observed?: true
-          source: "hook" | "observed"
-        }
-      >
-    >
-  } {
-    const dump = (e: ActivityEntry) => ({
-      state: e.state,
-      at: e.at,
-      ...(e.vendor ? { vendor: e.vendor } : {}),
-      lapseArmed: e.lapse !== undefined,
-    })
-    const dumpTab = (e: TabEntry) => ({
-      state: e.effective.state,
-      at: e.effective.at,
-      ...(e.effective.vendor ? { vendor: e.effective.vendor } : {}),
-      ...(e.effective.source === "observed" ? { observed: true as const } : {}),
-      lapseArmed: e.hook?.lapse !== undefined,
-      source: e.effective.source,
-    })
-    const tasks: Record<string, ReturnType<typeof dump>> = {}
-    for (const [taskId, entry] of this.activity) tasks[taskId] = dump(entry)
-    const tabs: Record<string, Record<string, ReturnType<typeof dumpTab>>> = {}
-    for (const [taskId, tabMap] of this.tabActivity) {
-      const out: Record<string, ReturnType<typeof dumpTab>> = {}
-      for (const [tabId, entry] of tabMap) out[tabId] = dumpTab(entry)
-      tabs[taskId] = out
-    }
-    return { tasks, tabs }
+  debugSnapshot(): ActivityDebugSnapshot {
+    return buildActivityDebugSnapshot(this.activity, this.tabActivity)
   }
 
   close(): void {

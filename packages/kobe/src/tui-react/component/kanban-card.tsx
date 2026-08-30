@@ -27,6 +27,7 @@ const ACTIVITY_BADGE: Partial<
   rate_limited: { labelKey: "tasks.activity.rateLimited", tone: "warning" },
   permission_needed: { labelKey: "tasks.activity.permissionNeeded", tone: "warning" },
   error: { labelKey: "tasks.activity.error", tone: "error" },
+  dead: { labelKey: "tasks.activity.dead", tone: "error" },
 }
 
 export function KanbanCard(props: {

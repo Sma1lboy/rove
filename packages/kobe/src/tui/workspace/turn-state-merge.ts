@@ -40,8 +40,15 @@ export function activityTurnState(state: TaskActivityState): ChatTabTurnState | 
     case "turn_complete":
       return "done"
     case "error":
-    case "rate_limited":
       return "error"
+    // NOT folded into `error`: "blocked until the window resets" and "broke,
+    // needs you" ask for opposite actions, and the sidebar rail has always
+    // drawn them apart (`◷` vs `×`). Collapsing them here is what made the
+    // strip and the rail disagree about the same tab.
+    case "rate_limited":
+      return "rate_limited"
+    case "dead":
+      return "dead"
     case "permission_needed":
       return "needs_input"
     case "idle":

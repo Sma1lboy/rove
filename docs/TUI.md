@@ -56,8 +56,9 @@ on the **tab rows** underneath:
 | `?` | Needs your input: a permission prompt or a question |
 | `●` | Turn finished, and you haven't looked yet |
 | `○` | Idle or not yet observed. Includes a finished turn you've already seen |
-| `◷` | Rate limited |
+| `◷` | Rate limited — the engine is waiting out a quota window |
 | `×` | Error, including a failed worktree deletion |
+| `†` | The engine process exited or was killed |
 | `·` | Not an agent tab, or a custom engine without activity tracking |
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
@@ -73,9 +74,14 @@ completion has a later timestamp and appears unread as usual.
 
 Each tab row reports its **own** activity, not the task's roll-up. Tab 2 can
 spin while tab 1 rests. The tab strip at the top of the workspace uses a
-similar vocabulary (`●` running, `✓` done, `!` error, `?` needs input, `○`
-idle) over the same saved timestamps: a `✓` you have already read settles
-back to `○`, and stays settled after a restart.
+same vocabulary (`●` running, `✓` done, `!` error, `◷` rate limited, `†`
+exited, `?` needs input, `○` idle) over the same saved timestamps: a `✓` you
+have already read settles back to `○`, and stays settled after a restart.
+
+`†` and `×` are different questions. `×` is an engine that ran and reported a
+failed turn — read the tab. `†` is an engine that is no longer running, so the
+answer is to start it again; the exit code and the last error line are kept
+(`rove api inspect`) even after the session is gone.
 
 ## Managing Tasks in the sidebar
 
@@ -111,10 +117,12 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 *where was I?*, with one section for each:
 
 - **ATTENTION.** Pending items, oldest first. An item appears when a turn
-  completes, a session asks for input, hits a rate limit, or errors. Most
-  items target one task-and-tab; events without a tab identity target the
-  whole task instead. A newer event for the same target replaces the older
-  one, and starting a new turn clears it.
+  completes, a session asks for input, hits a rate limit, errors, or when the
+  engine process exits. Most items target one task-and-tab; events without a
+  tab identity target the whole task instead. A newer event for the same
+  target replaces the older one, and starting a new turn clears it.
+  A rate-limited item also names when its automatic resume is due
+  (`resumes 3:14 PM`), so you can tell a wait from a dead end.
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.

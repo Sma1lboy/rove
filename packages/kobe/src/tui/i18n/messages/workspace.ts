@@ -53,9 +53,14 @@ export const en = {
       error: "error",
       rateLimited: "rate limited",
       running: "running",
+      /** A dead engine PROCESS (pty exit record), not a failed turn. */
+      dead: "engine exited",
       /** A peer/API message accepted by the daemon but not yet pasted (issue #78). */
       promptDeferred: "message queued",
     },
+    /** Rate-limited card's context line: when the armed auto-resume fires.
+     *  `{time}` is a locale-formatted clock time. */
+    resumesAt: "resumes {time}",
     /** Toast title when a message is deferred because the composer was busy. */
     deferredToast: "Message queued — composer busy",
     /** Insert feedback: the A/C gate still blocked at release time. */
@@ -116,9 +121,11 @@ export const zh: typeof en = {
       error: "出错",
       rateLimited: "限流",
       running: "进行中",
+      dead: "引擎已退出",
       /** peer/API 消息已被 daemon 受理但尚未插入（issue #78）。 */
       promptDeferred: "消息已排队",
     },
+    resumesAt: "{time} 恢复",
     /** composer 忙、消息被受理延后的 toast 标题。 */
     deferredToast: "消息已排队——composer 正忙",
     /** 插入反馈：放行那一刻 A/C 闸门仍拦住。 */

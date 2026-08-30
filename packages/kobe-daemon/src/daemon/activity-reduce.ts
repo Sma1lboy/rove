@@ -90,6 +90,10 @@ export const STICKY_STATES: ReadonlySet<TaskActivityState> = new Set([
   "permission_needed",
   "error",
   "rate_limited",
+  // A dead engine writes nothing, ever — the probe reads "stale" forever, so
+  // the watchdog would idle exactly the tab whose engine is gone. It clears
+  // when a new session starts in that tab (session-start → idle).
+  "dead",
 ])
 
 export function resolveEngineStateTtlMs(): number {

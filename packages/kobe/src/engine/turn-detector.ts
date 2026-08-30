@@ -17,8 +17,23 @@ import { engineEntry } from "./registry.ts"
 
 /** `needs_input` comes from hooks (permission prompt / question dialog via
  *  `turn-state-merge.ts`) or, for marker-less engines with a screen
- *  manifest, from the poll's screen classifier (`engine/screen-state.ts`). */
-export type ChatTabTurnState = "idle" | "running" | "done" | "error" | "needs_input" | "unknown"
+ *  manifest, from the poll's screen classifier (`engine/screen-state.ts`).
+ *
+ *  `rate_limited` and `dead` are hook/registry-only (the poll cannot see
+ *  either) and are deliberately NOT folded into `error`: the three ask for
+ *  opposite actions — a rate limit clears on its own, an error wants you to
+ *  look, and a dead engine needs restarting. The sidebar has always drawn
+ *  them apart; collapsing them here made the tab strip disagree with the rail
+ *  about the same tab. */
+export type ChatTabTurnState =
+  | "idle"
+  | "running"
+  | "done"
+  | "error"
+  | "rate_limited"
+  | "dead"
+  | "needs_input"
+  | "unknown"
 
 export interface TurnCompletionMarker {
   /**

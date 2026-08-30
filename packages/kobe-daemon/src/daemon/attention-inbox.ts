@@ -159,6 +159,31 @@ export class AttentionInboxStore {
   }
 
   /**
+   * Record a `dead` episode: the tab's engine PROCESS is gone, from the
+   * pty-host's exit record (pty-exit-watch.ts). Its own path rather than a
+   * `record()` kind, for the same reason `recordPromptDeferred` has one —
+   * there is no hook event behind it, so it has no {@link EngineActivityKind}.
+   *
+   * This is the queue's blindest spot until now: every OTHER episode is
+   * something the engine reported about itself, so an engine that was KILLED
+   * (no Stop, no SessionEnd, no hook at all) produced no episode, and the one
+   * surface whose job is "what needs me" stayed silent about seven dead
+   * agents at once (2026-08-30).
+   *
+   * Deduped per task+tab like every other episode: a fresh death replaces the
+   * previous episode for that tab and takes the queue tail.
+   */
+  async recordEngineDeath(taskId: string, tabId: string, detail: EngineActivityDetail, at: number): Promise<void> {
+    await this.enqueue(async () => {
+      const key = attentionInboxItemKey({ taskId, tabId })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, { taskId, tabId, state: "dead", detail, unread: true, at })
+      await this.commit(next)
+    })
+  }
+
+  /**
    * Record a `prompt_deferred` episode (issue #78 B-layer): a prompt the
    * delivery gate blocked was accepted into the DeferredPromptsStore, and the
    * episode points at that record by id (the prompt text is NOT copied here —

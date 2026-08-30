@@ -287,6 +287,13 @@ export function startActivityObserver(
         if (!session || track.vendor === undefined) continue
         io.onEngineEvidence?.(track.taskId, track.tabId, { walkVendor: track.vendor, title: session.title })
         if (track.vendor === null) {
+          // The engine is gone from this session's foreground. That is
+          // positive evidence against a live claim, so a stale hook `running`
+          // still gets corrected — but it is NOT the death badge: the shell
+          // outlives its engine, and a user who quit their agent on purpose
+          // has an ordinary idle tab. The `dead` state comes from the exit
+          // RECORD (pty-exit-watch.ts), which knows the exit code and the
+          // error text; arbitration rule 0 keeps it from being dimmed here.
           applyRest(track, "no engine in foreground")
           continue
         }

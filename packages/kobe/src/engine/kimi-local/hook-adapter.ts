@@ -136,6 +136,42 @@ export function mergeKimiHooks(
   return `${lead}${renderKimiHookBlock(inv, opts)}\n`
 }
 
+/**
+ * Kimi StopFailure payload → the neutral failure class. Kimi vocabulary lives
+ * here with the rest of the translation, never in `kobe hook`.
+ *
+ * Two fields, because Kimi's two StopFailure call sites disagree about what
+ * they put in `error_type` (verified against the installed 0.37.2 binary):
+ *
+ *   - `error_type` is the JS ERROR CLASS name, not a category —
+ *     `APIProviderRateLimitError` / `APIProviderQuotaExhaustedError` for a
+ *     limit, `APIStatusError` for anything else with a status code (a 429
+ *     included, which is why the class name alone is not enough).
+ *   - `error_message` carries a `[provider.*]` code prefix from Kimi's own
+ *     ErrorCodes — `provider.rate_limit` for a limit, and
+ *     `provider.auth_error` for the 403 in the 2026-08-30 incident
+ *     ("You've reached your 5-hour usage limit"), which Kimi files under
+ *     AUTH but is a quota wall.
+ *
+ * `billing`, not `rate_limit`, for the auth/quota-wall case: it needs a human
+ * (re-auth, or a plan change), and the daemon deliberately does NOT arm a
+ * resume timer for `billing`. A plain 429 IS `rate_limit` and does arm one.
+ */
+export function kimiFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
+  const type = typeof payload.error_type === "string" ? payload.error_type : ""
+  const message = typeof payload.error_message === "string" ? payload.error_message : ""
+  const note = type || undefined
+  const failure = ((): EngineActivityDetail["failure"] => {
+    if (type === "APIProviderRateLimitError" || message.includes("provider.rate_limit")) return "rate_limit"
+    // Quota exhaustion rides a 429 too, but Kimi codes it `provider.api_error`
+    // — the CLASS name is the only thing that distinguishes it.
+    if (type === "APIProviderQuotaExhaustedError") return "rate_limit"
+    if (message.includes("provider.auth_error")) return "billing"
+    return "other"
+  })()
+  return { failure, ...(note ? { note } : {}) }
+}
+
 export class KimiHookAdapter implements EngineHookAdapter {
   readonly vendor = "kimi" as const
 
@@ -148,11 +184,16 @@ export class KimiHookAdapter implements EngineHookAdapter {
   }
 
   /** Kimi's stdin payload spells tool fields `tool_name`; the permission
-   *  event is always a permission (Kimi has no elicitation notification). */
+   *  event is always a permission (Kimi has no elicitation notification).
+   *  `turn-failed` classifies the StopFailure — without it every Kimi
+   *  failure reduced to `error` and Kimi could never reach `rate_limited`
+   *  (so it never armed auto-resume), which is exactly what happened when
+   *  Kimi hit its 5-hour limit on 2026-08-30. */
   activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
   ): EngineActivityDetail | undefined {
+    if (kind === "turn-failed") return kimiFailureDetail(payload)
     if (kind === "awaiting-input") return { waiting: "permission" }
     if (kind === "tool-pre" || kind === "tool-post" || kind === "tool-failed") {
       return { tool: { ...(typeof payload.tool_name === "string" ? { name: payload.tool_name } : {}) } }
