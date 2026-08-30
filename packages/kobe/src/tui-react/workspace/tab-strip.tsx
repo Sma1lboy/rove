@@ -195,15 +195,11 @@ export function TabStrip(props: {
     const titleCells = Math.max(4, dims.width - 5 - (active.chipShown ? 2 : 0) - counter.length)
     const pulse = pulsing.has(active.tab.id)
     return (
-      <box
-        flexDirection="row"
-        flexShrink={0}
-        paddingLeft={1}
-        paddingRight={1}
-        gap={1}
-        overflow="hidden"
-        backgroundColor={theme.backgroundElement}
-      >
+      // No row background: the strip is panel chrome, and the transparent-mode
+      // policy (theme-core's applyDisplayOverlay) forces panel backgrounds to
+      // alpha-0 so the host wallpaper shows through — only the active tab's
+      // chip fill paints (it must stay legible against any backdrop).
+      <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
         <box flexDirection="row" flexShrink={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.focusAccent}>
           {active.chipShown ? (
             <text fg={theme.backgroundElement} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
@@ -238,7 +234,10 @@ export function TabStrip(props: {
           const pulse = pulsing.has(tab.id)
           const turnColor =
             turn === "running"
-              ? theme.focusAccent
+              ? // Semantic activity color, never `focusAccent`: several tabs
+                // can be running at once, and the focus orange must keep
+                // meaning only "you are here" (the active tab's frame).
+                theme.info
               : turn === "done"
                 ? theme.success
                 : turn === "error"

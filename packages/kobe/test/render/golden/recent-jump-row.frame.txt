@@ -4,9 +4,7 @@
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
-|                              |
 |  New task               + n  |
-|                              |
 | Kanban                       |
 | Routines                     |
 | Issues                       |
@@ -19,6 +17,8 @@
 |  · review                    |
 |  feat/bravo                  |
 |  · tests                     |
+|                              |
+|                              |
 |                              |
 |                              |
 |                              |

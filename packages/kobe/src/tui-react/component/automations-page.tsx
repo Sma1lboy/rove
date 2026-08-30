@@ -277,7 +277,7 @@ export function AutomationsPage(props: {
       {/* Section header in the sidebar's grammar: BOLD CAPS label, a rule
           filling the gap, the daemon-hold state right-stuck. */}
       <box flexDirection="row" gap={1} flexShrink={0}>
-        <text attributes={TextAttributes.BOLD} fg={theme.primary} wrapMode="none" flexShrink={0}>
+        <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none" flexShrink={0}>
           {t("automations.title")}
         </text>
         <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>

@@ -13,6 +13,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { ChatTabTurnState } from "../../src/engine/turn-detector"
 import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
+import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
@@ -67,4 +68,39 @@ test("desktop honours a stored `never`", async () => {
   )
   const { frame } = await renderComponent(strip("tab-2"), { width: 100, height: 4, providers: { kv: true } })
   expect(await frame()).not.toContain("╭")
+})
+
+test("narrow strip paints no row background of its own — in either display mode", async () => {
+  // The strip is panel chrome, and the WIDE branch of this same component
+  // paints no row background at all; the narrow branch must agree. The
+  // contract is "no background OF ITS OWN": the counter cell must show the
+  // exact ambient surface the empty rows below the strip show. Checked in
+  // both display modes, because each catches a different wrong token —
+  //   - `backgroundElement` (#2B2A27) stays opaque under transparency (it
+  //     exists for readable fills — chat input, split name tags) and would
+  //     smear an opaque bar across the host wallpaper;
+  //   - `backgroundPanel` (#1A1917) is invisible under transparency but in
+  //     opaque mode paints a raised bar the wide branch never has.
+  // Only the active tab's chip may paint: it must stay legible on any
+  // backdrop.
+  for (const transparent of [true, false]) {
+    setTransparentBackground(transparent)
+    try {
+      const { spans } = await renderComponent(strip("tab-2"), { width: 46, height: 4, providers: { kv: true } })
+      const lines = (await spans()).lines
+      const counter = lines[0]?.spans.find((span) => span.text.includes("2/3"))
+      // A row below the strip: nothing but the ambient surface.
+      const ambient = lines[2]?.spans[0]
+      expect(counter).toBeDefined()
+      expect(ambient).toBeDefined()
+      expect(counter?.bg?.toInts()).toEqual(ambient?.bg?.toInts())
+      // The active tab's chip fill legitimately stays opaque — sanity that
+      // the assertion above isn't passing because nothing painted at all.
+      const chip = lines[0]?.spans.find((span) => span.text.includes("a much longer"))
+      expect(chip?.bg?.toInts()).not.toEqual(ambient?.bg?.toInts())
+      expect((chip?.bg?.a ?? 0) > 0).toBe(true)
+    } finally {
+      setTransparentBackground(false)
+    }
+  }
 })

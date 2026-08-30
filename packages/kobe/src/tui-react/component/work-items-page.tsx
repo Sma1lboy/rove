@@ -170,9 +170,9 @@ export function WorkItemsPage(props: {
   const now = Date.now()
 
   return (
-    <box flexDirection="column" flexGrow={1} padding={1}>
+    <box flexDirection="column" flexGrow={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={2}>
       <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.accent}>
+        <text attributes={TextAttributes.BOLD} fg={theme.text}>
           {t("workItems.title")}
         </text>
         <text fg={theme.textMuted}>

@@ -150,7 +150,9 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   if (!props.onAddTask) return null
 
   return (
-    <box flexShrink={0} paddingTop={1} paddingBottom={1} paddingLeft={1} paddingRight={1}>
+    // One content row, no vertical padding: this is the tallest-pressure
+    // panel in the product, so the action must cost exactly one line.
+    <box flexShrink={0} paddingLeft={1} paddingRight={1}>
       <box
         position="relative"
         flexDirection="row"

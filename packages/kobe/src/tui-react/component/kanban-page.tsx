@@ -307,7 +307,7 @@ export function KanbanPage(props: {
    *  wide-layout nicety; narrow keeps only the label that identifies. */
   function projectSelector(active: RepoIssues): ReactNode {
     return (
-      <box flexDirection="row" justifyContent="space-between" paddingTop={1} paddingLeft={3} paddingRight={3}>
+      <box flexDirection="row" justifyContent="space-between" paddingTop={1}>
         <box flexDirection="row" onMouseUp={() => cycleProject(1)}>
           <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {sidebarProjectLabel(active.repoRoot, repoRoots)}
@@ -393,8 +393,8 @@ export function KanbanPage(props: {
       columns[0]
     if (!active) return null
     return (
-      <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={1} paddingRight={1}>
-        <box flexDirection="row" gap={2} paddingLeft={2}>
+      <box flexDirection="column" flexGrow={1} paddingTop={1}>
+        <box flexDirection="row" gap={2}>
           {columns.map((col) => (
             <text
               key={col.key}
@@ -421,7 +421,7 @@ export function KanbanPage(props: {
   function board(): ReactNode {
     if (narrow) return narrowBoard()
     return (
-      <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1} paddingLeft={1} paddingRight={1}>
+      <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1}>
         {columns.map((col) => column(col))}
       </box>
     )
@@ -429,11 +429,19 @@ export function KanbanPage(props: {
 
   const loading = boards === null
 
-  // One shared left baseline at x=3 (board inset one cell + padding) —
-  // Kanban / project / column headers / cards all align on it.
+  // One shared left baseline across rail pages: the root pads x=2 (the same
+  // inset Routines / Issues / Versions / Worktrees use), so the Kanban title,
+  // project selector, and board all start at x=2 — no per-child inset.
   return (
-    <box flexGrow={1} backgroundColor={theme.background} paddingTop={1} paddingBottom={1}>
-      <box flexDirection="row" justifyContent="space-between" gap={2} paddingLeft={3} paddingRight={3}>
+    <box
+      flexGrow={1}
+      backgroundColor={theme.background}
+      paddingTop={1}
+      paddingBottom={1}
+      paddingLeft={2}
+      paddingRight={2}
+    >
+      <box flexDirection="row" justifyContent="space-between" gap={2}>
         <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none" flexShrink={0}>
           {t("kanban.title")}
         </text>
@@ -444,13 +452,9 @@ export function KanbanPage(props: {
         </text>
       </box>
       {loading ? (
-        <text fg={theme.textMuted} paddingLeft={3}>
-          {t("kanban.loading")}
-        </text>
+        <text fg={theme.textMuted}>{t("kanban.loading")}</text>
       ) : boardList.length === 0 || !activeBoard ? (
-        <text fg={theme.textMuted} paddingLeft={3}>
-          {t("kanban.noRepos")}
-        </text>
+        <text fg={theme.textMuted}>{t("kanban.noRepos")}</text>
       ) : (
         <>
           {projectSelector(activeBoard)}
