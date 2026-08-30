@@ -72,7 +72,8 @@ The suite currently pins:
 - PureTUI terminal title publication when native PTY support is available;
 - headless `rove api add --prompt` auto-starting `<taskId>::tab-1`;
 - `send` reusing that exact hosted session;
-- archive stopping the hosted session without deleting the Worktree.
+- delete stopping the hosted session and removing the worktree (the branch
+  survives).
 
 Behavior tests run in CI and the release workflow. They require a build first:
 

@@ -94,7 +94,7 @@ A successful land removes the worktree — it is spent once its branch is in —
 and the row leaves the page. The **branch survives**: git keeps the durable
 record. If removal is refused (the worktree is dirty, it is the base
 checkout, or it is the directory Rove itself is running from), the land still
-stands and the page reports why the worktree is still there. Archiving the
+stands and the page reports why the worktree is still there. Deleting the
 task and deleting the source branch remain separate lifecycle decisions;
 from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
