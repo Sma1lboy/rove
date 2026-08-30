@@ -79,17 +79,16 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     await writeFile(file, malformed)
 
     await adapter.installActivityHooks(file)
-    await adapter.installWorktreeWatchHook(file)
+    await adapter.removeWorktreeWatchHook(file)
 
     expect(await readFile(file, "utf8")).toBe(malformed)
   })
 
-  it("installs SessionStart/UserPromptSubmit/Stop + the Bash worktree-watch, preserving the user's hooks", async () => {
+  it("installs SessionStart/UserPromptSubmit/Stop, preserving the user's hooks", async () => {
     // Seed a user-authored hook that must survive kobe's merge.
     await writeFile(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "user-stop" }] }] } }))
 
     await adapter.installActivityHooks(file)
-    await adapter.installWorktreeWatchHook(file)
 
     const hooks = await readHooks()
     expect(hooks.SessionStart).toBeDefined()
@@ -102,24 +101,48 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     // kobe's Stop coexists with the user's Stop hook.
     expect(JSON.stringify(hooks.Stop)).toContain("turn-complete")
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")
-    // Worktree-watch is a PostToolUse(Bash) observer.
-    const post = hooks.PostToolUse as Array<{ matcher?: string }>
-    expect(post[0].matcher).toBe("Bash")
-    expect(JSON.stringify(post)).toContain("worktree-created")
+    // The retired PostToolUse(Bash) watch observer is never installed again.
+    expect(hooks.PostToolUse).toBeUndefined()
   })
 
   it("removal strips kobe's hooks but keeps the user's", async () => {
     await writeFile(file, JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: "command", command: "user-stop" }] }] } }))
     await adapter.installActivityHooks(file)
-    await adapter.installWorktreeWatchHook(file)
 
     await adapter.removeActivityHooks(file)
-    await adapter.removeWorktreeWatchHook(file)
 
     const hooks = await readHooks()
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")
     expect(JSON.stringify(hooks.Stop)).not.toContain("turn-complete")
     expect(hooks.SessionStart).toBeUndefined()
-    expect(hooks.PostToolUse).toBeUndefined()
+  })
+
+  // End-to-end uninstall through real file I/O: this is what an upgrading user
+  // gets on their next launch. The retired hook goes; a co-resident hook from
+  // another tool must survive, and a second launch must not churn the file.
+  it("uninstalls an already-registered watch hook, sparing another tool's entry", async () => {
+    await writeFile(
+      file,
+      JSON.stringify({
+        hooks: {
+          PostToolUse: [
+            { matcher: "Bash", hooks: [{ type: "command", command: "'kobe' 'hook' 'worktree-created'" }] },
+            { matcher: "Bash", hooks: [{ type: "command", command: "other-tool post-bash" }] },
+          ],
+        },
+        model: "gpt-5",
+      }),
+    )
+
+    await adapter.removeWorktreeWatchHook(file)
+
+    const after = await readFile(file, "utf8")
+    expect(after).not.toContain("worktree-created")
+    expect(after).toContain("other-tool post-bash")
+    expect(after).toContain("gpt-5")
+
+    // Idempotent: a second launch is a no-op, so the file is not even rewritten.
+    await adapter.removeWorktreeWatchHook(file)
+    expect(await readFile(file, "utf8")).toBe(after)
   })
 })

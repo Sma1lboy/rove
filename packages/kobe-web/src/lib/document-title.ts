@@ -18,8 +18,7 @@ export const BASE_TITLE = displayProductName()
  * Count of tasks that need a human right now — the Overview "Needs you"
  * bucket (waiting_permission / error / rate_limited). Attention never depends
  * on worktree dirtiness, so changes is intentionally omitted from triage().
- * Archived tasks and `kind: "main"` project rows are not sessions, so they
- * never count.
+ * `kind: "main"` project rows are not sessions, so they never count.
  */
 export function attentionCount(
   tasks: readonly Task[],

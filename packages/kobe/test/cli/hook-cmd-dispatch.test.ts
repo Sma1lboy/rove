@@ -28,7 +28,6 @@ const mocks = vi.hoisted(() => ({
     sessionFromPayload: vi.fn(() => undefined as unknown),
     globalSettingsPath: vi.fn((): string | null => "/fake/.claude/settings.json"),
     installActivityHooks: vi.fn(),
-    installWorktreeWatchHook: vi.fn(),
     removeActivityHooks: vi.fn(),
     removeWorktreeWatchHook: vi.fn(),
     removeWorktreeSyncHook: vi.fn(),
@@ -85,9 +84,8 @@ beforeEach(() => {
   mocks.adapter.sessionFromPayload.mockClear().mockReturnValue(undefined)
   mocks.adapter.globalSettingsPath.mockClear().mockReturnValue("/fake/.claude/settings.json")
   mocks.adapter.installActivityHooks.mockClear()
-  mocks.adapter.installWorktreeWatchHook.mockClear()
   mocks.adapter.removeActivityHooks.mockClear()
-  mocks.adapter.removeWorktreeWatchHook.mockClear()
+  mocks.adapter.removeWorktreeWatchHook.mockReset()
   mocks.adapter.removeWorktreeSyncHook.mockClear()
   stubStdin({})
 })
@@ -244,14 +242,17 @@ describe("kobe hook setup (deprecated cleanup)", () => {
 })
 
 describe("ensureGlobalKobeHooks (default-ON global install)", () => {
-  it("installs activity + worktree-watch hooks into each engine's own settings file, then cleans the removed WorktreeCreate hook", async () => {
+  it("installs activity hooks into each engine's own settings file, then cleans the removed WorktreeCreate hook", async () => {
     await ensureGlobalKobeHooks()
     // toolEvents:false — no enabled plugin declares a tool.* hook in this
     // test home, so the gated tool family stays out of the engine config.
     expect(mocks.adapter.installActivityHooks).toHaveBeenCalledWith("/fake/.claude/settings.json", {
       toolEvents: false,
     })
-    expect(mocks.adapter.installWorktreeWatchHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
+    // The retired PostToolUse(Bash) watch hook is UNINSTALLED on every launch —
+    // that is how an already-registered user stops paying its per-Bash-call
+    // spawn. Nothing installs it any more.
+    expect(mocks.adapter.removeWorktreeWatchHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     // The WorktreeCreate provider-hook cleanup runs on every launch.
     expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"))
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
@@ -261,9 +262,17 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
     mocks.adapter.globalSettingsPath.mockReturnValue(null)
     await ensureGlobalKobeHooks()
     expect(mocks.adapter.installActivityHooks).not.toHaveBeenCalled()
-    expect(mocks.adapter.installWorktreeWatchHook).not.toHaveBeenCalled()
+    expect(mocks.adapter.removeWorktreeWatchHook).not.toHaveBeenCalled()
     // Cleanup still runs — it doesn't depend on the engine settings path.
     expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalled()
+  })
+
+  // A fresh install has no watch hook to remove. The uninstall still runs
+  // (it cannot know in advance) and must be harmless — a failure there would
+  // block the launch of a user who never had the hook at all.
+  it("never throws when the watch-hook uninstall fails on a fresh install", async () => {
+    mocks.adapter.removeWorktreeWatchHook.mockRejectedValue(new Error("ENOENT"))
+    await expect(ensureGlobalKobeHooks()).resolves.toBeUndefined()
   })
 
   it("never throws when an install fails (best-effort, must not block launch)", async () => {
