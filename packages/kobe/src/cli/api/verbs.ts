@@ -59,7 +59,9 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = { "spawn-task": "a
  * Deliberately not aliases: `fan-out` folded into `add --count` and
  * `set-vendor` became `set-command`, and both changed their flag contract in
  * the process — an alias would silently accept the old flags and do
- * something subtly different. A retired verb instead fails loud with
+ * something subtly different. `archive` (issue #75) had no successor hiding
+ * state — its replacement is the destructive-but-recoverable `delete`. A
+ * retired verb instead fails loud with
  * `UNKNOWN_VERB` plus the `nextCommandArgs` an agent can run verbatim, which
  * is the same self-healing contract every other high-traffic rejection uses.
  */
@@ -71,6 +73,13 @@ export const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandA
   "set-vendor": {
     hint: "set-vendor was replaced by `set-command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
     nextCommandArgs: ["api", "set-command", "--help"],
+  },
+  // `archive` went away with the archived-task dimension itself (issue #75) —
+  // there is no "hide but keep" left; `delete` is the cleanup, and its branch
+  // always survives unless the caller explicitly passes --delete-branch.
+  archive: {
+    hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
+    nextCommandArgs: ["api", "delete", "--help"],
   },
 }
 

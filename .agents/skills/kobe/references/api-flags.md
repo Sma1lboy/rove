@@ -41,6 +41,7 @@ Four flag names that have actually been guessed wrong here, and what they are:
 
 | Gone | Now |
 |---|---|
+| `archive` | `delete` (task + worktree go; the git branch survives unless `--delete-branch`) |
 | `fan-out` | `add --count N` / `add --agents claude:2,codex:1` |
 | `task-list` | `list` |
 | `send-tab` | `send --tab tab-N` |
@@ -52,7 +53,7 @@ Seeing one of these in guidance means that guidance predates the rename —
 ## read
 
 ```text
-list          (none)                     every task, archived included
+list          (none)                     every task
 get-task      --task-id(REQ)             one task + .tabs[] — the read before `send --tab`
 collect       --task-ids <csv> --repo    comparison snapshot across tasks
 inspect       --task-id                  daemon activity + pty walk + tab snapshots
@@ -113,9 +114,8 @@ rename         --task-id(REQ) --title(REQ)
 set-branch     --task-id(REQ) --branch(REQ)
 set-command    --task-id(REQ) --command(REQ)      next launch only
 set-status     --task-id(REQ) --status(REQ)[backlog|in_progress|in_review|done|canceled|error]
-archive        --task-id(REQ) --archived(true)
 pin            --task-id(REQ) --pinned(true)
-land           --task-id(REQ) --strategy[merge|squash] --delete-branch --then-archive --remove-worktree(true)
+land           --task-id(REQ) --strategy[merge|squash] --delete-branch --remove-worktree(true)
 delete         --task-id(REQ) --force --delete-branch
 ```
 
