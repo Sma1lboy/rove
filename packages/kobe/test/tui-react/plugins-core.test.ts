@@ -7,11 +7,20 @@
  * longer parses, and the counts/source label shown per row.
  */
 
+import { mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import type { PluginRegistryEntry } from "@sma1lboy/kobe-daemon/plugins/registry"
-import { describe, expect, it } from "vitest"
+import { savePluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
+import { afterEach, describe, expect, it } from "vitest"
 
 const NONE: ReadonlySet<string> = new Set()
-import { parseLastRun, pluginRowView } from "../../src/tui-react/component/settings-dialog/plugins-core.ts"
+import { clearPluginEngines, pluginEngineIds } from "../../src/engine/contrib-engines.ts"
+import {
+  parseLastRun,
+  pluginRowView,
+  setPluginEnabled,
+} from "../../src/tui-react/component/settings-dialog/plugins-core.ts"
 import { relativeAgeMs } from "../../src/tui/history/message-core"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
@@ -53,6 +62,30 @@ default = "ping"
 `
 
 const runLine = (record: Record<string, unknown>) => `${JSON.stringify(record)}\n`
+
+const ENGINE_ONLY_MANIFEST = `
+id = "example.engine"
+name = "Engine"
+version = "0.1.0"
+min_rove_version = "0.8.23"
+
+[[engines]]
+id = "aider"
+name = "Aider"
+command = ["aider"]
+`
+
+const PANE_ONLY_MANIFEST = `
+id = "example.pane"
+name = "Pane"
+version = "0.1.0"
+min_rove_version = "0.8.23"
+
+[[panes]]
+id = "board"
+title = "Board"
+command = ["sh", "board.sh"]
+`
 
 describe("parseLastRun", () => {
   it("returns the newest record, with ok only for a clean exit", () => {
@@ -130,6 +163,61 @@ describe("pluginRowView", () => {
     expect(row.linked).toBe(true)
     expect(row.source).toBe("/work/my-plugin")
     expect(row.enabled).toBe(false)
+  })
+
+  it("counts declared engines in the declares summary", () => {
+    expect(pluginRowView(NONE, githubEntry, MANIFEST, null).declares).toMatchObject({ engines: 0 })
+    expect(pluginRowView(NONE, githubEntry, ENGINE_ONLY_MANIFEST, null).declares).toMatchObject({
+      actions: 0,
+      events: 0,
+      panes: 0,
+      engines: 1,
+    })
+  })
+
+  it("flags a manifest whose platforms exclude this machine", () => {
+    // Host-aware so the assertion holds on any dev/CI platform.
+    const token = process.platform === "darwin" ? "macos" : process.platform === "win32" ? "windows" : "linux"
+    const other = token === "macos" ? "linux" : "macos"
+    const currentOnly = MANIFEST.replace('version = "0.1.0"', `version = "0.1.0"\nplatforms = ["${token}"]`)
+    const otherOnly = MANIFEST.replace('version = "0.1.0"', `version = "0.1.0"\nplatforms = ["${other}"]`)
+    expect(pluginRowView(NONE, githubEntry, currentOnly, null).platformOk).toBe(true)
+    expect(pluginRowView(NONE, githubEntry, otherOnly, null).platformOk).toBe(false)
+    // No declaration → portable → fine; unreadable manifest → no pile-on.
+    expect(pluginRowView(NONE, githubEntry, MANIFEST, null).platformOk).toBe(true)
+    expect(pluginRowView(NONE, githubEntry, null, null).platformOk).toBe(true)
+  })
+
+  it("distinguishes 'hooks declared, never matched' from 'quiet by design'", () => {
+    // Actions/events/startup produce log records; panes/settings/engines don't.
+    expect(pluginRowView(NONE, githubEntry, MANIFEST, null).hooksDeclared).toBe(true)
+    expect(pluginRowView(NONE, githubEntry, ENGINE_ONLY_MANIFEST, null).hooksDeclared).toBe(false)
+    expect(pluginRowView(NONE, githubEntry, PANE_ONLY_MANIFEST, null).hooksDeclared).toBe(false)
+    expect(pluginRowView(NONE, githubEntry, null, null).hooksDeclared).toBe(false)
+  })
+})
+
+describe("setPluginEnabled", () => {
+  afterEach(() => clearPluginEngines())
+
+  it("re-reads plugin engines so a Settings toggle is live without a restart", () => {
+    const root = mkdtempSync(join(tmpdir(), "rove-pc-plugin-"))
+    writeFileSync(join(root, "rove-plugin.toml"), ENGINE_ONLY_MANIFEST)
+    const home = mkdtempSync(join(tmpdir(), "rove-pc-home-"))
+    savePluginRegistry(
+      {
+        plugins: [
+          { id: "example.engine", source: { kind: "link" }, root, enabled: true, version: "0.1.0", installedAt: 0 },
+        ],
+      },
+      home,
+    )
+    // Disabling drops the engine from the running process's table…
+    setPluginEnabled("example.engine", false, home)
+    expect(pluginEngineIds()).toEqual([])
+    // …and re-enabling brings it back — both without a restart.
+    setPluginEnabled("example.engine", true, home)
+    expect(pluginEngineIds()).toEqual(["aider"])
   })
 })
 

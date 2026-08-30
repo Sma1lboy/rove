@@ -10,7 +10,12 @@
  */
 
 import { closeSync, openSync, readFileSync, readSync, statSync } from "node:fs"
-import { parsePluginManifest, pluginManifestPath } from "@sma1lboy/kobe-daemon/plugins/manifest"
+import {
+  currentPluginPlatform,
+  parsePluginManifest,
+  pluginManifestPath,
+  supportsPlatform,
+} from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { readOutdatedCache } from "@sma1lboy/kobe-daemon/plugins/outdated-cache"
 import { pluginLogPath } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import {
@@ -19,6 +24,7 @@ import {
   savePluginRegistry,
 } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { readPluginSettings, writePluginSettings } from "@sma1lboy/kobe-daemon/plugins/settings-env"
+import { reloadPluginEngines } from "../../../engine/plugin-engines.ts"
 import { type PluginSettingRowView, pluginSettingRows } from "./plugin-settings-core"
 
 /** Last appended `log.jsonl` record, normalized for display. */
@@ -35,6 +41,7 @@ export interface PluginDeclares {
   readonly actions: number
   readonly events: number
   readonly panes: number
+  readonly engines: number
 }
 
 export interface PluginRowView {
@@ -47,6 +54,14 @@ export interface PluginRowView {
   readonly source: string
   /** null when no supported plugin manifest is present or parsable. */
   readonly declares: PluginDeclares | null
+  /** False when the manifest excludes this platform (the daemon skips it). */
+  readonly platformOk: boolean
+  /**
+   * True when the manifest declares at least one command the runtime would
+   * run (actions + events + startup) — "never run" is only meaningful then.
+   * A panes/settings/engines-only plugin is quiet by design, not broken.
+   */
+  readonly hooksDeclared: boolean
   readonly lastRun: PluginLastRun | null
   /** Declared `[[settings]]` joined with their stored values; [] when none. */
   readonly settings: readonly PluginSettingRowView[]
@@ -95,10 +110,21 @@ export function pluginRowView(
 ): PluginRowView {
   let declares: PluginDeclares | null = null
   let settings: readonly PluginSettingRowView[] = []
+  // Unknown (unparsable manifest) must not pile a platform warning on top of
+  // "manifest unreadable" — true means "no evidence it is unsupported".
+  let platformOk = true
+  let hooksDeclared = false
   if (manifestText !== null) {
     try {
       const { manifest } = parsePluginManifest(manifestText)
-      declares = { actions: manifest.actions.length, events: manifest.events.length, panes: manifest.panes.length }
+      declares = {
+        actions: manifest.actions.length,
+        events: manifest.events.length,
+        panes: manifest.panes.length,
+        engines: manifest.engines.length,
+      }
+      hooksDeclared = manifest.actions.length + manifest.events.length + manifest.startup.length > 0
+      platformOk = supportsPlatform({}, manifest, currentPluginPlatform())
       settings = pluginSettingRows(manifest.settings, settingValues)
     } catch {
       declares = null
@@ -111,6 +137,8 @@ export function pluginRowView(
     linked: entry.source.kind === "link",
     source: entry.source.kind === "link" ? entry.root : entry.source.spec,
     declares,
+    platformOk,
+    hooksDeclared,
     lastRun: parseLastRun(logText),
     settings,
     updateAvailable: outdated.has(entry.id),
@@ -170,9 +198,14 @@ export function setPluginSetting(pluginId: string, key: string, value: string, h
 
 /**
  * Flip one plugin's `enabled` flag. The daemon file-watches plugins.json, so
- * the change applies to the running daemon without a restart.
+ * the change applies to the running daemon without a restart. Engine
+ * contributions are kobe-process state (not daemon state), so the running
+ * TUI's engine table is re-read here too — otherwise a newly enabled engine
+ * plugin stays absent from the selector (and a disabled one stays offered)
+ * until the next restart.
  */
 export function setPluginEnabled(id: string, enabled: boolean, homeDir?: string): void {
   const registry = loadPluginRegistry(homeDir)
   savePluginRegistry({ plugins: registry.plugins.map((p) => (p.id === id ? { ...p, enabled } : p)) }, homeDir)
+  reloadPluginEngines(homeDir)
 }

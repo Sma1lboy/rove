@@ -81,6 +81,8 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
       const row = rows.find((p) => p.id === id)
       if (!row) return
       try {
+        // setPluginEnabled also re-reads the TUI's plugin-engine table, so
+        // the flip reaches the selector without a restart.
         setPluginEnabled(id, !row.enabled)
       } catch {
         // Registry unwritable — the re-read below leaves the row as disk has it.

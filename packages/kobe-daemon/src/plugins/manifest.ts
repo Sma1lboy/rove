@@ -142,6 +142,26 @@ export const PLUGIN_MANIFEST_FILENAME = "rove-plugin.toml"
 export const LEGACY_PLUGIN_MANIFEST_FILENAME = "kobe-plugin.toml"
 export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGIN_MANIFEST_FILENAME] as const
 
+/**
+ * Engine ids a plugin's `[[engines]]` may not claim: the four built-in
+ * adapters plus the shipped contrib catalog (gemini/opencode/cursor/grok/
+ * droid/amp). The daemon cannot import kobe's BUILTIN_VENDORS /
+ * CONTRIB_ENGINES (kobe depends on the daemon, not vice versa), so this is
+ * the daemon-side source of truth; a kobe-side test locks the lists together.
+ */
+export const RESERVED_ENGINE_IDS: readonly string[] = [
+  "claude",
+  "codex",
+  "copilot",
+  "kimi",
+  "gemini",
+  "opencode",
+  "cursor",
+  "grok",
+  "droid",
+  "amp",
+]
+
 /** Resolve a plugin manifest with the canonical Rove spelling winning when
  * both files exist. The Kobe spelling remains a permanent read fallback. */
 export function pluginManifestPath(root: string): string | null {
@@ -369,10 +389,10 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const engines = asTableArray(raw.engines, "engines").map((t, i) => {
     const engineId = asString(t.id, `engines[${i}].id`)
     if (!LOCAL_ID_RE.test(engineId)) fail(`engine id \`${engineId}\` may not contain dots`)
-    // Shadowing a first-party engine would silently reroute claude/codex
-    // launches through plugin data — always a mistake, always fatal.
-    if (["claude", "codex", "copilot", "kimi"].includes(engineId)) {
-      fail(`engine id \`${engineId}\` shadows a built-in engine`)
+    // Shadowing a first-party or shipped-contrib engine would silently
+    // reroute launches through plugin data — always a mistake, always fatal.
+    if (RESERVED_ENGINE_IDS.includes(engineId)) {
+      fail(`engine id \`${engineId}\` shadows a built-in or shipped engine`)
     }
     const rules = asTableArray(t.rules, `engines[${i}].rules`).map((r, j) => {
       const state = asString(r.state, `engines[${i}].rules[${j}].state`)
