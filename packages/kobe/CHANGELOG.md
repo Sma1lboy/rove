@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.48
+
+### Patch Changes
+
+- [#679](https://github.com/Sma1lboy/rove/pull/679) [`025548c`](https://github.com/Sma1lboy/rove/commit/025548cc9f109dbc52af16bb728f79ca570a0732) Transparent mode: contrast-guard body text against the detected host terminal background. In transparent mode (the default) `text` and `textMuted` render directly on the host terminal's background, which the palette author never saw — a dark-palette muted gray sat near 2.5:1 on a light host. The TUI now queries the terminal's actual background (OSC 11 via the renderer's palette detection) and lifts the lightness of those tokens away from the host (preserving hue) until they clear a 4.5:1 floor; detection failure or timeout leaves the palette untouched. Backgrounds stay fully transparent — no opacity is traded for readability. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.47
 
 ### Patch Changes
