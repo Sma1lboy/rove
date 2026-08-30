@@ -13,15 +13,9 @@ import {
   defaultPtyHostSocketPath,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
-import {
-  type BinaryStatus,
-  type ClaudeAccount,
-  type CodexAccount,
-  type CopilotAccount,
-  detectClaudeAccount,
-  detectCodexAccount,
-  detectCopilotAccount,
-} from "../engine/account-detect.ts"
+import type { BinaryStatus } from "../engine/account-detect.ts"
+import { listPresetIds } from "../engine/engine-presets.ts"
+import { describeAccount, detectEngineStatuses, engineUsable } from "../engine/engine-status.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
@@ -149,45 +143,33 @@ function binaryLabel(binary: BinaryStatus): string {
   return binary.found ? `✓ ${binary.path}` : `✗ ${binary.error}`
 }
 
-function claudeAccountLabel(account: ClaudeAccount): string {
-  if (account.kind === "none") return "no account"
-  return `logged in (${account.email}${account.organization ? `, ${account.organization}` : ""})`
-}
-
-function codexAccountLabel(account: CodexAccount): string {
-  if (account.kind === "chatgpt") return `logged in (${account.email}${account.plan ? `, ${account.plan}` : ""})`
-  if (account.kind === "apikey") return "API key"
-  return "no account"
-}
-
-function copilotAccountLabel(account: CopilotAccount): string {
-  if (account.kind === "token") return `token (${account.source})`
-  if (account.kind === "oauth") return "logged in"
-  return "no account"
-}
-
-/** One "engines:" block: per-vendor CLI binary + account state (read-only). */
+/**
+ * One "engines:" block: per-engine CLI binary + account state (read-only).
+ *
+ * Loops over the REGISTERED engines rather than three hardcoded rows — kimi
+ * shipped with a real `detectKimiAccount` and never appeared here, and a
+ * contrib/custom engine never could, because adding one meant editing this
+ * neutral CLI file. `detectEngineStatuses` is the same probe Settings →
+ * Accounts uses, so the two surfaces can't disagree.
+ *
+ * Order is `listPresetIds()`: the built-ins in their stable cycle order
+ * (claude, codex, copilot, kimi — the first three exactly where they were),
+ * then the user's own presets in registration order.
+ */
 async function engineDoctorLines(): Promise<{ lines: string[]; anyUsable: boolean }> {
-  const [claude, codex, copilot] = await Promise.all([
-    detectClaudeAccount(),
-    detectCodexAccount(),
-    detectCopilotAccount(),
-  ])
+  const statuses = await detectEngineStatuses(listPresetIds())
   const lines = ["engines:"]
-  const row = (name: string, binary: BinaryStatus, account: string, err?: string): void => {
-    lines.push(`  ${name.padEnd(8)}${binaryLabel(binary)}${binary.found ? ` — ${account}` : ""}`)
-    if (err) lines.push(`          ⚠ ${err}`)
+  for (const status of statuses) {
+    const account = describeAccount(status.account)
+    // padEnd(7)+space, not padEnd(8): a custom id of exactly 8 chars would
+    // otherwise butt straight against the ✓/✗. Built-in columns are unchanged.
+    const name = `${status.vendor.padEnd(7)} `
+    lines.push(`  ${name}${binaryLabel(status.binary)}${status.binary.found ? ` — ${account}` : ""}`)
+    if (status.accountError) lines.push(`          ⚠ ${status.accountError}`)
   }
-  row("claude", claude.binary, claudeAccountLabel(claude.account), claude.accountError)
-  row("codex", codex.binary, codexAccountLabel(codex.account), codex.accountError)
-  row("copilot", copilot.binary, copilotAccountLabel(copilot.account), copilot.accountError)
   // "Usable" = binary present AND some account. One usable engine is enough;
   // a missing vendor the user never launches is not a finding.
-  const anyUsable =
-    (claude.binary.found && claude.account.kind !== "none") ||
-    (codex.binary.found && codex.account.kind !== "none") ||
-    (copilot.binary.found && copilot.account.kind !== "none")
-  return { lines, anyUsable }
+  return { lines, anyUsable: statuses.some(engineUsable) }
 }
 
 async function appendUnavailableProcess(

@@ -65,6 +65,26 @@ export interface EngineSessionIdentity {
    * would kill the launch.
    */
   readonly resumeArgv?: (base: readonly string[], sessionId: string) => readonly string[]
+  /**
+   * Argv that opens `sourceId`'s conversation as a NEW, diverging session —
+   * "fork this chat into another tab", same worktree. Absent = this engine
+   * has no fork verb, so Rove refuses instead of pretending: kimi's `-S` and
+   * copilot's `--resume` REOPEN a session, which would put two live
+   * processes on one transcript.
+   *
+   * A full-argv rewrite for the same reason {@link resumeArgv} is one — the
+   * shapes differ in kind: claude combines flags on the base command
+   * (`--resume <src> --fork-session`), codex takes a SUBCOMMAND with the id
+   * as a positional (`codex fork [opts] <src>`).
+   *
+   * `newId` is the id Rove wants the FORKED session to carry, for engines
+   * whose CLI accepts a caller-set one (claude's `--session-id`); an engine
+   * that mints its own ignores it. Null/absent = let the engine name it.
+   *
+   * Returning null refuses this particular fork (the caller then opens an
+   * ordinary tab on the base command).
+   */
+  readonly forkArgv?: (base: readonly string[], sourceId: string, newId?: string | null) => readonly string[] | null
 }
 
 /**
@@ -136,4 +156,27 @@ export function pickUnclaimedSessionId(ids: readonly string[], claimed: Readonly
     if (id && !claimed.has(id)) return id
   }
   return null
+}
+
+/**
+ * Argv that FORKS `sourceId` into a new diverging session, or null when this
+ * engine declares no fork verb, there is no source id, or the command already
+ * controls its own session (a second `--resume` makes claude refuse to launch
+ * — the user's explicit flag wins, same precedent as
+ * {@link resumeSessionArgv}). Null means the caller opens an ordinary tab.
+ */
+export function forkSessionArgvFor(
+  identity: EngineSessionIdentity | undefined,
+  base: readonly string[],
+  sourceId: string,
+  newId?: string | null,
+): readonly string[] | null {
+  if (!sourceId || !identity?.forkArgv) return null
+  if (controlsOwnSession(identity, base)) return null
+  return identity.forkArgv(base, sourceId, newId)
+}
+
+/** True when this engine declares a verb that BRANCHES a conversation. */
+export function acceptsSessionFork(identity: EngineSessionIdentity | undefined): boolean {
+  return !!identity?.forkArgv
 }

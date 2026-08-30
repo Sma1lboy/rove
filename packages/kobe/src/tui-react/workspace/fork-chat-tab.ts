@@ -4,11 +4,12 @@
  * `quick-fork.ts`, which forks the WORKTREE into a child task.
  *
  * Split out of `TerminalTabs.tsx` for the file-size cap; the vendor-specific
- * launch flags live in the engine layer (`forkSessionArgv`), the tab-state
+ * launch flags live in the engine layer (`engineForkArgv`), the tab-state
  * transition in `terminal-tabs-core`, so this is just the join.
  */
 
-import { canForkSession, engineDisplayName } from "@/engine/interactive-command"
+import { engineCanFork } from "@/engine/engine-presets"
+import { engineDisplayName } from "@/engine/interactive-command"
 import { engineEntry } from "@/engine/registry"
 import { buildHandoffPrompt } from "@/engine/session-handoff"
 import type { VendorId } from "@/types/vendor"
@@ -51,7 +52,7 @@ export async function planChatContinuation(
 ): Promise<ChatForkPlan> {
   const sessionId = await forkSourceSessionId(active, source, worktree)
   if (!sessionId) return { kind: "no-session" }
-  if (target === source && canForkSession(source)) return { kind: "fork", sessionId }
+  if (target === source && engineCanFork(source)) return { kind: "fork", sessionId }
   const transcriptPath = await engineEntry(source).history.transcriptPath(sessionId, worktree)
   if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
   return {

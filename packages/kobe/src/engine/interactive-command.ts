@@ -25,7 +25,6 @@
 
 import { kobeCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
-import { controlsOwnSession } from "@/engine/session-identity"
 import { autoStatusEnabled } from "@/state/auto-status"
 import { dispatcherEnabled } from "@/state/dispatcher"
 import { getPersistedString } from "@/state/repos"
@@ -198,55 +197,16 @@ export function argvHasFlag(argv: readonly string[], flag: string): boolean {
  */
 
 /**
- * Engines whose CLI can BRANCH a conversation into a new session. Probed
- * against the real binaries (2026-08-01): claude ships `--fork-session`,
- * codex a `fork` subcommand. Copilot and Kimi only RESUME (`--resume` /
- * `-S`), which would put two live processes on one transcript — not a fork,
- * so kobe refuses instead of pretending. Custom engines (opencode &c) are
- * launch-command-only: kobe knows neither their flags nor their session
- * store, so there is nothing to fork from. Teaching one of those to fork
- * means adding its verb here AND a history reader that can name the
- * session — the same two things claude/codex have.
+ * `canForkSession` / `forkSessionArgv` lived here (removed 2026-08-30).
+ * Both were vendor ladders — a hardcoded `v === "claude" || v === "codex"`
+ * and an inline if-chain of argv shapes — so an engine that ships a fork
+ * verb silently could not fork until someone edited this file, and a custom
+ * preset declaring a built-in protocol was refused despite launching that
+ * exact binary. The verb is now DECLARED by each engine
+ * (`EngineSessionIdentity.forkArgv`) and read through `engineCanFork` /
+ * `engineForkArgv` in `engine-presets.ts`, which resolve the preset's
+ * protocol first — the same fix `withClaudeSessionId` got.
  */
-export function canForkSession(vendor: VendorId | undefined): boolean {
-  const v: VendorId = coerceVendorId(vendor)
-  return v === "claude" || v === "codex"
-}
-
-/**
- * Argv that opens `sourceSessionId`'s conversation as a NEW, diverging
- * session — "fork this chat into another tab", same worktree. Both engines
- * ship the verb; the shapes differ, so they live here beside the other
- * per-vendor launch-flag mappings:
- *   - claude: `--resume <src> --fork-session` (+ our own `--session-id` so
- *     the forked tab stays trackable — the three combine, probed against
- *     claude 2.x: the fork lands in the id we pass).
- *   - codex: the `fork` SUBCOMMAND, options before the positional id.
- * Returns null when the vendor has no fork verb (copilot/custom), there is
- * no source id, or a claude base already controls its own session (a second
- * `--resume` would make claude refuse to launch — the user's override wins,
- * the user-flag-wins precedent) — the caller then opens an
- * ordinary tab on the base command.
- */
-export function forkSessionArgv(
-  base: readonly string[],
-  vendor: VendorId | undefined,
-  sourceSessionId: string,
-  newSessionId?: string | null,
-): readonly string[] | null {
-  if (!sourceSessionId) return null
-  const v: VendorId = coerceVendorId(vendor)
-  if (v === "claude") {
-    if (controlsOwnSession(engineEntry(v).sessionIdentity, base)) return null
-    const forked = [...base, "--resume", sourceSessionId, "--fork-session"]
-    return newSessionId ? [...forked, "--session-id", newSessionId] : forked
-  }
-  if (v === "codex") {
-    const [bin, ...rest] = base
-    return bin ? [bin, "fork", ...rest, sourceSessionId] : null
-  }
-  return null
-}
 
 /**
  * Shell-ready `… api` command prefix for protocol prompts. Packaged builds

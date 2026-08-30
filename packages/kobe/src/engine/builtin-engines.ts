@@ -85,6 +85,14 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
       pinFlag: "--session-id",
       sessionControlFlags: ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"],
       resumeArgv: (base, id) => [...base, "--resume", id],
+      // Fork = resume + branch, and claude lets the caller name the branch,
+      // so the forked tab is trackable from its first frame like any other
+      // claude tab. The three flags combine (probed against claude 2.x: the
+      // fork lands in the id we pass).
+      forkArgv: (base, sourceId, newId) => {
+        const forked = [...base, "--resume", sourceId, "--fork-session"]
+        return newId ? [...forked, "--session-id", newId] : forked
+      },
     },
     quotaUsage: () => fetchClaudeQuotaUsage(),
     readTurns: readClaudeTurns,
@@ -135,6 +143,14 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
       resumeArgv: (base, id) => {
         const [bin, ...rest] = base
         return bin ? [bin, "resume", ...rest, id] : base
+      },
+      // `codex fork [OPTIONS] [SESSION_ID]` (probed 2026-08-30) — same
+      // subcommand shape as resume, so the launch flags stay between the
+      // verb and the positional id. Codex mints the forked thread's own id,
+      // so a caller-set one has nowhere to go.
+      forkArgv: (base, sourceId) => {
+        const [bin, ...rest] = base
+        return bin ? [bin, "fork", ...rest, sourceId] : null
       },
     },
     quotaUsage: () => fetchCodexQuotaUsage(),

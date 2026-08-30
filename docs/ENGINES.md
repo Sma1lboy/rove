@@ -139,13 +139,17 @@ conversation. The two resulting tabs keep the source context and then diverge:
 | `codex` | ✓ | `codex fork <src>` |
 | `copilot` | — | starts a fresh Copilot session with a transcript handoff |
 | `kimi` | — | starts a fresh Kimi session with a transcript handoff |
-| custom | — | refused; Rove doesn't know its session store |
+| custom | — | refused, unless the preset declares a built-in protocol (then it forks like that engine) |
 
 Copilot's `--resume` and Kimi's `-S` reopen rather than branch, which would put
 two live processes on one transcript. Rove therefore uses the same transcript
 handoff as a cross-engine continuation: the new tab is a fresh conversation
 that reads where the previous one stopped. A custom engine without a known
 session store is refused instead of silently opening a blank continuation.
+
+Each engine declares its own fork verb, so a custom preset with an
+`engineProtocol` of `claude` or `codex` forks like that engine — the same
+resolution that gives it their session-id flags.
 
 *Different built-in engine* → a handoff. This is the move that saves you when
 you hit a usage limit mid-task. The new engine starts fresh with a first prompt
