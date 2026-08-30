@@ -28,45 +28,21 @@
 
 import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, Message } from "@/types/engine"
 import { type VendorId, isBuiltinVendor } from "@/types/vendor"
-import {
-  type ClaudeAccount,
-  type CodexAccount,
-  type CopilotAccount,
-  type DetectDeps,
-  type EngineAccountStatus,
-  type KimiAccount,
-  detectClaudeAccount,
-  detectCodexAccount,
-  detectCopilotAccount,
-  detectKimiAccount,
+import type {
+  ClaudeAccount,
+  CodexAccount,
+  CopilotAccount,
+  DetectDeps,
+  EngineAccountStatus,
+  KimiAccount,
 } from "./account-detect.ts"
 import type { EngineTurnReader } from "./agent-turn.ts"
-import { claudeCapabilities, claudeIdentity } from "./claude-code-local/capabilities.ts"
-import { ClaudeHookAdapter } from "./claude-code-local/hook-adapter.ts"
-import { fetchClaudeQuotaUsage } from "./claude-code-local/quota.ts"
-import { CLAUDE_SCREEN_MANIFEST } from "./claude-code-local/screen.ts"
-import { trustClaudeWorktree } from "./claude-code-local/trust.ts"
-import { readClaudeTurns } from "./claude-code-local/turns.ts"
-import { codexCapabilities, codexIdentity } from "./codex-local/capabilities.ts"
-import { CodexHookAdapter } from "./codex-local/hook-adapter.ts"
-import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
-import { CODEX_SCREEN_MANIFEST } from "./codex-local/screen.ts"
-import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
-import { trustCodexWorktree } from "./codex-local/trust.ts"
+import { BUILTIN_ENGINES } from "./builtin-engines.ts"
 import { contribEngineEntry, isContribEngine } from "./contrib-engines.ts"
-import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
-import {
-  EMPTY_HISTORY,
-  claudeHistoryReader,
-  codexHistoryReader,
-  copilotHistoryReader,
-  kimiHistoryReader,
-} from "./history-readers.ts"
+import { EMPTY_HISTORY } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
-import { KimiHookAdapter } from "./kimi-local/hook-adapter.ts"
-import { KIMI_SCREEN_MANIFEST } from "./kimi-local/screen.ts"
-import { trustKimiWorktree } from "./kimi-local/trust.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
+import type { EngineSessionIdentity } from "./session-identity.ts"
 import {
   type EngineTerminalTitle,
   stripStatusPrefix,
@@ -74,7 +50,8 @@ import {
   titleSessionId,
   titleTurnHint,
 } from "./terminal-title.ts"
-import { ClaudeTurnDetector, CodexTurnDetector, type EngineTurnDetector, UnknownTurnDetector } from "./turn-detector.ts"
+import type { EngineTurnDetector } from "./turn-detector.ts"
+import { UnknownTurnDetector } from "./turn-detector.ts"
 
 /**
  * Reader over an engine's on-disk transcript store, in the neutral shape
@@ -160,6 +137,14 @@ export interface EngineRegistryEntry {
    */
   readonly terminalTitle?: EngineTerminalTitle
   /**
+   * How this engine's CLI handles session identity — the flag that pins a
+   * caller-set id, the flags that mean the command already controls its own
+   * session, and the argv that resumes one (see `session-identity.ts`,
+   * which owns the shape and every rule that reads it). Absent = Rove knows
+   * no session verbs for this engine.
+   */
+  readonly sessionIdentity?: EngineSessionIdentity
+  /**
    * Subscription-quota probe: snapshot of the account's usage windows, or
    * null when unknowable. Drives the daemon's rate-limit auto-resume
    * schedule and the Settings usage dashboard. The probe hits the vendor's
@@ -222,104 +207,6 @@ export interface EngineRegistryEntry {
 // EMPTY_HISTORY is re-exported so `@/engine/registry` stays the one
 // import site for the whole registry surface.
 export { EMPTY_HISTORY }
-
-/** The first-party entries — registered here and nowhere else. */
-const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", EngineRegistryEntry> = {
-  claude: {
-    vendor: "claude",
-    builtin: true,
-    // The adapter's EngineIdentity is the source of truth for name copy
-    // (AGENTS.md: engine-owned UI data); displayName is the resolved view
-    // every neutral layer reads via engineDisplayName().
-    displayName: claudeIdentity.shortName,
-    defaultCommand: ["claude"],
-    history: claudeHistoryReader,
-    detectAccount: (deps) => detectClaudeAccount(deps),
-    createHookAdapter: () => new ClaudeHookAdapter(),
-    createTurnDetector: () => new ClaudeTurnDetector(),
-    capabilities: claudeCapabilities,
-    identity: claudeIdentity,
-    trustWorktree: trustClaudeWorktree,
-    terminalTitle: {
-      ownsStatus: true,
-      // `${prefix} ${title}` where prefix is ✳ at rest and cycles through
-      // animated frames while a turn runs (`AnimatedTerminalTitle`).
-      statusPrefixes: ["✳", "⠂", "⠐", "◐", "◑"],
-      workingPrefixes: ["⠂", "⠐", "◐", "◑"],
-    },
-    quotaUsage: () => fetchClaudeQuotaUsage(),
-    readTurns: readClaudeTurns,
-    screenManifest: CLAUDE_SCREEN_MANIFEST,
-  },
-  codex: {
-    vendor: "codex",
-    builtin: true,
-    displayName: codexIdentity.shortName,
-    defaultCommand: ["codex"],
-    // Effort levels real `codex exec` accepts (the broken `minimal` is
-    // deliberately excluded — CHANGELOG 0.5.17).
-    effortLevels: ["none", "low", "medium", "high", "xhigh"],
-    history: codexHistoryReader,
-
-    detectAccount: (deps) => detectCodexAccount(deps),
-    createHookAdapter: () => new CodexHookAdapter(),
-    createTurnDetector: () => new CodexTurnDetector(),
-    capabilities: codexCapabilities,
-    identity: codexIdentity,
-    trustWorktree: trustCodexWorktree,
-    // Codex's default is activity + project-name, which makes every tab in
-    // one repo say "rove". Keep its native activity state, but ask Codex to
-    // pair it with the thread title it already owns in its local store.
-    screenManifest: CODEX_SCREEN_MANIFEST,
-    terminalTitle: {
-      ownsStatus: true,
-      launchArgs: ["-c", 'tui.terminal_title=["activity","thread-title"]'],
-      // The `activity` segment is a braille spinner frame joined to the next
-      // segment by a space (codex `TERMINAL_TITLE_SPINNER_FRAMES` +
-      // `separator_from_previous`). It only appears while a turn runs, so a
-      // resting title has no prefix to strip — every status prefix is a
-      // working prefix.
-      statusPrefixes: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-      workingPrefixes: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
-      // `thread-title` falls back to the thread ID until codex names the
-      // thread, so that title is usually a bare UUID. The id names the
-      // rollout the tab's first prompt lives in, which is what Rove shows
-      // instead — see `codex-local/terminal-title.ts`.
-      sessionIdFromTitle: codexSessionIdFromTitle,
-    },
-    quotaUsage: () => fetchCodexQuotaUsage(),
-  },
-  copilot: {
-    vendor: "copilot",
-    builtin: true,
-    displayName: "Copilot",
-    defaultCommand: ["copilot"],
-    history: copilotHistoryReader,
-    detectAccount: (deps) => detectCopilotAccount(deps),
-    createHookAdapter: () => new NoopHookAdapter("copilot"),
-    // Copilot persists no turn-completion marker kobe can read yet.
-    createTurnDetector: () => new UnknownTurnDetector("copilot"),
-    screenManifest: COPILOT_SCREEN_MANIFEST,
-  },
-  kimi: {
-    vendor: "kimi",
-    builtin: true,
-    displayName: "Kimi",
-    defaultCommand: ["kimi"],
-    // kimi's positional CLI slot is a subcommand (export/provider/acp/…),
-    // not an initial prompt — argv delivery kills it (issue #25).
-    firstMessageDelivery: "paste",
-    // The installed Mach-O binary rewrites its process title to `kimi-co`
-    // after launch, so a live kimi session's argv[0] never reads `kimi`.
-    processNames: ["kimi-co"],
-    trustWorktree: trustKimiWorktree,
-    history: kimiHistoryReader,
-    detectAccount: (deps) => detectKimiAccount(deps),
-    createHookAdapter: () => new KimiHookAdapter(),
-    createTurnDetector: () => new UnknownTurnDetector("kimi"),
-    screenManifest: KIMI_SCREEN_MANIFEST,
-  },
-}
 
 /** See module doc: the explicit empty entry for a user-registered engine id. */
 function customEngineEntry(vendor: VendorId): EngineRegistryEntry {

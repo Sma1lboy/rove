@@ -29,6 +29,7 @@
  * (that module stays state-free so vitest and the daemon can import it).
  */
 
+import { randomUUID } from "node:crypto"
 import { engineEntry } from "@/engine/registry"
 import { getCustomEngineIds, getPersistedString } from "@/state/repos"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
@@ -42,6 +43,7 @@ import {
   withEngineEffort,
   withEngineTerminalTitle,
 } from "./interactive-command.ts"
+import { acceptsPinnedSession, pinSessionArgv, resumeSessionArgv } from "./session-identity.ts"
 
 /**
  * The protocol id for "kobe cannot name this engine". Deliberately not a
@@ -189,4 +191,53 @@ function presetBaseArgv(id: string): readonly string[] | null {
 /** The launch binary a delivery gate should match this spec's engine by. */
 export function engineLaunchBin(spec: EngineLaunchSpec): string | undefined {
   return engineLaunchArgv(spec)[0]
+}
+
+/**
+ * The engine whose SESSION VERBS apply to a launch of `id` — its declared
+ * protocol when it is a custom preset, else the id itself.
+ *
+ * The same rule `engineLaunchArgv` already uses for codex's effort and
+ * terminal-title flags, applied to session identity: a preset `claudecpa`
+ * declaring the claude protocol IS a claude launch, so it takes claude's
+ * `--session-id` / `--resume`. Keying off the id instead would find the
+ * empty custom entry and silently drop both — which is exactly what the old
+ * `withClaudeSessionId` did with its literal `vendor === "claude"` check,
+ * and why every wrapper engine lost its conversation on restart.
+ */
+export function sessionProtocol(vendor: VendorId | undefined): VendorId {
+  const id = vendor?.trim()
+  if (!id) return "claude"
+  return getEngineProtocol(id) ?? id
+}
+
+/**
+ * Argv that PINS a fresh session id, plus the id itself — or
+ * `{ argv, sessionId: null }` when this engine mints its own id
+ * (codex/kimi/custom) or the command already controls its session.
+ * `newId` is a seam for the tab path, which re-pins an id it already holds.
+ */
+export function withPinnedSessionId(
+  argv: readonly string[],
+  vendor: VendorId | undefined,
+  newId: () => string = randomUUID,
+): { argv: readonly string[]; sessionId: string | null } {
+  const identity = engineEntry(sessionProtocol(vendor)).sessionIdentity
+  if (!acceptsPinnedSession(identity, argv)) return { argv, sessionId: null }
+  const sessionId = newId()
+  return { argv: pinSessionArgv(identity, argv, sessionId), sessionId }
+}
+
+/**
+ * Argv that RESUMES `sessionId`, or null when the engine declares no resume
+ * verb / the command already controls its own session. The caller then
+ * launches the bare command — a fresh conversation, honestly, rather than a
+ * flag that would kill the launch (kimi exits on claude's `--resume`).
+ */
+export function engineResumeArgv(
+  base: readonly string[],
+  vendor: VendorId | undefined,
+  sessionId: string,
+): readonly string[] | null {
+  return resumeSessionArgv(engineEntry(sessionProtocol(vendor)).sessionIdentity, base, sessionId)
 }

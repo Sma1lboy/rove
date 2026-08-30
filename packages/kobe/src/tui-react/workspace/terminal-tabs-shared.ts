@@ -7,8 +7,8 @@
  * tab activation before the target task's tabs ever mount.
  */
 
-import { engineLaunchArgv } from "../../engine/engine-presets"
-import { withClaudeSessionId } from "../../engine/interactive-command"
+import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"
+
 import {
   type EngineTab,
   type TabsState,
@@ -377,7 +377,7 @@ export function appendBackgroundEngineTab(
   const sessionId =
     spec.sessionId !== undefined
       ? spec.sessionId
-      : withClaudeSessionId(engineLaunchArgv({ vendor: spec.vendor }), spec.vendor).sessionId
+      : withPinnedSessionId(engineLaunchArgv({ vendor: spec.vendor }), spec.vendor).sessionId
   const tab: EngineTab = {
     kind: "engine",
     id: `tab-${ordinal}`,
