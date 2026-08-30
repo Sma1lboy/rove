@@ -22,8 +22,9 @@ import {
   isPrPollable,
   pickPr,
   runPrStatusPass as runPrStatusPassRaw,
+  startPrStatusPoller,
 } from "@sma1lboy/kobe-daemon/daemon/pr-status-collector"
-import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { Orchestrator } from "../../src/orchestrator/core.ts"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
@@ -291,5 +292,85 @@ describe("decodeSpawnChunks — join bytes before decoding the gh payload", () =
   test("ASCII, mixed string/Buffer chunks, and empty input are unchanged", () => {
     expect(decodeSpawnChunks([Buffer.from("ab"), "cd"])).toBe("abcd")
     expect(decodeSpawnChunks([])).toBe("")
+  })
+})
+
+/**
+ * The consumer gate. `prStatus` is the only CI truth Rove holds, and the
+ * original gate ("no GUI ⇒ nobody wants this") assumed every consumer is a
+ * human at a pane — so an agent running unattended, the consumer whose need
+ * is sharpest, read a stale or missing `checkState` at exactly the moment it
+ * asked whether CI was green. The gate now opens on a live engine too, while
+ * keeping its actual point: neither ⇒ still polls nobody.
+ */
+describe("startPrStatusPoller consumer gate", () => {
+  /** Drive one tick and let the in-flight async pass settle. */
+  async function tickOnce(stop: () => void): Promise<void> {
+    await vi.advanceTimersByTimeAsync(DEFAULT_PR_STATUS_POLL_MS)
+    await vi.waitFor(() => {})
+    stop()
+  }
+
+  function countingRunner(): { runs: () => number; run: PrViewRunner } {
+    let n = 0
+    return {
+      runs: () => n,
+      run: async () => {
+        n++
+        return { kind: "empty" }
+      },
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  test("polls for a WORKING AGENT with no gui attached — the unattended-run case", async () => {
+    await makeTask()
+    const { runs, run } = countingRunner()
+    const stop = startPrStatusPoller(
+      orch,
+      daemonRuntime,
+      DEFAULT_PR_STATUS_POLL_MS,
+      () => false,
+      run,
+      () => true,
+    )
+    await tickOnce(stop)
+    expect(runs()).toBeGreaterThan(0)
+  })
+
+  test("still polls nobody when there is neither a subscriber nor a live engine", async () => {
+    await makeTask()
+    const { runs, run } = countingRunner()
+    const stop = startPrStatusPoller(
+      orch,
+      daemonRuntime,
+      DEFAULT_PR_STATUS_POLL_MS,
+      () => false,
+      run,
+      () => false,
+    )
+    await tickOnce(stop)
+    expect(runs()).toBe(0)
+  })
+
+  test("an attached subscriber alone still opens the gate (no agent required)", async () => {
+    await makeTask()
+    const { runs, run } = countingRunner()
+    const stop = startPrStatusPoller(
+      orch,
+      daemonRuntime,
+      DEFAULT_PR_STATUS_POLL_MS,
+      () => true,
+      run,
+      () => false,
+    )
+    await tickOnce(stop)
+    expect(runs()).toBeGreaterThan(0)
   })
 })

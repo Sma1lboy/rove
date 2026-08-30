@@ -98,6 +98,13 @@ What makes this loop work:
 - **"Succeeded" means committed.** The only thing `land` can merge is
   commits on the worker's branch. Green tests in a dirty working tree are
   not a deliverable — `land` will refuse an empty branch (`EMPTY_BRANCH`).
+  `send` refuses the claim earlier: a `succeeded:` report from a managed task
+  with 0 commits fails with `EMPTY_SUCCESS_REPORT` and never reaches you.
+  A worker whose task legitimately produced no commits passes `--allow-empty`.
+- **"CI is green" means `checkState: passing`.** Rove polls each task's PR
+  checks onto `.task.prStatus.checkState` (`rove api get-task`), so a
+  coordinator reads CI truth instead of trusting a worker's summary of its
+  own local test run.
 - **A report is a claim, not a verification.** Read the winner's actual diff
   before merging it (`collect` shows ahead counts and diffstats; `git log`
   in the worktree shows the truth).
