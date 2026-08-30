@@ -17,8 +17,10 @@ import { TextAttributes } from "@opentui/core"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { errorMessage } from "../../lib/error-message"
 import { relativeBuckets } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
@@ -69,6 +71,17 @@ export function AutomationsPage(props: {
   const { theme } = useTheme()
   const dialog = useDialog()
   const t = useT()
+  /**
+   * Failures go to the toast queue, not the inline notice line — a muted
+   * `textMuted` line reads as a hint, not a failure, and error toasts show
+   * even when toasts are disabled (shared notify-state invariant). Same
+   * empty taskId/tabId pattern as `WorktreesPage`: only the toast queue is
+   * consumed here.
+   */
+  const notif = useNotifications()
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
 
   const [automations, setAutomations] = useState<readonly Automation[] | null>(null)
   const [keepsDaemonAlive, setKeepsDaemonAlive] = useState(false)
@@ -147,7 +160,8 @@ export function AutomationsPage(props: {
       await orch.setAutomationEnabled(selected.id, !selected.enabled)
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] toggle failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -163,7 +177,8 @@ export function AutomationsPage(props: {
       setNotice(t("automations.ranWith", { name: selected.name, status: result.status }))
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] run now failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -189,9 +204,10 @@ export function AutomationsPage(props: {
       await orch.createAutomation(draft)
       refetch()
     } catch (err) {
-      // The daemon re-validates the cron; surface its message, since the fix
-      // is in the input the user just typed.
-      setNotice(err instanceof Error ? err.message : String(err))
+      // The daemon re-validates the cron; its message names the fix, so it
+      // leads the error toast.
+      console.error("[rove automations] create failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -213,7 +229,8 @@ export function AutomationsPage(props: {
       await orch.deleteAutomation(selected.id)
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] delete failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }

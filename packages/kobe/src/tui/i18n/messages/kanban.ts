@@ -82,6 +82,10 @@ export const en = {
     /** `{title}` = the issue title. Deletes ONLY the record. */
     body: "“{title}” will be removed from the tracker. A linked task, branch, or worktree is left untouched.",
   },
+  /** Error-toast title when `d` confirm fails. `{id}` = issue number, `{error}` = the daemon's message. */
+  deleteFailed: "Couldn't delete story #{id}: {error}",
+  /** Error-toast title when the new-story intake fails. `{error}` = the daemon's message. */
+  createFailed: "Couldn't create the story: {error}",
 }
 
 export const zh: typeof en = {
@@ -141,4 +145,8 @@ export const zh: typeof en = {
     title: "删除 story #{id}?",
     body: "「{title}」将从 tracker 中移除。已关联的任务、分支、worktree 不受影响。",
   },
+  /** 删除失败时的错误 toast 标题。`{id}` = issue 编号，`{error}` = daemon 返回的信息。 */
+  deleteFailed: "删除 story #{id} 失败：{error}",
+  /** 新建 story 失败时的错误 toast 标题。`{error}` = daemon 返回的信息。 */
+  createFailed: "创建 story 失败：{error}",
 }

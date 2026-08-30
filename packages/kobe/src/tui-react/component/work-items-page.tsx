@@ -16,8 +16,10 @@ import { TextAttributes } from "@opentui/core"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { errorMessage } from "../../lib/error-message"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
@@ -71,6 +73,12 @@ export function WorkItemsPage(props: {
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
+  // Failure toasts, not the muted inline notice — same contract as the
+  // Worktrees/Automations pages (see AutomationsPage for the rationale).
+  const notif = useNotifications()
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
 
   const repos = reposOf(props.orchestrator)
   const [repoIndex, setRepoIndex] = useState(() => {
@@ -137,7 +145,8 @@ export function WorkItemsPage(props: {
       // than leaving the user wondering whether anything happened.
       else setNotice(t("workItems.startedNoEngine", { title: result.title }))
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove work-items] start failed:", err)
+      notifyError(t("workItems.startFailed", { number: item.number, error: errorMessage(err) }))
     } finally {
       setStarting(false)
     }
