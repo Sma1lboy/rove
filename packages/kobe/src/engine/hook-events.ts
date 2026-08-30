@@ -1,5 +1,5 @@
 /**
- * Engine-neutral activity-event vocabulary + state reducer.
+ * Engine-neutral activity-event vocabulary (+ the reducer, re-exported).
  *
  * kobe learns "what is this task's engine doing right now" from engine HOOKS
  * (Claude Code's Stop / StopFailure / Notification / Session*; Codex's
@@ -11,7 +11,8 @@
  * vocabulary, so no vendor strings leak past the adapter (CLAUDE.md
  * "Engine-owned UI data").
  *
- * This module is pure (no I/O), so the reducer is unit-tested in isolation.
+ * This module is pure (no I/O). The state machine itself ({@link
+ * reduceActivity}) is defined in the daemon package and re-exported below.
  */
 
 /** The normalized hook verbs a `kobe hook <verb>` invocation carries. */
@@ -88,51 +89,10 @@ export const TASK_ACTIVITY_STATES = [
 export type TaskActivityState = (typeof TASK_ACTIVITY_STATES)[number]
 
 /**
- * Pure state machine: fold a normalized event into the next activity state.
- *   session-start                  → idle
- *   turn-start                     → running
- *   turn-complete                  → turn_complete
- *   turn-failed (rate_limit/billing)→ rate_limited
- *   turn-failed (other)            → error
- *   awaiting-input                 → permission_needed (permission prompt OR a
- *                                    question dialog — either way the engine is
- *                                    blocked on the user; `detail.waiting` keeps why)
- *   session-end                    → idle
+ * The activity state machine. Defined ONCE, in the daemon package — the
+ * daemon is the only production caller (`DaemonActivityRegistry`), and kobe
+ * depends on kobe-daemon (never the reverse), so this side re-exports.
+ * A second copy lived here and drifted; a fix now lands in one place.
+ * @see {@link import("@sma1lboy/kobe-daemon/daemon/activity-reduce").reduceActivity}
  */
-export function reduceActivity(
-  prev: TaskActivityState | undefined,
-  kind: EngineActivityKind,
-  detail?: EngineActivityDetail,
-): TaskActivityState {
-  switch (kind) {
-    case "session-start":
-    case "session-end":
-    // Kimi fires Interrupt INSTEAD of Stop on a user interrupt — without
-    // this the turn strands in `running` (docs/design/plugin-events.md §B).
-    case "turn-interrupted":
-      return "idle"
-    case "turn-start":
-      return "running"
-    case "turn-complete":
-      // A completion is only a completion when a turn was actually in
-      // flight: running, or blocked on the user mid-turn (an approved
-      // permission continues WITHOUT a new turn-start). Engines fire Stop
-      // for automated wakes too — a background monitor stream ending
-      // "completes" a turn the user never started, and the ● lamp lit for
-      // it (owner bug 2026-08-02). That wake signature is a Stop landing on
-      // a KNOWN untracked state (an explicit idle/sticky entry) — keep it.
-      // `undefined` is different: the reducer knows NOTHING (fresh daemon,
-      // registry wiped by a restart), and the one real way a first event is
-      // a Stop is a turn that started before the wipe — swallowing it cost
-      // the ● lamp for every turn that outlived a daemon restart.
-      return prev === "running" || prev === "permission_needed" || prev === undefined ? "turn_complete" : prev
-    case "turn-failed":
-      return detail?.failure === "rate_limit" || detail?.failure === "billing" ? "rate_limited" : "error"
-    case "awaiting-input":
-      return "permission_needed"
-    default:
-      // Lifecycle-only kinds never reach here via the daemon (gated by
-      // affectsActivityState); a direct call is a no-op on the state.
-      return prev ?? "idle"
-  }
-}
+export { reduceActivity } from "@sma1lboy/kobe-daemon/daemon/activity-reduce"
