@@ -11,9 +11,19 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { readLastActiveTaskId } from "../../state/last-active.ts"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { Task } from "../../types/task.ts"
+import { useLatest } from "../lib/use-latest"
 import { type TabsSnapshotKv, sweepOrphanTabsSnapshots } from "./terminal-tabs-persist"
-import { forgetTaskTabs } from "./terminal-tabs-shared"
+import { forgetTaskTabs, knownTaskTabs } from "./terminal-tabs-shared"
 import { activateWorkspaceTask, firstSelectableTask } from "./use-task-selection"
+
+/** What {@link useWorkspaceSelection} reports when a worktree vanishes under a task. */
+export interface WorktreeGoneEvent {
+  readonly taskId: string
+  readonly title: string
+  readonly branch: string
+  /** How many tab snapshots were dropped (0 when the task never mounted tabs). */
+  readonly closed: number
+}
 
 export interface WorkspaceSelection {
   readonly selectedId: string | null
@@ -31,6 +41,8 @@ export function useWorkspaceSelection(args: {
   readonly activeTaskId: string | null
   readonly focusWorkspace: () => void
   readonly kv: TabsSnapshotKv
+  /** A task's worktree disappeared out-of-band and its tabs were dropped. */
+  readonly notifyWorktreeGone?: (event: WorktreeGoneEvent) => void
 }): WorkspaceSelection {
   const { orch, tasks, activeTaskId, kv } = args
   // Seed from the daemon's replayed focus, else the persisted lastActive
@@ -73,6 +85,17 @@ export function useWorkspaceSelection(args: {
   // One-time orphan sweep (O19): clear `terminalTabs.*` snapshots whose task
   // no longer exists. Runs once on first hydration; ref not dep, so a later
   // task-list change never re-sweeps a live task's fresh snapshot.
+  //
+  // The `tasks.length === 0` guard is load-bearing and SUFFICIENT, despite
+  // reading like a weak null-check: this list is only ever assigned from the
+  // daemon's own index (`hello.tasks` / `task.snapshot` — nothing else calls
+  // `setTasks`), a corrupt or unreadable manifest recovers to an EMPTY index
+  // rather than a truncated one, and a daemon serving a foreign home is
+  // rejected before its list is believed. So a NON-EMPTY list here is the
+  // daemon's authoritative task set, and anything absent from it is a genuine
+  // orphan. Do not relax the empty check — empty is exactly the shape a
+  // pre-connection render and a corrupt-manifest recovery both take, and
+  // sweeping on it would wipe every live snapshot on the machine.
   const sweptOrphansRef = useRef(false)
   useEffect(() => {
     if (sweptOrphansRef.current || tasks.length === 0) return
@@ -88,6 +111,13 @@ export function useWorkspaceSelection(args: {
   // invisible to the pane once unmounted. Watch the task snapshot and release
   // the corpses; the pane never kills (registry docs), so this is the one
   // place tab shells die with their task.
+  //
+  // The worktree-gone notifier is held by REF, not listed as a dep: the host
+  // rebuilds that callback every render, and depending on it would re-run this
+  // effect each render — which also rewrites `worktreePathsRef`, the very
+  // thing the transition below is measured against. Same useLatest shape
+  // use-inbox-host uses for its notifiers.
+  const notifyWorktreeGoneRef = useLatest(args.notifyWorktreeGone)
   const liveTaskIdsRef = useRef<ReadonlySet<string>>(new Set())
   const worktreePathsRef = useRef<ReadonlyMap<string, string>>(new Map())
   useEffect(() => {
@@ -104,13 +134,31 @@ export function useWorkspaceSelection(args: {
     // shells alive in a deleted directory. A non-empty → empty transition
     // is the observable edge; task deletion itself is already covered by
     // the delete flow's forgetTaskTabs + the live-task sweep above.
+    //
+    // ANNOUNCE IT. This destroys every tab of a task the user did NOT delete,
+    // triggered by something that happened somewhere else (another client, a
+    // web action, another agent's `rove api`) — and it did it silently, which
+    // is how "the tab I was working in just vanished" reached the owner with
+    // nothing to look at (2026-08-29). The toast is deliberately not a
+    // confirm: the worktree is ALREADY gone by the time this runs, so there is
+    // nothing left to consent to, and a modal here would interrupt for a
+    // decision the user cannot make. Telling them what happened, and that the
+    // branch survives, is the whole remedy.
     const paths = new Map<string, string>()
     for (const task of tasks) paths.set(task.id, task.worktreePath)
     for (const [id, prevPath] of worktreePathsRef.current) {
       const now = paths.get(id)
       if (now === "" && prevPath !== "") {
+        const closed = knownTaskTabs(kv, id)?.tabs.length ?? 0
         registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
         forgetTaskTabs(kv, id)
+        const task = tasks.find((candidate) => candidate.id === id)
+        notifyWorktreeGoneRef.current?.({
+          taskId: id,
+          title: task?.title ?? id,
+          branch: task?.branch ?? "",
+          closed,
+        })
       }
     }
     worktreePathsRef.current = paths

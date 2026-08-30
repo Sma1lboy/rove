@@ -40,7 +40,7 @@ import { useEditorHandles } from "./use-editor-handles"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
 import { useScratchShell } from "./use-scratch-shell"
-import { useWorkspaceSelection } from "./use-workspace-selection"
+import { type WorktreeGoneEvent, useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
 
 function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
@@ -75,12 +75,29 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Selection + adopt-first-focus + the deleting-task PTY sweep — extracted
   // verbatim to use-workspace-selection.ts (file-size cap split).
+  const t = useT()
+
+  // Declared before useWorkspaceSelection so its worktree-gone callback can
+  // reach the toast surface; `notif.notify` is stable and the sidebar hook's
+  // notifyError/notifyInfo below need `selectedId`, which the selection hook
+  // produces. Same shape those two use (see use-sidebar-host-state).
+  const notifyWorktreeGone = (event: WorktreeGoneEvent): void => {
+    notif.notify({
+      kind: "error",
+      taskId: event.taskId,
+      tabId: "",
+      title: t("tasks.toast.worktreeGoneTitle", { title: event.title }),
+      body: t("tasks.toast.worktreeGoneBody", { count: String(event.closed), branch: event.branch || "—" }),
+    })
+  }
+
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
     tasks,
     activeTaskId,
     focusWorkspace: () => focus.setFocused("workspace"),
     kv,
+    notifyWorktreeGone,
   })
   const worktree = selectedTask?.worktreePath || null
 
@@ -104,7 +121,6 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Cross-task attention (P0): rising-edge notify for non-selected tasks +
   // the global chord's jump-to-next handler. State is engine-owned/neutral.
-  const t = useT()
   const { jumpToNextAttention } = useAttention({
     tasks,
     engineState,

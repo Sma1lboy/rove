@@ -59,7 +59,10 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
   }
   const ctx: DaemonHandlerContext = {
     runtime: daemonRuntime,
-    orch: { listTasks: () => [], ...orch } as unknown as Orchestrator,
+    // `getTask` is on the real DaemonOrchestrator contract; defaulted here so
+    // every handler test inherits it (the deletion audit reads the task before
+    // the index drops it). A test that cares supplies its own.
+    orch: { listTasks: () => [], getTask: () => undefined, ...orch } as unknown as Orchestrator,
     bus: {
       publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
     } as unknown as DaemonEventBus,

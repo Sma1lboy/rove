@@ -7,7 +7,7 @@
  * in `handler-test-context.ts` so neither suite imports the other.
  */
 
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { SERIALIZED_TASK, TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 describe("daemon handler registry — tasks, issues, worktrees", () => {
@@ -112,6 +112,35 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.cleared).toEqual([])
       expect(rec.inboxTaskDeleted).toEqual([])
       expect(rec.deletions).toEqual([])
+    })
+
+    // Regression (2026-08-29): a delete left no record of WHO asked, so an
+    // agent deleting somebody's live task was untraceable. The CLI sends its
+    // verified session; the handler must put it in the audit line — and must
+    // write that line even when the delete is REFUSED, since a refused
+    // destructive request is exactly as worth recording.
+    it("task.delete audits the caller's verified session, refusal included", async () => {
+      const lines: string[] = []
+      const spy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+        lines.push(String(chunk))
+        return true
+      })
+      const { ctx } = fakeCtx({
+        getTask: () => ({ id: "t1", title: "live work", kind: "task", branch: "feat/x", worktreePath: "/wt/x" }),
+        prepareTaskDeletion: async () => {
+          throw new Error("refused: DIRTY_WORKTREE")
+        },
+      })
+      await expect(
+        dispatch("task.delete", { taskId: "t1", requestedByTaskId: "01CALLER", requestedByTabId: "tab-3" }, ctx),
+      ).rejects.toThrow("DIRTY_WORKTREE")
+      spy.mockRestore()
+
+      const log = lines.join("")
+      expect(log).toContain("task-deletion-audit")
+      expect(log).toContain("requested task t1")
+      expect(log).toContain("by=01CALLER::tab-3")
+      expect(log).toContain("/wt/x")
     })
 
     it("task.delete does not enqueue an unknown task", async () => {
