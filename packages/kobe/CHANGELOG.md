@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.11
+
+### Patch Changes
+
+- [#641](https://github.com/Sma1lboy/rove/pull/641) [`7dbb031`](https://github.com/Sma1lboy/rove/commit/7dbb031c3e08cfa29d30186b7b0a7221e2ada048) Stop treating a slow `hello` as a dead daemon. A busy daemon that missed the
+  3s probe deadline was killed and replaced, which made the old one self-stop
+  when it saw a new socket inode, which dropped every client, which made every
+  GUI reconnect at once onto a cold-starting daemon — eleven successions in one
+  50-minute window, with `rove api` failing intermittently throughout. The
+  client now asks the OS whether the daemon PROCESS exists before stopping
+  anything, and GUI reconnects are jittered so they no longer arrive in lockstep. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.10
 
 ### Patch Changes
