@@ -161,12 +161,19 @@ Three related limits are easy to confuse:
   but a reboot or host restart restores the last completed snapshot. Closing
   the tab, archiving its task, or `rove reset` deliberately drops the relevant
   frozen record.
-- **What diagnostics retain after an abnormal PTY death.**
-  `<home>/.rove/pty-exits.json` stores the newest 50 abnormal deaths. Each
-  record has the exit code or signal, time, and the last 40 plain-text lines
-  extracted from up to 16 KiB of raw ring data. Clean exits are omitted. This
-  is a diagnostic tail, not scrollback, and an engine CLI returning to its
-  still-live shell does not create one.
+- **What diagnostics retain after a death.** `<home>/.rove/pty-exits.json`
+  stores the newest 50 records. Each has the exit code or signal, time, and
+  the last 40 plain-text lines extracted from up to 16 KiB of raw ring data.
+  This is a diagnostic tail, not scrollback. Records come in two layers:
+  - `layer: "pty"` — the terminal's own process died. Clean exits are omitted.
+  - `layer: "engine"` — the AI process is gone from a terminal that is still
+    running, which is what you get when an engine crashes and drops you at
+    the fallback shell. Written by the daemon's foreground walk, so it
+    appears within about a minute of the death rather than instantly, and
+    carries `vendor`, the engine's own pid, `parentAlive: true`, and an exit
+    code read from the `Engine exited (code N)` banner when the shell
+    printed one. Recorded whether or not the engine exited cleanly — an
+    engine that vanishes without explanation is the case worth keeping.
 - **How far you can scroll.** `terminal.scrollbackRows` in Settings →
   General → Terminal, default 1000 rows. Applies to terminals started after
   the change.

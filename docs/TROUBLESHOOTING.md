@@ -126,10 +126,21 @@ for you to run yourself, never executed.
 Hosted PTY output is not always memory-only. Two bounded recovery stores live
 under `~/.rove/` (or the selected Rove home):
 
-- `pty-exits.json` records **abnormal** exits only. It keeps at most the newest
-  50 session records, with exit metadata and up to the last 40 plain-text
-  output lines per session. `rove api inspect` exposes these as
-  `sessionExits`; clean exits are omitted.
+- `pty-exits.json` keeps at most the newest 50 death records, with exit
+  metadata and up to the last 40 plain-text output lines each. `rove api
+  inspect` exposes these as `sessionExits`, newest first. Two layers:
+  `layer: "pty"` is the terminal process itself (abnormal exits only), and
+  `layer: "engine"` is the AI process gone from a terminal that kept running
+  — the case where you return to a shell prompt and want to know what
+  happened. An engine record names the engine's pid, its vendor, and the exit
+  code from the shell's `Engine exited (code N)` banner; code 143 means it
+  was killed with SIGTERM.
+
+  To find out **who** killed it: Rove logs every signal it sends a terminal
+  subtree to `daemon.log` as `[pty-signal]`. POSIX gives a dying process no
+  way to learn its killer's pid, so attribution works by elimination — no
+  `[pty-signal]` line for that session means the signal came from outside
+  Rove (the engine's own wrapper, a provider limit, the OS, or your shell).
 - `pty-sessions/` freezes each hosted session's launch metadata and bounded
   scrollback ring so a PTY-host crash, restart, or machine reboot can restore
   the old screen and respawn the launch command. An explicit tab close or task

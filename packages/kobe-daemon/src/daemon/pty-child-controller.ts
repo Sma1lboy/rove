@@ -95,7 +95,13 @@ export class PtyChildController {
       this.markExited(session)
       return
     }
-    await terminatePtyChild(proc, () => this.markExited(session))
+    // Log every signal Rove sends: the only way a post-mortem can tell
+    // "Rove killed it" from "something else did" (see pty-termination).
+    await terminatePtyChild(
+      proc,
+      () => this.markExited(session),
+      (line) => this.deps.log?.("pty-signal", `${session.key}: ${line}`),
+    )
   }
 
   /** Record the child's death once and notify the host. Idempotent. */

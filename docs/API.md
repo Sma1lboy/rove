@@ -179,9 +179,12 @@ replacement in `nextCommandArgs`.
 - `inspect [--task-id ID]` *(offline)*: diagnostics in one read, across four
   sections: `daemon` (raw per-task/per-tab activity entries), `sessions`
   (PTY inventory joined with a live process-tree walk; dead sessions carry
-  `exit`), `sessionExits` (durable death records: exit `code`/`signal`/`at`
-  plus a plain-text output `tail`, kept in `pty-exits.json` so they survive
-  the PTY host's idle-exit; abnormal exits only), and `tabs` (the
+  `exit`), `sessionExits` (durable death records, newest first: exit
+  `code`/`signal`/`at` plus a plain-text output `tail`, kept in
+  `pty-exits.json` so they survive the PTY host's idle-exit. `layer: "pty"`
+  is the terminal process, abnormal exits only; `layer: "engine"` is the AI
+  process gone from a still-running terminal, and adds `vendor` and
+  `parentAlive`), and `tabs` (the
   snapshots the sidebar names its rows from, reconciled against the live
   session inventory: a task whose snapshot is missing an alive
   `<taskId>::tab-N` session reports those tab ids under `unregistered`,
