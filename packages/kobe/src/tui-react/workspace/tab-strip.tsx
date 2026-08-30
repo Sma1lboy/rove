@@ -39,6 +39,12 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   running: "●",
   done: "✓",
   error: "!",
+  // Borrowed verbatim from the sidebar rail (row-view.ts) so the strip and
+  // the rail never say different things about the same tab: `◷` a limit that
+  // clears itself, `†` an engine process that is gone. Both were `!` until
+  // 2026-08-30 — three states, one glyph, opposite required actions.
+  rate_limited: "◷",
+  dead: "†",
   // Hook-only "blocked on the user" state — same ?/warning pairing as the
   // sidebar's permission_needed badge (row-view.ts). No collision with
   // `unknown`: that placeholder is never rendered (skip below).
@@ -241,9 +247,9 @@ export function TabStrip(props: {
               ? theme.focusAccent
               : turn === "done"
                 ? theme.success
-                : turn === "error"
+                : turn === "error" || turn === "dead"
                   ? theme.error
-                  : turn === "needs_input"
+                  : turn === "needs_input" || turn === "rate_limited"
                     ? theme.warning
                     : theme.textMuted
           const active = tab.id === props.activeId

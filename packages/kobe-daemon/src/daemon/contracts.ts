@@ -232,6 +232,18 @@ export interface EngineActivityDetail {
   readonly subagent?: { readonly type?: string; readonly id?: string }
   readonly note?: string
   /**
+   * For the `dead` state: how the engine process died, straight off the
+   * pty-host's exit record. `code`/`signal` answer "who killed it" (143 =
+   * 128+SIGTERM, an outside signal, not a self-exit) and `lastLine` is the
+   * last non-blank line of the recorded tail — the 403 / auth / quota text
+   * that was already on disk but reached no UI.
+   */
+  readonly exit?: {
+    readonly code?: number | null
+    readonly signal?: string | null
+    readonly lastLine?: string
+  }
+  /**
    * Reference to a daemon-owned deferred-prompt record (issue #78 B-layer).
    * Present only on `prompt_deferred` inbox episodes. The prompt TEXT lives in
    * the DeferredPromptsStore, never here — this contract describes engine
@@ -243,7 +255,21 @@ export interface EngineActivityDetail {
   }
 }
 
-export type TaskActivityState = "idle" | "running" | "turn_complete" | "rate_limited" | "permission_needed" | "error"
+export type TaskActivityState =
+  | "idle"
+  | "running"
+  | "turn_complete"
+  | "rate_limited"
+  | "permission_needed"
+  | "error"
+  /**
+   * The engine PROCESS died — an exit record exists for the tab's session
+   * (`pty-exits.json`). Distinct from `error`: `error` is an engine that ran
+   * and reported a failed turn, `dead` is an engine that is no longer there.
+   * A killed engine fires no hook at all, so this state can only ever be
+   * written from the exit record, never from `reduceActivity`.
+   */
+  | "dead"
 
 /**
  * The ENGINE half of a turn record (issue #32) — what the vendor's adapter
@@ -291,6 +317,9 @@ export const ATTENTION_INBOX_STATES = [
   "error",
   "rate_limited",
   "prompt_deferred",
+  /** The engine PROCESS died (pty-host exit record). An episode a user must
+   *  see: nothing else in the queue tells them the agent is simply gone. */
+  "dead",
 ] as const
 
 export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]

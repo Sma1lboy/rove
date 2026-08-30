@@ -85,8 +85,21 @@ export const TASK_ACTIVITY_STATES = [
   "rate_limited",
   "permission_needed",
   "error",
-] as const
-export type TaskActivityState = (typeof TASK_ACTIVITY_STATES)[number]
+  /** The engine PROCESS is gone (pty-host exit record) — see the daemon's
+   *  `TaskActivityState`. Never produced by `reduceActivity`: a killed engine
+   *  fires no hook. */
+  "dead",
+] as const satisfies readonly DaemonTaskActivityState[]
+/**
+ * Re-exported from the daemon, which OWNS this vocabulary (kobe depends on
+ * kobe-daemon, never the reverse). The runtime list above is the same set —
+ * `satisfies` rejects a member the daemon doesn't have, and the assignment
+ * below rejects one it has that the list is missing, so the two cannot drift
+ * the way the reducer once did.
+ */
+export type TaskActivityState = DaemonTaskActivityState
+const _everyStateListed: readonly (typeof TASK_ACTIVITY_STATES)[number][] = [] as readonly TaskActivityState[]
+void _everyStateListed
 
 /**
  * The activity state machine. Defined ONCE, in the daemon package — the
@@ -96,3 +109,4 @@ export type TaskActivityState = (typeof TASK_ACTIVITY_STATES)[number]
  * @see {@link import("@sma1lboy/kobe-daemon/daemon/activity-reduce").reduceActivity}
  */
 export { reduceActivity } from "@sma1lboy/kobe-daemon/daemon/activity-reduce"
+import type { TaskActivityState as DaemonTaskActivityState } from "@sma1lboy/kobe-daemon/daemon/contracts"

@@ -30,6 +30,7 @@ import {
   partitionAttentionInboxAvailability,
   windowInboxRows,
 } from "./attention-inbox-core"
+import { itemColor, itemGlyph, itemStateKey, quotaResumeNote } from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
@@ -42,35 +43,6 @@ const DIALOG_CHROME_ROWS = 12
 const AGE_REFRESH_MS = 30_000
 /** Identity keeps at least this many cells before the badge drops its label. */
 const IDENTITY_FLOOR_CELLS = 16
-
-function itemColor(state: AttentionInboxItem["state"], theme: ReturnType<typeof useTheme>["theme"]) {
-  if (state === "permission_needed") return theme.warning
-  if (state === "turn_complete") return theme.success
-  if (state === "prompt_deferred") return theme.warning
-  return theme.error
-}
-
-function itemGlyph(state: AttentionInboxItem["state"]): string {
-  if (state === "permission_needed") return "?"
-  if (state === "turn_complete") return "✓"
-  // `◷`, the sidebar's rate-limited glyph, not the `⌛` this used to show:
-  // U+231B carries the Unicode Emoji property, so macOS resolved it to
-  // AppleColorEmoji — a 2.13-cell colour glyph in a 1-cell column, which
-  // both overflowed and broke the pane's monochrome ink (2026-08-15).
-  if (state === "rate_limited") return "◷"
-  // `≡` (no Emoji property) for a queued message — a stack, not a failure.
-  if (state === "prompt_deferred") return "≡"
-  return "!"
-}
-
-/** i18n key suffix for the state word shown next to the glyph. */
-function itemStateKey(state: AttentionInboxItem["state"]): string {
-  if (state === "permission_needed") return "workspace.inbox.state.needsInput"
-  if (state === "turn_complete") return "workspace.inbox.state.done"
-  if (state === "rate_limited") return "workspace.inbox.state.rateLimited"
-  if (state === "prompt_deferred") return "workspace.inbox.state.promptDeferred"
-  return "workspace.inbox.state.error"
-}
 
 /**
  * Engine-registry tab title for a (task, tab) pair — "" when unknown.
@@ -397,6 +369,14 @@ export function AttentionInboxPane(props: {
             const task = props.tasks.find((candidate) => candidate.id === item.taskId)
             const tab = tabLabel(item, task, props.kv)
             const title = task?.title ?? item.taskId
+            // A rate-limited task usually has an auto-resume armed
+            // (`Task.quotaResume`, persisted by the daemon's quota probe).
+            // Until 2026-08-30 that clock was written to disk and read by
+            // nothing, so "rate limited" gave a user no way to tell "back at
+            // 3:14, already scheduled" from "stuck, go do something". This
+            // card is where that belongs: the rail's tree row is one cell
+            // wide, and the Inbox's whole job is what-needs-me / when.
+            const resumeNote = quotaResumeNote(item.state, task, t)
             const project = task ? sidebarProjectLabel(task.repo, repos) : ""
             // Identity line: `project › tab` — WHERE the episode happened is
             // the primary key a user scans for (which project, which tab),
@@ -407,7 +387,7 @@ export function AttentionInboxPane(props: {
               <InboxCard
                 key={row.id}
                 identity={tab.label ? `${project} › ${tab.label}` : project || title}
-                subtitle={title}
+                subtitle={resumeNote ? `${title} · ${resumeNote}` : title}
                 badge={{
                   glyph: itemGlyph(item.state),
                   label: t(itemStateKey(item.state)),

@@ -260,6 +260,11 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     ? startPtyExitWatch({
         ...(options.homeDir ? { homeDir: options.homeDir } : {}),
         plugins: () => pluginHost,
+        // The halves that reach the UI: a death becomes the tab's `dead`
+        // activity badge AND a durable Inbox episode — not just a plugin
+        // event with no subscribers.
+        activity,
+        inbox,
         log: (line) => logDaemonInfo("plugin-host", line),
       })
     : () => {}

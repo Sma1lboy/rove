@@ -1,6 +1,9 @@
 import { mkdtempSync, rmSync } from "node:fs"
+import { readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { DaemonActivityRegistry, type EngineStatePayload } from "@sma1lboy/kobe-daemon/daemon/activity-registry"
+import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
 import { startPtyExitWatch } from "@sma1lboy/kobe-daemon/daemon/pty-exit-watch"
 import { afterEach, describe, expect, it } from "vitest"
@@ -63,5 +66,105 @@ describe("startPtyExitWatch", () => {
     } finally {
       stop()
     }
+  })
+})
+
+/**
+ * The WIRE, end to end: a real exit record on disk → the watcher → the real
+ * activity registry → a published `engine-state`.
+ *
+ * The mutation this is built to catch is a broken CONNECTION, not a broken
+ * leaf: dropping `activity` from the watch options, dropping the
+ * `publishDeath` call in the sweep, or reverting `recordEngineDeath` all turn
+ * this red. A test that only checked "the record parses" would stay green
+ * through every one of them — which is exactly how the death reached
+ * `pty-exits.json` and no UI for as long as it did.
+ */
+describe("startPtyExitWatch → activity registry", () => {
+  it("publishes a `dead` engine-state carrying the exit code and last error line", async () => {
+    const path = join(tmp(), "pty-exits.json")
+    const bus = new DaemonEventBus()
+    const published: EngineStatePayload[] = []
+    bus.onPublish((event) => {
+      if (event.channel === "engine-state") published.push(event.payload as EngineStatePayload)
+    })
+    const activity = new DaemonActivityRegistry(bus)
+    const stop = startPtyExitWatch({
+      path,
+      plugins: () => ({ handleUiReport: () => {} }),
+      activity,
+    })
+    try {
+      // The 2026-08-30 shape: SIGTERM'd engine, 403 quota text in the tail.
+      recordPtyExit(
+        {
+          key: "task-1::tab-1",
+          pid: 900,
+          exit: { code: 143, signal: null, at: "2026-08-30T12:00:00.000Z" },
+          tail: "Error: [provider.auth_error] 403 You've reached your 5-hour usage limit.\nzsh: terminated kimi -y\n",
+        },
+        path,
+      )
+      await waitFor(() => published.length > 0)
+      const payload = published.at(-1)
+      expect(payload?.state).toBe("dead")
+      expect(payload?.tabId).toBe("tab-1")
+      expect(payload?.detail?.exit?.code).toBe(143)
+      // The error text was always on disk; this is the assertion that it now
+      // travels with the state instead of dying in the file.
+      expect(payload?.detail?.exit?.lastLine).toBe("zsh: terminated kimi -y")
+    } finally {
+      stop()
+      activity.close()
+    }
+  })
+
+  it("does not let an OLD death bury a newer live turn in the same tab", async () => {
+    const path = join(tmp(), "pty-exits.json")
+    const bus = new DaemonEventBus()
+    const activity = new DaemonActivityRegistry(bus)
+    const stop = startPtyExitWatch({
+      path,
+      plugins: () => ({ handleUiReport: () => {} }),
+      activity,
+    })
+    try {
+      // A live turn reported NOW; the record on disk predates it (a corpse
+      // from the previous session in this same tab).
+      activity.report("task-1", "turn-start", undefined, "tab-1")
+      recordPtyExit(
+        {
+          key: "task-1::tab-1",
+          pid: 1,
+          exit: { code: 1, signal: null, at: "2020-01-01T00:00:00.000Z" },
+          tail: "old\n",
+        },
+        path,
+      )
+      await waitFor(() => Object.keys(activity.debugSnapshot().tabs).length > 0)
+      expect(activity.debugSnapshot().tabs["task-1"]?.["tab-1"]?.state).toBe("running")
+    } finally {
+      stop()
+      activity.close()
+    }
+  })
+})
+
+/**
+ * The server must actually HAND the watcher its two consumers.
+ *
+ * The behavioural tests above construct the watcher themselves, so they stay
+ * green if `server.ts` stops passing `activity`/`inbox` — the death would
+ * then reach `pty-exits.json`, the watcher would parse it perfectly, and the
+ * UI would still see nothing. That disconnect is the entire bug this work
+ * fixes, so it gets its own assertion against the wiring itself.
+ */
+describe("server wiring", () => {
+  it("passes both the activity registry and the inbox to startPtyExitWatch", async () => {
+    const src = await readFile(new URL("../../../kobe-daemon/src/daemon/server.ts", import.meta.url), "utf8")
+    const call = /startPtyExitWatch\(\{([\s\S]*?)\n\s*\}\)/.exec(src)?.[1]
+    expect(call, "startPtyExitWatch call not found in server.ts").toBeDefined()
+    expect(call).toMatch(/^\s*activity,\s*$/m)
+    expect(call).toMatch(/^\s*inbox,\s*$/m)
   })
 })

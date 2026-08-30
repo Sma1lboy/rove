@@ -35,20 +35,28 @@ export interface SidebarRowView {
 }
 
 /**
- * Readable subtitle word for the non-normal engine activity states. These
- * outrank the branch in the subtitle so a rate-limited / errored / waiting
- * task spells out *why* it's stuck instead of relying on the tiny title
- * glyph alone. Normal states (`idle` / `running` / `turn_complete`) return
- * null so the row keeps showing the branch.
+ * TONE for the attention states, so a row whose engine needs a human keeps
+ * its warning/error colour even while something else makes it spin (a
+ * materializing worktree, a still-writing transcript) — `loading` otherwise
+ * paints every such row `primary`.
+ *
+ * It used to return a WORD too ("rate limited" / "needs permission" /
+ * "error") that replaced the branch in the subtitle. The subtitle went away
+ * with the two-line cards: the tree row (`tree-rows.tsx`) is one cell and
+ * renders the glyph plus the tab label, nothing else. The words were computed
+ * on every row build, asserted by tests, and read by nobody — so they are
+ * gone, and the glyph carries the state alone. That is the whole reason the
+ * glyphs must stay distinct (`◷` vs `×` vs `†`): with no subtitle there is no
+ * second channel to disambiguate them.
  */
-function activityLabelFor(state: TaskActivityState | undefined): { text: string; tone: SidebarTone } | null {
+function activityToneFor(state: TaskActivityState | undefined): SidebarTone | null {
   switch (state) {
     case "rate_limited":
-      return { text: t("tasks.activity.rateLimited"), tone: "warning" }
     case "permission_needed":
-      return { text: t("tasks.activity.permissionNeeded"), tone: "warning" }
+      return "warning"
     case "error":
-      return { text: t("tasks.activity.error"), tone: "error" }
+    case "dead":
+      return "error"
     default:
       return null
   }
@@ -111,6 +119,16 @@ export const NO_STATE_GLYPH = "·"
  * monospace font on earth has it, at exactly one cell.
  */
 const ERROR_GLYPH = "×"
+
+/**
+ * Dead-engine glyph — the engine PROCESS is gone (killed, or exited under a
+ * wrapper), from the pty-host's exit record. `†` (U+2020 DAGGER), not a
+ * variant of `×`: an errored engine RAN and reported a failed turn, a dead one
+ * is no longer there, and only one of the two can be answered by restarting.
+ * General Punctuation, so every monospace font has it at exactly one cell —
+ * the constraint that retired `◌` (U+25CC fell back oversized) and `✕`.
+ */
+const DEAD_GLYPH = "†"
 
 /**
  * Muted subtitle shown when a custom-engine task has nothing else to say.
@@ -268,7 +286,7 @@ export function buildSidebarRowView(opts: {
   // the badge must agree with the spinner, or the row spins under a ✓.
   const stillWorking = stillWorkingAfterCompletion(opts.activity, opts.transcript)
   const activityBadge = stillWorking ? null : activityBadgeFor(activityState, opts.completionSeen === true)
-  const activityLabel = activityLabelFor(activityState)
+  const activityTone = activityToneFor(activityState)
   // A custom-engine task with no genuine activity signal has nothing to
   // animate — the monitor can't read its transcript (monitor/activity.ts),
   // so a spinner here would lie. Hook-driven words (rate limited / needs
@@ -303,14 +321,14 @@ export function buildSidebarRowView(opts: {
       ? "primary"
       : untrackedCustomEngine
         ? "textMuted"
-        : (activityLabel?.tone ?? (loading ? "primary" : (activityBadge?.tone ?? "textMuted")))
-  // Subtitle priority: the materializing word while a worktree job runs
-  // (there is no branch on disk yet), then a non-normal activity word (rate
-  // limited / needs permission / error), then the branch, then — for an
+        : (activityTone ?? (loading ? "primary" : (activityBadge?.tone ?? "textMuted")))
+  // Subtitle priority: the deletion/materializing word while a daemon job
+  // runs (there is no branch on disk yet), then the branch, then — for an
   // untracked custom engine with no branch — an explicit "no activity
   // tracking" note so the row reads as un-tracked rather than stuck, then a
-  // neutral dash. Persisted task lifecycle belongs to the board, not this
-  // runtime-activity projection.
+  // neutral dash. Engine ACTIVITY does not appear here: its glyph carries it
+  // (see `activityToneFor`). Persisted task lifecycle belongs to the board,
+  // not this runtime-activity projection.
   const fallbackSubtitle = untrackedCustomEngine ? noTrackingSubtitle() : "—"
   // Subagent activity rides as a compact `◇N` prefix ahead of the branch,
   // and ONLY while the row is actually animating: every transient mark is
@@ -325,11 +343,9 @@ export function buildSidebarRowView(opts: {
       ? opts.truncateBranch(deletionSubtitle(deleteFailed), opts.subtitleBudget)
       : materializing
         ? opts.truncateBranch(materializingSubtitle(), opts.subtitleBudget)
-        : activityLabel
-          ? opts.truncateBranch(activityLabel.text, opts.subtitleBudget)
-          : branchWithMarks.length > 0
-            ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
-            : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
+        : branchWithMarks.length > 0
+          ? opts.truncateBranch(branchWithMarks, opts.subtitleBudget)
+          : opts.truncateBranch(fallbackSubtitle, opts.subtitleBudget)
   // Untracked custom engine gets a distinct dim dot. Normal tasks fall back
   // to the hollow idle circle because the client deliberately removes an
   // explicit `idle` activity entry; absence is therefore the idle projection.
@@ -384,6 +400,8 @@ function activityBadgeFor(
       return { glyph: "?", tone: "warning" }
     case "error":
       return { glyph: ERROR_GLYPH, tone: "error" }
+    case "dead":
+      return { glyph: DEAD_GLYPH, tone: "error" }
     case "turn_complete":
       return completionSeen ? null : { glyph: "●", tone: "primary" }
     default:
