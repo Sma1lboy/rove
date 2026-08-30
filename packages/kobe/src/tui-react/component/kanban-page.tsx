@@ -36,10 +36,7 @@ import { quickForkDefaultVendor } from "../workspace/quick-fork"
 import type { IssueChatStart } from "../workspace/use-issue-chat"
 import { IssueDetailDialog } from "./issue-detail-dialog"
 import { KanbanCard } from "./kanban-card"
-
-/** Agent moves land within one poll; issue.list is a local JSON read, so
- *  polling while the page is open is cheap. */
-const POLL_MS = 5_000
+import { useKanbanBoards } from "./use-kanban-boards"
 
 const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
   backlog: "kanban.column.backlog",
@@ -81,7 +78,6 @@ export function KanbanPage(props: {
   // one-word-per-line strips, so the board shows ONE full-width lane there.
   const narrow = isNarrowWidth(useTerminalDimensions().width)
 
-  const [boards, setBoards] = useState<readonly RepoIssues[] | null>(null)
   // Detected engines for the detail drawer's picker — one probe per page
   // open (account files on disk; cheap and refreshed enough).
   const [engines, setEngines] = useState<readonly VendorId[]>([])
@@ -94,45 +90,10 @@ export function KanbanPage(props: {
       disposed = true
     }
   }, [])
-  const [reloadTick, setReloadTick] = useState(0)
-  // Keyed by repoRoot (not index) so the poll refetch keeps the selection.
-  const [activeRepo, setActiveRepo] = useState<string | null>(null)
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the effect body doesn't read it) — the WorktreesPage refetch guard.
-  useEffect(() => {
-    let disposed = false
-    const orch = props.orchestrator
-    if (!orch) {
-      setBoards([])
-      return
-    }
-    const repos = [...new Set(orch.listTasks().map((task) => task.repo))]
-    void Promise.all(repos.map((repo) => orch.listIssues(repo).catch(() => null))).then((results) => {
-      if (disposed) return
-      // A repo whose issue file doesn't exist yet still gets a section —
-      // `exists: false` just means an empty board, not an error.
-      const next = results.filter((res): res is RepoIssues => res !== null)
-      next.sort((a, b) => a.repoRoot.localeCompare(b.repoRoot))
-      setBoards(next)
-      // First load lands on the focus task's project (opened via `c` on a
-      // task row) or, without one, the project you opened kobe in — the
-      // active task's repo (loose realpath tolerance, like WorktreesPage).
-      const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
-      const activeId = orch.activeTaskSignal().get()
-      const targetRepo = props.focusTask?.repo ?? orch.listTasks().find((task) => task.id === activeId)?.repo
-      const initialBoard = targetRepo ? next.find((board) => norm(board.repoRoot) === norm(targetRepo)) : undefined
-      setActiveRepo((prev) => prev ?? initialBoard?.repoRoot ?? null)
-      // …and the card cursor on the focus task's linked story, if any.
-      const focusId = props.focusTask?.id
-      const linked = focusId ? initialBoard?.issues.find((issue) => issue.taskId === focusId) : undefined
-      if (linked) setSelectedId((prev) => prev ?? linked.id)
-    })
-    const timer = setInterval(() => setReloadTick((tick) => tick + 1), POLL_MS)
-    return () => {
-      disposed = true
-      clearInterval(timer)
-    }
-  }, [props.orchestrator, reloadTick])
+  const { boards, activeRepo, setActiveRepo, selectedId, setSelectedId, reload } = useKanbanBoards({
+    orchestrator: props.orchestrator,
+    focusTask: props.focusTask,
+  })
 
   const boardList = boards ?? []
   const activeIndex = Math.max(
@@ -146,10 +107,6 @@ export function KanbanPage(props: {
     activeBoard ? buildIssueBoard(activeBoard.issues) : [],
     (taskId) => props.engineStates?.get(taskId)?.state,
   )
-
-  // Card cursor — an issue id (not an index) so a poll refetch that reorders
-  // a column keeps the selection on the same story.
-  const [selectedId, setSelectedId] = useState<number | null>(null)
 
   function cycleProject(delta: number): void {
     if (boardList.length === 0) return
@@ -190,8 +147,14 @@ export function KanbanPage(props: {
       if (patch.title !== issue.title || patch.body !== issue.body) {
         await props.orchestrator
           ?.mutateIssue(board.repoRoot, { type: "update", id: issue.id, ...patch })
-          .catch((err: unknown) => console.error("[rove kanban] issue update failed:", err))
-        setReloadTick((tick) => tick + 1)
+          .catch((err: unknown) => {
+            // The reload below repaints from the store, so a rejected edit
+            // leaves the card showing its OLD title — indistinguishable from
+            // the edit never having been made.
+            console.error("[rove kanban] issue update failed:", err)
+            notifyError(t("kanban.updateFailed", { id: String(issue.id), error: errorMessage(err) }))
+          })
+        reload()
       }
       if (outcome.kind === "open") {
         props.onOpenTask(outcome.taskId)
@@ -238,7 +201,7 @@ export function KanbanPage(props: {
           title: outcome.title,
           body: outcome.body,
         })
-        setReloadTick((tick) => tick + 1)
+        reload()
         if (!outcome.start) return
         // The daemon allocates the id from nextId; fall back to the newest
         // record if another writer raced the counter between open and save.
@@ -279,7 +242,7 @@ export function KanbanPage(props: {
         ?.mutateIssue(board.repoRoot, { type: "delete", id: issue.id })
         .then(() => {
           setSelectedId(null)
-          setReloadTick((tick) => tick + 1)
+          reload()
         })
         .catch((err: unknown) => {
           console.error("[rove kanban] issue delete failed:", err)
@@ -295,7 +258,7 @@ export function KanbanPage(props: {
     enabled: dialog.stack.length === 0 && props.focused !== false,
     bindings: [
       ...pageCloseBindings(props.onClose),
-      { key: "r", cmd: () => setReloadTick((tick) => tick + 1) },
+      { key: "r", cmd: () => reload() },
       { key: "tab", cmd: () => cycleProject(1) },
       { key: "up", cmd: () => moveCursor("up") },
       { key: "down", cmd: () => moveCursor("down") },

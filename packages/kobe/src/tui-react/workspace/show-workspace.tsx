@@ -9,7 +9,7 @@
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { DEFAULT_TASK_VENDOR, type Task } from "../../types/task.ts"
+import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -34,6 +34,8 @@ export function ShowWorkspace(props: {
   onScratchExit?: (taskId: string) => void
   /** ctrl+e's trailing "scratch shell" choice — open a Scratch task. */
   onOpenScratch?: () => void
+  /** The ctrl+e picker landed on an engine — persist it and toast the result. */
+  onEngineChosen?: (taskId: string, vendor: VendorId) => Promise<void>
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
@@ -85,9 +87,11 @@ export function ShowWorkspace(props: {
           ? (vendor) => {
               const taskId = props.task?.id
               if (!taskId) return
-              void props.orchestrator
-                .setVendor(taskId, vendor)
-                .catch((err) => console.error("[rove workspace] task.setVendor failed:", err))
+              // The tab is added to LOCAL state first and renders under the new
+              // engine's label, so a rejected write looked exactly like a
+              // success while the task kept its old vendor. Same two toasts the
+              // `v` row-chord raises — see applyVendorChange.
+              void props.onEngineChosen?.(taskId, vendor)
             }
           : undefined
       }

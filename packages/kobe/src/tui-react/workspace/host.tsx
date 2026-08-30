@@ -93,6 +93,13 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     })
   }
 
+  // Same pre-declaration reason as notifyWorktreeGone above: a refused
+  // activation must reach the toast surface, and `useSidebarHostState`'s
+  // notifyError can't be built yet (it needs `selectedId` from this hook).
+  const notifyActivationError = (message: string): void => {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
+
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
     tasks,
@@ -100,6 +107,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     focusWorkspace: () => focus.setFocused("workspace"),
     kv,
     notifyWorktreeGone,
+    notifyError: notifyActivationError,
   })
   const worktree = selectedTask?.worktreePath || null
 
@@ -137,7 +145,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, togglePin, moveTask } =
+  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, setVendor, togglePin, moveTask } =
     useWorkspaceTaskActions({
       orchestrator: orch,
       tasks: () => tasks,
@@ -393,6 +401,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
               onTabVisited={inbox.resolveVisited}
               onScratchExit={scratch.onScratchExit}
               onOpenScratch={scratch.openScratchShell}
+              onEngineChosen={setVendor}
             />
           )}
         </box>

@@ -5,7 +5,12 @@
  */
 
 import { describe, expect, test, vi } from "vitest"
-import { activateWorkspaceTask, firstSelectableTask } from "../../src/tui-react/workspace/use-task-selection"
+import { TaskDeletingError } from "../../src/orchestrator/errors"
+import {
+  activateWorkspaceTask,
+  activationErrorMessage,
+  firstSelectableTask,
+} from "../../src/tui-react/workspace/use-task-selection"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -187,5 +192,43 @@ describe("pure-TUI workspace task activation", () => {
     expect(firstSelectableTask([stale, recent], null)).toBe(recent)
     expect(firstSelectableTask([deleting], null)).toBeUndefined()
     expect(firstSelectableTask([], null)).toBeUndefined()
+  })
+})
+
+/**
+ * The activation refusals the user actually SEES. `activateWorkspaceTask`
+ * returning false is only half the contract — the earlier bug was that the
+ * refusal reached `console.error` and nothing else, so Enter on an
+ * unmaterializable row was an infinite silent no-op.
+ *
+ * These assert the STRING handed to the toast, keyed by catalog id, so a
+ * regression that drops the mapping (or points every case at the generic
+ * copy) fails rather than passing on "reportError was called".
+ */
+describe("activation failures map onto user-visible copy", () => {
+  // Stand-in for the real `t`: returns the key plus its interpolations, so a
+  // wrong key or a dropped {message} is visible in the assertion.
+  const translate = (key: string, vars?: Record<string, string>) => (vars ? `${key}|${JSON.stringify(vars)}` : key)
+
+  test("a mid-delete task says so instead of reporting a worktree failure", () => {
+    expect(activationErrorMessage(new TaskDeletingError("t1"), translate)).toBe("tasks.toast.worktreeErrorDeleting")
+  })
+
+  test("the daemon's plain-Error rebuild of the same refusal still maps to the deleting copy", () => {
+    // The RPC layer reconstructs thrown errors as `new Error(message)`, so the
+    // class is gone by the time this runs — matching must be on the message.
+    const overWire = new Error("TASK_DELETING: task t1 is being deleted")
+    expect(activationErrorMessage(overWire, translate)).toBe("tasks.toast.worktreeErrorDeleting")
+  })
+
+  test("a non-git project gets the actionable `git init` copy", () => {
+    const err = new Error("fatal: not a git repository (or any of the parent directories): .git")
+    expect(activationErrorMessage(err, translate)).toBe("tasks.toast.worktreeErrorNotGit")
+  })
+
+  test("any other failure carries the underlying reason through", () => {
+    const message = activationErrorMessage(new Error("worktree is locked"), translate)
+    expect(message).toContain("tasks.toast.worktreeErrorGeneric")
+    expect(message).toContain("worktree is locked")
   })
 })

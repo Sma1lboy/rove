@@ -21,9 +21,9 @@
 
 import { errorMessage } from "@/lib/error-message"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
+import { applyVendorChange, cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
 import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-create-flow"
-import type { Task } from "../../types/task.ts"
+import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
@@ -48,6 +48,8 @@ export type WorkspaceTaskActions = {
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
+  /** ctrl+e picker's engine pick — same persist + toasts as `cycleVendor`. */
+  setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
 }
@@ -117,6 +119,9 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
+    setVendor: async (id, vendor) => {
+      await applyVendorChange(taskActions, id, vendor)
+    },
     togglePin,
     moveTask,
   }

@@ -91,12 +91,9 @@ export const en = {
   /** Toast / error messages */
   toast: {
     noDaemonWorktree: "No daemon running — can't create the worktree",
-    noDaemonOpen: "No daemon running — can't open this task",
     noEditor: "No editor found — set ROVE_OPEN_EDITOR (e.g. 'code', 'cursor', 'nvim')",
     openWorktreeFailed: "Couldn't open worktree with {label}",
-    sessionStartFailed: "Couldn't start this task's session",
-    moveTaskFailed: "Couldn't move task: {message}",
-    alreadyLatest: "Already on the latest version (v{version})",
+    worktreeErrorDeleting: "This task is being deleted — it can't be opened",
     worktreeErrorNotGit:
       "This project isn't a git repo yet — a task needs a git branch. Run `git init` (+ a first commit) in the project, then open the task. Non-git support is coming.",
     worktreeErrorGeneric: "Couldn't create the worktree: {message}",
@@ -179,12 +176,9 @@ export const zh: typeof en = {
   },
   toast: {
     noDaemonWorktree: "守护进程未运行——无法创建 worktree",
-    noDaemonOpen: "守护进程未运行——无法打开此任务",
     noEditor: "未找到编辑器——请设置 ROVE_OPEN_EDITOR（如 'code'、'cursor'、'nvim'）",
     openWorktreeFailed: "无法用 {label} 打开 worktree",
-    sessionStartFailed: "无法启动此任务的会话",
-    moveTaskFailed: "无法移动任务：{message}",
-    alreadyLatest: "已是最新版本（v{version}）",
+    worktreeErrorDeleting: "该任务正在删除中——无法打开",
     worktreeErrorNotGit:
       "该项目尚非 git 仓库——任务需要 git 分支。请在项目中执行 `git init`（+ 首次提交）后再打开任务。非 git 项目的支持即将推出。",
     worktreeErrorGeneric: "无法创建 worktree：{message}",

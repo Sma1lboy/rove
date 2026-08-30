@@ -3,8 +3,32 @@
  * create-before-snapshot path is testable without mounting the full PTY host.
  */
 
-import { TaskDeletingError } from "../../orchestrator/errors.ts"
+import { errorMessage } from "../../lib/error-message.ts"
+import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors.ts"
 import type { Task } from "../../types/task.ts"
+
+/**
+ * Map an activation failure onto the toast the user actually sees.
+ *
+ * Three shapes reach here and they need different words:
+ *  - the task is mid-delete — nothing is wrong, the answer is "wait";
+ *  - the project has no git repo yet — actionable, `git init` fixes it;
+ *  - anything else — carry the raw reason so the user can act on it.
+ *
+ * `TaskDeletingError` is matched on its MESSAGE, not `instanceof`: the same
+ * refusal is also raised daemon-side and the RPC layer rebuilds it as a plain
+ * `Error`, dropping the class (see TASK_DELETING_CODE's own note).
+ */
+export function activationErrorMessage(
+  error: unknown,
+  translate: (key: string, vars?: Record<string, string>) => string,
+): string {
+  const message = errorMessage(error)
+  if (message.includes(TASK_DELETING_CODE)) return translate("tasks.toast.worktreeErrorDeleting")
+  if (/not a git repository|does not appear to be a git repo/i.test(message))
+    return translate("tasks.toast.worktreeErrorNotGit")
+  return translate("tasks.toast.worktreeErrorGeneric", { message })
+}
 
 type ActivateWorkspaceTaskOptions = {
   getTask: (id: string) => Task | undefined

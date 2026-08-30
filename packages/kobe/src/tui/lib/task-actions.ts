@@ -20,7 +20,7 @@ import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessi
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
 import { DIRTY_WORKTREE_CODE } from "@/orchestrator/errors"
-import { DEFAULT_TASK_VENDOR, type Task } from "@/types/task"
+import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
 
 export interface TaskActionLogger {
@@ -297,21 +297,40 @@ export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): 
  * it instead of jumping to a built-in and getting stranded. Tasks-pane-only
  * today (`v`), lifted host-agnostic like {@link renameBranchFlow}.
  */
-export async function cycleVendorFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
-  const task = ctx.tasks().find((t) => t.id === taskId)
-  if (!task || !ctx.orch) return
-  const engines = await availableEngineIds()
-  const next = nextVendorWithin(engines, task.vendor ?? DEFAULT_TASK_VENDOR)
+/**
+ * Persist a task's engine and say so — the shared half of the two routes that
+ * switch engines (`v` on a row, and the ctrl+e picker's "new tab in this
+ * worktree"). Both need the same two toasts: the picker used to have neither,
+ * so a rejected `setVendor` left a tab rendered under the NEW engine's label
+ * while the task kept the old one — success and failure looked identical.
+ *
+ * Returns whether the write landed, so a caller can undo its optimistic UI.
+ */
+export async function applyVendorChange(
+  ctx: Pick<TaskActionContext, "orch" | "logger" | "logPrefix" | "notifyError" | "notifyInfo">,
+  taskId: string,
+  next: VendorId,
+): Promise<boolean> {
+  if (!ctx.orch) return false
   try {
     await ctx.orch.setVendor(taskId, next)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.setVendor failed:`, err)
     ctx.notifyError?.(`Couldn't switch engine: ${errorMessage(err)}`)
-    return
+    return false
   }
   // The new vendor only takes effect on the task's NEXT enter (ensureSession
-  // rebuilds the pane when its `@kobe_vendor` tag no longer matches), so a
-  // bare `v` press looks like a no-op. Surface the deferred-rebuild contract.
+  // rebuilds the pane when its `@kobe_vendor` tag no longer matches), so the
+  // gesture looks like a no-op. Surface the deferred-rebuild contract.
   ctx.notifyInfo?.(`Engine → ${engineDisplayName(next)} (applies on reopen)`)
+  return true
+}
+
+export async function cycleVendorFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
+  const task = ctx.tasks().find((t) => t.id === taskId)
+  if (!task || !ctx.orch) return
+  const engines = await availableEngineIds()
+  const next = nextVendorWithin(engines, task.vendor ?? DEFAULT_TASK_VENDOR)
+  if (!(await applyVendorChange(ctx, taskId, next))) return
   await ctx.reload?.()
 }
