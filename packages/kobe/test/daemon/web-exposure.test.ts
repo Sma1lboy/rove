@@ -22,7 +22,6 @@ const EXPOSED: readonly DaemonRequestName[] = [
   "task.list",
   "task.get",
   "task.create",
-  "task.archive",
   "task.rename",
   "task.setBranch",
   "task.setVendor",

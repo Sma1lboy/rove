@@ -101,7 +101,7 @@ export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string):
  * Return the id of the task whose worktree IS exactly `worktreePath` (not just
  * an ancestor of it), or undefined if none match.
  *
- * Used by `worktree.remove` and `worktree.archiveRemoved`: find the task whose
+ * Used by `worktree.remove`: find the task whose
  * worktreePath IS exactly `worktreePath` (not just an ancestor). Exactness
  * matters — unlike {@link matchTaskByCwd}'s longest-prefix match, removing an
  * UNTRACKED worktree must not match a parent `main` task (whose worktreePath is

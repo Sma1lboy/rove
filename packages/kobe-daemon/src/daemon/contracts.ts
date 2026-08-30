@@ -81,12 +81,6 @@ export interface DaemonTask {
   readonly scratch?: boolean
   readonly status: TaskStatus
   readonly pinned?: boolean
-  /**
-   * DEPRECATED (issue #75): archive concept removed. Kept as an optional
-   * shim so older daemon tests and not-yet-cleaned callers still compile;
-   * the field is ignored by all daemon logic.
-   */
-  readonly archived?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
   readonly command?: string

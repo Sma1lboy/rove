@@ -2,13 +2,11 @@
  * `PtyRegistry` — one PTY per task, kept alive while the task is in
  * progress, released when the task is deleted.
  *
- * The Stream J brief locks in the "one pty per task" rule (see
- * `docs/PLAN.md` §J Resolved Decision). The pane mounts and unmounts
- * per render (every time the user switches the active task or remounts
- * the layout), but the underlying shell shouldn't restart on every
- * mount — that would lose scrollback and any in-flight commands. The
- * registry decouples pane lifecycle (per-render) from shell lifecycle
- * (per-task).
+ * The pane mounts and unmounts per render (every time the user switches
+ * the active task or remounts the layout), but the underlying shell
+ * shouldn't restart on every mount — that would lose scrollback and any
+ * in-flight commands. The registry decouples pane lifecycle (per-render)
+ * from shell lifecycle (per-task).
  *
  * Contract (mirrored in `Terminal.tsx`):
  *
@@ -24,9 +22,8 @@
  *   - It does not subscribe to task status changes. The orchestrator
  *     (Stream E) is responsible for calling `release()` when a task
  *     transitions to `done` / etc. The registry is a dumb container.
- *   - It does not cap concurrency. PLAN.md §4 caps simultaneous
- *     *running* tasks at 4, but a paused-but-in-progress task may
- *     still hold a live PTY.
+ *   - It does not cap concurrency. Nothing else does either — there is
+ *     no cap on simultaneous running tasks.
  *
  * PTY parking (issues #28/#29) — AUTOMATIC again since 2026-07-12: the
  * idle sweep detaches hidden tabs' xterm instances, but each handle now

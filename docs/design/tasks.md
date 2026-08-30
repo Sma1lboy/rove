@@ -77,9 +77,8 @@ Concretely:
 - Edits made in one task's worktree do not appear in another's until
   the user merges branches.
 - Killing a Claude Code session does not destroy the worktree. The
-  worktree persists across Rove restarts; it persists across the task
-  going to `done`; it persists across archiving. The user removes
-  worktrees explicitly, never as a side effect.
+  worktree persists across Rove restarts and across the task going to
+  `done`. The user removes worktrees explicitly, never as a side effect.
 - Rove owns its worktree root under its state dir (`~/.rove/worktrees/`,
   or `$ROVE_HOME_DIR/.rove/worktrees/` in isolated dev/test homes). Older
   tasks created under global/repo-local `.kobe/worktrees/` or `.claude/worktrees/`
@@ -270,6 +269,5 @@ When the schema changes again:
   also supports global/repo-local `.kobe/worktrees/` and legacy `.claude/worktrees/`.
 - **Storing conversation history in `tasks.json`.** It's a manifest,
   not a database. JSONL via the engine is the source of truth.
-- **Auto-deleting worktrees on archive / done / cancel.** Rove never
-  deletes worktrees implicitly. The user removes them explicitly or
-  not at all.
+- **Auto-deleting worktrees on done / cancel.** Rove never deletes
+  worktrees implicitly. The user removes them explicitly or not at all.

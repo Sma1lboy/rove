@@ -205,27 +205,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
     })
   })
 
-  describe("worktree.archiveRemoved", () => {
-    const TASKS = [
-      { id: "main", repo: "/repo", worktreePath: "/repo" },
-      { id: "sub", repo: "/repo", worktreePath: "/repo/.kobe/worktrees/demo" },
-    ]
-
-    it("is a deprecated no-op (issue #75)", async () => {
-      const { ctx } = fakeCtx({ listTasks: () => TASKS })
-      await expect(
-        dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/demo" }, ctx),
-      ).resolves.toEqual({ archived: false })
-    })
-
-    it("is a no-op when no task matches the removed worktree exactly", async () => {
-      const { ctx } = fakeCtx({ listTasks: () => TASKS })
-      await expect(
-        dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/unknown" }, ctx),
-      ).resolves.toEqual({ archived: false })
-    })
-  })
-
   describe("task.ensureWorktree", () => {
     it("returns { worktreePath } from the orchestrator", async () => {
       const { ctx } = fakeCtx({ ensureWorktree: async (id: string) => `/worktrees/${id}` })

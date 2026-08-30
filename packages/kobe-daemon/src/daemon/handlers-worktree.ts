@@ -49,15 +49,6 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
-    // older CLI builds don't get "unknown daemon request" while C2 removes
-    // the CLI hook path.
-    name: "worktree.archiveRemoved",
-    handle() {
-      return { archived: false }
-    },
-  },
-  {
     name: "worktree.list",
     async handle(payload, ctx) {
       return { projects: await ctx.runtime.listWorktreeProjects(payload.network !== false) }

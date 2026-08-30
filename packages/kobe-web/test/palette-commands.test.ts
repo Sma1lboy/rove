@@ -51,7 +51,6 @@ describe("orderTasksForPalette", () => {
       worktreePath: `/w/${id}`,
       kind: "task",
       status: "backlog",
-      archived: false,
       pinned: false,
       createdAt: "2026-06-01T00:00:00Z",
       updatedAt: "2026-06-01T00:00:00Z",
@@ -65,14 +64,6 @@ describe("orderTasksForPalette", () => {
       task("mid", { updatedAt: "2026-06-05T00:00:00Z" }),
     ])
     expect(out.map((t) => t.id)).toEqual(["new", "mid", "old"])
-  })
-
-  it("drops archived tasks", () => {
-    const out = orderTasksForPalette([
-      task("a"),
-      task("gone", { archived: true }),
-    ])
-    expect(out.map((t) => t.id)).toEqual(["a"])
   })
 
   it("breaks ties by id (stable order for equal timestamps)", () => {

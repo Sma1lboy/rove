@@ -7,19 +7,19 @@
 import type { Task } from "./types.ts"
 
 /**
- * Palette task order: non-archived tasks, most-recently-updated first (stable
+ * Palette task order: most-recently-updated first (stable
  * id tiebreak). Selecting a task bumps its updatedAt, so Cmd+K surfaces the
  * task you were just in near the top. Flat — no project/pinned grouping, since
  * the palette is a flat fuzzy launcher, not the grouped rail.
  */
 export function orderTasksForPalette(tasks: readonly Task[]): Task[] {
-  return tasks
-    .filter((task) => !task.archived)
-    .sort((a, b) => {
-      const at = Date.parse(a.updatedAt || a.createdAt) || 0
-      const bt = Date.parse(b.updatedAt || b.createdAt) || 0
-      return bt !== at ? bt - at : b.id.localeCompare(a.id)
-    })
+  // Copy before sorting: `sort` mutates in place, and the input is the shared
+  // task list from the store.
+  return [...tasks].sort((a, b) => {
+    const at = Date.parse(a.updatedAt || a.createdAt) || 0
+    const bt = Date.parse(b.updatedAt || b.createdAt) || 0
+    return bt !== at ? bt - at : b.id.localeCompare(a.id)
+  })
 }
 
 export interface ThemeCommandEntry {

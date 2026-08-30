@@ -1,32 +1,28 @@
 /**
  * The left task rail — filter/sort header, keyboard-first j/k + `/` nav,
- * Projects/Worktrees/Archived sections, and the settings footer. Split from
+ * Projects/Worktrees sections, and the settings footer. Split from
  * AppShell.tsx; the row building blocks live in TaskRailRows.tsx.
  */
 
 import { useNavigate } from "@tanstack/react-router"
 import { FolderInput, Loader2, Plus, Search, Settings, X } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { setActiveTaskBestEffort } from "../lib/active-task.ts"
 import { useEngines } from "../lib/engines.ts"
 import {
   applyPrefSort,
   setRailQuery,
-  setRailShowArchived,
   setRailSortMode,
   setRailStatusFilter,
   useRailState,
 } from "../lib/rail-state.ts"
-import { fetchSettings } from "../lib/settings.ts"
-import { rpc, useAppState } from "../lib/store.ts"
+import { useAppState } from "../lib/store.ts"
 import { selectTask, useTabsState } from "../lib/tabs.ts"
 import { matchesTask, sortTasks } from "../lib/task-list.ts"
-import { reportError } from "../lib/toast.ts"
 import { type Bucket, matchesStatusFilter } from "../lib/triage.ts"
 import type { Task } from "../lib/types.ts"
 import { isMixedEngineWorkspace, perRowEngineLabel } from "../lib/vendor.ts"
-import { ArchivedHistoryPeek } from "./ArchivedHistoryPeek.tsx"
-import { ArchivedRow, SectionHeader, TaskRow } from "./TaskRailRows.tsx"
+import { SectionHeader, TaskRow } from "./TaskRailRows.tsx"
 
 export function TaskRail({
   onOpenSettings,
@@ -62,7 +58,7 @@ export function TaskRail({
   // Module store, not useState — the `/` → /task/$taskId nav remounts AppShell
   // (different route trees), which used to wipe these on the first task open
   // (issue #7). In-memory only: survives route nav, resets on full reload.
-  const { query, statusFilter, sortMode, showArchived } = useRailState()
+  const { query, statusFilter, sortMode } = useRailState()
   const listRef = useRef<HTMLDivElement>(null)
   const filterRef = useRef<HTMLInputElement>(null)
 
@@ -84,15 +80,10 @@ export function TaskRail({
   useEffect(() => {
     applyPrefSort(prefSort)
   }, [prefSort])
-  const activeTasks = useMemo(() => tasks.filter((t) => !t.archived), [tasks])
-  const archivedTasks = useMemo(
-    () => tasks.filter((t) => t.archived && t.kind !== "main"),
-    [tasks],
-  )
   const visible = useMemo(
     () =>
       sortTasks(
-        activeTasks.filter(
+        tasks.filter(
           (task) =>
             matchesTask(task, query) &&
             matchesStatusFilter(
@@ -103,7 +94,7 @@ export function TaskRail({
         ),
         sortMode,
       ),
-    [activeTasks, query, statusFilter, sortMode, engineStates, worktreeChanges],
+    [tasks, query, statusFilter, sortMode, engineStates, worktreeChanges],
   )
   const projects = visible.filter((task) => task.kind === "main")
   const worktrees = visible.filter((task) => task.kind !== "main")
@@ -177,30 +168,6 @@ export function TaskRail({
     return () => window.removeEventListener("keydown", onKey)
   }, [visible, selectedTaskId])
 
-  const restore = (task: Task): void => {
-    void rpc("task.archive", { taskId: task.id, archived: false }).catch(
-      (err) => reportError(`restore "${task.title || task.branch}"`, err),
-    )
-  }
-
-  // Beta: archived-history preview gate (Settings → Experimental). Fetched once
-  // on mount — it lives in the per-user settings KV, not the live SSE snapshot —
-  // and the preview entry point stays hidden when off (default). Best-effort: a
-  // failed fetch just leaves the gate closed.
-  const [historyPreview, setHistoryPreview] = useState(false)
-  const [previewTask, setPreviewTask] = useState<Task | null>(null)
-  useEffect(() => {
-    let alive = true
-    void fetchSettings()
-      .then((s) => {
-        if (alive) setHistoryPreview(s.archivedHistoryPreview === true)
-      })
-      .catch(() => {})
-    return () => {
-      alive = false
-    }
-  }, [])
-
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-line bg-bg">
       <div className="border-b border-line bg-surface/50 px-3 py-2">
@@ -224,7 +191,7 @@ export function TaskRail({
               sort
             </button>
             <span className="font-mono text-[10px] text-muted">
-              {visible.length}/{activeTasks.length}
+              {visible.length}/{tasks.length}
             </span>
             <button
               type="button"
@@ -321,7 +288,7 @@ export function TaskRail({
             <Loader2 size={13} strokeWidth={2} className="animate-spin" />
             <span>connecting…</span>
           </div>
-        ) : activeTasks.length === 0 ? (
+        ) : tasks.length === 0 ? (
           <div className="px-3 py-4 text-[12px] leading-relaxed text-subtle">
             <p>No tasks yet.</p>
             <button
@@ -386,41 +353,7 @@ export function TaskRail({
             ))}
           </>
         )}
-        {!booting && archivedTasks.length > 0 && (
-          <div className="mt-2 border-t border-line-subtle pb-2">
-            <button
-              type="button"
-              onClick={() => setRailShowArchived(!showArchived)}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-subtle">
-                Archived
-              </span>
-              <span className="font-mono text-[10px] text-subtle">
-                {archivedTasks.length}
-              </span>
-              <span className="ml-auto font-mono text-[10px] text-subtle">
-                {showArchived ? "−" : "+"}
-              </span>
-            </button>
-            {showArchived &&
-              archivedTasks.map((t) => (
-                <ArchivedRow
-                  key={t.id}
-                  task={t}
-                  onRestore={() => restore(t)}
-                  onPreview={
-                    historyPreview ? () => setPreviewTask(t) : undefined
-                  }
-                />
-              ))}
-          </div>
-        )}
       </div>
-      <ArchivedHistoryPeek
-        task={previewTask}
-        onClose={() => setPreviewTask(null)}
-      />
       <div className="border-t border-line p-2">
         <button
           type="button"

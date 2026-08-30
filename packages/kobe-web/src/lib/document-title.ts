@@ -27,7 +27,7 @@ export function attentionCount(
 ): number {
   let count = 0
   for (const task of tasks) {
-    if (task.archived || task.kind === "main") continue
+    if (task.kind === "main") continue
     if (triage(engineStates[task.id], undefined) === "attention") count++
   }
   return count

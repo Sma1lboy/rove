@@ -7,7 +7,7 @@ import { useNavigate } from "@tanstack/react-router"
 import { X } from "lucide-react"
 import type { ReactNode } from "react"
 import { useEffect, useRef, useState } from "react"
-import { setActiveTask, setActiveTaskBestEffort } from "../lib/active-task.ts"
+import { setActiveTaskBestEffort } from "../lib/active-task.ts"
 import { copyText } from "../lib/clipboard.ts"
 import { useEngines } from "../lib/engines.ts"
 import { rpc, useAppState } from "../lib/store.ts"
@@ -93,10 +93,7 @@ function ActionButton({
   )
 }
 
-type PendingConfirm =
-  | { kind: "archive" }
-  | { kind: "delete"; force: boolean }
-  | null
+type PendingConfirm = { kind: "delete"; force: boolean } | null
 
 function TaskOverview({ task }: { task: Task | null }) {
   const [title, setTitle] = useState(task?.title ?? "")
@@ -173,22 +170,6 @@ function TaskOverview({ task }: { task: Task | null }) {
     })
   }
 
-  const archive = (): void => {
-    setConfirm(null)
-    void run("archive", async () => {
-      await rpc("task.archive", { taskId: task.id, archived: true })
-      clearSelectedTask()
-      void navigate({ to: "/" })
-      await setActiveTask(null)
-    })
-  }
-
-  const restore = (): void => {
-    void run("restore", () =>
-      rpc("task.archive", { taskId: task.id, archived: false }),
-    )
-  }
-
   // Delete flow mirrors the TUI: non-force first; a DIRTY_WORKTREE rejection
   // re-prompts with an explicit force confirm so uncommitted work can't be
   // lost on a single click.
@@ -235,14 +216,6 @@ function TaskOverview({ task }: { task: Task | null }) {
             Save
           </ActionButton>
         </div>
-        {task.archived && (
-          <div className="mt-2 flex items-center justify-between gap-2 border border-kobe-yellow/40 bg-kobe-yellow/10 px-2 py-1.5">
-            <span className="text-[11px] text-kobe-yellow">archived</span>
-            <ActionButton onClick={restore} disabled={busy !== null}>
-              Restore
-            </ActionButton>
-          </div>
-        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
@@ -351,15 +324,6 @@ function TaskOverview({ task }: { task: Task | null }) {
           <ActionButton onClick={copyPath}>
             {copied ? "Copied" : "Copy path"}
           </ActionButton>
-          {!task.archived && (
-            <ActionButton
-              onClick={() => setConfirm({ kind: "archive" })}
-              disabled={busy !== null}
-              danger
-            >
-              Archive
-            </ActionButton>
-          )}
         </div>
 
         {task.kind !== "main" && (
@@ -378,17 +342,6 @@ function TaskOverview({ task }: { task: Task | null }) {
         )}
       </div>
 
-      {confirm?.kind === "archive" && (
-        <ConfirmDialog
-          title="Archive task"
-          body={`Archive "${task.title || task.branch}"? Its Hosted PTY sessions will be stopped; the worktree stays on disk and the task can be restored from the Archived section.`}
-          confirmLabel="Archive"
-          danger
-          busy={busy === "archive"}
-          onConfirm={archive}
-          onCancel={() => setConfirm(null)}
-        />
-      )}
       {confirm?.kind === "delete" && (
         <ConfirmDialog
           title={

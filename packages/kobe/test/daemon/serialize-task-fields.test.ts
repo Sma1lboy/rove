@@ -29,14 +29,8 @@ type DeepRequired<T> = {
     : DeepRequired<NonNullable<T[K]>>
 }
 
-/**
- * Every field the wire shape can carry, each with a distinguishable value.
- *
- * `archived` is deliberately omitted: it is the DEPRECATED shim from issue
- * #75, kept in the type for old consumers and intentionally never emitted.
- * Requiring it here would pin a field the codebase is trying to shed.
- */
-const FULL: Omit<DeepRequired<SerializedTask>, "archived"> = {
+/** Every field the wire shape can carry, each with a distinguishable value. */
+const FULL: DeepRequired<SerializedTask> = {
   id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
   title: "wire fixture",
   repo: "/repo",

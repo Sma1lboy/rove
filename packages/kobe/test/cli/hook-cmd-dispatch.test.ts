@@ -202,31 +202,6 @@ describe("runHookSubcommand — activity verbs", () => {
   })
 })
 
-describe("runHookSubcommand worktree-created", () => {
-  it("does NOT adopt on `git worktree add` — creation is mechanical, not intent", async () => {
-    // Owner decision 2026-08-24: agents mint worktrees for PR isolation and no
-    // engine session ever enters; adoption needs a session-start in a managed
-    // root or an explicit `rove add .`. The hook never touches the daemon.
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree add -b feat .claude/worktrees/lynx main" } })
-    await runHookSubcommand(["worktree-created"])
-    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
-  })
-
-  it("asks the daemon to archive the task of a `git worktree remove`", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree remove -f ../wt" } })
-    await runHookSubcommand(["worktree-created"])
-    expect(mocks.request).toHaveBeenCalledWith("worktree.archiveRemoved", {
-      worktreePath: resolve("/repo", "../wt"),
-    })
-  })
-
-  it("no-ops fast on a Bash command that isn't a worktree add/remove", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git status && ls" } })
-    await runHookSubcommand(["worktree-created"])
-    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
-  })
-})
-
 describe("kobe hook setup (deprecated cleanup)", () => {
   it("removes the old WorktreeCreate hook from the global settings and persists sync=off", async () => {
     const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
@@ -323,15 +298,5 @@ describe("runHookSubcommand cleanup (plugin migration path)", () => {
     )
     expect(cleanedVendors).toEqual(["claude"])
     outSpy.mockRestore()
-  })
-})
-
-describe("runHookSubcommand worktree-created failure swallowing", () => {
-  it("swallows a daemon error mid-archive — the Bash hook must exit 0", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree remove wt" } })
-    mocks.request.mockRejectedValue(new Error("daemon blew up"))
-    await expect(runHookSubcommand(["worktree-created"])).resolves.toBeUndefined()
-    // The socket is still closed on the failure path.
-    expect(mocks.close).toHaveBeenCalledTimes(1)
   })
 })
