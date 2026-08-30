@@ -1,5 +1,7 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
+import type { ObservedLanguage } from "../prompts/observed-language.ts"
+
 export type VendorId = "claude" | "codex" | "copilot" | (string & {})
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
@@ -88,6 +90,9 @@ export interface DaemonTask {
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
   readonly command?: string
+  /** Language this task's user writes in, observed from their own prompts
+   *  (`prompts/observed-language.ts`). Absent means English. */
+  readonly observedLanguage?: ObservedLanguage
   readonly prStatus?: TaskPRStatus
   readonly position?: number
   readonly modelEffort?: string
@@ -152,6 +157,8 @@ export interface DaemonOrchestrator {
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string): Promise<void>
   setBranch(id: string, branch: string): Promise<void>
+  /** Record the language a task's user writes in, from their own prompt text. */
+  observeLanguage(id: string, text: string): Promise<void>
   setVendor(id: string, vendor: VendorId): Promise<void>
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>

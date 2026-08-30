@@ -80,7 +80,8 @@
     "./daemon/pty-exit-watch": "./src/daemon/pty-exit-watch.ts",
     "./plugins/task-diff": "./src/plugins/task-diff.ts",
     "./daemon/quota-resume": "./src/daemon/quota-resume.ts",
-    "./prompts/issue-prompts": "./src/prompts/issue-prompts.ts"
+    "./prompts/issue-prompts": "./src/prompts/issue-prompts.ts",
+    "./prompts/observed-language": "./src/prompts/observed-language.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

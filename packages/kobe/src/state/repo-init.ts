@@ -22,6 +22,7 @@
 
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { type ObservedLanguage, detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { kobeApiInvocation } from "../engine/interactive-command.ts"
 import { getRepoInitOverride } from "./repos.ts"
 
@@ -115,7 +116,7 @@ const LOCKFILE_DEPENDENCY_DIRS = [
  * Advice only — installing is `.rove/init.sh`'s job, so a repo that ships one
  * (or a per-user override) gets nothing from here; see `firstMessageFor`.
  */
-export function missingDependenciesCoda(worktreePath: string): string | undefined {
+export function missingDependenciesCoda(worktreePath: string, language?: ObservedLanguage): string | undefined {
   const missing = new Set<string>()
   for (const [lockfile, dependencyDir] of LOCKFILE_DEPENDENCY_DIRS) {
     if (!existsSync(join(worktreePath, lockfile))) continue
@@ -123,7 +124,14 @@ export function missingDependenciesCoda(worktreePath: string): string | undefine
     missing.add(dependencyDir)
   }
   if (missing.size === 0) return undefined
-  return `PS: this worktree has no installed dependencies (${[...missing].join(", ")} missing beside a committed lockfile). Run the repo's install step before trusting build/test results — a failure here is most likely the missing install, not a regression. If this repo always needs one, consider adding \`.rove/init.sh\`.`
+  const dirs = [...missing].join(", ")
+  // The language comes from the user's OWN first prompt, one line above the
+  // call site — no stored state needed here, unlike the async injection
+  // points that fire with no user message in hand.
+  if (language === "zh") {
+    return `补充：这个 worktree 没有装依赖（仓库里有 lockfile，但 ${dirs} 不存在）。在相信任何构建 / 测试结果之前，先跑一遍本仓库的安装步骤——这里的失败多半是因为没装依赖，而不是代码回归。如果这个仓库每次都需要装，可以考虑加一个 \`.rove/init.sh\`。`
+  }
+  return `PS: this worktree has no installed dependencies (${dirs} missing beside a committed lockfile). Run the repo's install step before trusting build/test results — a failure here is most likely the missing install, not a regression. If this repo always needs one, consider adding \`.rove/init.sh\`.`
 }
 
 const INIT_SCRIPT_RELS = [join(".rove", "init.sh"), join(".kobe", "init.sh")] as const
@@ -187,7 +195,9 @@ function firstMessageFor(
     // Only when the repo has no init script: with one, the install already ran
     // (or the repo chose not to), and the warning would be noise. Scoped to
     // new-task so `send`/handoff prompts into existing sessions never see it.
-    const deps = init.initScript ? undefined : missingDependenciesCoda(worktreePath)
+    const deps = init.initScript
+      ? undefined
+      : missingDependenciesCoda(worktreePath, detectLanguage(intent.prompt) ?? undefined)
     return {
       source: "explicit",
       text: [intent.prompt, branch, deps].filter(Boolean).join("\n\n"),
