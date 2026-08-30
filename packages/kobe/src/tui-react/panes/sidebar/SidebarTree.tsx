@@ -83,6 +83,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     query: search.active ? search.query : "",
     recentTask: props.recentTask ?? null,
     sortMode: props.sortMode,
+    branchTick,
   })
   const flatIndexOf = useMemo(() => {
     const map = new Map<string, number>()

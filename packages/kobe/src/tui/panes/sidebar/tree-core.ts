@@ -24,7 +24,7 @@ import { homedir } from "node:os"
 import type { Task } from "@/types/task"
 import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
-import { compareRecent, repoBasename, sidebarProjectKey } from "./groups"
+import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
 
 /** Separator between a task id and a tab id in a tab row's id. Matches the
  *  PTY registry's key format so one parse rule covers both. */
@@ -273,10 +273,23 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
       }
     }
   }
+  // Header labels disambiguate against EVERY other project on screen, not
+  // just against themselves: with 5 repos open, `~/work/api` and `~/oss/api`
+  // both rendered the bare basename `api`, so two headers read as one repo
+  // while the toast that had just named one of them said `work/api`. Same
+  // helper every other surface already uses (Inbox, Kanban, work items,
+  // automations) — the tree was the last holdout.
+  const projectRepos = orderedKeys.map((key) => byProject.get(key)?.repo ?? "")
   for (const key of orderedKeys) {
     const entry = byProject.get(key)
     if (!entry) continue
-    rows.push({ kind: "project", id: key, repo: entry.repo, label: repoBasename(entry.repo), depth: 0 })
+    rows.push({
+      kind: "project",
+      id: key,
+      repo: entry.repo,
+      label: sidebarProjectLabel(entry.repo, projectRepos),
+      depth: 0,
+    })
     for (const task of entry.tasks) pushWorktree(rows, task, tabsByTask)
   }
   return rows
@@ -313,11 +326,42 @@ function ownerProjectKey(task: Task): string | null {
   return sidebarProjectKey(task.repo)
 }
 
-/** What a row's text is matched against. */
-function rowHaystack(row: TreeRow): string {
-  if (row.kind === "project") return row.label
-  if (row.kind === "tab") return row.tab.label
-  return `${row.task.title} ${row.task.branch ?? ""} ${repoBasename(row.task.repo)}`
+/**
+ * The fields a row's query is matched against, ONE AT A TIME (see
+ * `matchesRow`) — the criterion is that what you can
+ * FIND is exactly what you can SEE, so a worktree row's haystack starts from
+ * the very label `worktreeRowLabel` renders it with.
+ *
+ * Two kinds of row were unsearchable by their own visible text before that:
+ *   - a `main` row is labelled by its LIVE polled HEAD (its stored `branch` is
+ *     always `""`), so searching the branch name printed on the row missed it;
+ *   - a `dir` / scratch row is labelled by its tail-truncated path while its
+ *     stored title is deliberately ignored as auto-generated noise — and the
+ *     haystack searched precisely that ignored title and never the path.
+ *
+ * `liveBranch` resolves the polled HEAD for the rows that own no branch (see
+ * {@link rowLiveBranchPath}); without it the label falls back to the stored
+ * branch, which is what a pure unit test wants.
+ */
+function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readonly string[] {
+  if (row.kind === "project") return [row.label]
+  if (row.kind === "tab") return [row.tab.label]
+  const task = row.task
+  // A `dir` task's stored title is the noise the row refuses to show; it must
+  // not be findable either, or the search hits text that is nowhere on screen.
+  const title = task.kind === "dir" ? "" : task.title
+  return [worktreeRowLabel(task, { liveBranch: liveBranch?.(task) }), title, repoBasename(task.repo)]
+}
+
+/**
+ * Match the query against each of a row's fields SEPARATELY, never against
+ * their concatenation. `fuzzyMatch` is a subsequence test, so one joined
+ * string lets a query straddle a boundary and hit a row that shows the
+ * matched characters nowhere together: `feat/tree` found a `feat/chat` row by
+ * spending `feat/` on the branch and `tree` on the title beside it.
+ */
+function matchesRow(query: string, row: TreeRow, liveBranch?: (task: Task) => string): boolean {
+  return rowHaystacks(row, liveBranch).some((field) => field !== "" && fuzzyMatch(query, field))
 }
 
 /**
@@ -328,14 +372,18 @@ function rowHaystack(row: TreeRow): string {
  * the tree can be asked:
  *   - project  → repo basename. A hit keeps the WHOLE subtree ("show me
  *     everything in kobe").
- *   - worktree → title + branch + repo basename: the flat sidebar's haystack
- *     plus the branch the tree actually labels the row with. A hit keeps the
- *     worktree's tabs ("that branch, and what's running in it").
+ *   - worktree → the row's own RENDERED label (branch, live HEAD, or path)
+ *     plus its title and repo basename. A hit keeps the worktree's tabs
+ *     ("that branch, and what's running in it").
  *   - tab      → the tab's label, i.e. its live OSC window title. This is the
  *     tree's own increment over the flat sidebar, which can only search task
  *     titles: it answers "which tab is running that thing".
  */
-export function filterTreeRows(rows: readonly TreeRow[], query: string): TreeRow[] {
+export function filterTreeRows(
+  rows: readonly TreeRow[],
+  query: string,
+  liveBranch?: (task: Task) => string,
+): TreeRow[] {
   const q = query.trim()
   if (q === "") return [...rows]
 
@@ -344,7 +392,7 @@ export function filterTreeRows(rows: readonly TreeRow[], query: string): TreeRow
   const selfMatch = new Set<string>()
   const keep = new Set<string>()
   for (const row of rows) {
-    if (!fuzzyMatch(q, rowHaystack(row))) continue
+    if (!matchesRow(q, row, liveBranch)) continue
     selfMatch.add(row.id)
     keep.add(row.id)
     if (row.kind === "project") continue
