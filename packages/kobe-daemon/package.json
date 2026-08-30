@@ -18,6 +18,7 @@
     "./daemon/agent-turns-store": "./src/daemon/agent-turns-store.ts",
     "./daemon/activity-liveness": "./src/daemon/activity-liveness.ts",
     "./daemon/activity-observer": "./src/daemon/activity-observer.ts",
+    "./daemon/activity-reduce": "./src/daemon/activity-reduce.ts",
     "./daemon/activity-registry": "./src/daemon/activity-registry.ts",
     "./daemon/attention-inbox": "./src/daemon/attention-inbox.ts",
     "./daemon/automations-store": "./src/daemon/automations-store.ts",

@@ -1,12 +1,31 @@
 /**
  * The engine-activity reducer + its policy constants/types — the pure half
  * of the daemon activity registry, split out of `activity-registry.ts`
- * (file-size cap). Moved verbatim; `activity-registry.ts` re-exports the
- * public names so existing importers keep one entry point.
+ * (file-size cap). `activity-registry.ts` re-exports the public names so
+ * existing importers keep one entry point.
+ *
+ * {@link reduceActivity} is the single definition of the activity state
+ * machine for BOTH packages: `kobe/src/engine/hook-events.ts` re-exports it
+ * (kobe depends on kobe-daemon, never the reverse) so a fix lands once.
  */
 
 import type { EngineActivityDetail, EngineActivityKind, TaskActivityState } from "./contracts.ts"
 
+/**
+ * Pure state machine: fold a normalized event into the next activity state.
+ *   session-start                  → idle
+ *   turn-start                     → running
+ *   turn-complete                  → turn_complete
+ *   turn-failed (rate_limit/billing)→ rate_limited
+ *   turn-failed (other)            → error
+ *   awaiting-input                 → permission_needed (permission prompt OR a
+ *                                    question dialog — either way the engine is
+ *                                    blocked on the user; `detail.waiting` keeps why)
+ *   session-end                    → idle
+ *
+ * The ONE definition: `kobe/src/engine/hook-events.ts` re-exports this rather
+ * than keeping a second copy (the two drifted apart once already).
+ */
 export function reduceActivity(
   previous: TaskActivityState | undefined,
   kind: EngineActivityKind,
@@ -15,35 +34,34 @@ export function reduceActivity(
   switch (kind) {
     case "session-start":
     case "session-end":
-    // Kimi fires Interrupt INSTEAD of Stop on a user interrupt.
+    // Kimi fires Interrupt INSTEAD of Stop on a user interrupt — without
+    // this the turn strands in `running` (docs/design/plugin-events.md §B).
     case "turn-interrupted":
       return "idle"
     case "turn-start":
       return "running"
     case "turn-complete":
-      // Only a TRACKED turn completes: running, or blocked on the user
-      // mid-turn (an approved permission resumes without a new turn-start).
-      // Engines fire Stop on automated wakes too — a background monitor
-      // stream ending "completed" a turn nobody started and lit the ●
-      // lamp (owner bug 2026-08-02); that signature is a Stop on a KNOWN
-      // untracked state (explicit idle/sticky entry) and stays swallowed.
-      // `undefined` is a COLD registry (fresh daemon after a restart) — the
-      // one real way a task's first event is a Stop is a turn that started
-      // before the wipe, so let it complete instead of eating the ● lamp.
-      // Mirrors kobe's hook-events reducer.
+      // A completion is only a completion when a turn was actually in
+      // flight: running, or blocked on the user mid-turn (an approved
+      // permission continues WITHOUT a new turn-start). Engines fire Stop
+      // for automated wakes too — a background monitor stream ending
+      // "completes" a turn the user never started, and the ● lamp lit for
+      // it (owner bug 2026-08-02). That wake signature is a Stop landing on
+      // a KNOWN untracked state (an explicit idle/sticky entry) — keep it.
+      // `undefined` is different: the reducer knows NOTHING (fresh daemon,
+      // registry wiped by a restart), and the one real way a first event is
+      // a Stop is a turn that started before the wipe — swallowing it cost
+      // the ● lamp for every turn that outlived a daemon restart.
       return previous === "running" || previous === "permission_needed" || previous === undefined
         ? "turn_complete"
         : previous
     case "turn-failed":
       return detail?.failure === "rate_limit" || detail?.failure === "billing" ? "rate_limited" : "error"
     case "awaiting-input":
-      // Permission prompt OR a question dialog — either way the engine is
-      // blocked on the user (`detail.waiting` keeps which). Mirrors
-      // kobe/src/engine/hook-events.ts.
       return "permission_needed"
     default:
-      // Lifecycle-only kinds never reach the registry (the handler gates on
-      // affectsActivityState); a direct call is a state no-op.
+      // Lifecycle-only kinds never reach here via the daemon (gated by
+      // affectsActivityState); a direct call is a no-op on the state.
       return previous ?? "idle"
   }
 }
