@@ -50,7 +50,7 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 - **Owner-supervised local iteration may skip the PR**: work in a worktree, get green, then merge/cherry-pick into local `main`. Same quality gates (lint, typecheck, tests, changeset) still apply. Only when the owner is in the loop that turn.
 - A direct push to `main` needs the owner to say so **in that turn** — never inferred, never carried over to the next task.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag (see [`docs/RELEASING.md`](./docs/RELEASING.md)).
-- Never force-push; `git fetch` before pushing.
+- `git fetch` before pushing. Force-push ONLY to rebase your own unmerged PR branch, and only with `--force-with-lease`; never onto `main`, a shared branch, or commits someone has reviewed.
 
 ### Commits
 - Commit at the end of each stream when green (per-stream commits are pre-authorized). Message: `<type>: <summary>` + a 2-3 sentence body.
