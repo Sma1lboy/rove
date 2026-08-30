@@ -3,6 +3,7 @@ import type { TaskId } from "../types/task.ts"
 import { CannotDeleteMainTaskError, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
+import type { SalvageRecord } from "./worktree/salvage.ts"
 
 /** Caller options for a task deletion. `deleteBranch` is a separate opt-in,
  *  never implied by `force`. */
@@ -20,6 +21,13 @@ export class TaskDeletionCoordinator {
     private readonly store: TaskIndexStore,
     private readonly worktrees: GitWorktreeManager,
     private readonly forgetTask: (id: TaskId) => void,
+    /**
+     * Notified when a forced removal salvaged uncommitted work. The daemon
+     * wires this to the deletion audit log so the recovery ref lands beside
+     * the `removed` line — a user who just lost a tab has the task title and
+     * roughly the time, and that is what the audit trail is indexed by.
+     */
+    private readonly onSalvage?: (taskId: TaskId, record: SalvageRecord) => void,
   ) {}
 
   /** Persist acceptance after the destructive dirty-worktree safety check. */
@@ -79,6 +87,16 @@ export class TaskDeletionCoordinator {
         await this.worktrees.remove(task.worktreePath, {
           force: task.deletion.force,
           deleteBranch: task.deletion.deleteBranch === true,
+          // `force` was frozen at prepare() time and this runs on a later
+          // tick — possibly in a later daemon process (`resume()` replays a
+          // queued deletion after a restart), so the worktree may have gone
+          // dirty since the check that authorised the force. Re-evaluating
+          // the gate here would be a behavior change (a delete the user
+          // already confirmed would start failing); salvaging instead keeps
+          // the delete as asked and makes the loss recoverable.
+          onSalvage: (record) => {
+            if (record) this.onSalvage?.(task.id, record)
+          },
         })
       }
     } catch (cause) {

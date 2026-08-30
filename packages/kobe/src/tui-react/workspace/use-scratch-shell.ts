@@ -8,7 +8,10 @@
  *     sidebar's Scratch section.
  *   - `onScratchExit`: the last shell exited — delete the row outright,
  *     zero ceremony (no confirm; a scratch task owns no
- *     worktree/branch, deletion only drops the index entry).
+ *     worktree/branch, deletion only drops the index entry). Deliberately
+ *     UNFORCED: `kind: "dir"` already skips the dirty gate and never removes
+ *     the directory, so `force` here would only be a standing licence to
+ *     destroy a real worktree if the row's kind ever changed.
  *   - the fold finish (issue #40): the adoption loop moved the shell's
  *     sessions under an existing task — quietly re-point selection to the
  *     folded tab (ONLY when the scratch row was the selected one; a
@@ -65,7 +68,12 @@ export function useScratchShell(deps: {
         deps.selectTask(targetTaskId)
         requestTabActivation(targetTaskId, tabId)
       }
-      await orchestrator.deleteTask(scratchTaskId, { force: true })
+      // No `force`: a scratch row is `kind: "dir"`, and BOTH deletion gates
+      // already special-case that kind (the dirty check is skipped, and
+      // `finish()` never removes a dir task's directory). So `force` bought
+      // nothing here — it only stood ready to authorise a real destructive
+      // removal if this row ever stopped being a dir task.
+      await orchestrator.deleteTask(scratchTaskId)
       forgetTaskTabs(scratchTaskId)
     },
   })
@@ -87,7 +95,8 @@ export function useScratchShell(deps: {
     scratchTeardowns.add(taskId)
     void (async () => {
       try {
-        await orchestrator.deleteTask(taskId, { force: true })
+        // Unforced, for the reason spelled out on the fold path above.
+        await orchestrator.deleteTask(taskId)
         forgetTaskTabs(taskId)
         await finishDeletedTaskFlow({
           orch: orchestrator,

@@ -1,4 +1,5 @@
 import { statSync } from "node:fs"
+import { auditWorktreeSalvaged } from "@sma1lboy/kobe-daemon/daemon/task-deletion-audit"
 import { execHostForWorktreePath } from "../exec/resolve.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
 import { type PrState, judgeWorktree, parseGhPrList } from "../orchestrator/worktree/staleness.ts"
@@ -105,8 +106,19 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
   )
 }
 
-export function removeWorktreeAdapter(path: string, force: boolean): Promise<void> {
-  return manager.remove(path, { force })
+/**
+ * The worktrees page / web DELETE path. Its force retry re-uses a `row`
+ * captured BEFORE the first attempt's dirty refusal, so by the time the user
+ * answers the confirm the tree may hold work the confirm never described.
+ * `manager.remove` salvages any uncommitted work first; this records where.
+ */
+export async function removeWorktreeAdapter(path: string, force: boolean): Promise<void> {
+  await manager.remove(path, {
+    force,
+    onSalvage: (record) => {
+      if (record) auditWorktreeSalvaged(path, record.ref, record.commit)
+    },
+  })
 }
 
 export async function handleWorktreesRequestAdapter(request: Request, url: URL): Promise<Response | null> {

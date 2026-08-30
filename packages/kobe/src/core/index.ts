@@ -7,6 +7,7 @@
 
 import { homedir } from "node:os"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import { auditDeletionSalvaged } from "@sma1lboy/kobe-daemon/daemon/task-deletion-audit"
 import { Orchestrator } from "../orchestrator/core.ts"
 import { TaskIndexStore } from "../orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
@@ -28,7 +29,15 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
   const store = new TaskIndexStore({ homeDir })
   await store.load()
   const worktrees = new GitWorktreeManager()
-  const orchestrator = new Orchestrator({ store, worktrees })
+  const orchestrator = new Orchestrator({
+    store,
+    worktrees,
+    // A forced delete's salvage ref goes to daemon.log beside the rest of the
+    // deletion audit trail, which is where TROUBLESHOOTING already sends a
+    // user asking "what happened to my task".
+    onSalvage: (taskId, salvage) =>
+      auditDeletionSalvaged(String(taskId), salvage.ref, salvage.commit, store.get(taskId)?.repo),
+  })
 
   return {
     homeDir,

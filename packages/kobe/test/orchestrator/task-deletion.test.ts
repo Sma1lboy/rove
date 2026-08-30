@@ -51,7 +51,10 @@ describe("durable background task deletion", () => {
     await orch.finishTaskDeletion(task.id)
     // Design guarantee (issue #29): delete keeps the branch by default —
     // git is the durable record, the task row is not.
-    expect(worktrees.remove).toHaveBeenCalledWith("/wt/task", { force: false, deleteBranch: false })
+    expect(worktrees.remove).toHaveBeenCalledWith(
+      "/wt/task",
+      expect.objectContaining({ force: false, deleteBranch: false }),
+    )
     expect(orch.getTask(task.id)).toBeUndefined()
   })
 
@@ -61,7 +64,84 @@ describe("durable background task deletion", () => {
     await orch.prepareTaskDeletion(task.id, { deleteBranch: true })
     await orch.beginTaskDeletion(task.id)
     await orch.finishTaskDeletion(task.id)
-    expect(worktrees.remove).toHaveBeenCalledWith("/wt/opt-in", { force: false, deleteBranch: true })
+    expect(worktrees.remove).toHaveBeenCalledWith(
+      "/wt/opt-in",
+      expect.objectContaining({ force: false, deleteBranch: true }),
+    )
+  })
+
+  it("a forced delete reports the salvage ref so the loss is recoverable", async () => {
+    // The queued deletion's `force` was frozen at prepare() time and the
+    // removal runs on a later tick (possibly a later daemon process), so the
+    // worktree can go dirty in between. The gate is deliberately NOT
+    // re-evaluated — instead the manager snapshots, and that ref must reach
+    // the orchestrator's sink or the user has no way to find it.
+    const salvages: { taskId: string; ref: string }[] = []
+    const localStore = new TaskIndexStore({ homeDir: home })
+    await localStore.load()
+    const localOrch = new Orchestrator({
+      store: localStore,
+      worktrees: worktrees as unknown as GitWorktreeManager,
+      onSalvage: (taskId, salvage) => salvages.push({ taskId: String(taskId), ref: salvage.ref }),
+    })
+    worktrees.remove.mockImplementationOnce(
+      async (_path: string, opts: { onSalvage?: (r: { ref: string; commit: string } | null) => void }) => {
+        opts.onSalvage?.({ ref: "refs/rove/salvage/feature-20260830T101500Z", commit: "abc1234" })
+      },
+    )
+
+    const task = await localOrch.createTask({ repo: "/repo", title: "forced", vendor: "claude" })
+    await localStore.update(task.id, { worktreePath: "/wt/salvaged" })
+    await localOrch.prepareTaskDeletion(task.id, { force: true })
+    await localOrch.beginTaskDeletion(task.id)
+    await localOrch.finishTaskDeletion(task.id)
+    localOrch.dispose()
+
+    expect(salvages).toEqual([{ taskId: String(task.id), ref: "refs/rove/salvage/feature-20260830T101500Z" }])
+  })
+
+  it("an unforced delete with nothing to salvage reports nothing", async () => {
+    const salvages: string[] = []
+    const localStore = new TaskIndexStore({ homeDir: home })
+    await localStore.load()
+    const localOrch = new Orchestrator({
+      store: localStore,
+      worktrees: worktrees as unknown as GitWorktreeManager,
+      onSalvage: (_taskId, salvage) => salvages.push(salvage.ref),
+    })
+    worktrees.remove.mockImplementationOnce(
+      async (_path: string, opts: { onSalvage?: (r: null) => void }) => void opts.onSalvage?.(null),
+    )
+
+    const task = await localOrch.createTask({ repo: "/repo", title: "clean", vendor: "claude" })
+    await localStore.update(task.id, { worktreePath: "/wt/clean" })
+    await localOrch.deleteTask(task.id)
+    localOrch.dispose()
+
+    expect(salvages).toEqual([])
+  })
+
+  it("deleting a dir task never touches its directory, forced or not", async () => {
+    // The scratch-shell teardown used to pass `force: true` on the reasoning
+    // that a scratch row owns no worktree. That is true only while the row is
+    // `kind: "dir"` — and the flag was unconditional, so it stood ready to
+    // authorise a real destructive removal if the row's kind ever changed.
+    // Both gates already special-case `dir`, which is what makes the flag
+    // redundant; this pins that, so dropping it stays safe.
+    for (const force of [false, true]) {
+      const task = await orch.createTask({ repo: "/repo", title: "dir", vendor: "claude" })
+      await store.update(task.id, { worktreePath: "/home/me/project", kind: "dir" })
+      worktrees.isDirty.mockResolvedValueOnce(true)
+
+      await expect(orch.prepareTaskDeletion(task.id, { force })).resolves.toBe(true)
+      await orch.beginTaskDeletion(task.id)
+      await orch.finishTaskDeletion(task.id)
+
+      expect(orch.getTask(task.id)).toBeUndefined()
+    }
+    // A dirty `dir` task neither refuses (the gate is skipped) nor removes
+    // anything — with force, and equally without it.
+    expect(worktrees.remove).not.toHaveBeenCalled()
   })
 
   it("force does not escalate into branch deletion", async () => {
@@ -71,7 +151,10 @@ describe("durable background task deletion", () => {
     await orch.prepareTaskDeletion(task.id, { force: true })
     await orch.beginTaskDeletion(task.id)
     await orch.finishTaskDeletion(task.id)
-    expect(worktrees.remove).toHaveBeenCalledWith("/wt/forced", { force: true, deleteBranch: false })
+    expect(worktrees.remove).toHaveBeenCalledWith(
+      "/wt/forced",
+      expect.objectContaining({ force: true, deleteBranch: false }),
+    )
   })
 
   it("keeps a visible error after cleanup failure and supports an explicit retry", async () => {
@@ -121,7 +204,10 @@ describe("durable background task deletion", () => {
     await expect(orch.prepareTaskDeletion(task.id)).resolves.toBe(true)
     await orch.beginTaskDeletion(task.id)
     await orch.finishTaskDeletion(task.id)
-    expect(worktrees.remove).toHaveBeenCalledWith("/wt/gone", { force: false, deleteBranch: false })
+    expect(worktrees.remove).toHaveBeenCalledWith(
+      "/wt/gone",
+      expect.objectContaining({ force: false, deleteBranch: false }),
+    )
     expect(orch.getTask(task.id)).toBeUndefined()
   })
 

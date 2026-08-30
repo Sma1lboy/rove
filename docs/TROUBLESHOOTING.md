@@ -99,6 +99,20 @@ worktree path, the `--force`/`--delete-branch` flags, and who asked:
 - `client=<n>` — the daemon connection id, which distinguishes concurrent
   callers when neither identity above is present (a TUI keypress, the web UI).
 
+A `salvaged` line appears between `requested` and `removed` when a **forced**
+deletion had uncommitted work to destroy. It names the git ref holding a
+snapshot of that work and the exact commands to recover it:
+
+```
+salvaged task <id> — uncommitted work saved to refs/rove/salvage/<branch>-<stamp> (<sha>).
+Recover with: git -C <repo> show refs/rove/salvage/<branch>-<stamp> | ...
+```
+
+The same line is written for a forced worktree removal from the worktrees page
+or the web UI (`salvaged worktree <path> — …`). No `salvaged` line means there
+was nothing uncommitted to save. See
+[WORKTREES](./WORKTREES.md#recovering-work-a-force-delete-destroyed).
+
 A `failed` line means the deletion ran only partway: the hosted session was
 torn down and the Inbox/activity state cleared, but the worktree directory and
 the task entry remain, and the task is left in `deletion.phase === "error"`
