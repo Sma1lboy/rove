@@ -349,10 +349,22 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
 
 /**
  * Start the live poller. Returns a `stop()` clearing the interval. Pass
- * `intervalMs <= 0` to disable (no-op stop). `hasSubscribers` is the
- * idle-daemon consumer gate: a tick is a no-op while it returns `false`, so a
- * gui-less daemon never hits the network for nobody. The interval keeps
- * running; the first tick after a pane subscribes repopulates.
+ * `intervalMs <= 0` to disable (no-op stop).
+ *
+ * The consumer gate is `hasSubscribers() || hasWorkingAgent()`. `prStatus` is
+ * the ONLY CI truth Rove holds, and the original gate ("no GUI ⇒ nobody wants
+ * this") silently assumed every consumer is a human at a pane. An agent
+ * working unattended is a consumer too, and it is the one whose need is
+ * sharpest: an unattended run is precisely when there is no GUI, so
+ * `checkState` was guaranteed stale or missing at the exact moment a worker
+ * asked whether its PR was green. That gap is one mechanism behind "CI is
+ * green" being asserted from a local test run.
+ *
+ * `hasWorkingAgent` is the engine-activity registry (`currentNonIdle()`), fed
+ * by the ungated `engine.reportEvent` hook path, so it is a free in-memory
+ * read that needs no network and no pane. It keeps the gate's original point
+ * intact — a daemon with no GUI **and** no live engine still polls nobody,
+ * which is the parked-daemon case the gate was written for.
  */
 export function startPrStatusPoller(
   orch: DaemonOrchestrator,
@@ -360,12 +372,13 @@ export function startPrStatusPoller(
   intervalMs: number = DEFAULT_PR_STATUS_POLL_MS,
   hasSubscribers?: () => boolean,
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
+  hasWorkingAgent?: () => boolean,
 ): () => void {
   if (intervalMs <= 0) return () => {}
   const schedule: PrPollSchedule = new Map()
   let running = false
   const tick = (): void => {
-    if (hasSubscribers && !hasSubscribers()) return
+    if (hasSubscribers && !hasSubscribers() && !hasWorkingAgent?.()) return
     if (running) return
     running = true
     void runPrStatusPass(orch, {

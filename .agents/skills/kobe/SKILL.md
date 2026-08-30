@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 36 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 37 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -456,6 +456,28 @@ Before reporting success: `git status` clean, your work committed with a
 real message (you wrote the code; you write its message). A worker that ran
 everything, passed everything, and committed nothing has delivered nothing —
 that exact mismatch has shipped empty merges before.
+
+Rove now checks this at the moment you claim it: a `succeeded:` report from a
+managed task whose branch has **0 commits** is refused with
+`EMPTY_SUCCESS_REPORT` and never reaches the coordinator. Commit, then send.
+When the task genuinely produced no commits — an investigation, a review, a
+question answered — say so explicitly with `--allow-empty`:
+
+```bash
+rove api send --allow-empty --prompt "succeeded: no bug — root cause is upstream, see notes"
+```
+
+**"CI is green" means `checkState: passing`.** A local test run is not CI: it
+does not run the other jobs, the other platform, or the merge gates. Rove
+polls your PR's checks and keeps the answer on the task —
+
+```bash
+rove api get-task --task-id "$ROVE_TASK_ID"   # .task.prStatus.checkState
+```
+
+`none` (no PR yet) / `pending` (still running) / `passing` / `failing` /
+`unknown`. Anything but `passing` is not green. Report what the field says,
+not what your local run implied.
 
 **Coordinator side** — do NOT block or poll. Keep working (or end your
 turn); each worker's outcome arrives in your chat as a `[ROVE PEER]` message

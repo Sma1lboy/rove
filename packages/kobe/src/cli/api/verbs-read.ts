@@ -25,7 +25,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
   {
     name: "get-task",
     summary:
-      "Read one task's metadata + terminal tabs. `.running` = any hosted engine tab is live; `.tabs[]` (id/kind/vendor/liveVendor/lastTitle/alive) is the discovery read for `send --tab tab-N`; `.task.dispatcher` = the Rove session (task+tab) that created it, when one did.",
+      "Read one task's metadata + terminal tabs. `.running` = any hosted engine tab is live; `.tabs[]` (id/kind/vendor/liveVendor/lastTitle/alive) is the discovery read for `send --tab tab-N`; `.task.dispatcher` = the Rove session (task+tab) that created it, when one did; `.task.prStatus.checkState` (none|pending|passing|failing|unknown) is Rove's OWN CI truth for the branch's PR — `passing` is what \"CI is green\" means, never a local test run.",
     flags: [F.taskId()],
     handler: getTask,
   },

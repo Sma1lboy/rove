@@ -14,7 +14,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   {
     name: "send",
     summary:
-      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. When the target composer is busy (you'd paste into a half-typed message), the prompt is accepted-but-deferred: the daemon stores it and queues a `prompt_deferred` Inbox episode for a human to release — that outcome is a SUCCESS (exit 0, `deferred` in the JSON). Do NOT retry a deferred send: the daemon already owns the message, and resending stacks a duplicate in the queue.",
+      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. When the target composer is busy (you'd paste into a half-typed message), the prompt is accepted-but-deferred: the daemon stores it and queues a `prompt_deferred` Inbox episode for a human to release — that outcome is a SUCCESS (exit 0, `deferred` in the JSON). Do NOT retry a deferred send: the daemon already owns the message, and resending stacks a duplicate in the queue. A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits.",
     flags: [
       F.taskId(false),
       F.prompt(true, "Text pasted + submitted into the engine pane."),
@@ -36,6 +36,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         type: "bool",
         required: false,
         description: "Deliver the prompt verbatim — skip the [ROVE PEER] provenance prefix.",
+      },
+      {
+        name: "allow-empty",
+        type: "bool",
+        required: false,
+        description:
+          "Report success from a task with zero commits (EMPTY_SUCCESS_REPORT is refused otherwise). For work that legitimately produces no commits — an investigation, a review, a question answered.",
       },
     ],
     handler: send,

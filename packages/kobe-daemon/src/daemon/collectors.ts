@@ -203,11 +203,17 @@ export function startDaemonCollectors(
     hasSubscribers,
   )
 
+  // PR status is the only CI truth Rove holds, and an unattended agent is the
+  // consumer that needs it most — so this collector's gate also opens on a
+  // live engine, not just an attached pane (see startPrStatusPoller). With
+  // neither, it still polls nobody.
   const stopPrStatusPoller = startPrStatusPoller(
     orch,
     runtime,
     options.prStatusPollMs ?? DEFAULT_PR_STATUS_POLL_MS,
     hasSubscribers,
+    undefined,
+    activity ? () => activity.currentNonIdle().some((e) => e.state !== "idle") : undefined,
   )
 
   // Quota-resume runner: deliberately NOT gated on `hasSubscribers` — its

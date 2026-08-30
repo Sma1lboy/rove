@@ -85,6 +85,71 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   return result
 }
 
+/**
+ * Refuse a `succeeded:` report from a worker whose branch carries no commits.
+ *
+ * `send` is where a completion CLAIM enters the system, and until now it was
+ * the one hop that never looked at the claim. The contradiction was already
+ * detectable AT THAT MOMENT — the sender's worktree is on disk and
+ * `readBranchSignals` is a lock-free read `collect` already makes — but the
+ * only thing that ever checked was `land`'s EMPTY_BRANCH, two steps later,
+ * after the coordinator had believed the report and possibly archived the
+ * siblings. The check was in the right codebase at the wrong end of the loop.
+ *
+ * Scope is deliberately narrow, because a false NEGATIVE here is cheap and a
+ * false POSITIVE blocks a worker from reporting at all:
+ *   - only a VERIFIED self session (the same identity `send` already trusts
+ *     for dispatcher routing) — an unverified env names a stranger's branch;
+ *   - only a MANAGED task: `main`/`dir` tasks have no Rove-created branch, and
+ *     an agent on a main checkout legitimately reads `ahead: 0`;
+ *   - only a DEFINITE `ahead === 0`. An unresolvable base reads null — an
+ *     honest unknown, never grounds to refuse.
+ *
+ * And it is a refusal WITH an exit, not a wall: investigation and review tasks
+ * genuinely succeed with no commits, so `--allow-empty` states that outright
+ * (the `git commit --allow-empty` spelling, same meaning). What the guard
+ * removes is the ACCIDENTAL empty success — the one that shipped as a clean
+ * report — not the deliberate one.
+ */
+async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt: string): Promise<void> {
+  if (ctx.args.bool("allow-empty")) return
+  // The fullwidth colon is not a typo — an agent writing Chinese types
+  // `succeeded：` from a CJK IME without noticing, and matching only U+003A
+  // would let exactly the reports this repo's agents write walk past.
+  if (!/^\s*succeeded\s*[:\uff1a]/i.test(prompt)) return
+  const self = await verifiedSelfSession()
+  if (!self) return
+  let sender: SerializedTask
+  try {
+    sender = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId: self.taskId })).task
+  } catch {
+    return // stale id / unreadable task — an unknown is never grounds to refuse
+  }
+  if (sender.kind === "main" || sender.kind === "dir") return
+  if (!sender.worktreePath) return
+  // Every failure mode here is an UNKNOWN, and the rule this guard states for
+  // itself is that an unknown never refuses — so a read that throws delivers,
+  // exactly like the `ahead: null` it returns for an unresolvable base.
+  let ahead: number | null
+  try {
+    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath)).ahead
+  } catch {
+    return
+  }
+  if (ahead !== 0) return
+  const branch = sender.branch || "your branch"
+  throw new ApiError(
+    `refusing to report success: ${branch} has 0 commits — "succeeded" means COMMITTED, and this report would reach the coordinator as a clean success with nothing to land`,
+    "EMPTY_SUCCESS_REPORT",
+    {
+      taskId: self.taskId,
+      branch,
+      hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
+      nextCommandArgs: ["api", "send", "--allow-empty", "--prompt", prompt],
+    },
+  )
+}
+
 export async function send(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const prompt = ctx.args.require("prompt")
@@ -131,6 +196,9 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     }
   }
   const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
+  // Before ANY delivery path (--plain included: a verbatim false claim is the
+  // same false claim) — a refused report must never reach the coordinator.
+  await assertNotEmptySuccess(daemon, ctx, prompt)
   const text = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
   const delivered = await ctx.runtime.deliverPrompt(
     daemon,

@@ -126,6 +126,12 @@ replacement in `nextCommandArgs`.
   task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
   = the protocol derived from it.
+  `.task.prStatus` = the branch's PR as the daemon last polled it
+  (`lifecycle`, `number`, `url`, `lastCheckedAt`) — including
+  `.prStatus.checkState`: `none` (no PR) / `pending` / `passing` / `failing` /
+  `unknown`. This is Rove's CI truth for the branch, and `passing` is what
+  "CI is green" means; a local test run is a different claim. Absent until
+  the poller has seen a PR for the branch.
 - `collect [--task-ids a,b,c] [--group GROUPID] [--repo PATH]`: read-only
   health snapshot of a parallel round — the one read that answers "what is
   this round's status right now" without fanning out to `get-task` per task.
@@ -247,7 +253,8 @@ placeholder branch to a descriptive name. Prompts into existing sessions
 
 ## drive
 
-- `send [--task-id ID] --prompt TEXT [--tab TAB] [--command CMD] [--plain]`: paste a
+- `send [--task-id ID] --prompt TEXT [--tab TAB] [--command CMD] [--plain]
+  [--allow-empty]`: paste a
   follow-up into a task's running engine (one full turn). Without
   `--task-id`, a task that has a `dispatcher` on record replies to that
   exact tab, falling back to the dispatcher task's live canonical engine
@@ -271,6 +278,17 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
+
+  A prompt opening with `succeeded:` is checked against the SENDER's own
+  branch before any delivery: sent from a verified managed task whose branch
+  has 0 commits, it is refused with `EMPTY_SUCCESS_REPORT` and nothing is
+  delivered. The claim and the evidence are both in hand at that moment, and
+  a report is what a coordinator acts on — `land`'s `EMPTY_BRANCH` catches
+  the same mismatch two steps later, after the coordinator has believed it.
+  The check is deliberately narrow: it needs a verified sender identity, a
+  managed (non-`main`, non-`dir`) task, and a definite `ahead === 0` — an
+  unresolvable base reads `null` and never refuses. `--allow-empty` states an
+  intentional empty success (an investigation, a review) and delivers.
 - `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a
   task's live session via the daemon's `session.deliver` channel (the
   dispatcher's messenger; see
