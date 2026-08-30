@@ -33,6 +33,7 @@ import { tabTitleStable } from "../../tui/workspace/terminal-tabs-core"
 import { DEFAULT_TASK_VENDOR, type Task } from "../../types/task"
 import type { KVContext } from "../context/kv"
 import type { NotificationsContext } from "../context/notifications"
+import { useT } from "../i18n"
 import { isAttentionInboxItemAvailable, nextAttentionInboxTarget } from "./attention-inbox-core"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
@@ -101,6 +102,7 @@ export function useAttention(args: {
   noTasksMessage: string
 }): { jumpToNextAttention: () => void } {
   const { tasks, engineState, engineTabState, inboxItems, selectedId, kv, notif, openAttention, noTasksMessage } = args
+  const t = useT()
 
   // Previous frame's state per NOTIFY TARGET, for rising-edge detection.
   // Seeded on the first render so targets already sitting in an attention
@@ -141,6 +143,41 @@ export function useAttention(args: {
       })
     }
   }, [engineState, engineTabState, selectedId, tasks, kv, notif])
+
+  // Deferred-prompt toast (issue #78 B): a `prompt_deferred` episode is
+  // inbox-ONLY — the engine reported no activity (the blocked prompt never
+  // reached it), so the engine-state rising-edge above never fires for it.
+  // Diff the inbox episodes on their (task, tab, at) identity instead. Unlike
+  // the engine-state notifier, the SELECTED task still toasts: deferral most
+  // often happens while you are typing in that very tab, and there is no
+  // middle-column indicator for a queued message.
+  const prevDeferred = useRef<Map<string, { taskId: string; tabId: string; at: number }> | null>(null)
+  useEffect(() => {
+    const next = new Map<string, { taskId: string; tabId: string; at: number }>()
+    for (const item of inboxItems) {
+      if (item.state !== "prompt_deferred" || !item.tabId) continue
+      next.set(notifyTargetKey(item.taskId, item.tabId), { taskId: item.taskId, tabId: item.tabId, at: item.at })
+    }
+    const prev = prevDeferred.current
+    prevDeferred.current = next
+    if (prev === null) return // seed — replayed history must not re-fire toasts
+    if (kv.get(CROSS_TASK_KEY, true) === false) return
+    const repos = [...new Set(tasks.map((t) => t.repo))]
+    for (const [key, entry] of next) {
+      if (prev.get(key)?.at === entry.at) continue // same episode, not a fresh edge
+      const task = tasks.find((t) => t.id === entry.taskId)
+      const tab = knownTaskTab(kv, entry.taskId, entry.tabId)
+      const tabLabel = tab ? tabTitleStable(tab, task?.vendor ?? DEFAULT_TASK_VENDOR) : ""
+      const project = task ? sidebarProjectLabel(task.repo, repos) : ""
+      notif.notify({
+        kind: "needs_input",
+        taskId: entry.taskId,
+        tabId: entry.tabId,
+        title: t("workspace.inbox.deferredToast"),
+        body: tabLabel ? `${project} › ${tabLabel}` : project || undefined,
+      })
+    }
+  }, [inboxItems, tasks, kv, notif, t])
 
   function jumpToNextAttention(): void {
     const order = tasks.filter((t) => !t.deletion).map((t) => t.id)

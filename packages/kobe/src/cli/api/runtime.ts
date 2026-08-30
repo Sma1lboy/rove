@@ -35,12 +35,24 @@ import {
   publishCliTabSnapshot,
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
-import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"
+import {
+  ApiError,
+  type ApiRuntime,
+  type DeliveredPrompt,
+  type PromptDeferralSink,
+  type PromptDeliveryOps,
+  type PromptTarget,
+} from "./types.ts"
 
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
  *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
  *  exact alive tab only). */
-async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
+async function deliverHosted(
+  target: PromptTarget,
+  worktree: string,
+  prompt: string,
+  defer?: PromptDeferralSink,
+): Promise<DeliveredPrompt> {
   let host: Awaited<ReturnType<typeof ensurePtyHost>>
   try {
     host = await ensurePtyHost()
@@ -64,6 +76,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       return await deliverToExactTab(host.rpc, target.id, target.tab, worktree, prompt, {
         engineBin,
         vendor: target.vendor,
+        defer,
       })
     }
     const newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
@@ -110,6 +123,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       {
         forceNew: newTab !== undefined,
         vendor: launchVendor,
+        defer,
       },
     )
     if (result.started && !result.engineReady) {
@@ -139,7 +153,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
 }
 
 const realPromptDeliveryOps: PromptDeliveryOps = {
-  deliverHosted,
+  deliverHosted: (target, worktree, prompt, defer) => deliverHosted(target, worktree, prompt, defer),
 }
 
 export async function deliverPrompt(
@@ -155,7 +169,22 @@ export async function deliverPrompt(
   }
   if (!worktree) throw new ApiError(`task ${target.id} has no worktree`, "NO_WORKTREE")
 
-  const hosted = await ops.deliverHosted(target, worktree, prompt)
+  // The deferral sink hands a composer-busy prompt to daemon ownership
+  // (issue #78 B-layer): the daemon stores the text and queues an inbox
+  // episode, and this send reports accepted-but-deferred — a SUCCESS the
+  // caller must NOT retry (a retry would stack a duplicate in the queue).
+  const defer: PromptDeferralSink = {
+    defer: (info) =>
+      client
+        .request<{ id: string }>("deferredPrompt.file", {
+          taskId: info.taskId,
+          tabId: info.tabId,
+          prompt: info.prompt,
+          layer: info.layer,
+        })
+        .then((res) => res.id),
+  }
+  const hosted = await ops.deliverHosted(target, worktree, prompt, defer)
   if (!hosted) throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
   return hosted
 }

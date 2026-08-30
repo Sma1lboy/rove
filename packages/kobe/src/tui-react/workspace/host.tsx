@@ -99,6 +99,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     selectTask,
     focusWorkspace: () => focus.setFocused("workspace"),
     notifyError,
+    notifyInfo,
   })
 
   // Cross-task attention (P0): rising-edge notify for non-selected tasks +

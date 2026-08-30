@@ -23,6 +23,7 @@ export interface RecordedHandlerEffects {
   readonly noteCalls: Array<{ method: string; repo: unknown; note?: unknown }>
   readonly cleared: string[]
   readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
+  readonly inboxPromptDeferred: Array<{ taskId: string; tabId: string; deferredId: string; layer: string }>
   readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
   readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
   readonly inboxTaskDeleted: string[]
@@ -48,6 +49,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     noteCalls: [],
     cleared: [],
     inboxRecords: [],
+    inboxPromptDeferred: [],
     inboxDeleted: [],
     inboxRead: [],
     inboxTaskDeleted: [],
@@ -68,6 +70,10 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     inbox: {
       record: (taskId: string, kind: string, detail?: unknown, tabId?: string) => {
         rec.inboxRecords.push({ taskId, kind, detail, tabId })
+        return Promise.resolve()
+      },
+      recordPromptDeferred: (taskId: string, tabId: string, deferredId: string, layer: string) => {
+        rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer })
         return Promise.resolve()
       },
       deleteEpisode: (taskId: string, tabId: string | null, at?: number) => {

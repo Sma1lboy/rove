@@ -301,6 +301,14 @@ export type DaemonRequestName =
   // is that bare shell adopts it (already rc-initialized) instead of
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
+  // Deferred prompts (issue #78 B-layer): the delivery gate accepted a prompt
+  // it could not paste (composer busy) into daemon ownership. `file` stores the
+  // text + records a `prompt_deferred` inbox episode; `get` reads one back for
+  // the exit path; `resolve` drops it after a successful insert or a dismiss.
+  // Older daemons reject the verbs; callers then surface COMPOSER_BUSY instead.
+  | "deferredPrompt.file"
+  | "deferredPrompt.get"
+  | "deferredPrompt.resolve"
 
 /**
  * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's

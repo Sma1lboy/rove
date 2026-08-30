@@ -35,7 +35,7 @@ import type { EngineScreenManifest } from "../../engine/screen-state.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
-import { ApiError, type DeliveredPrompt } from "./types.ts"
+import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
 /**
  * Foreground gate for delivery into an EXISTING session (herdr's
@@ -133,7 +133,12 @@ export async function deliverHostedPrompt(
   cwd: string,
   prompt: string,
   launch: EngineSessionLaunch,
-  opts?: { readonly forceNew?: boolean; readonly snapshot?: PsSnapshot; readonly vendor?: VendorId },
+  opts?: {
+    readonly forceNew?: boolean
+    readonly snapshot?: PsSnapshot
+    readonly vendor?: VendorId
+    readonly defer?: PromptDeferralSink
+  },
 ): Promise<DeliveredPrompt> {
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
   // `forceNew` (send --tab new): the caller minted a fresh tab key and wants
@@ -159,10 +164,14 @@ export async function deliverHostedPrompt(
     // detach from a never-attached client would clear a parked TUI's
     // exact-delta restore state as a side effect.
     const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
-    const delivered = await deliverToKey(rpc, existingKey, prompt, deliveryOpts).catch((err) => {
-      if (err instanceof ComposerBusyError) throw composerBusyApiError(err, target.id, prompt)
+    const tabId = existingKey.split("::")[1] ?? "tab-1"
+    let delivered: boolean
+    try {
+      delivered = await deliverToKey(rpc, existingKey, prompt, deliveryOpts)
+    } catch (err) {
+      if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
       throw err
-    })
+    }
     return {
       session: existingKey,
       pane: existingKey,
@@ -221,14 +230,18 @@ export async function deliverHostedPrompt(
     // the engine process is up. A paste that never lands is a failed start,
     // not a delivered prompt.
     if (launch.firstMessage) {
-      const delivered = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
-        initMarkerPath: launch.initMarkerPath,
-        initTimeoutMs: launch.initTimeoutMs,
-        screenManifest: resolveComposerManifest(opts?.vendor),
-      }).catch((err) => {
-        if (err instanceof ComposerBusyError) throw composerBusyApiError(err, target.id, prompt)
+      const tabId = launch.key.split("::")[1] ?? "tab-1"
+      let delivered: boolean
+      try {
+        delivered = await pastePromptWhenEngineUp(rpc, launch.key, target.engineBin, launch.firstMessage, {
+          initMarkerPath: launch.initMarkerPath,
+          initTimeoutMs: launch.initTimeoutMs,
+          screenManifest: resolveComposerManifest(opts?.vendor),
+        })
+      } catch (err) {
+        if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
         throw err
-      })
+      }
       return {
         session: launch.key,
         pane: launch.key,
@@ -242,12 +255,13 @@ export async function deliverHostedPrompt(
     // A RESPAWNED restored corpse is the opposite: our launch DID run (the
     // prompt rode its argv), so pasting here would deliver it twice.
     if (open.created === false && open.respawned !== true) {
-      await writePrompt(rpc, launch.key, prompt, { screenManifest: resolveComposerManifest(opts?.vendor) }).catch(
-        (err: unknown) => {
-          if (err instanceof ComposerBusyError) throw composerBusyApiError(err, target.id, prompt)
-          throw err
-        },
-      )
+      const tabId = launch.key.split("::")[1] ?? "tab-1"
+      try {
+        await writePrompt(rpc, launch.key, prompt, { screenManifest: resolveComposerManifest(opts?.vendor) })
+      } catch (err) {
+        if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
+        throw err
+      }
     }
     const delivered = true
     return {
@@ -273,7 +287,12 @@ export async function deliverToExactTab(
   tabId: string,
   cwd: string,
   prompt: string,
-  opts?: { readonly engineBin?: string; readonly snapshot?: PsSnapshot; readonly vendor?: VendorId },
+  opts?: {
+    readonly engineBin?: string
+    readonly snapshot?: PsSnapshot
+    readonly vendor?: VendorId
+    readonly defer?: PromptDeferralSink
+  },
 ): Promise<DeliveredPrompt> {
   const key = `${taskId}::${tabId}`
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
@@ -300,15 +319,50 @@ export async function deliverToExactTab(
   }
   // No pty.detach — see deliverHostedPrompt's existing-key path.
   const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
-  const delivered = await deliverToKey(rpc, key, prompt, deliveryOpts).catch((err) => {
-    if (err instanceof ComposerBusyError) throw composerBusyApiError(err, taskId, prompt)
+  let delivered: boolean
+  try {
+    delivered = await deliverToKey(rpc, key, prompt, deliveryOpts)
+  } catch (err) {
+    if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, taskId, tabId, prompt)
     throw err
-  })
+  }
   return { session: key, pane: key, started: false, engineReady: delivered, delivered }
 }
 
 function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
   return vendor ? engineEntry(vendor).screenManifest : undefined
+}
+
+/**
+ * Gate blocked the paste. With a deferral sink (issue #78 B-layer) the prompt
+ * is ACCEPTED into daemon ownership — store it and report the deferred success
+ * outcome; the caller must not retry. Without a sink there is no queue to hand
+ * it to, so surface the legacy typed error instead of dropping it silently.
+ */
+async function deferOrThrow(
+  error: ComposerBusyError,
+  sink: PromptDeferralSink | undefined,
+  taskId: string,
+  tabId: string,
+  prompt: string,
+): Promise<DeliveredPrompt> {
+  if (sink) {
+    try {
+      const id = await sink.defer({ taskId, tabId, prompt, layer: error.layer })
+      return {
+        session: `${taskId}::${tabId}`,
+        pane: `${taskId}::${tabId}`,
+        started: false,
+        engineReady: false,
+        delivered: false,
+        deferred: { id, layer: error.layer },
+      }
+    } catch {
+      // Older daemon without the deferredPrompt verbs — degrade to the typed
+      // error rather than dropping the prompt silently.
+    }
+  }
+  throw composerBusyApiError(error, taskId, prompt)
 }
 
 function composerBusyApiError(error: ComposerBusyError, taskId: string, prompt: string): ApiError {

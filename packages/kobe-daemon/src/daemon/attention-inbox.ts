@@ -148,6 +148,35 @@ export class AttentionInboxStore {
   }
 
   /**
+   * Record a `prompt_deferred` episode (issue #78 B-layer): a prompt the
+   * delivery gate blocked was accepted into the DeferredPromptsStore, and the
+   * episode points at that record by id (the prompt text is NOT copied here —
+   * `EngineActivityDetail` describes engine activity). One pending episode per
+   * task+tab, so a fresh deferral replaces the previous episode for the tab.
+   */
+  async recordPromptDeferred(
+    taskId: string,
+    tabId: string,
+    deferredId: string,
+    layer: "recent-human-write" | "composer-not-empty",
+  ): Promise<void> {
+    await this.enqueue(async () => {
+      const key = attentionInboxItemKey({ taskId, tabId })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, {
+        taskId,
+        tabId,
+        state: "prompt_deferred",
+        detail: { deferredPrompt: { id: deferredId, layer } },
+        unread: true,
+        at: this.now(),
+      })
+      await this.commit(next)
+    })
+  }
+
+  /**
    * Legacy RPC (pre queue-drain model): opening now DELETES the episode
    * (`deleteEpisode` via attention.dismiss). Kept for old clients whose
    * open still calls attention.markRead — treat it as the same resolve.

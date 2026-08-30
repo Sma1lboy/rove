@@ -146,9 +146,12 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     },
     text,
   )
-  // A prompt that never landed in the composer is a delivery FAILURE the
-  // script must see — non-zero exit, not a phantom `ok:true`.
-  if (!delivered.delivered) {
+  // A prompt that never landed AND was not deferred is a delivery FAILURE the
+  // script must see — non-zero exit, not a phantom `ok:true`. Deferred
+  // (issue #78 B-layer) is a SUCCESS: the daemon owns the message and queued
+  // an inbox episode. The caller must NOT retry — a retry would stack a
+  // duplicate of the same message in the deferred queue.
+  if (!delivered.delivered && !delivered.deferred) {
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
   return {
@@ -157,6 +160,14 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     session: delivered.session,
     started: delivered.started,
     engineReady: delivered.engineReady,
+    ...(delivered.deferred
+      ? {
+          deferred: delivered.deferred,
+          // The deferred outcome is a SUCCESS, not an error — say so explicitly
+          // so a scripted sender does not read `deferred` as a failure and retry.
+          delivered: false,
+        }
+      : {}),
   }
 }
 

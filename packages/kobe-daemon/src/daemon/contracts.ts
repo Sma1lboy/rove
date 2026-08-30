@@ -215,6 +215,16 @@ export interface EngineActivityDetail {
   readonly compact?: { readonly trigger?: "manual" | "auto" }
   readonly subagent?: { readonly type?: string; readonly id?: string }
   readonly note?: string
+  /**
+   * Reference to a daemon-owned deferred-prompt record (issue #78 B-layer).
+   * Present only on `prompt_deferred` inbox episodes. The prompt TEXT lives in
+   * the DeferredPromptsStore, never here — this contract describes engine
+   * activity, and a raw prompt is not engine activity.
+   */
+  readonly deferredPrompt?: {
+    readonly id: string
+    readonly layer: "recent-human-write" | "composer-not-empty"
+  }
 }
 
 export type TaskActivityState = "idle" | "running" | "turn_complete" | "rate_limited" | "permission_needed" | "error"
@@ -255,13 +265,17 @@ export interface AgentTurnRecord extends Omit<AgentTurn, "sessionId"> {
 }
 
 /** States represented by pending Inbox items until handled or the same
- * Terminal Tab starts another turn. */
+ * Terminal Tab starts another turn. Deliberately NOT a subset of
+ * {@link TaskActivityState}: `prompt_deferred` is a queue/ownership state (a
+ * prompt the daemon accepted but could not paste), not an engine activity —
+ * the engine may be idle while a deferred prompt waits for release. */
 export const ATTENTION_INBOX_STATES = [
   "turn_complete",
   "permission_needed",
   "error",
   "rate_limited",
-] as const satisfies readonly TaskActivityState[]
+  "prompt_deferred",
+] as const
 
 export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]
 

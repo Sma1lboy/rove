@@ -109,9 +109,10 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     prompt,
   )
   task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
-  // A prompt that never confirmed in the composer is a failure — but the task
-  // IS created, so carry the taskId in the error so a script can find it.
-  if (!delivered.delivered) {
+  // A prompt that never confirmed AND was not deferred is a failure — but the
+  // task IS created, so carry the taskId in the error so a script can find it.
+  // Deferred (issue #78 B-layer) is a SUCCESS: the daemon owns the message now.
+  if (!delivered.delivered && !delivered.deferred) {
     throw new ApiError(
       `task ${taskId} created but the prompt was not delivered (paste did not land)`,
       "NOT_DELIVERED",
@@ -127,6 +128,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     engineReady: delivered.engineReady,
     session: delivered.session,
     delivered: delivered.delivered,
+    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
   }
 }
 
