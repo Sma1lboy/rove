@@ -68,6 +68,7 @@ describe("ShowWorkspace empty state", () => {
         onRequestFocus={NOOP}
         onEditorTabReady={NOOP}
         onEngineSendReady={NOOP}
+        onEnginePasteReady={NOOP}
         onDiffTabReady={NOOP}
         onQuickFork={NOOP}
       />,
