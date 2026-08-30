@@ -46,12 +46,22 @@ export function UpdatePage(props: { onClose: () => void }) {
   const t = useT()
   const renderer = useRenderer()
   const [info, setInfo] = useState<UpdateInfo | null>(null)
+  /**
+   * Whether the registry check ANSWERED — distinct from what it answered.
+   * `checkLatestVersion` returns null both when the fetch fails (offline, npm
+   * down, timeout) and when it is suppressed, so `info === null` alone could
+   * not tell "we could not look" from "you are up to date". It rendered the
+   * failure as a GREEN latest = CURRENT_VERSION: an affirmative claim built
+   * out of a network error.
+   */
+  const [checked, setChecked] = useState(false)
   const [releaseNotes, setReleaseNotes] = useState<ReleaseNotesRangeItem[]>([])
   const [loadingNotes, setLoadingNotes] = useState(true)
   const [selected, setSelected] = useState<ActionId>("update")
   const [status, setStatus] = useState<string | null>(null)
 
   const latest = info?.latest ?? CURRENT_VERSION
+  const latestUnknown = checked && info === null
   const releaseUrl = releaseNotes[0]?.url ?? releasePageUrl(latest)
   const actions: ReadonlyArray<{ id: ActionId; key: string; label: string; detail: string }> = [
     { id: "update", key: "U", label: t("update.actions.updateNow"), detail: UPDATE_COMMAND },
@@ -70,8 +80,14 @@ export function UpdatePage(props: { onClose: () => void }) {
   }, [])
 
   async function load(): Promise<void> {
+    // `checkLatestVersion` swallows its own fetch errors and answers null, so
+    // there is nothing to catch here — `checked` is what turns that null into
+    // a stated "could not reach the registry" instead of a silent fallback to
+    // the current version. `fetchReleaseNotesRange` is equally total (it
+    // answers []), and the notes section already says so.
     const next = await checkLatestVersion({ force: true })
     setInfo(next)
+    setChecked(true)
     const latestVersion = next?.latest ?? CURRENT_VERSION
     const fetched = await fetchReleaseNotesRange({ current: CURRENT_VERSION, latest: latestVersion })
     setReleaseNotes(fetched)
@@ -144,9 +160,18 @@ export function UpdatePage(props: { onClose: () => void }) {
         <text fg={theme.textMuted} wrapMode="none">
           {t("update.latest")}
         </text>
-        <text fg={info?.hasUpdate ? theme.warning : theme.success} attributes={TextAttributes.BOLD} wrapMode="none">
-          v{latest}
-        </text>
+        {/* A failed lookup must not read as "you are up to date": those two
+            used to be the same green `v{latest}` pixels. Muted prose instead
+            of a version number, since there IS no known latest version. */}
+        {latestUnknown ? (
+          <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
+            {t("update.latestUnknown")}
+          </text>
+        ) : (
+          <text fg={info?.hasUpdate ? theme.warning : theme.success} attributes={TextAttributes.BOLD} wrapMode="none">
+            v{latest}
+          </text>
+        )}
       </box>
 
       <box flexDirection="column" flexShrink={0} paddingTop={1} gap={0}>

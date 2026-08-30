@@ -24,6 +24,7 @@ import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useDaemonDown } from "../lib/use-accessor"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { AutomationComposer } from "./automation-composer-dialog"
@@ -108,7 +109,11 @@ export function AutomationsPage(props: {
           setKeepsDaemonAlive(result.keepsDaemonAlive)
         })
         .catch(() => {
-          // A failed read leaves the previous rows rather than crashing the page.
+          // A failed read leaves the previous rows rather than crashing the
+          // page. Keeping them IS not calling setState, so there is nothing to
+          // do here — the empty array only covers the very first load, which
+          // has no rows to keep. What the failure means for those rows is the
+          // daemon-down banner's job (`useDaemonDown`), not a per-page catch.
           if (!disposed) setAutomations((prev) => prev ?? [])
         })
     }
@@ -260,6 +265,11 @@ export function AutomationsPage(props: {
   }))
 
   const now = Date.now()
+  // `keepsDaemonAlive` came off the last successful read. With the socket
+  // down it is a claim about a process that is not answering — rendered in
+  // `theme.success` green, it asserted "holding daemon" about a daemon that
+  // was gone. The daemon being down is the more specific fact, so it wins.
+  const daemonDown = useDaemonDown(props.orchestrator)
 
   return (
     <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={2} paddingRight={2}>
@@ -272,8 +282,16 @@ export function AutomationsPage(props: {
         <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
           {"─".repeat(240)}
         </text>
-        <text fg={keepsDaemonAlive ? theme.success : theme.textMuted} wrapMode="none" flexShrink={0}>
-          {keepsDaemonAlive ? t("automations.holdingDaemon") : t("automations.notHolding")}
+        <text
+          fg={daemonDown ? theme.error : keepsDaemonAlive ? theme.success : theme.textMuted}
+          wrapMode="none"
+          flexShrink={0}
+        >
+          {daemonDown
+            ? t("automations.daemonUnreachable")
+            : keepsDaemonAlive
+              ? t("automations.holdingDaemon")
+              : t("automations.notHolding")}
         </text>
       </box>
 

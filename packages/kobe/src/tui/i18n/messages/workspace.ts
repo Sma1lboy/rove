@@ -65,6 +65,13 @@ export const en = {
     /** Insert feedback: the release attempt errored (RPC/PTY hiccup). */
     deferredInsertFailed: "Couldn't insert the queued message — it's still in the Inbox.",
   },
+  /** Daemon-connection banner (`connectionStateSignal` → workspace host).
+   *  Shown only while the socket is actually DOWN: every page reads daemon
+   *  state, so a dead daemon means every page on screen is a photograph. */
+  daemonDown: {
+    title: "DAEMON DISCONNECTED",
+    hint: "Everything on screen is the last state the daemon reported. Reconnecting…",
+  },
   terminalComing: "Embedded terminal is starting...",
 }
 
@@ -120,6 +127,10 @@ export const zh: typeof en = {
     deferredUnavailable: "该标签页未运行——排队的消息留在收件箱。",
     /** 插入反馈：放行过程出错（RPC/PTY 故障）。 */
     deferredInsertFailed: "无法插入排队的消息——它仍在收件箱中。",
+  },
+  daemonDown: {
+    title: "守护进程已断开",
+    hint: "屏幕上的内容是守护进程最后一次上报的状态。正在重连…",
   },
   terminalComing: "嵌入终端正在启动……",
 }

@@ -7,6 +7,10 @@ export const en = {
   title: "ROUTINES",
   holdingDaemon: "keeping the daemon awake",
   notHolding: "none active",
+  /** Replaces both of the above while the socket is down: the hold state came
+   *  off the last successful read, so it is a claim about a process that is
+   *  not answering. */
+  daemonUnreachable: "daemon unreachable",
   paused: "paused",
   newTitle: "New routine",
   fieldName: "name",
@@ -54,6 +58,7 @@ export const zh: typeof en = {
   title: "例行任务",
   holdingDaemon: "正在保持守护进程常驻",
   notHolding: "无启用项",
+  daemonUnreachable: "守护进程无响应",
   paused: "已暂停",
   newTitle: "新建例行任务",
   fieldName: "名称",
