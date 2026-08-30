@@ -68,7 +68,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   {
     name: "notify",
     summary:
-      "Show a toast in every attached Rove UI — broadcast over the daemon's notice.event channel. Agents/scripts use it to surface 'done / needs input / error' moments without touching the task's session.",
+      "Show a toast in every attached Rove UI — broadcast over the daemon's notice.event channel. Agents/scripts use it to surface 'done / needs input / error' moments without touching the task's session. Returns `clients` (attached connections; 0 = no UI showed the toast).",
     flags: [
       {
         name: "title",

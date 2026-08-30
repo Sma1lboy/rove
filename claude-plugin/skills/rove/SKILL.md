@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 35 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 36 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -215,7 +215,7 @@ turn either. These five carry almost all traffic:
 add      --repo(REQ) --prompt --title --command --count --agents --activate
 send     --prompt(REQ) --task-id --tab --command --plain
 get-task --task-id(REQ)          list  (no flags)
-collect  --task-ids <csv> | --repo
+collect  --group <groupId> | --task-ids <csv> | --repo
 ```
 
 Four names that have actually been guessed wrong here: `add --vendor` is
@@ -277,7 +277,10 @@ rove api send --task-id <id> --tab new --prompt "<turn>"    # fresh engine tab
 rove api send --task-id <id> --tab new --command codex --prompt "<turn>"
 
 rove api get-task --task-id <id>
-rove api collect --task-ids <id1>,<id2>,<id3> --pretty
+# One read for the whole round — the groupId `add --count` returned. Never
+# hand-copy N task ids across turns: collect by group. Lost the groupId? Any
+# sibling task's `.groupId` in `list` output recovers it.
+rove api collect --group <groupId> --pretty
 rove api list --pretty
 ```
 
