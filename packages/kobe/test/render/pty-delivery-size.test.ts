@@ -77,8 +77,14 @@ describe("prompt delivery vs pane size (issue #18)", () => {
     expect(open.alive).toBe(true)
 
     // A peer `kobe api send` lands through the real delivery helper.
-    const delivered = await deliverToHostedKey(deliveryRpc(host), "t1::tab-1", "true")
-    expect(delivered).toBe(true)
+    // `/bin/sh` never announces DECSET 2004, so this also pins the fallback:
+    // the readiness wait times out, delivery still happens, and it reports
+    // `ready: false` rather than pretending the engine was confirmed reading.
+    const delivered = await deliverToHostedKey(deliveryRpc(host), "t1::tab-1", "true", {
+      pasteReadyTimeoutMs: 200,
+    })
+    expect(delivered).not.toBeNull()
+    expect(delivered?.ready).toBe(false)
     // The bracketed-pasted prompt reached the child (pty echoes it back).
     await until(() => dataText(frames).includes("true"))
 
@@ -94,7 +100,7 @@ describe("prompt delivery vs pane size (issue #18)", () => {
     host.open("t1::tab-1", { cwd: process.cwd(), command: ["/bin/sh"], cols: 120, rows: 10 }, {}, sink)
     host.write("t1::tab-1", "exit\n")
     await until(() => host.peek("t1::tab-1").alive === false)
-    expect(await deliverToHostedKey(deliveryRpc(host), "t1::tab-1", "true")).toBe(false)
+    expect(await deliverToHostedKey(deliveryRpc(host), "t1::tab-1", "true", { pasteReadyTimeoutMs: 200 })).toBeNull()
   })
 
   test("a SIZED reattach still resizes (tmux last-attach-wins is preserved)", async () => {

@@ -93,10 +93,11 @@ export async function startTaskSessionWithPromptAdapter(
     // lands means the prompt was not delivered — report false.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
-      return await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
+      const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
         initMarkerPath: launch.initMarkerPath,
         initTimeoutMs: launch.initTimeoutMs,
       })
+      return outcome !== null
     }
     return true
   } finally {
@@ -149,8 +150,7 @@ export async function deliverPromptToLiveEngineAdapter(
     const key = findHostedEngineKey(sessions, task.id, engineBin)
     if (!key) return false
     const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
-    const delivered = await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })
-    return delivered
+    return (await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })) !== null
   } catch (err) {
     // Composer-busy is not a silent failure: let the quota-resume runner log
     // it instead of dropping the prompt without a trace.
