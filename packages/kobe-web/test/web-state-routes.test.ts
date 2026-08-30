@@ -92,7 +92,6 @@ describe("/api/quick-prompts", () => {
       focusAccent: string
       editorKind: string
       remoteProjects: boolean
-      archivedHistoryPreview: boolean
       autoStatus: boolean
       dispatcher: boolean
       engines: Array<{ id: string; isBuiltin: boolean; isDefault: boolean }>
@@ -101,7 +100,6 @@ describe("/api/quick-prompts", () => {
     expect(empty.transparentBackground).toBe(true)
     expect(empty.focusAccent).toBe("primary")
     expect(empty.editorKind).toBe("auto")
-    expect(empty.archivedHistoryPreview).toBe(false)
     expect(empty.engines.some((engine) => engine.id === "claude" && engine.isBuiltin)).toBe(true)
 
     const patched = (await (
@@ -117,7 +115,6 @@ describe("/api/quick-prompts", () => {
             editorKind: "custom",
             editorCustomCommand: "code -w {file}",
             remoteProjects: true,
-            archivedHistoryPreview: true,
             autoStatus: true,
             dispatcher: true,
             defaultEngine: "codex",
@@ -136,7 +133,6 @@ describe("/api/quick-prompts", () => {
     expect(patched.editorKind).toBe("custom")
     expect(patched.editorCustomCommand).toBe("code -w {file}")
     expect(patched.remoteProjects).toBe(true)
-    expect(patched.archivedHistoryPreview).toBe(true)
     expect(patched.autoStatus).toBe(true)
     expect(patched.dispatcher).toBe(true)
     expect(patched.defaultEngine).toBe("codex")

@@ -7,7 +7,6 @@ export interface BoardTask {
   readonly id: string
   readonly title: string
   readonly status: string
-  readonly archived?: boolean
 }
 
 export interface EngineState {
@@ -20,14 +19,13 @@ export function frame(
   engineStates: Readonly<Record<string, string>>,
   cols = 80,
 ): string[] {
-  const active = tasks.filter((t) => !t.archived)
   const lines: string[] = ["TASK BOARD", ""]
-  for (const t of active) {
+  for (const t of tasks) {
     const state = engineStates[t.id] ?? "idle"
     const row = `${activityGlyph(state)} ${statusGlyph(t.status)} ${t.title}`.slice(0, cols)
     lines.push(row)
   }
-  if (active.length === 0) lines.push("  (no tasks)")
+  if (tasks.length === 0) lines.push("  (no tasks)")
   return lines
 }
 

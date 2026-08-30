@@ -157,18 +157,6 @@ describe("daemon web request handler", () => {
       expect(tearDown).toHaveBeenCalledWith("t9")
     })
 
-    it("tears down the session when archiving", async () => {
-      const { handle, tearDown } = build()
-      await handle(post("/api/rpc", { name: "task.archive", payload: { taskId: "t9", archived: true } }))
-      expect(tearDown).toHaveBeenCalledWith("t9")
-    })
-
-    it("does NOT tear down on un-archive (archived: false)", async () => {
-      const { handle, tearDown } = build()
-      await handle(post("/api/rpc", { name: "task.archive", payload: { taskId: "t9", archived: false } }))
-      expect(tearDown).not.toHaveBeenCalled()
-    })
-
     it("does NOT tear down on a plain mutation like rename", async () => {
       const { handle, tearDown } = build()
       await handle(post("/api/rpc", { name: "task.rename", payload: { taskId: "t9", title: "x" } }))

@@ -47,12 +47,12 @@ export function engineLabel(
 }
 
 /** Distinct engine vendors among the live worktree tasks (unset → the default,
- *  matching {@link engineLabel}; project/archived rows excluded — they aren't
+ *  matching {@link engineLabel}; project rows excluded — they aren't
  *  sessions). */
 export function distinctTaskVendors(tasks: readonly Task[]): string[] {
   const set = new Set<string>()
   for (const task of tasks) {
-    if (task.archived || task.kind === "main") continue
+    if (task.kind === "main") continue
     set.add(resolveVendor(task.vendor))
   }
   return [...set]

@@ -158,10 +158,6 @@ export type DaemonRequestName =
   | "task.list"
   | "task.get"
   | "task.create"
-  // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
-  // older CLI builds don't get "unknown daemon request" while C2 removes
-  // the CLI verb.
-  | "task.archive"
   | "task.rename"
   | "task.setBranch"
   | "task.observeLanguage"
@@ -195,10 +191,6 @@ export type DaemonRequestName =
   | "issue.mutate"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
-  // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
-  // older CLI builds don't get "unknown daemon request" while C2 removes
-  // the CLI hook path.
-  | "worktree.archiveRemoved"
   // Cross-project worktree audit (the standalone worktree-management TUI
   // page): list every worktree of every local saved project (kobe-managed
   // or not, linked to a task or not) with dirty/age/remote-branch status,
@@ -357,12 +349,6 @@ export interface SerializedTask {
   readonly scratch?: boolean
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
-  /**
-   * DEPRECATED (issue #75): archive concept removed. Kept as an optional
-   * shim for not-yet-cleaned wire consumers; always false/absent on new
-   * records and ignored by all logic.
-   */
-  readonly archived?: boolean
   readonly vendor?: DaemonTask["vendor"]
   /** Raw engine launch command as given to `add --command` / `set-command`. */
   readonly command?: DaemonTask["command"]
@@ -410,7 +396,6 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     ...(task.scratch ? { scratch: true } : {}),
     status: task.status,
     pinned: task.pinned ?? false,
-    ...(task.archived ? { archived: true } : {}),
     vendor: task.vendor,
     command: task.command,
     prStatus: task.prStatus,

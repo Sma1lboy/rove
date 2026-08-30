@@ -72,7 +72,7 @@ export interface IssueRepoOption {
   readonly repo: string
   /** Short display name: path basename, parent/basename on collision. */
   readonly label: string
-  /** Non-archived tasks currently associated with this repo. */
+  /** Tasks currently associated with this repo. */
   readonly count: number
 }
 
@@ -267,13 +267,13 @@ export function issueRepoOptions(
   }
   const mainRepos = new Set(
     tasks
-      .filter((task) => !task.archived && task.kind === "main" && task.repo)
+      .filter((task) => task.kind === "main" && task.repo)
       .map((task) => task.repo),
   )
   for (const repo of mainRepos) counts.set(repo, counts.get(repo) ?? 0)
   const knownProjects = new Set(counts.keys())
   for (const task of tasks) {
-    if (task.archived || !task.repo) continue
+    if (!task.repo) continue
     if (knownProjects.size > 0 && !knownProjects.has(task.repo)) continue
     counts.set(task.repo, (counts.get(task.repo) ?? 0) + 1)
   }

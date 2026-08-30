@@ -67,16 +67,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // DEPRECATED (issue #75): archive concept removed. Kept as a no-op so
-    // older CLI builds don't get "unknown daemon request" while C2 removes
-    // the CLI verb.
-    name: "task.archive",
-    web: true,
-    handle() {
-      return {}
-    },
-  },
-  {
     name: "task.rename",
     web: true,
     async handle(payload, ctx) {

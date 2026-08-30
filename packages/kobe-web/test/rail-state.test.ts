@@ -4,7 +4,6 @@ import {
   getRailState,
   resetRailState,
   setRailQuery,
-  setRailShowArchived,
   setRailSortMode,
   setRailStatusFilter,
 } from "../src/lib/rail-state.ts"
@@ -19,7 +18,6 @@ describe("rail-state store", () => {
       query: "",
       statusFilter: "all",
       sortMode: "default",
-      showArchived: false,
     })
   })
 
@@ -27,13 +25,11 @@ describe("rail-state store", () => {
     setRailQuery("auth")
     setRailStatusFilter("attention")
     setRailSortMode("recent")
-    setRailShowArchived(true)
     // A remount re-reads the module state — nothing resets.
     expect(getRailState()).toEqual({
       query: "auth",
       statusFilter: "attention",
       sortMode: "recent",
-      showArchived: true,
     })
   })
 

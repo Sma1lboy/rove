@@ -73,7 +73,7 @@ export const FLOWS_NAV: readonly Flow[] = [
   },
   {
     name: "task-actions",
-    summary: "What a task row offers: rename, branch, engine, archive, delete",
+    summary: "What a task row offers: rename, branch, engine, delete",
     steps: [
       {
         name: "row",
