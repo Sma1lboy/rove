@@ -1,0 +1,5 @@
+---
+"@sma1lboy/rove": patch
+---
+
+Stop three plugin silent failures around engine contributions. A plugin manifest declaring `[[engines]]` with an id from the shipped contrib catalog (gemini/opencode/cursor/grok/droid/amp) now fails validation at install/link time — previously it parsed cleanly and the engine was then dropped without a trace, so the user saw the built-in engine and assumed the plugin worked; the registration drop also logs a warning as a drift guard. Enabling or disabling a plugin in Settings → Plugins now re-reads the TUI's plugin-engine table, so an engine plugin's selector entry appears/disappears immediately instead of requiring a restart (the daemon already hot-reloads hooks; engine state is kobe-process state and was never re-read). Finally, a plugin whose manifest excludes the current platform is rendered as "not supported on this platform" in Settings instead of "enabled and healthy", and a plugin with no declared hooks shows "no hooks declared" rather than the ambiguous "never run".

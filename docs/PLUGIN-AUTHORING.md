@@ -168,7 +168,7 @@ pattern = "\\.(png|jpg)$"        # JS regex, case-insensitive, vs the file name
 action = "greet"                 # your action, invoked with the absolute path
 
 [[engines]]                      # contribute a coding-CLI engine
-id = "aider"                     # VendorId; may not shadow claude/codex/copilot/kimi
+id = "aider"                     # VendorId; may not shadow a built-in (claude/codex/copilot/kimi) or shipped engine (gemini/opencode/cursor/grok/droid/amp)
 name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
@@ -198,6 +198,10 @@ The accepted platform tokens are exactly `macos`, `linux`, and `windows`.
 A top-level list applies to the whole plugin; `platforms` on an individual
 build, startup, action, event, or pane replaces that list for that item. With
 no declaration, Rove assumes the command is portable and allows it everywhere.
+
+A plugin whose top-level `platforms` excludes the current machine stays in
+the registry but never runs; Settings → Plugins marks that row `not supported
+on this platform` rather than showing it as healthy.
 
 ## Event catalog
 

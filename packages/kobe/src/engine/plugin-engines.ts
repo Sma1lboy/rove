@@ -6,20 +6,26 @@
  * data shape the shipped catalog uses, so everything downstream — selector
  * gating, launch, screen badges, display names — is already wired).
  *
- * Called once at process start (TUI boot, next to hook install). Best-effort
- * by contract: a broken plugin manifest must never block a launch — it just
- * contributes no engine.
+ * Called at process start (TUI boot, next to hook install) and again from
+ * the Settings → Plugins toggle so enabling/disabling an engine plugin
+ * takes effect without a restart. Best-effort by contract: a broken plugin
+ * manifest must never block a launch — it just contributes no engine.
  */
 
 import { readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
-import { registerPluginEngine } from "./contrib-engines.ts"
+import { resetAvailableVendorsCache } from "./account-detect.ts"
+import { clearPluginEngines, registerPluginEngine } from "./contrib-engines.ts"
 
-/** Load engines from every enabled plugin. Returns the registered ids. */
-export function loadPluginEngines(): readonly string[] {
+/**
+ * Load engines from every enabled plugin. Returns the registered ids.
+ * `homeDir` is a test seam (a throwaway plugin registry); production reads
+ * the user's registry.
+ */
+export function loadPluginEngines(homeDir?: string): readonly string[] {
   const registered: string[] = []
   try {
-    for (const entry of loadPluginRegistry().plugins) {
+    for (const entry of loadPluginRegistry(homeDir).plugins) {
       if (!entry.enabled) continue
       try {
         const { manifest } = readPluginManifest(entry.root)
@@ -40,7 +46,15 @@ export function loadPluginEngines(): readonly string[] {
             screenManifest: { rules: engine.rules },
             identity,
           })
-          if (ok) registered.push(engine.id)
+          if (ok) {
+            registered.push(engine.id)
+          } else {
+            // Without this the engine vanishes with no trace — the user sees
+            // the shipped engine of the same name and thinks the plugin works.
+            console.warn(
+              `[rove] plugin ${entry.id}: engine id \`${engine.id}\` shadows a built-in or shipped engine — skipped`,
+            )
+          }
         }
       } catch {
         /* unreadable manifest → contributes no engines */
@@ -49,5 +63,19 @@ export function loadPluginEngines(): readonly string[] {
   } catch {
     /* registry unreadable → no plugin engines */
   }
+  return registered
+}
+
+/**
+ * Re-read plugin engines after the registry changed under a running TUI
+ * (the Settings → Plugins toggle). The contrib table and the selector's
+ * binary-discovery memo are both per-process state, so a stale entry would
+ * otherwise survive until restart — in BOTH directions (newly enabled
+ * engines missing, newly disabled ones still offered).
+ */
+export function reloadPluginEngines(homeDir?: string): readonly string[] {
+  clearPluginEngines()
+  const registered = loadPluginEngines(homeDir)
+  resetAvailableVendorsCache()
   return registered
 }
