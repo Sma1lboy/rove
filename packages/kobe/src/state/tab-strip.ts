@@ -6,7 +6,8 @@
  *
  *   - `always`      — the strip renders for every tab count, even a single
  *                     tab (whose row still carries the engine title and turn
- *                     chip). The pre-tree default.
+ *                     chip). The default (owner call 2026-08-29, restoring
+ *                     the pre-tree behaviour).
  *   - `multipleOnly`— hide the strip while a task has only one tab.
  *   - `never`       — no strip at all: the sidebar tree lists every
  *                     worktree's tabs as rows, so the horizontal strip is a
@@ -22,10 +23,12 @@ export type TabStripMode = "always" | "multipleOnly" | "never"
 export const TAB_STRIP_MODES: readonly TabStripMode[] = ["always", "multipleOnly", "never"]
 
 /**
- * The tree makes the strip redundant, so it is off by default (owner call
- * 2026-08-01). Users who want the strip back set it to `always`.
+ * On by default (owner call 2026-08-29, superseding the 2026-08-01 "off"):
+ * the tree lists tabs, but a boxed strip is the affordance that says WHICH
+ * tab the pane below is showing. Users who prefer the tree alone set
+ * `never`.
  */
-export const DEFAULT_TAB_STRIP_MODE: TabStripMode = "never"
+export const DEFAULT_TAB_STRIP_MODE: TabStripMode = "always"
 
 /** Legacy boolean key — `true` meant "hide while a task has one tab". */
 export const TAB_STRIP_HIDE_SINGLE_KEY = "chat.tabStrip.hideSingle"

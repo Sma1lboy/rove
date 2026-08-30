@@ -50,6 +50,9 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
 /** How long the running→done pulse stays emphasized. */
 const DONE_PULSE_MS = 600
 
+/** Active tab: three sides, so the missing bottom edge reads as a notch. */
+const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
+
 export function TabStrip(props: {
   tabs: readonly TerminalTab[]
   activeId: string
@@ -75,16 +78,17 @@ export function TabStrip(props: {
   const { theme } = themeCtx
   const kv = useKV()
   const dims = useTerminalDimensions()
-  // The sidebar tree lists every worktree's tabs, so the strip is off by
-  // default (owner call 2026-08-01) — Settings → Terminal brings it back.
+  // The sidebar tree lists every worktree's tabs, but the boxed strip is the
+  // affordance that says WHICH tab the pane below is showing — on by default
+  // (owner call 2026-08-29); Settings → General → Terminal switches it off.
   // Rendered as a late bail so the hooks below always run in the same order.
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
-  // Narrow (issue #14) overrides the mode: the sidebar tree — the reason
-  // the strip defaults off — is not on screen beside a narrow workspace,
-  // so the condensed strip is the only tab affordance there.
+  // Narrow (issue #14) overrides the mode: the sidebar tree is not on screen
+  // beside a narrow workspace, so the condensed strip is the only tab
+  // affordance there.
   const narrow = isNarrowWidth(dims.width)
   const hidden = !narrow && !tabStripVisible(stripMode, props.tabs.length)
 
@@ -141,10 +145,10 @@ export function TabStrip(props: {
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
     const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)
     const title = tabTitle(tab, props.vendor, liveTitle)
-    // Active tab renders as a padded accent chip (+2 cells, herdr-style
-    // highlight 2026-07-27) — the scroll math must see the same width.
+    // Every tab is a bordered box now (2 cells of frame + 2 of padding) —
+    // the scroll math must see the same width it draws.
     const active = tab.id === props.activeId
-    return { tab, turn, chipShown, title, cells: (active ? 2 : 0) + (chipShown ? 2 : 0) + displayWidth(title) }
+    return { tab, turn, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
   })
   const stripRef = useRef<BoxRenderable | null>(null)
   // Viewport cells (strip width minus the 1-cell left padding); 0 until
@@ -159,9 +163,8 @@ export function TabStrip(props: {
       activeStart = total
       activeEnd = total + entry.cells
     }
-    total += entry.cells + 1 // + the row gap; harmless surplus after the last tab
+    total += entry.cells // tabs sit flush; their frames are the gutter
   }
-  total = Math.max(0, total - 1)
   let offset = offsetRef.current
   if (availCells > 0) {
     if (activeEnd - offset > availCells) offset = activeEnd - availCells
@@ -228,10 +231,9 @@ export function TabStrip(props: {
       flexShrink={0}
       paddingLeft={1}
       overflow="hidden"
-      backgroundColor={theme.backgroundElement}
       onSizeChange={() => setAvailCells(Math.max(0, (stripRef.current?.width ?? 0) - 1))}
     >
-      <box flexDirection="row" gap={1} flexShrink={0} marginLeft={-offset}>
+      <box flexDirection="row" gap={0} flexShrink={0} marginLeft={-offset}>
         {entries.map(({ tab, turn, chipShown, title }) => {
           const pulse = pulsing.has(tab.id)
           const turnColor =
@@ -251,9 +253,15 @@ export function TabStrip(props: {
               flexDirection="row"
               gap={0}
               flexShrink={0}
-              paddingLeft={active ? 1 : 0}
-              paddingRight={active ? 1 : 0}
-              backgroundColor={active ? theme.focusAccent : undefined}
+              paddingLeft={1}
+              paddingRight={1}
+              // The notch: the ACTIVE tab omits its bottom edge, so its frame
+              // opens downward into the pane it is showing (claude-squad's
+              // `activeTabBorder`, ui/tabbed_window.go). Inactive tabs stay
+              // closed boxes.
+              border={active ? ACTIVE_TAB_SIDES : true}
+              borderStyle="rounded"
+              borderColor={active ? theme.focusAccent : theme.borderActive}
               onMouseUp={() => props.onSelect(tab.id)}
             >
               {/* Turn chip — tmux CHAT_TAB_STATUS_FORMAT's ●/✓/!/?/○. Shown
@@ -262,21 +270,15 @@ export function TabStrip(props: {
                   are placeholders with no information, so let the real state
                   (or the engine's native title) speak. Hidden while an
                   engine-owned live title is visibly carrying the same status.
-                  On the active chip every glyph flips to the contrast fg —
-                  tone colors don't survive on the accent fill. */}
+                  No fill behind the chip anymore — the active tab is an open
+                  frame, so tone colors survive on every tab. */}
               {chipShown ? (
-                <text
-                  // `backgroundElement`, not `background`: the latter is
-                  // alpha-0 in transparent mode → invisible text on the fill.
-                  fg={active ? theme.backgroundElement : turnColor}
-                  attributes={pulse ? TextAttributes.BOLD : undefined}
-                  wrapMode="none"
-                >
+                <text fg={turnColor} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
                   {`${TURN_GLYPHS[turn]} `}
                 </text>
               ) : null}
               <text
-                fg={active ? theme.backgroundElement : pulse ? theme.success : theme.textMuted}
+                fg={active ? theme.text : pulse ? theme.success : theme.textMuted}
                 attributes={pulse || active ? TextAttributes.BOLD : undefined}
                 wrapMode="none"
               >

@@ -40,7 +40,8 @@ const TABS: readonly TerminalTab[] = [
 /** `tab-1` finished; `tab-2` is where you are sitting. */
 const HOOK_STATES: ReadonlyMap<string, HookTabState> = new Map([["tab-1", { state: "turn_complete", at: AT }]])
 
-/** The strip defaults to `never`; a restart test needs it actually drawn. */
+/** The mode is set explicitly; this test is about the seen-record wiring,
+ *  not the default. */
 function seedState(seen: Record<string, number>): void {
   const home = mkdtempSync(join(tmpdir(), "kobe-tab-strip-restart-"))
   mkdirSync(join(home, ".config", "rove"), { recursive: true })

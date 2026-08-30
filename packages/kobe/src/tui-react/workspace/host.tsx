@@ -44,8 +44,8 @@ import { type WorktreeGoneEvent, useWorkspaceSelection } from "./use-workspace-s
 import { useZenMode } from "./use-zen-mode"
 
 function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
-  const { theme, transparentBackground } = useTheme()
-  const inactiveBorder = transparentBackground ? theme.border : theme.borderSubtle
+  const { theme } = useTheme()
+  const inactiveBorder = theme.borderActive
   const dialog = useDialog()
   const kv = useKV()
   const focus = useFocus()
@@ -342,6 +342,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
         <box
           flexGrow={1}
           flexShrink={1}
+          borderStyle="rounded"
           borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
           onMouseUp={() => focus.setFocused("workspace")}
         >

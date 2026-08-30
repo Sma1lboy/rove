@@ -26,16 +26,17 @@ export function HostFilesPane(props: {
   readonly onZenToggle: () => void
   readonly onCreatePR: () => void
 }) {
-  const { theme, transparentBackground } = useTheme()
+  const { theme } = useTheme()
   const focus = useFocus()
   const dims = useTerminalDimensions()
-  const inactiveBorder = transparentBackground ? theme.border : theme.borderSubtle
+  const inactiveBorder = theme.borderActive
   const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - SIDEBAR_WIDTH)
   const width = Math.max(WORKTREE_TOOLS_MIN_WIDTH, Math.min(WORKTREE_TOOLS_MAX_WIDTH, Math.floor(available / 3)))
   return (
     <box
       width={width}
       flexShrink={0}
+      borderStyle="rounded"
       borderColor={focus.focused === "files" ? theme.focusAccent : inactiveBorder}
       onMouseUp={() => focus.setFocused("files")}
     >
