@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.10
+
+### Patch Changes
+
+- [#636](https://github.com/Sma1lboy/rove/pull/636) [`6afa449`](https://github.com/Sma1lboy/rove/commit/6afa4499b23d00f29a34e84a918de7267dd38a58) Every engine now answers "what is my session id" and "how do I resume it" for itself, so a restart reconnects a kimi or wrapper-engine tab to its conversation instead of opening a blank one.
+
+  Session identity was hard-coded to Claude in two places: the launch pinned an id only when the vendor was literally named `claude`, and the restart path always appended Claude's `--resume` flag. Kimi tabs therefore never recorded an id at all — and neither did custom wrapper engines like a `claudecpa` preset, which is a Claude launch under another name. Each engine now declares its own session verbs (`engine/session-identity.ts`): Claude pins `--session-id` and resumes with `--resume`, Codex resumes through its `resume` subcommand, and Kimi — whose CLI can only reopen an existing session, never name a new one — has its id discovered from its session store after the fact and resumes with `-S`. A custom preset inherits the verbs of the protocol it declares. An engine with no resume verb starts a fresh conversation honestly rather than being passed a flag that would kill its launch.
+
+  Also fixes the restart existence check, which asked whether Rove could parse a session's messages rather than whether the session existed — so engines that ship no message parser reported every conversation as absent. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#637](https://github.com/Sma1lboy/rove/pull/637) [`6eaa00d`](https://github.com/Sma1lboy/rove/commit/6eaa00dd65cba74785dc50806847a297b959900e) Record an audit line for every task deletion, and stop dropping a task's tabs silently.
+
+  Task deletion previously logged only when the worktree removal FAILED, so a successful delete — the case that actually closes someone's tabs — left no trace, and no delete recorded who asked for it. `~/.rove/daemon.log` now carries a `task-deletion-audit` line per phase (`requested` / `removed` / `failed`) naming the task, its branch and worktree, the flags, and the caller's verified Rove session when `rove api delete` was run from inside one. A `failed` line also spells out that the session teardown and Inbox cleanup already ran while the worktree and task entry remain.
+
+  Separately, when a task's worktree disappears out-of-band (another client, the worktrees page, another agent), Rove drops every tab of that task. It now says so in a toast — how many tabs closed and that the branch survives — instead of doing it silently. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.9
 
 ### Patch Changes
