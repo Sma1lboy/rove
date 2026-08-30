@@ -209,7 +209,20 @@ export class Orchestrator {
     // the sidebar's PROJECTS rows ARE the main tasks (sidebar/groups.ts),
     // so a task created for a brand-new repo would float with no project
     // row. Every creation path therefore guarantees its own project entry.
-    await this.ensureMainTask(input.repo)
+    // Normalize to the git toplevel BEFORE anything reads `input.repo`.
+    // `ensureMainTask` already normalizes internally, so a caller passing a
+    // SUBDIRECTORY (`rove` run from `my-monorepo/packages/app`, whose path
+    // passes `validateRepoPath` because `rev-parse --git-dir` succeeds in a
+    // subdir) used to split into two sidebar projects: the main row keyed on
+    // `/my-monorepo`, this task keyed on `/my-monorepo/packages/app` — a
+    // ghost project named after a subdirectory, with its own worktree root.
+    // `rove add` (via addSavedRepo) and `rove api add` (via resolveRepoRoot)
+    // both already resolve; this makes the orchestrator entry point agree,
+    // which covers the TUI dialog and every future caller at once.
+    // Dir/scratch tasks do NOT come through here (see openDirectoryTask),
+    // so pinning a user-owned directory is unaffected.
+    const mainTask = await this.ensureMainTask(input.repo)
+    const repo = mainTask.repo
     const title = (input.title ?? PLACEHOLDER_TASK_TITLE).trim() || PLACEHOLDER_TASK_TITLE
     // Leave the branch EMPTY for a lazily-allocated task (unless the caller
     // gave an explicit one): {@link ensureWorktree} derives a repo-convention
@@ -218,7 +231,7 @@ export class Orchestrator {
     // resolved against the repo's live branch list at materialise time, and
     // deferring also lets the branch follow a rename made before first enter.
     const task = await this.store.create({
-      repo: input.repo,
+      repo,
       title,
       branch: input.branch ?? "",
       worktreePath: "",

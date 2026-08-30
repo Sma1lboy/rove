@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   setPersistedBool: vi.fn(),
   npxSkillsArgv: vi.fn(() => ["skills", "add", "stub"]),
   npxSkillsCommand: vi.fn(() => "npx skills add stub"),
+  isNpxMissing: vi.fn(() => false),
+  markSkillHintSeen: vi.fn(),
   runOnboardingWizard: vi.fn(),
 }))
 
@@ -28,6 +30,8 @@ vi.mock("../../src/state/store.ts", () => ({
 vi.mock("../../src/lib/skill-install.ts", () => ({
   npxSkillsArgv: mocks.npxSkillsArgv,
   npxSkillsCommand: mocks.npxSkillsCommand,
+  isNpxMissing: mocks.isNpxMissing,
+  markSkillHintSeen: mocks.markSkillHintSeen,
 }))
 vi.mock("../../src/tui-react/onboarding/host.tsx", () => ({
   runOnboardingWizard: mocks.runOnboardingWizard,
@@ -119,6 +123,9 @@ describe("applyOnboardingChoices", () => {
 
   beforeEach(() => {
     stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
+    // vi.clearAllMocks() wipes the hoisted default return too, so restore the
+    // "npx is present" baseline every test starts from.
+    mocks.isNpxMissing.mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -155,7 +162,53 @@ describe("applyOnboardingChoices", () => {
     const lines = stdoutLines(stdoutSpy)
     expect(lines.some((l) => l.includes("rove completions --help"))).toBe(true)
     expect(lines.some((l) => l.includes("rove skill install"))).toBe(true)
-    expect(lines.some((l) => l.includes("kobe"))).toBe(false)
+  })
+
+  // The package ships BOTH bins. The final "Run `…` to launch the TUI" line
+  // used to be the ONE line in the wizard that didn't interpolate the invoked
+  // name — a `kobe` user was sent to run a command they'd never installed
+  // under that name. Asserting the kobe direction is the point: the previous
+  // test only checked rove, where the hardcoded literal happened to be right.
+  it("tells a kobe user to run kobe, not rove", async () => {
+    setProduct("kobe")
+    const { applyOnboardingChoices } = await import("../../src/cli/onboarding.ts")
+    applyOnboardingChoices({ completions: false, skill: false }, "bash")
+    const lines = stdoutLines(stdoutSpy)
+    const readyLine = lines.find((l) => l.includes("launch the TUI"))
+    expect(readyLine).toBeDefined()
+    expect(readyLine).toContain("kobe")
+    expect(readyLine).not.toContain("rove")
+  })
+
+  // Declining the skill in the wizard must silence the one-time startup hint:
+  // the user answered this question seconds ago, and the hint is the same
+  // question again on stderr at the next launch.
+  it("marks the skill hint seen when the user declines in the wizard", async () => {
+    setProduct("rove")
+    const { applyOnboardingChoices } = await import("../../src/cli/onboarding.ts")
+    applyOnboardingChoices({ completions: false, skill: false }, "bash")
+    expect(mocks.markSkillHintSeen).toHaveBeenCalled()
+  })
+
+  it("does not mark the hint seen when the user accepts the skill", async () => {
+    setProduct("rove")
+    mocks.spawnSync.mockReturnValue({ status: 0 })
+    const { applyOnboardingChoices } = await import("../../src/cli/onboarding.ts")
+    applyOnboardingChoices({ completions: false, skill: true }, "bash")
+    expect(mocks.markSkillHintSeen).not.toHaveBeenCalled()
+  })
+
+  // install.sh installs Bun and Rove but never Node, so a missing `npx` is the
+  // default state for anyone who followed the QUICKSTART. Say Node is missing
+  // rather than spawning and pointing at a retry command that needs it too.
+  it("explains Node is missing instead of spawning npx", async () => {
+    setProduct("rove")
+    mocks.isNpxMissing.mockReturnValue(true)
+    const { applyOnboardingChoices } = await import("../../src/cli/onboarding.ts")
+    applyOnboardingChoices({ completions: false, skill: true }, "bash")
+    const lines = stdoutLines(stdoutSpy)
+    expect(lines.some((l) => l.includes("npx") && l.includes("Node"))).toBe(true)
+    expect(mocks.spawnSync).not.toHaveBeenCalled()
   })
 
   it("prints a failure hint when the skill installer exits non-zero", async () => {

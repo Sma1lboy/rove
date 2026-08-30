@@ -5,13 +5,16 @@ import { fileURLToPath } from "node:url"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   KOBE_SKILL_VERSION,
+  NPX_MISSING_EXIT,
   bundledSkillDir,
   isKobeSkillInstalled,
+  isNpxMissing,
   kobeSkillPaths,
   kobeSkillState,
   npxSkillsArgv,
   npxSkillsCommand,
   parseSkillVersion,
+  runNpxSkillsInstall,
   skillInstallCommand,
 } from "../../src/lib/skill-install.ts"
 
@@ -170,5 +173,46 @@ describe("skill version / staleness", () => {
       installedVersion: null,
       stale: true,
     })
+  })
+})
+
+/**
+ * `curl https://rove.run/install.sh | sh` installs Bun and Rove and never
+ * Node, so a missing `npx` is the DEFAULT state for anyone who followed the
+ * QUICKSTART. `Bun.spawn` THROWS on a missing binary (unlike `spawnSync`,
+ * which returns a status), and nothing on this path caught it — the throw
+ * escaped to `main().catch` and printed
+ * `rove failed to start: Executable not found in $PATH: "npx"`.
+ */
+describe("npx preflight", () => {
+  it("reports npx missing when it isn't on PATH", () => {
+    const realPath = process.env.PATH
+    process.env.PATH = tempDir()
+    try {
+      expect(isNpxMissing()).toBe(true)
+    } finally {
+      process.env.PATH = realPath
+    }
+  })
+
+  it("returns an exit code instead of throwing when npx is absent", async () => {
+    const realPath = process.env.PATH
+    const stderr: string[] = []
+    const write = process.stderr.write.bind(process.stderr)
+    process.stderr.write = ((chunk: string) => {
+      stderr.push(String(chunk))
+      return true
+    }) as typeof process.stderr.write
+    process.env.PATH = tempDir()
+    try {
+      // Must RESOLVE, not reject — the old Bun.spawn path threw here.
+      await expect(runNpxSkillsInstall()).resolves.toBe(NPX_MISSING_EXIT)
+      const said = stderr.join("")
+      expect(said).toContain("npx")
+      expect(said).toContain("Node")
+    } finally {
+      process.env.PATH = realPath
+      process.stderr.write = write
+    }
   })
 })

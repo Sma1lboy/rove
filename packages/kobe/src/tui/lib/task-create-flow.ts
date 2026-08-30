@@ -85,10 +85,12 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     discoverAdoptable: orch ? (repo) => orch.discoverAdoptableWorktrees(repo) : undefined,
   })
   if (!result) return
-  ctx.rememberVendor(result.repo, result.vendor)
   // Auto-save the chosen repo so the saved list self-populates and
-  // `kobe add` stays optional.
-  addSavedRepo(result.repo)
+  // `kobe add` stays optional. `addSavedRepo` normalizes to the git toplevel
+  // and RETURNS that path — use it, so a repo entered as a subdirectory is
+  // remembered and vendor-keyed under the same root the task record gets.
+  const repo = addSavedRepo(result.repo).path
+  ctx.rememberVendor(repo, result.vendor)
   ctx.onRepoSaved?.()
   if (!orch) {
     // The dialog has already closed by here. Without a toast the submit reads
@@ -115,7 +117,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     for (const w of result.adopt) {
       try {
         const task = await orch.adoptWorktree({
-          repo: result.repo,
+          repo,
           worktreePath: w.worktreePath,
           branch: w.branch,
           vendor: result.vendor,
@@ -136,7 +138,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   } else {
     try {
       const task = await orch.createTask({
-        repo: result.repo,
+        repo,
         baseRef: result.baseRef,
         vendor: result.vendor,
       })

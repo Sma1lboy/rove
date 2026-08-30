@@ -43,12 +43,15 @@ export const en = {
   installingSkill: "installing the Rove agent skill ({command})…",
   /** Post-wizard: skill installer failed; {command} retries it */
   skillFailed: "! skill install failed — retry with `{command}`",
+  /** Post-wizard: the skill installer needs Node/npx, which isn't installed */
+  skillNeedsNode:
+    "! agent skill needs `npx` (part of Node.js) — install Node from https://nodejs.org, then run `{command}`",
   /** Post-wizard: skill declined; {command} re-runs it later */
   skippedSkill: "· agent skill skipped — run `{command}` anytime",
   /** Final ready banner */
   ready: "You're ready to go!",
-  /** Final hint: how to start */
-  readyHint: "Run `rove` to launch the TUI.",
+  /** Final hint: how to start; {command} is the CLI name the user invoked */
+  readyHint: "Run `{command}` to launch the TUI.",
 }
 
 export const zh: typeof en = {
@@ -71,7 +74,9 @@ export const zh: typeof en = {
   skippedCompletions: "· 已跳过补全 — 之后可随时运行 `{command}`",
   installingSkill: "正在安装 Rove agent skill（{command}）…",
   skillFailed: "! skill 安装失败 — 可用 `{command}` 重试",
+  skillNeedsNode:
+    "! agent skill 需要 `npx`（Node.js 的一部分）— 请从 https://nodejs.org 安装 Node，然后运行 `{command}`",
   skippedSkill: "· 已跳过 agent skill — 之后可随时运行 `{command}`",
   ready: "一切就绪！",
-  readyHint: "运行 `rove` 启动 TUI。",
+  readyHint: "运行 `{command}` 启动 TUI。",
 }
