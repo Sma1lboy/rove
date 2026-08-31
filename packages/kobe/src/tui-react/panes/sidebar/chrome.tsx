@@ -166,7 +166,13 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   return (
     // One content row, no vertical padding: this is the tallest-pressure
     // panel in the product, so the action must cost exactly one line.
-    <box flexShrink={0} paddingLeft={1} paddingRight={1}>
+    //
+    // The left inset lives HERE and nowhere else. The inner box carries the
+    // filled background, so it needs its own horizontal padding to keep the
+    // label off the fill's edge — and adding an inset on this wrapper too put
+    // the label at column 2 while every other sidebar element (the ROVE
+    // header, the nav rail, the tree rows, the ZEN chip) starts at column 1.
+    <box flexShrink={0} paddingRight={1}>
       <box
         position="relative"
         flexDirection="row"
