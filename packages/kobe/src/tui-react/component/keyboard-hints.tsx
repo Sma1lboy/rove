@@ -71,6 +71,11 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   const dialog = useOptionalDialog()
   const keymapVersion = useKeymapVersion()
   const stackVersion = useBindingStackVersion()
+  // The ONE thing the effect needs from kv, read during render as a plain
+  // boolean. `kv` itself must not be a dependency: KVProvider rebuilds its
+  // context value on every snapshot, so any `kv.set` anywhere in the app
+  // hands this hook a new identity — see the effect's note below.
+  const hintsEnabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
   const [snapshot, setSnapshot] = useState<{ tokens: readonly StatusHintToken[]; modal: boolean }>({
     tokens: [],
     modal: false,
@@ -84,7 +89,7 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // compare-and-set keeps the no-change case from looping.
   // biome-ignore lint/correctness/useExhaustiveDependencies: the version/focus deps are INVALIDATION KEYS, not values this body reads — it reads live module state (currentBindingReachability, modalActive, currentPrefixConfiguration) whose changes are observable ONLY through them. Dropping them restores the no-dependency-array loop described below.
   useEffect(() => {
-    const enabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
+    const enabled = hintsEnabled
     // Two independent signals, both meaning "an overlay owns input": the
     // registered modal barrier, and a non-empty dialog stack. The stack
     // fills a render EARLIER (the workspace bindings gate themselves off
@@ -117,12 +122,24 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
     // prefix state churn) got past the compare and the workspace crashed with
     // "Maximum update depth exceeded".
     //
-    // These four ARE the effect's inputs: the two version counters cover every
+    // These ARE the effect's inputs: the two version counters cover every
     // keymap/registration change, and focus + the dialog stack cover the rest
-    // of what reachability reads. `kv` is a stable context value. The
-    // after-commit timing the comment above relies on is unchanged — an effect
-    // with dependencies still runs after the commit that changed them.
-  }, [keymapVersion, stackVersion, focus?.focused, dialog?.stack.length, kv])
+    // of what reachability reads. The after-commit timing the comment above
+    // relies on is unchanged — an effect with dependencies still runs after
+    // the commit that changed them.
+    //
+    // `kv` is NOT among them, and that is the whole fix (React #185 again,
+    // this time on boot with the dependency array already in place).
+    // `KVProvider` rebuilds its context value from a `useMemo` keyed on the
+    // kv snapshot, so EVERY `kv.set` anywhere in the app — tab adoption
+    // writing a task's tab list, a pane marking a hint used — hands this hook
+    // a brand-new `kv` object. As a dependency that re-ran the effect on all
+    // of them, which is the same "runs on every render" the array was
+    // supposed to stop: setSnapshot -> footer re-render -> sidebar rows
+    // remount -> stackVersion bumps -> kv writes -> round again, 50 deep.
+    // Only the enabled FLAG is read here, so depend on that boolean instead:
+    // it changes when the user toggles hints, not when unrelated state lands.
+  }, [keymapVersion, stackVersion, focus?.focused, dialog?.stack.length, hintsEnabled])
   // Click = the action the advertised key would run. Arming the prefix goes
   // through the REAL dispatcher state, so the which-key guide that appears
   // accepts a keyboard second stroke exactly like a pressed ctrl+a.
@@ -146,7 +163,7 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // terminals disagree on whether it takes 1 or 2 cells and the row
   // misaligns per OS/font. Stays on screen while a modal owns input, but
   // inert — Settings must not open under a dialog.
-  if (opts?.onOpenSettings && !opts.compact && keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))) {
+  if (opts?.onOpenSettings && !opts.compact && hintsEnabled) {
     items.push({
       text: `[${t("hints.status.settings")}]`,
       bindingId: "settings.open",
