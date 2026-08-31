@@ -14,7 +14,7 @@
 import { adoptTabs } from "../../tui/workspace/tabs-adopt"
 import type { TabsState } from "../../tui/workspace/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabAdopt, tabsByTask, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
+import { requestTabAdopt, setTaskTabs, tabsByTask, takeUnclaimedTabAdopt } from "./terminal-tabs-shared"
 
 /**
  * Register `tabIds` as engine tabs of `taskId`. No-op when they are all
@@ -38,7 +38,7 @@ export function adoptTaskTabs(kv: TabsSnapshotKv, taskId: string, tabIds: readon
   const next = adoptTabs(state ?? empty, tabIds)
   if (state && next === state) return false
 
-  tabsByTask.set(taskId, next)
+  setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
   return true
 }

@@ -90,7 +90,7 @@ import { noteEngineTabInput } from "./optimistic-activity"
 import { TabStrip, tabTitle } from "./tab-strip"
 import { releaseClosedTabPtys } from "./terminal-tabs-close"
 import { terminalTabsKey } from "./terminal-tabs-persist"
-import { reportTabsDelta, tabsByTask } from "./terminal-tabs-shared"
+import { reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
@@ -194,7 +194,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     // the shell; an engine only appears if the user types one.
     const fresh =
       fromDisk ?? (props.scratch === true ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined))
-    tabsByTask.set(props.taskId, fresh)
+    tabsByTask.set(props.taskId, fresh) // silent: render phase, see setTaskTabs
     return fresh
   }
 
@@ -203,7 +203,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const update = (next: TabsState): void => {
     reportTabsDelta(propsRef.current.taskId, stateRef.current.tabs, next.tabs)
-    tabsByTask.set(propsRef.current.taskId, next)
+    setTaskTabs(propsRef.current.taskId, next)
     stateRef.current = next
     setState(next)
     kv.set(persistKey, next)
