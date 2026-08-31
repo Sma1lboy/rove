@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.9.61
+
+### Patch Changes
+
+- [#696](https://github.com/Sma1lboy/rove/pull/696) [`3bfec12`](https://github.com/Sma1lboy/rove/commit/3bfec12d37e25f4653cbe10811559b6390a31f73) Close a task's last tab, and let a project you're done with leave the sidebar.
+
+  `ctrl+w` used to refuse a task's only tab with a toast. It now closes it: the task keeps its sidebar row and its worktree, and `⏎` or `ctrl+e` starts a session there again. Scratch tasks are unchanged — their last tab still ends the task, since the shell is the whole session.
+
+  A project whose only row is its main checkout disappears from the sidebar once you close that checkout's last tab. Nothing is deleted: the repo stays in the new-task picker, and opening it there brings the project back. This is deliberately narrower than Forget (`d` on the row), which un-saves the repo — closing the last tab means "done here for now", not "remove this". A project with worktree tasks under it always stays visible, however many tabs are closed, because those rows are how you get back to that work.
+
+  Sidebar projects and the new-task picker are now the same set. A project row minted by creating a task never reached the saved-repos list, so it was a project you could see but not pick — 6 of 8 on one machine. Both are written together now, and existing rows are backfilled on daemon start.
+
+  The project row's right-click menu also gained "Remove project", which `d` on that row has always done. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#695](https://github.com/Sma1lboy/rove/pull/695) [`27f0d50`](https://github.com/Sma1lboy/rove/commit/27f0d5061f5588300db29656a25f526b2cc59fa0) Stop `api delete` from reporting a refused or failed deletion as a successful one.
+
+  Every outcome returned the same empty object: a queued deletion, a refusal, and a removal that failed in the background were indistinguishable on the wire. A batch cleanup could report 21 successes while leaving worktrees behind, and the only record of the failure was a line in `daemon.log` the caller never sees.
+
+  The reply now carries `queued` (was the request scheduled at all) and `status`. New `--wait` follows the background removal to its outcome — `removed`, or `failed` with git's own error message — so a script deleting a list of tasks can tell which ones actually went. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#693](https://github.com/Sma1lboy/rove/pull/693) [`5cd58af`](https://github.com/Sma1lboy/rove/commit/5cd58af0b66fb743c267db9b8047744a5b672962) Releases are now batched instead of shipping on every merge to `main`, and there's a new nightly channel for anyone who wants the unbatched stream. Merging a PR banks its changeset; a release happens when the Changesets workflow is run (or `scripts/release.sh`) and consumes everything banked since the last one. `rove update nightly` switches to a daily automated cut of `main` — same test gates as a release, just not reviewed as a set — and `rove update latest` switches back. There's no channel setting to configure: the build you're running is the channel, so update checks follow it and switching is just installing from the other one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#696](https://github.com/Sma1lboy/rove/pull/696) [`3bfec12`](https://github.com/Sma1lboy/rove/commit/3bfec12d37e25f4653cbe10811559b6390a31f73) Stop the sidebar's project list from growing rows nobody asked for.
+
+  Creating a task, adopting a worktree, or starting an issue chat used to mint a permanent `kind:"main"` project row for whatever path was involved — including test fixtures under `/tmp`, repos inside `.dev-sandbox`, and checkouts nested in Rove's own worktrees directory. Those rows were also unremovable: `task.delete` refuses a main row ("remove the repo from saved repos instead") while `rove remove` refuses a repo that was never in `savedRepos`, which is exactly the set they belonged to.
+
+  A single admission gate now decides what may become a project, applied inside `addSavedRepo` and the main-row coordinator so no caller can skip it. Inferred projects are held to a stricter rule than ones you name yourself: `rove add /tmp/scratch-repo` still works, while a task created against that same path no longer leaves a project row behind. The task itself is unaffected — it renders under a header derived from its own repo, which simply dies with it.
+
+  `rove .` in a git repo's root now opens that repo AS the project, instead of creating a throwaway directory session beside the project row it would later be promoted into. A subdirectory, a plain folder, or a repo at an ineligible path keeps the previous directory-session behaviour.
+
+  `rove add` also reports a refusal properly instead of printing "already saved" for a path it declined to store. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#694](https://github.com/Sma1lboy/rove/pull/694) [`5503aaa`](https://github.com/Sma1lboy/rove/commit/5503aaa446d5f4f33c31bc941fe6ee7a6e46de87) `rove update` installs into the prefix that owns the binary you are running
+
+  On a machine with more than one node install — nvm and homebrew, say —
+  `npm install -g` writes to the prefix of whichever node happens to run npm,
+  which is not necessarily the prefix holding the `rove` on your PATH. The
+  update landed somewhere PATH never looked, and the stale copy kept running.
+
+  The update script now resolves the running binary back to its own prefix and
+  pins the install there. It also warns when a second install is on PATH,
+  naming which one it updated and which ones it left alone. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.60
 
 ### Patch Changes
