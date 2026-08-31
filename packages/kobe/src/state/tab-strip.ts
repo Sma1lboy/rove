@@ -6,12 +6,11 @@
  *
  *   - `always`      — the strip renders for every tab count, even a single
  *                     tab (whose row still carries the engine title and turn
- *                     chip). The default (owner call 2026-08-29, restoring
- *                     the pre-tree behaviour).
+ *                     chip).
  *   - `multipleOnly`— hide the strip while a task has only one tab.
  *   - `never`       — no strip at all: the sidebar tree lists every
  *                     worktree's tabs as rows, so the horizontal strip is a
- *                     second copy of the same list (owner call 2026-08-01).
+ *                     second copy of the same list. The default.
  *
  * kv-persisted; read live by `tui-react/workspace/TerminalTabs.tsx`.
  */
@@ -23,12 +22,15 @@ export type TabStripMode = "always" | "multipleOnly" | "never"
 export const TAB_STRIP_MODES: readonly TabStripMode[] = ["always", "multipleOnly", "never"]
 
 /**
- * On by default (owner call 2026-08-29, superseding the 2026-08-01 "off"):
- * the tree lists tabs, but a boxed strip is the affordance that says WHICH
- * tab the pane below is showing. Users who prefer the tree alone set
- * `never`.
+ * Off by default (owner call 2026-08-31, reverting the 2026-08-29 "always").
+ *
+ * The sidebar tree already lists every worktree's tabs as rows, and the
+ * active one is marked there — so the strip is a second copy of a list that
+ * is already on screen, spending a row of the content pane to say what the
+ * tree says for free. `always` / `multipleOnly` are still there in
+ * Settings → General → Terminal for anyone who wants it back.
  */
-export const DEFAULT_TAB_STRIP_MODE: TabStripMode = "always"
+export const DEFAULT_TAB_STRIP_MODE: TabStripMode = "never"
 
 /** Legacy boolean key — `true` meant "hide while a task has one tab". */
 export const TAB_STRIP_HIDE_SINGLE_KEY = "chat.tabStrip.hideSingle"

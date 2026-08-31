@@ -14,17 +14,26 @@
  */
 
 import { expect, test } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { useState } from "react"
 import type { ChatTabTurnState } from "../../src/engine/turn-detector"
+import { TAB_STRIP_MODE_KEY } from "../../src/state/tab-strip"
 import { useBindings } from "../../src/tui-react/lib/keymap"
 import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
+// The strip is OFF by default (2026-08-31) — the sidebar tree already lists
+// these tabs. This file is about what it DRAWS when asked for, so the mode is
+// pinned to `always` for every test here.
 process.env.KOBE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "kobe-tab-strip-boxed-"))
+mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+writeFileSync(
+  join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+  JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
+)
 
 const count = (haystack: string, needle: string): number => haystack.split(needle).length - 1
 
