@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.64
+
+### Patch Changes
+
+- [#706](https://github.com/Sma1lboy/rove/pull/706) [`09b1841`](https://github.com/Sma1lboy/rove/commit/09b1841d7b445856dc811f0fbb1e7b2ff2461e70) Let a forced delete clear a task whose worktree lost its repo.
+
+  When a worktree's upstream checkout is destroyed — a deleted clone, or macOS pruning one under `/tmp` — `git worktree remove` has nothing to resolve, so removal threw and the task stuck at `deletion.phase: "error"`. Retrying re-ran the same unsatisfiable path, and `--force` never reached: the repo lookup threw before the force flag was read. No supported command could clear the entry; the only way out was moving the directory by hand so Rove took its path-does-not-exist branch.
+
+  A forced removal now deletes the orphaned directory outright, guarded by path — only a directory under a Rove-managed worktrees root qualifies, so force is still not permission to delete something Rove never created. Without `force` the case stays an error, as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.63
 
 ### Patch Changes
