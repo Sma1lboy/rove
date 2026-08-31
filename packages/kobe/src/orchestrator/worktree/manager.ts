@@ -40,6 +40,7 @@ import {
   renameBranch,
 } from "./manager-branch.ts"
 import { type ListDeps, adoptablePaths, listAllAdoptable, listBranchNames, listManaged } from "./manager-list.ts"
+import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
@@ -191,90 +192,22 @@ export class GitWorktreeManager implements WorktreeManager {
     return this.create(args.repo, args.branch, target, args.baseRef)
   }
 
-  /**
-   * Remove a worktree. Refuses to remove a dirty worktree unless
-   * `opts.force` is true.
-   *
-   * On success the directory is gone and the worktree is deregistered from the
-   * repo's metadata. The branch is left in place UNLESS `opts.deleteBranch` is
-   * set — then it's also deleted (`git branch -d`, or `-D` under `force`), so a
-   * task delete/land doesn't leave the loser branch piling up. Branch deletion
-   * is best-effort: it runs after the worktree is gone and a failure (branch
-   * checked out elsewhere, name gone) is swallowed, never masking a successful
-   * removal.
-   *
-   * `force` bypasses the dirty check, so uncommitted edits and untracked files
-   * are destroyed. Every force path first takes a salvage snapshot
-   * ({@link salvageWorktree}) into `refs/rove/salvage/<branch>-<stamp>` — this
-   * is the one chokepoint all three force callers share, so the guard lives
-   * here rather than in each of them. `onSalvage` reports the ref so the caller
-   * can surface it; salvage never fails the removal the caller asked for.
-   */
-  async remove(
-    worktreePath: string,
-    opts?: {
-      readonly force?: boolean
-      readonly deleteBranch?: boolean
-      /** Notified with the snapshot a force-removal took (null = nothing to
-       *  save, or the snapshot could not be written). */
-      readonly onSalvage?: (record: SalvageRecord | null) => void
-    },
-  ): Promise<void> {
-    requireAbsolute("path", worktreePath)
-    const exec = this.execDeps.execForPath(worktreePath)
-    const force = opts?.force === true
-
-    if (!(await exec.exists(worktreePath))) {
-      // Best-effort metadata prune — the directory may be gone but a
-      // stale entry can survive in `.git/worktrees/`. `git worktree
-      // remove` will refuse, so we use prune.
-      const repo = await this.findRepoFor(exec, worktreePath)
-      if (repo) await this.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
-      return
-    }
-
-    // Resolve the owning repo via `rev-parse --git-common-dir` from
-    // inside the worktree itself. This is the only reliable way to get
-    // back to the main repo when the caller hands us only the path.
-    const repo = await this.findRepoFor(exec, worktreePath)
-    if (!repo) {
-      throw new Error(`remove(): ${worktreePath} is not a git worktree`)
-    }
-
-    // Capture the branch BEFORE removal (once the worktree is gone we can't
-    // read its HEAD) so an opt-in `deleteBranch` can clean it up after.
-    const branch = opts?.deleteBranch ? await this.currentBranch(worktreePath).catch(() => null) : null
-
-    if (force) {
-      // The last moment at which the doomed files still exist. The dirty check
-      // below is exactly what `force` skips, so this is also the only place
-      // that still sees what is being skipped over.
-      const salvaged = await salvageWorktree({ runGit: (e, a, o) => this.runGit(e, a, o) }, exec, worktreePath)
-      opts?.onSalvage?.(salvaged)
-    } else {
-      const dirty = await this.isDirty(worktreePath)
-      if (dirty) {
-        throw new Error(
-          `remove(): refusing to remove dirty worktree at ${worktreePath} (pass { force: true } to override)`,
-        )
-      }
-    }
-
-    // `--force` here is the git CLI's "remove even if locked / has
-    // submodule mods" flag. Even with our `force=false` early-out, we
-    // pass --force to git so an unlocked-but-untracked-files case (rare
-    // — we already checked dirty) doesn't bounce. Dirty refusal lives
-    // in our layer, not git's.
-    const args = force ? ["worktree", "remove", "--force", worktreePath] : ["worktree", "remove", worktreePath]
-    await this.runGit(exec, args, { cwd: repo })
-
-    // Defensive prune — cleans up `.git/worktrees/<name>/` if the
-    // remove left it behind (rare, but documented in vibe-kanban).
-    await this.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
-
-    // Anchored like `deleteBranch`: `-D` takes the reflog too, and this
-    // worktree's own reflog died with the directory a few lines up.
-    if (branch) await deleteBranchAnchored(this.branchDeps(), exec, repo, branch, { force })
+  /** Remove a worktree — body in `manager-remove.ts` (file-size cap). Refuses
+   *  a dirty worktree unless `opts.force`; a forced removal salvages first and
+   *  can also clear a worktree whose upstream repo is gone. */
+  async remove(worktreePath: string, opts?: RemoveOpts): Promise<void> {
+    await removeWorktree(
+      {
+        runGit: (exec, args, runOpts) => this.runGit(exec, args, runOpts),
+        execForPath: (p) => this.execDeps.execForPath(p),
+        findRepoFor: (exec, p) => this.findRepoFor(exec, p),
+        currentBranch: (p) => this.currentBranch(p),
+        isDirty: (p) => this.isDirty(p),
+        branchDeps: () => this.branchDeps(),
+      },
+      worktreePath,
+      opts,
+    )
   }
 
   /** Delete a branch in `repo` — body in `manager-branch.ts`. A forced delete

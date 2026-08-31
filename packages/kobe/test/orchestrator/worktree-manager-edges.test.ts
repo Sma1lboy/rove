@@ -8,7 +8,7 @@
  */
 
 import { execSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -17,6 +17,10 @@ import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 let root: string
 let repo: string
 let manager: GitWorktreeManager
+/** `<home>/.rove/worktrees` for the temp home below — the root that makes a
+ *  path Rove's to delete outright (see isUnderManagedWorktreesRoot). */
+let managedRoot: string
+let previousHome: string | undefined
 
 const gitEnv = {
   ...process.env,
@@ -28,6 +32,13 @@ const gitEnv = {
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wtm-edge-")))
+  // The managed-roots guard reads `$KOBE_HOME_DIR`; point it at the temp root
+  // so the orphaned-worktree cases below exercise a REAL managed root instead
+  // of the developer's own `~/.rove`.
+  previousHome = process.env.KOBE_HOME_DIR
+  process.env.KOBE_HOME_DIR = root
+  managedRoot = join(root, ".rove", "worktrees")
+  mkdirSync(managedRoot, { recursive: true })
   repo = join(root, "repo")
   mkdirSync(repo)
   execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: repo, env: gitEnv })
@@ -35,6 +46,8 @@ beforeAll(() => {
 })
 
 afterAll(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+  else process.env.KOBE_HOME_DIR = previousHome
   rmSync(root, { recursive: true, force: true })
 })
 
@@ -61,6 +74,55 @@ describe("remove() / currentBranch() edges", () => {
     const plain = join(root, "plain-dir")
     mkdirSync(plain)
     await expect(manager.remove(plain)).rejects.toThrow(/is not a git worktree/)
+  })
+
+  it("remove({force}) deletes a worktree whose upstream repo is gone", async () => {
+    // Field report: macOS pruned a checkout under `/tmp`, taking its `.git`
+    // with it. The orphaned worktree then had no resolvable owning repo, so
+    // `git worktree remove` could never run — the task sat in
+    // `deletion.phase: "error"` and every retry re-ran the same
+    // unsatisfiable path, with no supported command able to clear it.
+    const owner = join(root, "doomed-repo")
+    mkdirSync(owner)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
+    // Under a managed root, which is what authorizes the outright delete.
+    const wt = join(managedRoot, "orphaned")
+    await manager.create(owner, "kobe/orphaned", wt)
+    writeFileSync(join(wt, "output.txt"), "work")
+    rmSync(join(owner, ".git"), { recursive: true, force: true }) // upstream dies
+
+    await expect(manager.remove(wt, { force: true })).resolves.toBeUndefined()
+    expect(existsSync(wt)).toBe(false)
+  })
+
+  it("remove() without force still refuses an orphaned worktree", async () => {
+    // `force` is what carries the "delete it even though I cannot verify
+    // what's inside" consent. Without it the unresolvable repo stays an error
+    // and the directory stays put.
+    const owner = join(root, "doomed-repo-2")
+    mkdirSync(owner)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
+    const wt = join(managedRoot, "orphaned-keep")
+    await manager.create(owner, "kobe/orphaned-keep", wt)
+    rmSync(join(owner, ".git"), { recursive: true, force: true })
+
+    await expect(manager.remove(wt)).rejects.toThrow(/is not a git worktree/)
+    expect(existsSync(wt)).toBe(true)
+  })
+
+  it("remove({force}) refuses an orphaned directory outside the managed roots", async () => {
+    // The guard that keeps this from becoming "force deletes any path": an
+    // unreachable repo plus force is still not permission to delete a
+    // directory Rove never created.
+    const owner = join(root, "doomed-repo-3")
+    mkdirSync(owner)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
+    const wt = join(root, "outside-managed") // NOT under a managed root
+    await manager.create(owner, "kobe/outside", wt)
+    rmSync(join(owner, ".git"), { recursive: true, force: true })
+
+    await expect(manager.remove(wt, { force: true })).rejects.toThrow(/not under a Rove worktrees root/)
+    expect(existsSync(wt)).toBe(true)
   })
 
   it("remove() of an already-deleted worktree dir resolves quietly (best-effort prune)", async () => {

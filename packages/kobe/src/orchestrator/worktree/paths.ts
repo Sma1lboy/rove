@@ -214,6 +214,43 @@ export function isKobeManagedPath(repo: string, candidate: string): boolean {
 }
 
 /**
+ * True iff `candidate` sits under a Rove-managed worktrees root, WITHOUT
+ * needing to know which repo owns it.
+ *
+ * `isKobeManagedPath` answers the same question but takes a repo, and the one
+ * caller that needs this is the case where the repo can no longer be resolved:
+ * a worktree whose upstream `.git` was destroyed (macOS pruning `/tmp`, a
+ * deleted checkout) has no discoverable owner, so `remove()` cannot use the
+ * repo-keyed form to decide whether the directory is its own to delete.
+ *
+ * Only the roots THEMSELVES are checked, not the per-repo subdir under them —
+ * that subdir is derived from the repo path this function does not have. The
+ * guard is deliberately narrow: it authorizes deleting a directory tree, so it
+ * must never say yes to a path Rove did not create. A repo-local root
+ * (`<repo>/.rove/worktrees`) is not recognized here — that form needs the repo
+ * to locate, which is exactly what is missing. Same for a `$project_dir`
+ * override: it expands per-repo, so without one it contributes nothing and the
+ * built-in default covers what is left.
+ */
+export function isUnderManagedWorktreesRoot(candidate: string): boolean {
+  if (!path.isAbsolute(candidate)) return false
+  const target = canonicalize(candidate)
+  // The override with no repo resolves the non-`$project_dir` forms; a
+  // `$project_dir` override falls back to the default root without one, which
+  // this list already covers.
+  const roots = [getWorktreeBaseOverride() ?? "", defaultLocalWorktreesRoot(), legacyLocalWorktreesRoot()]
+  for (const rootPath of roots) {
+    if (!rootPath) continue
+    const root = canonicalize(rootPath)
+    const rel = path.relative(root, target)
+    // Non-empty (the root itself is not a worktree), no ".." prefix (outside),
+    // not absolute (different drive on Windows).
+    if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) return true
+  }
+  return false
+}
+
+/**
  * Worktree layout for a REMOTE project. The local `~/.rove/worktrees/...`
  * root can't be used — the worktree lives on the remote host. We root it
  * under the project's remote `basePath` in a `.rove/worktrees/<slug>` subdir
