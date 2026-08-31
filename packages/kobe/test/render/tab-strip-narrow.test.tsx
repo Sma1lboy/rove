@@ -41,6 +41,12 @@ function strip(activeId: string) {
 }
 
 test("narrow strip shows the active tab truncated with a position counter", async () => {
+  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-narrow-"))
+  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  writeFileSync(
+    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
+  )
   const { frame } = await renderComponent(strip("tab-2"), { width: 46, height: 4, providers: { kv: true } })
   const out = await frame()
   expect(out).toContain("2/3")
@@ -49,7 +55,15 @@ test("narrow strip shows the active tab truncated with a position counter", asyn
   expect(out).not.toContain("than fits")
 })
 
-test("desktop renders the boxed strip under the new `always` default", async () => {
+test("desktop renders the boxed strip when the mode is `always`", async () => {
+  // Explicit, because `never` is the default (2026-08-31): the sidebar tree
+  // already lists these tabs. This pins what the strip DRAWS when asked for.
+  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-always-"))
+  mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })
+  writeFileSync(
+    join(process.env.KOBE_HOME_DIR, ".config", "rove", "state.json"),
+    JSON.stringify({ [TAB_STRIP_MODE_KEY]: "always" }),
+  )
   const { frame } = await renderComponent(strip("tab-2"), { width: 100, height: 4, providers: { kv: true } })
   const out = await frame()
   // No `2/3` counter outside narrow mode, but the strip itself draws: every

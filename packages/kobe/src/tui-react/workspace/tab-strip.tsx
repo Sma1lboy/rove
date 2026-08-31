@@ -84,9 +84,10 @@ export function TabStrip(props: {
   const { theme } = themeCtx
   const kv = useKV()
   const dims = useTerminalDimensions()
-  // The sidebar tree lists every worktree's tabs, but the boxed strip is the
-  // affordance that says WHICH tab the pane below is showing — on by default
-  // (owner call 2026-08-29); Settings → General → Terminal switches it off.
+  // Off by default (owner call 2026-08-31): the sidebar tree already lists
+  // every worktree's tabs and marks the active one, so the strip is a second
+  // copy of a list that is already on screen. Settings → General → Terminal
+  // turns it back on.
   // Rendered as a late bail so the hooks below always run in the same order.
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
