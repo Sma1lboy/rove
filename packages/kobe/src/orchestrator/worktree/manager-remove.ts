@@ -5,15 +5,47 @@
  * decision it makes — the dirty gate, the salvage snapshot, the orphaned-repo
  * fallback and its managed-root guard — lives in this single function. Same
  * shape as `manager-branch.ts` / `manager-list.ts`: a free function over a
- * small deps object, with the class method a thin delegator. No behaviour
- * change in the extraction.
+ * small deps object, with the class method a thin delegator.
+ *
+ * The other thing this function has to get right: `git worktree remove` does
+ * TWO jobs — deregister the worktree's metadata and delete its directory — and
+ * they can fail APART. An undeletable path inside the tree (a `chmod -w`
+ * directory, a read-only dependency cache, anything an external tool holds)
+ * produces exit 255 AFTER the deregistration has already landed:
+ *
+ *     error: failed to delete '<path>': Permission denied     # exit 255
+ *     git worktree list                                       # already gone
+ *     ls <path>                                               # still there
+ *     git worktree remove --force <path>                      # fatal: not a working tree
+ *
+ * Reading the exit code as the whole truth reports that as a total failure and
+ * leaves the caller with no forward move: git's own view is that this worktree
+ * no longer exists, so no retry, remove, or prune can ever advance it (issue
+ * #89 — a task parked in `deletion.phase = "error"` forever). So a non-zero
+ * exit is CLASSIFIED, not trusted, and the leftover directory is reported
+ * through `onResidue` rather than deleted: an undeletable tree is exactly the
+ * kind of thing that holds something the user still wants.
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
-import type { GitRunOpts, GitRunResult } from "./git.ts"
+import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import { type BranchDeps, deleteBranchAnchored } from "./manager-branch.ts"
 import { isUnderManagedWorktreesRoot, requireAbsolute } from "./paths.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
+
+/**
+ * A directory a removal left behind after git had already deregistered the
+ * worktree. Not an error: git's half of the job is done and the task/branch
+ * bookkeeping around it can complete. It is reported so the path and the
+ * reason reach a human — nothing else in Rove will ever list this directory
+ * again, because from git's side the worktree is gone.
+ */
+export interface WorktreeResidue {
+  /** The directory still on disk. */
+  readonly path: string
+  /** git's own reason the delete stopped (its stderr), e.g. "Permission denied". */
+  readonly reason: string
+}
 
 export interface RemoveOpts {
   readonly force?: boolean
@@ -21,6 +53,10 @@ export interface RemoveOpts {
   /** Notified with the snapshot a force-removal took (null = nothing to
    *  save, or the snapshot could not be written). */
   readonly onSalvage?: (record: SalvageRecord | null) => void
+  /** Notified when git deregistered the worktree but could not delete its
+   *  directory. Fires on the retry of such a removal too, so a second call
+   *  converges on the same answer instead of `is not a working tree`. */
+  readonly onResidue?: (residue: WorktreeResidue) => void
 }
 
 /** The manager primitives removal borrows. */
@@ -36,6 +72,40 @@ export interface RemoveDeps {
   isDirty(worktreePath: string): Promise<boolean>
   /** Deps for the opt-in post-removal branch delete. */
   branchDeps(): BranchDeps
+}
+
+/**
+ * Whether `worktreePath` is the residue of a DEREGISTERED worktree — git
+ * dropped its registration and then failed to unlink the tree.
+ *
+ * A linked worktree's `.git` is a FILE holding
+ * `gitdir: <repo>/.git/worktrees/<name>`. That file outlives the
+ * deregistration, so a dangling pointer is the on-disk fingerprint of a
+ * half-done removal — but it is ALSO what an orphaned worktree looks like
+ * after its upstream clone was destroyed, which is a different case with a
+ * different (destructive) handler below. The two are told apart by the repo
+ * end of the pointer: a deregistered worktree still has a live `<repo>/.git`
+ * and has lost only its own `worktrees/<name>` admin dir; an orphan has lost
+ * the whole thing.
+ *
+ * Platform-dependent, which is why it is a fast path and not the only one:
+ * macOS git leaves the pointer file, Linux git unlinks it before failing, and
+ * then the directory is indistinguishable from any other. The convergence that
+ * holds everywhere is the post-condition check further down — "the directory
+ * is still there" — not this fingerprint.
+ */
+async function deregisteredWorktreeResidue(exec: ExecHost, worktreePath: string): Promise<boolean> {
+  const dotGit = await exec.readFile(`${worktreePath}/.git`)
+  const pointer = dotGit
+    ?.trim()
+    .match(/^gitdir:\s*(.+)$/)?.[1]
+    ?.trim()
+  if (!pointer) return false
+  const marker = "/worktrees/"
+  const at = pointer.lastIndexOf(marker)
+  if (at < 0) return false
+  // `<repo>/.git` — alive for a deregistered worktree, gone for an orphan.
+  return await exec.exists(pointer.slice(0, at))
 }
 
 /**
@@ -82,6 +152,21 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
   // repo when the caller hands us only the path.
   const repo = await deps.findRepoFor(exec, worktreePath)
   if (!repo) {
+    // Checked BEFORE the orphan handling below, which shares this branch: a
+    // deregistered worktree also has no reachable repo, but its own repo is
+    // alive and the correct answer is to converge without touching a directory
+    // the previous removal already refused to delete.
+    //
+    // Retrying a removal that already deregistered its worktree must land on
+    // the same answer it gave the first time — git can no longer act on this
+    // path at all, so a second `worktree remove` only ever says `fatal: is not
+    // a working tree` and the caller is stuck (issue #89). Where the pointer
+    // survives (macOS) that is answered here; where it does not (Linux) the
+    // post-`rm -rf` check below answers it.
+    if (await deregisteredWorktreeResidue(exec, worktreePath)) {
+      opts?.onResidue?.({ path: worktreePath, reason: "a previous removal deregistered the worktree" })
+      return
+    }
     // No owning repo: the upstream checkout's `.git` is gone (a deleted
     // clone, or macOS pruning a checkout under `/tmp`), so there is no
     // `git worktree remove` to run and no metadata left to deregister.
@@ -108,6 +193,15 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // means git cannot resolve one.
     opts?.onSalvage?.(null)
     await exec.run(["rm", "-rf", worktreePath])
+    // Post-condition, not optimism: `rm -rf` exits 0 having deleted only what
+    // it could, so without this check an undeletable directory is reported as
+    // a clean removal — the caller is told to look for something that is still
+    // on disk. This is also where a retried residue converges on the platforms
+    // whose git unlinks the `.git` pointer before failing, so the fingerprint
+    // above never matches.
+    if (await exec.exists(worktreePath)) {
+      opts?.onResidue?.({ path: worktreePath, reason: "the directory could not be deleted" })
+    }
     return
   }
 
@@ -135,13 +229,26 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
   // so an unlocked-but-untracked-files case (rare — we already checked dirty)
   // doesn't bounce. Dirty refusal lives in our layer, not git's.
   const args = force ? ["worktree", "remove", "--force", worktreePath] : ["worktree", "remove", worktreePath]
-  await deps.runGit(exec, args, { cwd: repo })
+  const result = await deps.runGit(exec, args, { cwd: repo, allowFail: true })
+  if (result.exitCode !== 0) {
+    // Re-probing the path is the whole classification: it answers git's own
+    // question ("is this still a worktree?") rather than re-reading the exit
+    // code we already have. Still registered → nothing happened, throw the
+    // error the caller has always seen. Gone → the deregistration landed and
+    // only the directory is left.
+    if (await deps.findRepoFor(exec, worktreePath)) {
+      throw new GitCommandError(args, repo, result)
+    }
+    opts?.onResidue?.({ path: worktreePath, reason: result.stderr.trim() || result.stdout.trim() || "unknown" })
+  }
 
   // Defensive prune — cleans up `.git/worktrees/<name>/` if the remove left
   // it behind (rare, but documented in vibe-kanban).
   await deps.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
 
   // Anchored like `deleteBranch`: `-D` takes the reflog too, and this
-  // worktree's own reflog died with the directory a few lines up.
+  // worktree's own reflog died with the directory a few lines up. Runs on the
+  // residue path too — the branch is no longer checked out anywhere, which is
+  // the only thing that made it undeletable before.
   if (branch) await deleteBranchAnchored(deps.branchDeps(), exec, repo, branch, { force })
 }

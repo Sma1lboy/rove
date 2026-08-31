@@ -121,6 +121,57 @@ describe("durable background task deletion", () => {
     expect(salvages).toEqual([])
   })
 
+  it("a half-completed removal COMPLETES the deletion and reports the leftover directory", async () => {
+    // git deregistered the worktree but could not delete its directory (issue
+    // #89). Parking the task in `error` would be unfixable: git no longer
+    // knows this worktree, so every retry is `fatal: is not a working tree`.
+    // The task must go, and the leftover path must reach the sink — it is the
+    // only place that directory is ever named again.
+    const residues: { taskId: string; path: string; reason: string }[] = []
+    const localStore = new TaskIndexStore({ homeDir: home })
+    await localStore.load()
+    const localOrch = new Orchestrator({
+      store: localStore,
+      worktrees: worktrees as unknown as GitWorktreeManager,
+      onWorktreeResidue: (taskId, residue) => residues.push({ taskId: String(taskId), ...residue }),
+    })
+    worktrees.remove.mockImplementationOnce(
+      async (_path: string, opts: { onResidue?: (r: { path: string; reason: string }) => void }) => {
+        opts.onResidue?.({ path: "/wt/stuck", reason: "Permission denied" })
+      },
+    )
+
+    const task = await localOrch.createTask({ repo: "/repo", title: "stuck", vendor: "claude" })
+    await localStore.update(task.id, { worktreePath: "/wt/stuck" })
+    await localOrch.prepareTaskDeletion(task.id, { force: true })
+    await localOrch.beginTaskDeletion(task.id)
+    await expect(localOrch.finishTaskDeletion(task.id)).resolves.toBeUndefined()
+
+    // Red if the residue is ever treated as a failure: the task would survive
+    // in `deletion.phase = "error"` with no way forward.
+    expect(localOrch.getTask(task.id)).toBeUndefined()
+    expect(residues).toEqual([{ taskId: String(task.id), path: "/wt/stuck", reason: "Permission denied" }])
+    localOrch.dispose()
+  })
+
+  it("a clean removal reports no residue", async () => {
+    const residues: string[] = []
+    const localStore = new TaskIndexStore({ homeDir: home })
+    await localStore.load()
+    const localOrch = new Orchestrator({
+      store: localStore,
+      worktrees: worktrees as unknown as GitWorktreeManager,
+      onWorktreeResidue: (_taskId, residue) => residues.push(residue.path),
+    })
+
+    const task = await localOrch.createTask({ repo: "/repo", title: "clean", vendor: "claude" })
+    await localStore.update(task.id, { worktreePath: "/wt/ok" })
+    await localOrch.deleteTask(task.id)
+    localOrch.dispose()
+
+    expect(residues).toEqual([])
+  })
+
   it("deleting a dir task never touches its directory, forced or not", async () => {
     // The scratch-shell teardown used to pass `force: true` on the reasoning
     // that a scratch row owns no worktree. That is true only while the row is

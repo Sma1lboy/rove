@@ -78,7 +78,7 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
           .tearDownTaskSession(taskId)
           .catch((err) => logDaemonError("worktree-remove-session-teardown", err))
       }
-      await ctx.runtime.removeWorktree(path, force)
+      const residue = await ctx.runtime.removeWorktree(path, force)
       // Self-heal the task index: a worktree removed here (worktrees page /
       // web) otherwise leaves the owning task pointing at a dead dir, so the
       // next enter would spawn the engine into a nonexistent cwd. Drop the
@@ -86,8 +86,10 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // Exact-path match; unmatched (untracked worktree) is a harmless no-op.
       // Guarded on `ctx.orch` — this handler historically composes runtime
       // primitives directly, so a caller may not wire an orchestrator.
+      // Runs on the residue path too: git has deregistered the worktree, so
+      // the task's pointer is just as dead as after a clean removal.
       if (taskId && ctx.orch) await ctx.orch.clearWorktreePath(taskId)
-      return { removed: true }
+      return { removed: true, ...(residue ? { residue } : {}) }
     },
   },
 ]

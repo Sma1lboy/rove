@@ -23,7 +23,7 @@ import { useEffect, useMemo, useState } from "react"
 import { displayProductName } from "../lib/cli-name.ts"
 import { useAppState } from "../lib/store.ts"
 import { relativeTimeAgo } from "../lib/time.ts"
-import { reportError } from "../lib/toast.ts"
+import { pushToast, reportError } from "../lib/toast.ts"
 import {
   DirtyWorktreeError,
   fetchWorktreeProjects,
@@ -149,7 +149,16 @@ export function WorktreesPage() {
   const deleteInBackground = (row: WorktreeRow, force: boolean): void => {
     setRemovingPaths((paths) => [...paths, row.path])
     void removeWorktree(row.path, force)
-      .then(() => {
+      .then((residue) => {
+        // git deregistered the worktree but could not delete the directory.
+        // The row still goes — nothing lists that path any more — so this is a
+        // notice, not an error, and it is the only time the leftover is named.
+        if (residue) {
+          pushToast(
+            "info",
+            `Git deregistered the worktree, but couldn't delete ${residue.path} (${residue.reason}). Retrying won't help; delete the directory by hand if you want the space.`,
+          )
+        }
         // Drop the row for real, then stop tracking it as "removing".
         removeRow(row.path)
         setRemovingPaths((paths) => paths.filter((p) => p !== row.path))

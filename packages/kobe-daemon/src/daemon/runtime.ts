@@ -86,7 +86,10 @@ export interface DaemonRuntimeAdapter {
   runWorktreeStatus(worktreePath: string, signal: AbortSignal): Promise<WorktreeChanges>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
-  removeWorktree(path: string, force: boolean): Promise<void>
+  /** Remove a worktree. Resolves with the leftover directory when git
+   *  deregistered the worktree but could not delete it (a partial removal that
+   *  no retry can advance); resolves with null on a clean removal. */
+  removeWorktree(path: string, force: boolean): Promise<{ path: string; reason: string } | null>
   availableEngineIds(): Promise<readonly VendorId[]>
   engineDisplayName(vendor: VendorId): string
   kobeApiInvocation(): string

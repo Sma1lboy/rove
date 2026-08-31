@@ -65,6 +65,11 @@ export interface OrchestratorDeps {
    *  local orchestrator leaves it unset and the snapshot is still findable
    *  via `git for-each-ref refs/rove/salvage`. */
   readonly onSalvage?: (taskId: TaskId, salvage: { readonly ref: string; readonly commit: string }) => void
+  /** Called when a deletion's `git worktree remove` deregistered the worktree
+   *  but could not delete its directory. The deletion still completes; this is
+   *  the only record of the leftover, so the daemon binds it to the same audit
+   *  log the rest of the deletion trail goes to. */
+  readonly onWorktreeResidue?: (taskId: TaskId, residue: { readonly path: string; readonly reason: string }) => void
   /**
    * Kill a task's engine session. Bound by the composition root to the hosted
    * session host; a TUI-local orchestrator leaves it unset. `landTask` calls
@@ -118,6 +123,7 @@ export class Orchestrator {
       this.worktrees,
       (id) => this.worktreeCoordinator.forget(id),
       deps.onSalvage,
+      deps.onWorktreeResidue,
     )
     this.tasksAcc = createStateCell<Task[]>(this.store.list())
     // Seed focus from the persisted `lastActive` record (state/last-active

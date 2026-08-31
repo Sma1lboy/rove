@@ -129,7 +129,14 @@ export interface LandResult {
    *  explicitly declined (`removeWorktree: false`). `reason` is not
    *  failure-only: it also rides with `removed: true` when the directory went
    *  but clearing the task's worktree path did not. */
-  readonly worktree?: { readonly removed: boolean; readonly reason?: string }
+  readonly worktree?: {
+    readonly removed: boolean
+    readonly reason?: string
+    /** Set when git deregistered the worktree but could not delete its
+     *  directory — the land and its cleanup both succeeded; a directory is
+     *  left on disk that Rove will never list again. */
+    readonly residue?: { readonly path: string; readonly reason: string }
+  }
   /** Ref anchoring a deleted branch's tip when nothing else reached it (the
    *  squash-land case). Absent on a `--no-ff` merge and when no branch was
    *  deleted. */

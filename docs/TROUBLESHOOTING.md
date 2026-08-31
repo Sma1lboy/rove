@@ -113,6 +113,14 @@ or the web UI (`salvaged worktree <path> — …`). No `salvaged` line means the
 was nothing uncommitted to save. See
 [WORKTREES](./WORKTREES.md#recovering-work-a-force-delete-destroyed).
 
+A `removed` line that also says **"git deregistered the worktree but could NOT
+delete"** means the deletion succeeded and left a directory behind: git dropped
+its registration but could not unlink the tree (most often an unwritable path
+inside it). The task is gone and there is nothing to retry — retrying is
+impossible, because git no longer knows that worktree. The line names the
+directory; delete it by hand if you want the space. See
+[WORKTREES](./WORKTREES.md#when-git-removes-the-worktree-but-not-its-directory).
+
 A `failed` line means the deletion ran only partway: the hosted session was
 torn down and the Inbox/activity state cleared, but the worktree directory and
 the task entry remain, and the task is left in `deletion.phase === "error"`

@@ -35,16 +35,24 @@ export async function fetchWorktreeProjects(): Promise<WorktreeProject[]> {
     : []
 }
 
+/** A directory a removal left behind after git had already deregistered the
+ *  worktree. Reported, never deleted by Rove. */
+export interface WorktreeResidue {
+  path: string
+  reason: string
+}
+
 export async function removeWorktree(
   path: string,
   force: boolean,
-): Promise<void> {
+): Promise<WorktreeResidue | null> {
   try {
-    await api.delete<{ removed: boolean }>(
+    const res = await api.delete<{ removed: boolean; residue?: WorktreeResidue }>(
       "/api/worktrees",
       { path, force },
       { label: "delete worktree" },
     )
+    return res.residue ?? null
   } catch (err) {
     if (
       err instanceof ApiError &&

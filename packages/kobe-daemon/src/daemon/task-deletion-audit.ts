@@ -145,3 +145,33 @@ export function auditDeletionSalvaged(taskId: string, ref: string, commit: strin
 export function auditWorktreeSalvaged(worktreePath: string, ref: string, commit: string): void {
   logDaemonInfo(SUBSYSTEM, `salvaged worktree ${worktreePath} — ${recoveryText(ref, commit)}`)
 }
+
+/**
+ * A deletion's `git worktree remove` deregistered the worktree but could not
+ * delete its directory (an unwritable path inside it, most often).
+ *
+ * Info, not error: the deletion itself completed — the task entry is gone and
+ * git no longer knows this worktree. What is left is an ordinary directory
+ * that Rove will never list again, so this line is the only place its path is
+ * recorded. Rove does not delete it: whatever made it undeletable may be
+ * something the user wants, and removing it would be a destructive act nobody
+ * asked for.
+ */
+export function auditDeletionResidue(taskId: string, worktreePath: string, reason: string): void {
+  const advice = "Nothing further is needed in Rove; remove the directory by hand if you want the disk space."
+  logDaemonInfo(
+    SUBSYSTEM,
+    `removed task ${taskId} — git deregistered the worktree but could NOT delete ${worktreePath} (${reason}). ${advice}`,
+  )
+}
+
+/**
+ * A worktree removal outside the task lifecycle (worktrees page / web DELETE)
+ * deregistered the worktree but could not delete its directory. Same subsystem
+ * as the deletion lines for the same reason {@link auditWorktreeSalvaged} is:
+ * a user hunting for a directory Rove no longer shows should not have to know
+ * which UI removed it.
+ */
+export function auditWorktreeResidue(worktreePath: string, reason: string): void {
+  logDaemonInfo(SUBSYSTEM, `deregistered ${worktreePath} but could NOT delete the directory (${reason})`)
+}
