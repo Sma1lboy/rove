@@ -1,14 +1,22 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The center column's two EMPTY states. Which one renders is derived from the
- * orchestrator's task list: zero tasks teaches (the welcome panel), anything
- * else keeps the terse "select a task" line, so an existing user never gets
- * the onboarding copy back.
+ * The center column's EMPTY states.
+ *
+ * Two are derived from the orchestrator's task list: zero tasks teaches (the
+ * welcome panel), anything else keeps the terse "select a task" line, so an
+ * existing user never gets the onboarding copy back.
+ *
+ * The third is per-task: a task whose tabs are KNOWN and empty (you closed the
+ * last one) renders a placeholder INSTEAD of mounting TerminalTabs. That
+ * component's `active` tab is non-null by construction, so mounting it for an
+ * empty task would immediately mint a replacement and the close would never
+ * appear to take.
  */
 
 import { describe, expect, it } from "bun:test"
 import type { RemoteOrchestrator } from "../../src/client/remote-orchestrator"
 import { ShowWorkspace } from "../../src/tui-react/workspace/show-workspace"
+import { tabsByTask } from "../../src/tui-react/workspace/terminal-tabs-shared"
 import type { Task } from "../../src/types/task"
 import { act, renderComponent } from "./harness"
 
@@ -56,5 +64,40 @@ describe("ShowWorkspace empty states", () => {
 
   it("keeps the terse placeholder once a live task exists", async () => {
     expect(await frameFor(ONE_TASK)).not.toContain("Welcome to Rove")
+  })
+})
+
+/** A selected task with a worktree — the shape that normally mounts tabs. */
+const SELECTED = { id: "t1", repo: "/repos/rove", kind: "task" } as unknown as Task
+
+const frameForTask = async (task: Task): Promise<string> => {
+  const { frame } = await renderComponent(<ShowWorkspace {...props(ONE_TASK)} task={task} worktree="/wt/t1" />)
+  await act(async () => {})
+  return await frame()
+}
+
+describe("a task whose last tab was closed", () => {
+  it("renders the no-sessions placeholder instead of mounting tabs", async () => {
+    tabsByTask.clear()
+    // KNOWN and empty: the user closed the last tab.
+    tabsByTask.set("t1", { tabs: [], activeId: "tab-1", nextOrdinal: 2 })
+    expect(await frameForTask(SELECTED)).toContain("No sessions here")
+  })
+
+  it("mounts normally when the tabs are merely UNKNOWN", async () => {
+    // Absent from the map = never mounted since restart, which is every task
+    // on a cold boot. Treating that as empty would leave the workspace blank.
+    tabsByTask.clear()
+    expect(await frameForTask(SELECTED)).not.toContain("No sessions here")
+  })
+
+  it("mounts normally while a tab is open", async () => {
+    tabsByTask.clear()
+    tabsByTask.set("t1", {
+      tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }],
+      activeId: "tab-1",
+      nextOrdinal: 2,
+    })
+    expect(await frameForTask(SELECTED)).not.toContain("No sessions here")
   })
 })
