@@ -13,7 +13,7 @@
 
 import { type TabsState, moveTab } from "../../tui/workspace/terminal-tabs-core"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabMove, tabsByTask, takeUnclaimedTabMove } from "./terminal-tabs-shared"
+import { requestTabMove, setTaskTabs, tabsByTask, takeUnclaimedTabMove } from "./terminal-tabs-shared"
 
 /**
  * Move `tabId` of `taskId` by `delta`. Returns whether the order changed —
@@ -32,7 +32,7 @@ export function moveTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string, d
   if (!state) return false
   const next = moveTab(state, tabId, delta)
   if (next === state) return false
-  tabsByTask.set(taskId, next)
+  setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
   return true
 }

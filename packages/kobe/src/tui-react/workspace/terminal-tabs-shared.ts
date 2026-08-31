@@ -9,6 +9,7 @@
 
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"
 
+import { createStateCell } from "../../lib/external-store"
 import {
   type EngineTab,
   type TabsState,
@@ -19,8 +20,32 @@ import {
 import type { VendorId } from "../../types/vendor"
 import { type TabsSnapshotKv, forgetTaskTabsSnapshot, terminalTabsKey } from "./terminal-tabs-persist"
 
-/** Per-task tab state, preserved across task switches for the process. */
+/** Per-task tab state, preserved across task switches for the process.
+ *
+ *  WRITE THROUGH `setTaskTabs` / `deleteTaskTabs`, never `.set` / `.delete`
+ *  directly: a plain Map mutation is invisible to React, and `ShowWorkspace`
+ *  decides whether to mount `TerminalTabs` at all from this map. Closing a
+ *  task's last tab wrote here and re-rendered nothing, so the component that
+ *  owns the now-empty tab list stayed mounted and kept dereferencing an
+ *  `active` tab that no longer existed. */
 export const tabsByTask = new Map<string, TabsState>()
+
+/** Bumped on every `tabsByTask` write — the subscribable half of the map, so
+ *  a React surface reading it re-renders when it changes. Cheap: a counter,
+ *  not a copy of the state; readers still go to the map for the value. */
+export const tabsRevision = createStateCell(0)
+
+/** Write a task's tab state AND notify React readers. */
+export function setTaskTabs(taskId: string, state: TabsState): void {
+  tabsByTask.set(taskId, state)
+  tabsRevision.update((n) => n + 1)
+}
+
+/** Drop a task's tab state AND notify React readers. */
+export function deleteTaskTabs(taskId: string): void {
+  if (!tabsByTask.delete(taskId)) return
+  tabsRevision.update((n) => n + 1)
+}
 
 /** The task's currently-active tab id (module map read) — the attention
  *  jump's "where am I" input. Null when the task never mounted tabs. */
@@ -339,7 +364,7 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
  * exit path.
  */
 export function forgetTaskTabs(kv: TabsSnapshotKv, taskId: string): void {
-  tabsByTask.delete(taskId)
+  deleteTaskTabs(taskId)
   forgetTaskTabsSnapshot(kv, taskId)
 }
 
@@ -393,7 +418,7 @@ export function appendBackgroundEngineTab(
     activeId: tab.id,
     nextOrdinal: ordinal + 1,
   }
-  tabsByTask.set(taskId, next)
+  setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
   return { state: next, tab }
 }

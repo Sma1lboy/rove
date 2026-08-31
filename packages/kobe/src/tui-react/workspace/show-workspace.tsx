@@ -16,7 +16,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
-import { knownTaskTabs } from "./terminal-tabs-shared"
+import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
 import { WelcomePane } from "./welcome-pane"
 
 export function ShowWorkspace(props: {
@@ -49,6 +49,11 @@ export function ShowWorkspace(props: {
   // provider mounted, and the empty-tabs lookup below is a refinement, not a
   // requirement — no provider simply means "tabs unknown", which mounts.
   const kv = useOptionalKV()
+  // Subscribe to the tab map's revision counter. `knownTaskTabs` reads a
+  // module-level Map, which React cannot see on its own: closing a task's
+  // last tab used to change the answer below without re-rendering, leaving
+  // TerminalTabs mounted over an empty tab list it is not built to survive.
+  useAccessor(tabsRevision)
   const transcriptActivity = useAccessor(props.orchestrator.transcriptActivityStore())
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
   const tasks = useAccessor(props.orchestrator.tasksSignal())
