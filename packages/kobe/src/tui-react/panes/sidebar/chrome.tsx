@@ -7,11 +7,13 @@
  */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { SIDEBAR_NAV_ITEMS, type SidebarNav } from "../../../tui/panes/sidebar/nav-core"
 import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { dividerRule } from "../../lib/rule-divider"
 import { zenChipGlyph } from "./zen-glyph"
 
 export function SectionHeader(props: {
@@ -26,6 +28,7 @@ export function SectionHeader(props: {
 }) {
   const { theme, transparentBackground } = useTheme()
   const dividerColor = transparentBackground ? theme.border : theme.borderSubtle
+  const dims = useTerminalDimensions()
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.topPad ? (
@@ -60,7 +63,7 @@ export function SectionHeader(props: {
           {props.label}
         </text>
         <text fg={dividerColor} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {"─".repeat(240)}
+          {dividerRule(dims.width)}
         </text>
         {props.suffix ? (
           <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>

@@ -94,3 +94,13 @@ export function approxCellWidth(s: string): number {
   for (const ch of s) n += approxCharCells(ch.codePointAt(0) ?? 0)
   return n
 }
+
+/**
+ * `String.padEnd` against a display-CELL target (padEnd counts UTF-16 code
+ * units, so a wide CJK glyph or a `⌘`-class chord under-pads and misaligns
+ * every column to its right). Already-wide strings pass through unchanged.
+ */
+export function padEndCells(s: string, cells: number): string {
+  const deficit = cells - displayWidth(s)
+  return deficit <= 0 ? s : s + " ".repeat(deficit)
+}

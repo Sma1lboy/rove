@@ -12,6 +12,11 @@
  * the hint muted, the row is not rendered, so nothing shifts on terminals
  * that have nothing to show.
  *
+ * Both halves share ONE 1-cell row, and the chips are the yielding half:
+ * their box shrinks + clips and the chip view model is built against an
+ * explicit cell budget (usage-core's buildFooterChips), so an 80-col
+ * terminal degrades to compact chips instead of colliding with the hint bar.
+ *
  * `WorkspaceFrame` owns the column wrapper so `host.tsx` stays under the
  * file-size cap — same extraction reason as `host-sidebar.tsx`.
  */
@@ -20,63 +25,69 @@ import { useTerminalDimensions } from "@opentui/react"
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { engineDisplayName } from "../../engine/interactive-command"
+import { displayWidth } from "../../lib/display-width"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
-import { narrowUsageChip, usageChips } from "../component/settings-dialog/usage-core"
+import { buildFooterChips, usageChipsBudget } from "../component/settings-dialog/usage-core"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
 
-function UsageChips(props: { orchestrator: RemoteOrchestrator; narrow: boolean }) {
+function UsageChips(props: { orchestrator: RemoteOrchestrator; narrow: boolean; budget: number }) {
   const { theme } = useTheme()
   const usage = useAccessor(props.orchestrator.usageSnapshotSignal())
-  if (!usage || usage.size === 0) return null
   const toneColor = { ok: theme.success, warn: theme.warning, crit: theme.error } as const
   const now = Date.now()
-  if (props.narrow) {
-    // Narrow footer (issue #14): one session-window chip per vendor —
-    // `CLAUDE 42%` — tone color kept, label/reset dropped for the cells.
+  const view =
+    usage && usage.size > 0
+      ? buildFooterChips({
+          usage,
+          budget: props.budget,
+          nowMs: now,
+          vendorLabel: engineDisplayName,
+          forceCompact: props.narrow,
+        })
+      : null
+  if (!view) return null
+  if (view.form === "full") {
     return (
       <box flexDirection="row" gap={2}>
-        {[...usage.entries()].flatMap(([vendor, snapshot]) => {
-          const chip = narrowUsageChip(snapshot, now)
-          if (!chip) return []
-          return [
-            <box key={vendor} flexDirection="row" gap={1}>
-              <text fg={theme.textMuted} wrapMode="none">
-                {engineDisplayName(vendor).toUpperCase()}
-              </text>
-              <text fg={toneColor[chip.tone]} wrapMode="none">
-                {chip.percentText}
-              </text>
-            </box>,
-          ]
-        })}
+        {view.vendors.map((vendor) => (
+          <box key={vendor.vendor} flexDirection="row" gap={1}>
+            <text fg={theme.textMuted} wrapMode="none">
+              {vendor.vendor}
+            </text>
+            {vendor.chips.map((chip, i) => (
+              <box key={chip.label} flexDirection="row" gap={1}>
+                <text fg={theme.textMuted} wrapMode="none">
+                  {i === 0 ? chip.label : `· ${chip.label}`}
+                </text>
+                <text fg={toneColor[chip.tone]} wrapMode="none">
+                  {chip.percentText}
+                </text>
+                {chip.resetText ? (
+                  <text fg={theme.textMuted} wrapMode="none">
+                    {chip.resetText}
+                  </text>
+                ) : null}
+              </box>
+            ))}
+          </box>
+        ))}
       </box>
     )
   }
+  // Compact form (also the narrow-footer form): vendor + tone percent only.
   return (
     <box flexDirection="row" gap={2}>
-      {[...usage.entries()].map(([vendor, snapshot]) => (
-        <box key={vendor} flexDirection="row" gap={1}>
+      {view.vendors.map((vendor, index) => (
+        <box key={`${vendor.vendor}-${index}`} flexDirection="row" gap={1}>
           <text fg={theme.textMuted} wrapMode="none">
-            {engineDisplayName(vendor).toUpperCase()}
+            {vendor.vendor}
           </text>
-          {usageChips(snapshot, now).map((chip, i) => (
-            <box key={chip.label} flexDirection="row" gap={1}>
-              <text fg={theme.textMuted} wrapMode="none">
-                {i === 0 ? chip.label : `· ${chip.label}`}
-              </text>
-              <text fg={toneColor[chip.tone]} wrapMode="none">
-                {chip.percentText}
-              </text>
-              {chip.resetText ? (
-                <text fg={theme.textMuted} wrapMode="none">
-                  {chip.resetText}
-                </text>
-              ) : null}
-            </box>
-          ))}
+          <text fg={toneColor[vendor.tone]} wrapMode="none">
+            {vendor.percentText}
+          </text>
         </box>
       ))}
     </box>
@@ -98,8 +109,15 @@ export function WorkspaceFrame(props: {
   const dims = useTerminalDimensions()
   const narrow = isNarrowWidth(dims.width)
   const usage = useAccessor(props.orchestrator.usageSnapshotSignal())
-  const hintItems = useStatusKeyHintItems({ onOpenSettings: props.onOpenSettings })
+  // The same options the bar below renders with — the budget must measure
+  // the bar that is actually on screen (compact drops the [settings] chip).
+  const hintItems = useStatusKeyHintItems({
+    onOpenSettings: narrow ? undefined : props.onOpenSettings,
+    compact: narrow,
+  })
   const footerVisible = (usage != null && usage.size > 0) || hintItems.length > 0
+  const hintCells = hintItems.reduce((sum, item, index) => sum + displayWidth(item.text) + (index > 0 ? 3 : 0), 0)
+  const chipsBudget = usageChipsBudget({ terminalWidth: dims.width, hintCells })
   return (
     <ShortcutRevealProvider>
       <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
@@ -109,8 +127,10 @@ export function WorkspaceFrame(props: {
         </box>
         {footerVisible ? (
           <box flexDirection="row" flexShrink={0} height={1} paddingLeft={1} paddingRight={1} gap={2}>
-            <box flexGrow={1} flexDirection="row">
-              <UsageChips orchestrator={props.orchestrator} narrow={narrow} />
+            {/* The chips yield first: shrink + clip is the hard guarantee,
+                the budget-truncated view model the graceful one. */}
+            <box flexGrow={1} flexShrink={1} flexDirection="row" overflow="hidden">
+              <UsageChips orchestrator={props.orchestrator} narrow={narrow} budget={chipsBudget} />
             </box>
             {/* Narrow drops the verbs and the [settings] chip: `⌃A · F1`. */}
             <StatusKeyHintBar onOpenSettings={narrow ? undefined : props.onOpenSettings} compact={narrow} />

@@ -4,7 +4,9 @@
  * aligned meter rows. Pure — the React component only maps rows to <text>.
  */
 
+import { approxCharCells, displayWidth } from "../../../lib/display-width.ts"
 import { ratioBar } from "../../../tui/lib/progress-bar.ts"
+import { truncateEndCells } from "../../../tui/lib/truncate.ts"
 import type { EngineQuotaUsage } from "../../../types/engine.ts"
 
 /** Meter track width in cells. */
@@ -80,6 +82,103 @@ export function narrowUsageChip(usage: EngineQuotaUsage, nowMs: number): UsageCh
     resetText: formatReset(w.resetsAt, nowMs),
     tone: toneOf(w.percent),
   }
+}
+
+/** One vendor's full chip block in the footer row (label + tone + reset). */
+export interface FooterVendorFull {
+  readonly vendor: string
+  readonly chips: UsageChipView[]
+}
+
+/** Compact fallback: vendor name + tone percent only (the narrow form). */
+export interface FooterVendorCompact {
+  readonly vendor: string
+  readonly percentText: string
+  readonly tone: UsageTone
+}
+
+export type FooterChipsView =
+  | { form: "full"; vendors: FooterVendorFull[] }
+  | { form: "compact"; vendors: FooterVendorCompact[] }
+
+/** Cell width of one full chip: `· 7d 12% → 8/4 06:00`-style parts + gaps. */
+function fullChipCells(chip: UsageChipView, index: number): number {
+  const label = index === 0 ? chip.label : `· ${chip.label}`
+  const parts = [displayWidth(label), displayWidth(chip.percentText)]
+  if (chip.resetText) parts.push(displayWidth(chip.resetText))
+  return parts.reduce((a, b) => a + b, 0) + (parts.length - 1)
+}
+
+/** Cell width of one vendor block: name + chips, gap 1 between children. */
+function fullVendorCells(vendor: FooterVendorFull): number {
+  return (
+    displayWidth(vendor.vendor) +
+    vendor.chips.reduce((sum, chip, i) => sum + fullChipCells(chip, i), 0) +
+    vendor.chips.length
+  )
+}
+
+/**
+ * The footer row's two halves share one line: padding (1+1), the inter-box
+ * gap (2), and the hint bar all reserve cells before the chips get any.
+ * `hintCells` is the bar's measured width (see host-footer.tsx).
+ */
+export function usageChipsBudget(opts: { terminalWidth: number; hintCells: number }): number {
+  return Math.max(0, opts.terminalWidth - 4 - opts.hintCells)
+}
+
+/**
+ * Fit the quota chips into `budget` cells, degrading instead of overflowing:
+ * full label/reset form when it fits, the compact vendor+percent form when
+ * it doesn't, truncating the LAST kept vendor's name to soak up the
+ * remainder and dropping vendors past it. The percent is the payload — it
+ * survives every squeeze; the vendor name is what yields.
+ */
+export function buildFooterChips(opts: {
+  usage: ReadonlyMap<string, EngineQuotaUsage>
+  budget: number
+  nowMs: number
+  vendorLabel: (vendor: string) => string
+  forceCompact?: boolean
+}): FooterChipsView | null {
+  const entries = [...opts.usage.entries()]
+    .map(([id, snapshot]) => ({
+      vendor: opts.vendorLabel(id).toUpperCase(),
+      snapshot,
+      chips: usageChips(snapshot, opts.nowMs),
+    }))
+    .filter((entry) => entry.chips.length > 0)
+  if (entries.length === 0) return null
+  if (!opts.forceCompact) {
+    const fulls: FooterVendorFull[] = entries.map((entry) => ({ vendor: entry.vendor, chips: entry.chips }))
+    const total = fulls.reduce((sum, v) => sum + fullVendorCells(v), 0) + (fulls.length - 1) * 2
+    if (total <= opts.budget) return { form: "full", vendors: fulls }
+  }
+  const vendors: FooterVendorCompact[] = []
+  let remaining = opts.budget
+  for (const entry of entries) {
+    const chip = narrowUsageChip(entry.snapshot, opts.nowMs)
+    if (!chip) continue
+    const gap = vendors.length > 0 ? 2 : 0
+    const need = displayWidth(entry.vendor) + 1 + displayWidth(chip.percentText)
+    if (need + gap <= remaining) {
+      vendors.push({ vendor: entry.vendor, percentText: chip.percentText, tone: chip.tone })
+      remaining -= need + gap
+      continue
+    }
+    // Does not fit whole: truncate THIS vendor's name to the remainder
+    // (keeping at least `X…`) and drop everything after it.
+    const nameBudget = remaining - gap - 1 - displayWidth(chip.percentText)
+    if (nameBudget >= 3) {
+      vendors.push({
+        vendor: truncateEndCells(entry.vendor, nameBudget, approxCharCells),
+        percentText: chip.percentText,
+        tone: chip.tone,
+      })
+    }
+    break
+  }
+  return { form: "compact", vendors }
 }
 
 /**
