@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.53
+
+### Patch Changes
+
+- [#686](https://github.com/Sma1lboy/rove/pull/686) [`69cea6e`](https://github.com/Sma1lboy/rove/commit/69cea6eb5026e4ca3b87ef1aaa1d822d0bfb3c55) Teach the silent-catch gate two shapes it was letting through: a promise `.catch` with a block body (`.catch((err) => { console.error(...) })`) and the log function handed over bare (`.catch(console.error)`). The block form was the notable miss — the existing check keyed on the `catch` keyword, so a `.catch` method call with a brace never matched, and opening a brace to hold one log line is the most natural way to write the defect. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.52
 
 ### Patch Changes
