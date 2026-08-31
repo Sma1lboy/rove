@@ -16,7 +16,10 @@
  *       SPA polls this cheaply and refetches messages only on change.
  *
  *   GET /api/history/messages?vendor=<id>&sessionId=<id>
- *     → { messages: Message[] }
+ *     → { messages: Message[], usage?: EngineUsageSnapshot }
+ *       `usage` is the reader's neutral aggregate snapshot; absent when the
+ *       engine doesn't surface usage — the SPA renders no token chips for
+ *       "not reported" instead of asserting zero.
  *
  * Returns `null` for any other path so the server falls through.
  */
@@ -73,8 +76,10 @@ async function handleMessages(url: URL): Promise<Response> {
     return Response.json({ error: "invalid sessionId" }, { status: 400 })
   }
   try {
-    const messages = await engineEntry(vendor).history.readHistory(sessionId)
-    return Response.json({ messages })
+    const reader = engineEntry(vendor).history
+    const messages = await reader.readHistory(sessionId)
+    const usage = reader.readUsageSnapshot ? await reader.readUsageSnapshot(sessionId) : undefined
+    return Response.json({ messages, ...(usage ? { usage } : {}) })
   } catch (err) {
     return Response.json({ error: errorMessage(err) }, { status: 500 })
   }

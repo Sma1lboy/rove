@@ -1,4 +1,28 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+
+// engineEntry is a module-level import in the route, so the readers have to
+// be swapped at the module boundary (an ESM namespace can't be spied on).
+// Only the two synthetic vendors below are mocked; every other test in this
+// file keeps hitting the real registry.
+const { fakeEntries } = vi.hoisted(() => ({
+  fakeEntries: {
+    reports: {
+      readHistory: async () => [],
+      readUsageSnapshot: async () => ({ input_tokens: 12, output_tokens: 3 }),
+    },
+    silent: { readHistory: async () => [] },
+  } as Record<string, unknown>,
+}))
+
+vi.mock("../../src/engine/registry.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/engine/registry.ts")>()
+  return {
+    ...actual,
+    engineEntry: (vendor: string) =>
+      vendor in fakeEntries ? { history: fakeEntries[vendor] } : actual.engineEntry(vendor),
+  }
+})
+
 import { handleHistoryRequest } from "../../src/web/history.ts"
 
 /**
@@ -58,5 +82,31 @@ describe("handleHistoryRequest", () => {
     const json = (await res?.json()) as { sessions: string[]; latestMtime: number }
     expect(json.sessions).toEqual([])
     expect(json.latestMtime).toBe(0)
+  })
+})
+
+/**
+ * The /messages route is where an adapter's usage snapshot reaches the
+ * browser. These two cases pin the WIRE, not the math: an engine that
+ * reports usage must have it forwarded, and one that doesn't must leave
+ * the field ABSENT — the SPA gates its token chips on presence, so a
+ * forwarded zero would render "0 tokens" for engines that simply never
+ * said (kimi's unverified wire, custom engines).
+ */
+describe("handleMessages usage forwarding", () => {
+  const mkUrl = (vendor: string) => new URL(`http://localhost/api/history/messages?vendor=${vendor}&sessionId=s1`)
+
+  it("forwards the reader's snapshot when the engine reports usage", async () => {
+    const url = mkUrl("reports")
+    const res = await handleHistoryRequest(new Request(url), url)
+    const json = (await res?.json()) as { messages: unknown[]; usage?: { input_tokens: number } }
+    expect(json.usage).toEqual({ input_tokens: 12, output_tokens: 3 })
+  })
+
+  it("omits usage entirely when the reader has no snapshot to give", async () => {
+    const url = mkUrl("silent")
+    const res = await handleHistoryRequest(new Request(url), url)
+    const json = (await res?.json()) as Record<string, unknown>
+    expect("usage" in json).toBe(false)
   })
 })

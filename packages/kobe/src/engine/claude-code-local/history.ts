@@ -40,7 +40,7 @@ import { randomUUID } from "node:crypto"
 import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import type { Message } from "@/types/engine"
+import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { isObject, parseSessionRaw } from "./history-parse"
 
@@ -206,6 +206,48 @@ export async function readHistory(sessionId: string, deps: HistoryDeps = default
     return parseSessionRaw(candidate, raw, sessionId)
   }
   return []
+}
+
+/**
+ * Session-aggregate usage for `sessionId`, folded from the per-turn usage
+ * Claude Code persists inline on assistant records. This is the ONE place
+ * the vendor's context arithmetic lives: "context" = the LAST turn's full
+ * prompt (fresh input + cache read + cache creation), derived — not an
+ * engine-reported figure — hence `context_tokens_approximate`. Neutral
+ * layers (web transcript header, cost dashboards) render the snapshot and
+ * must not re-derive the math from per-message fields.
+ * `undefined` when the session has no usage records (nothing reported,
+ * which is different from a reported zero).
+ */
+export async function readUsageSnapshot(
+  sessionId: string,
+  deps: HistoryDeps = defaultDeps,
+): Promise<EngineUsageSnapshot | undefined> {
+  const messages = await readHistory(sessionId, deps)
+  let input = 0
+  let output = 0
+  let cacheRead = 0
+  let cacheCreate = 0
+  let lastContext = 0
+  for (const message of messages) {
+    const usage = message.usage
+    if (!usage) continue
+    input += usage.input_tokens
+    output += usage.output_tokens
+    const read = usage.cache_read_input_tokens ?? 0
+    const create = usage.cache_creation_input_tokens ?? 0
+    cacheRead += read
+    cacheCreate += create
+    lastContext = usage.input_tokens + read + create
+  }
+  if (input === 0 && output === 0) return undefined
+  return {
+    input_tokens: input,
+    output_tokens: output,
+    ...(cacheRead > 0 ? { cache_read_input_tokens: cacheRead } : {}),
+    ...(cacheCreate > 0 ? { cache_creation_input_tokens: cacheCreate } : {}),
+    ...(lastContext > 0 ? { context_tokens: lastContext, context_tokens_approximate: true } : {}),
+  }
 }
 
 /**

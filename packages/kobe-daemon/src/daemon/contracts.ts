@@ -2,7 +2,16 @@
 
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
 
-export type VendorId = "claude" | "codex" | "copilot" | (string & {})
+/** Engine id (kobe `VendorId`). Deliberately plain `string`: the daemon
+ *  treats vendor ids as opaque pass-through values and never narrows on
+ *  the built-in literals — the old `"claude" | "codex" | "copilot" |
+ *  (string & {})` union drifted from kobe's list (it missed `kimi`) AND
+ *  its open string branch would have hidden the next drift inside an
+ *  exhaustive-looking switch. Where the daemon DOES need the built-in
+ *  list (plugin engine ids may not shadow a built-in or shipped-contrib
+ *  engine), `plugins/manifest.ts` carries `RESERVED_ENGINE_IDS` as its
+ *  own source of truth, locked to kobe's lists by a kobe-side test. */
+export type VendorId = string
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
 export interface TaskDeletionState {

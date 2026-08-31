@@ -89,6 +89,17 @@ describe("engineEntry — built-in vendors", () => {
     }
   })
 
+  it("wires readUsageSnapshot for usage-reporting engines only", () => {
+    // The web transcript header's token chips ride on this: present = the
+    // adapter reports usage; absent (kimi's unverified wire, custom engines)
+    // = "not reported", which the UI renders as no chips rather than zero.
+    expect(typeof engineEntry("claude").history.readUsageSnapshot).toBe("function")
+    expect(typeof engineEntry("codex").history.readUsageSnapshot).toBe("function")
+    expect(typeof engineEntry("copilot").history.readUsageSnapshot).toBe("function")
+    expect(engineEntry("kimi").history.readUsageSnapshot).toBeUndefined()
+    expect(engineEntry("my-custom-engine").history.readUsageSnapshot).toBeUndefined()
+  })
+
   it("exposes Codex identity and its harness default model through capabilities", () => {
     const entry = engineEntry("codex")
     expect(entry.identity?.inputPlaceholder).toBe("Ask Codex…")

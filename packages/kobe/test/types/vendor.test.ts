@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   ALL_VENDORS,
+  BUILTIN_VENDORS,
   coerceVendorId,
   isBuiltinVendor,
   nextVendor,
@@ -47,8 +48,14 @@ describe("isBuiltinVendor", () => {
     expect(isBuiltinVendor("claude")).toBe(true)
     expect(isBuiltinVendor("codex")).toBe(true)
     expect(isBuiltinVendor("copilot")).toBe(true)
+    expect(isBuiltinVendor("kimi")).toBe(true)
     expect(isBuiltinVendor("aider")).toBe(false)
     expect(isBuiltinVendor(undefined)).toBe(false)
+  })
+
+  it("agrees with BUILTIN_VENDORS exactly — no hand-maintained second list", () => {
+    for (const id of BUILTIN_VENDORS) expect(isBuiltinVendor(id)).toBe(true)
+    expect(BUILTIN_VENDORS.every((id) => isBuiltinVendor(id))).toBe(true)
   })
 })
 
