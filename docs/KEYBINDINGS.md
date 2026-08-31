@@ -76,7 +76,7 @@ focus or dialog.
 | `ctrl+t` | New engine tab |
 | `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
 | `ctrl+w` | Close the active split, otherwise the tab |
-| `ctrl+[` / `ctrl+]` | Previous / next tab |
+| `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
 | `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the Nth visible sidebar row (`ctrl+2` = first row) |
@@ -94,6 +94,14 @@ Both split chords need a terminal speaking the kitty keyboard protocol
 reserving `ctrl+\` also costs the embedded shell its SIGQUIT. If a split
 chord does nothing, `rove doctor` says whether your terminal answers the
 protocol query — that is the first thing to check.
+
+`ctrl+[` needs kitty for the same reason. Without the protocol it is not a
+chord at all: it sends the same byte as `Escape`, so the terminal cannot
+tell the two apart and Rove reads it as `Escape` — cycling backwards is
+simply unavailable there, with no second binding to fall back on. `ctrl+]`
+has its own byte and works everywhere. The consolation is that the ambiguity
+resolves in favour of the engine: `ctrl+[` keeps working as `Escape` inside
+the embedded terminal, which is what vim and every CLI's cancel key need.
 
 **Jump digits.** There is no `ctrl+1`; the terminal protocol can't encode it,
 so the first row answers to `2`.
