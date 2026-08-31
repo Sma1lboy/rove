@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.58
+
+### Patch Changes
+
+- [#690](https://github.com/Sma1lboy/rove/pull/690) [`c048b87`](https://github.com/Sma1lboy/rove/commit/c048b87a6742bb974d3e6a856e0627bd59157b20) Document that a repo's `.rove/init.sh` runs without confirmation — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.57
 
 ### Patch Changes
