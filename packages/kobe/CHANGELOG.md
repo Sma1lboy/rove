@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.57
+
+### Patch Changes
+
+- [#689](https://github.com/Sma1lboy/rove/pull/689) [`1866b17`](https://github.com/Sma1lboy/rove/commit/1866b175b4cb3c2061ed89a6423b934569ade404) Onboarding checks the machine before saying "ready". The first-run wizard gains a read-only "Environment check" page (the same git + engine probes `rove doctor` runs), and the closing banner only declares "You're ready to go!" when at least one engine is usable and git is present — otherwise it prints what is missing and how to fix it. A wizard killed mid-run also no longer loses the keyboard-basics page forever: a second launch re-runs once in primer mode (environment + keyboard pages, no re-asked questions).
+
+  Existing installs are unaffected by the new primer flag: a state file that already records a successful run is settled as done, so upgrading never produces a surprise wizard. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.56
 
 ### Patch Changes
