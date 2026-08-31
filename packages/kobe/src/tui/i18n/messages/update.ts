@@ -5,6 +5,8 @@
 
 export const en = {
   pageTitle: "ROVE UPDATE",
+  /** Brand-row chip — must stay tiny, the rail is the narrowest panel. */
+  chip: "↑ {version}",
   current: "current",
   latest: "latest",
   /** The registry check failed (offline, npm down, timeout). Distinct from
@@ -45,6 +47,7 @@ export const en = {
 
 export const zh: typeof en = {
   pageTitle: "ROVE 更新",
+  chip: "↑ {version}",
   current: "当前",
   latest: "最新",
   latestUnknown: "未知 —— 无法连接到 registry",

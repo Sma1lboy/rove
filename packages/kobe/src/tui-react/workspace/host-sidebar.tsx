@@ -51,6 +51,9 @@ export interface HostSidebarProps {
   readonly onSearchActiveChange: (active: boolean) => void
   readonly headerStatus: { label: string; emphasize: boolean }
   readonly onHeaderStatusClick: () => void
+  /** "newer version on npm" chip beside the brand text; null hides it. */
+  readonly updateChip?: { label: string } | null
+  readonly onUpdateChipClick?: () => void
   readonly zenActive: boolean
   readonly onZenClick: () => void
   readonly onFocusRequest: () => void
@@ -125,6 +128,8 @@ export function HostSidebar(props: HostSidebarProps) {
     onAddTask: props.onAddTask,
     headerStatus: props.headerStatus,
     onHeaderStatusClick: props.onHeaderStatusClick,
+    updateChip: props.updateChip,
+    onUpdateChipClick: props.onUpdateChipClick,
     zenActive: props.zenActive,
     onZenClick: props.onZenClick,
     sortMode: props.sortMode,

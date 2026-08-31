@@ -291,6 +291,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // date with, and the red banner already says the screen is a photograph.
   const daemonStale = useAccessor(orch.daemonStaleSignal())
   const daemonVersion = useAccessor(orch.daemonVersionSignal())
+  // Daemon-polled npm check (collectors' update channel). The chip is the
+  // passive half of the update surface; `u` / a click opens the page.
+  const updateInfo = useAccessor(orch.updateSignal())
   const banner = daemonDown ? (
     <DaemonDownBanner down={true} width={dims.width} />
   ) : (
@@ -392,6 +395,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
             emphasize: inbox.counts.total > 0,
           }}
           onHeaderStatusClick={inbox.show}
+          updateChip={updateInfo?.hasUpdate ? { label: t("update.chip", { version: updateInfo.latest }) } : null}
+          onUpdateChipClick={pages.openUpdate}
           zenActive={zen}
           onZenClick={toggleZen}
           onFocusRequest={() => focus.setFocused("sidebar")}

@@ -353,6 +353,8 @@ export function SidebarTree(props: SidebarTreeProps) {
         focused={focused}
         status={props.headerStatus ?? null}
         onStatusClick={props.onHeaderStatusClick}
+        update={props.updateChip ?? null}
+        onUpdateClick={props.onUpdateChipClick}
       />
       <SidebarCreateAction onAddTask={props.onAddTask} />
       {search.active ? (

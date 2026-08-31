@@ -115,6 +115,9 @@ export function SidebarBrandHeader(props: {
   focused: boolean
   status: { label: string; emphasize: boolean } | null
   onStatusClick?: () => void
+  /** "a newer build is on npm" chip — right-aligned, opens the update page. */
+  update?: { label: string } | null
+  onUpdateClick?: () => void
 }) {
   const { theme } = useTheme()
   return (
@@ -136,6 +139,14 @@ export function SidebarBrandHeader(props: {
           </box>
         ) : null}
       </box>
+      {props.update ? (
+        <box position="relative" flexShrink={0} onMouseUp={() => props.onUpdateClick?.()}>
+          <text fg={theme.success} attributes={TextAttributes.BOLD} wrapMode="none">
+            {props.update.label}
+          </text>
+          {props.onUpdateClick ? <ShortcutRevealBadge bindingId="tasks.update" /> : null}
+        </box>
+      ) : null}
     </box>
   )
 }
