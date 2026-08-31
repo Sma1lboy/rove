@@ -210,8 +210,18 @@ if [ "$MIGRATING" = "1" ]; then
   "$MANAGER" uninstall -g $NPM_PREFIX_ARGS "$LEGACY_PACKAGE" >>"$LOG" 2>&1 || true
 fi
 
+# bun caches the package manifest, so a version published minutes ago is
+# "not found" until that cache expires — `bun add` reports it as
+# `No version matching "X" found ... (but package exists)`, which names
+# neither the cache nor a way out. Ask bun to re-fetch the manifest instead:
+# --no-cache on the FIRST attempt costs one registry round-trip and removes
+# the entire class of "I just released it and cannot install it".
+# npm resolves dist-tags per invocation and needs nothing here.
+INSTALL_ARGS=""
+if [ "$MANAGER" = "bun" ]; then INSTALL_ARGS="--no-cache"; fi
+
 # shellcheck disable=SC2086 # empty-or-two-words, needs splitting
-"$MANAGER" install -g $NPM_PREFIX_ARGS "${PACKAGE}@${VERSION:-latest}" >>"$LOG" 2>&1 &
+"$MANAGER" install -g $NPM_PREFIX_ARGS $INSTALL_ARGS "${PACKAGE}@${VERSION:-latest}" >>"$LOG" 2>&1 &
 PID=$!
 
 if [ -t 1 ]; then
@@ -231,6 +241,15 @@ fi
 if ! wait "$PID"; then
   printf '%berror: %s install failed:%b\n' "$RED" "$MANAGER" "$RESET" >&2
   cat "$LOG" >&2
+  # bun says `No version matching "X" ... (but package exists)` for a stale
+  # manifest cache and names neither the cache nor a fix. --no-cache above
+  # should prevent it; if it still happens, say what to do rather than
+  # leaving the user with a message that reads like the version is missing.
+  if grep -q 'but package exists' "$LOG" 2>/dev/null; then
+    printf '%bThat version IS published — this is a stale package-manager cache.%b\n' "$DIM" "$RESET" >&2
+    printf '%bTry: rm -rf ~/.bun/install/cache && %s install -g %s@%s%b\n' \
+      "$DIM" "$MANAGER" "$PACKAGE" "${VERSION:-latest}" "$RESET" >&2
+  fi
   # We removed the legacy package to free the bin names, so a failed
   # install would otherwise leave the user with no kobe at all. Put it
   # back before giving up.
