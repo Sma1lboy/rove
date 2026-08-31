@@ -64,6 +64,9 @@ export type SidebarProps = SidebarTaskCallbacks & {
   width?: number
   headerStatus?: { label: string; emphasize: boolean } | null
   onHeaderStatusClick?: () => void
+  /** "newer version on npm" brand-row chip; null hides it. */
+  updateChip?: { label: string } | null
+  onUpdateChipClick?: () => void
   onAddTask?: () => void
   zenActive?: boolean
   onZenClick?: () => void
