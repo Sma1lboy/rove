@@ -319,6 +319,12 @@ A repo can ship two files in its own `.rove/` directory:
   starts, once per worktree. Use it for `bun install`, direnv, codegen.
 - **`.rove/init-prompt.md`.** Sent as the engine's first message.
 
+`init.sh` comes from the repo, and Rove runs it without asking — in the same
+shell that then execs the engine, with your account's privileges. That is the
+same level of trust you extend by running the repo's own build or test
+command, so it is worth a look at `.rove/init.sh` before you create the first
+task in a repository you did not write.
+
 Files committed in the repo win over any per-user override you set with
 `rove repo set`. Legacy `.kobe/init.sh` and `.kobe/init-prompt.md` remain
 field-by-field fallbacks; a `.rove` file wins when both spellings exist —
