@@ -69,8 +69,8 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // them re-renders this consumer and re-runs the effect below.
   const focus = useOptionalFocus()
   const dialog = useOptionalDialog()
-  useKeymapVersion()
-  useBindingStackVersion()
+  const keymapVersion = useKeymapVersion()
+  const stackVersion = useBindingStackVersion()
   const [snapshot, setSnapshot] = useState<{ tokens: readonly StatusHintToken[]; modal: boolean }>({
     tokens: [],
     modal: false,
@@ -106,7 +106,22 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
         ? prev
         : { tokens: nextTokens, modal: nextModal }
     })
-  })
+    // Dependencies, NOT a bare effect (React #185, 2026-08-31): this hook
+    // renders in the workspace FOOTER, which wraps the whole pane tree, so its
+    // setState re-renders every sidebar row — and each row's `useBindings`
+    // bumps `stackVersion` on unmount/remount, which re-renders the footer.
+    // With no dependency array the effect ran on every one of those renders,
+    // leaving only the compare-and-set between that cycle and an infinite
+    // loop. Deleting tasks in a burst (rows unmounting while focus and the
+    // prefix state churn) got past the compare and the workspace crashed with
+    // "Maximum update depth exceeded".
+    //
+    // These four ARE the effect's inputs: the two version counters cover every
+    // keymap/registration change, and focus + the dialog stack cover the rest
+    // of what reachability reads. `kv` is a stable context value. The
+    // after-commit timing the comment above relies on is unchanged — an effect
+    // with dependencies still runs after the commit that changed them.
+  }, [keymapVersion, stackVersion, focus?.focused, dialog?.stack.length, kv])
   // Click = the action the advertised key would run. Arming the prefix goes
   // through the REAL dispatcher state, so the which-key guide that appears
   // accepts a keyboard second stroke exactly like a pressed ctrl+a.
