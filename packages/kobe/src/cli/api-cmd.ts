@@ -141,7 +141,29 @@ export function toApiError(err: unknown): ApiError {
       nextCommandArgs: ["api", "list"],
     })
   }
+  if (/unknown daemon request:/i.test(message)) return versionSkewError(message)
   return new ApiError(message, "RPC_ERROR")
+}
+
+/**
+ * The daemon rejected the RPC the verb is BUILT on — which only happens when
+ * this CLI and the long-lived daemon are different builds. It is a version
+ * skew, not a broken verb, and the recovery is the same in both directions:
+ *
+ *   - new CLI × old daemon — the daemon predates the verb.
+ *   - old CLI × new daemon — the daemon dropped a verb this CLI still ships.
+ *
+ * Untyped, this is the incident that motivated the mapping: an agent asked
+ * `schema --verb archive`, got a full spec and exit 0, ran `archive`, and got
+ * a bare `RPC_ERROR` 200ms later. Schema is how an agent discovers a
+ * capability, so a `RPC_ERROR` there reads as "this call failed, retry" rather
+ * than "this binary and that daemon disagree about what exists".
+ */
+function versionSkewError(message: string): ApiError {
+  return new ApiError(message, "DAEMON_VERSION_SKEW", {
+    hint: "the running daemon is a different build than this CLI, so it does not serve this verb — restart the daemon to pick up this build, then retry (if the verb is gone for good, `rove api schema` lists what this daemon actually serves)",
+    nextCommandArgs: ["daemon", "restart"],
+  })
 }
 
 /**
