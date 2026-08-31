@@ -12,6 +12,13 @@
  * (focus bookkeeping, telemetry) takes a `// silent-catch-ok: <reason>` marker
  * on the offending line or the one above it.
  *
+ * This is a line-shaped scan, so two shapes still get through: an arrow split
+ * across lines (`.catch((err) =>\n  console.error(...))`) and a block body
+ * where the log is not the first statement. Catching either needs a
+ * string/comment-aware paren matcher; the shapes are rare enough that the
+ * matcher costs more than it returns. The gate narrows the class, it does not
+ * close it — a review still has to read the catch.
+ *
  * Behavior is covered by test/architecture/no-silent-catch.test.ts.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs"
@@ -31,7 +38,16 @@ function sources(dir) {
 }
 
 const CATCH_ARROW = /\.catch\s*\(.*=>\s*console\.error/
+// `.catch(console.error)` — the log function handed over bare. Same defect as
+// the arrow form, and the shorter thing to type.
+const CATCH_BARE = /\.catch\s*\(\s*console\.error\s*\)/
 const CATCH_BLOCK_OPEN = /\bcatch\s*(\([^)]*\))?\s*\{\s*$/
+// `.catch((err) => {` — a promise handler with a block body. `CATCH_BLOCK_OPEN`
+// misses it: `\bcatch` there is the try/catch KEYWORD, and the arrow between
+// the parameter list and the brace never matches. Opening a brace and putting
+// one log line inside is the most natural way to write this defect, so the two
+// open-shapes share the only-statement-is-the-log check below.
+const CATCH_ARROW_BLOCK_OPEN = /\.catch\s*\(.*=>\s*\{\s*$/
 const MARKER = /silent-catch-ok/
 
 /**
@@ -53,15 +69,19 @@ for (const file of sources(root)) {
   const lines = readFileSync(file, "utf8").split("\n")
   lines.forEach((line, i) => {
     // Shape 1: one-expression arrow handler, `.catch(e => console.error(…))`.
-    const offending = CATCH_ARROW.test(line)
+    const offending = CATCH_ARROW.test(line) || CATCH_BARE.test(line)
     // Shape 2: a catch block whose ONLY statement is the log — nothing else
     // in the block surfaces the failure. (A block that also notifies is fine,
     // which is exactly the fix, so the closing-brace check is the point.)
-    if (!offending && CATCH_BLOCK_OPEN.test(line)) {
+    if (!offending && (CATCH_BLOCK_OPEN.test(line) || CATCH_ARROW_BLOCK_OPEN.test(line))) {
       const body = lines[i + 1] ?? ""
       const after = lines[i + 2] ?? ""
       if (body.includes("console.error") && /^\s*\}/.test(after)) {
-        if (!MARKER.test(body) && !MARKER.test(line)) hits.push({ file, line: i + 2 })
+        // Same escape hatch as the arrow form: the marker may sit on the log
+        // itself, the opening line, or the line above it — the repo's existing
+        // exemptions are written in that third position.
+        const marked = MARKER.test(body) || MARKER.test(line) || MARKER.test(lines[i - 1] ?? "")
+        if (!marked) hits.push({ file, line: i + 2 })
         return
       }
     }
