@@ -33,6 +33,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   addRemoteRepo,
   addSavedRepo,
+  backfillSavedReposFromProjects,
   getCustomEngineIds,
   getRemoteRepoConfig,
   getSavedRepos,
@@ -303,5 +304,39 @@ describe("addSavedRepo admission gate", () => {
     const plain = path.join(tmpHome, "not-a-repo")
     fs.mkdirSync(plain, { recursive: true })
     expect(addSavedRepo(plain).path).toBe(plain)
+  })
+})
+
+describe("backfillSavedReposFromProjects", () => {
+  function initRepo(name: string): string {
+    const dir = path.join(tmpHome, name)
+    fs.mkdirSync(dir, { recursive: true })
+    spawnSync("git", ["init", "-q"], { cwd: dir, encoding: "utf8" })
+    return dir
+  }
+
+  test("adds project rows that never reached savedRepos", () => {
+    // The owner's machine: 8 sidebar projects, 2 saved repos.
+    const a = initRepo("proj-a")
+    const b = initRepo("proj-b")
+    addSavedRepo(a)
+    expect(getSavedRepos()).toEqual([a])
+
+    expect(backfillSavedReposFromProjects([a, b])).toEqual([b])
+    expect(getSavedRepos()).toEqual([a, b])
+  })
+
+  test("is idempotent — a second pass adds nothing", () => {
+    const a = initRepo("proj-a")
+    backfillSavedReposFromProjects([a])
+    expect(backfillSavedReposFromProjects([a])).toEqual([])
+    expect(getSavedRepos()).toEqual([a])
+  })
+
+  test("skips a row that fails the admission gate", () => {
+    // A leaked fixture row is not something to make MORE permanent.
+    const leaked = initRepo(path.join(".dev-sandbox", "smoke-repo"))
+    expect(backfillSavedReposFromProjects([leaked])).toEqual([])
+    expect(getSavedRepos()).toEqual([])
   })
 })

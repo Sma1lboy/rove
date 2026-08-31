@@ -219,3 +219,28 @@ describe("project admission (state/project-eligibility.ts)", () => {
     expect(found.kind).toBe("main")
   })
 })
+
+describe("a project row and a saved-repos entry are the same fact", () => {
+  test("ensureMainTask saves the repo, so the sidebar and the picker agree", async () => {
+    // They used to be written by separate paths: a row minted by createTask
+    // was a project you could SEE but not pick. Once closing the last tab
+    // hides such a project, that gap loses it with no way back.
+    expect(getSavedRepos()).not.toContain(repo)
+    await orch.ensureMainTask(repo)
+    expect(getSavedRepos()).toContain(repo)
+  })
+
+  test("createTask on a fresh repo saves it too", async () => {
+    await orch.createTask({ repo, title: "t" })
+    expect(getSavedRepos()).toContain(repo)
+  })
+
+  test("an ineligible repo is saved by neither", async () => {
+    const sandboxed = path.join(tmpRoot, ".dev-sandbox", "paired-repo")
+    const r = spawnSync("bash", [REPO_INIT, sandboxed], { encoding: "utf8" })
+    if (r.status !== 0) throw new Error(`repo-init.sh failed: ${r.stderr}`)
+    await orch.createTask({ repo: sandboxed, title: "fixture" })
+    expect(orch.listTasks().filter((t) => t.kind === "main")).toHaveLength(0)
+    expect(getSavedRepos()).not.toContain(sandboxed)
+  })
+})

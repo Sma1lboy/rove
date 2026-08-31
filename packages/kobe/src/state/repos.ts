@@ -244,6 +244,31 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
 }
 
 /**
+ * Backfill `savedRepos` from the project rows that already exist.
+ *
+ * The sidebar's projects and the new-task picker's repos are meant to be the
+ * same set, but until 2026-08-31 they were written by different paths: a row
+ * minted by `createTask` on a fresh repo appeared in the sidebar while never
+ * reaching `savedRepos`. On the owner's machine that was 6 of 8 projects —
+ * visible, unpickable, and (once closing the last tab hides a project) not
+ * recoverable.
+ *
+ * `mainRepos` is the caller's list of `kind:"main"` task repos; this module
+ * cannot read the task index (the daemon owns it). Entries that fail the
+ * admission gate are skipped rather than healed — a leaked fixture row is not
+ * something to make MORE permanent. Returns the paths actually added.
+ */
+export function backfillSavedReposFromProjects(mainRepos: readonly string[]): readonly string[] {
+  const added: string[] = []
+  for (const repo of mainRepos) {
+    // `explicit`: these rows are already in the user's sidebar. The stricter
+    // tier is for paths Rove is about to infer, not ones it has been showing.
+    if (addSavedRepo(repo, { intent: "explicit" }).added) added.push(repo)
+  }
+  return added
+}
+
+/**
  * One-shot migration: rewrite the on-disk `savedRepos` list so each
  * entry is its git toplevel. Heals state files written before
  * {@link addSavedRepo} normalized at write time. Duplicates that

@@ -12,7 +12,7 @@
  */
 
 import { type ProjectIntent, projectRejection, rejectionReason } from "../state/project-eligibility.ts"
-import { getSavedRepos, isGitRepo, removeSavedRepo } from "../state/repos.ts"
+import { addSavedRepo, getSavedRepos, isGitRepo, removeSavedRepo } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { normalizeMainRepo, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
@@ -80,6 +80,14 @@ export class MainTaskCoordinator {
     const inflight = this.locks.get(key)
     if (inflight) return inflight
     const promise = (async () => {
+      // A project row and a saved-repos entry are the same fact: the sidebar
+      // shows what the new-task picker offers. They used to be written by
+      // separate paths, so a row minted here (`createTask` on a fresh repo)
+      // was a project you could SEE but could not pick — and closing its last
+      // tab, which now hides it, would have lost it with no way back.
+      // Writing both here keeps them from diverging again. `explicit`: this
+      // path already passed the admission gate above.
+      addSavedRepo(normalizedRepo, { intent: "explicit" })
       const adoptable = this.store
         .list()
         .find((task) => task.kind === "dir" && task.scratch !== true && onThisRoot(task))

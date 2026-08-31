@@ -11,6 +11,7 @@ import { auditDeletionSalvaged } from "@sma1lboy/kobe-daemon/daemon/task-deletio
 import { Orchestrator } from "../orchestrator/core.ts"
 import { TaskIndexStore } from "../orchestrator/index/store.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
+import { backfillSavedReposFromProjects } from "../state/repos.ts"
 import { tearDownTaskSessionAdapter } from "./daemon-session-adapter.ts"
 
 export interface KobeCoreOptions {
@@ -43,6 +44,20 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
     // deletion runner already uses.
     tearDownSession: (taskId) => tearDownTaskSessionAdapter(String(taskId)),
   })
+
+  // Heal the projects/savedRepos split (see backfillSavedReposFromProjects):
+  // rows minted before 2026-08-31 are in the sidebar but not the picker. Runs
+  // once per daemon boot and is idempotent — after the first pass every row
+  // is already saved and `addSavedRepo` reports nothing added.
+  const backfilled = backfillSavedReposFromProjects(
+    store
+      .list()
+      .filter((task) => task.kind === "main")
+      .map((task) => task.repo),
+  )
+  if (backfilled.length > 0) {
+    console.error(`[rove] added ${backfilled.length} existing project(s) to the new-task picker`)
+  }
 
   return {
     homeDir,

@@ -26,6 +26,10 @@ import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
 import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
 
+// Search lives in its own module (file-size cap) but stays part of tree-core's
+// public surface — every caller imports the tree's vocabulary from one place.
+export { filterTreeRows } from "./tree-search"
+
 /** Separator between a task id and a tab id in a tab row's id. Matches the
  *  PTY registry's key format so one parse rule covers both. */
 export const TAB_ROW_SEPARATOR = "::"
@@ -166,6 +170,32 @@ export interface TreeInput {
 }
 
 /**
+ * A project you closed down to nothing: its ONLY row is the repo's main
+ * checkout, and that checkout's last tab has been closed.
+ *
+ * Such a project is hidden from the tree (owner call 2026-08-31). Nothing is
+ * deleted — the main task and the `savedRepos` entry both stay, so the repo
+ * is still there in the new-task picker to open again. This is the whole
+ * difference from Forget (`d` on the row → `forgetProject`), which un-saves
+ * the repo: closing the last tab is a "I'm done here for now" gesture, not a
+ * "remove this from my machine" one.
+ *
+ * Deliberately narrow. It requires:
+ *   - exactly one task in the project, and that task is the `main` row, and
+ *   - its tabs are KNOWN and empty — an absent entry means "never mounted
+ *     since restart", which is every project on a fresh TUI. Hiding on that
+ *     would make the sidebar boot empty.
+ *
+ * A project with any worktree task under it always renders, even with every
+ * tab closed: those rows are how you get back to that work.
+ */
+function isClosedDownProject(tasks: readonly Task[], tabsByTask: TreeInput["tabsByTask"]): boolean {
+  const only = tasks.length === 1 ? tasks[0] : undefined
+  if (!only || only.kind !== "main") return false
+  return tabsByTask.get(only.id)?.length === 0
+}
+
+/**
  * Build the flat tree rows.
  *
  * Ordering: projects follow their MAIN task's stored order (the same rule the
@@ -279,8 +309,15 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   // while the toast that had just named one of them said `work/api`. Same
   // helper every other surface already uses (Inbox, Kanban, work items,
   // automations) — the tree was the last holdout.
-  const projectRepos = orderedKeys.map((key) => byProject.get(key)?.repo ?? "")
-  for (const key of orderedKeys) {
+  // Projects closed down to nothing drop out of the tree entirely — header
+  // and row (see `isClosedDownProject`). Computed BEFORE the label pass so a
+  // hidden project can't influence how the visible ones disambiguate.
+  const visibleKeys = orderedKeys.filter((key) => {
+    const entry = byProject.get(key)
+    return entry ? !isClosedDownProject(entry.tasks, tabsByTask) : false
+  })
+  const projectRepos = visibleKeys.map((key) => byProject.get(key)?.repo ?? "")
+  for (const key of visibleKeys) {
     const entry = byProject.get(key)
     if (!entry) continue
     rows.push({
@@ -319,105 +356,13 @@ export function treeFlatIds(rows: readonly TreeRow[]): string[] {
   return ids
 }
 
-/** The project a row belongs to. A `dir` task's project is its directory —
+/** The project a row belongs to — exported for `tree-search`, which prunes
+ *  by the same grouping the tree builds with. A `dir` task's project is its
+ *  directory. A `dir` task's project is its directory —
  *  the same key `buildTreeRows` groups it under. */
-function ownerProjectKey(task: Task): string | null {
+export function ownerProjectKey(task: Task): string | null {
   if (task.kind === "dir" && task.scratch === true) return SCRATCH_SECTION_ID
   return sidebarProjectKey(task.repo)
-}
-
-/**
- * The fields a row's query is matched against, ONE AT A TIME (see
- * `matchesRow`) — the criterion is that what you can
- * FIND is exactly what you can SEE, so a worktree row's haystack starts from
- * the very label `worktreeRowLabel` renders it with.
- *
- * Two kinds of row were unsearchable by their own visible text before that:
- *   - a `main` row is labelled by its LIVE polled HEAD (its stored `branch` is
- *     always `""`), so searching the branch name printed on the row missed it;
- *   - a `dir` / scratch row is labelled by its tail-truncated path while its
- *     stored title is deliberately ignored as auto-generated noise — and the
- *     haystack searched precisely that ignored title and never the path.
- *
- * `liveBranch` resolves the polled HEAD for the rows that own no branch (see
- * {@link rowLiveBranchPath}); without it the label falls back to the stored
- * branch, which is what a pure unit test wants.
- */
-function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readonly string[] {
-  if (row.kind === "project") return [row.label]
-  if (row.kind === "tab") return [row.tab.label]
-  const task = row.task
-  // A `dir` task's stored title is the noise the row refuses to show; it must
-  // not be findable either, or the search hits text that is nowhere on screen.
-  const title = task.kind === "dir" ? "" : task.title
-  return [worktreeRowLabel(task, { liveBranch: liveBranch?.(task) }), title, repoBasename(task.repo)]
-}
-
-/**
- * Match the query against each of a row's fields SEPARATELY, never against
- * their concatenation. `fuzzyMatch` is a subsequence test, so one joined
- * string lets a query straddle a boundary and hit a row that shows the
- * matched characters nowhere together: `feat/tree` found a `feat/chat` row by
- * spending `feat/` on the branch and `tree` on the title beside it.
- */
-function matchesRow(query: string, row: TreeRow, liveBranch?: (task: Task) => string): boolean {
-  return rowHaystacks(row, liveBranch).some((field) => field !== "" && fuzzyMatch(query, field))
-}
-
-/**
- * Prune the tree to what matches `query`, keeping every hit's ANCESTORS so a
- * match never floats free of the worktree and project it lives in.
- *
- * Match semantics per kind, chosen so one query answers all three questions
- * the tree can be asked:
- *   - project  → repo basename. A hit keeps the WHOLE subtree ("show me
- *     everything in kobe").
- *   - worktree → the row's own RENDERED label (branch, live HEAD, or path)
- *     plus its title and repo basename. A hit keeps the worktree's tabs
- *     ("that branch, and what's running in it").
- *   - tab      → the tab's label, i.e. its live OSC window title. This is the
- *     tree's own increment over the flat sidebar, which can only search task
- *     titles: it answers "which tab is running that thing".
- */
-export function filterTreeRows(
-  rows: readonly TreeRow[],
-  query: string,
-  liveBranch?: (task: Task) => string,
-): TreeRow[] {
-  const q = query.trim()
-  if (q === "") return [...rows]
-
-  // Pass 1 — rows matching on their own text, plus the ancestors each hit
-  // keeps alive.
-  const selfMatch = new Set<string>()
-  const keep = new Set<string>()
-  for (const row of rows) {
-    if (!matchesRow(q, row, liveBranch)) continue
-    selfMatch.add(row.id)
-    keep.add(row.id)
-    if (row.kind === "project") continue
-    if (row.kind === "tab") keep.add(row.task.id)
-    const project = ownerProjectKey(row.task)
-    if (project !== null) keep.add(project)
-  }
-
-  // Pass 2 — emit a row when it matched, when a descendant kept it, or when
-  // an ancestor matched outright (a project hit brings its subtree along).
-  const out: TreeRow[] = []
-  for (const row of rows) {
-    if (row.kind === "project") {
-      if (keep.has(row.id)) out.push(row)
-      continue
-    }
-    const project = ownerProjectKey(row.task)
-    const underMatchedProject = project !== null && selfMatch.has(project)
-    if (row.kind === "worktree") {
-      if (underMatchedProject || keep.has(row.id)) out.push(row)
-      continue
-    }
-    if (underMatchedProject || selfMatch.has(row.task.id) || keep.has(row.id)) out.push(row)
-  }
-  return out
 }
 
 /**
