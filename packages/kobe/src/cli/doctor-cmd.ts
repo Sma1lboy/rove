@@ -13,9 +13,6 @@ import {
   defaultPtyHostSocketPath,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
-import type { BinaryStatus } from "../engine/account-detect.ts"
-import { listPresetIds } from "../engine/engine-presets.ts"
-import { describeAccount, detectEngineStatuses, engineUsable } from "../engine/engine-status.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
@@ -33,6 +30,7 @@ import {
 } from "./doctor-fix.ts"
 import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
 import { terminalDoctorLines } from "./doctor-terminal.ts"
+import { probeEngines, probeGit } from "./env-checks.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
 import { activeCliName } from "./rename-compat.ts"
 
@@ -120,51 +118,6 @@ function tailFile(path: string, count: number): string {
   }
 }
 
-/** `git --version` if git is on PATH, else a not-found marker. */
-async function gitDoctorLine(): Promise<{ line: string; found: boolean }> {
-  try {
-    const proc = Bun.spawn(["git", "--version"], { stdin: "ignore", stdout: "pipe", stderr: "ignore" })
-    const text = (await new Response(proc.stdout).text()).trim()
-    if ((await proc.exited) === 0 && text) return { line: `git:      ✓ ${text}`, found: true }
-  } catch {
-    // fall through to not-found
-  }
-  return { line: "git:      ✗ not found on PATH", found: false }
-}
-
-function binaryLabel(binary: BinaryStatus): string {
-  return binary.found ? `✓ ${binary.path}` : `✗ ${binary.error}`
-}
-
-/**
- * One "engines:" block: per-engine CLI binary + account state (read-only).
- *
- * Loops over the REGISTERED engines rather than three hardcoded rows — kimi
- * shipped with a real `detectKimiAccount` and never appeared here, and a
- * contrib/custom engine never could, because adding one meant editing this
- * neutral CLI file. `detectEngineStatuses` is the same probe Settings →
- * Accounts uses, so the two surfaces can't disagree.
- *
- * Order is `listPresetIds()`: the built-ins in their stable cycle order
- * (claude, codex, copilot, kimi — the first three exactly where they were),
- * then the user's own presets in registration order.
- */
-async function engineDoctorLines(): Promise<{ lines: string[]; anyUsable: boolean }> {
-  const statuses = await detectEngineStatuses(listPresetIds())
-  const lines = ["engines:"]
-  for (const status of statuses) {
-    const account = describeAccount(status.account)
-    // padEnd(7)+space, not padEnd(8): a custom id of exactly 8 chars would
-    // otherwise butt straight against the ✓/✗. Built-in columns are unchanged.
-    const name = `${status.vendor.padEnd(7)} `
-    lines.push(`  ${name}${binaryLabel(status.binary)}${status.binary.found ? ` — ${account}` : ""}`)
-    if (status.accountError) lines.push(`          ⚠ ${status.accountError}`)
-  }
-  // "Usable" = binary present AND some account. One usable engine is enough;
-  // a missing vendor the user never launches is not a finding.
-  return { lines, anyUsable: statuses.some(engineUsable) }
-}
-
 async function appendUnavailableProcess(
   out: string[],
   label: string,
@@ -192,9 +145,9 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   const tasksPath = join(roveStateDir(), "tasks.json")
   const statePath = kvStatePath()
   const fixes: DoctorFix[] = []
-  const git = await gitDoctorLine()
+  const git = await probeGit()
   if (!git.found) fixes.push(humanOnlyFix("git"))
-  const engines = await engineDoctorLines()
+  const engines = await probeEngines()
   if (!engines.anyUsable) fixes.push(humanOnlyFix("noEngine"))
   const out = [
     "Rove doctor",
