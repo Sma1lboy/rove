@@ -13,6 +13,7 @@ import { pruneSnapshotAliases, repoSnapshotAliases } from "./repo-key.ts"
 import { daemonRpc } from "./rpc-client.ts"
 import { pruneMissingTasks } from "./tabs.ts"
 import { applyThemeFromPrefs } from "./theme.ts"
+import { withWebTokenQuery } from "./web-token.ts"
 import type {
   EngineState,
   RepoIssues,
@@ -299,7 +300,7 @@ function scheduleReconnect(): void {
 
 function ensureStream(): void {
   if (isStreamReusable(source)) return
-  source = new EventSource("/events")
+  source = new EventSource(withWebTokenQuery("/events"))
   source.addEventListener("open", () => {
     reconnectAttempts = 0
     set({ streamConnected: true })
