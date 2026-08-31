@@ -10,7 +10,7 @@ describe("updatePlan", () => {
       display: UPDATE_COMMAND,
     })
     expect(UPDATE_COMMAND).toBe(`curl -fsSL ${UPDATE_SCRIPT_URL} | sh`)
-    expect(recommendedGlobalInstallCommand()).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
+    expect(recommendedGlobalInstallCommand(null)).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
   })
 
   it("a channel rides into the script through the same slot a version does", () => {

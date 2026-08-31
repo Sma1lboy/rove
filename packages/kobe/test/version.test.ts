@@ -10,6 +10,7 @@ import {
   fetchReleaseNotesRange,
   fetchReleaseSummaries,
   isNewerSemver,
+  owningNpmPrefix,
   recommendedGlobalInstallCommand,
   releasePageUrl,
   repoSlug,
@@ -200,7 +201,27 @@ describe("repo slug + static commands", () => {
   })
 
   it("recommendedGlobalInstallCommand targets this package", () => {
-    expect(recommendedGlobalInstallCommand()).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
+    expect(recommendedGlobalInstallCommand(null)).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
+  })
+
+  // A bare `npm install -g` writes to the prefix of whichever node runs
+  // npm, which need not be the prefix holding the binary the user ran.
+  // When we know the owning prefix, the command has to pin it.
+  it("pins the owning prefix when the build lives in an npm global dir", () => {
+    expect(recommendedGlobalInstallCommand("/opt/homebrew")).toBe(
+      `npm install -g --prefix /opt/homebrew ${PACKAGE_NAME}@latest`,
+    )
+  })
+
+  it("derives the prefix from the module path, and only for npm layouts", () => {
+    expect(owningNpmPrefix(`/opt/homebrew/lib/node_modules/${PACKAGE_NAME}/dist/version.js`)).toBe("/opt/homebrew")
+    expect(
+      owningNpmPrefix(`/Users/x/.nvm/versions/node/v22.0.0/lib/node_modules/${PACKAGE_NAME}/dist/version.js`),
+    ).toBe("/Users/x/.nvm/versions/node/v22.0.0")
+    // bun global installs and dev checkouts have no npm prefix to pin.
+    expect(owningNpmPrefix("/Users/x/.bun/install/global/node_modules/pkg/dist/version.js")).toBeNull()
+    expect(owningNpmPrefix("/Users/x/src/rove/packages/kobe/src/version.ts")).toBeNull()
+    expect(owningNpmPrefix("/lib/node_modules/pkg/dist/version.js")).toBeNull()
   })
 
   it("releasePageUrl points at the GitHub tag for a version", () => {

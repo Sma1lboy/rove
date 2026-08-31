@@ -26,6 +26,41 @@ if [ "$VERSION" = "--list" ]; then
   exit 0
 fi
 
+# Resolve a symlink chain to the real file. `readlink -f` is GNU-only —
+# BSD/macOS readlink has no -f — so try realpath first, then GNU readlink,
+# then walk the chain by hand with plain `readlink`. Prints the input
+# unchanged when nothing resolves.
+resolve_link() {
+  target="$1"
+  if command -v realpath >/dev/null 2>&1; then
+    realpath "$target" 2>/dev/null && return 0
+  fi
+  if readlink -f "$target" >/dev/null 2>&1; then
+    readlink -f "$target" 2>/dev/null && return 0
+  fi
+  # Hand-rolled walk for BSD readlink. Bounded so a symlink cycle can't
+  # spin forever.
+  hops=0
+  while [ -L "$target" ] && [ "$hops" -lt 40 ]; do
+    link="$(readlink "$target")" || break
+    case "$link" in
+      /*) target="$link" ;;
+      *) target="$(dirname "$target")/$link" ;;
+    esac
+    hops=$((hops + 1))
+  done
+  # The hand-rolled walk leaves `bin/../lib` style segments behind. `cd -P`
+  # collapses them using only POSIX builtins, so the derived prefix is a
+  # real path and not one that merely resolves by luck.
+  dir="$(dirname "$target")"
+  base="$(basename "$target")"
+  if cd -P "$dir" 2>/dev/null; then
+    printf '%s/%s\n' "$(pwd -P)" "$base"
+  else
+    echo "$target"
+  fi
+}
+
 # `rove` first: on a migrated install both commands exist, and the newer
 # name is the one whose absence means "not migrated yet".
 BIN="$(command -v rove 2>/dev/null || command -v kobe 2>/dev/null || true)"
@@ -34,21 +69,45 @@ BEFORE="$("${BIN:-false}" -v 2>/dev/null || true)"
 # Update with the same package manager that owns the binary on PATH,
 # otherwise the new version lands in another prefix and PATH keeps
 # resolving the stale install (issue #205).
-case "$BIN" in
+#
+# Picking npm-vs-bun is not enough on its own: a machine can have several
+# npm (nvm's and homebrew's, say), and `npm install -g` writes to the
+# prefix of whichever *node* is executing it — NOT the prefix that owns
+# the binary you just ran. So resolve the running binary back to its own
+# prefix and pin the install there with `--prefix`, which overrides both
+# npmrc and npm_config_prefix.
+ENTRY=""
+if [ -n "$BIN" ]; then
+  ENTRY="$(resolve_link "$BIN")"
+fi
+
+PREFIX=""
+case "$BIN$ENTRY" in
   */.bun/*) MANAGER="bun" ;;
-  *) MANAGER="npm" ;;
+  *)
+    MANAGER="npm"
+    # <prefix>/lib/node_modules/@scope/pkg/... -> <prefix>
+    case "$ENTRY" in
+      */lib/node_modules/*) PREFIX="${ENTRY%%/lib/node_modules/*}" ;;
+    esac
+    ;;
 esac
+
+# A prefix is only usable if it is the one npm would build itself: it must
+# hold the package dir we resolved through. Empty PREFIX = let npm decide,
+# same as before.
+NPM_PREFIX_ARGS=""
+if [ -n "$PREFIX" ] && [ -d "$PREFIX/lib/node_modules" ]; then
+  NPM_PREFIX_ARGS="--prefix $PREFIX"
+fi
 
 # Is the install on PATH still the legacy package? Resolve the symlink and
 # look at which package dir it lands in — `command -v` alone can't tell,
 # since @sma1lboy/kobe ships a `rove` bin too.
 MIGRATING=0
-if [ -n "$BIN" ]; then
-  ENTRY="$(realpath "$BIN" 2>/dev/null || readlink -f "$BIN" 2>/dev/null || echo "$BIN")"
-  case "$ENTRY" in
-    */@sma1lboy/kobe/*) MIGRATING=1 ;;
-  esac
-fi
+case "$ENTRY" in
+  */@sma1lboy/kobe/*) MIGRATING=1 ;;
+esac
 
 # What the install will actually land on. A bare dist-tag (`nightly`) has to
 # be resolved through the registry: the verify step at the bottom compares
@@ -87,6 +146,52 @@ if [ "$MIGRATING" = "1" ]; then
     "$BOLD" "$RESET" "$LEGACY_PACKAGE" "$PACKAGE"
 fi
 
+# The failure this script exists to prevent is silent: two installs on
+# PATH, and the one you are running is not the one you think. We are about
+# to update only the prefix that owns the binary on PATH — so if there are
+# others, name them now, while the user is here and looking.
+SEEN=""
+DUPES=""
+DUPE_DIRS=""
+OWN_BINDIR="$(dirname "$BIN")"
+saved_ifs="$IFS"
+IFS=:
+for dir in $PATH; do
+  IFS="$saved_ifs"
+  [ -n "$dir" ] || dir="."
+  for name in rove kobe; do
+    cand="$dir/$name"
+    [ -x "$cand" ] || continue
+    real="$(resolve_link "$cand")"
+    case " $SEEN " in
+      *" $real "*) continue ;;
+    esac
+    SEEN="$SEEN $real"
+    # One install owns both a `rove` and a `kobe`. Group by the directory
+    # they sit in, so a sibling bin is never reported as a rival install —
+    # true whether the bins are symlinks into a package dir or plain files.
+    bindir="$(dirname "$cand")"
+    [ "$bindir" = "$OWN_BINDIR" ] && continue
+    case " $DUPE_DIRS " in
+      *" $bindir "*) continue ;;
+    esac
+    DUPE_DIRS="$DUPE_DIRS $bindir"
+    DUPES="$DUPES $cand"
+  done
+  IFS=:
+done
+IFS="$saved_ifs"
+
+if [ -n "$DUPES" ]; then
+  printf '%bwarning: rove is installed more than once.%b\n' "$BOLD" "$RESET" >&2
+  printf '%b  updating (first on PATH): %s%b\n' "$DIM" "$BIN" "$RESET" >&2
+  for d in $DUPES; do
+    printf '%b  also installed, NOT updated: %s%b\n' "$DIM" "$d" "$RESET" >&2
+  done
+  printf '%b  PATH order decides which one runs. Remove the ones you do not want.%b\n' \
+    "$DIM" "$RESET" >&2
+fi
+
 if [ -n "$TARGET" ]; then
   printf '%bUpdating %s: %s -> v%s%b (via %s)\n' "$BOLD" "$PACKAGE" "${BEFORE:-not installed}" "$TARGET" "$RESET" "$MANAGER"
 else
@@ -101,10 +206,12 @@ trap 'rm -f "$LOG"' EXIT
 # first — and only once we're about to replace it, so a failed install
 # can't leave the user with nothing.
 if [ "$MIGRATING" = "1" ]; then
-  "$MANAGER" uninstall -g "$LEGACY_PACKAGE" >>"$LOG" 2>&1 || true
+  # shellcheck disable=SC2086 # empty-or-two-words, needs splitting
+  "$MANAGER" uninstall -g $NPM_PREFIX_ARGS "$LEGACY_PACKAGE" >>"$LOG" 2>&1 || true
 fi
 
-"$MANAGER" install -g "${PACKAGE}@${VERSION:-latest}" >>"$LOG" 2>&1 &
+# shellcheck disable=SC2086 # empty-or-two-words, needs splitting
+"$MANAGER" install -g $NPM_PREFIX_ARGS "${PACKAGE}@${VERSION:-latest}" >>"$LOG" 2>&1 &
 PID=$!
 
 if [ -t 1 ]; then
@@ -129,7 +236,8 @@ if ! wait "$PID"; then
   # back before giving up.
   if [ "$MIGRATING" = "1" ]; then
     printf '%brestoring %s...%b\n' "$DIM" "$LEGACY_PACKAGE" "$RESET" >&2
-    if "$MANAGER" install -g "${LEGACY_PACKAGE}@latest" >/dev/null 2>&1; then
+    # shellcheck disable=SC2086 # empty-or-two-words, needs splitting
+    if "$MANAGER" install -g $NPM_PREFIX_ARGS "${LEGACY_PACKAGE}@latest" >/dev/null 2>&1; then
       printf '%brestored — you are back on %s, nothing was lost.%b\n' "$DIM" "$LEGACY_PACKAGE" "$RESET" >&2
     else
       printf '%breinstall by hand: %s install -g %s%b\n' "$RED" "$MANAGER" "$LEGACY_PACKAGE" "$RESET" >&2
@@ -147,7 +255,7 @@ AFTER="$(rove -v 2>/dev/null || kobe -v 2>/dev/null || true)"
 if [ -n "$TARGET" ] && [ "${AFTER##* }" != "$TARGET" ]; then
   echo "error: 'rove' on PATH reports '${AFTER:-nothing}' but the target is ${TARGET}." >&2
   echo "PATH resolves rove to: $(command -v rove || echo 'not found')" >&2
-  echo "Another install is likely shadowing it. Remove the stale one or run: ${MANAGER} install -g ${PACKAGE}@${VERSION:-latest}" >&2
+  echo "Another install is likely shadowing it. Remove the stale one or run: ${MANAGER} install -g ${NPM_PREFIX_ARGS} ${PACKAGE}@${VERSION:-latest}" >&2
   exit 1
 fi
 
