@@ -41,7 +41,10 @@ const gitEnv = {
 /** A worktree whose `fixture/` subdir cannot be unlinked — the shape that
  *  makes git deregister-but-not-delete. */
 function undeletableWorktree(name: string, branch: string): string {
-  const wt = join(root, name)
+  // Under the managed root because that is where a real Rove worktree lives —
+  // and on platforms whose git unlinks the `.git` pointer before failing, the
+  // retry's convergence runs through the managed-root path.
+  const wt = join(managedRoot, name)
   execSync(`git worktree add -q ${JSON.stringify(wt)} -b ${branch}`, { cwd: repo, env: gitEnv })
   const fixture = join(wt, "fixture")
   mkdirSync(fixture, { recursive: true })
@@ -159,6 +162,33 @@ describe("remove() when git deregisters but cannot delete", () => {
 
     expect(second).toHaveLength(1)
     // The file git could not take is still there after BOTH calls.
+    expect(existsSync(join(fixture, "keep.txt"))).toBe(true)
+  })
+
+  it("converges on a retry even where git unlinked the `.git` pointer first", async () => {
+    // Platform split, found by CI: macOS git leaves the worktree's `.git`
+    // pointer behind, Linux git unlinks it before failing. So the pointer
+    // fingerprint is a fast path, not the guarantee — the guarantee is the
+    // post-condition check ("is the directory still there?") after the
+    // managed-root cleanup. Removing the pointer by hand reproduces the Linux
+    // shape on any platform.
+    const wt = join(managedRoot, "no-pointer")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b kobe/no-pointer`, { cwd: repo, env: gitEnv })
+    const fixture = join(wt, "fixture")
+    mkdirSync(fixture, { recursive: true })
+    writeFileSync(join(fixture, "keep.txt"), "precious")
+    chmodSync(fixture, 0o555)
+    locked.push(fixture)
+
+    await manager.remove(wt, { force: true, onResidue: () => {} })
+    rmSync(join(wt, ".git"), { force: true })
+
+    const second: WorktreeResidue[] = []
+    await expect(manager.remove(wt, { force: true, onResidue: (r) => second.push(r) })).resolves.toBeUndefined()
+    // Red if the orphan branch reports a clean removal: `rm -rf` exits 0
+    // having deleted only what it could, so the caller would be told the
+    // directory is gone while it is still on disk.
+    expect(second).toHaveLength(1)
     expect(existsSync(join(fixture, "keep.txt"))).toBe(true)
   })
 

@@ -88,10 +88,11 @@ export interface RemoveDeps {
  * and has lost only its own `worktrees/<name>` admin dir; an orphan has lost
  * the whole thing.
  *
- * Not total: a delete that got far enough to unlink `.git` before failing
- * leaves a directory indistinguishable from any other, and the caller is told
- * (accurately) that it is not a git worktree. Closing that gap would need the
- * owning repo, which is the one thing a deregistered path can no longer name.
+ * Platform-dependent, which is why it is a fast path and not the only one:
+ * macOS git leaves the pointer file, Linux git unlinks it before failing, and
+ * then the directory is indistinguishable from any other. The convergence that
+ * holds everywhere is the post-condition check further down — "the directory
+ * is still there" — not this fingerprint.
  */
 async function deregisteredWorktreeResidue(exec: ExecHost, worktreePath: string): Promise<boolean> {
   const dotGit = await exec.readFile(`${worktreePath}/.git`)
@@ -153,13 +154,15 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
   if (!repo) {
     // Checked BEFORE the orphan handling below, which shares this branch: a
     // deregistered worktree also has no reachable repo, but its own repo is
-    // alive and the correct answer is to converge, not to delete a directory
-    // the previous removal already refused to touch.
+    // alive and the correct answer is to converge without touching a directory
+    // the previous removal already refused to delete.
     //
     // Retrying a removal that already deregistered its worktree must land on
     // the same answer it gave the first time — git can no longer act on this
     // path at all, so a second `worktree remove` only ever says `fatal: is not
-    // a working tree` and the caller is stuck (issue #89).
+    // a working tree` and the caller is stuck (issue #89). Where the pointer
+    // survives (macOS) that is answered here; where it does not (Linux) the
+    // post-`rm -rf` check below answers it.
     if (await deregisteredWorktreeResidue(exec, worktreePath)) {
       opts?.onResidue?.({ path: worktreePath, reason: "a previous removal deregistered the worktree" })
       return
@@ -190,6 +193,15 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // means git cannot resolve one.
     opts?.onSalvage?.(null)
     await exec.run(["rm", "-rf", worktreePath])
+    // Post-condition, not optimism: `rm -rf` exits 0 having deleted only what
+    // it could, so without this check an undeletable directory is reported as
+    // a clean removal — the caller is told to look for something that is still
+    // on disk. This is also where a retried residue converges on the platforms
+    // whose git unlinks the `.git` pointer before failing, so the fingerprint
+    // above never matches.
+    if (await exec.exists(worktreePath)) {
+      opts?.onResidue?.({ path: worktreePath, reason: "the directory could not be deleted" })
+    }
     return
   }
 
