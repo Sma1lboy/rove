@@ -22,10 +22,11 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { homedir } from "node:os"
 import { basename, join } from "node:path"
 import { isNpxMissing, markSkillHintSeen, npxSkillsArgv, npxSkillsCommand } from "../lib/skill-install.ts"
-import { getPersistedBool, setPersistedBool } from "../state/store.ts"
+import { getPersistedBool, loadStateFile, setPersistedBool } from "../state/store.ts"
 import { t } from "../tui/i18n"
 import { type OnboardingEnvReport, checkOnboardingEnv } from "./env-checks.ts"
 import { activeCliName } from "./rename-compat.ts"
+import { LAST_RUN_VERSION_KEY } from "./reset-gate.ts"
 
 const ONBOARDED_KEY = "onboarded"
 const PRIMER_KEY = "onboardedPrimer"
@@ -85,6 +86,23 @@ export function isPrimerDone(): boolean {
 
 function markPrimerDone(): void {
   setPersistedBool(PRIMER_KEY, true)
+}
+
+/**
+ * Settle the primer for anyone who onboarded before it existed.
+ *
+ * `onboardedPrimer` only started being written in this build, so its absence
+ * is ambiguous: a wizard killed mid-render looks exactly like a user who
+ * finished onboarding six months ago. `app.lastRunVersion` disambiguates —
+ * it is written on every successful start, so a user who has ever run the
+ * TUI reached it, which means the wizard resolved. Marking them done keeps
+ * the upgrade silent; only a genuine first run (no recorded version) can
+ * still leave the primer pending.
+ */
+function backfillPrimerForExistingUsers(): boolean {
+  if (typeof loadStateFile()[LAST_RUN_VERSION_KEY] !== "string") return false
+  markPrimerDone()
+  return true
 }
 
 /**
@@ -163,11 +181,19 @@ export function applyOnboardingChoices(
  * renders, so a killed wizard leaves it set with the primer undelivered.
  * That launch re-runs in "primer" mode: no questions (a killed wizard must
  * never re-ask), just the environment page and the keyboard page.
+ *
+ * The primer flag is NEW, so an absent one cannot mean "killed wizard" — every
+ * user who onboarded before this build, and every fixture that seeds
+ * `onboarded: true` to skip the wizard, would otherwise be handed a surprise
+ * primer on upgrade (and no TUI that launch, since a true return means the
+ * caller exits). {@link backfillPrimerForExistingUsers} settles them as done.
  */
 export async function maybeRunOnboarding(): Promise<boolean> {
   if (!process.stdout.isTTY || !process.stdin.isTTY) return false
   const seen = isOnboarded()
-  if (seen && isPrimerDone()) return false
+  // Read the backfill's own verdict rather than re-reading the flag it just
+  // wrote — one decision, no write-then-read round trip through the store.
+  if (seen && (isPrimerDone() || backfillPrimerForExistingUsers())) return false
   // Mark BEFORE anything runs: a killed/EOF'd/crashed wizard (or a failed npx
   // afterwards) must never re-trigger the questions — one showing, ever,
   // same never-nag rule as maybeHintSkillInstall.

@@ -22,12 +22,14 @@ const mocks = vi.hoisted(() => ({
   markSkillHintSeen: vi.fn(),
   runOnboardingWizard: vi.fn(),
   checkOnboardingEnv: vi.fn(),
+  loadStateFile: vi.fn(() => ({}) as Record<string, unknown>),
 }))
 
 vi.mock("node:child_process", () => ({ spawnSync: mocks.spawnSync }))
 vi.mock("../../src/state/store.ts", () => ({
   getPersistedBool: mocks.getPersistedBool,
   setPersistedBool: mocks.setPersistedBool,
+  loadStateFile: mocks.loadStateFile,
 }))
 vi.mock("../../src/lib/skill-install.ts", () => ({
   npxSkillsArgv: mocks.npxSkillsArgv,
@@ -302,6 +304,8 @@ describe("maybeRunOnboarding", () => {
     mocks.getPersistedBool.mockImplementation((key: string) => false)
     mocks.runOnboardingWizard.mockResolvedValue({ completions: true, skill: false })
     mocks.checkOnboardingEnv.mockResolvedValue(readyEnv())
+    // Default: a genuine first run — no version has ever been stamped.
+    mocks.loadStateFile.mockReturnValue({})
   })
 
   afterEach(() => {
@@ -344,6 +348,24 @@ describe("maybeRunOnboarding", () => {
     expect(mocks.runOnboardingWizard).toHaveBeenCalledWith("zsh", readyEnv(), "full")
     const lines = stdoutLines(stdoutSpy)
     expect(lines.some((l) => l.includes("completions hooked into"))).toBe(true)
+  })
+
+  // `onboardedPrimer` is new, so its absence cannot mean "killed wizard":
+  // every user who onboarded before this build looks identical to one. They
+  // must not be handed a surprise wizard on upgrade — and since a `true`
+  // return means the caller exits instead of starting the TUI, that upgrade
+  // would also cost them the launch they asked for.
+  it("never shows the primer to a user who onboarded before the flag existed", async () => {
+    setProduct("kobe")
+    mocks.getPersistedBool.mockImplementation((key: string) => key === "onboarded")
+    // The tell: this install has started successfully at least once.
+    mocks.loadStateFile.mockReturnValue({ "app.lastRunVersion": "0.9.40" })
+    const { maybeRunOnboarding } = await import("../../src/cli/onboarding.ts")
+    Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true })
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
+    expect(await maybeRunOnboarding()).toBe(false)
+    expect(mocks.runOnboardingWizard).not.toHaveBeenCalled()
+    expect(mocks.setPersistedBool).toHaveBeenCalledWith("onboardedPrimer", true)
   })
 
   it("a killed first-run wizard re-runs once in primer mode — questions stay settled", async () => {
