@@ -13,6 +13,7 @@ import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import type { LandResult } from "../orchestrator/land.ts"
+import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
@@ -225,9 +226,15 @@ export async function listWorktreesOp(
 
 /** Remove a worktree (`worktree.remove`); refuses a dirty one unless
  *  `force` is true — same safety property `GitWorktreeManager.remove`
- *  always had. */
-export async function removeWorktreeOp(client: KobeDaemonClient, path: string, force?: boolean): Promise<void> {
-  await client.request("worktree.remove", { path, force })
+ *  always had. Resolves with the leftover directory when git deregistered the
+ *  worktree but could not delete it, null on a clean removal. */
+export async function removeWorktreeOp(
+  client: KobeDaemonClient,
+  path: string,
+  force?: boolean,
+): Promise<WorktreeResidue | null> {
+  const res = await client.request<{ residue?: WorktreeResidue }>("worktree.remove", { path, force })
+  return res.residue ?? null
 }
 
 /** A repo's daemon-owned issues (`issue.list`) — the TUI kanban page's read. */

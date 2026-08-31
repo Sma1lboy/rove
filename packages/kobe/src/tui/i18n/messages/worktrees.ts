@@ -39,6 +39,8 @@ export const en = {
     forceTitle: "Force delete worktree?",
     forceBody: '"{branch}" has uncommitted or untracked changes that will be PERMANENTLY LOST. Force delete anyway?',
     failed: "Failed to delete worktree: {error}",
+    residue:
+      "Git deregistered the worktree, but couldn't delete {path} ({reason}). Rove is done with it — retrying won't help; delete the directory by hand if you want the space.",
   },
 
   land: {
@@ -54,6 +56,8 @@ export const en = {
     done: 'Landed "{branch}" onto {landedOn} ({commit}).',
     worktreeKept: "Landed, but the worktree was kept: {reason}",
     worktreePathStale: "Landed and removed the worktree, but the task still points at it: {reason}",
+    worktreeResidue:
+      "Landed. Git deregistered the worktree, but couldn't delete {path} ({reason}) — delete the directory by hand if you want the space.",
   },
 
   hint: {},
@@ -94,6 +98,8 @@ export const zh: typeof en = {
     forceTitle: "强制删除 worktree？",
     forceBody: '"{branch}" 存在未提交或未跟踪的改动，强制删除后将永久丢失。仍要强制删除吗？',
     failed: "删除 worktree 失败：{error}",
+    residue:
+      "Git 已注销该 worktree，但没能删掉 {path}（{reason}）。Rove 这边已经处理完了——重试没有用；想要回磁盘空间请手动删除该目录。",
   },
 
   land: {
@@ -109,6 +115,7 @@ export const zh: typeof en = {
     done: '已把 "{branch}" 合入 {landedOn}（{commit}）。',
     worktreeKept: "已合入，但 worktree 保留了：{reason}",
     worktreePathStale: "已合入并移除 worktree，但任务仍指向它：{reason}",
+    worktreeResidue: "已合入。Git 已注销该 worktree，但没能删掉 {path}（{reason}）——想要回磁盘空间请手动删除该目录。",
   },
 
   hint: {},

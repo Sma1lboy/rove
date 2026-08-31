@@ -2,6 +2,7 @@ import { errorMessage } from "../lib/error-message.ts"
 import type { TaskId } from "../types/task.ts"
 import { CannotDeleteMainTaskError, DirtyWorktreeError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore } from "./index/store.ts"
+import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
@@ -28,6 +29,13 @@ export class TaskDeletionCoordinator {
      * roughly the time, and that is what the audit trail is indexed by.
      */
     private readonly onSalvage?: (taskId: TaskId, record: SalvageRecord) => void,
+    /**
+     * Notified when git deregistered the worktree but could not delete its
+     * directory. Wired to the deletion audit log for the same reason
+     * `onSalvage` is: the deletion itself SUCCEEDS (see `finish`), so this is
+     * the only record that a directory is still on disk.
+     */
+    private readonly onResidue?: (taskId: TaskId, residue: WorktreeResidue) => void,
   ) {}
 
   /** Persist acceptance after the destructive dirty-worktree safety check. */
@@ -97,6 +105,15 @@ export class TaskDeletionCoordinator {
           onSalvage: (record) => {
             if (record) this.onSalvage?.(task.id, record)
           },
+          // A removal git half-completed (metadata deregistered, directory
+          // undeletable) is NOT an error here. Parking the task in `error`
+          // would be a lie the user cannot act on: git no longer knows this
+          // worktree, so every retry is `fatal: is not a working tree` and the
+          // task is stuck forever (issue #89). The deletion finishes; the
+          // leftover directory is reported instead of being made the task's
+          // problem — and never deleted from under the user, since whatever
+          // made it undeletable may be something they want.
+          onResidue: (residue) => this.onResidue?.(task.id, residue),
         })
       }
     } catch (cause) {

@@ -148,7 +148,11 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     if (!orch) return
     setRemovingPaths((paths) => [...paths, row.path])
     try {
-      await orch.removeWorktree(row.path, force)
+      const residue = await orch.removeWorktree(row.path, force)
+      // git deregistered the worktree but could not delete the directory. The
+      // row IS gone (nothing lists that path any more), so this is not an
+      // error toast — but it is the only time the leftover path is ever named.
+      if (residue) notifyNeedsInput(t("worktrees.delete.residue", { path: residue.path, reason: residue.reason }))
       // Path stays in `removingPaths`: refetch is async, and dropping it here
       // would flash the dead row back until the fresh list lands.
       refetch()
@@ -220,6 +224,11 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
         notifyNeedsInput(t("worktrees.land.worktreeKept", { reason: cleanup.reason ?? "refused" }))
       } else if (cleanup?.reason) {
         notifyNeedsInput(t("worktrees.land.worktreePathStale", { reason: cleanup.reason }))
+      }
+      if (cleanup?.residue) {
+        notifyNeedsInput(
+          t("worktrees.land.worktreeResidue", { path: cleanup.residue.path, reason: cleanup.residue.reason }),
+        )
       }
       refetch()
     } catch (err) {

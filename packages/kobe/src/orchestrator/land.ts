@@ -23,6 +23,7 @@ import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, LandConflictError, MainCheckoutDirtyError } from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
+import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
@@ -68,8 +69,17 @@ export interface LandDeps {
  * when the directory went but clearing the task's worktree path did not.
  */
 export interface LandWorktreeCleanup {
+  /** Whether git's registration of the worktree is gone. TRUE even when the
+   *  directory survived — see {@link residue}. */
   readonly removed: boolean
   readonly reason?: string
+  /**
+   * Set when git deregistered the worktree but could not delete its directory.
+   * Distinct from `reason`, which reports a bookkeeping failure on a fully
+   * successful removal: this one says the removal is as complete as git can
+   * make it and a directory is left on disk. The land succeeded either way.
+   */
+  readonly residue?: WorktreeResidue
 }
 
 /**
@@ -170,8 +180,17 @@ async function removeLandedWorktree(
       // best-effort; the dirty-refusal in remove() below is the real guard
     }
   }
+  // A removal git half-completed (metadata deregistered, directory undeletable)
+  // resolves rather than throws — the worktree IS deregistered, so the land's
+  // cleanup is done and reporting `removed: false` would send the user to
+  // retry something git can no longer act on.
+  let residue: WorktreeResidue | undefined
   try {
-    await deps.worktrees.remove(worktreePath)
+    await deps.worktrees.remove(worktreePath, {
+      onResidue: (r) => {
+        residue = r
+      },
+    })
   } catch (err) {
     return { removed: false, reason: errText(err) }
   }
@@ -183,9 +202,13 @@ async function removeLandedWorktree(
   try {
     await deps.clearWorktreePath(task.id)
   } catch (err) {
-    return { removed: true, reason: `worktree removed, but clearing the task's worktree path failed: ${errText(err)}` }
+    return {
+      removed: true,
+      reason: `worktree removed, but clearing the task's worktree path failed: ${errText(err)}`,
+      ...(residue ? { residue } : {}),
+    }
   }
-  return { removed: true }
+  return { removed: true, ...(residue ? { residue } : {}) }
 }
 
 function errText(err: unknown): string {

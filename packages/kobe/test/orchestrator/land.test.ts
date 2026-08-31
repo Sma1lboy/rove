@@ -247,6 +247,38 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true) // the merge still landed
   })
 
+  test("a half-removed worktree still counts as landed, and names the leftover directory", async () => {
+    // git deregisters the worktree, then fails to unlink it (an unwritable
+    // directory inside). Before issue #89 this reported `removed: false` and
+    // sent the user to retry a removal git can no longer act on at all.
+    makeWorktree()
+    // Committed, not untracked: an untracked file would trip the dirty
+    // refusal, which is a different (already-covered) branch. The tree is
+    // clean — it is only the FILESYSTEM that will not give the directory up.
+    const locked = path.join(wt, "fixture")
+    fs.mkdirSync(locked)
+    fs.writeFileSync(path.join(locked, "keep.txt"), "x")
+    git(["add", "."], wt)
+    git(["commit", "-m", "fixture"], wt)
+    fs.chmodSync(locked, 0o555)
+    try {
+      const { deps: d, cleared } = deps()
+      const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, {}, d)
+
+      // The merge landed and the bookkeeping ran — the only thing that did not
+      // happen is the directory delete, and that is what `residue` says.
+      expect(res.worktree?.removed).toBe(true)
+      expect(res.worktree?.residue?.path).toBe(wt)
+      expect(res.worktree?.residue?.reason).toMatch(/Permission denied/)
+      expect(cleared).toEqual(["t-land"])
+      expect(fs.existsSync(path.join(repo, "b.txt"))).toBe(true)
+      // Reported, not cleaned up: land never deletes what git could not.
+      expect(fs.existsSync(path.join(locked, "keep.txt"))).toBe(true)
+    } finally {
+      fs.chmodSync(locked, 0o755)
+    }
+  })
+
   test("a dirty worktree is refused on the default path, and the land still stands", async () => {
     makeWorktree()
     fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted\n")

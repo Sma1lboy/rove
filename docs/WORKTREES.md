@@ -111,6 +111,23 @@ For a worktree tracked by a Task, Rove clears that Task's worktree pointer. It
 does not delete the Task, its branch, or engine history. Opening the Task later
 may materialize a fresh worktree from the retained branch.
 
+### When git removes the worktree but not its directory
+
+`git worktree remove` does two things — deregister the worktree's metadata and
+delete its directory — and they can fail apart. A path inside the tree that the
+current user cannot unlink (a `chmod -w` directory, a read-only dependency
+cache, a directory an external tool holds) makes the directory delete fail
+*after* the deregistration has already landed.
+
+Rove reports that as what it is. The removal counts as done — git no longer
+knows this worktree, so no retry can advance it — and a notice names the
+directory left on disk and git's own reason. A task deleted this way is
+deleted, not parked in an error state, and the same line goes to
+`~/.rove/daemon.log` next to the rest of the deletion trail.
+
+Rove never deletes that directory for you: whatever made it undeletable may be
+something you want. Remove it by hand if you want the disk space.
+
 ## Force-remove a dirty worktree
 
 Dirty removal is deliberately two-stage:

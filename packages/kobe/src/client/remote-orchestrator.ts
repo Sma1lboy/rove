@@ -29,6 +29,7 @@ import {
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { type ExternalStore, type ReadableState, createStateCell, mapReadableState } from "../lib/external-store.ts"
 import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
+import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { CURRENT_VERSION, type UpdateInfo } from "../version.ts"
@@ -463,7 +464,7 @@ export class RemoteOrchestrator {
   /** Remove a worktree (`worktree.remove`); refuses a dirty one unless
    *  `force` is true — same safety property `GitWorktreeManager.remove`
    *  always had. */
-  removeWorktree(path: string, force?: boolean): Promise<void> {
+  removeWorktree(path: string, force?: boolean): Promise<WorktreeResidue | null> {
     return removeWorktreeOp(this.client, path, force)
   }
 
