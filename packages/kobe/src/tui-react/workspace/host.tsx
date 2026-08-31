@@ -12,16 +12,17 @@ import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
-import { DaemonDownBanner } from "../component/version-skew-banner"
+import { DaemonDownBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
-import { useDaemonDown } from "../lib/use-accessor"
+import { useAccessor, useDaemonDown } from "../lib/use-accessor"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -45,7 +46,10 @@ import { useScratchShell } from "./use-scratch-shell"
 import { type WorktreeGoneEvent, useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
 
-function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
+/** Exported for the render track: the banner wiring can only be proven by
+ *  mounting the REAL host — a test against the banner component alone stays
+ *  green when the mount is deleted, which is the exact bug being fixed. */
+export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   const { theme } = useTheme()
   const inactiveBorder = theme.borderActive
   const dialog = useDialog()
@@ -276,7 +280,27 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // pages added later; the alternative is a catch block per page, which is
   // where the silence came from in the first place.
   const daemonDown = useDaemonDown(orch)
-  const banner = <DaemonDownBanner down={daemonDown} width={dims.width} />
+  // The skew banner's twin problem, and its twin fix. `daemonStaleSignal()`
+  // has been accurate since it was written and its ONLY reader was the mock
+  // workbench — so the state it names has been invisible in the product the
+  // whole time. That state is not an edge case here: Rove ships several times
+  // a day and the daemon is a long-lived process that outlives an `npm i -g`,
+  // which makes "new binary, old daemon" the ordinary result of updating.
+  //
+  // Down beats stale: with the socket gone there is no daemon to be out of
+  // date with, and the red banner already says the screen is a photograph.
+  const daemonStale = useAccessor(orch.daemonStaleSignal())
+  const daemonVersion = useAccessor(orch.daemonVersionSignal())
+  const banner = daemonDown ? (
+    <DaemonDownBanner down={true} width={dims.width} />
+  ) : (
+    <VersionSkewBanner
+      stale={daemonStale}
+      daemonVersion={daemonVersion}
+      clientVersion={CURRENT_VERSION}
+      width={dims.width}
+    />
+  )
 
   // Settings and the full-window pages replace the WHOLE window, frame
   // included, so each needs the banner wrapped around it rather than relying
