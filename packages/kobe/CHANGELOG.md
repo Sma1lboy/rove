@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.59
+
+### Patch Changes
+
+- [#691](https://github.com/Sma1lboy/rove/pull/691) [`191b829`](https://github.com/Sma1lboy/rove/commit/191b829de254b764d75c8d34be25beb8efbce18e) Document that `ctrl+[` (previous tab) needs a kitty-protocol terminal — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.58
 
 ### Patch Changes
