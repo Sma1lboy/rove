@@ -23,6 +23,7 @@
 import { spawnSync } from "node:child_process"
 import { realpathSync } from "node:fs"
 import { kvStatePath } from "../env.ts"
+import { type ProjectIntent, type ProjectRejection, projectRejection } from "./project-eligibility.ts"
 import { type StateSnapshot, getPersistedBool, loadStateFile, patchStateFile, updateStateFile } from "./store.ts"
 
 /**
@@ -174,10 +175,35 @@ export function getDisabledEngineIds(): readonly string[] {
   return raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
 }
 
-export type AddResult = { added: boolean; path: string; total: number }
+export type AddResult = {
+  added: boolean
+  path: string
+  total: number
+  /** Set when the path was refused — see {@link projectRejection}. `added`
+   *  is false and nothing was written. */
+  rejected?: ProjectRejection
+}
+
+export interface AddSavedRepoOpts {
+  /** How the path was chosen — see {@link ProjectIntent}. Defaults to
+   *  `"explicit"`: every production caller reaches here from a user naming
+   *  the repo (`rove add`, the new-task dialog, a quick-fork). */
+  readonly intent?: ProjectIntent
+  /**
+   * Write the entry without consulting the admission gate.
+   *
+   * ONLY for exercising the persistence mechanics themselves — atomic
+   * rename, sibling-key preservation, list ordering — where the path is an
+   * arbitrary stand-in (`/repos/alpha`) and its eligibility is beside the
+   * point. Production code must never pass this: the whole reason the gate
+   * moved inside this function is that callers cannot be trusted to
+   * remember it.
+   */
+  readonly skipGate?: boolean
+}
 
 /**
- * Append `absPath` to `savedRepos` if not already present.
+ * Append `absPath` to `savedRepos` if it is eligible and not already present.
  * Returns whether the entry was newly added and the resulting list size.
  *
  * The input is resolved to its git toplevel before storage (see
@@ -185,17 +211,24 @@ export type AddResult = { added: boolean; path: string; total: number }
  * stores the repo root, not the subdir. The returned `path` is the
  * normalized form so callers report what was actually saved.
  *
- * Deliberately does NOT validate `absPath` is a real git repo — this is a
- * pure state mutation callers may exercise on synthetic paths in tests.
- * Callers that take a path from an untrusted source (bare-`kobe` cwd,
- * `kobe add` CLI arg) must check {@link isGitRepo} themselves first; see
- * `kobe add`'s guard in `cli/index.ts` and `tui/direct.ts`'s `ensureRepos`.
+ * VALIDATES (changed 2026-08-31): this used to document validation as the
+ * caller's job. Of the eight call sites exactly one did it, and the other
+ * seven put test fixtures and sandbox paths into the user's project list —
+ * where nothing could remove them again. The gate now lives HERE, applied to
+ * the normalized path, so no caller can skip it by forgetting; a refusal
+ * comes back as `rejected` rather than an exception, because most callers
+ * are opportunistic ("remember this repo while doing something else") and
+ * must not fail their real work over it.
  */
-export function addSavedRepo(absPath: string): AddResult {
+export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddResult {
   // Resolve BEFORE the transaction — `git rev-parse` (a subprocess) inside
   // the read-merge-write window would widen the race we're trying to keep
   // narrow.
   const normalized = resolveRepoRoot(absPath)
+  // Gate the RESOLVED path: a subdirectory of a rejected repo must not slip
+  // through by having an innocent-looking name of its own.
+  const rejected = opts.skipGate ? null : projectRejection(normalized, isGitRepo, opts.intent ?? "explicit")
+  if (rejected) return { added: false, path: normalized, total: getSavedRepos().length, rejected }
   let result: AddResult = { added: false, path: normalized, total: 0 }
   updateStateFile((state) => {
     const cur = readSavedRepos(state)

@@ -6,12 +6,13 @@
 
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
+import type { ProjectIntent } from "../state/project-eligibility.ts"
 import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskDispatcher, TaskId, TaskPRStatus, TaskStatus, VendorId } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
-import { canonPath, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
+import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
 import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
@@ -42,6 +43,15 @@ export interface CreateTaskInput {
   readonly groupId?: string
   /** The kobe session (task + tab) dispatching this create, when one is. */
   readonly dispatcher?: TaskDispatcher
+  /**
+   * How the repo was chosen, for the project-admission gate
+   * (state/project-eligibility.ts). Defaults to `"explicit"`: every caller
+   * today reaches here from a user naming the repo — the new-task dialog,
+   * `rove api add`, a quick-fork of the row you are on. A caller that
+   * INFERRED the repo (a script walking directories, a fixture harness)
+   * should pass `"derived"` to get the stricter gate.
+   */
+  readonly projectIntent?: ProjectIntent
 }
 
 export type Unsubscribe = () => void
@@ -95,8 +105,11 @@ export class Orchestrator {
     this.store = deps.store
     this.worktrees = deps.worktrees
     this.tearDownSession = deps.tearDownSession
+    // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
+    // throwaway repo must still adopt, it just must not mint a permanent
+    // project row for a path that cannot be someone's project.
     this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, canonPath, (repo) =>
-      this.ensureMainTask(repo),
+      this.mainTasks.ensureIfEligible(repo),
     )
     this.mainTasks = new MainTaskCoordinator(this.store, (id) => this.worktreeCoordinator.forget(id))
     this.editor = new TaskEditor(this.store, this.worktrees)
@@ -205,24 +218,27 @@ export class Orchestrator {
    */
   async createTask(input: CreateTaskInput): Promise<Task> {
     if (!input.repo) throw new Error("createTask: repo is required")
-    // A task whose repo has no `kind:"main"` task is unrenderable state:
-    // the sidebar's PROJECTS rows ARE the main tasks (sidebar/groups.ts),
-    // so a task created for a brand-new repo would float with no project
-    // row. Every creation path therefore guarantees its own project entry.
-    // Normalize to the git toplevel BEFORE anything reads `input.repo`.
-    // `ensureMainTask` already normalizes internally, so a caller passing a
-    // SUBDIRECTORY (`rove` run from `my-monorepo/packages/app`, whose path
-    // passes `validateRepoPath` because `rev-parse --git-dir` succeeds in a
-    // subdir) used to split into two sidebar projects: the main row keyed on
-    // `/my-monorepo`, this task keyed on `/my-monorepo/packages/app` — a
-    // ghost project named after a subdirectory, with its own worktree root.
-    // `rove add` (via addSavedRepo) and `rove api add` (via resolveRepoRoot)
-    // both already resolve; this makes the orchestrator entry point agree,
-    // which covers the TUI dialog and every future caller at once.
+    // Bring the project row into existence alongside the task — but only if
+    // the repo may BE a project (state/project-eligibility.ts). A `/tmp`
+    // fixture or a checkout inside `.dev-sandbox` still gets its task; it
+    // just stops leaving a permanent sidebar row behind, which is how the
+    // owner's project list reached 12 rows on 2 saved repos. `buildTreeRows`
+    // groups a main-less task under a header derived from its own repo, so
+    // the task still renders — the header just dies with it.
+    //
+    // Normalize to the git toplevel regardless of that outcome. A caller
+    // passing a SUBDIRECTORY (`rove` run from `my-monorepo/packages/app`,
+    // whose path passes `validateRepoPath` because `rev-parse --git-dir`
+    // succeeds in a subdir) otherwise splits into two sidebar projects: the
+    // main row keyed on `/my-monorepo`, this task keyed on
+    // `/my-monorepo/packages/app` — a ghost project named after a
+    // subdirectory, with its own worktree root. That normalization used to
+    // ride on the returned main row, so taking it from `normalizeMainRepo`
+    // directly keeps it working when no row is created.
     // Dir/scratch tasks do NOT come through here (see openDirectoryTask),
     // so pinning a user-owned directory is unaffected.
-    const mainTask = await this.ensureMainTask(input.repo)
-    const repo = mainTask.repo
+    const mainTask = await this.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
+    const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
     const title = (input.title ?? PLACEHOLDER_TASK_TITLE).trim() || PLACEHOLDER_TASK_TITLE
     // Leave the branch EMPTY for a lazily-allocated task (unless the caller
     // gave an explicit one): {@link ensureWorktree} derives a repo-convention

@@ -347,13 +347,14 @@ describe("signals + subscription surface", () => {
       seen.push(snapshot.length)
     })
     await makeTask()
-    // createTask auto-ensures the repo's main row, so the first create
-    // lands TWO tasks (main + task).
-    expect(seen.at(-1)).toBe(2)
-    expect(orch.tasksSignal()()).toHaveLength(2)
+    // ONE task: `/repo` is a synthetic path, not a git repo, so the project
+    // row is refused (state/project-eligibility.ts). createTask still creates
+    // the task — the gate withholds the permanent project row, nothing else.
+    expect(seen.at(-1)).toBe(1)
+    expect(orch.tasksSignal()()).toHaveLength(1)
     unsub()
     await makeTask({ title: "second" })
-    expect(seen.at(-1)).toBe(2) // unsubscribed — no further notifications
+    expect(seen.at(-1)).toBe(1) // unsubscribed — no further notifications
   })
 
   it("setActiveTask publishes to activeTaskSignal and clears with null", async () => {

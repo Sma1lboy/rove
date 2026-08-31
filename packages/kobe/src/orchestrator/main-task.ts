@@ -11,7 +11,8 @@
  * Moved from `core.ts`; the adoption branch is the only new behaviour.
  */
 
-import { getSavedRepos, removeSavedRepo } from "../state/repos.ts"
+import { type ProjectIntent, projectRejection, rejectionReason } from "../state/project-eligibility.ts"
+import { getSavedRepos, isGitRepo, removeSavedRepo } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type { Task, TaskId } from "../types/task.ts"
 import { normalizeMainRepo, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
@@ -39,12 +40,43 @@ export class MainTaskCoordinator {
    * its terminal tabs move under the main row instead of being stranded.
    * Scratch rows are never promoted: their cwd is unsettled by definition and
    * they belong to the Scratch bench (issue #33).
+   *
+   * Ineligible repos throw — see {@link ensureIfEligible} for the variant
+   * every internal caller uses. Direct callers are the ones acting on an
+   * explicit user gesture (`rove add`, `project.ensureMain`), where a silent
+   * no-op would look like the command did nothing.
    */
   async ensure(repo: string): Promise<Task> {
+    const task = await this.ensureIfEligible(repo, "explicit")
+    if (task) return task
+    const { repo: normalizedRepo } = normalizeMainRepo(repo)
+    const rejected = projectRejection(normalizedRepo, isGitRepo, "explicit") ?? "notGitRepo"
+    throw new Error(`cannot add ${normalizedRepo} as a project: ${rejectionReason(rejected)}`)
+  }
+
+  /**
+   * {@link ensure}, but returning null instead of creating a row the path
+   * does not deserve.
+   *
+   * This is the gate on the leak that put four fixture paths permanently in
+   * the owner's sidebar (12 project rows behind 2 saved repos). `createTask`
+   * and `adopt` call this while doing their real work: a task whose repo is a
+   * `/tmp` fixture still gets created, it just does not also mint a permanent
+   * project row. Nothing breaks downstream — `buildTreeRows` derives a
+   * project header from the task's own repo when no main row exists ("then
+   * main-less projects in first-seen order"), so the task still renders under
+   * a header; the header simply stops outliving it.
+   */
+  async ensureIfEligible(repo: string, intent: ProjectIntent = "derived"): Promise<Task | null> {
     const { repo: normalizedRepo, key } = normalizeMainRepo(repo)
     const onThisRoot = (task: Task): boolean => normalizeMainRepo(task.repo).key === key
     const existing = this.store.list().find((task) => task.kind === "main" && onThisRoot(task))
+    // An existing row short-circuits BEFORE the gate: the rule governs what
+    // may BECOME a project, not what already is one. Re-gating here would
+    // make a row that predates the gate start failing every task creation
+    // under it — punishing the user for state we produced.
     if (existing) return existing
+    if (projectRejection(normalizedRepo, isGitRepo, intent)) return null
     const inflight = this.locks.get(key)
     if (inflight) return inflight
     const promise = (async () => {

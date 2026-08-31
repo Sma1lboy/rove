@@ -17,6 +17,12 @@
  *     wipe the user's `lastSelectedTaskId` / `activeTheme` / etc.
  *   - `addSavedRepo()` preserves order of existing entries.
  *   - The total in `AddResult` matches the post-write list size.
+ *
+ * The persistence tests pass `{ skipGate: true }` and synthetic paths
+ * (`/repos/alpha`): what they pin is the WRITE — atomic rename, sibling-key
+ * preservation, ordering — and the path is an arbitrary stand-in. Admission
+ * itself is covered in `test/state/project-eligibility.test.ts`, plus the
+ * gated cases at the bottom of this file.
  */
 
 import { spawnSync } from "node:child_process"
@@ -142,23 +148,23 @@ describe("getSavedRepos", () => {
 describe("addSavedRepo", () => {
   test("creates the file + directory on first write and reports added=true", () => {
     expect(fs.existsSync(statePath())).toBe(false)
-    const r = addSavedRepo("/repos/alpha")
+    const r = addSavedRepo("/repos/alpha", { skipGate: true })
     expect(r).toEqual({ added: true, path: "/repos/alpha", total: 1 })
     expect(getSavedRepos()).toEqual(["/repos/alpha"])
     expect(fs.existsSync(statePath())).toBe(true)
   })
 
   test("is idempotent — re-adding the same path returns added=false and doesn't grow", () => {
-    addSavedRepo("/repos/alpha")
-    const r = addSavedRepo("/repos/alpha")
+    addSavedRepo("/repos/alpha", { skipGate: true })
+    const r = addSavedRepo("/repos/alpha", { skipGate: true })
     expect(r).toEqual({ added: false, path: "/repos/alpha", total: 1 })
     expect(getSavedRepos()).toEqual(["/repos/alpha"])
   })
 
   test("appends to existing entries in insertion order", () => {
-    addSavedRepo("/repos/alpha")
-    addSavedRepo("/repos/beta")
-    addSavedRepo("/repos/gamma")
+    addSavedRepo("/repos/alpha", { skipGate: true })
+    addSavedRepo("/repos/beta", { skipGate: true })
+    addSavedRepo("/repos/gamma", { skipGate: true })
     expect(getSavedRepos()).toEqual(["/repos/alpha", "/repos/beta", "/repos/gamma"])
   })
 
@@ -175,7 +181,7 @@ describe("addSavedRepo", () => {
       "utf8",
     )
 
-    addSavedRepo("/new")
+    addSavedRepo("/new", { skipGate: true })
 
     const after = JSON.parse(fs.readFileSync(p, "utf8")) as Record<string, unknown>
     expect(after.activeTheme).toBe("dracula")
@@ -184,7 +190,7 @@ describe("addSavedRepo", () => {
   })
 
   test("write is atomic — no leftover .tmp after a successful add", () => {
-    addSavedRepo("/repos/alpha")
+    addSavedRepo("/repos/alpha", { skipGate: true })
     const dir = path.dirname(statePath())
     const entries = fs.readdirSync(dir)
     expect(entries).toContain("state.json")
@@ -194,15 +200,15 @@ describe("addSavedRepo", () => {
 
 describe("removeSavedRepo (KOB-15)", () => {
   test("removes an entry and reports removed=true with the new total", () => {
-    addSavedRepo("/repos/alpha")
-    addSavedRepo("/repos/beta")
+    addSavedRepo("/repos/alpha", { skipGate: true })
+    addSavedRepo("/repos/beta", { skipGate: true })
     const r = removeSavedRepo("/repos/alpha")
     expect(r).toEqual({ removed: true, path: "/repos/alpha", total: 1 })
     expect(getSavedRepos()).toEqual(["/repos/beta"])
   })
 
   test("is idempotent — removing a path that's not present returns removed=false", () => {
-    addSavedRepo("/repos/alpha")
+    addSavedRepo("/repos/alpha", { skipGate: true })
     const r = removeSavedRepo("/repos/never-added")
     expect(r).toEqual({ removed: false, path: "/repos/never-added", total: 1 })
     expect(getSavedRepos()).toEqual(["/repos/alpha"])
@@ -228,17 +234,17 @@ describe("removeSavedRepo (KOB-15)", () => {
   })
 
   test("returns total=0 when removing the last entry", () => {
-    addSavedRepo("/only")
+    addSavedRepo("/only", { skipGate: true })
     const r = removeSavedRepo("/only")
     expect(r).toEqual({ removed: true, path: "/only", total: 0 })
     expect(getSavedRepos()).toEqual([])
   })
 
   test("preserves order of remaining entries", () => {
-    addSavedRepo("/a")
-    addSavedRepo("/b")
-    addSavedRepo("/c")
-    addSavedRepo("/d")
+    addSavedRepo("/a", { skipGate: true })
+    addSavedRepo("/b", { skipGate: true })
+    addSavedRepo("/c", { skipGate: true })
+    addSavedRepo("/d", { skipGate: true })
     removeSavedRepo("/b")
     expect(getSavedRepos()).toEqual(["/a", "/c", "/d"])
   })
@@ -251,5 +257,51 @@ describe("removeSavedRepo (KOB-15)", () => {
     expect(r.removed).toBe(true)
     expect(getSavedRepos()).not.toContain(key)
     expect(getRemoteRepoConfig(key)).toBeNull()
+  })
+})
+
+describe("addSavedRepo admission gate", () => {
+  /** A real git repo under the per-test tmpdir. */
+  function initRepo(name: string): string {
+    const dir = path.join(tmpHome, name)
+    fs.mkdirSync(dir, { recursive: true })
+    spawnSync("git", ["init", "-q"], { cwd: dir, encoding: "utf8" })
+    return dir
+  }
+
+  test("refuses a path that is not a git repo, and writes nothing", () => {
+    const plain = path.join(tmpHome, "just-a-folder")
+    fs.mkdirSync(plain, { recursive: true })
+    const r = addSavedRepo(plain)
+    expect(r.added).toBe(false)
+    expect(r.rejected).toBe("notGitRepo")
+    expect(getSavedRepos()).toEqual([])
+  })
+
+  test("refuses a repo inside a .dev-sandbox, however real the checkout is", () => {
+    // The exact shape that leaked: a genuine git repo, at a path that cannot
+    // be anyone's project. Without the gate this is indistinguishable from a
+    // user's own checkout.
+    const sandboxed = initRepo(path.join(".dev-sandbox", "named", "smoke-repo"))
+    const r = addSavedRepo(sandboxed)
+    expect(r.added).toBe(false)
+    expect(r.rejected).toBe("insideSandbox")
+    expect(getSavedRepos()).toEqual([])
+  })
+
+  test("accepts an ordinary repo", () => {
+    const repo = initRepo("my-project")
+    const r = addSavedRepo(repo)
+    expect(r.rejected).toBeUndefined()
+    expect(r.added).toBe(true)
+    expect(getSavedRepos()).toEqual([repo])
+  })
+
+  test("a rejection still reports the normalized path, so callers can name it", () => {
+    // `rove add` prints this path in its error, and `createTaskFlow` uses it
+    // as the task's repo — a rejection must not degrade it to the raw input.
+    const plain = path.join(tmpHome, "not-a-repo")
+    fs.mkdirSync(plain, { recursive: true })
+    expect(addSavedRepo(plain).path).toBe(plain)
   })
 })
