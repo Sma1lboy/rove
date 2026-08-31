@@ -89,7 +89,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@sma1lboy/kobe-daemon": "0.7.17",
-    "@tsconfig/bun": "1.0.10",
+    "@tsconfig/bun": "1.0.11",
     "@types/bun": "1.3.14",
     "@types/node": "25.6.2",
     "@types/react": "^19.2.0",
