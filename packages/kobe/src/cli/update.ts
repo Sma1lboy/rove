@@ -19,9 +19,13 @@ import { spawnSync } from "node:child_process"
 import {
   BREAKING_VERSIONS,
   CURRENT_VERSION,
+  DEFAULT_RELEASE_CHANNEL,
+  RELEASE_CHANNELS,
+  type ReleaseChannel,
   UPDATE_COMMAND,
   UPDATE_SCRIPT_URL,
   breakingVersionsCrossed,
+  channelOf,
   checkLatestVersion,
   fetchReleaseSummaries,
   recommendedGlobalInstallCommand,
@@ -43,8 +47,13 @@ type RunDeps = {
   exit: (code: number) => never
 }
 
-export function updatePlan(version?: string): UpdatePlan {
-  const shell = version === undefined ? UPDATE_COMMAND : `${UPDATE_COMMAND} -s -- ${version}`
+/**
+ * The install target passed through to `update.sh`: an exact version, or a
+ * channel name the script resolves as an npm dist-tag. Both take the same
+ * `sh -s -- <arg>` slot, so `nightly` needs no separate flag downstream.
+ */
+export function updatePlan(target?: string): UpdatePlan {
+  const shell = target === undefined ? UPDATE_COMMAND : `${UPDATE_COMMAND} -s -- ${target}`
   return {
     command: "sh",
     args: ["-c", shell],
@@ -56,27 +65,61 @@ type ParsedArgs = {
   help: boolean
   dryRun: boolean
   list: boolean
-  /** Pinned target version (`kobe update 0.7.90`); undefined = latest. */
+  /** Pinned target version (`kobe update 0.7.90`); undefined = channel head. */
   version?: string
+  /**
+   * Explicit `--channel <name>`. Undefined means "stay on whichever channel
+   * this build came from" — switching is an explicit act, never a default.
+   */
+  channel?: ReleaseChannel
 }
 
 const VERSION_SHAPE = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/
+
+function isReleaseChannel(value: string): value is ReleaseChannel {
+  return (RELEASE_CHANNELS as readonly string[]).includes(value)
+}
 
 export function parseUpdateArgs(args: readonly string[]): ParsedArgs {
   let dryRun = false
   let list = false
   let version: string | undefined
+  let channel: ReleaseChannel | undefined
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i]
     if (arg === undefined) continue
-    if (arg === "--help" || arg === "-h" || arg === "help") return { help: true, dryRun, list, version }
+    if (arg === "--help" || arg === "-h" || arg === "help") return { help: true, dryRun, list, version, channel }
     if (arg === "dry-run" || arg === "--dry-run") {
       dryRun = true
       continue
     }
     if (arg === "list" || arg === "--list") {
       list = true
+      continue
+    }
+    // `--channel nightly` and `--channel=nightly` both land here. An
+    // unknown name is refused rather than passed through: npm resolves an
+    // unpublished dist-tag to a 404 the install script reports as a
+    // generic failure, which reads like a broken network.
+    if (arg === "--channel" || arg.startsWith("--channel=")) {
+      const inline = arg.startsWith("--channel=") ? arg.slice("--channel=".length) : undefined
+      const value = inline ?? args[++i]
+      if (value === undefined || !isReleaseChannel(value)) {
+        process.stderr.write(
+          `${CLI_NAME} update: --channel expects one of ${RELEASE_CHANNELS.join(", ")}${
+            value === undefined ? "" : ` (got "${value}")`
+          }\n\n`,
+        )
+        printUsage(process.stderr)
+        process.exit(2)
+      }
+      channel = value
+      continue
+    }
+    // A bare channel name is the shorthand: `rove update nightly`.
+    if (channel === undefined && isReleaseChannel(arg)) {
+      channel = arg
       continue
     }
     if (version === undefined && VERSION_SHAPE.test(arg)) {
@@ -91,21 +134,31 @@ export function parseUpdateArgs(args: readonly string[]): ParsedArgs {
     process.exit(2)
   }
 
-  return { help: false, dryRun, list, version }
+  return { help: false, dryRun, list, version, channel }
 }
 
 function printUsage(out: Pick<typeof process.stderr, "write">): void {
   out.write(
     [
-      `Usage: ${CLI_NAME} update [version|list|dry-run]`,
+      `Usage: ${CLI_NAME} update [version|channel|list|dry-run]`,
       "",
       "Runs Rove's GitHub-hosted update script. With [version] (e.g.",
-      "0.7.90) the script installs that exact release instead of latest.",
+      "0.7.90) the script installs that exact release instead of the",
+      "head of your channel.",
       "",
       "Verbs (--flag spellings also accepted):",
       "  list      Browse recent versions — a TUI page with release notes",
       "            when interactive, plain text when piped",
       "  dry-run   Print the command without running it",
+      "",
+      "Channels:",
+      "  latest    Stable releases (default)",
+      "  nightly   Automated nightly cut from main — newer, less baked",
+      "",
+      `You are on: ${channelOf()}`,
+      "",
+      "Switching channels is just installing from the other one; there is",
+      "no stored setting. Update checks follow the build you are running.",
       "",
       "Default command:",
       `  ${UPDATE_COMMAND}`,
@@ -119,6 +172,8 @@ function printUsage(out: Pick<typeof process.stderr, "write">): void {
       "Examples:",
       `  ${CLI_NAME} update`,
       `  ${CLI_NAME} update 0.7.90`,
+      `  ${CLI_NAME} update nightly`,
+      `  ${CLI_NAME} update --channel latest`,
       `  ${CLI_NAME} update list`,
       `  ${CLI_NAME} update dry-run`,
       "",
@@ -147,14 +202,14 @@ async function printVersionList(io: RunDeps): Promise<void> {
 
 /**
  * Best-effort heads-up when the move crosses a breaking version. Pinned
- * targets need no network; "latest" resolves via the registry and stays
- * silent when offline — the boot gate is the real enforcement point.
+ * targets need no network; a channel head resolves via the registry and
+ * stays silent when offline — the boot gate is the real enforcement point.
  */
-async function warnBreakingCrossings(target: string | undefined, io: RunDeps): Promise<void> {
-  // Nothing registered → nothing to warn about; skip the "latest" lookup
-  // entirely so the common path (and the test suite) never touches the net.
+async function warnBreakingCrossings(target: string | undefined, channel: ReleaseChannel, io: RunDeps): Promise<void> {
+  // Nothing registered → nothing to warn about; skip the channel-head
+  // lookup entirely so the common path (and the tests) never touch the net.
   if (BREAKING_VERSIONS.length === 0) return
-  const resolved = target ?? (await checkLatestVersion({ force: true }))?.latest
+  const resolved = target ?? (await checkLatestVersion({ force: true, channel }))?.latest
   if (!resolved) return
   const crossed = breakingVersionsCrossed(CURRENT_VERSION, resolved)
   if (crossed.length === 0) return
@@ -193,11 +248,18 @@ export async function runUpdateSubcommand(args: readonly string[], deps?: Partia
     return
   }
 
-  const plan = updatePlan(parsed.version)
-  io.stdout.write(`${CLI_NAME} ${CURRENT_VERSION} -> ${parsed.version ?? "latest"}\n`)
+  // An explicit --channel wins; otherwise stay on the channel this build
+  // came from. A pinned version outranks both — it names one exact build,
+  // and the channel it belongs to is whatever that version says it is.
+  const channel = parsed.channel ?? channelOf()
+  const target = parsed.version ?? (channel === DEFAULT_RELEASE_CHANNEL ? undefined : channel)
+  const plan = updatePlan(target)
+  const switching = parsed.channel !== undefined && parsed.channel !== channelOf()
+  io.stdout.write(`${CLI_NAME} ${CURRENT_VERSION} -> ${target ?? channel}\n`)
+  if (switching) io.stdout.write(`switching channel: ${channelOf()} -> ${channel}\n`)
   io.stdout.write(`running: ${plan.display}\n`)
   if (parsed.dryRun) return
-  await warnBreakingCrossings(parsed.version, io)
+  await warnBreakingCrossings(parsed.version, channel, io)
 
   const result = io.spawn(plan.command, plan.args, { stdio: "inherit" })
   if (result.error) {
