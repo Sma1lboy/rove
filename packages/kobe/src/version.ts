@@ -27,6 +27,7 @@
  *     user runs the install command themselves.
  */
 
+import { fileURLToPath } from "node:url"
 import pkg from "../package.json" with { type: "json" }
 import { isDev } from "./env.ts"
 
@@ -58,9 +59,32 @@ export const UPDATE_SCRIPT_URL = "https://raw.githubusercontent.com/Sma1lboy/rov
 /** Standard update command shown in the update dialog. */
 export const UPDATE_COMMAND = `curl -fsSL ${UPDATE_SCRIPT_URL} | sh`
 
-/** Portable manual fallback when the self-update helper is unavailable. */
-export function recommendedGlobalInstallCommand(): string {
-  return `npm install -g ${PACKAGE_NAME}@latest`
+/**
+ * The npm prefix that owns this running build, derived from where this
+ * module actually lives: `<prefix>/lib/node_modules/<pkg>/…`. Returns null
+ * for a bun install, a dev checkout, or any layout that isn't npm-global.
+ *
+ * Exported for the test; callers want {@link recommendedGlobalInstallCommand}.
+ */
+export function owningNpmPrefix(modulePath: string = fileURLToPath(import.meta.url)): string | null {
+  const marker = "/lib/node_modules/"
+  const at = modulePath.indexOf(marker)
+  if (at <= 0) return null
+  return modulePath.slice(0, at)
+}
+
+/**
+ * Portable manual fallback when the self-update helper is unavailable.
+ *
+ * A bare `npm install -g` writes to the prefix of whichever node runs npm,
+ * which on a machine with several node installs (nvm + homebrew, say) is
+ * not necessarily the prefix holding the binary the user just ran — so the
+ * update lands somewhere PATH never looks and the stale copy keeps running.
+ * When we can see which prefix owns this build, pin it explicitly.
+ */
+export function recommendedGlobalInstallCommand(prefix = owningNpmPrefix()): string {
+  const target = `${PACKAGE_NAME}@latest`
+  return prefix === null ? `npm install -g ${target}` : `npm install -g --prefix ${prefix} ${target}`
 }
 
 /**

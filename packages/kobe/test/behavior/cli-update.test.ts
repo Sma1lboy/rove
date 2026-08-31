@@ -10,7 +10,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { chmod, mkdir, readFile, symlink, writeFile } from "node:fs/promises"
+import { chmod, mkdir, readFile, realpath, symlink, writeFile } from "node:fs/promises"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -55,6 +55,7 @@ async function runUpdateScript(
   kobeBinDir: string,
   linkTo?: string,
   arg?: string,
+  extraPathDirs: readonly string[] = [],
 ): Promise<{ code: number; out: string; log: string }> {
   const shims = join(base, "shims")
   await mkdir(shims, { recursive: true })
@@ -63,11 +64,15 @@ async function runUpdateScript(
 
   // Post-install `kobe -v` must match `npm view` output or the script exits 1
   // (the shadowed-install guard) — keep both at 9.9.9 for the happy path.
-  if (linkTo) {
-    await symlink(linkTo, join(kobeBinDir, "kobe"))
-  } else {
-    await writeFile(join(kobeBinDir, "kobe"), `#!/bin/sh\necho "kobe 9.9.9"\n`)
-    await chmod(join(kobeBinDir, "kobe"), 0o755)
+  // Both packages ship a `kobe` AND a `rove` bin, and the script prefers
+  // `rove`, so the fixture has to carry both like a real install does.
+  for (const name of ["kobe", "rove"]) {
+    if (linkTo) {
+      await symlink(linkTo, join(kobeBinDir, name))
+    } else {
+      await writeFile(join(kobeBinDir, name), `#!/bin/sh\necho "${name} 9.9.9"\n`)
+      await chmod(join(kobeBinDir, name), 0o755)
+    }
   }
   for (const mgr of ["npm", "bun"]) {
     await writeFile(
@@ -78,7 +83,7 @@ async function runUpdateScript(
   }
 
   const r = spawnSync("sh", arg === undefined ? [UPDATE_SH] : [UPDATE_SH, arg], {
-    env: { PATH: `${kobeBinDir}:${shims}:/usr/bin:/bin` },
+    env: { PATH: [kobeBinDir, ...extraPathDirs, shims, "/usr/bin", "/bin"].join(":") },
     encoding: "utf8",
     timeout: 30_000,
   })
@@ -152,10 +157,13 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     const r = await runUpdateScript(base, join(base, "npm-global", "bin"), entry)
     expect(r.code).toBe(0)
     expect(r.out).toContain("kobe is now Rove.")
-    expect(r.log).toContain("npm uninstall -g @sma1lboy/kobe")
-    expect(r.log).toContain("npm install -g @sma1lboy/rove@latest")
+    // Both halves of the swap are pinned to the prefix that owns the binary,
+    // or the uninstall and the install can hit two different prefixes.
+    const prefix = await realpath(join(base, "npm-global"))
+    expect(r.log).toContain(`npm uninstall -g --prefix ${prefix} @sma1lboy/kobe`)
+    expect(r.log).toContain(`npm install -g --prefix ${prefix} @sma1lboy/rove@latest`)
     // Order matters: uninstall first, or npm bails with EEXIST.
-    expect(r.log.indexOf("uninstall")).toBeLessThan(r.log.indexOf("install -g @sma1lboy/rove"))
+    expect(r.log.indexOf("uninstall")).toBeLessThan(r.log.indexOf("@sma1lboy/rove@latest"))
   })
 
   it("a non-legacy install is not uninstalled", async () => {
@@ -163,6 +171,82 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     const r = await runUpdateScript(base, join(base, "npm-global", "bin"))
     expect(r.out).not.toContain("kobe is now Rove.")
     expect(r.log).not.toContain("uninstall")
+  })
+
+  // #205's second half. Choosing npm-vs-bun is not enough: with several
+  // npm on one machine, `npm install -g` writes to the prefix of whichever
+  // node runs npm — not the prefix that owns the binary on PATH. The
+  // install must be pinned to the prefix we resolved the binary into.
+  it("pins the install to the prefix that owns the binary on PATH", async () => {
+    const base = join(env.home, "case-prefix")
+    const prefix = join(base, "owning-prefix")
+    const pkgDir = join(prefix, "lib/node_modules/@sma1lboy/rove/dist/cli")
+    await mkdir(pkgDir, { recursive: true })
+    const entry = join(pkgDir, "rove.js")
+    await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
+    await chmod(entry, 0o755)
+
+    const r = await runUpdateScript(base, join(prefix, "bin"), entry)
+    expect(r.code).toBe(0)
+    // The script resolves symlinks, and macOS hides /var behind /private/var.
+    const real = await realpath(prefix)
+    expect(r.log).toContain(`npm install -g --prefix ${real} @sma1lboy/rove@latest`)
+  })
+
+  // No prefix to derive (bin is not under a `lib/node_modules` tree) must
+  // stay exactly as it was — no --prefix, npm decides.
+  it("omits --prefix when the binary is not in an npm global layout", async () => {
+    const base = join(env.home, "case-no-prefix")
+    const r = await runUpdateScript(base, join(base, "loose", "bin"))
+    expect(r.code).toBe(0)
+    expect(r.log).toContain("npm install -g @sma1lboy/rove@latest")
+    expect(r.log).not.toContain("--prefix")
+  })
+
+  // A bun install has no npm prefix to pin; --prefix is npm-only.
+  it("never passes --prefix to bun", async () => {
+    const base = join(env.home, "case-bun-noprefix")
+    const r = await runUpdateScript(base, join(base, ".bun", "bin"))
+    expect(r.code).toBe(0)
+    expect(r.log).toContain("bun install -g @sma1lboy/rove@latest")
+    expect(r.log).not.toContain("--prefix")
+  })
+
+  // The silent half of the incident: two installs, and the one running is
+  // not the one you think. Updating only names the winner, so say so.
+  it("warns when a second install is on PATH, naming which one is updated", async () => {
+    const base = join(env.home, "case-dupes")
+    const prefixA = join(base, "prefix-a")
+    const prefixB = join(base, "prefix-b")
+    const pkgA = join(prefixA, "lib/node_modules/@sma1lboy/rove/dist/cli")
+    const pkgB = join(prefixB, "lib/node_modules/@sma1lboy/rove/dist/cli")
+    await mkdir(pkgA, { recursive: true })
+    await mkdir(pkgB, { recursive: true })
+    for (const entry of [join(pkgA, "rove.js"), join(pkgB, "rove.js")]) {
+      await writeFile(entry, `#!/bin/sh\necho "rove 9.9.9"\n`)
+      await chmod(entry, 0o755)
+    }
+    await mkdir(join(prefixB, "bin"), { recursive: true })
+    await symlink(join(pkgB, "rove.js"), join(prefixB, "bin", "rove"))
+
+    const r = await runUpdateScript(base, join(prefixA, "bin"), join(pkgA, "rove.js"), undefined, [
+      join(prefixB, "bin"),
+    ])
+    expect(r.code).toBe(0)
+    expect(r.out).toContain("rove is installed more than once")
+    expect(r.out).toContain(join(prefixA, "bin", "rove"))
+    expect(r.out).toContain(join(prefixB, "bin", "rove"))
+    // Only the owning prefix is written to.
+    const realA = await realpath(prefixA)
+    expect(r.log).toContain(`npm install -g --prefix ${realA} @sma1lboy/rove@latest`)
+    expect(r.log).not.toContain(await realpath(prefixB))
+  })
+
+  it("stays quiet when there is only one install on PATH", async () => {
+    const base = join(env.home, "case-single")
+    const r = await runUpdateScript(base, join(base, "npm-global", "bin"))
+    expect(r.code).toBe(0)
+    expect(r.out).not.toContain("installed more than once")
   })
 
   it("a post-install PATH still resolving a stale version fails loudly", async () => {
