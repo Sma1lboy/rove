@@ -135,8 +135,12 @@ rove api collect --task-ids <a>,<b>,<c> --pretty
 rove api land --task-id <winner>
 
 # Losers: delete removes the worktree but keeps the branch (git is the durable record).
-rove api delete --task-id <loser1>
-rove api delete --task-id <loser2>
+# Removal runs in the background, so a plain delete only reports that it was
+# QUEUED. Cleaning up a batch? Pass --wait and read `status` — a worktree git
+# cannot remove comes back as `failed` with the reason instead of vanishing
+# into daemon.log.
+rove api delete --task-id <loser1> --wait
+rove api delete --task-id <loser2> --wait
 ```
 
 `land` refuses a dirty base checkout, and on merge conflict aborts cleanly
@@ -204,8 +208,8 @@ git -C <worktreePath> diff main...HEAD
 
 # 4. Land it, delete the losers' worktrees (branches stay).
 rove api land --task-id <winner>
-rove api delete --task-id <loser1>
-rove api delete --task-id <loser2>
+rove api delete --task-id <loser1> --wait
+rove api delete --task-id <loser2> --wait
 ```
 
 The same round run *by an agent* differs only in step 2: the workers'

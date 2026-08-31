@@ -18,6 +18,12 @@ import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
+/** How long `delete --wait` follows a deletion before reporting `pending`.
+ *  A worktree teardown is filesystem-bound; this is generous headroom, not a
+ *  deadline the deletion itself respects. */
+const DELETE_WAIT_TIMEOUT_MS = 60_000
+const DELETE_POLL_INTERVAL_MS = 250
+
 /**
  * Peer provenance: a `send` issued from INSIDE another kobe task is one
  * agent messaging another, and the receiver needs what a bare paste never
@@ -330,19 +336,53 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   // identity `send`/`add` use (never the bare env — issue #24): unverifiable
   // stays unattributed rather than blaming a stranger's session.
   const self = await verifiedSelfSession()
-  const res = await daemon.request("task.delete", {
+  const res = (await daemon.request("task.delete", {
     taskId,
     force,
     deleteBranch,
     ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
-  })
+  })) as { taskId: string; queued: boolean }
   // The daemon's task.delete removes the worktree + index entry but never the
   // hosted session. Without this, a scripted delete
   // orphans the `kobe-<id>` session + its engine — invisible to every kobe UI
   // since the task is gone from tasks.json. Mirror the TUI's finishDeletedTaskFlow
   // and kill it here, after the delete RPC succeeds.
   await ctx.runtime.tearDownSession(taskId)
-  return res
+  if (!res.queued) return { ...res, status: "not_found" as const }
+  // Removal runs in the background, so the default reply can only say the work
+  // was scheduled. A caller that needs the OUTCOME (a cleanup script deciding
+  // whether to retry, an agent tearing down its own fan-out) asks for it.
+  if (!ctx.args.bool("wait")) return { ...res, status: "queued" as const }
+  return { ...res, ...(await awaitDeletion(daemon, taskId)) }
+}
+
+/**
+ * Poll the task index until the deletion resolves. The index IS the record —
+ * `finish()` removes the row on success and stamps `deletion.phase = "error"`
+ * with the git failure on it — so this reads the outcome rather than tracking
+ * a second copy of it. Previously that error reached `daemon.log` and nowhere
+ * else, which is how a failed removal came back looking like a successful one.
+ */
+async function awaitDeletion(
+  daemon: DaemonRpc,
+  taskId: string,
+): Promise<{ status: "removed" | "failed" | "pending"; error?: string }> {
+  const deadline = Date.now() + DELETE_WAIT_TIMEOUT_MS
+  for (;;) {
+    const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return { status: "removed" }
+    const deletion = task.deletion
+    if (deletion?.phase === "error") {
+      return { status: "failed", error: deletion.error ?? "worktree removal failed" }
+    }
+    // A worktree teardown is filesystem-bound and can take tens of seconds, so
+    // running out of patience is not the same as failing: `pending` says the
+    // deletion is still owned by the daemon and the caller should look again,
+    // never that it was refused.
+    if (Date.now() >= deadline) return { status: "pending" }
+    await new Promise((resolve) => setTimeout(resolve, DELETE_POLL_INTERVAL_MS))
+  }
 }
 
 export async function land(ctx: VerbContext): Promise<unknown> {

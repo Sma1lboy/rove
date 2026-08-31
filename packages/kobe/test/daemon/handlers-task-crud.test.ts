@@ -124,7 +124,10 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
           return true
         },
       })
-      await expect(dispatch("task.delete", { taskId: "t1", force: true }, ctx)).resolves.toEqual({})
+      await expect(dispatch("task.delete", { taskId: "t1", force: true }, ctx)).resolves.toEqual({
+        taskId: "t1",
+        queued: true,
+      })
       expect(prepared).toEqual([["t1", { force: true }]])
       expect(rec.cleared).toEqual(["t1"])
       expect(rec.inboxTaskDeleted).toEqual(["t1"])
@@ -179,9 +182,34 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
 
     it("task.delete does not enqueue an unknown task", async () => {
       const { ctx, rec } = fakeCtx({ prepareTaskDeletion: async () => false })
-      await expect(dispatch("task.delete", { taskId: "missing" }, ctx)).resolves.toEqual({})
+      await expect(dispatch("task.delete", { taskId: "missing" }, ctx)).resolves.toEqual({
+        taskId: "missing",
+        queued: false,
+      })
       expect(rec.deletions).toEqual([])
       expect(rec.inboxTaskDeleted).toEqual(["missing"])
+    })
+
+    // The point of the whole change: a REFUSED delete must not be reportable
+    // as a successful one. Both outcomes used to return a bare `{}`, so a
+    // caller deleting a list of tasks could not tell which ones were even
+    // scheduled — the wire carried no evidence either way. Asserting the two
+    // responses are UNEQUAL is what fails if `queued` ever stops riding along,
+    // whatever value it settles on.
+    it("task.delete reports a refusal differently from an acceptance", async () => {
+      const accept = await dispatch(
+        "task.delete",
+        { taskId: "t1" },
+        fakeCtx({ prepareTaskDeletion: async () => true }).ctx,
+      )
+      const refuse = await dispatch(
+        "task.delete",
+        { taskId: "t1" },
+        fakeCtx({ prepareTaskDeletion: async () => false }).ctx,
+      )
+      expect(accept).not.toEqual(refuse)
+      expect(accept).toMatchObject({ queued: true })
+      expect(refuse).toMatchObject({ queued: false })
     })
 
     it("task.move rejects a bogus direction with the legacy wording", async () => {

@@ -52,7 +52,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   {
     name: "delete",
     summary:
-      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree.",
+      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome.",
     flags: [
       F.taskId(),
       {
@@ -61,6 +61,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         description: "Delete even with uncommitted changes (never implies --delete-branch).",
       },
       { name: "delete-branch", type: "bool", description: "Also delete the task's git branch (default: keep it)." },
+      {
+        name: "wait",
+        type: "bool",
+        description:
+          "Follow the background removal and report its OUTCOME (removed / failed / pending) instead of returning as soon as it is queued.",
+      },
     ],
     handler: deleteTask,
   },

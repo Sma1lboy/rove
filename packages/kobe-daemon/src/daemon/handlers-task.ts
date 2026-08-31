@@ -156,7 +156,13 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // lifecycle action allowed to cascade its durable Inbox episodes.
       await ctx.inbox.deleteTaskBestEffort(taskId)
       if (accepted) ctx.deletions.enqueue(taskId)
-      return {}
+      // `accepted` is the whole point of the reply. Removal itself runs in the
+      // background (a worktree teardown can take tens of seconds), so this can
+      // only ever report that the request was TAKEN, never that it finished —
+      // and a refusal used to be indistinguishable from a success because both
+      // returned `{}`. `queued: false` means nothing was scheduled: the task id
+      // does not exist, so no deletion will ever run for it.
+      return { taskId, queued: accepted }
     },
   },
   {
