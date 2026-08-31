@@ -136,6 +136,14 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       setMenu(null)
       if (row.kind === "project") {
         if (action === "newTask") deps.onAddTask?.()
+        // Forget routes to the SAME flow `d` runs (task-actions.ts sends a
+        // main row to `forgetProject` behind a confirm). The header itself is
+        // not navigable, so the row the flow needs is the project's main
+        // checkout — the one `d` would have been pressed on.
+        if (action === "forgetProject") {
+          const mainId = deps.tree.mainTaskIdOfProject(row.id)
+          if (mainId) actions.onDeleteRequest?.(mainId)
+        }
         return
       }
       const taskId = row.task.id
@@ -169,7 +177,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
       }
     },
-    [menu, activateRow, actions, deps.onAddTask, deps.onCloseTab, deps.onNewTab],
+    [menu, activateRow, actions, deps.onAddTask, deps.onCloseTab, deps.onNewTab, deps.tree.mainTaskIdOfProject],
   )
 
   const pickCurrent = useCallback((): void => fire(menu?.actions[cursor]), [fire, menu, cursor])

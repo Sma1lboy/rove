@@ -352,3 +352,74 @@ describe("worktreeRowLabel (issue #42)", () => {
     expect(worktreeRowLabel(bare)).toBe("scratch")
   })
 })
+
+describe("a project closed down to nothing (owner call 2026-08-31)", () => {
+  const mainOf = (repo: string, id = "m") => task(id, { kind: "main", repo, title: repo.split("/").pop() ?? repo })
+
+  test("hides the project when its only row is main and its tabs are closed", () => {
+    const out = rows({
+      tasks: [mainOf("/repos/codefox")],
+      // KNOWN and empty — the user closed the last tab.
+      tabsByTask: new Map([["m", []]]),
+    })
+    expect(out).toEqual([])
+  })
+
+  test("still shows it when its tabs are merely UNKNOWN (fresh TUI)", () => {
+    // Absent from the map = never mounted since restart, which is every
+    // project on a cold boot. Hiding on that would make the sidebar start
+    // empty — the difference this whole rule turns on.
+    const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map() })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
+  })
+
+  test("still shows it while any tab is open", () => {
+    const out = rows({
+      tasks: [mainOf("/repos/codefox")],
+      tabsByTask: new Map([["m", [tab("t1")]]]),
+    })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "tab"])
+  })
+
+  test("keeps a project that has worktree tasks, even with every tab closed", () => {
+    // The worktree rows are how you get back to that work — losing them would
+    // strand the branches. Only the main-only case hides.
+    const out = rows({
+      tasks: [mainOf("/repos/kobe"), task("a", { repo: "/repos/kobe" })],
+      tabsByTask: new Map([
+        ["m", []],
+        ["a", []],
+      ]),
+    })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
+  })
+
+  test("hiding one project does not disturb the others", () => {
+    const out = rows({
+      tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/kobe", "m2")],
+      tabsByTask: new Map([
+        ["m1", []],
+        ["m2", [tab("t1")]],
+      ]),
+    })
+    expect(out.filter((r) => r.kind === "project").map((r) => (r as { label: string }).label)).toEqual(["kobe"])
+  })
+
+  test("keeps a project whose ONLY row is a worktree task with no tabs", () => {
+    // A main-less project (the tree supports these — "then main-less projects
+    // in first-seen order"). Hiding it would strand the task: no main row
+    // means nothing to re-open it from.
+    const out = rows({
+      tasks: [task("a", { repo: "/repos/orphan" })],
+      tabsByTask: new Map([["a", []]]),
+    })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
+  })
+
+  test("a hidden project is not navigable", () => {
+    // The cursor indexes flatIds; leaving a hidden project's row in there
+    // would let j/k land on something the user cannot see.
+    const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map([["m", []]]) })
+    expect(treeFlatIds(out)).toEqual([])
+  })
+})

@@ -31,6 +31,8 @@ export const en = {
     newChat: "New conversation",
     newShell: "New shell",
     newTask: "New task",
+    /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
+    forgetProject: "Remove project",
     rename: "Rename",
     pin: "Pin",
     unpin: "Unpin",
@@ -130,6 +132,7 @@ export const zh: typeof en = {
     newChat: "新建会话",
     newShell: "新建终端",
     newTask: "新建任务",
+    forgetProject: "移除项目",
     rename: "重命名",
     pin: "置顶",
     unpin: "取消置顶",

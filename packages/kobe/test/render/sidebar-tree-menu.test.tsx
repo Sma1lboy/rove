@@ -129,7 +129,11 @@ test("right-click on a project header offers the project's own actions", async (
 
   const after = await frame()
   expect(after).toContain("New task")
+  // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
+  // to `forgetProject` behind a confirm) — the menu was missing it.
+  expect(after).toContain("Remove project")
   // A project is not a checkout — no per-task verbs on its header.
+  expect(after).not.toContain("Rename")
   expect(after).not.toContain("Delete")
 })
 
@@ -224,9 +228,9 @@ test("a tab row's menu opens a new shell in its worktree", async () => {
   expect(asked).toEqual([["a", "shell"]])
 })
 
-test("a worktree's LAST tab offers no close", async () => {
-  // The refusal lives in closeTab core; the menu just doesn't offer what
-  // would be refused.
+test("a worktree's LAST tab DOES offer a close (owner call 2026-08-31)", async () => {
+  // Closing it leaves the task with no sessions — the row stays and re-opens
+  // on ⏎ / ctrl+e — so there is nothing for the menu to withhold.
   tabsByTask.clear()
   seedTabs("a", ["tab-1"])
   const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
@@ -236,7 +240,7 @@ test("a worktree's LAST tab offers no close", async () => {
 
   const after = await frame()
   expect(after).toContain("Open tab")
-  expect(after).not.toContain("Close tab")
+  expect(after).toContain("Close tab")
 })
 
 /** Screen position of the first occurrence of `needle`. */

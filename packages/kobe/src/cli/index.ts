@@ -4,6 +4,7 @@ import { resolve } from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { matchPathGlob } from "../lib/path-glob.ts"
 import { expandTilde } from "../lib/path-home.ts"
+import { rejectionReason } from "../state/project-eligibility.ts"
 import { type VendorId, coerceVendorId } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 // Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
@@ -42,17 +43,19 @@ async function runAddSubcommand(rest: readonly string[]): Promise<void> {
     process.exit(2)
   }
   const target = resolve(process.cwd(), expandTilde(arg && arg.length > 0 ? arg : "."))
-  const { addSavedRepo, isGitRepo } = await import("../state/repos.ts")
-  // A saved project must be a real local git repository — reject garbage
-  // paths (e.g. `kobe add ,`, which resolves to a non-existent dir) before
-  // they pollute the picker and become un-deletable synthetic rows.
-  if (!isGitRepo(target)) {
+  const { addSavedRepo } = await import("../state/repos.ts")
+  // The admission gate lives inside `addSavedRepo` (state/project-eligibility
+  // .ts) — a real git repo, at a path durable enough to be someone's project.
+  // Reporting the refusal is this command's own job: `added: false` also means
+  // "already saved", and printing that for a rejected path claims we stored
+  // something we refused.
+  const result = addSavedRepo(target)
+  if (result.rejected) {
     process.stderr.write(
-      `${CLI_NAME} add: "${arg && arg.length > 0 ? arg : "."}" is not a git repository (resolved to ${target}).\n`,
+      `${CLI_NAME} add: "${arg && arg.length > 0 ? arg : "."}" cannot be a project — ${rejectionReason(result.rejected)} (resolved to ${result.path}).\n`,
     )
     process.exit(1)
   }
-  const result = addSavedRepo(target)
   if (result.added) {
     console.log(`added ${result.path} (${result.total} saved repo${result.total === 1 ? "" : "s"} total)`)
   } else {

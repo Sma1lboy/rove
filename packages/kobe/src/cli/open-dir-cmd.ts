@@ -1,15 +1,22 @@
 /**
- * `kobe <path>` — the `code .` gesture: open an existing directory as a
- * standalone `kind:"dir"` task and land in the TUI focused on it.
+ * `kobe <path>` — the `code .` gesture: open a directory and land in the TUI
+ * focused on it. What it opens depends on WHAT the directory is:
  *
- * Deliberately NO project association: no saved repo, no main task, no
- * worktree/branch — the task pins the directory itself, and deleting it
- * later only drops the index entry (the directory is never touched).
- * Every invocation creates a NEW task — same directory twice is two
- * parallel sessions, distinguished by a random title suffix. Prefers a
- * RUNNING daemon (live TUIs see the row immediately);
- * falls back to the in-process orchestrator, persisting focus for the
- * daemon the TUI is about to boot.
+ *   - **The root of an eligible git repo** → the project itself (owner call
+ *     2026-08-31), i.e. the same outcome as `rove add . && rove`. Opening a
+ *     checkout you work in used to mint a throwaway `dir` row beside the main
+ *     row it would later be promoted into, so the sidebar listed the same
+ *     checkout twice under one header.
+ *   - **Anything else** — a subdirectory, a plain folder, a `/tmp` scratch —
+ *     → a standalone `kind:"dir"` task with NO project association: no saved
+ *     repo, no main task, no worktree/branch. The task pins the directory
+ *     itself, deleting it later only drops the index entry (the directory is
+ *     never touched), and each invocation creates a NEW task, so the same
+ *     directory twice is two parallel sessions with a random title suffix.
+ *
+ * Prefers a RUNNING daemon (live TUIs see the row immediately); falls back to
+ * the in-process orchestrator, persisting focus for the daemon the TUI is
+ * about to boot.
  */
 
 import { statSync } from "node:fs"
@@ -36,6 +43,24 @@ export function isPathLikeArg(arg: string): boolean {
   )
 }
 
+/**
+ * Whether `dir` is the ROOT of a repo eligible to be a project (owner call
+ * 2026-08-31). Only the toplevel qualifies: running `rove .` inside
+ * `my-monorepo/packages/app` should open a session there, not silently
+ * re-target the whole monorepo — and a subdirectory that minted its own
+ * project row was the "ghost project named after a subdirectory" bug.
+ */
+async function projectRootFor(dir: string): Promise<string | null> {
+  const { isGitRepo, resolveRepoRoot } = await import("../state/repos.ts")
+  const { projectRejection } = await import("../state/project-eligibility.ts")
+  const top = resolveRepoRoot(dir)
+  if (top !== dir) return null
+  // `explicit`: the user typed this path, exactly as they would to `rove add`.
+  // The stricter `derived` tier exists for repos Rove infers on its own, and
+  // applying it here would refuse `rove .` in any checkout under /tmp.
+  return projectRejection(top, isGitRepo, "explicit") ? null : top
+}
+
 export async function runOpenDirectory(arg: string): Promise<void> {
   const dir = resolve(process.cwd(), expandTilde(arg))
   let isDir = false
@@ -48,13 +73,26 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     process.stderr.write(`${activeCliName()}: "${arg}" is not a directory (resolved to ${dir}).\n`)
     process.exit(1)
   }
+  // A repo root opens AS THE PROJECT (owner call 2026-08-31): `rove .` in a
+  // checkout you work in is the same gesture as `rove add . && rove`, and
+  // minting a throwaway `dir` row beside the main row it would later be
+  // promoted into just made the sidebar say the same checkout twice.
+  // Anything else — a subdirectory, a non-repo folder, a `/tmp` scratch —
+  // keeps the dir-task behaviour: pinned to that directory, no project row.
+  const projectRoot = await projectRootFor(dir)
   await withDaemonOrLocal({
     daemon: async (client) => {
-      const { taskId } = await client.request<{ taskId: string }>("task.openDir", { dir })
+      let taskId: string
+      if (projectRoot) {
+        const res = await client.request<{ task: { id: string } }>("task.ensureMain", { repo: projectRoot })
+        taskId = res.task.id
+      } else {
+        taskId = (await client.request<{ taskId: string }>("task.openDir", { dir })).taskId
+      }
       await client.request("task.setActive", { taskId })
     },
     local: async (orch) => {
-      const task = await orch.openDirectoryTask({ dir })
+      const task = projectRoot ? await orch.ensureMainTask(projectRoot) : await orch.openDirectoryTask({ dir })
       const { writeLastActiveTaskId } = await import("../state/last-active.ts")
       writeLastActiveTaskId(String(task.id))
     },

@@ -12,6 +12,8 @@ export const en = {
   },
   empty: {
     selectTask: "Select a task with a worktree",
+    /** Every tab of this task was closed — the task and its worktree remain. */
+    noSessions: "No sessions here — press ⏎ or ctrl+e to start one",
   },
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
@@ -88,6 +90,7 @@ export const zh: typeof en = {
   },
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
+    noSessions: "这里没有会话——按 ⏎ 或 ctrl+e 开一个",
   },
   welcome: {
     title: "欢迎使用 Rove",

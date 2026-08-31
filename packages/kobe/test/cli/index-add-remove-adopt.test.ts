@@ -17,7 +17,12 @@ const fake = vi.hoisted(() => ({
   repoRootOf: {} as Record<string, string>,
   adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; kobeManaged?: boolean }>,
   discoverError: null as Error | null,
-  addSavedRepo: vi.fn((p: string) => ({ added: true, path: p, total: 1 })),
+  // Mirrors the real `addSavedRepo`, which owns the admission gate as of
+  // 2026-08-31: an ineligible path comes back `rejected` instead of being
+  // written. `rove add` turns that into its exit-1 error.
+  addSavedRepo: vi.fn((p: string) =>
+    fake.isGitRepo ? { added: true, path: p, total: 1 } : { added: false, path: p, total: 0, rejected: "notGitRepo" },
+  ),
   adoptWorktree: vi.fn(async (args: { worktreePath: string }) => ({
     id: `task-${args.worktreePath.split("/").pop()}`,
     title: "adopted",
@@ -129,9 +134,12 @@ describe("kobe add", () => {
   test("rejects a non-git path with exit 1 before polluting the picker", async () => {
     fake.isGitRepo = false
     await runCli("add", ",")
-    expect(fake.addSavedRepo).not.toHaveBeenCalled()
+    // The gate moved INSIDE addSavedRepo (state/project-eligibility.ts), so
+    // the call happens and returns a refusal — what must not happen is a
+    // saved entry, and what must happen is a non-zero exit naming the reason.
+    expect(fake.addSavedRepo).toHaveReturnedWith(expect.objectContaining({ added: false, rejected: "notGitRepo" }))
     expect(exitSpy).toHaveBeenCalledWith(1)
-    expect(stderrText()).toContain("is not a git repository")
+    expect(stderrText()).toContain("not a git repository")
   })
 
   test("rejects an unknown flag with exit 2 and the usage text", async () => {

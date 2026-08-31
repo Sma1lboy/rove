@@ -26,6 +26,7 @@ import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
   | "open"
+  | "forgetProject"
   | "closeTab"
   | "newChat"
   | "newShell"
@@ -44,9 +45,9 @@ export interface TreeMenuItem {
 }
 
 export interface TreeMenuContext {
-  /** How many tabs the row's worktree has. Closing is only offered above 1:
-   *  `closeTab` refuses to remove a task's last tab, and an entry that does
-   *  nothing is worse than no entry. */
+  /** How many tabs the row's worktree has. Closing the LAST one is allowed
+   *  now (owner call 2026-08-31) — the task keeps its row and re-opens on
+   *  ⏎ / ctrl+e — so the entry shows for any tab that exists. */
   readonly tabCount?: number
 }
 
@@ -75,7 +76,14 @@ function taskVerbs(pinned: boolean, kind: Task["kind"]): TreeMenuItem[] {
 
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
   if (row.kind === "project") {
-    return [{ action: "newTask", labelKey: "tasks.menu.newTask" }]
+    // `d` on a project row already forgets it (task-actions.ts routes main
+    // rows to `forgetProject` behind a confirm). The menu was missing the
+    // entry, which broke this module's own rule: a row's menu is what that
+    // row's keyboard already does.
+    return [
+      { action: "newTask", labelKey: "tasks.menu.newTask" },
+      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true },
+    ]
   }
   if (row.kind === "worktree") {
     return [
@@ -85,6 +93,6 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     ]
   }
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab" }]
-  if ((ctx.tabCount ?? 0) > 1) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
+  if ((ctx.tabCount ?? 0) > 0) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
   return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true, row.task.kind)]
 }

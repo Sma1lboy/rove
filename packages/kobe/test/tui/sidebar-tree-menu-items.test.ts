@@ -35,8 +35,11 @@ const tabRow: TreeRow = { kind: "tab", id: "a::tab-2", task: task(), tab: { id: 
 const actions = (row: TreeRow, ctx = {}) => treeMenuItems(row, ctx).map((item) => item.action)
 
 describe("treeMenuItems", () => {
-  test("a project header only offers New task", () => {
-    expect(actions(projectRow)).toEqual(["newTask"])
+  test("a project header offers New task and Remove project", () => {
+    // Both mirror a chord the row already answers to — `d` on a project row
+    // has always routed to `forgetProject` behind a confirm; the menu was
+    // simply missing it.
+    expect(actions(projectRow)).toEqual(["newTask", "forgetProject"])
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {
@@ -83,11 +86,18 @@ describe("treeMenuItems", () => {
     ])
   })
 
-  test("the LAST tab is not offered a close (closeTab would refuse it)", () => {
-    expect(actions(tabRow, { tabCount: 1 })).not.toContain("closeTab")
-    // …but it can still start a new session, which is what makes the refusal
-    // reachable in the first place.
+  test("the LAST tab IS offered a close (owner call 2026-08-31)", () => {
+    // Closing it leaves the task with no sessions; its sidebar row stays and
+    // re-opens on ⏎ / ctrl+e. The entry used to be withheld because closeTab
+    // refused the last tab, which is no longer true.
+    expect(actions(tabRow, { tabCount: 1 })).toContain("closeTab")
     expect(actions(tabRow, { tabCount: 1 })).toContain("newChat")
+  })
+
+  test("a tab row with NO known tabs is offered no close", () => {
+    // `tabCount` 0 means the count could not be read; offering an action that
+    // names nothing is the entry-that-does-nothing this module rules out.
+    expect(actions(tabRow, { tabCount: 0 })).not.toContain("closeTab")
   })
 
   test("pin reads the task's own state", () => {

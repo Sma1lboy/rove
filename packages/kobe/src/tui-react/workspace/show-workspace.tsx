@@ -11,10 +11,12 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
+import { useOptionalKV } from "../context/kv"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
+import { knownTaskTabs } from "./terminal-tabs-shared"
 import { WelcomePane } from "./welcome-pane"
 
 export function ShowWorkspace(props: {
@@ -43,6 +45,10 @@ export function ShowWorkspace(props: {
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
+  // Optional: this component renders in tests and previews with no KV
+  // provider mounted, and the empty-tabs lookup below is a refinement, not a
+  // requirement — no provider simply means "tabs unknown", which mounts.
+  const kv = useOptionalKV()
   const transcriptActivity = useAccessor(props.orchestrator.transcriptActivityStore())
   const engineTabStates = useAccessor(props.orchestrator.engineTabStatesSignal())
   const tasks = useAccessor(props.orchestrator.tasksSignal())
@@ -57,6 +63,19 @@ export function ShowWorkspace(props: {
     )
   }
   const path = props.worktree
+  // A task whose last tab you closed (owner call 2026-08-31) has KNOWN, empty
+  // tabs. Mounting TerminalTabs for it would immediately mint a replacement —
+  // its `active` tab is non-null by construction and 17 call sites downstream
+  // rely on that — so the empty state is handled by not mounting at all.
+  // `null` (never mounted since restart) is NOT empty and must still mount.
+  const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
+  if (known && known.tabs.length === 0) {
+    return (
+      <box flexGrow={1} alignItems="center" justifyContent="center">
+        <text fg={theme.textMuted}>{t("workspace.empty.noSessions")}</text>
+      </box>
+    )
+  }
   return (
     // The terminal-in-the-middle seam (issue #16): the center column IS
     // the engine — an in-process PTY (Bun.spawn terminal) running the
