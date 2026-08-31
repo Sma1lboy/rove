@@ -293,6 +293,14 @@ export function defaultPtyExitsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir
   return runtimeDataPath(homeDir, "pty-exits.json")
 }
 
+/** Bearer token for the daemon-hosted web transport (`web-token.ts`) — its
+ *  own 0600 file rather than a field in `state.json`, because state.json is
+ *  user-editable preferences that get pasted into bug reports, and a
+ *  single-purpose file can be chmod'd whole and rotated with one `rm`. */
+export function defaultWebTokenPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+  return runtimeDataPath(homeDir, "web-token")
+}
+
 /** Frozen live-session snapshots (`pty-freeze-store.ts`) — one JSON file per
  *  session key, so a host restart (crash, reboot) can hand every session's
  *  metadata + scrollback back to the next host incarnation. */

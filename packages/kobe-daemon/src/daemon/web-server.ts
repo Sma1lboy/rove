@@ -15,6 +15,7 @@ import {
   shapeDaemonError,
   webExposedRpcNames,
 } from "./handlers.ts"
+import { defaultWebTokenPath } from "./paths.ts"
 import type { ChannelName, ChannelPayloads, DaemonRequestName, SerializedTask } from "./protocol.ts"
 import { serializeTask } from "./protocol.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
@@ -23,6 +24,7 @@ import { handleIssuesRequest } from "./web-issues-route.ts"
 import { allowedHostForBindHost, originAllowed } from "./web-origin.ts"
 import { engineSpec, ensureTaskSession, tearDownTaskSession, terminalSpec } from "./web-session.ts"
 import { settingsPatch, settingsSnapshot } from "./web-settings.ts"
+import { ensureWebToken, presentedToken, requiresWebToken, tokensMatch } from "./web-token.ts"
 import { handleWorktreesRequest } from "./web-worktrees-route.ts"
 
 export const DAEMON_WEB_HEALTH_MARKER = "kobe-web"
@@ -55,6 +57,9 @@ export interface RequestHandlerDeps {
   tearDownSession?: (taskId: string) => void
   allowedHost?: string
   onSseOpen?: () => () => void
+  /** Shared secret every request must present. Omitted only by tests that
+   *  exercise unrelated routing; production always supplies one. */
+  webToken?: string
 }
 
 export interface DaemonWebServerOptions {
@@ -66,6 +71,10 @@ export interface DaemonWebServerOptions {
   link: DaemonWebLink
   onEvent: (sink: (event: ChannelEvent) => void) => () => void
   onSseOpen?: () => () => void
+  /** Override the minted token (tests). Production lets it come from disk. */
+  webToken?: string
+  /** Override the token file location (tests / sandboxed homes). */
+  webTokenPath?: string
 }
 
 export interface DaemonWebServer {
@@ -129,6 +138,7 @@ function sseResponse(register: (send: SseSend) => () => void, signal?: AbortSign
 // Re-exported: this module is the web-exposure seam, and `server.ts` (the
 // usual re-export spot) is over the file-size cap.
 export { webExposedRpcNames } from "./handlers.ts"
+export { requiresWebToken } from "./web-token.ts"
 const WEB_EXPOSED_RPCS = webExposedRpcNames(createDaemonHandlerRegistry())
 
 /**
@@ -235,15 +245,55 @@ async function quickPromptsPut(runtime: DaemonRuntimeAdapter, req: Request): Pro
   }
 }
 
-async function staticResponse(pathname: string, staticDir: string): Promise<Response> {
+/**
+ * Hand the SPA its token by rewriting the served HTML.
+ *
+ * The alternative — a `/api/token` endpoint the SPA calls on boot — cannot
+ * work: to be reachable before the SPA holds a token it would have to be
+ * unauthenticated, which makes it a back door that hands the credential to
+ * precisely the caller this whole mechanism exists to turn away. Shipping the
+ * token WITH the page is safe for the same reason the page itself is: both
+ * are already behind the Origin check and the loopback bind, and anything
+ * able to fetch the page could equally read the token file.
+ */
+function injectWebToken(html: string, token: string): string {
+  const tag = `<meta name="rove-web-token" content="${token}">`
+  return html.includes("</head>") ? html.replace("</head>", `  ${tag}\n  </head>`) : `${tag}${html}`
+}
+
+async function staticResponse(pathname: string, staticDir: string, token?: string): Promise<Response> {
   const rel = pathname === "/" ? "/index.html" : pathname
   const resolved = normalize(join(staticDir, rel))
   if (!resolved.startsWith(staticDir)) return new Response("forbidden", { status: 403 })
-  const file = Bun.file(existsSync(resolved) ? resolved : join(staticDir, "index.html"))
+  const indexPath = join(staticDir, "index.html")
+  const isIndex = !existsSync(resolved) || resolved === indexPath
+  const file = Bun.file(isIndex ? indexPath : resolved)
   if (!(await file.exists())) {
     return new Response("Rove web assets not built — run `bun --filter kobe-web build`", { status: 503 })
   }
-  return new Response(file)
+  if (!isIndex || !token) return new Response(file)
+  return new Response(injectWebToken(await file.text(), token), {
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  })
+}
+
+/**
+ * The 401 body. Shaped like the CLI's typed errors (`toApiError` in
+ * `api-cmd.ts`): a `hint` saying what actually went wrong plus the argv that
+ * fixes it, because the caller who trips this is either a script that never
+ * knew about the token or a browser tab left open across the upgrade that
+ * introduced it — and "unauthorized" alone tells neither of them what to do.
+ */
+function unauthorizedResponse(): Response {
+  return Response.json(
+    {
+      error: "unauthorized: this request carried no valid web token",
+      name: "WEB_TOKEN_REQUIRED",
+      hint: "the daemon's web transport requires the bearer token in <ROVE_HOME>/.rove/web-token — send it as `Authorization: Bearer $(cat ~/.rove/web-token)` (EventSource clients use ?token=…). A browser tab open from before this daemon started should be reloaded to pick up a fresh token.",
+      nextCommandArgs: ["daemon", "restart"],
+    },
+    { status: 401 },
+  )
 }
 
 export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: Request) => Promise<Response> {
@@ -254,6 +304,18 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     if (url.pathname === DAEMON_WEB_HEALTH_PATH) return new Response(DAEMON_WEB_HEALTH_MARKER)
     if (!originAllowed(req.headers.get("origin"), { allowedHost: deps.allowedHost })) {
       return new Response("forbidden: cross-origin request rejected", { status: 403 })
+    }
+    // Origin and token are ADDITIVE, not alternatives: Origin says which page
+    // is asking (CSRF), the token says whether the caller is entitled at all.
+    // A `curl` sends no Origin and so sails past the check above; it is this
+    // gate that stops it. Everything that reads or mutates daemon state goes
+    // through here, so a route added later is authenticated by default.
+    if (
+      requiresWebToken(url, DAEMON_WEB_HEALTH_PATH) &&
+      deps.webToken &&
+      !tokensMatch(presentedToken(req, url), deps.webToken)
+    ) {
+      return unauthorizedResponse()
     }
     if (url.pathname === "/events") {
       return sseResponse((send) => {
@@ -295,7 +357,7 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     if (worktrees) return worktrees
     const themes = runtime.handleThemesRequest(req, url)
     if (themes) return themes
-    if (staticDir) return staticResponse(url.pathname, staticDir)
+    if (staticDir) return staticResponse(url.pathname, staticDir, deps.webToken)
     return new Response("not found", { status: 404 })
   }
 }
@@ -399,6 +461,12 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
   })
   const hostname = opts.hostname?.trim() || process.env.KOBE_WEB_HOST?.trim() || "127.0.0.1"
   const allowedHost = allowedHostForBindHost(hostname)
+  // Minted here rather than defaulted inside the handler: `webToken` is
+  // optional on the deps so route-level tests need not care, and a default
+  // buried in the handler would let a future production call site quietly
+  // fall through to no auth. Binding it at THE one place that opens a real
+  // socket keeps "listening" and "authenticated" inseparable.
+  const webToken = opts.webToken ?? ensureWebToken(opts.webTokenPath ?? defaultWebTokenPath())
   const handle = createDaemonWebRequestHandler({
     runtime: opts.runtime,
     link: opts.link,
@@ -406,6 +474,7 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
     staticDir: opts.staticDir ? normalize(opts.staticDir) : undefined,
     allowedHost,
     onSseOpen: opts.onSseOpen,
+    webToken,
   })
   const server = Bun.serve({ port: opts.port, hostname, idleTimeout: 0, fetch: handle })
   return {
