@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   CURRENT_VERSION,
   PACKAGE_NAME,
+  breakingVersionsCrossed,
+  channelOf,
   checkLatestVersion,
   compareSemver,
   fetchReleaseNotes,
@@ -84,6 +86,7 @@ describe("checkLatestVersion — dev suppression and the KOBE_FAKE_UPDATE debug 
       current: CURRENT_VERSION,
       latest: "999.0.0",
       hasUpdate: true,
+      channel: channelOf(CURRENT_VERSION),
     })
     // A LOWER fake version still reads as "no update", not a downgrade chip.
     process.env.KOBE_FAKE_UPDATE = "0.0.1"
@@ -129,15 +132,65 @@ describe("checkLatestVersion — dev suppression and the KOBE_FAKE_UPDATE debug 
 })
 
 describe("semver helpers", () => {
-  it("compares plain x.y.z and strips pre-release identifiers", () => {
+  it("compares plain x.y.z", () => {
     expect(isNewerSemver("1.2.3", "1.2.2")).toBe(true)
     expect(isNewerSemver("1.2.2", "1.2.3")).toBe(false)
-    expect(compareSemver("1.2.3-rc.1", "1.2.3")).toBe(0)
     expect(compareSemver("2.0.0", "10.0.0")).toBe(-1)
   })
 
   it("treats an unparseable component as equal (no false update chip)", () => {
     expect(compareSemver("abc", "1.0.0")).toBe(0)
+  })
+
+  // Without this the nightly channel is inert: consecutive nightlies share
+  // an x.y.z core, so a core-only comparison reports "no update" forever and
+  // every nightly user silently stays on the build they first installed.
+  it("orders two nightlies of the same core by their date tail", () => {
+    expect(isNewerSemver("0.9.13-nightly.20260831", "0.9.13-nightly.20260830")).toBe(true)
+    expect(isNewerSemver("0.9.13-nightly.20260830", "0.9.13-nightly.20260831")).toBe(false)
+  })
+
+  it("rolls a nightly user forward onto the stable build of that core, not backwards", () => {
+    expect(isNewerSemver("0.9.13", "0.9.13-nightly.20260831")).toBe(true)
+    expect(isNewerSemver("0.9.13-nightly.20260831", "0.9.13")).toBe(false)
+  })
+
+  // compareSemver stays core-only ON PURPOSE — the reset gate needs a
+  // nightly cut from a breaking main to read as HAVING crossed it. Ordering
+  // the tail here would sort the nightly below the release and defer the
+  // `rove reset` demand by a release, running the breaking build ungated.
+  it("keeps compareSemver core-only so the reset gate still fires on nightlies", () => {
+    expect(compareSemver("1.2.3-rc.1", "1.2.3")).toBe(0)
+    expect(compareSemver("0.9.13-nightly.20260831", "0.9.13")).toBe(0)
+    expect(breakingVersionsCrossed("0.9.12", "0.9.13-nightly.20260831", ["0.9.13"])).toEqual(["0.9.13"])
+  })
+})
+
+describe("release channels", () => {
+  it("derives the channel from the running build, with no stored setting to drift", () => {
+    expect(channelOf("0.9.13")).toBe("latest")
+    expect(channelOf("0.9.13-nightly.20260831")).toBe("nightly")
+    // An unrelated prerelease line is not the nightly channel.
+    expect(channelOf("0.9.13-experimental.0")).toBe("latest")
+  })
+
+  it("resolves the update check against the running build's own dist-tag", async () => {
+    const urls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: unknown) => {
+        urls.push(String(input))
+        return new Response(JSON.stringify({ version: "999.0.0" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      }),
+    )
+
+    await checkLatestVersion({ channel: "nightly" })
+    await checkLatestVersion({ channel: "latest" })
+    // The dist-tag is the last path segment, so one endpoint serves both.
+    expect(urls.map((u) => u.split("/").pop())).toEqual(["nightly", "latest"])
   })
 })
 

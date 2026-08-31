@@ -13,6 +13,16 @@ describe("updatePlan", () => {
     expect(recommendedGlobalInstallCommand()).toBe(`npm install -g ${PACKAGE_NAME}@latest`)
   })
 
+  it("a channel rides into the script through the same slot a version does", () => {
+    // npm makes no distinction between a version and a dist-tag in
+    // `pkg@<arg>`, so the channel needs no separate flag downstream.
+    expect(updatePlan("nightly")).toEqual({
+      command: "sh",
+      args: ["-c", `${UPDATE_COMMAND} -s -- nightly`],
+      display: `${UPDATE_COMMAND} -s -- nightly`,
+    })
+  })
+
   it("a pinned version rides into the script as `sh -s -- <version>`", () => {
     expect(updatePlan("0.7.90")).toEqual({
       command: "sh",
@@ -55,6 +65,35 @@ describe("parseUpdateArgs", () => {
     expect(parseUpdateArgs(["help"]).help).toBe(true)
   })
 
+  it("accepts a channel as a bare word or a --channel flag, in either spelling", () => {
+    expect(parseUpdateArgs(["nightly"]).channel).toBe("nightly")
+    expect(parseUpdateArgs(["--channel", "nightly"]).channel).toBe("nightly")
+    expect(parseUpdateArgs(["--channel=nightly"]).channel).toBe("nightly")
+    expect(parseUpdateArgs(["latest"]).channel).toBe("latest")
+    // No channel named = stay on whichever one this build came from.
+    expect(parseUpdateArgs([]).channel).toBeUndefined()
+    expect(parseUpdateArgs(["0.7.90"]).channel).toBeUndefined()
+  })
+
+  it("refuses an unknown channel instead of passing it to npm as a 404 dist-tag", () => {
+    const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+      throw new Error(`exit ${code}`)
+    }) as never)
+    try {
+      expect(() => parseUpdateArgs(["--channel", "bleeding"])).toThrow("exit 2")
+      const err = errSpy.mock.calls.map((c) => String(c[0])).join("")
+      expect(err).toContain('--channel expects one of latest, nightly (got "bleeding")')
+      // A trailing --channel with no value is the same refusal, not a crash.
+      errSpy.mockClear()
+      expect(() => parseUpdateArgs(["--channel"])).toThrow("exit 2")
+      expect(errSpy.mock.calls.map((c) => String(c[0])).join("")).toContain("--channel expects one of")
+    } finally {
+      errSpy.mockRestore()
+      exitSpy.mockRestore()
+    }
+  })
+
   it("an unknown argument prints the error + full usage to stderr and exits 2", () => {
     const errSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
@@ -65,7 +104,7 @@ describe("parseUpdateArgs", () => {
       const err = errSpy.mock.calls.map((c) => String(c[0])).join("")
       // The instruction surface, not a bare one-liner: usage + script URL + fallback.
       expect(err).toContain('kobe update: unknown argument "--fast"')
-      expect(err).toContain("Usage: kobe update [version|list|dry-run]")
+      expect(err).toContain("Usage: kobe update [version|channel|list|dry-run]")
       expect(err).toContain(UPDATE_SCRIPT_URL)
       expect(err).toContain(recommendedGlobalInstallCommand())
     } finally {
@@ -176,7 +215,7 @@ describe("runUpdateSubcommand", () => {
       stderr: { write: () => true },
       exit: exit as never,
     })
-    expect(out.join("")).toContain("Usage: kobe update [version|list|dry-run]")
+    expect(out.join("")).toContain("Usage: kobe update [version|channel|list|dry-run]")
     expect(spawn).not.toHaveBeenCalled()
     expect(exit).not.toHaveBeenCalled()
   })

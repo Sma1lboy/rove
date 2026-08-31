@@ -9,8 +9,13 @@ set -eu
 PACKAGE="@sma1lboy/rove"
 LEGACY_PACKAGE="@sma1lboy/kobe"
 
-# Optional pin: `curl … | sh -s -- 0.7.90` installs that exact version;
+# Optional argument: `curl … | sh -s -- 0.7.90` installs that exact version,
+# `… | sh -s -- nightly` installs the head of a channel (any npm dist-tag),
 # `… | sh -s -- --list` prints recent published versions and exits.
+#
+# Both forms take the same `pkg@<arg>` slot in the install below — npm makes
+# no distinction between a version and a dist-tag there. The only place they
+# diverge is resolving what the target RESOLVES to, for the verify step.
 VERSION="${1:-}"
 
 if [ "$VERSION" = "--list" ]; then
@@ -45,11 +50,16 @@ if [ -n "$BIN" ]; then
   esac
 fi
 
-if [ -n "$VERSION" ]; then
-  TARGET="$VERSION"
-else
-  TARGET="$(npm view "${PACKAGE}" version 2>/dev/null || true)"
-fi
+# What the install will actually land on. A bare dist-tag (`nightly`) has to
+# be resolved through the registry: the verify step at the bottom compares
+# the installed `rove -v` against TARGET, and comparing it against the literal
+# string "nightly" would fail every nightly install with a bogus "another
+# install is shadowing it".
+case "$VERSION" in
+  "") TARGET="$(npm view "${PACKAGE}" version 2>/dev/null || true)" ;;
+  [0-9]*) TARGET="$VERSION" ;;
+  *) TARGET="$(npm view "${PACKAGE}@${VERSION}" version 2>/dev/null || true)" ;;
+esac
 
 if [ -t 1 ]; then
   BOLD='\033[1m'

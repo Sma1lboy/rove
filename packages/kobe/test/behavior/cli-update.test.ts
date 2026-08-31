@@ -47,12 +47,14 @@ describe("kobe update (behavior)", () => {
  * (a path containing `/.bun/` → bun, else npm). Both managers log to
  * `calls.log` instead of installing anything. `linkTo` makes the on-PATH
  * `kobe` a symlink to that entry file, which is how the script tells a
- * legacy @sma1lboy/kobe install from a migrated one.
+ * legacy @sma1lboy/kobe install from a migrated one. `arg` is the script's
+ * positional argument — a pinned version or a channel/dist-tag.
  */
 async function runUpdateScript(
   base: string,
   kobeBinDir: string,
   linkTo?: string,
+  arg?: string,
 ): Promise<{ code: number; out: string; log: string }> {
   const shims = join(base, "shims")
   await mkdir(shims, { recursive: true })
@@ -75,7 +77,7 @@ async function runUpdateScript(
     await chmod(join(shims, mgr), 0o755)
   }
 
-  const r = spawnSync("sh", [UPDATE_SH], {
+  const r = spawnSync("sh", arg === undefined ? [UPDATE_SH] : [UPDATE_SH, arg], {
     env: { PATH: `${kobeBinDir}:${shims}:/usr/bin:/bin` },
     encoding: "utf8",
     timeout: 30_000,
@@ -111,6 +113,28 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     expect(r.out).toContain("via npm")
     expect(r.log).toContain("npm install -g @sma1lboy/rove@latest")
     expect(r.log).not.toContain("bun install")
+  })
+
+  // A channel name rides the same `pkg@<arg>` slot a version does; npm
+  // makes no distinction there.
+  it("a channel name installs that dist-tag", async () => {
+    const base = join(env.home, "case-channel")
+    const r = await runUpdateScript(base, join(base, "npm-global", "bin"), undefined, "nightly")
+    expect(r.code).toBe(0)
+    expect(r.log).toContain("npm install -g @sma1lboy/rove@nightly")
+    expect(r.log).not.toContain("@sma1lboy/rove@latest")
+  })
+
+  // The verify step compares the installed `rove -v` against what the target
+  // RESOLVES to. A bare dist-tag has to be resolved through the registry
+  // first — comparing against the literal string "nightly" would fail every
+  // nightly install with a bogus "another install is shadowing it".
+  it("resolves a channel through the registry before the shadowed-install check", async () => {
+    const base = join(env.home, "case-channel-verify")
+    const r = await runUpdateScript(base, join(base, "npm-global", "bin"), undefined, "nightly")
+    expect(r.code).toBe(0)
+    expect(r.log).toContain("npm view @sma1lboy/rove@nightly version")
+    expect(r.out).not.toContain("shadowing")
   })
 
   // The rename migration: an install whose bin resolves into an
