@@ -471,10 +471,33 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   checkout, and the worktree the caller is running from are all refused, and
   the outcome lands in the result's `worktree` field
   (`{ removed, reason? }`) instead of failing the land.
-- `delete --task-id ID [--force] [--delete-branch]`: remove a task and its
-  worktree. **The git branch stays** unless `--delete-branch` is passed;
-  git is the durable record, the task row is not. Needs `--force` on a
+- `delete --task-id ID [--force] [--delete-branch] [--wait]`: remove a task
+  and its worktree. **The git branch stays** unless `--delete-branch` is
+  passed; git is the durable record, the task row is not. Needs `--force` on a
   dirty worktree; `--force` never implies `--delete-branch`.
+
+  **The removal runs in the background** — tearing down a worktree can take
+  tens of seconds — so the default reply reports only that the request was
+  taken: `{ taskId, queued, status }` with `status` either `queued` or
+  `not_found`. `queued: false` means no deletion was scheduled at all (no
+  task by that id), and it is deliberately distinguishable from acceptance:
+  the two used to return the same empty object, so a caller deleting a list
+  could not tell which entries were even accepted.
+
+  **`--wait`** follows the deletion to its outcome and reports it:
+
+  - `removed` — the worktree and the task row are gone.
+  - `failed` — removal failed and `error` carries git's own message (a
+    locked or non-empty directory, a permissions problem). The task KEEPS its
+    row, with `deletion.phase: "error"`, so it stays visible and re-deletable.
+    Before this existed the failure reached `daemon.log` and nothing else,
+    which made a failed delete indistinguishable from a successful one.
+  - `pending` — still running after 60s. Not a failure: the daemon still owns
+    it, so look again with `list` rather than retrying the delete.
+
+  A deletion's state is also readable at any time from `list`: the task's
+  `deletion` field carries `phase` (`queued` / `running` / `error`) and, on
+  `error`, the message.
 
 ## worktree
 
