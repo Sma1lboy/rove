@@ -234,8 +234,14 @@ jobs:
 
       - name: Publish canonical @sma1lboy/rove package
         # Workspaces hoist deps to root; publish from the package directory.
-        # The version check makes a rerun continue to the compatibility alias
-        # after a partial release instead of failing on an existing version.
+        # The version check keeps a rerun idempotent instead of failing on an
+        # existing version.
+        #
+        # `@sma1lboy/kobe` is NOT published anymore (0.9.64 is its last
+        # version). Releases shipped both names through the rename; the old
+        # name is now frozen, and `rove update` on an installation of it
+        # reports the newest @sma1lboy/rove. Nothing here should start
+        # publishing it again — see docs/RELEASING.md.
         working-directory: packages/kobe
         run: |
           V=$(node -p "require('./package.json').version")
@@ -244,33 +250,6 @@ jobs:
           else
             npm publish --access public --provenance --tag "${{ steps.channel.outputs.dist_tag }}"
           fi
-
-      - name: Publish compatibility alias @sma1lboy/kobe
-        # Existing installs still point at the old package name. Every release
-        # therefore ships BOTH names from ONE build: same files, version, and
-        # `kobe` + `rove` bins; only package.json#name differs.
-        #
-        # Publishing from a rewritten package.json rather than a second
-        # package dir keeps them impossible to skew: there is one source of
-        # version, files, and deps. `--ignore-scripts` skips the
-        # `prepublishOnly` typecheck+build that already ran for the publish
-        # above — dist/ is the artifact both names share.
-        working-directory: packages/kobe
-        run: |
-          V=$(node -p "require('./package.json').version")
-          if npm view "@sma1lboy/kobe@$V" version >/dev/null 2>&1; then
-            echo "@sma1lboy/kobe@$V already on npm — skipping"
-            exit 0
-          fi
-          cp package.json package.json.bak
-          node -e "
-            const fs = require('fs')
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
-            pkg.name = '@sma1lboy/kobe'
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
-          "
-          npm publish --access public --provenance --ignore-scripts --tag "${{ steps.channel.outputs.dist_tag }}"
-          mv package.json.bak package.json
 
       - name: Publish canonical plugin SDK (piggyback, idempotent)
         # The SDK versions independently via changesets but has no tag of

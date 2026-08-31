@@ -1,6 +1,8 @@
 # Releasing Rove
 
-Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The canonical package is `@sma1lboy/rove` (`packages/kobe`); the release job republishes that exact build as `@sma1lboy/kobe` for existing installs. `packages/branding` is `private` and never published.
+Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The published package is `@sma1lboy/rove` (`packages/kobe`). `packages/branding` is `private` and never published.
+
+`@sma1lboy/kobe` was the package name before the rename and was published in lockstep through 0.9.64. It is frozen there — releases no longer publish it. An install of the old name keeps working and its update check reports the newest `@sma1lboy/rove`; reinstalling under the new name is the way forward.
 
 ## The flow
 
@@ -19,7 +21,7 @@ This prompts for the bump type (**patch** / **minor** / **major**) and a summary
 - The API lookup needs a `GITHUB_TOKEN`: the Changesets workflow passes its Actions token; `scripts/release.sh` takes `gh auth token`. No token → `changeset version` fails loudly rather than shipping uncredited entries.
 - A pure tooling / docs / CI change that doesn't touch the published package needs **no** changeset. If you want to record "intentionally nothing to release", run `bun run changeset -- --empty`.
 - Bump type: default to `patch` for every change, including features and pre-1.0 breaking changes. Use `minor` or `major` only when the maintainer explicitly requests that bump for the change being released.
-- The frontmatter must name a **publishable workspace package** — today `"@sma1lboy/rove"` or `"@sma1lboy/rove-plugin-sdk"`. The `@sma1lboy/kobe` names are compatibility aliases that still publish alongside, but a changeset must not version them (they were canonical before 2026-08-13, so stale examples are all over the git history — don't copy an old changeset).
+- The frontmatter must name a **publishable workspace package** — today `"@sma1lboy/rove"` or `"@sma1lboy/rove-plugin-sdk"`. Never `"@sma1lboy/kobe"`: the CLI under that name is no longer published, and the SDK alias is published from the canonical version rather than versioned on its own. Those names were canonical before 2026-08-13, so stale examples are all over the git history — don't copy an old changeset.
 
 Validate before committing:
 
@@ -108,6 +110,6 @@ That ordering is why `isNewerSemver` compares prerelease tails while `compareSem
 
 ## Prereleases
 
-A prerelease tag (`v0.7.0-experimental.0`) publishes to an npm dist-tag named after the prerelease identifier (`experimental`), so `latest` stays on the stable line while testers opt in with `npm i @sma1lboy/rove@experimental`. The matching `@sma1lboy/kobe@experimental` alias is published in lockstep. Use Changesets' [prerelease mode](https://github.com/changesets/changesets/blob/main/docs/prereleases.md) (`changeset pre enter experimental` … `changeset pre exit`) to generate those versions.
+A prerelease tag (`v0.7.0-experimental.0`) publishes to an npm dist-tag named after the prerelease identifier (`experimental`), so `latest` stays on the stable line while testers opt in with `npm i @sma1lboy/rove@experimental`. Use Changesets' [prerelease mode](https://github.com/changesets/changesets/blob/main/docs/prereleases.md) (`changeset pre enter experimental` … `changeset pre exit`) to generate those versions.
 
 This is the manual, one-off cousin of the nightly channel: same dist-tag mechanism, but tagged and versioned through `main` rather than cut daily into a throwaway tree.

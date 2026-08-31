@@ -177,8 +177,9 @@ gh run watch <run-id> --exit-status                    # blocks until done; nonz
 On success, verify the canonical package and its compatibility alias actually landed (don't trust the green check alone):
 
 ```bash
-npm view @sma1lboy/rove@<new-version> version          # canonical package; must echo the new version
-npm view @sma1lboy/kobe@<new-version> version          # compatibility alias; must match
+npm view @sma1lboy/rove@<new-version> version          # the published package; must echo the new version
+# @sma1lboy/kobe is NOT published anymore (frozen at 0.9.64) — do not check it,
+# and do not "fix" its absence from a release.
 # Every Rove release checks the SDK's current version and publishes either
 # missing package name, even without a new SDK changeset. Always verify both
 # names at the version recorded in packages/kobe-plugin-sdk/package.json:
@@ -187,8 +188,8 @@ npm view @sma1lboy/kobe-plugin-sdk@<sdk-version> version
 gh release view v<new-version> --json name -q .name    # GitHub release exists
 ```
 
-Confirm: the canonical and compatibility names for both Rove and the SDK report
-their expected versions, the Rove version matches the tag and `packages/kobe/package.json`,
+Confirm: `@sma1lboy/rove` and both SDK names report their expected versions,
+the Rove version matches the tag and `packages/kobe/package.json`,
 and the release landed on `main` (`git log --oneline -1 origin/main` is the `chore: release` commit).
 Then report done with the version, the npm dist-tag it went to (`latest` for
 plain semver), and the release URL.

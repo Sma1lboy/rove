@@ -176,14 +176,16 @@ describe("Rove package distribution", () => {
     expect(daemon.dependencies["@sma1lboy/kobe-plugin-sdk"]).toBeUndefined()
   })
 
-  test("release publishes Rove first and rewrites only the compatibility alias", () => {
+  test("release publishes Rove and no longer publishes the @sma1lboy/kobe alias", () => {
+    // The old package name is frozen at 0.9.64 (owner call). The alias step
+    // was a rewrite of package.json#name, so its absence is what this asserts:
+    // a release must never resume publishing that name. The SDK keeps its own
+    // alias — pinned by the next test — so this checks the CLI name only.
     const workflow = read(".github/workflows/release.yml")
-    const canonicalStep = workflow.indexOf("Publish canonical @sma1lboy/rove package")
-    const compatibilityStep = workflow.indexOf("Publish compatibility alias @sma1lboy/kobe")
 
-    expect(canonicalStep).toBeGreaterThanOrEqual(0)
-    expect(compatibilityStep).toBeGreaterThan(canonicalStep)
-    expect(workflow).toContain("pkg.name = '@sma1lboy/kobe'")
+    expect(workflow.indexOf("Publish canonical @sma1lboy/rove package")).toBeGreaterThanOrEqual(0)
+    expect(workflow).not.toContain("Publish compatibility alias @sma1lboy/kobe")
+    expect(workflow).not.toContain("pkg.name = '@sma1lboy/kobe'")
     expect(workflow).not.toContain("pkg.name = '@sma1lboy/rove'")
   })
 
@@ -309,19 +311,19 @@ describe("Rove package distribution", () => {
     }
   })
 
-  test("release guidance verifies the canonical package before compatibility aliases", () => {
+  test("release guidance verifies the published package and the SDK aliases", () => {
     const releaseSkill = read(".claude/skills/release/SKILL.md")
     const releasingDocs = read("docs/RELEASING.md")
 
     expect(releaseSkill).toContain("# Release Rove")
     expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
     expect(releaseSkill).not.toContain('"@sma1lboy/kobe": minor')
-    // indexOf returns -1 when absent, and -1 < anything — without the presence
-    // guards, deleting the canonical `npm view` line would turn this GREEN.
-    const canonicalView = releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")
-    const aliasView = releaseSkill.indexOf("npm view @sma1lboy/kobe@<new-version>")
-    expect(canonicalView).toBeGreaterThanOrEqual(0)
-    expect(aliasView).toBeGreaterThan(canonicalView)
+    // The CLI alias is frozen at 0.9.64 and no longer published, so the skill
+    // must NOT tell a release to verify it — a missing @sma1lboy/kobe is the
+    // expected state now, and checking for it would read as a failed release.
+    // Anchored on `@<new-version>` so the SDK's own alias check still stands.
+    expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeGreaterThanOrEqual(0)
+    expect(releaseSkill).not.toContain("npm view @sma1lboy/kobe@<new-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/rove-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("npm view @sma1lboy/kobe-plugin-sdk@<sdk-version>")
     expect(releaseSkill).toContain("Every Rove release checks the SDK's current version")
