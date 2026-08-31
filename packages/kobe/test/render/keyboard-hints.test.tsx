@@ -327,13 +327,33 @@ describe("PaneKeyHint", () => {
   })
 })
 
-describe("onboarding wizard — Keyboard basics", () => {
-  it("shows the live-keymap grammar page after the questions", async () => {
-    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} onDone={NOOP} />, {
+describe("onboarding wizard — environment page and keyboard basics", () => {
+  const readyEnv = {
+    git: { line: "git:      ✓ git version 2.39.5", found: true },
+    engines: {
+      lines: ["engines:", "  claude  ✓ /bin/claude — logged in (a@b.c)", "  kimi    ✗ not found on PATH"],
+      anyUsable: true,
+    },
+  }
+  const emptyEnv = {
+    git: { line: "git:      ✓ git version 2.39.5", found: true },
+    engines: { lines: ["engines:", "  claude  ✗ not found on PATH"], anyUsable: false },
+  }
+
+  it("shows the environment page after the questions, then the keyboard page", async () => {
+    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} env={readyEnv} onDone={NOOP} />, {
       width: 100,
       height: 24,
     })
     expect(await frame()).toContain("Rove agent skill")
+    act(() => mockInput.pressEnter())
+    await settle()
+    const envText = await frame()
+    expect(envText).toContain("Environment check")
+    expect(envText).toContain("git:      ✓ git version 2.39.5")
+    expect(envText).toContain("claude  ✓ /bin/claude")
+    expect(envText).toContain("✓ You're set")
+    expect(envText).toContain("enter continue")
     act(() => mockInput.pressEnter())
     await settle()
     const text = await frame()
@@ -342,5 +362,29 @@ describe("onboarding wizard — Keyboard basics", () => {
     expect(text).toContain("⌃ A opens the command map")
     expect(text).toContain("full live reference")
     expect(text).toContain("enter finish")
+  })
+
+  it("shows the not-ready verdict when no engine is usable", async () => {
+    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} env={emptyEnv} onDone={NOOP} />, {
+      width: 100,
+      height: 24,
+    })
+    act(() => mockInput.pressEnter())
+    await settle()
+    const text = await frame()
+    expect(text).toContain("Environment check")
+    expect(text).toContain("✗ No usable engine yet")
+    expect(text).not.toContain("✓ You're set")
+  })
+
+  it("primer mode opens on the environment page — no questions re-asked", async () => {
+    const { frame } = await renderComponent(<WizardPage shell="zsh" env={readyEnv} mode="primer" onDone={NOOP} />, {
+      width: 100,
+      height: 24,
+    })
+    const text = await frame()
+    expect(text).toContain("Environment check")
+    expect(text).not.toContain("shell completions")
+    expect(text).not.toContain("agent skill?")
   })
 })
