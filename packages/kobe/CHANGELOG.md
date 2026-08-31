@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.9.62
+
+### Patch Changes
+
+- [#701](https://github.com/Sma1lboy/rove/pull/701) [`9e5340d`](https://github.com/Sma1lboy/rove/commit/9e5340d947dc6bea621e5a69fe13e88ab9c9a818) Fix the workspace crashing after you close a task's last tab
+
+  The center column decides whether to mount the terminal pane by reading a
+  module-level map of each task's tabs — a plain `Map`, which React does not
+  watch. Closing the last tab wrote the now-empty list there and re-rendered
+  nothing, so the pane stayed mounted over a tab list it is built to always
+  find an active tab in, and the workspace crashed to the pane-crash placeholder
+  instead of showing "No sessions here".
+
+  Writes to that map now go through `setTaskTabs` / `deleteTaskTabs`, which bump
+  a subscribable revision the center column reads. The one write left untouched
+  is the mount-time lazy init, which runs during render and must stay silent. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#702](https://github.com/Sma1lboy/rove/pull/702) [`1aff9d5`](https://github.com/Sma1lboy/rove/commit/1aff9d591a19557949fcfcdb0e08d2688e58e814) Fix the workspace crashing with "Maximum update depth exceeded" while deleting tasks.
+
+  The status hint row at the bottom of the workspace re-computed its snapshot in an effect with no dependency array, so the effect ran after every render. That hook lives in the footer, which wraps the whole pane tree, so its state update re-renders every sidebar row — and each row bumps the binding-stack version as it registers or unregisters, which re-renders the footer again. Only a value comparison stood between that cycle and an infinite loop, and deleting several tasks in a burst got past it: React tripped its update-depth guard and the pane crashed.
+
+  The effect now declares its inputs, so it runs when one of them changes instead of on every render. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#697](https://github.com/Sma1lboy/rove/pull/697) [`2c313b0`](https://github.com/Sma1lboy/rove/commit/2c313b0579a5d17584069975515ee22fe277c73b) `scripts/release.sh` now creates an annotated tag, so a release cuts cleanly on a machine that signs its tags.
+
+  With `tag.gpgSign = true` in git config, a signed tag must carry a message, and the script's bare `git tag <name>` died with `fatal: no tag message?` — after the release commit had already been pushed. The version was left committed and untagged, which the script's resume mode recovers, but the release stopped halfway for a reason that had nothing to do with the release. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#700](https://github.com/Sma1lboy/rove/pull/700) [`4373450`](https://github.com/Sma1lboy/rove/commit/4373450650f850c25ade12aaed9a520bfad6b8d0) The tab strip above the terminal is hidden by default again.
+
+  The sidebar tree already lists every worktree's tabs as rows and marks the active one, so the strip was a second copy of a list that is already on screen — spending a row of the content pane to repeat it. Settings → General → Terminal still offers `always` and `multipleOnly` for anyone who wants it back, and an existing preference is untouched. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.61
 
 ### Patch Changes
