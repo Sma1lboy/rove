@@ -87,7 +87,13 @@ await_ci_then_tag() {
       return 1
     fi
   else
-    git tag "$tag"
+    # Annotated (-m), not lightweight. `tag.gpgSign = true` makes git sign the
+    # tag, and a signed tag MUST carry a message — a bare `git tag <name>` dies
+    # with "fatal: no tag message?" AFTER the release commit is already pushed,
+    # leaving the version committed and untagged (v0.9.61). Annotating is
+    # correct for an unsigned repo too: a release tag should record who cut it
+    # and when.
+    git tag -a "$tag" -m "$tag"
   fi
   git push origin "$tag"
   echo ""
