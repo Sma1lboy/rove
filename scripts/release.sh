@@ -284,7 +284,6 @@ echo ""
 echo "Ready to push the release commit → wait for its CI (ubuntu+macos) →"
 echo "then tag $TAG, which triggers:"
 echo "  • npm publish @sma1lboy/rove@$NEW_VERSION"
-echo "  • compatibility publish @sma1lboy/kobe@$NEW_VERSION"
 echo "  • GitHub release with the notes above"
 echo ""
 read -rp "Push now? [y/N] " REPLY

@@ -33,7 +33,7 @@ reuse their directory and do not own a Rove-created worktree or branch.
 
 ## 2. Package map
 
-- `packages/kobe/` — CLI and PureTUI, published canonically as `@sma1lboy/rove` and in lockstep as the `@sma1lboy/kobe` compatibility alias.
+- `packages/kobe/` — CLI and PureTUI, published as `@sma1lboy/rove`. (The directory keeps its old name; the `@sma1lboy/kobe` package was published in lockstep until 0.9.64 and is now frozen.)
   - `src/cli/` — command routing, help, API handlers, daemon and PTY-host
     process entrypoints.
   - `src/engine/` — engine registry, command/capability/history adapters,
