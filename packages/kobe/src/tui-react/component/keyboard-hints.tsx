@@ -82,6 +82,7 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // Effects run children-first, so by the time this one
   // fires the whole tree's refs and registrations are current. The
   // compare-and-set keeps the no-change case from looping.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the version/focus deps are INVALIDATION KEYS, not values this body reads — it reads live module state (currentBindingReachability, modalActive, currentPrefixConfiguration) whose changes are observable ONLY through them. Dropping them restores the no-dependency-array loop described below.
   useEffect(() => {
     const enabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
     // Two independent signals, both meaning "an overlay owns input": the
