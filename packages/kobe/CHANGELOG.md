@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.63
+
+### Patch Changes
+
+- [#705](https://github.com/Sma1lboy/rove/pull/705) [`89de225`](https://github.com/Sma1lboy/rove/commit/89de225cc0fa3981b95c137044be73f08c24f759) Fix the workspace crashing with "Maximum update depth exceeded" on boot.
+
+  The previous fix gave the status hint row's effect a dependency array, but `kv` was one of the dependencies. `KVProvider` rebuilds its context value from a `useMemo` keyed on the kv snapshot, so every `kv.set` anywhere in the app — tab adoption recording a task's tab list, a pane marking a hint used — hands the hook a brand-new `kv` object. That re-ran the effect on all of them, which is the same "runs on every render" the array was added to stop: `setSnapshot` re-renders the footer, the sidebar rows under it remount, `useBindings` bumps the stack version, the rows write kv again. Opening a workspace with a batch of tasks closed that loop and React tripped its update-depth guard before the pane finished painting.
+
+  The effect now reads the hints-enabled flag during render and depends on that boolean instead of the `kv` object, so an unrelated write no longer invalidates it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#699](https://github.com/Sma1lboy/rove/pull/699) [`89120b0`](https://github.com/Sma1lboy/rove/commit/89120b034002a6d6d1bf662b4e12bf7e20a1a607) Show an update chip on the sidebar brand row when a newer version is on npm. The daemon has polled the registry and pushed `update` events all along, but the TUI consumer was lost when the tmux runtime was removed ([#313](https://github.com/Sma1lboy/rove/issues/313)), so nothing ever surfaced. The chip (`↑ <version>`) sits right-aligned next to the ROVE brand text, and clicking it — or pressing `u` in the sidebar, as before — opens the update page. This restores the behavior docs/TUI.md already promised under "Updates and version warnings". — [@NarwhalChen](https://github.com/NarwhalChen)
+
 ## 0.9.62
 
 ### Patch Changes
