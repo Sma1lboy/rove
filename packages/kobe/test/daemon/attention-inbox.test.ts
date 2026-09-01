@@ -26,6 +26,33 @@ describe("daemon attention inbox", () => {
     return { store, path, bus }
   }
 
+  /**
+   * Seed `count` already-persisted episodes (task-0 … task-N, ascending `at`)
+   * straight into the store file, then load them with one `init()`.
+   *
+   * Driving the seed through `record()` instead costs one whole-file rewrite
+   * per episode — 510 rewrites of a file growing to 66KB, ~17.7MB of I/O.
+   * That fits vitest's 5s budget on a dev Mac (~160ms) and blew it on a
+   * loaded CI runner (v0.9.72 attempt 2: 5018ms and 5248ms). The timeout then
+   * abandoned the loop still mid-write, so `afterEach`'s rm hit ENOTEMPTY on a
+   * directory the orphaned loop was still writing into — one defect, two
+   * symptoms. The prune under test lives in `commit()`, which only the
+   * records made AFTER the seed reach, so nothing is lost by seeding cheaply.
+   */
+  async function seed(count: number, firstAt: number): Promise<string> {
+    dir = await mkdtemp(join(tmpdir(), "kobe-attention-inbox-"))
+    const path = join(dir, "attention-inbox.json")
+    const items = Array.from({ length: count }, (_, i) => ({
+      taskId: `task-${i}`,
+      tabId: "tab-1",
+      state: "turn_complete",
+      unread: true,
+      at: firstAt + i,
+    }))
+    await writeFile(path, JSON.stringify({ version: 1, items }), "utf8")
+    return path
+  }
+
   it("persists attention episodes and replays the full snapshot", async () => {
     const { store, path, bus } = await create(123)
     const snapshots: unknown[] = []
@@ -141,14 +168,18 @@ describe("daemon attention inbox", () => {
   })
 
   it("prunes the oldest episodes past the retention cap", async () => {
-    let now = 1000
-    const { store, path } = await create(() => now)
     // MAX_EPISODES + 10 distinct episodes, oldest first — the ten oldest
     // must fall off the tail-ward end and stay off after a reload. Without
     // the cap these would all persist: episodes of forgotten tasks leave
     // only on visit / turn-start / hard-delete, so this queue used to grow
     // without bound (one whole-file rewrite per recorded episode).
-    for (let i = 0; i < MAX_EPISODES + 10; i++) {
+    // The first MAX_EPISODES are seeded (see `seed`); the ten that cross the
+    // cap are recorded for real, so each one runs the prune in `commit()`.
+    const path = await seed(MAX_EPISODES, 1000)
+    let now = 1000 + MAX_EPISODES
+    const store = new AttentionInboxStore(path, new DaemonEventBus(), () => now)
+    await store.init()
+    for (let i = MAX_EPISODES; i < MAX_EPISODES + 10; i++) {
       await store.record(`task-${i}`, "turn-complete", undefined, "tab-1")
       now += 1
     }
@@ -164,12 +195,9 @@ describe("daemon attention inbox", () => {
   })
 
   it("a fresh episode on a capped task re-stamps it to the tail, not past the cap", async () => {
-    let now = 1000
-    const { store } = await create(() => now)
-    for (let i = 0; i < MAX_EPISODES; i++) {
-      await store.record(`task-${i}`, "turn-complete", undefined, "tab-1")
-      now += 1
-    }
+    const path = await seed(MAX_EPISODES, 1000)
+    const store = new AttentionInboxStore(path, new DaemonEventBus(), () => 1000 + MAX_EPISODES)
+    await store.init()
     // Re-recording a task already under the cap REPLACES its episode (dedupe
     // rule) — nothing is pruned yet, and the re-stamped episode sits at the
     // newest slot.
