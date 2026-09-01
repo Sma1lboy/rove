@@ -139,8 +139,14 @@ export interface EngineRegistryEntry {
   /**
    * Read-only binary + login probe (Settings → Accounts). `deps` is the
    * injectable fs/env surface from `account-detect.ts`; omit for production.
+   *
+   * Absent = Rove has no login detector for this engine (contrib, plugin,
+   * user-registered), which `engine-status.ts` reports as `account: null` —
+   * "not detectable", NOT "not logged in". Writing an explicit stub that
+   * answers `{ kind: "none" }` instead would mark every such engine
+   * unusable, because that kind means "detector ran, found no login".
    */
-  readonly detectAccount: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
+  readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
   /**
@@ -246,10 +252,8 @@ function customEngineEntry(vendor: VendorId): EngineRegistryEntry {
     displayName: vendor,
     defaultCommand: [vendor],
     history: EMPTY_HISTORY,
-    detectAccount: async () => ({
-      binary: { found: false, error: "custom engine: Rove has no account detector for it" },
-      account: { kind: "none" },
-    }),
+    // No `detectAccount`: see the field's doc — absent is how "no detector"
+    // is spelled, and `contribEngineEntry` inherits it by spreading this.
     createHookAdapter: () => new NoopHookAdapter(vendor),
     createTurnDetector: () => new UnknownTurnDetector(vendor),
   }
