@@ -390,6 +390,64 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     expect(fs.existsSync(wt)).toBe(false)
   })
 
+  /**
+   * The gate: `git branch -D` cannot delete a branch a live worktree has
+   * checked out, and `deleteBranch` is best-effort (exit code discarded), so
+   * without the gate `--delete-branch` ran, git refused, and land reported a
+   * clean success — anchor included — for a branch that is still right there.
+   *
+   * Mutation: drop `&& !worktreeGone` from the gate in `land.ts` and this goes
+   * red on `branchKept` (the delete runs and reports nothing).
+   */
+  test("keeps the branch when the worktree it is checked out in stays", async () => {
+    makeWorktree()
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      { removeWorktree: false, deleteBranch: true, strategy: "squash" },
+      d,
+    )
+    // git kept the branch either way — the fix is that the RESULT now says so.
+    expect(branchExists("feat")).toBe(true)
+    expect(res.branchKept?.reason).toMatch(/still has the branch checked out/)
+    // No anchor: it used to be written before the delete was even attempted,
+    // naming a salvage ref for a branch nothing deleted.
+    expect(res.branchAnchor).toBeUndefined()
+  })
+
+  test("a refused removal keeps the branch too, and reports the refusal as the reason", async () => {
+    makeWorktree()
+    fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted\n")
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
+    expect(res.worktree?.removed).toBe(false)
+    expect(branchExists("feat")).toBe(true)
+    expect(res.branchKept?.reason).toMatch(/dirty/)
+  })
+
+  test("the worktree going lets --delete-branch through", async () => {
+    makeWorktree()
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
+    expect(res.worktree?.removed).toBe(true)
+    expect(branchExists("feat")).toBe(false)
+    expect(res.branchKept).toBeUndefined()
+  })
+
+  test("a task that never materialised a worktree still deletes its branch", async () => {
+    // Nothing holds the branch, so the gate must not block it.
+    git(["branch", "feat"], repo)
+    git(["checkout", "feat"], repo)
+    write("b.txt", "feature\n")
+    git(["add", "."], repo)
+    git(["commit", "-m", "feat commit"], repo)
+    git(["checkout", "main"], repo)
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup(task("feat"), { deleteBranch: true }, d)
+    expect(branchExists("feat")).toBe(false)
+    expect(res.branchKept).toBeUndefined()
+  })
+
   test("never removes the base checkout even if worktreePath points at it", async () => {
     makeWorktree()
     const { deps: d } = deps()

@@ -491,6 +491,12 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   checkout, and the worktree the caller is running from are all refused, and
   the outcome lands in the result's `worktree` field
   (`{ removed, reason? }`) instead of failing the land.
+
+  **`--delete-branch` needs the worktree gone.** git refuses to delete a
+  branch a live worktree has checked out, so pairing `--delete-branch` with
+  `--remove-worktree=false` — or with a removal that got refused (dirty tree,
+  base checkout, the caller's own worktree) — keeps the branch. The result
+  says so in `branchKept` (`{ reason }`) and writes no `branchAnchor`.
 - `delete --task-id ID [--force] [--delete-branch] [--wait]`: remove a task
   and its worktree. **The git branch stays** unless `--delete-branch` is
   passed; git is the durable record, the task row is not. Needs `--force` on a
