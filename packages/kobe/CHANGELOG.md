@@ -1,5 +1,81 @@
 # Changelog
 
+## 0.9.66
+
+### Patch Changes
+
+- [#719](https://github.com/Sma1lboy/rove/pull/719) [`e11b423`](https://github.com/Sma1lboy/rove/commit/e11b4231e2f12826f5d7dcbe03f81a42c1ce4246) Let the sidebar close a background task's last tab, the same as ctrl+w does on the task you are looking at.
+
+  Closing a task's last tab has been allowed since the row started surviving it — but only on the mounted path. The tree's close action routes through a second function for every task whose workspace is not on screen, and that one still refused, so with several tasks open the same click worked on the focused task and failed on the others with "cannot close the only tab". Which task happens to be mounted is invisible from the tree.
+
+  The refusal toast now names the one case that remains false — a tab the tree lists but the state no longer has. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#722](https://github.com/Sma1lboy/rove/pull/722) [`a5ae786`](https://github.com/Sma1lboy/rove/commit/a5ae78614df9e4ed52087caa58e7a7055b5b0c9d) Add a switch that turns off the composer check before prompt delivery (Settings → Dev).
+
+  Before pasting a peer or API prompt into a running engine, Rove renders that session's screen and holds the message when the composer already has text in it. That check reads the engine's current on-screen layout, so a vendor redesign can make it confidently wrong — as one did, holding every message to every Claude task while their composers sat empty.
+
+  The detector was fixed, but the failure mode returns whenever an engine moves its UI, and until now there was no way to say "I can see it's empty, send it". Turning the switch off drops the screen read only: the recent-keystroke guard stays on, so a composer someone is actively typing into is still protected — that one measures time rather than parsing a layout, and cannot go stale.
+
+  On by default. Documented under Troubleshooting for the symptom that leads to it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#714](https://github.com/Sma1lboy/rove/pull/714) [`608d4ca`](https://github.com/Sma1lboy/rove/commit/608d4ca4857d58bcfe800b7b666924a98396f476) Fix the delivery gate deferring every message to a Claude task, whatever its composer held.
+
+  Before pasting a prompt into a running engine, Rove renders that session's screen and looks for an empty composer. Two things had drifted: the throwaway terminal was 12 rows, too short for a real screen — rows overflowed and FUSED, so the composer line no longer existed to match — and Claude now hangs a rule, a status row and a hint row below its composer, putting the prompt four lines from the bottom, outside the two-line window the rule inspected.
+
+  A rule that matched nothing was then read as "the composer has text", so every `rove api send` to a Claude task was accepted-and-deferred to the Inbox instead of delivered.
+
+  The window now clears Claude's status furniture, the render is tall enough not to fuse rows, and — the part that keeps this from recurring silently — a rule whose anchor is nowhere on screen now answers "I can't see it" rather than "there is text". Not seeing the composer leaves the recent-human-write quiet period as the guard, instead of blocking delivery to that engine indefinitely with no signal. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#716](https://github.com/Sma1lboy/rove/pull/716) [`446dbea`](https://github.com/Sma1lboy/rove/commit/446dbea4cc752a08f29d03341722089d2258bd29) Stop a deferred prompt's Inbox entry from being erased by the target's own activity.
+
+  When the delivery gate holds a message, the daemon stores the text and files a `prompt_deferred` Inbox episode — the only pointer to that stored prompt. The Inbox keeps one episode per task+tab and every write clears that slot first, so the moment the target agent started or finished its next turn, the episode was dropped and the stored message became unreachable: retained on disk for its 24h TTL, released by nothing.
+
+  `prompt_deferred` now occupies its own lane, so engine activity and a held message coexist. A newer deferral still replaces an older one for the same tab (the store keeps one prompt per tab either way), and releasing from the Inbox still clears both. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#713](https://github.com/Sma1lboy/rove/pull/713) [`45f20f3`](https://github.com/Sma1lboy/rove/commit/45f20f330f145889e61005962c192961c8e4a4af) Frame the Kanban board's columns and cards in rounded corners, like every other panel in the TUI.
+
+  The workspace pane, files pane and tab strip all draw `╭╮╰╯`; the board's four columns and the cards inside them drew opentui's default square `┌┐└┘`, so the one page reachable from the rail was framed in a different grammar from the pane it renders inside. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#712](https://github.com/Sma1lboy/rove/pull/712) [`a7b61a8`](https://github.com/Sma1lboy/rove/commit/a7b61a800fef6296f0ca250293790d9b3c9863a4) Lead each saved-repo row in the new-task picker with its folder name, and mute the path behind it.
+
+  The saved list is a column of absolute paths that mostly share a prefix (`/Users/me/i/kobe`, `/Users/me/i/wisp`, …), so every row opened with the same run of characters and the one word telling them apart sat far right, past the ragged part. The basename now leads at a fixed left edge and its directory trails in muted text — the same string, re-ordered so the identifying half is what the cursor's emphasis lands on. Directory browse rows (typing a `/`) already list bare folder names and are unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#711](https://github.com/Sma1lboy/rove/pull/711) [`9997f93`](https://github.com/Sma1lboy/rove/commit/9997f932962dd4b5377697b17e080ff4e29b5aec) Give a project that left the sidebar a way back, and make the empty pane's own keys work.
+
+  Closing a project's last tab hides it from the sidebar. Nothing is deleted, and
+  the rule claimed the repo was "still there in the new-task picker to open again"
+  — but every submit path went through `createTask`, which always mints a task
+  worktree, so picking the hidden repo added a worktree beside the project and
+  still produced no project row. The only real way back was `rove add` in a shell.
+
+  The New task dialog's For Existing tab now offers, for a repository Rove already
+  tracks as a project, a choice between opening a new task worktree and opening
+  the project itself. The second routes to `ensureMainTask`, so it resolves the
+  existing checkout rather than creating anything.
+
+  Separately, the "No sessions here — press ⏎ or ctrl+e to start one" pane named
+  two keys that had no handler: both are registered inside the tab component,
+  which is deliberately not mounted over an empty tab list. The pane now binds
+  them itself, and reopens the kind of tab that was closed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#721](https://github.com/Sma1lboy/rove/pull/721) [`292851a`](https://github.com/Sma1lboy/rove/commit/292851a0c017f93eae3cbc5cf271ee7d7e9f855d) Give a routine the option of one standing session, and fold its tasks behind a count row in the sidebar.
+
+  `rove api routine-create --persistent-session` re-delivers each firing into ONE task instead of creating a fresh worktree and branch every time, so a daily check can build on what it said yesterday. It stays off by default and is per-routine: a routine that edits code still wants a clean branch per run, since a week of runs piled onto one branch is a branch nobody can land. Seven daily routines were otherwise 49 sidebar rows a week.
+
+  Those tasks now rest behind a per-project `N routine sessions` row — `enter` opens it, `enter` again closes it. This is the one fold in a tree that has none by design, and it is scoped to match: it hides only what a schedule created, never a task you opened. A folded task is still found by `/`, still opens from the Routines page, and still raises an Inbox entry when its turn ends — which is how last night's report reaches you.
+
+  Two run statuses come with it, because the degraded paths must not read as a clean run. `revived` means the engine had exited and was respawned in the same worktree: the files carried over, the conversation did not. `deferred` means the composer was busy, so the prompt is queued in your Inbox rather than dropped — a routine's report going missing is indistinguishable from one that never ran. A standing task that gets deleted is rebuilt on the next firing instead of wedging the routine forever. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#717](https://github.com/Sma1lboy/rove/pull/717) [`92ec156`](https://github.com/Sma1lboy/rove/commit/92ec1562bee08afd942dc273d42ea15dbf3668f1) Stop the ctrl+e engine picker toasting "applies on reopen" over the tab it just opened.
+
+  Picking an engine from the new-conversation dialog opens a tab already running that engine, but it raised the same toast as the `v` row chord — which switches a task's engine for its _next_ enter. On the picker's path that line was noise and, worse, untrue about what was on screen. The `v` chord keeps its toast: there, nothing visible changes until the task is reopened.
+
+  Failures still toast on both paths — a rejected write leaves a tab labelled with an engine the task does not have. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#703](https://github.com/Sma1lboy/rove/pull/703) [`a2e3e06`](https://github.com/Sma1lboy/rove/commit/a2e3e06ff08262932e36168ee579ba496cce5819) `rove update` can install a version that was published moments ago.
+
+  bun caches the package manifest, so a just-released version came back as `No version matching "0.9.62" found for specifier "@sma1lboy/rove" (but package exists)` — a message that names neither the cache nor a way out, and reads as if the release were broken. The install now asks bun to re-fetch the manifest, and if a stale cache ever surfaces anyway, the error says so and gives the command that clears it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.65
 
 ### Patch Changes
