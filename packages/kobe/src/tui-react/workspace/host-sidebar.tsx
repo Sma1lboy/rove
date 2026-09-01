@@ -71,12 +71,14 @@ export function HostSidebar(props: HostSidebarProps) {
   // Tab close is the one sidebar action the host can't express as a task-level
   // callback: the tree names a tab of ANY worktree, so who owns that tab's
   // state depends on whether its TerminalTabs is mounted. `closeTaskTab` is
-  // where that fork lives; a refusal (the task's last tab) surfaces as a toast
-  // rather than a silent no-op.
+  // where that fork lives; a failure surfaces as a toast rather than a silent
+  // no-op. Closing the LAST tab is not a failure (it empties the list and the
+  // row is revived on re-entry), so the only false left is a tab the tree
+  // still lists but the state no longer has — a stale row, not a refusal.
   const closeTab = useCallback(
     (taskId: string, tabId: string): void => {
       if (!closeTaskTab(kv, taskId, tabId))
-        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.cannotCloseLast") })
+        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.tabGone") })
     },
     [kv, notif, t],
   )
