@@ -1,5 +1,65 @@
 # Changelog
 
+## 0.9.73
+
+### Patch Changes
+
+- [#738](https://github.com/Sma1lboy/rove/pull/738) [`e67a71f`](https://github.com/Sma1lboy/rove/commit/e67a71f0d8c8a6b3a0ca49e0648cf1f72722e80a) Stop test and harness PTY hosts outliving the run that created them.
+
+  A PTY host stays alive while it owns a live session, and the daemon's
+  `PtyLiveHold` chains off the same fact. When a harness run died between
+  `dev:sandbox:reset` and its `rm -rf`, the socket and pidfile went with the
+  fixture home while the host kept idle shells running — leaving a process with
+  no address anyone could reach it on. Twenty-five accumulated on one machine,
+  the oldest over two days.
+
+  Two fixes. The host now watches its own pidfile and exits when it no longer
+  names it: deleted, or claimed by a successor. Possession of its address, not
+  age and not the process table, so `rove daemon restart` and an attached
+  `dev:sandbox` are untouched. And `stopDaemonProcess` no longer unlinks a
+  socket and pidfile belonging to a process that is still alive — the race that
+  erased a live host's address in the first place.
+
+  Visual-fixture teardown now records the daemon and PTY-host pids before it
+  deletes their home and fails loudly if either survives, instead of deleting
+  the evidence. Fixture hosts also carry a 30-minute lifetime ceiling
+  (`ROVE_PTY_MAX_LIFETIME_MS`) for the run that never reaches teardown at all;
+  it is deliberately unset in production. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#739](https://github.com/Sma1lboy/rove/pull/739) [`e5484ea`](https://github.com/Sma1lboy/rove/commit/e5484ea58f906d0477812a489917cb5369af0443) New task dialog: the repo field takes a name, and shows the path beside it
+
+  The Existing tab's repo field used to be a full absolute path — the one thing
+  that identifies a repo sitting at the far right of a string whose left half is
+  identical on every row you own. It now holds the repo's NAME, with the
+  directory in muted text at the row's right edge, matching how the picker rows
+  below already read. Those picker rows now right-align their directory tails
+  into one column too, instead of trailing two spaces after each name.
+
+  The field holds a name because an opentui `<input>` edits whatever its `value`
+  prop says: showing a name while state kept a path meant the short string got
+  written back on the next keystroke. So a name is resolved to a path at submit
+  time — and when two saved repos share a basename (routine with a hundred repos
+  flat under one parent), the dialog keeps the full path rather than picking one,
+  and typing the shared name outright says so instead of silently opening the
+  alphabetically-first match. Typing a path by hand still works and still renders
+  verbatim. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#737](https://github.com/Sma1lboy/rove/pull/737) [`d540b66`](https://github.com/Sma1lboy/rove/commit/d540b66382d394e659a1b4d7174d8dbeedab0631) Say so when Rove is running from an install that has been deleted
+
+  A `bun`/`node` process holds its entry open by inode, so uninstalling Rove out from under a running one leaves it alive on a path that no longer exists. It keeps working until it needs to spawn a daemon, and then fails identically forever — one GUI on the owner's machine spent two days in a reconnect loop that could never succeed, showing nothing but "reconnecting".
+
+  Three changes. The resolver now throws a distinguishable `StaleInstallError` instead of a generic message, so a permanent failure can be told apart from a transient one. The reconnect loop stops on it — retrying assumes the next attempt could differ, which it cannot here — and the workspace paints a banner naming the reinstall. And `rove doctor` gains an `install:` line that runs the spawn path's own resolver, so the two can never disagree.
+
+  Also fixes an ordering bug found alongside it: `ensureDaemonReachable` killed the existing daemon _before_ resolving the entry point to replace it, so a stale install removed a working daemon it could not put back. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#736](https://github.com/Sma1lboy/rove/pull/736) [`a1b82b9`](https://github.com/Sma1lboy/rove/commit/a1b82b9a5775823979e9f14d785046d371a7bb9a) Fix `rove api schema`: the `prompt` verb was in no browsable group. A verb's
+  group used to be declared twice — once by which `verbs-*.ts` file held it, once
+  in a hand-written table — and `prompt` was missing from the table, so it
+  reported group `other`, which `--group` then rejected as unknown. Groups are
+  now derived from a required `group` field on each verb, so an ungrouped verb is
+  a compile error instead of a silent orphan. Within a group, `--group` lists
+  verbs in the same canonical order as the index and `--all`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.72
 
 ### Patch Changes
