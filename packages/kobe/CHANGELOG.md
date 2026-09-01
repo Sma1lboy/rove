@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.72
+
+### Patch Changes
+
+- [#735](https://github.com/Sma1lboy/rove/pull/735) [`e6894e3`](https://github.com/Sma1lboy/rove/commit/e6894e32c957b6d05deb85e6b090d8ced0b6c446) Teach the agent skill that a dispatched task is finished only when it is gone.
+
+  A worker has no verb that removes itself, so "done" from a worker is a message, not a state change — its engine keeps running, its worktree keeps holding a branch, and its row stays in the sidebar. The skill covered closing a parallel round (land the winner, delete the losers) but said nothing about the ordinary case of one task doing one job, so a dispatcher would take the worker's report, or a merged PR, or an issue moved to `done`, as evidence the task had ended. None of those touch the task.
+
+  The skill now names the only evidence — `rove api list` no longer shows it — with the sweep for the other half, since tasks and worktrees drift apart: `delete` finds tasks by id, so a stray worktree is reachable only through git. It also warns about the case that makes this expensive rather than untidy: a worker holding `main` in its worktree blocks the dispatcher's own checkout, and a release cannot start until that task is closed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.71
 
 ### Patch Changes
