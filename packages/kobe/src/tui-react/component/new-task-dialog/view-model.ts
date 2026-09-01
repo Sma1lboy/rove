@@ -21,6 +21,7 @@ import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendo
 import type { AdoptableWorktree } from "@/types/worktree"
 import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
+import { nameOrPath, resolveRepoInput, splitRepoInput } from "../../../tui/component/new-task-dialog/repo-field"
 import {
   type DialogTab,
   type ExistingIntent,
@@ -42,6 +43,7 @@ import {
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
+import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches, validateRepoPath } from "../../../tui/lib/git-snapshot"
 import { expandHome, joinPicked } from "../../../tui/lib/path-helpers"
 import { useBindings } from "../../lib/keymap"
@@ -85,7 +87,14 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Open focused on the mode selector — ←/→ switches tabs immediately;
   // Tab then walks engine → repo → branch → Create.
   const [field, setField] = useState<Field>("tabs")
-  const [repo, setRepo] = useState(props.defaultRepo)
+  // Seeded from the caller's PATH, shown as a name — the field's own grammar
+  // from the first frame rather than a path that turns into a name on first
+  // touch. `repoDir` puts the directory back beside it. Same round-trip guard
+  // as `pickRepo`: a basename shared with another saved repo would open the
+  // dialog on an ambiguous value, so that case keeps the path.
+  const [repo, setRepo] = useState(() =>
+    nameOrPath(props.defaultRepo, computeRepoOptions(props.defaultRepo, props.savedRepos)),
+  )
   // Initial baseRef tracks the cwd's current branch (worktree forked from a
   // feature branch defaults to it, not hardcoded "main").
   const [baseRef, setBaseRef] = useState(
@@ -118,12 +127,30 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // short re-windows the pickers instead of clipping the Create button.
   const pickerRows = pickerVisibleRows(useTerminalDimensions().height)
   const mode = pickerModeFor(repo, repoOptions)
+  // `repo` holds exactly what the field shows — a NAME once one is chosen,
+  // free text while it is being typed. It is never a display derived from a
+  // different underlying value: an opentui `<input>` adopts its `value` prop
+  // as its edit buffer, so a field showing one string while state held another
+  // wrote the shown one back on the next keystroke and the two oscillated.
+  // One representation, resolved to a path at the boundaries instead.
+  const repoResolution = resolveRepoInput(repo, repoOptions)
+  // The directory the chosen NAME resolves to — muted, at the row's right
+  // edge, so a bare name still says where it is. Empty whenever the field
+  // already holds a path: the directory is then in the field itself, and
+  // repeating it beside it would print the same string twice.
+  const repoDir =
+    repoResolution.kind === "path" && repoResolution.path !== repo.trim()
+      ? splitRepoInput(repoResolution.path, true).dir
+      : ""
   const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(repo)
   const savedFiltered = useMemo(() => filterRepos(repoOptions, repo), [repoOptions, repo])
   const activeList = mode === "browse" ? subdirFiltered : savedFiltered
   const activeWindow: PickerWindow = windowAround(activeList, repoCursor, pickerRows)
 
-  const expandedRepo = expandHome(repo.trim())
+  // Everything downstream (branch list, validation, adopt scan, the submitted
+  // `repo`) needs a PATH, and the field holds a name — so resolve first, then
+  // expand. An ambiguous name resolves to nothing until the user disambiguates.
+  const expandedRepo = repoResolution.kind === "path" ? expandHome(repoResolution.path) : ""
   // Offered against the EXPANDED path: `mainRepos` holds absolute repo roots,
   // and a `~/`-typed entry would otherwise never match its own project.
   const canOpenProject = offersProjectIntent(expandedRepo, props.mainRepos ?? EMPTY_MAIN_REPOS)
@@ -182,6 +209,15 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setIntent("task")
   }
 
+  /**
+   * A repo was PICKED (dropdown Enter, click, browse-mode select) — the picker
+   * deals in paths, the field holds names, and this is the one funnel every
+   * selection route already goes through, so the conversion belongs here.
+   */
+  function pickRepo(path: string): void {
+    changeRepo(nameOrPath(path, repoOptions))
+  }
+
   function setRepoText(v: string): void {
     setRepoPicked(false)
     changeRepo(stripNewlines(v))
@@ -197,6 +233,16 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   /* ── Commit paths ── */
 
   function commitExisting(): void {
+    // Two saved repos can share a basename (a hundred flat repos under one
+    // parent makes this ordinary), and the name alone cannot say which. Send
+    // the user back to the picker — where the directories that separate them
+    // are on screen — rather than opening the alphabetically-first one.
+    if (repoResolution.kind === "ambiguous") {
+      setSubmitError(t("newTask.error.repoAmbiguous", { name: repoResolution.name }))
+      setField("repo")
+      setRepoPicked(false)
+      return
+    }
     const r = expandedRepo
     if (!r) return
     const reason = validateRepoPath(r)
@@ -282,7 +328,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     if (!repo.trim() && mode === "saved") {
       const picked = activeList[0]
       if (picked) {
-        changeRepo(picked)
+        pickRepo(picked)
         setField(advanceField("repo"))
         return
       }
@@ -291,7 +337,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       const picked = subdirFiltered[repoCursor]
       if (picked) {
         // Enter = SELECT this dir as the repo and advance (no drill).
-        changeRepo(joinPicked(repo, subdirSplit.base, picked))
+        pickRepo(joinPicked(repo, subdirSplit.base, picked))
         setRepoCursor(0)
         setRepoPicked(true)
       }
@@ -299,7 +345,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       return
     }
     const picked = activeList[repoCursor]
-    if (picked) changeRepo(picked)
+    if (picked) pickRepo(picked)
     setField(advanceField("repo"))
   }
 
@@ -307,10 +353,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     const picked = activeList[absoluteIndex]
     if (!picked) return
     if (mode === "browse") {
-      changeRepo(joinPicked(repo, subdirSplit.base, picked))
+      pickRepo(joinPicked(repo, subdirSplit.base, picked))
       setRepoPicked(true)
     } else {
-      changeRepo(picked)
+      pickRepo(picked)
     }
     setRepoCursor(absoluteIndex)
     setField(advanceField("repo"))
@@ -409,6 +455,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     field,
     setField,
     repo,
+    repoDir,
     mode,
     activeList,
     activeWindow,
