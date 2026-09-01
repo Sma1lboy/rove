@@ -89,6 +89,8 @@ export const en = {
     targetExists: "target already exists: {path}",
     cloneFailed: "git clone failed: {error}",
     noAdoptable: "no adoptable worktrees to import",
+    /** Two saved repos share this basename — the name alone can't pick one. */
+    repoAmbiguous: "more than one saved repo is named {name} — pick the one you mean from the list",
   },
 }
 
@@ -178,5 +180,7 @@ export const zh: typeof en = {
     targetExists: "目标路径已存在：{path}",
     cloneFailed: "git clone 失败：{error}",
     noAdoptable: "没有可接管的 worktree",
+    /** Two saved repos share this basename — the name alone can't pick one. */
+    repoAmbiguous: "有多个已保存仓库都叫 {name} — 请从列表中选择你要的那个",
   },
 }

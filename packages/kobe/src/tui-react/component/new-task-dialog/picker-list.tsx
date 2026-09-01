@@ -23,11 +23,12 @@ export type PickerRow = {
   /** Non-cursor rows render accent (selected) instead of muted. */
   readonly accent?: boolean
   /**
-   * Trailing text always painted muted, whatever the row's own state. For a
-   * row whose body is the part that IDENTIFIES the item and whose tail merely
-   * LOCATES it (the repo picker's basename + directory), so the cursor's
-   * bold/primary lands on the name alone instead of dragging a shared path
-   * prefix into the emphasis with it.
+   * Trailing text always painted muted and pushed to the row's RIGHT edge,
+   * whatever the row's own state. For a row whose body is the part that
+   * IDENTIFIES the item and whose tail merely LOCATES it (the repo picker's
+   * basename + directory), so the cursor's bold/primary lands on the name
+   * alone instead of dragging a shared path prefix into the emphasis with it,
+   * and the names line up in one column with the directories in another.
    */
   readonly dim?: string
 }
@@ -80,11 +81,19 @@ export function PickerList(props: {
               {isCursor ? "▸ " : "  "}
               {row.body}
             </text>
+            {/* Right-aligned by a growing spacer, not by padding the string:
+                the gap is whatever the row has left over, so the tails share
+                one right edge however ragged the names are. */}
+            <box flexGrow={1} />
             {/* The tail is the first thing to go on a narrow card: it is the
-                half the row can lose and still be identifiable. */}
+                half the row can lose and still be identifiable.
+                The separating space is INSIDE the text, not `paddingLeft`:
+                padding is part of the box being shrunk, so on a row wide
+                enough to close the gap it went to zero and the body ran
+                straight into the directory (`…(current dir)/var/folders/…`).
+                A leading space in the string shrinks with the string. */}
             <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-              {"  "}
-              {row.dim}
+              {` ${row.dim}`}
             </text>
           </box>
         )
