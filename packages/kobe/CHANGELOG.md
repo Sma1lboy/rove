@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.9.70
+
+### Patch Changes
+
+- [#730](https://github.com/Sma1lboy/rove/pull/730) [`1382108`](https://github.com/Sma1lboy/rove/commit/1382108894739d6ed5def265988a10486a88a83e) Module comments now name the seam a split found, not the line count that
+  prompted it. 96 comments across 80 files said a module existed "for the
+  file-size cap"; each was rewritten to state what the two halves each own —
+  pure decision vs. side-effecting execution, local cache vs. network, data vs.
+  behavior — or, where the split really was mechanical (the keybinding tables,
+  the RPC handler registry grouped by wire-name prefix), to say so plainly
+  rather than invent a boundary. Comments only; no code changed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#732](https://github.com/Sma1lboy/rove/pull/732) [`fd22d43`](https://github.com/Sma1lboy/rove/commit/fd22d436218bcf80f236716c4a857e3195017560) Stop the selection-trim test waiting on a value the pipeline is free to skip.
+
+  Test-only. The case waited for the published window's `startLine` to equal exactly its starting value plus ten, after writing ten lines. But the backend refreshes at output cadence, so how many lines one refresh folds in depends on how much output piled up first — under a loaded runner that is more than one write, the counter steps straight past the awaited number, and the wait can then only time out.
+
+  Unloaded it passes in 50ms, because there every refresh folds exactly one line. That gap is the whole flake: it blocked four unrelated pull requests and one release in a single day while looking perfectly healthy on the machine of anyone who ran it alone.
+
+  Two changes. The wait now accepts any landed shift rather than one of exactly ten lines — not a weaker check, since the code under test is handed both windows and derives the distance itself. And the budget goes to thirty seconds, because `refreshSnapshot` refuses to snapshot a half-painted frame and re-queues itself, which its own comment describes as bouncing forever under rapid redraws; pumping two hundred lines in a loop is that shape, so on a runner sharing a CPU the pipeline can bounce many rounds before it lands one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.69
 
 ### Patch Changes
