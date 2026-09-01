@@ -230,6 +230,13 @@ export function DevSettingsSection(
           "settings.dev.dispatcher",
           prefs.toggleDispatcher,
         )}
+        {toggleRow(
+          "composer-gate",
+          prefs.composerGateOn(),
+          "settings.dev.composerGateHint",
+          "settings.dev.composerGate",
+          prefs.toggleComposerGate,
+        )}
       </box>
     </box>
   )

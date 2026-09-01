@@ -10,6 +10,7 @@
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
+import { COMPOSER_GATE_KEY } from "../../../state/composer-gate"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
@@ -136,6 +137,14 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
+  }
+  // ON by default (the only default-on switch here) — it is an escape hatch
+  // for a gate that reads a vendor's screen layout, not a feature to opt into.
+  function composerGateOn(): boolean {
+    return kv.get(COMPOSER_GATE_KEY, true) !== false
+  }
+  function toggleComposerGate(): void {
+    kv.set(COMPOSER_GATE_KEY, !composerGateOn())
   }
 
   // Editor preference: which editor the file tree's `e` key launches.
@@ -286,6 +295,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleAutoStatus,
     dispatcherOn,
     toggleDispatcher,
+    composerGateOn,
+    toggleComposerGate,
     editorKind,
     cycleEditorKind,
     editorCustomCommand,
