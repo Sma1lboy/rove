@@ -225,7 +225,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
    * focus on an invisible input and swallow every keystroke.
    */
   function advanceField(from: Field): Field {
-    const next = nextField(from, tab)
+    const next = nextField(from, tab, { intentVisible: tab === "existing" && canOpenProject })
+    // The branch field is gone under the "project" intent, so skip its stop
+    // too — same reason, one field further along.
     if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
       return nextField(next, tab)
     }
@@ -342,10 +344,24 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       // ←/→/Enter ONLY while a selector is focused — an always-on binding
       // would preventDefault the keys away from focused text inputs (same
       // registration-gating rationale as the Solid shell).
-      ...(field === "tabs" || field === "engine"
+      ...(field === "tabs" || field === "engine" || field === "intent"
         ? [
-            { key: "left", cmd: () => (field === "tabs" ? cycleTab(-1) : cycleEngine(-1)) },
-            { key: "right", cmd: () => (field === "tabs" ? cycleTab(1) : cycleEngine(1)) },
+            {
+              key: "left",
+              cmd: () => {
+                if (field === "tabs") cycleTab(-1)
+                else if (field === "engine") cycleEngine(-1)
+                else setIntent("task")
+              },
+            },
+            {
+              key: "right",
+              cmd: () => {
+                if (field === "tabs") cycleTab(1)
+                else if (field === "engine") cycleEngine(1)
+                else setIntent("project")
+              },
+            },
             { key: "return", cmd: () => setField(advanceField) },
           ]
         : []),

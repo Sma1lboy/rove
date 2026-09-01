@@ -137,6 +137,9 @@ export type Field =
   | "tabs"
   | "engine"
   | "repo"
+  /** The Existing tab's task-vs-project selector (issue #90). Reachable only
+   *  while it renders — see `nextField`. */
+  | "intent"
   | "baseRef"
   | "cloneUrl"
   | "cloneParent"
@@ -262,7 +265,7 @@ export function isBlankText(v: string): boolean {
  * the user. A stale cross-tab input field restarts the active tab's
  * cycle at its first input.
  */
-export function nextField(field: Field, tab: DialogTab = "existing"): Field {
+export function nextField(field: Field, tab: DialogTab = "existing", opts: { intentVisible?: boolean } = {}): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
   if (field === "tabs") return "engine"
@@ -279,7 +282,12 @@ export function nextField(field: Field, tab: DialogTab = "existing"): Field {
     // List navigation is up/down on the rows, not Tab.
     return field === "adoptFilter" ? "confirm" : "adoptFilter"
   }
-  if (field === "repo") return "baseRef"
+  // `intent` renders only for a repo that has a project checkout, and under
+  // the "project" choice it REPLACES the branch field. Both are conditional,
+  // so the walk is told what is on screen rather than guessing: parking focus
+  // on an unrendered stop swallows every keystroke that follows.
+  if (field === "repo") return opts.intentVisible ? "intent" : "baseRef"
+  if (field === "intent") return "baseRef"
   if (field === "baseRef") return "confirm"
   return "repo"
 }

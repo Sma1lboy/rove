@@ -73,11 +73,14 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           so it stays absent rather than disabled. */}
       {vm.canOpenProject ? (
         <box gap={0} paddingBottom={1}>
-          <text fg={theme.textMuted}>{t("newTask.field.opens")}</text>
+          <text {...labelStyle(theme, vm.field, "intent")}>{t("newTask.field.opens")}</text>
           <ChoiceRow
             choices={intents}
             selected={vm.intent}
-            onPick={(next) => vm.setIntent(next)}
+            onPick={(next) => {
+              vm.setIntent(next)
+              vm.setField("intent")
+            }}
             display={(choice) => intentLabel[choice]}
           />
         </box>
