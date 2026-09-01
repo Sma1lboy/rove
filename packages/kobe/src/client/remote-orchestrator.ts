@@ -159,8 +159,7 @@ export class RemoteOrchestrator {
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
   private readonly keybindingsRevAcc = createStateCell<number | null>(null)
   private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online")
-  /** Set once when the reconnect loop gives up because this process's own
-   *  install is gone (see {@link staleInstallSignal}). */
+  /** Set once, by the reconnect loop giving up — see {@link staleInstallSignal}. */
   private readonly staleInstallAcc = createStateCell<string | null>(null)
   private readonly ensureReachable: () => Promise<unknown>
   private readonly role: SubscribeRole
@@ -301,13 +300,10 @@ export class RemoteOrchestrator {
     return this.connectionStateAcc
   }
 
-  /**
-   * The reconnect loop's one terminal failure, as a message — non-null once
-   * this process is confirmed to be running from an install that has been
-   * deleted, and never cleared, because nothing this process can do fixes it.
-   * Latched deliberately: it is the difference between "reconnecting" (which
-   * is what a stale install used to look like, forever) and "reinstall Rove".
-   */
+  /** The reconnect loop's one terminal failure, as a message: non-null once
+   *  this process is confirmed to be running from a deleted install. Latched,
+   *  never cleared — only a reinstall clears it, and the alternative is what
+   *  a stale install already looked like: "reconnecting", forever. */
   staleInstallSignal(): ReadableState<string | null> {
     return this.staleInstallAcc
   }
