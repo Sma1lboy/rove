@@ -17,9 +17,9 @@ Every `--repo` resolves relative paths against `$PWD` and wants the git toplevel
 These five carry almost all traffic. Nothing here should ever need `schema`.
 
 ```text
-add     --repo(REQ) --prompt --title --command --count --agents
+add     --repo(REQ) --prompt|--prompt-file --title --command --count --agents
         --branch --base-branch --status --pin --activate
-send    --prompt(REQ) --task-id --tab --command --plain
+send    --prompt|--prompt-file(REQ) --task-id --tab --command --plain
 get-task --task-id(REQ)
 list    (no flags)
 collect --task-ids <csv> | --repo
@@ -79,8 +79,8 @@ needs numbers, not when you want to know what a task is doing.
 ## drive
 
 ```text
-send        --prompt(REQ) --task-id --tab --command --plain
-dispatch    --task-id(REQ) --prompt(REQ) --tab
+send        --prompt|--prompt-file(REQ) --task-id --tab --command --plain
+dispatch    --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 note        --task-id(REQ) --text(REQ)
 note-list   --repo(REQ)
 pane-open   --command --task-id --tab --direction[right|down] --placement[split|tab] --title

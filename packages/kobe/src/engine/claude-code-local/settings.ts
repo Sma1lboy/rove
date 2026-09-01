@@ -44,10 +44,10 @@ export function _resetClaudeSettingsCache(): void {
 
 /**
  * Hardcoded fallback when claude-code's settings file says nothing.
- * Opus 4.7 1M is kobe-preferred default — long-context variant matches
+ * Opus 5 1M is kobe-preferred default — long-context variant matches
  * "task = a sustained worktree of work" sessions which tend to grow.
  */
-export const CLAUDE_FALLBACK_DEFAULT_MODEL_ID = "claude-opus-4-7[1m]"
+export const CLAUDE_FALLBACK_DEFAULT_MODEL_ID = "claude-opus-5[1m]"
 
 export function resolveClaudeDefaultModelId(): string {
   const settings = readClaudeSettings()

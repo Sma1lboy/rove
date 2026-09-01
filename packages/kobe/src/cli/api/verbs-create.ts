@@ -58,6 +58,7 @@ export const CREATE_VERBS: readonly VerbSpec[] = [
         false,
         "Optional first message — when set, materializes the worktree, starts the engine, and pastes it. Required with --count/--agents.",
       ),
+      F.promptFile(),
     ],
     handler: add,
   },

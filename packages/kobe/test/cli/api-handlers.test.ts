@@ -1,6 +1,9 @@
 /** Request-traffic tests for single-task `add` and the `send` handler.
  *  The parallel `add --count` round lives in `./api-add-parallel.test.ts`. */
 
+import { mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ApiError, type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
@@ -226,6 +229,46 @@ describe("send handler", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
     expect(calls[1].target.tab).toBe("tab-3")
+  })
+
+  // The shell, not Rove, was eating prompts: backticks inside a double-quoted
+  // --prompt are command substitution, so the text that names a reply
+  // command (`rove api send …`) shipped as that command's OUTPUT. A file (or
+  // stdin) bypasses every quoting rule — the bytes on disk are the message.
+  it("--prompt-file delivers the file's bytes verbatim, backticks and all", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-prompt-"))
+    const file = join(dir, "msg.md")
+    const body = "reply via `rove api send --task-id t1 --tab tab-2` and $(echo no)\n"
+    writeFileSync(file, body)
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
+    const { calls, deliver } = recordingDelivery()
+    await invokeVerb("send", ["--task-id", "abc", "--prompt-file", file], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(calls[0].prompt).toBe(body)
+  })
+
+  it("--prompt and --prompt-file together is a BAD_FLAG, not a silent pick", async () => {
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--prompt", "a", "--prompt-file", "/dev/null"], {
+          client: new FakeClient(),
+          runtime: stubRuntime(),
+        }),
+      "BAD_FLAG",
+    )
+  })
+
+  it("an empty --prompt-file is refused (a blank turn is never what was meant)", async () => {
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--prompt-file", "/dev/null"], {
+          client: new FakeClient(),
+          runtime: stubRuntime(),
+        }),
+      "BAD_FLAG",
+    )
   })
 
   it("a new tab can run a DIFFERENT engine than the task (two agents, one worktree)", async () => {
