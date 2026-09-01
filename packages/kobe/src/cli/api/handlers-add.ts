@@ -18,7 +18,7 @@ import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import type { VendorId } from "../../types/vendor.ts"
-import { dispatcherEnvPayload } from "./dispatcher.ts"
+import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
@@ -94,6 +94,14 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
 
   const prompt = args.str("prompt")
   if (!prompt) return { taskId, task, started: false }
+  // Same provenance prefix `send` carries: a task created from inside another
+  // kobe session is agent-to-agent, and its opening brief is where the reply
+  // address matters most — every report this task ever sends goes back through
+  // it. `add` already records the sender as `dispatcher` on the task row, but
+  // that is data a receiver has to think to go read; this puts it in the
+  // message. No-ops for a create from a plain shell, so a human's `rove add`
+  // is unchanged.
+  const brief = await withPeerProvenance(daemon, taskId, prompt)
   const delivered = await ctx.runtime.deliverPrompt(
     daemon,
     {
@@ -106,7 +114,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       repo: task.repo,
       newTask: true,
     },
-    prompt,
+    brief,
   )
   // A prompt that never confirmed AND was not deferred is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.

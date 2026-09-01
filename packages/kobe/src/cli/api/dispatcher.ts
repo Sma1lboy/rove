@@ -13,6 +13,7 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
+import { kobeApiInvocation } from "../../engine/interactive-command.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { activeCliName } from "../rename-compat.ts"
 import { ApiError, type ApiRuntime } from "./types.ts"
@@ -203,4 +204,57 @@ export async function resolveDispatcherTab(runtime: ApiRuntime, dispatcher: Disp
       nextCommandArgs: ["api", "pty-list"],
     },
   )
+}
+
+/**
+ * Peer provenance: a prompt issued from INSIDE another kobe task is one agent
+ * messaging another, and the receiver needs what a bare paste never carries —
+ * who is talking and how to answer.
+ *
+ * Both delivery verbs wear it. `send` always did; `add --prompt` did not, and
+ * that gap is why a dispatched task finished its work and then sat waiting:
+ * `add` records the sender as `dispatcher` on the task ROW, which a receiver
+ * would have to think to go read (`rove api get-task`) and has no reason to
+ * suspect exists. A task's opening brief is exactly the moment the reply
+ * address matters, since every report it will ever send flows back through
+ * it (2026-09-01: issue #92's survey completed and was never delivered). Same convention as field
+ * notes (`[ROVE FIELD NOTE] from "<label>" (task <id>)`), plus the reply
+ * command so a peer conversation is symmetric without any coordinator.
+ * Sender identity is the VERIFIED $KOBE_TASK_ID/$KOBE_TAB_ID pair, not the
+ * raw env: an unverified one names a stranger's session as the sender and
+ * bakes their tab into the reply command (issue #24). A send from a plain
+ * shell, an unverified process, or to yourself stays untouched.
+ */
+export async function withPeerProvenance(daemon: DaemonRpc, targetTaskId: string, prompt: string): Promise<string> {
+  const self = await verifiedSelfSession()
+  const senderId = self?.taskId
+  if (!senderId || senderId === targetTaskId) return prompt
+  let label = senderId
+  try {
+    const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId: senderId })
+    label = res.task.title || res.task.branch || senderId
+  } catch {
+    /* stale env id — keep id-only provenance rather than dropping it */
+  }
+  const api = kobeApiInvocation()
+  // The baked-in reply command carries the sender's TAB, not just its task
+  // (issue #21): task-granular replies land on canonical-tab resolution,
+  // which is exactly the link that breaks (#19) — tab-precise addressing is
+  // the loop's durable route home. $KOBE_TAB_ID is exported into every
+  // engine tab alongside $KOBE_TASK_ID (session-launch.ts).
+  const replyTarget = `--task-id ${senderId} --tab ${self.tabId}`
+  // The trailing pointer closes the loop for a receiver that has never seen
+  // kobe: reply command baked in, and where to learn the rest (the herdr
+  // "--skill first" trick) — a pointer, not a curriculum, since every peer
+  // message pays for this prefix in context. Loading the skill is REQUIRED,
+  // not suggested: a receiver that replies from the raw prefix alone
+  // improvises verbs and side-channels (2026-08-10: a peer coordination
+  // round-trip fell back to a human relay because neither side had the
+  // skill's contract in context).
+  // The sender's text goes LAST, whole, after a blank line — never as the
+  // object of this English sentence. A model generates in the language of
+  // the tokens nearest its turn, so wrapping a Chinese prompt in an English
+  // clause pulled replies into English; ending on the sender's own words
+  // removes that pull without changing what the prefix says.
+  return `[ROVE PEER] from "${label}" (task ${senderId} — load the Rove agent skill FIRST (registered as /rove; legacy /kobe installs still work), then reply: \`${api} send ${replyTarget} --prompt "<text>"\`; verb reference: \`${api} schema\`)\n\n${prompt}`
 }
