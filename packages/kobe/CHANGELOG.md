@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.75
+
+### Patch Changes
+
+- [#744](https://github.com/Sma1lboy/rove/pull/744) [`15f6f47`](https://github.com/Sma1lboy/rove/commit/15f6f47723dee41bdd06ab3cb673a92bbe831af2) Fix `rove api routine-update --precheck ''` and `--base-branch ''` so they actually clear the field instead of silently leaving it in place. Both flags are documented as "'' clears it", and the daemon already treats an empty value as a clear, but the CLI folded the empty string into "not passed" and dropped it before it reached the daemon — so the old value stayed. Passing an empty value now sends an explicit clear. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#746](https://github.com/Sma1lboy/rove/pull/746) [`6fcafb9`](https://github.com/Sma1lboy/rove/commit/6fcafb994f7bc5686a576aa8a1afbbbb6e119ff9) `rove api send`, `add`, and `dispatch` accept `--prompt-file PATH` (`-` = stdin) as an alternative to `--prompt`. A message that names a reply command in backticks used to be eaten by the shell — inside double quotes `` `rove api send …` `` is command substitution, so the receiver got that command's output instead of the words, and single quotes would have blocked `$ROVE_TASK_ID`. Reading the text from a file sidesteps every quoting rule; the Rove skill now routes any prompt with backticks, `$vars`, or quotes through a heredoc on `--prompt-file -`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.74
 
 ### Patch Changes
