@@ -93,7 +93,9 @@ type RailPage = {
 }
 
 const RAIL_PAGES: readonly RailPage[] = [
-  { title: "Kanban", body: ["kobe", "┌"], overrides: { kanbanOpen: true } },
+  // `╭` anchors the board's first column — its rounded corner, matching every
+  // other framed surface (see kanban-columns.test.tsx, which pins the style).
+  { title: "Kanban", body: ["kobe", "╭"], overrides: { kanbanOpen: true } },
   { title: "ROUTINES", body: ["No routines scheduled."], overrides: { automationsOpen: true } },
   { title: "ISSUES", body: ["No open issues."], overrides: { workItemsOpen: true } },
 ]

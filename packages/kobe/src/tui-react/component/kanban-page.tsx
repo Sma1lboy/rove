@@ -341,6 +341,11 @@ export function KanbanPage(props: {
         flexGrow={1}
         flexBasis={0}
         border={true}
+        // Rounded, like every other framed surface in the TUI (the workspace
+        // pane, the files pane, the tab strip): opentui's default is square,
+        // so a box that only says `border` opts out of the house grammar
+        // without looking like it did.
+        borderStyle="rounded"
         borderColor={columnBorder}
         paddingLeft={1}
         paddingRight={1}

@@ -81,8 +81,38 @@ test("a card pads its title away from its own border", async () => {
   // own — the card's top border is one row further up.
   const above = lines[title - 1] ?? ""
   expect(above).toContain("│")
+  // Rounded corners, like every other framed surface in the TUI — and a
+  // corner on THIS row would mean the title sits flush against the top
+  // border, which is the padding this test exists to hold.
+  expect(above).not.toContain("╭")
   expect(above).not.toContain("┌")
   expect(above.replace(/[│ ]/g, "")).toBe("")
+})
+
+/**
+ * Both framed surfaces on the board — the four columns and the cards inside
+ * them — draw ROUNDED corners, the same grammar the workspace pane, files
+ * pane and tab strip already use.
+ *
+ * Pinned against the frame because opentui's default is SQUARE: a box that
+ * says `border` and nothing else silently opts out of the house style, which
+ * is how the board shipped as the one page framed in `┌┐└┘`. Asserting the
+ * absence of square glyphs is what makes this test fail if either box loses
+ * its `borderStyle` again — a corner-count assertion alone would pass on the
+ * default.
+ */
+test("columns and cards are framed in rounded corners, never square", async () => {
+  const text = await board([issue(1)])
+  expect(text).toContain("╭")
+  expect(text).toContain("╯")
+  expect(text).not.toContain("┌")
+  expect(text).not.toContain("┘")
+  // Four columns plus the one card = five framed boxes, so five of each
+  // corner. Without this a single rounded box beside four square ones would
+  // still satisfy the checks above.
+  const corners = (glyph: string): number => text.split(glyph).length - 1
+  expect(corners("╭")).toBe(5)
+  expect(corners("╰")).toBe(5)
 })
 
 /**
