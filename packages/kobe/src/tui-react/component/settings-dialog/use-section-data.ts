@@ -3,8 +3,9 @@
  * engine detection probes (fs/env) and the plugin registry (`~/.kobe/
  * plugins.json`). Both are lazy: nothing is read until the owning section
  * is first opened, so a settings open that never visits them pays nothing.
- * Split out of `index.tsx` for the file-size cap, like `use-settings-prefs`
- * / `use-engine-settings`.
+ * The seam is where the data COMES FROM: `use-settings-prefs` reads kv, this
+ * reads the filesystem and environment, so the probes that can be slow or fail
+ * are all on one side of the line and easy to keep lazy.
  */
 
 import { useEffect, useState } from "react"

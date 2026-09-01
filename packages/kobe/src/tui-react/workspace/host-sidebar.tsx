@@ -2,8 +2,10 @@
 /**
  * The workspace host's left rail — which sidebar renders, and its wiring.
  *
- * Extracted from `host.tsx` when it hit the file-size cap: ~30 props of
- * sidebar wiring did not fit in a file that was already at the limit.
+ * Its own component because `host.tsx` should compose the workspace, not know
+ * how one rail is wired. The ~30 props below are that wiring made explicit —
+ * having to pass them is the honest cost of the boundary, and it is why a new
+ * sidebar concern lands here instead of accreting on the host.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"

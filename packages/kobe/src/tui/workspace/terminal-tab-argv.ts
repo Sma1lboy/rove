@@ -1,9 +1,18 @@
 /**
  * Spawn composition for an engine tab: argv (session pin / resume / fork)
- * plus the shell-wrapped launch, split out of `terminal-tabs-core.ts` (the
- * tab-list transitions) for the 500-line file-size cap. Re-exported from
- * core, so importers keep one entry point. Tab shapes come back from core
- * as TYPE-only imports — erased at build time, so the cycle is cosmetic.
+ * plus the shell-wrapped launch.
+ *
+ * Separate from `terminal-tabs-core.ts` because the two fail for different
+ * reasons and change on different schedules. Core's transitions are closed
+ * over the tab list — a bug there is a wrong active tab. Everything here
+ * reads the ENGINE contract (`engine-presets`, `session-launch`,
+ * `trust-worktree`), so a bug is a wrong command line, and the thing that
+ * moves it is a vendor changing its resume/fork flags, not anything about
+ * tabs. Vendor knowledge stays on this side of the line.
+ *
+ * Re-exported from core, so importers keep one entry point. Tab shapes come
+ * back from core as TYPE-only imports — erased at build time, so the cycle
+ * is cosmetic.
  */
 
 import {

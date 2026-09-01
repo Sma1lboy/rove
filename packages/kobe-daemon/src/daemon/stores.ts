@@ -1,8 +1,10 @@
 /**
- * Daemon-owned durable store wiring — split out of `server.ts` (which was at
- * the ~500-line cap) by responsibility: this module owns CREATING every
- * daemon-owned store plus the per-task teardown chain, so the composition root
- * only destructures the bag. Behavior is unchanged; the split is layout only.
+ * Daemon-owned durable store wiring, split from `server.ts` by responsibility:
+ * this module owns CONSTRUCTING every daemon-owned store plus the per-task
+ * teardown chain, and `server.ts` owns wiring them to the socket and its
+ * lifecycle. That keeps the composition root a place you can read the daemon's
+ * shape from, instead of a page of paths and constructor arguments — and it
+ * means adding a store is one edit here plus one name in the destructure.
  */
 
 import { readActivityLiveness } from "./activity-liveness.ts"

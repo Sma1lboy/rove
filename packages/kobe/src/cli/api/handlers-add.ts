@@ -9,8 +9,12 @@
  * whole parallel contract (shared `groupId`, `#i/N` titles, per-sibling
  * failure rows, PARTIAL_FANOUT) applies unchanged from N=2 up.
  *
- * Split out of `handlers-tasks.ts` (file-size cap) rather than living beside
- * `send`: create-with-fleet is its own concern now.
+ * Its own module rather than living beside `send` in `handlers-tasks.ts`: the
+ * handlers there act on a task that already exists, while everything here is
+ * the create path and its parallel contract. That is also where the failure
+ * modes diverge — a `send` either lands or does not, whereas an `add --count`
+ * can half-succeed (PARTIAL_FANOUT), and that per-sibling bookkeeping is what
+ * this file exists to hold.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"

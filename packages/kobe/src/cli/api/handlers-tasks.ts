@@ -230,8 +230,9 @@ export async function dispatch(ctx: VerbContext): Promise<unknown> {
   }
 }
 
-/** The verb spec lives beside its handler (PANE_VERB pattern) so verbs.ts
- *  stays under the file-size cap. */
+/** The verb spec lives beside its handler (PANE_VERB pattern): the flag list
+ *  and the code that reads those flags change together, so they stay in one
+ *  file and `verbs.ts` imports the finished spec. */
 export const DISPATCH_VERB: VerbSpec = {
   name: "dispatch",
   summary:

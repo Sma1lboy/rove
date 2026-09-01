@@ -1,8 +1,8 @@
 /**
  * Attention-Inbox item → its presentation (glyph, tone, state word, and the
- * rate-limit resume note). Pure and framework-free, split out of
- * `AttentionInboxPane.tsx` (file-size cap) so the mapping is unit-testable
- * without mounting the pane.
+ * rate-limit resume note). Pure and framework-free, kept out of
+ * `AttentionInboxPane.tsx` so the mapping is unit-testable without mounting
+ * the pane — which matters more here than usual, because of the rule below.
  *
  * One rule holds the four together: the Inbox's vocabulary must MATCH the
  * sidebar rail's (`row-view.ts`) and the tab strip's (`tab-strip.tsx`). Three

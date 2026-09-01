@@ -1,7 +1,11 @@
 /**
  * The `drive` verb group — sending prompts, notes, panes, and UI notices to
- * tasks. Split out of `verbs.ts` (file-size cap); spread back into the
- * {@link VERBS} table there, so schema/help/validation see one canonical list.
+ * tasks: everything that acts on a RUNNING task without changing what the task
+ * is (that's `edit`) or whether it exists (`lifecycle`). One file per
+ * `VERB_GROUPS` entry in `verbs.ts` — that taxonomy is what
+ * `rove api schema --group drive` prints, so a verb declared here and left out
+ * of that table reports as group "other". Specs spread back into the
+ * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
 import { F } from "./flags.ts"

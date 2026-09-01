@@ -1,6 +1,9 @@
 /**
- * The `edit` verb group — mutating task metadata. Split out of `verbs.ts`
- * (file-size cap); spread back into the {@link VERBS} table there, so
+ * The `edit` verb group — mutating task METADATA (title, branch, command,
+ * status), as opposed to driving the running session (`drive`) or ending it
+ * (`lifecycle`). One file per `VERB_GROUPS` entry in `verbs.ts`, the taxonomy
+ * `rove api schema --group edit` prints; a verb missing from that table
+ * reports as group "other". Specs spread back into the {@link VERBS} table, so
  * schema/help/validation see one canonical list.
  */
 

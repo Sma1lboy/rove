@@ -3,9 +3,10 @@
  * opens on the active tab's conversation and then diverges — the sibling of
  * `quick-fork.ts`, which forks the WORKTREE into a child task.
  *
- * Split out of `TerminalTabs.tsx` for the file-size cap; the vendor-specific
- * launch flags live in the engine layer (`engineForkArgv`), the tab-state
- * transition in `terminal-tabs-core`, so this is just the join.
+ * Its own module because it is only the JOIN: the vendor-specific launch
+ * flags live in the engine layer (`engineForkArgv`) and the tab-state
+ * transition in `terminal-tabs-core`, so the fork gesture owns neither, and
+ * keeping it thin is what stops either of them leaking into the component.
  */
 
 import { engineCanFork } from "@/engine/engine-presets"

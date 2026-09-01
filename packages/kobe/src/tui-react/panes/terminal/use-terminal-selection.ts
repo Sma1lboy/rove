@@ -2,8 +2,10 @@
  * Copy-on-select, GRID-based selection for the embedded terminal pane —
  * React port of the selection half of `tui/panes/terminal/Terminal.tsx`
  * (tmux convention; see `terminal-selection.ts` for why opentui's text-flow
- * selection can't work over this pane). Split out purely to keep
- * `Terminal.tsx` under the file-size cap.
+ * selection can't work over this pane). Its own hook because selection is
+ * self-contained mouse state that the rest of the pane never reads — and,
+ * per the two notes below, it is the part with the most non-obvious
+ * re-render rules, which are easier to hold correct in one file.
  *
  * Anchor and head live in ABSOLUTE snapshot coordinates so the highlight
  * survives every frame refresh and scrollback move. A ZERO-WIDTH selection

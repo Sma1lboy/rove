@@ -1,5 +1,7 @@
 /**
- * The worktree LISTING operations, split out of `manager.ts` (file-size cap).
+ * The worktree LISTING operations of `manager.ts` — the read-only half, which
+ * is why they are safe to hold apart from create/remove: nothing here can
+ * change the repo, and a bug is a wrong answer rather than a lost worktree.
  *
  * `listManaged` / `listAllAdoptable` / `adoptablePaths` are the porcelain-parse
  * + filter + concurrent-probe logic behind `GitWorktreeManager.list` /

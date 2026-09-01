@@ -1,8 +1,9 @@
 /**
  * The BUILT-IN engine table — the four first-party adapters' wiring, as
- * data. Split out of `registry.ts` (the ~500-line cap); the module doc
- * there explains what an entry means and why neutral layers must go
- * through `engineEntry` instead of reaching in here.
+ * data — the DATA half of `registry.ts`, which owns the entry type and the
+ * lookup. That is what makes adding an engine a data edit rather than a code
+ * one. The module doc there explains what an entry means and why neutral
+ * layers must go through `engineEntry` instead of reaching in here.
  *
  * Adding a built-in engine = one entry here plus its `*-local/` modules.
  * The entry TYPE stays in `registry.ts` (imported type-only, so the pair is

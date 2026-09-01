@@ -1,7 +1,8 @@
 /**
  * Session-identity policy — how an engine answers "what is my current
- * session id" and "how do I resume it", split out of `registry.ts` (the
- * ~500-line cap) alongside its sibling `terminal-title.ts`.
+ * session id" and "how do I resume it". Like its sibling `terminal-title.ts`,
+ * held apart from `registry.ts` so the POLICY can be written without naming a
+ * vendor while the registry keeps the vendor→entry resolution.
  *
  * Pure on purpose: every function here takes the engine's declared
  * {@link EngineSessionIdentity} rather than a vendor id, so nothing in this

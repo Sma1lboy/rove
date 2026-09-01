@@ -1,7 +1,9 @@
 /**
  * kv-backed preference helpers for the settings dialog (issue #15, G3) —
- * the General/Dev getter+toggle closures split out of `./index.tsx` to
- * keep it under the file-size cap. All reads are plain `kv.get` — the
+ * the General/Dev getter+toggle closures, kept apart from `./index.tsx` so the
+ * dialog's structure (which sections, which is open) never mixes with the
+ * per-preference kv keys and their normalizers. Adding a preference edits only
+ * this file. All reads are plain `kv.get` — the
  * KVProvider re-renders the tree on every `kv.set`, so the values are
  * recomputed per render. Sections receive the whole bundle as a single
  * `prefs: SettingsPrefs` prop and call the getters directly.

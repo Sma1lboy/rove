@@ -2,10 +2,11 @@
  * Host-side terminal output effects: push geometry changes to the PTY and
  * anchor the native host cursor to the visible terminal cell for macOS IME.
  *
- * Split out of `Terminal.tsx` to keep the component under the file-size cap.
- * The caller still supplies the computed viewport cursor (`visibleImeCursor`);
- * this hook only owns the imperative renderer/PTY side-effects and the
- * retention objects that survive across output frames.
+ * Its own hook because everything here is IMPERATIVE: renderer and PTY side
+ * effects plus the retention objects that survive across output frames, none
+ * of which belongs in a render path. The caller still supplies the computed
+ * viewport cursor (`visibleImeCursor`) — deciding where the cursor is stays
+ * declarative in the component; only telling the host about it lives here.
  */
 
 import type { BoxRenderable } from "@opentui/core"

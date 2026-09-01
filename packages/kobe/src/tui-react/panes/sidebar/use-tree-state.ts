@@ -2,9 +2,9 @@
  * Sidebar tree state — the flat row list and the cursor's translation
  * between row ids and the terminal's (taskId, tabId) pair.
  *
- * Kept out of `Sidebar.tsx` for the file-size cap, and out of `tree-core.ts`
- * because that module is framework-free (vitest loads it in Node) while this
- * one is React state.
+ * Kept out of `tree-core.ts` because that module is framework-free — vitest
+ * loads it in Node — while this one is React state; the fold and expansion
+ * rules below need that separation to stay testable as plain data.
  *
  * There is NO fold anywhere (owner call 2026-08-01, round 5) except one: a
  * project's routine count row (issue #91), which folds ONLY the standing

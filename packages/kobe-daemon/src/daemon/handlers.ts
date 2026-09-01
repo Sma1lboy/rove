@@ -304,10 +304,10 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
       },
     },
     // `task.*` (+ `project.forget`) and `worktree.*` live in their own files
-    // (handlers-task.ts / handlers-worktree.ts) — split out to stay under
-    // the repo's 500-line file-size cap. Entry ORDER here doesn't affect any
-    // individual response's byte shape (only within-object key order is
-    // wire-load-bearing), so grouping them via spread is safe.
+    // (handlers-task.ts / handlers-worktree.ts), grouped by RPC-name prefix —
+    // a file boundary, not a responsibility one. Entry ORDER here doesn't
+    // affect any individual response's byte shape (only within-object key
+    // order is wire-load-bearing), so grouping them via spread is safe.
     ...TASK_HANDLERS,
     ...WORKTREE_HANDLERS,
     ...ATTENTION_HANDLERS,

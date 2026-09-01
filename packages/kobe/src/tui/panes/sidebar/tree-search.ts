@@ -1,9 +1,10 @@
 /**
  * Searching the sidebar tree — pruning `buildTreeRows`' output to a query.
  *
- * Split from `tree-core.ts` at the file-size cap. It is a genuinely separate
- * concern: `tree-core` decides what rows EXIST, this decides which of them
- * survive a query, and the two share only the row shape. `filterTreeRows` is
+ * Its own module because `tree-core` decides what rows EXIST and this decides
+ * which of them survive a query — the two share only the row shape, and the
+ * matching rule below is worth reading without the tree around it.
+ * `filterTreeRows` is
  * re-exported from `tree-core` so callers still import the tree's vocabulary
  * from one place.
  *

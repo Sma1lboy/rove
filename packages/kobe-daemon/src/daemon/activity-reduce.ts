@@ -1,7 +1,11 @@
 /**
- * The engine-activity reducer + its policy constants/types — the pure half
- * of the daemon activity registry, split out of `activity-registry.ts`
- * (file-size cap). `activity-registry.ts` re-exports the public names so
+ * The engine-activity reducer + its policy constants/types — the pure half of
+ * the daemon activity registry. The seam is state: this file is
+ * `(state, event) → state` with nothing to mount, while `activity-registry.ts`
+ * holds the live map, the timers and the subscribers. That is what lets the
+ * state machine below be driven through every transition as plain values, and
+ * it is why the reducer can be shared across both packages at all — a stateful
+ * registry could not be. `activity-registry.ts` re-exports the public names so
  * existing importers keep one entry point.
  *
  * {@link reduceActivity} is the single definition of the activity state

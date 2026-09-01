@@ -1,8 +1,11 @@
 /**
  * Pure, `this`-independent helpers for the {@link Orchestrator} (`core.ts`).
  *
- * Path / repo-key normalisation with no orchestrator state — split out so the
- * class stays under the file-size cap. Moved verbatim from `core.ts`.
+ * The seam is `this`: everything here is path / repo-key normalisation that
+ * reads no orchestrator state, so it is testable as plain input → output and
+ * can be called from anywhere without an Orchestrator to hand. Keeping it out
+ * of the class is what stops these from quietly growing a dependency on it.
+ * Moved verbatim from `core.ts`.
  */
 
 import { realpathSync } from "node:fs"

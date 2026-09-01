@@ -1,7 +1,8 @@
 /**
- * Consume the cross-component tab REQUESTS aimed at this task — extracted
- * from `TerminalTabs.tsx` (the ~500-line cap), sibling of
- * `use-tab-handoffs.ts`.
+ * Consume the cross-component tab REQUESTS aimed at this task — a third
+ * mount-once listener, sibling of `use-tab-handoffs.ts`, and its own file
+ * because consuming a request is what CLAIMS it (see below): that ownership
+ * rule is easier to keep true when there is exactly one place doing it.
  *
  * All requests (`terminal-tabs-shared.ts`) share one mount-once listener:
  * activation (F7 attention jump), plugin-pane open/close (`tab.open` /

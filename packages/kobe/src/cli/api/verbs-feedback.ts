@@ -1,7 +1,10 @@
 /**
- * The `feedback` verb group — GitHub Discussions integration. Split out of
- * `verbs.ts` (file-size cap); spread back into the {@link VERBS} table there,
- * so schema/help/validation see one canonical list.
+ * The `feedback` verb group — GitHub Discussions integration, the one group
+ * that reaches an EXTERNAL service rather than the daemon. One file per
+ * `VERB_GROUPS` entry in `verbs.ts`, the taxonomy
+ * `rove api schema --group feedback` prints; a verb missing from that table
+ * reports as group "other". Specs spread back into the {@link VERBS} table, so
+ * schema/help/validation see one canonical list.
  */
 
 import { DEFAULT_FEEDBACK_CATEGORY_SLUG } from "../../lib/feedback.ts"

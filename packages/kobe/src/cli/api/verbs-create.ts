@@ -1,7 +1,9 @@
 /**
- * The `create` verb group — spawning new Rove tasks. Split out of `verbs.ts`
- * (file-size cap); spread back into the {@link VERBS} table there, so
- * schema/help/validation see one canonical list.
+ * The `create` verb group — spawning new Rove tasks. One file per
+ * `VERB_GROUPS` entry in `verbs.ts`, because that taxonomy is what
+ * `rove api schema --group create` prints; a verb declared here but missing
+ * from that table reports as group "other". Specs spread back into the
+ * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
 import { F, FANOUT_CAP } from "./flags.ts"

@@ -1,9 +1,11 @@
 /**
  * Which activity entry names a sidebar TAB row's state glyph.
  *
- * Split from `tree-core.ts` at the file-size cap, and a real seam: everything
- * in `tree-core` answers "what rows exist"; this answers "which of the
- * daemon's two activity levels speaks for this row" — no row shapes, no tree.
+ * Its own module along a real seam: everything in `tree-core` answers "what
+ * rows exist"; this answers "which of the daemon's two activity levels speaks
+ * for this row". It touches no row shapes and no tree — the whole file is one
+ * generic function over the daemon's activity contract, which is why the
+ * precedence rule below can be tested with two plain values.
  */
 
 /**

@@ -1,7 +1,9 @@
 /**
- * PTY protocol payloads — split out of `protocol.ts` to keep that file under
- * the ~500 line cap. These types travel on the standalone PTY host socket
- * (v4 protocol) and are re-exported from `protocol.ts` for existing callers.
+ * PTY protocol payloads. Their own module because they travel on a DIFFERENT
+ * socket than the rest of `protocol.ts`: the standalone PTY host's v4
+ * protocol, which is versioned and restarted independently of the daemon. A
+ * change here is a compatibility question about that socket alone.
+ * Re-exported from `protocol.ts` for existing callers.
  */
 
 /** How a session's child ended — recorded at exit time by the PTY host.

@@ -1,9 +1,13 @@
 /**
  * `RemoteOrchestrator`'s write surface — each function forwards one daemon
- * RPC. Split out of `remote-orchestrator.ts` (which was over the repo's
- * 500-line file-size cap) into its own file; same behavior, moved
- * verbatim. The class keeps its public method names/signatures — each is
- * now a 1-line delegate to the matching function here.
+ * RPC. Every mutation the client can make crosses the socket here, which is
+ * the seam against `-reads.ts`: those are synchronous reads of the replayed
+ * local cache and cannot fail, these are all async and every one of them is a
+ * place the daemon can be gone.
+ *
+ * Same behavior, moved verbatim. The class keeps its public method
+ * names/signatures — each is now a 1-line delegate to the matching function
+ * here.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"

@@ -1,9 +1,18 @@
 /**
- * `sidebar.*` / `tasks.*` keybinding rows — split out of `keybindings.ts`
- * (which was over the repo's 500-line file-size cap) purely mechanically:
- * same entries, same order, moved verbatim. See `keybindings.ts`'s doc
- * comment for the full contract (id stability, scope semantics, hint
- * display rules).
+ * `sidebar.*` / `tasks.*` keybinding rows. These are data, not behavior:
+ * plain {@link KobeBinding} literals spread back into the one table in
+ * `keybindings-table.ts`, which stays the single source of truth.
+ *
+ * There is no responsibility boundary here. The cut follows the `─── Sidebar
+ * ───` section header that was already a comment in the table — one long
+ * literal split at its existing seams, so a row's file is decided by its
+ * `scope`, nothing else. Adding a sidebar row here and a files row in
+ * `keybindings-files.ts` are the same edit.
+ *
+ * What the split does NOT change, and what you must preserve: spread order
+ * in `keybindings-table.ts` is the display order, and id stability is what
+ * `bindByIds` and user overrides key off. See `keybindings-table.ts`'s doc
+ * comment for that full contract.
  */
 
 import { TASK_JUMP_CHORDS } from "../panes/sidebar/jump-digits.ts"

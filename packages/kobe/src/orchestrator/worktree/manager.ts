@@ -192,9 +192,10 @@ export class GitWorktreeManager implements WorktreeManager {
     return this.create(args.repo, args.branch, target, args.baseRef)
   }
 
-  /** Remove a worktree — body in `manager-remove.ts` (file-size cap). Refuses
-   *  a dirty worktree unless `opts.force`; a forced removal salvages first and
-   *  can also clear a worktree whose upstream repo is gone. */
+  /** Remove a worktree — body in `manager-remove.ts`, the destructive verb kept
+   *  in its own file. Refuses a dirty worktree unless `opts.force`; a forced
+   *  removal salvages first and can also clear a worktree whose upstream repo
+   *  is gone. */
   async remove(worktreePath: string, opts?: RemoveOpts): Promise<void> {
     await removeWorktree(
       {

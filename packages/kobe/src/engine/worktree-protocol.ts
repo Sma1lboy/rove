@@ -3,11 +3,12 @@
  * status self-report (`experimental.autoStatus`), field-note filing +
  * recall, and the repo main session's dispatcher brief.
  *
- * Split out of `interactive-command.ts` (the ~500-line cap) so the protocol
- * text and its injection gates sit together, and so this module may import
- * `engine-presets.ts` for protocol resolution — `engine-presets.ts` imports
- * `interactive-command.ts`, so asking that file to resolve a protocol would
- * close an import cycle.
+ * Its own module for two reasons, the second load-bearing: the protocol text
+ * and its injection gates belong together, and this file may import
+ * `engine-presets.ts` for protocol resolution while `interactive-command.ts`
+ * may not — `engine-presets.ts` imports IT, so asking that file to resolve a
+ * protocol would close an import cycle. Moving this code back would break the
+ * build, not just crowd a file.
  *
  * Injection rides `--append-system-prompt`, per-invocation and scoped
  * exactly to Rove-spawned sessions. Why a flag and not a file: a dropped

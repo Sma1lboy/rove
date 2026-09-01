@@ -33,9 +33,9 @@ import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
-// The create-task input type lives in its own module (file-size cap) and is
-// re-exported here: callers name it through the orchestrator, and the split
-// is a file boundary, not an API change.
+// The create-task input type lives in its own module so it can be imported
+// without importing this class. Re-exported here so callers still name it
+// through the orchestrator.
 export type { CreateTaskInput } from "./create-task-input.ts"
 
 export type Unsubscribe = () => void
@@ -373,9 +373,9 @@ export class Orchestrator {
 
   // In-place task-field edits (title / branch / engine / pinned / status /
   // PR-status / move / reorder) live in the TaskEditor collaborator.
-  // Terse one-liners below on purpose: they are PURE forwarding (the rules,
-  // guards, and doc comments all live on TaskEditor's own methods), and this
-  // file sits at the 500-line cap — same shape `remote-orchestrator.ts` uses
+  // Terse one-liners below on purpose: they are PURE forwarding, so anything
+  // written here would be a second copy of a rule that lives on TaskEditor's
+  // own methods — read them there. Same shape `remote-orchestrator.ts` uses
   // for its own write delegates.
 
   setTitle = (id: TaskId | string, title: string): Promise<void> => this.editor.setTitle(id, title)

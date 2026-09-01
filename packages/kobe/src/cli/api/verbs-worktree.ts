@@ -1,7 +1,10 @@
 /**
- * The `worktree` verb group — materializing and adopting worktrees. Split out
- * of `verbs.ts` (file-size cap); spread back into the {@link VERBS} table
- * there, so schema/help/validation see one canonical list.
+ * The `worktree` verb group — materializing and adopting worktrees: the verbs
+ * that touch git rather than the task index. One file per `VERB_GROUPS` entry
+ * in `verbs.ts`, the taxonomy `rove api schema --group worktree` prints; a
+ * verb missing from that table reports as group "other". Specs spread back
+ * into the {@link VERBS} table, so schema/help/validation see one canonical
+ * list.
  */
 
 import { F } from "./flags.ts"

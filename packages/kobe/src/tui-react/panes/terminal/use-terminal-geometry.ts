@@ -1,10 +1,13 @@
 /**
- * Body-box geometry measurement for the embedded terminal pane — split out
- * of `Terminal.tsx` (React port of the measurement half of the Solid
- * original) purely to keep the component under the file-size cap; the
+ * Body-box geometry measurement for the embedded terminal pane (React port of
+ * the measurement half of the Solid original).
+ *
+ * The seam is ordering, and the import graph pins it: this hook measures
+ * BEFORE the PTY exists, so its `bodyGeometry` can feed `useTerminalPty`. The
  * resize-push-to-pty and host-cursor-anchor effects stay in `Terminal.tsx`
  * because they need the PTY handle and the computed viewport cursor, which
- * only exist after this hook's `bodyGeometry` has fed `useTerminalPty`.
+ * only exist afterwards — nothing here may depend on either, or the pane
+ * cannot boot at its real size.
  *
  * Measures the rendered body box (before spawning the PTY) so a fresh pane
  * boots at its real size instead of the 80x24 default — booting small

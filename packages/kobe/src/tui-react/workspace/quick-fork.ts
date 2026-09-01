@@ -8,8 +8,9 @@
  * SOURCE task's TerminalTabs mount, but the prompt has to reach the
  * NEW task's mount, so the pending prompt is held here, keyed by task id.
  *
- * Split out of `TerminalTabs.tsx`/`host.tsx` purely for the file-size cap —
- * both hosts sit close to the 500-line limit already.
+ * Its own module because BOTH `TerminalTabs.tsx` and `host.tsx` drive this
+ * gesture: the create/enter/pending-prompt shape must not exist twice, or the
+ * two entry points diverge on the tmux-parity side effects above.
  */
 
 import { errorMessage } from "@/lib/error-message"

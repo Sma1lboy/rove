@@ -2,10 +2,13 @@
  * Dynamic command dispatch entries for `src/cli/index.ts`.
  *
  * Heavy or rarely-used subcommands are dynamically imported so a bare
- * `kobe add` does not pull in the TUI, opentui, or plugin machinery. The
- * table is split out here to keep `index.ts` under the file-size cap; the
- * three inline handlers (`add`, `remove`, `adopt`) stay in `index.ts` and are
- * merged into the final table there.
+ * `kobe add` does not pull in the TUI, opentui, or plugin machinery. That is
+ * the seam this file draws, and the reason it holds only `import()` thunks:
+ * anything eagerly imported here is paid for on EVERY CLI invocation, so
+ * keeping the table apart from `index.ts` makes an accidental static import
+ * visible instead of buried in the entry point. The three cheap inline
+ * handlers (`add`, `remove`, `adopt`) stay in `index.ts` and are merged into
+ * the final table there.
  */
 
 export type CommandHandler = (args: string[]) => Promise<void>

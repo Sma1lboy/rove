@@ -1,9 +1,12 @@
 /**
- * Workspace task selection — extracted verbatim from WorkspaceRoot
- * (file-size cap split): the selected-task state, the adopt-first-focus
+ * Workspace task selection: the selected-task state, the adopt-first-focus
  * rule, the deleting-task PTY sweep, and the select/activate actions.
- * The framework-free activation policy stays in use-task-selection.ts; this
- * hook owns only the React reactivity.
+ *
+ * These four belong together because they all answer "which task is the user
+ * on" and go wrong together when they drift. The seam against
+ * `use-task-selection.ts` is React: the activation POLICY there is
+ * framework-free and testable on plain values, and this hook owns only the
+ * reactivity that drives it.
  */
 
 import { useEffect, useRef, useState } from "react"

@@ -261,10 +261,11 @@ export class RemoteOrchestrator {
   }
 
   /**
-   * Start or join the role-appropriate reconnect loop (body in
-   * `remote-orchestrator-connect.ts` `runReconnectLoop` — file-size cap).
-   * On success subscribe replay rehydrates every signal, including the
-   * current task snapshot.
+   * Start or join the role-appropriate reconnect loop. The body lives in
+   * `remote-orchestrator-connect.ts` `runReconnectLoop`, over an explicit deps
+   * bag, so the retry policy is testable without a daemon; this method only
+   * supplies this instance's dependencies. On success subscribe replay
+   * rehydrates every signal, including the current task snapshot.
    */
   private reconnectLoop(spawnDaemon: boolean): Promise<void> {
     if (this.reconnectTask) return this.reconnectTask

@@ -2,9 +2,10 @@
 /**
  * The workspace host's right rail — the FileTree pane and its width math.
  *
- * Extracted from `host.tsx` when it crossed the file-size cap (same reason
- * as `host-sidebar.tsx`). Width: a third of what's left beside the sidebar,
- * clamped to the documented worktree-tools convention [22, 34].
+ * A region that owns its own layout, like `host-sidebar.tsx`: the width math
+ * below is this rail's business, not the host's. Width: a third of what's left
+ * beside the sidebar, clamped to the documented worktree-tools convention
+ * [22, 34].
  */
 
 import { useTerminalDimensions } from "@opentui/react"

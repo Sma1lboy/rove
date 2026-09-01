@@ -1,6 +1,11 @@
 /**
- * The per-vendor {@link EngineHistoryReader} implementations, split out of
- * `registry.ts` (file-size cap). Each is a thin adapter over its vendor's
+ * The per-vendor {@link EngineHistoryReader} implementations.
+ *
+ * Their own module because `registry.ts` declares the CONTRACT every engine
+ * must satisfy while this file holds the vendor-specific mess of satisfying
+ * it — and only this half grows when a vendor changes its on-disk transcript
+ * format. Adding an engine touches the registry's table; a vendor rearranging
+ * its store touches only here. Each is a thin adapter over its vendor's
  * `*-local/history.ts` module, normalizing store quirks to the registry's
  * contract — nothing else in the tree should import these directly; go
  * through `engineEntry(vendor).history`.

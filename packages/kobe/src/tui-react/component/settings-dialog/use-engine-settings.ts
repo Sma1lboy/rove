@@ -1,6 +1,9 @@
 /**
- * Engines-section state for the React settings dialog (issue #15, G3) —
- * split out of `./index.tsx` for the file-size cap. Same kv keys and flows
+ * Engines-section state for the React settings dialog (issue #15, G3) — one
+ * section's state in its own file, like `use-settings-prefs` / `use-section-data`,
+ * so `./index.tsx` owns only the dialog's structure. This is the section with
+ * real logic behind it: a custom-engine registry and the global default. Same
+ * kv keys and flows
  * as the Solid `src/tui/component/settings-dialog.tsx`: per-vendor launch
  * command + display-name overrides (engineCommand.<id> / engineName.<id>),
  * the customEngineIds registry, and the GLOBAL default engine (the ●

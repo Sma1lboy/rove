@@ -15,8 +15,9 @@ import type { VendorId } from "@/types/vendor"
 import type { PersistedSplit } from "./terminal-tab-split"
 
 // Split-tree + naming policy (PersistedSplit + the leaf predicates/keying/
-// naming + tab display naming) moved to `./terminal-tab-split` for the
-// file-size cap; re-exported here so existing importers keep one entry point.
+// naming + tab display naming) lives in `./terminal-tab-split`: what is
+// INSIDE one tab, versus this file's WHICH tabs exist. Re-exported here so
+// importers keep one entry point.
 export {
   type PersistedSplit,
   SHELL_LEAF_NAME,
@@ -31,8 +32,10 @@ export {
 } from "./terminal-tab-split"
 
 // Tab SHAPES (TabBase + EngineTab/CommandTab/ContentTab + the TerminalTab
-// union) moved to `./terminal-tab-shapes` for the file-size cap; re-exported
-// here so existing importers keep one entry point.
+// union) live in `./terminal-tab-shapes` — what a tab IS, so the split tree,
+// argv composition and the component can depend on the shapes without
+// depending on these transitions. Re-exported here so importers keep one
+// entry point.
 export type { CommandTab, ContentTab, EngineTab, TerminalTab } from "./terminal-tab-shapes"
 import type { CommandTab, ContentTab, TerminalTab } from "./terminal-tab-shapes"
 
@@ -338,9 +341,11 @@ export function markTabSpawned(state: TabsState, id: string): TabsState {
   return setTabSpawned(state, id, true)
 }
 
-// Engine-tab argv/spawn composition moved to `./terminal-tab-argv` for the
-// file-size cap; shell-wrapping helpers to `./terminal-tab-spawn`. Both are
-// re-exported here so existing importers keep one entry point.
+// Engine-tab argv/spawn composition lives in `./terminal-tab-argv` (it reads
+// the ENGINE contract — resume/fork flags, trust — so vendor knowledge stays
+// off the transitions); shell-quoting in `./terminal-tab-spawn` (imports
+// nothing, pure string work). Both re-exported here so importers keep one
+// entry point.
 export { type TabExitAction, engineTabArgv, engineTabSpawnFor, tabExitAction } from "./terminal-tab-argv"
 export { type TabSpawn, shellCommandLine, shellIdentityInput, shellSpawn } from "./terminal-tab-spawn"
 

@@ -1,7 +1,10 @@
 /**
- * The `routine` verb group — daemon-owned scheduled agent tasks. Split out
- * of `verbs.ts` (file-size cap); spread back into the {@link VERBS} table
- * there, so schema/help/validation see one canonical list.
+ * The `routine` verb group — daemon-owned scheduled agent tasks: the schedule
+ * that CREATES tasks, which is a different object from the tasks themselves.
+ * One file per `VERB_GROUPS` entry in `verbs.ts`, the taxonomy
+ * `rove api schema --group routine` prints; a verb missing from that table
+ * reports as group "other". Specs spread back into the {@link VERBS} table, so
+ * schema/help/validation see one canonical list.
  *
  * By default every firing creates a FRESH task (worktree + branch + engine
  * session) with the automation's prompt as its first message.

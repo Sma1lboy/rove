@@ -1,10 +1,10 @@
 /**
  * Cross-component tab state shared between the mounted `TerminalTabs`
  * component and the host-side flows that need it while the component may
- * not be mounted — extracted from `TerminalTabs.tsx` for the file-size cap.
- * Module-level on purpose (framework-agnostic process state): per-task tab
- * snapshots survive task switches, and the F7 attention jump can request a
- * tab activation before the target task's tabs ever mount.
+ * not be mounted. That is the seam, and why it CANNOT live in the component:
+ * module-level, framework-agnostic process state outlives any mount, so
+ * per-task tab snapshots survive task switches and the F7 attention jump can
+ * request a tab activation before the target task's tabs ever exist.
  */
 
 import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"

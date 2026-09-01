@@ -1,10 +1,10 @@
 /**
  * How ONE automation firing reaches an engine (issue #91).
  *
- * Split from `automation-runner.ts` (file-size cap) along a real seam: the
- * runner owns WHEN a schedule fires, this owns WHERE the prompt lands. Both
- * stay well under the cap, and the four delivery paths below are testable
- * without a clock.
+ * Its own module along a real seam: the runner owns WHEN a schedule fires,
+ * this owns WHERE the prompt lands. That is also what makes the four delivery
+ * paths below testable without a clock — none of them needs to know a schedule
+ * exists.
  *
  * Two shapes, chosen per routine by `Automation.persistentSession`:
  *

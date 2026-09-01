@@ -133,8 +133,8 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     broadcast(clients, { type: "event", name: event.channel, payload: event.payload })
   })
 
-  // Daemon-owned durable stores + the per-task teardown runner — created in
-  // stores.ts (split out of this file at the ~500-line cap); see initDaemonStores.
+  // Daemon-owned durable stores + the per-task teardown runner — CREATED in
+  // stores.ts, wired together here; see initDaemonStores.
   const {
     activity,
     inbox,

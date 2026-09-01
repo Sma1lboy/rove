@@ -1,9 +1,13 @@
 /**
- * Pure paging/shaping half of `kobe api read-output` (split for the 500-line
- * cap): the envelope + cursor types, the deterministic page builders, and
- * the terminal-text shaping. No daemon, no PTY host, no vendor imports —
- * the read logic and the verb live in `read-output.ts`, which re-exports
- * this module so `@/cli/api/read-output` stays the one import site.
+ * Pure paging/shaping half of `kobe api read-output`: the envelope + cursor
+ * types, the deterministic page builders, and the terminal-text shaping.
+ *
+ * The seam is I/O. Nothing here talks to a daemon, a PTY host, or a vendor —
+ * it is messages in, page out — which is what makes the cursor round-trip and
+ * every byte/line boundary checkable against plain arrays, with no live
+ * session to stand up. Fetching those messages, and the verb itself, live in
+ * `read-output.ts`, which re-exports this module so `@/cli/api/read-output`
+ * stays the one import site.
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"

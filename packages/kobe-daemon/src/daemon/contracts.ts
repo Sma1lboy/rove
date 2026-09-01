@@ -3,9 +3,10 @@
 import type { ObservedLanguage } from "../prompts/observed-language.ts"
 import type { TaskRoutineLink } from "./automation-contracts.ts"
 
-// Automation ("routine") contracts live in their own module (file-size cap)
-// and are re-exported here: every existing importer names them through
-// `contracts.ts`, and the split is a file boundary, not an API change.
+// Automation ("routine") contracts live in their own module — nothing else in
+// this file refers to them, and they are the one group with their own store,
+// runner, and RPC family. Re-exported here so every existing importer still
+// names them through `contracts.ts`.
 export type {
   Automation,
   AutomationPatch,

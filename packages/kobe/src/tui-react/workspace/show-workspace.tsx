@@ -3,7 +3,8 @@
  * The workspace center column — the terminal-in-the-middle seam (issue #16):
  * either the empty "select a task" placeholder or the selected worktree's
  * TerminalTabs (keyed per task so tasks sharing a directory never share
- * component state). Split from host.tsx (file-size cap).
+ * component state) — the host composes the workspace's regions, and this
+ * region owns the empty-versus-loaded decision.
  */
 
 import type { ReactNode } from "react"

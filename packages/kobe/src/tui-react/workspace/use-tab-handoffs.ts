@@ -1,7 +1,9 @@
 /**
- * Mount-once parent-handoff effects extracted from `TerminalTabs.tsx` (the
- * ~500-line cap), sibling of `use-tab-lifecycle.ts`: the imperative
- * editor-tab / engine-send handles handed to the parent. Both are
+ * Mount-once parent-handoff effects, sibling of `use-tab-lifecycle.ts`: the
+ * imperative editor-tab / engine-send handles handed to the parent. The seam
+ * against the per-render hooks is lifetime — these run ONCE per mount and live
+ * forever, so grouping them keeps that distinction visible instead of buried
+ * among effects that rebuild every render. Both are
  * mount-only, forever-lived effects — everything they read comes through
  * the caller's `stateRef`/`propsRef` latest-render mirrors, and every write
  * goes through the caller's `update` (which refreshes `stateRef`

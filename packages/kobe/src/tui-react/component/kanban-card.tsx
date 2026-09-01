@@ -1,7 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * KanbanCard — one issue card on the board (extracted from kanban-page.tsx
- * for the file-size cap). Selection border > attention border > column
+ * KanbanCard — one issue card on the board. Its own component because it
+ * renders ONE card from props and holds no board state: everything about which
+ * cards exist, the cursor and the mutations stays in `kanban-page.tsx`.
+ * Selection border > attention border > column
  * border; a live activity badge tracks the linked task's engine on both the
  * In-progress and Parked columns (a parked card keeps its badge as passive
  * signal — it just never floats or counts toward "N need you").

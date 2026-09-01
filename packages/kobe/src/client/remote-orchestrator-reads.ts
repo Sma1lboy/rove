@@ -1,7 +1,12 @@
 /**
- * `RemoteOrchestrator`'s read surface — split out of `remote-orchestrator.ts`
- * (which was over the repo's 500-line file-size cap) into its own file; same
- * behavior/docs, moved verbatim (mirrors the `-writes.ts` split). The class
+ * `RemoteOrchestrator`'s read surface — and the seam against `-writes.ts` is
+ * the network: not one function in this file touches the daemon client. Every
+ * read is served from the locally replayed signal cache, so it is synchronous
+ * and cannot fail, while its `-writes.ts` twin is all RPC — async, and every
+ * call a place the socket can drop. Keeping them apart is what makes that
+ * property checkable by looking at the imports.
+ *
+ * Same behavior/docs, moved verbatim. The class
  * keeps its public method names/signatures — each is now a 1-line delegate
  * to the matching function here, operating on the {@link ReadSignals} bag
  * (a superset of `OrchestratorSignals` — the extra fields are the

@@ -1,7 +1,8 @@
 /**
- * Mount-once tab-lifecycle effects extracted from `TerminalTabs.tsx` (the
- * ~500-line cap): restart-resume verification (issue #22) and the tab
- * auto-naming poll (the tmux naming pass). Both are mount-only, forever-
+ * Mount-once tab-lifecycle effects: restart-resume verification (issue #22)
+ * and the tab auto-naming poll (the tmux naming pass) — grouped with
+ * `use-tab-handoffs.ts` by lifetime, not by topic: what these have in common
+ * is running once per mount and living forever. Both are mount-only, forever-
  * lived effects — everything they read comes through the caller's
  * `stateRef`/`propsRef` latest-render mirrors, and every write goes
  * through the caller's `update` (which refreshes `stateRef`

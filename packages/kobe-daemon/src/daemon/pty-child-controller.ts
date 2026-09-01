@@ -1,11 +1,12 @@
 /**
  * PtyChildController — owns one hosted session's child process lifecycle.
  *
- * Split from `pty-host.ts` for the file-size cap. This module is responsible
- * for starting a PTY child, feeding its output bytes into the session's ring
- * buffer + narrow OSC scans, observing its exit, and tearing it down. It does NOT
- * know about the host's session map, client sinks, or freeze policy — those
- * stay in `PtyHost`.
+ * The seam is ONE session versus ALL of them. This module starts a PTY child,
+ * feeds its output bytes into that session's ring buffer + narrow OSC scans,
+ * observes its exit and tears it down — and deliberately knows nothing of the
+ * host's session map, client sinks, or freeze policy, which are all questions
+ * about the set. Keeping the per-child work free of that means a bug here can
+ * only damage one session.
  */
 
 import { resolveLoginShell } from "./platform-shell.js"

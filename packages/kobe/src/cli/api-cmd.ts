@@ -43,7 +43,7 @@
  * script does not have to babysit it (read-only verbs like `schema` skip
  * the daemon entirely).
  *
- * ## Module map (kept ≤500 lines each, this file is the dispatcher + barrel)
+ * ## Module map (one concern each; this file is the dispatcher + barrel)
  *   - `./api/types.ts`            — shared types (FlagSpec, VerbContext, ApiRuntime, ...) + ApiError
  *   - `./api/flags.ts`            — flag parsing/validation + VerbArgs + fan-out plan helpers
  *   - `./api/schema.ts`           — `schema` verb + `--help` rendering
