@@ -107,8 +107,11 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     expect(r.out).toContain("many sessions. one terminal.")
     expect(r.out).toContain("Thanks for using Rove. Happy building.")
     expect(r.out).toContain("via bun")
-    expect(r.log).toContain("bun install -g @sma1lboy/rove@latest")
-    expect(r.log).not.toContain("npm install")
+    // `--no-cache` since #703: bun's manifest cache served a stale version for
+    // minutes after a publish, so the update reported success and installed
+    // what was already there.
+    expect(r.log).toContain("bun install -g --no-cache @sma1lboy/rove@latest")
+    expect(r.log).not.toContain("npm install -g")
   })
 
   it("any other kobe location updates via npm", async () => {
@@ -208,7 +211,7 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     const base = join(env.home, "case-bun-noprefix")
     const r = await runUpdateScript(base, join(base, ".bun", "bin"))
     expect(r.code).toBe(0)
-    expect(r.log).toContain("bun install -g @sma1lboy/rove@latest")
+    expect(r.log).toContain("bun install -g --no-cache @sma1lboy/rove@latest")
     expect(r.log).not.toContain("--prefix")
   })
 
