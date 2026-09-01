@@ -48,7 +48,8 @@ export type WorkspaceTaskActions = {
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
-  /** ctrl+e picker's engine pick — same persist + toasts as `cycleVendor`. */
+  /** ctrl+e picker's engine pick — same persist as `cycleVendor`, but silent
+   *  on success: the tab it opens already shows the result. */
   setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
@@ -121,8 +122,12 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
+    // The ctrl+e picker's engine pick. Silent on success: the tab it just
+    // opened IS the new engine, so a toast saying the change "applies on
+    // reopen" contradicted what the user was already looking at. Failures
+    // still toast — see applyVendorChange.
     setVendor: async (id, vendor) => {
-      await applyVendorChange(taskActions, id, vendor)
+      await applyVendorChange(taskActions, id, vendor, { silentSuccess: true })
     },
     togglePin,
     moveTask,

@@ -310,6 +310,16 @@ export async function applyVendorChange(
   ctx: Pick<TaskActionContext, "orch" | "logger" | "logPrefix" | "notifyError" | "notifyInfo">,
   taskId: string,
   next: VendorId,
+  /**
+   * Skip the success toast. For the caller that ALREADY showed the result: the
+   * ctrl+e picker opens a tab running the new engine right there, so the
+   * "applies on reopen" line was both noise and untrue — the tab in front of
+   * you is already the new engine. The failure toast is never optional; a
+   * rejected write there leaves a tab labelled with an engine the task does
+   * not have, which is exactly the divergence this function was added to
+   * surface.
+   */
+  opts: { readonly silentSuccess?: boolean } = {},
 ): Promise<boolean> {
   if (!ctx.orch) return false
   try {
@@ -319,10 +329,11 @@ export async function applyVendorChange(
     ctx.notifyError?.(`Couldn't switch engine: ${errorMessage(err)}`)
     return false
   }
-  // The new vendor only takes effect on the task's NEXT enter (ensureSession
-  // rebuilds the pane when its `@kobe_vendor` tag no longer matches), so the
-  // gesture looks like a no-op. Surface the deferred-rebuild contract.
-  ctx.notifyInfo?.(`Engine → ${engineDisplayName(next)} (applies on reopen)`)
+  // Only for a change with nothing on screen to show it: the new vendor takes
+  // effect on the task's NEXT enter (ensureSession rebuilds the pane when its
+  // `@kobe_vendor` tag no longer matches), so `v` on a row otherwise looks
+  // like a no-op.
+  if (!opts.silentSuccess) ctx.notifyInfo?.(`Engine → ${engineDisplayName(next)} (applies on reopen)`)
   return true
 }
 
