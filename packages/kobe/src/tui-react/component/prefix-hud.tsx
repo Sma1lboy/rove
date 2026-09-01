@@ -1,8 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Bottom-left prefix HUD (over the Tasks sidebar — NOT the terminal column,
+ * Bottom-left shortcut HUD (over the Tasks sidebar — NOT the terminal column,
  * where it collided with the engine's own status line): while the PureTUI
- * prefix is armed it shows a live `ctrl+a ⋯` line, and each resolved
+ * prefix is armed it shows a live `ctrl+a ⋯` line, a held Ctrl key shows the
+ * direct-shortcut guide, and each resolved
  * sequence lands a `ctrl+a + t → tab.new` line (or `∅` on a miss). The last
  * three lines stream like a mini log and flush PREFIX_HUD_TTL_MS after they
  * land — flush timers live HERE; the framework-free feed only timestamps
@@ -77,8 +78,10 @@ export function PrefixHud(props: { left: number; width: number }) {
   const t = useT()
   const dims = useTerminalDimensions()
   const hud = useAccessor(prefixHudState)
+  const guide = hud.guide
   const { activeSurface } = useShortcutRevealPresentation()
-  const showCommandGuide = activeSurface !== null
+  const showPrefixGuide = guide?.kind === "prefix" && activeSurface !== null
+  const showCommandGuide = guide?.kind === "direct" || showPrefixGuide
   const [, setFlushTick] = useState(0)
 
   const now = Date.now()
@@ -96,18 +99,20 @@ export function PrefixHud(props: { left: number; width: number }) {
   }, [oldestAt])
 
   useEffect(() => {
-    if (!showCommandGuide || hud.armedAt === null) return
-    const remaining = hud.armedAt + PREFIX_GUIDE_DELAY_MS - Date.now()
+    if (!showPrefixGuide || guide?.kind !== "prefix") return
+    const remaining = guide.armedAt + PREFIX_GUIDE_DELAY_MS - Date.now()
     if (remaining <= 0) return
     const timer = setTimeout(() => setFlushTick((tick) => tick + 1), remaining)
     return () => clearTimeout(timer)
-  }, [showCommandGuide, hud.armedAt])
+  }, [showPrefixGuide, guide])
 
   const lineCount = fresh.length + (showCommandGuide ? 1 : 0)
   if (lineCount === 0) return null
-  const armedKey = currentPrefixConfiguration().key ?? ""
-  const showGuide = showCommandGuide && hud.armedAt !== null && now - hud.armedAt >= PREFIX_GUIDE_DELAY_MS
-  const groups = showGuide ? groupPrefixGuideOptions(hud.options) : []
+  const prefixKey = currentPrefixConfiguration().key ?? ""
+  const showGuide =
+    guide?.kind === "direct" ||
+    (showPrefixGuide && guide?.kind === "prefix" && now - guide.armedAt >= PREFIX_GUIDE_DELAY_MS)
+  const groups = showGuide && guide ? groupPrefixGuideOptions(guide.options) : []
 
   if (showGuide) {
     const narrow = dims.width < 88
@@ -148,8 +153,10 @@ export function PrefixHud(props: { left: number; width: number }) {
         flexDirection="column"
       >
         <box flexDirection="row" justifyContent="space-between">
-          <text fg={theme.primary}>{t("help.commandLayer", { prefix: armedKey })}</text>
-          <text fg={theme.textMuted}>{t("help.escCancel")}</text>
+          <text fg={theme.primary}>
+            {guide?.kind === "direct" ? t("help.directLayer") : t("help.commandLayer", { prefix: prefixKey })}
+          </text>
+          <text fg={theme.textMuted}>{guide?.kind === "direct" ? t("help.releaseCtrl") : t("help.escCancel")}</text>
         </box>
         <box flexDirection="column">
           {groupRows.map((row) => (
@@ -166,6 +173,7 @@ export function PrefixHud(props: { left: number; width: number }) {
                         gap={1}
                         onMouseUp={(event: { stopPropagation(): void }) => {
                           event.stopPropagation()
+                          if (guide?.kind !== "prefix") return
                           const stroke = action.strokes[0]
                           if (stroke) invokeArmedPrefixActionFromCurrentStack(action.action, stroke)
                         }}
@@ -215,7 +223,7 @@ export function PrefixHud(props: { left: number; width: number }) {
       {showCommandGuide ? (
         <box paddingLeft={1} paddingRight={1} backgroundColor={theme.backgroundDialog}>
           <text fg={theme.textMuted} wrapMode="none">
-            {`${armedKey} ⋯`}
+            {`${prefixKey} ⋯`}
           </text>
         </box>
       ) : null}

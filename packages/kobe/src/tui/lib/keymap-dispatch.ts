@@ -11,6 +11,7 @@
 import type { KeyEvent } from "@opentui/core"
 import { isDev } from "../../env.ts"
 import { inputPassthroughReachable, prefixReachable, scanReachability } from "./keymap-reachability"
+import { isKittyModifierKeyName } from "./modifier-keys"
 import { type PrefixHudOption, prefixHudPush, prefixHudSetArmed } from "./prefix-hud"
 
 /** Mouse-safe command paired with a keyboard binding. */
@@ -421,6 +422,10 @@ export function dispatchKeyEvent(
   opts?: { flushSync?: (fn: () => void) => void },
 ): boolean {
   if (evt.defaultPrevented || dispatching) return false
+  if (isKittyModifierKeyName(evt.name)) {
+    evt.preventDefault()
+    return true
+  }
   const snapshot = bindingStack.slice()
   const candidates = matchKey(evt as KeyEvent)
   const runCmd = opts?.flushSync ?? ((fn) => fn())

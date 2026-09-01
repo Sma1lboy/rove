@@ -36,8 +36,10 @@ describe("hostRenderOptions", () => {
     expect("onDestroy" in hostRenderOptions()).toBe(false)
   })
 
-  it("uses the ordinary Kitty keypress protocol", () => {
-    expect(hostRenderOptions()).toMatchObject({ useKittyKeyboard: {} })
+  it("requests kitty press, repeat, release, and all-keys-as-escapes reporting", () => {
+    expect(hostRenderOptions()).toMatchObject({
+      useKittyKeyboard: { events: true, allKeysAsEscapes: true },
+    })
   })
 })
 

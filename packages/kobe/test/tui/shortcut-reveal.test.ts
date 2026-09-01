@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
-import { shortcutCaption } from "../../src/tui/lib/shortcut-reveal"
+import { onePressGuideOptions, shortcutCaption } from "../../src/tui/lib/shortcut-reveal"
 
 const reachable = (direct: string[] = [], prefix: string[] = []) => ({
   direct: new Set(direct),
@@ -56,5 +56,21 @@ describe("shortcutCaption", () => {
         prefixKey: "ctrl+a",
       }),
     ).toBeNull()
+  })
+})
+
+describe("onePressGuideOptions", () => {
+  it("derives live direct chords only from reachable onePress rows", () => {
+    expect(onePressGuideOptions(reachable(["help.open", "focus.next", "task.new"]))).toEqual([
+      { stroke: "f1", action: "help.open" },
+      { stroke: "f4", action: "focus.next" },
+    ])
+  })
+
+  it("tracks keymap overrides instead of keeping a second chord list", () => {
+    const row = findBinding("focus.next") as { keys: readonly string[] }
+    row.keys = ["ctrl+n"]
+
+    expect(onePressGuideOptions(reachable(["focus.next"]))).toEqual([{ stroke: "ctrl+n", action: "focus.next" }])
   })
 })

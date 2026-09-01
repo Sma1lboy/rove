@@ -26,6 +26,7 @@
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
+import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../tui/lib/ctrl-hold"
 import {
   type Binding,
   type BindingsConfig,
@@ -37,6 +38,8 @@ import {
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
+import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
+import { onePressGuideOptions } from "../../tui/lib/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
 export type { Binding, BindingsConfig, RegisteredBinding } from "../../tui/lib/keymap-dispatch"
@@ -61,6 +64,8 @@ const stack: RegisteredBinding[] = []
 let installedRenderer: unknown = null
 let installed: KeyHandler | null = null
 let listener: ((evt: KeyEvent) => void) | null = null
+let releaseListener: ((evt: KeyEvent) => void) | null = null
+let ctrlHoldDetector: CtrlHoldDetector | null = null
 /** Renderers this process has already moved past. A superseded renderer's
  *  tree can keep re-rendering after teardown (pending timers — the test
  *  harness destroys the renderer without unmounting React), and its
@@ -75,6 +80,8 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   if (installedRenderer === renderer) return
   if (supersededRenderers.has(renderer as object)) return
   if (installed && listener) installed.off("keypress", listener)
+  if (installed && releaseListener) installed.off("keyrelease", releaseListener)
+  ctrlHoldDetector?.cancel()
   if (installedRenderer) supersededRenderers.add(installedRenderer as object)
   // New renderer → fresh stack. The old renderer's tree may be torn down
   // without React cleanups (test harness destroy, hard renderer swap) —
@@ -86,7 +93,16 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   resetPrefixState()
   installedRenderer = renderer
   installed = renderer.keyInput
+  ctrlHoldDetector = createCtrlHoldDetector({
+    onReveal: () => {
+      resetPrefixState()
+      const options = onePressGuideOptions(bindingReachability(stack))
+      if (options.length > 0) prefixHudShowDirect(options)
+    },
+    onHide: prefixHudHideDirect,
+  })
   listener = (evt: KeyEvent) => {
+    ctrlHoldDetector?.keypress(evt)
     dispatchKeyEvent(stack, evt, Date.now(), {
       // OpenTUI's renderer renders synchronously on input. React state updates
       // scheduled from a non-React event listener (the keyInput emitter) are
@@ -97,7 +113,9 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
       flushSync,
     })
   }
+  releaseListener = (evt: KeyEvent) => ctrlHoldDetector?.keyrelease(evt)
   installed.on("keypress", listener)
+  installed.on("keyrelease", releaseListener)
 }
 
 /**

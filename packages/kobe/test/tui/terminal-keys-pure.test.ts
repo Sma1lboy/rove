@@ -16,6 +16,25 @@ function evt(partial: Partial<KeyEvent> & { name: string }): KeyEvent {
 }
 
 describe("keyEventToShellBytes", () => {
+  it.each([
+    "leftshift",
+    "leftctrl",
+    "leftalt",
+    "leftsuper",
+    "lefthyper",
+    "leftmeta",
+    "rightshift",
+    "rightctrl",
+    "rightalt",
+    "rightsuper",
+    "righthyper",
+    "rightmeta",
+    "iso_level3_shift",
+    "iso_level5_shift",
+  ])("drops bare kitty modifier event %s", (name) => {
+    expect(keyEventToShellBytes(evt({ name, sequence: name, raw: "\x1b[57442;5u" } as never))).toBeNull()
+  })
+
   it("forwards the upstream byte sequence verbatim when present", () => {
     expect(keyEventToShellBytes(evt({ name: "a", sequence: "\x1b[Z" } as never))).toBe("\x1b[Z")
   })
@@ -65,6 +84,12 @@ describe("keyEventToShellBytes", () => {
     // Legacy bytes keep forwarding verbatim (raw == sequence, not CSI-u).
     expect(keyEventToShellBytes(evt({ name: "delete", sequence: "\x1b[3~", raw: "\x1b[3~" } as never))).toBe("\x1b[3~")
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "\x03", raw: "\x03" } as never))).toBe("\x03")
+  })
+
+  it("re-encodes printable keys when kitty sends every key as CSI-u", () => {
+    expect(keyEventToShellBytes(evt({ name: "a", sequence: "a", raw: "\x1b[97u" } as never))).toBe("a")
+    expect(keyEventToShellBytes(evt({ name: "1", sequence: "1", raw: "\x1b[49u" } as never))).toBe("1")
+    expect(keyEventToShellBytes(evt({ name: "z", shift: true, sequence: "Z", raw: "\x1b[90;2u" } as never))).toBe("Z")
   })
 
   it("keeps the typed uppercase for shift+letter keystrokes on both wire formats", () => {

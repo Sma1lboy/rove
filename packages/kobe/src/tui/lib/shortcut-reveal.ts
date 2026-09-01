@@ -6,9 +6,10 @@
  * the canonical live chord only when the current binding stack can run it.
  */
 
-import { findBinding } from "../context/keybindings"
+import { KobeKeymap, findBinding } from "../context/keybindings"
 import { formatChord } from "./chord-glyphs"
 import type { BindingReachability } from "./keymap-reachability"
+import type { PrefixHudOption } from "./prefix-hud"
 
 export type ShortcutCaptionInput = Readonly<{
   bindingId: string
@@ -36,4 +37,11 @@ export function shortcutCaption(input: ShortcutCaptionInput): string | null {
   }
 
   return null
+}
+
+/** Direct-shortcut guide rows from the live keymap, limited to actions runnable in the current Binding Stack. */
+export function onePressGuideOptions(reachability: BindingReachability): PrefixHudOption[] {
+  return KobeKeymap.filter(
+    (binding) => binding.presentation === "onePress" && reachability.direct.has(binding.id),
+  ).flatMap((binding) => binding.keys.map((stroke) => ({ stroke, action: binding.id })))
 }

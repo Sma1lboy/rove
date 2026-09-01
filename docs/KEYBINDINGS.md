@@ -35,8 +35,7 @@ changes immediately, and an unbound or currently unreachable action is not
 advertised. Clicking a guide row rechecks the current pane and modal scope
 before it runs. The setting changes only whether the pending command layer also
 marks controls in place. Both choices use the same prefix, second stroke,
-timeout, pane scope, and cancellation rules. No hold or key-release support is
-required.
+timeout, pane scope, and cancellation rules.
 
 ## The prefix
 
@@ -66,6 +65,21 @@ continuation is refused. See [Engines](./ENGINES.md#resuming-and-forking).
 
 The sequence cancels on timeout, `esc`, an invalid second key, or a change of
 focus or dialog.
+
+## Hold ctrl to reveal one-press keys
+
+Hold either Ctrl key for at least 400 ms to open a guide to the one-press Rove
+shortcuts available in the current pane. The guide also opens while an embedded
+engine terminal has focus. It does not take ownership of the next key. Releasing
+Ctrl or pressing any other key closes the guide, and that other key continues
+through normal shortcut or terminal dispatch.
+
+This guide needs a terminal that reports modifier press and release events
+through the kitty keyboard protocol. Unsupported terminals ignore Rove's
+request, so the guide stays unavailable and existing typing and shortcuts keep
+their old behavior. See
+[Troubleshooting](./TROUBLESHOOTING.md#holding-ctrl-does-not-open-the-one-press-shortcut-guide)
+for terminal support.
 
 ## One-press keys
 

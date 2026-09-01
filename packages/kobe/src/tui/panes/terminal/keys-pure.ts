@@ -11,6 +11,7 @@
 import type { KeyEvent } from "@opentui/core"
 
 import { defaultChordsOf } from "../../context/keybindings.ts"
+import { isKittyModifierKeyEvent } from "../../lib/modifier-keys.ts"
 
 /**
  * Kitty keyboard-protocol CSI-u sequence (e.g. ctrl+c = `\x1b[99;5u`,
@@ -46,6 +47,7 @@ const CTRL_PUNCT_C0: Record<string, string> = {
  * events (unit tests) lack `sequence` and take the same synthesis path.
  */
 export function keyEventToShellBytes(evt: KeyEvent): string | null {
+  if (isKittyModifierKeyEvent(evt)) return null
   const e = evt as KeyEvent & { sequence?: string; raw?: string }
   const seq = typeof e.sequence === "string" && e.sequence.length > 0 ? e.sequence : null
   const kittyWire =

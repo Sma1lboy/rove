@@ -37,6 +37,24 @@ state machine or require terminal key-repeat/release reporting. The combined
 default keeps spatial teaching on existing controls while the guide remains a
 complete reference and clickable mouse entry.
 
+## Hold ctrl to reveal direct shortcuts
+
+**2026-09-01. PROPOSED: holding either Ctrl key for 400 ms opens the direct
+shortcut guide. The trigger and threshold still need final owner confirmation.**
+The guide reads only `presentation: "onePress"` rows from the live keymap and
+filters them through the current Binding Stack. It has no separate chord list,
+so rebindings and pane-specific reachability stay accurate.
+
+The guide opens while an embedded engine terminal has focus. This is a discovery
+hint, not a modal input state. Releasing Ctrl or pressing any other key closes
+it, and the next key still follows the ordinary Rove or PTY path. Rove consumes
+bare modifier events before composer and PTY forwarding, so requesting kitty
+keyboard modifier events cannot type their key names into either input.
+
+Terminals without kitty keyboard protocol support silently keep the legacy input
+path. The hold gesture is unavailable in Terminal.app, xterm.js, and inside
+tmux. Existing shortcuts and terminal bytes are unchanged there.
+
 ## Repo context filter — removed, chord revoked
 
 **2026-08-16 — `ctrl+p` repo filter removed entirely (owner call, same

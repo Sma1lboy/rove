@@ -11,9 +11,16 @@ import { useFocus } from "../../src/tui-react/context/focus"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
-import { PREFIX_GUIDE_DELAY_MS, prefixHudPush, prefixHudSetArmed, resetPrefixHud } from "../../src/tui/lib/prefix-hud"
+import { CTRL_HOLD_THRESHOLD_MS } from "../../src/tui/lib/ctrl-hold"
+import {
+  PREFIX_GUIDE_DELAY_MS,
+  prefixHudPush,
+  prefixHudSetArmed,
+  prefixHudShowDirect,
+  resetPrefixHud,
+} from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -143,5 +150,41 @@ describe("which-key prefix guide", () => {
     expect(await frame()).toContain("ctrl+a + f")
     const backgrounds = (await spans()).lines.flatMap((line) => line.spans).filter((span) => span.bg !== undefined)
     expect(backgrounds.length).toBeGreaterThan(0)
+  })
+
+  it("uses a direct-shortcut title while ctrl is held", async () => {
+    prefixHudShowDirect([
+      { stroke: "f1", action: "help.open" },
+      { stroke: "ctrl+q", action: "focus.sidebar" },
+    ])
+    const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, {
+      width: 100,
+      height: 28,
+    })
+
+    const text = await frame()
+    expect(text).toContain("Hold ctrl — Rove shortcuts")
+    expect(text).toContain("release ctrl to close")
+    expect(text).not.toContain("more Rove commands")
+  })
+
+  it("opens from a bare ctrl press and closes on its release event", async () => {
+    const { frame, mockInput } = await renderComponent(
+      <>
+        <WorkspaceHelpDriver />
+        <PrefixHud left={1} width={22} />
+      </>,
+      { width: 110, height: 30, providers: { focus: true, dialog: true } },
+    )
+
+    act(() => mockInput.pressKey("\x1b[57442;5u"))
+    const held = await waitForFrameText(frame, "Hold ctrl — Rove shortcuts", {
+      timeoutMs: CTRL_HOLD_THRESHOLD_MS + 5_000,
+    })
+    expect(held).toContain("f1")
+
+    act(() => mockInput.pressKey("\x1b[57442;1:3u"))
+    await settle()
+    expect(await frame()).not.toContain("Hold ctrl — Rove shortcuts")
   })
 })

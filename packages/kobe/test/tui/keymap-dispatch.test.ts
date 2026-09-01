@@ -184,6 +184,28 @@ describe("dispatchKeyEvent", () => {
     expect(evt.defaultPrevented).toBe(true)
   })
 
+  test.each([
+    "leftshift",
+    "leftctrl",
+    "leftalt",
+    "leftsuper",
+    "lefthyper",
+    "leftmeta",
+    "rightshift",
+    "rightctrl",
+    "rightalt",
+    "rightsuper",
+    "righthyper",
+    "rightmeta",
+    "iso_level3_shift",
+    "iso_level5_shift",
+  ])("consumes bare kitty modifier event %s before it reaches native inputs", (name) => {
+    const evt = makeEvt(name)
+
+    expect(dispatchKeyEvent([], evt)).toBe(true)
+    expect(evt.defaultPrevented).toBe(true)
+  })
+
   test("bare letter does not match modifier-prefixed binding", () => {
     let fired = false
     const stack: RegisteredBinding[] = [
