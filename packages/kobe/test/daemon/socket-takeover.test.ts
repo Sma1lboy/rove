@@ -9,12 +9,14 @@
  * leftover file is still cleared like before.
  */
 
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { unlink } from "node:fs/promises"
+import type { Server } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { type DaemonServerOptions, startDaemonServer } from "@sma1lboy/kobe-daemon/daemon/server"
+import { createSocketOwnershipGuard } from "@sma1lboy/kobe-daemon/daemon/socket-guard"
 import { describe, expect, it } from "vitest"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import { bootDaemonHarness, fakeOrchestrator, waitFor } from "./harness.ts"
@@ -129,6 +131,60 @@ describe("daemon socket takeover guard", () => {
       expect(existsSync(pidPath)).toBe(false)
     } finally {
       cleanup()
+    }
+  })
+
+  it("a guard that never armed unlinks NOTHING on release — the self-feeding-cascade regression", async () => {
+    // The 2026-09-01 field cascade (293 autospawns / 23 takeovers in one
+    // window). `arm()` returns without stamping when the initial stat sees
+    // ENOENT — the path was already clobbered between bind and arm. release()
+    // used to treat "never armed" as "still mine" and unlink socket + pidfile
+    // BY PATH (both node and Bun do that inside server.close() too), deleting
+    // the LIVE owner's files. Deleting the pidfile is the half that made it
+    // self-feeding: `ensureDaemonReachable`'s busy-daemon grace keys on
+    // readPidFile, so with it gone every client skipped the grace and went
+    // straight to stop+spawn.
+    const dir = mkdtempSync(join(tmpdir(), "kobe-sock-unarmed-"))
+    try {
+      const socketPath = join(dir, "daemon.sock")
+      const pidPath = join(dir, "daemon.pid")
+      // Stand in for the live owner's files; the never-armed guard must not
+      // touch either. Plain files, so a stray unlink is unambiguous.
+      writeFileSync(socketPath, "live-owner-socket")
+      writeFileSync(pidPath, "4242\n")
+
+      let lost = false
+      const guard = createSocketOwnershipGuard({
+        socketPath: join(dir, "absent.sock"), // never existed → arm() cannot stamp
+        pidPath,
+        watchMs: 0,
+        onLost: () => {
+          lost = true
+        },
+      })
+      await guard.arm()
+
+      let unrefs = 0
+      let closes = 0
+      const server = {
+        unref: () => {
+          unrefs += 1
+        },
+        close: (cb: () => void) => {
+          closes += 1
+          cb()
+        },
+      } as unknown as Server
+      await guard.release(server)
+
+      expect(readFileSync(socketPath, "utf8")).toBe("live-owner-socket")
+      expect(readFileSync(pidPath, "utf8")).toBe("4242\n")
+      // Unref, never close: close() itself unlinks the path by name.
+      expect(unrefs).toBe(1)
+      expect(closes).toBe(0)
+      expect(lost).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 

@@ -16,10 +16,12 @@
  *     clients' reconnect loops then land on the new owner. A socketless
  *     daemon must never outlive its socket.
  *  2. Shutdown cleanup ({@link SocketOwnershipGuard.release}) unlinks the
- *     socket + pidfile ONLY while the socket is still owned. A superseded
- *     daemon exiting late must not delete the NEW owner's files — that was
- *     the whack-a-mole cascade where killing each stale daemon unlinked
- *     the live one's socket and triggered yet another autospawn.
+ *     socket + pidfile ONLY on PROVEN ownership — armed, and the inode
+ *     still matches. Unproven (superseded, or never armed) means hands off.
+ *     A superseded daemon exiting late must not delete the NEW owner's
+ *     files — that was the whack-a-mole cascade where killing each stale
+ *     daemon unlinked the live one's socket and triggered yet another
+ *     autospawn.
  */
 
 import { readFile, stat, unlink } from "node:fs/promises"
@@ -67,14 +69,23 @@ export interface SocketOwnershipGuard {
    *  Call once, right after listen + pidfile write. */
   arm(): Promise<void>
   /**
-   * Ownership-aware teardown. While the socket is still ours: close the
-   * listener and unlink socket + pidfile (a guard that never armed falls
-   * back to this historical behavior). Once the path belongs to someone
-   * else: only UNREF the listener — both node and Bun unlink the socket
-   * path BY NAME inside `server.close()`, so a superseded daemon closing
-   * gracefully would delete the new owner's socket (the prod whack-a-mole
-   * cascade). The unref'd listener sits on an unlinked inode, can never
-   * accept another connection, and dies with the process.
+   * Ownership-aware teardown, and it FAILS CLOSED. Unlink socket + pidfile
+   * only while ownership is PROVEN — the guard armed, and the path still
+   * carries the inode it stamped. Otherwise (superseded, or never armed at
+   * all) only UNREF the listener: both node and Bun unlink the socket path
+   * BY NAME inside `server.close()`, so closing gracefully would delete
+   * whoever owns the path now. The unref'd listener sits on an unlinked
+   * inode, can never accept another connection, and dies with the process.
+   *
+   * "Never armed" used to fall back to unconditional cleanup, which is how
+   * the cascade came back (2026-09-01, 293 autospawns / 23 takeovers in one
+   * window): a daemon that lost the path between bind and arm deleted the
+   * live owner's socket AND pidfile. The missing pidfile then blinded
+   * `ensureDaemonReachable`'s busy-daemon grace, which keys on
+   * `readPidFile` — so every client skipped the grace and went straight to
+   * stop+spawn, feeding the loop. The cost of failing closed is a stale
+   * socket/pidfile, which the boot probe and `stopDaemonProcess` already
+   * clear; the cost of failing open is killing a healthy daemon.
    */
   release(server: Server): Promise<void>
 }
@@ -129,6 +140,11 @@ export function createSocketOwnershipGuard(options: {
 
   return {
     async arm() {
+      // Call this IMMEDIATELY after listen: every await between bind and
+      // fingerprint is a window in which the path can be unlinked (stamp
+      // stays null) or rebound by a usurper (we would stamp THEIR inode and
+      // later delete their socket). A null stamp means ownership was never
+      // proven, and release() treats that as not-ours.
       const now = await currentStamp()
       if (now === null || now === "error") return
       stamp = now
@@ -142,7 +158,7 @@ export function createSocketOwnershipGuard(options: {
       // Final ownership read — a takeover between watch ticks (or with the
       // watch disabled) must still be honored here.
       await verify()
-      if (stamp !== null && lost) {
+      if (stamp === null || lost) {
         server.unref()
         return
       }
