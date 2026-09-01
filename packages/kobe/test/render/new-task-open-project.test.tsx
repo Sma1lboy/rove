@@ -120,6 +120,27 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   expect(text).toContain("the project itself")
 })
 
+test("tab from the project intent lands on Create, not the hidden branch field", async () => {
+  // The branch field is gone under this intent, so the walk has to skip its
+  // stop too. Without the skip, focus parks on an input that is not on screen
+  // and every following keystroke is typed into nothing — the same class of
+  // dead end as the intent row having no stop at all, one field further on.
+  const dir = repo()
+  const { frame, mockInput } = await mount(dir, new Set([dir]))
+  await tabToIntent(mockInput)
+  await act(async () => {
+    mockInput.pressArrow("right")
+  })
+  await settle()
+
+  await act(async () => {
+    mockInput.pressTab()
+  })
+  await settle()
+  // The focused Create button is the only field marker still on screen.
+  expect(await frame()).toContain("▸ [ Create ]")
+})
+
 test("left returns to the task intent and the branch field comes back", async () => {
   const dir = repo()
   const { frame, mockInput } = await mount(dir, new Set([dir]))
