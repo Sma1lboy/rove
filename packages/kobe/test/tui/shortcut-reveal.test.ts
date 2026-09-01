@@ -72,6 +72,14 @@ describe("directGuideOptions", () => {
     ])
   })
 
+  it("hides the task-digit jump rows even when the chords are reachable", () => {
+    // Owner call 2026-09-01: sidebar rows print their own digits, so the
+    // guide row would only restate the UI. The chords stay dispatchable.
+    expect(directGuideOptions(reachable(["tasks.jump", "focus.sidebar"]), null)).toEqual([
+      { stroke: "q", action: "focus.sidebar" },
+    ])
+  })
+
   it("tracks keymap overrides without admitting multi-modifier chords", () => {
     const row = findBinding("focus.next") as { keys: readonly string[] }
     row.keys = ["ctrl+n", "ctrl+shift+n"]

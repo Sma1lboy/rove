@@ -47,9 +47,19 @@ export function shortcutCaption(input: ShortcutCaptionInput): string | null {
   return null
 }
 
+/**
+ * Bindings kept OUT of the hold-Ctrl guide even when reachable (owner call
+ * 2026-09-01): every sidebar row already prints its own jump digit, so a
+ * guide row for `ctrl+2-0` restates what the UI shows and crowds the panel.
+ * The chords stay registered — this hides the row, not the binding.
+ */
+const DIRECT_GUIDE_HIDDEN_ACTIONS: ReadonlySet<string> = new Set(["tasks.jump"])
+
 /** Ctrl follow-up keys runnable in the current Binding Stack, in live keymap order. */
 export function directGuideOptions(reachability: BindingReachability, prefixKey: string | null): PrefixHudOption[] {
-  const options = KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) =>
+  const options = KobeKeymap.filter(
+    (binding) => reachability.direct.has(binding.id) && !DIRECT_GUIDE_HIDDEN_ACTIONS.has(binding.id),
+  ).flatMap((binding) =>
     binding.keys.flatMap((chord) => {
       const stroke = ctrlFollowUpKey(chord)
       return stroke ? [{ stroke, action: binding.id }] : []
