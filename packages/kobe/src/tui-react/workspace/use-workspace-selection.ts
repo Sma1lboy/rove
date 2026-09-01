@@ -9,12 +9,13 @@
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { readLastActiveTaskId } from "../../state/last-active.ts"
+import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { Task } from "../../types/task.ts"
 import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import { type TabsSnapshotKv, sweepOrphanTabsSnapshots } from "./terminal-tabs-persist"
-import { forgetTaskTabs, knownTaskTabs } from "./terminal-tabs-shared"
+import { forgetTaskTabs, knownTaskTabs, reviveEmptiedTabs } from "./terminal-tabs-shared"
 import { activateWorkspaceTask, activationErrorMessage, firstSelectableTask } from "./use-task-selection"
 
 /** What {@link useWorkspaceSelection} reports when a worktree vanishes under a task. */
@@ -202,6 +203,11 @@ export function useWorkspaceSelection(args: {
   const activationGenerationRef = useRef(0)
   async function activateTask(id: string): Promise<void> {
     const generation = ++activationGenerationRef.current
+    // Entering a task whose last tab was closed reopens one (owner call
+    // 2026-08-31). Before the worktree await, so the revived tab is published
+    // by the time selection lands and the workspace never paints the blank
+    // frame `show-workspace` renders for an empty tab list.
+    reviveEmptiedTabs(kv, id, defaultShell())
     await activateWorkspaceTask(
       {
         getTask: (taskId) => tasks.find((task) => task.id === taskId),

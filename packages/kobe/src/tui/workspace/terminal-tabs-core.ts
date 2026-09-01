@@ -41,11 +41,62 @@ export interface TabsState {
   readonly activeId: string
   /** Next ordinal to hand out (monotonic — close does not recycle). */
   readonly nextOrdinal: number
+  /**
+   * What the LAST tab was, recorded as it closed, so re-entering an emptied
+   * task reopens the same kind of session instead of always an engine
+   * ({@link reopenTabs}). Only set when `tabs` is empty — a task with tabs
+   * doesn't need it, and a stale value would outlive its meaning.
+   *
+   * A snapshot written before this field existed simply lacks it, which is
+   * why {@link reopenTabs} treats absence as "use the default" rather than
+   * as an error: the whole point is that upgrading in place is silent.
+   */
+  readonly reopenAs?: { readonly kind: "engine"; readonly vendor?: VendorId } | { readonly kind: "command" }
 }
 
 /** A task's initial state: one untitled engine tab, active. */
 export function initialTabs(): TabsState {
   return { tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }], activeId: "tab-1", nextOrdinal: 2 }
+}
+
+/**
+ * What to reopen an emptied task as, derived from the tab that just closed.
+ *
+ * Only the SHAPE is carried, never the session: the PTY died with the tab, so
+ * an engine comes back as a fresh engine (its `sessionId` deliberately absent)
+ * and a shell as a fresh shell. A content/preview tab has no session to speak
+ * of and reopens as an engine — reviving a file preview as the whole workspace
+ * would be a strange thing to land in.
+ */
+function reopenHintFor(closed: TerminalTab | undefined): TabsState["reopenAs"] {
+  if (closed?.kind === "command") return { kind: "command" }
+  if (closed?.kind === "engine" && closed.vendor) return { kind: "engine", vendor: closed.vendor }
+  return { kind: "engine" }
+}
+
+/**
+ * Revive a task whose last tab was closed: one fresh tab of the kind that was
+ * there before, active. `shell` is the argv a `command` tab respawns with.
+ *
+ * `reopenAs` is absent for a snapshot written before it existed (an install
+ * upgrading in place), and absence means the default engine tab — the same
+ * thing {@link initialTabs} gives a brand-new task. That is the fallback, not
+ * an error path: a user who upgrades mid-session should not be able to reach a
+ * task that refuses to reopen.
+ */
+export function reopenTabs(state: TabsState, shell: string): TabsState {
+  const ordinal = state.nextOrdinal
+  const id = `tab-${ordinal}`
+  const next = state.nextOrdinal + 1
+  if (state.reopenAs?.kind === "command") {
+    return { tabs: [{ kind: "command", id, title: null, ordinal, command: [shell] }], activeId: id, nextOrdinal: next }
+  }
+  const vendor = state.reopenAs?.kind === "engine" ? state.reopenAs.vendor : undefined
+  return {
+    tabs: [{ kind: "engine", id, title: null, ordinal, ...(vendor ? { vendor } : {}) }],
+    activeId: id,
+    nextOrdinal: next,
+  }
 }
 
 /** A SCRATCH task's initial state (issue #33): one bare shell tab, active —
@@ -169,8 +220,10 @@ export function closeTab(
   if (state.activeId !== id) return { state: { ...state, tabs }, closedId: id }
   // Emptied: keep the id of the tab that just went, so nothing downstream has
   // to special-case an empty string. Nothing renders it — a task with no tabs
-  // is not mounted at all (show-workspace.tsx).
-  if (tabs.length === 0) return { state: { ...state, tabs, activeId: id }, closedId: id }
+  // is not mounted at all (show-workspace.tsx) until `reopenTabs` revives it.
+  if (tabs.length === 0) {
+    return { state: { ...state, tabs, activeId: id, reopenAs: reopenHintFor(state.tabs[i]) }, closedId: id }
+  }
   const next = tabs[Math.max(0, i - 1)]
   return { state: { ...state, tabs, activeId: (next ?? tabs[0]).id }, closedId: id }
 }

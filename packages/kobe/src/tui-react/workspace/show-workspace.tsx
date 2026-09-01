@@ -68,11 +68,17 @@ export function ShowWorkspace(props: {
     )
   }
   const path = props.worktree
-  // A task whose last tab you closed (owner call 2026-08-31) has KNOWN, empty
-  // tabs. Mounting TerminalTabs for it would immediately mint a replacement —
-  // its `active` tab is non-null by construction and 17 call sites downstream
-  // rely on that — so the empty state is handled by not mounting at all.
+  // A task whose last tab you closed has KNOWN, empty tabs. Mounting
+  // TerminalTabs over that list would immediately mint a replacement — its
+  // `active` tab is non-null by construction and 17 call sites downstream rely
+  // on that — so the empty state is handled by not mounting at all.
   // `null` (never mounted since restart) is NOT empty and must still mount.
+  //
+  // ENTERING the task revives it (`reviveEmptiedTabs`, called from
+  // `activateTask`), so the normal path replaces this placeholder within the
+  // same gesture. It still renders, because this component is also reached
+  // without an activation — a task selected by restart restore, or one emptied
+  // while already on screen — and a blank pane would say nothing at all.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
   if (known && known.tabs.length === 0) {
     return (

@@ -23,6 +23,7 @@ import {
   closeTab,
   initialShellTabs,
   rehydrateTabs,
+  reopenTabs,
 } from "../../src/tui/workspace/terminal-tabs-core.ts"
 
 function harness(state: TabsState, opts: { scratch?: boolean } = {}) {
@@ -84,6 +85,53 @@ describe("closing down to zero tabs (owner call 2026-08-31)", () => {
     // written for, so the default must keep healing it.
     const corrupt: TabsState = { tabs: [], activeId: "tab-1", nextOrdinal: 2 }
     expect(rehydrateTabs(corrupt, ["/bin/zsh"]).tabs).toHaveLength(1)
+  })
+
+  it("records what the closed tab WAS, so re-entry reopens the same kind", () => {
+    // Owner ask 2026-08-31: re-entering an emptied task should bring back the
+    // kind of session that was there, not always an engine.
+    const shellOnly: TabsState = {
+      tabs: [{ kind: "command", id: "tab-1", title: null, ordinal: 1, command: ["/bin/zsh"] }],
+      activeId: "tab-1",
+      nextOrdinal: 2,
+    }
+    const emptied = closeTab(shellOnly, "tab-1", { allowEmpty: true }).state
+    expect(emptied.tabs).toEqual([])
+    expect(emptied.reopenAs).toEqual({ kind: "command" })
+
+    const revived = reopenTabs(emptied, "/bin/zsh")
+    expect(revived.tabs).toHaveLength(1)
+    expect(revived.tabs[0]?.kind).toBe("command")
+    // A fresh id, never the closed tab's: ordinals are monotonic, and the PTY
+    // registry keys on `taskId::tabId` — reusing the id would collide with the
+    // entry the close just released.
+    expect(revived.tabs[0]?.id).toBe("tab-2")
+    expect(revived.activeId).toBe("tab-2")
+  })
+
+  it("an engine tab reopens as an engine, keeping its per-tab vendor", () => {
+    const engineOnly: TabsState = {
+      tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "codex" }],
+      activeId: "tab-1",
+      nextOrdinal: 2,
+    }
+    const emptied = closeTab(engineOnly, "tab-1", { allowEmpty: true }).state
+    const revived = reopenTabs(emptied, "/bin/zsh")
+    expect(revived.tabs[0]?.kind).toBe("engine")
+    expect(revived.tabs[0]).toMatchObject({ vendor: "codex" })
+    // The session is NOT carried: that PTY died with the tab, so reviving it
+    // would resume a conversation that no longer has a process.
+    expect(revived.tabs[0]).not.toHaveProperty("sessionId")
+  })
+
+  it("a snapshot written before reopenAs existed falls back to a default engine tab", () => {
+    // The upgrade path (owner ask): an install that emptied a task on an older
+    // build has no `reopenAs`, and must still reopen rather than stay stuck.
+    const legacy: TabsState = { tabs: [], activeId: "tab-1", nextOrdinal: 2 }
+    const revived = reopenTabs(legacy, "/bin/zsh")
+    expect(revived.tabs).toHaveLength(1)
+    expect(revived.tabs[0]?.kind).toBe("engine")
+    expect(revived.activeId).toBe("tab-2")
   })
 
   it("closeTab refuses to empty a task unless asked", () => {
