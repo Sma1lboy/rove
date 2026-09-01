@@ -344,7 +344,7 @@ logs, dashboards), don't scatter panes for work `add` should own.
 | `rename --task-id ID --title T` | Rename a task |
 | `set-branch --task-id ID --branch B` | Rename its branch |
 | `set-command --task-id ID --command CMD` | Change the engine launch command for the next launch |
-| `set-status --task-id ID --status S` | Set lifecycle status |
+| `set-status --task-id ID --status S` | Set the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`). Cosmetic: the row, its Worktree, its branch and its engine all stay. `canceled` does NOT close or clean up anything |
 | `pin --task-id ID [--pinned=false]` | Pin/unpin |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
@@ -353,12 +353,21 @@ logs, dashboards), don't scatter panes for work `add` should own.
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |
 
-Once a task's work is merged, `delete` is the normal cleanup — the branch is
-git's durable record and survives. There is no "hide the row without
-deleting" verb anymore (`archive` was removed); a merged task you want out of
-the way is a `delete`, and its branch is still there if you need the history
-back. `--delete-branch` (or a dirty-worktree `--force`) still needs
-explicit user authorization.
+### "Close this task" means `delete`
+
+`delete` is the ONLY verb that ends a task: it removes the row and its
+Worktree, and the git branch survives as the durable record. `set-status
+canceled` is a label — the row, Worktree, branch and engine all stay, so a
+"close" done that way changes nothing the user can see. Reach for `delete`
+whether or not the work merged; an unmerged branch is still on disk
+afterwards, which is what makes this recoverable.
+
+There is no "hide the row without deleting" verb (`archive` was removed).
+
+**Deleting still needs the user to ask for it in that turn** — say what you
+would remove and wait. `--delete-branch` (or `--force` on a dirty Worktree)
+destroys the recoverable half and needs its own explicit authorization; the
+two flags are never implied by one another.
 
 ## Issue tracker
 
