@@ -2,9 +2,9 @@
  * The `drive` verb group — sending prompts, notes, panes, and UI notices to
  * tasks: everything that acts on a RUNNING task without changing what the task
  * is (that's `edit`) or whether it exists (`lifecycle`). One file per
- * `VERB_GROUPS` entry in `verbs.ts` — that taxonomy is what
- * `rove api schema --group drive` prints, so a verb declared here and left out
- * of that table reports as group "other". Specs spread back into the
+ * `VerbGroup`, mirroring the taxonomy `rove api schema --group drive` prints —
+ * though it is each spec's own `group` field, not this file, that decides
+ * where a verb lists. Specs spread back into the
  * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
@@ -17,6 +17,7 @@ import type { VerbSpec } from "./types.ts"
 export const DRIVE_VERBS: readonly VerbSpec[] = [
   {
     name: "send",
+    group: "drive",
     summary:
       "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. When the target composer is busy (you'd paste into a half-typed message), the prompt is accepted-but-deferred: the daemon stores it and queues a `prompt_deferred` Inbox episode for a human to release — that outcome is a SUCCESS (exit 0, `deferred` in the JSON). Do NOT retry a deferred send: the daemon already owns the message, and resending stacks a duplicate in the queue. A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits.",
     flags: [
@@ -54,6 +55,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   DISPATCH_VERB,
   {
     name: "note",
+    group: "drive",
     summary:
       "File a one-line field note — a resolved, repo-level gotcha worth sharing. Appended to the repo's durable note store (every future session on this repo starts with it) and forwarded to the dispatcher session for live relay (docs/design/dispatcher.md).",
     flags: [
@@ -70,6 +72,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "note-list",
+    group: "drive",
     summary: "Read a repo's accumulated field notes, newest first. Returns { notes }.",
     flags: [F.repo(true)],
     handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requirePath("repo") }),
@@ -78,6 +81,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   PANE_CLOSE_VERB,
   {
     name: "notify",
+    group: "drive",
     summary:
       "Show a toast in every attached Rove UI — broadcast over the daemon's notice.event channel. Agents/scripts use it to surface 'done / needs input / error' moments without touching the task's session. Returns `clients` (attached connections; 0 = no UI showed the toast).",
     flags: [
@@ -115,6 +119,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "prompt",
+    group: "drive",
     summary:
       "Ask the human for a line of text through the attached TUI's input dialog (plugins' host-provided prompt). Blocks until answered, cancelled, or timed out; returns { value } or { cancelled, reason }.",
     flags: [
@@ -147,6 +152,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "engine-report",
+    group: "drive",
     summary:
       "Report a normalized engine-activity verb for a task — the public face of the same engine.reportEvent RPC the built-in hook adapters use. Lets a plugin-contributed engine (or any wrapper script) drive the sidebar badge, attention inbox, and plugin event stream without a built-in hook adapter. Kinds: session-start|turn-start|turn-complete|turn-failed|turn-interrupted|awaiting-input|session-end (state kinds) plus tool-pre|tool-post|tool-failed|pre-compact|post-compact|subagent-start|subagent-stop (plugin-only).",
     flags: [
@@ -200,6 +206,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "set-active",
+    group: "drive",
     summary: "Set the shared active task (the focus every Tasks pane highlights). Pass --none to clear.",
     flags: [
       F.taskId(false),

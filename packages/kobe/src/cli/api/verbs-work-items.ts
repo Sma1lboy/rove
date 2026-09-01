@@ -15,6 +15,7 @@ const WORK_ITEM_STATES = ["open", "closed", "all"] as const
 export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
   {
     name: "workitem-list",
+    group: "workitems",
     summary:
       "List a repo's GitHub issues through the `gh` CLI. Read-only — nothing is copied into Rove's own issue store.",
     flags: [
@@ -42,6 +43,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "workitem-start",
+    group: "workitems",
     summary:
       "Start a task on one GitHub issue: creates a worktree + engine session whose first message carries the issue title, body, and URL. The task keeps a link back to the issue.",
     flags: [

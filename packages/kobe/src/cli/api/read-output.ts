@@ -380,6 +380,7 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
 
 export const READ_OUTPUT_VERB: VerbSpec = {
   name: "read-output",
+  group: "read",
   summary:
     "Read a task's engine output as bounded, cursor-paged JSON: the engine's own structured history when available, else a labeled terminal tail (typed fallbackReason). --tab tab-N reads one exact terminal tab. Read-only; the cursor stays pinned to one source/session/tab (SOURCE_CHANGED when it moved).",
   flags: [

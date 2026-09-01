@@ -180,6 +180,7 @@ async function inspect(ctx: VerbContext): Promise<unknown> {
 /** Spec half — spread into {@link VERBS} in `verbs.ts`. */
 export const INSPECT_VERB: VerbSpec = {
   name: "inspect",
+  group: "read",
   summary:
     "Production diagnostics in one read: daemon activity registry (raw states, probe vendors, watchdogs), pty-host sessions joined with a live process-tree engine walk, durable session death records (exit code/signal/output tail), and the persisted tab snapshots the sidebar renders from. Read-only; missing daemon/host degrade to null.",
   flags: [F.taskId(false)],

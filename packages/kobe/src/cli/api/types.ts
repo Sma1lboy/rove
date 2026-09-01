@@ -81,8 +81,35 @@ export interface VerbContext {
 
 export type VerbHandler = (ctx: VerbContext) => Promise<unknown>
 
+/**
+ * The taxonomy `rove api schema` exposes for LEVELED exploration. Closed on
+ * purpose: a verb's group is a REQUIRED field on {@link VerbSpec}, so a new
+ * verb does not compile until it is grouped, and `VERB_GROUPS` is derived from
+ * the specs instead of being hand-maintained beside them. There is
+ * deliberately no `other`: the old fallback let an ungrouped verb report a
+ * group name that `--group` then rejected as unknown — invisible until an
+ * agent actually browsed by group.
+ */
+export const VERB_GROUP_IDS = [
+  "discover",
+  "read",
+  "create",
+  "drive",
+  "edit",
+  "issues",
+  "workitems",
+  "routine",
+  "lifecycle",
+  "worktree",
+  "feedback",
+] as const
+
+export type VerbGroup = (typeof VERB_GROUP_IDS)[number]
+
 export interface VerbSpec {
   readonly name: string
+  /** Which `rove api schema --group G` listing this verb appears under. */
+  readonly group: VerbGroup
   readonly summary: string
   readonly flags: readonly FlagSpec[]
   /** Verbs that don't need the daemon (e.g. `schema`). */

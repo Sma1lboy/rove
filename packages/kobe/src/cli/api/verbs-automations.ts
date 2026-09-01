@@ -1,9 +1,9 @@
 /**
  * The `routine` verb group — daemon-owned scheduled agent tasks: the schedule
  * that CREATES tasks, which is a different object from the tasks themselves.
- * One file per `VERB_GROUPS` entry in `verbs.ts`, the taxonomy
- * `rove api schema --group routine` prints; a verb missing from that table
- * reports as group "other". Specs spread back into the {@link VERBS} table, so
+ * One file per `VerbGroup`, mirroring the taxonomy
+ * `rove api schema --group routine` prints — though it is each spec's own
+ * `group` field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
  * schema/help/validation see one canonical list.
  *
  * By default every firing creates a FRESH task (worktree + branch + engine
@@ -66,12 +66,14 @@ function precheckPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string
 export const ROUTINE_VERBS: readonly VerbSpec[] = [
   {
     name: "routine-list",
+    group: "routine",
     summary: "List scheduled routines with their next run time.",
     flags: [],
     handler: (ctx) => simpleRpc(ctx, "automation.list", {}),
   },
   {
     name: "routine-create",
+    group: "routine",
     summary:
       "Schedule a prompt. Each firing creates a fresh task (worktree + engine) and delivers it. An enabled routine keeps the daemon alive so it fires with no TUI attached.",
     flags: [
@@ -107,6 +109,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "routine-update",
+    group: "routine",
     summary: "Change a routine. A new --schedule re-anchors its next run; --precheck '' clears the precheck.",
     flags: [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
@@ -134,6 +137,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "routine-set-enabled",
+    group: "routine",
     summary: "Pause or resume a routine. Disabling the last active one releases the daemon's keep-alive hold.",
     flags: [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
@@ -144,12 +148,14 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "routine-delete",
+    group: "routine",
     summary: "Delete a routine and its run history. Tasks it already created are untouched.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.delete", { id: ctx.args.require("id") }),
   },
   {
     name: "routine-run-now",
+    group: "routine",
     summary:
       "Run a routine immediately, skipping its precheck (asking for it IS the answer). Does not shift its schedule.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
@@ -157,6 +163,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "routine-runs",
+    group: "routine",
     summary:
       "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), deferred (composer busy; the prompt is queued in the Inbox, NOT lost), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],

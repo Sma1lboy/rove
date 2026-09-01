@@ -235,6 +235,7 @@ export async function dispatch(ctx: VerbContext): Promise<unknown> {
  *  file and `verbs.ts` imports the finished spec. */
 export const DISPATCH_VERB: VerbSpec = {
   name: "dispatch",
+  group: "drive",
   summary:
     "Route text into a task's live session via the daemon's session.deliver channel. The dispatcher's messenger (docs/design/dispatcher.md); unlike `send`, it requires an already-hosted session.",
   flags: [
