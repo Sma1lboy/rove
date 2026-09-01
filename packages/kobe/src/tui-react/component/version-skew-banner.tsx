@@ -1,16 +1,17 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The workspace's two top-of-window daemon banners, and the strip they share.
+ * The workspace's top-of-window daemon banner.
  *
- * Both are a thin full-width strip (accent rule + BOLD CAPS label + one-line
- * action hint) that auto-hides once the condition clears. They differ in
- * severity and in what they mean for what is on screen:
+ * {@link VersionSkewBanner} — amber, a thin full-width strip (accent rule +
+ * BOLD CAPS label + one-line action hint) that auto-hides once the condition
+ * clears. The daemon answers fine, it is just an older BUILD than this process
+ * (React port of `src/tui/component/version-skew-banner.tsx`, issue #15 G3).
  *
- *   - {@link VersionSkewBanner} — amber. The daemon answers fine, it is just
- *     an older BUILD than this process (React port of
- *     `src/tui/component/version-skew-banner.tsx`, issue #15 G3).
- *   - {@link DaemonDownBanner} — red. The socket is DOWN, so every daemon-fed
- *     surface on screen is a photograph of the last good snapshot.
+ * A red socket-disconnect banner shared this file and was removed: Rove keeps
+ * working with the daemon down, and the reconnect loop recovers most drops in
+ * under a second, so a full-width alert was interrupting with nothing to act
+ * on. Skew is the opposite — it persists until someone restarts the daemon,
+ * which is an action, which is why this one stayed.
  *
  * Theme tokens only, engine-neutral copy. React canon: props are plain
  * values, not Accessors.
@@ -21,12 +22,9 @@ import type { RGBA } from "@opentui/core"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 
-/**
- * The strip both banners are: an accent rule, a BOLD CAPS label, one line of
- * action hint. Extracted when the daemon-disconnect banner needed the exact
- * same shape — two hand-copied versions would drift the moment either got a
- * padding tweak.
- */
+/** The strip the banner is: an accent rule, a BOLD CAPS label, one line of
+ *  action hint. Kept as its own component so the next banner reuses the shape
+ *  instead of hand-copying it. */
 function BannerStrip(props: { tone: RGBA; title: string; hint: string; width: number }) {
   const { theme } = useTheme()
   // Accent rule spans the strip, clamped to the pane width minus the 1-cell
@@ -52,42 +50,6 @@ function BannerStrip(props: { tone: RGBA; title: string; hint: string; width: nu
         </text>
       </box>
     </box>
-  )
-}
-
-export type DaemonDownBannerProps = {
-  /** True while the daemon socket is DOWN (`connectionStateSignal`). */
-  down: boolean
-  /** Available width (cells) so the accent rule fills the strip. */
-  width: number
-}
-
-/**
- * Daemon-disconnect banner — the ONE consumer of
- * `RemoteOrchestrator.connectionStateSignal()`.
- *
- * The signal was accurate and immediate from the day it was written and had
- * zero production readers: every page swallowed its own failed read and kept
- * painting the last good snapshot, so a dead daemon rendered as a healthy
- * schedule with a "fires in 12 minutes" countdown. One banner at the top of
- * the workspace answers that for every page at once, which is why the fix is
- * NOT a catch block per page — the next page would omit it again.
- *
- * Scoped to DISCONNECTED, not to "a read failed". A single failed RPC against
- * a live daemon is a transient the reconnect path never sees; only the socket
- * being down means everything on screen is a photograph.
- */
-export function DaemonDownBanner(props: DaemonDownBannerProps) {
-  const { theme } = useTheme()
-  const t = useT()
-  if (!props.down) return null
-  return (
-    <BannerStrip
-      tone={theme.error}
-      title={t("workspace.daemonDown.title")}
-      hint={t("workspace.daemonDown.hint")}
-      width={props.width}
-    />
   )
 }
 
