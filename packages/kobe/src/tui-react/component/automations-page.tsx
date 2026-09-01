@@ -29,6 +29,7 @@ import { dividerRule } from "../lib/rule-divider"
 import { useDaemonDown } from "../lib/use-accessor"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
@@ -324,7 +325,7 @@ export function AutomationsPage(props: {
                 key={automation.id}
                 flexDirection="row"
                 flexShrink={0}
-                border={true}
+                {...FRAME}
                 borderColor={isCursor ? theme.borderActive : theme.borderSubtle}
                 paddingLeft={1}
                 paddingRight={1}

@@ -14,6 +14,7 @@ import type { TaskActivityState } from "../../engine/hook-events"
 import { type BoardColumnKey, isBoardAttentionState } from "../../state/issue-board"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { FRAME } from "../ui/frame"
 
 /** Live activity badge on a linked card, keyed by the linked task's engine
  *  state — how the board tracks a background start without leaving the page.
@@ -58,23 +59,32 @@ export function KanbanCard(props: {
     error: theme.error,
     success: theme.success,
   } as const
-  // backgroundElement survives transparent mode on purpose (see
-  // applyDisplayOverlay): cards are content, not chrome — they keep a
-  // tinted surface so the board reads against any host wallpaper.
-  // Uniform padding=1: the title and the date row used to sit flush against
-  // the border while the sides had a cell each, so a card read as lopsided.
-  // The column's scrollbox drops its own gap in exchange — the padded rows
-  // already separate neighbouring cards, so this costs one row per card, not
-  // two, and the dense two-line grammar holds.
+  // Transparent mode means transparent: the card drops its tinted surface and
+  // lets the host terminal through, like every other pane. It used to keep
+  // `backgroundElement` on the theory that a card is content rather than
+  // chrome — but a solid tile is the one thing on the board that cannot be
+  // seen through, so the exception read as the board ignoring the setting.
+  // Its border and the column's still separate it from the lane.
+  // Horizontal padding only, plus a margin below. `padding={1}` was doing
+  // three jobs at once — air inside the card, separation from the next card,
+  // and a break between title and description — and paid two rows per card
+  // for it. Splitting them keeps all three and buys those rows back: the
+  // sides still breathe, `marginBottom` owns the gap between cards (a
+  // scrollbox has no `gap` of its own), and the description carries its own
+  // top margin.
   return (
     <box
-      border={true}
       // Rounded to match the column that holds it — a square card inside a
       // rounded column reads as two different systems one cell apart.
-      borderStyle="rounded"
+      {...FRAME}
       borderColor={selected ? theme.primary : needsAttention ? theme.warning : columnBorder}
-      backgroundColor={theme.backgroundElement}
-      padding={1}
+      backgroundColor={transparentBackground ? "transparent" : theme.backgroundElement}
+      paddingLeft={1}
+      paddingRight={1}
+      // The lane's separator. On the LAST card it is dead space inside the
+      // scroll region rather than a gap anyone sees, which is the cheaper
+      // wrong than a per-card conditional that has to know its own index.
+      marginBottom={1}
       onMouseUp={() => (selected ? props.onOpen() : props.onSelect())}
     >
       <box flexDirection="row" justifyContent="space-between">
@@ -88,7 +98,10 @@ export function KanbanCard(props: {
         </text>
       </box>
       {/* Two-line preview is deliberate card grammar: enough room for a
-          description now, with a stable region for the future editor. */}
+          description now, with a stable region for the future editor. The top
+          margin is what the card's vertical padding used to provide: without
+          it the description runs straight on from the title and the two read
+          as one wrapped paragraph. */}
       <box height={2} overflow="hidden">
         {description ? (
           <text fg={theme.textMuted} wrapMode="word">

@@ -35,6 +35,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { FRAME } from "../ui/frame"
 import { IssueEventsSection, SectionHeader } from "./issue-detail-parts"
 
 export interface IssueDetailOptions {
@@ -80,7 +81,7 @@ export function IssueDetailDialogView(
   },
 ) {
   const dialog = useDialog()
-  const { theme } = useTheme()
+  const { theme, transparentBackground } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
   const issue = props.issue
@@ -255,6 +256,10 @@ export function IssueDetailDialogView(
   // Focused/selected frames light up PRIMARY — the same accent the kanban
   // card cursor and the pane focus grammar use, not the generic borderActive.
   const frameColor = (ownField: Field) => (field === ownField ? theme.primary : theme.borderSubtle)
+  // Transparent mode means transparent here too: a dialog's input wells were
+  // the last solid tiles left on screen with the setting on. Opaque mode is
+  // unchanged.
+  const fieldFill = transparentBackground ? "transparent" : theme.backgroundElement
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={1}>
@@ -289,13 +294,7 @@ export function IssueDetailDialogView(
       {/* TITLE — controlled input, single line. Enter walks to the body. */}
       <box gap={0}>
         {sectionHeader(t("kanban.detail.titleLabel"), "title")}
-        <box
-          border={true}
-          borderColor={frameColor("title")}
-          backgroundColor={theme.backgroundElement}
-          paddingLeft={1}
-          paddingRight={1}
-        >
+        <box {...FRAME} borderColor={frameColor("title")} backgroundColor={fieldFill} paddingLeft={1} paddingRight={1}>
           <input
             value={draftTitle}
             focused={field === "title"}
@@ -311,9 +310,9 @@ export function IssueDetailDialogView(
       <box gap={0}>
         {sectionHeader(t("kanban.detail.description"), "description", t("kanban.detail.attachHint"))}
         <box
-          border={true}
+          {...FRAME}
           borderColor={frameColor("description")}
-          backgroundColor={theme.backgroundElement}
+          backgroundColor={fieldFill}
           paddingLeft={1}
           paddingRight={1}
         >
@@ -346,7 +345,7 @@ export function IssueDetailDialogView(
                 return (
                   <box
                     key={engine}
-                    border={true}
+                    {...FRAME}
                     borderColor={selected ? theme.primary : theme.borderSubtle}
                     paddingLeft={2}
                     paddingRight={2}
@@ -373,9 +372,9 @@ export function IssueDetailDialogView(
           <box gap={0} paddingBottom={1}>
             {sectionHeader(t("kanban.detail.workspace"), "workspace", "↑/↓")}
             <box
-              border={true}
+              {...FRAME}
               borderColor={frameColor("workspace")}
-              backgroundColor={theme.backgroundElement}
+              backgroundColor={fieldFill}
               paddingLeft={1}
               paddingRight={1}
             >
@@ -409,7 +408,7 @@ export function IssueDetailDialogView(
                 return (
                   <box
                     key={String(option)}
-                    border={true}
+                    {...FRAME}
                     borderColor={active ? theme.primary : theme.borderSubtle}
                     paddingLeft={2}
                     paddingRight={2}
@@ -445,7 +444,7 @@ export function IssueDetailDialogView(
             {sectionHeader(t("kanban.detail.sessionLabel"), "open")}
             <box flexDirection="row">
               <box
-                border={true}
+                {...FRAME}
                 borderColor={field === "open" ? theme.primary : theme.borderSubtle}
                 paddingLeft={2}
                 paddingRight={2}

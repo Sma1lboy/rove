@@ -13,6 +13,7 @@
 import { expect, test } from "bun:test"
 import type { TaskEngineState } from "../../src/client/remote-orchestrator-payloads"
 import { KanbanPage } from "../../src/tui-react/component/kanban-page"
+import { setTransparentBackground } from "../../src/tui-react/context/theme"
 import { renderComponent, settle } from "./harness"
 
 const REPO = "/repos/rove"
@@ -68,25 +69,38 @@ test("a blocked card's column header reports how many need you", async () => {
 })
 
 /**
- * The card is padded on all four sides — the title used to sit flush against
- * the top border while the sides had a cell each. Padding read off a frame,
- * not off the prop: a `padding` that Yoga silently drops renders identically
- * to one that never existed.
+ * Where a card's breathing room lives, now that `padding={1}` is gone.
+ *
+ * That one prop was doing three jobs — air inside the card, separation from
+ * the next card, and a break between title and description — and charged two
+ * rows per card for it. It is split: horizontal padding on the card, a
+ * `marginBottom` for the lane gap, and the title/description break falls out
+ * of the box gap. This pins the two that are invisible in the source: a
+ * `marginBottom` Yoga silently drops renders exactly like one that was never
+ * written.
  */
-test("a card pads its title away from its own border", async () => {
-  const lines = (await board([issue(1)])).split("\n")
-  const title = lines.findIndex((line) => line.includes("story-1"))
-  expect(title).toBeGreaterThan(0)
-  // The row above the title belongs to the card and carries no glyphs of its
-  // own — the card's top border is one row further up.
-  const above = lines[title - 1] ?? ""
-  expect(above).toContain("│")
-  // Rounded corners, like every other framed surface in the TUI — and a
-  // corner on THIS row would mean the title sits flush against the top
-  // border, which is the padding this test exists to hold.
-  expect(above).not.toContain("╭")
-  expect(above).not.toContain("┌")
-  expect(above.replace(/[│ ]/g, "")).toBe("")
+test("a card's title sits against its own top border, with a blank lane row after it", async () => {
+  const lines = (await board([issue(1), issue(2)])).split("\n")
+  // Newest first, so story-2 leads — index by content, not by argument order.
+  const first = lines.findIndex((line) => line.includes("story-2"))
+  const second = lines.findIndex((line) => line.includes("story-1"))
+  expect(first).toBeGreaterThan(0)
+  expect(second).toBeGreaterThan(first)
+
+  // Directly above the title is the card's own top border, not a padded row:
+  // the two rows the old `padding={1}` spent are what this buys back.
+  expect(lines[first - 1] ?? "").toContain("╭")
+
+  // Between the cards, exactly one row carrying no card chrome — the lane
+  // separator that `marginBottom` now owns, since a scrollbox has no `gap`.
+  const between = lines.slice(first + 1, second)
+  const closed = between.findIndex((line) => line.includes("╰"))
+  expect(closed).toBeGreaterThanOrEqual(0)
+  const gap = between[closed + 1] ?? ""
+  expect(gap).not.toContain("╭")
+  expect(gap).not.toContain("╰")
+  // ...and the very next row opens the following card, so the gap is ONE row.
+  expect(between[closed + 2] ?? "").toContain("╭")
 })
 
 /**
@@ -113,6 +127,56 @@ test("columns and cards are framed in rounded corners, never square", async () =
   const corners = (glyph: string): number => text.split(glyph).length - 1
   expect(corners("╭")).toBe(5)
   expect(corners("╰")).toBe(5)
+})
+
+/**
+ * Transparent mode reaches the cards too.
+ *
+ * The card was the one surface on the board that kept a solid fill when the
+ * user asked for transparency — on the theory that a card is content rather
+ * than chrome. But a solid tile is precisely the thing you cannot see through,
+ * so the exception read as the board ignoring the setting.
+ *
+ * Asserted on the rendered SPAN, not the prop: a `backgroundColor` the
+ * renderer resolves differently than the source suggests is invisible in a
+ * prop check and obvious here.
+ */
+test("a card is see-through in transparent mode and solid outside it", async () => {
+  const cardBackgrounds = async (): Promise<string[]> => {
+    const { spans } = await renderComponent(
+      <KanbanPage
+        orchestrator={orchestrator([issue(1)])}
+        focused={true}
+        onClose={() => {}}
+        onStartChat={async () => {}}
+        onOpenTask={() => {}}
+      />,
+      { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
+    )
+    await settle()
+    const captured = await spans()
+    const seen = new Set<string>()
+    for (const line of captured.lines) {
+      for (const span of line.spans) if (span.text.includes("story-1")) seen.add(String(span.bg))
+    }
+    return [...seen]
+  }
+
+  setTransparentBackground(true)
+  const transparent = await cardBackgrounds()
+  expect(transparent).toHaveLength(1)
+  // Alpha 0 — the host terminal shows through.
+  expect(transparent[0]).toContain("0.00)")
+
+  setTransparentBackground(false)
+  const opaque = await cardBackgrounds()
+  expect(opaque).toHaveLength(1)
+  // Opaque mode is untouched: the card keeps its tinted surface.
+  expect(opaque[0]).toContain("1.00)")
+
+  // The harness default; leaving it flipped would silently retheme every test
+  // that runs after this one.
+  setTransparentBackground(true)
 })
 
 /**

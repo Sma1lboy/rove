@@ -21,6 +21,7 @@ import { tKeys, useT } from "../i18n"
 import { invokeArmedPrefixActionFromCurrentStack } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useAccessor } from "../lib/use-accessor"
+import { FRAME } from "../ui/frame"
 import { useShortcutRevealPresentation } from "./shortcut-reveal"
 
 const BOTTOM_MARGIN = 1
@@ -139,7 +140,7 @@ export function PrefixHud(props: { left: number; width: number }) {
         left={2}
         top={top}
         width={guideWidth}
-        border
+        {...FRAME}
         borderColor={theme.borderActive}
         backgroundColor={theme.backgroundDialog}
         paddingLeft={1}

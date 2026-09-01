@@ -32,6 +32,7 @@ import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { FRAME } from "../ui/frame"
 import { quickForkDefaultVendor } from "../workspace/quick-fork"
 import type { IssueChatStart } from "../workspace/use-issue-chat"
 import { IssueDetailDialog } from "./issue-detail-dialog"
@@ -340,12 +341,9 @@ export function KanbanPage(props: {
         key={col.key}
         flexGrow={1}
         flexBasis={0}
-        border={true}
-        // Rounded, like every other framed surface in the TUI (the workspace
-        // pane, the files pane, the tab strip): opentui's default is square,
-        // so a box that only says `border` opts out of the house grammar
-        // without looking like it did.
-        borderStyle="rounded"
+        // Rounded like every other framed surface — see ui/frame.ts for why
+        // this is spread rather than written out.
+        {...FRAME}
         borderColor={columnBorder}
         paddingLeft={1}
         paddingRight={1}

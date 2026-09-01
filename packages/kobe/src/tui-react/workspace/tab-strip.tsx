@@ -57,6 +57,12 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
 const DONE_PULSE_MS = 600
 
 /** Active tab: three sides, so the missing bottom edge reads as a notch. */
+/** A tab's own chrome: 2 cells of frame + 2 of padding, plus the strip's
+ *  1-cell left padding. Subtracted from the pane width to bound a title. */
+const TAB_CHROME_CELLS = 5
+/** Enough of a name to tell two tabs apart, plus the ellipsis. */
+const MIN_TAB_TITLE_CELLS = 6
+
 const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
 
 export function TabStrip(props: {
@@ -151,7 +157,21 @@ export function TabStrip(props: {
     const liveTitle = props.liveTitles.get(tab.id)
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
     const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)
-    const title = tabTitle(tab, props.vendor, liveTitle)
+    // Cap a single tab at the pane it lives in. Without this a long shell
+    // name (`a-very-long-shell-name…`) drew past the strip: the box is
+    // `overflow: hidden`, so the frame's right edge was clipped away and the
+    // title ran to the last column with no ellipsis — nothing on screen said
+    // it had been cut. The narrow form has always truncated; this is the same
+    // rule for the wide one.
+    //
+    // Truncating HERE, before `cells`, is what keeps the scroll math honest:
+    // the offset is computed from these widths, so measuring the untruncated
+    // title would scroll by a width nothing ever draws.
+    const title = truncateEndCells(
+      tabTitle(tab, props.vendor, liveTitle),
+      Math.max(MIN_TAB_TITLE_CELLS, dims.width - TAB_CHROME_CELLS - (chipShown ? 2 : 0)),
+      approxCharCells,
+    )
     // Every tab is a bordered box now (2 cells of frame + 2 of padding) —
     // the scroll math must see the same width it draws.
     const active = tab.id === props.activeId

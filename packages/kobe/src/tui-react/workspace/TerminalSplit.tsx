@@ -68,6 +68,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { Terminal } from "../panes/terminal/Terminal"
 import { useDialog } from "../ui/dialog"
+import { FRAME } from "../ui/frame"
 import { useTitleSubscriptions } from "./title-subscriptions"
 
 /** What a terminal leaf shows: null = the tab's own command (`leaf-1`). */
@@ -326,7 +327,7 @@ export function TerminalSplit(props: {
           flexGrow={1}
           flexShrink={1}
           flexBasis={0}
-          border={true}
+          {...FRAME}
           borderColor={focused ? theme.focusAccent : inactiveBorder}
           onMouseUp={focusThis}
         >
