@@ -34,6 +34,26 @@ describe("applyVendorChange", () => {
     expect(said).toContain("applies on reopen")
   })
 
+  test("stays silent on success when the caller already showed the result", async () => {
+    // The ctrl+e picker opens a tab RUNNING the new engine, so the "applies on
+    // reopen" line was both noise and false — the tab in front of you is
+    // already the new engine.
+    const c = ctx(async () => {})
+    await expect(applyVendorChange(c, "t1", "codex", { silentSuccess: true })).resolves.toBe(true)
+    expect(c.notifyInfo).not.toHaveBeenCalled()
+    expect(c.notifyError).not.toHaveBeenCalled()
+  })
+
+  test("still reports a FAILURE even when success is silent", async () => {
+    // The half that must never be optional: a rejected write leaves a tab
+    // labelled with an engine the task does not have.
+    const c = ctx(async () => {
+      throw new Error("daemon refused")
+    })
+    await expect(applyVendorChange(c, "t1", "codex", { silentSuccess: true })).resolves.toBe(false)
+    expect(c.notifyError).toHaveBeenCalled()
+  })
+
   test("a rejected switch reports the failure and the reason", async () => {
     const c = ctx(async () => {
       throw new Error("daemon refused")
