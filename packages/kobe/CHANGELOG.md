@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.9.65
+
+### Patch Changes
+
+- [#710](https://github.com/Sma1lboy/rove/pull/710) [`2b1eb55`](https://github.com/Sma1lboy/rove/commit/2b1eb5562843f237ee6757cf185d115f17e8742e) Reopen a session when you re-enter a task whose last tab you closed.
+
+  Closing the last tab leaves the task and its sidebar row in place, but nothing could bring it back: selecting the row landed on a "no sessions here" pane with no way out. Entering the task now opens a fresh tab of the kind that was closed — a shell comes back a shell, an engine an engine, keeping that tab's vendor. A task emptied before this release has no record of what it was and reopens the default engine tab. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#704](https://github.com/Sma1lboy/rove/pull/704) [`f9576e4`](https://github.com/Sma1lboy/rove/commit/f9576e4a69d390dfc65d991d994b96b31a4a6ae2) Stop a terminal-selection test from racing the snapshot refresh in CI.
+
+  `terminal-selection-trim` waited a fixed 80ms for the PTY backend to publish, but that backend coalesces refreshes on a 16ms timer, so a loaded CI runner could return before the state the test asserts on existed. It failed twice in one day with two different messages — `expected null not to be null` (no window published yet) and `expected 16 to be 10` (only part of the output folded in) — and blocked a release. The test now waits for the condition instead of a duration. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#709](https://github.com/Sma1lboy/rove/pull/709) [`6101671`](https://github.com/Sma1lboy/rove/commit/6101671e1efd4773617d8e3e379e96589115a22d) Align the sidebar's New task label with the rest of the rail.
+
+  It carried a left inset on both its wrapper and the box that paints its background, so the label started one cell right of the ROVE header, the nav rail, the tree rows, and the ZEN chip. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#707](https://github.com/Sma1lboy/rove/pull/707) [`a1eeeae`](https://github.com/Sma1lboy/rove/commit/a1eeeae3f947ca38e7e80acafb5646f5f157af6e) Stop publishing the `@sma1lboy/kobe` compatibility alias.
+
+  Releases shipped the CLI under both names through the rename. The old name is frozen at 0.9.64: an existing install keeps working and its update check reports the newest `@sma1lboy/rove`, but new versions are published under the canonical name only. Reinstall as `@sma1lboy/rove` to keep receiving updates. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#708](https://github.com/Sma1lboy/rove/pull/708) [`829e4a8`](https://github.com/Sma1lboy/rove/commit/829e4a8e9b3a3f6384e0059dc071967ede6564e1) Report a half-completed worktree removal as what it is, instead of a total failure that cannot be retried.
+
+  `git worktree remove` deregisters the worktree's metadata and deletes its directory, and those two halves can fail apart: an unwritable path inside the tree (a `chmod -w` directory, a read-only dependency cache) makes the delete fail after the deregistration has already landed. Rove read git's exit code as the whole truth, so it reported total failure — and left no way forward, because every retry then hit `fatal: is not a working tree` and the task stayed parked in `deletion.phase = "error"` forever.
+
+  A removal that got that far now counts as done: the task is deleted, `land` still reports the land as landed, and a notice names the directory left on disk plus git's own reason. Retrying a removal on such a directory converges instead of throwing. Rove never deletes the leftover itself — whatever made it undeletable may be something you want. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.64
 
 ### Patch Changes
