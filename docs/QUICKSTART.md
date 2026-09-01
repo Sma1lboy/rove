@@ -45,6 +45,12 @@ yours lives somewhere else, point Rove at it with `ROVE_BUN=/path/to/bun`. To
 never be asked about installing Bun (CI, images, locked-down machines), set
 `ROVE_NO_BUN_BOOTSTRAP=1`. Rove then prints the install commands and exits.
 
+A Bun older than 1.3.11 is refused rather than used: Rove's terminals need
+Bun's PTY API, and on an older Bun every terminal and engine tab opens empty
+with no error. `install.sh` upgrades a self-installed Bun for you and tells you
+the command for a Bun it does not own; the launcher skips a too-old Bun in
+favour of any newer one on the machine.
+
 ## Install the agent skill
 
 Do this in the same sitting as the install above. The companion skill teaches

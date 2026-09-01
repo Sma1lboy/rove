@@ -23,7 +23,10 @@ The `rove` and `kobe` bins are small launchers: they run the CLI directly when
 started by Bun, and find (or offer to install) a Bun when started by node,
 which is what `npm install -g` and `npx` do. Two environment variables steer
 that: `ROVE_BUN` names the Bun binary to use, `ROVE_NO_BUN_BOOTSTRAP=1` turns a
-missing Bun into a plain error instead of an install offer.
+missing Bun into a plain error instead of an install offer. A Bun older than the
+package's `engines.bun` floor (1.3.11) is refused with the upgrade command for
+it, since Rove's terminals need Bun's PTY API and produce nothing at all
+without it; `ROVE_SKIP_BUN_CHECK=1` overrides that at your own risk.
 
 The installed package exposes both `rove` and `kobe`. `rove` is the canonical
 entry point; `kobe` remains a fully supported compatibility alias. They run the

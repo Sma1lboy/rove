@@ -19,6 +19,7 @@ import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
 import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
+import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
 import {
   type DoctorFix,
   applyFixes,
@@ -183,9 +184,17 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   // disagree about whether this install is intact.
   const install = describeInstall()
   if (!install.ok) fixes.push(reinstallManualFix())
+  // Reachable only behind ROVE_SKIP_BUN_CHECK — the launcher refuses to start
+  // on a Bun below the floor. That is exactly the run where the user needs to
+  // be told which of their symptoms is just an unsupported runtime.
+  const staleBun = !isBunAtLeast(Bun.version)
+  if (staleBun) fixes.push(humanOnlyFix("staleBun"))
   const out = [
     "Rove doctor",
     `  build:  v${CURRENT_VERSION} (${process.platform} ${process.arch}, bun ${Bun.version})`,
+    ...(staleBun
+      ? [`          ⚠ bun ${Bun.version} is below the ${MIN_BUN_VERSION} Rove needs — terminals will not paint`]
+      : []),
     `  home:   ${homeDir()}`,
     "",
     ...(await terminalDoctorLines()),
