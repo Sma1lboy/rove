@@ -12,7 +12,8 @@ export const en = {
   },
   empty: {
     selectTask: "Select a task with a worktree",
-    /** Every tab of this task was closed — the task and its worktree remain. */
+    /** Every tab of this task was closed — the task and its worktree remain.
+     *  Both chords are bound by `EmptyWorkspacePane`, which renders this. */
     noSessions: "No sessions here — press ⏎ or ctrl+e to start one",
   },
   /** Zero-tasks welcome panel (first launch) */

@@ -44,6 +44,7 @@ function show(
         defaultVendor={options?.defaultVendor}
         availableVendors={options?.availableVendors}
         discoverAdoptable={options?.discoverAdoptable}
+        mainRepos={options?.mainRepos}
         onSubmit={(v) => resolve(v)}
         onCancel={() => resolve(undefined)}
       />

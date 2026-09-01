@@ -7,11 +7,11 @@
  * All behavior lives in the view-model; this file is JSX only.
  */
 
-import { splitRepoRow } from "../../../tui/component/new-task-dialog/state"
+import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { PickerList, labelStyle } from "./picker-list"
+import { ChoiceRow, PickerList, labelStyle } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
 export function ExistingTab({ vm }: { vm: NewTaskVm }) {
@@ -44,6 +44,12 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
     accent: vm.baseRef.trim() === name,
   }))
 
+  const intents: readonly ExistingIntent[] = ["task", "project"]
+  const intentLabel: Record<ExistingIntent, string> = {
+    task: t("newTask.intent.task"),
+    project: t("newTask.intent.project"),
+  }
+
   return (
     <>
       <box gap={0}>
@@ -62,19 +68,40 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
       {vm.field === "repo" && vm.activeList.length > 0 && !vm.repoPicked ? (
         <PickerList window={vm.activeWindow} cursor={vm.repoCursor} rows={repoRows} onPick={vm.selectRepoAt} />
       ) : null}
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "baseRef")}>{t("newTask.field.fromBranch")}</text>
-        <input
-          value={vm.baseRef}
-          placeholder={DEFAULT_BASE_REF}
-          focused={vm.field === "baseRef"}
-          onMouseUp={() => vm.setField("baseRef")}
-          onInput={(v: string) => vm.setBaseRefText(v)}
-          // Last field on the tab — Enter resolves the highlighted branch
-          // and creates straight away.
-          onSubmit={() => vm.onBaseRefSubmit()}
-        />
-      </box>
+      {/* Only for a repo that HAS a project checkout (issue #90). Everywhere
+          else this row would be a control whose second option does nothing,
+          so it stays absent rather than disabled. */}
+      {vm.canOpenProject ? (
+        <box gap={0} paddingBottom={1}>
+          <text {...labelStyle(theme, vm.field, "intent")}>{t("newTask.field.opens")}</text>
+          <ChoiceRow
+            choices={intents}
+            selected={vm.intent}
+            onPick={(next) => {
+              vm.setIntent(next)
+              vm.setField("intent")
+            }}
+            display={(choice) => intentLabel[choice]}
+          />
+        </box>
+      ) : null}
+      {/* Opening the project has no branch to fork from — it enters the
+          repo's own checkout — so the field goes away with the verb. */}
+      {vm.intent === "project" && vm.canOpenProject ? null : (
+        <box gap={0}>
+          <text {...labelStyle(theme, vm.field, "baseRef")}>{t("newTask.field.fromBranch")}</text>
+          <input
+            value={vm.baseRef}
+            placeholder={DEFAULT_BASE_REF}
+            focused={vm.field === "baseRef"}
+            onMouseUp={() => vm.setField("baseRef")}
+            onInput={(v: string) => vm.setBaseRefText(v)}
+            // Last field on the tab — Enter resolves the highlighted branch
+            // and creates straight away.
+            onSubmit={() => vm.onBaseRefSubmit()}
+          />
+        </box>
+      )}
       {vm.field === "baseRef" && vm.branchFiltered.length === 0 && vm.submitError == null ? (
         <box gap={0} paddingLeft={2} paddingBottom={1}>
           <text fg={theme.textMuted} wrapMode="none">

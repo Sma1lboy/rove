@@ -38,11 +38,16 @@ import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
  * next time.
  */
 /**
- * Dialog result. Two shapes, discriminated by `mode`:
+ * Dialog result. Three shapes, discriminated by `mode`:
  *   - create (default) — make a fresh task on `repo` at `baseRef`.
  *   - adopt — import one or more EXISTING git worktrees as tasks
  *. `adopt` carries the chosen worktrees; the caller loops
  *     `orchestrator.adoptWorktree` over them.
+ *   - open — open `repo`'s OWN checkout (its `main` row) rather than
+ *     branching a worktree off it. The only way back to a project the
+ *     sidebar has hidden (`isClosedDownProject`): every other path through
+ *     this dialog mints a `kind: "task"`, so picking the repo used to leave
+ *     the user with an extra worktree and still no project row.
  */
 export type NewTaskInput =
   | {
@@ -58,6 +63,11 @@ export type NewTaskInput =
       repo: string
       vendor: VendorId
       adopt: readonly { worktreePath: string; branch: string }[]
+    }
+  | {
+      mode: "open"
+      repo: string
+      vendor: VendorId
     }
 
 /**
@@ -84,6 +94,13 @@ export type NewTaskDialogOptions = {
   availableVendors?: readonly VendorId[]
   /** Adopt-tab discovery of unlinked worktrees on `repo`; omit to disable adoption. */
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
+  /**
+   * Repos that already have a project checkout (a `main` task), trimmed of
+   * trailing slashes. The Existing tab offers "open the project" only for
+   * these — see {@link offersProjectIntent}. Omitted/empty simply means the
+   * choice never appears and the tab behaves as it always did.
+   */
+  mainRepos?: ReadonlySet<string>
 }
 
 export type DialogTab = "existing" | "clone" | "adopt"
@@ -120,6 +137,9 @@ export type Field =
   | "tabs"
   | "engine"
   | "repo"
+  /** The Existing tab's task-vs-project selector (issue #90). Reachable only
+   *  while it renders — see `nextField`. */
+  | "intent"
   | "baseRef"
   | "cloneUrl"
   | "cloneParent"
@@ -245,7 +265,7 @@ export function isBlankText(v: string): boolean {
  * the user. A stale cross-tab input field restarts the active tab's
  * cycle at its first input.
  */
-export function nextField(field: Field, tab: DialogTab = "existing"): Field {
+export function nextField(field: Field, tab: DialogTab = "existing", opts: { intentVisible?: boolean } = {}): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
   if (field === "tabs") return "engine"
@@ -262,7 +282,12 @@ export function nextField(field: Field, tab: DialogTab = "existing"): Field {
     // List navigation is up/down on the rows, not Tab.
     return field === "adoptFilter" ? "confirm" : "adoptFilter"
   }
-  if (field === "repo") return "baseRef"
+  // `intent` renders only for a repo that has a project checkout, and under
+  // the "project" choice it REPLACES the branch field. Both are conditional,
+  // so the walk is told what is on screen rather than guessing: parking focus
+  // on an unrendered stop swallows every keystroke that follows.
+  if (field === "repo") return opts.intentVisible ? "intent" : "baseRef"
+  if (field === "intent") return "baseRef"
   if (field === "baseRef") return "confirm"
   return "repo"
 }
@@ -391,4 +416,41 @@ export function resolveBaseRef(typed: string, filteredBranches: readonly string[
   const picked = filteredBranches[cursor]
   if (picked) return picked
   return t || DEFAULT_BASE_REF
+}
+
+/* --------------------------------------------------------------------- */
+/*  Existing-tab intent (issue #90)                                       */
+/* --------------------------------------------------------------------- */
+
+/**
+ * What submitting the Existing tab should DO with the chosen repo:
+ *   - "task"    — branch a fresh worktree task off it (what this tab
+ *                 has always done, and still the default).
+ *   - "project" — open the repo's OWN checkout, its `main` row.
+ *
+ * The second exists because it was the missing half. Closing a project's
+ * last tab hides it from the sidebar (`isClosedDownProject`), and the
+ * comment there promised the repo was "still there in the new-task picker
+ * to open again" — but every submit path went through `createTask`, which
+ * always mints a `kind: "task"`. Picking the hidden repo therefore added a
+ * worktree beside the project instead of returning to it.
+ */
+export type ExistingIntent = "task" | "project"
+
+/**
+ * Whether the Existing tab should offer the intent choice for `repo`.
+ *
+ * Only when that repo ALREADY has a project checkout: opening the main row
+ * of a repo that has none is not a thing this dialog can do — `createTask`
+ * is what mints one, via `ensureIfEligible`, and only for a repo the
+ * admission gate accepts (state/project-eligibility.ts). Offering the
+ * choice everywhere would put a second control on the tab that silently
+ * means nothing most of the time.
+ *
+ * `mainRepos` is the set of repo paths that have a `main` task, normalized
+ * by the caller with the same key the sidebar groups on.
+ */
+export function offersProjectIntent(repo: string, mainRepos: ReadonlySet<string>): boolean {
+  const trimmed = repo.trim().replace(/[\\/]+$/, "")
+  return trimmed.length > 0 && mainRepos.has(trimmed)
 }

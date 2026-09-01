@@ -16,6 +16,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useAccessor } from "../lib/use-accessor"
 import { TerminalTabs } from "./TerminalTabs"
+import { EmptyWorkspacePane } from "./empty-workspace-pane"
 import { knownTaskTabs, tabsRevision } from "./terminal-tabs-shared"
 import { WelcomePane } from "./welcome-pane"
 
@@ -78,14 +79,12 @@ export function ShowWorkspace(props: {
   // `activateTask`), so the normal path replaces this placeholder within the
   // same gesture. It still renders, because this component is also reached
   // without an activation — a task selected by restart restore, or one emptied
-  // while already on screen — and a blank pane would say nothing at all.
+  // while already on screen — and a blank pane would say nothing at all. The
+  // keys it advertises are bound by the pane itself: with no TerminalTabs
+  // mounted there is nothing else in this subtree to register them.
   const known = props.task ? knownTaskTabs(kv, String(props.task.id)) : null
-  if (known && known.tabs.length === 0) {
-    return (
-      <box flexGrow={1} alignItems="center" justifyContent="center">
-        <text fg={theme.textMuted}>{t("workspace.empty.noSessions")}</text>
-      </box>
-    )
+  if (known && known.tabs.length === 0 && props.task) {
+    return <EmptyWorkspacePane taskId={String(props.task.id)} focused={props.focused} />
   }
   return (
     // The terminal-in-the-middle seam (issue #16): the center column IS

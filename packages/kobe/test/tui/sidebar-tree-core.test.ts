@@ -422,4 +422,34 @@ describe("a project closed down to nothing (owner call 2026-08-31)", () => {
     const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map([["m", []]]) })
     expect(treeFlatIds(out)).toEqual([])
   })
+
+  // The half that shipped without a guard (issue #90): six tests pinned that
+  // the project GOES, none that it can come back. It could not — the dialog
+  // only ever minted `kind: "task"`. The way back is now `mode: "open"` →
+  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts); what
+  // belongs HERE is the tree's side of that round trip.
+  test("the hidden project returns as soon as its main has a tab again", () => {
+    const tasks = [mainOf("/repos/codefox")]
+    const hidden = rows({ tasks, tabsByTask: new Map([["m", []]]) })
+    expect(hidden).toEqual([])
+
+    // What opening the project does: its main row gets a session again.
+    const back = rows({ tasks, tabsByTask: new Map([["m", [tab("t1")]]]) })
+    expect(back.map((r) => r.kind)).toEqual(["project", "worktree", "tab"])
+    // And it is reachable — a row you can see but not move the cursor to
+    // would be the same dead end in a different costume.
+    expect(treeFlatIds(back).length).toBeGreaterThan(0)
+  })
+
+  test("opening the project does not mint a second row for the same repo", () => {
+    // `ensureMainTask` is idempotent, so the revived project must be the
+    // SAME main task. If a second main row appeared, the repo would render
+    // twice under one header — the shape a create-instead-of-open produces.
+    const out = rows({
+      tasks: [mainOf("/repos/codefox")],
+      tabsByTask: new Map([["m", [tab("t1")]]]),
+    })
+    expect(out.filter((r) => r.kind === "project")).toHaveLength(1)
+    expect(out.filter((r) => r.kind === "worktree")).toHaveLength(1)
+  })
 })
