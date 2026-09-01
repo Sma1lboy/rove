@@ -23,6 +23,7 @@ import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
 import {
   type DialogTab,
+  type ExistingIntent,
   type Field,
   type NewTaskInput,
   type PickerWindow,
@@ -33,6 +34,7 @@ import {
   firstFieldFor,
   nextDialogTab,
   nextField,
+  offersProjectIntent,
   pickerModeFor,
   pickerVisibleRows,
   prevDialogTab,
@@ -64,7 +66,13 @@ export type NewTaskDialogProps = {
   availableVendors?: readonly VendorId[]
   /** Adopt-tab discovery. Omit to leave the tab empty. */
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
+  /** Repos that already have a project checkout — gates the intent choice. */
+  mainRepos?: ReadonlySet<string>
 }
+
+/** Shared default for `mainRepos` — a fresh `new Set()` per render would be a
+ *  new identity every time and defeat any memo keyed on it. */
+const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
 
 export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const dialog = useDialog()
@@ -92,6 +100,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Enter/click; typing resumes browsing.
   const [repoPicked, setRepoPicked] = useState(false)
   const [branchCursor, setBranchCursor] = useState(0)
+  // Existing-tab intent (issue #90). Defaults to "task" so the tab keeps
+  // doing what it always did; the choice only RENDERS when the picked repo
+  // already has a project checkout to open.
+  const [intent, setIntent] = useState<ExistingIntent>("task")
 
   // Validation error shown inline on submit; cleared on any input edit.
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -112,6 +124,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const activeWindow: PickerWindow = windowAround(activeList, repoCursor, pickerRows)
 
   const expandedRepo = expandHome(repo.trim())
+  // Offered against the EXPANDED path: `mainRepos` holds absolute repo roots,
+  // and a `~/`-typed entry would otherwise never match its own project.
+  const canOpenProject = offersProjectIntent(expandedRepo, props.mainRepos ?? EMPTY_MAIN_REPOS)
   const branches = useMemo(() => listLocalBranches(expandedRepo), [expandedRepo])
   const branchFiltered = useMemo(() => filterBranches(branches, baseRef), [branches, baseRef])
   const branchWindow: PickerWindow = windowAround(branchFiltered, branchCursor, pickerRows)
@@ -155,6 +170,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     setRepo(stripNewlines(v))
     setRepoCursor(0)
     setBranchCursor(0)
+    // A different repo may have no project at all, and a stale "project"
+    // intent would then submit a mode the flow has nothing to open.
+    setIntent("task")
   }
   function setBaseRefText(v: string): void {
     setBaseRefTouched(true)
@@ -173,6 +191,16 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       setField("repo")
       return
     }
+    // "Open the project" is a different verb, not a create with a flag: it
+    // resolves to the repo's EXISTING main row, so it carries no baseRef —
+    // there is no branch to fork from when you are opening the checkout
+    // itself. Guarded on `canOpenProject` so an intent left over from a
+    // repo swap can never submit a mode this repo has nothing to satisfy.
+    if (intent === "project" && canOpenProject) {
+      props.onSubmit({ mode: "open", repo: r, vendor })
+      dialog.clear()
+      return
+    }
     const b = baseRef.trim() || DEFAULT_BASE_REF
     props.onSubmit({ repo: r, baseRef: b, vendor })
     dialog.clear()
@@ -188,6 +216,20 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       return
     }
     commitExisting()
+  }
+
+  /**
+   * Tab/Enter's next stop, honouring the intent. Opening a project hides the
+   * branch field (`tab-existing.tsx`), and the pure `nextField` chain knows
+   * nothing about that — walking into a field that isn't rendered would park
+   * focus on an invisible input and swallow every keystroke.
+   */
+  function advanceField(from: Field): Field {
+    const next = nextField(from, tab)
+    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
+      return nextField(next, tab)
+    }
+    return next
   }
 
   /* ── Navigation / selection handlers ── */
@@ -219,7 +261,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       const picked = activeList[0]
       if (picked) {
         setRepo(picked)
-        setField("baseRef")
+        setField(advanceField("repo"))
         return
       }
     }
@@ -231,12 +273,12 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
         setRepoCursor(0)
         setRepoPicked(true)
       }
-      setField("baseRef")
+      setField(advanceField("repo"))
       return
     }
     const picked = activeList[repoCursor]
     if (picked) setRepo(picked)
-    setField("baseRef")
+    setField(advanceField("repo"))
   }
 
   function selectRepoAt(absoluteIndex: number): void {
@@ -249,7 +291,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       setRepo(picked)
     }
     setRepoCursor(absoluteIndex)
-    setField("baseRef")
+    setField(advanceField("repo"))
   }
 
   function pickBranchAt(absoluteIndex: number): void {
@@ -291,7 +333,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   useBindings(() => ({
     bindings: [
-      { key: "tab", cmd: () => setField((f) => nextField(f, tab)) },
+      { key: "tab", cmd: () => setField(advanceField) },
       { key: "ctrl+]", cmd: () => switchToTab(nextDialogTab(tab)) },
       { key: "ctrl+[", cmd: () => switchToTab(prevDialogTab(tab)) },
       { key: "ctrl+e", cmd: () => cycleEngine(1) },
@@ -304,7 +346,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
         ? [
             { key: "left", cmd: () => (field === "tabs" ? cycleTab(-1) : cycleEngine(-1)) },
             { key: "right", cmd: () => (field === "tabs" ? cycleTab(1) : cycleEngine(1)) },
-            { key: "return", cmd: () => setField((f) => nextField(f, tab)) },
+            { key: "return", cmd: () => setField(advanceField) },
           ]
         : []),
       // Ctrl+A select-all exists ONLY on the Adopt tab; elsewhere it must
@@ -342,6 +384,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     branchFiltered,
     branchWindow,
     branchCursor,
+    intent,
+    setIntent,
+    canOpenProject,
     submitError,
     setRepoText,
     setBaseRefText,

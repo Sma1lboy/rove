@@ -332,6 +332,27 @@ transparent themes both stay readable — pinned by
 `test/tui-react/keyboard-overlay-theme.test.ts` and the `/harness` visual
 journey `keyboard hints render and extinguish in the real OpenTUI`.
 
+## Reopening a closed-down session (issue #90)
+
+**2026-08-31 — `workspace.reopenSession` = plain `return`, workspace scope
+(owner sign-off).** `ctrl+w` on a task's last tab now empties it, and the
+pane left behind (`tui-react/workspace/empty-workspace-pane.tsx`) reads
+"press ⏎ or ctrl+e to start one" — copy that shipped in #696 naming two keys
+neither of which had a handler. Both live in `TerminalTabs`, and that
+component is deliberately not mounted over an empty tab list.
+
+A bare `return` is normally too cheap a key to spend at workspace scope. It
+is safe here because the binding is registered BY that pane, which holds no
+input, no tab strip and no terminal: while it is on screen there is nothing
+else Enter could mean, and when it is not, the binding does not exist. The
+alternative — rewording the copy down to `ctrl+e` only — was rejected: Enter
+is what the sidebar already uses to open the row, and the pane is the same
+gesture one pane over.
+
+`ctrl+e` (`chat.tab.chooseEngine`) is re-registered on the same pane. That is
+not a second chord for one action; it is the existing chord staying
+answerable in the one state where its usual owner is unmounted.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

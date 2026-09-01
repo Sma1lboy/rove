@@ -206,6 +206,12 @@ mode selector and use the left/right arrows.
 - **For Existing** picks a local repository and the ref to branch from. Rove
   creates a new task branch and worktree, then opens it ready for the first
   prompt. The current repository and its checked-out branch are the defaults.
+  For a repository Rove already tracks as a project, an extra **opens** row
+  appears: leave it on "a new task worktree" for the behaviour above, or
+  choose "the project itself" to open that repository's own checkout instead
+  of branching off it. That is how you return to a project that left the
+  sidebar after you closed its last tab — the branch field disappears,
+  because opening a checkout forks from nothing.
 - **For New Repo** clones a Git URL into a chosen parent directory, derives an
   available folder name, then creates a task from the requested base branch.
   The parent directory is remembered for the next clone.
@@ -224,8 +230,10 @@ another row fails, and Rove reports the result count.
 `ctrl+t` starts a fresh engine tab immediately; `ctrl+e` opens the full engine,
 shell, and plugin picker. Tabs share the Task's worktree but keep separate
 processes, scrollback, titles, and engine conversations. `ctrl+[` / `ctrl+]`
-switch tabs, `F2` renames one, and `ctrl+w` closes it. A Task always keeps at
-least one tab.
+switch tabs, `F2` renames one, and `ctrl+w` closes it — including the last
+one, which leaves the Task open with no session. Re-entering that Task from
+the sidebar reopens the kind of tab that was there; from the empty pane
+itself, `enter` or `ctrl+e` does the same.
 
 Inside a terminal tab, `ctrl+\` splits right and `ctrl+=` splits down. New
 leaves run your login shell in the same worktree. `F3` cycles split focus;

@@ -75,7 +75,8 @@ focus or dialog.
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New engine tab |
 | `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
-| `ctrl+w` | Close the active split, otherwise the tab |
+| `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
+| `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` does the same there) |
 | `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
@@ -87,7 +88,9 @@ focus or dialog.
 | `F7` | Jump to the next Inbox item across all projects |
 
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
-is split, otherwise the tab. `F2` follows the same rule.
+is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
+by the "no sessions here" pane, which has no input and no tab of its own —
+everywhere else in the workspace it reaches the terminal as usual.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);

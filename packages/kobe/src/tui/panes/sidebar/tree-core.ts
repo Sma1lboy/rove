@@ -174,11 +174,20 @@ export interface TreeInput {
  * checkout, and that checkout's last tab has been closed.
  *
  * Such a project is hidden from the tree (owner call 2026-08-31). Nothing is
- * deleted — the main task and the `savedRepos` entry both stay, so the repo
- * is still there in the new-task picker to open again. This is the whole
- * difference from Forget (`d` on the row → `forgetProject`), which un-saves
- * the repo: closing the last tab is a "I'm done here for now" gesture, not a
- * "remove this from my machine" one.
+ * deleted — the main task and the `savedRepos` entry both stay.
+ *
+ * The way BACK is the new-task dialog's Existing tab: pick the repo and
+ * choose "the project itself" instead of a new task worktree, which submits
+ * `mode: "open"` and routes to `ensureMainTask` (issue #90). That choice
+ * renders only for a repo that already has a main row — which is exactly the
+ * set of repos this rule can hide. Until it existed the promise made here was
+ * false: every submit path went through `createTask`, which always mints a
+ * `kind: "task"`, so picking a hidden repo added a worktree beside the
+ * project and still left no project row.
+ *
+ * This is the whole difference from Forget (`d` on the row →
+ * `forgetProject`), which un-saves the repo: closing the last tab is a "I'm
+ * done here for now" gesture, not a "remove this from my machine" one.
  *
  * Deliberately narrow. It requires:
  *   - exactly one task in the project, and that task is the `main` row, and
