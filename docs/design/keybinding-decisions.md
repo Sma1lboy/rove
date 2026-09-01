@@ -46,7 +46,9 @@ direct bindings from the current Binding Stack, keeps only exact
 `ctrl+<single-key>` chords, and displays the key after `ctrl+`. Bare keys,
 F-row keys, multi-modifier chords, and prefix second strokes stay out. One
 synthetic row shows the current prefix's follow-up key as "More commands
-(prefix)"; it does not create a binding.
+(prefix)"; it does not create a binding. The 400 ms threshold is a default,
+subject to tuning — the owner signed off on the panel's semantics, not on that
+number.
 
 The live keymap remains the only direct-chord list, so rebindings and
 pane-specific reachability stay accurate. A page or dialog barrier shrinks the
