@@ -291,7 +291,10 @@ rove api list --pretty
 ```
 
 `.running` means any hosted engine tab on the task is alive; a live shell,
-command, or content tab alone does not count.
+command, or content tab alone does not count. It is process truth, not
+progress: a task whose work is merged and whose worker has signed off still
+reads `true` until somebody deletes it (see "A task is finished when it is
+GONE").
 Omitting BOTH `--task-id` and `--tab` inside a task that has a dispatcher
 targets that dispatcher's tab (see the reply rule above); otherwise the
 target is the active task. Omitting only `--tab` targets a live engine tab
@@ -501,6 +504,43 @@ verify the winner's actual diff before landing. Silence never proves a
 worker died (it may be mid-turn or stuck on a permission prompt): peek with
 `collect`/`get-task`, nudge with `send`, and never mark a silent task failed
 or auto-retry it.
+
+### A task is finished when it is GONE
+
+The dispatcher closes tasks. A worker cannot delete itself, so when it reports
+"done" the round is not over — its engine is still running, its Worktree still
+holds a branch, and its row is still in the sidebar.
+
+None of these mean a task is finished:
+
+| Looks final | What it actually is |
+|---|---|
+| the worker said "done" | a message; it has no verb to remove itself |
+| its PR is MERGED | the code landed; the task did not move |
+| its issue is `status done` | a field in a different store |
+| `set-status canceled` | a label — see Lifecycle above |
+
+**The only evidence is that `rove api list` no longer shows it.** Check the
+task, not the paperwork:
+
+```bash
+rove api get-task --task-id <id>   # .running true = its engine is still alive
+rove api delete --task-id <id> --wait
+```
+
+`--wait` is what turns "queued" into an answer; without it the call returns
+before the Worktree is gone.
+
+Before ending a round, sweep for both halves — they drift apart:
+
+```bash
+rove api list          # tasks whose work is done but which are still here
+git worktree list      # directories no task claims (delete finds tasks by id,
+                       # so a stray one is only reachable via git)
+```
+
+A worker that has taken over `main` in its Worktree will block the dispatcher's
+own checkout — a release cannot even start until that task is closed.
 
 ### Closing a round
 
