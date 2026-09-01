@@ -119,6 +119,18 @@ export async function stopDaemonProcess(socketPath: string, pidPath: string): Pr
   // The daemon's own `serverApi.close` unlinks both files on its way out,
   // but if we had to SIGKILL it they linger and a respawn would hit
   // EADDRINUSE on the socket. Best-effort cleanup of both.
+  //
+  // EXCEPT when the pid we were given is still alive. `wasAlive` is false
+  // for a pidfile naming a dead process — and also for a pidfile written by
+  // a process that outran our read, which is how a still-running PTY host
+  // lost its address: unlinking here left it with no socket to be reached
+  // on and no pidfile to be recognized by, so nothing could ever stop it
+  // again (25 stranded hosts, up to two days old). Re-read before deleting;
+  // a live owner keeps its own files.
+  const survivor = await readPidFile(pidPath)
+  if (survivor !== null && survivor !== process.pid && isProcessAlive(survivor)) {
+    return { pid: oldPid, method }
+  }
   await unlink(socketPath).catch(() => {})
   await unlink(pidPath).catch(() => {})
   return { pid: oldPid, method }
