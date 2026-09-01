@@ -331,6 +331,30 @@ describe("send handler", () => {
       expect(provenance).not.toContain("帮我重构登录模块")
     })
 
+    it("gives a dispatched task the same reply address in its opening brief", async () => {
+      // `add --prompt` from inside a kobe session is agent-to-agent too, and
+      // its brief is where the reply address matters most: every report that
+      // task ever sends flows back through it. Before this, `add` recorded the
+      // sender only as `dispatcher` on the task ROW — data a receiver has to
+      // think to go read — so a dispatched survey finished and sat waiting
+      // (2026-09-01, issue #92).
+      const { calls, deliver } = recordingDelivery()
+      await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "研究一下 X"], {
+        client: new FakeClient({
+          "task.create": () => ({ taskId: "child-1", task: taskFixture({ id: "child-1" }) }),
+          "task.get": (payload) => {
+            const id = (payload as { taskId: string }).taskId
+            return { task: taskFixture({ id, title: id === "sender-1" ? "Auth attempt" : "T" }) }
+          },
+        }),
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })
+      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
+      expect(calls[0].prompt).toContain("send --task-id sender-1 --tab tab-1")
+      // Same shape as `send`: the brief is last and whole.
+      expect(calls[0].prompt.endsWith("研究一下 X")).toBe(true)
+    })
+
     it("--plain sends verbatim", async () => {
       const { calls, deliver } = recordingDelivery()
       await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--plain"], {
