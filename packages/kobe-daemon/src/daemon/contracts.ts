@@ -344,8 +344,19 @@ export function isAttentionInboxState(value: unknown): value is AttentionInboxSt
   return typeof value === "string" && (ATTENTION_INBOX_STATES as readonly string[]).includes(value)
 }
 
-export function attentionInboxItemKey(item: { taskId: string | null; tabId: string | null }): string {
-  return `${item.taskId}\0${item.tabId ?? ""}`
+export function attentionInboxItemKey(item: {
+  taskId: string | null
+  tabId: string | null
+  state?: AttentionInboxState
+}): string {
+  // `prompt_deferred` gets its own lane. Every other episode DESCRIBES the
+  // engine, so one-per-tab is right: a fresh turn-complete should replace the
+  // stale one. A deferred prompt is not a description — the daemon is holding
+  // a human's text and this episode is the only pointer to it, so sharing the
+  // tab's single slot meant the target's next turn silently orphaned the
+  // record (observed 2026-09-01: four stored prompts, an empty inbox).
+  const lane = item.state === "prompt_deferred" ? "\0deferred" : ""
+  return `${item.taskId}\0${item.tabId ?? ""}${lane}`
 }
 
 /** One daemon-owned, durable attention episode for a task's engine tab. */
