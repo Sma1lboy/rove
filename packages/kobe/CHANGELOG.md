@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.9.77
+
+### Patch Changes
+
+- [#752](https://github.com/Sma1lboy/rove/pull/752) [`92cb11b`](https://github.com/Sma1lboy/rove/commit/92cb11b5c022f6c732bb1aed091d3c23d1ec45a9) Fix seven task fields being silently dropped between the daemon and the TUI. `deserializeTask` — the single decode every task the TUI renders passes through — named only 18 of the 25 fields the wire carries, so `command`, `position`, `observedLanguage`, `quotaResume`, `linkedWorkItem`, `prompt` and `baseRef` arrived correctly and were then thrown away. The visible symptom: a task created with `rove api add --command 'claude --dangerously-skip-permissions'` reached the launcher with no command and started the plain vendor default instead, and a quota-paused task could never show its "resumes at …" line. A new compile-time guard test closes the class, so the next field added to the wire breaks the build until the decode carries it too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#750](https://github.com/Sma1lboy/rove/pull/750) [`df11cf5`](https://github.com/Sma1lboy/rove/commit/df11cf5116b506437731a0b6b9d497d3686ca310) `land --delete-branch` no longer reports a deletion it did not perform. git refuses to delete a branch a live worktree has checked out, so pairing `--delete-branch` with `--remove-worktree=false` — or with a removal that got refused for a dirty tree, the base checkout, or the caller's own worktree — left the branch in place while the land reported success. The branch deletion is now gated on the worktree actually being gone, and a land that keeps the branch says so in the result's new `branchKept` field with the reason. It also no longer returns a `branchAnchor` naming a salvage ref for a branch nothing deleted. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#753](https://github.com/Sma1lboy/rove/pull/753) [`821b7e2`](https://github.com/Sma1lboy/rove/commit/821b7e2297ed62b9717242bb01d6ac9e176511ac) Removed dead code with no remaining callers: the Solid-era `tui/component/border.ts`
+  presets, the unused `tui/history/mock-fixtures.ts` transcript fixtures, `allModels()`
+  in the engine registry, and `startOpsPreview()` (the entrypoint for a `rove ops --preview`
+  subcommand that no longer exists). No user-visible behavior changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#751](https://github.com/Sma1lboy/rove/pull/751) [`e7a2e8e`](https://github.com/Sma1lboy/rove/commit/e7a2e8e79e868b93c57e2bef9482a931694dce23) Account detection now dispatches through the engine registry instead of a
+  second hand-written vendor list. Adding a built-in engine is one edit in its
+  registry entry; previously a missing entry in the neutral status module made
+  Settings → Accounts and `rove doctor` report "login not detectable" for an
+  engine that had a working detector wired up. Nothing changes for existing
+  engines — built-ins, contrib and custom engines all report exactly as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#749](https://github.com/Sma1lboy/rove/pull/749) [`68f9ab2`](https://github.com/Sma1lboy/rove/commit/68f9ab271e358cb2fbde422eba173d882b8cac6b) The selection-across-trim test gave its settle waits a 30-second budget while the test itself kept vitest's 5-second cap, so a loaded CI runner timed the test out underneath its own wait and blocked the 0.9.76 publish. The test now declares a timeout that covers the budget it hands out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#754](https://github.com/Sma1lboy/rove/pull/754) [`17bfc46`](https://github.com/Sma1lboy/rove/commit/17bfc4603e4d3a9f0c1f3a4a501da6380695c9ba) Set a task's status from the TUI, and see it on the row. The sidebar's
+  right-click menu gains **Set status**, a picker over the six task statuses, and
+  a task row now carries a mark once its status leaves `backlog`/`in_progress`:
+  `◇` in review, `◆` done, `†` canceled, `×` error. The status is still just a
+  label — picking `canceled` relabels the task and leaves its worktree, branch
+  and running sessions exactly where they were. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.76
 
 ### Patch Changes
