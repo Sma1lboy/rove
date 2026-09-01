@@ -39,7 +39,7 @@ import {
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
 import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
-import { onePressGuideOptions } from "../../tui/lib/shortcut-reveal"
+import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
 export type { Binding, BindingsConfig, RegisteredBinding } from "../../tui/lib/keymap-dispatch"
@@ -96,7 +96,7 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   ctrlHoldDetector = createCtrlHoldDetector({
     onReveal: () => {
       resetPrefixState()
-      const options = onePressGuideOptions(bindingReachability(stack))
+      const options = directGuideOptions(bindingReachability(stack))
       if (options.length > 0) prefixHudShowDirect(options)
     },
     onHide: prefixHudHideDirect,

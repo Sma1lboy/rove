@@ -129,7 +129,9 @@ export function PrefixHud(props: { left: number; width: number }) {
       // and the guide's height estimate runs off the screen bottom.
       const keyWidth = Math.min(9, Math.max(3, displayWidth(strokes)))
       const labelWidth = Math.max(1, groupWidth - keyWidth - 1)
-      return Math.max(1, Math.ceil(displayWidth(actionLabel(action.action)) / labelWidth))
+      const keyLines = Math.ceil(displayWidth(strokes) / keyWidth)
+      const labelLines = Math.ceil(displayWidth(actionLabel(action.action)) / labelWidth)
+      return Math.max(1, keyLines, labelLines)
     }
     const guideHeight = groupRows.reduce(
       (height, row) =>

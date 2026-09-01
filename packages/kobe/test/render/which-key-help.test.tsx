@@ -168,6 +168,26 @@ describe("which-key prefix guide", () => {
     expect(text).not.toContain("more Rove commands")
   })
 
+  it("keeps every alias visible when a direct action has many chords", async () => {
+    prefixHudShowDirect([
+      { stroke: "ctrl+2", action: "tasks.jump" },
+      { stroke: "ctrl+3", action: "tasks.jump" },
+      { stroke: "ctrl+4", action: "tasks.jump" },
+      { stroke: "ctrl+5", action: "tasks.jump" },
+      { stroke: "ctrl+6", action: "tasks.jump" },
+      { stroke: "ctrl+7", action: "tasks.jump" },
+      { stroke: "ctrl+8", action: "tasks.jump" },
+      { stroke: "ctrl+9", action: "tasks.jump" },
+      { stroke: "ctrl+0", action: "tasks.jump" },
+    ])
+    const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, {
+      width: 100,
+      height: 28,
+    })
+
+    expect(await frame()).toContain("ctrl+0")
+  })
+
   it("opens from a bare ctrl press and closes on its release event", async () => {
     const { frame, mockInput } = await renderComponent(
       <>

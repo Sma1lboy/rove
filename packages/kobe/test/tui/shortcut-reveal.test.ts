@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
-import { onePressGuideOptions, shortcutCaption } from "../../src/tui/lib/shortcut-reveal"
+import { directGuideOptions, shortcutCaption } from "../../src/tui/lib/shortcut-reveal"
 
 const reachable = (direct: string[] = [], prefix: string[] = []) => ({
   direct: new Set(direct),
@@ -59,10 +59,11 @@ describe("shortcutCaption", () => {
   })
 })
 
-describe("onePressGuideOptions", () => {
-  it("derives live direct chords only from reachable onePress rows", () => {
-    expect(onePressGuideOptions(reachable(["help.open", "focus.next", "task.new"]))).toEqual([
+describe("directGuideOptions", () => {
+  it("derives every reachable direct chord from the live keymap", () => {
+    expect(directGuideOptions(reachable(["help.open", "focus.next", "task.new"]))).toEqual([
       { stroke: "f1", action: "help.open" },
+      { stroke: "n", action: "task.new" },
       { stroke: "f4", action: "focus.next" },
     ])
   })
@@ -71,6 +72,6 @@ describe("onePressGuideOptions", () => {
     const row = findBinding("focus.next") as { keys: readonly string[] }
     row.keys = ["ctrl+n"]
 
-    expect(onePressGuideOptions(reachable(["focus.next"]))).toEqual([{ stroke: "ctrl+n", action: "focus.next" }])
+    expect(directGuideOptions(reachable(["focus.next"]))).toEqual([{ stroke: "ctrl+n", action: "focus.next" }])
   })
 })

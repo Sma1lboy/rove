@@ -41,9 +41,12 @@ complete reference and clickable mouse entry.
 
 **2026-09-01. PROPOSED: holding either Ctrl key for 400 ms opens the direct
 shortcut guide. The trigger and threshold still need final owner confirmation.**
-The guide reads only `presentation: "onePress"` rows from the live keymap and
-filters them through the current Binding Stack. It has no separate chord list,
-so rebindings and pane-specific reachability stay accurate.
+The guide reads every direct row reachable through the current Binding Stack
+from the live keymap. It has no separate chord list, so rebindings and
+pane-specific reachability stay accurate. This includes the sidebar's
+high-frequency bare keys (`n`, `q`, `j`/`k`, `r`, `d`, and peers); limiting the
+guide to the smaller `presentation: "onePress"` tier hid precisely the keys a
+discovery surface needs to teach (owner clarification, 2026-09-01).
 
 The guide opens while an embedded engine terminal has focus. This is a discovery
 hint, not a modal input state. Releasing Ctrl or pressing any other key closes

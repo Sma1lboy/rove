@@ -66,13 +66,15 @@ continuation is refused. See [Engines](./ENGINES.md#resuming-and-forking).
 The sequence cancels on timeout, `esc`, an invalid second key, or a change of
 focus or dialog.
 
-## Hold ctrl to reveal one-press keys
+## Hold ctrl to reveal direct keys
 
-Hold either Ctrl key for at least 400 ms to open a guide to the one-press Rove
-shortcuts available in the current pane. The guide also opens while an embedded
-engine terminal has focus. It does not take ownership of the next key. Releasing
-Ctrl or pressing any other key closes the guide, and that other key continues
-through normal shortcut or terminal dispatch.
+Hold either Ctrl key for at least 400 ms to open a guide to every direct Rove
+shortcut available in the current pane. This includes high-frequency pane keys
+such as `n`, `q`, `j`/`k`, `r`, and `d` while the sidebar is focused, as well as
+global and workspace shortcuts. The guide also opens while an embedded engine
+terminal has focus. It does not take ownership of the next key. Releasing Ctrl
+or pressing any other key closes the guide, and that other key continues through
+normal shortcut or terminal dispatch.
 
 This guide needs a terminal that reports modifier press and release events
 through the kitty keyboard protocol. Unsupported terminals ignore Rove's

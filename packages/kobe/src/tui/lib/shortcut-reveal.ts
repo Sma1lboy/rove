@@ -39,9 +39,9 @@ export function shortcutCaption(input: ShortcutCaptionInput): string | null {
   return null
 }
 
-/** Direct-shortcut guide rows from the live keymap, limited to actions runnable in the current Binding Stack. */
-export function onePressGuideOptions(reachability: BindingReachability): PrefixHudOption[] {
-  return KobeKeymap.filter(
-    (binding) => binding.presentation === "onePress" && reachability.direct.has(binding.id),
-  ).flatMap((binding) => binding.keys.map((stroke) => ({ stroke, action: binding.id })))
+/** Every direct shortcut runnable in the current Binding Stack, in live keymap order. */
+export function directGuideOptions(reachability: BindingReachability): PrefixHudOption[] {
+  return KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) =>
+    binding.keys.map((stroke) => ({ stroke, action: binding.id })),
+  )
 }

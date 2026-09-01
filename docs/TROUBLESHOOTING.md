@@ -488,7 +488,7 @@ chord on the row itself (`r` rename, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
 
-## Holding ctrl does not open the one-press shortcut guide
+## Holding ctrl does not open the direct-shortcut guide
 
 The guide needs kitty keyboard protocol modifier press and release events. It
 works in iTerm2 3.5+, kitty, Ghostty, and WezTerm. Terminal.app and xterm.js do
