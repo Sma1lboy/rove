@@ -214,7 +214,7 @@ export interface TreeInput {
 
 /**
  * A project you closed down to nothing: its ONLY row is the repo's main
- * checkout, and that checkout's last tab has been closed.
+ * checkout (or a directory you opened), and that row's last tab is closed.
  *
  * Such a project is hidden from the tree (owner call 2026-08-31). Nothing is
  * deleted — the main task and the `savedRepos` entry both stay.
@@ -232,8 +232,16 @@ export interface TreeInput {
  * `forgetProject`), which un-saves the repo: closing the last tab is a "I'm
  * done here for now" gesture, not a "remove this from my machine" one.
  *
+ * A `dir` row folds the same way (owner call 2026-09-01). It has no
+ * picker entry to return through and does not need one: the way back is the
+ * `rove .` that opened it in the first place, and a directory was never in
+ * `savedRepos` to be lost from. Excluding it only made "close the last tab"
+ * mean two different things depending on a row kind the user never chose —
+ * the sidebar shows a folder and a checkout as the same shape of row.
+ *
  * Deliberately narrow. It requires:
- *   - exactly one task in the project, and that task is the `main` row, and
+ *   - exactly one task in the project, and that task is a `main` or `dir`
+ *     row — anything else is real work with a branch behind it, and
  *   - its tabs are KNOWN and empty — an absent entry means "never mounted
  *     since restart", which is every project on a fresh TUI. Hiding on that
  *     would make the sidebar boot empty.
@@ -243,7 +251,7 @@ export interface TreeInput {
  */
 function isClosedDownProject(tasks: readonly Task[], tabsByTask: TreeInput["tabsByTask"]): boolean {
   const only = tasks.length === 1 ? tasks[0] : undefined
-  if (!only || only.kind !== "main") return false
+  if (!only || (only.kind !== "main" && only.kind !== "dir")) return false
   return tabsByTask.get(only.id)?.length === 0
 }
 

@@ -45,7 +45,7 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ## Hard rules (non-negotiable)
 
 ### How work lands on `main`
-- **Default: PR, and merging it needs no fresh approval.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate; don't stop to ask. Unattended/agent-driven work always takes this path. (Standing authorization, owner 2026-09-01. Does not extend to a release — that still needs the word.)
+- **Default: PR → merge → release, none of it needs fresh approval.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate; don't stop to ask, and don't park a shipped fix waiting for someone to say "release" — a fix nobody can install isn't fixed. Cut the release the same turn unless the change is mid-stack or the owner is still deciding. (Standing authorization, owner 2026-09-01.)
 - **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried into the next task. Same quality gates (lint, typecheck, tests, changeset) either way.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag (see [`docs/RELEASING.md`](./docs/RELEASING.md)).
 - `git fetch` before pushing. Force-push ONLY to rebase your own unmerged PR branch, and only with `--force-with-lease`; never onto `main`, a shared branch, or commits someone has reviewed.
@@ -56,9 +56,8 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 - **NEVER** use `--no-verify` / `--no-gpg-sign` or skip hooks. Fix the underlying issue.
 
 ### Releases
-- **Changeset bump is `patch` by default.** Only an EXPLICIT instruction in that turn promotes it to `minor`/`major` — never infer `minor` from "it's a feature" (pre-1.0 ships features as patches). Confirm the bump and check for pending changesets that may override your choice before tagging.
+- **Changeset bump is `patch` by default.** Only an EXPLICIT instruction that turn promotes it to `minor`/`major` — never infer `minor` from "it's a feature" (pre-1.0 ships features as patches). A pending changeset carrying a bigger bump overrides you: check before tagging and surface it.
 - Release notes may thank human contributors/testers. No AI/Anthropic/Claude/Codex/tool attribution anywhere (commits, tags, notes).
-- Run lint + typecheck locally before pushing; don't assume CI will catch it.
 
 ### Deletion
 - **NEVER** delete files, branches, worktrees, or run `rm -rf` unless the user explicitly says "delete"/"remove" *in the same conversation turn* — including cleanup of stale worktrees or "fixing" layout by removing files. If a task seems to need deletion, surface and ask first.
@@ -66,13 +65,12 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ### Scope
 - Edit only files within the declared slice; surface cross-slice changes, don't make them silently.
 - 3-strike rule: same root cause fails 3× → stop and surface. Max-depth: 3+ levels of sub-investigation → surface before going deeper.
-- When fixing a feature, scope the requirement explicitly — if a fix applies to one subcommand/file, confirm whether it should extend to all similar cases before declaring it done.
+- Fixing one subcommand/file? Confirm whether it should extend to every similar case before calling it done.
 
-### File size cap: ~500 lines (code-review gate)
-- Every source file should stay at or under ~500 lines.
-- If your change touches a file that is over 500 lines, the change is NOT done until that file is refactored/split back to ~500 or below — touch it → you own shrinking it. CI hard-gates this (`ci.yml` file-size-cap job on touched files).
-- New files must not be born over 500 lines.
-- Exemptions: generated files, lockfiles, snapshots/test fixtures, and `refs/`. A deliberate exception needs a one-line justification in the PR/commit.
+### File size: ~500 lines is a refactor prompt, not a budget
+- **The goal is refactoring, not the number.** 500 means "this file probably does more than one job — find the seam". It must never decide what code you write: write the clear thing, then split. Name the SEAM (this half owns X, that half owns Y), never the line count.
+- Touch a file that is over → you own splitting it along a real boundary. No seam? Say so in the PR — a valid answer.
+- CI gates touched files (`ci.yml` file-size-cap). Exempt: generated, lockfiles, fixtures, `refs/`; a deliberate exception needs one line of justification.
 
 ### Don't touch
 - `refs/` — read-only study material, forever.
