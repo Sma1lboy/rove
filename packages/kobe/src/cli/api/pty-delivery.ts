@@ -359,10 +359,10 @@ function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | unde
 }
 
 /**
- * Gate blocked the paste. With a deferral sink (issue #78 B-layer) the prompt
- * is ACCEPTED into daemon ownership — store it and report the deferred success
- * outcome; the caller must not retry. Without a sink there is no queue to hand
- * it to, so surface the legacy typed error instead of dropping it silently.
+ * Gate blocked the paste. With a deferral sink (issue #78 B-layer), try to
+ * hand the prompt to daemon ownership. Report deferred success only when the
+ * daemon accepts it; an occupied slot or failed handoff is an error. Without
+ * a sink there is no queue, so surface the legacy typed error.
  */
 async function deferOrThrow(
   error: ComposerBusyError,
@@ -372,19 +372,30 @@ async function deferOrThrow(
   prompt: string,
 ): Promise<DeliveredPrompt> {
   if (sink) {
+    let deferred: Awaited<ReturnType<PromptDeferralSink["defer"]>>
     try {
-      const id = await sink.defer({ taskId, tabId, prompt, layer: error.layer })
-      return {
-        session: `${taskId}::${tabId}`,
-        pane: `${taskId}::${tabId}`,
-        started: false,
-        engineReady: false,
-        delivered: false,
-        deferred: { id, layer: error.layer },
-      }
+      deferred = await sink.defer({ taskId, tabId, prompt, layer: error.layer })
     } catch {
-      // Older daemon without the deferredPrompt verbs — degrade to the typed
-      // error rather than dropping the prompt silently.
+      // The handoff failed (including when an older daemon lacks this verb).
+      // Fail rather than claim ownership of unstored text.
+      throw composerBusyApiError(error, taskId, prompt)
+    }
+    if (deferred.kind === "occupied") {
+      throw new ApiError(`task ${taskId} tab ${tabId} already has a deferred prompt`, "DEFERRED_PROMPT_PENDING", {
+        taskId,
+        tabId,
+        existingId: deferred.id,
+        hint: "release or dismiss the existing Inbox prompt before retrying",
+        nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--prompt", prompt],
+      })
+    }
+    return {
+      session: `${taskId}::${tabId}`,
+      pane: `${taskId}::${tabId}`,
+      started: false,
+      engineReady: false,
+      delivered: false,
+      deferred: { id: deferred.id, layer: error.layer },
     }
   }
   throw composerBusyApiError(error, taskId, prompt)

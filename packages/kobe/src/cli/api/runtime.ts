@@ -221,18 +221,20 @@ export async function deliverPrompt(
 
   // The deferral sink hands a composer-busy prompt to daemon ownership
   // (issue #78 B-layer): the daemon stores the text and queues an inbox
-  // episode, and this send reports accepted-but-deferred — a SUCCESS the
-  // caller must NOT retry (a retry would stack a duplicate in the queue).
+  // episode, and this send reports accepted-but-deferred. `reportPending`
+  // asks a new daemon for a structured first-writer-wins conflict. An old
+  // daemon ignores the field and returns its legacy `{ id }` response.
   const defer: PromptDeferralSink = {
     defer: (info) =>
       client
-        .request<{ id: string }>("deferredPrompt.file", {
+        .request<{ id: string; accepted?: boolean }>("deferredPrompt.file", {
           taskId: info.taskId,
           tabId: info.tabId,
           prompt: info.prompt,
           layer: info.layer,
+          reportPending: true,
         })
-        .then((res) => res.id),
+        .then((res) => (res.accepted === false ? { kind: "occupied", id: res.id } : { kind: "filed", id: res.id })),
   }
   const hosted = await ops.deliverHosted(target, worktree, prompt, defer)
   if (!hosted) throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")

@@ -41,6 +41,58 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
     ])
   })
 
+  it("file reports an occupied tab without replacing its pending prompt", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const first = (await dispatch(
+      "deferredPrompt.file",
+      {
+        taskId: TASK.id,
+        tabId: "tab-1",
+        prompt: "first",
+        layer: "composer-not-empty",
+        reportPending: true,
+      },
+      ctx,
+    )) as { id: string; accepted: boolean }
+
+    const second = (await dispatch(
+      "deferredPrompt.file",
+      {
+        taskId: TASK.id,
+        tabId: "tab-1",
+        prompt: "second",
+        layer: "composer-not-empty",
+        reportPending: true,
+      },
+      ctx,
+    )) as { id: string; accepted: boolean; layer?: string }
+
+    expect(first.accepted).toBe(true)
+    expect(second).toEqual({ id: first.id, accepted: false, layer: "composer-not-empty" })
+    expect((await store.get(first.id))?.prompt).toBe("first")
+    expect(rec.inboxPromptDeferred).toHaveLength(1)
+  })
+
+  it("rejects an occupied tab for clients that do not request a structured conflict", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const first = (await dispatch(
+      "deferredPrompt.file",
+      { taskId: TASK.id, tabId: "tab-1", prompt: "first", layer: "composer-not-empty" },
+      ctx,
+    )) as { id: string }
+
+    await expect(
+      dispatch(
+        "deferredPrompt.file",
+        { taskId: TASK.id, tabId: "tab-1", prompt: "second", layer: "composer-not-empty" },
+        ctx,
+      ),
+    ).rejects.toThrow(/already has a deferred prompt/)
+
+    expect((await store.get(first.id))?.prompt).toBe("first")
+    expect(rec.inboxPromptDeferred).toHaveLength(1)
+  })
+
   it("file rejects a bad layer and an unknown task", async () => {
     const { ctx } = await ctxWithStore()
     await expect(

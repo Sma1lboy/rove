@@ -6,7 +6,8 @@
  * back (`get`), inserts it with a fresh A/C gate, then releases it (`resolve`).
  */
 
-import { optionalString, requireString } from "./handler-validators.ts"
+import { DeferredPromptPendingError, type DeferredPromptRecord } from "./deferred-prompts-store.ts"
+import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 
 export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
@@ -25,17 +26,28 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
       const senderLabel = optionalString(payload, "senderLabel")
       const senderTaskId = optionalString(payload, "senderTaskId")
-      const record = await ctx.deferredPrompts.file({
-        taskId,
-        tabId,
-        prompt,
-        layer,
-        ...(senderLabel !== undefined ? { senderLabel } : {}),
-        ...(senderTaskId !== undefined ? { senderTaskId } : {}),
-        at: Date.now(),
-      })
+      const reportPending = optionalBoolean(payload, "reportPending") ?? false
+      let record: DeferredPromptRecord
+      try {
+        record = await ctx.deferredPrompts.file({
+          taskId,
+          tabId,
+          prompt,
+          layer,
+          ...(senderLabel !== undefined ? { senderLabel } : {}),
+          ...(senderTaskId !== undefined ? { senderTaskId } : {}),
+          at: Date.now(),
+        })
+      } catch (error) {
+        if (!(error instanceof DeferredPromptPendingError) || !reportPending) throw error
+        return {
+          id: error.existing.id,
+          accepted: false,
+          layer: error.existing.layer,
+        }
+      }
       await ctx.inbox.recordPromptDeferred(taskId, tabId, record.id, layer)
-      return { id: record.id }
+      return { id: record.id, accepted: true }
     },
   },
   {

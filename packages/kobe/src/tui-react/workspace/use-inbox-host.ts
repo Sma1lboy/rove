@@ -110,7 +110,7 @@ export function useInboxHost(args: {
     try {
       const record = await orch.getDeferredPrompt(deferredId)
       if (!record) {
-        // The record was released/expired/displaced under us — drop the stale
+        // The record was released or cleaned up after expiry — drop the stale
         // episode so it doesn't point at a record that no longer exists.
         notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", args.notifyError)
         return

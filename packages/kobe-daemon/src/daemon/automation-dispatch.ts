@@ -38,14 +38,18 @@
  * `quota-resume` drops a blocked prompt on purpose — it is a nudge, and the
  * next rate-limit arms a new one. A routine's report has no such second
  * chance: dropped, it is indistinguishable from a routine that never ran. So
- * a busy composer files a deferral and an Inbox episode, and the run is
- * recorded as `deferred` — the same accepted-but-deferred contract
- * `rove api send` already gives agents.
+ * a busy composer tries to file a deferral and Inbox episode. Acceptance is
+ * recorded as `deferred`; an occupied slot preserves its earlier prompt and
+ * records this run as `dispatch_failed`.
  */
 
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
-import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
+import {
+  DeferredPromptPendingError,
+  type DeferredPromptRecord,
+  type DeferredPromptsStore,
+} from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
@@ -154,14 +158,24 @@ async function deferBlockedPrompt(
   if (!deps.deferred || !deps.inbox) {
     return { status: "dispatch_failed", taskId, error: `composer busy (${layer}) and no deferred-prompt store` }
   }
-  const record = await deps.deferred.file({
-    taskId,
-    tabId,
-    prompt: automation.prompt,
-    layer,
-    senderLabel: `routine: ${automation.name}`,
-    at: (deps.now ?? Date.now)(),
-  })
+  let record: DeferredPromptRecord
+  try {
+    record = await deps.deferred.file({
+      taskId,
+      tabId,
+      prompt: automation.prompt,
+      layer,
+      senderLabel: `routine: ${automation.name}`,
+      at: (deps.now ?? Date.now)(),
+    })
+  } catch (error) {
+    if (!(error instanceof DeferredPromptPendingError)) throw error
+    return {
+      status: "dispatch_failed",
+      taskId,
+      error: `tab ${tabId} already has a deferred prompt (${error.existing.id})`,
+    }
+  }
   await deps.inbox.recordPromptDeferred(taskId, tabId, record.id, layer)
   logDaemonInfo("automation", `deferred ${automation.name} task=${taskId} tab=${tabId} layer=${layer}`)
   return { status: "deferred", taskId }

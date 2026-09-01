@@ -122,7 +122,7 @@ describe("deferral sink against an older daemon", () => {
     const result = await deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "go", {
       vendor: "claude",
       snapshot: psWith("claude"),
-      defer: { defer: async () => "deferred-1" },
+      defer: { defer: async () => ({ kind: "filed", id: "deferred-1" }) },
     })
     expect(result.deferred).toEqual({ id: "deferred-1", layer: "composer-not-empty" })
     expect(result.delivered).toBe(false)
@@ -152,5 +152,24 @@ describe("deferral sink against an older daemon", () => {
     expect((err as ApiError).data?.layer).toBe("composer-not-empty")
     // The recovery argv is the original send, so a caller can retry verbatim.
     expect((err as ApiError).data?.nextCommandArgs).toEqual(["api", "send", "--task-id", "t1", "--prompt", "go"])
+  })
+
+  it("fails explicitly when the tab already has a deferred prompt", async () => {
+    const { rpc } = rpcWith([session("t1::tab-2", ["claude"])])
+    busyComposerPeek(rpc)
+    const err = await deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "new prompt", {
+      vendor: "claude",
+      snapshot: psWith("claude"),
+      defer: {
+        defer: async () => ({ kind: "occupied", id: "deferred-1" }),
+      },
+    }).then(
+      () => null,
+      (e) => e,
+    )
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).code).toBe("DEFERRED_PROMPT_PENDING")
+    expect((err as ApiError).data).toMatchObject({ existingId: "deferred-1", taskId: "t1", tabId: "tab-2" })
   })
 })
