@@ -306,6 +306,28 @@ export function computeRepoOptions(defaultRepo: string, savedRepos: readonly str
 }
 
 /**
+ * Split a saved-repo path into the part that IDENTIFIES it and the part that
+ * merely LOCATES it: the basename, and everything before it.
+ *
+ * The saved list is a column of absolute paths that share a prefix
+ * (`/Users/me/i/kobe`, `/Users/me/i/wisp`, …), so the leading run of
+ * characters is identical on every row and the one distinguishing word sits
+ * far right, past the ragged part. Leading with the basename puts the answer
+ * at a fixed left edge and demotes the directory to context the eye can skip.
+ *
+ * `dir` keeps its trailing slash so the two halves concatenate back to the
+ * original path — the row shows the same string, only re-ordered and
+ * re-weighted. A path with no slash (or a trailing one, which names no leaf)
+ * has nothing to split: it comes back whole as `base` with an empty `dir`,
+ * so the row renders exactly as it did before.
+ */
+export function splitRepoRow(path: string): { base: string; dir: string } {
+  const at = path.lastIndexOf("/")
+  if (at < 0 || at === path.length - 1) return { base: path, dir: "" }
+  return { base: path.slice(at + 1), dir: path.slice(0, at + 1) }
+}
+
+/**
  * Case-insensitive substring filter for the repo picker. Empty query
  * returns the full list verbatim.
  */

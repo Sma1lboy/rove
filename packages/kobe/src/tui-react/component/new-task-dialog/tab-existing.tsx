@@ -7,6 +7,7 @@
  * All behavior lives in the view-model; this file is JSX only.
  */
 
+import { splitRepoRow } from "../../../tui/component/new-task-dialog/state"
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -19,12 +20,21 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
 
   const repoRows = vm.activeWindow.items.map((name, i) => {
     const isCurrentDir = vm.mode === "saved" && name === vm.defaultRepo
-    const suffix = vm.mode === "browse" ? "/" : ""
     const tag = isCurrentDir ? `  ${t("newTask.hint.currentDir")}` : ""
+    // Browse mode lists SUBDIRECTORY NAMES under the typed path, not full
+    // paths — there is no prefix to demote, so those rows stay whole.
+    if (vm.mode === "browse") {
+      return { key: `${vm.activeWindow.start + i}:${name}`, body: `${name}/${tag}`, accent: false }
+    }
+    // Saved mode lists absolute paths that mostly share a prefix, so the one
+    // word telling them apart is the basename — it leads, and the directory
+    // trails muted (`splitRepoRow`).
+    const { base, dir } = splitRepoRow(name)
     return {
       key: `${vm.activeWindow.start + i}:${name}`,
-      body: `${name}${suffix}${tag}`,
-      accent: vm.mode === "saved" && vm.repo.trim() === name,
+      body: `${base}${tag}`,
+      accent: vm.repo.trim() === name,
+      ...(dir ? { dim: dir } : {}),
     }
   })
 

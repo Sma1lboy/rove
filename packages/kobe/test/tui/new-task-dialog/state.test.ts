@@ -33,6 +33,7 @@ import {
   pickerModeFor,
   prevDialogTab,
   resolveBaseRef,
+  splitRepoRow,
   stripNewlines,
   windowAround,
 } from "@/tui/component/new-task-dialog/state"
@@ -105,6 +106,33 @@ describe("computeRepoOptions", () => {
   it("dedupes the cwd against the saved list and keeps it first", () => {
     const cwd = "/home/me/proj"
     expect(computeRepoOptions(cwd, [cwd, "/home/me/other"])).toEqual([cwd, "/home/me/other"])
+  })
+})
+
+describe("splitRepoRow (repo rows lead with the basename)", () => {
+  it("splits an absolute path into basename + its directory, keeping the slash", () => {
+    expect(splitRepoRow("/Users/me/i/kobe")).toEqual({ base: "kobe", dir: "/Users/me/i/" })
+  })
+
+  it("round-trips: dir + base is the original path, so the row shows the same string", () => {
+    for (const path of ["/Users/me/i/kobe", "/a/b", "/root", "rel/path"]) {
+      const { base, dir } = splitRepoRow(path)
+      expect(dir + base).toBe(path)
+    }
+  })
+
+  it("leaves a bare name whole — nothing to demote, so the row renders as before", () => {
+    expect(splitRepoRow("kobe")).toEqual({ base: "kobe", dir: "" })
+  })
+
+  it("leaves a trailing-slash path whole: it names no leaf, so a split would blank the row", () => {
+    // `base` empty + `dir` everything would render an EMPTY identifying half
+    // with the whole path muted behind it — the row would read as blank.
+    expect(splitRepoRow("/Users/me/i/")).toEqual({ base: "/Users/me/i/", dir: "" })
+  })
+
+  it("keeps a repo at the filesystem root identifiable", () => {
+    expect(splitRepoRow("/kobe")).toEqual({ base: "kobe", dir: "/" })
   })
 })
 
