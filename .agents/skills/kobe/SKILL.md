@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 38 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 39 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -331,6 +331,10 @@ rove api pane-open --placement tab --title logs --command "tail -f app.log"
 
 # Close panes you opened, by their --title (engine panes are never closed).
 rove api pane-close --title logs
+
+# Close one whole Terminal Tab by the id from `get-task .tabs[]`.
+# This works with or without an attached TUI.
+rove api tab-close --task-id <id> --tab tab-3
 
 # Toast a one-liner in every attached Rove UI — surface "done / needs input /
 # error" moments without touching any session (kinds get severity styling).

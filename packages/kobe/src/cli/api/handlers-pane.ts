@@ -121,3 +121,28 @@ export const PANE_CLOSE_VERB: VerbSpec = {
     })
   },
 }
+
+export const TAB_CLOSE_VERB: VerbSpec = {
+  name: "tab-close",
+  group: "drive",
+  summary:
+    "Close one Terminal Tab by the id returned in get-task .tabs[]. Runs the same close path as ctrl+w when a TUI is attached; otherwise removes the persisted tab snapshot and ends its hosted PTYs directly. Engine, shell/command, and content tabs are all valid. Closing the last tab leaves the task open with no session.",
+  flags: [
+    F.taskId(true),
+    {
+      name: "tab",
+      type: "string",
+      required: true,
+      placeholder: "TAB",
+      description: "Exact Terminal Tab id from get-task .tabs[].id (for example tab-3).",
+    },
+  ],
+  handler: async (ctx) => {
+    const taskId = ctx.args.require("task-id")
+    const tabId = ctx.args.require("tab")
+    const reply = await daemonOf(ctx).request<{ handled?: boolean }>("terminalTab.close", { taskId, tabId })
+    if (reply.handled) return { ok: true, taskId, tabId, handledBy: "tui" }
+    const result = await ctx.runtime.closeTerminalTab(taskId, tabId)
+    return { ok: true, taskId, tabId, handledBy: "headless", ...result }
+  },
+}

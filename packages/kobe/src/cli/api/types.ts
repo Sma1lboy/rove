@@ -252,6 +252,8 @@ export interface ApiRuntime {
    * gives, from the same read (`get-task` needs both, one host round-trip).
    */
   taskTabs(taskId: string): Promise<{ tabs: readonly TaskTabRow[]; running: boolean }>
+  /** Close one exact Terminal Tab without a mounted TUI. */
+  closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
   /** Canonical source repo for task creation and grouping. */

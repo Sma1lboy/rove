@@ -43,6 +43,7 @@ import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
+import { TabCloseBroker } from "./tab-close-broker.ts"
 import { type DaemonWebServer, createDirectWebLink, startDaemonWebServer } from "./web-server.ts"
 import { WorkItemCache } from "./work-items.ts"
 
@@ -275,6 +276,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
 
   // Pending host-dialog prompts (`ui.prompt` ↔ `ui.promptReply`).
   const prompts = new PromptBroker()
+  const tabCloses = new TabCloseBroker()
 
   let webServer: DaemonWebServer | null = null
   // Why the web transport isn't listening (port taken, bind failed). Surfaced
@@ -314,6 +316,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
       await pluginHost?.stop()
       prompts.clear()
+      tabCloses.clear()
       activity.close()
       // Hosted PTYs are deliberately NOT touched here: they live in the
       // standalone `kobe pty-host` process, so `kobe daemon restart` never
@@ -380,6 +383,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       engineEvents,
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,
+      tabCloses,
       daemon: {
         startedAt,
         socketPath,

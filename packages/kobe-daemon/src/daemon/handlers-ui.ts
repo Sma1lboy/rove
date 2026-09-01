@@ -11,13 +11,16 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { optionalString, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
 
 /** `ui.prompt` timeout bounds — a plugin must not hang the CLI forever. */
 const PROMPT_DEFAULT_TIMEOUT_MS = 120_000
 const PROMPT_MAX_TIMEOUT_MS = 600_000
+/** A live TUI normally acknowledges in one render turn. Bound the wait so a
+ * stale GUI connection cannot turn a headless close into a hung CLI. */
+const TAB_CLOSE_TUI_TIMEOUT_MS = 750
 
 export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
@@ -184,6 +187,35 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // A close with no attached TUI silently matched nothing — without this
       // the caller cannot tell "pane closed" from "nobody was listening".
       return { ok: true, clients: ctx.daemon.clientCount() }
+    },
+  },
+  {
+    name: "terminalTab.close",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const tabId = requireString(payload, "tabId")
+      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
+      const broker = ctx.tabCloses
+      if (!broker || ctx.daemon.guiCount() === 0) return { ok: true, handled: false }
+
+      const requestId = randomUUID()
+      const handled = broker.create(requestId, TAB_CLOSE_TUI_TIMEOUT_MS)
+      ctx.bus.publish("tab.close", {
+        kind: "terminal-tab",
+        taskId,
+        tabId,
+        requestId,
+        at: Date.now(),
+      })
+      return { ok: true, handled: await handled }
+    },
+  },
+  {
+    name: "terminalTab.closeReply",
+    handle(payload, ctx) {
+      const requestId = requireString(payload, "requestId")
+      const closed = optionalBoolean(payload, "closed") ?? false
+      return { ok: ctx.tabCloses?.settle(requestId, closed) ?? false }
     },
   },
   {

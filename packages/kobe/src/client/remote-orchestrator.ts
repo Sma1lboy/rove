@@ -357,8 +357,12 @@ export class RemoteOrchestrator {
   /** Latest `tab.open` request (plugin panes) — consumers dedupe on `at`. */
   readonly tabOpenStore = (): ExternalStore<TabOpenPayload | null> => this.tabOpenAcc
 
-  /** Latest `tab.close` request (pane-close) — consumers dedupe on `at`. */
+  /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
   readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
+
+  /** Acknowledge whether this TUI closed an exact Terminal Tab request. */
+  readonly replyTerminalTabClose = (requestId: string, closed: boolean): void =>
+    void this.client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
 
   /** Latest `ui.prompt` request (host input dialog) — consumers dedupe on `at`. */
   readonly uiPromptStore = (): ExternalStore<UiPromptPayload | null> => this.uiPromptAcc
