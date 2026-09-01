@@ -84,6 +84,19 @@ closes the page.
 Deleting removes the routine and its run history. **Tasks it already created are
 untouched.** They are ordinary tasks and outlive the schedule that made them.
 
+To find them — a routine that has been firing for weeks has a task per run —
+read the ids off its history before deleting it, since deleting takes the
+history with it:
+
+```bash
+rove api routine-runs --id <id> | jq -r '.runs[].taskId | select(.)'
+```
+
+Then delete the ones you want with `rove api delete --task-id <id>`. Rove does
+not sweep them for you: they are ordinary tasks, some may hold work you want,
+and a schedule deleting tasks in the background is not a thing you should have
+to expect.
+
 ## The schedule
 
 Five-field cron, in the **daemon host's local time** (there is no timezone
