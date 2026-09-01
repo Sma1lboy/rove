@@ -423,9 +423,10 @@ missing (`gh-missing` / `auth` / `no-remote`) rather than a generic error.
 
 ## routine
 
-Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. Every firing creates a
-**fresh task** (worktree + branch + engine session) with the prompt as its
-first message. A run is an ordinary task you can open and keep talking to.
+Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. By default
+every firing creates a **fresh task** (worktree + branch + engine session) with
+the prompt as its first message; `--persistent-session` instead re-delivers into
+ONE standing task. A run is an ordinary task you can open and keep talking to.
 An enabled routine keeps the daemon alive so schedules fire with no TUI
 attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
@@ -433,16 +434,26 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-list`: every routine with its next run time.
 - `routine-create --repo PATH --name N --prompt TEXT --schedule CRON
   [--vendor V] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--disabled]`: schedule a prompt. `--schedule` is five-field
+  [--grace MIN] [--persistent-session] [--disabled]`: schedule a prompt. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`).
 - `routine-update --id ID [...]`: change any field. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck.
 - `routine-set-enabled --id ID --enabled BOOL`: pause / resume.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
-- `routine-runs --id ID`: run history, newest first.
+- `routine-runs --id ID`: run history, newest first. `revived` and `deferred`
+  are standing-session outcomes — see below.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched).
+
+**`--persistent-session`** keeps ONE task per routine and delivers each firing
+into it, so a daily check can build on yesterday. Its task is folded behind the
+sidebar's `N routine sessions` count row (still findable by search, still
+Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
+one branch is a branch nobody can land. Two extra run statuses come with it —
+`revived` (the engine had exited, so it was respawned in the same worktree; the
+files carried over, the conversation did not) and `deferred` (the composer was
+busy, so the prompt is queued in the Inbox rather than lost — a success).
 
 **`--precheck`** runs a shell command in the repo before the engine starts;
 a non-zero exit skips the run *without* creating a task. Use it so a schedule

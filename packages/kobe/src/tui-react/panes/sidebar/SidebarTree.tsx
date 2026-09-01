@@ -161,8 +161,13 @@ export function SidebarTree(props: SidebarTreeProps) {
    * and the tab state all move together.
    */
   const recentTaskRef = useLatest(props.recentTask ?? null)
+  const toggleRoutinesRow = tree.toggleRoutinesRow
   const activateRow = useCallback(
     (rowId: string): void => {
+      // The routine count row (issue #91) opens and closes instead of
+      // activating: it names no task, so `parseRowId` below would hand a
+      // sentinel id to `onSelect` and land on nothing.
+      if (toggleRoutinesRow(rowId)) return
       // The "↩ recent" jump row IS its task — ⏎ re-enters that workspace.
       const recent = rowId === RECENT_ROW_ID ? recentTaskRef.current : null
       const { taskId, tabId } = recent ? { taskId: recent.id, tabId: null } : parseRowId(rowId)
@@ -174,7 +179,7 @@ export function SidebarTree(props: SidebarTreeProps) {
       props.onSelectTab?.(taskId, tabId)
       props.onActivate?.(taskId)
     },
-    [props.onSelect, props.onActivate, props.onSelectTab],
+    [props.onSelect, props.onActivate, props.onSelectTab, toggleRoutinesRow],
   )
   const activateRowRef = useLatest(activateRow)
 

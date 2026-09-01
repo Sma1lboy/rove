@@ -6,13 +6,21 @@
 
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
-import type { ProjectIntent } from "../state/project-eligibility.ts"
 import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
-import type { Task, TaskDispatcher, TaskId, TaskPRStatus, TaskStatus, VendorId } from "../types/task.ts"
+import type {
+  Task,
+  TaskDispatcher,
+  TaskId,
+  TaskPRStatus,
+  TaskRoutineLink,
+  TaskStatus,
+  VendorId,
+} from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
+import type { CreateTaskInput } from "./create-task-input.ts"
 import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
@@ -23,36 +31,10 @@ import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
-/** Input to {@link Orchestrator.createTask}. */
-export interface CreateTaskInput {
-  readonly repo: string
-  /** Title for the sidebar row. Defaults to `(new task)` when omitted. */
-  readonly title?: string
-  /** Branch override; otherwise an auto branch is generated lazily. */
-  readonly branch?: string
-  /** Optional base ref for the new lazy worktree branch. */
-  readonly baseRef?: string
-  /** Engine PROTOCOL for the monitor's history-reader hint (derived from
-   *  {@link command} when the caller passed one). */
-  readonly vendor?: VendorId
-  /** Raw engine launch command (`add --command`), recorded verbatim. */
-  readonly command?: string
-  /** Reasoning/effort level for the engine, when the vendor supports one. */
-  readonly modelEffort?: string
-  /** Fan-out round marker shared by all siblings of one fan-out call. */
-  readonly groupId?: string
-  /** The kobe session (task + tab) dispatching this create, when one is. */
-  readonly dispatcher?: TaskDispatcher
-  /**
-   * How the repo was chosen, for the project-admission gate
-   * (state/project-eligibility.ts). Defaults to `"explicit"`: every caller
-   * today reaches here from a user naming the repo — the new-task dialog,
-   * `rove api add`, a quick-fork of the row you are on. A caller that
-   * INFERRED the repo (a script walking directories, a fixture harness)
-   * should pass `"derived"` to get the stricter gate.
-   */
-  readonly projectIntent?: ProjectIntent
-}
+// The create-task input type lives in its own module (file-size cap) and is
+// re-exported here: callers name it through the orchestrator, and the split
+// is a file boundary, not an API change.
+export type { CreateTaskInput } from "./create-task-input.ts"
 
 export type Unsubscribe = () => void
 export type TaskListListener = (snapshot: readonly Task[]) => void
@@ -264,6 +246,7 @@ export class Orchestrator {
       ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
       ...(input.groupId ? { groupId: input.groupId } : {}),
       ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
+      ...(input.routine ? { routine: input.routine } : {}),
       // Persisted ON the task (not a one-shot side-map): `ensureWorktree`
       // reads it whenever the worktree materialises — including after a
       // daemon restart between create and first enter — and `collect`'s

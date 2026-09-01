@@ -248,6 +248,10 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // Same construction-order deferral: the plugin host starts right after
       // the collectors, and the sweep only reads it on a tick.
       plugins: () => pluginHost,
+      // A standing routine session whose composer is busy hands its report to
+      // these instead of dropping it (issue #91).
+      ...(deferredPrompts ? { deferred: deferredPrompts } : {}),
+      inbox,
     },
     activity,
   )

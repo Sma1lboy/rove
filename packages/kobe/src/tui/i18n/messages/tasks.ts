@@ -43,6 +43,8 @@ export const en = {
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
+  /** The fold row standing in for a project's routine sessions (issue #91) */
+  routinesRow: "{count} routine sessions",
   /** Empty-state messages */
   empty: {
     noMatchSearch: "No matching tasks — esc to clear.",
@@ -141,6 +143,7 @@ export const zh: typeof en = {
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
+  routinesRow: "{count} 个 routine 会话",
   empty: {
     noMatchSearch: "无匹配任务——按 esc 清除。",
     noActiveProject: "该项目暂无活跃任务。",

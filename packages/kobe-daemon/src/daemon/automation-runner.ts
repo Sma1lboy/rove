@@ -1,5 +1,9 @@
 /**
- * Automation sweep: fire due schedules, one fresh task per run.
+ * Automation sweep: fire due schedules.
+ *
+ * WHERE a firing's prompt lands is `automation-dispatch.ts` (fresh task per
+ * run, or one standing session re-delivered into — issue #91). This module
+ * owns only WHEN, and recording what happened.
  *
  * Shape copied wholesale from {@link startQuotaResumeRunner} — same stateless
  * tick, same re-entrancy latch, same unref'd timer, and the same deliberate
@@ -21,11 +25,13 @@
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
+import { type DispatchInbox, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
 import type { AutomationsStore } from "./automations-store.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { latestCronAtOrBefore } from "./cron.ts"
+import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** How often the sweep looks for due schedules. Cron's own resolution is one
@@ -63,10 +69,14 @@ export function resolveDueOccurrence(
   return { scheduledFor, missed: nowMs - scheduledFor > graceMs }
 }
 
-/** The slice of the orchestrator this runner needs. */
-export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask">
+/** The slice of the orchestrator this runner needs. `getTask` resolves a
+ *  standing session's task before re-delivering into it (issue #91). */
+export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask">
 
-export type AutomationRuntime = Pick<DaemonRuntimeAdapter, "startTaskSessionWithPrompt">
+export type AutomationRuntime = Pick<
+  DaemonRuntimeAdapter,
+  "startTaskSessionWithPrompt" | "deliverPromptToLiveEngineDetailed"
+>
 
 interface RunnerDeps {
   readonly store: AutomationsStore
@@ -79,6 +89,11 @@ interface RunnerDeps {
   /** Plugin event sink (getter for the same construction-order reason as
    *  `link`). Every recorded run fires one automation.* plugin event. */
   readonly plugins?: () => { handleUiReport(report: PluginRunReport): void } | null
+  /** Ownership of a prompt a busy composer refused (standing sessions only).
+   *  Absent in a daemon booted without the stores; the firing then records a
+   *  failure rather than dropping the report silently. */
+  readonly deferred?: DeferredPromptsStore
+  readonly inbox?: DispatchInbox
   readonly now?: () => number
 }
 
@@ -88,9 +103,12 @@ type PluginRunReport = {
   readonly detail?: Record<string, unknown>
 }
 
-/** Run outcome → plugin event name (docs/design/plugin-events.md). */
+/** Run outcome → plugin event name (docs/design/plugin-events.md).
+ *  `revived` and `deferred` both delivered the prompt somewhere it will be
+ *  read, so they report as dispatched rather than minting event names every
+ *  existing plugin would ignore. */
 function runEventFor(status: AutomationRunStatus): PluginRunReport["kind"] {
-  if (status === "dispatched") return "automation.dispatched"
+  if (status === "dispatched" || status === "revived" || status === "deferred") return "automation.dispatched"
   if (status === "dispatch_failed") return "automation.failed"
   return "automation.skipped"
 }
@@ -159,36 +177,47 @@ export async function runAutomationOnce(
     }
   }
 
-  let taskId: string
+  let outcome: Awaited<ReturnType<typeof dispatchAutomation>>
   try {
-    const task = await deps.orch.createTask({
-      repo: automation.repo,
-      title: automation.name,
-      ...(automation.vendor ? { vendor: automation.vendor } : {}),
-      ...(automation.baseRef ? { baseRef: automation.baseRef } : {}),
-    })
-    taskId = task.id
+    outcome = await dispatchAutomation(
+      {
+        orch: deps.orch,
+        runtime: deps.runtime,
+        link: () => resolveLink(deps.link),
+        ...(deps.deferred ? { deferred: deps.deferred } : {}),
+        ...(deps.inbox ? { inbox: deps.inbox } : {}),
+        ...(deps.now ? { now: deps.now } : {}),
+      },
+      automation,
+    )
   } catch (err) {
     // A repo that moved or was forgotten lands here — the schedule is fine,
     // its target is not, so this is `unavailable` rather than a failure.
     const error = err instanceof Error ? err.message : String(err)
-    logDaemonError("automation-create-task", err)
+    logDaemonError("automation-dispatch", err)
     return await record("skipped_unavailable", { error })
   }
 
-  try {
-    const started = await deps.runtime.startTaskSessionWithPrompt(resolveLink(deps.link), taskId, automation.prompt)
-    if (!started) {
-      // The task EXISTS even though its engine did not start, so the id is
-      // carried on the run record — the user can open it and retry by hand.
-      return await record("dispatch_failed", { taskId, error: "engine session did not start" })
-    }
-    logDaemonInfo("automation", `dispatched ${automation.name} task=${taskId}`)
-    return await record("dispatched", { taskId })
-  } catch (err) {
-    logDaemonError("automation-dispatch", err)
-    return await record("dispatch_failed", { taskId, error: err instanceof Error ? err.message : String(err) })
+  // Persist the standing-session link BEFORE recording the run: a crash
+  // between the two costs one run record, while the reverse would leave the
+  // routine building a second standing task on its next firing.
+  if (outcome.sessionTaskIdToSet) {
+    await deps.store
+      .update(automation.id, { sessionTaskId: outcome.sessionTaskIdToSet })
+      .catch((err) => logDaemonError("automation-session-link", err))
+  } else if (outcome.sessionTaskIdToClear) {
+    await deps.store
+      .update(automation.id, { sessionTaskId: null })
+      .catch((err) => logDaemonError("automation-session-unlink", err))
   }
+
+  if (outcome.status === "dispatched" || outcome.status === "revived") {
+    logDaemonInfo("automation", `${outcome.status} ${automation.name} task=${outcome.taskId}`)
+  }
+  return await record(outcome.status, {
+    ...(outcome.taskId ? { taskId: outcome.taskId } : {}),
+    ...(outcome.error ? { error: outcome.error } : {}),
+  })
 }
 
 /** One sweep pass. Exported so tests can drive it without a timer. */

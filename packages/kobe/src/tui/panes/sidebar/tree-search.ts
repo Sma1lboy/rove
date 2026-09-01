@@ -38,6 +38,11 @@ import { type TreeRow, ownerProjectKey, worktreeRowLabel } from "./tree-core"
  */
 function rowHaystacks(row: TreeRow, liveBranch?: (task: Task) => string): readonly string[] {
   if (row.kind === "project") return [row.label]
+  // The routine count row carries a translated count, not a name worth
+  // matching. It is dropped from a search entirely (see `filterTreeRows`):
+  // while searching, the routine tasks it folds are shown DIRECTLY, so the
+  // toggle would be a fold with nothing left under it.
+  if (row.kind === "routines") return []
   if (row.kind === "tab") return [row.tab.label]
   const task = row.task
   // A `dir` task's stored title is the noise the row refuses to show; it must
@@ -88,7 +93,7 @@ export function filterTreeRows(
     if (!matchesRow(q, row, liveBranch)) continue
     selfMatch.add(row.id)
     keep.add(row.id)
-    if (row.kind === "project") continue
+    if (row.kind === "project" || row.kind === "routines") continue
     if (row.kind === "tab") keep.add(row.task.id)
     const project = ownerProjectKey(row.task)
     if (project !== null) keep.add(project)
@@ -102,6 +107,11 @@ export function filterTreeRows(
       if (keep.has(row.id)) out.push(row)
       continue
     }
+    // A search shows every matching routine session directly, so the fold
+    // toggle itself never survives one. Hiding a row at rest must not make it
+    // unfindable — search is precisely how you reach a folded row without
+    // opening the fold first.
+    if (row.kind === "routines") continue
     const project = ownerProjectKey(row.task)
     const underMatchedProject = project !== null && selfMatch.has(project)
     if (row.kind === "worktree") {

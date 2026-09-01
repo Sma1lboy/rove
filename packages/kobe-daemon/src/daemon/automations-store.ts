@@ -77,6 +77,8 @@ function normalizeAutomation(value: unknown): Automation | null {
         }
       : {}),
     ...(str(raw.baseRef) ? { baseRef: raw.baseRef } : {}),
+    ...(raw.persistentSession === true ? { persistentSession: true } : {}),
+    ...(str(raw.sessionTaskId) ? { sessionTaskId: raw.sessionTaskId } : {}),
     ...(str(raw.lastRunAt) ? { lastRunAt: raw.lastRunAt } : {}),
     createdAt: str(raw.createdAt) ?? now,
     updatedAt: str(raw.updatedAt) ?? now,
@@ -93,6 +95,8 @@ function normalizeRun(value: unknown): AutomationRun | null {
   if (!id || !automationId || !scheduledFor || !at) return null
   if (
     raw.status !== "dispatched" &&
+    raw.status !== "revived" &&
+    raw.status !== "deferred" &&
     raw.status !== "skipped_precheck" &&
     raw.status !== "skipped_missed" &&
     raw.status !== "skipped_unavailable" &&
@@ -259,6 +263,14 @@ export class AutomationsStore {
           ? { baseRef: undefined }
           : patch.baseRef !== undefined
             ? { baseRef: patch.baseRef }
+            : {}),
+        ...(patch.persistentSession !== undefined ? { persistentSession: patch.persistentSession } : {}),
+        // `null` clears the standing-session link outright: a stored null
+        // would read as "linked to nothing" on the next firing's lookup.
+        ...(patch.sessionTaskId === null
+          ? { sessionTaskId: undefined }
+          : patch.sessionTaskId !== undefined
+            ? { sessionTaskId: patch.sessionTaskId }
             : {}),
         // Re-anchor the schedule whenever the expression changes, else the old
         // nextRunAt would fire on a rule the user just replaced.

@@ -56,6 +56,10 @@ export interface AutomationCollectorDeps {
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
+  /** Where a standing session's blocked report goes (issue #91) instead of
+   *  being dropped. Optional so tests that don't exercise it keep working. */
+  readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
+  readonly inbox?: import("./automation-dispatch.ts").DispatchInbox
 }
 
 /**
@@ -236,6 +240,8 @@ export function startDaemonCollectors(
           runtime,
           link: automations.link,
           ...(automations.plugins ? { plugins: automations.plugins } : {}),
+          ...(automations.deferred ? { deferred: automations.deferred } : {}),
+          ...(automations.inbox ? { inbox: automations.inbox } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )

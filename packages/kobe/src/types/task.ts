@@ -121,6 +121,12 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** Back-pointer from a routine's standing session task to its schedule. */
+export interface TaskRoutineLink {
+  /** `Automation.id`. Survives the routine being renamed or rescheduled. */
+  readonly automationId: string
+}
+
 /**
  * One task. Stored in `~/.rove/tasks.json` as part of {@link TaskIndex}.
  *
@@ -163,6 +169,22 @@ export interface Task {
    * (`adoptScratchRepo`) — after which it is an ordinary directory task.
    */
   readonly scratch?: boolean
+  /**
+   * The routine (`Automation`) this task is the standing session for
+   * (issue #91). A routine with `persistentSession` creates ONE task and
+   * re-delivers into it on every firing, instead of a fresh worktree per
+   * run — so a daily check can read what it said yesterday.
+   *
+   * The sidebar renders these behind a per-project count row rather than as
+   * loose task rows: 7 daily routines are 49 rows a week of background noise
+   * competing with the handful of tasks the user opened themselves. The task
+   * is ordinary in every other layer — selectable, Inbox-reachable, and
+   * addressable by `rove api` — only its resting sidebar row is folded away.
+   *
+   * Absent on tasks created before the field, which is what keeps the
+   * already-created routine tasks rendering exactly as they do today.
+   */
+  readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   /**
    * User-pinned regular tasks float to the top of the sidebar's
