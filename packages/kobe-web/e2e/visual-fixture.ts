@@ -1,4 +1,5 @@
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { isProcessAlive } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { basename, join, relative, resolve, sep } from "node:path"
 import {
   assertFixtureIsolation,
@@ -40,6 +41,12 @@ const XDG_RUNTIME_DIR = join(VISUAL_HOME, ".runtime")
 // pin rides both VISUAL_ENV and the PTY command.
 const VISUAL_TODAY = "2026-07-15"
 
+/** Backstop life ceiling for fixture daemons and PTY hosts (`pty-server.ts`).
+ *  Generous next to a ~15s journey, short next to the two DAYS the stranded
+ *  hosts reached. Deliberately absent from production and the interactive
+ *  `dev:sandbox`, where a long-lived host is somebody's live environment. */
+const VISUAL_PTY_MAX_LIFETIME_MS = String(30 * 60 * 1000)
+
 export const VISUAL_ENV = buildFixtureEnv({
   root: VISUAL_ROOT,
   home: VISUAL_HOME,
@@ -48,6 +55,11 @@ export const VISUAL_ENV = buildFixtureEnv({
   extra: {
     ROVE_ISSUES_TODAY: VISUAL_TODAY,
     KOBE_ISSUES_TODAY: VISUAL_TODAY,
+    // A fixture host has no business outliving the run that made it. Teardown
+    // below is the primary reaper; this is the backstop for the run that never
+    // reaches teardown at all (a killed harness, an interrupted Playwright).
+    ROVE_PTY_MAX_LIFETIME_MS: VISUAL_PTY_MAX_LIFETIME_MS,
+    KOBE_PTY_MAX_LIFETIME_MS: VISUAL_PTY_MAX_LIFETIME_MS,
   },
 })
 
@@ -138,6 +150,40 @@ async function seedStartupState(): Promise<void> {
   await writeFile(join(stateDir, "state.json"), `${JSON.stringify(state, null, 2)}\n`)
 }
 
+/** Pid a runtime pidfile names right now, or null when absent/unreadable. */
+async function pidFromFile(path: string): Promise<number | null> {
+  try {
+    const pid = Number.parseInt((await readFile(path, "utf8")).trim(), 10)
+    return Number.isInteger(pid) && pid > 1 ? pid : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Teardown must PROVE it cleaned up. `rm -rf VISUAL_ROOT` deletes the socket
+ * and pidfile that are the only handles anyone has on the fixture's daemon and
+ * PTY host, so a reset that quietly failed used to leave a running process
+ * nothing could ever address again — and the deletion erased the evidence
+ * that it had. Read the pids BEFORE the delete, check them after, and say so
+ * out loud when one survived.
+ */
+async function assertFixtureProcessesGone(pids: ReadonlyMap<string, number>): Promise<void> {
+  const survivors: string[] = []
+  for (const [role, pid] of pids) {
+    // A dying process can take a moment past its socket close.
+    for (let attempt = 0; attempt < 10 && isProcessAlive(pid); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    if (isProcessAlive(pid)) survivors.push(`${role} (pid ${pid})`)
+  }
+  if (survivors.length === 0) return
+  throw new Error(
+    `visual fixture teardown leaked ${survivors.join(", ")}: the process outlived its home ${VISUAL_ROOT}, ` +
+      "whose socket and pidfile are now deleted, so nothing can address it. Kill it by the pid above.",
+  )
+}
+
 export async function cleanupVisualFixture(): Promise<void> {
   assertSafeVisualRoot()
   assertFixtureIsolation(VISUAL_HOME, VISUAL_ROOT)
@@ -150,6 +196,15 @@ export async function cleanupVisualFixture(): Promise<void> {
     body: JSON.stringify({ tab: `visual-${VISUAL_RUN_ID}` }),
   }).catch(() => {})
   await new Promise((resolve) => setTimeout(resolve, 500))
+  // Read the addresses BEFORE reset or rm can remove them; verified after.
+  const owners = new Map<string, number>()
+  for (const [role, path] of [
+    ["daemon", PATHS.daemonPidPath],
+    ["pty host", PATHS.ptyPidPath],
+  ] as const) {
+    const pid = await pidFromFile(path)
+    if (pid !== null) owners.set(role, pid)
+  }
   try {
     run("bun", ["run", "dev:sandbox:reset"])
   } finally {
@@ -165,6 +220,7 @@ export async function cleanupVisualFixture(): Promise<void> {
       }
     }
   }
+  await assertFixtureProcessesGone(owners)
 }
 
 /** Warm-path probe: marker matches and the fixture daemon still answers. */
