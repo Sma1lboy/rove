@@ -272,12 +272,46 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
     const rpc = rpcWith({ alive: true, data: Buffer.from("❯ hello", "utf8").toString("base64") })
     const err = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", {
       screenManifest: manifest,
+      // Pinned, not defaulted: the gate now falls back to the persisted
+      // setting, so leaving this out made the assertion depend on whether the
+      // machine running the suite had turned the switch off.
+      composerGate: true,
     }).then(
       () => null,
       (e) => e,
     )
     expect(err).toBeInstanceOf(ComposerBusyError)
     expect((err as ComposerBusyError).layer).toBe("composer-not-empty")
+  })
+
+  it("skips the screen check when the composer gate is off, but keeps the timing one", async () => {
+    // The escape hatch (state/composer-gate.ts) for a screen rule an engine
+    // redesign has outrun. It drops the LAYOUT read only: the A layer measures
+    // keystroke recency, so a composer someone is typing into right now stays
+    // protected however this is set — otherwise turning it off would trade a
+    // stuck queue for messages landing mid-sentence.
+    const busyScreen = { alive: true, data: Buffer.from("❯ hello", "utf8").toString("base64") }
+
+    const cOff = await deliverToHostedKey(rpcWith(busyScreen) as HostedSessionRpc, "t1::tab-1", "go", {
+      screenManifest: manifest,
+      composerGate: false,
+    }).then(
+      () => "delivered",
+      (e) => e,
+    )
+    expect(cOff).toBe("delivered")
+
+    const aStillOn = await deliverToHostedKey(
+      rpcWith({ ...busyScreen, lastHumanWriteMs: 1_000, humanWriteQuietMs: 10_000 }) as HostedSessionRpc,
+      "t1::tab-1",
+      "go",
+      { screenManifest: manifest, composerGate: false, now: () => 5_000 },
+    ).then(
+      () => null,
+      (e) => e,
+    )
+    expect(aStillOn).toBeInstanceOf(ComposerBusyError)
+    expect((aStillOn as ComposerBusyError).layer).toBe("recent-human-write")
   })
 
   it("delivers when both gates pass", async () => {

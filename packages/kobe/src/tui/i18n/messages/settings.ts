@@ -186,6 +186,9 @@ export const en = {
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
     dispatcher: "Field-notes dispatcher",
+    composerGateHint:
+      "Before pasting a peer/API prompt into a running engine, Rove reads that session's screen and holds the message if the composer already has text in it. The check knows each engine's CURRENT layout, so a vendor redesign can make it wrong — turn it off if messages are being held over composers you can see are empty. The separate recent-keystroke guard stays on either way, so a composer you are typing into now is still protected.",
+    composerGate: "Check the composer before delivering",
   },
 }
 
@@ -361,5 +364,8 @@ export const zh: typeof en = {
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
     dispatcher: "现场笔记调度器",
+    composerGateHint:
+      "把 peer/API 的消息粘进运行中的引擎之前,Rove 会读一遍那个会话的屏幕,发现输入框里已经有字就先扣住不发。这个判断依赖引擎当前的界面布局,所以厂商改版可能让它失准——如果你看着输入框明明是空的、消息却一直被扣住,就关掉它。另一道「刚刚有人在打字」的保护始终生效,正在输入的输入框仍然受保护。",
+    composerGate: "投递前检查输入框",
   },
 }

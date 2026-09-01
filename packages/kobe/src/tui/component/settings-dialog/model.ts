@@ -76,6 +76,7 @@ export type SettingsRow =
   | { id: "remote-projects"; kind: "devRemoteProjects" }
   | { id: "auto-status"; kind: "devAutoStatus" }
   | { id: "dispatcher"; kind: "devDispatcher" }
+  | { id: "composer-gate"; kind: "devComposerGate" }
 
 /** Stable row ids for payload-bearing rows (shared by builders + views). */
 export function themeRowId(name: string): string {
@@ -206,9 +207,9 @@ export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
 }
 
 /**
- * Dev section: Reset (always), Restart (daemon only), then the
- * Experimental remote-projects toggle — kept last so its presence never
- * shifts the rows above it.
+ * Dev section: Reset (always), Restart (daemon only), then the Experimental
+ * toggles — kept last so their presence never shifts the rows above them, and
+ * appended in order so an added switch never renumbers an existing one.
  */
 export function devRows(hasDaemon: boolean): SettingsRow[] {
   return [
@@ -217,6 +218,7 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
     { id: "remote-projects", kind: "devRemoteProjects" },
     { id: "auto-status", kind: "devAutoStatus" },
     { id: "dispatcher", kind: "devDispatcher" },
+    { id: "composer-gate", kind: "devComposerGate" },
   ]
 }
 

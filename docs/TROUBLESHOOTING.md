@@ -281,6 +281,31 @@ A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never
 silently spawns an engine on a guess.
 
+## `rove api send` reports `deferred` over a composer that is empty
+
+A `deferred` result is a success, not an error: the delivery gate found the
+target busy, so the daemon took ownership of the text and queued a
+`prompt_deferred` episode for you to release from the Inbox. Retrying stacks a
+duplicate — the daemon already has the message.
+
+Two gates can defer, and the `layer` in the response says which:
+
+- **`recent-human-write`** — someone typed into that session within the last
+  10 seconds. Wait it out.
+- **`composer-not-empty`** — Rove rendered the session's screen and read text
+  in its composer.
+
+The second one reads the engine's CURRENT on-screen layout, so a vendor
+redesign can make it wrong: it holds every message while reporting a composer
+you can see is empty. If that happens, turn the check off in **Settings → Dev
+→ Check the composer before delivering**. Delivery then skips the screen read
+and relies on the keystroke-recency guard alone, which measures time instead
+of parsing a layout and so cannot go stale — a composer you are typing into
+right now stays protected either way.
+
+Leave it on otherwise. It is what stops an agent's message landing in the
+middle of a half-typed sentence.
+
 ## `rove api set-branch` fails, but the branch was renamed anyway
 
 The call exits non-zero with git's own complaint, stamped with the path of the

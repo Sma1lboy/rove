@@ -6,6 +6,7 @@ import { defaultPtyHostSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type { PtyOpenResult, PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
+import { composerGateEnabled } from "../state/composer-gate.ts"
 import { readPersistedTerminalDefaultColors } from "../tui/lib/terminal-colors.ts"
 import { BUILTIN_VENDORS } from "../types/vendor.ts"
 import { isComposerEmpty } from "./composer-state.ts"
@@ -164,6 +165,13 @@ export interface HostedPromptDeliveryOpts {
   readonly now?: () => number
   /** Override for the paste-readiness wait (ms). Tests shorten it. */
   readonly pasteReadyTimeoutMs?: number
+  /**
+   * Run the screen-based composer check. Defaults to the persisted setting
+   * (`state/composer-gate.ts`, on unless the user turned it off); an explicit
+   * value is the test seam, so a suite never depends on the machine's
+   * state.json.
+   */
+  readonly composerGate?: boolean
 }
 
 function recentHumanWriteBlocks(peek: PtyPeekResult, opts: HostedPromptDeliveryOpts, now: number): boolean {
@@ -184,6 +192,12 @@ async function assertComposerClear(peek: PtyPeekResult, key: string, opts?: Host
   if (recentHumanWriteBlocks(peek, opts ?? {}, now)) {
     throw new ComposerBusyError("recent-human-write", key)
   }
+  // The A layer above measures TIME and cannot be disabled: someone typing
+  // right now is protected whatever this setting says. Only the screen read
+  // below is switchable, because only it depends on a vendor's current
+  // layout — see state/composer-gate.ts. Read per delivery, so flipping the
+  // switch takes effect without a restart.
+  if (!(opts?.composerGate ?? composerGateEnabled())) return
   if (await composerNonEmpty(peek, opts?.screenManifest)) {
     throw new ComposerBusyError("composer-not-empty", key)
   }
