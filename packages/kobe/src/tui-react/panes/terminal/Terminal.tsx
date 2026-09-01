@@ -40,7 +40,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
-import { isShellMissing, overlayCursor, sealRowEndAttributes } from "../../../tui/panes/terminal/terminal-render"
+import {
+  isShellMissing,
+  overlayCursor,
+  resolveInverseAttributes,
+  sealRowEndAttributes,
+} from "../../../tui/panes/terminal/terminal-render"
 import { overlaySelection } from "../../../tui/panes/terminal/terminal-selection"
 import {
   FOLLOW_VIEWPORT,
@@ -283,8 +288,9 @@ export function Terminal(props: TerminalProps) {
   // the "wrapped URL underlines everything below it" report). Its doc comment
   // has the full mechanism; drop this call once opentui resets per row.
   const styledSnapshot = useMemo(() => {
+    const resolved = resolveInverseAttributes(cursorRows, terminalColors.foreground, terminalColors.background)
     const sealed = sealRowEndAttributes(
-      cursorRows,
+      resolved,
       bodyGeometry?.cols ?? 80,
       terminalColors.foreground,
       terminalColors.background,

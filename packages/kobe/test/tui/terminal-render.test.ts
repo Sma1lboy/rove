@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 import { ATTR, type Chunk, type RGB } from "../../src/tui/panes/terminal/sgr"
-import { overlayCursor, sealRowEndAttributes } from "../../src/tui/panes/terminal/terminal-render"
+import {
+  overlayCursor,
+  resolveInverseAttributes,
+  sealRowEndAttributes,
+} from "../../src/tui/panes/terminal/terminal-render"
 
 const CURSOR_FG: RGB = [20, 20, 19]
 const CURSOR_BG: RGB = [234, 231, 223]
@@ -96,6 +100,42 @@ describe("overlayCursor — cell-column aware", () => {
     const out = overlayCursor(rows, { x: 4, y: 0 }, COLORS)[0]
     expect(out.map((c) => c.text).join("")).toBe("ab   ")
     expect(out.at(-1)).toEqual({ text: " ", fg: CURSOR_FG, bg: CURSOR_BG })
+  })
+})
+
+describe("resolveInverseAttributes", () => {
+  const FG: RGB = [230, 225, 210]
+  const BG: RGB = [20, 20, 20]
+
+  it("resolves default-color inverse to swapped theme colors and strips the bit", () => {
+    const rows = [[{ text: "CD", attributes: ATTR.INVERSE } as Chunk]]
+
+    expect(resolveInverseAttributes(rows, FG, BG)).toEqual([[{ text: "CD", fg: BG, bg: FG }]])
+  })
+
+  it("swaps explicit colors and preserves other attribute bits", () => {
+    const fg: RGB = [1, 2, 3]
+    const bg: RGB = [4, 5, 6]
+    const rows = [[{ text: "styled", fg, bg, attributes: ATTR.INVERSE | ATTR.BOLD } as Chunk]]
+
+    expect(resolveInverseAttributes(rows, FG, BG)).toEqual([
+      [{ text: "styled", fg: bg, bg: fg, attributes: ATTR.BOLD }],
+    ])
+  })
+
+  it("reuses non-inverse chunks and untouched rows by reference", () => {
+    const plain = { text: "plain", attributes: ATTR.UNDERLINE } as Chunk
+    const inverse = { text: "inverse", attributes: ATTR.INVERSE } as Chunk
+    const untouchedRow = [plain]
+    const changedRow = [plain, inverse]
+    const rows = [untouchedRow, changedRow]
+
+    const out = resolveInverseAttributes(rows, FG, BG)
+
+    expect(out[0]).toBe(untouchedRow)
+    expect(out[0]?.[0]).toBe(plain)
+    expect(out[1]).not.toBe(changedRow)
+    expect(out[1]?.[0]).toBe(plain)
   })
 })
 
