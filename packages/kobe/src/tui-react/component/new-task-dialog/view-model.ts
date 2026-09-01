@@ -208,8 +208,14 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     // "Open the project" is a different verb, not a create with a flag: it
     // resolves to the repo's EXISTING main row, so it carries no baseRef —
     // there is no branch to fork from when you are opening the checkout
-    // itself. Guarded on `canOpenProject` so an intent left over from a
-    // repo swap can never submit a mode this repo has nothing to satisfy.
+    // itself.
+    //
+    // `canOpenProject` is re-read here rather than trusted from when the
+    // choice was made: it derives from the CURRENT repo, so this cannot
+    // submit `open` for a path that has no main row to resolve. `changeRepo`
+    // already resets the intent on every repo change, which makes the two
+    // agree in practice — this is the half that does not depend on every
+    // future caller remembering to go through it.
     if (intent === "project" && canOpenProject) {
       props.onSubmit({ mode: "open", repo: r, vendor })
       dialog.clear()
