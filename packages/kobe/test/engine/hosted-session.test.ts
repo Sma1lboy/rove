@@ -2,6 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
+import { CODEX_SCREEN_MANIFEST } from "../../src/engine/codex-local/screen.ts"
 import {
   ComposerBusyError,
   type HostedSessionRpc,
@@ -344,6 +345,39 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
     const ok = await deliverToHostedKey(rpc as HostedSessionRpc, "t1::tab-1", "go", { screenManifest: manifest })
     // An observed outcome now, not a bare boolean.
     expect(ok).toMatchObject({ ready: true, confirmed: true })
+    expect(writes).toEqual(["pty.write", "pty.write"])
+  })
+
+  it("delivers over Codex's empty-composer placeholder", async () => {
+    const writes: string[] = []
+    let written = ""
+    const rpc: HostedSessionRpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        if (name === "pty.peek") {
+          return {
+            exists: true,
+            alive: true,
+            offset: 0,
+            data: Buffer.from(
+              `\x1b[?2004h› Ask Codex to do anything\r\n  gpt-5.6-sol high fast${written}`,
+              "utf8",
+            ).toString("base64"),
+          } as T
+        }
+        if (name === "pty.write") {
+          written += (payload as { data?: string })?.data ?? ""
+          writes.push(name)
+        }
+        return {} as T
+      },
+    }
+
+    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go", {
+      screenManifest: CODEX_SCREEN_MANIFEST,
+      composerGate: true,
+    })
+
+    expect(outcome).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
   })
 })

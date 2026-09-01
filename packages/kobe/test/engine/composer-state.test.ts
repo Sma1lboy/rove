@@ -120,10 +120,14 @@ describe("isComposerEmpty", async () => {
   it("returns true for an empty Codex composer", async () => {
     expect(await isComposerEmpty(bytes("›"), CODEX_SCREEN_MANIFEST)).toBe(true)
     expect(await isComposerEmpty(bytes("  ›  "), CODEX_SCREEN_MANIFEST)).toBe(true)
+    expect(await isComposerEmpty(bytes("› Ask Codex to do anything"), CODEX_SCREEN_MANIFEST)).toBe(true)
   })
 
   it("returns false when Codex's composer has user text", async () => {
     expect(await isComposerEmpty(bytes("› hello"), CODEX_SCREEN_MANIFEST)).toBe(false)
+    expect(
+      await isComposerEmpty(bytes("› Ask Codex to do anything about the failing test"), CODEX_SCREEN_MANIFEST),
+    ).toBe(false)
   })
 
   it("matches through ANSI decoration", async () => {
