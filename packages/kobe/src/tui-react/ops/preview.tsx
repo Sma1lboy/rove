@@ -23,7 +23,6 @@ import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { worktreeFilePath } from "../../worktree/content"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
-import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { useDiffReview } from "./preview-review"
 
@@ -158,13 +157,4 @@ export function PreviewScreen(props: OpsPreviewArgs) {
       {review.footer}
     </box>
   )
-}
-
-export async function startOpsPreview(args: OpsPreviewArgs): Promise<void> {
-  // Same minimal provider set as the Ops pane host (and same
-  // no-log-context delta as the Solid preview entrypoint — preserved).
-  await bootPaneHost({
-    providers: { kv: false, focus: false },
-    setup: () => ({ root: () => <PreviewScreen {...args} /> }),
-  })
 }

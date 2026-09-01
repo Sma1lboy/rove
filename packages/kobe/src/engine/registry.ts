@@ -386,19 +386,3 @@ export function vendorsWithQuotaProbe(): readonly VendorId[] {
     .filter((entry) => entry.quotaUsage)
     .map((entry) => entry.vendor)
 }
-
-/** Flat de-duped list of every model surfaced by every registered vendor. */
-export function allModels(): readonly EngineCapabilities["models"][number][] {
-  const seen = new Set<string>()
-  const out: EngineCapabilities["models"][number][] = []
-  for (const entry of Object.values(BUILTIN_ENGINES)) {
-    if (!entry.capabilities) continue
-    for (const m of entry.capabilities.models) {
-      const key = `${m.vendor}:${m.id}:${m.effort ?? ""}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(m)
-    }
-  }
-  return out
-}
