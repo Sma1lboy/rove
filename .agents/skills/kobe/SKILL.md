@@ -219,7 +219,7 @@ turn either. These five carry almost all traffic:
 
 ```text
 add      --repo(REQ) --prompt --title --command --count --agents --activate
-send     --prompt(REQ) --task-id --tab --command --plain
+send     --prompt|--prompt-file(REQ) --task-id --tab --command --plain
 get-task --task-id(REQ)          list  (no flags)
 collect  --group <groupId> | --task-ids <csv> | --repo
 ```
@@ -263,10 +263,14 @@ rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance
 # (sender + reply command); --plain sends verbatim.
 #
-# SINGLE-QUOTE a prompt containing backticks, or your shell runs them as
-# command substitution and the words vanish from the message you send. In
-# double quotes `rove api send` becomes the OUTPUT of running that command.
-rove api send --task-id <id> --prompt "<complete next turn>"
+# A prompt with backticks, $vars, or quotes goes through --prompt-file, NEVER
+# a double-quoted --prompt: in double quotes `rove api send …` is command
+# substitution — the shell RUNS it and ships its output, and the words vanish.
+# Single quotes block $ROVE_TASK_ID too, so there is no quoting that fits both.
+rove api send --task-id <id> --prompt "<complete next turn>"      # plain text only
+rove api send --task-id <id> --prompt-file - <<'EOF'              # anything else
+<turn — backticks, $vars, quotes, multi-line, all verbatim>
+EOF
 
 # Reply home: no --task-id inside a dispatched task = the dispatcher's tab.
 rove api send --prompt "succeeded: <one line> (branch <final branch>)"

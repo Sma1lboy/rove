@@ -218,7 +218,7 @@ replacement in `nextCommandArgs`.
 
 - `add --repo PATH [--title T] [--branch B] [--base-branch B]
   [--command CMD] [--count N | --agents claude:2,codex:1] [--status S]
-  [--pin] [--activate] [--prompt TEXT]`: create a task (appears in the
+  [--pin] [--activate] [--prompt TEXT | --prompt-file PATH]`: create a task (appears in the
   sidebar immediately). With `--prompt` it also materializes the worktree,
   starts the engine, and delivers the prompt. Does not steal focus unless
   `--activate`. Alias: `spawn-task`. Without `--branch`, the branch name is
@@ -270,9 +270,14 @@ placeholder branch to a descriptive name. Prompts into existing sessions
 
 ## drive
 
-- `send [--task-id ID] --prompt TEXT [--tab TAB] [--command CMD] [--plain]
-  [--allow-empty]`: paste a
-  follow-up into a task's running engine (one full turn). Without
+- `send [--task-id ID] (--prompt TEXT | --prompt-file PATH) [--tab TAB]
+  [--command CMD] [--plain] [--allow-empty]`: paste a
+  follow-up into a task's running engine (one full turn). `--prompt-file`
+  reads the text from a file (`-` = stdin) so the shell never sees it:
+  backticks inside a double-quoted `--prompt` are command substitution, and
+  a message that names a reply command (`` `rove api send …` ``) ships that
+  command's OUTPUT instead of the words. `add` and `dispatch` take the same
+  flag. Without
   `--task-id`, a task that has a `dispatcher` on record replies to that
   exact tab, falling back to the dispatcher task's live canonical engine
   tab when the tab died, and failing loud (`DISPATCHER_UNREACHABLE`) when
@@ -322,7 +327,7 @@ placeholder branch to a descriptive name. Prompts into existing sessions
     engines that collapse a large paste into a `[Pasted text #1]` placeholder
     never echo the text, so a positive proves delivery while a negative
     merely fails to.
-- `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a
+- `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session via the daemon's `session.deliver` channel (the
   dispatcher's messenger; see
   [design/dispatcher.md](./design/dispatcher.md)). Broadcast-only: it does

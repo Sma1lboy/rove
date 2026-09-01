@@ -111,9 +111,16 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   )
 }
 
+/** `--prompt` or `--prompt-file`, and one of them must be there. */
+export function requirePromptText(ctx: VerbContext, verb: string): string {
+  const text = ctx.args.promptText()
+  if (text === undefined) throw new ApiError("--prompt (or --prompt-file) is required", "MISSING_FLAG", helpStep(verb))
+  return text
+}
+
 export async function send(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const prompt = ctx.args.require("prompt")
+  const prompt = requirePromptText(ctx, "send")
   let tab = ctx.args.str("tab")
   if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
     throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
@@ -208,7 +215,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
 export async function dispatch(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
-  const text = ctx.args.require("prompt")
+  const text = requirePromptText(ctx, "dispatch")
   const tabId = ctx.args.str("tab")
   const reply = (await daemon.request("session.deliver", {
     taskId,
@@ -241,6 +248,7 @@ export const DISPATCH_VERB: VerbSpec = {
   flags: [
     F.taskId(true),
     F.prompt(true, "Text delivered into the task's engine session."),
+    F.promptFile(),
     {
       name: "tab",
       type: "string",
