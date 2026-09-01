@@ -1,9 +1,10 @@
 /**
  * The `lifecycle` verb group — pin, land, delete: the verbs that end a task's
  * life or decide it survives, which is why they are worth naming apart from
- * the metadata edits next door. One file per `VERB_GROUPS` entry in
- * `verbs.ts`, the taxonomy `rove api schema --group lifecycle` prints; a verb
- * missing from that table reports as group "other". Specs spread back into the
+ * the metadata edits next door. One file per `VerbGroup`, mirroring the
+ * taxonomy `rove api schema --group lifecycle` prints — though it is each
+ * spec's own `group` field, not this file, that decides where a verb lists.
+ * Specs spread back into the
  * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
@@ -15,6 +16,7 @@ import type { VerbSpec } from "./types.ts"
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   {
     name: "pin",
+    group: "lifecycle",
     summary: "Pin (or with --pinned=false, unpin) a task to the top of the sidebar.",
     flags: [F.taskId(), { name: "pinned", type: "bool", default: "true", description: "true to pin, false to unpin." }],
     handler: (ctx) =>
@@ -25,6 +27,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "land",
+    group: "lifecycle",
     summary:
       "Merge a task's branch back into its base repo's current branch. Refuses a dirty base checkout and refuses a branch with zero commits ahead of the base (EMPTY_BRANCH; EMPTY_BRANCH_DIRTY_WORKTREE with a send-back recovery path when the worktree still holds the uncommitted work). On conflict, aborts and returns the conflicted files (resolve by hand). Returns { landedOn, commit }.",
     flags: [
@@ -54,6 +57,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "delete",
+    group: "lifecycle",
     summary:
       "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome.",
     flags: [

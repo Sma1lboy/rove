@@ -15,6 +15,7 @@ import { ApiError, type VerbSpec } from "./types.ts"
 
 export const PANE_VERB: VerbSpec = {
   name: "pane-open",
+  group: "drive",
   summary:
     "Open a terminal pane in a task's workspace: split the focused tab (default, or --tab's tab) or open a separate command tab, optionally running a command. Broadcast over the daemon's tab.open channel — an attached TUI showing the task performs the split. Task defaults to $ROVE_TASK_ID, then the active task. Returns the resolved `title` (the label `pane-close --title` must match — derived from the command's first word when --title is omitted) plus `clients` (attached connections; 0 = nobody performed the split).",
   flags: [
@@ -87,6 +88,7 @@ export const PANE_VERB: VerbSpec = {
 
 export const PANE_CLOSE_VERB: VerbSpec = {
   name: "pane-close",
+  group: "drive",
   summary:
     "Close panes opened by pane-open: every split pane / command tab in the task whose label matches --title. Broadcast over the daemon's tab.close channel — an attached TUI showing the task performs the close (headless no-op). Task defaults to $ROVE_TASK_ID, then the active task. Returns `clients` (attached connections; 0 = nobody performed the close).",
   flags: [
