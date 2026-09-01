@@ -113,23 +113,30 @@ describe("engineEntry — built-in vendors", () => {
   })
 
   it("routes detectAccount to the vendor's own detector (claude oauth)", async () => {
-    const status = await engineEntry("claude").detectAccount(
+    const detect = engineEntry("claude").detectAccount
+    // Every built-in must CARRY a detector — `engine-status.ts` dispatches on
+    // this field alone, so an absent one silently degrades the engine to
+    // "login not detectable".
+    expect(detect).toBeDefined()
+    const status = await detect?.(
       deps({
         // ~/.claude.json shape — only the claude detector understands this.
         readFile: () => JSON.stringify({ oauthAccount: { emailAddress: "a@b.com" } }),
       }),
     )
-    expect(status.account.kind).toBe("oauth")
+    expect(status?.account.kind).toBe("oauth")
   })
 
   it("routes detectAccount to the vendor's own detector (codex api key)", async () => {
-    const status = await engineEntry("codex").detectAccount(
+    const detect = engineEntry("codex").detectAccount
+    expect(detect).toBeDefined()
+    const status = await detect?.(
       deps({
         // ~/.codex/auth.json shape — only the codex detector understands this.
         readFile: () => JSON.stringify({ OPENAI_API_KEY: "sk-test" }),
       }),
     )
-    expect(status.account.kind).toBe("apikey")
+    expect(status?.account.kind).toBe("apikey")
   })
 })
 
@@ -191,10 +198,12 @@ describe("engineEntry — custom (user-registered) vendors", () => {
     expect(detector.vendor).toBe("aider")
     expect(detector.supportsCompletionMarkers()).toBe(false)
     expect(await detector.latestCompletion("/some/worktree")).toBeNull()
-    // No account detection, no hooks.
-    const status = await entry.detectAccount()
-    expect(status.account).toEqual({ kind: "none" })
-    expect(status.binary.found).toBe(false)
+    // No account detection, no hooks. ABSENT, not a stub answering
+    // `{ kind: "none" }`: that kind means "we looked and found no login", and
+    // `engineUsable` treats it as unusable — a stub here would mark every
+    // contrib/custom engine unlaunchable. Absent is what becomes the
+    // `account: null` ("not detectable") the Accounts view renders.
+    expect(entry.detectAccount).toBeUndefined()
     expect(entry.createHookAdapter().supportsHooks()).toBe(false)
   })
 })
