@@ -55,11 +55,17 @@ const PERSISTENT_FLAG = {
     "Re-deliver into ONE standing task instead of a fresh worktree per run — for a routine that needs yesterday's context (a trend check). Its task is folded behind the sidebar's routine count row. Leave off for a routine that EDITS code: a week of runs on one branch is a branch nobody can land.",
 } as const
 
-/** Shared `--precheck` → payload shape. `--precheck ''` clears it on update. */
+/**
+ * Shared `--precheck` → payload shape. `--precheck ''` sends `precheck: null`,
+ * which the daemon reads as "clear it" on update (a no-op on create, which has
+ * nothing to clear). The flag must be read with {@link VerbArgs.present}, not
+ * `str`: `str` folds an empty value into "absent", so `--precheck ''` would
+ * otherwise omit the field and silently leave the existing precheck in place.
+ */
 function precheckPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, unknown> {
+  if (!ctx.args.present("precheck")) return {}
   const command = ctx.args.str("precheck")
-  if (command === undefined) return {}
-  if (command.length === 0) return { precheck: null }
+  if (command === undefined) return { precheck: null }
   return { precheck: { command, timeoutSeconds: ctx.args.int("precheck-timeout") ?? 120 } }
 }
 
@@ -129,7 +135,9 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.str("prompt") !== undefined ? { prompt: ctx.args.str("prompt") } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
-        ...(ctx.args.str("base-branch") !== undefined ? { baseRef: ctx.args.str("base-branch") } : {}),
+        // `--base-branch ''` clears the base ref (sends null); `present` keeps
+        // that empty value visible where `str` would fold it into "absent".
+        ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
         ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
         ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
