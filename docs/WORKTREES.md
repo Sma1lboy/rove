@@ -163,7 +163,13 @@ git branch <recovered-name> refs/rove/salvage/<branch>-<timestamp>
 ```
 
 No anchor is written when another ref already reaches the tip, which is the
-ordinary merge case.
+ordinary merge case, nor when no branch was deleted at all.
+
+The delete needs the worktree to be gone first: git refuses to delete a branch
+a live worktree has checked out. A land that kept the worktree — because you
+passed `--remove-worktree=false`, or because removal was refused (dirty tree,
+base checkout, the worktree you are running from) — keeps the branch too, and
+reports it as `branchKept` with the reason. Clear the worktree and re-run.
 
 ### Recovering work a force delete destroyed
 

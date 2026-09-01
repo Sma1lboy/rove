@@ -160,6 +160,10 @@ export interface LandResult {
    *  squash-land case). Absent on a `--no-ff` merge and when no branch was
    *  deleted. */
   readonly branchAnchor?: { readonly ref: string; readonly commit: string }
+  /** Set when `--delete-branch` was asked for and the branch was kept anyway,
+   *  because its worktree is still on disk with the branch checked out — git
+   *  would refuse the delete. `reason` is why the worktree stayed. */
+  readonly branchKept?: { readonly reason: string }
 }
 
 export interface AdoptableWorktree {

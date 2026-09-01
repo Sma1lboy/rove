@@ -43,7 +43,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         name: "delete-branch",
         type: "bool",
         description:
-          "Delete the task's branch after a successful land. Uses `git branch -D`, which drops the branch's reflog too; with --strategy squash the base's new commit does not reach the branch's own commits, so Rove first anchors the tip at refs/rove/salvage/<branch>-<stamp> and returns it as `branchAnchor`.",
+          "Delete the task's branch after a successful land. Uses `git branch -D`, which drops the branch's reflog too; with --strategy squash the base's new commit does not reach the branch's own commits, so Rove first anchors the tip at refs/rove/salvage/<branch>-<stamp> and returns it as `branchAnchor`. Requires the worktree to be gone: git refuses to delete a branch a live worktree has checked out, so a land that kept the worktree keeps the branch too and says so in `branchKept`.",
       },
       {
         name: "remove-worktree",

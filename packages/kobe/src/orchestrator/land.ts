@@ -109,8 +109,22 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   // so without an anchor those commits are reachable from nothing at all.
   // `deleteBranch` writes one and reports it here; on a `--no-ff` merge it
   // finds the merge commit already reaches the tip and writes nothing.
+  //
+  // Gate it on the worktree ACTUALLY being gone. git refuses to delete a
+  // branch a live worktree has checked out, and `deleteBranch` is best-effort
+  // (`allowFail`, exit code discarded) — so every path that keeps the worktree
+  // (`removeWorktree: false`, a dirty tree, the caller's own cwd) used to run
+  // the delete, have git refuse it, and report success anyway, anchor and all.
+  // A task that never materialised a worktree has nothing holding the branch,
+  // so it deletes normally.
   let branchAnchor: SalvageRecord | null = null
-  if (opts.deleteBranch) {
+  let branchKept: { readonly reason: string } | undefined
+  const worktreeGone = !task.worktreePath.trim() || worktree?.removed === true
+  if (opts.deleteBranch && !worktreeGone) {
+    branchKept = {
+      reason: worktree?.reason ?? `worktree ${task.worktreePath} was kept, and still has the branch checked out`,
+    }
+  } else if (opts.deleteBranch) {
     await deps.worktrees.deleteBranch(task.repo, result.branch, {
       force: true,
       onAnchor: (record) => {
@@ -122,6 +136,7 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
     ...result,
     ...(worktree ? { worktree } : {}),
     ...(branchAnchor ? { branchAnchor } : {}),
+    ...(branchKept ? { branchKept } : {}),
   }
 }
 
@@ -234,6 +249,15 @@ export interface LandResult {
    * without knowing `refs/rove/salvage` exists.
    */
   readonly branchAnchor?: { readonly ref: string; readonly commit: string }
+  /**
+   * Set when `deleteBranch` was asked for and the branch was NOT deleted,
+   * because its worktree is still on disk with the branch checked out — git
+   * would refuse the delete, so Rove does not pretend it happened. `reason` is
+   * the worktree cleanup's own refusal (dirty tree, base checkout, caller's own
+   * cwd) or the explicit `removeWorktree: false`. Re-run the land's cleanup
+   * (or remove the worktree by hand) and the branch deletes.
+   */
+  readonly branchKept?: { readonly reason: string }
 }
 
 /** Resolve the git working dir + ExecHost for the base repo — local path or remote basePath. */
