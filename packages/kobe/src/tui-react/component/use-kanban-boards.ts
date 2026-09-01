@@ -1,8 +1,11 @@
 /**
- * Kanban board loading — extracted from kanban-page.tsx (file-size cap split).
- * Owns only the data concern: fetch every saved repo's issue file, poll it
- * while the page is open, and land the initial project/card cursor. Rendering,
- * key handling, and mutations stay in the page.
+ * Kanban board loading — the data half of `kanban-page.tsx`: fetch every saved
+ * repo's issue file, poll it while the page is open, and land the initial
+ * project/card cursor. Rendering, key handling, and mutations stay in the
+ * page.
+ *
+ * The seam is IO: this is the only part that talks to the orchestrator, so the
+ * page's own logic never has to reason about a poll landing mid-interaction.
  */
 
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"

@@ -18,8 +18,10 @@
  *     the store class focuses on the mutable cache / dirty tracking /
  *     persistence orchestration.
  *
- * All functions here are `this`-independent — moved out verbatim so the
- * store class stays under the file-size cap.
+ * The seam is `this`: every function here is stateless, so the versions the
+ * codec must tolerate can be fed in as plain values and the merge protocol
+ * checked without a store, a lock, or a real manifest on disk. The store keeps
+ * the mutable half — cache, dirty tracking, when to persist.
  */
 
 import { copyFile, readFile } from "node:fs/promises"

@@ -79,8 +79,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // mode / toasts live in useSidebarHostState below.
   const [searchActive, setSearchActive] = useState(false)
 
-  // Selection + adopt-first-focus + the deleting-task PTY sweep — extracted
-  // verbatim to use-workspace-selection.ts (file-size cap split).
+  // Selection + adopt-first-focus + the deleting-task PTY sweep — one hook in
+  // use-workspace-selection.ts, because those three all answer "which task is
+  // the user on" and get it wrong together if they drift apart.
   const t = useT()
 
   // Declared before useWorkspaceSelection so its worktree-gone callback can
@@ -168,8 +169,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Quick-fork (issue #17, ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
-  // `quick-fork.ts` — the create/enter/pending-prompt shape is identical
-  // regardless of host, and this component is already near the file-size cap.
+  // `quick-fork.ts` because the create/enter/pending-prompt shape is identical
+  // regardless of host — the other caller is TerminalTabs, and both must stay
+  // one implementation.
   const quickFork = useQuickFork(orch, { selectTask: setSelectedId, enterTask: activateTask, notifyError })
 
   // Scratch temp shell tasks (issue #33) — open gesture, exit deletion, and
@@ -217,7 +219,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   })
 
   // Page-render + layout decisions (full-window swaps, rail pages, narrow
-  // surface, settings standalone) — extracted to host-pages.tsx (file-size cap).
+  // surface, settings standalone) live in host-pages.tsx: "which surface
+  // occupies the window" is one decision, separate from how the normal
+  // workspace lays out its rails.
   const pageRender = useHostPagesRender({
     orchestrator: orch,
     pages,

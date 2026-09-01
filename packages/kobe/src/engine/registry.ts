@@ -231,9 +231,11 @@ export interface EngineRegistryEntry {
   readonly screenManifest?: EngineScreenManifest
 }
 
-// The per-vendor readers live in `history-readers.ts` (file-size cap);
-// EMPTY_HISTORY is re-exported so `@/engine/registry` stays the one
-// import site for the whole registry surface.
+// The per-vendor readers live in `history-readers.ts` — this file declares the
+// contract, that one holds the vendor-specific work of meeting it, so a
+// vendor's transcript format changing never edits the table below.
+// EMPTY_HISTORY is re-exported so `@/engine/registry` stays the one import
+// site for the whole registry surface.
 export { EMPTY_HISTORY }
 
 /** See module doc: the explicit empty entry for a user-registered engine id. */

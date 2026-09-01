@@ -260,10 +260,10 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   /* --------- restart resume verification (issue #22) — mount-only ------- */
   const hydrating = useTabHydration(rehydratedRef.current, { stateRef, propsRef, update })
 
-  // Parent handoffs — mount-once effects, extracted to use-tab-handoffs.ts
-  // (file-size cap split). The quick-fork initial prompt needs no delivery
-  // effect: it rides the first spawn (argv, or firstMessage paste for
-  // paste-delivery vendors — engineTabSpawn).
+  // Parent handoffs — the once-per-mount work, in use-tab-handoffs.ts apart
+  // from the per-render hooks below. The quick-fork initial prompt needs no
+  // delivery effect: it rides the first spawn (argv, or firstMessage paste
+  // for paste-delivery vendors — engineTabSpawn).
   const { sendToEngine } = useTabHandoffs({
     stateRef,
     propsRef,
@@ -333,7 +333,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   const resumeTriedRef = useRef(new Set<string>())
 
   // Tab teardown — ctrl+w, close-from-the-tree, process exit, and the exit
-  // policy above them (use-tab-close.ts, file-size cap split).
+  // policy above them: one hook (use-tab-close.ts) so the four stay one rule.
   const tabClose = useTabClose({
     stateRef,
     propsRef,
@@ -350,8 +350,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // through a ref rather than the one from its first render.
   const tabCloseRef = useLatest(tabClose)
 
-  // Rename + the unified new-conversation dialog (issue #7) — extracted
-  // (file-size cap split); recreated per render for state freshness.
+  // Rename + the unified new-conversation dialog (issue #7) — the flows that
+  // ASK the user something (use-tab-dialogs.ts); per render for freshness.
   const { requestRename, requestNewChat } = useTabDialogs({
     dialog,
     t,

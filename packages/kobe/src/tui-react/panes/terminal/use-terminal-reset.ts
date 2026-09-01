@@ -1,6 +1,8 @@
 /**
- * The terminal pane's F5 reset — extracted from Terminal.tsx (file-size cap
- * split). Owns the confirm gate and the two ways a reset can be reached:
+ * The terminal pane's F5 reset. Its own hook because the two paths below are
+ * one policy that must be decided together — the pre-split code got this wrong
+ * (see the second bullet), which is exactly the failure a scattered gate
+ * invites. Owns the confirm gate and the two ways a reset can be reached:
  *
  *  - a LIVE pty: confirm first (a running shell and its in-flight vim/htop
  *    are about to die), then reacquire, guarding against a task switch that

@@ -1,10 +1,11 @@
 /**
  * Create-PR action (FileTree `pr` chip + prefix+p) — a PTY paste+submit of
- * the PR prompt into the selected task's engine session. Split out of
- * `host.tsx` (file-size cap); the identity guard is the same as the other
- * imperative-ref actions there: after an await, the selected task (and the
- * TerminalTabs mount behind the ref) may have changed, and a stale
- * continuation must not deliver into the new task.
+ * the PR prompt into the selected task's engine session. Its own module
+ * because of the guard below, which is the whole hazard: after an await, the
+ * selected task (and the TerminalTabs mount behind the ref) may have changed,
+ * and a stale continuation must not deliver into the new task. Same guard as
+ * the other imperative-ref actions in `host.tsx`, kept where it can be read in
+ * one screen.
  *
  * `createPRAction` is the React-free core (git IO injectable) so vitest can
  * pin the target-branch toast and both identity guards without a repo;

@@ -1,7 +1,8 @@
 /**
- * Tab-strip dialog flows extracted from `TerminalTabs.tsx` (file-size cap):
- * rename (F2) and the unified new-conversation dialog (issue #7). Pure
- * composition over the injected deps — every closure reads the CURRENT
+ * Tab-strip dialog flows: rename (F2) and the unified new-conversation dialog
+ * (issue #7) — the places the component ASKS the user something, kept apart
+ * from the places it acts. Pure composition over the injected deps: no state
+ * of its own, so every closure reads the CURRENT
  * render's `state`/`active` (the caller re-creates this hook's return every
  * render, same freshness contract as the inline originals).
  *

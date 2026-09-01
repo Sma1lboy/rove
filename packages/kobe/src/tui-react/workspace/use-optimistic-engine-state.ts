@@ -1,5 +1,5 @@
 /**
- * Sidebar-only optimistic overlay (host extraction, file-size cap): local
+ * Sidebar-only optimistic overlay: local
  * enter/esc keypresses flip the row icon immediately; authoritative daemon
  * events always win, and a superseded mark is dropped so the overlay never
  * becomes a second source of truth. Store + merge rules live in

@@ -2,8 +2,9 @@
  * Tree-sidebar search state — the `/` query, its keystroke capture, and the
  * enter/exit transitions.
  *
- * Split out of `SidebarTree.tsx` for the file-size cap. The mechanics are the
- * flat sidebar's (`Sidebar.tsx`) verbatim: a raw renderer keypress listener
+ * Its own hook because it does something the rest of the tree does not: bypass
+ * the component's normal key handling entirely. The mechanics are the flat
+ * sidebar's (`Sidebar.tsx`) verbatim — a raw renderer keypress listener
  * rather than an opentui `<input>` (which misbehaved in the Solid original),
  * registered after the keymap dispatcher so chords that already
  * preventDefault'd never leak into the query.

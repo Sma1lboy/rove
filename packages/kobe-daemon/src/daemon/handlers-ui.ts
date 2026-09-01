@@ -2,10 +2,12 @@
  * UI-facing daemon RPC handlers — the broadcast/report family the TUI and
  * plugin CLI drive (`session.deliver`, `ui.reportEvent`, `tab.open`,
  * `notice.send`, `note.file`) plus the host-dialog prompt pair
- * (`ui.prompt` / `ui.promptReply`). Split out of `handlers.ts` for the
- * repo's 500-line file-size cap; see its doc comment for the registry's
- * wire-compatibility contract (byte-equivalent payloads, key order
- * load-bearing) — unchanged here.
+ * (`ui.prompt` / `ui.promptReply`). Like `handlers-task.ts`, this is the slice
+ * of the one registry that shares an RPC-name prefix — grouped by wire
+ * namespace, not by a responsibility boundary — spread back in by
+ * `handlers.ts`. See its doc comment for the registry's wire-compatibility
+ * contract (byte-equivalent payloads, key order load-bearing), which moving a
+ * handler between files must never change.
  */
 
 import { randomUUID } from "node:crypto"

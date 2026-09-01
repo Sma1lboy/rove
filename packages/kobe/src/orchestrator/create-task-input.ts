@@ -1,9 +1,11 @@
 /**
  * The shape of a `createTask` call.
  *
- * Split from `core.ts` at the file-size cap. A pure input type with no
- * dependency on the Orchestrator class, so it moves cleanly and gives every
- * caller a smaller thing to read than the whole orchestrator.
+ * Its own module because the direction of dependency should only go one way:
+ * this type names what a caller must supply, and it imports nothing from the
+ * Orchestrator class. Callers building a `createTask` argument read one small
+ * file instead of pulling the whole orchestrator into view, and nothing about
+ * the class's internals can leak into the shape of its own input.
  */
 
 import type { ProjectIntent } from "../state/project-eligibility.ts"

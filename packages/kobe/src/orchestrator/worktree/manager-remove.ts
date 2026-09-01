@@ -1,5 +1,6 @@
 /**
- * `remove()`, split out of `manager.ts` (file-size cap).
+ * `remove()` — the manager's one destructive verb, alone in its own file
+ * precisely because it is the one that can lose a user's work.
  *
  * Worktree removal is the module's one destructive verb, and every safety
  * decision it makes — the dirty gate, the salvage snapshot, the orphaned-repo

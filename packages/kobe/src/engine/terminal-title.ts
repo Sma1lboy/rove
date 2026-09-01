@@ -1,6 +1,8 @@
 /**
  * Terminal-title policy — the rules for reading an engine's OWN OSC 0/2
- * title, split out of `registry.ts` (the ~500-line cap).
+ * title, held apart from `registry.ts` so the rules never learn a vendor's
+ * name (see the next paragraph — that is the seam, and the imports keep it
+ * honest).
  *
  * Pure on purpose: every function here takes the engine's declared
  * {@link EngineTerminalTitle} rather than a vendor id, so `registry.ts` keeps

@@ -2,9 +2,9 @@
  * Scheduled automations ("routines") — the schedule record, its run history,
  * and the patch shape edits take.
  *
- * Split from `contracts.ts` at the file-size cap, along the seam that was
- * already there: nothing else in the daemon's contracts refers to these, and
- * they are the one group with their own store, runner, and RPC family.
+ * Their own module along a seam that was already there: nothing else in the
+ * daemon's contracts refers to these, and they are the one group with their
+ * own store, runner, and RPC family.
  */
 
 import type { VendorId } from "./contracts.ts"

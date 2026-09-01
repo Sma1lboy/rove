@@ -1,9 +1,10 @@
 /**
- * The BRANCH operations, split out of `manager.ts` (file-size cap).
+ * The BRANCH operations of `manager.ts`.
  *
  * Existence probes, upstream lookup, delete and rename — the git-branch verbs
- * the manager exposes. They're orthogonal to worktree lifecycle (create /
- * remove / list) and share only the run-git primitive, so they live here as
+ * the manager exposes. A branch and a worktree are two different git objects;
+ * these verbs are orthogonal to worktree lifecycle (create / remove / list)
+ * and share only the run-git primitive, so they live here as
  * free functions over a small {@link BranchDeps}, and the class methods stay
  * thin delegators. Same shape as `manager-list.ts`; no behaviour change.
  */

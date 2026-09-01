@@ -1,7 +1,10 @@
 /**
- * The `lifecycle` verb group — pin, land, delete. Split out of `verbs.ts`
- * (file-size cap); spread back into the {@link VERBS} table there, so
- * schema/help/validation see one canonical list.
+ * The `lifecycle` verb group — pin, land, delete: the verbs that end a task's
+ * life or decide it survives, which is why they are worth naming apart from
+ * the metadata edits next door. One file per `VERB_GROUPS` entry in
+ * `verbs.ts`, the taxonomy `rove api schema --group lifecycle` prints; a verb
+ * missing from that table reports as group "other". Specs spread back into the
+ * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
 import { F } from "./flags.ts"

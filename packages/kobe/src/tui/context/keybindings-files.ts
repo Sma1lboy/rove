@@ -1,9 +1,13 @@
 /**
- * `files.*` keybinding rows — split out of `keybindings.ts` (which was
- * over the repo's 500-line file-size cap) purely mechanically: same
- * entries, same order, moved verbatim. See `keybindings.ts`'s doc comment
- * for the full contract (id stability, scope semantics, hint display
- * rules).
+ * `files.*` keybinding rows — the `scope: "files"` slice of the one binding
+ * table, spread back into `keybindings-table.ts`.
+ *
+ * Same kind of cut as `keybindings-sidebar.ts` and `keybindings-chat.ts`:
+ * a long array literal sliced at the scope headers it already carried as
+ * comments. No responsibility boundary — which file a row lives in is
+ * decided by its `scope` field and nothing else. See `keybindings-table.ts`
+ * for the contract these rows must satisfy (stable `id`, spread order is
+ * display order, `hint` vs `keys`).
  */
 
 import type { KobeBinding } from "./keybindings-table.ts"

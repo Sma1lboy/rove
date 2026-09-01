@@ -3,9 +3,10 @@
  * The workspace host's full-page swaps, in one place.
  *
  * Each of these replaces the whole workspace rather than layering over it, so
- * they were a run of early-returns at the top of `host.tsx`'s render. Six of
- * them is enough to be its own thing — and `host.tsx` is at the repo's file
- * size cap, so a seventh has to land here rather than there.
+ * they were a run of early-returns at the top of `host.tsx`'s render. That is
+ * the seam: "which surface occupies the window" is one decision, and it is a
+ * different question from how the normal workspace lays out its rails. Six of
+ * them is enough to be its own thing, and a seventh belongs here too.
  *
  * Order is the precedence order: the first open page wins. That matters only
  * in theory (the keybinding gate stops a second page opening over a first),
@@ -231,10 +232,9 @@ export interface UseHostPagesRenderResult {
 /**
  * Page-render + layout decisions for the workspace host.
  *
- * Pulled out of `host.tsx` (file-size cap) because `pageDeps`, the
- * full-window/content-page render calls, the narrow-mode surface decision,
- * and the settings standalone page all serve the same concern: deciding
- * which surface occupies the workspace. Keeping them together means
+ * `pageDeps`, the full-window/content-page render calls, the narrow-mode
+ * surface decision, and the settings standalone page all serve one concern:
+ * deciding which surface occupies the workspace. Keeping them together means
  * `host.tsx` no longer has to thread every dependency through `pageDeps`.
  */
 export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {

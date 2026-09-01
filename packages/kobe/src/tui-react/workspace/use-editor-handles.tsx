@@ -75,7 +75,8 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
   // have changed — a stale continuation must not deliver into the new task.
   const selectedWorktreeRef = useLatest(worktree)
 
-  // FileTree `pr` chip + prefix+p — split out for the file-size cap.
+  // FileTree `pr` chip + prefix+p — own module for the guard above, which its
+  // awaits also need.
   const createPR = useCreatePR({ worktree, sendToEngineFn, selectedWorktreeRef, notifyError })
 
   // FileTree's Enter (editor/plugin/OS) and `d` (read-only diff tab).

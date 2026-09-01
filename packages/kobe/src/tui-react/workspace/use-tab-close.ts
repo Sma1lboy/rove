@@ -1,8 +1,10 @@
 /**
- * Everything about a tab going away — extracted from `TerminalTabs.tsx` for
- * the file-size cap, joining `use-tab-dialogs` / `use-tab-handoffs` /
- * `use-tab-lifecycle` as a per-render hook (state freshness comes from being
- * rebuilt each render, plus refs for the mount-only callers).
+ * Everything about a tab going away, in one hook so the four exits below stay
+ * one policy — they differ in ways that are easy to get subtly wrong, and
+ * scattering them across the component is how two of them drift. Joins
+ * `use-tab-dialogs` / `use-tab-handoffs` / `use-tab-lifecycle` as a per-render
+ * hook (state freshness comes from being rebuilt each render, plus refs for
+ * the mount-only callers).
  *
  * The four exits a tab has, and why they differ:
  *

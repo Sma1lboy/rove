@@ -1,5 +1,6 @@
-/** PtyHost's public contract types — split from `pty-host.ts` for the
- *  file-size cap; behavior and ownership stay with the host. */
+/** PtyHost's public contract types. Their own module so a caller can name what
+ *  it sends the host without importing the host itself — behavior and
+ *  ownership stay there; this is only the vocabulary. */
 
 import { StringDecoder } from "node:string_decoder"
 import type { DaemonFrame, PtySessionExit } from "./protocol.ts"

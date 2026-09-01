@@ -17,8 +17,9 @@
  * explicit cell budget (usage-core's buildFooterChips), so an 80-col
  * terminal degrades to compact chips instead of colliding with the hint bar.
  *
- * `WorkspaceFrame` owns the column wrapper so `host.tsx` stays under the
- * file-size cap — same extraction reason as `host-sidebar.tsx`.
+ * `WorkspaceFrame` owns the column wrapper, for the same reason as
+ * `host-sidebar.tsx`: the host composes the workspace's regions and each
+ * region owns how it renders itself.
  */
 
 import { useTerminalDimensions } from "@opentui/react"

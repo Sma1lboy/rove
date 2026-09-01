@@ -2,8 +2,9 @@
  * The tree sidebar's right-click menu: which row was clicked, the entries it
  * offers, the highlight, and what each entry does.
  *
- * Split from `SidebarTree.tsx` for the file-size cap. What the menu OFFERS is
- * the framework-free `tree-menu.ts`; this hook is the state in between, plus
+ * The seam here is a three-way one, and this hook is the middle: what the menu
+ * OFFERS is the framework-free `tree-menu.ts`, what each entry DOES is the
+ * host's callbacks, and this holds only the React state between them, plus
  * the `t()` pass that turns label keys into text so the menu follows a language
  * switch, plus the dispatch that routes an entry to the host callback the tree
  * was already holding.

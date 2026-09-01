@@ -1,10 +1,15 @@
 /**
- * `task.*` (+ `project.forget`) daemon RPC handlers — split out of
- * `handlers.ts` (which was over the repo's 500-line file-size cap) purely
- * mechanically: same entries, same behavior, moved verbatim. See
- * `handlers.ts`'s doc comment for the registry's wire-compatibility
- * contract (byte-equivalent payloads, key order load-bearing) — unchanged
- * here.
+ * `task.*` (+ `project.forget`) daemon RPC handlers — the `task.` slice of the
+ * one registry, spread back into it by `handlers.ts`.
+ *
+ * The cut follows the RPC name prefix and nothing deeper: which file a handler
+ * lives in is decided by its wire name, so this is a long registry grouped by
+ * namespace rather than a responsibility boundary. Adding a `task.*` handler
+ * here and a `ui.*` one in `handlers-ui.ts` are the same edit.
+ *
+ * What the split does NOT relax: see `handlers.ts`'s doc comment for the
+ * registry's wire-compatibility contract (byte-equivalent payloads, key order
+ * load-bearing). Moving a handler between files must never change either.
  */
 
 import { logDaemonError } from "./crash-log.ts"

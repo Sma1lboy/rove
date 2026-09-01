@@ -85,7 +85,8 @@ export class PtyHost {
   private readonly humanWriteQuietMs: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
-  /** One session's child-process lifecycle (split out for the file-size cap). */
+  /** One session's child-process lifecycle — `pty-child-controller.ts` owns a
+   *  SINGLE child; this class owns the set of them. */
   private readonly childController: PtyChildController
   /** The one warm-spare shell slot (see `pty-warm.ts`). */
   private readonly warmSpare: WarmSpare

@@ -9,8 +9,11 @@
  * write twin: it resolves the command's protocol here (the preset registry
  * lives in kobe's state.json, which the daemon cannot read) and sends both.
  *
- * Spec + handler live together (the PANE_VERB pattern) so `verbs.ts` stays
- * under the file-size cap.
+ * Spec + handler live together (the PANE_VERB pattern) rather than the spec
+ * sitting in a `verbs-*.ts` group: these two read the engine preset registry,
+ * so keeping the flag list next to the code that consumes it is what stops the
+ * documented values and the accepted values drifting apart. `verbs.ts` imports
+ * the finished specs.
  */
 
 import { pluginEngineIds } from "../../engine/contrib-engines.ts"

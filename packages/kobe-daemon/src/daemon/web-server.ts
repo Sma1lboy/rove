@@ -135,8 +135,9 @@ function sseResponse(register: (send: SseSend) => () => void, signal?: AbortSign
 // Exposure policy comes FROM the handler registry (`web: true` per entry) —
 // no separately maintained allowlist to drift. Registry construction is
 // stateless/cheap, so deriving the set once at module load is fine.
-// Re-exported: this module is the web-exposure seam, and `server.ts` (the
-// usual re-export spot) is over the file-size cap.
+// Re-exported from here rather than the usual `server.ts`: this module IS the
+// web-exposure boundary, so the name every caller asks "is this reachable from
+// a browser?" through should come from the file that enforces it.
 export { webExposedRpcNames } from "./handlers.ts"
 export { requiresWebToken } from "./web-token.ts"
 const WEB_EXPOSED_RPCS = webExposedRpcNames(createDaemonHandlerRegistry())

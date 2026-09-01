@@ -1,10 +1,10 @@
 /**
  * Ending a PTY child — the escalation, and the bounded waits around it.
  *
- * Split from `pty-host.ts` (file-size cap), and a separate concern besides:
- * nothing here knows what a session is, only how to make a process stop and
- * how long to wait for proof. Both helpers are pure over their arguments,
- * which is what makes the platform behaviour below testable without spawning.
+ * A separate concern from the host: nothing here knows what a session is, only
+ * how to make a process stop and how long to wait for proof. Both helpers are
+ * pure over their arguments, which is what makes the platform behaviour below
+ * testable without spawning.
  */
 
 import type { PtyChild } from "./pty-driver.ts"

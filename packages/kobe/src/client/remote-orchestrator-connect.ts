@@ -1,10 +1,14 @@
 /**
- * The daemon handshake for `RemoteOrchestrator.init()` — split out of
- * `remote-orchestrator.ts` (which was over the repo's 500-line file-size
- * cap) into its own file. Same behavior, moved verbatim: `performInit` is
- * the exact body of the old `RemoteOrchestrator.init`, now taking the
- * client + subscribe options + an explicit {@link OrchestratorSignals}
- * deps bag instead of closing over `this`.
+ * The daemon handshake for `RemoteOrchestrator.init()`, plus the reconnect
+ * loop below — the CONNECTION half of the class, apart from what it does once
+ * connected (`-reads.ts` / `-writes.ts` / `-events.ts`). This is the only code
+ * that runs while there may be no daemon at all.
+ *
+ * Taking the client + subscribe options + an explicit
+ * {@link OrchestratorSignals} deps bag instead of closing over `this` is what
+ * makes that testable: drive a handshake or a retry policy with fakes, no
+ * socket and no real backoff. Same behavior, moved verbatim — `performInit` is
+ * the exact body of the old `RemoteOrchestrator.init`.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -30,8 +34,10 @@ export interface PerformInitOptions {
 
 /**
  * The reconnect loop body — moved verbatim from
- * `RemoteOrchestrator.runReconnectLoop` (file-size cap), taking an explicit
- * deps bag instead of closing over `this`. A GUI (`spawnDaemon`) may spawn
+ * `RemoteOrchestrator.runReconnectLoop`, taking an explicit deps bag instead
+ * of closing over `this` so the retry policy can be driven with fake clocks
+ * and a fake `init` — no daemon, and no waiting out real backoff. A GUI
+ * (`spawnDaemon`) may spawn
  * the daemon via `ensureReachable`; a pane only retries the existing socket
  * so helper panes never defeat daemon lazy-shutdown. Failures stay silent in
  * the UI with the caller-supplied bounded forensic logging policy.

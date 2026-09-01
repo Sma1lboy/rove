@@ -1,7 +1,17 @@
 /**
  * The `read` verb group — non-mutating queries over tasks, PTYs, and
- * diagnostics. Split out of `verbs.ts` (file-size cap); spread back into the
- * {@link VERBS} table there, so schema/help/validation see one canonical list.
+ * diagnostics.
+ *
+ * These files follow the `VERB_GROUPS` taxonomy in `verbs.ts`, which is not an
+ * internal detail: it's what `rove api schema --group read` prints. So a
+ * verb's group is stated TWICE — by which file declares it, and by its entry
+ * in `VERB_GROUPS` — and only the second one is what agents discover. Declare
+ * a verb here and forget the table and it silently reports as group "other".
+ *
+ * "Non-mutating" is the group's actual invariant, not just its label: a verb
+ * that writes anything belongs in `drive`/`edit`/`lifecycle`, because agents
+ * are told this group is safe to call for orientation. Specs spread back into
+ * {@link VERBS}, so schema/help/validation see one canonical list.
  */
 
 import { F } from "./flags.ts"

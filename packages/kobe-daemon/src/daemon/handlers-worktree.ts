@@ -1,9 +1,10 @@
 /**
  * `worktree.*` daemon RPC handlers.
  *
- * The first entries (`discoverAdoptable`/`adopt`) are
- * split out of `handlers.ts` (which was over the repo's 500-line file-size
- * cap). `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
+ * The `worktree.` slice of the one registry, grouped by RPC-name prefix like
+ * `handlers-task.ts` / `handlers-ui.ts` and spread back in by `handlers.ts`.
+ *
+ * `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
  * 2026-08-24: creation is mechanical, not intent — adoption now needs an
  * engine session-start in a managed root or an explicit `rove add .`/adopt.
  *

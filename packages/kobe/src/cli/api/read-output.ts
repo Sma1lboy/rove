@@ -59,8 +59,10 @@ import {
 import { resolveActiveTaskId } from "./runtime.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
-// The paging/shaping half lives in `read-output-page.ts` (file-size cap);
-// re-exported so `@/cli/api/read-output` stays the one import site.
+// The paging/shaping half lives in `read-output-page.ts` — pure functions with
+// no daemon and no PTY host, so cursor and page-boundary behavior is testable
+// on plain arrays; this file keeps the reads that need a live daemon.
+// Re-exported so `@/cli/api/read-output` stays the one import site.
 export {
   boundedTail,
   buildHistoryPage,

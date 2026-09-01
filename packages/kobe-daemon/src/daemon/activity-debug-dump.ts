@@ -1,6 +1,8 @@
 /**
- * `kobe api inspect`'s raw view of the activity registry — a pure projection,
- * split out of `activity-registry.ts` (file-size cap).
+ * `kobe api inspect`'s raw view of the activity registry — a pure projection
+ * of registry state, in its own module because it is a DIAGNOSTIC surface
+ * rather than part of the registry's job. Nothing in the daemon's behavior
+ * depends on it, and it may show fields the wire payload deliberately hides.
  *
  * Deliberately NOT the wire payload: a production bug report needs the fields
  * `engine-state` omits — the probe vendor, whether a lapse watchdog is armed,

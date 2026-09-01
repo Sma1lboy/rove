@@ -26,8 +26,9 @@ import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
 import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
 
-// Search lives in its own module (file-size cap) but stays part of tree-core's
-// public surface — every caller imports the tree's vocabulary from one place.
+// Search lives in its own module — this file decides what rows EXIST, that one
+// decides which survive a query — but stays part of tree-core's public surface,
+// so every caller imports the tree's vocabulary from one place.
 export { filterTreeRows } from "./tree-search"
 
 /** Separator between a task id and a tab id in a tab row's id. Matches the
@@ -484,7 +485,8 @@ export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string):
   return null
 }
 
-// Tab-row activity resolution lives in its own module (file-size cap) and is
-// re-exported here: callers name it through the tree's vocabulary, and the
-// split is a file boundary, not an API change.
+// Tab-row activity resolution lives in its own module: it answers which of the
+// daemon's two activity levels speaks for a row, which is not a question about
+// rows existing and needs none of this file's shapes. Re-exported here so
+// callers still name it through the tree's vocabulary.
 export { tabRowActivity } from "./tab-row-activity"
