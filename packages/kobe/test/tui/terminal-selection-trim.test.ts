@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type { TerminalRow, TerminalSnapshotWindow } from "../../src/tui/panes/terminal/pty-types"
 import { XtermTaskPty } from "../../src/tui/panes/terminal/pty-xterm-base"
 import {
@@ -37,7 +37,17 @@ const COLS = 40
 const ROWS = 10
 const SCROLLBACK = 50
 
-const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 80))
+/**
+ * Wait for the backend to publish, rather than sleeping and hoping.
+ *
+ * `queueRefresh` coalesces on a 16ms timer, so the state this test asserts on
+ * lands some unknowable time after the last `pump`. A fixed sleep was racing
+ * that timer: on a loaded CI runner it returned early and the test failed on
+ * whatever half-built frame it found — `expected null not to be null` when no
+ * window had been published yet, `expected 16 to be 10` when only part of the
+ * output had been folded in. Both were read as flakes; both were this.
+ */
+const settleUntil = (check: () => void): Promise<void> => vi.waitFor(check, { timeout: 5000, interval: 10 })
 
 type Frame = { snapshot: readonly TerminalRow[]; window: TerminalSnapshotWindow | null }
 
@@ -48,12 +58,14 @@ describe("selection across a bounded-scrollback trim", () => {
     const unsubscribe = pty.onData(() => {})
     try {
       for (let i = 0; i < 200; i++) pty.pump(`line-${i}\r\n`)
-      await settle()
-      const before: Frame = { snapshot: pty.capture(), window: pty.captureWindow() }
       // The buffer is saturated: the backend numbers lines, and row 0 is no
-      // longer line-0. Both are preconditions for the drift, so assert them.
-      expect(before.window).not.toBeNull()
-      expect(before.snapshot.length).toBe(ROWS + SCROLLBACK)
+      // longer line-0. Both are preconditions for the drift, so WAIT for them
+      // rather than assert against whatever a fixed sleep happened to catch.
+      await settleUntil(() => {
+        expect(pty.captureWindow()).not.toBeNull()
+        expect(pty.capture().length).toBe(ROWS + SCROLLBACK)
+      })
+      const before: Frame = { snapshot: pty.capture(), window: pty.captureWindow() }
 
       // Select two whole rows in the frozen scrollback, far enough down that
       // the coming trim moves them rather than dropping them entirely.
@@ -62,9 +74,14 @@ describe("selection across a bounded-scrollback trim", () => {
       expect(text).toMatch(/^line-\d+\nline-\d+$/)
 
       for (let i = 200; i < 210; i++) pty.pump(`line-${i}\r\n`)
-      await settle()
+      // Ten more lines have to be FULLY folded in before the shift is 10; a
+      // partially-applied refresh reads as a smaller number.
+      const expectedStart = (before.window?.startLine ?? 0) + 10
+      await settleUntil(() => {
+        expect(pty.captureWindow()?.startLine).toBe(expectedStart)
+      })
       const after: Frame = { snapshot: pty.capture(), window: pty.captureWindow() }
-      expect(after.window?.startLine).toBe((before.window?.startLine ?? 0) + 10)
+      expect(after.window?.startLine).toBe(expectedStart)
 
       // The bug, stated: the untranslated endpoints now cover ten lines later.
       expect(extractSelection(after.snapshot, selected)).not.toBe(text)
