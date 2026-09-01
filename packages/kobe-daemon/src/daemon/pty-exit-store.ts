@@ -27,6 +27,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { defaultPtyExitsPath } from "./paths.ts"
 import type { PtySessionEndInfo } from "./pty-observability.ts"
+import { terminalRows } from "./terminal-rows.ts"
 
 /**
  * Which process died. `pty` is the session's own child (the shell wrapper);
@@ -60,15 +61,11 @@ const MAX_RECORDS = 50
 const TAIL_LINES = 40
 const TAIL_LINE_CHARS = 500
 
-// Same escape grammar the read-output verb strips (CSI / OSC / single-char).
-// biome-ignore lint/suspicious/noControlCharactersInRegex: stripping raw ANSI escapes is the point
-const ANSI_RE = /\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[@-_]/g
-
-/** Raw PTY tail → readable last lines: strip ANSI, honor CR overwrites,
- *  drop trailing blanks, keep the last {@link TAIL_LINES}. */
+/** Raw PTY tail → readable last lines: recover rows (see `terminal-rows.ts` —
+ *  an engine's alt-screen paint has no newlines to split on), drop trailing
+ *  blanks, keep the last {@link TAIL_LINES}. */
 export function plainTail(raw: string): string[] {
-  const plain = raw.replace(ANSI_RE, "").replace(/\r\n/g, "\n")
-  const lines = plain.split("\n").map((line) => (line.split("\r").pop() ?? "").slice(0, TAIL_LINE_CHARS))
+  const lines = terminalRows(raw, TAIL_LINE_CHARS)
   while (lines.length > 0 && (lines[lines.length - 1] ?? "").trim() === "") lines.pop()
   return lines.slice(-TAIL_LINES)
 }
