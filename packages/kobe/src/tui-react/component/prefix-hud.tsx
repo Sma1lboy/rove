@@ -37,7 +37,12 @@ function actionLabel(action: string, translate: ReturnType<typeof useT>): string
   if (action === DIRECT_GUIDE_PREFIX_ACTION_ID) return translate("help.moreCommandsPrefix")
   const binding = findBinding(action)
   if (!binding) return action
-  return tKeys("desc", action)
+  // HUD rows are cheat-sheet captions, not documentation: also clip a
+  // dash-led elaboration ("New conversation — engine/shell picker with …"
+  // → "New conversation"). The F1 help dialog keeps the full description.
+  const label = tKeys("desc", action)
+  const dash = label.search(/\s—\s|——/)
+  return dash > 0 ? label.slice(0, dash) : label
 }
 
 type GuideAction = { action: string; strokes: string[] }
@@ -119,28 +124,65 @@ export function PrefixHud(props: { left: number; width: number }) {
   if (showGuide) {
     const narrow = dims.width < 88
     const columns = narrow ? 1 : Math.min(dims.width < 140 ? 2 : 3, Math.max(1, groups.length))
-    const groupRows = Array.from({ length: Math.ceil(groups.length / columns) }, (_, index) =>
-      groups.slice(index * columns, (index + 1) * columns),
-    )
     const guideWidth = Math.max(20, dims.width - 4)
     const groupWidth = narrow ? guideWidth - 4 : Math.max(18, Math.floor((guideWidth - 4) / columns))
-    const actionHeight = (action: GuideAction): number => {
+    // ONE key-cap width per group (its widest stroke), so every label in the
+    // group starts at the same column instead of each row measuring its own.
+    const groupKeyWidth = (group: GuideGroup): number =>
+      Math.min(9, Math.max(3, ...group.actions.map((action) => displayWidth(action.strokes.join("/")))))
+    const actionHeight = (group: GuideGroup, action: GuideAction): number => {
       const strokes = action.strokes.join("/")
       // Cell widths, not String.length: CJK action labels and ⌘-class chord
       // glyphs occupy 2 (or ambiguous) cells — .length under-measures them
       // and the guide's height estimate runs off the screen bottom.
-      const keyWidth = Math.min(9, Math.max(3, displayWidth(strokes)))
+      const keyWidth = groupKeyWidth(group)
       const labelWidth = Math.max(1, groupWidth - keyWidth - 1)
       const keyLines = Math.ceil(displayWidth(strokes) / keyWidth)
       const labelLines = Math.ceil(displayWidth(actionLabel(action.action, t)) / labelWidth)
       return Math.max(1, keyLines, labelLines)
     }
-    const guideHeight = groupRows.reduce(
-      (height, row) =>
-        height +
-        Math.max(1, ...row.map((group) => 1 + group.actions.reduce((sum, action) => sum + actionHeight(action), 0))),
-      3,
-    )
+    const groupHeight = (group: GuideGroup): number =>
+      1 + group.actions.reduce((sum, action) => sum + actionHeight(group, action), 0)
+    // Order-preserving balanced columns: split the ordered group list into
+    // `columns` CONTIGUOUS chunks minimizing the tallest column, then stack
+    // each chunk vertically. Short groups pack under each other instead of
+    // leaving the row-aligned holes the old rows-of-columns layout had.
+    const heights = groups.map(groupHeight)
+    const chunkHeight = (from: number, to: number): number =>
+      heights.slice(from, to).reduce((sum, h) => sum + h, 0) + Math.max(0, to - from - 1)
+    const partitionBounds = (count: number): number[] => {
+      let best: number[] = [groups.length]
+      let bestMax = Number.POSITIVE_INFINITY
+      const walk = (start: number, left: number, cuts: number[], tallest: number): void => {
+        if (left === 1) {
+          const max = Math.max(tallest, chunkHeight(start, groups.length))
+          if (max < bestMax) {
+            bestMax = max
+            best = [...cuts, groups.length]
+          }
+          return
+        }
+        for (let end = start + 1; end <= groups.length - left + 1; end++) {
+          walk(end, left - 1, [...cuts, end], Math.max(tallest, chunkHeight(start, end)))
+        }
+      }
+      walk(0, Math.max(1, count), [], 0)
+      return best
+    }
+    const bounds = partitionBounds(Math.min(columns, groups.length))
+    const columnChunks: GuideGroup[][] = []
+    let chunkStart = 0
+    for (const bound of bounds) {
+      if (bound > chunkStart) columnChunks.push(groups.slice(chunkStart, bound))
+      chunkStart = bound
+    }
+    const guideHeight =
+      3 +
+      columnChunks.reduce(
+        (tallest, chunk) =>
+          Math.max(tallest, chunk.reduce((sum, group) => sum + groupHeight(group), 0) + (chunk.length - 1)),
+        0,
+      )
     const top = Math.max(0, dims.height - BOTTOM_MARGIN - guideHeight)
     return (
       <box
@@ -162,11 +204,11 @@ export function PrefixHud(props: { left: number; width: number }) {
           </text>
           <text fg={theme.textMuted}>{guide?.kind === "direct" ? t("help.releaseCtrl") : t("help.escCancel")}</text>
         </box>
-        <box flexDirection="column">
-          {groupRows.map((row) => (
-            <box key={row.map((group) => group.category).join("-")} flexDirection="row" gap={narrow ? 0 : 1}>
-              {row.map((group) => (
-                <box key={group.category} flexDirection="column" flexGrow={1} flexBasis={0}>
+        <box flexDirection="row" gap={narrow ? 0 : 1} alignItems="flex-start">
+          {columnChunks.map((chunk) => (
+            <box key={chunk.map((group) => group.category).join("-")} flexDirection="column" flexGrow={1} flexBasis={0}>
+              {chunk.map((group, groupIndex) => (
+                <box key={group.category} flexDirection="column" marginTop={groupIndex === 0 ? 0 : 1}>
                   <text fg={theme.accent}>{tKeys("category", group.category)}</text>
                   {group.actions.map((action) => {
                     const strokes = action.strokes.join("/")
@@ -182,7 +224,7 @@ export function PrefixHud(props: { left: number; width: number }) {
                           if (stroke) invokeArmedPrefixActionFromCurrentStack(action.action, stroke)
                         }}
                       >
-                        <box width={Math.min(9, Math.max(3, displayWidth(strokes)))}>
+                        <box width={groupKeyWidth(group)}>
                           <text fg={theme.primary}>{strokes}</text>
                         </box>
                         <text fg={theme.text} wrapMode="word" flexGrow={1} flexShrink={1}>
