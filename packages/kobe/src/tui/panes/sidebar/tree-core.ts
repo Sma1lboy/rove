@@ -60,6 +60,21 @@ export type TreeRow =
       readonly depth: 2
     }
   | { readonly kind: "recent"; readonly id: typeof RECENT_ROW_ID; readonly task: Task; readonly depth: 1 }
+  /**
+   * The routine count row (issue #91): one row standing in for a project's
+   * routine session tasks, which are background noise beside the handful of
+   * tasks the user opened themselves — 7 daily routines are 49 rows a week.
+   * Opening it reveals those tasks; they are never removed from the data.
+   */
+  | {
+      readonly kind: "routines"
+      readonly id: string
+      /** Project key these routines belong to — the row sits under it. */
+      readonly projectKey: string
+      readonly count: number
+      readonly expanded: boolean
+      readonly depth: 1
+    }
 
 /**
  * Navigation id of the narrow-mode "↩ recent" jump row (issue #14, 2A).
@@ -76,6 +91,31 @@ export const RECENT_ROW_ID = "~recent"
  * miss — a Scratch header has no main task to move and no repo to file into.
  */
 export const SCRATCH_SECTION_ID = "~scratch"
+
+/**
+ * Navigation id of a project's routine count row (issue #91). Prefixed like
+ * the other sentinels so it can never collide with a ULID, and carrying the
+ * project key so two projects' rows stay distinct.
+ *
+ * This row is the ONE fold in a tree that otherwise has none (owner call
+ * 2026-08-01, round 5 — see `tree-panel.tsx`). It is scoped deliberately: it
+ * folds only tasks a SCHEDULE created, never a task a human opened, so the
+ * "everything under a project is always visible" promise still holds for
+ * everything the user made themselves.
+ */
+export function routinesRowId(projectKey: string): string {
+  return `~routines:${projectKey}`
+}
+
+/** The project key a routines row id names, or null for any other id. */
+export function projectKeyOfRoutinesRow(id: string): string | null {
+  return id.startsWith("~routines:") ? id.slice("~routines:".length) : null
+}
+
+/** True for a task the sidebar folds behind a routine count row. */
+export function isRoutineTask(task: Task): boolean {
+  return task.routine !== undefined
+}
 
 /**
  * Prepend the "↩ recent: <task>" jump row (narrow mode only — the caller
@@ -167,6 +207,9 @@ export interface TreeInput {
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
   /** Task sort applied within each project group. Defaults to input order. */
   readonly sortMode?: import("./groups").TaskSortMode
+  /** Project keys whose routine count row is open (issue #91). Absent = all
+   *  closed, which is the resting state a fresh session starts in. */
+  readonly expandedRoutines?: ReadonlySet<string>
 }
 
 /**
@@ -336,7 +379,27 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
       label: sidebarProjectLabel(entry.repo, projectRepos),
       depth: 0,
     })
-    for (const task of entry.tasks) pushWorktree(rows, task, tabsByTask)
+    // Routine sessions (issue #91) sort to the END of their project, behind
+    // one count row: they are a schedule's output, so they must never push
+    // the tasks the user opened themselves down the pane.
+    const routineTasks = entry.tasks.filter(isRoutineTask)
+    for (const task of entry.tasks) {
+      if (!isRoutineTask(task)) pushWorktree(rows, task, tabsByTask)
+    }
+    if (routineTasks.length > 0) {
+      const expanded = input.expandedRoutines?.has(key) === true
+      rows.push({
+        kind: "routines",
+        id: routinesRowId(key),
+        projectKey: key,
+        count: routineTasks.length,
+        expanded,
+        depth: 1,
+      })
+      // Opened, the folded tasks render as ordinary worktree rows — the fold
+      // hides them at rest, it does not make them a different kind of thing.
+      if (expanded) for (const task of routineTasks) pushWorktree(rows, task, tabsByTask)
+    }
   }
   return rows
 }
@@ -360,6 +423,8 @@ function pushWorktree(rows: TreeRow[], task: Task, tabsByTask: ReadonlyMap<strin
 export function treeFlatIds(rows: readonly TreeRow[]): string[] {
   const ids: string[] = []
   for (const row of rows) {
+    // The routines count row IS navigable, unlike a project header: opening
+    // it is the whole point, so the cursor has to be able to land on it.
     if (row.kind !== "project") ids.push(row.id)
   }
   return ids
@@ -411,31 +476,7 @@ export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string):
   return null
 }
 
-/**
- * Which activity entry names a TAB row's state glyph.
- *
- * The daemon publishes activity at two levels. Tab-level is the precise
- * answer. Task-level is a last-event-wins rollup across every tab, so it may
- * only stand in for a task whose engine reports NO tab identity at all — a
- * `claude` the user typed into a shell, which has no `KOBE_TAB_ID` to tag its
- * hook events with.
- *
- * Once ANY tab of the task has reported, the rollup means "whichever tab
- * moved last", and lending it to whichever tab happens to be active made a
- * switch inside a busy worktree light the tab you switched TO with its
- * sibling's spinner until its own state landed (owner report 2026-08-10).
- */
-export function tabRowActivity<T>(args: {
-  /** This tab's own entry, when the daemon has one. */
-  readonly tabActivity: T | undefined
-  /** How many tabs of this task have reported at all. */
-  readonly reportedTabCount: number
-  /** The task-level rollup. */
-  readonly taskActivity: T | undefined
-  /** Whether this row is the task's active tab. */
-  readonly active: boolean
-}): T | undefined {
-  if (args.tabActivity !== undefined) return args.tabActivity
-  if (!args.active || args.reportedTabCount > 0) return undefined
-  return args.taskActivity
-}
+// Tab-row activity resolution lives in its own module (file-size cap) and is
+// re-exported here: callers name it through the tree's vocabulary, and the
+// split is a file boundary, not an API change.
+export { tabRowActivity } from "./tab-row-activity"

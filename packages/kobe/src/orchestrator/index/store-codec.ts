@@ -33,6 +33,7 @@ import type {
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskQuotaResumeState,
+  TaskRoutineLink,
   TaskStatus,
   TaskTombstone,
 } from "../../types/task.ts"
@@ -330,6 +331,7 @@ function coerceTask(value: unknown): Task | null {
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
+  const routine = coerceRoutine(v.routine)
 
   return {
     id: toTaskId(v.id),
@@ -341,6 +343,7 @@ function coerceTask(value: unknown): Task | null {
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
     kind,
     ...(scratch ? { scratch: true } : {}),
+    ...(routine ? { routine } : {}),
     vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
     // Raw launch command (`add --command` / `set-command`) — must survive
     // the load coercion or the task falls back to its protocol's preset on
@@ -393,6 +396,16 @@ function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
   if (typeof v.taskId !== "string" || v.taskId.length === 0) return undefined
   if (typeof v.tabId !== "string" || v.tabId.length === 0) return undefined
   return { taskId: v.taskId, tabId: v.tabId }
+}
+
+/** Routine back-pointer (issue #91). A link with no automation id is junk —
+ *  dropped, so the task reads as an ordinary one rather than folding itself
+ *  behind a routine section that can never be resolved back to a schedule. */
+function coerceRoutine(value: unknown): TaskRoutineLink | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const v = value as Record<string, unknown>
+  if (typeof v.automationId !== "string" || v.automationId.length === 0) return undefined
+  return { automationId: v.automationId }
 }
 
 function coerceQuotaResume(value: unknown): TaskQuotaResumeState | undefined {

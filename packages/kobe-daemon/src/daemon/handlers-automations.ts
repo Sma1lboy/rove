@@ -51,6 +51,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
         ...(precheck ? { precheck } : {}),
         ...(optionalString(payload, "baseRef") ? { baseRef: optionalString(payload, "baseRef") } : {}),
+        ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
       })
       // A new enabled schedule may be the daemon's only reason to stay up.
@@ -72,6 +73,9 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
         ...(optionalNumber(payload, "missedRunGraceMinutes") !== undefined
           ? { missedRunGraceMinutes: optionalNumber(payload, "missedRunGraceMinutes") }
+          : {}),
+        ...(optionalBoolean(payload, "persistentSession") !== undefined
+          ? { persistentSession: optionalBoolean(payload, "persistentSession") }
           : {}),
       }
       const automation = await ctx.automations.update(id, patch)

@@ -137,6 +137,34 @@ export interface DaemonRuntimeAdapter {
     },
     prompt: string,
   ): Promise<boolean>
+  /**
+   * {@link deliverPromptToLiveEngine} with the composer-busy outcome as DATA
+   * rather than a thrown `ComposerBusyError` — the error class lives in the
+   * `rove` package, which depends on this one, so the daemon cannot catch it
+   * by type. A caller that must not drop the prompt (a routine's daily report
+   * — issue #91) reads `busy` and files a deferral; quota-resume keeps using
+   * the boolean form, where dropping is the right answer.
+   *
+   * `tabId` names which tab the live engine was found on, so the deferral and
+   * its Inbox episode point at the tab a human will actually open.
+   */
+  deliverPromptToLiveEngineDetailed(
+    task: {
+      readonly id: string
+      readonly vendor?: VendorId
+      readonly command?: string
+      readonly worktreePath: string
+    },
+    prompt: string,
+  ): Promise<
+    | { readonly outcome: "delivered"; readonly tabId: string }
+    | { readonly outcome: "no-session" }
+    | {
+        readonly outcome: "busy"
+        readonly tabId: string
+        readonly layer: "recent-human-write" | "composer-not-empty"
+      }
+  >
   settingsSnapshot(): Response
   settingsPatch(request: Request): Promise<Response>
   handleDiffRequest(request: Request, url: URL): Promise<Response | null>

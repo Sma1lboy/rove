@@ -404,6 +404,39 @@ export function TabTreeRow(props: {
 }
 
 /**
+ * A project's routine count row (issue #91) — the one fold in this tree.
+ *
+ * Standing routine sessions rest behind it because a schedule's output is
+ * background noise beside the tasks the user opened themselves. ⏎ (or a
+ * click) toggles it open, and the tasks then render as ordinary worktree
+ * rows: the fold hides them, it never turns them into a different kind of
+ * thing. They stay selectable from the Inbox and the Routines page while
+ * closed, so this hides a ROW, not a task.
+ */
+export function RoutinesTreeRow(props: {
+  readonly rowId: string
+  readonly flatIndex: number
+  readonly count: number
+  readonly expanded: boolean
+  readonly shared: TreeRowShared
+}) {
+  const { theme } = useTheme()
+  const t = useT()
+  return (
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
+      {/* A 2-cell twisty is terminal grammar for "this opens", the same
+          fixed-glyph exception the diff gutter takes. */}
+      <text fg={theme.textMuted} wrapMode="none" width={2} flexShrink={0}>
+        {props.expanded ? "▾ " : "▸ "}
+      </text>
+      <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+        {t("tasks.routinesRow", { count: String(props.count) })}
+      </text>
+    </RowShell>
+  )
+}
+
+/**
  * Narrow mode's "↩ Recent: <task>" jump row (issue #14, 2A) — the first
  * navigable row of the narrow sidebar. ⏎ re-enters the named task's
  * workspace; it answers to nothing else (no menu, no per-task verbs).

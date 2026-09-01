@@ -38,6 +38,7 @@ const FULL: DeepRequired<SerializedTask> = {
   worktreePath: "/repo/.worktrees/wire",
   kind: "task",
   scratch: true,
+  routine: { automationId: "auto-1" },
   status: "in_review",
   pinned: true,
   vendor: "claude",

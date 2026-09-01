@@ -27,6 +27,7 @@ import { handleNotesRequest } from "../web/notes.ts"
 import { handleThemesRequest } from "../web/themes.ts"
 import {
   deliverPromptToLiveEngineAdapter,
+  deliverPromptToLiveEngineDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
@@ -93,6 +94,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
+  deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   settingsSnapshot: daemonSettingsSnapshot,
   settingsPatch: daemonSettingsPatch,
   handleDiffRequest,

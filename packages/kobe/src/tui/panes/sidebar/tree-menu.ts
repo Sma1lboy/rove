@@ -92,6 +92,10 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
       ...taskVerbs(row.task.pinned === true, row.task.kind),
     ]
   }
+  // The routine count row (issue #91) is a fold toggle, not a task — there is
+  // no task for any verb here to act on, and an entry that does nothing is
+  // worse than no entry (the same rule `closeTab` follows above).
+  if (row.kind === "routines") return []
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab" }]
   if ((ctx.tabCount ?? 0) > 0) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
   return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true, row.task.kind)]

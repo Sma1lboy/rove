@@ -161,6 +161,54 @@ export async function deliverPromptToLiveEngineAdapter(
   }
 }
 
+/** The tab a hosted session key names (`<taskId>::<tabId>`), default tab-1. */
+function tabIdFromHostedKey(key: string): string {
+  return key.split("::")[1] ?? "tab-1"
+}
+
+/**
+ * {@link deliverPromptToLiveEngineAdapter} reporting composer-busy as a VALUE.
+ *
+ * The routine runner (issue #91) must not drop a daily report the way
+ * quota-resume drops a continue nudge: a dropped report and a routine that
+ * never ran look identical to the user. It needs the busy layer and the tab
+ * to file a deferral, and the daemon cannot catch `ComposerBusyError` by type
+ * across the package boundary — so the outcome crosses as data.
+ */
+export async function deliverPromptToLiveEngineDetailedAdapter(
+  task: { readonly id: string; readonly vendor?: VendorId; readonly command?: string; readonly worktreePath: string },
+  prompt: string,
+): Promise<
+  | { outcome: "delivered"; tabId: string }
+  | { outcome: "no-session" }
+  | { outcome: "busy"; tabId: string; layer: "recent-human-write" | "composer-not-empty" }
+> {
+  const host = await openHostedSessionHost()
+  if (!host) return { outcome: "no-session" }
+  try {
+    const sessions = await listHostedSessions(host.rpc)
+    const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor })[0]
+    const key = findHostedEngineKey(sessions, task.id, engineBin)
+    if (!key) return { outcome: "no-session" }
+    const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
+    try {
+      const delivered = await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })
+      return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
+    } catch (err) {
+      if (err instanceof ComposerBusyError) {
+        return { outcome: "busy", tabId: tabIdFromHostedKey(key), layer: err.layer }
+      }
+      throw err
+    }
+  } catch {
+    // A host that went away mid-delivery is indistinguishable from one that
+    // was never there — both mean "revive it", which is the caller's fallback.
+    return { outcome: "no-session" }
+  } finally {
+    host.close()
+  }
+}
+
 export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> {
   const host = await openHostedSessionHost()
   if (!host) return

@@ -353,6 +353,9 @@ export interface SerializedTask {
   readonly kind: "main" | "task" | "dir"
   /** Scratch shell task (issue #33) — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
+  /** Standing session of a routine (issue #91) — folded behind the sidebar's
+   *  routine count row instead of rendering as a loose task. */
+  readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
   readonly pinned: boolean
   readonly vendor?: DaemonTask["vendor"]
@@ -404,6 +407,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     worktreePath: task.worktreePath,
     kind: task.kind ?? "task",
     ...(task.scratch ? { scratch: true } : {}),
+    ...(task.routine ? { routine: task.routine } : {}),
     status: task.status,
     pinned: task.pinned ?? false,
     vendor: task.vendor,
