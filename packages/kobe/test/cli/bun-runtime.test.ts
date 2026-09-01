@@ -25,6 +25,7 @@ import {
   resolveBunBinary,
   resolveUsableBun,
   staleBunMessage,
+  unusableBunMessage,
 } from "../../src/cli/bun-runtime.ts"
 
 const posix = { platform: "linux" as const, home: "/home/dev", env: { PATH: "/usr/bin:/opt/bin" } }
@@ -89,8 +90,8 @@ describe("resolveUsableBun", () => {
     expect(found.stale).toEqual({ path: "/usr/bin/bun", version: "1.2.21" })
   })
 
-  it("accepts a Bun whose version cannot be read rather than refusing to start", () => {
-    const found = resolveUsableBun({ ...all, bunVersionOf: () => null })
+  it("accepts a Bun that runs but prints nothing rather than refusing to start", () => {
+    const found = resolveUsableBun({ ...all, bunVersionOf: () => "" })
 
     expect(found.bun).toBe("/usr/bin/bun")
     expect(found.stale).toBeNull()
@@ -111,8 +112,41 @@ describe("resolveUsableBun", () => {
     expect(probes).toEqual([])
   })
 
-  it("has no stale Bun to report when there is no Bun at all", () => {
-    expect(resolveUsableBun({ ...posix, isExecutable: () => false })).toEqual({ bun: null, stale: null })
+  it("has nothing to report when there is no Bun at all", () => {
+    expect(resolveUsableBun({ ...posix, isExecutable: () => false })).toEqual({
+      bun: null,
+      stale: null,
+      unusable: null,
+    })
+  })
+
+  // A candidate that will not run is one the relaunch could not have run
+  // either — same spawnSync — so skipping it only ever helps. Before this,
+  // the launcher re-exec'd into a stray text file / a crasher / a hang and
+  // produced that binary's garbage, or wedged (env matrix cases 15-17).
+  it("skips a Bun that cannot be run and uses the next candidate", () => {
+    const found = resolveUsableBun({
+      ...all,
+      bunVersionOf: (path) => (path === "/usr/bin/bun" ? null : "1.3.14"),
+    })
+
+    expect(found.bun).toBe("/opt/bin/bun")
+    expect(found.unusable).toBe("/usr/bin/bun")
+  })
+
+  it("reports the unrunnable Bun when it is the only one", () => {
+    const found = resolveUsableBun({ ...all, bunVersionOf: () => null })
+
+    expect(found).toEqual({ bun: null, stale: null, unusable: "/usr/bin/bun" })
+  })
+
+  // The opposite call: it RAN, we just did not recognise what it printed.
+  // Refusing that would brick everyone the day Bun changes its version string.
+  it("uses a Bun that runs but prints an unrecognisable version", () => {
+    const found = resolveUsableBun({ ...all, bunVersionOf: () => "bun-but-weird" })
+
+    expect(found.bun).toBe("/usr/bin/bun")
+    expect(found.unusable).toBeNull()
   })
 })
 
@@ -133,6 +167,17 @@ describe("staleBunMessage", () => {
     expect(message).toContain("npm install -g bun@latest")
     expect(message).toContain(BUN_OVERRIDE_ENV)
     expect(message).toContain(SKIP_VERSION_CHECK_ENV)
+  })
+})
+
+describe("unusableBunMessage", () => {
+  it("says the binary is there but does not run, not that Bun is missing", () => {
+    const message = unusableBunMessage("/usr/bin/bun", "rove")
+
+    expect(message).toContain("/usr/bin/bun")
+    expect(message).toContain("could not be run")
+    expect(message).not.toContain("no Bun was found")
+    expect(message).toContain(BUN_OVERRIDE_ENV)
   })
 })
 

@@ -55,10 +55,13 @@ export interface StaleBun {
   readonly version: string
 }
 
-/** What {@link resolveUsableBun} found: a Bun to run, and/or the too-old one it skipped. */
+/** What {@link resolveUsableBun} found: a Bun to run, plus the ones it walked past. */
 export interface BunResolution {
   readonly bun: string | null
+  /** First candidate that ran but is older than the floor. */
   readonly stale: StaleBun | null
+  /** First candidate that is on disk and executable but could not be run at all. */
+  readonly unusable: string | null
 }
 
 export interface BunLookup {
@@ -83,11 +86,22 @@ const defaultIsExecutable = (path: string): boolean => {
 
 const bunFileName = (platform: NodeJS.Platform): string => (platform === "win32" ? "bun.exe" : "bun")
 
-/** `bun --version` for one candidate, or null when it cannot be asked. */
+/**
+ * What a candidate answered to `bun --version`: its first line of output, or
+ * `null` when the binary could not be RUN at all (exec error, non-zero exit,
+ * or a 5s hang).
+ *
+ * The two are kept apart because they license opposite decisions. A binary
+ * that cannot be run is one the relaunch below could not run either — it is
+ * the same `spawnSync`, so skipping it can only turn a certain failure into a
+ * possible success. A binary that runs and prints something we don't recognise
+ * is a working Bun whose output shape we failed to anticipate, and refusing
+ * that would brick every user the day Bun changes its version string.
+ */
 const defaultBunVersionOf = (path: string): string | null => {
   const result = spawnSync(path, ["--version"], { encoding: "utf8", timeout: 5_000 })
   if (result.error || result.status !== 0) return null
-  return result.stdout?.split("\n")[0]?.trim() || null
+  return result.stdout?.split("\n")[0]?.trim() ?? ""
 }
 
 /** `1.3.14`, `v1.3.14`, `1.3.14-canary.3` -> `1.3.14`; null when it isn't a version at all. */
@@ -164,29 +178,39 @@ export function resolveBunBinary(lookup: BunLookup = {}): string | null {
 }
 
 /**
- * First candidate that both runs and clears {@link MIN_BUN_VERSION}, plus the
- * oldest-first stale one it walked past.
+ * First candidate that runs and clears {@link MIN_BUN_VERSION}, plus the ones
+ * it walked past.
  *
  * Skipping rather than stopping matters: a system Bun on PATH shadowing a
  * current `~/.bun` one is the common shape of this, and Rove works fine if it
- * just uses the newer one. Costs one `bun --version` per candidate until the
- * first hit (~4ms), paid only on the node launcher path, which is already
- * about to pay for a full re-exec.
+ * just uses the newer one. The same holds for a candidate that will not run —
+ * a `bun` that is a stray text file, crashes, or hangs, all of which were
+ * observed to be relaunched-into before this probe existed, producing garbage
+ * output or a wedged process instead of an error.
+ *
+ * Costs one `bun --version` per candidate until the first hit (~4ms, measured,
+ * against a ~300ms node→Bun re-exec), and only on the node launcher path;
+ * under Bun the version is already in hand.
  */
 export function resolveUsableBun(lookup: BunLookup = {}): BunResolution {
   const isExecutable = lookup.isExecutable ?? defaultIsExecutable
   const versionOf = lookup.bunVersionOf ?? defaultBunVersionOf
   if (bunVersionCheckDisabled(lookup.env ?? process.env)) {
-    return { bun: resolveBunBinary(lookup), stale: null }
+    return { bun: resolveBunBinary(lookup), stale: null, unusable: null }
   }
   let stale: StaleBun | null = null
+  let unusable: string | null = null
   for (const candidate of bunCandidates(lookup)) {
     if (!isExecutable(candidate)) continue
     const raw = versionOf(candidate)
-    if (raw === null || isBunAtLeast(raw)) return { bun: candidate, stale }
+    if (raw === null) {
+      unusable ??= candidate
+      continue
+    }
+    if (isBunAtLeast(raw)) return { bun: candidate, stale, unusable }
     stale ??= { path: candidate, version: parseBunVersion(raw) ?? raw }
   }
-  return { bun: null, stale }
+  return { bun: null, stale, unusable }
 }
 
 /** Directory of the running launcher — the anchor for sibling-file lookups. */
@@ -248,6 +272,26 @@ export function staleBunMessage(bunPath: string, version: string, cliName: strin
     "",
     `Have a newer Bun elsewhere? Point Rove at it: ${BUN_OVERRIDE_ENV}=/path/to/bun`,
     `Run on this one anyway (unsupported, terminals will be blank): ${SKIP_VERSION_CHECK_ENV}=1`,
+    "",
+  ].join("\n")
+}
+
+/**
+ * Shown when a Bun is on disk but will not run — it crashed, exited non-zero,
+ * or hung past the probe's timeout. Distinct from "no Bun found": telling
+ * someone to install Bun when the file is right there sends them in circles.
+ */
+export function unusableBunMessage(bunPath: string, cliName: string = activeCliName()): string {
+  return [
+    `${cliName}: the Bun at ${bunPath} could not be run — \`${bunPath} --version\` failed or never returned.`,
+    "",
+    "Rove skipped it rather than starting through it, which would hang or fail",
+    "with a message from that binary instead of this one.",
+    "",
+    "Reinstall Bun, then run this command again:",
+    "  curl -fsSL https://bun.sh/install | bash",
+    "",
+    `Have a working Bun elsewhere? Point Rove at it: ${BUN_OVERRIDE_ENV}=/path/to/bun`,
     "",
   ].join("\n")
 }
