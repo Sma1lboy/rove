@@ -366,6 +366,10 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   a toast in every attached Rove UI. `done` / `needs_input` / `error` get
   severity styling; any other kind renders neutrally. The result's `clients`
   is the reach signal: `0` = no attached UI showed the toast (headless).
+- `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
+  ask the human for a line of text through the attached TUI's input dialog;
+  blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
+  and returns `{ value }` or `{ cancelled, reason }`.
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters
@@ -519,11 +523,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `adopt --repo PATH --worktree PATH [--branch B] [--command CMD] [--title T]`:
   import an existing git worktree as a Rove task.
 
-## feedback + other
+## feedback
 
 - `feedback --title T --body TEXT [--category SLUG]` *(offline)*: create a
   GitHub Discussion in the Rove repository's Feedback category via `gh`.
-- `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
-  ask the human for a line of text through the attached TUI's input dialog;
-  blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
-  and returns `{ value }` or `{ cancelled, reason }`.
