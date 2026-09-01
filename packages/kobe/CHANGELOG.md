@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.76
+
+### Patch Changes
+
+- [#747](https://github.com/Sma1lboy/rove/pull/747) [`337aac5`](https://github.com/Sma1lboy/rove/commit/337aac575c7b7df81fe7a2dea576d21dce89e9aa) Refresh the Claude model picker to the Claude 5 family: Fable 5.1 (with the full effort ladder), Opus 5 / Opus 5 1M, Sonnet 5 / Sonnet 5 1M, Haiku 4.5. The unpinned default now falls back to Opus 5 1M instead of the retired Opus 4.7 1M. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.75
 
 ### Patch Changes
