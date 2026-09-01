@@ -197,7 +197,7 @@ export class AttentionInboxStore {
     layer: "recent-human-write" | "composer-not-empty",
   ): Promise<void> {
     await this.enqueue(async () => {
-      const key = attentionInboxItemKey({ taskId, tabId })
+      const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
       const next = new Map(this.items)
       next.delete(key)
       next.set(key, {
@@ -224,11 +224,22 @@ export class AttentionInboxStore {
   /** Nullable tabId addresses legacy task-level data only; new writes require a tab. */
   async deleteEpisode(taskId: string, tabId: string | null, at?: number): Promise<boolean> {
     return await this.enqueue(async () => {
-      const key = attentionInboxItemKey({ taskId, tabId })
-      const item = this.items.get(key)
-      if (!item || (at !== undefined && item.at !== at)) return false
+      // Both lanes for this tab — the activity episode and any deferred-prompt
+      // one. Callers address a TAB ("I dealt with this"), not a lane; making
+      // them name the lane would leave whichever they forgot on screen.
+      const keys = [
+        attentionInboxItemKey({ taskId, tabId }),
+        attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" }),
+      ]
       const next = new Map(this.items)
-      next.delete(key)
+      let removed = false
+      for (const key of keys) {
+        const item = this.items.get(key)
+        if (!item || (at !== undefined && item.at !== at)) continue
+        next.delete(key)
+        removed = true
+      }
+      if (!removed) return false
       await this.commit(next)
       return true
     })
