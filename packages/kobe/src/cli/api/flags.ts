@@ -192,6 +192,18 @@ export class VerbArgs {
     return v && v.length > 0 ? v : undefined
   }
 
+  /**
+   * Whether the flag was PRESENT on the command line at all — including as an
+   * empty string (`--flag ''` / `--flag=`). Unlike {@link str}, which folds
+   * `""` into "absent", this is how a flag whose empty value MEANS something
+   * — the clear-by-empty convention on `routine-update`'s `--precheck` /
+   * `--base-branch` — tells "clear it" apart from "leave it alone".
+   */
+  present(name: string): boolean {
+    this.spec(name)
+    return this.flags.get(name) !== undefined
+  }
+
   /** Required string value (MISSING_FLAG when absent). */
   require(name: string): string {
     const v = this.str(name)
