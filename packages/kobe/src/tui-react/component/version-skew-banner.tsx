@@ -13,6 +13,12 @@
  * on. Skew is the opposite — it persists until someone restarts the daemon,
  * which is an action, which is why this one stayed.
  *
+ * {@link StaleInstallBanner} — red, the same strip, for the one condition
+ * that never clears on its own: this process is running from an install that
+ * has been deleted, so it can never start a daemon again. That earned a
+ * banner on the same test the skew banner passed and the disconnect banner
+ * failed — it persists until someone acts, and the action is reinstalling.
+ *
  * Theme tokens only, engine-neutral copy. React canon: props are plain
  * values, not Accessors.
  */
@@ -76,6 +82,27 @@ export function VersionSkewBanner(props: VersionSkewBannerProps) {
       tone={theme.warning}
       title={t("update.skew.title")}
       hint={t("update.skew.hint", { daemon, clientVersion: props.clientVersion })}
+      width={props.width}
+    />
+  )
+}
+
+export type StaleInstallBannerProps = {
+  /** The reconnect loop's terminal error message, or null while all is well. */
+  message: string | null
+  /** Available width (cells) so the accent rule fills the strip. */
+  width: number
+}
+
+export function StaleInstallBanner(props: StaleInstallBannerProps) {
+  const { theme } = useTheme()
+  const t = useT()
+  if (!props.message) return null
+  return (
+    <BannerStrip
+      tone={theme.error}
+      title={t("update.staleInstall.title")}
+      hint={t("update.staleInstall.hint")}
       width={props.width}
     />
   )

@@ -15,7 +15,7 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
-import { VersionSkewBanner } from "../component/version-skew-banner"
+import { StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
@@ -294,7 +294,14 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // working through the ones it doesn't, so the alert interrupted to announce
   // something with nothing to act on. Skew is different: it persists until
   // someone restarts the daemon, which is why it kept its banner.
-  const banner = (
+  // The one condition that outranks skew: this process's install was deleted,
+  // so it cannot start a daemon at all. It used to be invisible — the client
+  // just looked like it was reconnecting, for two days (issue #96). Latched,
+  // never cleared: only a reinstall fixes it.
+  const staleInstall = useAccessor(orch.staleInstallSignal())
+  const banner = staleInstall ? (
+    <StaleInstallBanner message={staleInstall} width={dims.width} />
+  ) : (
     <VersionSkewBanner
       stale={daemonStale}
       daemonVersion={daemonVersion}

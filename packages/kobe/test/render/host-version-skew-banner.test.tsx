@@ -66,8 +66,10 @@ function fakeOrchestrator() {
   const stale = createStateCell(false)
   const daemonVersion = createStateCell<string | null>(null)
   const connection = createStateCell<DaemonConnectionState>("online")
+  const staleInstall = createStateCell<string | null>(null)
   const orchestrator = {
     connectionStateSignal: () => connection,
+    staleInstallSignal: () => staleInstall,
     daemonStaleSignal: () => stale,
     daemonVersionSignal: () => daemonVersion,
     tasksSignal: () => EMPTY_ARR,
@@ -92,7 +94,7 @@ function fakeOrchestrator() {
     reportEngineInterrupt: () => {},
     listTasks: () => [],
   } as unknown as RemoteOrchestrator
-  return { orchestrator, stale, daemonVersion, connection }
+  return { orchestrator, stale, daemonVersion, connection, staleInstall }
 }
 
 async function mountHost(orchestrator: RemoteOrchestrator) {
@@ -153,4 +155,46 @@ test("a socket disconnect paints no banner of its own", async () => {
   const text = await frame()
   expect(text).not.toContain("DAEMON DISCONNECTED")
   expect(text).toContain("DAEMON OUT OF DATE")
+})
+
+/**
+ * Issue #96, the surfacing half. A GUI running from a deleted install can
+ * never start a daemon, and until now that state had no picture at all: the
+ * client looked like it was reconnecting, for two days on the owner's
+ * machine. Mounted through the real host and driven from the cell the
+ * reconnect loop writes, for the same reason as the skew test above — a
+ * banner fed a hand-set prop would pass with the wiring deleted.
+ */
+test("the host mounts the stale-install banner and drives it from the orchestrator", async () => {
+  const { orchestrator, staleInstall } = fakeOrchestrator()
+  const { frame } = await mountHost(orchestrator)
+  expect(await frame()).not.toContain("ROVE INSTALL IS GONE")
+
+  await act(async () => {
+    staleInstall.set("rove: this process is running from an install that no longer exists on disk")
+  })
+  await settle(60)
+  const text = await frame()
+  expect(text).toContain("ROVE INSTALL IS GONE")
+  // The remedy, not just the diagnosis — waiting is what the user was
+  // already doing, so the banner has to name the thing that actually works.
+  expect(text).toContain("npm install -g @sma1lboy/rove")
+})
+
+test("a gone install outranks a stale daemon build — only one banner shows", async () => {
+  // Both can be true at once (a deleted install leaves whatever daemon was
+  // already running, which then falls behind). They share the one banner
+  // slot, and only one of them is worth acting on: restarting a daemon this
+  // process cannot spawn is not a fix.
+  const { orchestrator, stale, daemonVersion, staleInstall } = fakeOrchestrator()
+  const { frame } = await mountHost(orchestrator)
+  await act(async () => {
+    daemonVersion.set("0.9.1")
+    stale.set(true)
+    staleInstall.set("rove: this process is running from an install that no longer exists on disk")
+  })
+  await settle(60)
+  const text = await frame()
+  expect(text).toContain("ROVE INSTALL IS GONE")
+  expect(text).not.toContain("DAEMON OUT OF DATE")
 })

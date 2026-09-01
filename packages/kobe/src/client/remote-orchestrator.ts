@@ -159,6 +159,9 @@ export class RemoteOrchestrator {
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
   private readonly keybindingsRevAcc = createStateCell<number | null>(null)
   private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online")
+  /** Set once when the reconnect loop gives up because this process's own
+   *  install is gone (see {@link staleInstallSignal}). */
+  private readonly staleInstallAcc = createStateCell<string | null>(null)
   private readonly ensureReachable: () => Promise<unknown>
   private readonly role: SubscribeRole
   /** Per-channel subscribe filter; `undefined` = subscribe to all channels. */
@@ -275,6 +278,7 @@ export class RemoteOrchestrator {
       ensureReachable: this.ensureReachable,
       init: () => this.init(),
       shouldLogAttempt: shouldLogReconnectAttempt,
+      onFatal: (err) => this.staleInstallAcc.set(err instanceof Error ? err.message : String(err)),
     })
     this.reconnectTask = task
     const clear = (): void => {
@@ -295,6 +299,17 @@ export class RemoteOrchestrator {
 
   connectionStateSignal(): ReadableState<DaemonConnectionState> {
     return this.connectionStateAcc
+  }
+
+  /**
+   * The reconnect loop's one terminal failure, as a message — non-null once
+   * this process is confirmed to be running from an install that has been
+   * deleted, and never cleared, because nothing this process can do fixes it.
+   * Latched deliberately: it is the difference between "reconnecting" (which
+   * is what a stale install used to look like, forever) and "reinstall Rove".
+   */
+  staleInstallSignal(): ReadableState<string | null> {
+    return this.staleInstallAcc
   }
 
   /** Explicitly force the same spawning recovery used by a GUI socket drop. */
