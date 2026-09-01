@@ -32,6 +32,7 @@ import {
   type BindingsConfig,
   type RegisteredBinding,
   armPrefixNow,
+  currentPrefixConfiguration,
   dispatchKeyEvent,
   insertRegistration,
   invokeArmedPrefixAction,
@@ -96,7 +97,7 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   ctrlHoldDetector = createCtrlHoldDetector({
     onReveal: () => {
       resetPrefixState()
-      const options = directGuideOptions(bindingReachability(stack))
+      const options = directGuideOptions(bindingReachability(stack), currentPrefixConfiguration().key)
       if (options.length > 0) prefixHudShowDirect(options)
     },
     onHide: prefixHudHideDirect,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { findBinding, resetKeymapToDefaults } from "../../src/tui/context/keybindings"
-import { directGuideOptions, shortcutCaption } from "../../src/tui/lib/shortcut-reveal"
+import { DIRECT_GUIDE_PREFIX_ACTION_ID, directGuideOptions, shortcutCaption } from "../../src/tui/lib/shortcut-reveal"
 
 const reachable = (direct: string[] = [], prefix: string[] = []) => ({
   direct: new Set(direct),
@@ -60,18 +60,32 @@ describe("shortcutCaption", () => {
 })
 
 describe("directGuideOptions", () => {
-  it("derives every reachable direct chord from the live keymap", () => {
-    expect(directGuideOptions(reachable(["help.open", "focus.next", "task.new"]))).toEqual([
-      { stroke: "f1", action: "help.open" },
-      { stroke: "n", action: "task.new" },
-      { stroke: "f4", action: "focus.next" },
+  it("derives only ctrl follow-up keys and the live prefix from the reachable keymap", () => {
+    expect(
+      directGuideOptions(
+        reachable(["help.open", "focus.sidebar", "focus.next", "task.new"], ["kanban.open"]),
+        "ctrl+a",
+      ),
+    ).toEqual([
+      { stroke: "q", action: "focus.sidebar" },
+      { stroke: "a", action: DIRECT_GUIDE_PREFIX_ACTION_ID },
     ])
   })
 
-  it("tracks keymap overrides instead of keeping a second chord list", () => {
+  it("tracks keymap overrides without admitting multi-modifier chords", () => {
     const row = findBinding("focus.next") as { keys: readonly string[] }
-    row.keys = ["ctrl+n"]
+    row.keys = ["ctrl+n", "ctrl+shift+n"]
 
-    expect(directGuideOptions(reachable(["focus.next"]))).toEqual([{ stroke: "ctrl+n", action: "focus.next" }])
+    expect(directGuideOptions(reachable(["focus.next"], ["kanban.open"]), "ctrl+b")).toEqual([
+      { stroke: "n", action: "focus.next" },
+      { stroke: "b", action: DIRECT_GUIDE_PREFIX_ACTION_ID },
+    ])
+  })
+
+  it("omits the prefix entry when it is disabled or no prefix action is reachable", () => {
+    expect(directGuideOptions(reachable(["focus.sidebar"]), null)).toEqual([{ stroke: "q", action: "focus.sidebar" }])
+    expect(directGuideOptions(reachable(["focus.sidebar"]), "ctrl+a")).toEqual([
+      { stroke: "q", action: "focus.sidebar" },
+    ])
   })
 })

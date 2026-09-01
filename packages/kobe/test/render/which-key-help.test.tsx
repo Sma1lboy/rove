@@ -20,6 +20,7 @@ import {
   resetPrefixHud,
 } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
+import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../src/tui/lib/shortcut-reveal"
 import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
@@ -154,8 +155,8 @@ describe("which-key prefix guide", () => {
 
   it("uses a direct-shortcut title while ctrl is held", async () => {
     prefixHudShowDirect([
-      { stroke: "f1", action: "help.open" },
-      { stroke: "ctrl+q", action: "focus.sidebar" },
+      { stroke: "q", action: "focus.sidebar" },
+      { stroke: "a", action: DIRECT_GUIDE_PREFIX_ACTION_ID },
     ])
     const { frame } = await renderComponent(<PrefixHud left={1} width={22} />, {
       width: 100,
@@ -165,7 +166,9 @@ describe("which-key prefix guide", () => {
     const text = await frame()
     expect(text).toContain("Hold ctrl — Rove shortcuts")
     expect(text).toContain("release ctrl to close")
-    expect(text).not.toContain("more Rove commands")
+    expect(text).toContain("q")
+    expect(text).not.toContain("ctrl+q")
+    expect(text).toContain("More commands (prefix)")
   })
 
   it("keeps every alias visible when a direct action has many chords", async () => {
@@ -201,7 +204,8 @@ describe("which-key prefix guide", () => {
     const held = await waitForFrameText(frame, "Hold ctrl — Rove shortcuts", {
       timeoutMs: CTRL_HOLD_THRESHOLD_MS + 5_000,
     })
-    expect(held).toContain("f1")
+    expect(held).toContain("More commands (prefix)")
+    expect(held).not.toContain("f1")
 
     act(() => mockInput.pressKey("\x1b[57442;1:3u"))
     await settle()

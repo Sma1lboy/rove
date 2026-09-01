@@ -39,14 +39,18 @@ complete reference and clickable mouse entry.
 
 ## Hold ctrl to reveal direct shortcuts
 
-**2026-09-01. PROPOSED: holding either Ctrl key for 400 ms opens the direct
-shortcut guide. The trigger and threshold still need final owner confirmation.**
-The guide reads every direct row reachable through the current Binding Stack
-from the live keymap. It has no separate chord list, so rebindings and
-pane-specific reachability stay accurate. This includes the sidebar's
-high-frequency bare keys (`n`, `q`, `j`/`k`, `r`, `d`, and peers); limiting the
-guide to the smaller `presentation: "onePress"` tier hid precisely the keys a
-discovery surface needs to teach (owner clarification, 2026-09-01).
+**2026-09-01. Holding either Ctrl key for 400 ms opens the Ctrl follow-up
+guide.** The owner confirmed that the panel answers one question: while Ctrl is
+still held, which next keys do something? The guide therefore reads reachable
+direct bindings from the current Binding Stack, keeps only exact
+`ctrl+<single-key>` chords, and displays the key after `ctrl+`. Bare keys,
+F-row keys, multi-modifier chords, and prefix second strokes stay out. One
+synthetic row shows the current prefix's follow-up key as "More commands
+(prefix)"; it does not create a binding.
+
+The live keymap remains the only direct-chord list, so rebindings and
+pane-specific reachability stay accurate. A page or dialog barrier shrinks the
+guide to the Ctrl chords that remain dispatchable in that context.
 
 The guide opens while an embedded engine terminal has focus. This is a discovery
 hint, not a modal input state. Releasing Ctrl or pressing any other key closes

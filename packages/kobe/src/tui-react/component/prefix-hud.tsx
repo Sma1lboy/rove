@@ -16,6 +16,7 @@ import { displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudState } from "../../tui/lib/prefix-hud"
+import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../tui/lib/shortcut-reveal"
 import { truncateEnd } from "../../tui/lib/truncate"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
@@ -32,7 +33,8 @@ const BOTTOM_MARGIN = 1
  * clipped at its `:` lead when present (`Quick-fork: create child task…` →
  * `Quick-fork`). Falls back to the raw id for rows without a description.
  */
-function actionLabel(action: string): string {
+function actionLabel(action: string, translate: ReturnType<typeof useT>): string {
+  if (action === DIRECT_GUIDE_PREFIX_ACTION_ID) return translate("help.moreCommandsPrefix")
   const binding = findBinding(action)
   if (!binding) return action
   return tKeys("desc", action)
@@ -130,7 +132,7 @@ export function PrefixHud(props: { left: number; width: number }) {
       const keyWidth = Math.min(9, Math.max(3, displayWidth(strokes)))
       const labelWidth = Math.max(1, groupWidth - keyWidth - 1)
       const keyLines = Math.ceil(displayWidth(strokes) / keyWidth)
-      const labelLines = Math.ceil(displayWidth(actionLabel(action.action)) / labelWidth)
+      const labelLines = Math.ceil(displayWidth(actionLabel(action.action, t)) / labelWidth)
       return Math.max(1, keyLines, labelLines)
     }
     const guideHeight = groupRows.reduce(
@@ -184,7 +186,7 @@ export function PrefixHud(props: { left: number; width: number }) {
                           <text fg={theme.primary}>{strokes}</text>
                         </box>
                         <text fg={theme.text} wrapMode="word" flexGrow={1} flexShrink={1}>
-                          {actionLabel(action.action)}
+                          {actionLabel(action.action, t)}
                         </text>
                       </box>
                     )
@@ -215,7 +217,7 @@ export function PrefixHud(props: { left: number; width: number }) {
           <text fg={theme.textMuted} wrapMode="none">
             {truncateEnd(
               `${entry.prefixKey ? `${entry.prefixKey} + ` : ""}${entry.stroke} ${
-                entry.action ? `→ ${actionLabel(entry.action)}` : "∅"
+                entry.action ? `→ ${actionLabel(entry.action, t)}` : "∅"
               }`,
               width - 2,
             )}

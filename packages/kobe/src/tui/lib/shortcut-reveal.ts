@@ -11,6 +11,14 @@ import { formatChord } from "./chord-glyphs"
 import type { BindingReachability } from "./keymap-reachability"
 import type { PrefixHudOption } from "./prefix-hud"
 
+export const DIRECT_GUIDE_PREFIX_ACTION_ID = "prefix.moreCommands"
+
+const CTRL_FOLLOW_UP_CHORD = /^ctrl\+[^+]+$/
+
+function ctrlFollowUpKey(chord: string): string | null {
+  return CTRL_FOLLOW_UP_CHORD.test(chord) ? chord.slice("ctrl+".length) : null
+}
+
 export type ShortcutCaptionInput = Readonly<{
   bindingId: string
   reachability: BindingReachability
@@ -39,9 +47,17 @@ export function shortcutCaption(input: ShortcutCaptionInput): string | null {
   return null
 }
 
-/** Every direct shortcut runnable in the current Binding Stack, in live keymap order. */
-export function directGuideOptions(reachability: BindingReachability): PrefixHudOption[] {
-  return KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) =>
-    binding.keys.map((stroke) => ({ stroke, action: binding.id })),
+/** Ctrl follow-up keys runnable in the current Binding Stack, in live keymap order. */
+export function directGuideOptions(reachability: BindingReachability, prefixKey: string | null): PrefixHudOption[] {
+  const options = KobeKeymap.filter((binding) => reachability.direct.has(binding.id)).flatMap((binding) =>
+    binding.keys.flatMap((chord) => {
+      const stroke = ctrlFollowUpKey(chord)
+      return stroke ? [{ stroke, action: binding.id }] : []
+    }),
   )
+  const prefixStroke = prefixKey ? ctrlFollowUpKey(prefixKey) : null
+  if (prefixStroke && reachability.prefix.size > 0) {
+    options.push({ stroke: prefixStroke, action: DIRECT_GUIDE_PREFIX_ACTION_ID })
+  }
+  return options
 }
