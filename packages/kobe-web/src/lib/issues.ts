@@ -6,6 +6,14 @@
  */
 
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
+// One implementation of the story prompts, shared with the TUI
+// (`kobe/src/state/issue-chat.ts`). The copies these two files kept by hand
+// had already drifted apart.
+import {
+  issueMergePrompt,
+  issueProjectPrompt,
+  issueWorktreePrompt,
+} from "@sma1lboy/kobe-daemon/prompts/issue-prompts"
 import { setActiveTaskBestEffort } from "./active-task.ts"
 import { api } from "./api-client.ts"
 import { labelRepo } from "./board.ts"
@@ -64,7 +72,7 @@ export interface IssueRepoOption {
   readonly repo: string
   /** Short display name: path basename, parent/basename on collision. */
   readonly label: string
-  /** Non-archived tasks currently associated with this repo. */
+  /** Tasks currently associated with this repo. */
   readonly count: number
 }
 
@@ -259,13 +267,13 @@ export function issueRepoOptions(
   }
   const mainRepos = new Set(
     tasks
-      .filter((task) => !task.archived && task.kind === "main" && task.repo)
+      .filter((task) => task.kind === "main" && task.repo)
       .map((task) => task.repo),
   )
   for (const repo of mainRepos) counts.set(repo, counts.get(repo) ?? 0)
   const knownProjects = new Set(counts.keys())
   for (const task of tasks) {
-    if (task.archived || !task.repo) continue
+    if (!task.repo) continue
     if (knownProjects.size > 0 && !knownProjects.has(task.repo)) continue
     counts.set(task.repo, (counts.get(task.repo) ?? 0) + 1)
   }
@@ -293,57 +301,6 @@ export function resolveIssueRepoSelection(
     return current
   }
   return options[0]?.repo ?? null
-}
-
-/**
- * The engine's first message for a quick-started issue. The caller has
- * already flipped the issue to `doing`; the prompt asks the agent to report
- * completion through the daemon-owned issue API, not by editing repo files.
- */
-export function quickStartPrompt(issue: Issue, api = DEFAULT_CLI_API): string {
-  const lines = [`Work on user story #${issue.id}: ${issue.title}`, ""]
-  const body = issue.body.trim()
-  if (body) lines.push(body, "")
-  lines.push(
-    `Treat this as the story's dedicated ${displayProductName()} task session: work only in this task worktree, and preserve any repo init instructions already delivered to the session.`,
-    "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
-    "Then merge the task branch back into the current project's main branch after the worktree is clean and checks pass.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
-  )
-  return lines.join("\n")
-}
-
-/**
- * The engine's first message for an issue chat opened directly in the project
- * checkout (no dedicated worktree/branch): same story framing as
- * {@link quickStartPrompt}, but without the worktree/merge instructions —
- * the work happens on the checkout as-is.
- */
-export function projectChatPrompt(issue: Issue, api = DEFAULT_CLI_API): string {
-  const lines = [`Work on user story #${issue.id}: ${issue.title}`, ""]
-  const body = issue.body.trim()
-  if (body) lines.push(body, "")
-  lines.push(
-    "You are working directly in the project checkout — no dedicated worktree or branch was created. Keep changes reviewable and do not switch branches unless asked.",
-    "Before finishing, verify the acceptance criteria implied by the story and summarize what changed plus any verification still needed.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
-  )
-  return lines.join("\n")
-}
-
-/**
- * Follow-up prompt for a linked issue after implementation has run in its task
- * worktree. This is intentionally delivered to the task session instead of
- * merging in the web UI: the engine owns the final code/check/conflict work.
- */
-export function issueMergePrompt(issue: Issue, api = DEFAULT_CLI_API): string {
-  return [
-    `Finish user story #${issue.id}: ${issue.title}`,
-    "",
-    "Verify the acceptance criteria implied by the story, then summarize what changed and any verification still needed.",
-    "Then merge this task branch back into the current project's main branch after the worktree is clean and checks pass. Resolve conflicts if needed.",
-    `When the work lands, run: ${api} issue-set-status --repo . --id ${issue.id} --status done`,
-  ].join("\n")
 }
 
 /* ----- quick start (side-effectful) --------------------------------------- */
@@ -379,7 +336,7 @@ export async function quickStartIssue(
   setActiveTaskBestEffort(taskId)
   const api = await fetchKobeApiInvocation().catch(() => DEFAULT_CLI_API)
   const tabId = ensureEngineTab(taskId)
-  await sendPtyText(tabId, taskId, quickStartPrompt(issue, api))
+  await sendPtyText(tabId, taskId, issueWorktreePrompt(issue, api, displayProductName()))
   return { taskId }
 }
 
@@ -455,7 +412,7 @@ export async function startIssueChat(
     )
     setActiveTaskBestEffort(mainId)
     const tabId = addTab(mainId, taskId)
-    await sendPtyText(tabId, taskId, quickStartPrompt(issue, api))
+    await sendPtyText(tabId, taskId, issueWorktreePrompt(issue, api, displayProductName()))
     return { taskId, workspaceTaskId: mainId }
   }
   // `project` — no worktree, no task link: the engine runs on the checkout.
@@ -469,7 +426,7 @@ export async function startIssueChat(
   // must not fail on a status write.
   await setIssueStatus(repoRoot, issue.id, "doing").catch(() => {})
   const tabId = addTab(mainId)
-  await sendPtyText(tabId, mainId, projectChatPrompt(issue, api))
+  await sendPtyText(tabId, mainId, issueProjectPrompt(issue, api))
   return { taskId: mainId, workspaceTaskId: mainId }
 }
 

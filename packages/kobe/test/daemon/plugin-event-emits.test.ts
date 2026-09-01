@@ -34,7 +34,7 @@ function withPluginSink(ctx: DaemonHandlerContext): Report[] {
   return seen
 }
 
-const TASK = { id: "t1", repo: "/repo", title: "Task One", archived: false }
+const TASK = { id: "t1", repo: "/repo", title: "Task One" }
 
 describe("handler emit sites", () => {
   it("note.file fires note.filed with truncated text + length", async () => {

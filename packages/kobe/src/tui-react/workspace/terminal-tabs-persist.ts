@@ -12,10 +12,9 @@
  * — kv-core's explicit-undefined serialization). Framework-free so both live
  * under vitest with a fake kv.
  *
- * IMPORTANT — hook on DELETE, never on the archived-task sweep: archiving must
- * KEEP the snapshot so unarchive can `--resume` the same session. Deleting a
- * task destroys its worktree/branch/history, so its tab snapshot is genuinely
- * dead and safe to reclaim.
+ * IMPORTANT — hook on DELETE only: deleting a task destroys its
+ * worktree/branch/history, so its tab snapshot is genuinely dead and safe to
+ * reclaim.
  */
 
 const TERMINAL_TABS_PREFIX = "terminalTabs."
@@ -41,9 +40,8 @@ export function forgetTaskTabsSnapshot(kv: TabsSnapshotKv, taskId: string): void
 /**
  * One-time orphan sweep: drop every `terminalTabs.*` snapshot whose task id is
  * not in `liveTaskIds` — clears the historical backlog that accumulated before
- * delete-time reclamation existed. `liveTaskIds` MUST include archived tasks
- * (their snapshots are load-bearing for unarchive --resume). Returns the count
- * swept, for a caller log. Idempotent: a second call sweeps nothing.
+ * delete-time reclamation existed. Returns the count swept, for a caller log.
+ * Idempotent: a second call sweeps nothing.
  */
 export function sweepOrphanTabsSnapshots(kv: TabsSnapshotKv, liveTaskIds: Iterable<string>): number {
   const live = new Set(liveTaskIds)

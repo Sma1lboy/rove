@@ -1,14 +1,20 @@
 /**
  * Split-tree + naming policy for a terminal tab — the terminal-flavored
- * layer over the content-agnostic `split-core.ts` tree, split out of
- * `terminal-tabs-core.ts` (the tab-list transitions) purely for the
- * 500-line file-size cap. Owns the persisted leaf payload shape
+ * layer over the content-agnostic `split-core.ts` tree.
+ *
+ * Its own module because it answers a different question than
+ * `terminal-tabs-core.ts`: core owns WHICH tabs exist and which one is
+ * active; this owns what is INSIDE one tab and what that tab is called.
+ * The import graph enforces the direction — nothing here ever reads
+ * `TabsState`, so no naming or split rule can start depending on the tab
+ * list, and the one tab-shape reference ({@link TerminalTab}) is type-only
+ * and erased at build time.
+ *
+ * Owns the persisted leaf payload shape
  * ({@link PersistedSplit}), the collapse/is-split/has-engine predicates,
  * leaf PTY keying, leaf display naming, and the tab-level display naming
  * ({@link tabTitle} — framework-free so both the strip and non-render
- * callers share one rule). Never imports `TabsState`; the one tab-shape
- * dependency is the type-only {@link TerminalTab} (erased at runtime, so
- * no cycle with `terminal-tabs-core`).
+ * callers share one rule).
  */
 
 import type { VendorId } from "@/types/vendor"

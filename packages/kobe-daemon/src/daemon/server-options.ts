@@ -1,9 +1,10 @@
 /**
  * Construction options + the handle `startDaemonServer` returns.
  *
- * Split out of `server.ts` (which was over the repo's 500-line file-size cap)
- * with no behavior change — both interfaces are re-exported from
- * `daemon/server` so every existing import path keeps working.
+ * Their own module so a caller can describe the server it wants without
+ * importing the server — these are the options `startDaemonServer` accepts and
+ * the handle it returns, no behavior. Both interfaces are re-exported from
+ * `daemon/server`, so every existing import path keeps working.
  */
 
 import type { DaemonClientConnection } from "./client-connection.ts"

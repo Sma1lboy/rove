@@ -23,7 +23,7 @@ Rove is the canonical product name and `rove` is the canonical CLI command. Prod
 | Surface | Preserved value | Reason |
 |---|---|---|
 | Legacy executable | `kobe` | Existing scripts and global installs keep working |
-| Legacy npm package | `@sma1lboy/kobe` | Published from the same build/version as `@sma1lboy/rove`, so existing global installs keep updating |
+| Legacy npm package | `@sma1lboy/kobe` | Was published from the same build/version as `@sma1lboy/rove`. Frozen at 0.9.64 — releases no longer publish it |
 | Plugin SDK package | `@sma1lboy/kobe-plugin-sdk` | Published from the same SDK artifact/version as the Rove-named package |
 | Existing state and config | `~/.kobe`, `~/.config/kobe` | First Rove launch copies supported product data without overwriting or removing the legacy source |
 | Existing worktrees and branches | `~/.kobe/worktrees/…`, repo-local `.kobe`/`.claude`, `kobe/…` | Task records pin absolute paths and branch names; discovery recognizes every legacy root |
@@ -54,7 +54,7 @@ because their absolute paths are part of the running-plugin compatibility contra
 `packages/kobe/package.json` names `@sma1lboy/rove`, so workspace filters,
 Changesets, update checks, install commands, and the first npm publish all use
 the canonical package. The release job then rewrites only `package.json#name`
-in its checkout and publishes the identical artifact as `@sma1lboy/kobe`.
+in its checkout and published the identical artifact as `@sma1lboy/kobe` (through 0.9.64; that alias is no longer published).
 Both packages contain the `rove` and `kobe` bins and use the same version and
 dist-tag. The updater migrates legacy global installs to `@sma1lboy/rove`,
 while users who never run it continue receiving releases through the alias.

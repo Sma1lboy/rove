@@ -27,6 +27,7 @@
  *     user runs the install command themselves.
  */
 
+import { fileURLToPath } from "node:url"
 import pkg from "../package.json" with { type: "json" }
 import { isDev } from "./env.ts"
 
@@ -58,9 +59,32 @@ export const UPDATE_SCRIPT_URL = "https://raw.githubusercontent.com/Sma1lboy/rov
 /** Standard update command shown in the update dialog. */
 export const UPDATE_COMMAND = `curl -fsSL ${UPDATE_SCRIPT_URL} | sh`
 
-/** Portable manual fallback when the self-update helper is unavailable. */
-export function recommendedGlobalInstallCommand(): string {
-  return `npm install -g ${PACKAGE_NAME}@latest`
+/**
+ * The npm prefix that owns this running build, derived from where this
+ * module actually lives: `<prefix>/lib/node_modules/<pkg>/…`. Returns null
+ * for a bun install, a dev checkout, or any layout that isn't npm-global.
+ *
+ * Exported for the test; callers want {@link recommendedGlobalInstallCommand}.
+ */
+export function owningNpmPrefix(modulePath: string = fileURLToPath(import.meta.url)): string | null {
+  const marker = "/lib/node_modules/"
+  const at = modulePath.indexOf(marker)
+  if (at <= 0) return null
+  return modulePath.slice(0, at)
+}
+
+/**
+ * Portable manual fallback when the self-update helper is unavailable.
+ *
+ * A bare `npm install -g` writes to the prefix of whichever node runs npm,
+ * which on a machine with several node installs (nvm + homebrew, say) is
+ * not necessarily the prefix holding the binary the user just ran — so the
+ * update lands somewhere PATH never looks and the stale copy keeps running.
+ * When we can see which prefix owns this build, pin it explicitly.
+ */
+export function recommendedGlobalInstallCommand(prefix = owningNpmPrefix()): string {
+  const target = `${PACKAGE_NAME}@latest`
+  return prefix === null ? `npm install -g ${target}` : `npm install -g --prefix ${prefix} ${target}`
 }
 
 /**
@@ -91,19 +115,46 @@ export function breakingVersionsCrossed(
 /** Network timeout for the registry call. */
 const FETCH_TIMEOUT_MS = 3_000
 
+/**
+ * Which published line an install follows. These are npm dist-tag names —
+ * `latest` is the stable release line, `nightly` is the automated cut from
+ * `main` (see `.github/workflows/nightly.yml`).
+ */
+export type ReleaseChannel = "latest" | "nightly"
+
+export const RELEASE_CHANNELS: readonly ReleaseChannel[] = ["latest", "nightly"]
+
+export const DEFAULT_RELEASE_CHANNEL: ReleaseChannel = "latest"
+
+/**
+ * The channel an install is ON, derived from the version it is RUNNING.
+ * There is no stored preference to drift out of sync with reality: a
+ * nightly build carries a `-nightly.*` tail, so it checks `nightly`, and
+ * `rove update` (no args) reinstalls from whichever channel it names.
+ * Switching channels IS installing from the other one.
+ */
+export function channelOf(version: string = CURRENT_VERSION): ReleaseChannel {
+  const pre = prereleaseOf(version)
+  return pre?.split(".")[0] === "nightly" ? "nightly" : DEFAULT_RELEASE_CHANNEL
+}
+
 export type UpdateInfo = {
   current: string
   latest: string
   hasUpdate: boolean
+  /** The channel `latest` was resolved from — what the UI should name. */
+  channel: ReleaseChannel
 }
 
-async function fetchLatestFromRegistry(packageName: string): Promise<string | null> {
+async function fetchLatestFromRegistry(packageName: string, channel: ReleaseChannel): Promise<string | null> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS)
   try {
     // Encode the scope's "/" — registry expects %2F in the path segment.
+    // The segment AFTER the name is an npm dist-tag, so one endpoint
+    // serves every channel: `/latest` and `/nightly` alike.
     const encoded = packageName.replace("/", "%2F")
-    const res = await fetch(`https://registry.npmjs.org/${encoded}/latest`, {
+    const res = await fetch(`https://registry.npmjs.org/${encoded}/${channel}`, {
       signal: ctrl.signal,
       headers: { accept: "application/json" },
     })
@@ -119,16 +170,71 @@ async function fetchLatestFromRegistry(packageName: string): Promise<string | nu
 }
 
 /**
- * Compare two semver strings — returns true when `latest` is strictly
- * greater than `current`. Handles plain `x.y.z`. Pre-release identifiers
- * (`-rc.1`, `-beta`) are stripped so we don't trigger an "update" chip
- * when the user is intentionally on a pre-release; they can opt back in
- * by bumping past the released version.
+ * Compare two versions the way an UPDATE CHECK must: `x.y.z` first, then
+ * the `-prerelease` tail. Returns true when `latest` outranks `current`.
+ *
+ * The tail is what makes the nightly channel work at all. Two nightlies
+ * share an `x.y.z` core (`0.9.13-nightly.20260830` vs `…20260831`), so
+ * comparing cores alone reports "no update" forever and every nightly user
+ * silently stays on whatever build they first installed.
+ *
+ * Deliberately NOT the same function as {@link compareSemver}: the reset
+ * gate needs the opposite treatment — see that function's note.
  */
 export function isNewerSemver(latest: string, current: string): boolean {
-  return compareSemver(latest, current) > 0
+  const core = compareSemver(latest, current)
+  if (core !== 0) return core > 0
+  return comparePrerelease(prereleaseOf(latest), prereleaseOf(current)) > 0
 }
 
+function prereleaseOf(version: string): string | undefined {
+  const dash = version.indexOf("-")
+  return dash === -1 ? undefined : version.slice(dash + 1) || undefined
+}
+
+/**
+ * Order the `-prerelease` tails of two versions with equal `x.y.z` cores,
+ * per semver §11: a version WITHOUT a tail outranks the same version with
+ * one, and otherwise identifiers compare field by field — numeric ones
+ * numerically, the rest as strings.
+ */
+function comparePrerelease(a: string | undefined, b: string | undefined): number {
+  if (a === b) return 0
+  // Absent tail = the release itself, which outranks any of its prereleases.
+  if (a === undefined) return 1
+  if (b === undefined) return -1
+  const aParts = a.split(".")
+  const bParts = b.split(".")
+  for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+    const av = aParts[i]
+    const bv = bParts[i]
+    // A shorter run of identifiers sorts lower when all preceding ones match.
+    if (av === undefined) return -1
+    if (bv === undefined) return 1
+    if (av === bv) continue
+    const an = /^\d+$/.test(av) ? Number.parseInt(av, 10) : null
+    const bn = /^\d+$/.test(bv) ? Number.parseInt(bv, 10) : null
+    // Numeric identifiers compare numerically and sort below alphanumeric
+    // ones; a mixed pair falls back to that rule.
+    if (an !== null && bn !== null) return an > bn ? 1 : -1
+    if (an !== null) return -1
+    if (bn !== null) return 1
+    return av > bv ? 1 : -1
+  }
+  return 0
+}
+
+/**
+ * Compare the `x.y.z` cores only — `-rc.1` and friends are stripped.
+ *
+ * The reset gate (`cli/reset-gate.ts`) depends on this: a nightly cut from
+ * a main that already carries a breaking change must count as HAVING
+ * crossed it, so `0.9.13-nightly.x` has to read as `0.9.13`. Ordering the
+ * tail here instead would sort the nightly BELOW the release and move the
+ * `rove reset` demand one release later — i.e. the user runs the breaking
+ * nightly ungated, which is the one thing that gate exists to prevent.
+ * Update checks want the opposite; they call {@link isNewerSemver}.
+ */
 export function compareSemver(aVersion: string, bVersion: string): number {
   const norm = (v: string) => v.split("-")[0] ?? v
   const a = norm(aVersion)
@@ -155,8 +261,15 @@ export function compareSemver(aVersion: string, bVersion: string): number {
  *
  * @param opts.force — bypass dev-mode suppression. Useful for an explicit
  *                     "check for updates" command once we wire one up.
+ * @param opts.channel — which dist-tag to resolve against. Defaults to the
+ *                     channel the RUNNING build belongs to, so a nightly
+ *                     install compares itself against nightlies and a
+ *                     stable one against stable.
  */
-export async function checkLatestVersion(opts: { force?: boolean } = {}): Promise<UpdateInfo | null> {
+export async function checkLatestVersion(
+  opts: { force?: boolean; channel?: ReleaseChannel } = {},
+): Promise<UpdateInfo | null> {
+  const channel = opts.channel ?? channelOf()
   // Debug hook: `KOBE_FAKE_UPDATE=<version>` returns a synthetic UpdateInfo
   // (bypassing dev suppression AND the network) so the "update available"
   // UI — the brand-header chip, the update page — can be exercised in the
@@ -164,7 +277,7 @@ export async function checkLatestVersion(opts: { force?: boolean } = {}): Promis
   // semver so a lower fake version still reads as "no update".
   const fake = process.env.KOBE_FAKE_UPDATE
   if (fake) {
-    return { current: CURRENT_VERSION, latest: fake, hasUpdate: isNewerSemver(fake, CURRENT_VERSION) }
+    return { current: CURRENT_VERSION, latest: fake, hasUpdate: isNewerSemver(fake, CURRENT_VERSION), channel }
   }
 
   // Dev runs (KOBE_DEV=1, set by `bun run dev`) suppress the check
@@ -174,12 +287,13 @@ export async function checkLatestVersion(opts: { force?: boolean } = {}): Promis
   // for updates" command still works in dev if we ever wire one up.
   if (isDev() && !opts.force) return null
 
-  const latest = await fetchLatestFromRegistry(PACKAGE_NAME)
+  const latest = await fetchLatestFromRegistry(PACKAGE_NAME, channel)
   if (!latest) return null
   return {
     current: CURRENT_VERSION,
     latest,
     hasUpdate: isNewerSemver(latest, CURRENT_VERSION),
+    channel,
   }
 }
 

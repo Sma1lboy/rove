@@ -116,7 +116,7 @@ async function storyboard(page: Page): Promise<void> {
   await typeText(page, NEW_STORY.body)
   await page.waitForTimeout(1_000)
   await press(page, "ctrl+s")
-  await look(page, "unbounded page size", 10_000)
+  await look(page, "unbounded", 10_000)
   await page.waitForTimeout(2_500)
 
   // Beat 5 — an agent picks the story up from outside the TUI. The board is

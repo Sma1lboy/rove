@@ -1,9 +1,10 @@
 /**
  * `worktree.*` daemon RPC handlers.
  *
- * The first entries (`discoverAdoptable`/`adopt`/`archiveRemoved`) are
- * split out of `handlers.ts` (which was over the repo's 500-line file-size
- * cap). `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
+ * The `worktree.` slice of the one registry, grouped by RPC-name prefix like
+ * `handlers-task.ts` / `handlers-ui.ts` and spread back in by `handlers.ts`.
+ *
+ * `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
  * 2026-08-24: creation is mechanical, not intent — adoption now needs an
  * engine session-start in a managed root or an explicit `rove add .`/adopt.
  *
@@ -49,31 +50,6 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "worktree.archiveRemoved",
-    async handle(payload, ctx) {
-      // A `kobe hook worktree-created` (global PostToolUse) reporting that a
-      // `git worktree remove <path>` just ran. Archive the task pinned to that
-      // exact worktree — the symmetric complement to `worktree.reconcile`
-      // (add a worktree → adopt a task; remove it → archive that task). We
-      // ARCHIVE, never delete: the task's history/branch survive, it just
-      // leaves the active board (and `setArchived` no-ops a `main` task, so a
-      // repo root can't be archived this way). Exact-path match (not
-      // longest-prefix) so removing an untracked worktree can't archive a
-      // parent main task. Idempotent: an already-archived or unmatched path is
-      // a harmless no-op.
-      const worktreePath = requireString(payload, "worktreePath")
-      const taskId = matchTaskByWorktreePath(ctx.orch.listTasks(), worktreePath)
-      if (!taskId) return { archived: false }
-      try {
-        await ctx.orch.setArchived(taskId, true)
-        return { archived: true, taskId }
-      } catch (err) {
-        logDaemonError("worktree-removed", err)
-        return { archived: false }
-      }
-    },
-  },
-  {
     name: "worktree.list",
     async handle(payload, ctx) {
       return { projects: await ctx.runtime.listWorktreeProjects(payload.network !== false) }
@@ -84,7 +60,26 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const path = requireString(payload, "path")
       const force = payload.force === true
-      await ctx.runtime.removeWorktree(path, force)
+      // Tear the engine down BEFORE unlinking its directory. `git worktree
+      // remove` succeeds against a live process — POSIX unlink does not care
+      // that something holds the directory as its cwd — and every write that
+      // engine makes afterwards lands in an unlinked inode: not on disk, not
+      // in the branch, and not in the salvage snapshot (which ran before
+      // them). The task-deletion path already orders it this way
+      // (`task-deletion-runner.ts`); this one did not.
+      //
+      // Ordering, not gating: teardown failure must not block a removal the
+      // user confirmed (the worktrees page's delete is optimistic — the row
+      // is already gone from their screen), and a dead/absent session throws
+      // the same way a stuck one does, which would strand every already-dead
+      // task's worktree. Logged, then the removal proceeds.
+      const taskId = ctx.orch ? matchTaskByWorktreePath(ctx.orch.listTasks(), path) : undefined
+      if (taskId) {
+        await ctx.runtime
+          .tearDownTaskSession(taskId)
+          .catch((err) => logDaemonError("worktree-remove-session-teardown", err))
+      }
+      const residue = await ctx.runtime.removeWorktree(path, force)
       // Self-heal the task index: a worktree removed here (worktrees page /
       // web) otherwise leaves the owning task pointing at a dead dir, so the
       // next enter would spawn the engine into a nonexistent cwd. Drop the
@@ -92,9 +87,10 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
       // Exact-path match; unmatched (untracked worktree) is a harmless no-op.
       // Guarded on `ctx.orch` — this handler historically composes runtime
       // primitives directly, so a caller may not wire an orchestrator.
-      const taskId = ctx.orch ? matchTaskByWorktreePath(ctx.orch.listTasks(), path) : undefined
-      if (taskId) await ctx.orch.clearWorktreePath(taskId)
-      return { removed: true }
+      // Runs on the residue path too: git has deregistered the worktree, so
+      // the task's pointer is just as dead as after a clean removal.
+      if (taskId && ctx.orch) await ctx.orch.clearWorktreePath(taskId)
+      return { removed: true, ...(residue ? { residue } : {}) }
     },
   },
 ]

@@ -30,7 +30,7 @@ import {
 } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabClose, tabsByTask, takeUnclaimedTabClose } from "./terminal-tabs-shared"
+import { requestTabClose, setTaskTabs, tabsByTask, takeUnclaimedTabClose } from "./terminal-tabs-shared"
 
 /**
  * Release a closing tab's PTYs — the split leaves plus the tab's own.
@@ -82,9 +82,10 @@ function backgroundTabsState(kv: TabsSnapshotKv, taskId: string): TabsState | nu
 }
 
 /**
- * Close `tabId` of `taskId`. Returns whether anything closed — false covers
- * both "no such tab" and `closeTab`'s refusal to remove a task's last tab, so
- * callers can surface a single "that didn't happen" rather than guessing.
+ * Close `tabId` of `taskId`. Returns whether anything closed — false means the
+ * task named no such tab (or has never opened any), which is the one case the
+ * caller surfaces as "that didn't happen". Closing the LAST tab succeeds: it
+ * empties the list and leaves the row, exactly as the mounted path does.
  */
 export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string): boolean {
   requestTabClose(taskId, tabId)
@@ -95,9 +96,17 @@ export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
   const state = backgroundTabsState(kv, taskId)
   if (!state) return false
   const closing = state.tabs.find((tab) => tab.id === tabId)
-  const { state: next, closedId } = closeTab(state, tabId)
+  // `allowEmpty`, matching the mounted path (`useTabClose`): a task's last tab
+  // may go, leaving the row to be revived on re-entry (`reviveEmptiedTabs`).
+  // Without it these two routes disagreed about the SAME gesture — the tree
+  // offers one close action over every task's tabs, and which of those tasks
+  // happens to be mounted is invisible, so closing the last tab of a
+  // background task failed while the identical click on the focused one
+  // worked. Scratch tasks are unaffected: their teardown-on-last-tab lives in
+  // `closeActive`, which the sidebar never reaches.
+  const { state: next, closedId } = closeTab(state, tabId, { allowEmpty: true })
   if (!closedId) return false
-  tabsByTask.set(taskId, next)
+  setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
   releaseClosedTabPtys(taskId, closing, closedId)
   return true

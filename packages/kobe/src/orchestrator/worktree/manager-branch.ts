@@ -1,16 +1,19 @@
 /**
- * The BRANCH operations, split out of `manager.ts` (file-size cap).
+ * The BRANCH operations of `manager.ts`.
  *
  * Existence probes, upstream lookup, delete and rename — the git-branch verbs
- * the manager exposes. They're orthogonal to worktree lifecycle (create /
- * remove / list) and share only the run-git primitive, so they live here as
+ * the manager exposes. A branch and a worktree are two different git objects;
+ * these verbs are orthogonal to worktree lifecycle (create / remove / list)
+ * and share only the run-git primitive, so they live here as
  * free functions over a small {@link BranchDeps}, and the class methods stay
  * thin delegators. Same shape as `manager-list.ts`; no behaviour change.
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { anchorBranchTip } from "./branch-anchor.ts"
 import type { ExecCtx } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
+import type { SalvageRecord } from "./salvage.ts"
 
 /** The manager primitives the branch functions borrow. */
 export interface BranchDeps {
@@ -29,6 +32,7 @@ export async function branchExists(deps: BranchDeps, ctx: ExecCtx, branch: strin
   const out = await deps.runGit(ctx.exec, ["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], {
     cwd: ctx.dir,
     allowFail: true,
+    readOnly: true,
   })
   return out.exitCode === 0
 }
@@ -51,6 +55,33 @@ export async function deleteBranchIn(
 }
 
 /**
+ * Delete a branch, anchoring its tip first when `force` would otherwise strand
+ * it.
+ *
+ * `git branch -D` drops the branch ref AND its reflog, so a tip no other ref
+ * reaches becomes a dangling object — findable only by `git fsck` and
+ * collected by `gc` after `gc.pruneExpire`. `land --strategy squash
+ * --delete-branch` produces exactly that: the squash writes an unrelated
+ * commit onto the base, and the worktree (holding the only other reflog) is
+ * already removed by the time this runs.
+ *
+ * {@link anchorBranchTip} no-ops when another ref already contains the tip,
+ * which is the ordinary `--no-ff` merge case, so this only writes a ref when
+ * one is genuinely load-bearing. A failed anchor never fails the deletion the
+ * caller asked for.
+ */
+export async function deleteBranchAnchored(
+  deps: BranchDeps,
+  exec: ExecHost,
+  repo: string,
+  branch: string,
+  opts: { readonly force: boolean; readonly onAnchor?: (record: SalvageRecord | null) => void },
+): Promise<void> {
+  if (opts.force) opts.onAnchor?.(await anchorBranchTip(deps, exec, repo, branch))
+  await deleteBranchIn(deps, exec, repo, branch, opts.force)
+}
+
+/**
  * Whether `branch` has a configured upstream (i.e. it tracks / was pushed to a
  * remote). Auto branch-follow refuses to touch such a branch — `branch -m`
  * would orphan the remote branch and break any open PR. Throws on git failure:
@@ -62,6 +93,7 @@ export async function branchHasUpstream(deps: BranchDeps, worktreePath: string, 
     ["for-each-ref", "--format=%(upstream)", `refs/heads/${branch}`],
     {
       cwd: worktreePath,
+      readOnly: true,
     },
   )
   return out.stdout.trim().length > 0
@@ -75,6 +107,7 @@ export async function hasLocalBranch(deps: BranchDeps, worktreePath: string, bra
     {
       cwd: worktreePath,
       allowFail: true,
+      readOnly: true,
     },
   )
   return out.exitCode === 0

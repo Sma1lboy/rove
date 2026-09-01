@@ -56,6 +56,10 @@ export interface AutomationCollectorDeps {
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
+  /** Where a standing session's blocked report goes (issue #91) instead of
+   *  being dropped. Optional so tests that don't exercise it keep working. */
+  readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
+  readonly inbox?: import("./automation-dispatch.ts").DispatchInbox
 }
 
 /**
@@ -118,7 +122,7 @@ export function createProtocolUpgradeReporter(
  *     watch `~/.rove/settings/keybindings.yaml` and ping the `keybindings`
  *     channel on change, so every pane re-reads + re-applies the file live.
  *   - worktree-changes collector (issue #6): the daemon runs the guarded
- *     `git status` polls for every non-archived local worktree and publishes
+ *     `git status` polls for every local worktree and publishes
  *     the counts map on the `worktree.changes` channel, so panes render
  *     pushes instead of each spawning their own per-row git polls.
  *   - transcript-activity collector (perf): the daemon runs the guarded
@@ -203,11 +207,17 @@ export function startDaemonCollectors(
     hasSubscribers,
   )
 
+  // PR status is the only CI truth Rove holds, and an unattended agent is the
+  // consumer that needs it most — so this collector's gate also opens on a
+  // live engine, not just an attached pane (see startPrStatusPoller). With
+  // neither, it still polls nobody.
   const stopPrStatusPoller = startPrStatusPoller(
     orch,
     runtime,
     options.prStatusPollMs ?? DEFAULT_PR_STATUS_POLL_MS,
     hasSubscribers,
+    undefined,
+    activity ? () => activity.currentNonIdle().some((e) => e.state !== "idle") : undefined,
   )
 
   // Quota-resume runner: deliberately NOT gated on `hasSubscribers` — its
@@ -230,6 +240,8 @@ export function startDaemonCollectors(
           runtime,
           link: automations.link,
           ...(automations.plugins ? { plugins: automations.plugins } : {}),
+          ...(automations.deferred ? { deferred: automations.deferred } : {}),
+          ...(automations.inbox ? { inbox: automations.inbox } : {}),
         },
         options.automationTickMs ?? DEFAULT_AUTOMATION_TICK_MS,
       )

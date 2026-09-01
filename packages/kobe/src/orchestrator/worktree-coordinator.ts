@@ -79,8 +79,6 @@ export class WorktreeCoordinator {
    * after (success or failure: on success the branch itself is the guard).
    */
   private readonly reservedBranches = new Set<string>()
-  /** Optional base-ref per task — consumed once by `ensure`. */
-  private readonly pendingBaseRefs = new Map<TaskId, string>()
 
   constructor(
     store: TaskIndexStore,
@@ -104,14 +102,8 @@ export class WorktreeCoordinator {
     )
   }
 
-  /** Record a one-shot base ref for the next {@link ensure} of `id`. */
-  setPendingBaseRef(id: TaskId, baseRef: string): void {
-    this.pendingBaseRefs.set(id, baseRef)
-  }
-
-  /** Drop a task's pending base-ref + in-flight worktree lock (on delete / forget). */
+  /** Drop a task's in-flight worktree lock (on delete / forget). */
   forget(id: TaskId): void {
-    this.pendingBaseRefs.delete(id)
     this.worktreeLocks.delete(id)
   }
 
@@ -153,7 +145,11 @@ export class WorktreeCoordinator {
   private async createWorktree(task: Task): Promise<string> {
     const slug = await this.slugs.allocate(task.repo)
     const branch = task.branch || (await this.deriveAutoBranch(task))
-    const baseRef = this.pendingBaseRefs.get(task.id)
+    // The recorded fork point (`add --base-branch`), persisted on the task at
+    // create time — durable across daemon restarts between create and this
+    // lazy materialise. Absent on records that predate the field: cut from
+    // the git default (the manager's own resolution).
+    const baseRef = task.baseRef
     let info: WorktreeInfo
     try {
       info = await this.worktrees.createForTask({ repo: task.repo, slug, branch, baseRef })
@@ -178,7 +174,6 @@ export class WorktreeCoordinator {
       throw err
     }
     this.slugs.commit(task.repo, slug)
-    this.pendingBaseRefs.delete(task.id)
     return info.path
   }
 

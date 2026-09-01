@@ -17,6 +17,7 @@
  */
 
 import { useRenderer } from "@opentui/react"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { HelpDialog } from "../component/help-dialog"
 import type { FocusContextValue, PaneId } from "../context/focus"
 import { bindByIds } from "../context/keybindings"
@@ -56,6 +57,8 @@ export type WorkspaceKeybindingDeps = {
   enterMoveMode: () => void
   /** prefix+p / prefix+P — send the Create PR prompt into the engine pane. */
   createPR: () => void
+  /** `t` — flip the sidebar task sort between default and recent. */
+  toggleSortMode: () => void
 }
 
 export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
@@ -116,29 +119,29 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     bindings: [
       ...bindByIds({
         "help.open": () => HelpDialog.show(dialog, focus.focused),
-        "focus.previous": () => cyclePane(-1),
+        "focus.previous": prefixAction(() => cyclePane(-1)),
         // f4 — reserved from terminal passthrough, so the cycle behaves
         // identically from every pane including inside the terminal.
-        "focus.next": () => cyclePane(1),
+        "focus.next": prefixAction(() => cyclePane(1)),
         // prefix+z only (owner call 2026-07-17). The configured prefix is
         // Kobe-global, so this remains reachable inside the terminal pane.
-        "workspace.zenToggle": () => deps.toggleZen(),
+        "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
         // f7 — reserved from terminal passthrough too, so "jump to the
         // next waiting task" works even while focused inside the engine.
         "attention.next": () => deps.jumpToNextAttention(),
-        "inbox.show": () => deps.openInbox(),
-        "kanban.open": () => deps.pages.openKanban(),
-        "automations.open": () => deps.pages.openAutomations(),
-        "workItems.open": () => deps.pages.openWorkItems(),
-        "task.moveMode": () => deps.enterMoveMode(),
+        "inbox.show": prefixAction(() => deps.openInbox()),
+        "kanban.open": prefixAction(() => deps.pages.openKanban()),
+        "automations.open": prefixAction(() => deps.pages.openAutomations()),
+        "workItems.open": prefixAction(() => deps.pages.openWorkItems()),
+        "task.moveMode": prefixAction(() => deps.enterMoveMode()),
         // prefix+, — the global companion to the sidebar's bare `s`. The
         // row shipped in the table (and docs) without a handler here, so
         // the chord was dead outside the sidebar.
-        "settings.open": () => deps.pages.openSettings(),
-        "files.createPR": () => deps.createPR(),
-        "task.openEditor": () => {
+        "settings.open": prefixAction(() => deps.pages.openSettings()),
+        "files.createPR": prefixAction(() => deps.createPR()),
+        "task.openEditor": prefixAction(() => {
           if (deps.selectedId) deps.openTaskWorktree(deps.selectedId)
-        },
+        }),
       }),
     ],
   }))
@@ -146,8 +149,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     enabled: pagesClosed && focus.focused !== "sidebar",
     bindings: bindByIds({ "focus.sidebar": () => focus.setFocused("sidebar") }),
   }))
+  // Same search-inactive gate as the task-lifecycle group below: while the
+  // sidebar search box is active, `s`/`x`/`u` (and the group's bare `q`
+  // quit chord) must land in the query, not dispatch — the raw search
+  // listener only sees keystrokes the keymap left unclaimed.
   useBindings(() => ({
-    enabled: pagesClosed && focus.focused === "sidebar",
+    enabled: pagesClosed && focus.focused === "sidebar" && !deps.searchActive,
     bindings: bindByIds({
       // Slot dispatch (SLOT_CONTRACTS): slot 0 = quit confirm, slot 1 =
       // hard exit — so user rebinds keep both verbs without inspecting
@@ -188,6 +195,9 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       // gesture (tasks.focusEngine), same row, pure-TUI equivalent: focus
       // the workspace terminal.
       "tasks.focusEngine": () => focus.setFocused("workspace"),
+      // `t` toggles the global task sort. The state lives in
+      // useSidebarHostState; this just exposes the existing flip.
+      "sidebar.sort": () => deps.toggleSortMode(),
     }),
   }))
   // Page-level close keys for the settings swap — mirrors settings/host.tsx's

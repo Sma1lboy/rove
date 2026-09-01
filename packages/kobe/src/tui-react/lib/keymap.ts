@@ -24,7 +24,7 @@
  */
 
 import type { KeyEvent, KeyHandler } from "@opentui/core"
-import { useRenderer } from "@opentui/react"
+import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
 import {
   type Binding,
@@ -33,6 +33,7 @@ import {
   armPrefixNow,
   dispatchKeyEvent,
   insertRegistration,
+  invokeArmedPrefixAction,
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
@@ -86,7 +87,15 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   installedRenderer = renderer
   installed = renderer.keyInput
   listener = (evt: KeyEvent) => {
-    dispatchKeyEvent(stack, evt)
+    dispatchKeyEvent(stack, evt, Date.now(), {
+      // OpenTUI's renderer renders synchronously on input. React state updates
+      // scheduled from a non-React event listener (the keyInput emitter) are
+      // batched and would otherwise flush *after* that render pass, which can
+      // drop the just-updated subtree (e.g. a dialog body toggled by tab).
+      // Flush synchronously inside the matched cmd so the new state is
+      // committed before the renderer paints.
+      flushSync,
+    })
   }
   installed.on("keypress", listener)
 }
@@ -112,6 +121,11 @@ export function currentBindingReachability(): BindingReachability {
 /** Mouse path into the command layer: arm the prefix against the live stack. */
 export function armPrefixFromCurrentStack(): boolean {
   return armPrefixNow(stack)
+}
+
+/** Click one entry from the currently armed local prefix reveal. */
+export function invokeArmedPrefixActionFromCurrentStack(actionId: string, stroke: string): boolean {
+  return invokeArmedPrefixAction(stack, actionId, stroke)
 }
 
 // Registration-change signal. Registrations land in mount EFFECTS (after the

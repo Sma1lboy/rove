@@ -60,8 +60,6 @@ gh run list --workflow=ci.yml --branch <branch>   # what actually ran, when
 gh run view <run-id> --log-failed                 # what actually failed
 ```
 
-`claude-review` failing for lack of a token is its own documented non-blocker — see the shape to confirm in the repo `AGENTS.md`.
-
 ## The brief can be wrong too
 
 Facts in the dispatch brief are claims of the same rank as facts in the report. A triage brief stated two relative-time formatting copies disagreed (floor vs round); on `main` both were `round`. The worker read the source, found the premise false, and declined to "fix" it — **that was the correct outcome**, not insubordination. Verify the premise before scoring a worker against it.

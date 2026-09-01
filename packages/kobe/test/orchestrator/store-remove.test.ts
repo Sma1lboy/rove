@@ -5,7 +5,7 @@
  * the test/uninstall unlink helper, and the accessor surface.
  */
 
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -68,6 +68,21 @@ describe("TaskIndexStore.remove", () => {
   it("exposes filePath + stateDir for tooling", () => {
     expect(store.filePath.endsWith("tasks.json")).toBe(true)
     expect(store.filePath.startsWith(store.stateDir)).toBe(true)
+  })
+
+  it("writes tasks.json compact — no pretty-print indentation", async () => {
+    await store.create({
+      repo: "/repo",
+      title: "t",
+      branch: "kobe/t",
+      worktreePath: "/repo/wt",
+      status: "backlog",
+    })
+    // Every mutation rewrites the whole file; pretty-printing tripled the
+    // bytes for a file no human edits. Round-trip through parse must
+    // reproduce the bytes (plus the trailing newline).
+    const raw = readFileSync(store.filePath, "utf8")
+    expect(raw).toBe(`${JSON.stringify(JSON.parse(raw))}\n`)
   })
 
   it("_unlinkForTests wipes disk + memory and tolerates already-gone files", async () => {

@@ -1,19 +1,34 @@
 /**
- * Workspace task selection — extracted verbatim from WorkspaceRoot
- * (file-size cap split): the selected-task state, the adopt-first-focus
- * rule, the archived/deleted-task PTY sweep, and the select/activate
- * actions. The framework-free activation policy stays in
- * use-task-selection.ts; this hook owns only the React reactivity.
+ * Workspace task selection: the selected-task state, the adopt-first-focus
+ * rule, the deleting-task PTY sweep, and the select/activate actions.
+ *
+ * These four belong together because they all answer "which task is the user
+ * on" and go wrong together when they drift. The seam against
+ * `use-task-selection.ts` is React: the activation POLICY there is
+ * framework-free and testable on plain values, and this hook owns only the
+ * reactivity that drives it.
  */
 
 import { useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { readLastActiveTaskId } from "../../state/last-active.ts"
+import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import type { Task } from "../../types/task.ts"
+import { useT } from "../i18n"
+import { useLatest } from "../lib/use-latest"
 import { type TabsSnapshotKv, sweepOrphanTabsSnapshots } from "./terminal-tabs-persist"
-import { forgetTaskTabs } from "./terminal-tabs-shared"
-import { activateWorkspaceTask, firstSelectableTask } from "./use-task-selection"
+import { forgetTaskTabs, knownTaskTabs, reviveEmptiedTabs } from "./terminal-tabs-shared"
+import { activateWorkspaceTask, activationErrorMessage, firstSelectableTask } from "./use-task-selection"
+
+/** What {@link useWorkspaceSelection} reports when a worktree vanishes under a task. */
+export interface WorktreeGoneEvent {
+  readonly taskId: string
+  readonly title: string
+  readonly branch: string
+  /** How many tab snapshots were dropped (0 when the task never mounted tabs). */
+  readonly closed: number
+}
 
 export interface WorkspaceSelection {
   readonly selectedId: string | null
@@ -31,10 +46,16 @@ export function useWorkspaceSelection(args: {
   readonly activeTaskId: string | null
   readonly focusWorkspace: () => void
   readonly kv: TabsSnapshotKv
+  /** A task's worktree disappeared out-of-band and its tabs were dropped. */
+  readonly notifyWorktreeGone?: (event: WorktreeGoneEvent) => void
+  /** Refused activation (mid-delete, non-git project, worktree failure) —
+   *  the on-screen half of `reportError`. */
+  readonly notifyError?: (message: string) => void
 }): WorkspaceSelection {
   const { orch, tasks, activeTaskId, kv } = args
+  const t = useT()
   // Seed from the daemon's replayed focus, else the persisted lastActive
-  // record — the adopt/fallback effect below corrects a stale/archived id.
+  // record — the adopt/fallback effect below corrects a stale/deleting id.
   const [selectedId, setSelectedId] = useState<string | null>(() => orch.activeTaskSignal()() ?? readLastActiveTaskId())
 
   const focusRestoredRef = useRef(false)
@@ -59,42 +80,61 @@ export function useWorkspaceSelection(args: {
       bootFocusRef.current = true
       args.focusWorkspace()
     }
-    // An archived/deleting task is NOT a valid selection (issue #34): the
-    // snapshot still contains it, but its sidebar row is gone (#473) and the
-    // PTY sweep below kills its sessions — leaving selection on it kept its
-    // Terminal mounted, which answered the kill with a dead-on-attach RESUME:
-    // a fresh engine spawn (full center-pane repaint, the archive "flash")
-    // that resurrected the very session archiving is documented to stop.
-    if (selectedId && tasks.some((task) => task.id === selectedId && !task.archived && !task.deletion)) return
+    // A deleting task is NOT a valid selection (issue #34): the snapshot
+    // still contains it, but its sidebar row is gone (#473) and the PTY sweep
+    // below kills its sessions — leaving selection on it kept its Terminal
+    // mounted, which answered the kill with a dead-on-attach RESUME.
+    if (selectedId && tasks.some((task) => task.id === selectedId && !task.deletion)) return
     // Fallback carries the persisted lastActive record too — a stale or
     // freshly-respawned daemon can replay a null focus while disk still
     // knows the real one (the "reopens on the oldest project" bug).
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
 
-  // One-time orphan sweep (O19): clear `terminalTabs.*` snapshots whose task
-  // no longer exists. Runs once on first hydration (raw signal → archived
-  // tasks kept, their snapshots feed unarchive --resume); ref not dep, so a
-  // later task-list change never re-sweeps a live task's fresh snapshot.
-  const sweptOrphansRef = useRef(false)
+  // Orphan sweep (O19): clear `terminalTabs.*` snapshots whose task no longer
+  // exists. Runs on EVERY task-list identity change, not once per session:
+  // a sibling client (`rove api` / web board) deleting a task only lands here
+  // as a changed list — forgetTaskTabs is wired to THIS client's delete flow
+  // alone, so a once-per-session sweep left those orphans taxing every later
+  // kv write until the next launch. The sweep itself is idempotent and cheap
+  // (one Set lookup per snapshot key), so re-running it on every list echo
+  // costs nothing: a live task's id is always in the list, so its snapshots
+  // can never be swept by a re-run.
+  //
+  // The `tasks.length === 0` guard is load-bearing and SUFFICIENT, despite
+  // reading like a weak null-check: this list is only ever assigned from the
+  // daemon's own index (`hello.tasks` / `task.snapshot` — nothing else calls
+  // `setTasks`), a corrupt or unreadable manifest recovers to an EMPTY index
+  // rather than a truncated one, and a daemon serving a foreign home is
+  // rejected before its list is believed. So a NON-EMPTY list here is the
+  // daemon's authoritative task set, and anything absent from it is a genuine
+  // orphan. Do not relax the empty check — empty is exactly the shape a
+  // pre-connection render and a corrupt-manifest recovery both take, and
+  // sweeping on it would wipe every live snapshot on the machine.
   useEffect(() => {
-    if (sweptOrphansRef.current || tasks.length === 0) return
-    sweptOrphansRef.current = true
+    if (tasks.length === 0) return
     sweepOrphanTabsSnapshots(
       kv,
       tasks.map((task) => task.id),
     )
   }, [tasks, kv])
 
-  // PTY lifecycle (issue #16): archiving/deleting a task must end every
-  // engine session it owns — its tab PTYs are keyed `taskId::tabId` in the
-  // default registry, invisible to the pane once unmounted. Watch the task
-  // snapshot and release the corpses; the pane never kills (registry docs),
-  // so this is the one place tab shells die with their task.
+  // PTY lifecycle (issue #16): deleting a task must end every engine session
+  // it owns — its tab PTYs are keyed `taskId::tabId` in the default registry,
+  // invisible to the pane once unmounted. Watch the task snapshot and release
+  // the corpses; the pane never kills (registry docs), so this is the one
+  // place tab shells die with their task.
+  //
+  // The worktree-gone notifier is held by REF, not listed as a dep: the host
+  // rebuilds that callback every render, and depending on it would re-run this
+  // effect each render — which also rewrites `worktreePathsRef`, the very
+  // thing the transition below is measured against. Same useLatest shape
+  // use-inbox-host uses for its notifiers.
+  const notifyWorktreeGoneRef = useLatest(args.notifyWorktreeGone)
   const liveTaskIdsRef = useRef<ReadonlySet<string>>(new Set())
   const worktreePathsRef = useRef<ReadonlyMap<string, string>>(new Map())
   useEffect(() => {
-    const next = new Set<string>(tasks.filter((task) => !task.archived).map((task) => task.id))
+    const next = new Set<string>(tasks.filter((task) => !task.deletion).map((task) => task.id))
     const registry = getDefaultPtyRegistry()
     for (const id of liveTaskIdsRef.current) {
       if (!next.has(id)) registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
@@ -106,14 +146,32 @@ export function useWorkspaceSelection(args: {
     // in the tree, its snapshot would respawn them, and their PTYs kept
     // shells alive in a deleted directory. A non-empty → empty transition
     // is the observable edge; task deletion itself is already covered by
-    // the delete flow's forgetTaskTabs + the archived sweep above.
+    // the delete flow's forgetTaskTabs + the live-task sweep above.
+    //
+    // ANNOUNCE IT. This destroys every tab of a task the user did NOT delete,
+    // triggered by something that happened somewhere else (another client, a
+    // web action, another agent's `rove api`) — and it did it silently, which
+    // is how "the tab I was working in just vanished" reached the owner with
+    // nothing to look at (2026-08-29). The toast is deliberately not a
+    // confirm: the worktree is ALREADY gone by the time this runs, so there is
+    // nothing left to consent to, and a modal here would interrupt for a
+    // decision the user cannot make. Telling them what happened, and that the
+    // branch survives, is the whole remedy.
     const paths = new Map<string, string>()
     for (const task of tasks) paths.set(task.id, task.worktreePath)
     for (const [id, prevPath] of worktreePathsRef.current) {
       const now = paths.get(id)
       if (now === "" && prevPath !== "") {
+        const closed = knownTaskTabs(kv, id)?.tabs.length ?? 0
         registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
         forgetTaskTabs(kv, id)
+        const task = tasks.find((candidate) => candidate.id === id)
+        notifyWorktreeGoneRef.current?.({
+          taskId: id,
+          title: task?.title ?? id,
+          branch: task?.branch ?? "",
+          closed,
+        })
       }
     }
     worktreePathsRef.current = paths
@@ -127,11 +185,16 @@ export function useWorkspaceSelection(args: {
       // record, and without this the first Enter never wrote lastActive —
       // so narrow mode's "↩ recent" row (and every lastActive consumer)
       // stayed empty until the user switched tasks once.
+      // Focus bookkeeping, not a user gesture — the pane has already switched
+      // locally, so the only casualty is the lastActive record. A toast would
+      // report a failure the user just watched succeed.
       if (orch.activeTaskSignal()() !== id)
+        // silent-catch-ok: focus bookkeeping, see above.
         void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
       return
     }
     setSelectedId(id)
+    // silent-catch-ok: same focus-bookkeeping write as above.
     void orch.setActiveTask(id).catch((error) => console.error("[rove workspace] setActiveTask failed:", error))
     // Plugin UI events: entering a task/project is an observable moment.
     const kind = tasks.find((task) => task.id === id)?.kind === "main" ? "project.opened" : "task.opened"
@@ -143,13 +206,24 @@ export function useWorkspaceSelection(args: {
   const activationGenerationRef = useRef(0)
   async function activateTask(id: string): Promise<void> {
     const generation = ++activationGenerationRef.current
+    // Entering a task whose last tab was closed reopens one (owner call
+    // 2026-08-31). Before the worktree await, so the revived tab is published
+    // by the time selection lands and the workspace never paints the blank
+    // frame `show-workspace` renders for an empty tab list.
+    reviveEmptiedTabs(kv, id, defaultShell())
     await activateWorkspaceTask(
       {
         getTask: (taskId) => tasks.find((task) => task.id === taskId),
         ensureWorktree: (taskId) => orch.ensureWorktree(taskId),
         selectTask,
         focusWorkspace: args.focusWorkspace,
-        reportError: (error) => console.error("[rove workspace] task.ensureWorktree failed:", error),
+        reportError: (error) => {
+          // Keep the log line for forensics; the toast is the on-screen half.
+          // Without it a refused Enter is a total no-op — the row never moves,
+          // so the user just presses it again, forever.
+          console.error("[rove workspace] task.ensureWorktree failed:", error)
+          args.notifyError?.(activationErrorMessage(error, t))
+        },
         isCurrent: () => activationGenerationRef.current === generation,
       },
       id,

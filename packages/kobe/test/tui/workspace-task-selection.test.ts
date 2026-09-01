@@ -5,7 +5,12 @@
  */
 
 import { describe, expect, test, vi } from "vitest"
-import { activateWorkspaceTask, firstSelectableTask } from "../../src/tui-react/workspace/use-task-selection"
+import { TaskDeletingError } from "../../src/orchestrator/errors"
+import {
+  activateWorkspaceTask,
+  activationErrorMessage,
+  firstSelectableTask,
+} from "../../src/tui-react/workspace/use-task-selection"
 import type { Task } from "../../src/types/task"
 import { toTaskId } from "../../src/types/task"
 
@@ -18,7 +23,6 @@ function task(id: string, worktreePath: string): Task {
     worktreePath,
     kind: "task",
     status: "backlog",
-    archived: false,
     pinned: false,
     vendor: "claude",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -171,19 +175,80 @@ describe("pure-TUI workspace task activation", () => {
   // persisted lastActive → newest updatedAt; never raw array position.
   test("selection restore prefers active → persisted lastActive → most recently updated", () => {
     const active = task("active", "/worktrees/active")
-    const archived = { ...task("archived", "/worktrees/archived"), archived: true }
+    const deleting = {
+      ...task("deleting", "/worktrees/deleting"),
+      deletion: { phase: "queued" as const, force: false, requestedAt: "2026-07-15T00:00:00.000Z" },
+    }
     const stale = { ...task("stale", "/worktrees/stale"), updatedAt: "2026-01-01T00:00:00.000Z" }
     const recent = { ...task("recent", "/worktrees/recent"), updatedAt: "2026-07-01T00:00:00.000Z" }
 
-    expect(firstSelectableTask([archived, active, recent], "active")).toBe(active)
+    expect(firstSelectableTask([deleting, active, recent], "active")).toBe(active)
     // Daemon focus missing → the persisted lastActive record wins.
     expect(firstSelectableTask([stale, active, recent], null, "active")).toBe(active)
     expect(firstSelectableTask([stale, active, recent], "missing", "active")).toBe(active)
-    // An archived lastActive is dead — fall through, never resurrect it.
-    expect(firstSelectableTask([archived, stale, recent], null, "archived")).toBe(recent)
-    // No focus records at all → newest unarchived, NOT array-first.
+    // A deleting lastActive is dead — fall through, never resurrect it.
+    expect(firstSelectableTask([deleting, stale, recent], null, "deleting")).toBe(recent)
+    // No focus records at all → newest live task, NOT array-first.
     expect(firstSelectableTask([stale, recent], null)).toBe(recent)
-    expect(firstSelectableTask([archived], null)).toBe(archived)
+    expect(firstSelectableTask([deleting], null)).toBeUndefined()
     expect(firstSelectableTask([], null)).toBeUndefined()
+  })
+
+  test("a routine's standing session never wins the recency fallback (issue #91)", () => {
+    const mine = { ...task("mine", "/worktrees/mine"), updatedAt: "2026-07-01T00:00:00.000Z" }
+    // Fired at 03:00, so it is genuinely the most recently updated task in the
+    // install — and the least likely thing the user meant to open. Its sidebar
+    // row is folded away too, so booting onto it would put the cursor on a
+    // session with no visible row.
+    const routine = {
+      ...task("nightly", "/worktrees/nightly"),
+      updatedAt: "2026-07-02T03:00:00.000Z",
+      routine: { automationId: "auto-1" },
+    }
+
+    expect(firstSelectableTask([mine, routine], null)).toBe(mine)
+    // Naming it explicitly still selects it — that was a real choice.
+    expect(firstSelectableTask([mine, routine], "nightly")).toBe(routine)
+    expect(firstSelectableTask([mine, routine], null, "nightly")).toBe(routine)
+    // And it is still better than nothing when it is all there is.
+    expect(firstSelectableTask([routine], null)).toBe(routine)
+  })
+})
+
+/**
+ * The activation refusals the user actually SEES. `activateWorkspaceTask`
+ * returning false is only half the contract — the earlier bug was that the
+ * refusal reached `console.error` and nothing else, so Enter on an
+ * unmaterializable row was an infinite silent no-op.
+ *
+ * These assert the STRING handed to the toast, keyed by catalog id, so a
+ * regression that drops the mapping (or points every case at the generic
+ * copy) fails rather than passing on "reportError was called".
+ */
+describe("activation failures map onto user-visible copy", () => {
+  // Stand-in for the real `t`: returns the key plus its interpolations, so a
+  // wrong key or a dropped {message} is visible in the assertion.
+  const translate = (key: string, vars?: Record<string, string>) => (vars ? `${key}|${JSON.stringify(vars)}` : key)
+
+  test("a mid-delete task says so instead of reporting a worktree failure", () => {
+    expect(activationErrorMessage(new TaskDeletingError("t1"), translate)).toBe("tasks.toast.worktreeErrorDeleting")
+  })
+
+  test("the daemon's plain-Error rebuild of the same refusal still maps to the deleting copy", () => {
+    // The RPC layer reconstructs thrown errors as `new Error(message)`, so the
+    // class is gone by the time this runs — matching must be on the message.
+    const overWire = new Error("TASK_DELETING: task t1 is being deleted")
+    expect(activationErrorMessage(overWire, translate)).toBe("tasks.toast.worktreeErrorDeleting")
+  })
+
+  test("a non-git project gets the actionable `git init` copy", () => {
+    const err = new Error("fatal: not a git repository (or any of the parent directories): .git")
+    expect(activationErrorMessage(err, translate)).toBe("tasks.toast.worktreeErrorNotGit")
+  })
+
+  test("any other failure carries the underlying reason through", () => {
+    const message = activationErrorMessage(new Error("worktree is locked"), translate)
+    expect(message).toContain("tasks.toast.worktreeErrorGeneric")
+    expect(message).toContain("worktree is locked")
   })
 })

@@ -10,16 +10,19 @@ import { useTerminalDimensions } from "@opentui/react"
 import { connectOrStartDaemon } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
+import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
+import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
+import { StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
+import { useAccessor } from "../lib/use-accessor"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -40,12 +43,15 @@ import { useEditorHandles } from "./use-editor-handles"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
 import { useScratchShell } from "./use-scratch-shell"
-import { useWorkspaceSelection } from "./use-workspace-selection"
+import { type WorktreeGoneEvent, useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
 
-function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
-  const { theme, transparentBackground } = useTheme()
-  const inactiveBorder = transparentBackground ? theme.border : theme.borderSubtle
+/** Exported for the render track: the banner wiring can only be proven by
+ *  mounting the REAL host — a test against the banner component alone stays
+ *  green when the mount is deleted, which is the exact bug being fixed. */
+export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
+  const { theme } = useTheme()
+  const inactiveBorder = theme.borderActive
   const dialog = useDialog()
   const kv = useKV()
   const focus = useFocus()
@@ -73,14 +79,40 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // mode / toasts live in useSidebarHostState below.
   const [searchActive, setSearchActive] = useState(false)
 
-  // Selection + adopt-first-focus + the archived-task PTY sweep — extracted
-  // verbatim to use-workspace-selection.ts (file-size cap split).
+  // Selection + adopt-first-focus + the deleting-task PTY sweep — one hook in
+  // use-workspace-selection.ts, because those three all answer "which task is
+  // the user on" and get it wrong together if they drift apart.
+  const t = useT()
+
+  // Declared before useWorkspaceSelection so its worktree-gone callback can
+  // reach the toast surface; `notif.notify` is stable and the sidebar hook's
+  // notifyError/notifyInfo below need `selectedId`, which the selection hook
+  // produces. Same shape those two use (see use-sidebar-host-state).
+  const notifyWorktreeGone = (event: WorktreeGoneEvent): void => {
+    notif.notify({
+      kind: "error",
+      taskId: event.taskId,
+      tabId: "",
+      title: t("tasks.toast.worktreeGoneTitle", { title: event.title }),
+      body: t("tasks.toast.worktreeGoneBody", { count: String(event.closed), branch: event.branch || "—" }),
+    })
+  }
+
+  // Same pre-declaration reason as notifyWorktreeGone above: a refused
+  // activation must reach the toast surface, and `useSidebarHostState`'s
+  // notifyError can't be built yet (it needs `selectedId` from this hook).
+  const notifyActivationError = (message: string): void => {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
+
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
     tasks,
     activeTaskId,
     focusWorkspace: () => focus.setFocused("workspace"),
     kv,
+    notifyWorktreeGone,
+    notifyError: notifyActivationError,
   })
   const worktree = selectedTask?.worktreePath || null
 
@@ -99,11 +131,11 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     selectTask,
     focusWorkspace: () => focus.setFocused("workspace"),
     notifyError,
+    notifyInfo,
   })
 
   // Cross-task attention (P0): rising-edge notify for non-selected tasks +
   // the global chord's jump-to-next handler. State is engine-owned/neutral.
-  const t = useT()
   const { jumpToNextAttention } = useAttention({
     tasks,
     engineState,
@@ -116,9 +148,9 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     noTasksMessage: t("workspace.attention.none"),
   })
 
-  // Task-action callbacks (new/archive/delete/rename/branch/engine/pin/move)
+  // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const { createTask, archiveTask, deleteTask, renameTask, renameBranch, cycleVendor, togglePin, moveTask } =
+  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, setVendor, togglePin, moveTask } =
     useWorkspaceTaskActions({
       orchestrator: orch,
       tasks: () => tasks,
@@ -137,8 +169,9 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Quick-fork (issue #17, ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
-  // `quick-fork.ts` — the create/enter/pending-prompt shape is identical
-  // regardless of host, and this component is already near the file-size cap.
+  // `quick-fork.ts` because the create/enter/pending-prompt shape is identical
+  // regardless of host — the other caller is TerminalTabs, and both must stay
+  // one implementation.
   const quickFork = useQuickFork(orch, { selectTask: setSelectedId, enterTask: activateTask, notifyError })
 
   // Scratch temp shell tasks (issue #33) — open gesture, exit deletion, and
@@ -186,7 +219,9 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   })
 
   // Page-render + layout decisions (full-window swaps, rail pages, narrow
-  // surface, settings standalone) — extracted to host-pages.tsx (file-size cap).
+  // surface, settings standalone) live in host-pages.tsx: "which surface
+  // occupies the window" is one decision, separate from how the normal
+  // workspace lays out its rails.
   const pageRender = useHostPagesRender({
     orchestrator: orch,
     pages,
@@ -229,6 +264,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       setSelectedId(String(target))
       setMoveMode(true)
     },
+    toggleSortMode,
   })
 
   // Keybinding focus is suppressed while a dialog overlay is up: pane focus
@@ -240,11 +276,62 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
 
-  if (pageRender.settingsPage) return pageRender.settingsPage
-  if (pageRender.fullWindowPage) return pageRender.fullWindowPage
+  // The skew banner's problem, and its fix. `daemonStaleSignal()`
+  // has been accurate since it was written and its ONLY reader was the mock
+  // workbench — so the state it names has been invisible in the product the
+  // whole time. That state is not an edge case here: Rove ships several times
+  // a day and the daemon is a long-lived process that outlives an `npm i -g`,
+  // which makes "new binary, old daemon" the ordinary result of updating.
+  //
+  const daemonStale = useAccessor(orch.daemonStaleSignal())
+  const daemonVersion = useAccessor(orch.daemonVersionSignal())
+  // Daemon-polled npm check (collectors' update channel). The chip is the
+  // passive half of the update surface; `u` / a click opens the page.
+  const updateInfo = useAccessor(orch.updateSignal())
+  // Skew only. A daemon-disconnect banner used to sit in front of this one:
+  // a full-width red alert on every socket drop. It was the wrong weight —
+  // the reconnect loop recovers most drops in under a second, and Rove keeps
+  // working through the ones it doesn't, so the alert interrupted to announce
+  // something with nothing to act on. Skew is different: it persists until
+  // someone restarts the daemon, which is why it kept its banner.
+  // The one condition that outranks skew: this process's install was deleted,
+  // so it cannot start a daemon at all. It used to be invisible — the client
+  // just looked like it was reconnecting, for two days (issue #96). Latched,
+  // never cleared: only a reinstall fixes it.
+  const staleInstall = useAccessor(orch.staleInstallSignal())
+  const banner = staleInstall ? (
+    <StaleInstallBanner message={staleInstall} width={dims.width} />
+  ) : (
+    <VersionSkewBanner
+      stale={daemonStale}
+      daemonVersion={daemonVersion}
+      clientVersion={CURRENT_VERSION}
+      width={dims.width}
+    />
+  )
+
+  // Settings and the full-window pages replace the WHOLE window, frame
+  // included, so each needs the banner wrapped around it rather than relying
+  // on WorkspaceFrame.
+  if (pageRender.settingsPage) {
+    return (
+      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
+        {banner}
+        {pageRender.settingsPage}
+      </box>
+    )
+  }
+  if (pageRender.fullWindowPage) {
+    return (
+      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
+        {banner}
+        {pageRender.fullWindowPage}
+      </box>
+    )
+  }
 
   return (
-    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings}>
+    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings} banner={banner}>
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
           ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —
@@ -253,7 +340,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           the only boundary; sidebar focus shows on the KOBE brand text. */}
       {pageRender.showSidebar ? (
         <HostSidebar
-          width={pageRender.showContent ? SIDEBAR_WIDTH : dims.width}
+          width={pageRender.showContent ? sidebarWidthFor(dims.width) : dims.width}
           nav={pages.nav}
           onNavChange={pages.goToNav}
           tasks={tasks}
@@ -296,11 +383,10 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           worktreeChanges={worktreeChanges}
           transcriptActivity={transcriptActivity}
           focused={activePane === "sidebar"}
-          // Task lifecycle (issue #20): the Sidebar's own d/a/r/p/m keys
+          // Task lifecycle (issue #20): the Sidebar's own d/r/p/m keys
           // fire these; the flows are the shared lib/task-actions bodies.
           onAddTask={() => void createTask()}
           onDeleteRequest={(id) => void deleteTask(id)}
-          onArchiveRequest={(id) => void archiveTask(id)}
           onRenameRequest={(id) => void renameTask(id)}
           onPinRequest={(id) => void togglePin(id)}
           moveMode={moveMode}
@@ -308,11 +394,14 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onMoveModeExit={() => setMoveMode(false)}
           onLocalMergeRequest={onLocalMergeRequest}
           onSearchActiveChange={setSearchActive}
+          sortMode={sortMode}
           headerStatus={{
             label: `${t("workspace.inbox.title")} ${inbox.counts.total}`,
             emphasize: inbox.counts.total > 0,
           }}
           onHeaderStatusClick={inbox.show}
+          updateChip={updateInfo?.hasUpdate ? { label: t("update.chip", { version: updateInfo.latest }) } : null}
+          onUpdateChipClick={pages.openUpdate}
           zenActive={zen}
           onZenClick={toggleZen}
           onFocusRequest={() => focus.setFocused("sidebar")}
@@ -324,6 +413,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
         <box
           flexGrow={1}
           flexShrink={1}
+          borderStyle="rounded"
           borderColor={focus.focused === "workspace" ? theme.focusAccent : inactiveBorder}
           onMouseUp={() => focus.setFocused("workspace")}
         >
@@ -339,12 +429,14 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
               onRequestFocus={() => focus.setFocused("workspace")}
               onEditorTabReady={editor.onEditorTabReady}
               onEngineSendReady={editor.onEngineSendReady}
+              onEnginePasteReady={editor.onEnginePasteReady}
               onDiffTabReady={editor.onDiffTabReady}
               onQuickFork={quickFork.onQuickFork}
               initialPrompt={quickFork.initialPromptFor(selectedTask?.id)}
               onTabVisited={inbox.resolveVisited}
               onScratchExit={scratch.onScratchExit}
               onOpenScratch={scratch.openScratchShell}
+              onEngineChosen={setVendor}
             />
           )}
         </box>
@@ -361,6 +453,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           focused={activePane === "files"}
           onOpenFile={(relPath) => void editor.onOpenFile(relPath)}
           onOpenDiff={editor.onOpenDiff}
+          onMention={editor.onMention}
           onZenToggle={toggleZen}
           onCreatePR={() => void editor.onCreatePR()}
         />
@@ -377,7 +470,7 @@ function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           terminal column is off-limits: it collided with the engine's own
           status line). Width-capped to the rail so lines never spill into
           the terminal. */}
-      <PrefixHud left={1} width={SIDEBAR_WIDTH - 2} />
+      <PrefixHud left={1} width={sidebarWidthFor(dims.width) - 2} />
     </WorkspaceFrame>
   )
 }

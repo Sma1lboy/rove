@@ -47,10 +47,12 @@ export interface DaemonRuntimeAdapter {
   /**
    * Foreground engine per session root pid — ONE `ps` snapshot walked per
    * pid (kobe's `engine/foreground.ts`, the same primitive `kobe api
-   * inspect` uses). Vendor id, or null for "no engine in this tree".
-   * Consumed by the daemon activity observer's reconciler (issues #11/#16).
+   * inspect` uses). The engine's own vendor AND pid, or null for "no engine
+   * in this tree". Consumed by the daemon activity observer's reconciler
+   * (issues #11/#16); the pid is what a death record names as the process
+   * that actually died, distinct from the PTY that outlived it.
    */
-  foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, VendorId | null>>
+  foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, { vendor: VendorId; pid: number } | null>>
   /**
    * Engine-owned verdict on a live OSC title (`engineTitleTurnHint`):
    * "working" while the vendor's animated frame prefixes it, "rest" when a
@@ -84,7 +86,10 @@ export interface DaemonRuntimeAdapter {
   runWorktreeStatus(worktreePath: string, signal: AbortSignal): Promise<WorktreeChanges>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
-  removeWorktree(path: string, force: boolean): Promise<void>
+  /** Remove a worktree. Resolves with the leftover directory when git
+   *  deregistered the worktree but could not delete it (a partial removal that
+   *  no retry can advance); resolves with null on a clean removal. */
+  removeWorktree(path: string, force: boolean): Promise<{ path: string; reason: string } | null>
   availableEngineIds(): Promise<readonly VendorId[]>
   engineDisplayName(vendor: VendorId): string
   kobeApiInvocation(): string
@@ -132,6 +137,34 @@ export interface DaemonRuntimeAdapter {
     },
     prompt: string,
   ): Promise<boolean>
+  /**
+   * {@link deliverPromptToLiveEngine} with the composer-busy outcome as DATA
+   * rather than a thrown `ComposerBusyError` — the error class lives in the
+   * `rove` package, which depends on this one, so the daemon cannot catch it
+   * by type. A caller that must not drop the prompt (a routine's daily report
+   * — issue #91) reads `busy` and files a deferral; quota-resume keeps using
+   * the boolean form, where dropping is the right answer.
+   *
+   * `tabId` names which tab the live engine was found on, so the deferral and
+   * its Inbox episode point at the tab a human will actually open.
+   */
+  deliverPromptToLiveEngineDetailed(
+    task: {
+      readonly id: string
+      readonly vendor?: VendorId
+      readonly command?: string
+      readonly worktreePath: string
+    },
+    prompt: string,
+  ): Promise<
+    | { readonly outcome: "delivered"; readonly tabId: string }
+    | { readonly outcome: "no-session" }
+    | {
+        readonly outcome: "busy"
+        readonly tabId: string
+        readonly layer: "recent-human-write" | "composer-not-empty"
+      }
+  >
   settingsSnapshot(): Response
   settingsPatch(request: Request): Promise<Response>
   handleDiffRequest(request: Request, url: URL): Promise<Response | null>

@@ -18,11 +18,16 @@
  *     the store class focuses on the mutable cache / dirty tracking /
  *     persistence orchestration.
  *
- * All functions here are `this`-independent — moved out verbatim so the
- * store class stays under the file-size cap.
+ * The seam is `this`: every function here is stateless, so the versions the
+ * codec must tolerate can be fed in as plain values and the merge protocol
+ * checked without a store, a lock, or a real manifest on disk. The store keeps
+ * the mutable half — cache, dirty tracking, when to persist.
  */
 
 import { copyFile, readFile } from "node:fs/promises"
+import { dirname } from "node:path"
+import { logClient } from "@sma1lboy/kobe-daemon/client/client-log"
+import { defaultClientLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import type {
   Task,
   TaskDeletionState,
@@ -30,6 +35,7 @@ import type {
   TaskLinkedWorkItem,
   TaskPRStatus,
   TaskQuotaResumeState,
+  TaskRoutineLink,
   TaskStatus,
   TaskTombstone,
 } from "../../types/task.ts"
@@ -87,23 +93,71 @@ export async function backupCorruptManifest(path: string, now: () => Date = () =
   }
 }
 
+/** Manifest versions this build can read. A manifest stamped with anything
+ *  else is a FUTURE build's — see {@link recoverUnsupportedVersion}. */
+const SUPPORTED_VERSIONS: ReadonlySet<unknown> = new Set([1, 2, 3])
+
+/**
+ * Warn about a manifest recovery on BOTH sinks. `console.warn` alone is
+ * invisible in normal use: every pane runs inside an opentui alternate
+ * screen that paints straight over stdout/stderr, which is the entire
+ * reason `client-log.ts` exists. A recovery that silently empties the task
+ * index must leave a trace a human can actually find afterwards.
+ */
+export function warnManifestRecovery(message: string, manifestPath?: string): void {
+  console.warn(message)
+  // `<home>/.rove|.kobe/tasks.json` → that same home's client.log. Resolved
+  // from the manifest rather than the ambient default so a store opened on an
+  // explicit homeDir logs into ITS home, not the invoking user's.
+  logClient("tasks-index", message, manifestPath ? defaultClientLogPath(dirname(dirname(manifestPath))) : undefined)
+}
+
+/**
+ * A manifest stamped with a version this build doesn't know is a FUTURE
+ * build's file: the user ran a newer Rove, then went back to an older one.
+ * Recovering empty is right (we can't understand the rows), but the next
+ * save read-merge-writes from that empty base and REPLACES the file —
+ * so the bytes have to be copied aside first, exactly like the corrupt-JSON
+ * path does. Same consequence, same protection.
+ *
+ * Returns true when it handled the value (caller recovers empty).
+ */
+export async function recoverUnsupportedVersion(parsed: unknown, sourcePath: string): Promise<boolean> {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false
+  const version = (parsed as { version?: unknown }).version
+  if (version === undefined || SUPPORTED_VERSIONS.has(version)) return false
+  const backup = await backupCorruptManifest(sourcePath)
+  warnManifestRecovery(
+    `[rove] tasks.json at ${sourcePath} has unsupported version=${String(version)}; recovering with empty index.${
+      backup ? ` Original bytes backed up to ${backup}.` : " Backup copy failed; the stale file is left in place."
+    }`,
+    sourcePath,
+  )
+  return true
+}
+
 /**
  * Normalize an arbitrary JSON value into a v3 cache. Migrates v1 / v2
  * manifests by stripping the dropped fields (`tabs`, `activeTabId`,
  * `sessionId`, `model`, `modelEffort`, `permissionMode`). The first
  * save after load persists the v3 shape.
+ *
+ * The unsupported-version guard here is a last-resort net for callers that
+ * skipped {@link recoverUnsupportedVersion}; the async read paths run that
+ * first so the bytes are backed up before anything empties the index.
  */
 export function normalizeIndex(parsed: unknown, source: string): { version: typeof CURRENT_VERSION; tasks: Task[] } {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    console.warn(`[rove] tasks.json at ${source} is not an object; recovering with empty index.`)
+    warnManifestRecovery(`[rove] tasks.json at ${source} is not an object; recovering with empty index.`, source)
     return { version: CURRENT_VERSION, tasks: [] }
   }
 
   const obj = parsed as { version?: unknown; tasks?: unknown }
   const version = obj.version
-  if (version !== undefined && version !== 1 && version !== 2 && version !== 3) {
-    console.warn(
+  if (version !== undefined && !SUPPORTED_VERSIONS.has(version)) {
+    warnManifestRecovery(
       `[rove] tasks.json at ${source} has unsupported version=${String(version)}; recovering with empty index.`,
+      source,
     )
     return { version: CURRENT_VERSION, tasks: [] }
   }
@@ -161,6 +215,9 @@ export async function readDiskIndex(
     await backupCorruptManifest(sourcePath)
     return { tasks: [], removed: [] }
   }
+  // Same protection as the parse branch above: back the bytes up before the
+  // merged write replaces a manifest this build can't read.
+  if (await recoverUnsupportedVersion(parsed, sourcePath)) return { tasks: [], removed: [] }
   return { tasks: normalizeIndex(parsed, sourcePath).tasks, removed: coerceTombstones(parsed) }
 }
 
@@ -261,36 +318,22 @@ function coerceTask(value: unknown): Task | null {
   }
   if (!isTaskStatus(v.status)) return null
 
-  // Self-heal pre-fix rows. Old kobe builds auto-flipped status to "done"
-  // on every clean turn end, leaving the active sidebar full of `done`
-  // tasks whose `archived` was still false. `done` is now reserved for
-  // user-driven archive — heal those rows back to `in_progress` on load
-  // so the sidebar's ✓ glyph only ever means "user archived this as
-  // complete." Archived `done` rows are left alone.
-  const archived = typeof v.archived === "boolean" ? v.archived : false
+  // A `main` (project root) task has NO session lifecycle that maintains
+  // its status — nothing ever flips it to in_progress on a turn start or
+  // back to backlog on a turn end. So a persisted in_progress/done on a
+  // main row is junk. Reset a main row to a neutral backlog so the
+  // project's liveness comes ONLY from a real live engine handle.
   const kind: Task["kind"] = v.kind === "main" ? "main" : v.kind === "dir" ? "dir" : "task"
   // Scratch only means anything on a dir task — a corrupt flag elsewhere is
   // dropped rather than inventing a Scratch worktree row.
   const scratch = kind === "dir" && v.scratch === true
-  // A `main` (project root) task has NO session lifecycle that maintains
-  // its status — nothing ever flips it to in_progress on a turn start or
-  // back to backlog on a turn end. So a persisted in_progress/done on a
-  // main row is junk (it came from the old auto-done flip, then the
-  // done→in_progress heal below, leaving the project permanently stuck
-  // showing the "working" chip). Reset a main row to a neutral backlog so
-  // the project's liveness comes ONLY from a real live engine handle.
   const healedStatus: TaskStatus =
-    kind === "main"
-      ? v.status === "in_progress" || v.status === "done"
-        ? "backlog"
-        : v.status
-      : v.status === "done" && !archived
-        ? "in_progress"
-        : v.status
+    kind === "main" && (v.status === "in_progress" || v.status === "done") ? "backlog" : v.status
   const deletion = coerceDeletion(v.deletion)
   const quotaResume = coerceQuotaResume(v.quotaResume)
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
+  const routine = coerceRoutine(v.routine)
 
   return {
     id: toTaskId(v.id),
@@ -299,10 +342,10 @@ function coerceTask(value: unknown): Task | null {
     branch: v.branch,
     worktreePath: v.worktreePath,
     status: healedStatus,
-    archived,
     pinned: typeof v.pinned === "boolean" ? v.pinned : false,
     kind,
     ...(scratch ? { scratch: true } : {}),
+    ...(routine ? { routine } : {}),
     vendor: coerceVendorId(typeof v.vendor === "string" ? v.vendor : undefined),
     // Raw launch command (`add --command` / `set-command`) — must survive
     // the load coercion or the task falls back to its protocol's preset on
@@ -318,6 +361,11 @@ function coerceTask(value: unknown): Task | null {
     // Fan-out round marker — must survive the load coercion or siblings
     // lose their grouping on every daemon restart.
     ...(typeof v.groupId === "string" && v.groupId.length > 0 ? { groupId: v.groupId } : {}),
+    // Observed user language — must survive the load coercion or a daemon
+    // restart silently reverts injected prompts to English for a user who
+    // never writes it. Same failure mode as the fields above: absent from
+    // this list, the field writes fine and vanishes on load.
+    ...(v.observedLanguage === "zh" || v.observedLanguage === "en" ? { observedLanguage: v.observedLanguage } : {}),
     ...(deletion ? { deletion } : {}),
     // The optional records below were written to disk but silently dropped
     // on load, so each survived only until the next daemon restart: a
@@ -330,6 +378,15 @@ function coerceTask(value: unknown): Task | null {
     // load coercion or a daemon restart severs every sub-task's route home.
     // Records that predate the field normalize to undefined.
     ...(dispatcher ? { dispatcher } : {}),
+    // The task brief (`add --prompt`) — must survive the load coercion or a
+    // daemon restart destroys the only durable copy of what the task was
+    // asked to do (the engine transcript does not survive the engine).
+    ...(typeof v.prompt === "string" && v.prompt.length > 0 ? { prompt: v.prompt } : {}),
+    // Recorded fork point (`add --base-branch`) — must survive the load
+    // coercion or a daemon restart loses it before the lazy worktree
+    // materialises (branches then silently cut from the guessed base), and
+    // `collect`'s ahead/diffstat signals revert to the wrong comparison ref.
+    ...(typeof v.baseRef === "string" && v.baseRef.trim().length > 0 ? { baseRef: v.baseRef } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
@@ -341,6 +398,16 @@ function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
   if (typeof v.taskId !== "string" || v.taskId.length === 0) return undefined
   if (typeof v.tabId !== "string" || v.tabId.length === 0) return undefined
   return { taskId: v.taskId, tabId: v.tabId }
+}
+
+/** Routine back-pointer (issue #91). A link with no automation id is junk —
+ *  dropped, so the task reads as an ordinary one rather than folding itself
+ *  behind a routine section that can never be resolved back to a schedule. */
+function coerceRoutine(value: unknown): TaskRoutineLink | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const v = value as Record<string, unknown>
+  if (typeof v.automationId !== "string" || v.automationId.length === 0) return undefined
+  return { automationId: v.automationId }
 }
 
 function coerceQuotaResume(value: unknown): TaskQuotaResumeState | undefined {

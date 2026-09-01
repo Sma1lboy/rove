@@ -16,10 +16,12 @@ import { RotateCw, Search, X } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { displayProductName } from "../lib/cli-name.ts"
 import {
+  type EngineUsageSnapshot,
   fetchMessages,
   fetchSessions,
   formatTokens,
   type HistoryMessage,
+  type MessagesResult,
   summarizeUsage,
 } from "../lib/history.ts"
 import { isNearBottom } from "../lib/scroll.ts"
@@ -50,6 +52,9 @@ export function ChatTranscript({
   const [selected, setSelected] = useState<string | null>(null)
   const [followLatest, setFollowLatest] = useState(true)
   const [messages, setMessages] = useState<HistoryMessage[]>([])
+  const [usageSnapshot, setUsageSnapshot] = useState<
+    EngineUsageSnapshot | undefined
+  >(undefined)
   const [search, setSearch] = useState("")
   const [hideTools, setHideTools] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -91,11 +96,14 @@ export function ChatTranscript({
           ? latest
           : (selectedRef.current ?? latest)
         seq = ++seqRef.current
-        const next = target ? await fetchMessages(vendor, target) : []
+        const next: MessagesResult = target
+          ? await fetchMessages(vendor, target)
+          : { messages: [] }
         // A newer pick/poll superseded this fetch — drop its result.
         if (seq !== seqRef.current) return
         setSessions(result.sessions)
-        setMessages(next)
+        setMessages(next.messages)
+        setUsageSnapshot(next.usage)
         setSelected(target)
         setError(null)
       } catch (err) {
@@ -135,6 +143,7 @@ export function ChatTranscript({
     setSelected(null)
     setSearch("")
     setHideTools(false)
+    setUsageSnapshot(undefined)
     setAtBottom(true)
     void refreshRef.current(true)
     const timer = window.setInterval(() => {
@@ -153,8 +162,10 @@ export function ChatTranscript({
     setSelected(sessionId)
     const seq = ++seqRef.current
     void fetchMessages(vendor, sessionId)
-      .then((msgs) => {
-        if (seq === seqRef.current) setMessages(msgs)
+      .then((result) => {
+        if (seq !== seqRef.current) return
+        setMessages(result.messages)
+        setUsageSnapshot(result.usage)
       })
       .catch((err) => {
         if (seq === seqRef.current)
@@ -195,7 +206,7 @@ export function ChatTranscript({
     return map
   }, [messages])
 
-  const usage = useMemo(() => summarizeUsage(messages), [messages])
+  const usage = useMemo(() => summarizeUsage(usageSnapshot), [usageSnapshot])
   // Precompute each message's lowercased search text once per messages change,
   // so a keystroke filters with a cheap substring check instead of re-running
   // JSON.stringify over every tool result on every key (perceptible lag on a
@@ -247,12 +258,22 @@ export function ChatTranscript({
           </select>
         )}
         <div className="ml-auto flex items-center gap-3 font-mono text-[10px] text-subtle">
-          {usage.contextTokens > 0 && (
-            <span title="Live context estimate (last turn's full prompt)">
+          {/* Chips gate on the snapshot's PRESENCE, not on derived numbers:
+              an engine that doesn't report usage (kimi's unverified wire,
+              custom engines) gets no chips — "not reported" never renders
+              as "zero tokens". */}
+          {usageSnapshot && usage.contextTokens > 0 && (
+            <span
+              title={`Live context estimate${
+                usageSnapshot.context_tokens_approximate
+                  ? " (engine-derived)"
+                  : ""
+              }`}
+            >
               ctx {formatTokens(usage.contextTokens)}
             </span>
           )}
-          {usage.outputTokens > 0 && (
+          {usageSnapshot && usage.outputTokens > 0 && (
             <span title="Session tokens in / out">
               ⇡{formatTokens(usage.inputTokens)} ⇣
               {formatTokens(usage.outputTokens)}

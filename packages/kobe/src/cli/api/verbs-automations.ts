@@ -1,11 +1,16 @@
 /**
- * The `routine` verb group — daemon-owned scheduled agent tasks. Split out
- * of `verbs.ts` (file-size cap); spread back into the {@link VERBS} table
- * there, so schema/help/validation see one canonical list.
+ * The `routine` verb group — daemon-owned scheduled agent tasks: the schedule
+ * that CREATES tasks, which is a different object from the tasks themselves.
+ * One file per `VerbGroup`, mirroring the taxonomy
+ * `rove api schema --group routine` prints — though it is each spec's own
+ * `group` field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
+ * schema/help/validation see one canonical list.
  *
- * Every firing creates a FRESH task (worktree + branch + engine session) with
- * the automation's prompt as its first message. Mechanics live in
- * `docs/design/automations.md`.
+ * By default every firing creates a FRESH task (worktree + branch + engine
+ * session) with the automation's prompt as its first message.
+ * `--persistent-session` swaps that for ONE standing task the schedule
+ * re-delivers into, so a daily routine can build on yesterday. Mechanics live
+ * in `docs/design/automations.md`.
  */
 
 import { F } from "./flags.ts"
@@ -43,23 +48,38 @@ const GRACE_FLAG = {
     "How late a missed occurrence may still run when the daemon was down (default 60). Only the most recent missed occurrence is ever run.",
 } as const
 
-/** Shared `--precheck` → payload shape. `--precheck ''` clears it on update. */
+const PERSISTENT_FLAG = {
+  name: "persistent-session",
+  type: "bool",
+  description:
+    "Re-deliver into ONE standing task instead of a fresh worktree per run — for a routine that needs yesterday's context (a trend check). Its task is folded behind the sidebar's routine count row. Leave off for a routine that EDITS code: a week of runs on one branch is a branch nobody can land.",
+} as const
+
+/**
+ * Shared `--precheck` → payload shape. `--precheck ''` sends `precheck: null`,
+ * which the daemon reads as "clear it" on update (a no-op on create, which has
+ * nothing to clear). The flag must be read with {@link VerbArgs.present}, not
+ * `str`: `str` folds an empty value into "absent", so `--precheck ''` would
+ * otherwise omit the field and silently leave the existing precheck in place.
+ */
 function precheckPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, unknown> {
+  if (!ctx.args.present("precheck")) return {}
   const command = ctx.args.str("precheck")
-  if (command === undefined) return {}
-  if (command.length === 0) return { precheck: null }
+  if (command === undefined) return { precheck: null }
   return { precheck: { command, timeoutSeconds: ctx.args.int("precheck-timeout") ?? 120 } }
 }
 
 export const ROUTINE_VERBS: readonly VerbSpec[] = [
   {
     name: "routine-list",
+    group: "routine",
     summary: "List scheduled routines with their next run time.",
     flags: [],
     handler: (ctx) => simpleRpc(ctx, "automation.list", {}),
   },
   {
     name: "routine-create",
+    group: "routine",
     summary:
       "Schedule a prompt. Each firing creates a fresh task (worktree + engine) and delivers it. An enabled routine keeps the daemon alive so it fires with no TUI attached.",
     flags: [
@@ -76,6 +96,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       },
       ...PRECHECK_FLAGS,
       GRACE_FLAG,
+      PERSISTENT_FLAG,
       { name: "disabled", type: "bool", description: "Create it paused instead of active." },
     ],
     handler: (ctx) =>
@@ -88,11 +109,13 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
         ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
+        ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
         ...(ctx.args.bool("disabled") ? { enabled: false } : {}),
       }),
   },
   {
     name: "routine-update",
+    group: "routine",
     summary: "Change a routine. A new --schedule re-anchors its next run; --precheck '' clears the precheck.",
     flags: [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
@@ -103,6 +126,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { name: "base-branch", type: "string", placeholder: "B", description: "New base ref ('' to clear)." },
       ...PRECHECK_FLAGS,
       GRACE_FLAG,
+      PERSISTENT_FLAG,
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "automation.update", {
@@ -111,13 +135,17 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.str("prompt") !== undefined ? { prompt: ctx.args.str("prompt") } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
-        ...(ctx.args.str("base-branch") !== undefined ? { baseRef: ctx.args.str("base-branch") } : {}),
+        // `--base-branch ''` clears the base ref (sends null); `present` keeps
+        // that empty value visible where `str` would fold it into "absent".
+        ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
         ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
+        ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
       }),
   },
   {
     name: "routine-set-enabled",
+    group: "routine",
     summary: "Pause or resume a routine. Disabling the last active one releases the daemon's keep-alive hold.",
     flags: [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
@@ -128,12 +156,14 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "routine-delete",
+    group: "routine",
     summary: "Delete a routine and its run history. Tasks it already created are untouched.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.delete", { id: ctx.args.require("id") }),
   },
   {
     name: "routine-run-now",
+    group: "routine",
     summary:
       "Run a routine immediately, skipping its precheck (asking for it IS the answer). Does not shift its schedule.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
@@ -141,8 +171,9 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "routine-runs",
+    group: "routine",
     summary:
-      "Run history, newest first. Statuses: dispatched, skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed.",
+      "Run history, newest first. Statuses: dispatched, revived (standing session respawned — files kept, conversation did not), deferred (composer busy; the prompt is queued in the Inbox, NOT lost), skipped_precheck (nothing to do), skipped_missed, skipped_unavailable, dispatch_failed.",
     flags: [{ name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." }],
     handler: (ctx) => simpleRpc(ctx, "automation.runs", { id: ctx.args.require("id") }),
   },

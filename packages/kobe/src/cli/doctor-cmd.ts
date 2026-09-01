@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
+import { isStaleInstallError, resolveKobeSpawn } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { resolveNodeBinary } from "@sma1lboy/kobe-daemon/client/pty-process"
 import {
   defaultDaemonLogPath,
@@ -13,15 +14,6 @@ import {
   defaultPtyHostSocketPath,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
-import {
-  type BinaryStatus,
-  type ClaudeAccount,
-  type CodexAccount,
-  type CopilotAccount,
-  detectClaudeAccount,
-  detectCodexAccount,
-  detectCopilotAccount,
-} from "../engine/account-detect.ts"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
@@ -34,10 +26,13 @@ import {
   defaultFixRuntime,
   engineTabsManualFix,
   humanOnlyFix,
+  reinstallManualFix,
   resetManualFix,
   skillInstallFix,
 } from "./doctor-fix.ts"
 import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
+import { terminalDoctorLines } from "./doctor-terminal.ts"
+import { probeEngines, probeGit } from "./env-checks.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
 import { activeCliName } from "./rename-compat.ts"
 
@@ -125,69 +120,28 @@ function tailFile(path: string, count: number): string {
   }
 }
 
-function terminalDoctorLines(): string[] {
-  const show = (value: string | undefined): string => (value && value.length > 0 ? value : "(unset)")
-  const program = process.env.TERM_PROGRAM
-    ? `${process.env.TERM_PROGRAM}${process.env.TERM_PROGRAM_VERSION ? ` v${process.env.TERM_PROGRAM_VERSION}` : ""}`
-    : "(unset)"
-  return [`terminal: TERM=${show(process.env.TERM)}  TERM_PROGRAM=${program}  COLORTERM=${show(process.env.COLORTERM)}`]
-}
-
-/** `git --version` if git is on PATH, else a not-found marker. */
-async function gitDoctorLine(): Promise<{ line: string; found: boolean }> {
+/**
+ * Is the entry point this process would re-exec still on disk? Runs the
+ * spawn path's own resolver rather than re-deriving the candidate list, so
+ * doctor cannot pass while the spawn path fails (or vice versa). Only a
+ * StaleInstallError is a finding: any other throw means the resolver itself
+ * had a problem, which is not a verdict about the install.
+ */
+function describeInstall(): { line: string; ok: boolean } {
   try {
-    const proc = Bun.spawn(["git", "--version"], { stdin: "ignore", stdout: "pipe", stderr: "ignore" })
-    const text = (await new Response(proc.stdout).text()).trim()
-    if ((await proc.exited) === 0 && text) return { line: `git:      ✓ ${text}`, found: true }
-  } catch {
-    // fall through to not-found
+    const [, entry] = resolveKobeSpawn([])
+    return { line: `install:  ✓ ${entry ?? process.execPath}`, ok: true }
+  } catch (err) {
+    if (!isStaleInstallError(err)) return { line: `install:  ? could not check (${String(err)})`, ok: true }
+    return {
+      line: [
+        "install:  ✗ GONE — this process is running from an install that no longer exists on disk",
+        "          it cannot start a daemon; every reconnect fails the same way until you reinstall",
+        "          → npm install -g @sma1lboy/rove   (then relaunch Rove)",
+      ].join("\n"),
+      ok: false,
+    }
   }
-  return { line: "git:      ✗ not found on PATH", found: false }
-}
-
-function binaryLabel(binary: BinaryStatus): string {
-  return binary.found ? `✓ ${binary.path}` : `✗ ${binary.error}`
-}
-
-function claudeAccountLabel(account: ClaudeAccount): string {
-  if (account.kind === "none") return "no account"
-  return `logged in (${account.email}${account.organization ? `, ${account.organization}` : ""})`
-}
-
-function codexAccountLabel(account: CodexAccount): string {
-  if (account.kind === "chatgpt") return `logged in (${account.email}${account.plan ? `, ${account.plan}` : ""})`
-  if (account.kind === "apikey") return "API key"
-  return "no account"
-}
-
-function copilotAccountLabel(account: CopilotAccount): string {
-  if (account.kind === "token") return `token (${account.source})`
-  if (account.kind === "oauth") return "logged in"
-  return "no account"
-}
-
-/** One "engines:" block: per-vendor CLI binary + account state (read-only). */
-async function engineDoctorLines(): Promise<{ lines: string[]; anyUsable: boolean }> {
-  const [claude, codex, copilot] = await Promise.all([
-    detectClaudeAccount(),
-    detectCodexAccount(),
-    detectCopilotAccount(),
-  ])
-  const lines = ["engines:"]
-  const row = (name: string, binary: BinaryStatus, account: string, err?: string): void => {
-    lines.push(`  ${name.padEnd(8)}${binaryLabel(binary)}${binary.found ? ` — ${account}` : ""}`)
-    if (err) lines.push(`          ⚠ ${err}`)
-  }
-  row("claude", claude.binary, claudeAccountLabel(claude.account), claude.accountError)
-  row("codex", codex.binary, codexAccountLabel(codex.account), codex.accountError)
-  row("copilot", copilot.binary, copilotAccountLabel(copilot.account), copilot.accountError)
-  // "Usable" = binary present AND some account. One usable engine is enough;
-  // a missing vendor the user never launches is not a finding.
-  const anyUsable =
-    (claude.binary.found && claude.account.kind !== "none") ||
-    (codex.binary.found && codex.account.kind !== "none") ||
-    (copilot.binary.found && copilot.account.kind !== "none")
-  return { lines, anyUsable }
 }
 
 async function appendUnavailableProcess(
@@ -217,19 +171,29 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   const tasksPath = join(roveStateDir(), "tasks.json")
   const statePath = kvStatePath()
   const fixes: DoctorFix[] = []
-  const git = await gitDoctorLine()
+  const git = await probeGit()
   if (!git.found) fixes.push(humanOnlyFix("git"))
-  const engines = await engineDoctorLines()
+  const engines = await probeEngines()
   if (!engines.anyUsable) fixes.push(humanOnlyFix("noEngine"))
+  // Can this process still re-exec itself? A `bun`/`node` process holds its
+  // entry open by inode, so uninstalling Rove out from under a running one
+  // leaves it alive on a path that is gone — it keeps working until it needs
+  // to spawn a daemon, then fails identically forever (issue #96). The check
+  // is exactly the resolution the spawn path performs, so the two can never
+  // disagree about whether this install is intact.
+  const install = describeInstall()
+  if (!install.ok) fixes.push(reinstallManualFix())
   const out = [
     "Rove doctor",
     `  build:  v${CURRENT_VERSION} (${process.platform} ${process.arch}, bun ${Bun.version})`,
     `  home:   ${homeDir()}`,
     "",
-    ...terminalDoctorLines(),
+    ...(await terminalDoctorLines()),
     git.line,
     "",
     ...engines.lines,
+    "",
+    install.line,
     "",
   ]
 

@@ -44,12 +44,16 @@ test("the row disappears before the daemon delete resolves", async () => {
   })
   const { frame, mockInput } = await renderComponent(
     <WorktreesPage orchestrator={orchestrator(() => pending)} onClose={() => {}} />,
-    { width: 70, height: 20, providers: { dialog: true } },
+    { width: 70, height: 20, providers: { dialog: true, notifications: true } },
   )
   await settle()
   expect(await frame()).toContain("feature-a")
 
   mockInput.typeText("d")
+  await settle()
+  // Danger confirms open focused on Cancel (a stray Enter must not delete) —
+  // move right onto the confirm button before committing.
+  mockInput.pressArrow("right")
   await settle()
   mockInput.pressEnter() // confirm
   await settle()
@@ -62,10 +66,12 @@ test("the row disappears before the daemon delete resolves", async () => {
 test("a failed delete puts the row back", async () => {
   const { frame, mockInput } = await renderComponent(
     <WorktreesPage orchestrator={orchestrator(() => Promise.reject(new Error("boom")))} onClose={() => {}} />,
-    { width: 70, height: 20, providers: { dialog: true } },
+    { width: 70, height: 20, providers: { dialog: true, notifications: true } },
   )
   await settle()
   mockInput.typeText("d")
+  await settle()
+  mockInput.pressArrow("right")
   await settle()
   mockInput.pressEnter()
   await settle()

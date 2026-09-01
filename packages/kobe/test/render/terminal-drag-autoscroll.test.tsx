@@ -1,10 +1,18 @@
 /** @jsxImportSource @opentui/react */
 
 import { expect, test } from "bun:test"
+import type { CapturedSpan } from "@opentui/core"
 import { Terminal } from "../../src/tui-react/panes/terminal/Terminal"
 import { createScriptedPtyRegistry } from "../../src/tui/panes/terminal/pty-scripted"
-import { ATTR } from "../../src/tui/panes/terminal/sgr"
 import { type RenderHandle, act, renderComponent } from "./harness"
+
+const rgbMatches = (span: CapturedSpan, channel: "fg" | "bg", expected: readonly [number, number, number]): boolean => {
+  const [r, g, b] = span[channel].toInts()
+  return r === expected[0] && g === expected[1] && b === expected[2]
+}
+
+const isResolvedSelection = (span: CapturedSpan): boolean =>
+  rgbMatches(span, "fg", [20, 20, 19]) && rgbMatches(span, "bg", [234, 231, 223])
 
 /** A pane fed `content`, its first visible row at screen y=2 (body: 16 rows). */
 const mountPane = async (
@@ -151,7 +159,7 @@ test("a drag held at the edge scrolls an app that owns its own scrollback", asyn
   const highlightedLines = async (): Promise<string[]> => {
     const frame = await handle.spans()
     return frame.lines
-      .filter((line) => line.spans.some((s) => (s.attributes & ATTR.INVERSE) !== 0))
+      .filter((line) => line.spans.some(isResolvedSelection))
       .map((line) =>
         line.spans
           .map((s) => s.text)

@@ -11,7 +11,7 @@
 
 import { ENGINE_LIST_VERB } from "./handlers-engines.ts"
 import { fullSchema, groupSchema, schemaIndex, verbSchema } from "./schema.ts"
-import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
+import { ApiError, VERB_GROUP_IDS, type VerbContext, type VerbGroup, type VerbSpec } from "./types.ts"
 import { ROUTINE_VERBS } from "./verbs-automations.ts"
 import { CREATE_VERBS } from "./verbs-create.ts"
 import { DRIVE_VERBS } from "./verbs-drive.ts"
@@ -59,7 +59,9 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = { "spawn-task": "a
  * Deliberately not aliases: `fan-out` folded into `add --count` and
  * `set-vendor` became `set-command`, and both changed their flag contract in
  * the process — an alias would silently accept the old flags and do
- * something subtly different. A retired verb instead fails loud with
+ * something subtly different. `archive` (issue #75) had no successor hiding
+ * state — its replacement is the destructive-but-recoverable `delete`. A
+ * retired verb instead fails loud with
  * `UNKNOWN_VERB` plus the `nextCommandArgs` an agent can run verbatim, which
  * is the same self-healing contract every other high-traffic rejection uses.
  */
@@ -72,38 +74,19 @@ export const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandA
     hint: "set-vendor was replaced by `set-command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
     nextCommandArgs: ["api", "set-command", "--help"],
   },
-}
-
-/**
- * Verb groups for LEVELED exploration. An agent reads the compact index
- * (groups + verb summaries), then drills into one verb or one group —
- * instead of slurping every flag of every verb and polluting its context.
- */
-export const VERB_GROUPS: Readonly<Record<string, readonly string[]>> = {
-  discover: ["schema", "engine-list"],
-  read: ["list", "get-task", "collect", "digest", "agent-turns", "pty-list", "read-output", "inspect"],
-  create: ["add"],
-  drive: ["send", "dispatch", "note", "note-list", "set-active", "pane-open", "pane-close", "notify", "engine-report"],
-  edit: ["rename", "set-branch", "set-command", "set-status"],
-  issues: ["issue-list", "issue-create", "issue-set-status", "issue-update"],
-  workitems: ["workitem-list", "workitem-start"],
-  routine: [
-    "routine-list",
-    "routine-create",
-    "routine-update",
-    "routine-set-enabled",
-    "routine-delete",
-    "routine-run-now",
-    "routine-runs",
-  ],
-  lifecycle: ["archive", "pin", "land", "delete"],
-  worktree: ["ensure-worktree", "adopt", "discover-adoptable"],
-  feedback: ["feedback"],
+  // `archive` went away with the archived-task dimension itself (issue #75) —
+  // there is no "hide but keep" left; `delete` is the cleanup, and its branch
+  // always survives unless the caller explicitly passes --delete-branch.
+  archive: {
+    hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
+    nextCommandArgs: ["api", "delete", "--help"],
+  },
 }
 
 /** The `schema` verb spec — kept here because its handler references VERBS. */
 const SCHEMA_VERB: VerbSpec = {
   name: "schema",
+  group: "discover",
   summary:
     "Explore the API. Default = a COMPACT index (groups + verb summaries, no flags). Drill in with --verb / --group; --all for the full spec.",
   flags: [
@@ -138,6 +121,26 @@ export const VERBS: readonly VerbSpec[] = [
 
 /** Verb names in canonical order (schema/help/tests). */
 export const API_VERBS = VERBS.map((v) => v.name)
+
+/**
+ * Verb groups for LEVELED exploration. An agent reads the compact index
+ * (groups + verb summaries), then drills into one verb or one group — instead
+ * of slurping every flag of every verb and polluting its context.
+ *
+ * DERIVED from `VerbSpec.group`, not hand-written: a verb used to state its
+ * group twice (once by which `verbs-*.ts` declares it, once in a table here),
+ * and forgetting the table half silently produced a group `--group` then
+ * rejected as unknown (issue #95). One declaration, one source of truth —
+ * `VerbGroup` is a closed union, so an ungrouped verb is a type error.
+ *
+ * Group order follows {@link VERB_GROUP_IDS}; verbs within a group follow the
+ * canonical {@link VERBS} order, so every listing agrees.
+ */
+export const VERB_GROUPS: Readonly<Record<VerbGroup, readonly string[]>> = (() => {
+  const byGroup = Object.fromEntries(VERB_GROUP_IDS.map((g) => [g, [] as string[]])) as Record<VerbGroup, string[]>
+  for (const v of VERBS) byGroup[v.group].push(v.name)
+  return byGroup
+})()
 
 export function findVerb(name: string): VerbSpec | undefined {
   const canonical = VERB_ALIASES[name] ?? name

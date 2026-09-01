@@ -110,12 +110,11 @@ a contract test (`packages/kobe/test/daemon/web-exposure.test.ts`).
 
 ### Teardown Hook
 
-The daemon is the single writer for the task index. For browser task deletion
-and archive, the daemon web route also performs the matching session cleanup:
-a committed `task.delete` / `task.archive` (when actually archiving) triggers
-`tearDownTaskSession`, stopping the task's sessions owned by the standalone PTY
-Host. Browser-sidecar PTYs are a separate owner and are not covered by this
-hook. Un-archive (`archived: false`) deliberately does NOT tear down.
+The daemon is the single writer for the task index. For browser task deletion,
+the daemon web route also performs the matching session cleanup: a committed
+`task.delete` triggers `tearDownTaskSession`, stopping the task's sessions owned
+by the standalone PTY Host. Browser-sidecar PTYs are a separate owner and are
+not covered by this hook.
 
 ## SPA routes
 
@@ -147,9 +146,9 @@ never a column.
 **What lands in each column.** Backlog shows the repo's **issues** plus any
 tasks still in `backlog` status; `in_progress` / `in_review` show **tasks**;
 Done shows both. **Dedup is by link:** an issue linked to a LIVE task (status
-not `done`/`canceled`/`error`, not archived) is hidden — it's represented by
-its task card, which carries a `#<issueId>` back-link chip. Deleting or
-archiving that task resurfaces its issue in Backlog. Issues are non-optimistic
+not `done`/`canceled`/`error`) is hidden — it's represented by its task card,
+which carries a `#<issueId>` back-link chip. Deleting that task resurfaces its
+issue in Backlog. Issues are non-optimistic
 (the daemon `issue.snapshot` push is truth), but an issue is optimistically
 hidden the moment `quickStartIssue` resolves with a `taskId`, so there's no
 flash of a duplicate card before the snapshot catches up.
@@ -235,3 +234,48 @@ since there's no ambient browser session to ride.
 The browser-facing HTTP routes live at the daemon-owned seam, so the Origin
 policy, RPC allowlist, and event-channel filtering are enforced before a browser
 request reaches daemon state mutation.
+
+### Web bearer token
+
+Origin is a CSRF control, not authentication. Browsers attach it on their own,
+so it stops another site's JavaScript from driving the daemon — but a request
+with no `Origin` at all (any `curl`, any script) passes that check by design.
+With 22 RPCs marked `web: true`, including `task.setCommand` (which sets the
+engine's launch argv, i.e. arbitrary command execution), the Origin check alone
+left anything able to open a socket to the port able to drive the daemon.
+
+So every web-transport request must also present a **bearer token**
+([`web-token.ts`](../../packages/kobe-daemon/src/daemon/web-token.ts)). The two
+checks stack rather than replace one another: Origin answers "which page is
+asking", the token answers "is this caller entitled at all". A valid token does
+not license a cross-origin page, and a same-origin page without the token is
+still refused.
+
+- **Where it lives** — 32 random bytes in `<ROVE_HOME>/.rove/web-token`, mode
+  `0600` inside a `0700` directory, so on a shared machine another local user
+  can still reach the loopback port but cannot read the secret. Its own file
+  rather than a field in `state.json`, because state.json is user-editable
+  preferences that get pasted into bug reports. Pre-existing loose modes are
+  re-tightened on every read: `mode:` on `mkdirSync`/`writeFileSync` binds only
+  at creation, so remediating only on create would fix every install except the
+  already-exposed ones.
+- **How the SPA gets it** — the daemon injects
+  `<meta name="rove-web-token">` into `index.html` as it serves it. There is
+  deliberately **no endpoint** that hands out the token: to be reachable before
+  the SPA holds one it would have to be unauthenticated, which is the very hole
+  the token closes.
+- **Two channels** — `Authorization: Bearer <token>` for everything on `fetch`;
+  `?token=` for the `/events` SSE stream only, because `EventSource` cannot set
+  a request header. The query channel is weaker (it lands in logs) and is
+  acceptable only because this server is loopback-bound.
+- **Rotation** — delete the file and restart the daemon; the next read mints a
+  fresh token. That is also the response to a leaked token.
+- **Exempt** — `/__kobe_web`, the health probe a starting daemon uses to detect
+  a port already held. It must answer before any token is in hand.
+- **Version skew** — a new SPA against an old daemon works (the header is
+  ignored). An old SPA, or a script that predates the token, gets a `401` whose
+  body carries a `hint` and `nextCommandArgs` naming the fix, in the shape the
+  CLI's typed errors use.
+
+In `vite dev` Vite serves the HTML, so nothing injects the tag; set
+`VITE_ROVE_WEB_TOKEN` to the file's contents to exercise the real path.

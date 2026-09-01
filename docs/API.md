@@ -72,7 +72,7 @@ rove api land --task-id a              # merge the winning branch
 - `rove api <verb> --help` prints that verb's usage and exits 0.
 
 Flag parsing: `--key value` and `--key=value` both work; boolean flags may
-be given bare (`--force` ⇒ true) or explicitly (`--archived=false`);
+be given bare (`--force` ⇒ true) or explicitly (`--pinned=false`);
 `--tab` / enum / positive-int values are validated against the verb's
 spec, and unknown flags are rejected (exit 2). `--repo` resolves relative
 paths against `$PWD` (`~` expanded). `spawn-task` is an alias of `add`.
@@ -105,7 +105,11 @@ replacement in `nextCommandArgs`.
 
 ## read
 
-- `list`: list all tasks (incl. archived). Returns `{ tasks }`.
+- `list`: list all tasks. Returns `{ tasks, activeTaskId }` — `activeTaskId`
+  is the shared focus that verbs using the implicit target (`send`,
+  `pane-open`, `pane-close`, `read-output` without `--task-id`) default to;
+  `null` means no active task. Reading it back is the audit trail for any
+  delivery that omitted `--task-id`.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
@@ -121,13 +125,24 @@ replacement in `nextCommandArgs`.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
   task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
-  = the protocol derived from it.
+  = the protocol derived from it. `.task.prompt` = the full text of the
+  prompt `add --prompt` delivered into the task's engine (verbatim, never
+  truncated), recorded at delivery time — it is the durable copy of the task
+  brief, surviving a dead engine or lost context where the engine transcript
+  does not; absent when the task was created without a prompt or the paste
+  never landed. `.task.baseRef` = the branch the task was cut from
+  (`add --base-branch`), the fork point `collect` measures against.
+  `.task.prStatus` = the branch's PR as the daemon last polled it
+  (`lifecycle`, `number`, `url`, `lastCheckedAt`) — including
+  `.prStatus.checkState`: `none` (no PR) / `pending` / `passing` / `failing` /
+  `unknown`. This is Rove's CI truth for the branch, and `passing` is what
+  "CI is green" means; a local test run is a different claim. Absent until
+  the poller has seen a PR for the branch.
 - `collect [--task-ids a,b,c] [--group GROUPID] [--repo PATH]`: read-only
   health snapshot of a parallel round — the one read that answers "what is
   this round's status right now" without fanning out to `get-task` per task.
   Select the tasks by fan-out round (`--group`, the `groupId` that
-  `add --count` returns), by repo, or by explicit ids; `--group` spans repos
-  and skips archived siblings.
+  `add --count` returns), by repo, or by explicit ids.
 
   Per task: identity, branch, lineage (`.dispatcher`, `.groupId`), plus
 
@@ -151,7 +166,12 @@ replacement in `nextCommandArgs`.
     task cannot land as-is, however it reported itself.
   - `.base` — committed work: `ahead` (commits vs the base branch) and a
     diffstat. `ahead: 0` against a resolved `baseRef` is the "reported
-    succeeded, committed nothing" tell.
+    succeeded, committed nothing" tell. `baseRef` is the task's RECORDED fork
+    point (`add --base-branch`) when it has one — tasks cut from
+    `release/2.x` are measured against `release/2.x`, not against a guessed
+    `main`; only records predating the field (or a recorded ref that no
+    longer resolves) fall back to the `origin/HEAD` → `main` → `master`
+    guess.
 
   Read-only by contract: it starts no engines, writes nothing, and changes
   no task state.
@@ -180,9 +200,12 @@ replacement in `nextCommandArgs`.
 - `inspect [--task-id ID]` *(offline)*: diagnostics in one read, across four
   sections: `daemon` (raw per-task/per-tab activity entries), `sessions`
   (PTY inventory joined with a live process-tree walk; dead sessions carry
-  `exit`), `sessionExits` (durable death records: exit `code`/`signal`/`at`
-  plus a plain-text output `tail`, kept in `pty-exits.json` so they survive
-  the PTY host's idle-exit; abnormal exits only), and `tabs` (the
+  `exit`), `sessionExits` (durable death records, newest first: exit
+  `code`/`signal`/`at` plus a plain-text output `tail`, kept in
+  `pty-exits.json` so they survive the PTY host's idle-exit. `layer: "pty"`
+  is the terminal process, abnormal exits only; `layer: "engine"` is the AI
+  process gone from a still-running terminal, and adds `vendor` and
+  `parentAlive`), and `tabs` (the
   snapshots the sidebar names its rows from, reconciled against the live
   session inventory: a task whose snapshot is missing an alive
   `<taskId>::tab-N` session reports those tab ids under `unregistered`,
@@ -203,6 +226,12 @@ replacement in `nextCommandArgs`.
   convention (inferred from its existing local + origin branches, e.g.
   `feat/login-flow` in a type-prefixed repo, `login-flow` in a bare-slug or
   empty repo; name collisions get a short `-2`/`-3` suffix).
+  `--base-branch` cuts the new branch from that ref instead of the repo's
+  current HEAD and is persisted on the task (`.task.baseRef`) — the fork
+  point `collect` measures against, durable across daemon restarts. The
+  delivered `--prompt` text is persisted too (`.task.prompt`) — the durable
+  copy of the task brief; it survives a dead engine or lost context, where
+  the engine's own transcript does not.
 
   **Parallel attempts** live here too: `--count N` spawns N sibling tasks of
   the SAME prompt, each with its own worktree and branch, sharing one
@@ -241,7 +270,8 @@ placeholder branch to a descriptive name. Prompts into existing sessions
 
 ## drive
 
-- `send [--task-id ID] --prompt TEXT [--tab TAB] [--command CMD] [--plain]`: paste a
+- `send [--task-id ID] --prompt TEXT [--tab TAB] [--command CMD] [--plain]
+  [--allow-empty]`: paste a
   follow-up into a task's running engine (one full turn). Without
   `--task-id`, a task that has a `dispatcher` on record replies to that
   exact tab, falling back to the dispatcher task's live canonical engine
@@ -265,6 +295,33 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
+
+  A prompt opening with `succeeded:` is checked against the SENDER's own
+  branch before any delivery: sent from a verified managed task whose branch
+  has 0 commits, it is refused with `EMPTY_SUCCESS_REPORT` and nothing is
+  delivered. The claim and the evidence are both in hand at that moment, and
+  a report is what a coordinator acts on — `land`'s `EMPTY_BRANCH` catches
+  the same mismatch two steps later, after the coordinator has believed it.
+  The check is deliberately narrow: it needs a verified sender identity, a
+  managed (non-`main`, non-`dir`) task, and a definite `ahead === 0` — an
+  unresolvable base reads `null` and never refuses. `--allow-empty` states an
+  intentional empty success (an investigation, a review) and delivers.
+
+  **Delivery result fields.** Before writing a byte, delivery waits for the
+  engine to announce bracketed paste (DECSET 2004), which is the engine
+  saying it has taken its tty into raw mode and started reading. This is not
+  a nicety: a pty in canonical mode DISCARDS input past the tty's 1024-byte
+  buffer rather than blocking, so a prompt written into a still-booting
+  engine used to arrive as a 1024-byte prefix with no error anywhere.
+
+  - `engineReady` — the engine was confirmed reading when the write happened.
+  - `delivered` — the prompt was written to the engine's pty.
+  - `bytes` — how many bytes were written (prompt plus paste wrapper).
+  - `promptEcho` — `"confirmed"` when the prompt's tail was seen echoed back,
+    `"unconfirmed"` otherwise. Unconfirmed is INCONCLUSIVE, not failure:
+    engines that collapse a large paste into a `[Pasted text #1]` placeholder
+    never echo the text, so a positive proves delivery while a negative
+    merely fails to.
 - `dispatch --task-id ID --prompt TEXT [--tab TAB]`: route text into a
   task's live session via the daemon's `session.deliver` channel (the
   dispatcher's messenger; see
@@ -288,7 +345,13 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   shell (`-ilc`, so shell-rc `PATH`/exports apply, same as the engine tab)
   and the pane closes when it exits; omit it for an interactive
   shell. Broadcast over the daemon's `tab.open` channel, so an attached TUI
-  showing the task performs the split (headless, nothing happens). Task
+  showing the task performs the split (headless, nothing happens). The result
+  carries the resolved `title` — the label `pane-close --title` must match,
+  derived from the command's first word when `--title` is omitted — and
+  `clients`, the attached-connection count: `0` means nobody performed the
+  split, so an agent must not report "pane opened" on that verdict. (The
+  calling CLI is itself one connection, so `1` does not prove a TUI is
+  listening; `0` is the unambiguous case.) Task
   defaults to `$ROVE_TASK_ID` (or its Kobe alias), then the active task. How far splits can go
   is decided by the terminal's size: a split that would shrink any pane
   below the minimum usable size (20×6 cells) falls back to a tab.
@@ -297,10 +360,16 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   `--title`, the title it was opened with; `--tab tab-N` scopes the match to
   one tab. Engine panes are never closed. Broadcast over the daemon's
   `tab.close` channel; an attached TUI performs the close (headless, nothing
-  happens).
+  happens). The result's `clients` is the reach signal: `0` = no attached TUI
+  performed the close (same semantics as `dispatch`'s).
 - `notify --title TEXT [--kind KIND] [--task-id ID] [--source TAG]`: show
   a toast in every attached Rove UI. `done` / `needs_input` / `error` get
-  severity styling; any other kind renders neutrally.
+  severity styling; any other kind renders neutrally. The result's `clients`
+  is the reach signal: `0` = no attached UI showed the toast (headless).
+- `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
+  ask the human for a line of text through the attached TUI's input dialog;
+  blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
+  and returns `{ value }` or `{ cancelled, reason }`.
 - `engine-report --kind KIND [--task-id ID] [--engine ID] [--tab TAB]
   [--detail JSON]`: report a normalized engine-activity verb for a task,
   the public face of the `engine.reportEvent` RPC the built-in hook adapters
@@ -358,9 +427,10 @@ missing (`gh-missing` / `auth` / `no-remote`) rather than a generic error.
 
 ## routine
 
-Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. Every firing creates a
-**fresh task** (worktree + branch + engine session) with the prompt as its
-first message. A run is an ordinary task you can open and keep talking to.
+Scheduled agent tasks (Routines): a cron rule + a prompt + a repo. By default
+every firing creates a **fresh task** (worktree + branch + engine session) with
+the prompt as its first message; `--persistent-session` instead re-delivers into
+ONE standing task. A run is an ordinary task you can open and keep talking to.
 An enabled routine keeps the daemon alive so schedules fire with no TUI
 attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
@@ -368,16 +438,26 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 - `routine-list`: every routine with its next run time.
 - `routine-create --repo PATH --name N --prompt TEXT --schedule CRON
   [--vendor V] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
-  [--grace MIN] [--disabled]`: schedule a prompt. `--schedule` is five-field
+  [--grace MIN] [--persistent-session] [--disabled]`: schedule a prompt. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`).
 - `routine-update --id ID [...]`: change any field. A new `--schedule`
   re-anchors the next run; `--precheck ''` clears the precheck.
 - `routine-set-enabled --id ID --enabled BOOL`: pause / resume.
 - `routine-run-now --id ID`: run immediately, skipping the precheck. Does
   not shift the schedule.
-- `routine-runs --id ID`: run history, newest first.
+- `routine-runs --id ID`: run history, newest first. `revived` and `deferred`
+  are standing-session outcomes — see below.
 - `routine-delete --id ID`: delete it and its history (tasks it already
   created are untouched).
+
+**`--persistent-session`** keeps ONE task per routine and delivers each firing
+into it, so a daily check can build on yesterday. Its task is folded behind the
+sidebar's `N routine sessions` count row (still findable by search, still
+Inbox-reachable). Leave it off for a routine that edits code: a week of runs on
+one branch is a branch nobody can land. Two extra run statuses come with it —
+`revived` (the engine had exited, so it was respawned in the same worktree; the
+files carried over, the conversation did not) and `deferred` (the composer was
+busy, so the prompt is queued in the Inbox rather than lost — a success).
 
 **`--precheck`** runs a shell command in the repo before the engine starts;
 a non-zero exit skips the run *without* creating a task. Use it so a schedule
@@ -388,16 +468,10 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 
 ## lifecycle
 
-- `archive --task-id ID [--archived=false]`: archive/unarchive.
-  Non-destructive: worktree, branch, and history stay. A manual "hide the
-  row" override. Archiving stops the task's live engine session (the data
-  survives; unarchiving rebuilds it on next entry). Once work is merged, `delete` (branch survives) is the
-  normal cleanup path; see
-  [`design/task-lifecycle.md`](./design/task-lifecycle.md).
 - `pin --task-id ID [--pinned=false]`: pin/unpin a task to the top of the
   sidebar.
 - `land --task-id ID [--strategy merge|squash] [--delete-branch]
-  [--then-archive] [--remove-worktree=false]`: merge a task's branch back into its
+  [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
   a dirty base checkout and a branch with no commits ahead of base
   (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when uncommitted work is
@@ -412,10 +486,33 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   checkout, and the worktree the caller is running from are all refused, and
   the outcome lands in the result's `worktree` field
   (`{ removed, reason? }`) instead of failing the land.
-- `delete --task-id ID [--force] [--delete-branch]`: remove a task and its
-  worktree. **The git branch stays** unless `--delete-branch` is passed;
-  git is the durable record, the task row is not. Needs `--force` on a
+- `delete --task-id ID [--force] [--delete-branch] [--wait]`: remove a task
+  and its worktree. **The git branch stays** unless `--delete-branch` is
+  passed; git is the durable record, the task row is not. Needs `--force` on a
   dirty worktree; `--force` never implies `--delete-branch`.
+
+  **The removal runs in the background** — tearing down a worktree can take
+  tens of seconds — so the default reply reports only that the request was
+  taken: `{ taskId, queued, status }` with `status` either `queued` or
+  `not_found`. `queued: false` means no deletion was scheduled at all (no
+  task by that id), and it is deliberately distinguishable from acceptance:
+  the two used to return the same empty object, so a caller deleting a list
+  could not tell which entries were even accepted.
+
+  **`--wait`** follows the deletion to its outcome and reports it:
+
+  - `removed` — the worktree and the task row are gone.
+  - `failed` — removal failed and `error` carries git's own message (a
+    locked or non-empty directory, a permissions problem). The task KEEPS its
+    row, with `deletion.phase: "error"`, so it stays visible and re-deletable.
+    Before this existed the failure reached `daemon.log` and nothing else,
+    which made a failed delete indistinguishable from a successful one.
+  - `pending` — still running after 60s. Not a failure: the daemon still owns
+    it, so look again with `list` rather than retrying the delete.
+
+  A deletion's state is also readable at any time from `list`: the task's
+  `deletion` field carries `phase` (`queued` / `running` / `error`) and, on
+  `error`, the message.
 
 ## worktree
 
@@ -426,11 +523,7 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `adopt --repo PATH --worktree PATH [--branch B] [--command CMD] [--title T]`:
   import an existing git worktree as a Rove task.
 
-## feedback + other
+## feedback
 
 - `feedback --title T --body TEXT [--category SLUG]` *(offline)*: create a
   GitHub Discussion in the Rove repository's Feedback category via `gh`.
-- `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
-  ask the human for a line of text through the attached TUI's input dialog;
-  blocks until answered/cancelled/timeout (default 120000 ms, max 600000)
-  and returns `{ value }` or `{ cancelled, reason }`.

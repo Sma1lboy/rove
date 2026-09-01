@@ -1,7 +1,9 @@
 /**
  * kv-backed preference helpers for the settings dialog (issue #15, G3) —
- * the General/Dev getter+toggle closures split out of `./index.tsx` to
- * keep it under the file-size cap. All reads are plain `kv.get` — the
+ * the General/Dev getter+toggle closures, kept apart from `./index.tsx` so the
+ * dialog's structure (which sections, which is open) never mixes with the
+ * per-preference kv keys and their normalizers. Adding a preference edits only
+ * this file. All reads are plain `kv.get` — the
  * KVProvider re-renders the tree on every `kv.set`, so the values are
  * recomputed per render. Sections receive the whole bundle as a single
  * `prefs: SettingsPrefs` prop and call the getters directly.
@@ -9,8 +11,8 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
-import { ARCHIVED_HISTORY_PREVIEW_KEY } from "../../../state/archived-history"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
+import { COMPOSER_GATE_KEY } from "../../../state/composer-gate"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
@@ -40,6 +42,11 @@ import {
   type EditorKind,
   normalizeEditorKind,
 } from "../../../tui/lib/editor-prefs"
+import {
+  PREFIX_TAP_PRESENTATION_KEY,
+  type PrefixTapPresentation,
+  normalizePrefixTapPresentation,
+} from "../../../tui/lib/prefix-tap-presentation"
 import type { KVContext } from "../../context/kv"
 import { useT } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
@@ -70,9 +77,13 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function toggleCrossTask(): void {
     kv.set("notifications.crossTask.enabled", !crossTaskEnabled())
   }
-  // Sidebar hover tooltips: opt-in, default OFF (owner call 2026-07-28) —
-  // the item info they show is nice-to-have, not essential.
 
+  function prefixTapPresentation(): PrefixTapPresentation {
+    return normalizePrefixTapPresentation(kv.get(PREFIX_TAP_PRESENTATION_KEY))
+  }
+  function selectPrefixTapPresentation(next: PrefixTapPresentation): void {
+    kv.set(PREFIX_TAP_PRESENTATION_KEY, next)
+  }
   // Appearance: how split leaves draw — full box frames or single dividers.
   function splitStyle(): SplitStyle {
     return normalizeSplitStyle(kv.get(SPLIT_STYLE_KEY))
@@ -129,11 +140,13 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   function toggleDispatcher(): void {
     kv.set(DISPATCHER_KEY, !dispatcherOn())
   }
-  function archivedHistoryOn(): boolean {
-    return kv.get(ARCHIVED_HISTORY_PREVIEW_KEY, false) === true
+  // ON by default (the only default-on switch here) — it is an escape hatch
+  // for a gate that reads a vendor's screen layout, not a feature to opt into.
+  function composerGateOn(): boolean {
+    return kv.get(COMPOSER_GATE_KEY, true) !== false
   }
-  function toggleArchivedHistory(): void {
-    kv.set(ARCHIVED_HISTORY_PREVIEW_KEY, !archivedHistoryOn())
+  function toggleComposerGate(): void {
+    kv.set(COMPOSER_GATE_KEY, !composerGateOn())
   }
 
   // Editor preference: which editor the file tree's `e` key launches.
@@ -270,6 +283,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleSound,
     crossTaskEnabled,
     toggleCrossTask,
+    prefixTapPresentation,
+    selectPrefixTapPresentation,
     splitStyle,
     selectSplitStyle,
     zenDefaultOn,
@@ -282,8 +297,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
     toggleAutoStatus,
     dispatcherOn,
     toggleDispatcher,
-    archivedHistoryOn,
-    toggleArchivedHistory,
+    composerGateOn,
+    toggleComposerGate,
     editorKind,
     cycleEditorKind,
     editorCustomCommand,

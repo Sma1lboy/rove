@@ -27,7 +27,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,
@@ -54,7 +53,7 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 async function labelLines(frame: () => Promise<string>): Promise<Record<string, number>> {
   const lines = (await frame()).split("\n")
   const out: Record<string, number> = {}
-  for (const label of ["Kanban", "Routines"]) {
+  for (const label of ["Kanban", "Routines", "Issues"]) {
     const index = lines.findIndex((line) => line.includes(label))
     if (index >= 0) out[label] = index
   }
@@ -69,9 +68,9 @@ test("every destination gets its own line, in declared order", async () => {
   const rendered = Object.entries(lines)
     .sort(([, a], [, b]) => a - b)
     .map(([label]) => label)
-  expect(rendered).toEqual(["Kanban", "Routines"])
+  expect(rendered).toEqual(["Kanban", "Routines", "Issues"])
   // Distinct rows — a horizontal strip would share lines.
-  expect(new Set(Object.values(lines)).size).toBe(2)
+  expect(new Set(Object.values(lines)).size).toBe(3)
 })
 
 test("no label is truncated at the 24-cell rail width", async () => {
@@ -104,12 +103,12 @@ test("the task list stays visible whatever the rail selects", async () => {
 
 test("nav-core cycling wraps in both directions", () => {
   expect(cycleNavTarget("kanban", 1)).toBe("automations")
-  expect(cycleNavTarget("automations", 1)).toBe("kanban")
-  expect(cycleNavTarget("kanban", -1)).toBe("automations")
-  // Neither `terminal` nor the hidden `issues` page is on the rail, so there
-  // is nowhere to cycle from either.
+  expect(cycleNavTarget("automations", 1)).toBe("issues")
+  expect(cycleNavTarget("issues", 1)).toBe("kanban")
+  expect(cycleNavTarget("kanban", -1)).toBe("issues")
+  expect(cycleNavTarget("issues", -1)).toBe("automations")
+  // `terminal` is not on the rail — it is reached by selecting a task.
   expect(cycleNavTarget("terminal", 1)).toBeNull()
-  expect(cycleNavTarget("issues", 1)).toBeNull()
 })
 
 test("opening a rail page carries focus into the content pane", () => {

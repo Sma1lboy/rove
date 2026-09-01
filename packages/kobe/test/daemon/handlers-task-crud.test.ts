@@ -7,10 +7,32 @@
  * in `handler-test-context.ts` so neither suite imports the other.
  */
 
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import { SERIALIZED_TASK, TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
 describe("daemon handler registry — tasks, issues, worktrees", () => {
+  describe("task.list", () => {
+    // `activeTaskId` is the only read of the shared focus that verbs using
+    // the implicit target (`send`/`pane-open`/`pane-close`/`read-output`
+    // without `--task-id`) actually landed on — without it a misdirected
+    // delivery is unauditable.
+    it("returns the serialized tasks plus the active task id", async () => {
+      const { ctx } = fakeCtx({
+        listTasks: () => [TASK],
+        activeTaskSignal: () => () => "t-active",
+      })
+      await expect(dispatch("task.list", {}, ctx)).resolves.toEqual({
+        tasks: [SERIALIZED_TASK],
+        activeTaskId: "t-active",
+      })
+    })
+
+    it("reports activeTaskId: null when no task is active or the signal is unavailable", async () => {
+      const { ctx } = fakeCtx({ listTasks: () => [TASK] })
+      await expect(dispatch("task.list", {}, ctx)).resolves.toEqual({ tasks: [SERIALIZED_TASK], activeTaskId: null })
+    })
+  })
+
   describe("task CRUD", () => {
     it("task.create returns { taskId, task } and forwards normalized options", async () => {
       const calls: unknown[] = []
@@ -57,6 +79,18 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.rename", { taskId: "t1" }, ctx)).rejects.toThrow("title is required")
     })
 
+    it("task.setPrompt records the delivered brief and validates both fields", async () => {
+      const prompts: Array<[string, string]> = []
+      const { ctx } = fakeCtx({
+        setPrompt: async (id: string, prompt: string) => {
+          prompts.push([id, prompt])
+        },
+      })
+      await expect(dispatch("task.setPrompt", { taskId: "t1", prompt: "the brief" }, ctx)).resolves.toEqual({})
+      expect(prompts).toEqual([["t1", "the brief"]])
+      await expect(dispatch("task.setPrompt", { taskId: "t1" }, ctx)).rejects.toThrow("prompt is required")
+    })
+
     it("task.reorder forwards a validated batch and returns the empty object", async () => {
       const batches: unknown[] = []
       const { ctx } = fakeCtx({
@@ -90,7 +124,10 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
           return true
         },
       })
-      await expect(dispatch("task.delete", { taskId: "t1", force: true }, ctx)).resolves.toEqual({})
+      await expect(dispatch("task.delete", { taskId: "t1", force: true }, ctx)).resolves.toEqual({
+        taskId: "t1",
+        queued: true,
+      })
       expect(prepared).toEqual([["t1", { force: true }]])
       expect(rec.cleared).toEqual(["t1"])
       expect(rec.inboxTaskDeleted).toEqual(["t1"])
@@ -114,11 +151,65 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.deletions).toEqual([])
     })
 
+    // Regression (2026-08-29): a delete left no record of WHO asked, so an
+    // agent deleting somebody's live task was untraceable. The CLI sends its
+    // verified session; the handler must put it in the audit line — and must
+    // write that line even when the delete is REFUSED, since a refused
+    // destructive request is exactly as worth recording.
+    it("task.delete audits the caller's verified session, refusal included", async () => {
+      const lines: string[] = []
+      const spy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+        lines.push(String(chunk))
+        return true
+      })
+      const { ctx } = fakeCtx({
+        getTask: () => ({ id: "t1", title: "live work", kind: "task", branch: "feat/x", worktreePath: "/wt/x" }),
+        prepareTaskDeletion: async () => {
+          throw new Error("refused: DIRTY_WORKTREE")
+        },
+      })
+      await expect(
+        dispatch("task.delete", { taskId: "t1", requestedByTaskId: "01CALLER", requestedByTabId: "tab-3" }, ctx),
+      ).rejects.toThrow("DIRTY_WORKTREE")
+      spy.mockRestore()
+
+      const log = lines.join("")
+      expect(log).toContain("task-deletion-audit")
+      expect(log).toContain("requested task t1")
+      expect(log).toContain("by=01CALLER::tab-3")
+      expect(log).toContain("/wt/x")
+    })
+
     it("task.delete does not enqueue an unknown task", async () => {
       const { ctx, rec } = fakeCtx({ prepareTaskDeletion: async () => false })
-      await expect(dispatch("task.delete", { taskId: "missing" }, ctx)).resolves.toEqual({})
+      await expect(dispatch("task.delete", { taskId: "missing" }, ctx)).resolves.toEqual({
+        taskId: "missing",
+        queued: false,
+      })
       expect(rec.deletions).toEqual([])
       expect(rec.inboxTaskDeleted).toEqual(["missing"])
+    })
+
+    // The point of the whole change: a REFUSED delete must not be reportable
+    // as a successful one. Both outcomes used to return a bare `{}`, so a
+    // caller deleting a list of tasks could not tell which ones were even
+    // scheduled — the wire carried no evidence either way. Asserting the two
+    // responses are UNEQUAL is what fails if `queued` ever stops riding along,
+    // whatever value it settles on.
+    it("task.delete reports a refusal differently from an acceptance", async () => {
+      const accept = await dispatch(
+        "task.delete",
+        { taskId: "t1" },
+        fakeCtx({ prepareTaskDeletion: async () => true }).ctx,
+      )
+      const refuse = await dispatch(
+        "task.delete",
+        { taskId: "t1" },
+        fakeCtx({ prepareTaskDeletion: async () => false }).ctx,
+      )
+      expect(accept).not.toEqual(refuse)
+      expect(accept).toMatchObject({ queued: true })
+      expect(refuse).toMatchObject({ queued: false })
     })
 
     it("task.move rejects a bogus direction with the legacy wording", async () => {
@@ -151,42 +242,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
           payload: { repoRoot: "/repo", exists: true, nextId: 2, issues: [] },
         },
       ])
-    })
-  })
-
-  describe("worktree.archiveRemoved", () => {
-    const TASKS = [
-      { id: "main", repo: "/repo", worktreePath: "/repo" },
-      { id: "sub", repo: "/repo", worktreePath: "/repo/.kobe/worktrees/demo" },
-    ]
-
-    it("archives the task whose worktree was removed", async () => {
-      const archived: Array<[string, boolean | undefined]> = []
-      const { ctx } = fakeCtx({
-        listTasks: () => TASKS,
-        setArchived: async (id: string, value?: boolean) => {
-          archived.push([id, value])
-        },
-      })
-      await expect(
-        dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/demo" }, ctx),
-      ).resolves.toEqual({ archived: true, taskId: "sub" })
-      expect(archived).toEqual([["sub", true]])
-    })
-
-    it("is a no-op when no task matches the removed worktree exactly", async () => {
-      const archived: unknown[] = []
-      const { ctx } = fakeCtx({
-        listTasks: () => TASKS,
-        setArchived: async (id: string) => {
-          archived.push(id)
-        },
-      })
-      // An untracked worktree under /repo must NOT archive the main task.
-      await expect(
-        dispatch("worktree.archiveRemoved", { worktreePath: "/repo/.kobe/worktrees/unknown" }, ctx),
-      ).resolves.toEqual({ archived: false })
-      expect(archived).toEqual([])
     })
   })
 

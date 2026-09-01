@@ -1,16 +1,10 @@
 /**
  * Pure list-shaping helpers for the sidebar pane.
  *
- * Wave 4.5 dropped repo grouping.
- * The sidebar is now a flat list of task rows split into two views:
- *
- *   - "Working session" (active) — `task.archived === false`
- *   - "Archives"                  — `task.archived === true`
- *
- * The user toggles between views with `[` / `]` and toggles the archived
- * flag on the cursor task with `a`. Repo / branch / worktree metadata
- * for the SELECTED task is shown in the topbar instead — see
- * `src/tui/component/topbar.tsx`.
+ * Wave 4.5 dropped repo grouping; the archive view was removed in issue #75.
+ * The sidebar is now a flat list of task rows showing the working set only.
+ * Repo / branch / worktree metadata for the SELECTED task is shown in the
+ * topbar instead — see `src/tui/component/topbar.tsx`.
  *
  * No grouping = no per-project headers in the row list. {@link buildRows}
  * returns a filtered, ordered task list with each row's `flatIndex` so the
@@ -26,18 +20,13 @@
  *
  * No reactivity here: pure functions over `readonly Task[]`. The Solid
  * component (`Sidebar.tsx`) wraps these in `createMemo` so they recompute
- * only when the upstream task signal or view changes.
+ * only when the upstream task signal changes.
  */
 
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
 import type { Task } from "@/types/task"
 import { fuzzyMatch } from "./fuzzy"
 
-/**
- * Which sidebar view is active. Rendered as a tab strip at the top of
- * the pane; switched with `[` (left) and `]` (right).
- */
-export type SidebarView = "active" | "archived"
 export type TaskSortMode = "default" | "recent"
 
 /**
@@ -54,33 +43,20 @@ export type SidebarRowSections = {
 }
 
 /**
- * Filter tasks by the active view. Active view (= "Working session")
- * shows `archived: false` rows; archived view shows the rest. The input
- * order is preserved within each view — the orchestrator owns ordering.
- */
-export function filterByView(tasks: readonly Task[], view: SidebarView): Task[] {
-  const wantArchived = view === "archived"
-  return tasks.filter((t) => t.archived === wantArchived)
-}
-
-/**
- * Build the flat row list for rendering, filtered by view. Each task row
- * carries its `flatIndex` — its position in the navigable id list — so
- * the renderer can compare against the cursor without recounting.
+ * Build the flat row list for rendering. Each task row carries its
+ * `flatIndex` — its position in the navigable id list — so the renderer
+ * can compare against the cursor without recounting.
  *
- * Row order in the active ("Working session") view:
- *   1. Pinned "main" tasks first, ordered by repo basename.
+ * Row order:
+ *   1. Pinned "main" tasks first, in stored order.
  *   2. User-pinned regular tasks (`pinned === true`), in input order.
  *   3. Other regular tasks (`kind === "task"`), in input order.
  *
- * Archived view: same structure (main rows the user archived float to
- * the top of the archives list), still ordered by repo basename.
- *
  * `searchQuery` — optional case-insensitive subsequence filter applied
- * after view filtering, before grouping. Haystack per task is
- * `title + " " + basename(repo)`. Empty / undefined query is a no-op.
- * Search preserves the main → pinned → regular ordering so users
- * filtering inside a long list still see the same predictable shape.
+ * before grouping. Haystack per task is `title + " " + basename(repo)`.
+ * Empty / undefined query is a no-op. Search preserves the main → pinned
+ * → regular ordering so users filtering inside a long list still see the
+ * same predictable shape.
  *
  * `projectFilter` scopes BOTH sections to the one repo (owner 2026-07-17):
  * the filter label lives on the PROJECTS header, so the PROJECTS list must
@@ -101,17 +77,13 @@ export function filterByView(tasks: readonly Task[], view: SidebarView): Task[] 
  */
 export function buildRows(
   tasks: readonly Task[],
-  view: SidebarView,
   searchQuery?: string,
   sortMode: TaskSortMode = "default",
   projectFilter?: string | null,
 ): SidebarRow[] {
-  const filteredByView = filterByView(tasks, view)
   const q = searchQuery?.trim() ?? ""
   const projectKey = projectFilter ? sidebarProjectKey(projectFilter) : null
-  const filtered = q
-    ? filteredByView.filter((t) => fuzzyMatch(q, `${t.title} ${repoBasename(t.repo)}`))
-    : filteredByView
+  const filtered = q ? tasks.filter((t) => fuzzyMatch(q, `${t.title} ${repoBasename(t.repo)}`)) : tasks
   const main: Task[] = []
   const pinnedRegular: Task[] = []
   const regular: Task[] = []
@@ -197,8 +169,7 @@ export function sidebarProjectLabel(repo: string, repos: readonly string[]): str
     .join("/")
 }
 
-export function buildProjectOptions(tasks: readonly Task[], view: SidebarView): SidebarProjectOption[] {
-  const wantArchived = view === "archived"
+export function buildProjectOptions(tasks: readonly Task[]): SidebarProjectOption[] {
   const byKey = new Map<string, { repo: string; count: number }>()
   for (const task of tasks) {
     // A standalone `dir` task has no project — it must not mint a
@@ -208,7 +179,7 @@ export function buildProjectOptions(tasks: readonly Task[], view: SidebarView): 
     const next = byKey.get(key) ?? { repo: task.repo, count: 0 }
     if (task.kind === "main") {
       next.repo = task.repo
-    } else if (task.archived === wantArchived) {
+    } else {
       next.count += 1
     }
     byKey.set(key, next)
@@ -313,7 +284,6 @@ export function sameSidebarRowTask(a: Task, b: Task): boolean {
       a.branch === b.branch &&
       a.worktreePath === b.worktreePath &&
       a.status === b.status &&
-      a.archived === b.archived &&
       a.pinned === b.pinned &&
       a.vendor === b.vendor)
   )

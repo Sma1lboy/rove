@@ -62,6 +62,13 @@ export const en = {
     /** Why engine-tab restarts are print-only */
     engineTabsWhy: "kills that tab's live engine session — your call, not doctor's",
 
+    /** This process's entry point was deleted out from under it */
+    staleInstall: "the install this Rove runs from no longer exists on disk",
+    /** The manual action for {@link staleInstall} */
+    staleInstallAction: "npm install -g @sma1lboy/rove, then relaunch Rove",
+    /** Why {@link staleInstall} is print-only */
+    staleInstallWhy: "doctor cannot reinstall Rove over the running process — a human has to, then relaunch",
+
     /** Why installs/logins are print-only */
     humanOnlyWhy: "doctor does not install software or log in to accounts for you",
     /** git missing from PATH */
@@ -71,7 +78,7 @@ export const en = {
     /** No engine has both a CLI binary and an account */
     noEngine: "no usable engine — no engine CLI is both installed and logged in",
     /** The manual action for {@link noEngine} */
-    noEngineAction: "install the claude, codex, or copilot CLI and log in",
+    noEngineAction: "install an engine CLI (claude, codex, copilot, or kimi) and log in",
     /** Windows only: no node, so the PTY host cannot start */
     windowsNode: "Node.js is missing — the Windows PTY host cannot start",
     /** The manual action for {@link windowsNode} */
@@ -111,11 +118,15 @@ export const zh: typeof en = {
     engineTabsAction: "在 TUI 里关闭并重开受影响的引擎 tab",
     engineTabsWhy: "会杀掉该 tab 的活动引擎会话 — 由你决定, doctor 不代劳",
 
+    staleInstall: "当前 Rove 所在的安装已从磁盘删除",
+    staleInstallAction: "npm install -g @sma1lboy/rove, 然后重新启动 Rove",
+    staleInstallWhy: "doctor 无法在运行中的进程上重装 Rove — 需要人工重装后重新启动",
+
     humanOnlyWhy: "doctor 不会替你安装软件或登录账号",
     git: "PATH 上找不到 git",
     gitAction: "用你的系统包管理器安装 git",
     noEngine: "没有可用引擎 — 没有任何引擎 CLI 同时满足已安装且已登录",
-    noEngineAction: "安装 claude、codex 或 copilot CLI 并登录",
+    noEngineAction: "安装任一引擎 CLI（claude、codex、copilot 或 kimi）并登录",
     windowsNode: "缺少 Node.js — Windows PTY host 无法启动",
     windowsNodeAction: "从 https://nodejs.org 安装 Node.js",
   },

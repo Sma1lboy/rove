@@ -106,7 +106,7 @@ describe("paneHintTokens", () => {
   test("files keeps its open/diff pair as the permanent short set", () => {
     const caps = paneHintTokens("files", "always").map((t) => t.msg)
     expect(caps).toEqual(["open", "diff"])
-    expect(paneHintTokens("files", "firstUse").map((t) => t.msg)).toEqual(["move", "fold", "open", "diff"])
+    expect(paneHintTokens("files", "firstUse").map((t) => t.msg)).toEqual(["move", "collapse", "open", "diff"])
   })
 
   test("an unbound row drops out of the hint instead of advertising a dead chord", () => {

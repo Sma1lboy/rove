@@ -11,7 +11,6 @@ function task(extra: Partial<SerializedTask> = {}): SerializedTask {
     worktreePath: "/wt",
     kind: "task",
     status: "active",
-    archived: false,
     pinned: false,
     createdAt: "x",
     updatedAt: "x",
@@ -31,11 +30,6 @@ describe("diffTask", () => {
       from: { title: "t", pinned: false },
       to: { title: "renamed", pinned: true },
     })
-  })
-
-  it("flags archivedNow only on the false→true flip", () => {
-    expect(diffTask(task(), task({ archived: true }))?.archivedNow).toBe(true)
-    expect(diffTask(task({ archived: true }), task())?.archivedNow).toBe(false)
   })
 
   it("flags prChanged via deep compare, outside `fields`", () => {

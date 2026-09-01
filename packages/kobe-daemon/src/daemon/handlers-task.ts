@@ -1,23 +1,37 @@
 /**
- * `task.*` (+ `project.forget`) daemon RPC handlers — split out of
- * `handlers.ts` (which was over the repo's 500-line file-size cap) purely
- * mechanically: same entries, same behavior, moved verbatim. See
- * `handlers.ts`'s doc comment for the registry's wire-compatibility
- * contract (byte-equivalent payloads, key order load-bearing) — unchanged
- * here.
+ * `task.*` (+ `project.forget`) daemon RPC handlers — the `task.` slice of the
+ * one registry, spread back into it by `handlers.ts`.
+ *
+ * The cut follows the RPC name prefix and nothing deeper: which file a handler
+ * lives in is decided by its wire name, so this is a long registry grouped by
+ * namespace rather than a responsibility boundary. Adding a `task.*` handler
+ * here and a `ui.*` one in `handlers-ui.ts` are the same edit.
+ *
+ * What the split does NOT relax: see `handlers.ts`'s doc comment for the
+ * registry's wire-compatibility contract (byte-equivalent payloads, key order
+ * load-bearing). Moving a handler between files must never change either.
  */
 
 import { logDaemonError } from "./crash-log.ts"
 import { optionalBoolean, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 import { serializeTask } from "./protocol.ts"
+import { auditDeletionRequested } from "./task-deletion-audit.ts"
 
 export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "task.list",
     web: true,
     handle(_payload, ctx: DaemonHandlerContext) {
-      return { tasks: ctx.orch.listTasks().map(serializeTask) }
+      // `activeTaskId` is the shared focus every verb using the implicit
+      // target reads when `--task-id` is omitted — without it in the list
+      // envelope, a misdirected delivery is unauditable. The signal is the
+      // same source server.ts seeds the active-task channel from; test
+      // doubles may not stub it, so absence reads as "no focus".
+      return {
+        tasks: ctx.orch.listTasks().map(serializeTask),
+        activeTaskId: ctx.orch.activeTaskSignal?.()?.() ?? null,
+      }
     },
   },
   {
@@ -58,18 +72,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "task.archive",
-    web: true,
-    async handle(payload, ctx) {
-      const taskId = requireString(payload, "taskId")
-      const archived = optionalBoolean(payload, "archived")
-      // `task.archived` now derives from the snapshot diff (plugins/task-diff.ts)
-      // so archive-via-worktree-removal and land --then-archive fire it too.
-      await ctx.orch.setArchived(taskId, archived)
-      return {}
-    },
-  },
-  {
     name: "task.rename",
     web: true,
     async handle(payload, ctx) {
@@ -84,6 +86,24 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
       await ctx.orch.setBranch(taskId, requireString(payload, "branch"))
+      return {}
+    },
+  },
+  {
+    name: "task.observeLanguage",
+    // NOT web-exposed: the only callers are Rove's own creation paths (CLI
+    // add, daemon automation/work-item start), which reach the daemon over
+    // the socket. The browser has no reason to write another task's
+    // observed language, and the web allowlist is a security contract —
+    // adding to it should be a deliberate act, not a reflex.
+    async handle(payload, ctx) {
+      // Observation, not configuration: the caller hands over the user's own
+      // prompt text and the orchestrator decides what (if anything) it says
+      // about their language. Text with no opinion in it writes nothing, so
+      // a bare "ok" cannot erase what a paragraph established.
+      const taskId = requireString(payload, "taskId")
+      const text = requireString(payload, "text")
+      await ctx.orch.observeLanguage(taskId, text)
       return {}
     },
   },
@@ -116,16 +136,38 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      const accepted = await ctx.orch.prepareTaskDeletion(taskId, {
-        force: optionalBoolean(payload, "force"),
-        deleteBranch: optionalBoolean(payload, "deleteBranch"),
-      })
+      const force = optionalBoolean(payload, "force")
+      const deleteBranch = optionalBoolean(payload, "deleteBranch")
+      // Audit BEFORE the accept: `prepareTaskDeletion` can throw
+      // (DirtyWorktreeError), and a refused destructive request is exactly as
+      // worth recording as an accepted one. Read the task here too — by the
+      // time the background runner finishes, it is gone from the index.
+      const task = ctx.orch.getTask(taskId)
+      const byTaskId = optionalString(payload, "requestedByTaskId")
+      auditDeletionRequested(
+        taskId,
+        task,
+        {
+          clientId: ctx.clientId,
+          ...(byTaskId
+            ? { requestedBy: { taskId: byTaskId, tabId: optionalString(payload, "requestedByTabId") || "tab-1" } }
+            : {}),
+        },
+        { force, deleteBranch },
+      )
+      const accepted = await ctx.orch.prepareTaskDeletion(taskId, { force, deleteBranch })
       ctx.activity.clearTask(taskId)
       // A hard task delete is an explicit user deletion, so it is the one
       // lifecycle action allowed to cascade its durable Inbox episodes.
       await ctx.inbox.deleteTaskBestEffort(taskId)
       if (accepted) ctx.deletions.enqueue(taskId)
-      return {}
+      // `accepted` is the whole point of the reply. Removal itself runs in the
+      // background (a worktree teardown can take tens of seconds), so this can
+      // only ever report that the request was TAKEN, never that it finished —
+      // and a refusal used to be indistinguishable from a success because both
+      // returned `{}`. `queued: false` means nothing was scheduled: the task id
+      // does not exist, so no deletion will ever run for it.
+      return { taskId, queued: accepted }
     },
   },
   {
@@ -137,7 +179,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const result = await ctx.orch.landTask(taskId, {
         strategy,
         deleteBranch: optionalBoolean(payload, "deleteBranch") === true,
-        archive: optionalBoolean(payload, "archive") === true,
         // Passed through as undefined when absent so the orchestrator's
         // default (remove the landed worktree) applies; only an explicit
         // `false` from the caller keeps it.
@@ -301,6 +342,19 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         })
         throw err
       }
+    },
+  },
+  {
+    // NOT web-exposed: the only writer is the CLI `add` path, which records
+    // the brief AFTER the prompt is confirmed delivered into the engine. The
+    // field then means exactly "this is the prompt the engine was given" —
+    // an agent reading `get-task` can assert on it without wondering whether
+    // delivery happened.
+    name: "task.setPrompt",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      await ctx.orch.setPrompt(taskId, requireString(payload, "prompt"))
+      return {}
     },
   },
   {

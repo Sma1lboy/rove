@@ -26,9 +26,9 @@
  * skill version, non-TTY falls back to the old one-shot hint.
  */
 
-import { existsSync, readFileSync } from "node:fs"
+import { accessSync, existsSync, constants as fsConstants, readFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { delimiter, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { activeCliName } from "../cli/rename-compat.ts"
 import { ROVE_PRODUCT_NAME } from "../product.ts"
@@ -44,7 +44,7 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
  * didn't, so we prompt the developer to re-run the active CLI's
  * `skill install` command.
  */
-export const KOBE_SKILL_VERSION = 33
+export const KOBE_SKILL_VERSION = 38
 
 /**
  * Where an installed kobe skill can be FOUND, relative to a home/project
@@ -134,10 +134,54 @@ export function npxSkillsCommand(opts: NpxSkillsOpts = {}): string {
 }
 
 /**
+ * Exit code {@link runNpxSkillsInstall} returns when `npx` isn't on PATH.
+ * 127 is the shell's own "command not found" code, so callers that only
+ * print `exited ${code}` still say something true.
+ */
+export const NPX_MISSING_EXIT = 127
+
+/**
+ * True when `npx` is absent from PATH. The install.sh path the QUICKSTART
+ * recommends installs Bun and Rove but never Node, so this is the DEFAULT
+ * state for anyone who followed it — not an edge case.
+ *
+ * Walks PATH directly rather than using `Bun.which`, so the same code runs
+ * (and is testable) under the vitest/node track as under Bun.
+ */
+export function isNpxMissing(): boolean {
+  const parts = (process.env.PATH ?? "").split(delimiter).filter(Boolean)
+  // No PATH at all: don't invent a failure — let the spawn report the truth.
+  if (parts.length === 0) return false
+  return !parts.some((dir) => {
+    try {
+      accessSync(join(dir, "npx"), fsConstants.X_OK)
+      return true
+    } catch {
+      return false
+    }
+  })
+}
+
+/** The "install Node" message shown wherever a missing `npx` blocks the install. */
+export function npxMissingMessage(): string {
+  return `${activeCliName()} skill install needs \`npx\` (part of Node.js), which isn't on your PATH.\nInstall Node.js (https://nodejs.org) and run it again — the Rove installer only installs Bun and Rove.`
+}
+
+/**
  * Run the `npx skills add …` install flow, inheriting stdio (so the CLI's
  * own agent picker is fully interactive). Returns the npx exit code.
+ *
+ * Checks for `npx` FIRST: `Bun.spawn` THROWS on a missing binary (unlike
+ * `spawnSync`, which returns `status: undefined`), and no caller on this path
+ * catches — the throw used to escape all the way to `main().catch` and print
+ * `rove failed to start: Executable not found in $PATH: "npx"`. Returning
+ * {@link NPX_MISSING_EXIT} keeps the callers' existing exit-code contract.
  */
 export async function runNpxSkillsInstall(agent?: string | readonly string[], global?: boolean): Promise<number> {
+  if (isNpxMissing()) {
+    process.stderr.write(`\n${npxMissingMessage()}\n\n`)
+    return NPX_MISSING_EXIT
+  }
   const proc = Bun.spawn(["npx", ...npxSkillsArgv({ ...(agent === undefined ? {} : { agent }), global })], {
     stdin: "inherit",
     stdout: "inherit",
@@ -148,6 +192,17 @@ export async function runNpxSkillsInstall(agent?: string | readonly string[], gl
 
 /** Persisted flag: the one-time startup hint has already been shown. */
 const HINT_SEEN_KEY = "skillHintSeen"
+
+/**
+ * Record that the user has already answered the "install the skill?" question,
+ * so {@link maybeHintSkillInstall} never re-asks it on the next launch. The
+ * onboarding wizard's DECLINE branch calls this: the user said no seconds ago,
+ * and nagging them on stderr on the very next `rove` is the same question
+ * asked twice.
+ */
+export function markSkillHintSeen(): void {
+  setPersistedString(HINT_SEEN_KEY, "1")
+}
 
 /**
  * Candidate install locations, in priority order: the user's home dir,

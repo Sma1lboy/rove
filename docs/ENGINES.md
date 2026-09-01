@@ -121,11 +121,16 @@ Mechanics: [design/engine-internals.md](./design/engine-internals.md).
 
 ## Resuming and forking
 
-**Resume.** A Claude tab whose process is gone (reboot, unarchive) relaunches
-into the same conversation instead of a blank one. A tab that never sent a
-first message isn't resumed; there's no transcript yet. Codex, Copilot,
-Kimi, and custom engines can't take a caller-set session id, so their tabs
-relaunch fresh.
+**Resume.** Whether a restarted tab comes back into its old conversation
+depends on the engine. Claude Code accepts a caller-set session id, so Rove
+pins one at launch and a tab whose process is gone (a reboot, say) relaunches
+into the same conversation instead of a blank one. Codex and Kimi mint their
+own ids — Codex announces its in the terminal title, Kimi's is discovered
+from its session store after the fact — and each reopens the last
+conversation with its own resume verb (`codex resume <id>`, `kimi -S <id>`).
+Copilot and custom engines have no resume verb Rove knows, so their tabs
+relaunch fresh. A tab that never sent a first message isn't resumed; there's
+no transcript yet.
 
 **Continue in a new tab.** `ctrl+a` `c` opens the continuation flow in the
 *same* worktree. What happens depends on the source and destination engines:
@@ -139,13 +144,17 @@ conversation. The two resulting tabs keep the source context and then diverge:
 | `codex` | ✓ | `codex fork <src>` |
 | `copilot` | — | starts a fresh Copilot session with a transcript handoff |
 | `kimi` | — | starts a fresh Kimi session with a transcript handoff |
-| custom | — | refused; Rove doesn't know its session store |
+| custom | — | refused, unless the preset declares a built-in protocol (then it forks like that engine) |
 
 Copilot's `--resume` and Kimi's `-S` reopen rather than branch, which would put
 two live processes on one transcript. Rove therefore uses the same transcript
 handoff as a cross-engine continuation: the new tab is a fresh conversation
 that reads where the previous one stopped. A custom engine without a known
 session store is refused instead of silently opening a blank continuation.
+
+Each engine declares its own fork verb, so a custom preset with an
+`engineProtocol` of `claude` or `codex` forks like that engine — the same
+resolution that gives it their session-id flags.
 
 *Different built-in engine* → a handoff. This is the move that saves you when
 you hit a usage limit mid-task. The new engine starts fresh with a first prompt

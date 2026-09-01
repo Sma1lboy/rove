@@ -15,6 +15,7 @@
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import type { DeferredPromptRecord } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import {
   type ChannelName,
@@ -28,6 +29,7 @@ import {
 } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { type ExternalStore, type ReadableState, createStateCell, mapReadableState } from "../lib/external-store.ts"
 import type { Orchestrator, Unsubscribe } from "../orchestrator/core.ts"
+import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { CURRENT_VERSION, type UpdateInfo } from "../version.ts"
@@ -84,6 +86,7 @@ import {
   ensureMainTaskOp,
   ensureWorktreeOp,
   forgetProjectOp,
+  getDeferredPromptOp,
   landTaskOp,
   listAutomationsOp,
   listIssuesOp,
@@ -95,9 +98,9 @@ import {
   openDirectoryTaskOp,
   removeWorktreeOp,
   reportEngineInterruptOp,
+  resolveDeferredPromptOp,
   runAutomationNowOp,
   setActiveTaskOp,
-  setArchivedOp,
   setAutomationEnabledOp,
   setBranchOp,
   setCommandOp,
@@ -156,6 +159,8 @@ export class RemoteOrchestrator {
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
   private readonly keybindingsRevAcc = createStateCell<number | null>(null)
   private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online")
+  /** Set once, by the reconnect loop giving up — see {@link staleInstallSignal}. */
+  private readonly staleInstallAcc = createStateCell<string | null>(null)
   private readonly ensureReachable: () => Promise<unknown>
   private readonly role: SubscribeRole
   /** Per-channel subscribe filter; `undefined` = subscribe to all channels. */
@@ -258,10 +263,11 @@ export class RemoteOrchestrator {
   }
 
   /**
-   * Start or join the role-appropriate reconnect loop (body in
-   * `remote-orchestrator-connect.ts` `runReconnectLoop` — file-size cap).
-   * On success subscribe replay rehydrates every signal, including the
-   * current task snapshot.
+   * Start or join the role-appropriate reconnect loop. The body lives in
+   * `remote-orchestrator-connect.ts` `runReconnectLoop`, over an explicit deps
+   * bag, so the retry policy is testable without a daemon; this method only
+   * supplies this instance's dependencies. On success subscribe replay
+   * rehydrates every signal, including the current task snapshot.
    */
   private reconnectLoop(spawnDaemon: boolean): Promise<void> {
     if (this.reconnectTask) return this.reconnectTask
@@ -271,6 +277,7 @@ export class RemoteOrchestrator {
       ensureReachable: this.ensureReachable,
       init: () => this.init(),
       shouldLogAttempt: shouldLogReconnectAttempt,
+      onFatal: (err) => this.staleInstallAcc.set(err instanceof Error ? err.message : String(err)),
     })
     this.reconnectTask = task
     const clear = (): void => {
@@ -291,6 +298,14 @@ export class RemoteOrchestrator {
 
   connectionStateSignal(): ReadableState<DaemonConnectionState> {
     return this.connectionStateAcc
+  }
+
+  /** The reconnect loop's one terminal failure, as a message: non-null once
+   *  this process is confirmed to be running from a deleted install. Latched,
+   *  never cleared — only a reinstall clears it, and the alternative is what
+   *  a stale install already looked like: "reconnecting", forever. */
+  staleInstallSignal(): ReadableState<string | null> {
+    return this.staleInstallAcc
   }
 
   /** Explicitly force the same spawning recovery used by a GUI socket drop. */
@@ -404,7 +419,6 @@ export class RemoteOrchestrator {
     setCommandOp(this.client, id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => setPinnedOp(this.client, id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => moveTaskOp(this.client, id, delta)
-  setArchived = (id: TaskId | string, archived?: boolean): Promise<void> => setArchivedOp(this.client, id, archived)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => setStatusOp(this.client, id, status)
   deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
     deleteTaskOp(this.client, id, opts)
@@ -412,6 +426,8 @@ export class RemoteOrchestrator {
     dismissAttentionOp(this.client, taskId, tabId, at)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     markAttentionReadOp(this.client, taskId, tabId, at)
+  getDeferredPrompt = (id: string): Promise<DeferredPromptRecord | null> => getDeferredPromptOp(this.client, id)
+  resolveDeferredPrompt = (id: string): Promise<boolean> => resolveDeferredPromptOp(this.client, id)
 
   /** Land a task's branch back into its base repo (`task.land`). Throws with a
    *  `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the message on the
@@ -460,7 +476,7 @@ export class RemoteOrchestrator {
   /** Remove a worktree (`worktree.remove`); refuses a dirty one unless
    *  `force` is true — same safety property `GitWorktreeManager.remove`
    *  always had. */
-  removeWorktree(path: string, force?: boolean): Promise<void> {
+  removeWorktree(path: string, force?: boolean): Promise<WorktreeResidue | null> {
     return removeWorktreeOp(this.client, path, force)
   }
 

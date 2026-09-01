@@ -1,26 +1,22 @@
 /**
- * The `lifecycle` verb group — archive, pin, land, delete. Split out of
- * `verbs.ts` (file-size cap); spread back into the {@link VERBS} table there,
- * so schema/help/validation see one canonical list.
+ * The `lifecycle` verb group — pin, land, delete: the verbs that end a task's
+ * life or decide it survives, which is why they are worth naming apart from
+ * the metadata edits next door. One file per `VerbGroup`, mirroring the
+ * taxonomy `rove api schema --group lifecycle` prints — though it is each
+ * spec's own `group` field, not this file, that decides where a verb lists.
+ * Specs spread back into the
+ * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { archive, deleteTask, land } from "./handlers-tasks.ts"
+import { deleteTask, land } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   {
-    name: "archive",
-    summary: "Archive (or with --archived=false, unarchive) a task. Non-destructive: worktree/branch/history stay.",
-    flags: [
-      F.taskId(),
-      { name: "archived", type: "bool", default: "true", description: "true to archive, false to unarchive." },
-    ],
-    handler: archive,
-  },
-  {
     name: "pin",
+    group: "lifecycle",
     summary: "Pin (or with --pinned=false, unpin) a task to the top of the sidebar.",
     flags: [F.taskId(), { name: "pinned", type: "bool", default: "true", description: "true to pin, false to unpin." }],
     handler: (ctx) =>
@@ -31,6 +27,7 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "land",
+    group: "lifecycle",
     summary:
       "Merge a task's branch back into its base repo's current branch. Refuses a dirty base checkout and refuses a branch with zero commits ahead of the base (EMPTY_BRANCH; EMPTY_BRANCH_DIRTY_WORKTREE with a send-back recovery path when the worktree still holds the uncommitted work). On conflict, aborts and returns the conflicted files (resolve by hand). Returns { landedOn, commit }.",
     flags: [
@@ -42,8 +39,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         default: "merge",
         description: "merge (--no-ff) or squash into one commit.",
       },
-      { name: "delete-branch", type: "bool", description: "Delete the task's branch after a successful land." },
-      { name: "then-archive", type: "bool", description: "Archive the task after a successful land." },
+      {
+        name: "delete-branch",
+        type: "bool",
+        description:
+          "Delete the task's branch after a successful land. Uses `git branch -D`, which drops the branch's reflog too; with --strategy squash the base's new commit does not reach the branch's own commits, so Rove first anchors the tip at refs/rove/salvage/<branch>-<stamp> and returns it as `branchAnchor`.",
+      },
       {
         name: "remove-worktree",
         type: "bool",
@@ -56,8 +57,9 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "delete",
+    group: "lifecycle",
     summary:
-      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree.",
+      "Remove a task and its worktree; the git branch stays unless --delete-branch. Needs --force on a dirty worktree. Returns { queued } — removal itself runs in the background; add --wait for the resolved outcome.",
     flags: [
       F.taskId(),
       {
@@ -66,6 +68,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
         description: "Delete even with uncommitted changes (never implies --delete-branch).",
       },
       { name: "delete-branch", type: "bool", description: "Also delete the task's git branch (default: keep it)." },
+      {
+        name: "wait",
+        type: "bool",
+        description:
+          "Follow the background removal and report its OUTCOME (removed / failed / pending) instead of returning as soon as it is queued.",
+      },
     ],
     handler: deleteTask,
   },

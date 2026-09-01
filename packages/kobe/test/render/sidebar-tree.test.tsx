@@ -2,10 +2,10 @@
 /**
  * The frame goldens (`test/render/golden/*.frame.txt`) now lock what this
  * sidebar RENDERS — the project header, the per-level indent, the resting and
- * live state glyphs, the pruned search tree, the archived view row — as whole
- * captured frames rather than as substring probes that say nothing about the
- * cells they don't name. The cases that asserted those things were removed
- * here rather than kept as a weaker duplicate.
+ * live state glyphs, the pruned search tree — as whole captured frames rather
+ * than as substring probes that say nothing about the cells they don't name.
+ * The cases that asserted those things were removed here rather than kept as
+ * a weaker duplicate.
  *
  * What remains is this file's original reason to exist, which no frame can
  * cover: pressing a real key and proving the CALLBACK fired. The Automations
@@ -31,7 +31,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,

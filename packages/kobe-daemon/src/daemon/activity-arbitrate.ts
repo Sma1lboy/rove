@@ -20,8 +20,13 @@
  * source by adding a slot and a rule here, never by special-casing a writer:
  *
  *   1. a hook entry in a STICKY state (`turn_complete` / `permission_needed`
- *      / `error` / `rate_limited`) always wins — those mean "a human should
- *      look", carry no output by nature, and observation must never dim them.
+ *      / `error` / `rate_limited` / `dead`) always wins — those mean "a human
+ *      should look", carry no output by nature, and observation must never dim
+ *      them. `dead` is the strongest case: the process is GONE, so no live
+ *      claim about it can be true, and observation can only ever answer "at
+ *      rest" — which is precisely what made a killed engine read as an idle
+ *      one. It is displaced only by a newer hook event, i.e. a new session in
+ *      the same tab.
  *   2. a hook `running` wins UNLESS an observed `rest` fact is fresher than
  *      the claim (herdr's `fallback_not_older_than_hook` — a stale
  *      observation must never idle a fresh turn) AND the claim is at least
@@ -39,7 +44,9 @@
 import { type EngineSessionInfo, STICKY_STATES } from "./activity-reduce.ts"
 import type { EngineActivityDetail, TaskActivityState } from "./contracts.ts"
 
-/** A hook-claimed state. `state` is never "idle" — hook idle clears the slot. */
+/** A hook-claimed state. `state` is never "idle" — hook idle clears the slot.
+ *  `dead` is written here too (by `recordEngineDeath`, not by a hook event):
+ *  it is a claim about the ENGINE, which is what this slot holds. */
 export interface HookSlot {
   readonly state: TaskActivityState
   readonly at: number

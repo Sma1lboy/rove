@@ -22,7 +22,6 @@ import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
-import { filterByView } from "../../../tui/panes/sidebar/groups"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
 import { usePaneHintMark } from "../../component/keyboard-hints"
@@ -66,11 +65,6 @@ export function SidebarTree(props: SidebarTreeProps) {
   const kv = useOptionalKV()
   const focused = props.focused ?? true
   const dims = useTerminalDimensions()
-  // Archived tasks have no sidebar surface (issue #33 IA convergence): the
-  // lifecycle view split is gone — the tree always shows the working set.
-  // Archived rows remain reachable through `rove api list` and the web board
-  // until GC (issue #29) settles what an archive even is.
-  const viewTasks = useMemo(() => filterByView(props.tasks, "active"), [props.tasks])
 
   // The same ~2s branch/changes poll tick the flat sidebar runs — the row
   // cards' `useChanges`/`pollCurrentBranch` effects key on it.
@@ -82,12 +76,14 @@ export function SidebarTree(props: SidebarTreeProps) {
 
   const search = useTreeSearch({ focused, onActiveChange: props.onSearchActiveChange })
   const tree = useTreeState({
-    tasks: viewTasks,
+    tasks: props.tasks,
     kv,
     selectedTaskId: props.selectedId,
     selectedTabId: props.selectedTabId ?? null,
     query: search.active ? search.query : "",
     recentTask: props.recentTask ?? null,
+    sortMode: props.sortMode,
+    branchTick,
   })
   const flatIndexOf = useMemo(() => {
     const map = new Map<string, number>()
@@ -165,8 +161,13 @@ export function SidebarTree(props: SidebarTreeProps) {
    * and the tab state all move together.
    */
   const recentTaskRef = useLatest(props.recentTask ?? null)
+  const toggleRoutinesRow = tree.toggleRoutinesRow
   const activateRow = useCallback(
     (rowId: string): void => {
+      // The routine count row (issue #91) opens and closes instead of
+      // activating: it names no task, so `parseRowId` below would hand a
+      // sentinel id to `onSelect` and land on nothing.
+      if (toggleRoutinesRow(rowId)) return
       // The "↩ recent" jump row IS its task — ⏎ re-enters that workspace.
       const recent = rowId === RECENT_ROW_ID ? recentTaskRef.current : null
       const { taskId, tabId } = recent ? { taskId: recent.id, tabId: null } : parseRowId(rowId)
@@ -178,7 +179,7 @@ export function SidebarTree(props: SidebarTreeProps) {
       props.onSelectTab?.(taskId, tabId)
       props.onActivate?.(taskId)
     },
-    [props.onSelect, props.onActivate, props.onSelectTab],
+    [props.onSelect, props.onActivate, props.onSelectTab, toggleRoutinesRow],
   )
   const activateRowRef = useLatest(activateRow)
 
@@ -272,7 +273,6 @@ export function SidebarTree(props: SidebarTreeProps) {
     cursorRef,
     moveCursorRow,
     onDeleteRequest: props.onDeleteRequest,
-    onArchiveRequest: props.onArchiveRequest,
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,
@@ -358,6 +358,8 @@ export function SidebarTree(props: SidebarTreeProps) {
         focused={focused}
         status={props.headerStatus ?? null}
         onStatusClick={props.onHeaderStatusClick}
+        update={props.updateChip ?? null}
+        onUpdateClick={props.onUpdateChipClick}
       />
       <SidebarCreateAction onAddTask={props.onAddTask} />
       {search.active ? (

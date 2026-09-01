@@ -24,7 +24,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,
@@ -70,7 +69,6 @@ test("right-click on a worktree row opens that row's menu", async () => {
   const after = await frame()
   expect(after).toContain("Open")
   expect(after).toContain("Rename")
-  expect(after).toContain("Archive")
   expect(after).toContain("Delete")
 })
 
@@ -94,8 +92,7 @@ test("a menu entry fires the row's real callback", async () => {
 
   expect(renamed).toEqual(["a"])
   // The menu closes on pick — leaving it up under a rename prompt would read
-  // as two live surfaces. ("Delete", not "Archive": the Archives view tab is
-  // permanent chrome and would match either way.)
+  // as two live surfaces.
   expect(await frame()).not.toContain("Delete")
 })
 
@@ -132,7 +129,11 @@ test("right-click on a project header offers the project's own actions", async (
 
   const after = await frame()
   expect(after).toContain("New task")
+  // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
+  // to `forgetProject` behind a confirm) — the menu was missing it.
+  expect(after).toContain("Remove project")
   // A project is not a checkout — no per-task verbs on its header.
+  expect(after).not.toContain("Rename")
   expect(after).not.toContain("Delete")
 })
 
@@ -227,9 +228,9 @@ test("a tab row's menu opens a new shell in its worktree", async () => {
   expect(asked).toEqual([["a", "shell"]])
 })
 
-test("a worktree's LAST tab offers no close", async () => {
-  // The refusal lives in closeTab core; the menu just doesn't offer what
-  // would be refused.
+test("a worktree's LAST tab DOES offer a close (owner call 2026-08-31)", async () => {
+  // Closing it leaves the task with no sessions — the row stays and re-opens
+  // on ⏎ / ctrl+e — so there is nothing for the menu to withhold.
   tabsByTask.clear()
   seedTabs("a", ["tab-1"])
   const { frame, mockMouse } = await renderComponent(tree(), { width: 40, height: 24 })
@@ -239,7 +240,7 @@ test("a worktree's LAST tab offers no close", async () => {
 
   const after = await frame()
   expect(after).toContain("Open tab")
-  expect(after).not.toContain("Close tab")
+  expect(after).toContain("Close tab")
 })
 
 /** Screen position of the first occurrence of `needle`. */

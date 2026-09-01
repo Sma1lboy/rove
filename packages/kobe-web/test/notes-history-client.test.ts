@@ -68,11 +68,15 @@ describe("history client", () => {
     expect(lastReq?.url).toContain("vendor=claude")
   })
 
-  it("fetchMessages unwraps the messages array", async () => {
-    mockFetch({ ok: true, json: { messages: [{ role: "user" }] } })
+  it("fetchMessages passes the result through, messages + optional usage", async () => {
+    mockFetch({ ok: true, json: { messages: [{ role: "user" }], usage: { input_tokens: 1, output_tokens: 2 } } })
     const out = await fetchMessages("codex", "sess-1")
-    expect(out).toEqual([{ role: "user" }])
+    expect(out.messages).toEqual([{ role: "user" }])
+    expect(out.usage).toEqual({ input_tokens: 1, output_tokens: 2 })
     expect(lastReq?.url).toContain("sessionId=sess-1")
+    // Engines that don't report usage omit the key — undefined, not zero.
+    mockFetch({ ok: true, json: { messages: [] } })
+    expect((await fetchMessages("kimi", "sess-2")).usage).toBeUndefined()
   })
 
   it("throws the JSON error body when present", async () => {

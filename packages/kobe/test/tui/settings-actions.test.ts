@@ -47,6 +47,8 @@ describe("React settings actions", () => {
       "Reset UI state?",
       expect.stringContaining("~/.config/rove/state.json and ~/.rove/tasks.json"),
       "cancel",
+      undefined,
+      { danger: true },
     )
     expect(mocks.clear).toHaveBeenCalledTimes(1)
     expect(mocks.removeTasks).toHaveBeenCalledTimes(1)

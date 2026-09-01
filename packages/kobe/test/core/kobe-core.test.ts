@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
 const fake = vi.hoisted(() => ({
   storeHomeDirs: [] as (string | undefined)[],
+  tasks: [] as { kind?: string; repo: string }[],
   loadCalls: 0,
   disposeCalls: 0,
 }))
@@ -21,6 +22,12 @@ vi.mock("../../src/orchestrator/index/store.ts", () => ({
     }
     async load() {
       fake.loadCalls++
+    }
+    /** Boot reads the project rows to backfill `savedRepos` (see
+     *  `backfillSavedReposFromProjects`). Empty here — this file pins the
+     *  wiring, not the backfill. */
+    list() {
+      return fake.tasks
     }
   },
 }))

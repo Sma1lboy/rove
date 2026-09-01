@@ -25,9 +25,9 @@
  * for cleanup invariants and dirty-state semantics.
  */
 
-import fs from "node:fs"
 import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 import type { AdoptableWorktree, WorktreeInfo, WorktreeManager } from "../../types/worktree.ts"
 import { type ExecCtx, type WorktreeExecDeps, defaultExecDeps } from "./exec-deps.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
@@ -35,12 +35,14 @@ import {
   type BranchDeps,
   branchExists,
   branchHasUpstream,
-  deleteBranchIn,
+  deleteBranchAnchored,
   hasLocalBranch,
   renameBranch,
 } from "./manager-branch.ts"
 import { type ListDeps, adoptablePaths, listAllAdoptable, listBranchNames, listManaged } from "./manager-list.ts"
+import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
+import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
 export class GitWorktreeManager implements WorktreeManager {
@@ -67,7 +69,13 @@ export class GitWorktreeManager implements WorktreeManager {
     if (!opts.cwd) {
       throw new Error("runGit(): cwd is required; refusing to inherit from process.cwd()")
     }
-    const r = await exec.run(["git", ...args], { cwd: opts.cwd, env: opts.env })
+    // Read-only probes (status/log/rev-parse/show-ref/for-each-ref/worktree
+    // list) must not compete with an engine's `git commit` for
+    // `.git/index.lock` — see lib/git-env.ts and GitRunOpts.readOnly. The
+    // policy flag merges over any caller env; ExecHost layers it over
+    // process.env locally and prefixes it onto the remote command.
+    const env = opts.readOnly ? { ...opts.env, ...READ_ONLY_GIT_ENV } : opts.env
+    const r = await exec.run(["git", ...args], { cwd: opts.cwd, env })
     const result: GitRunResult = { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
     if (result.exitCode !== 0 && !opts.allowFail) {
       throw new GitCommandError(args, opts.cwd, result)
@@ -184,79 +192,44 @@ export class GitWorktreeManager implements WorktreeManager {
     return this.create(args.repo, args.branch, target, args.baseRef)
   }
 
-  /**
-   * Remove a worktree. Refuses to remove a dirty worktree unless
-   * `opts.force` is true.
-   *
-   * On success the directory is gone and the worktree is deregistered from the
-   * repo's metadata. The branch is left in place UNLESS `opts.deleteBranch` is
-   * set — then it's also deleted (`git branch -d`, or `-D` under `force`), so a
-   * task delete/land doesn't leave the loser branch piling up. Branch deletion
-   * is best-effort: it runs after the worktree is gone and a failure (branch
-   * checked out elsewhere, name gone) is swallowed, never masking a successful
-   * removal.
-   */
-  async remove(
-    worktreePath: string,
-    opts?: { readonly force?: boolean; readonly deleteBranch?: boolean },
-  ): Promise<void> {
-    requireAbsolute("path", worktreePath)
-    const exec = this.execDeps.execForPath(worktreePath)
-    const force = opts?.force === true
-
-    if (!(await exec.exists(worktreePath))) {
-      // Best-effort metadata prune — the directory may be gone but a
-      // stale entry can survive in `.git/worktrees/`. `git worktree
-      // remove` will refuse, so we use prune.
-      const repo = await this.findRepoFor(exec, worktreePath)
-      if (repo) await this.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
-      return
-    }
-
-    // Resolve the owning repo via `rev-parse --git-common-dir` from
-    // inside the worktree itself. This is the only reliable way to get
-    // back to the main repo when the caller hands us only the path.
-    const repo = await this.findRepoFor(exec, worktreePath)
-    if (!repo) {
-      throw new Error(`remove(): ${worktreePath} is not a git worktree`)
-    }
-
-    // Capture the branch BEFORE removal (once the worktree is gone we can't
-    // read its HEAD) so an opt-in `deleteBranch` can clean it up after.
-    let branch: string | null = null
-    if (opts?.deleteBranch) {
-      branch = await this.currentBranch(worktreePath).catch(() => null)
-    }
-
-    if (!force) {
-      const dirty = await this.isDirty(worktreePath)
-      if (dirty) {
-        throw new Error(
-          `remove(): refusing to remove dirty worktree at ${worktreePath} (pass { force: true } to override)`,
-        )
-      }
-    }
-
-    // `--force` here is the git CLI's "remove even if locked / has
-    // submodule mods" flag. Even with our `force=false` early-out, we
-    // pass --force to git so an unlocked-but-untracked-files case (rare
-    // — we already checked dirty) doesn't bounce. Dirty refusal lives
-    // in our layer, not git's.
-    const args = force ? ["worktree", "remove", "--force", worktreePath] : ["worktree", "remove", worktreePath]
-    await this.runGit(exec, args, { cwd: repo })
-
-    // Defensive prune — cleans up `.git/worktrees/<name>/` if the
-    // remove left it behind (rare, but documented in vibe-kanban).
-    await this.runGit(exec, ["worktree", "prune"], { cwd: repo, allowFail: true })
-
-    if (branch) await deleteBranchIn(this.branchDeps(), exec, repo, branch, force)
+  /** Remove a worktree — body in `manager-remove.ts`, the destructive verb kept
+   *  in its own file. Refuses a dirty worktree unless `opts.force`; a forced
+   *  removal salvages first and can also clear a worktree whose upstream repo
+   *  is gone. */
+  async remove(worktreePath: string, opts?: RemoveOpts): Promise<void> {
+    await removeWorktree(
+      {
+        runGit: (exec, args, runOpts) => this.runGit(exec, args, runOpts),
+        execForPath: (p) => this.execDeps.execForPath(p),
+        findRepoFor: (exec, p) => this.findRepoFor(exec, p),
+        currentBranch: (p) => this.currentBranch(p),
+        isDirty: (p) => this.isDirty(p),
+        branchDeps: () => this.branchDeps(),
+      },
+      worktreePath,
+      opts,
+    )
   }
 
-  /** Delete a branch in `repo` — body in `manager-branch.ts`. */
-  async deleteBranch(repo: string, branch: string, opts?: { readonly force?: boolean }): Promise<void> {
+  /** Delete a branch in `repo` — body in `manager-branch.ts`. A forced delete
+   *  anchors the tip first when nothing else would keep it reachable (see
+   *  {@link deleteBranchAnchored}); `onAnchor` reports the ref it wrote. */
+  async deleteBranch(
+    repo: string,
+    branch: string,
+    opts?: {
+      readonly force?: boolean
+      /** Notified with the anchor a forced delete took (null = not needed,
+       *  or the anchor could not be written). */
+      readonly onAnchor?: (record: SalvageRecord | null) => void
+    },
+  ): Promise<void> {
     const ctx = this.ctxFor(repo)
     requireAbsolute("repo", ctx.dir)
-    await deleteBranchIn(this.branchDeps(), ctx.exec, ctx.dir, branch, opts?.force === true)
+    await deleteBranchAnchored(this.branchDeps(), ctx.exec, ctx.dir, branch, {
+      force: opts?.force === true,
+      onAnchor: opts?.onAnchor,
+    })
   }
 
   /** ExecHost for a worktree path, with the absolute-path check bound in — the
@@ -280,9 +253,9 @@ export class GitWorktreeManager implements WorktreeManager {
   private listDeps(): ListDeps {
     return {
       ctxFor: (repoKey) => this.ctxFor(repoKey),
-      runGitStdout: async (ctx, args) => (await this.runGit(ctx.exec, args, { cwd: ctx.dir })).stdout,
+      runGitStdout: async (ctx, args) => (await this.runGit(ctx.exec, args, { cwd: ctx.dir, readOnly: true })).stdout,
+      runGitStdoutAt: async (ctx, cwd, args) => (await this.runGit(ctx.exec, args, { cwd, readOnly: true })).stdout,
       isDirty: (worktreePath) => this.isDirty(worktreePath),
-      lastActivityMs: (ctx, worktreePath) => this.lastActivityMs(ctx.exec, worktreePath),
     }
   }
 
@@ -340,32 +313,6 @@ export class GitWorktreeManager implements WorktreeManager {
   }
 
   /**
-   * Last-activity time of a worktree in epoch ms — the HEAD commit's
-   * committer time, falling back to the directory's mtime when the log
-   * read fails (e.g. an unborn branch). Best-effort: returns 0 on total
-   * failure so sorting still works. Used to order the adopt list.
-   */
-  private async lastActivityMs(exec: ExecHost, worktreePath: string): Promise<number> {
-    try {
-      const out = await this.runGit(exec, ["log", "-1", "--format=%ct"], { cwd: worktreePath })
-      const secs = Number.parseInt(out.stdout.trim(), 10)
-      if (Number.isFinite(secs) && secs > 0) return secs * 1000
-    } catch {
-      // no commits yet / not readable — fall through to mtime
-    }
-    // mtime fallback is a local-only convenience; on a remote the git-log
-    // path above is the source of truth and a miss simply sorts as 0.
-    if (!exec.isRemote) {
-      try {
-        return fs.statSync(worktreePath).mtimeMs
-      } catch {
-        // unreadable — fall through to 0
-      }
-    }
-    return 0
-  }
-
-  /**
    * `git -C <path> status --porcelain` non-empty.
    *
    * Untracked files count as dirty (matches `--porcelain` default) —
@@ -373,7 +320,10 @@ export class GitWorktreeManager implements WorktreeManager {
    * yet committed should not be silently nuked by `remove()`.
    */
   async isDirty(worktreePath: string): Promise<boolean> {
-    const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], { cwd: worktreePath })
+    const out = await this.runGit(this.execAt(worktreePath), ["status", "--porcelain"], {
+      cwd: worktreePath,
+      readOnly: true,
+    })
     return out.stdout.length > 0
   }
 
@@ -388,6 +338,7 @@ export class GitWorktreeManager implements WorktreeManager {
   async currentBranch(worktreePath: string): Promise<string> {
     const out = await this.runGit(this.execAt(worktreePath), ["rev-parse", "--abbrev-ref", "HEAD"], {
       cwd: worktreePath,
+      readOnly: true,
     })
     const name = out.stdout.trim()
     if (!name || name === "HEAD") {
@@ -420,7 +371,7 @@ export class GitWorktreeManager implements WorktreeManager {
    * distinguishes "already done" from "stale debris".
    */
   private async tryDescribe(ctx: ExecCtx, worktreePath: string): Promise<WorktreeInfo | null> {
-    const out = await this.runGit(ctx.exec, ["worktree", "list", "--porcelain"], { cwd: ctx.dir })
+    const out = await this.runGit(ctx.exec, ["worktree", "list", "--porcelain"], { cwd: ctx.dir, readOnly: true })
     const entries = parseWorktreeListPorcelain(out.stdout)
     // Remote paths can't be realpath'd locally; compare them verbatim.
     const norm = (p: string) => (ctx.remote ? p : canonicalize(p))
@@ -450,7 +401,11 @@ export class GitWorktreeManager implements WorktreeManager {
    */
   private async findRepoFor(exec: ExecHost, worktreePath: string): Promise<string | null> {
     try {
-      const out = await this.runGit(exec, ["rev-parse", "--git-common-dir"], { cwd: worktreePath, allowFail: true })
+      const out = await this.runGit(exec, ["rev-parse", "--git-common-dir"], {
+        cwd: worktreePath,
+        allowFail: true,
+        readOnly: true,
+      })
       if (out.exitCode !== 0) return null
       const gitDir = out.stdout.trim()
       if (!gitDir) return null

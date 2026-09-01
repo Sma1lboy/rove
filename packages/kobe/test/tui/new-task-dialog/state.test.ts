@@ -30,9 +30,11 @@ import {
   isBlankText,
   nextDialogTab,
   nextField,
+  offersProjectIntent,
   pickerModeFor,
   prevDialogTab,
   resolveBaseRef,
+  splitRepoRow,
   stripNewlines,
   windowAround,
 } from "@/tui/component/new-task-dialog/state"
@@ -108,6 +110,60 @@ describe("computeRepoOptions", () => {
   })
 })
 
+describe("splitRepoRow (repo rows lead with the basename)", () => {
+  it("splits an absolute path into basename + its directory, keeping the slash", () => {
+    expect(splitRepoRow("/Users/me/i/kobe")).toEqual({ base: "kobe", dir: "/Users/me/i/" })
+  })
+
+  it("round-trips: dir + base is the original path, so the row shows the same string", () => {
+    for (const path of ["/Users/me/i/kobe", "/a/b", "/root", "rel/path"]) {
+      const { base, dir } = splitRepoRow(path)
+      expect(dir + base).toBe(path)
+    }
+  })
+
+  it("leaves a bare name whole — nothing to demote, so the row renders as before", () => {
+    expect(splitRepoRow("kobe")).toEqual({ base: "kobe", dir: "" })
+  })
+
+  it("leaves a trailing-slash path whole: it names no leaf, so a split would blank the row", () => {
+    // `base` empty + `dir` everything would render an EMPTY identifying half
+    // with the whole path muted behind it — the row would read as blank.
+    expect(splitRepoRow("/Users/me/i/")).toEqual({ base: "/Users/me/i/", dir: "" })
+  })
+
+  it("keeps a repo at the filesystem root identifiable", () => {
+    expect(splitRepoRow("/kobe")).toEqual({ base: "kobe", dir: "/" })
+  })
+})
+
+describe("offersProjectIntent (issue #90)", () => {
+  it("offers only for a repo that already has a project checkout", () => {
+    const mains = new Set(["/repos/codefox"])
+    expect(offersProjectIntent("/repos/codefox", mains)).toBe(true)
+    // No main row means nothing to open — `createTask` is what mints one, and
+    // only for a repo the admission gate accepts.
+    expect(offersProjectIntent("/repos/orphan", mains)).toBe(false)
+  })
+
+  it("normalizes the trailing slash the sidebar also trims", () => {
+    // The set is keyed the way `sidebarProjectKey` groups; a path typed with
+    // a slash must still find its own project.
+    expect(offersProjectIntent("/repos/codefox/", new Set(["/repos/codefox"]))).toBe(true)
+  })
+
+  it("never offers for blank or whitespace input", () => {
+    // The repo field starts prefilled but can be cleared; an empty path has
+    // no project, and `""` must not match a set that happens to hold it.
+    expect(offersProjectIntent("", new Set(["/repos/codefox"]))).toBe(false)
+    expect(offersProjectIntent("   ", new Set([""]))).toBe(false)
+  })
+
+  it("offers nothing when the caller passes no projects at all", () => {
+    expect(offersProjectIntent("/repos/codefox", new Set())).toBe(false)
+  })
+})
+
 describe("nextField / firstFieldFor (per-tab field cycling)", () => {
   it("cycles the existing tab: tabs → engine → repo → baseRef → confirm → tabs", () => {
     expect(nextField("repo", "existing")).toBe("baseRef")
@@ -115,6 +171,18 @@ describe("nextField / firstFieldFor (per-tab field cycling)", () => {
     expect(nextField("confirm", "existing")).toBe("tabs")
     expect(nextField("tabs", "existing")).toBe("engine")
     expect(nextField("engine", "existing")).toBe("repo")
+  })
+
+  it("inserts the intent stop only when that row renders (issue #90)", () => {
+    // The row exists only for a repo that already has a project checkout, so
+    // the walk is TOLD whether it is on screen. Offering the stop
+    // unconditionally parks focus on nothing; omitting it when the row IS
+    // there makes it keyboard-unreachable — which is how it first shipped.
+    expect(nextField("repo", "existing", { intentVisible: true })).toBe("intent")
+    expect(nextField("intent", "existing", { intentVisible: true })).toBe("baseRef")
+    // Default (and explicit false) keep the original chain untouched.
+    expect(nextField("repo", "existing")).toBe("baseRef")
+    expect(nextField("repo", "existing", { intentVisible: false })).toBe("baseRef")
   })
 
   it("cycles the clone tab through the selectors + all four inputs to confirm and back", () => {

@@ -22,6 +22,7 @@ import type { VendorId } from "../../../types/vendor"
 // React port, which must not reference the Solid .tsx even type-only.
 import type { FocusAccentSlot } from "../../context/theme-core"
 import { LOCALES, type LocaleId } from "../../i18n/catalog"
+import { PREFIX_TAP_PRESENTATIONS, type PrefixTapPresentation } from "../../lib/prefix-tap-presentation"
 
 export type NavLevel = "sidebar" | "body"
 
@@ -53,6 +54,7 @@ export type SettingsRow =
   | { id: "sound"; kind: "sound" }
   | { id: "cross-task"; kind: "crossTask" }
   | { id: "key-hints"; kind: "keyHints" }
+  | { id: string; kind: "prefixTapPresentation"; presentation: PrefixTapPresentation }
   | { id: "zen-default-on"; kind: "zenDefaultOn" }
   | { id: "zen-keep-tasks"; kind: "zenKeepTasks" }
   | { id: "editor-kind"; kind: "editorKind" }
@@ -74,7 +76,7 @@ export type SettingsRow =
   | { id: "remote-projects"; kind: "devRemoteProjects" }
   | { id: "auto-status"; kind: "devAutoStatus" }
   | { id: "dispatcher"; kind: "devDispatcher" }
-  | { id: "archived-history"; kind: "devArchivedHistory" }
+  | { id: "composer-gate"; kind: "devComposerGate" }
 
 /** Stable row ids for payload-bearing rows (shared by builders + views). */
 export function themeRowId(name: string): string {
@@ -95,6 +97,10 @@ export function engineRowId(vendor: VendorId): string {
 
 export function splitStyleRowId(style: SplitStyle): string {
   return `split-style:${style}`
+}
+
+export function prefixTapPresentationRowId(presentation: PrefixTapPresentation): string {
+  return `prefix-tap:${presentation}`
 }
 
 export function pluginRowId(pluginId: string): string {
@@ -187,10 +193,23 @@ export function feedbackRows(): SettingsRow[] {
   ]
 }
 
+export function keybindingRows(keybindingsFileExists: boolean): SettingsRow[] {
+  return [
+    ...PREFIX_TAP_PRESENTATIONS.map(
+      (presentation): SettingsRow => ({
+        id: prefixTapPresentationRowId(presentation),
+        kind: "prefixTapPresentation",
+        presentation,
+      }),
+    ),
+    ...(keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" } as const]),
+  ]
+}
+
 /**
- * Dev section: Reset (always), Restart (daemon only), then the
- * Experimental remote-projects toggle — kept last so its presence never
- * shifts the rows above it.
+ * Dev section: Reset (always), Restart (daemon only), then the Experimental
+ * toggles — kept last so their presence never shifts the rows above them, and
+ * appended in order so an added switch never renumbers an existing one.
  */
 export function devRows(hasDaemon: boolean): SettingsRow[] {
   return [
@@ -199,7 +218,7 @@ export function devRows(hasDaemon: boolean): SettingsRow[] {
     { id: "remote-projects", kind: "devRemoteProjects" },
     { id: "auto-status", kind: "devAutoStatus" },
     { id: "dispatcher", kind: "devDispatcher" },
-    { id: "archived-history", kind: "devArchivedHistory" },
+    { id: "composer-gate", kind: "devComposerGate" },
   ]
 }
 
@@ -214,10 +233,7 @@ export function sectionRows(section: SectionId, input: SettingsRowsInput): Setti
     case "engines":
       return engineRows(input.engineList)
     case "keys":
-      // One action, and only while there is nothing to edit: writing the
-      // starter file is the whole gap between "here is the YAML" and a file
-      // the user can actually open.
-      return input.keybindingsFileExists ? [] : [{ id: "keys-create", kind: "keysCreate" }]
+      return keybindingRows(input.keybindingsFileExists)
     case "plugins":
       return pluginRows(input.plugins)
     case "feedback":
@@ -254,4 +270,48 @@ export function humanizeSlug(id: string): string {
     .filter((word) => word.length > 0)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ")
+}
+
+/** Cells the section sidebar reserves, and the gap between it and the body. */
+export const SECTIONS_SIDEBAR_WIDTH = 14
+const SECTIONS_COLUMN_GAP = 2
+/** `Row` adds `paddingLeft={1} paddingRight={1}` around its own content. */
+const ROW_PADDING_X = 2
+/** Widest the label column is ever worth — it lines the inline hints up into
+ *  a column on a desktop terminal. */
+export const LABEL_COLUMN_MAX = 30
+/** The longest General label actually renders in ~24 cells (`[x] Show
+ *  keyboard hints`), so a column narrower than this stops being a column and
+ *  starts being a clip. */
+const LABEL_NATURAL_MAX = 24
+/** The shortest hint (`bottom-right popup`) needs 18 cells; below that a hint
+ *  is a fragment, and a fragment beside a clipped label reads as corruption. */
+const HINT_MIN_CELLS = 18
+
+/**
+ * How many cells a General row may spend padding its label, and whether the
+ * inline hint fits at all, for a terminal `width` cells wide.
+ *
+ * A settings row is not free-floating text: it sits right of the fixed
+ * 14-cell section sidebar, inside the dialog's own horizontal padding, and
+ * its `Row` is `overflow="hidden"` + `wrapMode="none"` — so anything wider
+ * than the real budget is cut, without an ellipsis to say it happened.
+ * Padding every label to a flat 30 therefore did the most damage exactly
+ * where there was least room: at 46 columns the row owns 26 cells, so the
+ * padding alone overran the row and took the label with it, and at 50 it
+ * consumed the budget exactly, leaving the hint structurally unreachable.
+ *
+ * Three outcomes, in order of how much room there is:
+ *  - room for the full column plus a readable hint → both, aligned;
+ *  - room for the longest label plus a readable hint → hint keeps its 18
+ *    cells and the label column takes what is left;
+ *  - anything less → drop the hint and stop padding entirely. The label then
+ *    renders at its natural width and nothing is cut; the SubSection
+ *    paragraph above the rows still explains what the group does.
+ */
+export function generalLabelLayout(width: number, dialogPadX: number): { labelColumn: number; showHint: boolean } {
+  const rowCells = width - dialogPadX * 2 - SECTIONS_SIDEBAR_WIDTH - SECTIONS_COLUMN_GAP - ROW_PADDING_X
+  if (rowCells >= LABEL_COLUMN_MAX + HINT_MIN_CELLS) return { labelColumn: LABEL_COLUMN_MAX, showHint: true }
+  if (rowCells >= LABEL_NATURAL_MAX + HINT_MIN_CELLS) return { labelColumn: rowCells - HINT_MIN_CELLS, showHint: true }
+  return { labelColumn: 0, showHint: false }
 }

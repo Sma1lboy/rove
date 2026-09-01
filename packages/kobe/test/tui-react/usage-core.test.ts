@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest"
+import { displayWidth } from "../../src/lib/display-width.ts"
 import {
+  type FooterChipsView,
   USAGE_BAR_WIDTH,
+  buildFooterChips,
   formatReset,
   narrowUsageChip,
+  usageChipsBudget,
   usageRows,
 } from "../../src/tui-react/component/settings-dialog/usage-core.ts"
 import { ratioBar } from "../../src/tui/lib/progress-bar.ts"
@@ -100,5 +104,105 @@ describe("narrowUsageChip", () => {
 
   it("returns null for a vendor with no windows", () => {
     expect(narrowUsageChip({ windows: [], capturedAt: NOW }, NOW)).toBeNull()
+  })
+})
+
+/**
+ * Footer-row layout contract: the chips and the key-hint bar share ONE
+ * 1-cell row, so the chip view must never exceed its budget — on an 80-col
+ * terminal the full label/reset form (≈45 cells for two vendors) does not
+ * fit beside the hint bar and must degrade, not collide.
+ */
+describe("footer chips layout", () => {
+  const usageOf = (percent: number) => ({
+    windows: [
+      { kind: "session" as const, label: "5h", percent, resetsAt: null },
+      { kind: "weekly_all" as const, label: "7d", percent: 80, resetsAt: null },
+    ],
+    capturedAt: NOW,
+  })
+  const twoVendors = new Map([
+    ["claude", usageOf(42)],
+    ["codex", usageOf(47)],
+  ])
+  const build = (budget: number, usage: ReadonlyMap<string, ReturnType<typeof usageOf>> = twoVendors) =>
+    buildFooterChips({ usage, budget, nowMs: NOW, vendorLabel: (v) => v })
+
+  /** Cell width of the rendered row, mirroring the component's gaps. */
+  const viewCells = (view: FooterChipsView): number => {
+    const perVendor =
+      view.form === "full"
+        ? view.vendors.map(
+            (v) =>
+              displayWidth(v.vendor) +
+              v.chips.reduce(
+                (sum, chip, i) =>
+                  sum +
+                  displayWidth(i === 0 ? chip.label : `· ${chip.label}`) +
+                  displayWidth(chip.percentText) +
+                  (chip.resetText ? 1 + displayWidth(chip.resetText) : 0) +
+                  1,
+                0,
+              ),
+          )
+        : view.vendors.map((v) => displayWidth(v.vendor) + 1 + displayWidth(v.percentText))
+    return perVendor.reduce((a, b) => a + b, 0) + Math.max(0, perVendor.length - 1) * 2
+  }
+
+  it("usageChipsBudget subtracts padding, gap, and the measured hint bar", () => {
+    expect(usageChipsBudget({ terminalWidth: 80, hintCells: 36 })).toBe(40)
+    expect(usageChipsBudget({ terminalWidth: 200, hintCells: 36 })).toBe(160)
+    expect(usageChipsBudget({ terminalWidth: 20, hintCells: 36 })).toBe(0)
+  })
+
+  it("keeps the full label/reset form when it fits (wide terminal)", () => {
+    const view = build(160)
+    expect(view?.form).toBe("full")
+    expect(view && viewCells(view)).toBeLessThanOrEqual(160)
+    expect(view?.form === "full" ? view.vendors.flatMap((v) => v.chips.map((c) => c.label)) : []).toContain("7d")
+  })
+
+  it("degrades to compact vendor+percent chips at an 80-col budget", () => {
+    const view = build(40)
+    expect(view?.form).toBe("compact")
+    expect(view?.form === "compact" ? view.vendors.map((v) => v.vendor) : []).toEqual(["CLAUDE", "CODEX"])
+    expect(view?.form === "compact" ? view.vendors.map((v) => v.percentText) : []).toEqual(["42%", "47%"])
+    expect(view && viewCells(view)).toBeLessThanOrEqual(40)
+  })
+
+  it("truncates the overflowing vendor's name and drops vendors past it", () => {
+    const view = build(12)
+    expect(view?.form).toBe("compact")
+    // CLAUDE 42% (10 cells) fits; CODEX would not — it is dropped, not overlapped.
+    expect(view?.form === "compact" ? view.vendors.map((v) => v.vendor) : []).toEqual(["CLAUDE"])
+    expect(view && viewCells(view)).toBeLessThanOrEqual(12)
+
+    const truncated = build(8)
+    expect(truncated?.form === "compact" ? truncated.vendors[0] : undefined).toMatchObject({
+      vendor: "CLA…",
+      percentText: "42%",
+    })
+    expect(truncated && viewCells(truncated)).toBeLessThanOrEqual(8)
+  })
+
+  it("forceCompact skips the full form even with a wide budget", () => {
+    const view = buildFooterChips({
+      usage: twoVendors,
+      budget: 160,
+      nowMs: NOW,
+      vendorLabel: (v) => v,
+      forceCompact: true,
+    })
+    expect(view?.form).toBe("compact")
+  })
+
+  it("filters vendors with no windows and returns null for empty usage", () => {
+    const withEmpty = new Map([
+      ["empty", { windows: [], capturedAt: NOW }],
+      ["claude", usageOf(42)],
+    ])
+    const view = build(160, withEmpty)
+    expect(view?.form === "full" ? view.vendors.map((v) => v.vendor) : []).toEqual(["CLAUDE"])
+    expect(build(160, new Map())).toBeNull()
   })
 })

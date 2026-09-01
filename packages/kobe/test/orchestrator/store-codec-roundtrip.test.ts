@@ -6,8 +6,8 @@
  * coerce line — and forgetting it is completely silent (optional fields make
  * the type system happy, and the field just vanishes on the next daemon
  * restart). That has happened seven times: command, position, modelEffort,
- * groupId, quotaResume, linkedWorkItem, dispatcher — and now
- * `deletion.deleteBranch`.
+ * groupId, quotaResume, linkedWorkItem, dispatcher, `deletion.deleteBranch` —
+ * and now `observedLanguage`.
  *
  * This test closes the class, not the instance. `DeepRequired<Task>` forces
  * the fixture to carry EVERY field, nested optionals included, at compile
@@ -46,11 +46,12 @@ const FULL_TASK: DeepRequired<Task> = {
   worktreePath: "/repo/.worktrees/round-trip",
   kind: "dir",
   scratch: true,
+  routine: { automationId: "auto-1" },
   status: "in_review",
-  archived: false,
   pinned: true,
   vendor: "claude",
   command: "claude --continue",
+  observedLanguage: "zh",
   prStatus: {
     provider: "github",
     lifecycle: "open",
@@ -90,6 +91,8 @@ const FULL_TASK: DeepRequired<Task> = {
     taskId: "01ARZ3NDEKTSV4RRFFQ69G5FB1",
     tabId: "tab-1",
   },
+  prompt: "the full task brief — never truncated on the way to disk",
+  baseRef: "release/2.x",
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 }

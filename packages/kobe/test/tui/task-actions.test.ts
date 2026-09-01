@@ -3,15 +3,13 @@
  *
  * Why these matter: the flows are the ONE implementation behind both the
  * deprecated outer monitor (app.tsx) and the Tasks pane (tasks-pane/host.tsx),
- * so a regression here breaks task lifecycle in every host at once. The two
- * load-bearing branches under test:
+ * so a regression here breaks task lifecycle in every host at once. The
+ * load-bearing branch under test:
  *
  *   - delete's DIRTY_WORKTREE re-prompt — the guard that keeps a worktree
  *     with uncommitted work from being destroyed without an explicit
  *     force-confirm (KOB-244). A failed/declined delete must leave the hosted
  *     session and selection untouched.
- *   - archive's session teardown — archiving stops the running engine
- *     engine sessions while unarchive touches nothing.
  *
  * The module deliberately has no `@opentui` imports: modal UI arrives as
  * context adapters (`confirm`, `promptText`), so the flows run here with
@@ -32,7 +30,7 @@ vi.mock("../../src/engine/hosted-session", () => ({
 // to stay under the ~500-line cap).
 
 import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
-import { type TaskActionContext, archiveTaskFlow, deleteTaskFlow, nextActiveTask } from "../../src/tui/lib/task-actions"
+import { type TaskActionContext, deleteTaskFlow, nextActiveTask } from "../../src/tui/lib/task-actions"
 import type { Task } from "../../src/types/task"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
@@ -42,7 +40,6 @@ function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
     branch: `kobe/${overrides.id}`,
     worktreePath: `/wt/${overrides.id}`,
     status: "todo",
-    archived: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -51,7 +48,6 @@ function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
 
 type OrchMock = {
   deleteTask: ReturnType<typeof vi.fn>
-  setArchived: ReturnType<typeof vi.fn>
   setActiveTask: ReturnType<typeof vi.fn>
   forgetProject: ReturnType<typeof vi.fn>
   setTitle: ReturnType<typeof vi.fn>
@@ -62,7 +58,6 @@ type OrchMock = {
 function makeOrch(overrides: Partial<OrchMock> = {}): OrchMock {
   return {
     deleteTask: vi.fn(async () => {}),
-    setArchived: vi.fn(async () => {}),
     setActiveTask: vi.fn(async () => {}),
     forgetProject: vi.fn(async () => {}),
     setTitle: vi.fn(async () => {}),
@@ -119,9 +114,9 @@ beforeEach(() => {
 })
 
 describe("nextActiveTask", () => {
-  test("skips the excluded id and archived tasks", () => {
-    const tasks = [makeTask({ id: "a", archived: true }), makeTask({ id: "b" }), makeTask({ id: "c" })]
-    expect(nextActiveTask(tasks, "b")?.id).toBe("c")
+  test("skips the excluded id", () => {
+    const tasks = [makeTask({ id: "a" }), makeTask({ id: "b" }), makeTask({ id: "c" })]
+    expect(nextActiveTask(tasks, "b")?.id).toBe("a")
   })
 })
 
@@ -240,95 +235,6 @@ describe("deleteTaskFlow — project (main) row", () => {
 
     expect(notifyError).toHaveBeenCalledWith("Couldn't remove: daemon exploded")
     expect(reload).not.toHaveBeenCalled()
-  })
-})
-
-describe("archiveTaskFlow — session teardown", () => {
-  test("archiving confirms, then kills the task's hosted sessions", async () => {
-    const tasks = [makeTask({ id: "t1", title: "busy" }), makeTask({ id: "t2" })]
-    const orch = makeOrch()
-    const { ctx, confirm, reload } = makeCtx({ tasks, orch, confirms: [true], updateActiveTask: true })
-
-    await archiveTaskFlow(ctx, "t1")
-
-    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ title: `Archive "busy"?`, confirmLabel: "archive" }))
-    expect(orch.setArchived).toHaveBeenCalledWith("t1", true)
-    // Archive STOPS the running engine: switch away, hand focus to the next
-    // active task, kill the session. Data (worktree/branch/history) survives.
-    expect(orch.setActiveTask).toHaveBeenCalledWith("t2")
-    expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1"])
-    expect(reload).toHaveBeenCalledTimes(1)
-  })
-
-  test("declined confirm archives nothing and kills nothing", async () => {
-    const tasks = [makeTask({ id: "t1" })]
-    const orch = makeOrch()
-    const { ctx } = makeCtx({ tasks, orch, confirms: [false] })
-
-    await archiveTaskFlow(ctx, "t1")
-
-    expect(orch.setArchived).not.toHaveBeenCalled()
-    expect(killHostedSessions).not.toHaveBeenCalled()
-  })
-
-  test("unarchive needs no confirm and never touches hosted sessions", async () => {
-    const tasks = [makeTask({ id: "t1", archived: true })]
-    const orch = makeOrch()
-    const { ctx, confirm, reload } = makeCtx({ tasks, orch, confirms: [] })
-
-    await archiveTaskFlow(ctx, "t1")
-
-    expect(confirm).not.toHaveBeenCalled()
-    expect(orch.setArchived).toHaveBeenCalledWith("t1", false)
-    expect(killHostedSessions).not.toHaveBeenCalled()
-    expect(reload).toHaveBeenCalledTimes(1)
-  })
-
-  test("outer-monitor divergence: without updateActiveTask the shared focus is untouched", async () => {
-    const tasks = [makeTask({ id: "t1" }), makeTask({ id: "t2" })]
-    const orch = makeOrch()
-    const { ctx } = makeCtx({ tasks, orch, confirms: [true] })
-
-    await archiveTaskFlow(ctx, "t1")
-
-    expect(orch.setActiveTask).not.toHaveBeenCalled()
-    expect(killHostedSessions).toHaveBeenCalledWith(expect.anything(), ["t1::tab-1"])
-  })
-
-  test("setArchived failure logs and skips teardown/reload entirely", async () => {
-    const tasks = [makeTask({ id: "t1" })]
-    const orch = makeOrch({
-      setArchived: vi.fn(async () => {
-        throw new Error("daemon down")
-      }),
-    })
-    const { ctx, confirm, reload } = makeCtx({ tasks, orch, confirms: [true] })
-
-    await archiveTaskFlow(ctx, "t1")
-
-    expect(confirm).toHaveBeenCalledTimes(1)
-    expect(killHostedSessions).not.toHaveBeenCalled()
-    expect(reload).not.toHaveBeenCalled()
-  })
-
-  test("unknown taskId is a no-op", async () => {
-    const tasks = [makeTask({ id: "t1" })]
-    const orch = makeOrch()
-    const { ctx, confirm } = makeCtx({ tasks, orch, confirms: [true] })
-
-    await archiveTaskFlow(ctx, "does-not-exist")
-
-    expect(confirm).not.toHaveBeenCalled()
-    expect(orch.setArchived).not.toHaveBeenCalled()
-  })
-
-  test("no daemon (orch null) is a no-op", async () => {
-    const tasks = [makeTask({ id: "t1" })]
-    const { ctx, confirm } = makeCtx({ tasks, orch: null })
-
-    await archiveTaskFlow(ctx, "t1")
-
-    expect(confirm).not.toHaveBeenCalled()
   })
 })
 

@@ -88,7 +88,7 @@ Closing `tui1` does not touch the daemon, the orchestrator, or any
 
 | State | Owner | Why |
 |---|---|---|
-| Task list, status, archived/pinned flags | daemon | Survives TUI close. |
+| Task list, status, pinned flags | daemon | Survives TUI close. |
 | Chat history (per task) | daemon (on disk, `.kobe/sessions/`) | Same as today — daemon just keeps reading/writing. |
 | `claude` subprocess handles | daemon | The whole point. |
 | Worktree paths, git HEADs | daemon | Same as today. |
@@ -117,7 +117,6 @@ Newline-delimited JSON. Each frame:
 ### Request / response (TUI → daemon → TUI)
 - `task.list` → `{ tasks: Task[] }`
 - `task.spawn` `{ repo, title, ... }` → `{ taskId }`
-- `task.archive` `{ taskId, archived }` → `{}`
 - `task.rename` `{ taskId, title }` → `{}`
 - `task.delete` `{ taskId }` → `{}`
 - `chat.history` `{ taskId, before?: messageId, limit }` → `{ messages }`
@@ -188,7 +187,7 @@ TUI may show any task at any time.
 > not until the engine quits. Combined with the "a task's last tab can't be
 > closed" contract (`terminal-tabs-core.ts` `closeTab`), this makes the daemon
 > effectively RESIDENT while any task has an open workspace: zero live
-> sessions means every task archived/deleted (janitor sweep), children exited
+> sessions means every task deleted (janitor sweep), children exited
 > by hand, or `kobe reset`. That residency is accepted — a parked daemon with
 > no subscribers pauses its collectors, so it holds the socket and the
 > activity registry and little else. This is the live behavior
@@ -263,7 +262,7 @@ If `kobed` dies (OOM, panic, kill -9):
   shipped in `src/tui/component/resume-dialog.tsx`).
 
 **Required for daemon v1:** orchestrator must persist task metadata
-(status, last activity, pinned, archived) to disk on every mutation,
+(status, last activity, pinned) to disk on every mutation,
 not only on graceful shutdown. Chat / session JSONL is already
 persistent.
 

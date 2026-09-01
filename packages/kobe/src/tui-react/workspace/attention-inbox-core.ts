@@ -38,20 +38,20 @@ export function visitResolvedEpisodes(
  */
 export function isAttentionInboxItemAvailable(
   item: AttentionInboxItem,
-  task: Pick<Task, "archived"> | undefined,
+  task: Pick<Task, "deletion"> | undefined,
   hasTab: (tabId: string) => boolean | undefined,
 ): boolean {
-  if (task === undefined || task.archived) return false
+  if (task === undefined || task.deletion) return false
   if (item.tabId === null) return true
   return hasTab(item.tabId) !== false
 }
 
 export function partitionAttentionInboxAvailability(
   items: readonly AttentionInboxItem[],
-  tasks: readonly Pick<Task, "id" | "archived">[],
+  tasks: readonly Pick<Task, "id" | "deletion">[],
   hasTab: (taskId: string, tabId: string) => boolean | undefined,
 ): { availableItems: AttentionInboxItem[]; unavailableItems: AttentionInboxItem[] } {
-  const tasksById = new Map<string, Pick<Task, "id" | "archived">>(tasks.map((task) => [task.id, task]))
+  const tasksById = new Map<string, Pick<Task, "id" | "deletion">>(tasks.map((task) => [task.id, task]))
   const availableItems: AttentionInboxItem[] = []
   const unavailableItems: AttentionInboxItem[] = []
   for (const item of items) {
@@ -163,7 +163,7 @@ export function inboxRows(
     .filter(
       (entry): entry is { visit: InboxVisit; task: Task } =>
         entry.task !== undefined &&
-        !entry.task.archived &&
+        !entry.task.deletion &&
         tabAlive(entry.visit) &&
         !coveredTab(entry.visit.taskId, entry.visit.tabId) &&
         !isSelected(entry.visit.taskId, entry.visit.tabId),
@@ -179,7 +179,7 @@ export function inboxRows(
   const unvisitedRows = tasks
     .filter(
       (task) =>
-        !task.archived && !seenTasks.has(task.id) && !pendingTasks.has(task.id) && task.id !== options.selectedId,
+        !task.deletion && !seenTasks.has(task.id) && !pendingTasks.has(task.id) && task.id !== options.selectedId,
     )
     .sort(compareRecent)
     .map((task) => ({ kind: "recent" as const, id: `r:${task.id}`, task, tabId: null, at: taskMtime(task) }))

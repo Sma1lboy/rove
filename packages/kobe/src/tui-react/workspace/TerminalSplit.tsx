@@ -39,6 +39,7 @@ import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import { type RGBA, TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useMemo, useState } from "react"
 import { SPLIT_STYLE_KEY, normalizeSplitStyle } from "../../state/split-style"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import {
@@ -67,6 +68,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { Terminal } from "../panes/terminal/Terminal"
 import { useDialog } from "../ui/dialog"
+import { FRAME } from "../ui/frame"
 import { useTitleSubscriptions } from "./title-subscriptions"
 
 /** What a terminal leaf shows: null = the tab's own command (`leaf-1`). */
@@ -220,7 +222,7 @@ export function TerminalSplit(props: {
   useBindings(() => ({
     enabled: props.focused && isSplit,
     bindings: bindByIds({
-      "workspace.split.close": () => removeAndRelease(activeLeaf),
+      "workspace.split.close": prefixAction(() => removeAndRelease(activeLeaf)),
       "workspace.split.rename": () => {
         const id = activeLeaf
         void RenameTaskDialog.show(dialog, leafNames.get(id) ?? "", {
@@ -325,7 +327,7 @@ export function TerminalSplit(props: {
           flexGrow={1}
           flexShrink={1}
           flexBasis={0}
-          border={true}
+          {...FRAME}
           borderColor={focused ? theme.focusAccent : inactiveBorder}
           onMouseUp={focusThis}
         >

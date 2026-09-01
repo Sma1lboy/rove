@@ -15,7 +15,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "active",
-    archived: false,
     pinned: false,
     createdAt: "2026-06-12T00:00:00Z",
     updatedAt: "2026-06-12T00:00:00Z",
@@ -44,12 +43,8 @@ describe("attentionCount", () => {
     expect(attentionCount(tasks, states)).toBe(0)
   })
 
-  it("ignores archived tasks and project (main) rows", () => {
-    const tasks = [
-      task("a", { archived: true }),
-      task("m", { kind: "main" }),
-      task("c"),
-    ]
+  it("ignores project (main) rows", () => {
+    const tasks = [task("m", { kind: "main" }), task("c")]
     const states = {
       a: engine("a", "error"),
       m: engine("m", "error"),

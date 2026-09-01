@@ -35,6 +35,12 @@ will conflict — that's a feature when you asked for a helper, a bug when you
 wanted parallel attempts. When in doubt, take a new task: it is the only
 choice whose isolation cannot corrupt work in progress.
 
+One boundary the worktree isolation does NOT cover: **`git stash` is never
+safe in a managed worktree.** The stash stack lives in the repo's common dir
+(`.git/refs/stash`) and is shared by every linked worktree — two parallel
+tasks that stash can pop or drop each other's work. Commit instead; a commit
+is per-branch and isolates exactly the way the model promises.
+
 ## Fan out
 
 `add` creates one task; `--count` makes it a parallel round — N sibling
@@ -98,6 +104,13 @@ What makes this loop work:
 - **"Succeeded" means committed.** The only thing `land` can merge is
   commits on the worker's branch. Green tests in a dirty working tree are
   not a deliverable — `land` will refuse an empty branch (`EMPTY_BRANCH`).
+  `send` refuses the claim earlier: a `succeeded:` report from a managed task
+  with 0 commits fails with `EMPTY_SUCCESS_REPORT` and never reaches you.
+  A worker whose task legitimately produced no commits passes `--allow-empty`.
+- **"CI is green" means `checkState: passing`.** Rove polls each task's PR
+  checks onto `.task.prStatus.checkState` (`rove api get-task`), so a
+  coordinator reads CI truth instead of trusting a worker's summary of its
+  own local test run.
 - **A report is a claim, not a verification.** Read the winner's actual diff
   before merging it (`collect` shows ahead counts and diffstats; `git log`
   in the worktree shows the truth).
@@ -119,20 +132,22 @@ rove api collect --task-ids <a>,<b>,<c> --pretty
 
 # Merge the winner's branch into the base repo's CURRENT branch —
 # check the base checkout is on the branch you mean, first.
-rove api land --task-id <winner> --then-archive
+rove api land --task-id <winner>
 
-# Losers: archive is non-destructive (worktree, branch, history stay).
-rove api archive --task-id <loser1>
-rove api archive --task-id <loser2>
+# Losers: delete removes the worktree but keeps the branch (git is the durable record).
+# Removal runs in the background, so a plain delete only reports that it was
+# QUEUED. Cleaning up a batch? Pass --wait and read `status` — a worktree git
+# cannot remove comes back as `failed` with the reason instead of vanishing
+# into daemon.log.
+rove api delete --task-id <loser1> --wait
+rove api delete --task-id <loser2> --wait
 ```
 
 `land` refuses a dirty base checkout, and on merge conflict aborts cleanly
 and returns the conflicted files for manual resolution. `delete` removes a
 loser's worktree but keeps its branch (git is the durable record); `land`
-removes the winner's worktree in the same call by default. Archiving a loser
-leaves its worktree on disk, so `delete` is what reclaims those directories.
-Finish rounds — a sidebar full of stale attempts is where the next
-round's confusion comes from.
+removes the winner's worktree in the same call by default. Finish rounds —
+a sidebar full of stale attempts is where the next round's confusion comes from.
 
 ## Failure modes
 
@@ -191,10 +206,10 @@ rove api get-task --task-id <winner>       # .task.worktreePath, .task.branch
 git -C <worktreePath> log --oneline main..HEAD
 git -C <worktreePath> diff main...HEAD
 
-# 4. Land it, archive the rest.
-rove api land --task-id <winner> --then-archive
-rove api archive --task-id <loser1>
-rove api archive --task-id <loser2>
+# 4. Land it, delete the losers' worktrees (branches stay).
+rove api land --task-id <winner>
+rove api delete --task-id <loser1> --wait
+rove api delete --task-id <loser2> --wait
 ```
 
 The same round run *by an agent* differs only in step 2: the workers'

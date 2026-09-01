@@ -25,11 +25,9 @@
  *     `max(minIntervalMs, 5 × last duration)`, so slow-but-finishing
  *     repos self-thin without a special case.
  *
- * Collection scope: every NON-ARCHIVED task with a LOCAL worktree. Archived
- * tasks are never collected (the Archives view must not pay git-status for
- * shelved worktrees — the original freeze trigger), and remote (`ssh://`)
+ * Collection scope: every task with a LOCAL worktree. Remote (`ssh://`)
  * projects are skipped — their worktrees aren't on this filesystem.
- * Deleted/archived tasks' entries DROP from the published map on the next
+ * Deleted tasks' entries DROP from the published map on the next
  * tick. `main` tasks collect like any other (worktreePath = repo root —
  * the PROJECTS rows show the same chip); tasks sharing a worktree path
  * (main rows of the same repo) dedupe naturally on the path key.
@@ -140,7 +138,7 @@ export async function runGitStatus(worktreePath: string, signal: AbortSignal): P
 }
 
 /**
- * The worktree paths the collector tracks: non-archived tasks with a
+ * The worktree paths the collector tracks: tasks with a
  * non-empty LOCAL worktree. Remote (`ssh://`) projects are excluded by
  * repo key — their worktrees live on another host. Pure — unit-tested.
  * Returns a Set, so tasks sharing a path (e.g. `main` rows whose
@@ -149,7 +147,6 @@ export async function runGitStatus(worktreePath: string, signal: AbortSignal): P
 export function trackedWorktreePaths(tasks: readonly Task[]): Set<string> {
   const paths = new Set<string>()
   for (const task of tasks) {
-    if (task.archived) continue
     if (!task.worktreePath) continue
     if (isRemoteRepoKey(task.repo) || isRemoteRepoKey(task.worktreePath)) continue
     paths.add(task.worktreePath)
@@ -182,7 +179,7 @@ export interface WorktreeChangesCollectorOptions {
 
 /**
  * Tick-driven collector. `tick()` is synchronous and never throws: it
- * prunes entries for worktrees no longer tracked (deleted/archived/now-
+ * prunes entries for worktrees no longer tracked (deleted/now-
  * remote tasks), starts guarded status runs for due worktrees, and
  * publishes the full map when — and only when — membership or a value
  * changed. Run completions publish as they land (each is a real change
@@ -209,7 +206,7 @@ export class WorktreeChangesCollector {
     if (this.options.hasSubscribers && !this.options.hasSubscribers()) return
     try {
       const tracked = trackedWorktreePaths(this.orch.listTasks())
-      // Prune first: a task deleted/archived since the last tick drops its
+      // Prune first: a task deleted since the last tick drops its
       // entry — and, when it had published counts, triggers a republish so
       // subscribers stop showing it.
       let pruned = false
@@ -251,7 +248,7 @@ export class WorktreeChangesCollector {
       (signal) => run(worktreePath, signal),
       (value) => {
         if (this.stopped) return
-        // The entry may have been pruned (task deleted/archived) while the
+        // The entry may have been pruned (task deleted) while the
         // status ran — a completion for an untracked path must not resurrect
         // it in the published map.
         if (this.entries.get(worktreePath) !== entry) return

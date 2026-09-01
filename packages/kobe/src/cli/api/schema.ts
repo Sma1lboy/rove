@@ -13,17 +13,10 @@ import { getCustomEngineIds } from "../../state/repos.ts"
 import { CURRENT_VERSION } from "../../version.ts"
 import { activeCliName } from "../rename-compat.ts"
 import { ApiError, type FlagSpec, type VerbSpec } from "./types.ts"
-import { VERBS, VERB_ALIASES, VERB_GROUPS, findVerb } from "./verbs.ts"
+import { VERBS, VERB_ALIASES, VERB_GROUPS } from "./verbs.ts"
 
 /** Bumped when the verb/flag shape changes incompatibly. Agents can gate on it. */
 export const API_SCHEMA_VERSION = 2
-
-export function groupOf(verbName: string): string {
-  for (const [group, names] of Object.entries(VERB_GROUPS)) {
-    if (names.includes(verbName)) return group
-  }
-  return "other"
-}
 
 const GLOBAL_FLAGS = [
   { name: "pretty", type: "bool", description: "Pretty-print stdout JSON." },
@@ -63,7 +56,7 @@ function flagJson(f: FlagSpec): unknown {
 export function verbSchema(v: VerbSpec): unknown {
   return {
     name: v.name,
-    group: groupOf(v.name),
+    group: v.group,
     summary: v.summary,
     offline: v.offline ?? false,
     flags: v.flags.map(flagJson),
@@ -79,24 +72,25 @@ export function schemaIndex(): unknown {
     kobeVersion: CURRENT_VERSION,
     hint: `Compact index. Drill into ONE verb: \`${cliName} api schema --verb <name>\` (or \`${cliName} api <verb> --help\`). One group: \`--group <g>\`. Whole spec: \`--all\`.`,
     groups: VERB_GROUPS,
-    verbs: VERBS.map((v) => ({ name: v.name, group: groupOf(v.name), summary: v.summary })),
+    verbs: VERBS.map((v) => ({ name: v.name, group: v.group, summary: v.summary })),
     globalFlags: GLOBAL_FLAGS,
     aliases: VERB_ALIASES,
   }
 }
 
-/** The verbs in ONE group (compact). */
+/**
+ * The verbs in ONE group (compact). Every group here has verbs and every verb
+ * is in a group — both sides come from the same `VerbSpec.group` field, so the
+ * listing can no longer disagree with the `group` an agent read off the index.
+ */
 export function groupSchema(group: string): unknown {
-  const names = VERB_GROUPS[group]
-  if (!names) {
+  const verbs = VERBS.filter((v) => v.group === group)
+  if (verbs.length === 0) {
     throw new ApiError(`unknown group: ${group}. Groups: ${Object.keys(VERB_GROUPS).join(", ")}`, "BAD_FLAG")
   }
   return {
     group,
-    verbs: names.map((n) => {
-      const v = findVerb(n)
-      return { name: n, summary: v?.summary ?? "" }
-    }),
+    verbs: verbs.map((v) => ({ name: v.name, summary: v.summary })),
   }
 }
 

@@ -24,6 +24,9 @@ const KEYS: Record<string, string> = {
   left: "ArrowLeft",
   right: "ArrowRight",
   tab: "Tab",
+  // Playwright names function keys uppercase; the atlas drives F1 (help) and
+  // F2/F3/F4 (rename, focus split, cycle focus), which lowercase chords miss.
+  ...Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`f${i + 1}`, `F${i + 1}`])),
 }
 const MODS: Record<string, string> = { ctrl: "Control", alt: "Alt", shift: "Shift" }
 
@@ -81,6 +84,31 @@ export async function look(page: Page, needle: string, timeout = 60_000): Promis
     return true
   } catch {
     console.error(`[hero:capture] never saw ${JSON.stringify(needle)} — moving on`)
+    return false
+  }
+}
+
+/**
+ * Wait for `needle` to LEAVE the buffer. The mirror of {@link look}, for the
+ * case a storyboard actually has: filming a turn until it finishes.
+ *
+ * Waiting a fixed number of seconds cannot do this — a turn takes as long as
+ * it takes, and a hold long enough for the slow case films the fast one
+ * sitting still. The README demo shipped with roughly half its runtime frozen
+ * on a finished turn for exactly that reason. Advisory like `look`: a timeout
+ * returns false rather than failing the take.
+ */
+export async function gone(page: Page, needle: string, timeout = 180_000): Promise<boolean> {
+  const buffer = await page.getByTestId("opentui-buffer").elementHandle()
+  try {
+    await page.waitForFunction(
+      ([el, text]) => !((el as Element | null)?.textContent?.includes(text as string) ?? false),
+      [buffer, needle] as const,
+      { timeout, polling: 1_000 },
+    )
+    return true
+  } catch {
+    console.error(`[hero:capture] ${JSON.stringify(needle)} never cleared — moving on`)
     return false
   }
 }
@@ -145,7 +173,17 @@ export async function record(workDir: string, storyboard: (page: Page) => Promis
     // context is not guaranteed in every CI container, and a still that fails
     // to render is worse than one with a seam. A failed context falls back to
     // DOM inside ChatTerminal either way.
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&webgl=1`)
+    // `HERO_CAPTURE_WALLPAPER` swaps the flat backdrop for a desktop wallpaper
+    // showing through a transparent terminal, which is what makes a capture
+    // read as a window rather than a rectangle. The renderer follows from that
+    // choice (see ChatTerminal): transparent takes the canvas renderer, opaque
+    // ones take WebGL. Both tile block-drawing glyphs without a seam; the DOM
+    // renderer, which does not, is only ever the fallback.
+    const wallpaper = process.env.HERO_CAPTURE_WALLPAPER
+    const query = wallpaper
+      ? `wallpaper=${encodeURIComponent(wallpaper)}`
+      : "webgl=1"
+    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&${query}`)
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
     await look(page, "orbit-sdk", 60_000)
     await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: 400 } })

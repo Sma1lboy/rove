@@ -12,11 +12,13 @@
  */
 
 import { expect, test } from "bun:test"
+import { TextAttributes } from "@opentui/core"
 import type { AttentionInboxItem } from "../../src/client/remote-orchestrator"
 import type { KVContext } from "../../src/tui-react/context/kv"
 import { AttentionInboxPane } from "../../src/tui-react/workspace/AttentionInboxPane"
+import { writeInboxVisit } from "../../src/tui-react/workspace/inbox-visits"
 import { type Task, toTaskId } from "../../src/types/task"
-import { renderComponent } from "./harness"
+import { renderComponent, settle } from "./harness"
 
 function task(id: string, over: Partial<Task> = {}): Task {
   return {
@@ -27,7 +29,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,
@@ -104,4 +105,37 @@ test("a comfortable width keeps the full badge label", async () => {
   const tasks = [task("t0")]
   const text = await pane([item("t0", "permission_needed")], tasks, { width: 80, height: 30 })
   expect(text).toContain("needs input")
+})
+
+test("the clear hint dims on a RECENT row — only attention rows are dismissible", async () => {
+  const tasks = [task("t-att"), task("t-recent")]
+  const items = [item("t-att", "turn_complete")]
+  const kv = stubKv()
+  writeInboxVisit(kv, { taskId: toTaskId("t-recent"), tabId: null, at: Date.now() - 30_000 })
+  const { mockInput, spans } = await renderComponent(
+    <AttentionInboxPane
+      items={items}
+      tasks={tasks}
+      kv={kv}
+      onOpen={() => {}}
+      onOpenTask={() => {}}
+      onDelete={() => {}}
+      onClose={() => {}}
+    />,
+    { width: 80, height: 30 },
+  )
+
+  const clearHintAttrs = async (): Promise<number> => {
+    const hint = (await spans()).lines.flatMap((line) => line.spans).find((span) => span.text.includes("d clear"))
+    if (!hint) throw new Error("clear hint missing from the frame")
+    return hint.attributes ?? 0
+  }
+
+  // Cursor starts on the ATTENTION row: the hint is live.
+  expect((await clearHintAttrs()) & TextAttributes.DIM).toBe(0)
+  // `j` moves onto the RECENT row: a recent task has nothing to drop, so
+  // the hint must read as unavailable instead of advertising a dead chord.
+  mockInput.pressKey("j")
+  await settle()
+  expect((await clearHintAttrs()) & TextAttributes.DIM).not.toBe(0)
 })

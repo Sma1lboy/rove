@@ -3,18 +3,15 @@
  * (removed 2026-07-07) with the idiomatic React translation: every
  * `Accessor<T>` prop became a plain `T` — the host re-renders the Sidebar
  * when the value changes, so per-read reactivity has no equivalent.
- * Callback props are unchanged. Shared data shapes (`SidebarHover`,
- * `WorktreeChanges`) are the framework-free originals.
+ * Callback props are unchanged. Shared data shapes (`WorktreeChanges`) are
+ * the framework-free originals.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../../tui/panes/sidebar/nav-core"
-import type { SidebarHover } from "../../../tui/panes/sidebar/types"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
-
-export type { SidebarHover } from "../../../tui/panes/sidebar/types"
 
 /**
  * Task-lifecycle callbacks shared VERBATIM by {@link SidebarProps} (host
@@ -23,7 +20,6 @@ export type { SidebarHover } from "../../../tui/panes/sidebar/types"
  */
 export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
-  onArchiveRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
   /** Scope-aware reorder mode (issue #43): j/k move the cursor row's LEVEL
@@ -33,10 +29,13 @@ export type SidebarTaskCallbacks = {
   onMoveRequest?: (taskId: string, delta: -1 | 1) => void
   onMoveModeExit?: () => void
   onRenameRequest?: (taskId: string) => void
-  /** Shift+P only — bare `p` is consumed but does nothing (same as Solid). */
+  /**
+   * Shift+P only. A bare `p` binds nothing — the registry row is an explicit
+   * `shift+p` chord — so a mistyped press matches no binding and silently
+   * does nothing rather than churning the pin flag (same contract as the
+   * Solid era; see the sidebar.pin row in context/keybindings-sidebar.ts).
+   */
   onPinRequest?: (taskId: string) => void
-  onPreviewToggleRequest?: (taskId: string) => void
-  onSortModeToggle?: () => void
 }
 
 export type SidebarProps = SidebarTaskCallbacks & {
@@ -65,6 +64,9 @@ export type SidebarProps = SidebarTaskCallbacks & {
   width?: number
   headerStatus?: { label: string; emphasize: boolean } | null
   onHeaderStatusClick?: () => void
+  /** "newer version on npm" brand-row chip; null hides it. */
+  updateChip?: { label: string } | null
+  onUpdateChipClick?: () => void
   onAddTask?: () => void
   zenActive?: boolean
   onZenClick?: () => void
@@ -76,17 +78,6 @@ export type SidebarProps = SidebarTaskCallbacks & {
   taskJobs?: ReadonlyMap<string, TaskJobState>
   worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
   /** Daemon-collected transcript facts keyed by WORKTREE path — proves a
-   *  "complete" turn whose engine is still writing (hook-silent phases). */
+   * "complete" turn whose engine is still writing (hook-silent phases). */
   transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
-  /**
-   * Parent-level overlay hook for native workspace. When omitted, Sidebar
-   * renders its own local fallback tooltip for standalone/tmux pane hosts.
-   */
-  onHoverChange?: (hover: SidebarHover | null) => void
-  /**
-   * Hover tooltips are opt-in (owner call 2026-07-28): absent/false means
-   * mouse hover never opens the item tooltip. Hosts read the
-   * `sidebar.hover.enabled` setting (default off).
-   */
-  hoverEnabled?: boolean
 }

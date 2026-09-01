@@ -3,18 +3,18 @@
  * (`src/lib/git-parsers.ts`).
  *
  * The hard cases — verified against real `git status --porcelain` /
- * `git diff --numstat` output — are:
+ * `git diff --numstat -z` output — are:
  *   - C-string unquoting: git wraps any path with a space (porcelain
  *     renames), a tab/newline/quote, or a non-ASCII byte in a double-quoted,
  *     C-escaped string, and emits non-ASCII as three-digit OCTAL bytes
  *     (`\303\274` = the UTF-8 bytes of `ü`).
  *   - rename resolution: porcelain uses ` -> ` with each side quoted
- *     independently; numstat uses ` => ` and brace-compacts unchanged
- *     segments (`src/{old => new}`) ONLY when neither side needs quoting,
- *     else falls back to independently-quoted `"a\tb" => "a\tc"`.
+ *     independently; numstat uses `-z` and emits the old and new paths as
+ *     separate NUL-delimited fields, avoiding brace-compaction ambiguity.
  *   - the join: porcelain quotes a spaced path (`"a b.txt"`) while numstat
- *     does not (`a b.txt`); unquoting BOTH yields one canonical path so a
- *     renamed/modified spaced file's numstat counts key onto its status row.
+ *     with `-z` emits the raw path (`a b.txt\0`); unquoting BOTH yields one
+ *     canonical path so a renamed/modified spaced file's numstat counts key
+ *     onto its status row.
  */
 
 import { describe, expect, test } from "vitest"
@@ -127,109 +127,112 @@ const numstat = (path: string, added: number | null, deleted: number | null, ori
 
 describe("parseNumstatRows", () => {
   test("parses a plain modified file", () => {
-    expect(parseNumstatRows("3\t2\tsrc/app.ts")).toEqual([numstat("src/app.ts", 3, 2)])
+    expect(parseNumstatRows("3\t2\tsrc/app.ts\0")).toEqual([numstat("src/app.ts", 3, 2)])
   })
 
   test("surfaces binary `-` counts as null", () => {
-    expect(parseNumstatRows("-\t-\tassets/logo.png")).toEqual([numstat("assets/logo.png", null, null)])
+    expect(parseNumstatRows("-\t-\tassets/logo.png\0")).toEqual([numstat("assets/logo.png", null, null)])
   })
 
-  test("skips blank and malformed lines", () => {
-    expect(parseNumstatRows("\n3\t1\ta.ts\nnotatabline\n")).toEqual([numstat("a.ts", 3, 1)])
+  test("parses multiple NUL-delimited records", () => {
+    expect(parseNumstatRows("3\t1\ta.ts\0" + "5\t0\tb.ts\0")).toEqual([numstat("a.ts", 3, 1), numstat("b.ts", 5, 0)])
   })
 
-  test("resolves a same-directory brace-compacted rename", () => {
-    expect(parseNumstatRows("0\t0\tsrc/{old.txt => new.txt}")).toEqual([numstat("src/new.txt", 0, 0, "src/old.txt")])
+  test("skips malformed fields", () => {
+    // A field with no tabs and a valid record after it.
+    expect(parseNumstatRows("notatabline\0" + "3\t1\ta.ts\0")).toEqual([numstat("a.ts", 3, 1)])
   })
 
-  test("resolves a cross-directory brace rename (leading segment)", () => {
-    expect(parseNumstatRows("0\t0\t{dir => other}/x.txt")).toEqual([numstat("other/x.txt", 0, 0, "dir/x.txt")])
+  test("resolves a same-directory rename", () => {
+    // `git diff --numstat -z` emits the old and new paths as separate fields.
+    expect(parseNumstatRows("0\t0\t\0src/old.txt\0src/new.txt\0")).toEqual([
+      numstat("src/new.txt", 0, 0, "src/old.txt"),
+    ])
   })
 
-  test("resolves a root-level rename with no common segment (no braces)", () => {
-    expect(parseNumstatRows("0\t0\troot1.txt => root2.txt")).toEqual([numstat("root2.txt", 0, 0, "root1.txt")])
+  test("resolves a cross-directory rename", () => {
+    expect(parseNumstatRows("0\t0\t\0dir/x.txt\0other/x.txt\0")).toEqual([numstat("other/x.txt", 0, 0, "dir/x.txt")])
+  })
+
+  test("resolves a root-level rename", () => {
+    expect(parseNumstatRows("0\t0\t\0root1.txt\0root2.txt\0")).toEqual([numstat("root2.txt", 0, 0, "root1.txt")])
   })
 
   test("keeps content-change counts on a renamed-and-edited file", () => {
-    expect(parseNumstatRows("8\t1\tsrc/{a.ts => b.ts}")).toEqual([numstat("src/b.ts", 8, 1, "src/a.ts")])
+    expect(parseNumstatRows("8\t1\t\0src/a.ts\0src/b.ts\0")).toEqual([numstat("src/b.ts", 8, 1, "src/a.ts")])
   })
 
   test("does not mangle a normal path that merely contains a brace", () => {
-    expect(parseNumstatRows("1\t0\tsrc/{shared}/util.ts")).toEqual([numstat("src/{shared}/util.ts", 1, 0)])
+    expect(parseNumstatRows("1\t0\tsrc/{shared}/util.ts\0")).toEqual([numstat("src/{shared}/util.ts", 1, 0)])
   })
 
-  test("resolves a move OUT of a subdirectory (empty new brace side)", () => {
-    // `git mv src/sub/a.txt src/a.txt` — git empties the new side. Naive
-    // concat would double the seam into `src//a.txt`; the new path must be
-    // `src/a.txt` and the old path `src/sub/a.txt`.
-    expect(parseNumstatRows("0\t0\tsrc/{sub => }/a.txt")).toEqual([numstat("src/a.txt", 0, 0, "src/sub/a.txt")])
+  test("resolves a move OUT of a subdirectory", () => {
+    expect(parseNumstatRows("0\t0\t\0src/sub/a.txt\0src/a.txt\0")).toEqual([
+      numstat("src/a.txt", 0, 0, "src/sub/a.txt"),
+    ])
   })
 
-  test("resolves a move INTO a subdirectory (empty old brace side)", () => {
-    // `git mv src/a.txt src/sub/a.txt` — git empties the old side. The old
-    // path must collapse to `src/a.txt`, not `src//a.txt`.
-    expect(parseNumstatRows("0\t0\tsrc/{ => sub}/a.txt")).toEqual([numstat("src/sub/a.txt", 0, 0, "src/a.txt")])
+  test("resolves a move INTO a subdirectory", () => {
+    expect(parseNumstatRows("0\t0\t\0src/a.txt\0src/sub/a.txt\0")).toEqual([
+      numstat("src/sub/a.txt", 0, 0, "src/a.txt"),
+    ])
   })
 
-  test("collapses the seam for a deeper move-out (empty side, nested prefix)", () => {
-    expect(parseNumstatRows("3\t1\ta/b/{c => }/f.txt")).toEqual([numstat("a/b/f.txt", 3, 1, "a/b/c/f.txt")])
-  })
-
-  test("only collapses at a real directory seam, not any empty side", () => {
-    // Defensive: git only ever empties a WHOLE `/`-bounded component, so a real
-    // seam is always slash-flanked. This synthetic partial-component field
-    // (which git never emits) must NOT collapse, since the suffix (`file.txt`)
-    // is not `/`-led — proving the collapse is scoped to the seam, not any
-    // empty side. Plain concat stands: `src/file.txt` / `src/subfile.txt`.
-    expect(parseNumstatRows("0\t0\tsrc/{sub => }file.txt")).toEqual([numstat("src/file.txt", 0, 0, "src/subfile.txt")])
-  })
-
-  test("resolves a quoted (tab) rename with independent quoting per side", () => {
-    expect(parseNumstatRows('2\t1\t"weird\\tname.txt" => "weird\\trenamed.txt"')).toEqual([
+  test("resolves a rename with a tab in the path", () => {
+    // With `-z`, the tab is a literal byte in the path, not a C escape.
+    expect(parseNumstatRows("2\t1\t\0weird\tname.txt\0weird\trenamed.txt\0")).toEqual([
       numstat("weird\trenamed.txt", 2, 1, "weird\tname.txt"),
     ])
   })
 
-  test("resolves a unicode (octal) rename", () => {
-    expect(parseNumstatRows('0\t0\t"\\303\\274.txt" => "\\303\\274v2.txt"')).toEqual([
-      numstat("üv2.txt", 0, 0, "ü.txt"),
+  test("resolves a unicode rename", () => {
+    expect(parseNumstatRows("0\t0\t\0ü.txt\0üv2.txt\0")).toEqual([numstat("üv2.txt", 0, 0, "ü.txt")])
+  })
+
+  test("issue #63 regression: literal brace in a rename path", () => {
+    // Brace-compaction makes this path unparseable without `-z`:
+    //   path:       src/{a{b/f.txt  →  src/c/f.txt
+    //   non-z:      src/{{a{b => c}/f.txt   (three `{`, ambiguous)
+    // With `-z` the two paths are independent fields.
+    expect(parseNumstatRows("0\t0\t\0src/{a{b/f.txt\0src/c/f.txt\0")).toEqual([
+      numstat("src/c/f.txt", 0, 0, "src/{a{b/f.txt"),
     ])
   })
 })
 
 describe("porcelain ↔ numstat path coherence (the join the bug breaks)", () => {
   test("a spaced rename resolves to the SAME canonical path in both formats", () => {
-    // Porcelain quotes the spaced paths; numstat brace-compacts them WITHOUT
-    // quoting. Both must unquote/resolve to `src/has space2.txt` so the
-    // numstat counts key onto the porcelain `R` row.
+    // Porcelain quotes the spaced paths; numstat with `-z` emits raw paths.
+    // Both must unquote/resolve to `src/has space2.txt` so the numstat counts
+    // key onto the porcelain `R` row.
     const [p] = parsePorcelainRows('R  "src/has space.txt" -> "src/has space2.txt"')
-    const [n] = parseNumstatRows("4\t2\tsrc/{has space.txt => has space2.txt}")
+    const [n] = parseNumstatRows("4\t2\t\0src/has space.txt\0src/has space2.txt\0")
     expect(p?.path).toBe("src/has space2.txt")
     expect(n?.path).toBe("src/has space2.txt")
     expect(p?.path).toBe(n?.path)
   })
 
   test("a spaced (non-rename) modify resolves identically across formats", () => {
-    // Porcelain quotes `"a b.txt"`; numstat leaves `a b.txt` bare.
+    // Porcelain quotes `"a b.txt"`; numstat with `-z` emits the raw path.
     const [p] = parsePorcelainRows(' M "a b.txt"')
-    const [n] = parseNumstatRows("1\t0\ta b.txt")
+    const [n] = parseNumstatRows("1\t0\ta b.txt\0")
     expect(p?.path).toBe("a b.txt")
     expect(n?.path).toBe("a b.txt")
   })
 
   test("a tab-named modify resolves identically across formats", () => {
     const [p] = parsePorcelainRows(' M "a\\tb.txt"')
-    const [n] = parseNumstatRows('1\t0\t"a\\tb.txt"')
+    const [n] = parseNumstatRows("1\t0\ta\tb.txt\0")
     expect(p?.path).toBe("a\tb.txt")
     expect(n?.path).toBe("a\tb.txt")
   })
 
   test("a move OUT of a subdirectory keys onto the same porcelain path", () => {
     // `git mv src/sub/a.txt src/a.txt`. Porcelain reports the full new path;
-    // numstat empties the new brace side (`src/{sub => }/a.txt`). Both must
-    // resolve to `src/a.txt` or the +/- counts orphan from the status row.
+    // numstat with `-z` emits the old and new paths as separate fields. Both
+    // must resolve to `src/a.txt` or the +/- counts orphan from the status row.
     const [p] = parsePorcelainRows("R  src/sub/a.txt -> src/a.txt")
-    const [n] = parseNumstatRows("4\t2\tsrc/{sub => }/a.txt")
+    const [n] = parseNumstatRows("4\t2\t\0src/sub/a.txt\0src/a.txt\0")
     expect(p?.path).toBe("src/a.txt")
     expect(n?.path).toBe("src/a.txt")
     expect(p?.path).toBe(n?.path)

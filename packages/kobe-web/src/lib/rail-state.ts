@@ -2,7 +2,7 @@
  * Task-rail filter state — module store (issue #7). The `/` route renders
  * <AppShell/> directly while /task/$taskId wraps it in <TaskRoute>, so the
  * first task-open from home unmounts+remounts AppShell and used to wipe the
- * rail's local useState (text query, status chip, sort, archived toggle) on
+ * rail's local useState (text query, status chip, sort) on
  * its most common trigger. Holding the state at module level (same pattern as
  * tabs.ts/toast.ts) makes it survive the remount.
  *
@@ -20,14 +20,12 @@ export interface RailState {
   query: string
   statusFilter: Bucket | "all"
   sortMode: TaskSortMode
-  showArchived: boolean
 }
 
 const initial: RailState = {
   query: "",
   statusFilter: "all",
   sortMode: "default",
-  showArchived: false,
 }
 
 const store = createExternalStore(initial)
@@ -50,10 +48,6 @@ export function setRailStatusFilter(statusFilter: Bucket | "all"): void {
 
 export function setRailSortMode(sortMode: TaskSortMode): void {
   set({ sortMode })
-}
-
-export function setRailShowArchived(showArchived: boolean): void {
-  set({ showArchived })
 }
 
 /** Sync the TUI's ui-prefs sort into the rail — only when the pref actually

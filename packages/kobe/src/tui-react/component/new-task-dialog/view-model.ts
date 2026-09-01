@@ -19,9 +19,12 @@
 
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
 import type { AdoptableWorktree } from "@/types/worktree"
+import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useState } from "react"
+import { nameOrPath, resolveRepoInput, splitRepoInput } from "../../../tui/component/new-task-dialog/repo-field"
 import {
   type DialogTab,
+  type ExistingIntent,
   type Field,
   type NewTaskInput,
   type PickerWindow,
@@ -32,12 +35,15 @@ import {
   firstFieldFor,
   nextDialogTab,
   nextField,
+  offersProjectIntent,
   pickerModeFor,
+  pickerVisibleRows,
   prevDialogTab,
   resolveBaseRef,
   stripNewlines,
   windowAround,
 } from "../../../tui/component/new-task-dialog/state"
+import { t } from "../../../tui/i18n"
 import { DEFAULT_BASE_REF, getCurrentBranch, listLocalBranches, validateRepoPath } from "../../../tui/lib/git-snapshot"
 import { expandHome, joinPicked } from "../../../tui/lib/path-helpers"
 import { useBindings } from "../../lib/keymap"
@@ -62,7 +68,13 @@ export type NewTaskDialogProps = {
   availableVendors?: readonly VendorId[]
   /** Adopt-tab discovery. Omit to leave the tab empty. */
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
+  /** Repos that already have a project checkout — gates the intent choice. */
+  mainRepos?: ReadonlySet<string>
 }
+
+/** Shared default for `mainRepos` — a fresh `new Set()` per render would be a
+ *  new identity every time and defeat any memo keyed on it. */
+const EMPTY_MAIN_REPOS: ReadonlySet<string> = new Set()
 
 export function useNewTaskViewModel(props: NewTaskDialogProps) {
   const dialog = useDialog()
@@ -75,7 +87,14 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Open focused on the mode selector — ←/→ switches tabs immediately;
   // Tab then walks engine → repo → branch → Create.
   const [field, setField] = useState<Field>("tabs")
-  const [repo, setRepo] = useState(props.defaultRepo)
+  // Seeded from the caller's PATH, shown as a name — the field's own grammar
+  // from the first frame rather than a path that turns into a name on first
+  // touch. `repoDir` puts the directory back beside it. Same round-trip guard
+  // as `pickRepo`: a basename shared with another saved repo would open the
+  // dialog on an ambiguous value, so that case keeps the path.
+  const [repo, setRepo] = useState(() =>
+    nameOrPath(props.defaultRepo, computeRepoOptions(props.defaultRepo, props.savedRepos)),
+  )
   // Initial baseRef tracks the cwd's current branch (worktree forked from a
   // feature branch defaults to it, not hardcoded "main").
   const [baseRef, setBaseRef] = useState(
@@ -90,6 +109,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Enter/click; typing resumes browsing.
   const [repoPicked, setRepoPicked] = useState(false)
   const [branchCursor, setBranchCursor] = useState(0)
+  // Existing-tab intent (issue #90). Defaults to "task" so the tab keeps
+  // doing what it always did; the choice only RENDERS when the picked repo
+  // already has a project checkout to open.
+  const [intent, setIntent] = useState<ExistingIntent>("task")
 
   // Validation error shown inline on submit; cleared on any input edit.
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -100,16 +123,40 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     () => computeRepoOptions(props.defaultRepo, props.savedRepos),
     [props.defaultRepo, props.savedRepos],
   )
+  // Live per render — opentui re-renders on resize, so a terminal dragged
+  // short re-windows the pickers instead of clipping the Create button.
+  const pickerRows = pickerVisibleRows(useTerminalDimensions().height)
   const mode = pickerModeFor(repo, repoOptions)
+  // `repo` holds exactly what the field shows — a NAME once one is chosen,
+  // free text while it is being typed. It is never a display derived from a
+  // different underlying value: an opentui `<input>` adopts its `value` prop
+  // as its edit buffer, so a field showing one string while state held another
+  // wrote the shown one back on the next keystroke and the two oscillated.
+  // One representation, resolved to a path at the boundaries instead.
+  const repoResolution = resolveRepoInput(repo, repoOptions)
+  // The directory the chosen NAME resolves to — muted, at the row's right
+  // edge, so a bare name still says where it is. Empty whenever the field
+  // already holds a path: the directory is then in the field itself, and
+  // repeating it beside it would print the same string twice.
+  const repoDir =
+    repoResolution.kind === "path" && repoResolution.path !== repo.trim()
+      ? splitRepoInput(repoResolution.path, true).dir
+      : ""
   const { split: subdirSplit, filtered: subdirFiltered } = useDerivedDir(repo)
   const savedFiltered = useMemo(() => filterRepos(repoOptions, repo), [repoOptions, repo])
   const activeList = mode === "browse" ? subdirFiltered : savedFiltered
-  const activeWindow: PickerWindow = windowAround(activeList, repoCursor)
+  const activeWindow: PickerWindow = windowAround(activeList, repoCursor, pickerRows)
 
-  const expandedRepo = expandHome(repo.trim())
+  // Everything downstream (branch list, validation, adopt scan, the submitted
+  // `repo`) needs a PATH, and the field holds a name — so resolve first, then
+  // expand. An ambiguous name resolves to nothing until the user disambiguates.
+  const expandedRepo = repoResolution.kind === "path" ? expandHome(repoResolution.path) : ""
+  // Offered against the EXPANDED path: `mainRepos` holds absolute repo roots,
+  // and a `~/`-typed entry would otherwise never match its own project.
+  const canOpenProject = offersProjectIntent(expandedRepo, props.mainRepos ?? EMPTY_MAIN_REPOS)
   const branches = useMemo(() => listLocalBranches(expandedRepo), [expandedRepo])
   const branchFiltered = useMemo(() => filterBranches(branches, baseRef), [branches, baseRef])
-  const branchWindow: PickerWindow = windowAround(branchFiltered, branchCursor)
+  const branchWindow: PickerWindow = windowAround(branchFiltered, branchCursor, pickerRows)
 
   const clone = useCloneState({
     defaultCloneParent: props.defaultCloneParent,
@@ -145,9 +192,35 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   /* ── Input handlers (strip newlines + reset the affected cursor) ── */
 
+  /**
+   * The repo changed — by ANY route (typing, Enter on the picker, a click).
+   *
+   * Owns the intent reset: a different repo may have no project checkout at
+   * all, and the choice is per-repo, so carrying "project" across a change
+   * leaves the row asserting something about the previous path. `submit` is
+   * separately guarded on `canOpenProject` (derived from the CURRENT repo),
+   * so this is about the row telling the truth, not about safety.
+   *
+   * Three call sites used to write `setRepo` directly and skip it — typing
+   * reset the intent, picking the same repo from the dropdown did not.
+   */
+  function changeRepo(next: string): void {
+    setRepo(next)
+    setIntent("task")
+  }
+
+  /**
+   * A repo was PICKED (dropdown Enter, click, browse-mode select) — the picker
+   * deals in paths, the field holds names, and this is the one funnel every
+   * selection route already goes through, so the conversion belongs here.
+   */
+  function pickRepo(path: string): void {
+    changeRepo(nameOrPath(path, repoOptions))
+  }
+
   function setRepoText(v: string): void {
     setRepoPicked(false)
-    setRepo(stripNewlines(v))
+    changeRepo(stripNewlines(v))
     setRepoCursor(0)
     setBranchCursor(0)
   }
@@ -160,12 +233,38 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   /* ── Commit paths ── */
 
   function commitExisting(): void {
+    // Two saved repos can share a basename (a hundred flat repos under one
+    // parent makes this ordinary), and the name alone cannot say which. Send
+    // the user back to the picker — where the directories that separate them
+    // are on screen — rather than opening the alphabetically-first one.
+    if (repoResolution.kind === "ambiguous") {
+      setSubmitError(t("newTask.error.repoAmbiguous", { name: repoResolution.name }))
+      setField("repo")
+      setRepoPicked(false)
+      return
+    }
     const r = expandedRepo
     if (!r) return
     const reason = validateRepoPath(r)
     if (reason) {
       setSubmitError(reason)
       setField("repo")
+      return
+    }
+    // "Open the project" is a different verb, not a create with a flag: it
+    // resolves to the repo's EXISTING main row, so it carries no baseRef —
+    // there is no branch to fork from when you are opening the checkout
+    // itself.
+    //
+    // `canOpenProject` is re-read here rather than trusted from when the
+    // choice was made: it derives from the CURRENT repo, so this cannot
+    // submit `open` for a path that has no main row to resolve. `changeRepo`
+    // already resets the intent on every repo change, which makes the two
+    // agree in practice — this is the half that does not depend on every
+    // future caller remembering to go through it.
+    if (intent === "project" && canOpenProject) {
+      props.onSubmit({ mode: "open", repo: r, vendor })
+      dialog.clear()
       return
     }
     const b = baseRef.trim() || DEFAULT_BASE_REF
@@ -183,6 +282,22 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       return
     }
     commitExisting()
+  }
+
+  /**
+   * Tab/Enter's next stop, honouring the intent. Opening a project hides the
+   * branch field (`tab-existing.tsx`), and the pure `nextField` chain knows
+   * nothing about that — walking into a field that isn't rendered would park
+   * focus on an invisible input and swallow every keystroke.
+   */
+  function advanceField(from: Field): Field {
+    const next = nextField(from, tab, { intentVisible: tab === "existing" && canOpenProject })
+    // The branch field is gone under the "project" intent, so skip its stop
+    // too — same reason, one field further along.
+    if (next === "baseRef" && tab === "existing" && intent === "project" && canOpenProject) {
+      return nextField(next, tab)
+    }
+    return next
   }
 
   /* ── Navigation / selection handlers ── */
@@ -213,8 +328,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     if (!repo.trim() && mode === "saved") {
       const picked = activeList[0]
       if (picked) {
-        setRepo(picked)
-        setField("baseRef")
+        pickRepo(picked)
+        setField(advanceField("repo"))
         return
       }
     }
@@ -222,29 +337,29 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       const picked = subdirFiltered[repoCursor]
       if (picked) {
         // Enter = SELECT this dir as the repo and advance (no drill).
-        setRepo(joinPicked(repo, subdirSplit.base, picked))
+        pickRepo(joinPicked(repo, subdirSplit.base, picked))
         setRepoCursor(0)
         setRepoPicked(true)
       }
-      setField("baseRef")
+      setField(advanceField("repo"))
       return
     }
     const picked = activeList[repoCursor]
-    if (picked) setRepo(picked)
-    setField("baseRef")
+    if (picked) pickRepo(picked)
+    setField(advanceField("repo"))
   }
 
   function selectRepoAt(absoluteIndex: number): void {
     const picked = activeList[absoluteIndex]
     if (!picked) return
     if (mode === "browse") {
-      setRepo(joinPicked(repo, subdirSplit.base, picked))
+      pickRepo(joinPicked(repo, subdirSplit.base, picked))
       setRepoPicked(true)
     } else {
-      setRepo(picked)
+      pickRepo(picked)
     }
     setRepoCursor(absoluteIndex)
-    setField("baseRef")
+    setField(advanceField("repo"))
   }
 
   function pickBranchAt(absoluteIndex: number): void {
@@ -286,7 +401,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   useBindings(() => ({
     bindings: [
-      { key: "tab", cmd: () => setField((f) => nextField(f, tab)) },
+      { key: "tab", cmd: () => setField(advanceField) },
       { key: "ctrl+]", cmd: () => switchToTab(nextDialogTab(tab)) },
       { key: "ctrl+[", cmd: () => switchToTab(prevDialogTab(tab)) },
       { key: "ctrl+e", cmd: () => cycleEngine(1) },
@@ -295,11 +410,25 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       // ←/→/Enter ONLY while a selector is focused — an always-on binding
       // would preventDefault the keys away from focused text inputs (same
       // registration-gating rationale as the Solid shell).
-      ...(field === "tabs" || field === "engine"
+      ...(field === "tabs" || field === "engine" || field === "intent"
         ? [
-            { key: "left", cmd: () => (field === "tabs" ? cycleTab(-1) : cycleEngine(-1)) },
-            { key: "right", cmd: () => (field === "tabs" ? cycleTab(1) : cycleEngine(1)) },
-            { key: "return", cmd: () => setField((f) => nextField(f, tab)) },
+            {
+              key: "left",
+              cmd: () => {
+                if (field === "tabs") cycleTab(-1)
+                else if (field === "engine") cycleEngine(-1)
+                else setIntent("task")
+              },
+            },
+            {
+              key: "right",
+              cmd: () => {
+                if (field === "tabs") cycleTab(1)
+                else if (field === "engine") cycleEngine(1)
+                else setIntent("project")
+              },
+            },
+            { key: "return", cmd: () => setField(advanceField) },
           ]
         : []),
       // Ctrl+A select-all exists ONLY on the Adopt tab; elsewhere it must
@@ -326,6 +455,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     field,
     setField,
     repo,
+    repoDir,
     mode,
     activeList,
     activeWindow,
@@ -337,6 +467,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     branchFiltered,
     branchWindow,
     branchCursor,
+    intent,
+    setIntent,
+    canOpenProject,
     submitError,
     setRepoText,
     setBaseRefText,

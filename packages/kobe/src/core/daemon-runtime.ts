@@ -27,6 +27,7 @@ import { handleNotesRequest } from "../web/notes.ts"
 import { handleThemesRequest } from "../web/themes.ts"
 import {
   deliverPromptToLiveEngineAdapter,
+  deliverPromptToLiveEngineDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
@@ -51,8 +52,11 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   // snapshot, then the same shallowest-engine walk `kobe api inspect` uses.
   async foregroundEngines(pids) {
     const rows = parsePsSnapshot(await psSnapshot())
-    const out = new Map<number, VendorId | null>()
-    for (const pid of pids) out.set(pid, foregroundEngineIn(rows, pid)?.vendor ?? null)
+    const out = new Map<number, { vendor: VendorId; pid: number } | null>()
+    for (const pid of pids) {
+      const found = foregroundEngineIn(rows, pid)
+      out.set(pid, found ? { vendor: found.vendor, pid: found.pid } : null)
+    }
     return out
   },
   titleTurnHint: engineTitleTurnHint,
@@ -90,6 +94,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
+  deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   settingsSnapshot: daemonSettingsSnapshot,
   settingsPatch: daemonSettingsPatch,
   handleDiffRequest,

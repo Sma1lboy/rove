@@ -33,18 +33,18 @@
  * `state`/`props` — recreated fresh every render, the guarantee Solid's
  * accessors gave for free. `onEditorTabReady`/`onEngineSendReady` hand
  * their callback to the parent once per mount, re-fired on remount.
- * NOTE — Integration layer at the file-size cap; see docs/design/terminal-tabs-integration.md.
  */
 
 import type { TranscriptActivity } from "@/client/remote-orchestrator"
 import { availableEngineIds } from "@/engine/account-detect"
-import { engineLaunchArgv } from "@/engine/engine-presets"
-import { withClaudeSessionId } from "@/engine/interactive-command"
+import { engineLaunchArgv, withPinnedSessionId } from "@/engine/engine-presets"
+
 import { getCapabilities } from "@/engine/registry"
 import { resolveMainRepoRoot } from "@/state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "@/state/vendor-prefs"
 import type { VendorId } from "@/types/vendor"
 import { type ReactNode, useEffect, useRef, useState } from "react"
+import { prefixAction } from "../../tui/lib/keymap-dispatch"
 import { buildDiffReview } from "../../tui/ops/diff-comments"
 import { warmHostedShell } from "../../tui/panes/terminal/pty-hosted"
 import { defaultShell } from "../../tui/panes/terminal/pty-types"
@@ -90,7 +90,7 @@ import { noteEngineTabInput } from "./optimistic-activity"
 import { TabStrip, tabTitle } from "./tab-strip"
 import { releaseClosedTabPtys } from "./terminal-tabs-close"
 import { terminalTabsKey } from "./terminal-tabs-persist"
-import { reportTabsDelta, tabsByTask } from "./terminal-tabs-shared"
+import { reportTabsDelta, setTaskTabs, tabsByTask } from "./terminal-tabs-shared"
 import { useTabClose } from "./use-tab-close"
 import { useTabDialogs } from "./use-tab-dialogs"
 import { useTabHandoffs } from "./use-tab-handoffs"
@@ -126,6 +126,8 @@ export interface TerminalTabsProps {
   /** Hands the parent an imperative "paste this into the active engine tab
    *  and submit" function, once per mount (see file header). */
   onEngineSendReady?: (send: (text: string) => void) => void
+  /** Paste-only sibling of `onEngineSendReady` (no submit) — the FileTree `a` @path mention. */
+  onEnginePasteReady?: (paste: (text: string) => void) => void
   /** Hands the parent an imperative "open this file's read-only diff in a
    *  content tab" function, once per mount — the FileTree `d` action (issue
    *  #21). Opening is a content swap, not a focus grab (KOB-25). */
@@ -168,11 +170,10 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // effects below (see file header).
   const propsRef = useLatest(props)
 
-  /** Pin a fresh engine-session id on the just-created active engine tab —
-   *  the tmux `@kobe_session_id` stash. */
+  /** Pin a fresh engine-session id on the just-created active engine tab (the tmux `@kobe_session_id` stash). */
   const pinSession = (s: TabsState, vendor: VendorId | undefined): TabsState => {
     const base = vendor ? engineLaunchArgv({ vendor, effort: props.modelEffort }) : props.command
-    const { sessionId } = withClaudeSessionId(base, vendor ?? props.vendor)
+    const { sessionId } = withPinnedSessionId(base, vendor ?? props.vendor)
     return setTabSessionId(s, s.activeId, sessionId)
   }
 
@@ -193,7 +194,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     // the shell; an engine only appears if the user types one.
     const fresh =
       fromDisk ?? (props.scratch === true ? initialShellTabs(defaultShell()) : pinSession(initialTabs(), undefined))
-    tabsByTask.set(props.taskId, fresh)
+    tabsByTask.set(props.taskId, fresh) // silent: render phase, see setTaskTabs
     return fresh
   }
 
@@ -202,7 +203,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
 
   const update = (next: TabsState): void => {
     reportTabsDelta(propsRef.current.taskId, stateRef.current.tabs, next.tabs)
-    tabsByTask.set(propsRef.current.taskId, next)
+    setTaskTabs(propsRef.current.taskId, next)
     stateRef.current = next
     setState(next)
     kv.set(persistKey, next)
@@ -249,8 +250,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       worktreePath: props.worktree,
     })
   }
-  // Latest-render mirror for the mount-once engine-send closure below —
-  // same freshness convention as propsRef/stateRef (file header).
+  // Latest-render mirror for the mount-once engine-send closure — same freshness convention as propsRef/stateRef (file header).
   const engineTabSpawnRef = useLatest(engineTabSpawn)
 
   /** Nudge Terminal to re-acquire under the CURRENTLY visible tab's key —
@@ -260,10 +260,10 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   /* --------- restart resume verification (issue #22) — mount-only ------- */
   const hydrating = useTabHydration(rehydratedRef.current, { stateRef, propsRef, update })
 
-  // Parent handoffs — mount-once effects, extracted to use-tab-handoffs.ts
-  // (file-size cap split). The quick-fork initial prompt needs no delivery
-  // effect: it rides the first spawn (argv, or firstMessage paste for
-  // paste-delivery vendors — engineTabSpawn).
+  // Parent handoffs — the once-per-mount work, in use-tab-handoffs.ts apart
+  // from the per-render hooks below. The quick-fork initial prompt needs no
+  // delivery effect: it rides the first spawn (argv, or firstMessage paste
+  // for paste-delivery vendors — engineTabSpawn).
   const { sendToEngine } = useTabHandoffs({
     stateRef,
     propsRef,
@@ -333,7 +333,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   const resumeTriedRef = useRef(new Set<string>())
 
   // Tab teardown — ctrl+w, close-from-the-tree, process exit, and the exit
-  // policy above them (use-tab-close.ts, file-size cap split).
+  // policy above them: one hook (use-tab-close.ts) so the four stay one rule.
   const tabClose = useTabClose({
     stateRef,
     propsRef,
@@ -350,8 +350,8 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   // through a ref rather than the one from its first render.
   const tabCloseRef = useLatest(tabClose)
 
-  // Rename + the unified new-conversation dialog (issue #7) — extracted
-  // (file-size cap split); recreated per render for state freshness.
+  // Rename + the unified new-conversation dialog (issue #7) — the flows that
+  // ASK the user something (use-tab-dialogs.ts); per render for freshness.
   const { requestRename, requestNewChat } = useTabDialogs({
     dialog,
     t,
@@ -410,15 +410,15 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
       // context to "continue this conversation", f dials destination to
       // "fork a child task worktree".
       "chat.tab.chooseEngine": () => requestNewChat(),
-      "chat.tab.fork": () => requestNewChat({ context: "continue" }),
+      "chat.tab.fork": prefixAction(() => requestNewChat({ context: "continue" })),
       "chat.tab.cycle-next": () => update(cycleTab(state, 1)),
       "chat.tab.cycle-prev": () => update(cycleTab(state, -1)),
-      "chat.fork.new": () => requestNewChat({ destination: "fork" }),
+      "chat.fork.new": prefixAction(() => requestNewChat({ destination: "fork" })),
     }),
   }))
 
-  // ctrl+w / F2 share their chords with TerminalSplit's leaf-level close/
-  // rename. In React the keymap stack puts ANCESTORS on top (mount effects
+  // ctrl+w / F2 share chords with TerminalSplit's leaf-level close/rename.
+  // In React the keymap stack puts ANCESTORS on top (mount effects
   // run children-first — see keymap.ts), so these tab-level entries would
   // always shadow the split ones. Gate them off while the active tab is
   // actually split (>1 leaf) so the chords fall through the LIFO stack to

@@ -11,6 +11,20 @@
 
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
+import type {
+  PtyDataEventPayload,
+  PtyExitEventPayload,
+  PtyOpenResult,
+  PtyPeekResult,
+  PtySessionExit,
+} from "./pty-protocol.ts"
+export type {
+  PtyDataEventPayload,
+  PtyExitEventPayload,
+  PtyOpenResult,
+  PtyPeekResult,
+  PtySessionExit,
+} from "./pty-protocol.ts"
 
 export { attentionInboxItemKey, isAttentionInboxState } from "./contracts.ts"
 export type { EngineQuotaUsage, EngineQuotaWindow } from "./contracts.ts"
@@ -144,9 +158,9 @@ export type DaemonRequestName =
   | "task.list"
   | "task.get"
   | "task.create"
-  | "task.archive"
   | "task.rename"
   | "task.setBranch"
+  | "task.observeLanguage"
   | "task.setVendor"
   // Set a task's RAW engine launch command (the dispatch face's
   // `set-command`). The caller resolves the command's protocol — engine
@@ -161,6 +175,12 @@ export type DaemonRequestName =
   | "task.pin"
   | "task.move"
   | "task.status"
+  // Record the task brief on the task row AFTER the prompt was confirmed
+  // delivered into the engine — the engine's own transcript is not durable,
+  // and this field is the copy that survives a dead engine/context loss.
+  // Deliberately NOT web-exposed: the browser has no reason to write another
+  // task's brief, and the web allowlist is a security contract.
+  | "task.setPrompt"
   // Web-board ordering (docs/design/web-kanban.md M3): batch-assign sparse
   // fractional `position` keys for per-status column order. ONE snapshot
   // push per batch; the TUI never reads `position`.
@@ -177,15 +197,6 @@ export type DaemonRequestName =
   | "issue.mutate"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"
-  // Creation-time auto-adopt (KOB): a `kobe hook worktree-created` (global
-  // PostToolUse) reports that a `git worktree add` just ran in `cwd`. The
-  // daemon adopts the new worktree as a task the MOMENT it's created — no
-  // engine session needed (the complement to session-start auto-adopt).
-  // Removal-time auto-archive (KOB): the same `kobe hook worktree-created`
-  // (global PostToolUse) reports that a `git worktree remove <path>` just ran.
-  // The daemon archives the task whose worktree was that path — the symmetric
-  // symmetric complement to worktree adoption (remove a worktree → its task archives).
-  | "worktree.archiveRemoved"
   // Cross-project worktree audit (the standalone worktree-management TUI
   // page): list every worktree of every local saved project (kobe-managed
   // or not, linked to a task or not) with dirty/age/remote-branch status,
@@ -265,7 +276,7 @@ export type DaemonRequestName =
   // the calling CONNECTION (spawning on first open, replaying the ring
   // buffer on reattach); output streams back as targeted `pty.data` event
   // frames written only to attached connections. `pty.sweep` is the
-  // daemon→host janitor call: kill sessions whose task got archived.
+  // daemon→host janitor call: kill sessions whose task was deleted.
   | "pty.open"
   | "pty.write"
   | "pty.resize"
@@ -289,6 +300,14 @@ export type DaemonRequestName =
   // is that bare shell adopts it (already rc-initialized) instead of
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
+  // Deferred prompts (issue #78 B-layer): the delivery gate accepted a prompt
+  // it could not paste (composer busy) into daemon ownership. `file` stores the
+  // text + records a `prompt_deferred` inbox episode; `get` reads one back for
+  // the exit path; `resolve` drops it after a successful insert or a dismiss.
+  // Older daemons reject the verbs; callers then surface COMPOSER_BUSY instead.
+  | "deferredPrompt.file"
+  | "deferredPrompt.get"
+  | "deferredPrompt.resolve"
 
 /**
  * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's
@@ -320,97 +339,6 @@ export type SubscribeRole = "gui" | "pane"
  */
 export type DaemonEventName = ChannelName | "daemon.stopping" | "pty.data" | "pty.exit"
 
-/** Targeted `pty.data` event payload — one ordered chunk of PTY output. */
-export interface PtyDataEventPayload {
-  /** The PTY session key (the TUI's registry key, e.g. `taskId::tabId`). */
-  readonly key: string
-  /** Raw child output bytes, base64-encoded (JSON-lines wire). */
-  readonly data: string
-}
-
-/** How a session's child ended — recorded at exit time by the PTY host.
- *  `code` XOR `signal` is set for a normal wait; both null means the
- *  driver could not tell (spawn failure, pre-exit-info host). */
-export interface PtySessionExit {
-  readonly code: number | null
-  readonly signal: string | null
-  /** ISO timestamp of when the host observed the exit. */
-  readonly at: string
-}
-
-/** Targeted `pty.exit` event payload — the session's child ended. */
-export interface PtyExitEventPayload {
-  readonly key: string
-  /** The dead child's pid (null when spawn failed). Lets a client that
-   *  kill()ed + reopened the same key tell the OLD incarnation's exit
-   *  apart from its new session's — absent from pre-pid hosts. */
-  readonly pid?: number | null
-  /** Exit status/signal/time — absent from pre-exit-info hosts. */
-  readonly code?: number | null
-  readonly signal?: string | null
-  readonly at?: string
-}
-
-/** `pty.open` response — attach result for one session key. */
-export interface PtyOpenResult {
-  /** Ring-buffer replay (base64) — everything the child wrote, capped. */
-  readonly replay: string
-  /** False when the session exists but its child already exited. */
-  readonly alive: boolean
-  /** This session's child pid (null when spawn failed) — the client keys
-   *  `pty.exit` frames against it; absent from pre-pid hosts. */
-  readonly pid?: number | null
-  /** True when THIS open brought the session into being (fresh spawn or
-   *  warm-shell adoption) — the client's cue that `initialInput` may be
-   *  typed. False on reattach; absent from pre-warm hosts. */
-  readonly created?: boolean
-  /** True when THIS open respawned a freeze-restored corpse in place:
-   *  `replay` is the pre-restart scrollback and the child is brand new
-   *  (the caller's launch spec won — e.g. the TUI's engine `--resume`).
-   *  Distinct from `created` because the spawn spec was NOT swallowed by
-   *  a live session: a prompt embedded in the launch argv DID ride it,
-   *  so the caller must not also paste it. Absent from pre-freeze hosts. */
-  readonly respawned?: boolean
-  /** Monotonic per-session byte offset at attach time (total bytes the
-   *  child has ever written). A client that detaches records it and asks
-   *  the next `pty.open` for only the delta via `sinceOffset`; absent
-   *  from pre-offset hosts. */
-  readonly offset?: number
-  /** True when the request's `sinceOffset` was still inside the ring
-   *  window and `replay` is exactly the bytes written since it — the
-   *  client may restore its serialized screen and apply the delta.
-   *  False/absent means `replay` is the full ring (offset trimmed away,
-   *  or an old host). */
-  readonly sinceValid?: boolean
-}
-
-/**
- * `pty.peek` response — a read-only ring-buffer snapshot for one session
- * key. Unlike `pty.open` it never attaches, spawns, or resizes, so it is
- * safe for pure observation (`kobe api read-output` terminal fallback).
- */
-export interface PtyPeekResult {
-  /** False when no session exists under the key (nothing was spawned). */
-  readonly exists: boolean
-  readonly alive: boolean
-  /** The session child's pid (null when spawn failed or `exists` is false).
-   *  Callers pin pagination to it: a different pid = a new incarnation. */
-  readonly pid: number | null
-  /** Monotonic total bytes the child has ever written — the caller's next
-   *  `sinceOffset`. */
-  readonly offset: number
-  /** Ring bytes (base64): the full ring, or exactly the delta since the
-   *  request's `sinceOffset` when `sinceValid`. */
-  readonly data: string
-  /** True when `data` is the exact delta since `sinceOffset` (still inside
-   *  the ring window); false means the offset was trimmed away and `data`
-   *  is the full ring. */
-  readonly sinceValid: boolean
-  /** How the child died when `alive` is false — null while alive, absent
-   *  from pre-exit-info hosts. */
-  readonly exit?: PtySessionExit | null
-}
-
 export interface DaemonError {
   readonly message: string
   readonly name?: string
@@ -425,8 +353,10 @@ export interface SerializedTask {
   readonly kind: "main" | "task" | "dir"
   /** Scratch shell task (issue #33) — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
+  /** Standing session of a routine (issue #91) — folded behind the sidebar's
+   *  routine count row instead of rendering as a loose task. */
+  readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
-  readonly archived: boolean
   readonly pinned: boolean
   readonly vendor?: DaemonTask["vendor"]
   /** Raw engine launch command as given to `add --command` / `set-command`. */
@@ -438,6 +368,8 @@ export interface SerializedTask {
   readonly modelEffort?: string
   /** Fan-out round marker shared by the siblings of one fan-out call. */
   readonly groupId?: string
+  /** Language this task's user writes in, observed from their own prompts. */
+  readonly observedLanguage?: DaemonTask["observedLanguage"]
   /** Durable daemon-owned background deletion state. */
   readonly deletion?: DaemonTask["deletion"]
   /** Durable rate-limit auto-resume schedule. */
@@ -445,6 +377,10 @@ export interface SerializedTask {
   readonly linkedWorkItem?: DaemonTask["linkedWorkItem"]
   /** The kobe session (task + tab) that dispatched this task's creation. */
   readonly dispatcher?: DaemonTask["dispatcher"]
+  /** The task brief: the full delivered `add --prompt` text (never truncated). */
+  readonly prompt?: DaemonTask["prompt"]
+  /** The recorded fork point (`add --base-branch`) branch signals measure against. */
+  readonly baseRef?: DaemonTask["baseRef"]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -471,8 +407,8 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     worktreePath: task.worktreePath,
     kind: task.kind ?? "task",
     ...(task.scratch ? { scratch: true } : {}),
+    ...(task.routine ? { routine: task.routine } : {}),
     status: task.status,
-    archived: task.archived,
     pinned: task.pinned ?? false,
     vendor: task.vendor,
     command: task.command,
@@ -480,10 +416,13 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     position: task.position,
     modelEffort: task.modelEffort,
     groupId: task.groupId,
+    observedLanguage: task.observedLanguage,
     deletion: task.deletion,
     quotaResume: task.quotaResume,
     linkedWorkItem: task.linkedWorkItem,
     dispatcher: task.dispatcher,
+    prompt: task.prompt,
+    baseRef: task.baseRef,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }

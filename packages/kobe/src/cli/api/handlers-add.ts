@@ -9,8 +9,12 @@
  * whole parallel contract (shared `groupId`, `#i/N` titles, per-sibling
  * failure rows, PARTIAL_FANOUT) applies unchanged from N=2 up.
  *
- * Split out of `handlers-tasks.ts` (file-size cap) rather than living beside
- * `send`: create-with-fleet is its own concern now.
+ * Its own module rather than living beside `send` in `handlers-tasks.ts`: the
+ * handlers there act on a task that already exists, while everything here is
+ * the create path and its parallel contract. That is also where the failure
+ * modes diverge — a `send` either lands or does not, whereas an `add --count`
+ * can half-succeed (PARTIAL_FANOUT), and that per-sibling bookkeeping is what
+ * this file exists to hold.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -18,7 +22,7 @@ import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import type { VendorId } from "../../types/vendor.ts"
-import { dispatcherEnvPayload } from "./dispatcher.ts"
+import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, helpStep } from "./types.ts"
@@ -94,6 +98,14 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
 
   const prompt = args.str("prompt")
   if (!prompt) return { taskId, task, started: false }
+  // Same provenance prefix `send` carries: a task created from inside another
+  // kobe session is agent-to-agent, and its opening brief is where the reply
+  // address matters most — every report this task ever sends goes back through
+  // it. `add` already records the sender as `dispatcher` on the task row, but
+  // that is data a receiver has to think to go read; this puts it in the
+  // message. No-ops for a create from a plain shell, so a human's `rove add`
+  // is unchanged.
+  const brief = await withPeerProvenance(daemon, taskId, prompt)
   const delivered = await ctx.runtime.deliverPrompt(
     daemon,
     {
@@ -106,12 +118,12 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       repo: task.repo,
       newTask: true,
     },
-    prompt,
+    brief,
   )
-  task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
-  // A prompt that never confirmed in the composer is a failure — but the task
-  // IS created, so carry the taskId in the error so a script can find it.
-  if (!delivered.delivered) {
+  // A prompt that never confirmed AND was not deferred is a failure — but the
+  // task IS created, so carry the taskId in the error so a script can find it.
+  // Deferred (issue #78 B-layer) is a SUCCESS: the daemon owns the message now.
+  if (!delivered.delivered && !delivered.deferred) {
     throw new ApiError(
       `task ${taskId} created but the prompt was not delivered (paste did not land)`,
       "NOT_DELIVERED",
@@ -120,6 +132,14 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
       },
     )
   }
+  // Persist the brief on the task record — the engine's own transcript is
+  // NOT durable, and a delivered prompt that only lived in the session died
+  // with the engine. Recorded only AFTER delivery confirms, so `get-task`'s
+  // `.task.prompt` always means "the engine was given exactly this text".
+  // Best-effort: the engine already has the prompt, so a persist failure
+  // must not turn a delivered task into an error.
+  await daemon.request("task.setPrompt", { taskId, prompt }).catch(() => undefined)
+  task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   return {
     taskId,
     task,
@@ -127,6 +147,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     engineReady: delivered.engineReady,
     session: delivered.session,
     delivered: delivered.delivered,
+    ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
+    ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
+    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
   }
 }
 
@@ -203,7 +226,7 @@ async function addParallel(
   // sessions are task-id isolated, so N cold-boot waits overlap (5 tasks:
   // ~6s, not ~30s). A mid-loop create failure must NOT orphan the tasks
   // already created — carry them into the PARTIAL_FANOUT payload so a script
-  // can retry/archive them instead of double-spawning.
+  // can retry or delete them instead of double-spawning.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
   // Every sibling records the same dispatcher (issue #21) — the reply
@@ -248,9 +271,18 @@ async function addParallel(
 
   const tasks: unknown[] = []
   const failures: unknown[] = []
+  // Best-effort per-sibling brief persistence (same contract as addOne) —
+  // collected here, awaited below. A persist failure must NOT flip a
+  // delivered sibling into a failure row: the engine already has the prompt.
+  const persistedPrompts: Promise<unknown>[] = []
   settled.forEach((r, i) => {
     const { taskId, vendor } = created[i]
-    if (r.status === "fulfilled" && r.value.delivered) {
+    if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
+      // Deferred (issue #78 B-layer) is a SUCCESS, exactly as `addOne`/`send`
+      // treat it: the daemon took ownership of the prompt and queued an inbox
+      // episode, so the caller must NOT retry (a retry stacks a duplicate). It
+      // resolves with `delivered:false`, so route it here — not to `failures` —
+      // and carry the marker through so a script can see it was queued.
       tasks.push({
         ok: true,
         taskId,
@@ -258,12 +290,15 @@ async function addParallel(
         started: r.value.started,
         engineReady: r.value.engineReady,
         session: r.value.session,
+        ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
       })
+      persistedPrompts.push(daemon.request("task.setPrompt", { taskId, prompt }).catch(() => undefined))
       return
     }
-    // Either deliverPrompt threw, or it resolved but the paste never landed.
-    // The task IS created (engine already burning tokens) — always carry its
-    // taskId so a script can find/retry it instead of orphaning it.
+    // Either deliverPrompt threw, or it resolved un-delivered AND un-deferred
+    // (the paste never landed). The task IS created (engine already burning
+    // tokens) — always carry its taskId so a script can find/retry it instead
+    // of orphaning it.
     const err =
       r.status === "rejected"
         ? r.reason
@@ -277,6 +312,7 @@ async function addParallel(
   // created for it) — but the siblings created before it are real, engine-
   // burning tasks whose ids must reach the script.
   if (createFailure) failures.push({ ok: false, vendor: createFailure.vendor, error: createFailure.error })
+  await Promise.all(persistedPrompts)
 
   const result = { count: created.length, requested: plan.length, groupId, tasks, failures }
   // Partial (or total) create/delivery failure must not exit 0 — carry the

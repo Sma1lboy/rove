@@ -1,14 +1,19 @@
 /**
- * The daemon handshake for `RemoteOrchestrator.init()` — split out of
- * `remote-orchestrator.ts` (which was over the repo's 500-line file-size
- * cap) into its own file. Same behavior, moved verbatim: `performInit` is
- * the exact body of the old `RemoteOrchestrator.init`, now taking the
- * client + subscribe options + an explicit {@link OrchestratorSignals}
- * deps bag instead of closing over `this`.
+ * The daemon handshake for `RemoteOrchestrator.init()`, plus the reconnect
+ * loop below — the CONNECTION half of the class, apart from what it does once
+ * connected (`-reads.ts` / `-writes.ts` / `-events.ts`). This is the only code
+ * that runs while there may be no daemon at all.
+ *
+ * Taking the client + subscribe options + an explicit
+ * {@link OrchestratorSignals} deps bag instead of closing over `this` is what
+ * makes that testable: drive a handshake or a retry policy with fakes, no
+ * socket and no real backoff. Same behavior, moved verbatim — `performInit` is
+ * the exact body of the old `RemoteOrchestrator.init`.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
+import { isStaleInstallError } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import {
   type ChannelName,
   DAEMON_PROTOCOL_VERSION,
@@ -30,11 +35,22 @@ export interface PerformInitOptions {
 
 /**
  * The reconnect loop body — moved verbatim from
- * `RemoteOrchestrator.runReconnectLoop` (file-size cap), taking an explicit
- * deps bag instead of closing over `this`. A GUI (`spawnDaemon`) may spawn
+ * `RemoteOrchestrator.runReconnectLoop`, taking an explicit deps bag instead
+ * of closing over `this` so the retry policy can be driven with fake clocks
+ * and a fake `init` — no daemon, and no waiting out real backoff. A GUI
+ * (`spawnDaemon`) may spawn
  * the daemon via `ensureReachable`; a pane only retries the existing socket
  * so helper panes never defeat daemon lazy-shutdown. Failures stay silent in
  * the UI with the caller-supplied bounded forensic logging policy.
+ *
+ * Retrying assumes the next attempt could differ from this one. Exactly one
+ * failure breaks that assumption: this process is running from an install
+ * that has been deleted, so `ensureReachable` cannot resolve an entry point
+ * to re-exec and fails identically forever. The loop gives up there and
+ * reports it once, via `onFatal`. Giving up is the SAFE direction — a client
+ * that cannot spawn is not a reason to keep pressure on a healthy daemon
+ * (PR #733), and the remedy is reinstalling, which no amount of waiting
+ * performs.
  */
 export async function runReconnectLoop(deps: {
   readonly isDisposed: () => boolean
@@ -42,8 +58,16 @@ export async function runReconnectLoop(deps: {
   readonly ensureReachable: () => Promise<unknown>
   readonly init: () => Promise<void>
   readonly shouldLogAttempt: (attempt: number) => boolean
+  /** Called once, then the loop stops, when retrying cannot ever succeed. */
+  readonly onFatal?: (err: unknown) => void
 }): Promise<void> {
-  let delayMs = deps.spawnDaemon ? 0 : 500
+  // A GUI used to retry with ZERO delay, which made every GUI in the process
+  // wake at the same instant after a shared daemon drop and probe a daemon
+  // that is still cold-starting. Jitter the first GUI attempt so they arrive
+  // staggered: the first one through does the work, the rest find a live
+  // daemon and never enter the spawn path at all. Small enough to stay
+  // imperceptible, wide enough to separate same-tick wakeups.
+  let delayMs = deps.spawnDaemon ? Math.floor(Math.random() * 400) : 500
   let attempt = 0
   while (!deps.isDisposed()) {
     if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs))
@@ -55,6 +79,14 @@ export async function runReconnectLoop(deps: {
       logClient("orch", `reconnected and re-subscribed after ${attempt} attempt(s) — task list re-synced`)
       return
     } catch (err) {
+      // The one non-transient failure: our own install is gone. Retrying is
+      // not recovery here, it is two days of identical throws (the owner's
+      // pid 59121). Say it once and stop.
+      if (isStaleInstallError(err)) {
+        logClientError("orch-reconnect-fatal", err)
+        deps.onFatal?.(err)
+        return
+      }
       // Pane failures are expected while no GUI owns a daemon; GUI failures
       // mean ensure/start itself is temporarily failing.
       if (deps.shouldLogAttempt(attempt)) logClientError("orch-reconnect", err)

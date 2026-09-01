@@ -149,18 +149,26 @@ placement = "split"              # split (default: joins the focused chattab's
 command = ["node", "$ROVE_PLUGIN_ROOT/board.js"]   # cwd = the TASK WORKTREE
 
 [[settings]]                     # rendered as an editor in Settings → Plugins
-key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env
+key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
+                                 # must be a plain env var name, and may not
+                                 # be one that steers how a process runs
+                                 # (PATH, LD_PRELOAD, NODE_OPTIONS, …)
 label = "Mode"
-type = "enum"                    # string | number | boolean | enum
+type = "enum"                    # string | number | boolean | enum | secret
 options = ["fast", "fancy"]
 default = "fast"
+
+[[settings]]                     # `secret` masks the value everywhere it is
+key = "YOU_EXAMPLE_TOKEN"        # shown, for keys the user pastes in
+label = "API token"
+type = "secret"
 
 [[file_handlers]]                # claim Files-pane opens by filename pattern
 pattern = "\\.(png|jpg)$"        # JS regex, case-insensitive, vs the file name
 action = "greet"                 # your action, invoked with the absolute path
 
 [[engines]]                      # contribute a coding-CLI engine
-id = "aider"                     # VendorId; may not shadow claude/codex/copilot/kimi
+id = "aider"                     # VendorId; may not shadow a built-in (claude/codex/copilot/kimi) or shipped engine (gemini/opencode/cursor/grok/droid/amp)
 name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
@@ -191,6 +199,10 @@ A top-level list applies to the whole plugin; `platforms` on an individual
 build, startup, action, event, or pane replaces that list for that item. With
 no declaration, Rove assumes the command is portable and allows it everywhere.
 
+A plugin whose top-level `platforms` excludes the current machine stays in
+the registry but never runs; Settings → Plugins marks that row `not supported
+on this platform` rather than showing it as healthy.
+
 ## Event catalog
 
 Declare `[[events]]` hooks; each fire runs your command with the envelope in
@@ -207,7 +219,6 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `task.created` / `task.deleted` | task appears/disappears in the index | task context |
 | `task.changed` | any watched task field changed (title/branch/status/pin/vendor/…), fired off the snapshot diff, so EVERY mutation path counts | `fields`, `from`, `to` |
 | `task.landed` | a task's branch merged back into its base repo | `strategy`, `landedOn`, `commit` |
-| `task.archived` | a task was archived, by ANY path: the archive RPC, `land --then-archive`, or a `git worktree remove` sweep (restores don't fire) | task context |
 | `task.pr-changed` | the task's PR status changed (open/merged/closed, checks) | `from`, `to` (TaskPRStatus) |
 | `worktree.created` | a task's worktree materialized: lazy ensure, adopt, or scratch-adopt | task context |
 | `issue.changed` | a daemon-tracker issue mutated (create/edit/status) | `repo`, `op` |
@@ -278,6 +289,16 @@ Never write durable state under `ROVE_PLUGIN_ROOT`. GitHub installs are
 managed checkouts replaced on reinstall. Settings you declare in
 `[[settings]]` arrive as plain vars in your config `.env`; source it
 (`. "$ROVE_PLUGIN_CONFIG_DIR/.env"`) or read it yourself.
+
+Because that file is sourced, a settings `key` must be a plain env var name
+(`^[A-Za-z_][A-Za-z0-9_]*$`), and a small set of names is refused outright:
+those that change how a process runs rather than what it reads — `PATH`,
+`HOME`, `SHELL`, the `LD_*`/`DYLD_*` loader vars, `NODE_OPTIONS` and its
+per-language siblings, `BASH_ENV`, `GIT_SSH_COMMAND`, `EDITOR`/`PAGER`.
+A rejected key fails the whole manifest at parse time, so fix it before
+publishing. Asking for an API key is fine and expected — use `type =
+"secret"` so the value is masked in Settings. Your config `.env`, state
+directory, and `log.jsonl` are all owner-only (0600/0700).
 
 ## Calling back into Rove
 

@@ -12,6 +12,7 @@
  * scrollback ring on re-attach, so reattaching is loss-free.
  */
 
+import { CanvasAddon } from "@xterm/addon-canvas"
 import { ClipboardAddon } from "@xterm/addon-clipboard"
 import { FitAddon } from "@xterm/addon-fit"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
@@ -66,10 +67,43 @@ const CLAUDE_XTERM_THEME = {
 const TERMINAL_FONT_FAMILY =
   '"JetBrains Mono", "JetBrainsMono Nerd Font", "MesloLGS NF", "Symbols Nerd Font Mono", "SF Mono", ui-monospace, Menlo, monospace'
 
+/**
+ * Families in {@link TERMINAL_FONT_FAMILY} that the browser must have resolved
+ * before the terminal is worth photographing. The bundled JetBrains Mono is a
+ * LATIN subset, so every icon glyph an engine draws (`▶`, branch and status
+ * symbols) necessarily falls through to a Nerd Font — a family the page never
+ * asks for until something actually renders that character.
+ */
+const TERMINAL_FONT_FAMILIES = [
+  '"JetBrains Mono"',
+  '"JetBrainsMono Nerd Font"',
+  '"MesloLGS NF"',
+  '"Symbols Nerd Font Mono"',
+] as const
+
+/**
+ * Warm every family in the stack, not just the first.
+ *
+ * `document.fonts.load()` resolves one family at a time, and awaiting only
+ * JetBrains Mono left the Nerd Fonts to load lazily — i.e. after the first
+ * frame that needed them. Interactively nobody notices; a scripted capture
+ * screenshots the frame in between and photographs missing-glyph boxes where
+ * the icons belong, which is how `docs/assets/workspace.png` shipped with
+ * `▯▯` in place of `▶▶`. Each family is settled independently so an absent
+ * one (a machine without Nerd Fonts) cannot block the others.
+ */
 async function loadTerminalFont(): Promise<void> {
   if (!("fonts" in document)) return
+  await Promise.allSettled(
+    TERMINAL_FONT_FAMILIES.map((family) =>
+      document.fonts.load(`12px ${family}`),
+    ),
+  )
   try {
-    await document.fonts.load(`12px "JetBrains Mono"`)
+    // The per-family loads above cover the stack; `ready` covers anything else
+    // the page is still fetching, so layout is settled before the first paint
+    // a capture might grab.
+    await document.fonts.ready
   } catch {
     /* fallback font stack still renders if the bundled font fails */
   }
@@ -83,6 +117,23 @@ type ChatTerminalProps = {
   mode: PtyMode
   testId?: string
   disableWebgl?: boolean
+  /**
+   * Let whatever is behind the terminal show through the cells the TUI does
+   * not paint. The product already renders with a transparent background by
+   * default (`transparentBackground` in persisted-ui-prefs) — but xterm paints
+   * its OWN opaque `background` underneath, so the host page's backdrop never
+   * appears. Screencasts turn this on to sit the terminal on a desktop
+   * instead of a flat rectangle; normal use leaves it off, where an opaque
+   * canvas is both correct and cheaper to composite.
+   *
+   * `hostBackground` (harness only) goes one step further for the
+   * contrast-guard capture: it sets xterm's `theme.background` to the SAME
+   * opaque color the page paints behind the terminal, so OSC 11 background
+   * queries report the color the user actually sees — the TUI's transparent-
+   * mode contrast guard adapts to it exactly as it would in a real terminal.
+   */
+  transparent?: boolean
+  hostBackground?: string
   onStatusChange?: (status: WsStatus) => void
   onBufferChange?: (text: string) => void
 }
@@ -104,6 +155,8 @@ export function ChatTerminal({
   mode,
   testId,
   disableWebgl = false,
+  transparent = false,
+  hostBackground,
   onStatusChange,
   onBufferChange,
 }: ChatTerminalProps) {
@@ -160,7 +213,16 @@ export function ChatTerminal({
 
       term = new Terminal({
         // Active TUI-synced palette when loaded; static claude otherwise.
-        theme: xtermTheme() ?? CLAUDE_XTERM_THEME,
+        theme: transparent
+          ? {
+              ...(xtermTheme() ?? CLAUDE_XTERM_THEME),
+              // Opaque host color when the harness simulates one (so OSC 11
+              // reports it); near-invisible black otherwise so the page
+              // backdrop shows through the unpainted cells.
+              background: hostBackground ?? "rgba(0,0,0,0.01)",
+            }
+          : (xtermTheme() ?? CLAUDE_XTERM_THEME),
+        allowTransparency: transparent,
         fontFamily: TERMINAL_FONT_FAMILY,
         fontSize: 12,
         cursorBlink: true,
@@ -181,7 +243,25 @@ export function ChatTerminal({
       term.open(el)
       // The visual harness pins the stock renderer so browser screenshots and
       // buffer synchronization do not depend on GPU/WebGL availability.
-      if (!disableWebgl) {
+      // Renderer choice, and it is a three-way trade rather than a preference:
+      //
+      //   DOM    — always available, but each cell is its own span drawn with
+      //            the font, so `customGlyphs` is off and block-drawing
+      //            characters show a seam at every cell boundary.
+      //   WebGL  — tiles those glyphs correctly, but fills default-background
+      //            cells as solid colour, which turns into black boxes the
+      //            moment the background is transparent.
+      //   Canvas — draws glyphs the same way WebGL does, on a 2D context that
+      //            composites over what is behind it.
+      //
+      // So transparency picks canvas and opacity picks WebGL.
+      if (transparent) {
+        try {
+          term.loadAddon(new CanvasAddon())
+        } catch {
+          /* DOM renderer fallback */
+        }
+      } else if (!disableWebgl) {
         try {
           const webgl = new WebglAddon()
           webgl.onContextLoss(() => webgl.dispose())
@@ -260,7 +340,17 @@ export function ChatTerminal({
       term?.dispose()
       wsRef.current = null
     }
-  }, [tabId, taskId, mode, epoch, disableWebgl, onStatusChange, onBufferChange])
+  }, [
+    tabId,
+    taskId,
+    mode,
+    epoch,
+    disableWebgl,
+    transparent,
+    hostBackground,
+    onStatusChange,
+    onBufferChange,
+  ])
 
   const sendPrompt = (): void => {
     const ws = wsRef.current

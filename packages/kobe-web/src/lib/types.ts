@@ -33,7 +33,6 @@ export interface Task {
   worktreePath: string
   kind: TaskKind
   status: TaskStatus
-  archived: boolean
   pinned: boolean
   vendor?: Vendor
   prStatus?: TaskPRStatus

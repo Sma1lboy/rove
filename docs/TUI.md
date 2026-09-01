@@ -29,7 +29,7 @@ Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
 [narrow-terminal layout](#narrow-terminals-phone-ssh) takes over instead.
 
-With no tasks at all (a first launch, or everything archived), the workspace
+With no tasks at all (a first launch, or all tasks deleted), the workspace
 column shows a welcome panel instead of an empty pane: the keys to create a
 task and open help (read from your live keymap, so rebinds show correctly),
 which engine CLIs were detected, and — when something is missing (no engine
@@ -56,8 +56,9 @@ on the **tab rows** underneath:
 | `?` | Needs your input: a permission prompt or a question |
 | `●` | Turn finished, and you haven't looked yet |
 | `○` | Idle or not yet observed. Includes a finished turn you've already seen |
-| `◷` | Rate limited |
+| `◷` | Rate limited — the engine is waiting out a quota window |
 | `×` | Error, including a failed worktree deletion |
+| `†` | The engine process exited or was killed |
 | `·` | Not an agent tab, or a custom engine without activity tracking |
 
 A tab labelled `⚠ <name>` is a live hosted session that was missing from the
@@ -73,9 +74,14 @@ completion has a later timestamp and appears unread as usual.
 
 Each tab row reports its **own** activity, not the task's roll-up. Tab 2 can
 spin while tab 1 rests. The tab strip at the top of the workspace uses a
-similar vocabulary (`●` running, `✓` done, `!` error, `?` needs input, `○`
-idle) over the same saved timestamps: a `✓` you have already read settles
-back to `○`, and stays settled after a restart.
+same vocabulary (`●` running, `✓` done, `!` error, `◷` rate limited, `†`
+exited, `?` needs input, `○` idle) over the same saved timestamps: a `✓` you
+have already read settles back to `○`, and stays settled after a restart.
+
+`†` and `×` are different questions. `×` is an engine that ran and reported a
+failed turn — read the tab. `†` is an engine that is no longer running, so the
+answer is to start it again; the exit code and the last error line are kept
+(`rove api inspect`) even after the session is gone.
 
 ## Managing Tasks in the sidebar
 
@@ -97,11 +103,6 @@ row or one of its tab rows:
   Task, a Task moves within its repo group, and a project-main row moves the
   whole project. Moves stop at the edges (no wrap-around), and the new order
   persists across restarts.
-- `a` archives a managed or directory Task after confirmation, stopping its
-  hosted sessions but preserving its directory, branch, tab snapshot, and
-  engine history. Archived Tasks leave the sidebar entirely; they remain
-  listed by `rove api list` and on the web board, and unarchiving from there
-  brings the row back.
 - `d` is kind-aware: it forgets a project-main row, removes only the Rove
   record for a directory Task, or removes a managed Task and its worktree after
   the dirty-worktree safety check.
@@ -116,10 +117,12 @@ changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 *where was I?*, with one section for each:
 
 - **ATTENTION.** Pending items, oldest first. An item appears when a turn
-  completes, a session asks for input, hits a rate limit, or errors. Most
-  items target one task-and-tab; events without a tab identity target the
-  whole task instead. A newer event for the same target replaces the older
-  one, and starting a new turn clears it.
+  completes, a session asks for input, hits a rate limit, errors, or when the
+  engine process exits. Most items target one task-and-tab; events without a
+  tab identity target the whole task instead. A newer event for the same
+  target replaces the older one, and starting a new turn clears it.
+  A rate-limited item also names when its automatic resume is due
+  (`resumes 3:14 PM`), so you can tell a wait from a dead end.
 - **RECENT.** The last handful of tabs you visited, most recent first. These
   aren't pending work, just jump targets; a spinner marks the ones still
   running.
@@ -179,7 +182,7 @@ complete navigation table.
 
 ## Create a pull request with the active agent
 
-Choose **Create PR** above Files or press `ctrl+a` `p`. This is an agent
+Choose **Ask agent to create PR** above Files or press `ctrl+a` `p`. This is an agent
 workflow, not a direct GitHub API action: Rove inspects the current branch,
 target branch, upstream, and dirty-file count, then submits a prompt to the
 active engine. The prompt asks the agent to review the diff, commit remaining
@@ -203,6 +206,12 @@ mode selector and use the left/right arrows.
 - **For Existing** picks a local repository and the ref to branch from. Rove
   creates a new task branch and worktree, then opens it ready for the first
   prompt. The current repository and its checked-out branch are the defaults.
+  For a repository Rove already tracks as a project, an extra **opens** row
+  appears: leave it on "a new task worktree" for the behaviour above, or
+  choose "the project itself" to open that repository's own checkout instead
+  of branching off it. That is how you return to a project that left the
+  sidebar after you closed its last tab — the branch field disappears,
+  because opening a checkout forks from nothing.
 - **For New Repo** clones a Git URL into a chosen parent directory, derives an
   available folder name, then creates a task from the requested base branch.
   The parent directory is remembered for the next clone.
@@ -221,8 +230,10 @@ another row fails, and Rove reports the result count.
 `ctrl+t` starts a fresh engine tab immediately; `ctrl+e` opens the full engine,
 shell, and plugin picker. Tabs share the Task's worktree but keep separate
 processes, scrollback, titles, and engine conversations. `ctrl+[` / `ctrl+]`
-switch tabs, `F2` renames one, and `ctrl+w` closes it. A Task always keeps at
-least one tab.
+switch tabs, `F2` renames one, and `ctrl+w` closes it — including the last
+one, which leaves the Task open with no session. Re-entering that Task from
+the sidebar reopens the kind of tab that was there; from the empty pane
+itself, `enter` or `ctrl+e` does the same.
 
 Inside a terminal tab, `ctrl+\` splits right and `ctrl+=` splits down. New
 leaves run your login shell in the same worktree. `F3` cycles split focus;
@@ -381,14 +392,15 @@ rules spelled out: [Routines](ROUTINES.md).
 ### GitHub Issues (`ctrl+a` `3`)
 
 A read-only view of the repo's GitHub issues, fetched through the `gh` CLI.
-If `gh` works in your terminal, this page works too; otherwise the page tells
-you exactly what's missing. `a` filters to issues assigned to you, `tab`
-switches repos, `r` refreshes past the cache.
+Open it from the sidebar rail or with `ctrl+a` `3`; use `rove api workitem-*`
+to browse and start work from issues when the TUI is not open.
 
-`enter` starts a Rove task from the selected issue: the issue body arrives as
-the first prompt (fenced, and explicitly marked as an untrusted report), and
-the task keeps a `linkedWorkItem` pointer back to the issue. Nothing is
-imported into the local issue store and nothing is written back to GitHub.
+When the page opens, `a` filters to issues assigned to you, `tab` switches
+repos, and `r` refreshes past the cache. `enter` starts a Rove task from the
+selected issue: the issue body arrives as the first prompt (fenced, and
+explicitly marked as an untrusted report), and the task keeps a
+`linkedWorkItem` pointer back to the issue. Nothing is imported into the local
+issue store and nothing is written back to GitHub.
 
 ## Updates and version warnings
 
@@ -426,7 +438,12 @@ is no setting: it follows the terminal width.
   counter. The usual tab chords still switch.
 - The footer keeps one quota chip per engine (`CLAUDE 42%`) and shrinks the
   hints to bare keycaps.
-- Dialogs center themselves with tighter padding.
+- Dialogs center themselves with tighter padding, and Settings drops the
+  inline hint beside each switch so the switch's own label fits. The
+  paragraph above each group still explains what it does.
+- Dialogs with a picker (new task, branch picker) shrink the picker's visible
+  rows on a short terminal instead of pushing their own Create button off the
+  bottom. The list still scrolls, so every entry stays reachable.
 
 ## Attachments: drag and drop, paste
 

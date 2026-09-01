@@ -56,6 +56,11 @@ winner.
 rove skill install
 ```
 
+This one step needs [Node.js](https://nodejs.org) on your `PATH` — it wraps
+`npx skills add`. The `install.sh` route above installs Bun and Rove but not
+Node, so install Node first if `npx` is missing. Everything else in Rove runs
+without it.
+
 **Claude Code users have a one-stop alternative**: the Rove plugin carries the
 skill AND the activity hooks in one install, with no PATH or settings.json
 setup:
@@ -76,10 +81,13 @@ shell completions for the detected shell, and whether to install the companion
 Rove skill for coding agents. Choose with `j`/`k` or the arrow keys and confirm
 with `enter`. `q` or `esc` skips anything you have not answered.
 
-The wizard finishes with a short keyboard primer. It does not sign in to an
-engine; install and authenticate at least one supported engine CLI separately.
-The skill question is the same `rove skill install` from the section above;
-answering it there is enough.
+Next the wizard shows a read-only environment check — the same probes `rove
+doctor` runs: git on `PATH`, and every registered engine CLI's binary and
+login state. If nothing is usable yet, the closing summary says so and prints
+the install command instead of declaring you ready; you can still explore the
+TUI. It does not sign in to an engine; install and authenticate at least one
+supported engine CLI separately. The skill question is the same
+`rove skill install` from the section above; answering it there is enough.
 
 ## Your first task
 

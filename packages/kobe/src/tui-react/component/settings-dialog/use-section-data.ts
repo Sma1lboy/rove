@@ -3,8 +3,9 @@
  * engine detection probes (fs/env) and the plugin registry (`~/.kobe/
  * plugins.json`). Both are lazy: nothing is read until the owning section
  * is first opened, so a settings open that never visits them pays nothing.
- * Split out of `index.tsx` for the file-size cap, like `use-settings-prefs`
- * / `use-engine-settings`.
+ * The seam is where the data COMES FROM: `use-settings-prefs` reads kv, this
+ * reads the filesystem and environment, so the probes that can be slow or fail
+ * are all on one side of the line and easy to keep lazy.
  */
 
 import { useEffect, useState } from "react"
@@ -81,6 +82,8 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
       const row = rows.find((p) => p.id === id)
       if (!row) return
       try {
+        // setPluginEnabled also re-reads the TUI's plugin-engine table, so
+        // the flip reaches the selector without a restart.
         setPluginEnabled(id, !row.enabled)
       } catch {
         // Registry unwritable — the re-read below leaves the row as disk has it.
@@ -98,13 +101,18 @@ export function usePluginSettings(section: SectionId, dialog: DialogContext): Pl
         store(pluginId, key, toggledBooleanValue(setting))
         return
       }
-      const next = await RenameTaskDialog.show(dialog, setting.value, {
+      // A secret opens EMPTY rather than pre-filled: the dialog would
+      // otherwise print the stored key in full, which is exactly what the
+      // masked row exists to prevent. Cancelling still leaves it stored;
+      // submitting empty clears it, like any other string row.
+      const initial = setting.type === "secret" ? "" : setting.value
+      const next = await RenameTaskDialog.show(dialog, initial, {
         // The label is plugin-owned copy, like an action title — shown raw.
         dialogTitle: setting.label,
         fieldLabel: key,
         submitLabel: "save",
         allowEmpty: true,
-        placeholder: setting.defaultValue,
+        placeholder: setting.type === "secret" && setting.value !== "" ? "••••••••" : setting.defaultValue,
       })
       if (next === undefined) return
       if (setting.type !== "number") {

@@ -217,7 +217,7 @@ export const KobeKeymap: readonly KobeBinding[] = [
     keys: [],
     prefixKeys: ["2"],
     category: "Global",
-    description: "Open automations (scheduled tasks)",
+    description: "Open routines (scheduled tasks)",
   },
   {
     // Rail row 3 — see kanban.open above.
@@ -336,17 +336,19 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Interrupt current turn (esc while streaming)",
   },
   // ─── Sidebar + Tasks pane ─────────────────────────────────────────────
-  // Moved to keybindings-sidebar.ts (file-size cap) — same entries, same
-  // order, same live-binding contract (`kobe tasks` consumes these via
-  // `bindByIds`, following user overrides).
+  // The rows below this header live in keybindings-sidebar.ts — a long
+  // literal cut at its scope headers, not a responsibility boundary. Order
+  // here is the order they display in, and `kobe tasks` still consumes them
+  // through `bindByIds` after user overrides, exactly as when they were
+  // inline.
   ...SIDEBAR_BINDINGS,
 
   // ─── Workspace (chat) ────────────────────────────────────────────────
-  // Moved to keybindings-chat.ts (file-size cap) — same entries, same order.
+  // In keybindings-chat.ts — same entries, same order, spread back in place.
   ...CHAT_BINDINGS,
 
   // ─── Files ────────────────────────────────────────────────────────────
-  // Moved to keybindings-files.ts (file-size cap) — same entries, same order.
+  // In keybindings-files.ts — same entries, same order, spread back in place.
   ...FILES_BINDINGS,
 
   // ─── Attention Inbox ─────────────────────────────────────────────────

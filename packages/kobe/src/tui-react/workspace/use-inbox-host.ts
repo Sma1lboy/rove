@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { Task } from "../../types/task"
 import type { KVContext } from "../context/kv"
+import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import type { DialogContext } from "../ui/dialog"
 import { AttentionInboxDialog } from "./AttentionInboxPane"
@@ -12,6 +13,7 @@ import {
   partitionAttentionInboxAvailability,
   visitResolvedEpisodes,
 } from "./attention-inbox-core"
+import { deferredManifestFor, insertDeferredPrompt } from "./deferred-prompt-insert"
 import { requestInboxItemOpen } from "./inbox-open-action"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 import { writeInboxVisit } from "./inbox-visits"
@@ -35,8 +37,11 @@ export function useInboxHost(args: {
   selectTask: (taskId: string) => void
   focusWorkspace: () => void
   notifyError: (message: string) => void
+  /** Neutral (done-styled) toast — insert feedback for the deferred exit path. */
+  notifyInfo: (message: string) => void
 }) {
   const { orchestrator: orch } = args
+  const t = useT()
   const { availableItems, unavailableItems } = useMemo(
     () =>
       // Tri-state (see taskTabExists): `undefined` when this task has no
@@ -91,10 +96,58 @@ export function useInboxHost(args: {
     }
   }, [unavailableSignature, orch])
 
+  /**
+   * Release a `prompt_deferred` episode (issue #78 B exit path). The text is
+   * fetched from the daemon store (the episode carries only its id), inserted
+   * with a FRESH A/C gate, and — only on success — resolved. The gate still
+   * blocking means the human is typing again; the message stays queued.
+   */
+  async function releaseDeferredPrompt(
+    item: AttentionInboxItem,
+    deferredId: string,
+    vendor: Task["vendor"],
+  ): Promise<void> {
+    try {
+      const record = await orch.getDeferredPrompt(deferredId)
+      if (!record) {
+        // The record was released/expired/displaced under us — drop the stale
+        // episode so it doesn't point at a record that no longer exists.
+        notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", args.notifyError)
+        return
+      }
+      const outcome = await insertDeferredPrompt({
+        orch,
+        taskId: item.taskId,
+        tabId: item.tabId ?? "tab-1",
+        prompt: record.prompt,
+        deferredId,
+        manifest: deferredManifestFor(vendor),
+      })
+      if (outcome === "deferred-again") args.notifyInfo(t("workspace.inbox.deferredStillQueued"))
+      else if (outcome === "unavailable") args.notifyInfo(t("workspace.inbox.deferredUnavailable"))
+      // "inserted" → the resolve RPC dropped both the record and the episode.
+    } catch {
+      args.notifyError(t("workspace.inbox.deferredInsertFailed"))
+    }
+  }
+
   function openItem(item: AttentionInboxItem, knownAvailable?: boolean): void {
     const task = orch.getTask(item.taskId)
     const available =
       knownAvailable ?? isAttentionInboxItemAvailable(item, task, (tabId) => taskTabExists(args.kv, item.taskId, tabId))
+
+    // prompt_deferred: opening IS the release action — jump AND insert. The
+    // episode is NOT dismissed up front; the gate decides whether it clears.
+    const deferredId = item.detail?.deferredPrompt?.id
+    if (item.state === "prompt_deferred" && item.tabId && deferredId) {
+      if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
+      args.selectTask(item.taskId)
+      requestTabActivation(item.taskId, item.tabId)
+      args.focusWorkspace()
+      void releaseDeferredPrompt(item, deferredId, task?.vendor)
+      return
+    }
+
     if (!requestInboxItemOpen(item, available, orch, args.notifyError)) return
     if (args.dialog.stack.length > 0) args.dialog.clear({ refocus: false })
     args.selectTask(item.taskId)

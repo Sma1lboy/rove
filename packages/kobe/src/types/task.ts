@@ -20,6 +20,7 @@ export type TaskId = string & { readonly [TaskIdBrand]: never }
 export const toTaskId = (id: string): TaskId => id as TaskId
 
 export type { VendorId } from "./vendor.ts"
+import type { ObservedLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import type { VendorId } from "./vendor.ts"
 
 /**
@@ -120,6 +121,12 @@ export interface TaskDispatcher {
   readonly tabId: string
 }
 
+/** Back-pointer from a routine's standing session task to its schedule. */
+export interface TaskRoutineLink {
+  /** `Automation.id`. Survives the routine being renamed or rescheduled. */
+  readonly automationId: string
+}
+
 /**
  * One task. Stored in `~/.rove/tasks.json` as part of {@link TaskIndex}.
  *
@@ -162,15 +169,26 @@ export interface Task {
    * (`adoptScratchRepo`) — after which it is an ordinary directory task.
    */
   readonly scratch?: boolean
+  /**
+   * The routine (`Automation`) this task is the standing session for
+   * (issue #91). A routine with `persistentSession` creates ONE task and
+   * re-delivers into it on every firing, instead of a fresh worktree per
+   * run — so a daily check can read what it said yesterday.
+   *
+   * The sidebar renders these behind a per-project count row rather than as
+   * loose task rows: 7 daily routines are 49 rows a week of background noise
+   * competing with the handful of tasks the user opened themselves. The task
+   * is ordinary in every other layer — selectable, Inbox-reachable, and
+   * addressable by `rove api` — only its resting sidebar row is folded away.
+   *
+   * Absent on tasks created before the field, which is what keeps the
+   * already-created routine tasks rendering exactly as they do today.
+   */
+  readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
   /**
-   * Archive flag — orthogonal to `status`. The sidebar splits tasks
-   * into Working / Archives views; toggle is non-destructive.
-   */
-  readonly archived: boolean
-  /**
    * User-pinned regular tasks float to the top of the sidebar's
-   * Working view. Defaults to `false` at load time.
+   * task list. Defaults to `false` at load time.
    */
   readonly pinned?: boolean
   /**
@@ -217,6 +235,17 @@ export interface Task {
    * additive: single tasks never get one.
    */
   readonly groupId?: string
+  /**
+   * The language this task's user writes in, observed from their own prompts
+   * (`prompts/observed-language.ts`) — NOT a setting. Text Rove injects into
+   * the session at moments when no user message is in hand (a quota resume
+   * fired by a timer, the Create-PR prompt behind a keypress) reads this so
+   * it comes out in the language the person is actually using.
+   *
+   * Absent until the first prompt with an opinion in it; absent means
+   * English, which is what every record predating the field loads as.
+   */
+  readonly observedLanguage?: ObservedLanguage
   /** Present while background deletion is queued/running or after it failed. */
   readonly deletion?: TaskDeletionState
   /** Present while a rate-limited engine waits for its quota window to reset. */
@@ -225,6 +254,26 @@ export interface Task {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /**
+   * The task brief: the full text of the prompt `add --prompt` delivered
+   * into this task's engine, recorded on the delivery path. The engine's
+   * own transcript is NOT durable — a dead engine used to take the brief
+   * down with it, and the only recovery was the user re-pasting it. Stored
+   * verbatim (never truncated: the constraints an agent needs most often
+   * sit at the END of a long brief). Optional + additive: tasks created
+   * without a prompt never get one.
+   */
+  readonly prompt?: string
+  /**
+   * The base ref the task branch was cut from (`add --base-branch`),
+   * persisted so `collect`'s branch signals (ahead count / diffstat)
+   * compare against the REAL fork point instead of re-guessing
+   * `origin/HEAD` → `main` → `master`, and a daemon restart between
+   * create and lazy worktree materialise cannot silently drop it.
+   * Optional + additive: records predating the field fall back to the
+   * guess.
+   */
+  readonly baseRef?: string
   readonly createdAt: string
   readonly updatedAt: string
 }

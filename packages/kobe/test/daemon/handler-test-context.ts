@@ -23,6 +23,7 @@ export interface RecordedHandlerEffects {
   readonly noteCalls: Array<{ method: string; repo: unknown; note?: unknown }>
   readonly cleared: string[]
   readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
+  readonly inboxPromptDeferred: Array<{ taskId: string; tabId: string; deferredId: string; layer: string }>
   readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
   readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
   readonly inboxTaskDeleted: string[]
@@ -48,6 +49,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     noteCalls: [],
     cleared: [],
     inboxRecords: [],
+    inboxPromptDeferred: [],
     inboxDeleted: [],
     inboxRead: [],
     inboxTaskDeleted: [],
@@ -57,7 +59,10 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
   }
   const ctx: DaemonHandlerContext = {
     runtime: daemonRuntime,
-    orch: { listTasks: () => [], ...orch } as unknown as Orchestrator,
+    // `getTask` is on the real DaemonOrchestrator contract; defaulted here so
+    // every handler test inherits it (the deletion audit reads the task before
+    // the index drops it). A test that cares supplies its own.
+    orch: { listTasks: () => [], getTask: () => undefined, ...orch } as unknown as Orchestrator,
     bus: {
       publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
     } as unknown as DaemonEventBus,
@@ -68,6 +73,10 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     inbox: {
       record: (taskId: string, kind: string, detail?: unknown, tabId?: string) => {
         rec.inboxRecords.push({ taskId, kind, detail, tabId })
+        return Promise.resolve()
+      },
+      recordPromptDeferred: (taskId: string, tabId: string, deferredId: string, layer: string) => {
+        rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer })
         return Promise.resolve()
       },
       deleteEpisode: (taskId: string, tabId: string | null, at?: number) => {
@@ -168,7 +177,6 @@ export const TASK: Task = {
   worktreePath: "/repo/.kobe/worktrees/demo",
   kind: "task",
   status: "in_progress",
-  archived: false,
   pinned: false,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-02T00:00:00.000Z",
@@ -183,7 +191,6 @@ export const SERIALIZED_TASK = {
   worktreePath: "/repo/.kobe/worktrees/demo",
   kind: "task",
   status: "in_progress",
-  archived: false,
   pinned: false,
   vendor: undefined,
   prStatus: undefined,

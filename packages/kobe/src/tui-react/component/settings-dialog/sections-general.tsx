@@ -9,6 +9,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import { useMemo } from "react"
 import type { UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { engineDisplayName } from "../../../engine/interactive-command"
@@ -17,8 +18,10 @@ import { SPLIT_STYLES } from "../../../state/split-style"
 import {
   type NavLevel,
   SECTIONS,
+  SECTIONS_SIDEBAR_WIDTH,
   type SectionId,
   focusAccentRowId,
+  generalLabelLayout,
   generalRows,
   languageRowId,
   rowIndex,
@@ -29,6 +32,7 @@ import { keyHintsToggleOn, toggleKeyHints } from "../../../tui/lib/keyboard-hint
 import { useKV } from "../../context/kv"
 import { FOCUS_ACCENT_SLOTS, type FocusAccentSlot, useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { useDialogPaddingX } from "../../ui/dialog"
 import { Row, type SectionCursorProps, SubSection } from "./rows"
 import { usageRows } from "./usage-core"
 import type { SettingsPrefs } from "./use-settings-prefs"
@@ -41,7 +45,7 @@ export function SettingsSectionSidebar(props: {
   const { theme } = useTheme()
   const t = useT()
   return (
-    <box flexDirection="column" flexShrink={0} width={14} gap={1}>
+    <box flexDirection="column" flexShrink={0} width={SECTIONS_SIDEBAR_WIDTH} gap={1}>
       {SECTIONS.map((s, i) => {
         const isSection = i === props.cursor
         const isSidebarFocused = isSection && props.level === "sidebar"
@@ -138,8 +142,20 @@ export function GeneralSettingsSection(
     action()
   }
   const onOff = (on: boolean) => (on ? t("settings.general.on") : t("settings.general.off"))
-  /** Label column: the inline hints beside each control read as a column too. */
-  const pad = (label: string) => label + " ".repeat(Math.max(0, 30 - displayWidth(label)))
+  // Live per render — opentui re-renders on resize, so a terminal dragged
+  // narrow re-lays the column out instead of keeping a stale desktop budget.
+  const { labelColumn, showHint } = generalLabelLayout(useTerminalDimensions().width, useDialogPaddingX())
+  /** The inline hint, dropped entirely when the row is too narrow to hold
+   *  both. A clipped half-sentence beside a clipped label is worse than the
+   *  label alone; the SubSection paragraph above still explains the group. */
+  const hint = (key: string): string | undefined => (showHint ? t(key) : undefined)
+  /** Label column: the inline hints beside each control read as a column too.
+   *  The 30-cell column is a MAXIMUM, not a floor — a narrow terminal has to
+   *  spend fewer. Padding past what the row actually owns pushes the hint out
+   *  entirely and then clips the label itself (`Row` is `overflow="hidden"`
+   *  with `wrapMode="none"`, so it cuts without an ellipsis), which is how a
+   *  46-column phone SSH session lost the label AND the hint at once. */
+  const pad = (label: string) => label + " ".repeat(Math.max(0, labelColumn - displayWidth(label)))
   const check = (on: boolean) => (on ? "[x]" : "[ ]")
   /** Exclusive pick — the same radio the Engines section uses for its default. */
   const radio = (on: boolean) => (on ? "(●)" : "( )")
@@ -250,7 +266,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(toastRow, prefs.toggleToast)}
             fg={prefs.toastEnabled() ? theme.accent : theme.textMuted}
             bold={true}
-            hint={t("settings.general.toastHint")}
+            hint={hint("settings.general.toastHint")}
           >
             {pad(`${check(prefs.toastEnabled())} ${t("settings.general.toast")}`)}
           </Row>
@@ -259,7 +275,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(soundRow, prefs.toggleSound)}
             fg={prefs.soundEnabled() ? theme.accent : theme.textMuted}
             bold={true}
-            hint={t("settings.general.soundHint")}
+            hint={hint("settings.general.soundHint")}
           >
             {pad(`${check(prefs.soundEnabled())} ${t("settings.general.sound")}`)}
           </Row>
@@ -268,7 +284,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(crossTaskRow, prefs.toggleCrossTask)}
             fg={prefs.crossTaskEnabled() ? theme.accent : theme.textMuted}
             bold={true}
-            hint={t("settings.general.crossTaskHint")}
+            hint={hint("settings.general.crossTaskHint")}
           >
             {pad(`${check(prefs.crossTaskEnabled())} ${t("settings.general.crossTask")}`)}
           </Row>
@@ -279,7 +295,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(keyHintsRow, () => toggleKeyHints(kv))}
             fg={keyHintsToggleOn(kv) ? theme.accent : theme.textMuted}
             bold={true}
-            hint={t("settings.general.keyHintsShowHint")}
+            hint={hint("settings.general.keyHintsShowHint")}
           >
             {pad(`${check(keyHintsToggleOn(kv))} ${t("settings.general.keyHintsShow")}`)}
           </Row>
@@ -298,7 +314,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(zenKeepTasksRow, prefs.toggleZenKeepsTasks)}
             fg={prefs.zenKeepsTasks() ? theme.accent : theme.textMuted}
             bold={true}
-            hint={t("settings.general.zenKeepTasksHint")}
+            hint={hint("settings.general.zenKeepTasksHint")}
           >
             {pad(`${check(prefs.zenKeepsTasks())} ${t("settings.general.zenKeepTasks")}`)}
           </Row>
@@ -309,7 +325,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(editorKindRow, prefs.cycleEditorKind)}
             fg={theme.accent}
             bold={true}
-            hint={t("settings.general.editorRowHint")}
+            hint={hint("settings.general.editorRowHint")}
           >
             {pad(t("settings.general.editorRow", { kind: prefs.editorKind() }))}
           </Row>
@@ -329,7 +345,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(worktreeBaseRow, prefs.cycleWorktreeBase)}
             fg={theme.accent}
             bold={true}
-            hint={t("settings.general.worktreeBaseHint")}
+            hint={hint("settings.general.worktreeBaseHint")}
           >
             {pad(t("settings.general.worktreeBase", { kind: prefs.worktreeKindLabel() }))}
           </Row>
@@ -349,7 +365,7 @@ export function GeneralSettingsSection(
             onMouseUp={activate(scrollbackRow, () => void prefs.editScrollbackRows())}
             fg={theme.accent}
             bold={true}
-            hint={t("settings.general.scrollbackRowHint")}
+            hint={hint("settings.general.scrollbackRowHint")}
           >
             {pad(t("settings.general.scrollbackRow", { rows: String(prefs.scrollbackRows()) }))}
           </Row>

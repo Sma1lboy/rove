@@ -126,6 +126,24 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
+    // The other half of ctrl+w on a task's LAST tab: that close leaves the
+    // task with no tabs, and the pane it leaves behind (`EmptyWorkspacePane`)
+    // has no TerminalTabs mounted — so every workspace chord is unreachable
+    // there and the placeholder's own copy named keys that did nothing.
+    //
+    // Plain `return` is safe in this scope precisely because that pane holds
+    // no input and no tab: there is nothing else for Enter to mean while it
+    // is on screen, and the binding is gated on it being on screen. Owner
+    // sign-off 2026-08-31, see docs/design/keybinding-decisions.md.
+    id: "workspace.reopenSession",
+    scope: "workspace",
+    keys: ["return"],
+    category: "Workspace",
+    description: "Reopen a session in a task whose tabs are all closed",
+    hint: { keys: "enter" },
+    presentation: "onePress",
+  },
+  {
     // Rename the active chat tab. F2 is the cross-OS / cross-IDE
     // rename convention (file managers on Windows + Linux, IntelliJ,
     // VS Code etc.) — chosen here because `ctrl+r` is owned by the

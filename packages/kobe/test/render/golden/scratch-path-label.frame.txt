@@ -4,11 +4,10 @@
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
-|                              |
-|  New task               + n  |
-|                              |
+| New task                + n  |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | SCRATCH ──────────────────── |
 |  …deep/nested/project-dir    |
@@ -16,6 +15,7 @@
 | rove ─────────────────────── |
 |  feat/alpha                  |
 |▌ · build                     |
+|                              |
 |                              |
 |                              |
 |                              |

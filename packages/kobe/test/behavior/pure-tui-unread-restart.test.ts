@@ -88,7 +88,10 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
     const stateDir = join(env.home, ".config", "rove")
     await mkdir(stateDir, { recursive: true })
     statePath = join(stateDir, "state.json")
-    await writeFile(statePath, JSON.stringify({ onboarded: true }))
+    // Both flags: `onboarded` alone means "the questions were asked" (it is
+    // set before the wizard renders), not "the wizard finished". Without the
+    // primer, this launch gets the wizard instead of the TUI.
+    await writeFile(statePath, JSON.stringify({ onboarded: true, onboardedPrimer: true }))
 
     // `--prompt` takes the headless launch path: worktree + hosted engine
     // session under `<taskId>::tab-1`, plus the snapshot the TUI renders from.

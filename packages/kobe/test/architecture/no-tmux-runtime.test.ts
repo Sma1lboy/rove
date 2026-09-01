@@ -9,6 +9,14 @@ const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))
 const RETIRED_ROOT = join(SRC_ROOT, "tmux")
 const LEGACY_COMPAT = join(SRC_ROOT, "cli", "legacy-tmux.ts")
 const LEGACY_IMPORTERS = new Set([join(SRC_ROOT, "cli", "doctor-cmd.ts"), join(SRC_ROOT, "cli", "reset-cmd.ts")])
+/**
+ * Files allowed to NAME tmux without hosting it. The guard exists to keep the
+ * retired tmux RUNTIME out of the shipped product; reporting that the USER is
+ * running inside a multiplexer is the opposite of that — Rove spawns nothing,
+ * it reads an env var so a keyboard bug report can rule the multiplexer out.
+ * Losing that line was collateral damage when the runtime went away.
+ */
+const DIAGNOSTIC_NAMERS = new Set([join(SRC_ROOT, "cli", "doctor-terminal.ts")])
 
 function sourceFiles(dir: string, files: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -36,7 +44,8 @@ describe("Hosted PTY-only runtime boundary", () => {
             /^\s*(?:import|export)\b.*\bfrom\s*["'][^"']*tmux/i.test(line) || /\bimport\(\s*["'][^"']*tmux/i.test(line)
           const namesTmuxBinary = /["']tmux["']/.test(line)
           if (importsLegacyCompat) return !LEGACY_IMPORTERS.has(file)
-          return importsTmux || (namesTmuxBinary && file !== LEGACY_COMPAT)
+          if (importsTmux) return true
+          return namesTmuxBinary && file !== LEGACY_COMPAT && !DIAGNOSTIC_NAMERS.has(file)
         })
       })
       .map((file) => relative(SRC_ROOT, file))

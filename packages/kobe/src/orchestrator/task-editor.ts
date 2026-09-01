@@ -1,7 +1,7 @@
 /**
  * In-place task-field edits for the {@link Orchestrator}.
  *
- * The metadata setters — title, branch, vendor, pinned, archived, status,
+ * The metadata setters — title, branch, vendor, pinned, status,
  * PR-status, plus sidebar `move` / web-board `reorder` — are each a small
  * guard around one `store` mutation (a few also touch git, for a branch
  * rename). They're cohesive and independent of task creation / worktree
@@ -10,6 +10,7 @@
  * unchanged. Moved verbatim from `core.ts` — no behaviour change.
  */
 
+import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
 import { samePrStatus } from "../monitor/pr-status.ts"
 import type {
   Task,
@@ -124,6 +125,23 @@ export class TaskEditor {
    * Change a task's engine vendor. Pure metadata with no git or process side
    * effects; the next fresh engine session uses the new vendor.
    */
+  /**
+   * Record the language this task's user writes in, learned from one of
+   * their own prompts. Called on the delivery path, so it costs a store
+   * write only when the answer actually changes.
+   *
+   * Text with no opinion in it (`detectLanguage` → null: empty, digits,
+   * punctuation) is ignored rather than written: a one-word "ok" must not
+   * erase what a paragraph established.
+   */
+  async observeLanguage(id: TaskId | string, text: string): Promise<void> {
+    const observed = detectLanguage(text)
+    if (!observed) return
+    const task = this.requireTask(id)
+    if (task.observedLanguage === observed) return
+    await this.store.update(task.id, { observedLanguage: observed })
+  }
+
   async setVendor(id: TaskId | string, vendor: VendorId): Promise<void> {
     const task = this.requireTask(id)
     if (task.vendor === vendor) return
@@ -160,9 +178,9 @@ export class TaskEditor {
    * the mains' stored order (owner 2026-07-16), so reordering the store IS
    * reordering the project list. Regular tasks move within their REPO's
    * partition (issue #43: the sidebar tree groups tasks under their repo, so
-   * a cross-repo swap would be invisible or jump groups), still split by
-   * archived + pinned flags. Edge-stop: `store.move` past the partition's
-   * first/last is a no-op, never a wrap.
+   * a cross-repo swap would be invisible or jump groups), still split by the
+   * pinned flag. Edge-stop: `store.move` past the partition's first/last is
+   * a no-op, never a wrap.
    */
   async moveTask(id: TaskId | string, delta: -1 | 1): Promise<void> {
     const task = this.requireTask(id)
@@ -172,28 +190,10 @@ export class TaskEditor {
       .filter((t) =>
         isMain
           ? (t.kind ?? "task") === "main"
-          : (t.kind ?? "task") !== "main" &&
-            t.repo === task.repo &&
-            t.archived === task.archived &&
-            (t.pinned ?? false) === (task.pinned ?? false),
+          : (t.kind ?? "task") !== "main" && t.repo === task.repo && (t.pinned ?? false) === (task.pinned ?? false),
       )
       .map((t) => String(t.id))
     await this.store.move(task.id, delta, groupIds)
-  }
-
-  /**
-   * Toggle / set the `archived` flag. No-op for `kind: "main"`: a main
-   * task is a saved repo's root, removed by un-saving the repo, not by
-   * archiving — mirrors `deleteTask`'s main-row guard so the sidebar's
-   * `a` chord can't silently archive (and kill the session of) a whole
-   * repo entry from the default cursor row.
-   */
-  async setArchived(id: TaskId | string, archived?: boolean): Promise<void> {
-    const task = this.requireTask(id)
-    if (task.kind === "main") return
-    const next = archived ?? !task.archived
-    if (task.archived === next) return
-    await this.store.update(task.id, { archived: next })
   }
 
   /**
@@ -260,5 +260,20 @@ export class TaskEditor {
     const task = this.requireTask(id)
     if ((task.linkedWorkItem?.url ?? null) === (item?.url ?? null)) return
     await this.store.update(task.id, { linkedWorkItem: item ?? undefined })
+  }
+
+  /**
+   * Record the task brief: the full text of the prompt `add --prompt`
+   * delivered into this task's engine. Written on the delivery path so the
+   * brief survives the engine's own transcript — a dead engine used to take
+   * the only copy down with it. Stored verbatim (never truncated); a
+   * whitespace-only prompt is rejected. No-op when the stored text already
+   * matches, so a redundant call never churns a write + broadcast.
+   */
+  async setPrompt(id: TaskId | string, prompt: string): Promise<void> {
+    if (prompt.trim().length === 0) throw new Error("setPrompt: prompt is required (empty or whitespace-only rejected)")
+    const task = this.requireTask(id)
+    if (task.prompt === prompt) return
+    await this.store.update(task.id, { prompt })
   }
 }

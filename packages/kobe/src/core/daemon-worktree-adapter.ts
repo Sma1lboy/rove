@@ -1,4 +1,5 @@
 import { statSync } from "node:fs"
+import { auditWorktreeResidue, auditWorktreeSalvaged } from "@sma1lboy/kobe-daemon/daemon/task-deletion-audit"
 import { execHostForWorktreePath } from "../exec/resolve.ts"
 import { GitWorktreeManager } from "../orchestrator/worktree/manager.ts"
 import { type PrState, judgeWorktree, parseGhPrList } from "../orchestrator/worktree/staleness.ts"
@@ -105,8 +106,32 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
   )
 }
 
-export function removeWorktreeAdapter(path: string, force: boolean): Promise<void> {
-  return manager.remove(path, { force })
+/**
+ * The worktrees page / web DELETE path. Its force retry re-uses a `row`
+ * captured BEFORE the first attempt's dirty refusal, so by the time the user
+ * answers the confirm the tree may hold work the confirm never described.
+ * `manager.remove` salvages any uncommitted work first; this records where.
+ */
+export async function removeWorktreeAdapter(
+  path: string,
+  force: boolean,
+): Promise<{ path: string; reason: string } | null> {
+  let residue: { path: string; reason: string } | null = null
+  await manager.remove(path, {
+    force,
+    onSalvage: (record) => {
+      if (record) auditWorktreeSalvaged(path, record.ref, record.commit)
+    },
+    // git deregistered the worktree but could not delete the directory. Not a
+    // failure — the removal is as complete as git can make it and retrying is
+    // fatal by construction — so it is returned to the caller, and logged
+    // because after this nothing in Rove lists that path again.
+    onResidue: (r) => {
+      residue = { path: r.path, reason: r.reason }
+      auditWorktreeResidue(r.path, r.reason)
+    },
+  })
+  return residue
 }
 
 export async function handleWorktreesRequestAdapter(request: Request, url: URL): Promise<Response | null> {
@@ -122,8 +147,8 @@ export async function handleWorktreesRequestAdapter(request: Request, url: URL):
     try {
       const body = (await request.json()) as { path?: unknown; force?: unknown }
       if (typeof body.path !== "string" || !body.path) return Response.json({ error: "missing path" }, { status: 400 })
-      await removeWorktreeAdapter(body.path, body.force === true)
-      return Response.json({ removed: true })
+      const residue = await removeWorktreeAdapter(body.path, body.force === true)
+      return Response.json({ removed: true, ...(residue ? { residue } : {}) })
     } catch (error) {
       return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 })
     }

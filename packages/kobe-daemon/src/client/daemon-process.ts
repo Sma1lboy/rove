@@ -3,9 +3,10 @@ import { closeSync, existsSync, mkdirSync, openSync, statSync, unlinkSync } from
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { LEGACY_KOBE_PRODUCT_NAME, ROVE_PRODUCT_NAME } from "../compat-env.ts"
-import { stopDaemonProcess } from "../daemon/lifecycle.ts"
+import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "../daemon/paths.ts"
 import { DAEMON_PROTOCOL_VERSION } from "../daemon/protocol.ts"
+import { readPidFile } from "../daemon/socket-guard.ts"
 import { KobeDaemonClient } from "./index.ts"
 
 const DAEMON_START_ARGS = ["daemon", "start"] as const
@@ -17,6 +18,16 @@ const DAEMON_START_ARGS = ["daemon", "start"] as const
  * so a momentarily-busy daemon is never mistaken for a wedged one.
  */
 const DAEMON_HELLO_TIMEOUT_MS = 3000
+
+/**
+ * How long a daemon whose PROCESS is alive gets to answer hello before we
+ * call it wedged. Deliberately much longer than {@link
+ * DAEMON_HELLO_TIMEOUT_MS}: that timeout decides "is this daemon quick",
+ * this one decides "is this daemon dead", and only the second one licenses
+ * a kill. Covers a cold-start plugin-host scan plus a burst of concurrent
+ * task creation — the shape that produced the 2026-08-29 succession storm.
+ */
+const BUSY_DAEMON_GRACE_MS = 15_000
 
 /**
  * How a background child is cut loose from this process.
@@ -116,11 +127,18 @@ export function autospawnDaemonEnv(env: NodeJS.ProcessEnv = process.env): NodeJS
  * socket, which is how split-brain succession starts. One `wx` lockfile
  * next to the pidfile serializes them; losers wait for the winner's daemon
  * instead of spawning their own. Stale threshold covers the winner's worst
- * case (stop escalation ~7s + spawn poll 5s) so a crashed winner never
- * blocks recovery for long.
+ * case so a crashed winner never blocks recovery for long — see the budget
+ * arithmetic on the constants below.
  */
-const SPAWN_LOCK_STALE_MS = 20_000
-const SPAWN_LOCK_WAIT_MS = 15_000
+// Both budgets must cover the WINNER's worst case, or the losers give up
+// (or steal the lock as stale) while it is still legitimately working:
+//   BUSY_DAEMON_GRACE_MS (15s waiting out a busy daemon)
+// + stopDaemonProcess escalation (~7s graceful → SIGTERM → SIGKILL)
+// + spawn poll (5s)
+// ≈ 27s. Stale must exceed wait so a still-working winner is never robbed
+// of its own lock by a peer that merely got bored.
+const SPAWN_LOCK_STALE_MS = 40_000
+const SPAWN_LOCK_WAIT_MS = 30_000
 
 /** Try to take the spawn lock; returns false when a fresh lock is held by
  *  someone else. Reclaims stale locks. Exported for tests. */
@@ -158,7 +176,11 @@ export function tryAcquireSpawnLock(lockPath: string, staleMs: number = SPAWN_LO
  * comes up — or, inside an engine session, when the daemon is wedged
  * (session helpers never kill/replace the shared daemon).
  */
-export async function ensureDaemonReachable(): Promise<string> {
+export async function ensureDaemonReachable(
+  /** Seam for tests: the spawn argv resolver. A stale install cannot be
+   *  reproduced otherwise without deleting the running source tree. */
+  resolveSpawn: (subcommand: readonly string[]) => string[] = resolveKobeSpawn,
+): Promise<string> {
   const socketPath = defaultDaemonSocketPath()
   const state = await probeDaemonSocket(socketPath)
   if (state === "alive") return socketPath
@@ -192,13 +214,56 @@ export async function ensureDaemonReachable(): Promise<string> {
     // daemon up between our probe above and the lock acquisition.
     if ((await probeDaemonSocket(socketPath)) === "alive") return socketPath
 
-    // Absent, or wedged outside a session: kill any wedged process FIRST —
-    // `stopDaemonProcess` is idempotent (just clears stale socket/pidfile
-    // when nothing is alive) and prevents a fresh spawn from racing a
-    // still-alive wedged daemon onto the same tasks.json (split-brain).
-    await stopDaemonProcess(socketPath, defaultDaemonPidPath()).catch(() => {})
+    // A SLOW HELLO IS NOT A DEAD DAEMON. `probeDaemonSocket` reports
+    // whether the daemon ANSWERED within `DAEMON_HELLO_TIMEOUT_MS`, which a
+    // healthy-but-busy daemon can miss — spawning three tasks at once was
+    // enough on the owner's machine (2026-08-29). Treating that as death
+    // starts a succession storm that feeds itself:
+    //
+    //   busy daemon misses hello → client kills it and unlinks the socket →
+    //   spawns a replacement → the old daemon's ownership guard sees a
+    //   different inode and self-stops → every client's connection drops →
+    //   each GUI reconnects with ZERO delay → they all probe a daemon that
+    //   is now cold-starting → it misses hello → repeat.
+    //
+    // Eleven successions in one 50-minute window, with `rove api` failing
+    // intermittently throughout. The spawn lock does not help: it
+    // serializes the killing, it does not question it.
+    //
+    // So before killing anything, ask the OS. `kill(pid, 0)` answers
+    // whether the PROCESS exists, which is the question we actually have;
+    // the socket only ever answered whether it was quick enough. A live pid
+    // means the daemon is busy, not wedged — back off and let it finish.
+    // Only an absent (or unreadable) pidfile justifies the stop+spawn.
+    const livePid = await readPidFile(defaultDaemonPidPath())
+    if (livePid !== null && livePid !== process.pid && isProcessAlive(livePid)) {
+      const deadline = Date.now() + BUSY_DAEMON_GRACE_MS
+      while (Date.now() < deadline) {
+        await new Promise((resolveTimer) => setTimeout(resolveTimer, 250))
+        if (await testDaemonResponds(socketPath)) return socketPath
+        // It died on its own while we waited (crash, or a legitimate idle
+        // stop): the pid is gone, so the stop+spawn below is now correct.
+        if (!isProcessAlive(livePid)) break
+      }
+      // Still alive and still not answering after the grace window — this
+      // is a genuinely wedged daemon, and stopDaemonProcess's escalation
+      // (graceful → SIGTERM → SIGKILL) is the right tool.
+    }
 
-    const [command, ...args] = resolveKobeSpawn(DAEMON_START_ARGS)
+    // Resolve the replacement's argv BEFORE tearing anything down. These two
+    // steps were the other way round, and on a stale install that ordering
+    // was destructive: `stopDaemonProcess` killed the daemon and unlinked
+    // its socket + pidfile, and only THEN did `resolveKobeSpawn` discover it
+    // had no entry point to re-exec — so the client removed a working daemon
+    // and could not put one back. Resolving first makes a stale install
+    // INERT: it throws here, having touched nothing.
+    const [command, ...args] = resolveSpawn(DAEMON_START_ARGS)
+
+    // Kill any wedged process FIRST — `stopDaemonProcess` is idempotent (just
+    // clears stale socket/pidfile when nothing is alive) and prevents a fresh
+    // spawn from racing a still-alive wedged daemon onto the same tasks.json
+    // (split-brain).
+    await stopDaemonProcess(socketPath, defaultDaemonPidPath()).catch(() => {})
     spawnDetachedDaemon(command, args, autospawnDaemonEnv(), defaultDaemonLogPath())
 
     const deadline = Date.now() + 5000
@@ -240,16 +305,41 @@ export async function connectIfRunning(): Promise<KobeDaemonClient | null> {
   return client
 }
 
-/** What a socket probe found: answering, nothing there, or a socket that
- *  connects but won't answer hello (busy past the timeout, or truly hung). */
+/** What a socket probe found: answering, nothing usable there, or a socket
+ *  that connects but won't answer hello (busy past the timeout, or hung). */
 export type DaemonSocketState = "alive" | "absent" | "wedged"
 
 /**
  * Probe the daemon at `socketPath`: does it accept a connection, and does
- * it answer `hello` within `timeoutMs`? A socket that connects but never
- * replies is WEDGED — distinct from an absent one, and the reason we probe
- * `hello` rather than just `connect` (KOB). Any reply (even a
- * version-mismatch error) counts as alive; only a timeout means wedged.
+ * it answer `hello` within `timeoutMs`? Three outcomes, and each one is a
+ * different question about the SAME socket:
+ *
+ *  - `alive` — the daemon ANSWERED. Any response frame counts, including a
+ *    version-mismatch error: an old daemon that talks back is running and
+ *    serving other clients, and the caller's real connect is where that
+ *    mismatch belongs. Never kill something that answered.
+ *  - `wedged` — connected, STILL connected, and silent past the deadline.
+ *    Busy or genuinely hung; the caller decides which (see
+ *    {@link ensureDaemonReachable}'s pid check).
+ *  - `absent` — nothing usable here: the connect failed, OR the peer
+ *    dropped the connection before answering.
+ *
+ * That last clause is the 2026-08-30 fix (issue #83). A daemon in its
+ * shutdown path destroys every client socket (`server.ts` close()), so a
+ * probe landing in that window used to connect, get dropped, and — because
+ * the hello was `.catch(() => true)` — be reported ALIVE. The caller then
+ * held a socket that vanished milliseconds later. A closing daemon is
+ * `absent`, not `wedged`: it is leaving, so stop+spawn is the right
+ * recovery, whereas `wedged` would make `ensureDaemonReachable` throw
+ * inside an engine session rather than recover.
+ *
+ * The discriminator is the CONNECTION dying, not the promise rejecting —
+ * conflating the two is what would kill a version-mismatched daemon, whose
+ * hello rejects while the daemon is perfectly alive. We read it off the
+ * client's `close` lifecycle instead: `onSocketClose` fails the pending
+ * request and emits `close` in the same synchronous step, so the flag is
+ * set before the awaited race resumes on the following microtask.
+ *
  * Exported for tests.
  */
 export async function probeDaemonSocket(
@@ -263,6 +353,10 @@ export async function probeDaemonSocket(
     probe.close()
     return "absent"
   }
+  let droppedByPeer = false
+  const offClose = probe.onLifecycle("close", () => {
+    droppedByPeer = true
+  })
   const replied = probe
     .request("hello", { protocolVersion: DAEMON_PROTOCOL_VERSION })
     .then(() => true)
@@ -271,10 +365,16 @@ export async function probeDaemonSocket(
   const timedOut = new Promise<boolean>((resolve) => {
     timer = setTimeout(() => resolve(false), timeoutMs)
   })
-  const alive = await Promise.race([replied, timedOut])
+  const settled = await Promise.race([replied, timedOut])
   if (timer) clearTimeout(timer)
+  // Unsubscribe before `close()`: plain listener hygiene. `close()` nulls the
+  // socket first, so its own OS close event trips `onSocketClose`'s stale
+  // guard and emits nothing — but the verdict below must depend on the PEER
+  // dropping us, never on our own teardown, so don't leave the listener armed.
+  offClose()
   probe.close()
-  return alive ? "alive" : "wedged"
+  if (droppedByPeer) return "absent"
+  return settled ? "alive" : "wedged"
 }
 
 /** Back-compat boolean view of {@link probeDaemonSocket}. */
@@ -283,6 +383,38 @@ export async function testDaemonResponds(
   timeoutMs: number = DAEMON_HELLO_TIMEOUT_MS,
 ): Promise<boolean> {
   return (await probeDaemonSocket(socketPath, timeoutMs)) === "alive"
+}
+
+/**
+ * This process is running from an install that is no longer on disk.
+ *
+ * Not a spawn failure — a spawn failure is transient (a busy daemon, a lost
+ * race) and retrying is the right answer. This one is structural: the entry
+ * point {@link resolveKobeSpawn} would re-exec was unlinked out from under
+ * the running process, so every future attempt fails identically. The shape
+ * is ordinary rather than exotic: a brew copy uninstalled while its GUI kept
+ * running, leaving the process alive on an unlinked inode (the owner's
+ * machine, 2026-09-01 — one GUI 2 days into a reconnect loop that could
+ * never succeed).
+ *
+ * Callers that retry must treat it as terminal (see `runReconnectLoop`), and
+ * `rove doctor` names it, because the remedy is reinstalling, not waiting.
+ */
+export class StaleInstallError extends Error {
+  readonly candidates: readonly string[]
+  constructor(cliName: string, dir: string, candidates: readonly string[]) {
+    super(
+      `${cliName}: this process is running from an install that no longer exists on disk — no ${cliName} entry near ${dir} (checked ${candidates.join(", ")}). Reinstall (\`npm install -g @sma1lboy/rove\`) and relaunch Rove.`,
+    )
+    this.name = "StaleInstallError"
+    this.candidates = candidates
+  }
+}
+
+/** True for {@link StaleInstallError}, across the package boundary (an
+ *  `instanceof` over two copies of the module would miss). */
+export function isStaleInstallError(err: unknown): boolean {
+  return err instanceof Error && err.name === "StaleInstallError"
 }
 
 /**
@@ -302,8 +434,15 @@ export async function testDaemonResponds(
  *    IS the kobe binary, so we re-exec it directly. After the kobed → kobe
  *    bin merge, no sibling lookup is needed.
  */
-export function resolveKobeSpawn(subcommand: readonly string[], env: NodeJS.ProcessEnv = process.env): string[] {
-  const here = fileURLToPath(import.meta.url)
+export function resolveKobeSpawn(
+  subcommand: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+  /** The module's own path. Injectable so a test can point at a directory
+   *  that does not exist — the stale-install case cannot otherwise be
+   *  reproduced without deleting the running source tree. */
+  moduleFile: string = fileURLToPath(import.meta.url),
+): string[] {
+  const here = moduleFile
   if (here.startsWith("/$bunfs") || here.startsWith("B:\\~BUN")) {
     return [process.execPath, ...subcommand]
   }
@@ -319,5 +458,5 @@ export function resolveKobeSpawn(subcommand: readonly string[], env: NodeJS.Proc
   ]
   const entry = candidates.find((candidate) => existsSync(candidate))
   if (entry) return [process.execPath, entry, ...subcommand]
-  throw new Error(`${cliName}: could not locate ${cliName} entry near ${dir}; checked ${candidates.join(", ")}`)
+  throw new StaleInstallError(cliName, dir, candidates)
 }

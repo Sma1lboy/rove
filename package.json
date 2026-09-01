@@ -32,8 +32,7 @@
     "hooks:install": "git config core.hooksPath .githooks && echo 'pre-commit hook enabled (.githooks)'",
     "ci:version": "changeset version && bun install && bun run lint:fix",
     "release": "scripts/release.sh",
-    "preview:install": "scripts/preview-install.sh",
-    "issues:archive": "node scripts/issues-archive.mjs"
+    "preview:install": "scripts/preview-install.sh"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

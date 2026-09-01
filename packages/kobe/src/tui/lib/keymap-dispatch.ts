@@ -13,6 +13,14 @@ import { isDev } from "../../env.ts"
 import { inputPassthroughReachable, prefixReachable, scanReachability } from "./keymap-reachability"
 import { type PrefixHudOption, prefixHudPush, prefixHudSetArmed } from "./prefix-hud"
 
+/** Mouse-safe command paired with a keyboard binding. */
+export type PrefixAction = Readonly<{ run: () => void }>
+
+/** Mark a handler as safe to invoke from a clickable prefix entry. */
+export function prefixAction(run: () => void): PrefixAction {
+  return { run }
+}
+
 export type Binding = {
   key: string
   /** True when `key` is the second stroke of the PureTUI prefix. */
@@ -33,6 +41,8 @@ export type Binding = {
    * instead of `event.name`, so user-rebound chords keep working.
    */
   cmd: (event: KeyEvent, slot?: number) => void
+  /** Typed command used by the local prefix reveal; never synthesizes a KeyEvent. */
+  action?: PrefixAction
   /**
    * Positional index of `key` within the owning binding id's `keys` array
    * at registration time (slot-based dispatch). `bindByIds` fills this in;
@@ -194,6 +204,7 @@ export const DEFAULT_PREFIX_CONFIGURATION: Readonly<PrefixConfiguration> = { key
 let prefixConfiguration: PrefixConfiguration = { ...DEFAULT_PREFIX_CONFIGURATION }
 let prefixArmedAt: number | null = null
 let prefixArmedOnPassthrough = false
+let prefixArmedOptions: readonly PrefixHudOption[] = []
 let prefixTimer: ReturnType<typeof setTimeout> | null = null
 
 /** Apply a validated configuration and cancel an in-flight sequence. */
@@ -219,6 +230,7 @@ export function resetPrefixState(): void {
   prefixTimer = null
   prefixArmedAt = null
   prefixArmedOnPassthrough = false
+  prefixArmedOptions = []
   prefixHudSetArmed(false)
 }
 
@@ -226,6 +238,7 @@ function armPrefix(now: number, options: readonly PrefixHudOption[], inputPassth
   resetPrefixState()
   prefixArmedAt = now
   prefixArmedOnPassthrough = inputPassthrough
+  prefixArmedOptions = options.slice()
   prefixTimer = setTimeout(resetPrefixState, prefixConfiguration.timeoutMs)
   prefixHudSetArmed(true, options, now)
 }
@@ -246,6 +259,59 @@ export function armPrefixNow(snapshot: readonly RegisteredBinding[], now: number
   if (!reach.prefixReachable) return false
   armPrefix(now, reach.prefixOptions, reach.inputPassthrough)
   return true
+}
+
+/**
+ * Invoke one advertised prefix option from a mouse click. The option must
+ * still be armed and resolve to the same live LIFO binding; stale UI never
+ * gets to operate a newly mounted scope.
+ */
+export function invokeArmedPrefixAction(
+  bindingStack: readonly RegisteredBinding[],
+  actionId: string,
+  stroke: string,
+  now: number = Date.now(),
+): boolean {
+  if (dispatching || prefixArmedAt === null) return false
+  const snapshot = bindingStack.slice()
+  const armedPrefixKey = prefixConfiguration.key ?? ""
+  const validOption = prefixArmedOptions.some((option) => option.action === actionId && option.stroke === stroke)
+  const expired = now - prefixArmedAt > prefixConfiguration.timeoutMs
+  const crossedBoundary = inputPassthroughReachable(snapshot) !== prefixArmedOnPassthrough
+
+  if (!validOption || expired || crossedBoundary) {
+    resetPrefixState()
+    return false
+  }
+
+  let hit: Binding | null = null
+  for (let i = snapshot.length - 1; i >= 0; i--) {
+    const reg = snapshot[i]
+    if (!reg) continue
+    const cfg = reg.config()
+    if (cfg.enabled === false) continue
+    const candidate = cfg.bindings.find((binding) => binding.prefix === true && binding.key === stroke)
+    if (candidate) {
+      if (candidate.id === actionId) hit = candidate
+      break
+    }
+    if (cfg.modal) break
+  }
+
+  if (!hit?.action) {
+    resetPrefixState()
+    return false
+  }
+
+  resetPrefixState()
+  dispatching = true
+  try {
+    hit.action.run()
+    prefixHudPush({ prefixKey: armedPrefixKey, stroke, action: actionId, at: now })
+    return true
+  } finally {
+    dispatching = false
+  }
 }
 
 /** Chords already flagged by the shadowed-match warning (once per process
@@ -296,6 +362,7 @@ function dispatchMode(
   evt: KeyEvent,
   candidates: string[],
   prefix: boolean,
+  runCmd: (cmd: () => void) => void,
 ): Binding | null {
   for (let i = snapshot.length - 1; i >= 0; i--) {
     const reg = snapshot[i]
@@ -314,7 +381,7 @@ function dispatchMode(
     }
     if (hit) {
       if (!cfg.modal && isDev()) warnShadowedMatch(snapshot, i, candidates, prefix)
-      hit.cmd(evt, hit.slot)
+      runCmd(() => hit!.cmd(evt, hit!.slot))
       return hit
     }
     if (cfg.modal) return null
@@ -351,10 +418,12 @@ export function dispatchKeyEvent(
     shift?: boolean
   },
   now = Date.now(),
+  opts?: { flushSync?: (fn: () => void) => void },
 ): boolean {
   if (evt.defaultPrevented || dispatching) return false
   const snapshot = bindingStack.slice()
   const candidates = matchKey(evt as KeyEvent)
+  const runCmd = opts?.flushSync ?? ((fn) => fn())
   dispatching = true
   try {
     // A sequence cannot cross the PTY boundary after it is armed: the next
@@ -379,7 +448,7 @@ export function dispatchKeyEvent(
         // A miss is consumed so it cannot type into an input or Terminal pane
         // after the user deliberately started a prefix sequence.
         resetPrefixState()
-        const hit = dispatchMode(snapshot, evt as KeyEvent, candidates, true)
+        const hit = dispatchMode(snapshot, evt as KeyEvent, candidates, true, runCmd)
         prefixHudPush({
           prefixKey: armedPrefixKey,
           stroke: candidates[0] ?? "",
@@ -404,7 +473,7 @@ export function dispatchKeyEvent(
       }
     }
 
-    const direct = dispatchMode(snapshot, evt as KeyEvent, candidates, false)
+    const direct = dispatchMode(snapshot, evt as KeyEvent, candidates, false, runCmd)
     if (direct) {
       // Direct chords land in the HUD too — but only REAL modifier chords
       // (ctrl+t, alt+…): plain pane letters (sidebar j/k) would stream

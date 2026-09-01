@@ -18,5 +18,11 @@ export function formatBytes(n: number): string {
     v /= 1024
     i++
   }
-  return `${v >= 100 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
+  // Decide precision from the value we'd actually print, not the raw quotient:
+  // a v in [99.95, 100) renders as "100.0" under toFixed(1), which is the very
+  // three-digit-with-a-decimal the >= 100 integer branch exists to avoid. Branch
+  // on the rounded string's magnitude, but keep Math.round(v) for the integer so
+  // we round the raw value once (no double rounding of e.g. 1023.499 -> 1024).
+  const oneDecimal = v.toFixed(1)
+  return `${Number(oneDecimal) >= 100 ? Math.round(v) : oneDecimal} ${units[i]}`
 }

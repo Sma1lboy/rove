@@ -1,7 +1,9 @@
 /**
- * The `create` verb group — spawning new Rove tasks. Split out of `verbs.ts`
- * (file-size cap); spread back into the {@link VERBS} table there, so
- * schema/help/validation see one canonical list.
+ * The `create` verb group — spawning new Rove tasks. One file per
+ * `VerbGroup`, mirroring the taxonomy `rove api schema --group create` prints
+ * — though it is each spec's own `group` field, not this file, that decides
+ * where a verb lists. Specs spread back into the
+ * {@link VERBS} table, so schema/help/validation see one canonical list.
  */
 
 import { F, FANOUT_CAP } from "./flags.ts"
@@ -12,6 +14,7 @@ import type { VerbSpec } from "./types.ts"
 export const CREATE_VERBS: readonly VerbSpec[] = [
   {
     name: "add",
+    group: "create",
     summary: `Create a task (shows in the sidebar immediately). With --prompt it also starts the engine and delivers it. PARALLEL ATTEMPTS: --count N spawns N sibling tasks of the SAME prompt, each in its own worktree/branch (--agents claude:2,codex:1 for a mixed fleet); capped at ${FANOUT_CAP}, prefer 3-4. Does NOT steal focus — pass --activate to make it the active task. Alias: spawn-task.`,
     flags: [
       F.repo(),

@@ -7,10 +7,13 @@
  */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import { legendCap } from "../../../tui/lib/help-groups"
 import { SIDEBAR_NAV_ITEMS, type SidebarNav } from "../../../tui/panes/sidebar/nav-core"
+import { ShortcutRevealBadge } from "../../component/shortcut-reveal"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
+import { dividerRule } from "../../lib/rule-divider"
 import { zenChipGlyph } from "./zen-glyph"
 
 export function SectionHeader(props: {
@@ -25,6 +28,7 @@ export function SectionHeader(props: {
 }) {
   const { theme, transparentBackground } = useTheme()
   const dividerColor = transparentBackground ? theme.border : theme.borderSubtle
+  const dims = useTerminalDimensions()
   return (
     <box flexDirection="column" flexShrink={0}>
       {props.topPad ? (
@@ -59,7 +63,7 @@ export function SectionHeader(props: {
           {props.label}
         </text>
         <text fg={dividerColor} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {"─".repeat(240)}
+          {dividerRule(dims.width)}
         </text>
         {props.suffix ? (
           <text fg={theme.info} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
@@ -111,6 +115,9 @@ export function SidebarBrandHeader(props: {
   focused: boolean
   status: { label: string; emphasize: boolean } | null
   onStatusClick?: () => void
+  /** "a newer build is on npm" chip — right-aligned, opens the update page. */
+  update?: { label: string } | null
+  onUpdateClick?: () => void
 }) {
   const { theme } = useTheme()
   return (
@@ -120,16 +127,26 @@ export function SidebarBrandHeader(props: {
           ROVE
         </text>
         {props.status ? (
-          <text
-            fg={props.status.emphasize ? theme.warning : theme.textMuted}
-            attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
-            wrapMode="none"
-            onMouseUp={() => props.onStatusClick?.()}
-          >
-            {props.status.label}
-          </text>
+          <box position="relative" onMouseUp={() => props.onStatusClick?.()}>
+            <text
+              fg={props.status.emphasize ? theme.warning : theme.textMuted}
+              attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
+              wrapMode="none"
+            >
+              {props.status.label}
+            </text>
+            {props.onStatusClick ? <ShortcutRevealBadge bindingId="inbox.show" /> : null}
+          </box>
         ) : null}
       </box>
+      {props.update ? (
+        <box position="relative" flexShrink={0} onMouseUp={() => props.onUpdateClick?.()}>
+          <text fg={theme.success} attributes={TextAttributes.BOLD} wrapMode="none">
+            {props.update.label}
+          </text>
+          {props.onUpdateClick ? <ShortcutRevealBadge bindingId="tasks.update" /> : null}
+        </box>
+      ) : null}
     </box>
   )
 }
@@ -147,8 +164,17 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   if (!props.onAddTask) return null
 
   return (
-    <box flexShrink={0} paddingTop={1} paddingBottom={1} paddingLeft={1} paddingRight={1}>
+    // One content row, no vertical padding: this is the tallest-pressure
+    // panel in the product, so the action must cost exactly one line.
+    //
+    // The left inset lives HERE and nowhere else. The inner box carries the
+    // filled background, so it needs its own horizontal padding to keep the
+    // label off the fill's edge — and adding an inset on this wrapper too put
+    // the label at column 2 while every other sidebar element (the ROVE
+    // header, the nav rail, the tree rows, the ZEN chip) starts at column 1.
+    <box flexShrink={0} paddingRight={1}>
       <box
+        position="relative"
         flexDirection="row"
         flexShrink={0}
         gap={1}
@@ -168,6 +194,7 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
             {keycap}
           </text>
         ) : null}
+        <ShortcutRevealBadge bindingId="task.new" />
       </box>
     </box>
   )
@@ -185,11 +212,11 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
         return (
           <box
             key={item.nav}
+            position="relative"
             flexDirection="row"
             flexShrink={0}
             paddingLeft={1}
             paddingRight={1}
-            backgroundColor={active ? theme.focusAccent : undefined}
             onMouseUp={(e: { stopPropagation(): void }) => {
               // goToNav hands focus to the page; a bubbled sidebar
               // focus-grab (the pane shell's onMouseUp) took it right back,
@@ -199,16 +226,17 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             }}
           >
             <text
-              // Contrast fg on the accent fill: `background` is alpha-0 in
-              // transparent mode (invisible text); `backgroundElement`
-              // stays opaque in every mode.
-              fg={active ? theme.backgroundElement : theme.textMuted}
+              // Active destination: bold + normal text color. We intentionally
+              // do NOT use the focus-accent fill here, because that same orange
+              // already signals (a) focused pane borders and (b) selected cards.
+              fg={active ? theme.text : theme.textMuted}
               attributes={active ? TextAttributes.BOLD : undefined}
               wrapMode="none"
               flexGrow={1}
             >
               {t(item.labelKey)}
             </text>
+            <ShortcutRevealBadge bindingId={item.bindingId} />
           </box>
         )
       })}
@@ -219,7 +247,7 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
 export function SidebarZenChip(props: { onZenClick?: () => void }) {
   const { theme } = useTheme()
   return (
-    <box flexShrink={0} paddingLeft={1} paddingRight={1} paddingTop={1}>
+    <box position="relative" flexShrink={0} paddingLeft={1} paddingRight={1} paddingTop={1}>
       <text
         fg={theme.accent}
         attributes={TextAttributes.BOLD}
@@ -234,6 +262,7 @@ export function SidebarZenChip(props: { onZenClick?: () => void }) {
       >
         {`${zenChipGlyph()} ZEN`}
       </text>
+      <ShortcutRevealBadge bindingId="workspace.zenToggle" />
     </box>
   )
 }

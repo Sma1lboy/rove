@@ -51,11 +51,10 @@ describe("isMixedEngineWorkspace / distinctTaskVendors", () => {
     expect(distinctTaskVendors([task({ id: "a", vendor: undefined })])).toEqual([DEFAULT_VENDOR])
   })
 
-  it("ignores project (main) and archived rows", () => {
+  it("ignores project (main) rows", () => {
     const t = [
       task({ id: "a", vendor: "claude" }),
       task({ id: "m", kind: "main", vendor: "codex" }),
-      task({ id: "z", archived: true, vendor: "codex" }),
     ]
     expect(isMixedEngineWorkspace(t)).toBe(false)
   })

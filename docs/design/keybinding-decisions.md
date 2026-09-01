@@ -8,6 +8,35 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Prefix tap presentation
+
+**2026-08-28 — the prefix has tap behavior only. Every tap opens the complete
+command guide; Settings chooses whether Rove also marks current clickable
+controls, and the combined presentation is the default. No action chord is
+added or moved (latest owner resolution: the guide and on-screen entries may
+coexist).**
+Each existing control names the stable binding id for the action it already
+performs, then resolves the displayed direct or prefix sequence through the
+live keymap and current binding stack. Rebindings therefore update the badge,
+while unbound or modal-blocked actions disappear instead of showing stale
+help. The current anchors are New task, Inbox, Kanban, Automations, Zen, Create
+PR, and Settings.
+
+The full-width guide is derived from the dispatcher's armed options, not a
+second hand-maintained action list, so it covers every currently reachable
+prefix binding without collapsing labels into the sidebar width. Clicking a
+row invokes a typed action only after the dispatcher confirms that the same
+action and stroke are still armed, in the same terminal-passthrough boundary,
+and reachable under the current LIFO and modal rules.
+
+The setting is presentation-only and persists in the UI state. The dispatcher
+still owns the single prefix session: tap arms it, the next stroke resolves it,
+and Escape, a miss, focus change, or timeout clears it. Both settings subscribe
+to that same armed state, so switching the display does not add a second input
+state machine or require terminal key-repeat/release reporting. The combined
+default keeps spatial teaching on existing controls while the guide remains a
+complete reference and clickable mouse entry.
+
 ## Repo context filter — removed, chord revoked
 
 **2026-08-16 — `ctrl+p` repo filter removed entirely (owner call, same
@@ -34,20 +63,28 @@ chord-selection rationale ("yank from history"; `ctrl+r` is the prompt
 history palette, `ctrl+h` is the backspace byte), and the i18n strings
 are in git history at `2360b2e48`.
 
-## Open calls
+## Sidebar dead keys cleanup (issue #67)
 
-- **Inert table rows.** `sidebar.sort` (`t`), `sidebar.projectFilter`
-  (`ctrl+p`), `sidebar.previewToggle` (`i`), and `tasks.toggleKeys` (`?`) are
-  registered in the keymap table but have **no handler**, so pressing them
-  does nothing today. F1 filters them out by reachability, so they aren't
-  advertised either. Whether to wire them back or drop the rows is an open
-  owner call.
-  - For `sidebar.sort` specifically: a tree already carries an order (project
-    → worktree → tab) and manual placement lives in move mode, so a second
-    automatic ordering would only fight the structure. But the row was never
-    removed and `activeSortMode` is still read at startup, so today the sort
-    mode changes only by hand-editing `state.json`.
-  - `sidebar.projectFilter`'s project filter was a fold, and the fold is gone.
+**2026-08-29 — `sidebar.sort` (`t`) wired; `sidebar.previewToggle` (`i`),
+`sidebar.projectFilter` (`ctrl+p`), and `tasks.toggleKeys` (`?`) removed.**
+All four were advertised in F1 but had no handler. `t` was the cheapest to
+connect: the global sort preference (`activeSortMode`) and its toggle already
+existed in `useSidebarHostState`; the missing piece was a keybinding handler
+and plumbing the sort mode into the tree sidebar so `recent` actually reorders
+worktrees by `updatedAt`. The other three were product calls with no current
+implementation:
+
+- `sidebar.previewToggle` (`i`) described a live read-only task preview rail
+  that was never shipped.
+- `sidebar.projectFilter` (`ctrl+p`) described a per-repo filter; the design
+  moved away from single-repo filters toward session-as-repo-set, and the
+  chord was already revoked once (see "Repo context filter" above).
+- `tasks.toggleKeys` (`?`) folded the standalone Tasks pane's footer legend;
+  that pane no longer exists in the React workspace.
+
+Removed the rows and their i18n strings rather than leaving dead entries in
+F1. If any of the features return, they need a fresh chord decision recorded
+here.
 
 ## The unified new-conversation dialog
 
@@ -201,7 +238,7 @@ the row's own chords already do, so the menu never becomes a second place
 where behavior is decided — the one exception is the project header, which
 the cursor cannot reach at all.
 
-## Create PR
+## Ask agent to create PR
 
 **2026-07-18 — `prefix+p` / `prefix+P`, global scope, no direct chord**
 (superseding the 2026-07-17 files-scoped `ctrl+p`). The direct chord was
@@ -294,6 +331,27 @@ Hints are text-only on the ambient background (no opaque fill), so normal and
 transparent themes both stay readable — pinned by
 `test/tui-react/keyboard-overlay-theme.test.ts` and the `/harness` visual
 journey `keyboard hints render and extinguish in the real OpenTUI`.
+
+## Reopening a closed-down session (issue #90)
+
+**2026-08-31 — `workspace.reopenSession` = plain `return`, workspace scope
+(owner sign-off).** `ctrl+w` on a task's last tab now empties it, and the
+pane left behind (`tui-react/workspace/empty-workspace-pane.tsx`) reads
+"press ⏎ or ctrl+e to start one" — copy that shipped in #696 naming two keys
+neither of which had a handler. Both live in `TerminalTabs`, and that
+component is deliberately not mounted over an empty tab list.
+
+A bare `return` is normally too cheap a key to spend at workspace scope. It
+is safe here because the binding is registered BY that pane, which holds no
+input, no tab strip and no terminal: while it is on screen there is nothing
+else Enter could mean, and when it is not, the binding does not exist. The
+alternative — rewording the copy down to `ctrl+e` only — was rejected: Enter
+is what the sidebar already uses to open the row, and the pane is the same
+gesture one pane over.
+
+`ctrl+e` (`chat.tab.chooseEngine`) is re-registered on the same pane. That is
+not a second chord for one action; it is the existing chord staying
+answerable in the one state where its usual owner is unmounted.
 
 ## Adding or moving a chord
 

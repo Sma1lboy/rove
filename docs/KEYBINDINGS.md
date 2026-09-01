@@ -14,7 +14,7 @@ Which gives you three patterns:
 
 | Pattern | Example | Used for |
 |---|---|---|
-| Bare letter | `n`, `a`, `d` | Actions in the focused pane |
+| Bare letter | `n`, `d`, `r` | Actions in the focused pane |
 | One press | `ctrl+t`, `ctrl+w` | Frequent Rove-wide actions |
 | Prefix sequence | `ctrl+a` then `i` | Everything less frequent |
 
@@ -23,11 +23,26 @@ Rove only reserves its explicit chords. The prefix still works there, so
 the command menu is reachable from every pane. Press `ctrl+q` to leave the
 terminal without opening it.
 
+Tap the configured prefix once to open the command layer. By default, Rove
+opens the complete command guide and also shows shortcuts beside clickable
+controls already on screen, such as **New task**, **Inbox**, **Kanban**,
+**Routines**, **Zen**, **Ask agent to create PR**, and **Settings**. In **Settings →
+Keybindings → Prefix tap**, choose **Complete guide only** to hide the on-screen
+badges while keeping the guide.
+
+Both the badges and guide read the live keymap. A rebound prefix or action
+changes immediately, and an unbound or currently unreachable action is not
+advertised. Clicking a guide row rechecks the current pane and modal scope
+before it runs. The setting changes only whether the pending command layer also
+marks controls in place. Both choices use the same prefix, second stroke,
+timeout, pane scope, and cancellation rules. No hold or key-release support is
+required.
+
 ## The prefix
 
-The default first stroke is `ctrl+a`. Press it, then one more key within 5
-seconds. After a short pause an on-screen command map appears, showing only
-the actions that can actually run right now.
+The default first stroke is `ctrl+a`. Tap it, then press one more key within
+5 seconds. A complete on-screen command map appears after a short pause and
+shows only actions that can run right now.
 
 | Sequence | Action |
 |---|---|
@@ -38,7 +53,7 @@ the actions that can actually run right now.
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `w` | Close the active split |
-| `ctrl+a` `1` / `2` / `3` | Kanban / Automations / GitHub Issues |
+| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` / `P` | Create a PR from the active task |
@@ -60,8 +75,9 @@ focus or dialog.
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New engine tab |
 | `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
-| `ctrl+w` | Close the active split, otherwise the tab |
-| `ctrl+[` / `ctrl+]` | Previous / next tab |
+| `ctrl+w` | Close the active split, otherwise the tab — closing the last tab leaves the task open with no session |
+| `enter` | Reopen a session in a task whose tabs are all closed (only while that empty pane is showing; `ctrl+e` does the same there) |
+| `ctrl+[` / `ctrl+]` | Previous / next tab (`ctrl+[` needs kitty — see below) |
 | `ctrl+\` | Split right |
 | `ctrl+=` | Split down |
 | `ctrl+2` … `ctrl+9`, `ctrl+0` | Jump to the Nth visible sidebar row (`ctrl+2` = first row) |
@@ -72,11 +88,23 @@ focus or dialog.
 | `F7` | Jump to the next Inbox item across all projects |
 
 Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
-is split, otherwise the tab. `F2` follows the same rule.
+is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
+by the "no sessions here" pane, which has no input and no tab of its own —
+everywhere else in the workspace it reaches the terminal as usual.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);
-reserving `ctrl+\` also costs the embedded shell its SIGQUIT.
+reserving `ctrl+\` also costs the embedded shell its SIGQUIT. If a split
+chord does nothing, `rove doctor` says whether your terminal answers the
+protocol query — that is the first thing to check.
+
+`ctrl+[` needs kitty for the same reason. Without the protocol it is not a
+chord at all: it sends the same byte as `Escape`, so the terminal cannot
+tell the two apart and Rove reads it as `Escape` — cycling backwards is
+simply unavailable there, with no second binding to fall back on. `ctrl+]`
+has its own byte and works everywhere. The consolation is that the ambiguity
+resolves in favour of the engine: `ctrl+[` keeps working as `Escape` inside
+the embedded terminal, which is what vim and every CLI's cancel key need.
 
 **Jump digits.** There is no `ctrl+1`; the terminal protocol can't encode it,
 so the first row answers to `2`.
@@ -94,11 +122,11 @@ is active.
 | `enter` | Open | | `b` | Rename branch |
 | `l` / `space` | Open the row under the cursor | | `v` | Change engine |
 | `o` | Open Task directory in your editor | | `s` | Settings |
-| `a` | Archive non-main Task | | `u` | Update page |
-| `d` | Delete Task / forget project | | `/` | Search |
-| `gg` / `shift+g` | Top / bottom | | `x` | Worktrees page |
+| `u` | Update page — version check + release notes | | `/` | Search |
+| `d` | Delete Task / forget project | | `x` | Worktrees page |
+| `gg` / `shift+g` | Top / bottom | | | |
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
-| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | | |
+| `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Switch task sort (default ↔ recent) |
 
 In reorder mode, `j`/`k` moves the highlighted project and `enter` or `esc`
 finishes. Project headings themselves aren't cursor rows; the move routes
@@ -117,6 +145,9 @@ through a Task row in that project.
 | `o` | Open audio, video, or PDF files in the system application |
 | `a` | Insert an `@path` mention into the engine pane |
 | `[` / `]` | Switch file tabs |
+
+`h` / `l` fold directories on both tabs — on Changes they also expand
+and collapse untracked-directory rows.
 
 The sidebar is a tree (project → Task → Terminal Tab) and it never folds, so
 everything is always visible. Search (`/`) matches titles, repos, branches,
@@ -177,7 +208,7 @@ active only while the page has focus.
 | Page | Keys |
 |---|---|
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
-| Automations | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
+| Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
 | Worktrees | arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |

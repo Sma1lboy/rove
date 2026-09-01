@@ -1,6 +1,7 @@
 import type { DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { auditDeletionFailed, auditDeletionRemoved } from "./task-deletion-audit.ts"
 
 export interface TaskDeletionScheduler {
   enqueue(taskId: string): void
@@ -11,7 +12,11 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
   private readonly inFlight = new Map<string, Promise<void>>()
 
   constructor(
-    private readonly orch: DaemonOrchestrator,
+    // Narrowed to exactly what the runner touches: `getTask` is only here to
+    // snapshot the task for the audit line before the index drops it, and
+    // spelling that out keeps a caller from having to supply the whole
+    // orchestrator surface.
+    private readonly orch: Pick<DaemonOrchestrator, "beginTaskDeletion" | "finishTaskDeletion" | "getTask">,
     private readonly runtime: Pick<DaemonRuntimeAdapter, "tearDownTaskSession">,
     private readonly clearTaskState: (taskId: string) => void | Promise<void>,
   ) {}
@@ -38,8 +43,18 @@ export class TaskDeletionRunner implements TaskDeletionScheduler {
 
   private async run(taskId: string): Promise<void> {
     if (!(await this.orch.beginTaskDeletion(taskId))) return
+    // Snapshot the task BEFORE anything is destroyed: `finishTaskDeletion`
+    // drops it from the index, so an audit line read afterwards would have
+    // nothing but an id to report.
+    const task = this.orch.getTask(taskId)
     await this.clearTaskState(taskId)
     await this.runtime.tearDownTaskSession(taskId).catch((err) => logDaemonError("task-deletion-session-teardown", err))
-    await this.orch.finishTaskDeletion(taskId)
+    try {
+      await this.orch.finishTaskDeletion(taskId)
+    } catch (err) {
+      auditDeletionFailed(taskId, task, err)
+      throw err
+    }
+    auditDeletionRemoved(taskId, task)
   }
 }

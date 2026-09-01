@@ -1,7 +1,7 @@
 /**
  * Orchestrator mutation methods not exercised by the flow-specific suites
  * (adopt / ensure-worktree / branch-follow / main-task / active-task):
- * setVendor, setPinned, setArchived, setStatus (incl. the done↔error refusal),
+ * setVendor, setPinned, setStatus (incl. the done↔error refusal),
  * setPRStatus (incl. the no-op diff guard), moveTask, reorderTasks, and
  * deleteTask's safety ladder (main-row refusal, dirty-worktree guard, force
  * override, remove-failure keeping the index entry).
@@ -114,20 +114,6 @@ describe("setPinned", () => {
   })
 })
 
-describe("setArchived", () => {
-  it("toggles and sets explicitly; main rows are refused silently", async () => {
-    const t = await makeTask()
-    await orch.setArchived(t.id)
-    expect(orch.getTask(t.id)?.archived).toBe(true)
-    await orch.setArchived(t.id, false)
-    expect(orch.getTask(t.id)?.archived).toBe(false)
-
-    const main = await makeMainTask()
-    await orch.setArchived(main.id, true)
-    expect(orch.getTask(main.id)?.archived).toBe(false)
-  })
-})
-
 describe("setStatus", () => {
   it("moves between statuses and no-ops on the same status", async () => {
     const t = await makeTask()
@@ -184,18 +170,18 @@ describe("setQuotaResume", () => {
 })
 
 describe("moveTask", () => {
-  it("moves a task within its partition and skips archived/pinned siblings", async () => {
+  it("moves a task within its partition and skips pinned siblings", async () => {
     const a = await makeTask({ title: "a" })
     const b = await makeTask({ title: "b" })
     const c = await makeTask({ title: "c" })
-    await orch.setArchived(b.id, true) // b leaves a+c's partition
+    await orch.setPinned(b.id, true) // b leaves a+c's partition
 
     await orch.moveTask(c.id, -1) // c above a (b not in the way)
     const order = orch
       .listTasks()
       // createTask auto-ensures the repo's main row now — not part of the
       // move partition under test.
-      .filter((t) => !t.archived && t.kind !== "main")
+      .filter((t) => !t.pinned && t.kind !== "main")
       .map((t) => t.title)
     expect(order).toEqual(["c", "a"])
   })
@@ -316,7 +302,10 @@ describe("deleteTask — safety ladder", () => {
     await orch.deleteTask(t.id, { force: true })
 
     expect(fakeWorktrees.isDirty).not.toHaveBeenCalled()
-    expect(fakeWorktrees.remove).toHaveBeenCalledWith("/wt/dirty", { force: true, deleteBranch: false })
+    expect(fakeWorktrees.remove).toHaveBeenCalledWith(
+      "/wt/dirty",
+      expect.objectContaining({ force: true, deleteBranch: false }),
+    )
     expect(orch.getTask(t.id)).toBeUndefined()
   })
 
@@ -326,7 +315,10 @@ describe("deleteTask — safety ladder", () => {
 
     await orch.deleteTask(t.id)
 
-    expect(fakeWorktrees.remove).toHaveBeenCalledWith("/wt/gone", { force: false, deleteBranch: false })
+    expect(fakeWorktrees.remove).toHaveBeenCalledWith(
+      "/wt/gone",
+      expect.objectContaining({ force: false, deleteBranch: false }),
+    )
     expect(orch.getTask(t.id)).toBeUndefined()
   })
 
@@ -355,13 +347,14 @@ describe("signals + subscription surface", () => {
       seen.push(snapshot.length)
     })
     await makeTask()
-    // createTask auto-ensures the repo's main row, so the first create
-    // lands TWO tasks (main + task).
-    expect(seen.at(-1)).toBe(2)
-    expect(orch.tasksSignal()()).toHaveLength(2)
+    // ONE task: `/repo` is a synthetic path, not a git repo, so the project
+    // row is refused (state/project-eligibility.ts). createTask still creates
+    // the task — the gate withholds the permanent project row, nothing else.
+    expect(seen.at(-1)).toBe(1)
+    expect(orch.tasksSignal()()).toHaveLength(1)
     unsub()
     await makeTask({ title: "second" })
-    expect(seen.at(-1)).toBe(2) // unsubscribed — no further notifications
+    expect(seen.at(-1)).toBe(1) // unsubscribed — no further notifications
   })
 
   it("setActiveTask publishes to activeTaskSignal and clears with null", async () => {

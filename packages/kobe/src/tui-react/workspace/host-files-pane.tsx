@@ -2,13 +2,14 @@
 /**
  * The workspace host's right rail — the FileTree pane and its width math.
  *
- * Extracted from `host.tsx` when it crossed the file-size cap (same reason
- * as `host-sidebar.tsx`). Width: a third of what's left beside the sidebar,
- * clamped to the documented worktree-tools convention [22, 34].
+ * A region that owns its own layout, like `host-sidebar.tsx`: the width math
+ * below is this rail's business, not the host's. Width: a third of what's left
+ * beside the sidebar, clamped to the documented worktree-tools convention
+ * [22, 34].
  */
 
 import { useTerminalDimensions } from "@opentui/react"
-import { SIDEBAR_WIDTH } from "../../tui/panes/sidebar/view-core"
+import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { useFocus } from "../context/focus"
 import { useTheme } from "../context/theme"
 import { FileTree } from "../panes/filetree/FileTree"
@@ -23,19 +24,22 @@ export function HostFilesPane(props: {
   readonly focused: boolean
   readonly onOpenFile: (relPath: string) => void
   readonly onOpenDiff: (relPath: string, base?: string) => void
+  /** `a` — paste an `@<path>` mention into the engine's composer (no submit). */
+  readonly onMention: (relPath: string) => void
   readonly onZenToggle: () => void
   readonly onCreatePR: () => void
 }) {
-  const { theme, transparentBackground } = useTheme()
+  const { theme } = useTheme()
   const focus = useFocus()
   const dims = useTerminalDimensions()
-  const inactiveBorder = transparentBackground ? theme.border : theme.borderSubtle
-  const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - SIDEBAR_WIDTH)
+  const inactiveBorder = theme.borderActive
+  const available = Math.max(WORKTREE_TOOLS_MIN_WIDTH, dims.width - sidebarWidthFor(dims.width))
   const width = Math.max(WORKTREE_TOOLS_MIN_WIDTH, Math.min(WORKTREE_TOOLS_MAX_WIDTH, Math.floor(available / 3)))
   return (
     <box
       width={width}
       flexShrink={0}
+      borderStyle="rounded"
       borderColor={focus.focused === "files" ? theme.focusAccent : inactiveBorder}
       onMouseUp={() => focus.setFocused("files")}
     >
@@ -46,6 +50,7 @@ export function HostFilesPane(props: {
         focused={props.focused}
         onOpenFile={props.onOpenFile}
         onOpenDiff={props.onOpenDiff}
+        onMention={props.onMention}
         onZenToggle={props.onZenToggle}
         onCreatePR={props.onCreatePR}
       />

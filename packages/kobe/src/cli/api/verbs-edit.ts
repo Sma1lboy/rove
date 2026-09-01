@@ -1,6 +1,9 @@
 /**
- * The `edit` verb group — mutating task metadata. Split out of `verbs.ts`
- * (file-size cap); spread back into the {@link VERBS} table there, so
+ * The `edit` verb group — mutating task METADATA (title, branch, command,
+ * status), as opposed to driving the running session (`drive`) or ending it
+ * (`lifecycle`). One file per `VerbGroup`, mirroring the taxonomy
+ * `rove api schema --group edit` prints — though it is each spec's own `group`
+ * field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
  * schema/help/validation see one canonical list.
  */
 
@@ -14,6 +17,7 @@ import type { VerbSpec } from "./types.ts"
 export const EDIT_VERBS: readonly VerbSpec[] = [
   {
     name: "rename",
+    group: "edit",
     summary: "Set a task's title.",
     flags: [F.taskId(), { name: "title", type: "string", required: true, placeholder: "T", description: "New title." }],
     handler: (ctx) =>
@@ -21,6 +25,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "set-branch",
+    group: "edit",
     summary: "Rename a task's branch (git branch -m if materialized, else recorded).",
     flags: [
       F.taskId(),
@@ -32,7 +37,9 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
   SET_COMMAND_VERB,
   {
     name: "set-status",
-    summary: "Set a task's lifecycle status.",
+    group: "edit",
+    summary:
+      "Set a task's lifecycle LABEL. Cosmetic — the task row, its worktree, its branch and its engine session all stay exactly as they are, so `--status canceled` does NOT close, stop, or clean up anything. To end a task use `delete` (which keeps the git branch).",
     flags: [
       F.taskId(),
       { name: "status", type: "enum", required: true, values: TASK_STATUSES, description: "New status." },

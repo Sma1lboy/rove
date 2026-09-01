@@ -13,10 +13,16 @@
  * a named pipe instead of a unix socket (see paths.ts).
  */
 
+import { rotateLogIfNeeded } from "./log-rotate.ts"
+import { defaultPtyHostLogPath } from "./paths.ts"
 import { nodePtyDriver } from "./pty-driver.ts"
 import { startPtyHostServer } from "./pty-server.ts"
 
 async function main(): Promise<void> {
+  // Same log, same inherited-append-fd constraint as the Bun host in
+  // `cli/pty-host-cmd.ts`: boot is the only safe rotation point.
+  rotateLogIfNeeded(defaultPtyHostLogPath())
+
   // No installDaemonCrashHandlers(): that lives in the Bun-side crash-log
   // module. Keep the net local and dependency-free so this entry stays
   // node-clean.

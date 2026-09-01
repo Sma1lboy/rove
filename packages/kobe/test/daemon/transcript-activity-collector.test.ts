@@ -3,14 +3,14 @@
  * polling) — the single filesystem collector that replaces every Ops pane
  * stat'ing + parsing the transcript store on its own timers. What matters:
  *
- *   - **Scope + vendor pick**: archived tasks and remote (`ssh://`) projects
- *     are never collected; tasks sharing a worktree path collapse to one
- *     slot and the FIRST task in list order picks the vendor (completion
- *     markers are vendor-specific).
+ *   - **Scope + vendor pick**: remote (`ssh://`) projects are never
+ *     collected; tasks sharing a worktree path collapse to one slot and the
+ *     FIRST task in list order picks the vendor (completion markers are
+ *     vendor-specific).
  *   - **Publish-on-change only**: a probe round-tripping to the same facts
  *     publishes nothing — subscribed Ops panes must not re-run effects on
  *     unchanged ticks.
- *   - **Pruning**: a task deleted/archived between ticks drops its entry
+ *   - **Pruning**: a task deleted between ticks drops its entry
  *     (with a republish), and a probe completing AFTER its entry was pruned
  *     must not resurrect it.
  *   - **In-flight dedupe + subscriber gate**: ticks landing mid-probe start
@@ -53,7 +53,6 @@ function task(over: Omit<Partial<Task>, "id"> & { id: string }): Task {
     worktreePath: `/wt/${id}`,
     vendor: "claude",
     status: "backlog",
-    archived: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...rest,
@@ -98,10 +97,9 @@ const entry = (mtimeMs: number, completionId: string | null = null, completionAt
 })
 
 describe("trackedWorktrees", () => {
-  test("excludes archived/remote/empty, dedupes shared paths, carries the vendor", () => {
+  test("excludes remote/empty, dedupes shared paths, carries the vendor", () => {
     const tasks = [
       task({ id: "a", vendor: "codex" }),
-      task({ id: "arch", archived: true }),
       task({ id: "remote", repo: "ssh://dev@build-box", worktreePath: "/remote/wt/remote" }),
       task({ id: "backlog", worktreePath: "" }),
       // Two rows sharing a worktree path — the first in list order wins.
@@ -131,11 +129,10 @@ describe("sameTranscriptActivityEntry", () => {
 })
 
 describe("TranscriptActivityCollector", () => {
-  test("collects local non-archived worktrees, passes the vendor, publishes the full map", async () => {
-    const { collector, published, runs } = harness(
-      [task({ id: "a", vendor: "codex" }), task({ id: "arch", archived: true })],
-      { "/wt/a": entry(100, "c1", 99) },
-    )
+  test("collects local worktrees, passes the vendor, publishes the full map", async () => {
+    const { collector, published, runs } = harness([task({ id: "a", vendor: "codex" })], {
+      "/wt/a": entry(100, "c1", 99),
+    })
     collector.tick()
     await settle()
     expect(runs).toEqual([{ path: "/wt/a", vendor: "codex" }])
@@ -173,7 +170,7 @@ describe("TranscriptActivityCollector", () => {
     expect(published.length).toBe(1)
   })
 
-  test("drops a deleted/archived task's entry from the published map", async () => {
+  test("drops a deleted task's entry from the published map", async () => {
     const { collector, published, setTasks } = harness([task({ id: "a" }), task({ id: "b" })], {
       "/wt/a": entry(1, "ca", 1),
       "/wt/b": entry(2, "cb", 2),
@@ -182,7 +179,7 @@ describe("TranscriptActivityCollector", () => {
     await settle()
     expect(Object.keys(published.at(-1)?.activity ?? {}).sort()).toEqual(["/wt/a", "/wt/b"])
 
-    setTasks([task({ id: "a" }), task({ id: "b", archived: true })])
+    setTasks([task({ id: "a" })])
     collector.tick()
     await settle()
     expect(published.at(-1)).toEqual({ activity: { "/wt/a": { mtimeMs: 1, completionId: "ca", completionAt: 1 } } })

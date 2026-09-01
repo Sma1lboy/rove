@@ -4,15 +4,15 @@
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
-|                              |
-|  New task               + n  |
-|                              |
+| New task                + n  |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 |                              |
 | No active tasks — create one |
 | above.                       |
+|                              |
 |                              |
 |                              |
 |                              |

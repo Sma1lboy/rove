@@ -4,17 +4,17 @@
 # GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
 |                              |
 | ROVE                         |
-|                              |
-|  New task               + n  |
-|                              |
+| New task                + n  |
 | /bravo█ 2/5                  |
 |                              |
 | Kanban                       |
 | Routines                     |
+| Issues                       |
 |                              |
 | rove ─────────────────────── |
 |▌ feat/bravo                  |
 |  · tests                     |
+|                              |
 |                              |
 |                              |
 |                              |

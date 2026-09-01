@@ -161,8 +161,8 @@ export interface ChannelPayloads {
    * is the FULL map (worktreePath → counts), republished only when
    * something actually changed, so the last-value replay hands a late
    * subscriber the whole picture in one frame. Keys are absolute LOCAL
-   * worktree paths; archived tasks and remote (`ssh://`) projects are
-   * never collected, and a deleted/archived task's entry drops from the
+   * worktree paths; remote (`ssh://`) projects are
+   * never collected, and a deleted task's entry drops from the
    * map on the collector's next tick. A `Record` (not a Map) because this
    * is a JSON wire payload. Clients that never see this channel (an older
    * daemon — detected via `hello.capabilities`) fall back to local
@@ -187,8 +187,8 @@ export interface ChannelPayloads {
    *
    * Same FULL-map-replace contract as `worktree.changes`: keys are absolute
    * LOCAL worktree paths, the payload is the whole map republished only when
-   * an entry changed, archived/remote tasks are never collected, and a
-   * deleted/archived task's entry drops on the next tick. `completionId` is
+   * an entry changed, remote tasks are never collected, and a
+   * deleted task's entry drops on the next tick. `completionId` is
    * the engine's opaque latest-completion marker id (`null` when the vendor
    * has none or none exists yet); `completionAt` is its epoch-ms timestamp
    * (`0` when absent). A `Record` (not a Map) — JSON wire payload. Clients

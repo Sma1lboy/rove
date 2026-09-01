@@ -1,26 +1,71 @@
 /**
  * Cross-component tab state shared between the mounted `TerminalTabs`
  * component and the host-side flows that need it while the component may
- * not be mounted — extracted from `TerminalTabs.tsx` for the file-size cap.
- * Module-level on purpose (framework-agnostic process state): per-task tab
- * snapshots survive task switches, and the F7 attention jump can request a
- * tab activation before the target task's tabs ever mount.
+ * not be mounted. That is the seam, and why it CANNOT live in the component:
+ * module-level, framework-agnostic process state outlives any mount, so
+ * per-task tab snapshots survive task switches and the F7 attention jump can
+ * request a tab activation before the target task's tabs ever exist.
  */
 
-import { engineLaunchArgv } from "../../engine/engine-presets"
-import { withClaudeSessionId } from "../../engine/interactive-command"
+import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets"
+
+import { createStateCell } from "../../lib/external-store"
 import {
   type EngineTab,
   type TabsState,
   type TerminalTab,
   initialTabs,
   rehydrateTabs,
+  reopenTabs,
 } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import { type TabsSnapshotKv, forgetTaskTabsSnapshot, terminalTabsKey } from "./terminal-tabs-persist"
 
-/** Per-task tab state, preserved across task switches for the process. */
+/** Per-task tab state, preserved across task switches for the process.
+ *
+ *  WRITE THROUGH `setTaskTabs` / `deleteTaskTabs`, never `.set` / `.delete`
+ *  directly: a plain Map mutation is invisible to React, and `ShowWorkspace`
+ *  decides whether to mount `TerminalTabs` at all from this map. Closing a
+ *  task's last tab wrote here and re-rendered nothing, so the component that
+ *  owns the now-empty tab list stayed mounted and kept dereferencing an
+ *  `active` tab that no longer existed. */
 export const tabsByTask = new Map<string, TabsState>()
+
+/** Bumped on every `tabsByTask` write — the subscribable half of the map, so
+ *  a React surface reading it re-renders when it changes. Cheap: a counter,
+ *  not a copy of the state; readers still go to the map for the value. */
+export const tabsRevision = createStateCell(0)
+
+/** Write a task's tab state AND notify React readers. */
+export function setTaskTabs(taskId: string, state: TabsState): void {
+  tabsByTask.set(taskId, state)
+  tabsRevision.update((n) => n + 1)
+}
+
+/**
+ * Revive a task whose last tab was closed, returning true when it did.
+ *
+ * Selecting the task is the affordance (owner call 2026-08-31): the sidebar
+ * row IS the button, so entering an emptied task reopens the kind of tab that
+ * was there rather than landing on a pane with nothing to press. A snapshot
+ * from before `reopenAs` existed reopens the default engine tab — see
+ * {@link reopenTabs}.
+ *
+ * No-op for every other state: a task with tabs, and a task that has never
+ * opened any (`null`, not empty — TerminalTabs mounts and mints its own).
+ */
+export function reviveEmptiedTabs(kv: TabsSnapshotKv | null, taskId: string, shell: string): boolean {
+  const known = knownTabsState(kv, taskId)
+  if (!known || known.tabs.length > 0) return false
+  setTaskTabs(taskId, reopenTabs(known, shell))
+  return true
+}
+
+/** Drop a task's tab state AND notify React readers. */
+export function deleteTaskTabs(taskId: string): void {
+  if (!tabsByTask.delete(taskId)) return
+  tabsRevision.update((n) => n + 1)
+}
 
 /** The task's currently-active tab id (module map read) — the attention
  *  jump's "where am I" input. Null when the task never mounted tabs. */
@@ -35,7 +80,7 @@ export function activeTabIdFor(taskId: string): string | null {
  *  mounted before the context exists) still sees the live tabs instead of
  *  crashing: the in-memory map is authoritative for anything running now,
  *  and the snapshot only adds tasks that have not mounted since restart. */
-function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
+export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
   const live = tabsByTask.get(taskId)
   if (live) return live
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined
@@ -334,13 +379,12 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
 /**
  * Reclaim a DELETED task's in-process + persisted tab state (O19): drop its
  * `tabsByTask` entry (module-level, otherwise only-grows) and its
- * `terminalTabs.*` kv snapshot. Call from the task-DELETE flow only — never
- * the archived sweep (an archived task must keep its snapshot to
- * unarchive-and-`--resume`). Its PTYs are released separately by the host's
- * archived-task sweep / the tab's own exit path.
+ * `terminalTabs.*` kv snapshot. Call from the task-DELETE flow only. Its PTYs
+ * are released separately by the host's deleting-task sweep / the tab's own
+ * exit path.
  */
 export function forgetTaskTabs(kv: TabsSnapshotKv, taskId: string): void {
-  tabsByTask.delete(taskId)
+  deleteTaskTabs(taskId)
   forgetTaskTabsSnapshot(kv, taskId)
 }
 
@@ -378,7 +422,7 @@ export function appendBackgroundEngineTab(
   const sessionId =
     spec.sessionId !== undefined
       ? spec.sessionId
-      : withClaudeSessionId(engineLaunchArgv({ vendor: spec.vendor }), spec.vendor).sessionId
+      : withPinnedSessionId(engineLaunchArgv({ vendor: spec.vendor }), spec.vendor).sessionId
   const tab: EngineTab = {
     kind: "engine",
     id: `tab-${ordinal}`,
@@ -394,7 +438,7 @@ export function appendBackgroundEngineTab(
     activeId: tab.id,
     nextOrdinal: ordinal + 1,
   }
-  tabsByTask.set(taskId, next)
+  setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
   return { state: next, tab }
 }

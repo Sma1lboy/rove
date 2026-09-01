@@ -5,8 +5,8 @@
  * socket, deliberately OUTSIDE the daemon: the daemon restarts routinely
  * (it holds the fast-moving code), while this process is tiny, stable,
  * and must keep embedded-terminal children alive across both TUI exits
- * and daemon restarts. Only `kobe reset` (or idle-exit at zero live
- * sessions) ends it.
+ * and daemon restarts. Only `kobe reset`, idle-exit at zero live sessions,
+ * or losing its own address (see the watchdog below) ends it.
  *
  * Wire: the same JSON-lines frame grammar as the daemon socket
  * (`protocol.ts`), so `KobeDaemonClient` speaks it unchanged. Every
@@ -17,11 +17,12 @@
  * Requests served: `hello` (reachability probe), `pty.open/write/resize/
  * kill/detach/list`, `pty.peek` (read-only ring snapshot — no attach),
  * `pty.warm` (pre-spawn one idle shell for adoption),
- * `pty.sweep` (daemon janitor: kill sessions of archived tasks),
+ * `pty.sweep` (daemon janitor: kill sessions of deleted tasks),
  * `daemon.stop` (reset teardown — shared with `stopDaemonProcess`'s
  * graceful path).
  */
 
+import { readFileSync } from "node:fs"
 import { mkdir, unlink, writeFile } from "node:fs/promises"
 import { type Server, type Socket, createServer } from "node:net"
 import { dirname } from "node:path"
@@ -54,6 +55,25 @@ import { parseTerminalDefaultColors } from "./terminal-colors.ts"
  */
 const DEFAULT_IDLE_EXIT_MS = 60_000
 
+/** How often a host re-checks that its own pidfile still names it. */
+const DEFAULT_ORPHAN_CHECK_MS = 30_000
+
+/**
+ * Optional wall-clock ceiling on this host's life, in ms — read from
+ * `KOBE_PTY_MAX_LIFETIME_MS`. Unset (production, and an interactive
+ * `dev:sandbox` a human is watching) means no ceiling at all: a host whose
+ * owner is still there must never be killed for being old. Test fixtures set
+ * it, because a fixture host that outlives its run has nobody left to serve
+ * and the pidfile signal below cannot see a run that was interrupted before
+ * it tore anything down.
+ */
+function resolveMaxLifetimeMs(): number | null {
+  const raw = process.env.KOBE_PTY_MAX_LIFETIME_MS
+  if (raw === undefined) return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 function resolveIdleExitMs(): number {
   const raw = process.env.KOBE_PTY_IDLE_EXIT_MS
   if (raw === undefined) return DEFAULT_IDLE_EXIT_MS
@@ -66,6 +86,11 @@ export interface PtyHostServerOptions {
   readonly pidPath?: string
   /** Grace before a zero-live-session host exits; `0` uses the default. */
   readonly idleExitMs?: number
+  /** Cadence of the orphan watchdog (see below); `0` uses the default. */
+  readonly orphanCheckMs?: number
+  /** Wall-clock life ceiling; `null`/omitted uses `KOBE_PTY_MAX_LIFETIME_MS`,
+   *  which is itself normally unset. Only fixtures set either. */
+  readonly maxLifetimeMs?: number | null
   /** How PTY children get spawned. Defaults to Bun's; the node host passes node-pty's. */
   readonly driver?: PtyDriver
   /** Freeze-store directory (`pty-freeze-store.ts`). Defaults to the home's
@@ -93,6 +118,9 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   const pidPath = options.pidPath ?? defaultPtyHostPidPath()
   const freezeDir = options.freezeDir ?? defaultPtyFreezeDir()
   const idleExitMs = options.idleExitMs || resolveIdleExitMs()
+  const orphanCheckMs = options.orphanCheckMs || DEFAULT_ORPHAN_CHECK_MS
+  const maxLifetimeMs = options.maxLifetimeMs ?? resolveMaxLifetimeMs()
+  const bootedAtMs = Date.now()
   const log = options.log ?? (() => {})
   const clients = new Set<PtyClientState>()
   let stopping = false
@@ -120,6 +148,58 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       void stop()
     }, idleExitMs)
   }
+
+  /**
+   * Orphan watchdog — the ONLY keep-alive that survives losing every client.
+   *
+   * A live session keeps this host up indefinitely (`armIdle` above), and a
+   * `PtyLiveHold` in the daemon chains off the same fact. That pair is
+   * correct while somebody still owns the sessions, and it is exactly what
+   * stranded 25 hosts for up to two days: a harness run died between
+   * `stopDaemonProcess` and its `rm -rf`, the socket and pidfile went with
+   * the fixture home, and the host kept a handful of idle shells alive with
+   * no address left for anyone to reach it on.
+   *
+   * The signal is possession of our own ADDRESS, not age and not client
+   * count: re-read the pidfile and require it to still say `process.pid`.
+   *  - pidfile gone      → whatever owned this home tore it down (or deleted
+   *                        the home outright) while we kept running.
+   *  - pidfile is a peer → a second host bound our path and owns it now; we
+   *                        are the stranded one.
+   *  - pidfile is us     → still reachable. A daemon restart never touches
+   *                        it, which is what keeps `rove daemon restart`
+   *                        (and an attached `dev:sandbox` idling overnight)
+   *                        out of this branch entirely.
+   *
+   * Self-termination only, and only on evidence about THIS process: nothing
+   * here reads the process table or signals a pid it did not write itself,
+   * so it cannot reach another home's host — see the pty-sweep incident.
+   */
+  const orphaned = (): string | null => {
+    if (maxLifetimeMs !== null && Date.now() - bootedAtMs >= maxLifetimeMs) {
+      return `exceeded its ${maxLifetimeMs}ms lifetime ceiling`
+    }
+    let owner: string
+    try {
+      owner = readFileSync(pidPath, "utf8").trim()
+    } catch {
+      return `pidfile ${pidPath} is gone`
+    }
+    const pid = Number.parseInt(owner, 10)
+    if (pid === process.pid) return null
+    return Number.isInteger(pid) ? `pidfile ${pidPath} now names pid ${pid}` : `pidfile ${pidPath} is unreadable`
+  }
+
+  // unref'd, unlike the idle timer: this one must never be the reason the
+  // event loop stays alive, only the reason it stops.
+  const orphanTimer = setInterval(() => {
+    if (stopping) return
+    const reason = orphaned()
+    if (!reason) return
+    log("orphan", `${reason} — exiting rather than outliving my owner`)
+    void stop()
+  }, orphanCheckMs)
+  orphanTimer.unref?.()
 
   const ptys = new PtyHost({
     onSessionStart: cancelIdle,
@@ -188,6 +268,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       if (stopping) return
       stopping = true
       cancelIdle()
+      clearInterval(orphanTimer)
       // The host process IS the sessions' lifetime — ending it ends them.
       // shutdown() freezes first: the records outlive us, and the next
       // host incarnation restores the work scene. An explicit `daemon.stop`
@@ -236,7 +317,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       }
       case "pty.write": {
         const payload = objectPayload(req.payload)
-        ptys.write(requireString(payload, "key"), typeof payload.data === "string" ? payload.data : "")
+        ptys.write(requireString(payload, "key"), typeof payload.data === "string" ? payload.data : "", client)
         return {}
       }
       case "pty.resize": {

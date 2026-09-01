@@ -1,6 +1,5 @@
 /**
- * `history.*` messages — the `kobe history` read-only engine-history pane
- * (beta: shown in the engine pane slot when an archived task is opened).
+ * `history.*` messages — the `kobe history` read-only engine-history pane.
  * English is the source of truth; `zh: typeof en` keeps the shapes locked.
  */
 
@@ -9,7 +8,6 @@ export const en = {
   loading: "loading…",
   earlier: "… {count} earlier messages",
   sessionLabel: "Session",
-  archivedTag: "ARCHIVED",
   liveTag: "● LIVE",
   hint: "[ ] session · j/k scroll · ⏎ expand",
   hintExpanded: "[ ] session · j/k scroll · ⏎ collapse",
@@ -26,7 +24,6 @@ export const zh: typeof en = {
   loading: "加载中…",
   earlier: "… 之前还有 {count} 条消息",
   sessionLabel: "会话",
-  archivedTag: "已归档",
   liveTag: "● 实时",
   hint: "[ ] 会话 · j/k 滚动 · ⏎ 展开",
   hintExpanded: "[ ] 会话 · j/k 滚动 · ⏎ 收起",

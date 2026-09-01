@@ -22,6 +22,8 @@ import {
   mergeTasksWithDisk,
   normalizeIndex,
   readDiskIndex,
+  recoverUnsupportedVersion,
+  warnManifestRecovery,
 } from "./store-codec.ts"
 import { ulid } from "./ulid.ts"
 
@@ -32,11 +34,9 @@ export interface TaskIndexStoreOptions {
 
 /**
  * Input shape for {@link TaskIndexStore.create}. `id`, `createdAt`,
- * `updatedAt` are auto-assigned. `archived` defaults to false.
+ * `updatedAt` are auto-assigned.
  */
-export type TaskCreateInput = Omit<Task, "id" | "createdAt" | "updatedAt" | "archived"> & {
-  readonly archived?: boolean
-}
+export type TaskCreateInput = Omit<Task, "id" | "createdAt" | "updatedAt">
 
 const CURRENT_VERSION = 3 as const
 
@@ -131,11 +131,22 @@ export class TaskIndexStore {
       // from this empty recovery base and replaces the corrupt file, so
       // without a copy the user's tasks are gone for good (PR #276).
       const backup = await backupCorruptManifest(sourcePath)
-      console.warn(
+      warnManifestRecovery(
         `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
           backup ? ` Original bytes backed up to ${backup}.` : " Backup copy failed; the stale file is left in place."
         }`,
+        sourcePath,
       )
+      this.cache = { version: CURRENT_VERSION, tasks: [] }
+      this.loaded = true
+      this.notifyListeners()
+      return this.snapshot()
+    }
+
+    // A future build's manifest empties the index just as thoroughly as a
+    // corrupt one does, and the next save replaces the file — so its bytes
+    // get the same copy-aside before we recover empty.
+    if (await recoverUnsupportedVersion(parsed, sourcePath)) {
       this.cache = { version: CURRENT_VERSION, tasks: [] }
       this.loaded = true
       this.notifyListeners()
@@ -177,14 +188,18 @@ export class TaskIndexStore {
         tasks: merged.tasks,
         ...(merged.removed.length > 0 ? { removed: merged.removed } : {}),
       }
-      const json = `${JSON.stringify(payload, null, 2)}\n`
+      // Compact (no `null, 2`): every mutation rewrites the whole file, the
+      // file is read only by machines, and pretty-printing tripled the bytes.
+      const json = `${JSON.stringify(payload)}\n`
 
       // Unique per save: a shared `<path>.tmp` let a second writer clobber the
       // first's staging file whenever mutual exclusion broke, failing the
       // survivor's rename with ENOENT (issue #53).
       const tmpPath = `${this.path}.${process.pid}.${ulid()}.tmp`
       try {
-        const handle = await open(tmpPath, "w", 0o644)
+        // 0600: task titles are free-form user prose and every record names a
+        // repo path — not credentials, but nobody else's business either.
+        const handle = await open(tmpPath, "w", 0o600)
         try {
           await handle.writeFile(json, "utf8")
           await handle.sync()
@@ -231,7 +246,6 @@ export class TaskIndexStore {
     this.assertLoaded()
     const now = new Date().toISOString()
     const task: Task = {
-      archived: false,
       vendor: partial.vendor ?? DEFAULT_TASK_VENDOR,
       ...partial,
       id: toTaskId(ulid()),

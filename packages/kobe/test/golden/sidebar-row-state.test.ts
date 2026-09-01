@@ -125,6 +125,12 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
   const VERIFIED = new Map<string, string>([
     ["·", "U+00B7 Latin-1 — the no-state dot"],
     ["×", "U+00D7 Latin-1 — error / failed deletion"],
+    // U+2020 General Punctuation — dead engine process. Checked with
+    // `fc-list :charset=2020`: present in Fira Code, FiraCode/JetBrainsMono
+    // Nerd Font, and Menlo — the same coverage as `×` above, and strictly
+    // better than the `◌`/`✕` this rule was written for (both absent from
+    // Fira Code, which is what made macOS fall back oversized).
+    ["†", "U+2020 — dead engine; in Fira Code / JetBrainsMono / Menlo"],
     ["○", "U+25CB — idle; in every mono font checked"],
     ["●", "U+25CF — unread completion; ditto"],
     ["◇", "U+25C7 — subagent count prefix"],
@@ -174,7 +180,6 @@ test("every field of SidebarRowView is either recorded in the golden or explicit
       worktreePath: "/wt/x",
       kind: "task",
       status: "in_progress",
-      archived: false,
       pinned: false,
       vendor: "claude",
       createdAt: "2026-01-01T00:00:00.000Z",

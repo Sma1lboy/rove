@@ -30,6 +30,7 @@ export const en = {
       scratchChoice: "scratch shell",
     },
     cannotCloseLast: "Cannot close the only tab",
+    tabGone: "That tab is no longer there",
     nothingToFork: "No conversation in this tab to fork yet",
     noTranscriptToHandOff: "{engine} keeps no readable transcript to hand over",
   },
@@ -43,6 +44,9 @@ export const en = {
   unavailable: {
     shellMissing: "terminal unavailable — configured shell is not available",
     spawnFailed: "terminal unavailable — shell could not start",
+    // The pane is otherwise a dead end: there is no PTY to key into, so the
+    // only way out has to be named on screen.
+    retry: "F5 tries again",
   },
   reset: {
     title: "Reset terminal?",
@@ -71,6 +75,7 @@ export const zh: typeof en = {
       scratchChoice: "临时 shell",
     },
     cannotCloseLast: "无法关闭唯一的标签页",
+    tabGone: "这个标签页已经不在了",
     nothingToFork: "这个标签页还没有可派生的对话",
     noTranscriptToHandOff: "{engine} 没有可读的对话记录，无法交接",
   },
@@ -82,6 +87,7 @@ export const zh: typeof en = {
   unavailable: {
     shellMissing: "终端不可用 —— 配置的 shell 不存在",
     spawnFailed: "终端不可用 —— shell 启动失败",
+    retry: "按 F5 重试",
   },
   reset: {
     title: "重置终端？",

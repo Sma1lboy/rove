@@ -81,8 +81,35 @@ export interface VerbContext {
 
 export type VerbHandler = (ctx: VerbContext) => Promise<unknown>
 
+/**
+ * The taxonomy `rove api schema` exposes for LEVELED exploration. Closed on
+ * purpose: a verb's group is a REQUIRED field on {@link VerbSpec}, so a new
+ * verb does not compile until it is grouped, and `VERB_GROUPS` is derived from
+ * the specs instead of being hand-maintained beside them. There is
+ * deliberately no `other`: the old fallback let an ungrouped verb report a
+ * group name that `--group` then rejected as unknown — invisible until an
+ * agent actually browsed by group.
+ */
+export const VERB_GROUP_IDS = [
+  "discover",
+  "read",
+  "create",
+  "drive",
+  "edit",
+  "issues",
+  "workitems",
+  "routine",
+  "lifecycle",
+  "worktree",
+  "feedback",
+] as const
+
+export type VerbGroup = (typeof VERB_GROUP_IDS)[number]
+
 export interface VerbSpec {
   readonly name: string
+  /** Which `rove api schema --group G` listing this verb appears under. */
+  readonly group: VerbGroup
   readonly summary: string
   readonly flags: readonly FlagSpec[]
   /** Verbs that don't need the daemon (e.g. `schema`). */
@@ -132,20 +159,79 @@ export interface PromptTarget {
 export interface DeliveredPrompt {
   readonly session: string
   readonly pane: string
+  /** A NEW session was created by this call (never "delivered into one"). */
   readonly started: boolean
+  /**
+   * The engine had its tty in raw mode and was READING when we wrote —
+   * observed via DECSET 2004 in the session ring, not inferred from the
+   * process table. This is the field that decides whether a large prompt
+   * can survive: a write before this is true is silently truncated to the
+   * tty's 1024-byte canonical buffer.
+   *
+   * It used to be a literal copy of {@link delivered}, which made it a
+   * second voice repeating one guess rather than an independent signal.
+   */
   readonly engineReady: boolean
   /**
-   * Whether the paste was CONFIRMED in the engine's composer (its tail
-   * appeared on capture). `false` on a cold boot where the pane never
-   * settled — surfaced so a scripted parallel round's dropped first prompt never
-   * looks like a clean success.
+   * The prompt was written to the engine's pty AFTER it was confirmed
+   * reading. This is a real observation now — previously the spawn path
+   * hardcoded `true` without checking anything.
+   *
+   * It does NOT promise the engine's composer rendered the text; that is
+   * {@link promptEcho}. Delivery is byte-level truth, echo is UI-level
+   * truth, and they are reported separately because an engine may accept a
+   * prompt perfectly while showing only a `[Pasted text #1]` placeholder.
    */
   readonly delivered: boolean
+  /**
+   * Bytes handed to the pty for this prompt (including the bracketed-paste
+   * wrapper when one was used). Present whenever a write was attempted;
+   * pairs with the daemon's `pty` log line for after-the-fact auditing.
+   */
+  readonly bytes?: number
+  /**
+   * Whether the prompt's tail was seen echoed back on capture — the capture
+   * confirmation `delivered` used to claim in its docs but never performed.
+   *
+   * `"confirmed"` is positive proof. `"unconfirmed"` is INCONCLUSIVE, not
+   * failure: engines that collapse a big paste into a placeholder never echo
+   * the text. Absent when no write was attempted.
+   */
+  readonly promptEcho?: "confirmed" | "unconfirmed"
+  /**
+   * Present when the delivery gate found the composer busy and the prompt was
+   * accepted-but-deferred rather than dropped (issue #78 B-layer): the daemon
+   * stored the text and queued a `prompt_deferred` inbox episode. This is a
+   * SUCCESS outcome for the caller — the daemon now owns the message and will
+   * hold it for a human to release from the Inbox. Callers MUST NOT retry a
+   * deferred send: a retry would stack a duplicate of the same message in the
+   * queue. Absent on direct delivery and on genuine failure.
+   */
+  readonly deferred?: { readonly id: string; readonly layer: "recent-human-write" | "composer-not-empty" }
+}
+
+/** What the delivery layer calls to hand a blocked prompt to daemon ownership. */
+export interface PromptDeferralSink {
+  /**
+   * Store the blocked prompt and return the daemon's record id. Implementations
+   * perform the `deferredPrompt.file` daemon RPC; tests inject a fake.
+   */
+  defer(info: {
+    readonly taskId: string
+    readonly tabId: string
+    readonly prompt: string
+    readonly layer: "recent-human-write" | "composer-not-empty"
+  }): Promise<string>
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
 export interface PromptDeliveryOps {
-  deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt>
+  deliverHosted(
+    target: PromptTarget,
+    worktree: string,
+    prompt: string,
+    defer?: PromptDeferralSink,
+  ): Promise<DeliveredPrompt>
 }
 
 // ── Runtime (the side-effect seam handlers run against) ─────────────────────
@@ -174,17 +260,22 @@ export interface ApiRuntime {
   defaultVendor(repo?: string): Promise<VendorId | undefined>
   /** Uncommitted +/− counts for a worktree. */
   readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number }>
-  /** Committed work vs the branch's base: ahead count + diffstat (`collect`). */
-  readBranchSignals(worktreePath: string): Promise<{
+  /** Committed work vs the branch's base: ahead count + diffstat (`collect`).
+   *  `recordedBaseRef` is the task's persisted fork point (`add --base-branch`);
+   *  when present it wins over the base guess; absent/unresolvable falls back. */
+  readBranchSignals(
+    worktreePath: string,
+    recordedBaseRef?: string,
+  ): Promise<{
     baseRef: string | null
     ahead: number | null
     diff: { files: number; insertions: number; deletions: number } | null
   }>
   /**
-   * Stop every hosted session for a task, mirroring the TUI's delete/archive
-   * teardown. Run only after the matching `task.delete`/`task.archive` RPC
-   * succeeds. Best-effort: a teardown failure must not fail the
-   * already-committed RPC, so it never throws.
+   * Stop every hosted session for a task, mirroring the TUI's delete teardown.
+   * Run only after the matching `task.delete` RPC succeeds. Best-effort: a
+   * teardown failure must not fail the already-committed RPC, so it never
+   * throws.
    */
   tearDownSession(taskId: string): Promise<void>
 }

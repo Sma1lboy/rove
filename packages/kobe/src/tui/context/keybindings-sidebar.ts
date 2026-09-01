@@ -1,9 +1,18 @@
 /**
- * `sidebar.*` / `tasks.*` keybinding rows — split out of `keybindings.ts`
- * (which was over the repo's 500-line file-size cap) purely mechanically:
- * same entries, same order, moved verbatim. See `keybindings.ts`'s doc
- * comment for the full contract (id stability, scope semantics, hint
- * display rules).
+ * `sidebar.*` / `tasks.*` keybinding rows. These are data, not behavior:
+ * plain {@link KobeBinding} literals spread back into the one table in
+ * `keybindings-table.ts`, which stays the single source of truth.
+ *
+ * There is no responsibility boundary here. The cut follows the `─── Sidebar
+ * ───` section header that was already a comment in the table — one long
+ * literal split at its existing seams, so a row's file is decided by its
+ * `scope`, nothing else. Adding a sidebar row here and a files row in
+ * `keybindings-files.ts` are the same edit.
+ *
+ * What the split does NOT change, and what you must preserve: spread order
+ * in `keybindings-table.ts` is the display order, and id stability is what
+ * `bindByIds` and user overrides key off. See `keybindings-table.ts`'s doc
+ * comment for that full contract.
  */
 
 import { TASK_JUMP_CHORDS } from "../panes/sidebar/jump-digits.ts"
@@ -62,14 +71,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "r" },
   },
   {
-    id: "sidebar.archive",
-    scope: "sidebar",
-    keys: ["a"],
-    category: "Sidebar",
-    description: "Toggle archive",
-    hint: { keys: "a" },
-  },
-  {
     // Explicit shift+m chord (matchKey mints `shift+m` from Shift+M) —
     // previously keys: ["m"] with an evt.shift gate in the handler, which
     // made the id un-rebindable (FIXED_BINDING_IDS).
@@ -94,21 +95,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Pin / unpin task at top (Shift+P)",
     hint: { keys: "P" },
   },
-  {
-    // `i` opens the cursor task in a live read-only preview (the `kobe history`
-    // renderer tailing the transcript) in the engine pane slot instead of the
-    // engine, and toggles back on a second press. For inspecting a task an agent
-    // is working in without driving it. Same beta gate as the archived preview.
-    id: "sidebar.previewToggle",
-    scope: "sidebar",
-    keys: ["i"],
-    category: "Sidebar",
-    description: "Toggle live preview for task (i)",
-    hint: { keys: "i" },
-  },
-  // `sidebar.view` ([/]) retired with the Archived view (issue #33 IA
-  // convergence) — the sidebar shows only the working set now; the chord is
-  // free again.
+  // `sidebar.view` ([/]) and `sidebar.archive` (a) retired with the archived
+  // view (issue #75) — the sidebar shows only the working set now; both chords
+  // are free again.
   {
     id: "sidebar.sort",
     scope: "sidebar",
@@ -116,14 +105,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     category: "Sidebar",
     description: "Switch task sort (default ↔ recent)",
     hint: { keys: "t" },
-  },
-  {
-    id: "sidebar.projectFilter",
-    scope: "sidebar",
-    keys: ["ctrl+p"],
-    category: "Sidebar",
-    description: "Cycle task project filter",
-    hint: { keys: "ctrl+p" },
   },
   {
     id: "sidebar.delete",
@@ -138,10 +119,8 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     // top of the sidebar: typed text fuzz-matches against task title +
     // repo basename, up/down navigates the filtered list, enter selects
     // + exits, esc cancels + restores. While search is active the
-    // single-letter sidebar chords (j/k/g/G/d/a/r/P/m) are
+    // single-letter sidebar chords (j/k/g/G/d/r/P/m) are
     // de-registered so they fall through to the input as literal text.
-    // `[` / `]` view switch keeps working so the user can search inside
-    // Archives.
     id: "sidebar.search.enter",
     scope: "sidebar",
     keys: ["/"],
@@ -183,9 +162,8 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
   // pass; they were raw `{ key: "…" }` literals before), so the rows are
   // LIVE bindings there and follow user overrides from
   // `~/.rove/settings/keybindings.yaml`. New-task (n), settings (s),
-  // rename (r), archive (a), delete (d), merge (M), views ([/]), sort (t)
-  // are already covered by the Sidebar / Global rows above and aren't
-  // duplicated here.
+  // rename (r), delete (d), merge (M), sort (t) are already covered by the
+  // Sidebar / Global rows above and aren't duplicated here.
   {
     id: "tasks.openWorktree",
     scope: "sidebar",
@@ -215,7 +193,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     scope: "sidebar",
     keys: ["u"],
     category: "Tasks pane",
-    description: "Open the update page (when a new version is available)",
+    description: "Open the update page — version check + release notes",
     hint: { keys: "u" },
   },
   {
@@ -252,18 +230,5 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     category: "Tasks pane",
     description: "Focus the engine pane of the current window",
     hint: { keys: "→" },
-  },
-  {
-    // `?` (shift+/ — terminals deliver the literal character) folds the
-    // Tasks pane's `── keys ──` legend down to its header line and back.
-    // The legend is ~20 rows tall with the tmux session chords included;
-    // on short terminals it crowds out the task list. The collapsed state
-    // persists via KV so the preference survives pane respawns.
-    id: "tasks.toggleKeys",
-    scope: "sidebar",
-    keys: ["?"],
-    category: "Tasks pane",
-    description: "Collapse / expand the keys legend",
-    hint: { keys: "?" },
   },
 ]

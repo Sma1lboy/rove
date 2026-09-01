@@ -94,7 +94,7 @@ A successful land removes the worktree — it is spent once its branch is in —
 and the row leaves the page. The **branch survives**: git keeps the durable
 record. If removal is refused (the worktree is dirty, it is the base
 checkout, or it is the directory Rove itself is running from), the land still
-stands and the page reports why the worktree is still there. Archiving the
+stands and the page reports why the worktree is still there. Deleting the
 task and deleting the source branch remain separate lifecycle decisions;
 from the CLI, `rove api land --remove-worktree=false` keeps the worktree.
 
@@ -111,6 +111,23 @@ For a worktree tracked by a Task, Rove clears that Task's worktree pointer. It
 does not delete the Task, its branch, or engine history. Opening the Task later
 may materialize a fresh worktree from the retained branch.
 
+### When git removes the worktree but not its directory
+
+`git worktree remove` does two things — deregister the worktree's metadata and
+delete its directory — and they can fail apart. A path inside the tree that the
+current user cannot unlink (a `chmod -w` directory, a read-only dependency
+cache, a directory an external tool holds) makes the directory delete fail
+*after* the deregistration has already landed.
+
+Rove reports that as what it is. The removal counts as done — git no longer
+knows this worktree, so no retry can advance it — and a notice names the
+directory left on disk and git's own reason. A task deleted this way is
+deleted, not parked in an error state, and the same line goes to
+`~/.rove/daemon.log` next to the rest of the deletion trail.
+
+Rove never deletes that directory for you: whatever made it undeletable may be
+something you want. Remove it by hand if you want the disk space.
+
 ## Force-remove a dirty worktree
 
 Dirty removal is deliberately two-stage:
@@ -124,15 +141,75 @@ Dirty removal is deliberately two-stage:
 
 The first confirmation can never silently turn into a force deletion. The
 second confirmation is the boundary that authorizes data loss. The branch is
-still retained, but uncommitted and untracked files are not recoverable from
-that branch.
+still retained, but uncommitted and untracked files are not part of it.
+
+### Landing with `--delete-branch`
+
+`land --delete-branch` deletes the branch with `git branch -D`, which removes
+the branch's reflog along with its ref — and the worktree removed just before
+it held the only other reflog for that branch. After a `--strategy merge`
+land that costs nothing: the merge commit on the base still reaches every
+commit. After a `--strategy squash` land it would, because the squash writes
+one new commit that has no link back to the branch's own commits.
+
+So before deleting a branch nothing else keeps reachable, Rove writes its tip
+to `refs/rove/salvage/<branch>-<timestamp>` — the same namespace as the
+force-delete snapshots below, listed by the same command. `rove api land`
+returns it as `branchAnchor`. Recover the pre-squash history with:
+
+```
+git log refs/rove/salvage/<branch>-<timestamp>
+git branch <recovered-name> refs/rove/salvage/<branch>-<timestamp>
+```
+
+No anchor is written when another ref already reaches the tip, which is the
+ordinary merge case.
+
+### Recovering work a force delete destroyed
+
+Before any forced removal, Rove snapshots what the removal is about to
+destroy — modified tracked files and files you never `git add`ed — into a git
+ref in the owning repo.
+
+Files matched by `.gitignore` are included too, but only up to 64 MB per
+top-level entry. That threshold is the whole rule: a gitignored note or
+scratch directory is kilobytes and gets snapshotted; `node_modules/` or a
+build directory is far larger and is skipped, because a snapshot carrying one
+is too big to be useful. An ignored entry whose size cannot be read is
+skipped. So a gitignored `HANDOFF.md` or `.scratch/` is recoverable, and a
+gitignored 200 MB `dist/` is not.
+
+List the snapshots, newest last:
+
+```
+git for-each-ref refs/rove/salvage
+```
+
+Then inspect and restore from one, run inside the owning repository:
+
+```
+git show refs/rove/salvage/<branch>-<timestamp>
+git restore --source=refs/rove/salvage/<branch>-<timestamp> -- path/to/file
+```
+
+The snapshot's exact ref is also written to `~/.rove/daemon.log` beside the
+deletion's audit lines, with the recovery commands filled in — see
+[TROUBLESHOOTING](./TROUBLESHOOTING.md#who-deleted-my-task) for how to find the
+deletion by task title and time.
+
+The refs are ordinary git refs: they are not garbage-collected, and they are
+never pushed. Delete one you no longer need with
+`git update-ref -d refs/rove/salvage/<branch>-<timestamp>`.
 
 ## Troubleshooting
 
 - **Land says the worktree is not tracked.** Adopt it as a Task first, or
   merge the branch manually.
-- **Land refuses a dirty base checkout.** Commit or stash changes in the base
-  checkout, verify its current branch, then retry.
+- **Land refuses a dirty base checkout.** Commit the changes in the base
+  checkout, verify its current branch, then retry. Don't reach for
+  `git stash`: the stash stack lives in the repo's common dir
+  (`.git/refs/stash`) and is shared by every linked worktree, so a stash
+  here can entangle — or be popped by — parallel tasks' work.
 - **Land reports conflicts.** Rove has already aborted the merge. Resolve the
   branch relationship manually before retrying.
 - **A removed row comes back.** The daemon operation failed or git still lists

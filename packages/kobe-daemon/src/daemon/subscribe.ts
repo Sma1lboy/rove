@@ -5,8 +5,7 @@
  * (`subscribed`, `holdsLifetime`, `channels`), drives the gui-refcount
  * idle-grace timer, and writes event frames out-of-band during channel replay.
  * None of that fits the registry's payload→result shape, so it lives here
- * beside its own machinery instead (extracted from `server.ts` for the
- * file-size cap; behavior is unchanged).
+ * beside its own machinery instead of pretending to be a handler.
  */
 
 import type { DaemonActivityRegistry } from "./activity-registry.ts"

@@ -5,13 +5,15 @@
 > migration of `~/.rove/automations.json`.
 
 > Daemon-owned cron. A schedule + a prompt + a repo; every firing creates a
-> fresh task and starts its engine with that prompt.
+> fresh task and starts its engine with that prompt — or, with
+> `persistentSession`, re-delivers into one standing task.
 
 ## What it is
 
 ```text
 Automation = cron rule + prompt + repo
 Firing     = a new Task (worktree + branch + engine session)
+           | a delivery into the ONE standing Task (persistentSession)
 ```
 
 The unit of work is an ordinary Rove task, not a hidden background job. A run
@@ -29,7 +31,9 @@ writer). Types in [`contracts.ts`](../../packages/kobe-daemon/src/daemon/contrac
 
 - **`Automation`** — the rule. `schedule` (five-field cron), `prompt`, `repo`,
   optional `vendor` / `baseRef` / `precheck`, `enabled`, `nextRunAt`,
-  `missedRunGraceMinutes`.
+  `missedRunGraceMinutes`, and the standing-session pair `persistentSession` /
+  `sessionTaskId` (issue #91). Types in
+  [`automation-contracts.ts`](../../packages/kobe-daemon/src/daemon/automation-contracts.ts).
 - **`AutomationRun`** — one firing. `scheduledFor` (when it *should* have run),
   `status`, `trigger`, and the `taskId` it produced. Capped at 100 per
   automation.
@@ -38,16 +42,74 @@ writer). Types in [`contracts.ts`](../../packages/kobe-daemon/src/daemon/contrac
 
 | Status | Meaning |
 |---|---|
-| `dispatched` | Task created, engine started with the prompt |
+| `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
+| `revived` | Standing session whose engine had died, respawned in the same worktree — files kept, transcript not |
+| `deferred` | Standing session's composer was busy; the daemon owns the prompt and queued an Inbox episode |
 | `skipped_precheck` | The precheck said there was nothing to do — **healthy** |
 | `skipped_missed` | The occurrence was older than the grace window |
 | `skipped_unavailable` | The repo/worktree could not be resolved |
 | `dispatch_failed` | Task created but its engine did not start |
 
-The four "didn't run" reasons are deliberately distinct. Unattended automation
+The "didn't run" reasons are deliberately distinct. Unattended automation
 is only trustworthy if a glance tells you whether a human is needed;
 `skipped_precheck` and `dispatch_failed` are opposite signals and must not
 share a label.
+
+## Standing sessions (issue #91)
+
+`persistentSession` swaps "a task per firing" for one task the schedule keeps
+delivering into. It exists because an inspection routine (*is CI worse than last
+week?*) is worthless without the previous answer in the same transcript, while a
+routine that EDITS code needs the opposite — a fresh branch per run, since a
+week of runs on one branch is a branch nobody can land. Hence per-routine, and
+off by default.
+
+The four paths one firing can take live in
+[`automation-dispatch.ts`](../../packages/kobe-daemon/src/daemon/automation-dispatch.ts):
+
+```text
+fire → persistentSession?
+       ├─ no  → createTask + startTaskSessionWithPrompt        → dispatched
+       └─ yes → sessionTaskId resolves to a live, undeleted task?
+                ├─ no  → createTask (marked routine) + spawn,
+                │        relink sessionTaskId                   → dispatched
+                └─ yes → deliverPromptToLiveEngineDetailed
+                         ├─ delivered → dispatched
+                         ├─ busy      → defer + Inbox episode   → deferred
+                         └─ no-session→ respawn same worktree   → revived
+```
+
+**What continuity actually rests on.** The engine's own conversation, kept alive
+by the PTY host — which lives outside the daemon on purpose
+([`pty-server.ts`](../../packages/kobe-daemon/src/daemon/pty-server.ts)), so it
+survives `rove daemon restart`. When that process is gone, the respawn does NOT
+inherit the transcript: the daemon's spawn path (`buildEngineSessionLaunch`) has
+no resume verb wired into it — `engineResumeArgv` is the TUI's tab-restart path.
+Hence `revived` as its own status: a run that started over must not read like
+one that had context.
+
+**Why a busy composer cannot be dropped.** `quota-resume` drops a blocked prompt
+deliberately — it is a nudge, and the next rate-limit arms another. A routine's
+report has no second chance, and a dropped one is indistinguishable from a
+routine that never ran. So it files a deferral and an Inbox episode, the same
+accepted-but-deferred contract `rove api send` gives agents, and the run records
+`deferred` (a success). Because `ComposerBusyError` lives in the `rove` package,
+which depends on this one, the outcome crosses the runtime adapter as DATA
+(`deliverPromptToLiveEngineDetailed`) rather than as a catchable error type.
+
+**Self-healing.** A `sessionTaskId` whose task was deleted, is mid-deletion, or
+lost its worktree resolves to null, and the firing rebuilds and relinks. Without
+that, one deleted task would wedge the routine forever — and a wedged schedule
+looks exactly like a quiet one.
+
+**In the sidebar.** A standing task carries `Task.routine`, which folds it behind
+a per-project `N routine sessions` count row
+([`tree-core.ts`](../../packages/kobe/src/tui/panes/sidebar/tree-core.ts)). This
+is the one fold in a tree that otherwise has none (owner call 2026-08-01, round
+5), scoped so the rule it bends still holds: it hides only what a SCHEDULE
+created, never a task a human opened. A folded task stays findable by `/` (the
+search builds the tree fully expanded), openable from the Routines page, and
+reachable from the Inbox — hiding a ROW, not a task.
 
 ## Scheduling
 

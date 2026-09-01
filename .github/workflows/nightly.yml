@@ -1,0 +1,226 @@
+# Nightly channel: publish today's `main` to the npm `nightly` dist-tag.
+#
+# This is deliberately NOT release.yml with a different tag. A nightly:
+#
+#   - leaves no git tag and no commit. The version it publishes
+#     (`X.Y.(Z+1)-nightly.<date>`) exists only inside this job's checkout,
+#     so `main` never carries it and the changeset ledger is untouched —
+#     tomorrow's real release still computes its number from the pending
+#     changesets, as if nightlies never happened.
+#   - never moves the `latest` dist-tag, so `npm i @sma1lboy/rove` and every
+#     existing install keep resolving to the stable line. Opting in is
+#     `rove update nightly`; opting out is `rove update latest`.
+#   - publishes ONLY the canonical @sma1lboy/rove name. The compatibility
+#     aliases exist so old installs keep receiving stable updates; nobody
+#     opts a legacy install into a nightly channel.
+#
+# The version's `-nightly.<date>` tail is what the update check sorts on
+# (isNewerSemver in src/version.ts) — two nightlies share an x.y.z core, so
+# the tail is the ONLY thing that tells a nightly user a newer one exists.
+#
+# Gates: the same behavior + render + visual jobs release.yml runs. A
+# nightly is less baked than a release by virtue of WHAT it contains, not
+# by skipping verification — an unverified nightly would just be a way to
+# ship a broken build to the users who volunteered to help.
+
+name: Nightly
+
+on:
+  schedule:
+    # 09:00 UTC daily. Off the hour would be politer to GitHub's scheduler,
+    # but a nightly's whole value is being predictable to the people on it.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  # Skip the whole pipeline when main hasn't moved since the last nightly:
+  # republishing an identical build burns a version number and makes
+  # `rove update` claim an update that changes nothing.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.check.outputs.should_publish }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Decide whether there is anything new to ship
+        id: check
+        run: |
+          BASE=$(node -p "require('./packages/kobe/package.json').version")
+          # Next patch + today's date: sorts above the released X.Y.Z it was
+          # cut from... no — BELOW it, per semver (a prerelease ranks under
+          # its release). That's correct and intended: when X.Y.(Z+1) really
+          # ships, every nightly of it is older, so nightly users roll
+          # forward onto the stable build instead of being stranded above it.
+          NEXT=$(node -p "
+            const [maj, min, pat] = require('./packages/kobe/package.json').version.split('-')[0].split('.')
+            \`\${maj}.\${min}.\${Number(pat) + 1}\`
+          ")
+          VERSION="${NEXT}-nightly.$(date -u +%Y%m%d)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          HEAD_SHA=$(git rev-parse HEAD)
+          # The published nightly records the commit it came from, so "has
+          # main moved" is answered by the registry rather than by guessing
+          # from timestamps.
+          LAST_SHA=$(npm view "@sma1lboy/rove@nightly" gitHead 2>/dev/null || true)
+          if [ "$HEAD_SHA" = "$LAST_SHA" ]; then
+            echo "main is unchanged since the last nightly ($HEAD_SHA) — nothing to publish"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publishing $VERSION from $HEAD_SHA"
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  behavior:
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build (Rove package)
+        run: bun run build
+
+      - name: Behavior tests (Rove package)
+        run: bun run --filter @sma1lboy/rove test:behavior
+
+  render-track:
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Render tests and coverage (kobe package)
+        working-directory: packages/kobe
+        run: bun run test:render
+
+  visual-ground-truth:
+    needs: changes
+    if: needs.changes.outputs.should_publish == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build canonical Rove artifacts
+        working-directory: packages/kobe
+        run: bun run build
+
+      - name: Install Chromium for the visual ground-truth harness
+        working-directory: packages/kobe-web
+        run: bunx playwright install chromium
+
+      - name: Visual journey (browser → PTY → real OpenTUI)
+        working-directory: packages/kobe-web
+        run: bun run visual
+
+  publish:
+    needs: [changes, behavior, render-track, visual-ground-truth]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # npm provenance (OIDC)
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        working-directory: packages/kobe
+        run: bun run test
+
+      - name: Build
+        run: bun run build
+
+      - name: Stamp the nightly version (working tree only — never committed)
+        working-directory: packages/kobe
+        env:
+          VERSION: ${{ needs.changes.outputs.version }}
+        run: |
+          node -e "
+            const fs = require('fs')
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+            pkg.version = process.env.VERSION
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n')
+          "
+          echo "stamped $VERSION"
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to the nightly dist-tag
+        working-directory: packages/kobe
+        env:
+          VERSION: ${{ needs.changes.outputs.version }}
+        run: |
+          if npm view "@sma1lboy/rove@$VERSION" version >/dev/null 2>&1; then
+            echo "@sma1lboy/rove@$VERSION already published — a second run today, nothing to do"
+            exit 0
+          fi
+          # --ignore-scripts: prepublishOnly re-runs typecheck+build, which
+          # already ran above against this exact tree.
+          npm publish --access public --provenance --ignore-scripts --tag nightly

@@ -1,9 +1,10 @@
 # Routines
 
 Work that runs without you. A **Routine** is a cron rule + a prompt + a repo,
-owned by the daemon. Every firing creates a fresh [task](CONCEPTS.md) with its own
-worktree, its own branch, and its own engine session, carrying the prompt as that
-session's first message.
+owned by the daemon. By default every firing creates a fresh [task](CONCEPTS.md)
+with its own worktree, its own branch, and its own engine session, carrying the
+prompt as that session's first message. A routine that needs to remember what it
+said yesterday can instead keep [one standing session](#one-standing-session-instead-of-a-task-per-run).
 
 That last part is the design, not an implementation detail. A run is not a
 hidden background job with a log file somewhere; it is an ordinary task in your
@@ -83,6 +84,19 @@ closes the page.
 Deleting removes the routine and its run history. **Tasks it already created are
 untouched.** They are ordinary tasks and outlive the schedule that made them.
 
+To find them — a routine that has been firing for weeks has a task per run —
+read the ids off its history before deleting it, since deleting takes the
+history with it:
+
+```bash
+rove api routine-runs --id <id> | jq -r '.runs[].taskId | select(.)'
+```
+
+Then delete the ones you want with `rove api delete --task-id <id>`. Rove does
+not sweep them for you: they are ordinary tasks, some may hold work you want,
+and a schedule deleting tasks in the background is not a thing you should have
+to expect.
+
 ## The schedule
 
 Five-field cron, in the **daemon host's local time** (there is no timezone
@@ -137,7 +151,9 @@ needed:
 
 | Status | Meaning |
 |---|---|
-| `dispatched` | Task created, engine started with the prompt |
+| `dispatched` | Task created (or delivered into the standing session), engine started with the prompt |
+| `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
+| `deferred` | Standing session only: the composer was busy, so the prompt is queued in your Inbox. **Not lost** — release it there |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_missed` | The occurrence was older than the grace window |
 | `skipped_unavailable` | The repo or worktree could not be resolved |
@@ -145,6 +161,54 @@ needed:
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
+
+## One standing session instead of a task per run
+
+A routine that asks the same question every day — *is CI slower than last week?*
+— is worthless starting from zero each morning. Give it a standing session and
+every firing lands in the **same** task, as another turn in one conversation:
+
+```bash
+rove api routine-create --repo . \
+  --name "CI trend" \
+  --prompt "How do this week's CI times compare with last week?" \
+  --schedule "0 9 * * MON-FRI" \
+  --persistent-session
+```
+
+**Leave it off for a routine that edits code.** A fresh worktree per run is what
+makes each result a branch you can review and land; a week of runs piled onto
+one branch is a branch nobody can merge.
+
+### Where its output goes
+
+The standing task does not sit in your sidebar as another row. It rests behind a
+**`N routine sessions`** count row under its project — press `enter` on that row
+to open it and see them, `enter` again to close. Seven daily routines would
+otherwise be forty-nine rows a week competing with the handful of tasks you
+opened yourself.
+
+Hidden at rest is not hidden: the task is still found by `/` search, still opens
+from the Routines page (`enter` on the routine), and still raises an **Inbox**
+entry when its turn finishes or it needs you. That entry is how you learn what
+last night's routine said — you do not go looking for it.
+
+It also never wins the "which task should I open?" fallback on a cold start. A
+routine that fired at 03:00 is genuinely the most recently touched task in the
+install and the least likely one you meant; opening Rove lands on your own work
+instead.
+
+### When the engine has exited
+
+Continuity comes from the engine's own live conversation, which the PTY host
+keeps alive across daemon restarts. When that process is gone — an overnight gap
+usually means it is — the next firing respawns it **in the same worktree**. The
+files and the branch carry over; the transcript does not, and that run is
+recorded as `revived` rather than `dispatched` so a run that started over never
+reads like one that had yesterday in front of it.
+
+If the standing task is deleted, the routine simply builds a new one on its next
+firing rather than failing forever.
 
 ## Restarts, and runs you missed
 
@@ -175,7 +239,8 @@ lifetime rules.
 
 Known and deliberate, as of today:
 
-- Every firing creates a new task; a routine cannot reuse an existing one.
+- A standing session's engine, once it has exited, comes back without the
+  previous transcript (see below).
 - No timezone field; schedules are the daemon host's local time.
 - No per-run cost attribution, and no remote/SSH execution target.
 

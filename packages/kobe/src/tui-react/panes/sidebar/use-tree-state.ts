@@ -2,13 +2,21 @@
  * Sidebar tree state — the flat row list and the cursor's translation
  * between row ids and the terminal's (taskId, tabId) pair.
  *
- * Kept out of `Sidebar.tsx` for the file-size cap, and out of `tree-core.ts`
- * because that module is framework-free (vitest loads it in Node) while this
- * one is React state.
+ * Kept out of `tree-core.ts` because that module is framework-free — vitest
+ * loads it in Node — while this one is React state; the fold and expansion
+ * rules below need that separation to stay testable as plain data.
  *
- * There is NO fold anywhere (owner call 2026-08-01, round 5): every project
- * and every worktree always shows everything under it. The tree is a map,
- * not a filing cabinet — hiding rows just made the map lie.
+ * There is NO fold anywhere (owner call 2026-08-01, round 5) except one: a
+ * project's routine count row (issue #91), which folds ONLY the standing
+ * sessions a schedule created. Every project and every task a human opened
+ * still shows everything under it. The tree is a map, not a filing cabinet —
+ * hiding rows made the map lie, and the exception is scoped so it can't: a
+ * folded routine stays findable by search, and openable from the Inbox and
+ * the Routines page.
+ *
+ * The expansion set is deliberately NOT persisted: it resets closed each
+ * session, because the resting state that keeps the sidebar readable is the
+ * closed one.
  *
  * The tab projection reads through `knownTaskTabs`, which answers for tasks
  * whose TerminalTabs is not mounted — the whole point of the tree is that
@@ -18,6 +26,7 @@
 import type { Task } from "@/types/task"
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { currentBranch } from "../../../tui/panes/sidebar/git-head"
 import { sidebarProjectKey } from "../../../tui/panes/sidebar/groups"
 import {
   type TreeRow,
@@ -26,6 +35,9 @@ import {
   filterTreeRows,
   mainTaskIdOfProject,
   parseRowId,
+  projectKeyOfRoutinesRow,
+  projectKeysOf,
+  rowLiveBranchPath,
   tabRowId,
   treeFlatIds,
   withRecentRow,
@@ -37,7 +49,7 @@ import { tabPtyKeyFor } from "../../../tui/workspace/terminal-tabs-core"
 import { adoptTaskTabs } from "../../workspace/terminal-tabs-adopt"
 import type { TabsSnapshotKv } from "../../workspace/terminal-tabs-persist"
 import { knownTaskTabs } from "../../workspace/terminal-tabs-shared"
-import { orphanTabsByTask } from "./orphan-tabs"
+import { filterKnownOrphanTabs, orphanTabsByTask } from "./orphan-tabs"
 import { useHostSessions } from "./use-host-sessions"
 
 export interface TreeStateOpts {
@@ -54,6 +66,12 @@ export interface TreeStateOpts {
    *  row. Hidden while a search query is open (you are hunting, not going
    *  back). Absent/null = no row. */
   readonly recentTask?: Task | null
+  /** Global task sort applied before shaping the tree. */
+  readonly sortMode?: import("../../../tui/panes/sidebar/groups").TaskSortMode
+  /** The sidebar's ~2s poll tick. Re-runs the search over freshly resolved
+   *  HEADs, so a `main` row becomes findable by its branch as soon as the
+   *  poller answers rather than only on the next unrelated re-render. */
+  readonly branchTick?: number
 }
 
 export interface TreeState {
@@ -70,12 +88,27 @@ export interface TreeState {
   readonly projectIdOfTask: (taskId: string) => string | null
   /** The task whose move reorders this project (its `main` checkout). */
   readonly mainTaskIdOfProject: (projectId: string) => string | null
+  /** Toggle a project's routine count row (issue #91). True when `rowId` was
+   *  one — the press is then consumed, and no task activation follows. */
+  readonly toggleRoutinesRow: (rowId: string) => boolean
 }
 
 export function useTreeState(opts: TreeStateOpts): TreeState {
   const { tasks, kv, selectedTaskId, selectedTabId } = opts
   const query = opts.query ?? ""
   const searching = query.trim() !== ""
+
+  // Which projects' routine count rows are OPEN (issue #91). Session-scoped
+  // on purpose: closed is the resting state worth returning to, so this
+  // never reaches a store.
+  const [expandedRoutines, setExpandedRoutines] = useState<ReadonlySet<string>>(() => new Set())
+  const toggleRoutines = useCallback((projectKey: string): void => {
+    setExpandedRoutines((current) => {
+      const next = new Set(current)
+      if (!next.delete(projectKey)) next.add(projectKey)
+      return next
+    })
+  }, [])
 
   // Live process identity (the `ps`-walk store): a user-typed `claude` in a
   // shell tab IS an agent while that process lives, and stops being one the
@@ -178,15 +211,12 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     const registered = new Set<string>()
     for (const [taskId, tabs] of snapshotTabs) for (const tab of tabs) registered.add(tabRowId(taskId, tab.id))
-    const map = new Map<string, readonly TreeTab[]>()
     // A just-closed tab's session can outlive its state in the 2s poll —
     // treating it as an orphan would adopt it right back (see
     // closed-tab-suppress.ts).
     const sessions = hostSessions.filter((session) => !isRecentlyClosedPtyKey(session.key))
-    for (const [taskId, orphans] of orphanTabsByTask(sessions, registered)) {
-      if (tasks.some((task) => task.id === taskId)) map.set(taskId, orphans)
-    }
-    return map
+    // Membership via one Set build (tree-core), not a per-orphan `tasks.some`.
+    return filterKnownOrphanTabs(tasks, orphanTabsByTask(sessions, registered))
   }, [snapshotTabs, hostSessions, tasks])
 
   // …and then it stops being unregistered: a row nobody can open or close is
@@ -218,11 +248,35 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   }, [snapshotTabs, orphansByTask])
 
   const recentTask = opts.recentTask ?? null
+  const sortMode = opts.sortMode ?? "default"
   const { rows, totalCount } = useMemo(() => {
-    const all = buildTreeRows({ tasks, tabsByTask })
+    // A SEARCH builds the tree fully expanded (issue #91): folding the routine
+    // sessions away at rest must not make them unfindable, and search is how
+    // you reach one without opening the fold first. `filterTreeRows` then
+    // drops the (now empty) count row itself.
+    const all = searching
+      ? buildTreeRows({ tasks, tabsByTask, sortMode, expandedRoutines: new Set(projectKeysOf(tasks)) })
+      : buildTreeRows({ tasks, tabsByTask, sortMode, expandedRoutines })
     const total = treeFlatIds(all).length
-    return { rows: searching ? filterTreeRows(all, query) : withRecentRow(all, recentTask), totalCount: total }
-  }, [tasks, tabsByTask, searching, query, recentTask])
+    // Dependency-only invalidation key: re-run the search when the poll tick
+    // moves, so a `main` row becomes findable by its branch as soon as the
+    // HEAD poller answers (the read below is a plain cache lookup, which on
+    // its own would never re-trigger this memo).
+    void opts.branchTick
+    // Search matches a worktree row on the label it RENDERS, and the rows that
+    // own no branch (main / dir) are labelled by their polled HEAD — the same
+    // cached read `WorktreeTreeRow` renders through, so the query sees exactly
+    // the branch name printed on the row. The poll itself is the row's effect;
+    // this is a plain synchronous cache read.
+    const liveBranch = (task: Task): string => {
+      const path = rowLiveBranchPath(task)
+      return path ? currentBranch(path) : ""
+    }
+    return {
+      rows: searching ? filterTreeRows(all, query, liveBranch) : withRecentRow(all, recentTask),
+      totalCount: total,
+    }
+  }, [tasks, tabsByTask, searching, query, recentTask, sortMode, expandedRoutines, opts.branchTick])
   const flatIds = useMemo(() => treeFlatIds(rows), [rows])
 
   // The active row is the selected task's ACTIVE TAB, else the worktree row
@@ -256,6 +310,18 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     activeRowId,
     projectIdOfTask,
     mainTaskIdOfProject: mainTaskOfProject,
+    /** Open/close a project's routine count row (issue #91). Returns true when
+     *  `rowId` WAS a routine row, so the caller knows the press was consumed
+     *  and must not also try to activate a task by that id. */
+    toggleRoutinesRow: useCallback(
+      (rowId: string): boolean => {
+        const projectKey = projectKeyOfRoutinesRow(rowId)
+        if (projectKey === null) return false
+        toggleRoutines(projectKey)
+        return true
+      },
+      [toggleRoutines],
+    ),
   }
 }
 

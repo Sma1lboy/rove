@@ -125,7 +125,7 @@ describe("engineRows", () => {
 })
 
 describe("devRows", () => {
-  it("with a daemon: reset, restart, remote-projects, auto-status, dispatcher, archived-history", () => {
+  it("with a daemon: reset, restart, then the experimental toggles in order", () => {
     const rows = devRows(true)
     expect(rows.map((r) => r.kind)).toEqual([
       "devReset",
@@ -133,27 +133,27 @@ describe("devRows", () => {
       "devRemoteProjects",
       "devAutoStatus",
       "devDispatcher",
-      "devArchivedHistory",
+      "devComposerGate",
     ])
     expect(rowIndex(rows, "remote-projects")).toBe(2)
     expect(rowIndex(rows, "auto-status")).toBe(3)
     expect(rowIndex(rows, "dispatcher")).toBe(4)
-    expect(rowIndex(rows, "archived-history")).toBe(5)
+    expect(rowIndex(rows, "composer-gate")).toBe(5)
   })
 
-  it("without a daemon: reset, remote-projects, auto-status, dispatcher, archived-history", () => {
+  it("without a daemon: the same list, one row shorter, indices shifted by one", () => {
     const rows = devRows(false)
     expect(rows.map((r) => r.kind)).toEqual([
       "devReset",
       "devRemoteProjects",
       "devAutoStatus",
       "devDispatcher",
-      "devArchivedHistory",
+      "devComposerGate",
     ])
     expect(rowIndex(rows, "remote-projects")).toBe(1)
     expect(rowIndex(rows, "auto-status")).toBe(2)
     expect(rowIndex(rows, "dispatcher")).toBe(3)
-    expect(rowIndex(rows, "archived-history")).toBe(4)
+    expect(rowIndex(rows, "composer-gate")).toBe(4)
   })
 })
 
@@ -184,8 +184,12 @@ describe("feedbackRows", () => {
 
 describe("sectionRows / bodyRowCount", () => {
   it("keys has no rows once the YAML exists, and one create action while it doesn't", () => {
-    expect(sectionRows("keys", input())).toEqual([])
-    expect(sectionRows("keys", input({ keybindingsFileExists: false })).map((r) => r.kind)).toEqual(["keysCreate"])
+    expect(sectionRows("keys", input()).map((r) => r.kind)).toEqual(["prefixTapPresentation", "prefixTapPresentation"])
+    expect(sectionRows("keys", input({ keybindingsFileExists: false })).map((r) => r.kind)).toEqual([
+      "prefixTapPresentation",
+      "prefixTapPresentation",
+      "keysCreate",
+    ])
   })
 
   it("bodyRowCount is the registry length for every section", () => {
@@ -201,8 +205,9 @@ describe("sectionRows / bodyRowCount", () => {
     const inp = input({ themeNames: themes, engineList: [...ALL_VENDORS, "aider", "goose"], hasDaemon: true })
     expect(bodyRowCount("general", inp)).toBe(12 + LANG + 1 + 3 + 14) // themes + langs + transparent + accents + retained general rows
     expect(bodyRowCount("engines", inp)).toBe(ALL_VENDORS.length + 2 + 1) // 6
-    expect(bodyRowCount("keys", inp)).toBe(0)
+    expect(bodyRowCount("keys", inp)).toBe(2)
     expect(bodyRowCount("feedback", inp)).toBe(3)
+    // reset + restart + 4 experimental toggles; one fewer without a daemon.
     expect(bodyRowCount("dev", inp)).toBe(6)
     expect(bodyRowCount("dev", { ...inp, hasDaemon: false })).toBe(5)
   })

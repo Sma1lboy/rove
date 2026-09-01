@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 33 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 38 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -105,6 +105,12 @@ wants a helper in the same checkout, and a bug when they wanted parallel
 attempts. A split isolates nothing at all: it is a layout, for watching
 something (logs, `btop`, a test loop) next to the work — never the answer to
 "do this work".
+
+One boundary the isolation model does NOT cover: **never `git stash` in a
+managed worktree.** The stash stack lives in the repo's common dir
+(`.git/refs/stash`) and is shared by every linked worktree — two tasks that
+stash in parallel can pop or drop each other's work. Commit instead; a
+commit is per-branch and isolates exactly the way the model promises.
 
 ### Where does this work land?
 
@@ -215,7 +221,7 @@ turn either. These five carry almost all traffic:
 add      --repo(REQ) --prompt --title --command --count --agents --activate
 send     --prompt(REQ) --task-id --tab --command --plain
 get-task --task-id(REQ)          list  (no flags)
-collect  --task-ids <csv> | --repo
+collect  --group <groupId> | --task-ids <csv> | --repo
 ```
 
 Four names that have actually been guessed wrong here: `add --vendor` is
@@ -256,6 +262,10 @@ rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
 # Follow up. Use an explicit id for unattended work; the active task can drift.
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance
 # (sender + reply command); --plain sends verbatim.
+#
+# SINGLE-QUOTE a prompt containing backticks, or your shell runs them as
+# command substitution and the words vanish from the message you send. In
+# double quotes `rove api send` becomes the OUTPUT of running that command.
 rove api send --task-id <id> --prompt "<complete next turn>"
 
 # Reply home: no --task-id inside a dispatched task = the dispatcher's tab.
@@ -273,16 +283,28 @@ rove api send --task-id <id> --tab new --prompt "<turn>"    # fresh engine tab
 rove api send --task-id <id> --tab new --command codex --prompt "<turn>"
 
 rove api get-task --task-id <id>
-rove api collect --task-ids <id1>,<id2>,<id3> --pretty
+# One read for the whole round — the groupId `add --count` returned. Never
+# hand-copy N task ids across turns: collect by group. Lost the groupId? Any
+# sibling task's `.groupId` in `list` output recovers it.
+rove api collect --group <groupId> --pretty
 rove api list --pretty
 ```
 
 `.running` means any hosted engine tab on the task is alive; a live shell,
-command, or content tab alone does not count.
+command, or content tab alone does not count. It is process truth, not
+progress: a task whose work is merged and whose worker has signed off still
+reads `true` until somebody deletes it (see "A task is finished when it is
+GONE").
 Omitting BOTH `--task-id` and `--tab` inside a task that has a dispatcher
 targets that dispatcher's tab (see the reply rule above); otherwise the
 target is the active task. Omitting only `--tab` targets a live engine tab
-(`tab-1` first, then any surviving engine tab). Only when the task has NO live session at all does `send`
+(`tab-1` first, then any surviving engine tab). **Trap: omitting only
+`--task-id` while giving `--tab tab-N` inside a dispatched task delivers to
+`tab-N` of the DISPATCHER's task** — the dispatcher's id fills in for
+`--task-id`, but an explicit `--tab` is kept, so your `send --tab tab-3`
+lands in the middle of another session's tab-3, not yours. Target your own
+task's tab with `--task-id "$ROVE_TASK_ID" --tab tab-N`. Only when the task
+has NO live session at all does `send`
 auto-start the canonical engine in the task's worktree (`started: true` in
 the result marks that fresh session). If live tabs exist but none resolves
 as an engine, it refuses with `NO_ENGINE_TAB` — address one with `--tab
@@ -325,20 +347,30 @@ logs, dashboards), don't scatter panes for work `add` should own.
 | `rename --task-id ID --title T` | Rename a task |
 | `set-branch --task-id ID --branch B` | Rename its branch |
 | `set-command --task-id ID --command CMD` | Change the engine launch command for the next launch |
-| `set-status --task-id ID --status S` | Set lifecycle status |
-| `archive --task-id ID [--archived=false]` | Archive/unarchive; stops live sessions |
+| `set-status --task-id ID --status S` | Set the lifecycle LABEL (`backlog`/`in_progress`/`in_review`/`done`/`canceled`/`error`). Cosmetic: the row, its Worktree, its branch and its engine all stay. `canceled` does NOT close or clean up anything |
 | `pin --task-id ID [--pinned=false]` | Pin/unpin |
 | `set-active --task-id ID` / `--none` | Change shared active task |
 | `ensure-worktree --task-id ID` | Materialize without starting an engine |
-| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--then-archive] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
+| `land --task-id ID [--strategy merge\|squash] [--delete-branch] [--remove-worktree=false]` | Merge the task's branch into the base repo's current branch; the Worktree is removed by default (`--remove-worktree=false` keeps it). The branch always stays; dirty/self/base removals are refused, outcome in the result's `worktree` field |
 | `delete --task-id ID [--force] [--delete-branch]` | Remove task + Worktree; the git branch stays unless `--delete-branch` (and `--force` never implies it) |
 | `discover-adoptable --repo PATH` | Find untracked Worktrees |
 | `adopt --repo PATH --worktree PATH` | Import a Worktree |
 
-Once a task's work is merged, `delete` is the normal cleanup — the branch is
-git's durable record and survives. `archive` remains as a manual "hide the
-row" override. `--delete-branch` (or a dirty-worktree `--force`) still needs
-explicit user authorization.
+### "Close this task" means `delete`
+
+`delete` is the ONLY verb that ends a task: it removes the row and its
+Worktree, and the git branch survives as the durable record. `set-status
+canceled` is a label — the row, Worktree, branch and engine all stay, so a
+"close" done that way changes nothing the user can see. Reach for `delete`
+whether or not the work merged; an unmerged branch is still on disk
+afterwards, which is what makes this recoverable.
+
+There is no "hide the row without deleting" verb (`archive` was removed).
+
+**Deleting still needs the user to ask for it in that turn** — say what you
+would remove and wait. `--delete-branch` (or `--force` on a dirty Worktree)
+destroys the recoverable half and needs its own explicit authorization; the
+two flags are never implied by one another.
 
 ## Issue tracker
 
@@ -424,12 +456,46 @@ branch name — the spawner needs it to `land`. Use the BARE form: an explicit
 `--task-id <spawner>` skips dispatcher routing and lands on that task's
 canonical engine tab, which can be a different agent's session.
 
+**Name your branch before you report it.** A new task starts on an
+auto-generated placeholder branch (`new-task`, `duck`, …); you are the only
+party who knows what the work turned out to be. Once the shape is clear,
+rename it to a short descriptive name in this repo's own convention:
+
+```bash
+rove api set-branch --task-id "$ROVE_TASK_ID" --branch <descriptive-slug>
+```
+
+Do this while you work, not at the end — the branch name is what the user
+reads in the sidebar to tell your task from its siblings.
+
 **"Succeeded" means COMMITTED.** Green tests in your working tree are not a
 deliverable — the only thing `land` can merge is commits on your branch.
 Before reporting success: `git status` clean, your work committed with a
 real message (you wrote the code; you write its message). A worker that ran
 everything, passed everything, and committed nothing has delivered nothing —
 that exact mismatch has shipped empty merges before.
+
+Rove now checks this at the moment you claim it: a `succeeded:` report from a
+managed task whose branch has **0 commits** is refused with
+`EMPTY_SUCCESS_REPORT` and never reaches the coordinator. Commit, then send.
+When the task genuinely produced no commits — an investigation, a review, a
+question answered — say so explicitly with `--allow-empty`:
+
+```bash
+rove api send --allow-empty --prompt "succeeded: no bug — root cause is upstream, see notes"
+```
+
+**"CI is green" means `checkState: passing`.** A local test run is not CI: it
+does not run the other jobs, the other platform, or the merge gates. Rove
+polls your PR's checks and keeps the answer on the task —
+
+```bash
+rove api get-task --task-id "$ROVE_TASK_ID"   # .task.prStatus.checkState
+```
+
+`none` (no PR yet) / `pending` (still running) / `passing` / `failing` /
+`unknown`. Anything but `passing` is not green. Report what the field says,
+not what your local run implied.
 
 **Coordinator side** — do NOT block or poll. Keep working (or end your
 turn); each worker's outcome arrives in your chat as a `[ROVE PEER]` message
@@ -439,6 +505,43 @@ worker died (it may be mid-turn or stuck on a permission prompt): peek with
 `collect`/`get-task`, nudge with `send`, and never mark a silent task failed
 or auto-retry it.
 
+### A task is finished when it is GONE
+
+The dispatcher closes tasks. A worker cannot delete itself, so when it reports
+"done" the round is not over — its engine is still running, its Worktree still
+holds a branch, and its row is still in the sidebar.
+
+None of these mean a task is finished:
+
+| Looks final | What it actually is |
+|---|---|
+| the worker said "done" | a message; it has no verb to remove itself |
+| its PR is MERGED | the code landed; the task did not move |
+| its issue is `status done` | a field in a different store |
+| `set-status canceled` | a label — see Lifecycle above |
+
+**The only evidence is that `rove api list` no longer shows it.** Check the
+task, not the paperwork:
+
+```bash
+rove api get-task --task-id <id>   # .running true = its engine is still alive
+rove api delete --task-id <id> --wait
+```
+
+`--wait` is what turns "queued" into an answer; without it the call returns
+before the Worktree is gone.
+
+Before ending a round, sweep for both halves — they drift apart:
+
+```bash
+rove api list          # tasks whose work is done but which are still here
+git worktree list      # directories no task claims (delete finds tasks by id,
+                       # so a stray one is only reachable via git)
+```
+
+A worker that has taken over `main` in its Worktree will block the dispatcher's
+own checkout — a release cannot even start until that task is closed.
+
 ### Closing a round
 
 After comparing attempts, finish the round instead of leaving tasks behind:
@@ -446,15 +549,17 @@ After comparing attempts, finish the round instead of leaving tasks behind:
 ```bash
 # Land the winner: merge its branch into the base repo's CURRENT branch.
 # Verify the base checkout is on the intended branch first.
-rove api land --task-id <winner> --then-archive
+rove api land --task-id <winner>
 
-# Archive the losers (non-destructive; branches survive).
-rove api archive --task-id <loser1>
-rove api archive --task-id <loser2>
+# Delete the losers: task + worktree go away, the git branch survives
+# (recoverable). NOT --delete-branch — that destroys history and needs
+# explicit user authorization.
+rove api delete --task-id <loser1>
+rove api delete --task-id <loser2>
 ```
 
 `land` refuses a dirty base checkout; on merge conflict it aborts cleanly and
-returns the conflicted files for manual resolution. `delete` removes a loser's
-Worktree but keeps its branch (recoverable); still don't use it — or
-`--delete-branch`, which destroys the history — without explicit user
-authorization.
+returns the conflicted files for manual resolution. `delete` removes a
+loser's Worktree but keeps its branch (recoverable); `--delete-branch`
+destroys the history and is never part of closing a round without explicit
+user authorization.

@@ -39,7 +39,6 @@ function fakeOrchestrator(worktreePath: string): Orchestrator {
     worktreePath,
     vendor: "claude",
     status: "backlog",
-    archived: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   } as Task

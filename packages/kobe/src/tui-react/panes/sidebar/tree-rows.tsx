@@ -14,11 +14,17 @@
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { type BoxRenderable, MouseButton } from "@opentui/core"
-import { type ReactNode, useEffect } from "react"
+import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
-import { NO_STATE_GLYPH, buildSidebarRowView, prCheckChip, withSpinnerFrame } from "../../../tui/panes/sidebar/row-view"
+import {
+  IN_PROGRESS_SPINNER,
+  NO_STATE_GLYPH,
+  buildSidebarRowView,
+  prCheckChip,
+  withSpinnerFrame,
+} from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
 import { SIDEBAR_WIDTH, toneColor, truncateBranchLabel } from "../../../tui/panes/sidebar/view-core"
 import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-changes"
@@ -162,10 +168,28 @@ function RowShell(props: {
 }
 
 /**
- * A worktree row carries NO state glyph (owner call 2026-08-01, round 6):
- * the session state belongs to the chattab that runs it, so the glyph lives
- * on the tab row below. What stays here is worktree-level fact — branch,
- * pin, PR chip, ±change stats.
+ * A worktree row carries NO ENGINE state glyph (owner call 2026-08-01, round
+ * 6): the session state belongs to the chattab that runs it, so that glyph
+ * lives on the tab row below. What stays here is worktree-level fact — branch,
+ * pin, PR chip, ±change stats — and a worktree being MATERIALIZED is the most
+ * worktree-level fact there is.
+ *
+ * Why the job spinner has to live here rather than on the tab row: during
+ * `git worktree add` a freshly created task has no engine activity (the engine
+ * has not started) and no tab rows at all (a tab is only recorded once
+ * delivery succeeds). The tab row that renders the job today is therefore the
+ * one row that does not yet exist, which is why `rove api add --count 5` on a
+ * big repo showed five frozen `(new task)` rows for the whole minutes-long
+ * materialization while the daemon published `task.jobs {phase:"running"}` the
+ * entire time.
+ *
+ * It reads `taskJobs` DIRECTLY and nothing else — deliberately not through
+ * `buildSidebarRowView`, whose `loading` also folds in engine activity. Taking
+ * the derived flag would put the task-level activity rollup back on the
+ * worktree row, which is the leak the tab row's `carriesState` gate exists to
+ * stop. A job is genuinely task-scoped (the daemon publishes one entry per
+ * taskId, and a task has exactly one worktree), so it is the one signal a
+ * worktree row may read without a tab to attribute it to.
  */
 export function WorktreeTreeRow(props: {
   readonly rowId: string
@@ -193,7 +217,14 @@ export function WorktreeTreeRow(props: {
   }, [livePath, shared.branchTick])
   const label = worktreeRowLabel(task, livePath ? { liveBranch: currentBranch(livePath) } : {})
   const moving = shared.movingRowId === props.rowId
+  // Presence in the map IS "running" — the daemon removes the entry on both
+  // terminal phases (see `TaskJobState`).
+  const materializing = shared.taskJobs?.get(task.id) !== undefined
+  const frame = useSpinnerFrame(materializing)
   const reserved =
+    // The spinner column exists only while a job runs, so a quiet row's label
+    // budget and layout are byte-identical to before.
+    (materializing ? 2 : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
@@ -201,6 +232,11 @@ export function WorktreeTreeRow(props: {
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
+      {materializing ? (
+        <text fg={theme.primary} wrapMode="none" width={2} flexShrink={0}>
+          {`${IN_PROGRESS_SPINNER[frame % IN_PROGRESS_SPINNER.length] ?? IN_PROGRESS_SPINNER[0]} `}
+        </text>
+      ) : null}
       <box flexDirection="row" flexGrow={1} paddingRight={1} gap={1}>
         <text fg={theme.text} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
           {truncateEndCells(label, treeLabelBudget(shared, reserved), charWidth)}
@@ -221,6 +257,40 @@ export function WorktreeTreeRow(props: {
       </box>
     </RowShell>
   )
+}
+
+/**
+ * The tab row's `buildSidebarRowView`, memoized on the real inputs so the
+ * ~10Hz spinner tick (a fresh `shared` object every render) doesn't
+ * re-derive idle tab rows. Same shape as the flat cards' `useRowCardChrome`
+ * (row-cards.tsx) — non-loading rows come back as the same object and never
+ * subscribe to the tick. Extracted + exported so the memo contract has a
+ * direct test; TabTreeRow is the only caller.
+ */
+export function useTabRowBaseView(args: {
+  readonly task: Task
+  readonly activity: TaskEngineState | undefined
+  readonly lifecycle: { readonly subagents: number } | undefined
+  readonly job: TaskJobState | undefined
+  readonly completionSeen: boolean
+}): ReturnType<typeof buildSidebarRowView> {
+  const t = useT()
+  const { task, activity, lifecycle, job, completionSeen } = args
+  return useMemo(() => {
+    // Dependency-only invalidation key: rebuild when the language changes —
+    // buildSidebarRowView reads the global `t` through the locale store.
+    void t
+    return buildSidebarRowView({
+      task,
+      activity,
+      lifecycle,
+      job,
+      spinnerFrame: 0,
+      subtitleBudget: 0,
+      truncateBranch: truncateBranchLabel,
+      completionSeen,
+    })
+  }, [task, activity, lifecycle, job, completionSeen, t])
 }
 
 export function TabTreeRow(props: {
@@ -281,14 +351,11 @@ export function TabTreeRow(props: {
   const completionSeen = carriesState
     ? completionSeenFor(props.task.id, activity?.state, viewing, props.tab.id, durableSeen)
     : false
-  const baseView = buildSidebarRowView({
+  const baseView = useTabRowBaseView({
     task: props.task,
     activity,
     lifecycle: carriesState ? shared.engineLifecycle?.get(props.task.id) : undefined,
     job: carriesState ? shared.taskJobs?.get(props.task.id) : undefined,
-    spinnerFrame: 0,
-    subtitleBudget: 0,
-    truncateBranch: truncateBranchLabel,
     completionSeen,
   })
   const frame = useSpinnerFrame(carriesState && baseView.loading)
@@ -332,6 +399,39 @@ export function TabTreeRow(props: {
         <MoveChip rowId={props.rowId} shared={shared} />
         <JumpDigit flatIndex={props.flatIndex} dim={!isCursor} />
       </box>
+    </RowShell>
+  )
+}
+
+/**
+ * A project's routine count row (issue #91) — the one fold in this tree.
+ *
+ * Standing routine sessions rest behind it because a schedule's output is
+ * background noise beside the tasks the user opened themselves. ⏎ (or a
+ * click) toggles it open, and the tasks then render as ordinary worktree
+ * rows: the fold hides them, it never turns them into a different kind of
+ * thing. They stay selectable from the Inbox and the Routines page while
+ * closed, so this hides a ROW, not a task.
+ */
+export function RoutinesTreeRow(props: {
+  readonly rowId: string
+  readonly flatIndex: number
+  readonly count: number
+  readonly expanded: boolean
+  readonly shared: TreeRowShared
+}) {
+  const { theme } = useTheme()
+  const t = useT()
+  return (
+    <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={props.shared}>
+      {/* A 2-cell twisty is terminal grammar for "this opens", the same
+          fixed-glyph exception the diff gutter takes. */}
+      <text fg={theme.textMuted} wrapMode="none" width={2} flexShrink={0}>
+        {props.expanded ? "▾ " : "▸ "}
+      </text>
+      <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+        {t("tasks.routinesRow", { count: String(props.count) })}
+      </text>
     </RowShell>
   )
 }

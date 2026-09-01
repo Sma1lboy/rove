@@ -3,8 +3,22 @@
 ## Mission
 
 Give one developer a terminal-native control plane for many parallel AI coding
-tasks. Conductor is the layout reference—task rail, workspace, files/diffs,
+tasks. Conductor's layout is the reference—task rail, workspace, files/diffs,
 status—but Rove is local-first and runs the real interactive engine CLIs.
+
+The reference is the SHAPE, frozen at a date, not a product to follow: Conductor
+left this road on 2026-07-30 (0.78.0, "out with worktrees, in with multiplayer
+cloud workspaces") and now sells cloud microVMs. Reading it as a live ancestor
+would point Rove at a destination its ancestor has already abandoned.
+
+Worktree isolation is likewise no longer a differentiator: Claude Code ships
+`-w` since v2.1.50, and the runtime layer below Rove is occupied — Herdr
+(herdrdev/herdr, Rust, 34k stars, daily builds) already does persistent
+sessions, SSH reattach, agent-to-agent socket calls and first-class worktree
+management. What Rove has that a runtime does not is the PRODUCT layer above
+it: kanban, routines, its own issue store, and a path from a finished branch
+back to `main`. That is the thing to keep sharp. See the issue store (#64,
+#71) for the survey behind this paragraph.
 
 ## Principles
 
@@ -29,12 +43,10 @@ A managed Task owns one Worktree and may own several Terminal Tabs. Project-main
 Tasks reuse the saved repository checkout; directory Tasks reuse a user-owned
 directory. Those two variants do not own a Rove-created worktree or branch.
 
-Archive is non-destructive but stops live hosted sessions for managed and
-directory Tasks; project main cannot be archived. Explicit delete is
-kind-aware: the main row's delete action forgets the saved project while
-keeping its repository and managed Tasks, a directory Task removes only its
-Rove record, and a managed Task removes its Worktree after the dirty-worktree
-safety check before attempting to remove its task branch.
+Explicit delete is kind-aware: the main row's delete action forgets the saved
+project while keeping its repository and managed Tasks, a directory Task
+removes only its Rove record, and a managed Task removes its Worktree after
+the dirty-worktree safety check before attempting to remove its task branch.
 
 ### 3. Process ownership is explicit
 

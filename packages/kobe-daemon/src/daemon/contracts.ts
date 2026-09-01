@@ -1,6 +1,32 @@
 /** Framework-free product contracts consumed by the daemon package. */
 
-export type VendorId = "claude" | "codex" | "copilot" | (string & {})
+import type { ObservedLanguage } from "../prompts/observed-language.ts"
+import type { TaskRoutineLink } from "./automation-contracts.ts"
+
+// Automation ("routine") contracts live in their own module — nothing else in
+// this file refers to them, and they are the one group with their own store,
+// runner, and RPC family. Re-exported here so every existing importer still
+// names them through `contracts.ts`.
+export type {
+  Automation,
+  AutomationPatch,
+  AutomationPrecheck,
+  AutomationPrecheckResult,
+  AutomationRun,
+  AutomationRunStatus,
+  TaskRoutineLink,
+} from "./automation-contracts.ts"
+
+/** Engine id (kobe `VendorId`). Deliberately plain `string`: the daemon
+ *  treats vendor ids as opaque pass-through values and never narrows on
+ *  the built-in literals — the old `"claude" | "codex" | "copilot" |
+ *  (string & {})` union drifted from kobe's list (it missed `kimi`) AND
+ *  its open string branch would have hidden the next drift inside an
+ *  exhaustive-looking switch. Where the daemon DOES need the built-in
+ *  list (plugin engine ids may not shadow a built-in or shipped-contrib
+ *  engine), `plugins/manifest.ts` carries `RESERVED_ENGINE_IDS` as its
+ *  own source of truth, locked to kobe's lists by a kobe-side test. */
+export type VendorId = string
 export type TaskStatus = "backlog" | "in_progress" | "in_review" | "done" | "canceled" | "error"
 
 export interface TaskDeletionState {
@@ -77,12 +103,18 @@ export interface DaemonTask {
   /** Scratch shell task (issue #33): a dir task with no settled cwd, living
    *  in the sidebar's Scratch section; cleared when named or adopted. */
   readonly scratch?: boolean
+  /** Standing session for a routine (issue #91): the one task a
+   *  `persistentSession` automation re-delivers into, folded behind a count
+   *  row in the sidebar instead of a loose task row. */
+  readonly routine?: TaskRoutineLink
   readonly status: TaskStatus
-  readonly archived: boolean
   readonly pinned?: boolean
   readonly vendor?: VendorId
   /** Raw engine launch command; `vendor` carries its resolved protocol. */
   readonly command?: string
+  /** Language this task's user writes in, observed from their own prompts
+   *  (`prompts/observed-language.ts`). Absent means English. */
+  readonly observedLanguage?: ObservedLanguage
   readonly prStatus?: TaskPRStatus
   readonly position?: number
   readonly modelEffort?: string
@@ -93,6 +125,15 @@ export interface DaemonTask {
   readonly linkedWorkItem?: TaskLinkedWorkItem
   /** The kobe session (task + tab) that dispatched this task, when one did. */
   readonly dispatcher?: TaskDispatcher
+  /** The task brief: the full text of the prompt `add --prompt` delivered
+   *  into this task's engine, persisted so it survives the engine's own
+   *  transcript. Verbatim, never truncated. Absent until delivered. */
+  readonly prompt?: string
+  /** The base ref the task branch was cut from (`add --base-branch`),
+   *  persisted so branch signals measure against the real fork point.
+   *  Absent on records that predate the field (signals fall back to a
+   *  base guess). */
+  readonly baseRef?: string
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -107,7 +148,18 @@ export interface LandResult {
    *  explicitly declined (`removeWorktree: false`). `reason` is not
    *  failure-only: it also rides with `removed: true` when the directory went
    *  but clearing the task's worktree path did not. */
-  readonly worktree?: { readonly removed: boolean; readonly reason?: string }
+  readonly worktree?: {
+    readonly removed: boolean
+    readonly reason?: string
+    /** Set when git deregistered the worktree but could not delete its
+     *  directory — the land and its cleanup both succeeded; a directory is
+     *  left on disk that Rove will never list again. */
+    readonly residue?: { readonly path: string; readonly reason: string }
+  }
+  /** Ref anchoring a deleted branch's tip when nothing else reached it (the
+   *  squash-land case). Absent on a `--no-ff` merge and when no branch was
+   *  deleted. */
+  readonly branchAnchor?: { readonly ref: string; readonly commit: string }
 }
 
 export interface AdoptableWorktree {
@@ -135,6 +187,8 @@ export interface DaemonOrchestrator {
     modelEffort?: string
     groupId?: string
     dispatcher?: TaskDispatcher
+    /** Mark this the standing session task of a routine (issue #91). */
+    routine?: TaskRoutineLink
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
@@ -147,18 +201,21 @@ export interface DaemonOrchestrator {
   forgetProject(repo: string): Promise<void>
   setTitle(id: string, title: string): Promise<void>
   setBranch(id: string, branch: string): Promise<void>
+  /** Record the language a task's user writes in, from their own prompt text. */
+  observeLanguage(id: string, text: string): Promise<void>
   setVendor(id: string, vendor: VendorId): Promise<void>
   /** Pin a raw launch command (and its caller-resolved protocol) on a task. */
   setCommand(id: string, command: string, vendor?: VendorId): Promise<void>
   setPinned(id: string, pinned?: boolean): Promise<void>
   moveTask(id: string, delta: -1 | 1): Promise<void>
-  setArchived(id: string, archived?: boolean): Promise<void>
   setStatus(id: string, status: TaskStatus): Promise<void>
   setPRStatus(id: string, status: TaskPRStatus | null): Promise<void>
   /** Stamp the external tracker item a task was started from. */
   setLinkedWorkItem(id: string, item: TaskLinkedWorkItem | null): Promise<void>
   /** Arm (or clear, with `null`) the rate-limit auto-resume schedule. */
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
+  /** Record the task brief (the delivered `add --prompt` text) on the task. */
+  setPrompt(id: string, prompt: string): Promise<void>
   reorderTasks(moves: ReadonlyArray<{ taskId: string; position: number }>): Promise<void>
   deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>
@@ -169,7 +226,6 @@ export interface DaemonOrchestrator {
     options?: {
       strategy?: "merge" | "squash"
       deleteBranch?: boolean
-      archive?: boolean
       removeWorktree?: boolean
       callerCwd?: string
     },
@@ -212,9 +268,45 @@ export interface EngineActivityDetail {
   readonly compact?: { readonly trigger?: "manual" | "auto" }
   readonly subagent?: { readonly type?: string; readonly id?: string }
   readonly note?: string
+  /**
+   * For the `dead` state: how the engine process died, straight off the
+   * pty-host's exit record. `code`/`signal` answer "who killed it" (143 =
+   * 128+SIGTERM, an outside signal, not a self-exit) and `lastLine` is the
+   * last non-blank line of the recorded tail — the 403 / auth / quota text
+   * that was already on disk but reached no UI.
+   */
+  readonly exit?: {
+    readonly code?: number | null
+    readonly signal?: string | null
+    readonly lastLine?: string
+  }
+  /**
+   * Reference to a daemon-owned deferred-prompt record (issue #78 B-layer).
+   * Present only on `prompt_deferred` inbox episodes. The prompt TEXT lives in
+   * the DeferredPromptsStore, never here — this contract describes engine
+   * activity, and a raw prompt is not engine activity.
+   */
+  readonly deferredPrompt?: {
+    readonly id: string
+    readonly layer: "recent-human-write" | "composer-not-empty"
+  }
 }
 
-export type TaskActivityState = "idle" | "running" | "turn_complete" | "rate_limited" | "permission_needed" | "error"
+export type TaskActivityState =
+  | "idle"
+  | "running"
+  | "turn_complete"
+  | "rate_limited"
+  | "permission_needed"
+  | "error"
+  /**
+   * The engine PROCESS died — an exit record exists for the tab's session
+   * (`pty-exits.json`). Distinct from `error`: `error` is an engine that ran
+   * and reported a failed turn, `dead` is an engine that is no longer there.
+   * A killed engine fires no hook at all, so this state can only ever be
+   * written from the exit record, never from `reduceActivity`.
+   */
+  | "dead"
 
 /**
  * The ENGINE half of a turn record (issue #32) — what the vendor's adapter
@@ -252,13 +344,20 @@ export interface AgentTurnRecord extends Omit<AgentTurn, "sessionId"> {
 }
 
 /** States represented by pending Inbox items until handled or the same
- * Terminal Tab starts another turn. */
+ * Terminal Tab starts another turn. Deliberately NOT a subset of
+ * {@link TaskActivityState}: `prompt_deferred` is a queue/ownership state (a
+ * prompt the daemon accepted but could not paste), not an engine activity —
+ * the engine may be idle while a deferred prompt waits for release. */
 export const ATTENTION_INBOX_STATES = [
   "turn_complete",
   "permission_needed",
   "error",
   "rate_limited",
-] as const satisfies readonly TaskActivityState[]
+  "prompt_deferred",
+  /** The engine PROCESS died (pty-host exit record). An episode a user must
+   *  see: nothing else in the queue tells them the agent is simply gone. */
+  "dead",
+] as const
 
 export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]
 
@@ -266,8 +365,19 @@ export function isAttentionInboxState(value: unknown): value is AttentionInboxSt
   return typeof value === "string" && (ATTENTION_INBOX_STATES as readonly string[]).includes(value)
 }
 
-export function attentionInboxItemKey(item: { taskId: string | null; tabId: string | null }): string {
-  return `${item.taskId}\0${item.tabId ?? ""}`
+export function attentionInboxItemKey(item: {
+  taskId: string | null
+  tabId: string | null
+  state?: AttentionInboxState
+}): string {
+  // `prompt_deferred` gets its own lane. Every other episode DESCRIBES the
+  // engine, so one-per-tab is right: a fresh turn-complete should replace the
+  // stale one. A deferred prompt is not a description — the daemon is holding
+  // a human's text and this episode is the only pointer to it, so sharing the
+  // tab's single slot meant the target's next turn silently orphaned the
+  // record (observed 2026-09-01: four stored prompts, an empty inbox).
+  const lane = item.state === "prompt_deferred" ? "\0deferred" : ""
+  return `${item.taskId}\0${item.tabId ?? ""}${lane}`
 }
 
 /** One daemon-owned, durable attention episode for a task's engine tab. */
@@ -281,94 +391,6 @@ export interface AttentionInboxItem {
   readonly unread: boolean
   /** Event time, epoch milliseconds. Stable across daemon/TUI restarts. */
   readonly at: number
-}
-
-/** A shell command run BEFORE an automation's engine starts. A non-zero exit
- *  means "nothing to do" and the run is skipped without spawning an engine —
- *  the cheap way to stop a schedule burning a turn when nothing changed. */
-export interface AutomationPrecheck {
-  readonly command: string
-  readonly timeoutSeconds: number
-}
-
-/**
- * One scheduled agent task: a cron rule + a prompt + a repo. Every firing
- * creates a FRESH task (worktree + branch + engine session), so an automation
- * run is an ordinary task you can open and keep talking to.
- *
- * `nextRunAt` is the whole scheduling story: an absolute timestamp on disk,
- * never an in-memory timer. A daemon restart needs no re-arm pass — the first
- * sweep after boot re-reads it (same shape as `Task.quotaResume`).
- */
-export interface Automation {
-  readonly id: string
-  readonly name: string
-  /** Absolute repo root; resolved once at create time. */
-  readonly repo: string
-  /** Delivered as the engine's launch-time first message. */
-  readonly prompt: string
-  readonly vendor?: VendorId
-  /** Five-field cron, evaluated in the daemon host's local time. */
-  readonly schedule: string
-  readonly precheck?: AutomationPrecheck
-  readonly baseRef?: string
-  readonly enabled: boolean
-  /** ISO-8601. The single source of truth for when this fires next. */
-  readonly nextRunAt: string
-  /** How late a missed occurrence may still run. Older ones are skipped. */
-  readonly missedRunGraceMinutes: number
-  readonly lastRunAt?: string
-  readonly createdAt: string
-  readonly updatedAt: string
-}
-
-/**
- * Why a run did or did not produce work. The four "didn't run" reasons are
- * deliberately distinct: unattended automation is only trustworthy if the user
- * can tell "nothing to do" (`skipped_precheck`, healthy) from "it broke"
- * (`dispatch_failed`, needs a human) at a glance.
- */
-export type AutomationRunStatus =
-  | "dispatched"
-  | "skipped_precheck"
-  | "skipped_missed"
-  | "skipped_unavailable"
-  | "dispatch_failed"
-
-export interface AutomationPrecheckResult {
-  readonly exitCode: number | null
-  readonly timedOut: boolean
-  readonly stdout: string
-  readonly stderr: string
-  readonly durationMs: number
-}
-
-export interface AutomationRun {
-  readonly id: string
-  readonly automationId: string
-  /** Monotonic per automation; survives retention pruning. */
-  readonly runNumber: number
-  /** When this occurrence was SUPPOSED to run — not when it actually did. */
-  readonly scheduledFor: string
-  readonly status: AutomationRunStatus
-  readonly trigger: "scheduled" | "manual"
-  readonly taskId?: string
-  readonly precheckResult?: AutomationPrecheckResult
-  readonly error?: string
-  /** ISO-8601 event time. */
-  readonly at: string
-}
-
-/** Mutable fields of an automation. `schedule` changes recompute `nextRunAt`. */
-export interface AutomationPatch {
-  readonly name?: string
-  readonly prompt?: string
-  readonly vendor?: VendorId
-  readonly schedule?: string
-  readonly precheck?: AutomationPrecheck | null
-  readonly baseRef?: string | null
-  readonly enabled?: boolean
-  readonly missedRunGraceMinutes?: number
 }
 
 export interface UpdateInfo {

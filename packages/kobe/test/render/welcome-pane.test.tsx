@@ -30,6 +30,7 @@ describe("WelcomePane", () => {
     // Default keymap: task.new = n, help.open = F1 — resolved live, not hardcoded.
     expect(out).toContain("creates your first task")
     expect(out).toContain("shows every shortcut")
+    expect(out).toContain("Each task creates its own git worktree")
     expect(out).toContain("claude · codex")
     // Healthy environment → no doctor escalation.
     expect(out).not.toContain("rove doctor")
@@ -57,34 +58,17 @@ function fakeOrchestrator(tasks: Task[]): RemoteOrchestrator {
 }
 
 describe("ShowWorkspace empty state", () => {
-  it("shows the welcome panel when no unarchived task exists", async () => {
-    const { frame } = await renderComponent(
-      <ShowWorkspace
-        task={undefined}
-        worktree={null}
-        orchestrator={fakeOrchestrator([{ id: "t1", archived: true } as unknown as Task])}
-        focused={false}
-        onRequestFocus={NOOP}
-        onEditorTabReady={NOOP}
-        onEngineSendReady={NOOP}
-        onDiffTabReady={NOOP}
-        onQuickFork={NOOP}
-      />,
-    )
-    await act(async () => {})
-    expect(await frame()).toContain("Welcome to Rove")
-  })
-
   it("keeps the select-a-task line while tasks exist", async () => {
     const { frame } = await renderComponent(
       <ShowWorkspace
         task={undefined}
         worktree={null}
-        orchestrator={fakeOrchestrator([{ id: "t1", archived: false } as unknown as Task])}
+        orchestrator={fakeOrchestrator([{ id: "t1" } as unknown as Task])}
         focused={false}
         onRequestFocus={NOOP}
         onEditorTabReady={NOOP}
         onEngineSendReady={NOOP}
+        onEnginePasteReady={NOOP}
         onDiffTabReady={NOOP}
         onQuickFork={NOOP}
       />,

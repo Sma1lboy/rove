@@ -7,12 +7,11 @@
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { withClaudeSessionId } from "../../engine/interactive-command.ts"
+import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-presets.ts"
+
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
-import { verifiedSelfSession } from "./dispatcher.ts"
 
 // Kept for existing callers in this directory; new callers should import from
 // daemon-session.ts directly to keep the daemon/session boundary clean.
@@ -35,12 +34,24 @@ import {
   publishCliTabSnapshot,
   readTabsSnapshot,
 } from "./tab-snapshot.ts"
-import { ApiError, type ApiRuntime, type DeliveredPrompt, type PromptDeliveryOps, type PromptTarget } from "./types.ts"
+import {
+  ApiError,
+  type ApiRuntime,
+  type DeliveredPrompt,
+  type PromptDeferralSink,
+  type PromptDeliveryOps,
+  type PromptTarget,
+} from "./types.ts"
 
 /** Ensure and address the task's hosted engine session (`target.tab` routes:
  *  undefined = canonical, "new" = mint + spawn a fresh tab, "tab-N" = that
  *  exact alive tab only). */
-async function deliverHosted(target: PromptTarget, worktree: string, prompt: string): Promise<DeliveredPrompt> {
+async function deliverHosted(
+  target: PromptTarget,
+  worktree: string,
+  prompt: string,
+  defer?: PromptDeferralSink,
+): Promise<DeliveredPrompt> {
   let host: Awaited<ReturnType<typeof ensurePtyHost>>
   try {
     host = await ensurePtyHost()
@@ -61,19 +72,25 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
         vendor: target.vendor,
         effort: target.modelEffort,
       })[0]
-      return await deliverToExactTab(host.rpc, target.id, target.tab, worktree, prompt, { engineBin })
+      return await deliverToExactTab(host.rpc, target.id, target.tab, worktree, prompt, {
+        engineBin,
+        vendor: target.vendor,
+        defer,
+      })
     }
     const newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
     // A `--tab new` pin (command and/or protocol) applies to THIS launch
     // only; the task's own engine is left alone.
     const launchVendor = target.tabVendor ?? target.vendor
     const launchCommand = target.tabCommand ?? (target.tabVendor ? undefined : target.command)
-    // Pin the conversation's session id up front (claude only — the same
-    // `withClaudeSessionId` contract the TUI launches with), so a LATER
-    // reattach after a pty-host restart can resume THIS conversation
-    // instead of opening a blank one. The id lands in the persisted tab
-    // snapshot below once the session actually started.
-    const { argv, sessionId } = withClaudeSessionId(
+    // Pin the conversation's session id up front when the engine accepts
+    // one (the same `withPinnedSessionId` contract the TUI launches with),
+    // so a LATER reattach after a pty-host restart can resume THIS
+    // conversation instead of opening a blank one. Engines that mint their
+    // own id (kimi/codex) answer null here and are discovered post-spawn
+    // instead. The id lands in the persisted tab snapshot below once the
+    // session actually started.
+    const { argv, sessionId } = withPinnedSessionId(
       engineLaunchArgv({ command: launchCommand, vendor: launchVendor, effort: target.modelEffort }),
       launchVendor,
     )
@@ -86,16 +103,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       worktreePath: worktree,
       shell: process.env.SHELL?.trim() || "/bin/zsh",
       argv,
-      // Spawner identity is resolved HERE, in the CLI process — an `add` run
-      // from inside an engine tab carries the spawner's $KOBE_TASK_ID, and
-      // the coda tells the new agent to `send` its outcome back
-      // (repo-init.ts). VERIFIED, not raw env: an inherited id would write a
-      // stranger's task into the worker's own instructions (issue #24), which
-      // is the one place a wrong address survives even after the record is
-      // right — it's baked into the prompt, not read back from the store.
-      promptIntent: target.newTask
-        ? { kind: "new-task", prompt, spawnerTaskId: (await verifiedSelfSession())?.taskId }
-        : { kind: "explicit", prompt },
+      promptIntent: target.newTask ? { kind: "new-task", prompt } : { kind: "explicit", prompt },
       tabId: newTab,
     })
     const result = await deliverHostedPrompt(
@@ -106,9 +114,15 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
       launch,
       {
         forceNew: newTab !== undefined,
+        vendor: launchVendor,
+        defer,
       },
     )
-    if (result.started && !result.engineReady) {
+    // `started && !delivered` is the real failure: the session was created but
+    // the prompt never reached it. `engineReady` no longer stands in for that
+    // — it is now an independent readiness observation, and an engine that
+    // never announced bracketed paste can still have been written to.
+    if (result.started && !result.delivered && !result.deferred) {
       throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
     }
     // Make the session visible to the sidebar tree, which lists a worktree's
@@ -135,7 +149,7 @@ async function deliverHosted(target: PromptTarget, worktree: string, prompt: str
 }
 
 const realPromptDeliveryOps: PromptDeliveryOps = {
-  deliverHosted,
+  deliverHosted: (target, worktree, prompt, defer) => deliverHosted(target, worktree, prompt, defer),
 }
 
 export async function deliverPrompt(
@@ -151,7 +165,33 @@ export async function deliverPrompt(
   }
   if (!worktree) throw new ApiError(`task ${target.id} has no worktree`, "NO_WORKTREE")
 
-  const hosted = await ops.deliverHosted(target, worktree, prompt)
+  // Learn the user's language from the first prompt of a NEW task, so text
+  // Rove injects later — when no user message is in hand (a quota resume
+  // fired by a timer) — comes out in the language they actually write.
+  // Scoped to task creation: a follow-up `send` is a different question
+  // (which of several tabs, whose text) and is not answered here.
+  //
+  // Best-effort: an observation must never block the prompt it came from.
+  if (target.newTask) {
+    await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
+  }
+
+  // The deferral sink hands a composer-busy prompt to daemon ownership
+  // (issue #78 B-layer): the daemon stores the text and queues an inbox
+  // episode, and this send reports accepted-but-deferred — a SUCCESS the
+  // caller must NOT retry (a retry would stack a duplicate in the queue).
+  const defer: PromptDeferralSink = {
+    defer: (info) =>
+      client
+        .request<{ id: string }>("deferredPrompt.file", {
+          taskId: info.taskId,
+          tabId: info.tabId,
+          prompt: info.prompt,
+          layer: info.layer,
+        })
+        .then((res) => res.id),
+  }
+  const hosted = await ops.deliverHosted(target, worktree, prompt, defer)
   if (!hosted) throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
   return hosted
 }
@@ -207,7 +247,8 @@ export const defaultApiRuntime: ApiRuntime = {
   },
   readWorktreeChanges: async (worktreePath) =>
     (await import("../../tui/panes/sidebar/worktree-changes.ts")).readWorktreeChanges(worktreePath),
-  readBranchSignals: async (worktreePath) => (await import("./branch-signals.ts")).readBranchSignals(worktreePath),
+  readBranchSignals: async (worktreePath, recordedBaseRef) =>
+    (await import("./branch-signals.ts")).readBranchSignals(worktreePath, recordedBaseRef),
   tearDownSession: async (taskId) => {
     const host = await openPtyHost()
     if (host) {

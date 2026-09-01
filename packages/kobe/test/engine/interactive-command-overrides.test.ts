@@ -19,7 +19,6 @@ import {
   engineDisplayName,
   engineNameKey,
   interactiveEngineCommand,
-  withClaudeSessionId,
   withEngineEffort,
   withEngineTerminalTitle,
 } from "../../src/engine/interactive-command.ts"
@@ -112,40 +111,6 @@ describe("withEngineEffort", () => {
     expect(withEngineEffort(["claude"], undefined, "high")).toEqual(["claude"])
     expect(withEngineEffort(["codex"], "codex", "  ")).toEqual(["codex"])
     expect(withEngineEffort(["codex"], "codex", undefined)).toEqual(["codex"])
-  })
-})
-
-describe("withClaudeSessionId", () => {
-  it("appends a fresh --session-id <uuid> to a claude launch", () => {
-    const { argv, sessionId } = withClaudeSessionId(["claude"], "claude")
-    expect(sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
-    expect(argv).toEqual(["claude", "--session-id", sessionId])
-  })
-
-  it("defaults an undefined vendor to claude", () => {
-    const { sessionId } = withClaudeSessionId(["claude"], undefined)
-    expect(sessionId).not.toBeNull()
-  })
-
-  it("leaves non-claude vendors untouched", () => {
-    expect(withClaudeSessionId(["codex"], "codex")).toEqual({ argv: ["codex"], sessionId: null })
-  })
-
-  it("never double-controls a session — a command with --resume/-c/--session-id wins", () => {
-    for (const flag of ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"]) {
-      const argv = ["claude", flag, "x"]
-      expect(withClaudeSessionId(argv, "claude")).toEqual({ argv, sessionId: null })
-    }
-  })
-
-  it("recognizes the attached --flag=value form the command parser preserves", () => {
-    // `parseEngineCommand` keeps `--resume=<id>` as ONE token; an exact-token
-    // guard misses it and appends a second session control, which claude
-    // refuses to launch (issue #58).
-    for (const flag of ["--session-id", "--resume", "--from-pr"]) {
-      const argv = ["claude", `${flag}=x`]
-      expect(withClaudeSessionId(argv, "claude")).toEqual({ argv, sessionId: null })
-    }
   })
 })
 

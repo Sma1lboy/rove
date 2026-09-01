@@ -21,7 +21,7 @@
  * after code changes) never touches running sessions, exactly like a
  * persistent terminal server outliving the TUI. An exited session is kept,
  * scrollback intact, so a reattach can still show how the child died; it is
- * removed by an explicit `kill` or the task-archive sweep (`sweepTasks`).
+ * removed by an explicit `kill` or task deletion (`sweepTasks`).
  *
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
@@ -30,7 +30,7 @@
  * thaws each session as a dead "restored" corpse with its scrollback, and
  * the first `open` respawns the child in place using the caller's launch
  * spec (the TUI's dead-reattach passes its engine `--resume` argv). Only
- * an explicit `kill`, the archive sweep, or `rove reset` (which wipes the
+ * an explicit `kill`, task deletion, or `rove reset` (which wipes the
  * store) forgets a session for good.
  */
 
@@ -55,10 +55,24 @@ export type { PtyHostStats, PtySessionInfo } from "./pty-observability.ts"
 export { foldOscTitle } from "./pty-observability.ts"
 export type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 
+/** Writes at or above this size get a `daemon.log` line. Above the tty's
+ *  1024-byte canonical buffer, so anything big enough to have been silently
+ *  truncated by the old delivery path is recorded. */
+const LOGGED_WRITE_BYTES = 1024
+
 /** Per-session scrollback cap — same order as the web PTY sidecar's 256KB. */
 export const DEFAULT_SCROLLBACK_CAP = 512 * 1024
 /** Raw ring tail captured into a session's death record. */
 const EXIT_TAIL_BYTES = 16 * 1024
+/** Default grace after a human keystroke before headless delivery is allowed. */
+const DEFAULT_HUMAN_WRITE_QUIET_MS = 10_000
+
+function resolveHumanWriteQuietMs(): number {
+  const raw = process.env.KOBE_PTY_HUMAN_WRITE_QUIET_MS
+  if (raw === undefined) return DEFAULT_HUMAN_WRITE_QUIET_MS
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_HUMAN_WRITE_QUIET_MS
+}
 
 /** Minimum gap between a session's periodic freeze writes (crash-loss bound).
  *  Exits and shutdowns flush immediately; this only throttles the live stream. */
@@ -68,9 +82,11 @@ export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
   private readonly opts: PtyHostOptions
   private readonly scrollbackCap: number
+  private readonly humanWriteQuietMs: number
   private parkRestoreDeltas = 0
   private parkRestoreFallbacks = 0
-  /** One session's child-process lifecycle (split out for the file-size cap). */
+  /** One session's child-process lifecycle — `pty-child-controller.ts` owns a
+   *  SINGLE child; this class owns the set of them. */
   private readonly childController: PtyChildController
   /** The one warm-spare shell slot (see `pty-warm.ts`). */
   private readonly warmSpare: WarmSpare
@@ -78,6 +94,7 @@ export class PtyHost {
   constructor(opts: PtyHostOptions = {}) {
     this.opts = opts
     this.scrollbackCap = opts.scrollbackCap ?? DEFAULT_SCROLLBACK_CAP
+    this.humanWriteQuietMs = opts.humanWriteQuietMs ?? resolveHumanWriteQuietMs()
     this.childController = new PtyChildController({
       driver: opts.driver,
       scrollbackCap: this.scrollbackCap,
@@ -221,15 +238,33 @@ export class PtyHost {
     this.warmSpare.warm(cwd, shell, cols, rows)
   }
 
-  /** Forward client input (already UTF-8 text from xterm) to the child. */
-  write(key: string, data: string): void {
+  /** Forward client input (already UTF-8 text from xterm) to the child.
+   *  `client` identifies the connection; writes from attached sinks are
+   *  recorded as human typing for the delivery gate. */
+  write(key: string, data: string, client?: object): void {
     const session = this.sessions.get(key)
     if (!session?.alive || data.length === 0) return
+    if (client !== undefined && session.sinks.has(client)) {
+      session.lastHumanWriteMs = Date.now()
+    }
+    // Audit trail for prompt delivery. `daemon.log` recorded activity only
+    // once the daemon OBSERVED engine output, so there was no record of a
+    // prompt having been written at all — which made a delivered prompt and
+    // a lost one indistinguishable after the fact. Only large writes are
+    // logged: keystrokes would drown the log, and size is what the
+    // truncation bug turned on.
+    if (data.length >= LOGGED_WRITE_BYTES) {
+      this.opts.log?.("pty", `wrote ${data.length} bytes to ${key}`)
+    }
     try {
       session.proc?.write(data)
-    } catch {
-      // A terminal stream error is not proof the subprocess exited. Bun's
-      // `proc.exited` promise below is the single source of truth.
+    } catch (error) {
+      // Still not fatal — a terminal stream error is not proof the subprocess
+      // exited, and `proc.exited` remains the single source of truth for that.
+      // But swallowing it SILENTLY made a failed write indistinguishable from
+      // a successful one all the way up to the API's `delivered: true`, so it
+      // gets a log line even though it does not change control flow.
+      this.opts.log?.("pty", `write failed on ${key} (${data.length} bytes): ${String(error)}`)
     }
   }
 
@@ -245,7 +280,7 @@ export class PtyHost {
     }
   }
 
-  /** End the child AND forget the session (explicit close / archive). */
+  /** End the child AND forget the session (explicit close / task deletion). */
   kill(key: string): Promise<void> {
     const session = this.sessions.get(key)
     if (!session) return Promise.resolve()
@@ -259,7 +294,7 @@ export class PtyHost {
   /**
    * Re-key a running session (`pty.rename`) — the scratch-fold move (issue
    * #40): the shell keeps running untouched, only its ownership label
-   * changes, so the task-archive sweep and every future attach see it under
+   * changes, so task-deletion sweeps and every future attach see it under
    * the adopting task. No-ops (false) when the source is missing or the
    * target key is taken — the caller must pick a free tab id first. The
    * old key's freeze record moves with it; attached sinks keep streaming
@@ -312,7 +347,7 @@ export class PtyHost {
 
   /** Read-only ring peek (`pty.peek`) — no attach, no spawn, no resize. */
   peek(key: string, sinceOffset?: number): PtyPeekResult {
-    return peekRing(this.sessions.get(key), sinceOffset)
+    return peekRing(this.sessions.get(key), sinceOffset, this.humanWriteQuietMs)
   }
 
   /** Retention facts for diagnostics; no terminal bytes leave the host. */
@@ -321,9 +356,9 @@ export class PtyHost {
   }
 
   /**
-   * Task-archive sweep: kill every session whose task id (the segment of
+   * Task-deletion sweep: kill every session whose task id (the segment of
    * the key before the first `::` — see the TUI's `tabPtyKey`) is no
-   * longer a live task. Keeps a headless `kobe api task-archive` from
+   * longer a live task. Keeps a headless task deletion from
    * leaking an engine that runs forever with no owner.
    */
   sweepTasks(liveTaskIds: ReadonlySet<string>): void {
@@ -345,7 +380,7 @@ export class PtyHost {
    * FIRST so the next host incarnation can restore it, then end the live
    * children. Unlike killAll this never DROPS freeze records — a host
    * restart is exactly what the freeze store exists for. Explicit kills
-   * (tab close, archive sweep, `rove reset`'s store wipe) stay gone.
+   * (tab close, task-deletion sweep, `rove reset`'s store wipe) stay gone.
    */
   async shutdown(): Promise<void> {
     this.flushFrozen()

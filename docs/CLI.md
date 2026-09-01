@@ -33,15 +33,27 @@ data. First launch migrates supported legacy data from `~/.kobe` (see
 [Where state lives](#where-state-lives)).
 
 ```bash
-rove update            # latest
+rove update            # newest build on your channel
 rove update 0.7.90     # pin a version
+rove update nightly    # switch to the nightly channel (also: --channel nightly)
+rove update latest     # switch back to stable
 rove update list       # browse recent versions (also: --list)
 rove update dry-run    # print the command without running it (also: --dry-run)
 ```
 
+There are two channels. `latest` is the stable line — batched, reviewed
+releases. `nightly` is an automated daily cut from `main`: it passes the same
+test gates, but its contents haven't been reviewed as a set, so expect rough
+edges in exchange for changes landing days earlier.
+
+You don't configure a channel — the build you're running *is* the channel, so
+update checks follow whichever one you installed from, and switching is just
+installing from the other. `rove update` with no arguments never moves you
+between channels.
+
 rove updates using whichever package manager owns the `rove` on your `PATH`,
 so the new version can't land in a shadowed prefix. Manual fallback:
-`npm install -g @sma1lboy/rove@latest`.
+`npm install -g @sma1lboy/rove@latest` (or `@nightly`).
 
 Some versions are marked breaking. Installing across one prints a heads-up,
 and the next launch asks you to run `rove reset` first. Worktrees are never
@@ -85,7 +97,8 @@ Commands:
   skill <verb>            Install the Rove agent skill (install|status|command|print)
   plugin <verb>           Install and run plugins (install|link|list|action|…)
   feedback                Send feedback to GitHub Discussions
-  update [version|list]   Self-update Rove, or browse versions with `list`
+  update [version|channel|list]   Self-update Rove, switch channel, or browse
+                          versions with `list`
 
 Options:
   -v, --version           Print version
@@ -189,7 +202,7 @@ rove export [--json | --csv | --format <json|csv|table>]   # --format=<fmt> work
 
 Prints your task list. Read-only and **works with the daemon down**, which is
 what makes it different from `rove api list`. Columns: `id, title, status,
-archived, vendor, branch, repo, worktreePath`. Default is JSON; `--format
+vendor, branch, repo, worktreePath`. Default is JSON; `--format
 table` aligns it for humans.
 
 ## config
@@ -287,7 +300,16 @@ rove doctor [--report] [--fix]
 ```
 
 Read-only check of your build, terminal, git, engine CLIs and logins, daemon,
-running sessions, agent skill, and state files. The plain run never changes
+running sessions, agent skill, and state files. The terminal section names
+`TERM`/`TERM_PROGRAM`/`COLORTERM`, whether you are inside a multiplexer (tmux,
+zellij, screen — all three rewrite keys on the way in), and asks the terminal
+live whether it speaks the kitty keyboard protocol. That last answer settles
+keyboard reports on its own: without the protocol, `ctrl+h`/`ctrl+j` arrive as
+plain C0 bytes and the two split chords cannot be encoded at all (see
+[Keybindings](./KEYBINDINGS.md)). Piped output skips the live probe rather
+than writing escape bytes into the pipe. Every registered engine gets a
+row — the built-ins plus any engine you added — so a login Rove can't read is
+reported as such rather than as a missing account. The plain run never changes
 anything. `--report` also writes a bug bundle (diagnosis + recent logs + env)
 and prints its path; attach that to bug reports.
 

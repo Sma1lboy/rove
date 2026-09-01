@@ -1,13 +1,17 @@
+import { spawn } from "node:child_process"
 import { existsSync, mkdtempSync, rmSync, unlinkSync, utimesSync, writeFileSync } from "node:fs"
 import { type Server, createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
   ensureDaemonReachable,
+  isStaleInstallError,
+  probeDaemonSocket,
   resolveKobeSpawn,
   testDaemonResponds,
   tryAcquireSpawnLock,
 } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import { isProcessAlive } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { afterEach, describe, expect, it } from "vitest"
 
 // Short paths: macOS caps unix-socket paths at ~104 chars, and tmpdir() can
@@ -31,6 +35,31 @@ describe("resolveKobeSpawn", () => {
       "daemon",
       "start",
     ])
+  })
+
+  // Issue #96. `bun`/`node` hold an entry open by inode, so uninstalling
+  // Rove out from under a running process leaves it alive on a path that no
+  // longer exists — `/opt/homebrew/lib/node_modules/@sma1lboy/` was gone
+  // while a GUI kept running from it (owner's machine, 2026-09-01). The
+  // failure has to be DISTINGUISHABLE from an ordinary spawn failure,
+  // because the two want opposite handling: retry a transient one, stop on
+  // this one.
+  it("throws an identifiable StaleInstallError when its own install is gone", () => {
+    const gone = "/opt/homebrew/lib/node_modules/@sma1lboy/rove/dist/client/daemon-process.js"
+    let thrown: unknown
+    try {
+      resolveKobeSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" }, gone)
+    } catch (err) {
+      thrown = err
+    }
+    expect(isStaleInstallError(thrown)).toBe(true)
+    // And it names the remedy, since waiting is not one.
+    expect((thrown as Error).message).toContain("npm install -g @sma1lboy/rove")
+  })
+
+  it("does not mistake an intact install for a stale one", () => {
+    expect(isStaleInstallError(new Error("daemon did not start"))).toBe(false)
+    expect(isStaleInstallError(undefined)).toBe(false)
   })
 })
 
@@ -89,6 +118,79 @@ describe("testDaemonResponds", () => {
     expect(await testDaemonResponds(path, 300)).toBe(false)
   })
 
+  // CONTRACT CHANGE, 2026-08-30 (issue #83). This was a characterization
+  // test asserting "alive" — pinned as the behavior that shipped, with a
+  // note saying it was not the DESIRED behavior. It is now the assertion it
+  // always wanted to be.
+  //
+  // Before: the hello was `.catch(() => true)`, so a peer that dropped the
+  // connection counted as having ANSWERED. A daemon in its shutdown path
+  // does exactly that (`server.ts` close() destroys every client socket
+  // after broadcasting `daemon.stopping`), so a probe landing in that
+  // window reported a healthy daemon and handed its caller a socket that
+  // disappeared milliseconds later.
+  //
+  // After: a connection the peer drops before answering is `absent`. Not
+  // `wedged` — a closing daemon is LEAVING, so the caller should stop+spawn
+  // (what absent means), whereas wedged makes `ensureDaemonReachable` throw
+  // instead of recover when called from inside an engine session.
+  it("reports a connection dropped mid-hello as absent, not alive", async () => {
+    const path = await listen((sock) => {
+      setTimeout(() => sock.destroy(), 50)
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("absent")
+  })
+
+  // The shutdown shape verbatim: broadcast `daemon.stopping`, THEN destroy
+  // the socket. The event frame is not a response to our hello, so it must
+  // not be mistaken for one — the drop still decides the verdict.
+  it("reports a daemon that broadcasts daemon.stopping then drops as absent", async () => {
+    const path = await listen((sock) => {
+      sock.on("data", () => {
+        sock.write(`${JSON.stringify({ type: "event", name: "daemon.stopping", payload: {} })}\n`)
+        setTimeout(() => sock.destroy(), 10)
+      })
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("absent")
+  })
+
+  // The other half of the contract, and the reason the discriminator is
+  // "the CONNECTION died" rather than "the hello promise rejected". A daemon
+  // on an incompatible protocol answers hello with an ERROR frame: the
+  // promise rejects, but the daemon is running and serving other clients.
+  // Reading that as absent would send the caller into stop+spawn — killing
+  // a live daemon out from under its attached TUI, which is precisely the
+  // split-brain succession this file's scar tissue exists to prevent.
+  it("still counts a version-mismatch error reply as alive", async () => {
+    const path = await listen((sock) => {
+      sock.on("data", (chunk) => {
+        for (const line of chunk.toString().split("\n").filter(Boolean)) {
+          const frame = JSON.parse(line) as { id: string; name: string }
+          if (frame.name !== "hello") continue
+          sock.write(
+            `${JSON.stringify({
+              type: "response",
+              id: frame.id,
+              error: { name: "Error", message: "daemon is protocol v9; this client is v2. Upgrade Rove." },
+            })}\n`,
+          )
+        }
+      })
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("alive")
+  })
+
+  // A daemon that answers and only THEN closes (the ordinary case where our
+  // own `probe.close()` races the peer's teardown) answered — it is alive.
+  // The drop only decides the verdict when it beats the reply.
+  it("counts a reply followed by a drop as alive", async () => {
+    const path = await listen((sock) => {
+      helloResponder(sock)
+      setTimeout(() => sock.destroy(), 100)
+    })
+    expect(await probeDaemonSocket(path, 1000)).toBe("alive")
+  })
+
   it("is false when no daemon is listening", async () => {
     expect(await testDaemonResponds(join(SOCK_DIR, `kobe-dpr-absent-${process.pid}.sock`), 300)).toBe(false)
   })
@@ -130,6 +232,31 @@ describe("tryAcquireSpawnLock", () => {
   })
 })
 
+/**
+ * Point BOTH env namespaces at the test's throwaway paths, and hand back a
+ * restore function. Writing only `KOBE_*` is not isolation: `readRoveEnv`
+ * prefers `ROVE_*`, so an inherited `ROVE_DAEMON_SOCKET_PATH` would quietly
+ * aim these tests at the developer's real daemon. `undefined` clears a pair,
+ * which is how a test escapes `insideEngineSession()` — this suite itself
+ * normally runs inside a Rove engine tab, where the task id is set.
+ */
+function overrideRoveEnv(vars: Record<string, string | undefined>): () => void {
+  const saved: [string, string | undefined][] = []
+  for (const [suffix, value] of Object.entries(vars)) {
+    for (const name of [`ROVE_${suffix}`, `KOBE_${suffix}`]) {
+      saved.push([name, process.env[name]])
+      if (value === undefined) Reflect.deleteProperty(process.env, name)
+      else process.env[name] = value
+    }
+  }
+  return () => {
+    for (const [name, value] of saved) {
+      if (value === undefined) Reflect.deleteProperty(process.env, name)
+      else process.env[name] = value
+    }
+  }
+}
+
 describe("ensureDaemonReachable under a held spawn lock", () => {
   it("waits for the winner's daemon instead of stacking a second stop+spawn", async () => {
     // Two clients race after the same daemon drop (the 2026-08-11 twin
@@ -137,14 +264,11 @@ describe("ensureDaemonReachable under a held spawn lock", () => {
     // winner's daemon answers, and never releases the winner's lock.
     const dir = mkdtempSync(join(tmpdir(), "kobe-spawn-wait-"))
     const socketPath = join(SOCK_DIR, `kobe-dpr-wait-${process.pid}.sock`)
-    const saved = {
-      sock: process.env.KOBE_DAEMON_SOCKET_PATH,
-      pid: process.env.KOBE_DAEMON_PID_PATH,
-      home: process.env.KOBE_HOME_DIR,
-    }
-    process.env.KOBE_DAEMON_SOCKET_PATH = socketPath
-    process.env.KOBE_DAEMON_PID_PATH = join(dir, "daemon.pid")
-    process.env.KOBE_HOME_DIR = dir
+    const restoreEnv = overrideRoveEnv({
+      DAEMON_SOCKET_PATH: socketPath,
+      DAEMON_PID_PATH: join(dir, "daemon.pid"),
+      HOME_DIR: dir,
+    })
     const lock = join(dir, "daemon.pid.spawn-lock")
     writeFileSync(lock, "")
     try {
@@ -158,15 +282,196 @@ describe("ensureDaemonReachable under a held spawn lock", () => {
       // Still the winner's lock — the waiter neither spawned nor released it.
       expect(existsSync(lock)).toBe(true)
     } finally {
-      for (const [env, value] of [
-        ["KOBE_DAEMON_SOCKET_PATH", saved.sock],
-        ["KOBE_DAEMON_PID_PATH", saved.pid],
-        ["KOBE_HOME_DIR", saved.home],
-      ] as const) {
-        if (value === undefined) Reflect.deleteProperty(process.env, env)
-        else process.env[env] = value
-      }
+      restoreEnv()
       rmSync(dir, { recursive: true, force: true })
     }
   })
+})
+
+/**
+ * A daemon stand-in that is BUSY rather than broken: it accepts connections
+ * and records every request name it is asked for, but stays silent for the
+ * first `silentConnections` clients — long enough to blow the hello deadline
+ * twice — before answering `hello` normally, like a daemon that has caught
+ * up on its backlog.
+ *
+ * Silence is per-connection and decided when the connection opens, so the
+ * handover is driven by the client's own probe sequence rather than by a
+ * timer. It must never DESTROY a connection to simulate the wedge: the
+ * client counts a mid-flight close as a reply (`.catch(() => true)`), which
+ * reports a silent daemon as "alive" and skips the code under test entirely.
+ */
+function busyThenHealthy(silentConnections: number, seen: string[]) {
+  let connections = 0
+  return (sock: import("node:net").Socket): void => {
+    connections += 1
+    const answering = connections > silentConnections
+    sock.on("data", (chunk) => {
+      for (const line of chunk.toString().split("\n").filter(Boolean)) {
+        const frame = JSON.parse(line) as { id: string; name: string }
+        seen.push(frame.name)
+        if (answering && frame.name === "hello") {
+          sock.write(`${JSON.stringify({ type: "response", id: frame.id, payload: { protocolVersion: 2 } })}\n`)
+        }
+      }
+    })
+  }
+}
+
+describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
+  it("waits out a live-but-slow daemon instead of stopping it", async () => {
+    // The 2026-08-29 succession storm: a busy daemon misses the hello
+    // deadline, the client concludes it is dead and kills it, the
+    // replacement's arrival makes the old one self-stop, every client
+    // reconnects at once onto a cold-starting daemon, repeat — eleven
+    // successions in fifty minutes.
+    //
+    // What must hold is an ACTION, not a duration: a daemon whose PROCESS is
+    // alive must not be stopped merely for being slow. So the stand-in is a
+    // real live process plus a socket that logs what it is asked for, and
+    // both halves of "we did not kill it" are asserted directly —
+    // `daemon.stop` was never sent, and the process is still running after.
+    //
+    // Two earlier versions asserted proxies and stayed green with the fix
+    // deleted, so both traps are pinned here: a pidfile naming THIS process
+    // is skipped by the guard (`livePid !== process.pid`) AND by
+    // `stopDaemonProcess`, leaving nothing at risk; and destroying the
+    // probe's own connection makes `probeDaemonSocket` read the close as a
+    // reply and return "alive", so the branch under test is never entered.
+    const dir = mkdtempSync(join(tmpdir(), "kobe-busy-daemon-"))
+    const socketPath = join(SOCK_DIR, `kobe-dpr-busy-${process.pid}.sock`)
+    const pidPath = join(dir, "daemon.pid")
+    const restoreEnv = overrideRoveEnv({
+      DAEMON_SOCKET_PATH: socketPath,
+      DAEMON_PID_PATH: pidPath,
+      HOME_DIR: dir,
+      // Cleared, or this measures nothing: inside an engine session
+      // `ensureDaemonReachable` throws on a wedged socket before it ever
+      // reaches the liveness check.
+      TASK_ID: undefined,
+      TAB_ID: undefined,
+    })
+
+    // The busy daemon's process. A real child, because the whole question is
+    // what the OS says about a pid that is NOT this one.
+    const busyDaemon = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+    const busyPid = busyDaemon.pid
+
+    // Two silent probes: `ensureDaemonReachable` spends one hello deadline
+    // before taking the spawn lock and another re-probing under it. The
+    // third client is whoever runs next — the grace-window poll if the
+    // daemon is given one, `stopDaemonProcess` if it is not.
+    const seen: string[] = []
+    await listenAt(socketPath, busyThenHealthy(2, seen))
+
+    try {
+      expect(busyPid).toBeGreaterThan(0)
+      writeFileSync(pidPath, String(busyPid))
+
+      // Capture rather than propagate, so the invariant below is what
+      // reports the failure. Letting the throw escape here would surface as
+      // "daemon did not start" — the downstream symptom of having killed the
+      // daemon, which names neither the rule that was broken nor this bug.
+      const outcome = await ensureDaemonReachable().then(
+        (value) => ({ value, error: undefined }),
+        (error: unknown) => ({ value: undefined, error }),
+      )
+
+      // THE invariant: a daemon whose process is alive is never stopped for
+      // being slow. `stopDaemonProcess` opens with a `daemon.stop` RPC, so
+      // one appearing in the log means the client decided this daemon was
+      // dead. The grace window only ever sends `hello`.
+      expect(seen).not.toContain("daemon.stop")
+      // Still running, and still owning its pidfile — `stopDaemonProcess`
+      // signals the process and unlinks both files on its way out, so these
+      // are two further independent reads of "we did not kill it".
+      expect(isProcessAlive(busyPid as number)).toBe(true)
+      expect(existsSync(pidPath)).toBe(true)
+
+      // And the wait actually paid off: the caller gets the busy daemon's
+      // own socket back, not an error and not a replacement's.
+      expect(outcome.error).toBeUndefined()
+      expect(outcome.value).toBe(socketPath)
+    } finally {
+      busyDaemon.kill("SIGKILL")
+      restoreEnv()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 30_000)
+})
+
+/**
+ * Issue #96, the destructive half — and the one nobody reported, because its
+ * symptom is indistinguishable from the reported one.
+ *
+ * `ensureDaemonReachable` used to call `stopDaemonProcess` FIRST and
+ * `resolveKobeSpawn` second. On a stale install that ordering does damage:
+ * the client kills the daemon and unlinks its socket + pidfile, and only
+ * then discovers it has no entry point to re-exec — so it has removed a
+ * daemon it cannot replace. PR #733 established that a client which cannot
+ * spawn must not be a reason to take down a daemon; this is that rule
+ * applied to the one client that can NEVER spawn.
+ *
+ * The assertion is about EFFECTS, not the message: a stale install must
+ * leave the pidfile and the daemon process exactly as it found them.
+ * Asserting only "it threw" would stay green with the ordering restored,
+ * since it throws either way.
+ */
+describe("ensureDaemonReachable on a stale install", () => {
+  it("destroys nothing — it cannot replace what it would kill", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kobe-stale-install-"))
+    const socketPath = join(SOCK_DIR, `kobe-dpr-stale-${process.pid}.sock`)
+    const pidPath = join(dir, "daemon.pid")
+    const restoreEnv = overrideRoveEnv({
+      DAEMON_SOCKET_PATH: socketPath,
+      DAEMON_PID_PATH: pidPath,
+      HOME_DIR: dir,
+      // Cleared, or `insideEngineSession` short-circuits on a wedged socket
+      // before the spawn path is ever reached.
+      TASK_ID: undefined,
+      TAB_ID: undefined,
+    })
+
+    // A live daemon process that is silent — the shape that sends the client
+    // down the stop+spawn path. A real child, because the question is what
+    // survives, and `stopDaemonProcess` skips a pidfile naming ourselves.
+    const daemon = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+    const daemonPid = daemon.pid as number
+    const seen: string[] = []
+    // Never answers hello: alive, unreachable, so the client must decide
+    // what to do about it — which on a stale install is "nothing".
+    await listenAt(socketPath, busyThenHealthy(Number.POSITIVE_INFINITY, seen))
+
+    // The resolver's verdict for an install that is gone. Built by the REAL
+    // resolver against a directory that does not exist, so this test cannot
+    // drift from what `resolveKobeSpawn` actually throws.
+    const staleDir = join(dir, "gone", "node_modules", "@sma1lboy", "rove", "dist", "client")
+    const resolveSpawn = (): string[] => {
+      resolveKobeSpawn([], { ROVE_INVOKED_AS: "rove" }, join(staleDir, "daemon-process.js"))
+      throw new Error("unreachable: the resolver was supposed to reject a missing install")
+    }
+
+    try {
+      writeFileSync(pidPath, String(daemonPid))
+      const err = await ensureDaemonReachable(resolveSpawn).then(
+        () => undefined,
+        (e: unknown) => e,
+      )
+
+      expect(isStaleInstallError(err)).toBe(true)
+      // THE invariant: nothing was taken down. `stopDaemonProcess` opens with
+      // a `daemon.stop` RPC and unlinks the pidfile on its way out, so these
+      // are three independent reads of "we touched nothing".
+      expect(seen).not.toContain("daemon.stop")
+      expect(isProcessAlive(daemonPid)).toBe(true)
+      expect(existsSync(pidPath)).toBe(true)
+      // And the spawn lock was released, so a client on a GOOD install can
+      // still recover this daemon after we bailed.
+      expect(existsSync(`${pidPath}.spawn-lock`)).toBe(false)
+    } finally {
+      daemon.kill("SIGKILL")
+      restoreEnv()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 30_000)
 })

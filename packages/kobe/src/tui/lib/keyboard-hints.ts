@@ -106,7 +106,7 @@ const PANE_HINT_ROWS: Record<HintPane, readonly { id: string; msg: string; alway
   ],
   files: [
     { id: "files.nav", msg: "move" },
-    { id: "files.hierarchy", msg: "fold" },
+    { id: "files.hierarchy", msg: "collapse" },
     { id: "files.open", msg: "open", always: true },
     { id: "files.diff", msg: "diff", always: true },
   ],

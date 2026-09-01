@@ -7,42 +7,36 @@
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
 import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
+import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
-import type { Task, TaskDispatcher, TaskId, TaskPRStatus, TaskStatus, VendorId } from "../types/task.ts"
+import type {
+  Task,
+  TaskDispatcher,
+  TaskId,
+  TaskPRStatus,
+  TaskRoutineLink,
+  TaskStatus,
+  VendorId,
+} from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
-import { canonPath, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
+import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
+import type { CreateTaskInput } from "./create-task-input.ts"
 import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
+import { promotableDirTasks } from "./promote-dir-tasks.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
 import { WorktreeCoordinator } from "./worktree-coordinator.ts"
 import type { GitWorktreeManager } from "./worktree/manager.ts"
 
-/** Input to {@link Orchestrator.createTask}. */
-export interface CreateTaskInput {
-  readonly repo: string
-  /** Title for the sidebar row. Defaults to `(new task)` when omitted. */
-  readonly title?: string
-  /** Branch override; otherwise an auto branch is generated lazily. */
-  readonly branch?: string
-  /** Optional base ref for the new lazy worktree branch. */
-  readonly baseRef?: string
-  /** Engine PROTOCOL for the monitor's history-reader hint (derived from
-   *  {@link command} when the caller passed one). */
-  readonly vendor?: VendorId
-  /** Raw engine launch command (`add --command`), recorded verbatim. */
-  readonly command?: string
-  /** Reasoning/effort level for the engine, when the vendor supports one. */
-  readonly modelEffort?: string
-  /** Fan-out round marker shared by all siblings of one fan-out call. */
-  readonly groupId?: string
-  /** The kobe session (task + tab) dispatching this create, when one is. */
-  readonly dispatcher?: TaskDispatcher
-}
+// The create-task input type lives in its own module so it can be imported
+// without importing this class. Re-exported here so callers still name it
+// through the orchestrator.
+export type { CreateTaskInput } from "./create-task-input.ts"
 
 export type Unsubscribe = () => void
 export type TaskListListener = (snapshot: readonly Task[]) => void
@@ -50,6 +44,23 @@ export type TaskListListener = (snapshot: readonly Task[]) => void
 export interface OrchestratorDeps {
   readonly store: TaskIndexStore
   readonly worktrees: GitWorktreeManager
+  /** Called when a forced task deletion snapshotted uncommitted work before
+   *  destroying it. The daemon binds this to its deletion audit log; a TUI-
+   *  local orchestrator leaves it unset and the snapshot is still findable
+   *  via `git for-each-ref refs/rove/salvage`. */
+  readonly onSalvage?: (taskId: TaskId, salvage: { readonly ref: string; readonly commit: string }) => void
+  /** Called when a deletion's `git worktree remove` deregistered the worktree
+   *  but could not delete its directory. The deletion still completes; this is
+   *  the only record of the leftover, so the daemon binds it to the same audit
+   *  log the rest of the deletion trail goes to. */
+  readonly onWorktreeResidue?: (taskId: TaskId, residue: { readonly path: string; readonly reason: string }) => void
+  /**
+   * Kill a task's engine session. Bound by the composition root to the hosted
+   * session host; a TUI-local orchestrator leaves it unset. `landTask` calls
+   * it before removing a landed worktree — an engine still writing into a
+   * directory that is about to be unlinked loses everything it writes next.
+   */
+  readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 }
 
 // Re-exported from `title.ts` (its single source of truth) so existing
@@ -60,7 +71,7 @@ export { PLACEHOLDER_TASK_TITLE }
  * Owner of the task lifecycle.
  *
  * Single source of truth for: which tasks exist, which worktree each
- * lives in, what its status / archived / pinned flag is. The TUI
+ * lives in, what its status / pinned flag is. The TUI
  * subscribes via {@link tasksSignal} or {@link subscribeTasks}.
  */
 export class Orchestrator {
@@ -76,17 +87,27 @@ export class Orchestrator {
   private readonly unsubscribeStore: TaskIndexUnsubscribe
   /** Owns the `kind:"main"` project row (create / adopt / forget). */
   private readonly mainTasks: MainTaskCoordinator
+  /** Injected engine-session teardown — see {@link OrchestratorDeps.tearDownSession}. */
+  private readonly tearDownSession?: (taskId: TaskId | string) => Promise<void>
 
   constructor(deps: OrchestratorDeps) {
     this.store = deps.store
     this.worktrees = deps.worktrees
+    this.tearDownSession = deps.tearDownSession
+    // `ensureIfEligible`, not `ensureMainTask`: adopting a worktree of a
+    // throwaway repo must still adopt, it just must not mint a permanent
+    // project row for a path that cannot be someone's project.
     this.worktreeCoordinator = new WorktreeCoordinator(this.store, this.worktrees, canonPath, (repo) =>
-      this.ensureMainTask(repo),
+      this.mainTasks.ensureIfEligible(repo),
     )
     this.mainTasks = new MainTaskCoordinator(this.store, (id) => this.worktreeCoordinator.forget(id))
     this.editor = new TaskEditor(this.store, this.worktrees)
-    this.deletions = new TaskDeletionCoordinator(this.store, this.worktrees, (id) =>
-      this.worktreeCoordinator.forget(id),
+    this.deletions = new TaskDeletionCoordinator(
+      this.store,
+      this.worktrees,
+      (id) => this.worktreeCoordinator.forget(id),
+      deps.onSalvage,
+      deps.onWorktreeResidue,
     )
     this.tasksAcc = createStateCell<Task[]>(this.store.list())
     // Seed focus from the persisted `lastActive` record (state/last-active
@@ -104,12 +125,32 @@ export class Orchestrator {
 
   /**
    * Pre-flight hook for the TUI to await before the first render.
-   * Currently a no-op — kept for API parity with the v0.5 daemon
-   * orchestrator + future expansion.
+   *
+   * One job: absorb `dir` rows that are sitting on a repository root into
+   * that repo's `main` row. `rove .` has routed a repo root to
+   * `ensureMainTask` since 2026-08-31, so nothing new lands mis-shaped — but
+   * the rows created before that rule keep rendering as a bare path, outside
+   * every behaviour written for a project row (ordering, pin, the fold on a
+   * closed last tab). `ensure` only runs when somebody names the repo, so
+   * without a sweep those rows stay wrong forever.
+   *
+   * Best-effort by construction: it runs before the first frame, and a repo
+   * that has moved or a git that will not answer must not stop the TUI from
+   * starting. `ensureIfEligible` reuses the same admission gate and the same
+   * adoption branch as every other caller — the promoted row keeps its task
+   * id, so its terminal tabs come with it.
    */
   async init(): Promise<void> {
-    // No-op in v0.6. v0.5 had startup polling for plan-usage and rc-bridge;
-    // both are gone. The TUI awaits this for parity.
+    try {
+      const promotable = promotableDirTasks({
+        tasks: this.store.list(),
+        isRepoRoot: (path) => isGitRepo(path) && resolveRepoRoot(path) === path,
+      })
+      for (const task of promotable) await this.mainTasks.ensureIfEligible(task.repo, "explicit")
+    } catch {
+      // A promotion that cannot happen is a row that renders the way it did
+      // yesterday, not a boot failure.
+    }
   }
 
   /**
@@ -187,11 +228,27 @@ export class Orchestrator {
    */
   async createTask(input: CreateTaskInput): Promise<Task> {
     if (!input.repo) throw new Error("createTask: repo is required")
-    // A task whose repo has no `kind:"main"` task is unrenderable state:
-    // the sidebar's PROJECTS rows ARE the main tasks (sidebar/groups.ts),
-    // so a task created for a brand-new repo would float with no project
-    // row. Every creation path therefore guarantees its own project entry.
-    await this.ensureMainTask(input.repo)
+    // Bring the project row into existence alongside the task — but only if
+    // the repo may BE a project (state/project-eligibility.ts). A `/tmp`
+    // fixture or a checkout inside `.dev-sandbox` still gets its task; it
+    // just stops leaving a permanent sidebar row behind, which is how the
+    // owner's project list reached 12 rows on 2 saved repos. `buildTreeRows`
+    // groups a main-less task under a header derived from its own repo, so
+    // the task still renders — the header just dies with it.
+    //
+    // Normalize to the git toplevel regardless of that outcome. A caller
+    // passing a SUBDIRECTORY (`rove` run from `my-monorepo/packages/app`,
+    // whose path passes `validateRepoPath` because `rev-parse --git-dir`
+    // succeeds in a subdir) otherwise splits into two sidebar projects: the
+    // main row keyed on `/my-monorepo`, this task keyed on
+    // `/my-monorepo/packages/app` — a ghost project named after a
+    // subdirectory, with its own worktree root. That normalization used to
+    // ride on the returned main row, so taking it from `normalizeMainRepo`
+    // directly keeps it working when no row is created.
+    // Dir/scratch tasks do NOT come through here (see openDirectoryTask),
+    // so pinning a user-owned directory is unaffected.
+    const mainTask = await this.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
+    const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
     const title = (input.title ?? PLACEHOLDER_TASK_TITLE).trim() || PLACEHOLDER_TASK_TITLE
     // Leave the branch EMPTY for a lazily-allocated task (unless the caller
     // gave an explicit one): {@link ensureWorktree} derives a repo-convention
@@ -200,7 +257,7 @@ export class Orchestrator {
     // resolved against the repo's live branch list at materialise time, and
     // deferring also lets the branch follow a rename made before first enter.
     const task = await this.store.create({
-      repo: input.repo,
+      repo,
       title,
       branch: input.branch ?? "",
       worktreePath: "",
@@ -211,11 +268,14 @@ export class Orchestrator {
       ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
       ...(input.groupId ? { groupId: input.groupId } : {}),
       ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
+      ...(input.routine ? { routine: input.routine } : {}),
+      // Persisted ON the task (not a one-shot side-map): `ensureWorktree`
+      // reads it whenever the worktree materialises — including after a
+      // daemon restart between create and first enter — and `collect`'s
+      // branch signals compare against the recorded fork point instead of
+      // re-guessing the base.
+      ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
     })
-    // Remember the optional baseRef on a side-map so `ensureWorktree`
-    // can use it. Not on the Task itself: base-ref is one-shot input
-    // to the worktree create, not durable state.
-    if (input.baseRef) this.worktreeCoordinator.setPendingBaseRef(task.id, input.baseRef)
     return task
   }
 
@@ -311,21 +371,22 @@ export class Orchestrator {
     this.worktreeCoordinator.forget(task.id)
   }
 
-  // In-place task-field edits (title / branch / engine / pinned / archived /
-  // status / PR-status / move / reorder) live in the TaskEditor collaborator.
-  // Terse one-liners below on purpose: they are PURE forwarding (the rules,
-  // guards, and doc comments all live on TaskEditor's own methods), and this
-  // file sits at the 500-line cap — same shape `remote-orchestrator.ts` uses
+  // In-place task-field edits (title / branch / engine / pinned / status /
+  // PR-status / move / reorder) live in the TaskEditor collaborator.
+  // Terse one-liners below on purpose: they are PURE forwarding, so anything
+  // written here would be a second copy of a rule that lives on TaskEditor's
+  // own methods — read them there. Same shape `remote-orchestrator.ts` uses
   // for its own write delegates.
 
   setTitle = (id: TaskId | string, title: string): Promise<void> => this.editor.setTitle(id, title)
   setBranch = (id: TaskId | string, branch: string): Promise<void> => this.editor.setBranch(id, branch)
+  /** Record the language a task's user writes in, from their own prompt text. */
+  observeLanguage = (id: TaskId | string, text: string): Promise<void> => this.editor.observeLanguage(id, text)
   setVendor = (id: TaskId | string, vendor: VendorId): Promise<void> => this.editor.setVendor(id, vendor)
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
-  setArchived = (id: TaskId | string, archived?: boolean): Promise<void> => this.editor.setArchived(id, archived)
   reorderTasks = (moves: ReadonlyArray<{ readonly taskId: string; readonly position: number }>): Promise<void> =>
     this.editor.reorderTasks(moves)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
@@ -335,6 +396,8 @@ export class Orchestrator {
     this.editor.setLinkedWorkItem(id, item)
   setQuotaResume = (id: TaskId | string, state: NonNullable<Task["quotaResume"]> | null): Promise<void> =>
     this.editor.setQuotaResume(id, state)
+  /** Record the task brief (the delivered `add --prompt` text) on the task. */
+  setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
 
   /**
    * Permanently remove a task. Refuses to delete `kind: "main"`
@@ -373,8 +436,8 @@ export class Orchestrator {
   async landTask(id: TaskId | string, opts?: LandTaskOpts): Promise<LandResult> {
     return landTaskWithCleanup(this.requireTask(id), opts ?? {}, {
       worktrees: this.worktrees,
-      setArchived: (tid, archived) => this.editor.setArchived(tid, archived),
       clearWorktreePath: (tid) => this.clearWorktreePath(tid),
+      tearDownSession: this.tearDownSession,
     })
   }
 

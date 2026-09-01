@@ -40,7 +40,12 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
-import { isShellMissing, overlayCursor, sealRowEndAttributes } from "../../../tui/panes/terminal/terminal-render"
+import {
+  isShellMissing,
+  overlayCursor,
+  resolveInverseAttributes,
+  sealRowEndAttributes,
+} from "../../../tui/panes/terminal/terminal-render"
 import { overlaySelection } from "../../../tui/panes/terminal/terminal-selection"
 import {
   FOLLOW_VIEWPORT,
@@ -59,6 +64,7 @@ import { useTerminalBindings } from "./keys"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
 import { useTerminalPty } from "./use-terminal-pty"
+import { useTerminalReset } from "./use-terminal-reset"
 import { useTerminalSelection } from "./use-terminal-selection"
 
 /* --------------------------------------------------------------------- */
@@ -245,6 +251,7 @@ export function Terminal(props: TerminalProps) {
     bodyRows,
     visibleRangeStart: visibleRange.start,
     snapshot,
+    snapshotWindow,
     scrollBy: scrollFromPointer,
   })
 
@@ -281,8 +288,9 @@ export function Terminal(props: TerminalProps) {
   // the "wrapped URL underlines everything below it" report). Its doc comment
   // has the full mechanism; drop this call once opentui resets per row.
   const styledSnapshot = useMemo(() => {
+    const resolved = resolveInverseAttributes(cursorRows, terminalColors.foreground, terminalColors.background)
     const sealed = sealRowEndAttributes(
-      cursorRows,
+      resolved,
       bodyGeometry?.cols ?? 80,
       terminalColors.foreground,
       terminalColors.background,
@@ -308,30 +316,15 @@ export function Terminal(props: TerminalProps) {
   // does not: the visible terminal remains the stable IME fallback there.
   const imeAnchorActive = (props.imeAnchorActive ?? true) && dialog.stack.length === 0
   const unfocusedAttachmentTarget = props.imeAnchorActive === true && dialog.stack.length === 0
-  const resetTaskIdRef = useLatest(props.taskId)
-  const resetCwdRef = useLatest(props.cwd)
-  const mountedRef = useRef(true)
-  useLayoutEffect(() => {
-    mountedRef.current = true
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
-  const requestReset = (): void => {
-    if (!pty) return
-    // Snapshot at click-time so a task switch mid-confirm doesn't reset
-    // the wrong shell.
-    const ptyAtClick = pty
-    const cwdAtClick = props.cwd
-    const taskIdAtClick = props.taskId
-    const geometryAtClick = bodyGeometry
-    if (!cwdAtClick || !taskIdAtClick || !geometryAtClick) return
-    void DialogConfirm.show(dialog, t("terminal.reset.title"), t("terminal.reset.body"), "cancel").then((ok) => {
-      if (ok !== true || !mountedRef.current) return
-      if (resetTaskIdRef.current !== taskIdAtClick || resetCwdRef.current !== cwdAtClick) return
-      forceReacquire(cwdAtClick, taskIdAtClick, geometryAtClick, ptyAtClick)
-    })
-  }
+  const requestReset = useTerminalReset({
+    pty,
+    acquireError,
+    cwd: props.cwd,
+    taskId: props.taskId,
+    bodyGeometry,
+    forceReacquire,
+    dialog,
+  })
 
   useTerminalBindings({
     focused,
@@ -441,7 +434,11 @@ export function Terminal(props: TerminalProps) {
           flexDirection="row"
           paddingLeft={1}
           paddingRight={1}
-          backgroundColor={theme.backgroundPanel}
+          // `backgroundElement`, not `backgroundPanel`: the panel slot is
+          // forced alpha-0 in transparent mode, and this is an overlay you
+          // must read — the policy (theme-core) never lets readable overlays
+          // go transparent. The split-leaf name tag does the same.
+          backgroundColor={theme.backgroundElement}
         >
           <text fg={theme.warning} wrapMode="none">
             {t("terminal.scrolledBack", { lines: scrollOffset })}
@@ -480,6 +477,7 @@ export function Terminal(props: TerminalProps) {
                 <text fg={theme.textMuted} wrapMode="word">
                   {acquireError}
                 </text>
+                <text fg={theme.textMuted}>{t("terminal.unavailable.retry")}</text>
               </>
             ) : (
               <text fg={theme.textMuted}>{t("terminal.noTask")}</text>

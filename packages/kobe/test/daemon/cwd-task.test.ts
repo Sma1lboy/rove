@@ -81,7 +81,7 @@ describe("matchTaskByWorktreePath", () => {
   })
 
   it("does NOT match a parent on a path prefix (unlike matchTaskByCwd)", () => {
-    // Removing an untracked worktree under /repo must not archive the main task.
+    // Removing an untracked worktree under /repo must not affect the main task.
     expect(matchTaskByWorktreePath(tasks, "/repo/.claude/worktrees/unknown")).toBeUndefined()
   })
 

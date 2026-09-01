@@ -8,12 +8,12 @@
  *   ~/.rove/worktrees/<repo-key>/panda-v2/   # if `panda` was recycled
  *
  * Mechanism (mirrors Conductor's city-name scheme):
- *   1. Build the "occupied" set: every slug currently held by a
- *      non-archived task in the store, PLUS every directory name
- *      already present on disk under kobe-managed worktree roots,
- *      PLUS any slugs picked for the same repo by an earlier
- *      `allocate()` call that haven't yet been committed (race window
- *      between picking and persisting to the store).
+ *   1. Build the "occupied" set: every slug currently held by an
+ *      active task in the store, PLUS every directory name already
+ *      present on disk under kobe-managed worktree roots, PLUS any
+ *      slugs picked for the same repo by an earlier `allocate()` call
+ *      that haven't yet been committed (race window between picking
+ *      and persisting to the store).
  *   2. Filter {@link ANIMAL_NAMES} to candidates not in `occupied`.
  *   3. Pick one randomly. If the candidate set is empty (pool
  *      exhausted by ~410 simultaneous active worktrees in one repo —
@@ -39,9 +39,9 @@ import { listWorktreeDirNames } from "./paths.ts"
 
 /**
  * Source of "currently active slugs known to the application" — i.e.
- * the slugs the store reports as belonging to non-archived tasks.
- * Passed in rather than reaching for a TaskIndexStore so the allocator
- * stays testable without spinning up the full store.
+ * the slugs the store reports as belonging to active tasks. Passed in
+ * rather than reaching for a TaskIndexStore so the allocator stays
+ * testable without spinning up the full store.
  */
 export type ActiveSlugSource = (repo: string) => readonly string[]
 

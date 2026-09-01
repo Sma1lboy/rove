@@ -21,9 +21,9 @@
 
 import { errorMessage } from "@/lib/error-message"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { archiveTaskFlow, cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
+import { applyVendorChange, cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
 import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-create-flow"
-import type { Task } from "../../types/task.ts"
+import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
@@ -38,18 +38,19 @@ export type WorkspaceTaskActionDeps = {
   setSelectedId: (id: string | null) => void
   selectedTask: () => Task | undefined
   activateTask: (id: string) => Promise<void>
-  /** Reclaim a deleted task's terminal-tab snapshot (O19). Delete only —
-   *  archive keeps the snapshot for unarchive --resume. */
+  /** Reclaim a deleted task's terminal-tab snapshot (O19). */
   forgetTaskTabs: (taskId: string) => void
 }
 
 export type WorkspaceTaskActions = {
   createTask: () => Promise<void>
-  archiveTask: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
+  /** ctrl+e picker's engine pick — same persist as `cycleVendor`, but silent
+   *  on success: the tab it opens already shows the result. */
+  setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
 }
@@ -102,10 +103,12 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
   // Set-branch (`b`): pick from the repo's local branches (filter-as-you-type)
   // or type a new name — the shared `renameBranchFlow`'s bare text prompt
   // replaced by the branch-listing dialog (issue #10). `setBranch` no-ops on
-  // an unchanged name and rejects a main row, so we only guard/notify here.
+  // an unchanged name and rejects main/dir rows, so we guard/notify here:
+  // opening the picker for a task whose branch can't be set would send the
+  // user through a choice that only ever ends in the error toast.
   async function renameBranch(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
-    if (!task || task.kind === "main") return
+    if (!task || task.kind === "main" || task.kind === "dir") return
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {
@@ -115,11 +118,17 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
 
   return {
     createTask: () => createTaskFlow(taskActions),
-    archiveTask: (id) => archiveTaskFlow(taskActions, id),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
+    // The ctrl+e picker's engine pick. Silent on success: the tab it just
+    // opened IS the new engine, so a toast saying the change "applies on
+    // reopen" contradicted what the user was already looking at. Failures
+    // still toast — see applyVendorChange.
+    setVendor: async (id, vendor) => {
+      await applyVendorChange(taskActions, id, vendor, { silentSuccess: true })
+    },
     togglePin,
     moveTask,
   }

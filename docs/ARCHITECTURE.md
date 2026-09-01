@@ -33,7 +33,7 @@ reuse their directory and do not own a Rove-created worktree or branch.
 
 ## 2. Package map
 
-- `packages/kobe/` — CLI and PureTUI, published canonically as `@sma1lboy/rove` and in lockstep as the `@sma1lboy/kobe` compatibility alias.
+- `packages/kobe/` — CLI and PureTUI, published as `@sma1lboy/rove`. (The directory keeps its old name; the `@sma1lboy/kobe` package was published in lockstep until 0.9.64 and is now frozen.)
   - `src/cli/` — command routing, help, API handlers, daemon and PTY-host
     process entrypoints.
   - `src/engine/` — engine registry, command/capability/history adapters,
@@ -90,7 +90,7 @@ The standalone host periodically freezes bounded terminal rings plus launch
 metadata. After a host restart or reboot, it restores dead session records;
 the first attachment replays the last snapshot and respawns the recorded
 command. This recovery is distinct from a still-live child surviving a TUI or
-daemon restart. Explicit close/archive/reset operations remove their frozen
+daemon restart. Explicit close/delete/reset operations remove their frozen
 records.
 
 Tmux is not a session backend. The CLI retains one quarantined compatibility

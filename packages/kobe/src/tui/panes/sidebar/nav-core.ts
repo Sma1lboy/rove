@@ -1,12 +1,12 @@
 /**
  * The sidebar's top-level navigation rail — one row per destination.
  *
- * Deliberately NOT the same axis as {@link SidebarView} (`active` /
- * `archived`). That one filters WHICH TASKS the list shows and stays inside
- * Workspace; this one chooses WHICH SURFACE is open. Folding them into one
- * enum would put "show archived tasks" and "open the automations page" in the
- * same list, which is how you end up with an Archives tab sitting next to a
- * Kanban tab as if they were the same kind of thing.
+ * Deliberately NOT the same axis as the task list view. The task list
+ * filters WHICH TASKS the sidebar shows and stays inside Workspace; this
+ * rail chooses WHICH SURFACE is open. Folding them into one enum would put
+ * unrelated view toggles and "open the automations page" in the same list,
+ * which is how you end up with an Archives tab sitting next to a Kanban tab
+ * as if they were the same kind of thing.
  *
  * Vertical, one per line (owner call 2026-08-01): the rail is 24 cells wide,
  * so three horizontal chips would truncate the moment a fourth arrives.
@@ -23,6 +23,8 @@ export interface SidebarNavItem {
   readonly nav: SidebarNav
   /** i18n key — callers translate with their own `t`. */
   readonly labelKey: string
+  /** Existing keymap action represented by this clickable destination. */
+  readonly bindingId: string
 }
 
 /**
@@ -31,12 +33,9 @@ export interface SidebarNavItem {
  * for the same thing — and clicking a task already returns there.
  */
 export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
-  { nav: "kanban", labelKey: "tasks.nav.kanban" },
-  { nav: "automations", labelKey: "tasks.nav.automations" },
-  // `issues` is deliberately absent: the external-tracker page works but has
-  // had no design pass, so it stays reachable only through `kobe api
-  // workitem-*` until it earns a rail row. Its nav value and page stay wired
-  // so re-adding the row here is the whole change.
+  { nav: "kanban", labelKey: "tasks.nav.kanban", bindingId: "kanban.open" },
+  { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
+  { nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" },
 ]
 
 /**

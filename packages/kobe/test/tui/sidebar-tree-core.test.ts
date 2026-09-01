@@ -26,7 +26,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,
@@ -160,12 +159,24 @@ describe("buildTreeRows", () => {
 
   test("a scratch task whose tabs never mounted keeps its worktree row as the only handle", () => {
     // Zero rows would make the task invisible AND unnavigable; the fallback
-    // row is what the cursor (and delete/archive) can still land on.
+    // row is what the cursor (and delete) can still land on.
     const result = rows({ tasks: [task("s", { kind: "dir", scratch: true, repo: "/Users/me" })] })
     expect(result.map((r) => [r.kind, r.id])).toEqual([
       ["project", SCRATCH_SECTION_ID],
       ["worktree", "s"],
     ])
+  })
+
+  test("recent sort reorders regular worktrees by updatedAt while keeping main first", () => {
+    const result = rows({
+      sortMode: "recent",
+      tasks: [
+        task("older", { repo: "/repos/rove", updatedAt: "2026-08-01T00:00:00.000Z" }),
+        task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
+        task("newer", { repo: "/repos/rove", updatedAt: "2026-08-02T00:00:00.000Z" }),
+      ],
+    })
+    expect(result.filter((r) => r.kind === "worktree").map((r) => r.id)).toEqual(["m", "newer", "older"])
   })
 
   test("a scratch task never mints a project header for its directory", () => {
@@ -200,58 +211,6 @@ describe("tabRowId / parseRowId", () => {
 
   test("a bare task id parses as no tab", () => {
     expect(parseRowId("task-1")).toEqual({ taskId: "task-1", tabId: null })
-  })
-})
-
-describe("filterTreeRows", () => {
-  // One fixture for the whole block: two projects, a tab under each of the
-  // kobe worktrees, so every ancestor/descendant direction has something to
-  // prove.
-  const tree = () =>
-    rows({
-      tasks: [
-        task("m", { kind: "main", repo: "/repos/rove", branch: "main", worktreePath: "/repos/rove" }),
-        task("wt", { repo: "/repos/rove", branch: "feat/tree", title: "worktree tree" }),
-        task("fx", { repo: "/repos/foxychat", branch: "feat/chat", title: "chat rewrite" }),
-      ],
-      tabsByTask: new Map([
-        ["m", [tab("tab-1", "shell")]],
-        ["wt", [tab("tab-2", "running codex on the landing page")]],
-        ["fx", [tab("tab-3", "vitest watch")]],
-      ]),
-    })
-
-  const ids = (query: string) => filterTreeRows(tree(), query).map((r) => r.id)
-
-  test("an empty query is a no-op", () => {
-    expect(filterTreeRows(tree(), "   ")).toEqual(tree())
-  })
-
-  test("a tab hit keeps its worktree and project", () => {
-    // The tree's whole increment over the flat sidebar: the query matches
-    // nothing but a live tab TITLE, and the ancestors come along so the hit
-    // is placed rather than floating.
-    expect(ids("codex")).toEqual(["/repos/rove", "wt", "wt::tab-2"])
-  })
-
-  test("a worktree hit keeps its tabs", () => {
-    expect(ids("feat/tree")).toEqual(["/repos/rove", "wt", "wt::tab-2"])
-  })
-
-  test("a project hit keeps the whole subtree", () => {
-    expect(ids("foxychat")).toEqual(["/repos/foxychat", "fx", "fx::tab-3"])
-  })
-
-  test("no matches yields no rows — not a bare project header", () => {
-    expect(ids("zzzz")).toEqual([])
-  })
-
-  test("a dir task's hit keeps its directory header", () => {
-    const loose = rows({
-      tasks: [task("d", { kind: "dir", repo: "/tmp/scratch", branch: "", title: "scratchpad" })],
-      tabsByTask: new Map(),
-    })
-    expect(filterTreeRows(loose, "scratch").map((r) => r.id)).toEqual(["/tmp/scratch", "d"])
   })
 })
 
@@ -391,5 +350,122 @@ describe("worktreeRowLabel (issue #42)", () => {
   test("nothing at all still yields a label", () => {
     const bare = task("x", { kind: "dir", branch: "", title: "", worktreePath: "", repo: "" })
     expect(worktreeRowLabel(bare)).toBe("scratch")
+  })
+})
+
+describe("a project closed down to nothing (owner call 2026-08-31)", () => {
+  const mainOf = (repo: string, id = "m") => task(id, { kind: "main", repo, title: repo.split("/").pop() ?? repo })
+
+  test("hides the project when its only row is main and its tabs are closed", () => {
+    const out = rows({
+      tasks: [mainOf("/repos/codefox")],
+      // KNOWN and empty — the user closed the last tab.
+      tabsByTask: new Map([["m", []]]),
+    })
+    expect(out).toEqual([])
+  })
+
+  test("hides a closed-down `dir` row too — the same gesture on the same kind of row", () => {
+    // A directory opened with `rove .` folds away like a project does. It has
+    // no new-task-picker entry to come back through, and does not need one:
+    // the way back is the same `rove .` that opened it. Leaving it on screen
+    // made "close the last tab" mean two different things depending on a row
+    // kind the user never chose.
+    const dir = task("d", { kind: "dir", repo: "/Users/me/i/notes", branch: "", worktreePath: "/Users/me/i/notes" })
+    expect(rows({ tasks: [dir], tabsByTask: new Map([["d", []]]) })).toEqual([])
+  })
+
+  test("still shows a `dir` row whose tabs are unknown", () => {
+    // Same fresh-TUI carve-out the main rule has: absent ≠ empty.
+    const dir = task("d", { kind: "dir", repo: "/Users/me/i/notes", branch: "", worktreePath: "/Users/me/i/notes" })
+    expect(rows({ tasks: [dir], tabsByTask: new Map() }).map((r) => r.kind)).toEqual(["project", "worktree"])
+  })
+
+  test("still shows it when its tabs are merely UNKNOWN (fresh TUI)", () => {
+    // Absent from the map = never mounted since restart, which is every
+    // project on a cold boot. Hiding on that would make the sidebar start
+    // empty — the difference this whole rule turns on.
+    const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map() })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
+  })
+
+  test("still shows it while any tab is open", () => {
+    const out = rows({
+      tasks: [mainOf("/repos/codefox")],
+      tabsByTask: new Map([["m", [tab("t1")]]]),
+    })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "tab"])
+  })
+
+  test("keeps a project that has worktree tasks, even with every tab closed", () => {
+    // The worktree rows are how you get back to that work — losing them would
+    // strand the branches. Only the main-only case hides.
+    const out = rows({
+      tasks: [mainOf("/repos/kobe"), task("a", { repo: "/repos/kobe" })],
+      tabsByTask: new Map([
+        ["m", []],
+        ["a", []],
+      ]),
+    })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree", "worktree"])
+  })
+
+  test("hiding one project does not disturb the others", () => {
+    const out = rows({
+      tasks: [mainOf("/repos/codefox", "m1"), mainOf("/repos/kobe", "m2")],
+      tabsByTask: new Map([
+        ["m1", []],
+        ["m2", [tab("t1")]],
+      ]),
+    })
+    expect(out.filter((r) => r.kind === "project").map((r) => (r as { label: string }).label)).toEqual(["kobe"])
+  })
+
+  test("keeps a project whose ONLY row is a worktree task with no tabs", () => {
+    // A main-less project (the tree supports these — "then main-less projects
+    // in first-seen order"). Hiding it would strand the task: no main row
+    // means nothing to re-open it from.
+    const out = rows({
+      tasks: [task("a", { repo: "/repos/orphan" })],
+      tabsByTask: new Map([["a", []]]),
+    })
+    expect(out.map((r) => r.kind)).toEqual(["project", "worktree"])
+  })
+
+  test("a hidden project is not navigable", () => {
+    // The cursor indexes flatIds; leaving a hidden project's row in there
+    // would let j/k land on something the user cannot see.
+    const out = rows({ tasks: [mainOf("/repos/codefox")], tabsByTask: new Map([["m", []]]) })
+    expect(treeFlatIds(out)).toEqual([])
+  })
+
+  // The half that shipped without a guard (issue #90): six tests pinned that
+  // the project GOES, none that it can come back. It could not — the dialog
+  // only ever minted `kind: "task"`. The way back is now `mode: "open"` →
+  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts); what
+  // belongs HERE is the tree's side of that round trip.
+  test("the hidden project returns as soon as its main has a tab again", () => {
+    const tasks = [mainOf("/repos/codefox")]
+    const hidden = rows({ tasks, tabsByTask: new Map([["m", []]]) })
+    expect(hidden).toEqual([])
+
+    // What opening the project does: its main row gets a session again.
+    const back = rows({ tasks, tabsByTask: new Map([["m", [tab("t1")]]]) })
+    expect(back.map((r) => r.kind)).toEqual(["project", "worktree", "tab"])
+    // And it is reachable — a row you can see but not move the cursor to
+    // would be the same dead end in a different costume.
+    expect(treeFlatIds(back).length).toBeGreaterThan(0)
+  })
+
+  test("opening the project does not mint a second row for the same repo", () => {
+    // `ensureMainTask` is idempotent, so the revived project must be the
+    // SAME main task. If a second main row appeared, the repo would render
+    // twice under one header — the shape a create-instead-of-open produces.
+    const out = rows({
+      tasks: [mainOf("/repos/codefox")],
+      tabsByTask: new Map([["m", [tab("t1")]]]),
+    })
+    expect(out.filter((r) => r.kind === "project")).toHaveLength(1)
+    expect(out.filter((r) => r.kind === "worktree")).toHaveLength(1)
   })
 })

@@ -87,7 +87,10 @@ describe("daemon worktree adapter", () => {
     const malformed = await handleWorktreesRequestAdapter(new Request(url, { method: "DELETE", body: "not-json" }), url)
     expect(malformed?.status).toBe(400)
 
-    addSavedRepo(join(root, "missing"))
+    // A saved repo whose directory does not exist — the audit must fail on
+    // it. `skipGate` because the admission gate would (correctly) refuse a
+    // non-repo path, and this test needs the broken entry to EXIST.
+    addSavedRepo(join(root, "missing"), { skipGate: true })
     const failedAudit = await handleWorktreesRequestAdapter(new Request(url), url)
     expect(failedAudit?.status).toBe(500)
   })

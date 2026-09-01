@@ -99,6 +99,54 @@ describe("daemon activity state", () => {
     registry.close()
   })
 
+  // Why: the reducer now has ONE definition (kobe-daemon activity-reduce;
+  // kobe/src/engine/hook-events.ts re-exports it). These two behaviors were
+  // paid for with production bugs and were only pinned on the kobe side —
+  // this is the daemon path they actually ship on.
+  it("a Stop on a COLD registry completes the turn — it outlived a daemon restart", () => {
+    const bus = new DaemonEventBus()
+    const registry = new DaemonActivityRegistry(bus, 1_000)
+    const published: Array<{ taskId: string; state: string }> = []
+    bus.onPublish((event) => {
+      if (event.channel === "engine-state") {
+        const p = event.payload as { taskId: string; state: string }
+        published.push({ taskId: p.taskId, state: p.state })
+      }
+    })
+
+    // No prior entry for this task: a restart wiped the in-memory registry
+    // while a turn was in flight, so its Stop is the first event since boot.
+    // Swallowing it cost the ● lamp for every turn outliving a restart.
+    registry.report("task-cold", "turn-complete")
+    expect(published).toEqual([{ taskId: "task-cold", state: "turn_complete" }])
+
+    // A Stop on a KNOWN untracked state is the other case — an automated
+    // wake (a background monitor stream ending), which must NOT light the
+    // ● lamp: the state stays idle (owner bug 2026-08-02).
+    registry.report("task-warm", "session-start")
+    published.length = 0
+    registry.report("task-warm", "turn-complete")
+    expect(published).toEqual([{ taskId: "task-warm", state: "idle" }])
+
+    registry.close()
+  })
+
+  // Why: Kimi fires Interrupt INSTEAD of Stop on a user interrupt
+  // (docs/design/plugin-events.md §B) — without the verb landing on idle the
+  // turn strands in `running` and the spinner never stops.
+  it("turn-interrupted lands the state back on idle", () => {
+    const bus = new DaemonEventBus()
+    const registry = new DaemonActivityRegistry(bus, 1_000)
+
+    registry.report("task-1", "turn-start")
+    expect(registry.currentNonIdle().map((p) => p.state)).toEqual(["running"])
+
+    registry.report("task-1", "turn-interrupted")
+    expect(registry.currentNonIdle()).toEqual([])
+
+    registry.close()
+  })
+
   // Why: the F7 attention jump's tab precision rides these — a tabId-carrying
   // report must ledger per-tab (published + replayed with the tabId), the
   // task-level rollup must stay identical for every existing consumer, and a

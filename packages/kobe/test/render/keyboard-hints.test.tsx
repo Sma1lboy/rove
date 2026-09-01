@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { useEffect } from "react"
@@ -25,7 +25,9 @@ import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keyb
 import type { HostPagesState } from "../../src/tui-react/workspace/host-pages"
 import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/keyboard-hints"
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
-import { act, renderComponent, settle } from "./harness"
+import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
+import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -89,6 +91,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     openInbox: NOOP,
     enterMoveMode: NOOP,
     createPR: NOOP,
+    toggleSortMode: NOOP,
   })
   return <>{props.children}</>
 }
@@ -127,6 +130,24 @@ function withTempKvHome(): void {
   process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-hints-"))
 }
 
+function withGuideKvHome(): void {
+  const home = mkdtempSync(join(tmpdir(), "kobe-hints-guide-"))
+  const configDir = join(home, ".config", "rove")
+  mkdirSync(configDir, { recursive: true })
+  writeFileSync(join(configDir, "state.json"), JSON.stringify({ [PREFIX_TAP_PRESENTATION_KEY]: "guide" }))
+  process.env.KOBE_HOME_DIR = home
+}
+
+// The which-key guide is a deliberate delayed reveal: PrefixHud only opens it
+// PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
+// product delay plus frame latency on a loaded CI runner (same flake as
+// issue #82 in shortcut-reveal).
+const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
+
+async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {
+  return waitForFrameText(frame, text, { timeoutMs: GUIDE_REVEAL_TIMEOUT_MS })
+}
+
 describe("StatusKeyHintBar", () => {
   it("advertises the live prefix and help chords from the workspace stack", async () => {
     const { frame } = await renderComponent(
@@ -159,6 +180,7 @@ describe("StatusKeyHintBar", () => {
   })
 
   it("opens and dispatches the command layer with ctrl+a inside the terminal", async () => {
+    withGuideKvHome()
     let zenToggles = 0
     const { frame, mockInput } = await renderComponent(
       <WorkspaceFrame orchestrator={fakeOrchestrator()} onOpenSettings={NOOP}>
@@ -168,13 +190,12 @@ describe("StatusKeyHintBar", () => {
           </TerminalPassthroughDriver>
         </WorkspaceDriver>
       </WorkspaceFrame>,
-      { width: 110, height: 30, providers: { focus: true, dialog: true } },
+      { width: 110, height: 30, providers: { kv: true, focus: true, dialog: true } },
     )
     await settle()
 
     act(() => mockInput.pressKey("a", { ctrl: true }))
-    await settle(300)
-    expect(await frame()).toContain("more Rove commands")
+    expect(await waitForGuideText(frame, "more Rove commands")).toContain("more Rove commands")
 
     act(() => mockInput.pressKey("z"))
     await settle()
@@ -254,19 +275,18 @@ describe("footer hint clicks", () => {
   })
 
   it("clicking the commands caption arms the real prefix and shows the which-key guide", async () => {
+    withGuideKvHome()
     const { frame, mockMouse } = await renderComponent(
       <WorkspaceFrame orchestrator={fakeOrchestrator()} onOpenSettings={NOOP}>
         <WorkspaceDriver />
         <PrefixHud left={1} width={24} />
       </WorkspaceFrame>,
-      { width: 110, height: 30, providers: { focus: true, dialog: true } },
+      { width: 110, height: 30, providers: { kv: true, focus: true, dialog: true } },
     )
     await settle()
     const spot = locate(await frame(), "commands")
     await mockMouse.click(spot.x + 1, spot.y)
-    // The guide expands after the learner delay (180ms).
-    await settle(300)
-    expect(await frame()).toContain("more Rove commands")
+    expect(await waitForGuideText(frame, "more Rove commands")).toContain("more Rove commands")
     act(() => resetPrefixState())
   })
 })
@@ -307,13 +327,33 @@ describe("PaneKeyHint", () => {
   })
 })
 
-describe("onboarding wizard — Keyboard basics", () => {
-  it("shows the live-keymap grammar page after the questions", async () => {
-    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} onDone={NOOP} />, {
+describe("onboarding wizard — environment page and keyboard basics", () => {
+  const readyEnv = {
+    git: { line: "git:      ✓ git version 2.39.5", found: true },
+    engines: {
+      lines: ["engines:", "  claude  ✓ /bin/claude — logged in (a@b.c)", "  kimi    ✗ not found on PATH"],
+      anyUsable: true,
+    },
+  }
+  const emptyEnv = {
+    git: { line: "git:      ✓ git version 2.39.5", found: true },
+    engines: { lines: ["engines:", "  claude  ✗ not found on PATH"], anyUsable: false },
+  }
+
+  it("shows the environment page after the questions, then the keyboard page", async () => {
+    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} env={readyEnv} onDone={NOOP} />, {
       width: 100,
       height: 24,
     })
     expect(await frame()).toContain("Rove agent skill")
+    act(() => mockInput.pressEnter())
+    await settle()
+    const envText = await frame()
+    expect(envText).toContain("Environment check")
+    expect(envText).toContain("git:      ✓ git version 2.39.5")
+    expect(envText).toContain("claude  ✓ /bin/claude")
+    expect(envText).toContain("✓ You're set")
+    expect(envText).toContain("enter continue")
     act(() => mockInput.pressEnter())
     await settle()
     const text = await frame()
@@ -322,5 +362,29 @@ describe("onboarding wizard — Keyboard basics", () => {
     expect(text).toContain("⌃ A opens the command map")
     expect(text).toContain("full live reference")
     expect(text).toContain("enter finish")
+  })
+
+  it("shows the not-ready verdict when no engine is usable", async () => {
+    const { frame, mockInput } = await renderComponent(<WizardPage shell={null} env={emptyEnv} onDone={NOOP} />, {
+      width: 100,
+      height: 24,
+    })
+    act(() => mockInput.pressEnter())
+    await settle()
+    const text = await frame()
+    expect(text).toContain("Environment check")
+    expect(text).toContain("✗ No usable engine yet")
+    expect(text).not.toContain("✓ You're set")
+  })
+
+  it("primer mode opens on the environment page — no questions re-asked", async () => {
+    const { frame } = await renderComponent(<WizardPage shell="zsh" env={readyEnv} mode="primer" onDone={NOOP} />, {
+      width: 100,
+      height: 24,
+    })
+    const text = await frame()
+    expect(text).toContain("Environment check")
+    expect(text).not.toContain("shell completions")
+    expect(text).not.toContain("agent skill?")
   })
 })

@@ -11,7 +11,7 @@ import { toTaskId } from "@/types/task"
 
 export const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
 
-/** A representative task list: project row, running/pinned/backlog/archived. */
+/** A representative task list: project row, running/pinned/backlog. */
 export function seedSidebarTasks(): readonly Task[] {
   const ts = "2026-07-01T00:00:00.000Z"
   const base = {
@@ -38,7 +38,6 @@ export function seedSidebarTasks(): readonly Task[] {
     worktreePath: `/mock/repos/${name}`,
     kind: "main" as const,
     status: "backlog" as const,
-    archived: false,
   }))
   return [
     ...extraProjects,
@@ -50,7 +49,6 @@ export function seedSidebarTasks(): readonly Task[] {
       worktreePath: MOCK_SIDEBAR_REPO,
       kind: "main",
       status: "backlog",
-      archived: false,
     },
     {
       ...base,
@@ -60,7 +58,6 @@ export function seedSidebarTasks(): readonly Task[] {
       worktreePath: "/mock/worktrees/react-sidebar",
       kind: "task",
       status: "in_progress",
-      archived: false,
       pinned: true,
       vendor: "claude",
     },
@@ -72,7 +69,6 @@ export function seedSidebarTasks(): readonly Task[] {
       worktreePath: "/mock/worktrees/transcript-cache",
       kind: "task",
       status: "in_review",
-      archived: false,
       vendor: "claude",
       prStatus: {
         provider: "github",
@@ -88,7 +84,6 @@ export function seedSidebarTasks(): readonly Task[] {
       worktreePath: "/mock/worktrees/tmux-layout",
       kind: "task",
       status: "backlog",
-      archived: false,
       vendor: "codex",
     },
     {
@@ -100,7 +95,6 @@ export function seedSidebarTasks(): readonly Task[] {
       worktreePath: "/mock/worktrees/brand-logo",
       kind: "task",
       status: "in_progress",
-      archived: false,
       vendor: "claude",
     },
     {
@@ -112,19 +106,7 @@ export function seedSidebarTasks(): readonly Task[] {
       worktreePath: "/mock/worktrees/fox-recorder",
       kind: "task",
       status: "backlog",
-      archived: false,
       vendor: "codex",
-    },
-    {
-      ...base,
-      id: toTaskId("mock-archived"),
-      title: "Old shipped experiment",
-      branch: "feat/old-experiment",
-      worktreePath: "/mock/worktrees/old-experiment",
-      kind: "task",
-      status: "done",
-      archived: true,
-      vendor: "claude",
     },
   ]
 }

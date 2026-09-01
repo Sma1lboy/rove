@@ -17,7 +17,10 @@ describe("activityTurnState", () => {
     expect(activityTurnState("running")).toBe("running")
     expect(activityTurnState("turn_complete")).toBe("done")
     expect(activityTurnState("error")).toBe("error")
-    expect(activityTurnState("rate_limited")).toBe("error")
+    // NOT "error": a limit that clears itself and a broken engine ask for
+    // opposite actions, and the sidebar rail has always drawn them apart.
+    expect(activityTurnState("rate_limited")).toBe("rate_limited")
+    expect(activityTurnState("dead")).toBe("dead")
     expect(activityTurnState("permission_needed")).toBe("needs_input")
   })
 

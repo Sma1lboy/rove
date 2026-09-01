@@ -2,7 +2,7 @@
 
 Short answer: **quitting Rove only detaches.** A PTY-host restart or machine
 reboot ends the child processes, but restores their screens and relaunches
-their commands on attach. Closing a tab, archiving a managed/directory Task,
+their commands on attach. Closing a tab, deleting a managed/directory Task,
 resetting a terminal, or running `rove reset` is an intentional teardown
 instead.
 
@@ -15,7 +15,7 @@ instead.
 | `rove daemon restart` | ✓ | ✓ | ✓ | ✓ |
 | Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
-| Archive a managed/directory Task | — all of that Task's tabs | — those rings are dropped | ✓ | ✓ |
+| Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
 | Stop `rove web` | browser-owned PTYs end; standalone-host PTYs stay | browser sidecar has no freeze/thaw | ✓ | engine-owned files stay |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
 | `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index kept unless `--hard` | ✓ |
@@ -87,7 +87,7 @@ flowchart TB
   per few seconds while streaming, immediately on exit, and in full at
   shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each record into a dead *restored* session: reattaching replays the
-  old screen and respawns the command in place. Closing a tab, archiving a
+  old screen and respawns the command in place. Closing a tab, deleting a
   task, or `rove reset` deletes the record instead. An intentional end is
   never resurrected.
 
@@ -117,14 +117,11 @@ local to each one.
   engine tab because a task cannot have zero tabs.
 - **Closing a tab** explicitly kills that tab's hosted PTY and drops its frozen
   record. The last tab cannot be closed with the close action.
-- **Archiving a managed or directory Task** stops all of its hosted sessions and drops their frozen
-  records. The task, worktree, branch, tab snapshot, and engine history stay,
-  so unarchiving can rebuild the sessions.
+- **Deleting a managed or directory Task** stops all of its hosted sessions and drops their frozen
+  records. The task record is removed, but the branch stays; the worktree is
+  removed unless the task is a directory Task.
 - **F5** confirms, kills, and replaces the active terminal PTY. It is a
   per-terminal recovery action, not the same as the global `rove reset`.
-
-A daemon-side janitor applies the archive rule even for headless
-`rove api archive`, so an archived task cannot leave an engine running.
 
 ## Tab and split state
 
@@ -162,14 +159,21 @@ Three related limits are easy to confuse:
   while output streams, immediately when the child exits, and in full during
   a clean host shutdown. A crash can therefore lose the newest few seconds,
   but a reboot or host restart restores the last completed snapshot. Closing
-  the tab, archiving its task, or `rove reset` deliberately drops the relevant
+  the tab, deleting its task, or `rove reset` deliberately drops the relevant
   frozen record.
-- **What diagnostics retain after an abnormal PTY death.**
-  `<home>/.rove/pty-exits.json` stores the newest 50 abnormal deaths. Each
-  record has the exit code or signal, time, and the last 40 plain-text lines
-  extracted from up to 16 KiB of raw ring data. Clean exits are omitted. This
-  is a diagnostic tail, not scrollback, and an engine CLI returning to its
-  still-live shell does not create one.
+- **What diagnostics retain after a death.** `<home>/.rove/pty-exits.json`
+  stores the newest 50 records. Each has the exit code or signal, time, and
+  the last 40 plain-text lines extracted from up to 16 KiB of raw ring data.
+  This is a diagnostic tail, not scrollback. Records come in two layers:
+  - `layer: "pty"` — the terminal's own process died. Clean exits are omitted.
+  - `layer: "engine"` — the AI process is gone from a terminal that is still
+    running, which is what you get when an engine crashes and drops you at
+    the fallback shell. Written by the daemon's foreground walk, so it
+    appears within about a minute of the death rather than instantly, and
+    carries `vendor`, the engine's own pid, `parentAlive: true`, and an exit
+    code read from the `Engine exited (code N)` banner when the shell
+    printed one. Recorded whether or not the engine exited cleanly — an
+    engine that vanishes without explanation is the case worth keeping.
 - **How far you can scroll.** `terminal.scrollbackRows` in Settings →
   General → Terminal, default 1000 rows. Applies to terminals started after
   the change.
@@ -187,8 +191,11 @@ process, including a reboot.
 
 - Claude tabs pin their conversation up front, so a tab that already ran
   comes back into the same conversation after a reboot rather than a blank
-  one. Engines that can't take a caller-set session id (Codex and the rest)
-  relaunch fresh.
+  one. Codex and Kimi mint their own ids instead — Codex announces its in the
+  terminal title, Kimi's is discovered from its session store — and Rove
+  reopens the last conversation with the engine's own resume verb. Copilot
+  and custom engines have no resume verb Rove knows, so their tabs relaunch
+  fresh.
 - A resumable engine tab found dead on attach gets **one** automatic resume
   attempt. If that dies too, an extra tab closes; the task's only tab recycles
   into a fresh engine tab rather than respawning forever.

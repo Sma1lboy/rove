@@ -12,6 +12,7 @@ import type { PluginSetting } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { describe, expect, it } from "vitest"
 import {
   type PluginSettingRowView,
+  displaySettingValue,
   isBooleanOn,
   nextEnumValue,
   normalizeNumberInput,
@@ -115,5 +116,39 @@ describe("normalizeNumberInput", () => {
     expect(normalizeNumberInput("500ms")).toBeNull()
     expect(normalizeNumberInput("NaN")).toBeNull()
     expect(normalizeNumberInput("Infinity")).toBeNull()
+  })
+})
+
+/**
+ * The settings dialog is on screen during screen shares, screenshots, and
+ * recordings, and `[[settings]]` is the documented place for a plugin's API
+ * key. A `secret` row must therefore never route the stored value to the
+ * renderer — that is the whole point of the type.
+ */
+describe("displaySettingValue", () => {
+  it("never returns any part of a stored secret", () => {
+    const token = "sk-live-51H8xQ2eZvKYlo"
+    const shown = displaySettingValue({ type: "secret", value: token })
+    expect(shown).not.toContain(token)
+    // Not a prefix, suffix, or any run of it either — a masked-but-hinted
+    // value is still a leak on a recording someone can pause.
+    for (let i = 6; i <= token.length; i++) expect(shown).not.toContain(token.slice(0, i))
+    expect(shown).toBe("••••••••")
+  })
+
+  it("hides length, so two different keys look identical", () => {
+    expect(displaySettingValue({ type: "secret", value: "x" })).toBe(
+      displaySettingValue({ type: "secret", value: "x".repeat(64) }),
+    )
+  })
+
+  it("leaves an unset secret unset rather than claiming one is configured", () => {
+    expect(displaySettingValue({ type: "secret", value: "" })).toBe("")
+  })
+
+  it("shows every other type verbatim", () => {
+    expect(displaySettingValue({ type: "string", value: "plain" })).toBe("plain")
+    expect(displaySettingValue({ type: "number", value: "24" })).toBe("24")
+    expect(displaySettingValue({ type: "enum", value: "fast" })).toBe("fast")
   })
 })

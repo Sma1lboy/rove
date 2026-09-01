@@ -46,17 +46,20 @@ other.
 ## Settings reference
 
 Keys not listed here are internal UI state (saved repos, tab layouts) that
-happen to share the file. Two exceptions worth knowing: `repoConfigs` is what
+happen to share the file. Three exceptions worth knowing: `repoConfigs` is what
 `rove repo set` writes (a map of git toplevel → `{initScript, initPrompt}`,
-see [Per-repo init](#per-repo-init)), and `lastSelectedVendor` is the legacy
-engine fallback below `defaultVendor`.
+see [Per-repo init](#per-repo-init)); `lastSelectedVendor` is the legacy
+engine fallback below `defaultVendor`; and `externalWorktreeSync` is not a
+setting you configure but a cleanup marker Rove writes — it records where the
+retired worktree-sync hook was once installed so the next launch (or
+`rove hook cleanup`) can remove it, flipping to `"off"` once cleaned.
 
 ### Appearance
 
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `activeTheme` | theme name | `"claude"` | See [Themes](#themes) |
-| `transparentBackground` | boolean | `true` | Let the terminal background show through |
+| `transparentBackground` | boolean | `true` | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and lifts body/muted text to stay readable on it — no setting needed |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |
@@ -105,10 +108,12 @@ Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `terminal.scrollbackRows` | number | `1000` | History per embedded terminal. Clamped 100–100,000 |
-| `chat.tabStrip.mode` | `always` \| `multipleOnly` \| `never` | `never` | Horizontal chat tab strip |
+| `chat.tabStrip.mode` | `always` \| `multipleOnly` \| `never` | `always` | Horizontal chat tab strip |
 
-The tab strip is off by default because the sidebar tree already lists every
-tab. `multipleOnly` shows it once a task has more than one. (An older
+The tab strip is on by default: the sidebar tree lists every tab, but the
+strip is the affordance that says which tab the pane below is showing.
+`multipleOnly` hides it while a task has only one tab, `never` leaves the
+tree as the only tab list. (An older
 `chat.tabStrip.hideSingle` boolean still works if you set it before
 `chat.tabStrip.mode` existed; writing the new key retires it.)
 
@@ -164,9 +169,11 @@ discoverable. No restart needed.
 ### Sidebar
 
 The current tree sidebar follows persisted project/task order and supports
-manual project reordering with `shift+m`. Older state files may contain
-`activeSortMode` and `tasksPane.projectFilter`; the daemon still mirrors those
-compatibility values, but the current PureTUI tree does not consume them.
+manual project reordering with `shift+m`. The `t` key switches the task sort
+between that persisted order and most-recently-touched; the choice is saved
+as `activeSortMode` and read back on startup. Older state files may contain
+`tasksPane.projectFilter`; the daemon still mirrors that compatibility value
+for background consumers, but the current PureTUI tree does not consume it.
 
 ### Experimental
 
@@ -177,7 +184,6 @@ Off by default. These can change without notice.
 | `experimental.remoteProjects` | Projects over SSH |
 | `experimental.autoStatus` | Tasks move to `in_progress` and self-report `in_review` |
 | `experimental.dispatcher` | Per-repo routing of field notes between sessions |
-| `experimental.archivedHistoryPreview` | Reserved legacy toggle; the current PureTUI has no archived-history viewer |
 
 ## Themes
 
@@ -312,6 +318,12 @@ A repo can ship two files in its own `.rove/` directory:
 - **`.rove/init.sh`.** Runs in each new task worktree before the engine
   starts, once per worktree. Use it for `bun install`, direnv, codegen.
 - **`.rove/init-prompt.md`.** Sent as the engine's first message.
+
+`init.sh` comes from the repo, and Rove runs it without asking — in the same
+shell that then execs the engine, with your account's privileges. That is the
+same level of trust you extend by running the repo's own build or test
+command, so it is worth a look at `.rove/init.sh` before you create the first
+task in a repository you did not write.
 
 Files committed in the repo win over any per-user override you set with
 `rove repo set`. Legacy `.kobe/init.sh` and `.kobe/init-prompt.md` remain

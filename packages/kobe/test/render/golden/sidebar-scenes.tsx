@@ -36,7 +36,6 @@ function task(id: string, over: Partial<Task> = {}): Task {
     worktreePath: `/wt/${id}`,
     kind: "task",
     status: "in_progress",
-    archived: false,
     pinned: false,
     vendor: "claude",
     createdAt: "2026-08-01T00:00:00.000Z",
@@ -241,12 +240,6 @@ export const SCENES: readonly Scene[] = [
     setup: seedStandard,
     element: tree(),
     keys: ["/", "review"],
-  },
-  {
-    name: "view-tabs-archived",
-    about: "archived tasks have no sidebar surface — no view tabs, no charlie row (issue #33)",
-    setup: seedStandard,
-    element: tree({ tasks: [ALPHA, BRAVO, task("charlie", { archived: true })] }),
   },
   {
     name: "move-mode",

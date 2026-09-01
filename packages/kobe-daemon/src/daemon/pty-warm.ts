@@ -1,5 +1,9 @@
 /**
- * The warm-spare shell — split from `pty-host.ts` for the file-size cap.
+ * The warm-spare shell — a latency optimization, in its own file because it is
+ * an optional one: nothing in the host's correctness depends on the spare
+ * existing, and deleting this class would only make `open` slower. Isolating
+ * it keeps that true, and keeps a purely-for-speed policy from tangling into
+ * the session bookkeeping it must stay invisible to.
  *
  * One pre-initialized spare shell (`pty.warm`) is kept OUTSIDE the host's
  * session map — invisible to `list`/`sweepTasks`/`liveCount` (it must not

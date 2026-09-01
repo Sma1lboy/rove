@@ -20,6 +20,7 @@
 
 import { spawnSync } from "node:child_process"
 import * as fs from "node:fs"
+import { t } from "@/tui/i18n"
 
 /** Default base ref when the user leaves the branch field blank or HEAD can't be read. */
 export const DEFAULT_BASE_REF = "main"
@@ -53,6 +54,58 @@ function notAGitRepoReason(path: string): string {
   return `This folder isn't a git repository yet, and a task needs a git branch to work in. To fix it, turn ${path} into a repo:  git init && git add -A && git commit -m "init"  — then create the task again. (Working in non-git folders is coming soon.)`
 }
 
+/**
+ * `git` itself is missing from PATH. Distinct from {@link notAGitRepoReason}
+ * because `spawnSync` reports BOTH as a non-zero `status` — the ENOENT case
+ * used to fall through and tell the user to run `git init && git add -A &&
+ * git commit`, three commands that would each also be `command not found`.
+ * Same wording as the WelcomePane's own (correct) probe so one machine can't
+ * show two contradictory diagnoses.
+ */
+function gitMissingReason(): string {
+  return t("workspace.welcome.gitMissing")
+}
+
+/** True when a spawnSync result means "the binary isn't on PATH". */
+function isBinaryMissing(out: { error?: Error & { code?: string } }): boolean {
+  return out.error !== undefined && (out.error as { code?: string }).code === "ENOENT"
+}
+
+/**
+ * Friendly reason for a repo with an UNBORN HEAD — `git init` ran but nothing
+ * was ever committed. `rev-parse --git-dir` succeeds here, so the repo check
+ * above passes and the dialog happily prefills `DEFAULT_BASE_REF`; the failure
+ * only surfaces later, inside `ensureWorktree`, as `fatal: invalid reference:
+ * main` on a code path whose only error handler is a console.error nobody can
+ * see under alt-screen. Catch it at the dialog instead, where the user can
+ * still act on it.
+ */
+function noCommitsReason(path: string): string {
+  return `This repository has no commits yet, and a task branches off an existing commit. To fix it, make one in ${path}:  git add -A && git commit -m "init"  — then create the task again.`
+}
+
+/**
+ * True when HEAD resolves to no commit. PRECONDITION: `repo` is already known
+ * to be a git repo — `rev-parse --verify HEAD` also exits non-zero for a
+ * non-repo, so this only distinguishes "unborn HEAD" from "has commits" once
+ * the repo check has passed. Kept module-private for exactly that reason;
+ * {@link validateRepoPath} is the only caller and it checks repo-ness first.
+ */
+function hasNoCommits(repo: string): boolean {
+  try {
+    const out = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
+      cwd: repo,
+      encoding: "utf-8",
+      timeout: 2000,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+    if (isBinaryMissing(out)) return false
+    return out.status !== 0
+  } catch {
+    return false
+  }
+}
+
 export function validateRepoPath(repo: string): string | null {
   const trimmed = repo.trim()
   if (!trimmed) return "repo path is required"
@@ -71,10 +124,14 @@ export function validateRepoPath(repo: string): string | null {
       timeout: 2000,
       stdio: ["ignore", "pipe", "ignore"],
     })
+    if (isBinaryMissing(out)) return gitMissingReason()
     if (out.status !== 0) return notAGitRepoReason(trimmed)
   } catch {
     return notAGitRepoReason(trimmed)
   }
+  // A repo with no commits passes every check above but has nothing for
+  // `git worktree add <path> <baseRef>` to branch from.
+  if (hasNoCommits(trimmed)) return noCommitsReason(trimmed)
   return null
 }
 

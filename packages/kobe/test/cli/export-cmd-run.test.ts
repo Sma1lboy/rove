@@ -36,7 +36,6 @@ function task(overrides: Partial<Task> = {}): Task {
     branch: "kobe/fix-thing-01",
     worktreePath: "/home/u/.kobe/worktrees/repo/fix-thing-01",
     status: "in_progress",
-    archived: false,
     vendor: "claude",
     createdAt: "2026-06-23T00:00:00.000Z",
     updatedAt: "2026-06-23T00:00:00.000Z",
@@ -89,7 +88,7 @@ describe("runExportSubcommand", () => {
   it("--csv prints a header row plus one row per task", async () => {
     await runExportSubcommand(["--csv"])
     const lines = out().trimEnd().split("\n")
-    expect(lines[0]).toBe("id,title,status,archived,vendor,branch,repo,worktreePath")
+    expect(lines[0]).toBe("id,title,status,vendor,branch,repo,worktreePath")
     expect(lines).toHaveLength(2)
   })
 
@@ -102,7 +101,7 @@ describe("runExportSubcommand", () => {
 
   it("--format=csv (equals form) works, and the LATER flag wins", async () => {
     await runExportSubcommand(["--json", "--format=csv"])
-    expect(out().split("\n")[0]).toBe("id,title,status,archived,vendor,branch,repo,worktreePath")
+    expect(out().split("\n")[0]).toBe("id,title,status,vendor,branch,repo,worktreePath")
   })
 
   it("an empty task list in table format says 'no tasks' instead of a lonely header", async () => {

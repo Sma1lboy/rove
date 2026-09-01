@@ -90,12 +90,41 @@ test("a listener for a DIFFERENT task does not claim it", () => {
   expect(tabsByTask.get("t1")?.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
 })
 
-test("the last tab is refused, and an unknown task reports failure", () => {
+test("the last tab closes, leaving the task empty", () => {
+  // A task's last tab may go (owner call 2026-08-31): the row stays and is
+  // revived on re-entry. This file used to assert the opposite — the older
+  // rule, when an emptied task had no way back — and that stale expectation
+  // is why the background path kept refusing after the mounted one stopped:
+  // the two routes are the SAME gesture from the tree, and only one of them
+  // was updated.
   tabsByTask.clear()
   tabsByTask.set("t1", state(["tab-1"]))
-  expect(closeTaskTab(fakeKv(), "t1", "tab-1")).toBe(false)
-  expect(tabsByTask.get("t1")?.tabs).toHaveLength(1)
+  expect(closeTaskTab(fakeKv(), "t1", "tab-1")).toBe(true)
+  expect(tabsByTask.get("t1")?.tabs).toHaveLength(0)
+})
+
+test("an unknown task reports failure", () => {
+  // The one remaining false: nothing to close. Kept separate from the case
+  // above so a regression there cannot hide behind this one.
+  tabsByTask.clear()
   expect(closeTaskTab(fakeKv(), "never-mounted", "tab-1")).toBe(false)
+})
+
+test("prefers the live module state over a stale snapshot", () => {
+  // The snapshot lags the module map by one debounce, so a task that gained a
+  // tab this tick must not be closed against the older list.
+  tabsByTask.clear()
+  const kv = fakeKv()
+  kv.store[terminalTabsKey("t1")] = state(["tab-1"])
+  tabsByTask.set("t1", state(["tab-1", "tab-2"]))
+  expect(closeTaskTab(kv, "t1", "tab-2")).toBe(true)
+  expect((kv.store[terminalTabsKey("t1")] as TabsState).tabs.map((tab) => tab.id)).toEqual(["tab-1"])
+})
+
+test("a tab the task does not have reports failure", () => {
+  tabsByTask.clear()
+  tabsByTask.set("t1", state(["tab-1"]))
+  expect(closeTaskTab(fakeKv(), "t1", "tab-9")).toBe(false)
 })
 
 test("a task with only a restart snapshot still closes", () => {

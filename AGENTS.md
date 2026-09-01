@@ -19,17 +19,16 @@ The TUI is the product; engine adapters are execution backends (Claude Code is t
 1. [`HANDOFF.md`](./HANDOFF.md) — freshest handoff, current risks, open follow-ups. Local + gitignored; absent on a fresh clone is fine, just skip it.
 2. [`docs/DESIGN.md`](./docs/DESIGN.md) — design philosophy, decisions, tech-stack lock-in.
 3. [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — source-tree map, ownership boundaries, and the `refs/` reference projects (§7).
-4. [`docs/PLAN.md`](./docs/PLAN.md) — phase/wave plan + gate history (**phase status lives here, not in this file**).
-5. [`docs/HARNESS.md`](./docs/HARNESS.md) — agent self-test contract. **Load-bearing.**
-6. [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md) — pane-scope rules; read before adding/moving any chord.
-7. [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) — shipped behavior + release-note style.
+4. [`docs/HARNESS.md`](./docs/HARNESS.md) — agent self-test contract. **Load-bearing.**
+5. [`docs/KEYBINDINGS.md`](./docs/KEYBINDINGS.md) — pane-scope rules; read before adding/moving any chord.
+6. [`packages/kobe/CHANGELOG.md`](./packages/kobe/CHANGELOG.md) — shipped behavior + release-note style.
 
 The docs are the source of truth. **If docs and implementation disagree, surface the mismatch before widening scope.**
 
 ## Orientation
 
 - **Monorepo (Bun workspaces), source under `packages/`:** `kobe/` (the TUI/CLI, published canonically as `@sma1lboy/rove` and compatibly as `@sma1lboy/kobe`), `kobe-daemon/` (daemon server + protocol + socket client + daemon-hosted web transport), `kobe-web/` (the browser dashboard SPA + PTY sidecar), `branding/` (Remotion pipeline), `kobe-docs/` (public docs site, Fumadocs on Next.js, static export; content synced from `docs/`). Unqualified `src/…`/`test/…` paths in docs are relative to `packages/kobe/`. Full source-tree map: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
-- **Two test runners, and picking the wrong one looks like a broken environment.** `test/render/**` runs under bun's own runner (`bun test test/render`) because OpenTUI needs bun; **everything else runs under vitest** (`bun run test:fast`, or `bun x vitest run <file>` for one file). Running a vitest file with `bun test` fails on vitest-only APIs — `vi.hoisted is not a function` is the usual signature, and it reads like a missing dependency rather than the wrong command. If a test "can't run", check the runner before concluding anything about the environment.
+- **Three test runners, and picking the wrong one looks like a broken environment.** `test/render/**` runs under bun's own runner (`bun test test/render`) because OpenTUI needs bun; `test/daemon/**` needs `KOBE_INCLUDE_SOCKET=1` (`bun run test:socket`) and without it vitest prints "No test files found" and exits 1 — a SILENT skip that reads like a missing file, not a wrong command; **everything else runs under vitest** (`bun run test:fast`, or `bun x vitest run <file>` for one file). Running a vitest file with `bun test` fails on vitest-only APIs — `vi.hoisted is not a function` is the usual signature, and it reads like a missing dependency rather than the wrong command. If a test "can't run", check the runner before concluding anything about the environment.
 - **Run scripts** via `bun --filter @sma1lboy/rove <script>` or `cd packages/kobe && bun <script>`. Two dev flavours: `dev` (real engines, **production** Rove state) and `dev:sandbox` (real engines, throwaway `packages/kobe/.dev-sandbox/home`) — use the sandbox so you never touch the real `~/.rove/tasks.json`.
 - **Tech stack is locked:** TypeScript + `@opentui/core` + `@opentui/react` + React 19 + Bun. Do not re-litigate. React is the only UI; orchestrator/client reactivity is framework-free observable state — don't add UI-framework state primitives to the core.
 - **UI development is OpenTUI-first, with one visual ground truth.** Develop the real `packages/kobe/src/tui-react/**` surface through `dev:sandbox`. For every agent-driven visual iteration, screenshot, and UI acceptance check, the **only** ground-truth path is a fixed-viewport browser `/harness` → xterm.js → PTY sidecar → real OpenTUI. Do not use local Terminal screenshots, native `kobe-web` pages such as `/board`, render-test output, or alternate mocks as visual substitutes. The harness is infrastructure for observing OpenTUI; it does not make the web SPA the product surface. Work on native `kobe-web` pages only when explicitly requested or when a browser-only boundary must be tested. When a bug is about live state rather than layout ("the badge never cleared"), drive a REAL engine down the same path — keys through the browser's xterm, state via `rove api inspect`. The shortcuts that silently measure nothing are catalogued in [`docs/HARNESS.md`](./docs/HARNESS.md).
@@ -46,12 +45,10 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ## Hard rules (non-negotiable)
 
 ### How work lands on `main`
-- **Default: PR.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap, Review CI) → `gh pr merge --squash --delete-branch`. The PR gates are where the hard rules below get enforced, so unattended/agent-driven work always takes this path.
-- **Owner-supervised local iteration may skip the PR**: work in a worktree, get green, then merge/cherry-pick into local `main`. Same quality gates (lint, typecheck, tests, changeset) still apply. Only when the owner is in the loop that turn.
-- A direct push to `main` needs the owner to say so **in that turn** — never inferred, never carried over to the next task.
+- **Default: PR → merge → release, none of it needs fresh approval.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate; don't stop to ask, and don't park a shipped fix waiting for someone to say "release" — a fix nobody can install isn't fixed. Cut the release the same turn unless the change is mid-stack or the owner is still deciding. (Standing authorization, owner 2026-09-01.)
+- **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried into the next task. Same quality gates (lint, typecheck, tests, changeset) either way.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag (see [`docs/RELEASING.md`](./docs/RELEASING.md)).
-- Never force-push; `git fetch` before pushing.
-- **`claude-review` failing is NOT a merge blocker when it fails for lack of a token.** Its `ANTHROPIC_API_KEY` is frequently empty in Actions, and the run then dies ~0.3s after `Claude Code initialized` with `is_error: true` and no findings. Confirm that shape before waving it through — read the job log for the empty-key signature, and check `gh run list --workflow=claude-review.yml` to see whether unrelated branches fail identically. A review that actually RAN and reported findings still blocks.
+- `git fetch` before pushing. Force-push ONLY to rebase your own unmerged PR branch, and only with `--force-with-lease`; never onto `main`, a shared branch, or commits someone has reviewed.
 
 ### Commits
 - Commit at the end of each stream when green (per-stream commits are pre-authorized). Message: `<type>: <summary>` + a 2-3 sentence body.
@@ -59,9 +56,8 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 - **NEVER** use `--no-verify` / `--no-gpg-sign` or skip hooks. Fix the underlying issue.
 
 ### Releases
-- **Changeset bump is `patch` by default.** Only an EXPLICIT instruction in that turn promotes it to `minor`/`major` — never infer `minor` from "it's a feature" (pre-1.0 ships features as patches). Confirm the bump and check for pending changesets that may override your choice before tagging.
+- **Changeset bump is `patch` by default.** Only an EXPLICIT instruction that turn promotes it to `minor`/`major` — never infer `minor` from "it's a feature" (pre-1.0 ships features as patches). A pending changeset carrying a bigger bump overrides you: check before tagging and surface it.
 - Release notes may thank human contributors/testers. No AI/Anthropic/Claude/Codex/tool attribution anywhere (commits, tags, notes).
-- Run lint + typecheck locally before pushing; don't assume CI will catch it.
 
 ### Deletion
 - **NEVER** delete files, branches, worktrees, or run `rm -rf` unless the user explicitly says "delete"/"remove" *in the same conversation turn* — including cleanup of stale worktrees or "fixing" layout by removing files. If a task seems to need deletion, surface and ask first.
@@ -69,13 +65,12 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ### Scope
 - Edit only files within the declared slice; surface cross-slice changes, don't make them silently.
 - 3-strike rule: same root cause fails 3× → stop and surface. Max-depth: 3+ levels of sub-investigation → surface before going deeper.
-- When fixing a feature, scope the requirement explicitly — if a fix applies to one subcommand/file, confirm whether it should extend to all similar cases before declaring it done.
+- Fixing one subcommand/file? Confirm whether it should extend to every similar case before calling it done.
 
-### File size cap: ~500 lines (code-review gate)
-- Every source file should stay at or under ~500 lines.
-- If your change touches a file that is over 500 lines, the change is NOT done until that file is refactored/split back to ~500 or below — touch it → you own shrinking it. CI hard-gates this (`ci.yml` file-size-cap job on touched files) and the Review CI flags it as Blocking.
-- New files must not be born over 500 lines.
-- Exemptions: generated files, lockfiles, snapshots/test fixtures, and `refs/`. A deliberate exception needs a one-line justification in the PR/commit.
+### File size: ~500 lines is a refactor prompt, not a budget
+- **The goal is refactoring, not the number.** 500 means "this file probably does more than one job — find the seam". It must never decide what code you write: write the clear thing, then split. Name the SEAM (this half owns X, that half owns Y), never the line count.
+- Touch a file that is over → you own splitting it along a real boundary. No seam? Say so in the PR — a valid answer.
+- CI gates touched files (`ci.yml` file-size-cap). Exempt: generated, lockfiles, fixtures, `refs/`; a deliberate exception needs one line of justification.
 
 ### Don't touch
 - `refs/` — read-only study material, forever.

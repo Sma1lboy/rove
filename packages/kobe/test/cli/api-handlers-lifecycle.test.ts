@@ -103,14 +103,10 @@ describe("collect handler", () => {
     })
   })
 
-  it("filters repo collection to unarchived tasks", async () => {
+  it("filters repo collection to matching repo", async () => {
     const client = new FakeClient({
       "task.list": () => ({
-        tasks: [
-          taskFixture({ id: "in-repo" }),
-          taskFixture({ id: "archived", archived: true }),
-          taskFixture({ id: "elsewhere", repo: "/repo/y" }),
-        ],
+        tasks: [taskFixture({ id: "in-repo" }), taskFixture({ id: "elsewhere", repo: "/repo/y" })],
       }),
       "task.get": (payload) => ({ task: taskFixture({ id: (payload as { taskId: string }).taskId }) }),
     })
@@ -128,13 +124,12 @@ describe("collect handler", () => {
     )
   })
 
-  it("--group selects one fan-out round across repos, skipping archived siblings", async () => {
+  it("--group selects one fan-out round across repos", async () => {
     const client = new FakeClient({
       "task.list": () => ({
         tasks: [
           taskFixture({ id: "sib-1", groupId: "g1" }),
           taskFixture({ id: "sib-2", groupId: "g1", repo: "/repo/elsewhere" }),
-          taskFixture({ id: "dead-sib", groupId: "g1", archived: true }),
           taskFixture({ id: "other-round", groupId: "g2" }),
           taskFixture({ id: "no-group" }),
         ],
@@ -313,90 +308,6 @@ describe("task lifecycle handlers", () => {
     await invokeVerb("set-active", ["--task-id", "t1"], { client, runtime: stubRuntime() })
     await invokeVerb("set-active", ["--none"], { client, runtime: stubRuntime() })
     expect(client.requests.map((request) => request.payload)).toEqual([{ taskId: "t1" }, { taskId: null }])
-  })
-
-  it("archives before stopping hosted sessions", async () => {
-    const order: string[] = []
-    const client = new FakeClient({
-      "task.archive": () => {
-        order.push("rpc")
-        return {}
-      },
-    })
-    const { killed, tearDownSession } = recordingTearDown()
-    await invokeVerb("archive", ["--task-id", "t1"], {
-      client,
-      runtime: stubRuntime({
-        tearDownSession: async (id) => {
-          order.push("kill")
-          await tearDownSession(id)
-        },
-      }),
-    })
-    expect(killed).toEqual(["t1"])
-    expect(order).toEqual(["rpc", "kill"])
-  })
-
-  it("does not stop sessions when unarchiving", async () => {
-    const client = new FakeClient({ "task.archive": () => ({}) })
-    const { killed, tearDownSession } = recordingTearDown()
-    await invokeVerb("archive", ["--task-id", "t1", "--archived=false"], {
-      client,
-      runtime: stubRuntime({ tearDownSession }),
-    })
-    expect(killed).toEqual([])
-  })
-
-  it("deletes before stopping orphaned hosted sessions", async () => {
-    const order: string[] = []
-    const client = new FakeClient({
-      "task.delete": () => {
-        order.push("rpc")
-        return {}
-      },
-    })
-    const { killed, tearDownSession } = recordingTearDown()
-    await invokeVerb("delete", ["--task-id", "t1", "--force"], {
-      client,
-      runtime: stubRuntime({
-        tearDownSession: async (id) => {
-          order.push("kill")
-          await tearDownSession(id)
-        },
-      }),
-    })
-    expect(killed).toEqual(["t1"])
-    expect(order).toEqual(["rpc", "kill"])
-  })
-
-  it("keeps the branch by default and passes --delete-branch through as opt-in", async () => {
-    const client = new FakeClient({ "task.delete": () => ({}) })
-    const { tearDownSession } = recordingTearDown()
-    await invokeVerb("delete", ["--task-id", "t1"], { client, runtime: stubRuntime({ tearDownSession }) })
-    expect(client.requests[0].payload).toEqual({ taskId: "t1", force: false, deleteBranch: false })
-
-    await invokeVerb("delete", ["--task-id", "t1", "--delete-branch"], {
-      client,
-      runtime: stubRuntime({ tearDownSession }),
-    })
-    expect(client.requests[1].payload).toEqual({ taskId: "t1", force: false, deleteBranch: true })
-  })
-
-  it("does not stop hosted sessions when the delete RPC is refused (dirty worktree)", async () => {
-    // Non-force delete of a dirty worktree: the daemon's preflight rejects
-    // the RPC, so the CLI-side session teardown (which runs AFTER the RPC)
-    // must never fire — the session stays alive alongside the surviving
-    // worktree instead of the worst-of-both dead-session/live-worktree state.
-    const client = new FakeClient({
-      "task.delete": () => {
-        throw new Error("refused: DIRTY_WORKTREE")
-      },
-    })
-    const { killed, tearDownSession } = recordingTearDown()
-    await expect(
-      invokeVerb("delete", ["--task-id", "t1"], { client, runtime: stubRuntime({ tearDownSession }) }),
-    ).rejects.toThrow("DIRTY_WORKTREE")
-    expect(killed).toEqual([])
   })
 })
 

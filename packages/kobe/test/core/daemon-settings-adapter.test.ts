@@ -39,7 +39,6 @@ describe("daemon settings adapter", () => {
           editorKind: "custom",
           editorCustomCommand: "code -w {file}",
           remoteProjects: true,
-          archivedHistoryPreview: true,
           autoStatus: true,
           dispatcher: true,
           addEngine: { id: "my-engine", label: "My Engine", command: "my-engine --stdio" },

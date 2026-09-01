@@ -3,8 +3,32 @@
  * create-before-snapshot path is testable without mounting the full PTY host.
  */
 
-import { TaskDeletingError } from "../../orchestrator/errors.ts"
+import { errorMessage } from "../../lib/error-message.ts"
+import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors.ts"
 import type { Task } from "../../types/task.ts"
+
+/**
+ * Map an activation failure onto the toast the user actually sees.
+ *
+ * Three shapes reach here and they need different words:
+ *  - the task is mid-delete — nothing is wrong, the answer is "wait";
+ *  - the project has no git repo yet — actionable, `git init` fixes it;
+ *  - anything else — carry the raw reason so the user can act on it.
+ *
+ * `TaskDeletingError` is matched on its MESSAGE, not `instanceof`: the same
+ * refusal is also raised daemon-side and the RPC layer rebuilds it as a plain
+ * `Error`, dropping the class (see TASK_DELETING_CODE's own note).
+ */
+export function activationErrorMessage(
+  error: unknown,
+  translate: (key: string, vars?: Record<string, string>) => string,
+): string {
+  const message = errorMessage(error)
+  if (message.includes(TASK_DELETING_CODE)) return translate("tasks.toast.worktreeErrorDeleting")
+  if (/not a git repository|does not appear to be a git repo/i.test(message))
+    return translate("tasks.toast.worktreeErrorNotGit")
+  return translate("tasks.toast.worktreeErrorGeneric", { message })
+}
 
 type ActivateWorkspaceTaskOptions = {
   getTask: (id: string) => Task | undefined
@@ -46,10 +70,18 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
  * Boot/fallback selection, in trust order: the daemon's active task → the
  * persisted `lastActive` record (survives daemon confusion: a stale or
  * freshly-respawned daemon can replay a null/ancient focus while disk still
- * knows the truth) → the most recently UPDATED unarchived task. Raw array
- * order is never used as a tiebreak — tasks.json leads with the oldest
- * saved repo's main task, which is how every SSH reconnect used to land on
- * an untouched project instead of the one being worked on.
+ * knows the truth) → the most recently UPDATED live task. Raw array order is
+ * never used as a tiebreak — tasks.json leads with the oldest saved repo's
+ * main task, which is how every SSH reconnect used to land on an untouched
+ * project instead of the one being worked on.
+ *
+ * The recency fallback SKIPS a routine's standing session (issue #91): a
+ * schedule that fired at 03:00 makes it the most recently updated task in the
+ * install, but it is the least likely thing you meant to open — and its
+ * sidebar row is folded away, so booting onto it would leave the cursor on a
+ * session with no visible row. It stays reachable by every deliberate route
+ * (search, the Routines page, the Inbox); it just never wins by default.
+ * An explicit active/lastActive id still selects it — that was a real choice.
  */
 export function firstSelectableTask(
   tasks: readonly Task[],
@@ -57,11 +89,15 @@ export function firstSelectableTask(
   lastActiveId?: string | null,
 ): Task | undefined {
   const alive = (id: string | null | undefined): Task | undefined =>
-    id ? tasks.find((task) => task.id === id && !task.archived && !task.deletion) : undefined
+    id ? tasks.find((task) => task.id === id && !task.deletion) : undefined
   const active = alive(activeId) ?? alive(lastActiveId)
   if (active) return active
-  const unarchived = tasks.filter((task) => !task.archived && !task.deletion)
-  if (unarchived.length > 0)
-    return unarchived.reduce((newest, task) => (task.updatedAt > newest.updatedAt ? task : newest))
-  return tasks.find((task) => !task.deletion)
+  const live = tasks.filter((task) => !task.deletion)
+  const newest = (pool: readonly Task[]): Task | undefined =>
+    pool.length > 0 ? pool.reduce((best, task) => (task.updatedAt > best.updatedAt ? task : best)) : undefined
+  // Routine sessions are the fallback of last resort, never the default: an
+  // overnight firing would otherwise win every cold boot on recency alone.
+  return (
+    newest(live.filter((task) => task.routine === undefined)) ?? newest(live) ?? tasks.find((task) => !task.deletion)
+  )
 }

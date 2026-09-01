@@ -2,13 +2,16 @@
 /**
  * The workspace host's left rail — which sidebar renders, and its wiring.
  *
- * Extracted from `host.tsx` when it hit the file-size cap: ~30 props of
- * sidebar wiring did not fit in a file that was already at the limit.
+ * Its own component because `host.tsx` should compose the workspace, not know
+ * how one rail is wired. The ~30 props below are that wiring made explicit —
+ * having to pass them is the honest cost of the boundary, and it is why a new
+ * sidebar concern lands here instead of accreting on the host.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
 import { useCallback } from "react"
+import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
 import { PaneKeyHint } from "../component/keyboard-hints"
@@ -41,7 +44,6 @@ export interface HostSidebarProps {
   readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
   readonly onAddTask: () => void
   readonly onDeleteRequest: (taskId: string) => void
-  readonly onArchiveRequest: (taskId: string) => void
   readonly onRenameRequest: (taskId: string) => void
   readonly onPinRequest: (taskId: string) => void
   readonly moveMode: boolean
@@ -51,11 +53,16 @@ export interface HostSidebarProps {
   readonly onSearchActiveChange: (active: boolean) => void
   readonly headerStatus: { label: string; emphasize: boolean }
   readonly onHeaderStatusClick: () => void
+  /** "newer version on npm" chip beside the brand text; null hides it. */
+  readonly updateChip?: { label: string } | null
+  readonly onUpdateChipClick?: () => void
   readonly zenActive: boolean
   readonly onZenClick: () => void
   readonly onFocusRequest: () => void
   /** Narrow mode's "↩ recent" jump row target (issue #14, 2A). */
   readonly recentTask?: Task | null
+  /** Global task sort mode driven by the `t` chord. */
+  readonly sortMode?: TaskSortMode
 }
 
 export function HostSidebar(props: HostSidebarProps) {
@@ -66,12 +73,14 @@ export function HostSidebar(props: HostSidebarProps) {
   // Tab close is the one sidebar action the host can't express as a task-level
   // callback: the tree names a tab of ANY worktree, so who owns that tab's
   // state depends on whether its TerminalTabs is mounted. `closeTaskTab` is
-  // where that fork lives; a refusal (the task's last tab) surfaces as a toast
-  // rather than a silent no-op.
+  // where that fork lives; a failure surfaces as a toast rather than a silent
+  // no-op. Closing the LAST tab is not a failure (it empties the list and the
+  // row is revived on re-entry), so the only false left is a tab the tree
+  // still lists but the state no longer has — a stale row, not a refusal.
   const closeTab = useCallback(
     (taskId: string, tabId: string): void => {
       if (!closeTaskTab(kv, taskId, tabId))
-        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.cannotCloseLast") })
+        notif.notify({ kind: "error", taskId, tabId, title: t("terminal.tab.tabGone") })
     },
     [kv, notif, t],
   )
@@ -113,7 +122,6 @@ export function HostSidebar(props: HostSidebarProps) {
     transcriptActivity: props.transcriptActivity,
     focused: props.focused,
     onDeleteRequest: props.onDeleteRequest,
-    onArchiveRequest: props.onArchiveRequest,
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,
@@ -124,8 +132,11 @@ export function HostSidebar(props: HostSidebarProps) {
     onAddTask: props.onAddTask,
     headerStatus: props.headerStatus,
     onHeaderStatusClick: props.onHeaderStatusClick,
+    updateChip: props.updateChip,
+    onUpdateChipClick: props.onUpdateChipClick,
     zenActive: props.zenActive,
     onZenClick: props.onZenClick,
+    sortMode: props.sortMode,
   }
   return (
     <box

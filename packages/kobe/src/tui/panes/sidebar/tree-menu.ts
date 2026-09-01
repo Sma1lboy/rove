@@ -7,7 +7,7 @@
  * mouse users rather than a second set of rules to keep in sync. That is also
  * why a tab row lists the per-task verbs: the chords behave that way already
  * (`withCursorTask` walks up from a tab to its worktree, because rename /
- * archive / delete have no tab-level meaning).
+ * delete have no tab-level meaning).
  *
  * The new-conversation pair reads the same rule one pane over (owner ask
  * 2026-08-18): ctrl+e already opens the engine/shell picker for the task the
@@ -21,18 +21,19 @@
  * so the menu follows a language switch like everything else.
  */
 
+import type { Task } from "@/types/task"
 import type { TreeRow } from "./tree-core"
 
 export type TreeMenuAction =
   | "open"
+  | "forgetProject"
   | "closeTab"
   | "newChat"
   | "newShell"
   | "newTask"
   | "rename"
   | "pin"
-  | "localMerge"
-  | "archive"
+  | "reorder"
   | "delete"
 
 export interface TreeMenuItem {
@@ -44,9 +45,9 @@ export interface TreeMenuItem {
 }
 
 export interface TreeMenuContext {
-  /** How many tabs the row's worktree has. Closing is only offered above 1:
-   *  `closeTab` refuses to remove a task's last tab, and an entry that does
-   *  nothing is worse than no entry. */
+  /** How many tabs the row's worktree has. Closing the LAST one is allowed
+   *  now (owner call 2026-08-31) — the task keeps its row and re-opens on
+   *  ⏎ / ctrl+e — so the entry shows for any tab that exists. */
   readonly tabCount?: number
 }
 
@@ -61,25 +62,41 @@ function newTabVerbs(): TreeMenuItem[] {
 }
 
 /** The per-task verbs, shared by worktree and tab rows (see the module note
- *  on why a tab row carries them). */
-function taskVerbs(pinned: boolean): TreeMenuItem[] {
-  return [
-    { action: "rename", labelKey: "tasks.menu.rename" },
-    { action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" },
-    { action: "localMerge", labelKey: "tasks.menu.localMerge" },
-    { action: "archive", labelKey: "tasks.menu.archive" },
-    { action: "delete", labelKey: "tasks.menu.delete", danger: true },
-  ]
+ *  on why a tab row carries them). Gated by the row's task kind: a `main` row
+ *  is always pinned and `setPinned` silently no-ops on it (task-editor.ts),
+ *  and an entry that does nothing is worse than no entry — the same rule
+ *  `closeTab` follows above. */
+function taskVerbs(pinned: boolean, kind: Task["kind"]): TreeMenuItem[] {
+  const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename" }]
+  if (kind !== "main") verbs.push({ action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" })
+  verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder" })
+  verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
+  return verbs
 }
 
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
   if (row.kind === "project") {
-    return [{ action: "newTask", labelKey: "tasks.menu.newTask" }]
+    // `d` on a project row already forgets it (task-actions.ts routes main
+    // rows to `forgetProject` behind a confirm). The menu was missing the
+    // entry, which broke this module's own rule: a row's menu is what that
+    // row's keyboard already does.
+    return [
+      { action: "newTask", labelKey: "tasks.menu.newTask" },
+      { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true },
+    ]
   }
   if (row.kind === "worktree") {
-    return [{ action: "open", labelKey: "tasks.menu.open" }, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true)]
+    return [
+      { action: "open", labelKey: "tasks.menu.open" },
+      ...newTabVerbs(),
+      ...taskVerbs(row.task.pinned === true, row.task.kind),
+    ]
   }
+  // The routine count row (issue #91) is a fold toggle, not a task — there is
+  // no task for any verb here to act on, and an entry that does nothing is
+  // worse than no entry (the same rule `closeTab` follows above).
+  if (row.kind === "routines") return []
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab" }]
-  if ((ctx.tabCount ?? 0) > 1) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
-  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true)]
+  if ((ctx.tabCount ?? 0) > 0) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
+  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true, row.task.kind)]
 }

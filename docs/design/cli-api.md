@@ -113,7 +113,7 @@ don't trip parsers.
 - `wait` / blocking poll: the skill teaches `sleep + get-task` loops
   rather than us implementing a server-side wait. Simpler to debug,
   fewer wedge modes.
-- `archive` / `delete`: hard rule says no deletion from automation.
+- `delete`: hard rule says no deletion from automation.
   Keep destructive ops in the TUI.
 - `interrupt`, `steer`, `permission-mode`, `model` changes: power-user
   TUI flows. Not the agent's job.
@@ -443,8 +443,8 @@ single round-trip. ~15 LOC in `daemon/protocol.ts` + `daemon/server.ts`.
 Option B — fetch `task.list`, filter for the id client-side. Zero
 protocol change, one extra serialization round.
 
-Recommended: **A**. The protocol already has `task.archive`,
-`task.rename`, etc. — a `task.get` belongs in the set. The bridge
+Recommended: **A**. The protocol already has `task.rename`,
+`task.setBranch`, etc. — a `task.get` belongs in the set. The bridge
 RPC already exposes `get_task` directly off the orchestrator, so the
 behavior is exactly what we want.
 

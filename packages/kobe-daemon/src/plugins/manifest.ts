@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { PLUGIN_EVENT_NAMES, type PluginEventName } from "@sma1lboy/rove-plugin-sdk/contract"
 import { parse as parseToml } from "smol-toml"
+import { settingKeyRejection } from "./setting-keys.ts"
 
 export type PluginPlatform = "macos" | "linux" | "windows"
 
@@ -47,7 +48,10 @@ export interface PluginSetting {
   /** Env var name written to the config .env (conventionally ROVE_<PLUGIN>_*). */
   readonly key: string
   readonly label: string
-  readonly type: "string" | "number" | "boolean" | "enum"
+  /** `secret` is a string whose value is masked wherever it is displayed —
+   *  the row shows `••••` instead of the API key the user pasted. Storage is
+   *  unchanged; only rendering differs. */
+  readonly type: "string" | "number" | "boolean" | "enum" | "secret"
   /** Enum choices (required for type = "enum"). */
   readonly options?: readonly string[]
   /** Default shown when the .env has no value; storage is always a string. */
@@ -137,6 +141,26 @@ export interface ParsedPluginManifest {
 export const PLUGIN_MANIFEST_FILENAME = "rove-plugin.toml"
 export const LEGACY_PLUGIN_MANIFEST_FILENAME = "kobe-plugin.toml"
 export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME, LEGACY_PLUGIN_MANIFEST_FILENAME] as const
+
+/**
+ * Engine ids a plugin's `[[engines]]` may not claim: the four built-in
+ * adapters plus the shipped contrib catalog (gemini/opencode/cursor/grok/
+ * droid/amp). The daemon cannot import kobe's BUILTIN_VENDORS /
+ * CONTRIB_ENGINES (kobe depends on the daemon, not vice versa), so this is
+ * the daemon-side source of truth; a kobe-side test locks the lists together.
+ */
+export const RESERVED_ENGINE_IDS: readonly string[] = [
+  "claude",
+  "codex",
+  "copilot",
+  "kimi",
+  "gemini",
+  "opencode",
+  "cursor",
+  "grok",
+  "droid",
+  "amp",
+]
 
 /** Resolve a plugin manifest with the canonical Rove spelling winning when
  * both files exist. The Kobe spelling remains a permanent read fallback. */
@@ -328,8 +352,8 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
 
   const settings = asTableArray(raw.settings, "settings").map((t, i) => {
     const type = asString(t.type, `settings[${i}].type`)
-    if (type !== "string" && type !== "number" && type !== "boolean" && type !== "enum") {
-      fail(`settings[${i}].type must be string | number | boolean | enum`)
+    if (type !== "string" && type !== "number" && type !== "boolean" && type !== "enum" && type !== "secret") {
+      fail(`settings[${i}].type must be string | number | boolean | enum | secret`)
     }
     const options =
       t.options === undefined
@@ -338,10 +362,13 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
           ? (t.options as string[])
           : fail(`settings[${i}].options must be an array of strings`)
     if (type === "enum" && (!options || options.length === 0)) fail(`settings[${i}] enum needs \`options\``)
+    const key = asString(t.key, `settings[${i}].key`)
+    const rejection = settingKeyRejection(key)
+    if (rejection) fail(`settings[${i}].key ${rejection}`)
     return {
-      key: asString(t.key, `settings[${i}].key`),
+      key,
       label: asString(t.label, `settings[${i}].label`),
-      type: type as "string" | "number" | "boolean" | "enum",
+      type: type as PluginSetting["type"],
       ...(options ? { options } : {}),
       ...(t.default === undefined ? {} : { default: asString(t.default, `settings[${i}].default`) }),
     }
@@ -362,10 +389,10 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const engines = asTableArray(raw.engines, "engines").map((t, i) => {
     const engineId = asString(t.id, `engines[${i}].id`)
     if (!LOCAL_ID_RE.test(engineId)) fail(`engine id \`${engineId}\` may not contain dots`)
-    // Shadowing a first-party engine would silently reroute claude/codex
-    // launches through plugin data — always a mistake, always fatal.
-    if (["claude", "codex", "copilot", "kimi"].includes(engineId)) {
-      fail(`engine id \`${engineId}\` shadows a built-in engine`)
+    // Shadowing a first-party or shipped-contrib engine would silently
+    // reroute launches through plugin data — always a mistake, always fatal.
+    if (RESERVED_ENGINE_IDS.includes(engineId)) {
+      fail(`engine id \`${engineId}\` shadows a built-in or shipped engine`)
     }
     const rules = asTableArray(t.rules, `engines[${i}].rules`).map((r, j) => {
       const state = asString(r.state, `engines[${i}].rules[${j}].state`)

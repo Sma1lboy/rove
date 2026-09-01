@@ -5,12 +5,14 @@
  * choosing a fan-out winner. These helpers add the committed side:
  * ahead-of-base commit count and a diffstat vs the merge-base.
  *
- * The fan-out `--base-branch` is one-shot input (a side-map consumed at
- * worktree creation, not durable Task state), so the base is re-resolved
- * here the same way the worktrees page does: `origin/HEAD` → `origin/main`
- * → `origin/master` → local `main`/`master`. All reads are lock-free
- * (`GIT_OPTIONAL_LOCKS=0`) and best-effort — a repo with no resolvable
- * base yields nulls, never an error.
+ * The base ref comes from the TASK RECORD first: `add --base-branch` is
+ * persisted on the task at create time, so a task cut from `release/2.x`
+ * is measured against `release/2.x`, not against a guess. Records that
+ * predate the field (or whose recorded ref no longer resolves) fall back
+ * to the re-resolution the worktrees page uses: `origin/HEAD` →
+ * `origin/main` → `origin/master` → local `main`/`master`. All reads are
+ * lock-free (`GIT_OPTIONAL_LOCKS=0`) and best-effort — a repo with no
+ * resolvable base yields nulls, never an error.
  */
 
 import { spawnSync } from "node:child_process"
@@ -52,6 +54,20 @@ export function resolveBaseRef(worktreePath: string): string | null {
 }
 
 /**
+ * The base to measure against: the task's RECORDED fork point when present
+ * and still resolvable, else the {@link resolveBaseRef} guess for records
+ * that predate the persisted field. A recorded ref that no longer resolves
+ * (base branch deleted, remote renamed) falls back too — an honest guess
+ * beats a stale certainty.
+ */
+function resolveMeasureBase(worktreePath: string, recordedBaseRef?: string): string | null {
+  if (recordedBaseRef && git(worktreePath, ["rev-parse", "--verify", "--quiet", recordedBaseRef]) !== null) {
+    return recordedBaseRef
+  }
+  return resolveBaseRef(worktreePath)
+}
+
+/**
  * Parse `git diff --shortstat` output, e.g.
  * ` 3 files changed, 40 insertions(+), 2 deletions(-)` — any clause may be
  * absent. An empty string is a real result: zero committed changes.
@@ -68,9 +84,9 @@ export function parseShortstat(text: string): { files: number; insertions: numbe
   }
 }
 
-export function readBranchSignals(worktreePath: string): BranchSignals {
+export function readBranchSignals(worktreePath: string, recordedBaseRef?: string): BranchSignals {
   if (!worktreePath) return NONE
-  const baseRef = resolveBaseRef(worktreePath)
+  const baseRef = resolveMeasureBase(worktreePath, recordedBaseRef)
   if (!baseRef) return NONE
   const aheadOut = git(worktreePath, ["rev-list", "--count", `${baseRef}..HEAD`])
   const ahead = aheadOut === null ? null : Number.parseInt(aheadOut, 10)

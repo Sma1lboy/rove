@@ -1,9 +1,16 @@
-# Fully automatic releases: any push to main carrying pending changesets
-# IS a release. No bot PR, no manual merge — the workflow does what
-# scripts/release.sh does, in Actions:
+# Cut a release from the changesets that have accumulated on main.
 #
-#   1. Wait for the triggering commit's ci.yml run to go green (the full
-#      Linux/macOS gate set). A red or cancelled run releases nothing.
+# ON DEMAND, not on every push. Merging a PR banks its changeset; a release
+# happens when someone runs this workflow (or scripts/release.sh), and it
+# consumes everything banked since the last one. That makes a version a
+# reviewed batch rather than a per-PR side effect — the previous behaviour
+# shipped ~10 versions a day, so "which build are they on" had a different
+# answer per user and no released combination had been exercised as a whole.
+#
+# What runs here is otherwise unchanged from the automatic version:
+#
+#   1. Wait for HEAD's ci.yml run to go green (the full Linux/macOS gate
+#      set). A red or cancelled run releases nothing.
 #   2. `bun run ci:version` — changeset version + lockfile refresh +
 #      lint:fix — then verify with `bun install --frozen-lockfile` and the
 #      lint gate, so the bookkeeping commit can't be the thing that breaks.
@@ -18,14 +25,18 @@
 # bookkeeping, verified in step 2 — and release.yml's own gates still
 # stand between the tag and npm.
 #
-# scripts/release.sh stays as the manual fallback for when Actions is
-# down. Don't run both on the same version: they'd race to tag it.
+# The daily automated cut still exists, on the nightly channel
+# (nightly.yml → npm dist-tag `nightly`), so `main` stays continuously
+# installable for anyone who opts in with `rove update nightly` without
+# that being what every user receives.
+#
+# scripts/release.sh does the same thing locally, with an interactive
+# confirm. Don't run both on the same version: they'd race to tag it.
 
 name: Changesets
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -49,14 +60,15 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Decide what this push needs
+      - name: Decide what this run needs
         id: gate
         run: |
-          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
-            echo "main moved past $GITHUB_SHA — deferring to the newer push's run"
-            echo "mode=skip" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # Deliberately no "main moved past $GITHUB_SHA → skip" guard here.
+          # That existed for the push trigger, where a newer push had its own
+          # run to defer to. On workflow_dispatch nothing follows: a merge
+          # landing between clicking Run and this checkout would make the
+          # release silently do nothing. Releasing whatever main's HEAD is
+          # now is both what was asked for and what gets verified below.
           PENDING=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' | wc -l | tr -d ' ')
           VERSION=$(node -p "require('./packages/kobe/package.json').version")
           if [ "$PENDING" != "0" ]; then
@@ -73,37 +85,36 @@ jobs:
             echo "mode=skip" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Wait for this commit's ci.yml to go green
+      - name: Wait for the released commit's ci.yml to go green
         if: steps.gate.outputs.mode == 'release'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # No tag, no release commit, until the triggering push passed the
-          # same Linux/macOS gates that block publish.
+          # Watch the run for the commit being RELEASED — main's HEAD as
+          # checked out above — not $GITHUB_SHA, which on a dispatch is
+          # whatever main pointed at when the run was queued.
+          SHA=$(git rev-parse HEAD)
           run_id=""
           tries=0
           while [ -z "$run_id" ]; do
             tries=$((tries + 1))
             if [ "$tries" -gt 36 ]; then
-              echo "::error::no ci.yml run appeared for $GITHUB_SHA within ~3min"
+              echo "::error::no ci.yml run appeared for $SHA within ~3min"
               exit 1
             fi
             sleep 5
             run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml --branch main \
               --limit 15 --json databaseId,headSha \
-              --jq ".[] | select(.headSha == \"$GITHUB_SHA\") | .databaseId" | head -1)
+              --jq ".[] | select(.headSha == \"$SHA\") | .databaseId" | head -1)
           done
           echo "watching ci.yml run $run_id"
           if ! gh run watch --repo "$GITHUB_REPOSITORY" "$run_id" --exit-status >/dev/null; then
             concl=$(gh run view --repo "$GITHUB_REPOSITORY" "$run_id" --json conclusion --jq .conclusion)
-            if [ "$concl" = "cancelled" ]; then
-              # A newer main push superseded this one (ci.yml cancels
-              # in-progress main runs); that push's own Changesets run
-              # will release the accumulated changesets.
-              echo "ci.yml run cancelled by a newer push — deferring"
-              exit 0
-            fi
-            echo "::error::ci.yml failed on $GITHUB_SHA — nothing released. Land a fix; the next push releases the accumulated changesets."
+            # A cancelled run is a FAILED release now, not a deferral. Under
+            # the push trigger a newer push had its own run to hand off to;
+            # a dispatch has no successor, so exiting 0 here would report
+            # success for a release that never happened.
+            echo "::error::ci.yml $concl on $SHA — nothing released. Land a fix, then run this workflow again."
             exit 1
           fi
           echo "green=true" >> "$GITHUB_OUTPUT"

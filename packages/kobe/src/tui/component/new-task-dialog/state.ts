@@ -38,11 +38,16 @@ import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
  * next time.
  */
 /**
- * Dialog result. Two shapes, discriminated by `mode`:
+ * Dialog result. Three shapes, discriminated by `mode`:
  *   - create (default) — make a fresh task on `repo` at `baseRef`.
  *   - adopt — import one or more EXISTING git worktrees as tasks
  *. `adopt` carries the chosen worktrees; the caller loops
  *     `orchestrator.adoptWorktree` over them.
+ *   - open — open `repo`'s OWN checkout (its `main` row) rather than
+ *     branching a worktree off it. The only way back to a project the
+ *     sidebar has hidden (`isClosedDownProject`): every other path through
+ *     this dialog mints a `kind: "task"`, so picking the repo used to leave
+ *     the user with an extra worktree and still no project row.
  */
 export type NewTaskInput =
   | {
@@ -58,6 +63,11 @@ export type NewTaskInput =
       repo: string
       vendor: VendorId
       adopt: readonly { worktreePath: string; branch: string }[]
+    }
+  | {
+      mode: "open"
+      repo: string
+      vendor: VendorId
     }
 
 /**
@@ -84,6 +94,13 @@ export type NewTaskDialogOptions = {
   availableVendors?: readonly VendorId[]
   /** Adopt-tab discovery of unlinked worktrees on `repo`; omit to disable adoption. */
   discoverAdoptable?: (repo: string) => Promise<readonly AdoptableWorktree[]>
+  /**
+   * Repos that already have a project checkout (a `main` task), trimmed of
+   * trailing slashes. The Existing tab offers "open the project" only for
+   * these — see {@link offersProjectIntent}. Omitted/empty simply means the
+   * choice never appears and the tab behaves as it always did.
+   */
+  mainRepos?: ReadonlySet<string>
 }
 
 export type DialogTab = "existing" | "clone" | "adopt"
@@ -120,6 +137,9 @@ export type Field =
   | "tabs"
   | "engine"
   | "repo"
+  /** The Existing tab's task-vs-project selector (issue #90). Reachable only
+   *  while it renders — see `nextField`. */
+  | "intent"
   | "baseRef"
   | "cloneUrl"
   | "cloneParent"
@@ -155,8 +175,39 @@ export function pickerModeFor(value: string, repoOptions: readonly string[]): Pi
   return "saved"
 }
 
-/** Picker windowing cap. Matches the slash dropdown's `slashWindow`. */
+/** Picker windowing cap on a terminal with room. Matches the slash
+ *  dropdown's `slashWindow`. */
 export const PICKER_MAX_VISIBLE = 8
+
+/**
+ * Terminal rows the dialog needs for everything that is NOT the open picker.
+ * Counted off the rendered Existing tab (the tallest of the three): title,
+ * mode row, engine label + choices, both field labels + inputs, the picker's
+ * overflow lines, the action row and the card's padding — plus the vertical
+ * margin `Dialog` keeps outside the card, since the budget here is the
+ * TERMINAL's height, not the card's.
+ */
+const PICKER_CHROME_ROWS = 22
+/** The floor. Two rows plus the `↓ N more` line still reads as a list and
+ *  still scrolls under the cursor, so nothing becomes unreachable; going
+ *  lower would leave the cursor with nowhere to sit. */
+const PICKER_MIN_VISIBLE = 2
+
+/**
+ * Visible picker rows for a viewport `height` rows tall.
+ *
+ * The cap used to be a flat 8 regardless of terminal height, so the dialog's
+ * own height was a constant while the space for it was not: on a 24-row
+ * terminal the card overran `maxCardHeight` and the bottom rows — the Create
+ * button and, worse, `submitError` — were clipped away with nothing to
+ * scroll them back. A failed create then looked like nothing happening at
+ * all. Shrinking the window is what gives those rows back; the list is
+ * already windowed and scrolls under the cursor, so a shorter window costs
+ * only how much is visible at once, never reachability.
+ */
+export function pickerVisibleRows(height: number, cap = PICKER_MAX_VISIBLE): number {
+  return Math.max(PICKER_MIN_VISIBLE, Math.min(cap, height - PICKER_CHROME_ROWS))
+}
 
 export type PickerWindow = {
   items: readonly string[]
@@ -214,7 +265,7 @@ export function isBlankText(v: string): boolean {
  * the user. A stale cross-tab input field restarts the active tab's
  * cycle at its first input.
  */
-export function nextField(field: Field, tab: DialogTab = "existing"): Field {
+export function nextField(field: Field, tab: DialogTab = "existing", opts: { intentVisible?: boolean } = {}): Field {
   // Shared trailer — the selectors + Create button common to every tab.
   if (field === "confirm") return "tabs"
   if (field === "tabs") return "engine"
@@ -231,7 +282,12 @@ export function nextField(field: Field, tab: DialogTab = "existing"): Field {
     // List navigation is up/down on the rows, not Tab.
     return field === "adoptFilter" ? "confirm" : "adoptFilter"
   }
-  if (field === "repo") return "baseRef"
+  // `intent` renders only for a repo that has a project checkout, and under
+  // the "project" choice it REPLACES the branch field. Both are conditional,
+  // so the walk is told what is on screen rather than guessing: parking focus
+  // on an unrendered stop swallows every keystroke that follows.
+  if (field === "repo") return opts.intentVisible ? "intent" : "baseRef"
+  if (field === "intent") return "baseRef"
   if (field === "baseRef") return "confirm"
   return "repo"
 }
@@ -272,6 +328,28 @@ export function computeRepoOptions(defaultRepo: string, savedRepos: readonly str
     out.push(t)
   }
   return out
+}
+
+/**
+ * Split a saved-repo path into the part that IDENTIFIES it and the part that
+ * merely LOCATES it: the basename, and everything before it.
+ *
+ * The saved list is a column of absolute paths that share a prefix
+ * (`/Users/me/i/kobe`, `/Users/me/i/wisp`, …), so the leading run of
+ * characters is identical on every row and the one distinguishing word sits
+ * far right, past the ragged part. Leading with the basename puts the answer
+ * at a fixed left edge and demotes the directory to context the eye can skip.
+ *
+ * `dir` keeps its trailing slash so the two halves concatenate back to the
+ * original path — the row shows the same string, only re-ordered and
+ * re-weighted. A path with no slash (or a trailing one, which names no leaf)
+ * has nothing to split: it comes back whole as `base` with an empty `dir`,
+ * so the row renders exactly as it did before.
+ */
+export function splitRepoRow(path: string): { base: string; dir: string } {
+  const at = path.lastIndexOf("/")
+  if (at < 0 || at === path.length - 1) return { base: path, dir: "" }
+  return { base: path.slice(at + 1), dir: path.slice(0, at + 1) }
 }
 
 /**
@@ -338,4 +416,41 @@ export function resolveBaseRef(typed: string, filteredBranches: readonly string[
   const picked = filteredBranches[cursor]
   if (picked) return picked
   return t || DEFAULT_BASE_REF
+}
+
+/* --------------------------------------------------------------------- */
+/*  Existing-tab intent (issue #90)                                       */
+/* --------------------------------------------------------------------- */
+
+/**
+ * What submitting the Existing tab should DO with the chosen repo:
+ *   - "task"    — branch a fresh worktree task off it (what this tab
+ *                 has always done, and still the default).
+ *   - "project" — open the repo's OWN checkout, its `main` row.
+ *
+ * The second exists because it was the missing half. Closing a project's
+ * last tab hides it from the sidebar (`isClosedDownProject`), and the
+ * comment there promised the repo was "still there in the new-task picker
+ * to open again" — but every submit path went through `createTask`, which
+ * always mints a `kind: "task"`. Picking the hidden repo therefore added a
+ * worktree beside the project instead of returning to it.
+ */
+export type ExistingIntent = "task" | "project"
+
+/**
+ * Whether the Existing tab should offer the intent choice for `repo`.
+ *
+ * Only when that repo ALREADY has a project checkout: opening the main row
+ * of a repo that has none is not a thing this dialog can do — `createTask`
+ * is what mints one, via `ensureIfEligible`, and only for a repo the
+ * admission gate accepts (state/project-eligibility.ts). Offering the
+ * choice everywhere would put a second control on the tab that silently
+ * means nothing most of the time.
+ *
+ * `mainRepos` is the set of repo paths that have a `main` task, normalized
+ * by the caller with the same key the sidebar groups on.
+ */
+export function offersProjectIntent(repo: string, mainRepos: ReadonlySet<string>): boolean {
+  const trimmed = repo.trim().replace(/[\\/]+$/, "")
+  return trimmed.length > 0 && mainRepos.has(trimmed)
 }

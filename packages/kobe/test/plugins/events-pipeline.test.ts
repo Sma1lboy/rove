@@ -7,13 +7,9 @@
  * so feeding it directly is the same seam). Real git + real store on disk —
  * adopt shells `git worktree list`, so mocking would only test the mock.
  *
- * The two fixed paths:
- *  - `adoptWorktree` creates the task WITH its worktree → both
- *    `task.created` and `worktree.created` (previously: neither the
- *    `ensureWorktree` job nor any handler fired for adopt).
- *  - `setArchived(true)` — the exact orchestrator call the
- *    `worktree.archiveRemoved` sweep and `land --then-archive` make —
- *    → `task.archived` (previously only the archive RPC handler fired it).
+ * The fixed path: `adoptWorktree` creates the task WITH its worktree → both
+ * `task.created` and `worktree.created` (previously: neither the
+ * `ensureWorktree` job nor any handler fired for adopt).
  */
 
 import { spawnSync } from "node:child_process"
@@ -83,21 +79,5 @@ describe("dropped-path regressions through the real orchestrator", () => {
     const mine = events.filter((e) => e.taskId === task.id)
     expect(mine.map((e) => e.event)).toEqual(["task.created", "worktree.created"])
     expect(mine[1]?.task?.worktreePath).toBe(fs.realpathSync(ext))
-  })
-
-  test("setArchived — the sweep/land archive call — fires task.archived; restore does not", async () => {
-    const ext = path.join(tmpRoot, "ext-arch")
-    const r = spawnSync("git", ["worktree", "add", "-b", "arch", ext], { cwd: repo, encoding: "utf8" })
-    if (r.status !== 0) throw new Error(`git worktree add failed: ${r.stderr}`)
-    const task = await orch.adoptWorktree({ repo, worktreePath: ext, branch: "arch" })
-    events.length = 0
-
-    await orch.setArchived(task.id, true)
-    expect(names()).toContain("task.archived")
-
-    events.length = 0
-    await orch.setArchived(task.id, false)
-    expect(names()).not.toContain("task.archived")
-    expect(names()).toContain("task.changed")
   })
 })

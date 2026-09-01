@@ -38,9 +38,11 @@ const VENDOR_WORD = /\b(Claude|Codex|Copilot|Kimi)\b/
  * line contains one of its allowed fragments.
  */
 const EXEMPT_LINES: Record<string, readonly string[]> = {
-  // Both serve the engine-owned list; the literal pair only fires against an
-  // older bridge / empty registry (see each file's header comment).
-  "packages/kobe-web/src/lib/engines.ts": ['label: "Claude"', 'label: "Codex"'],
+  // Both serve the engine-owned list; the literals only fire against an
+  // older bridge / empty registry (see each file's header comment). The SPA
+  // covers every BUILTIN_VENDOR because that fallback is the only other path
+  // to a vendor — a short list silently made the rest unselectable.
+  "packages/kobe-web/src/lib/engines.ts": ['label: "Claude"', 'label: "Codex"', 'label: "Copilot"', 'label: "Kimi"'],
   "packages/kobe-daemon/src/daemon/web-server.ts": ['label: "Claude"'],
 }
 

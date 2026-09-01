@@ -37,9 +37,9 @@ Ground rules that apply to every event here:
 ## Task lifecycle
 
 Sourced from field-level diffs of consecutive task-index snapshots, so every
-mutation path fires them: RPC handlers, `land --then-archive`, the
-`git worktree remove` sweep, adopt flows. The first snapshot after a daemon
-start is baseline: pre-existing tasks never re-fire.
+mutation path fires them: RPC handlers, `land`, the `git worktree remove`
+sweep, adopt flows. The first snapshot after a daemon start is baseline:
+pre-existing tasks never re-fire.
 
 ### `task.created` / `task.deleted`
 
@@ -56,7 +56,7 @@ noise), `updatedAt`/`createdAt` (ride every change), `quotaResume` (the
 
 | detail field | type | meaning |
 |---|---|---|
-| `fields` | `string[]` | which fields changed, from: `title`, `branch`, `worktreePath`, `status`, `archived`, `pinned`, `vendor`, `command`, `modelEffort`, `linkedWorkItem`, `scratch` |
+| `fields` | `string[]` | which fields changed, from: `title`, `branch`, `worktreePath`, `status`, `pinned`, `vendor`, `command`, `modelEffort`, `linkedWorkItem`, `scratch` |
 | `from` | object | previous value per changed field (omitted when it was unset) |
 | `to` | object | new value per changed field (omitted when now unset) |
 
@@ -66,12 +66,6 @@ noise), `updatedAt`/`createdAt` (ride every change), `quotaResume` (the
               "from": { "title": "scratch", "pinned": false },
               "to":   { "title": "fix flaky test", "pinned": true } } }
 ```
-
-### `task.archived`
-
-`archived` flipped false→true, by any path. Restores (true→false) do NOT
-fire this; they show up as a `task.changed` with `archived` in `fields`.
-No extra detail; the task context is the payload.
 
 ### `task.landed`
 
@@ -93,8 +87,8 @@ The task's PR status changed. Compared with the PR poller's own semantics:
 |---|---|---|
 | `from`, `to` | `TaskPRStatus` | each optional (absent when there was/is no PR): `provider`, `lifecycle`, `checkState`, `number?`, `url?`, `title?`, `baseRef?`, `headRef?`, `reviewDecision?`, `mergeable?`, plus `lastCheckedAt?`/`lastError?` (present in the payload, excluded from the change test) |
 
-Typical use: toast when `to.checkState` flips to failing, or auto-archive on
-`to.lifecycle === "merged"`.
+Typical use: toast when `to.checkState` flips to failing, or set the task's
+status to `done` when `to.lifecycle` becomes `"merged"`.
 
 ### `worktree.created`
 

@@ -90,7 +90,7 @@ export function shouldShowToast(kind: NotificationKind, toastEnabled: boolean): 
  */
 export function attentionKindFor(state: string): NotificationKind | null {
   if (state === "permission_needed") return "needs_input"
-  if (state === "error" || state === "rate_limited") return "error"
+  if (state === "error" || state === "rate_limited" || state === "dead") return "error"
   if (state === "turn_complete") return "done"
   return null
 }
@@ -103,7 +103,11 @@ export function attentionKindFor(state: string): NotificationKind | null {
  */
 export function chipAttentionKind(turn: string): NotificationKind | null {
   if (turn === "done") return "done"
-  if (turn === "error") return "error"
+  // `rate_limited` and `dead` split out of the chip's `error` in 2026-08-30;
+  // they stay attention edges here, matching `attentionKindFor`'s task-level
+  // rule. The chip vocabulary distinguishes them so the GLYPH can; a toast
+  // has only the three kinds, and all three mean "something needs you".
+  if (turn === "error" || turn === "rate_limited" || turn === "dead") return "error"
   if (turn === "needs_input") return "needs_input"
   return null
 }

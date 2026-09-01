@@ -59,7 +59,6 @@ export function taskFixture(overrides: Record<string, unknown> = {}): Record<str
     vendor: "claude",
     repo: "/repo/x",
     status: "backlog",
-    archived: false,
     ...overrides,
   }
 }

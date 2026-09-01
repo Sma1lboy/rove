@@ -39,6 +39,8 @@ export const en = {
     forceTitle: "Force delete worktree?",
     forceBody: '"{branch}" has uncommitted or untracked changes that will be PERMANENTLY LOST. Force delete anyway?',
     failed: "Failed to delete worktree: {error}",
+    residue:
+      "Git deregistered the worktree, but couldn't delete {path} ({reason}). Rove is done with it — retrying won't help; delete the directory by hand if you want the space.",
   },
 
   land: {
@@ -48,11 +50,14 @@ export const en = {
       'Merge "{branch}" into the base repo\'s current branch, then remove this worktree? The branch is kept. A dirty base checkout is refused; conflicts abort with a file list.',
     noTask: "This worktree isn't tracked as a Rove task — nothing to land.",
     conflict: "Land hit conflicts (merge aborted). Resolve by hand: {files}",
-    dirtyBase: "The base checkout has uncommitted changes — commit or stash them, then land.",
+    dirtyBase:
+      "The base checkout has uncommitted changes — commit them, then land. Never `git stash` here: the stash stack lives in the repo's common dir and is shared by every linked worktree, so a stash can entangle other tasks' work.",
     failed: "Land failed: {error}",
     done: 'Landed "{branch}" onto {landedOn} ({commit}).',
     worktreeKept: "Landed, but the worktree was kept: {reason}",
     worktreePathStale: "Landed and removed the worktree, but the task still points at it: {reason}",
+    worktreeResidue:
+      "Landed. Git deregistered the worktree, but couldn't delete {path} ({reason}) — delete the directory by hand if you want the space.",
   },
 
   hint: {},
@@ -93,6 +98,8 @@ export const zh: typeof en = {
     forceTitle: "强制删除 worktree？",
     forceBody: '"{branch}" 存在未提交或未跟踪的改动，强制删除后将永久丢失。仍要强制删除吗？',
     failed: "删除 worktree 失败：{error}",
+    residue:
+      "Git 已注销该 worktree，但没能删掉 {path}（{reason}）。Rove 这边已经处理完了——重试没有用；想要回磁盘空间请手动删除该目录。",
   },
 
   land: {
@@ -102,11 +109,13 @@ export const zh: typeof en = {
       '把 "{branch}" 合入基仓库当前分支，然后移除这个 worktree？分支会保留。基础检出有未提交改动会被拒绝；冲突会中止并给出文件清单。',
     noTask: "该 worktree 未作为 Rove 任务被跟踪——没有可合入的对象。",
     conflict: "合入遇到冲突（已中止）。请手动解决：{files}",
-    dirtyBase: "基础检出有未提交改动——请先提交或 stash，再合入。",
+    dirtyBase:
+      "基础检出有未提交改动——请先提交再合入。绝不要在这里 `git stash`：stash 栈存放在仓库的 common dir 中，该仓库所有 linked worktree 共享，一次 stash 可能纠缠其他任务的工作。",
     failed: "合入失败：{error}",
     done: '已把 "{branch}" 合入 {landedOn}（{commit}）。',
     worktreeKept: "已合入，但 worktree 保留了：{reason}",
     worktreePathStale: "已合入并移除 worktree，但任务仍指向它：{reason}",
+    worktreeResidue: "已合入。Git 已注销该 worktree，但没能删掉 {path}（{reason}）——想要回磁盘空间请手动删除该目录。",
   },
 
   hint: {},

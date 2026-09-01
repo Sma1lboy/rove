@@ -7,8 +7,10 @@
  * two-line card to one line, and tab rows start at the same column with the
  * state glyph carrying the hierarchy (issue #41).
  *
- * No fold anywhere (owner round 5): every project and worktree always shows
- * everything under it, so there are no twisties and no collapse state.
+ * No fold anywhere (owner round 5) with ONE scoped exception: a project's
+ * routine count row (issue #91), which folds only the standing sessions a
+ * SCHEDULE created. Every project and every task a human opened still shows
+ * everything under it — the promise that rule protects is intact.
  *
  * One scrollbox, not the flat sidebar's two: a tree's whole point is that a
  * project and its worktrees scroll together, and the cursor indexes one flat
@@ -21,7 +23,7 @@ import { sidebarEmptyStateKey } from "../../../tui/panes/sidebar/view-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { SectionHeader } from "./chrome"
-import { RecentJumpRow, TabTreeRow, type TreeRowShared, WorktreeTreeRow } from "./tree-rows"
+import { RecentJumpRow, RoutinesTreeRow, TabTreeRow, type TreeRowShared, WorktreeTreeRow } from "./tree-rows"
 
 export function SidebarTreeBody(props: {
   readonly rows: readonly TreeRow[]
@@ -76,6 +78,18 @@ export function SidebarTreeBody(props: {
                 rowId={row.id}
                 flatIndex={props.flatIndexOf.get(row.id) ?? -1}
                 task={row.task}
+                shared={props.shared}
+              />
+            )
+          }
+          if (row.kind === "routines") {
+            return (
+              <RoutinesTreeRow
+                key={row.id}
+                rowId={row.id}
+                flatIndex={props.flatIndexOf.get(row.id) ?? -1}
+                count={row.count}
+                expanded={row.expanded}
                 shared={props.shared}
               />
             )

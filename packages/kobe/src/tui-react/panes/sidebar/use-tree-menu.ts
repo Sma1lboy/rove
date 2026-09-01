@@ -2,8 +2,9 @@
  * The tree sidebar's right-click menu: which row was clicked, the entries it
  * offers, the highlight, and what each entry does.
  *
- * Split from `SidebarTree.tsx` for the file-size cap. What the menu OFFERS is
- * the framework-free `tree-menu.ts`; this hook is the state in between, plus
+ * The seam here is a three-way one, and this hook is the middle: what the menu
+ * OFFERS is the framework-free `tree-menu.ts`, what each entry DOES is the
+ * host's callbacks, and this holds only the React state between them, plus
  * the `t()` pass that turns label keys into text so the menu follows a language
  * switch, plus the dispatch that routes an entry to the host callback the tree
  * was already holding.
@@ -83,8 +84,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
   const openForRow = useCallback(
     (flatIndex: number, rowId: string, x: number, y: number): void => {
       const row = tree.rows.find((candidate) => candidate.id === rowId)
-      // The "↩ recent" jump row has no menu — it's a shortcut, not a task row.
-      if (!row || row.kind === "project" || row.kind === "recent") return
+      // Neither the "↩ recent" jump row nor the routine count row has a menu:
+      // both are shortcuts, not task rows, so there is no task to act on.
+      if (!row || row.kind === "project" || row.kind === "recent" || row.kind === "routines") return
       // Move the cursor too: the menu and the highlight must agree about which
       // row the next action lands on.
       setCursorIndex(flatIndex)
@@ -136,8 +138,19 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       setMenu(null)
       if (row.kind === "project") {
         if (action === "newTask") deps.onAddTask?.()
+        // Forget routes to the SAME flow `d` runs (task-actions.ts sends a
+        // main row to `forgetProject` behind a confirm). The header itself is
+        // not navigable, so the row the flow needs is the project's main
+        // checkout — the one `d` would have been pressed on.
+        if (action === "forgetProject") {
+          const mainId = deps.tree.mainTaskIdOfProject(row.id)
+          if (mainId) actions.onDeleteRequest?.(mainId)
+        }
         return
       }
+      // A routine count row never opens a menu (see the guard above), so it
+      // can only arrive here through a stale `menu` — nothing to act on.
+      if (row.kind === "routines") return
       const taskId = row.task.id
       switch (action) {
         case "open":
@@ -159,11 +172,8 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "pin":
           actions.onPinRequest?.(taskId)
           break
-        case "localMerge":
+        case "reorder":
           actions.onLocalMergeRequest?.(taskId)
-          break
-        case "archive":
-          actions.onArchiveRequest?.(taskId)
           break
         case "delete":
           actions.onDeleteRequest?.(taskId)
@@ -172,7 +182,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
       }
     },
-    [menu, activateRow, actions, deps.onAddTask, deps.onCloseTab, deps.onNewTab],
+    [menu, activateRow, actions, deps.onAddTask, deps.onCloseTab, deps.onNewTab, deps.tree.mainTaskIdOfProject],
   )
 
   const pickCurrent = useCallback((): void => fire(menu?.actions[cursor]), [fire, menu, cursor])

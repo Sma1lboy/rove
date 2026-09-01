@@ -39,6 +39,12 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   running: "●",
   done: "✓",
   error: "!",
+  // Borrowed verbatim from the sidebar rail (row-view.ts) so the strip and
+  // the rail never say different things about the same tab: `◷` a limit that
+  // clears itself, `†` an engine process that is gone. Both were `!` until
+  // 2026-08-30 — three states, one glyph, opposite required actions.
+  rate_limited: "◷",
+  dead: "†",
   // Hook-only "blocked on the user" state — same ?/warning pairing as the
   // sidebar's permission_needed badge (row-view.ts). No collision with
   // `unknown`: that placeholder is never rendered (skip below).
@@ -49,6 +55,15 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
 
 /** How long the running→done pulse stays emphasized. */
 const DONE_PULSE_MS = 600
+
+/** Active tab: three sides, so the missing bottom edge reads as a notch. */
+/** A tab's own chrome: 2 cells of frame + 2 of padding, plus the strip's
+ *  1-cell left padding. Subtracted from the pane width to bound a title. */
+const TAB_CHROME_CELLS = 5
+/** Enough of a name to tell two tabs apart, plus the ellipsis. */
+const MIN_TAB_TITLE_CELLS = 6
+
+const ACTIVE_TAB_SIDES: ("top" | "left" | "right")[] = ["top", "left", "right"]
 
 export function TabStrip(props: {
   tabs: readonly TerminalTab[]
@@ -75,16 +90,18 @@ export function TabStrip(props: {
   const { theme } = themeCtx
   const kv = useKV()
   const dims = useTerminalDimensions()
-  // The sidebar tree lists every worktree's tabs, so the strip is off by
-  // default (owner call 2026-08-01) — Settings → Terminal brings it back.
+  // Off by default (owner call 2026-08-31): the sidebar tree already lists
+  // every worktree's tabs and marks the active one, so the strip is a second
+  // copy of a list that is already on screen. Settings → General → Terminal
+  // turns it back on.
   // Rendered as a late bail so the hooks below always run in the same order.
   const stripMode = resolveTabStripMode(
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
-  // Narrow (issue #14) overrides the mode: the sidebar tree — the reason
-  // the strip defaults off — is not on screen beside a narrow workspace,
-  // so the condensed strip is the only tab affordance there.
+  // Narrow (issue #14) overrides the mode: the sidebar tree is not on screen
+  // beside a narrow workspace, so the condensed strip is the only tab
+  // affordance there.
   const narrow = isNarrowWidth(dims.width)
   const hidden = !narrow && !tabStripVisible(stripMode, props.tabs.length)
 
@@ -140,11 +157,25 @@ export function TabStrip(props: {
     const liveTitle = props.liveTitles.get(tab.id)
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
     const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)
-    const title = tabTitle(tab, props.vendor, liveTitle)
-    // Active tab renders as a padded accent chip (+2 cells, herdr-style
-    // highlight 2026-07-27) — the scroll math must see the same width.
+    // Cap a single tab at the pane it lives in. Without this a long shell
+    // name (`a-very-long-shell-name…`) drew past the strip: the box is
+    // `overflow: hidden`, so the frame's right edge was clipped away and the
+    // title ran to the last column with no ellipsis — nothing on screen said
+    // it had been cut. The narrow form has always truncated; this is the same
+    // rule for the wide one.
+    //
+    // Truncating HERE, before `cells`, is what keeps the scroll math honest:
+    // the offset is computed from these widths, so measuring the untruncated
+    // title would scroll by a width nothing ever draws.
+    const title = truncateEndCells(
+      tabTitle(tab, props.vendor, liveTitle),
+      Math.max(MIN_TAB_TITLE_CELLS, dims.width - TAB_CHROME_CELLS - (chipShown ? 2 : 0)),
+      approxCharCells,
+    )
+    // Every tab is a bordered box now (2 cells of frame + 2 of padding) —
+    // the scroll math must see the same width it draws.
     const active = tab.id === props.activeId
-    return { tab, turn, chipShown, title, cells: (active ? 2 : 0) + (chipShown ? 2 : 0) + displayWidth(title) }
+    return { tab, turn, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
   })
   const stripRef = useRef<BoxRenderable | null>(null)
   // Viewport cells (strip width minus the 1-cell left padding); 0 until
@@ -159,9 +190,8 @@ export function TabStrip(props: {
       activeStart = total
       activeEnd = total + entry.cells
     }
-    total += entry.cells + 1 // + the row gap; harmless surplus after the last tab
+    total += entry.cells // tabs sit flush; their frames are the gutter
   }
-  total = Math.max(0, total - 1)
   let offset = offsetRef.current
   if (availCells > 0) {
     if (activeEnd - offset > availCells) offset = activeEnd - availCells
@@ -192,15 +222,11 @@ export function TabStrip(props: {
     const titleCells = Math.max(4, dims.width - 5 - (active.chipShown ? 2 : 0) - counter.length)
     const pulse = pulsing.has(active.tab.id)
     return (
-      <box
-        flexDirection="row"
-        flexShrink={0}
-        paddingLeft={1}
-        paddingRight={1}
-        gap={1}
-        overflow="hidden"
-        backgroundColor={theme.backgroundElement}
-      >
+      // No row background: the strip is panel chrome, and the transparent-mode
+      // policy (theme-core's applyDisplayOverlay) forces panel backgrounds to
+      // alpha-0 so the host wallpaper shows through — only the active tab's
+      // chip fill paints (it must stay legible against any backdrop).
+      <box flexDirection="row" flexShrink={0} paddingLeft={1} paddingRight={1} gap={1} overflow="hidden">
         <box flexDirection="row" flexShrink={1} paddingLeft={1} paddingRight={1} backgroundColor={theme.focusAccent}>
           {active.chipShown ? (
             <text fg={theme.backgroundElement} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
@@ -228,20 +254,22 @@ export function TabStrip(props: {
       flexShrink={0}
       paddingLeft={1}
       overflow="hidden"
-      backgroundColor={theme.backgroundElement}
       onSizeChange={() => setAvailCells(Math.max(0, (stripRef.current?.width ?? 0) - 1))}
     >
-      <box flexDirection="row" gap={1} flexShrink={0} marginLeft={-offset}>
+      <box flexDirection="row" gap={0} flexShrink={0} marginLeft={-offset}>
         {entries.map(({ tab, turn, chipShown, title }) => {
           const pulse = pulsing.has(tab.id)
           const turnColor =
             turn === "running"
-              ? theme.focusAccent
+              ? // Semantic activity color, never `focusAccent`: several tabs
+                // can be running at once, and the focus orange must keep
+                // meaning only "you are here" (the active tab's frame).
+                theme.info
               : turn === "done"
                 ? theme.success
-                : turn === "error"
+                : turn === "error" || turn === "dead"
                   ? theme.error
-                  : turn === "needs_input"
+                  : turn === "needs_input" || turn === "rate_limited"
                     ? theme.warning
                     : theme.textMuted
           const active = tab.id === props.activeId
@@ -251,9 +279,15 @@ export function TabStrip(props: {
               flexDirection="row"
               gap={0}
               flexShrink={0}
-              paddingLeft={active ? 1 : 0}
-              paddingRight={active ? 1 : 0}
-              backgroundColor={active ? theme.focusAccent : undefined}
+              paddingLeft={1}
+              paddingRight={1}
+              // The notch: the ACTIVE tab omits its bottom edge, so its frame
+              // opens downward into the pane it is showing (claude-squad's
+              // `activeTabBorder`, ui/tabbed_window.go). Inactive tabs stay
+              // closed boxes.
+              border={active ? ACTIVE_TAB_SIDES : true}
+              borderStyle="rounded"
+              borderColor={active ? theme.focusAccent : theme.borderActive}
               onMouseUp={() => props.onSelect(tab.id)}
             >
               {/* Turn chip — tmux CHAT_TAB_STATUS_FORMAT's ●/✓/!/?/○. Shown
@@ -262,21 +296,15 @@ export function TabStrip(props: {
                   are placeholders with no information, so let the real state
                   (or the engine's native title) speak. Hidden while an
                   engine-owned live title is visibly carrying the same status.
-                  On the active chip every glyph flips to the contrast fg —
-                  tone colors don't survive on the accent fill. */}
+                  No fill behind the chip anymore — the active tab is an open
+                  frame, so tone colors survive on every tab. */}
               {chipShown ? (
-                <text
-                  // `backgroundElement`, not `background`: the latter is
-                  // alpha-0 in transparent mode → invisible text on the fill.
-                  fg={active ? theme.backgroundElement : turnColor}
-                  attributes={pulse ? TextAttributes.BOLD : undefined}
-                  wrapMode="none"
-                >
+                <text fg={turnColor} attributes={pulse ? TextAttributes.BOLD : undefined} wrapMode="none">
                   {`${TURN_GLYPHS[turn]} `}
                 </text>
               ) : null}
               <text
-                fg={active ? theme.backgroundElement : pulse ? theme.success : theme.textMuted}
+                fg={active ? theme.text : pulse ? theme.success : theme.textMuted}
                 attributes={pulse || active ? TextAttributes.BOLD : undefined}
                 wrapMode="none"
               >

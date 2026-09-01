@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Zero-tasks welcome panel — the workspace center column's empty state when
- * NO task exists yet (first launch, or everything archived). Passive, never
+ * NO task exists yet (first launch, or no tasks). Passive, never
  * modal: it teaches the three keys QUICKSTART.md teaches (new task / help /
  * command menu), resolved from the LIVE keymap so a rebound chord shows its
  * real cap and an unbound one drops, and it is honest about the environment
@@ -14,6 +14,7 @@ import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { installedEngineIds } from "../../engine/account-detect.ts"
+import { displayWidth, padEndCells } from "../../lib/display-width"
 import { formatChord } from "../../tui/lib/chord-glyphs"
 import { legendCap } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
@@ -67,7 +68,10 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
   }, [])
 
   const steps = stepLines()
-  const capWidth = Math.max(...steps.map((s) => s.cap.length), 0)
+  // Cell width, not String.length: a ⌘/⌃-class chord cap is one UTF-16 unit
+  // but wider in cells (and CJK caps are 2), so a .length column misaligns
+  // every message row.
+  const capWidth = Math.max(...steps.map((s) => displayWidth(s.cap)), 0)
   const broken = env !== null && (env.engines.length === 0 || !env.git)
 
   return (
@@ -85,13 +89,18 @@ export function WelcomePane(props: { probe?: () => Promise<WelcomeEnv> }): React
           {steps.map((step) => (
             <box key={step.msg} flexDirection="row" gap={2}>
               <text fg={theme.primary} wrapMode="none">
-                {step.cap.padEnd(capWidth)}
+                {padEndCells(step.cap, capWidth)}
               </text>
               <text fg={theme.textMuted} wrapMode="word">
                 {t(`workspace.welcome.${step.msg}`)}
               </text>
             </box>
           ))}
+        </box>
+        <box paddingTop={1}>
+          <text fg={theme.textMuted} wrapMode="word">
+            {t("workspace.welcome.worktreeExplain")}
+          </text>
         </box>
         {env !== null ? (
           <box flexDirection="column" paddingTop={1}>

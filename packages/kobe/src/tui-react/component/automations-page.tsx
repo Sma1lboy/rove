@@ -14,16 +14,21 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { useTerminalDimensions } from "@opentui/react"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { errorMessage } from "../../lib/error-message"
 import { relativeBuckets } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { dividerRule } from "../lib/rule-divider"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
@@ -69,6 +74,18 @@ export function AutomationsPage(props: {
   const { theme } = useTheme()
   const dialog = useDialog()
   const t = useT()
+  const dims = useTerminalDimensions()
+  /**
+   * Failures go to the toast queue, not the inline notice line — a muted
+   * `textMuted` line reads as a hint, not a failure, and error toasts show
+   * even when toasts are disabled (shared notify-state invariant). Same
+   * empty taskId/tabId pattern as `WorktreesPage`: only the toast queue is
+   * consumed here.
+   */
+  const notif = useNotifications()
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
 
   const [automations, setAutomations] = useState<readonly Automation[] | null>(null)
   const [keepsDaemonAlive, setKeepsDaemonAlive] = useState(false)
@@ -95,7 +112,11 @@ export function AutomationsPage(props: {
           setKeepsDaemonAlive(result.keepsDaemonAlive)
         })
         .catch(() => {
-          // A failed read leaves the previous rows rather than crashing the page.
+          // A failed read leaves the previous rows rather than crashing the
+          // page. Keeping them IS not calling setState, so there is nothing to
+          // do here — the empty array only covers the very first load, which
+          // has no rows to keep. The rows go stale rather than wrong: the poll
+          // refreshes them the moment the daemon answers again.
           if (!disposed) setAutomations((prev) => prev ?? [])
         })
     }
@@ -147,7 +168,8 @@ export function AutomationsPage(props: {
       await orch.setAutomationEnabled(selected.id, !selected.enabled)
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] toggle failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -163,7 +185,8 @@ export function AutomationsPage(props: {
       setNotice(t("automations.ranWith", { name: selected.name, status: result.status }))
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] run now failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -189,9 +212,10 @@ export function AutomationsPage(props: {
       await orch.createAutomation(draft)
       refetch()
     } catch (err) {
-      // The daemon re-validates the cron; surface its message, since the fix
-      // is in the input the user just typed.
-      setNotice(err instanceof Error ? err.message : String(err))
+      // The daemon re-validates the cron; its message names the fix, so it
+      // leads the error toast.
+      console.error("[rove automations] create failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -206,6 +230,7 @@ export function AutomationsPage(props: {
       t("automations.deleteBody", { name: selected.name }),
       t("common.cancel"),
       t("automations.deleteButton"),
+      { danger: true },
     )
     if (ok !== true) return
     setBusyId(selected.id)
@@ -213,7 +238,8 @@ export function AutomationsPage(props: {
       await orch.deleteAutomation(selected.id)
       refetch()
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove automations] delete failed:", err)
+      notifyError(t("automations.failed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -249,11 +275,11 @@ export function AutomationsPage(props: {
       {/* Section header in the sidebar's grammar: BOLD CAPS label, a rule
           filling the gap, the daemon-hold state right-stuck. */}
       <box flexDirection="row" gap={1} flexShrink={0}>
-        <text attributes={TextAttributes.BOLD} fg={theme.primary} wrapMode="none" flexShrink={0}>
+        <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none" flexShrink={0}>
           {t("automations.title")}
         </text>
         <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-          {"─".repeat(240)}
+          {dividerRule(dims.width)}
         </text>
         <text fg={keepsDaemonAlive ? theme.success : theme.textMuted} wrapMode="none" flexShrink={0}>
           {keepsDaemonAlive ? t("automations.holdingDaemon") : t("automations.notHolding")}
@@ -285,7 +311,7 @@ export function AutomationsPage(props: {
                 key={automation.id}
                 flexDirection="row"
                 flexShrink={0}
-                border={true}
+                {...FRAME}
                 borderColor={isCursor ? theme.borderActive : theme.borderSubtle}
                 paddingLeft={1}
                 paddingRight={1}
@@ -304,7 +330,7 @@ export function AutomationsPage(props: {
                     two run together, and the strip has no marker column to
                     separate them the way the sidebar's cards do. */}
                 <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
-                  {"─".repeat(240)}
+                  {dividerRule(dims.width)}
                 </text>
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
                   {`${repoLabel(automation.repo)} · ${automation.schedule}`}

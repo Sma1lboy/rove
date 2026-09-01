@@ -35,7 +35,7 @@ export const ALL_VENDORS: readonly VendorId[] = [...BUILTIN_VENDORS]
 
 /** True when `id` is one of the first-party engines (not a custom one). */
 export function isBuiltinVendor(id: string | undefined): id is BuiltinVendorId {
-  return id === "claude" || id === "codex" || id === "copilot" || id === "kimi"
+  return id !== undefined && (BUILTIN_VENDORS as readonly string[]).includes(id)
 }
 
 /** Next vendor in {@link ALL_VENDORS} order, wrapping around. */

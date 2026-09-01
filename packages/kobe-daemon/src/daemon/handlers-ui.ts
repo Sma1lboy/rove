@@ -2,10 +2,12 @@
  * UI-facing daemon RPC handlers — the broadcast/report family the TUI and
  * plugin CLI drive (`session.deliver`, `ui.reportEvent`, `tab.open`,
  * `notice.send`, `note.file`) plus the host-dialog prompt pair
- * (`ui.prompt` / `ui.promptReply`). Split out of `handlers.ts` for the
- * repo's 500-line file-size cap; see its doc comment for the registry's
- * wire-compatibility contract (byte-equivalent payloads, key order
- * load-bearing) — unchanged here.
+ * (`ui.prompt` / `ui.promptReply`). Like `handlers-task.ts`, this is the slice
+ * of the one registry that shares an RPC-name prefix — grouped by wire
+ * namespace, not by a responsibility boundary — spread back in by
+ * `handlers.ts`. See its doc comment for the registry's wire-compatibility
+ * contract (byte-equivalent payloads, key order load-bearing), which moving a
+ * handler between files must never change.
  */
 
 import { randomUUID } from "node:crypto"
@@ -155,7 +157,12 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(direction === "right" || direction === "down" ? { direction } : {}),
         at: Date.now(),
       })
-      return { ok: true }
+      // Same reach report as `session.deliver` (#499): the split is performed
+      // by an attached TUI, so with nothing listening the pane goes nowhere
+      // while a bare `ok` would read as "opened". `clients` counts CONNECTIONS
+      // — the calling CLI is one, so 1 does not prove a host is listening; 0
+      // is the unambiguous "nobody performed it".
+      return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
@@ -174,7 +181,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(tabId !== undefined ? { tabId } : {}),
         at: Date.now(),
       })
-      return { ok: true }
+      // A close with no attached TUI silently matched nothing — without this
+      // the caller cannot tell "pane closed" from "nobody was listening".
+      return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
@@ -192,7 +201,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (taskId !== undefined && !ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       const source = optionalString(payload, "source")
       ctx.bus.publish("notice.event", { title, kind, taskId, at: Date.now(), source })
-      return { ok: true }
+      // Headless honesty: with no attached UI the toast reaches nobody, and
+      // `clients` is the only signal (same reach report as session.deliver).
+      return { ok: true, clients: ctx.daemon.clientCount() }
     },
   },
   {
@@ -218,9 +229,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ?.append(author.repo, { at: new Date().toISOString(), text, taskId, author: label })
         .then(() => true)
         .catch(() => false)
-      const main = ctx.orch
-        .listTasks()
-        .find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo && !t.archived)
+      const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo)
       // No dispatcher seat, or the dispatcher noting to itself: accepted
       // but unrouted — filing must never error a working agent. Still
       // persisted above, which is why an unrouted note is no longer a loss.
@@ -228,7 +237,10 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (routed && main) {
         ctx.bus.publish("session.deliver", {
           taskId: main.id,
-          text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId}): ${text}`,
+          // Note text last and whole, same rule as the [ROVE PEER] prefix
+          // in `cli/api/handlers-tasks.ts`: the dispatcher reads a note in
+          // the filer's own language, not as the tail of an English clause.
+          text: `[ROVE FIELD NOTE] from "${label}" (task ${taskId})\n\n${text}`,
           at: Date.now(),
           source: "note",
         })

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <!--
+    Desktop backdrop for screencasts. The terminal renders transparently over
+    this (canvas renderer, plus the .xterm-viewport override in harness.tsx),
+    so a capture reads as a window on a desktop rather than a flat rectangle.
+
+    The mark is codefox's current one — the hexagon from its banner.svg, not
+    the illustrated fox in assets/logo.svg, which it replaced. It is written
+    inline rather than referenced through <image>: an external href inside an
+    embedded SVG never loads, and an <image> rasterises its source as a
+    separate document, so neither an opacity attribute on the tag nor a
+    wrapping group inside it reaches the paths.
+
+    It is also filled with ONE wallpaper-adjacent tone rather than dimmed with
+    opacity alone. Opacity blends a mark toward its background but keeps the
+    mark's internal contrast; the previous illustrated fox still read as a
+    finished drawing at 9%. A flat tone keeps the silhouette and drops
+    everything that would compete with the terminal above it.
+
+    Placement is bounded on both sides: it has to sit where the TUI leaves
+    cells unpainted, and fully inside 1280x800, since the capture viewport
+    crops anything past the edge.
+  -->
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2E2924"/>
+      <stop offset="52%" stop-color="#24201C"/>
+      <stop offset="100%" stop-color="#1B1815"/>
+    </linearGradient>
+    <radialGradient id="lift" cx="22%" cy="30%" r="58%">
+      <stop offset="0%" stop-color="#3A342D" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#3A342D" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="800" fill="url(#paper)"/>
+  <rect width="1280" height="800" fill="url(#lift)"/>
+  <g opacity="0.55" transform="translate(560 300) scale(3.1667)">
+    <path fill-rule="evenodd" fill="#3A342D" d="M60 12 L102 36 V84 L60 108 L18 84 V36 Z M42 68 L37 42 L52 53 H68 L83 42 L78 68 L60 90 Z"/>
+  </g>
+</svg>

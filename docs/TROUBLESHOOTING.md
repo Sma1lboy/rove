@@ -73,9 +73,60 @@ The raw logs live under the active Rove home (normally your OS home):
 
 | Path | Contains |
 |---|---|
-| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures |
+| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures, task-deletion audit |
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
+
+## Who deleted my task?
+
+Every task deletion is recorded in `~/.rove/daemon.log`, whether it succeeds
+or fails:
+
+```
+grep task-deletion-audit ~/.rove/daemon.log
+```
+
+Each deletion writes a `requested` line when the RPC arrives, then either
+`removed` or `failed`. The `requested` line names the task, its branch and
+worktree path, the `--force`/`--delete-branch` flags, and who asked:
+
+- `by=<taskId>::<tabId>` — another Rove session ran `rove api delete` from
+  inside that tab. This is a verified identity, not the inherited
+  `$ROVE_TASK_ID` env, so an unverifiable caller is simply absent rather than
+  misattributed.
+- `spawnedBy=<taskId>::<tabId>` — the deleted task's own spawner. Useful
+  context, but it names who CREATED the task, not who deleted it.
+- `client=<n>` — the daemon connection id, which distinguishes concurrent
+  callers when neither identity above is present (a TUI keypress, the web UI).
+
+A `salvaged` line appears between `requested` and `removed` when a **forced**
+deletion had uncommitted work to destroy. It names the git ref holding a
+snapshot of that work and the exact commands to recover it:
+
+```
+salvaged task <id> — uncommitted work saved to refs/rove/salvage/<branch>-<stamp> (<sha>).
+Recover with: git -C <repo> show refs/rove/salvage/<branch>-<stamp> | ...
+```
+
+The same line is written for a forced worktree removal from the worktrees page
+or the web UI (`salvaged worktree <path> — …`). No `salvaged` line means there
+was nothing uncommitted to save. See
+[WORKTREES](./WORKTREES.md#recovering-work-a-force-delete-destroyed).
+
+A `removed` line that also says **"git deregistered the worktree but could NOT
+delete"** means the deletion succeeded and left a directory behind: git dropped
+its registration but could not unlink the tree (most often an unwritable path
+inside it). The task is gone and there is nothing to retry — retrying is
+impossible, because git no longer knows that worktree. The line names the
+directory; delete it by hand if you want the space. See
+[WORKTREES](./WORKTREES.md#when-git-removes-the-worktree-but-not-its-directory).
+
+A `failed` line means the deletion ran only partway: the hosted session was
+torn down and the Inbox/activity state cleared, but the worktree directory and
+the task entry remain, and the task is left in `deletion.phase === "error"`
+(the sidebar row shows it). Delete it again once you have fixed whatever the
+reason names — a common one is a worktree directory that is no longer a git
+worktree, which `rove doctor` also reports.
 
 (Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
 directory; runtime files now live under `~/.rove`, with legacy paths honoured
@@ -97,14 +148,25 @@ for you to run yourself, never executed.
 Hosted PTY output is not always memory-only. Two bounded recovery stores live
 under `~/.rove/` (or the selected Rove home):
 
-- `pty-exits.json` records **abnormal** exits only. It keeps at most the newest
-  50 session records, with exit metadata and up to the last 40 plain-text
-  output lines per session. `rove api inspect` exposes these as
-  `sessionExits`; clean exits are omitted.
+- `pty-exits.json` keeps at most the newest 50 death records, with exit
+  metadata and up to the last 40 plain-text output lines each. `rove api
+  inspect` exposes these as `sessionExits`, newest first. Two layers:
+  `layer: "pty"` is the terminal process itself (abnormal exits only), and
+  `layer: "engine"` is the AI process gone from a terminal that kept running
+  — the case where you return to a shell prompt and want to know what
+  happened. An engine record names the engine's pid, its vendor, and the exit
+  code from the shell's `Engine exited (code N)` banner; code 143 means it
+  was killed with SIGTERM.
+
+  To find out **who** killed it: Rove logs every signal it sends a terminal
+  subtree to `daemon.log` as `[pty-signal]`. POSIX gives a dying process no
+  way to learn its killer's pid, so attribution works by elimination — no
+  `[pty-signal]` line for that session means the signal came from outside
+  Rove (the engine's own wrapper, a provider limit, the OS, or your shell).
 - `pty-sessions/` freezes each hosted session's launch metadata and bounded
   scrollback ring so a PTY-host crash, restart, or machine reboot can restore
   the old screen and respawn the launch command. An explicit tab close or task
-  archive drops that session's frozen record; a reset asks the running host to
+  delete drops that session's frozen record; a reset asks the running host to
   start fresh.
 
 These files can contain text that was visible in the embedded terminal. Treat
@@ -218,6 +280,31 @@ watching — so `send` fails loud instead.
 A bare `send` (no `--task-id`) targets the dispatcher's tab when run from a
 task another Rove session spawned, and otherwise the active task — it never
 silently spawns an engine on a guess.
+
+## `rove api send` reports `deferred` over a composer that is empty
+
+A `deferred` result is a success, not an error: the delivery gate found the
+target busy, so the daemon took ownership of the text and queued a
+`prompt_deferred` episode for you to release from the Inbox. Retrying stacks a
+duplicate — the daemon already has the message.
+
+Two gates can defer, and the `layer` in the response says which:
+
+- **`recent-human-write`** — someone typed into that session within the last
+  10 seconds. Wait it out.
+- **`composer-not-empty`** — Rove rendered the session's screen and read text
+  in its composer.
+
+The second one reads the engine's CURRENT on-screen layout, so a vendor
+redesign can make it wrong: it holds every message while reporting a composer
+you can see is empty. If that happens, turn the check off in **Settings → Dev
+→ Check the composer before delivering**. Delivery then skips the screen read
+and relies on the keystroke-recency guard alone, which measures time instead
+of parsing a layout and so cannot go stale — a composer you are typing into
+right now stays protected either way.
+
+Leave it on otherwise. It is what stops an agent's message landing in the
+middle of a half-typed sentence.
 
 ## `rove api set-branch` fails, but the branch was renamed anyway
 
@@ -369,7 +456,7 @@ setting, not a Rove one.
 fallback below.
 
 **Fallback that works everywhere:** every row-menu entry is also a direct
-chord on the row itself (`r` rename, `a` archive, `d` delete, and so on); see
+chord on the row itself (`r` rename, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
 

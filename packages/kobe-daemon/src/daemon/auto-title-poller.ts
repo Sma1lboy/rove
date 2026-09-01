@@ -59,11 +59,7 @@ export async function runAutoTitlePass(
   const renamed: AutoTitled[] = []
   const snapshot = orch.listTasks()
   for (const task of snapshot) {
-    // Archived tasks are settled — never re-derive their title. Skipped
-    // before any disk read; un-archiving re-includes them on the next tick
-    // (the live store reflects `archived` immediately). Matches the sidebar's
-    // canonical `t.archived` predicate (tui/panes/sidebar/groups.ts).
-    if (task.archived || task.title !== placeholderTitle || !task.worktreePath) continue
+    if (task.title !== placeholderTitle || !task.worktreePath) continue
     try {
       const derived = await derive(task.worktreePath, task.vendor ?? defaultVendor)
       if (!derived) continue

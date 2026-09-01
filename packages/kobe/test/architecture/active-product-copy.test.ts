@@ -53,7 +53,6 @@ const STALE_RENAME_COPY: Array<[path: string, phrases: string[]]> = [
   ["packages/kobe-web/index.html", ["<title>kobe-web</title>"]],
   ["packages/kobe-web/pty-server.mjs", ["kobe pty-server listening"]],
   ["packages/kobe/scripts/check-preview-deps.ts", ["kobe — preview-pane system dependencies"]],
-  [".github/workflows/claude-code-review.yml", ["`CLAUDE.md` and `packages/kobe/CLAUDE.md`", "kobe's house rules"]],
   [
     "packages/kobe-web/e2e/visual-fixture.ts",
     ["./src/cli/kobe.ts", 'join(XDG_CONFIG_HOME, "kobe")', '"skills", "kobe", "SKILL.md"', "/kobe-skill-version:"],

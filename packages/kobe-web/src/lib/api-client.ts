@@ -6,6 +6,8 @@
  * bodies, and status-shaped errors.
  */
 
+import { withWebToken } from "./web-token.ts"
+
 export type QueryValue = string | number | boolean | null | undefined
 export type QueryParams = Record<string, QueryValue | readonly QueryValue[]>
 
@@ -87,7 +89,9 @@ async function requestJson<T>(
   opts: ApiRequestOptions = {},
 ): Promise<T> {
   const url = apiUrl(path, opts.query)
-  const res = await fetch(url, init)
+  // One place: every verb on `api` below routes through here, so attaching
+  // the bearer token once covers get/post/put/patch/delete/form/getOr.
+  const res = await fetch(url, withWebToken(init))
   const payload = await readPayload(res)
   const json = payload.json
   const serverError =

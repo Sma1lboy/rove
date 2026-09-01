@@ -16,8 +16,10 @@ import { TextAttributes } from "@opentui/core"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { errorMessage } from "../../lib/error-message"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
@@ -31,6 +33,21 @@ function reposOf(orch: RemoteOrchestrator | null): string[] {
     if (task.repo && !seen.includes(task.repo)) seen.push(task.repo)
   }
   return seen
+}
+
+function errorHint(error: string, t: ReturnType<typeof useT>): string {
+  const colon = error.indexOf(": ")
+  const kind = colon >= 0 ? error.slice(0, colon) : "failed"
+  switch (kind) {
+    case "no-remote":
+      return t("workItems.errorHint.noRemote")
+    case "gh-missing":
+      return t("workItems.errorHint.ghMissing")
+    case "auth":
+      return t("workItems.errorHint.auth")
+    default:
+      return t("workItems.errorHint.fallback", { message: error })
+  }
 }
 
 function relativeAge(iso: string, now: number): string {
@@ -56,6 +73,12 @@ export function WorkItemsPage(props: {
 }): ReactNode {
   const { theme } = useTheme()
   const t = useT()
+  // Failure toasts, not the muted inline notice — same contract as the
+  // Worktrees/Automations pages (see AutomationsPage for the rationale).
+  const notif = useNotifications()
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
 
   const repos = reposOf(props.orchestrator)
   const [repoIndex, setRepoIndex] = useState(() => {
@@ -122,7 +145,8 @@ export function WorkItemsPage(props: {
       // than leaving the user wondering whether anything happened.
       else setNotice(t("workItems.startedNoEngine", { title: result.title }))
     } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err))
+      console.error("[rove work-items] start failed:", err)
+      notifyError(t("workItems.startFailed", { number: item.number, error: errorMessage(err) }))
     } finally {
       setStarting(false)
     }
@@ -146,9 +170,9 @@ export function WorkItemsPage(props: {
   const now = Date.now()
 
   return (
-    <box flexDirection="column" flexGrow={1} padding={1}>
+    <box flexDirection="column" flexGrow={1} paddingTop={1} paddingBottom={1} paddingLeft={2} paddingRight={2}>
       <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.accent}>
+        <text attributes={TextAttributes.BOLD} fg={theme.text}>
           {t("workItems.title")}
         </text>
         <text fg={theme.textMuted}>
@@ -160,6 +184,9 @@ export function WorkItemsPage(props: {
       {error ? (
         <box flexDirection="column" marginTop={1}>
           <text fg={theme.error}>{error}</text>
+          <box marginTop={1}>
+            <text fg={theme.textMuted}>{errorHint(error, t)}</text>
+          </box>
         </box>
       ) : items === null ? (
         <text fg={theme.textMuted}>{t("common.loading")}</text>

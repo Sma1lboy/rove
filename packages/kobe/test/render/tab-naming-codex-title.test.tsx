@@ -60,7 +60,11 @@ async function seedCodexRollout(): Promise<void> {
 }
 
 /** A mutable `TabLifecycleIO` whose `update` refreshes `stateRef` like the host's. */
-function lifecycleIO(state: TabsState, vendor: "claude" | "codex"): TabLifecycleIO & { state: () => TabsState } {
+function lifecycleIO(
+  state: TabsState,
+  vendor: "claude" | "codex",
+  worktree = "/nonexistent-worktree",
+): TabLifecycleIO & { state: () => TabsState } {
   let current = state
   return {
     stateRef: {
@@ -68,7 +72,7 @@ function lifecycleIO(state: TabsState, vendor: "claude" | "codex"): TabLifecycle
         return current
       },
     },
-    propsRef: { current: { vendor } },
+    propsRef: { current: { vendor, worktree } },
     update: (next) => {
       current = next
     },

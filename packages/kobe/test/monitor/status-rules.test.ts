@@ -17,7 +17,6 @@ const task = (over: Partial<Task>): Task =>
     worktreePath: "/repo/.kobe/worktrees/demo",
     kind: "task",
     status: "backlog",
-    archived: false,
     createdAt: "2026-06-01T00:00:00Z",
     updatedAt: "2026-06-01T00:00:00Z",
     ...over,
@@ -56,8 +55,8 @@ describe("maybeAutoStart", () => {
     }
   })
 
-  it("skips main / archived / missing tasks", async () => {
-    for (const t of [task({ kind: "main" }), task({ archived: true }), undefined]) {
+  it("skips main / missing tasks", async () => {
+    for (const t of [task({ kind: "main" }), undefined]) {
       const orch = fakeOrch(t)
       await expect(maybeAutoStart(orch, "t1", () => true)).resolves.toBe("skipped")
       expect(orch.moves).toEqual([])

@@ -41,7 +41,7 @@ const SINGLE_ROWS: ReadonlyArray<readonly [id: string, cap: string]> = [
   ["help.open", "F1"], // "help"
 ]
 const COMPOSITE_ROWS: ReadonlyArray<readonly [ids: readonly string[], cap: string]> = [
-  [["sidebar.archive", "sidebar.delete"], "a/d"], // "un/archive·delete"
+  [["sidebar.delete"], "d"], // "delete"
   [["sidebar.rename", "tasks.renameBranch", "tasks.cycleEngine"], "r/b/v"], // "name/branch/engine"
 ]
 

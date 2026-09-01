@@ -1,7 +1,7 @@
 /** React subscriptions to the workspace host's daemon signals.
  *
- * Pulled out of `host.tsx` (file-size cap) because this block is pure
- * plumbing: one `useAccessor` per signal, plus the two derived overlays
+ * Its own hook because this block is pure plumbing with no decisions in it:
+ * one `useAccessor` per signal, plus the two derived overlays
  * (`engineTabState` and `sidebarEngineState`) that are consumed by the
  * Sidebar and attention hooks. Grouping them keeps the orchestration layer
  * from being buried under ten signal reads before it wires any behavior. */

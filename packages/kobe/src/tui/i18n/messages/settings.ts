@@ -40,7 +40,7 @@ export const en = {
     splitBox: "Box frames",
     splitLine: "Divider line",
     notifications: "Notifications",
-    notificationsHint: "When a background tab finishes or pauses on an approval. The tab-chip unread dot is always on.",
+    notificationsHint: "When a background tab finishes or pauses on an approval.",
     toast: "Toast",
     toastHint: "bottom-right popup",
     sound: "Sound",
@@ -116,7 +116,10 @@ export const en = {
     sourceGithub: "{spec}",
     updateAvailable: "update available — rove plugin update",
     declares: "{actions} actions · {events} events · {panes} panes",
+    declaresWithEngines: "{actions} actions · {events} events · {panes} panes · {engines} engines",
     manifestUnreadable: "manifest unreadable",
+    unsupportedPlatform: "· not supported on this platform",
+    noHooks: "· no hooks declared",
     lastRun: "· last run {label} {status} {ago} ago",
     neverRun: "· never run",
     runOk: "ok",
@@ -135,7 +138,11 @@ export const en = {
     prefixTitle: "Command layer ({prefix})",
     /** One-paragraph grammar summary; {prefix} live first stroke, {timeout} live second-stroke window in ms */
     prefixHint:
-      "Bare keys act in the focused pane; a small one-press set covers frequent Rove actions; {prefix} opens the command map ({timeout}ms second-stroke window — hold on and a guide appears). Prefix bindings keep their pane scope and modal rules.",
+      "Bare keys act in the focused pane; a small one-press set covers frequent Rove actions; {prefix} opens the command layer ({timeout}ms second-stroke window). Prefix bindings keep their pane scope and modal rules.",
+    tapPresentation: "Prefix tap",
+    tapPresentationHint: "Choose whether the complete guide also marks controls already on screen.",
+    tapPresentationLocal: "On-screen entries + complete guide (default)",
+    tapPresentationGuide: "Complete guide only",
     /** Shown as the {prefix} value when the user disabled the prefix in YAML */
     prefixDisabled: "disabled",
     /** Trailing note listing non-rebindable ids; hidden when there are none */
@@ -161,7 +168,7 @@ export const en = {
   dev: {
     reset: "Reset UI state",
     resetHint:
-      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session / Archive lists, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
+      "Clears ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch to start fresh. Working session list, pane sizes, theme, model picks all reset. Worktrees on disk and engine session history are not touched.",
     resetButton: "[enter] Reset",
     restart: "Restart backend",
     restartHint:
@@ -179,9 +186,9 @@ export const en = {
     dispatcherHint:
       "Field-notes dispatcher: task sessions file one-line gotchas (`rove api note`), the daemon forwards each to the repo's main session, and that session relays them to the in-flight tasks that benefit (`rove api dispatch`). Web-hosted sessions receive the relays today.",
     dispatcher: "Field-notes dispatcher",
-    archivedHistoryHint:
-      "Archived history preview (beta): opening an archived task shows a read-only `rove history` pane (session selector + transcript) in the engine slot instead of relaunching the engine. Its transcript survives worktree removal because the engine store is keyed by the worktree path. Shared with the web dashboard.",
-    archivedHistory: "Archived history preview",
+    composerGateHint:
+      "Before pasting a peer/API prompt into a running engine, Rove reads that session's screen and holds the message if the composer already has text in it. The check knows each engine's CURRENT layout, so a vendor redesign can make it wrong — turn it off if messages are being held over composers you can see are empty. The separate recent-keystroke guard stays on either way, so a composer you are typing into now is still protected.",
+    composerGate: "Check the composer before delivering",
   },
 }
 
@@ -220,7 +227,7 @@ export const zh: typeof en = {
     splitBox: "方框边框",
     splitLine: "单线分隔",
     notifications: "通知",
-    notificationsHint: "后台标签完成或在审批处暂停时触发。标签上的未读圆点始终开启。",
+    notificationsHint: "后台标签完成或在审批处暂停时触发。",
     toast: "Toast 弹窗",
     toastHint: "右下角弹窗",
     sound: "声音",
@@ -292,7 +299,10 @@ export const zh: typeof en = {
     sourceGithub: "{spec}",
     updateAvailable: "有新版本 — rove plugin update",
     declares: "{actions} 个动作 · {events} 个事件 · {panes} 个面板",
+    declaresWithEngines: "{actions} 个动作 · {events} 个事件 · {panes} 个面板 · {engines} 个引擎",
     manifestUnreadable: "manifest 无法解析",
+    unsupportedPlatform: "· 不支持当前平台",
+    noHooks: "· 未声明钩子",
     lastRun: "· 上次运行 {label} {status} {ago}前",
     neverRun: "· 尚未运行过",
     runOk: "成功",
@@ -309,7 +319,11 @@ export const zh: typeof en = {
     notCreated: "  (尚未创建)",
     prefixTitle: "命令层（{prefix}）",
     prefixHint:
-      "裸键作用于当前聚焦面板；少量单次快捷键覆盖高频 Rove 操作；{prefix} 打开命令层（第二击窗口 {timeout}ms — 稍等会出现命令指南）。Prefix 绑定保持原有的面板作用域和 modal 规则。",
+      "裸键作用于当前聚焦面板；少量单次快捷键覆盖高频 Rove 操作；{prefix} 打开命令层（第二击窗口 {timeout}ms）。Prefix 绑定保持原有的面板作用域和 modal 规则。",
+    tapPresentation: "点按 Prefix",
+    tapPresentationHint: "选择完整指南是否同时标记当前屏幕上的入口。",
+    tapPresentationLocal: "屏幕入口 + 完整指南（默认）",
+    tapPresentationGuide: "仅完整指南",
     prefixDisabled: "已禁用",
     fixed: "固定（不可重绑定）：{ids}。",
     createHint: "还没有覆盖文件。Rove 可以帮你写一份带完整注释的——在你取消注释之前不会改动任何按键。",
@@ -332,7 +346,7 @@ export const zh: typeof en = {
   dev: {
     reset: "重置 UI 状态",
     resetHint:
-      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话 / 归档列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
+      "清空 ~/.config/rove/state.json 和 ~/.rove/tasks.json，然后退出 Rove——重新启动即可从头开始。工作会话列表、面板尺寸、主题、模型选择都会重置。磁盘上的 worktree 和引擎会话历史不受影响。",
     resetButton: "[enter] 重置",
     restart: "重启后端",
     restartHint:
@@ -350,8 +364,8 @@ export const zh: typeof en = {
     dispatcherHint:
       "现场笔记调度器：任务会话提交一行经验（`rove api note`），daemon 将每条转发给仓库的主会话，主会话再把它们转达给能受益的进行中任务（`rove api dispatch`）。目前由 Web 托管的会话会收到转达。",
     dispatcher: "现场笔记调度器",
-    archivedHistoryHint:
-      "归档历史预览（beta）：打开已归档的任务时，引擎位置改为只读的 `rove history` 面板（会话选择器 + 对话记录），而不是重新启动引擎。引擎记录按 worktree 路径存储，所以 worktree 被删除后历史仍然可读。与 Web 仪表盘共用同一开关。",
-    archivedHistory: "归档历史预览",
+    composerGateHint:
+      "把 peer/API 的消息粘进运行中的引擎之前,Rove 会读一遍那个会话的屏幕,发现输入框里已经有字就先扣住不发。这个判断依赖引擎当前的界面布局,所以厂商改版可能让它失准——如果你看着输入框明明是空的、消息却一直被扣住,就关掉它。另一道「刚刚有人在打字」的保护始终生效,正在输入的输入框仍然受保护。",
+    composerGate: "投递前检查输入框",
   },
 }

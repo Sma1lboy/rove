@@ -10,6 +10,14 @@
  *   fork+continue → composer with the handoff brief leading the prompt;
  *                   refusal toast (no composer) without a session
  *
+ * Every `requestNewChat` open is gated on an ASYNC engine probe
+ * (`availableEngineIds()` → `findClaudeBinary()` &c., a `which` + `stat` per
+ * vendor) that runs before `NewChatDialog.show`. A fixed `settle()` is a bet
+ * that probe finishes inside 60ms; it took 38ms on an idle Mac, and lost that
+ * bet on a loaded CI runner (v0.9.72 attempt 1 — the assertion read the
+ * pre-dialog frame, which is blank because `Driver` renders `null`). Wait for
+ * the dialog's own text with `waitForFrameText` instead.
+ *
  * Engine history reads and kobe state writes are both sandboxed to a
  * tmpdir via their real env seams (`CLAUDE_CONFIG_DIR` / `CODEX_HOME` /
  * `KOBE_HOME_DIR`) — bun's `os.homedir()` ignores runtime `HOME` changes,
@@ -27,7 +35,7 @@ import { useT } from "../../src/tui-react/i18n"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { type NewChatPreset, useTabDialogs } from "../../src/tui-react/workspace/use-tab-dialogs"
 import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
-import { act, renderComponent, settle } from "./harness"
+import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 let root: string
 let repo: string
@@ -38,6 +46,22 @@ const ENV_KEYS = ["CLAUDE_CONFIG_DIR", "CODEX_HOME", "KOBE_HOME_DIR"] as const
 function git(cwd: string, ...args: string[]): void {
   const out = spawnSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], { cwd, encoding: "utf-8" })
   if (out.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${out.stderr}`)
+}
+
+/** Poll `predicate` until it returns true or `timeout` ms elapse.
+ *  Render tests drive real async FS reads through the engine history seam;
+ *  a fixed `settle()` is occasionally too short, so we wait for the expected
+ *  outcome instead of hard-coding a delay. */
+async function waitFor(
+  predicate: () => boolean | Promise<boolean>,
+  { timeout = 2000, interval = 50 }: { timeout?: number; interval?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if (await predicate()) return
+    await new Promise((resolve) => setTimeout(resolve, interval))
+  }
+  throw new Error(`waitFor timed out after ${timeout}ms`)
 }
 
 beforeAll(() => {
@@ -117,8 +141,7 @@ describe("requestNewChat dispatch", () => {
   test("default combo lands a sibling engine tab (old ctrl+e)", async () => {
     const { frame, mockInput, captured } = await mountFlow(tabs())
     act(() => captured.request())
-    await settle()
-    expect(await frame()).toContain("New conversation")
+    await waitForFrameText(frame, "New conversation")
     act(() => mockInput.pressEnter())
     await settle()
     await frame()
@@ -132,8 +155,7 @@ describe("requestNewChat dispatch", () => {
   test("tab+continue with no conversation → refusal toast, no tab", async () => {
     const { frame, mockInput, captured } = await mountFlow(tabs())
     act(() => captured.request({ context: "continue" }))
-    await settle()
-    expect(await frame()).toContain("continue this conversation")
+    await waitForFrameText(frame, "continue this conversation")
     act(() => mockInput.pressEnter())
     await settle()
     await frame()
@@ -144,11 +166,9 @@ describe("requestNewChat dispatch", () => {
   test("fork+fresh opens the QuickTaskComposer; submit reaches onQuickFork", async () => {
     const { frame, mockInput, captured } = await mountFlow(tabs())
     act(() => captured.request({ destination: "fork" }))
-    await settle()
-    expect(await frame()).toContain("fork a child task")
+    await waitForFrameText(frame, "fork a child task")
     act(() => mockInput.pressEnter())
-    await settle()
-    expect(await frame()).toContain("Quick task")
+    await waitForFrameText(frame, "Quick task")
     await act(async () => mockInput.typeText("ship the thing"))
     act(() => mockInput.pressEnter())
     await settle()
@@ -171,9 +191,16 @@ describe("requestNewChat dispatch", () => {
 
     const { frame, mockInput, captured } = await mountFlow(tabs("s1"))
     act(() => captured.request({ destination: "fork", context: "continue" }))
-    await settle()
+    await waitForFrameText(frame, "fork a child task")
     act(() => mockInput.pressEnter())
-    await settle()
+    // `forkChildTask` resolves the handoff plan asynchronously before opening
+    // the QuickTaskComposer. Wait for the composer (or a refusal toast) instead
+    // of relying on a fixed settle window — issue #77 was the composer not
+    // having rendered when the assertion ran.
+    await waitFor(async () => {
+      const f = await frame()
+      return f.includes("Quick task") || captured.errors.length > 0
+    })
     expect(await frame()).toContain("Quick task")
     await act(async () => mockInput.typeText("keep going"))
     act(() => mockInput.pressEnter())
@@ -196,9 +223,11 @@ describe("requestNewChat dispatch", () => {
       nextOrdinal: 2,
     })
     act(() => captured.request({ destination: "fork", context: "continue" }))
-    await settle()
+    await waitForFrameText(frame, "fork a child task")
     act(() => mockInput.pressEnter())
-    await settle()
+    // Same async-plan race as the handoff test above: wait for the refusal
+    // toast instead of assuming it has fired within the fixed settle window.
+    await waitFor(() => captured.errors.length > 0)
     const after = await frame()
     expect(after).not.toContain("Quick task")
     expect(captured.errors).toEqual(["No conversation in this tab to fork yet"])

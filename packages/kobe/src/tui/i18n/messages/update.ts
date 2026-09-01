@@ -5,8 +5,13 @@
 
 export const en = {
   pageTitle: "ROVE UPDATE",
+  /** Brand-row chip — must stay tiny, the rail is the narrowest panel. */
+  chip: "↑ {version}",
   current: "current",
   latest: "latest",
+  /** The registry check failed (offline, npm down, timeout). Distinct from
+   *  "you are up to date" — those two used to render identically. */
+  latestUnknown: "unknown — could not reach the registry",
   releaseUrlUnavailable: "release URL unavailable",
   statusReleaseOpened: "Opened release page in your browser.",
   statusReleaseError: "Could not open release URL.",
@@ -28,6 +33,11 @@ export const en = {
     olderBuild: "an older build",
     hint: "daemon is {daemon} — you launched v{clientVersion}. Run `rove daemon restart`, then relaunch Rove",
   },
+  /** This process's own install was deleted — it can never start a daemon again. */
+  staleInstall: {
+    title: "✕ ROVE INSTALL IS GONE",
+    hint: "this Rove is running from an install that no longer exists on disk, so it cannot start a daemon. Reinstall (`npm install -g @sma1lboy/rove`) and relaunch Rove",
+  },
   versions: {
     pageTitle: "ROVE VERSIONS",
     loading: "Loading releases...",
@@ -42,8 +52,10 @@ export const en = {
 
 export const zh: typeof en = {
   pageTitle: "ROVE 更新",
+  chip: "↑ {version}",
   current: "当前",
   latest: "最新",
+  latestUnknown: "未知 —— 无法连接到 registry",
   releaseUrlUnavailable: "发布链接不可用",
   statusReleaseOpened: "已在浏览器中打开发布说明页面。",
   statusReleaseError: "无法打开发布链接。",
@@ -64,6 +76,10 @@ export const zh: typeof en = {
     title: "⚠ DAEMON 版本不一致",
     olderBuild: "旧版本构建",
     hint: "daemon 运行的是 {daemon}，而你启动的是 v{clientVersion}。请运行 `rove daemon restart`，然后重新启动 Rove",
+  },
+  staleInstall: {
+    title: "✕ ROVE 安装已不存在",
+    hint: "当前 Rove 运行自一份已从磁盘删除的安装，因此无法启动 daemon。请重新安装（`npm install -g @sma1lboy/rove`）并重新启动 Rove",
   },
   versions: {
     pageTitle: "ROVE 版本列表",

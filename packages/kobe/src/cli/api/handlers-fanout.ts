@@ -32,7 +32,6 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
     taskIds = []
     for (const t of tasks) {
-      if (t.archived) continue
       if (groupFlag && t.groupId !== groupFlag) continue
       if (target !== null && (await runtime.resolveRepoRoot(t.repo)) !== target) continue
       taskIds.push(t.id)
@@ -67,7 +66,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     // parallel-round winner: an attempt that commits its work reads +0/−0 here.
     const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : { added: 0, deleted: 0 }
     const base = task.worktreePath
-      ? await runtime.readBranchSignals(task.worktreePath)
+      ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
       : { baseRef: null, ahead: null, diff: null }
     const entry = registry?.[task.id]
     // `forMs` = time in the CURRENT state ("idle for 40min" when state is

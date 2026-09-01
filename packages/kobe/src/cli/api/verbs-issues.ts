@@ -1,7 +1,10 @@
 /**
- * The `issues` verb group — daemon-owned issue-store CRUD. Split out of
- * `verbs.ts` (file-size cap); spread back into the {@link VERBS} table
- * there, so schema/help/validation see one canonical list.
+ * The `issues` verb group — daemon-owned issue-store CRUD. Operates on the
+ * issue store, not on tasks, which is the whole reason it is its own group.
+ * One file per `VerbGroup`, mirroring the taxonomy
+ * `rove api schema --group issues` prints — though it is each spec's own
+ * `group` field, not this file, that decides where a verb lists. Specs spread back into the {@link VERBS} table, so
+ * schema/help/validation see one canonical list.
  */
 
 import { F } from "./flags.ts"
@@ -15,12 +18,14 @@ type IssueStatus = (typeof ISSUE_STATUSES)[number]
 export const ISSUE_VERBS: readonly VerbSpec[] = [
   {
     name: "issue-list",
+    group: "issues",
     summary: "List daemon-owned issues for a repo.",
     flags: [F.repo()],
     handler: (ctx) => simpleRpc(ctx, "issue.list", { repoRoot: ctx.args.requirePath("repo") }),
   },
   {
     name: "issue-create",
+    group: "issues",
     summary: "Create a daemon-owned issue for a repo.",
     flags: [
       F.repo(),
@@ -35,6 +40,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "issue-set-status",
+    group: "issues",
     summary: "Set a daemon-owned issue's status.",
     flags: [
       F.repo(),
@@ -49,6 +55,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
   },
   {
     name: "issue-update",
+    group: "issues",
     summary: "Update a daemon-owned issue's title, body, and/or linked task.",
     flags: [
       F.repo(),

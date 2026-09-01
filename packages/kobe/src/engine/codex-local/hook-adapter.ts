@@ -14,7 +14,8 @@
  *   - `UserPromptSubmit` → turn-start
  *   - `Stop`             → turn-complete
  *   - `PostToolUse`(Bash)→ worktree-created (inherited worktree-watch observer)
- * NOT wired: `turn-failed` (Codex has no StopFailure/error event), `session-end`
+ * NOT wired: `turn-failed` (Codex's hook enum has no failure event at all —
+ * see `activityDetailFromPayload`), `session-end`
  * (no SessionEnd), `awaiting-input` (Codex's only "waiting" event is
  * `PermissionRequest`, an allow/deny DECISION hook — installing kobe's observer
  * on it could interfere with Codex's approval flow, the same provider-hook trap
@@ -68,7 +69,18 @@ export class CodexHookAdapter extends JsonHookAdapter {
   }
 
   /** Codex spells the tool fields `tool_name`/`tool_response`; compaction
-   *  carries the same `trigger` values as Claude. */
+   *  carries the same `trigger` values as Claude.
+   *
+   *  No `turn-failed` branch, and that is not an oversight: Codex's hook
+   *  event enum (verified against codex-cli 0.149.1's binary) is PreToolUse /
+   *  PermissionRequest / PostToolUse / PreCompact / PostCompact / SessionStart
+   *  / SessionEnd / UserPromptSubmit / SubagentStart / SubagentStop / Stop —
+   *  there is no failure event to classify. `TurnFailed` exists in the binary
+   *  but is an app-server THREAD event (`turn.failed`), not a hook, so it
+   *  never reaches a `kobe hook` invocation. Codex therefore cannot reach
+   *  `rate_limited` through hooks at all; its quota probe
+   *  (`vendorsWithQuotaProbe`) is the only path, and adding a classifier here
+   *  would be dead code pretending otherwise. */
   override activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,

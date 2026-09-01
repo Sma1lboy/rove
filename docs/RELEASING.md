@@ -1,6 +1,8 @@
 # Releasing Rove
 
-Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The canonical package is `@sma1lboy/rove` (`packages/kobe`); the release job republishes that exact build as `@sma1lboy/kobe` for existing installs. `packages/branding` is `private` and never published.
+Rove versioning + changelog are managed with [Changesets](https://github.com/changesets/changesets). The published package is `@sma1lboy/rove` (`packages/kobe`). `packages/branding` is `private` and never published.
+
+`@sma1lboy/kobe` was the package name before the rename and was published in lockstep through 0.9.64. It is frozen there — releases no longer publish it. An install of the old name keeps working and its update check reports the newest `@sma1lboy/rove`; reinstalling under the new name is the way forward.
 
 ## The flow
 
@@ -19,7 +21,7 @@ This prompts for the bump type (**patch** / **minor** / **major**) and a summary
 - The API lookup needs a `GITHUB_TOKEN`: the Changesets workflow passes its Actions token; `scripts/release.sh` takes `gh auth token`. No token → `changeset version` fails loudly rather than shipping uncredited entries.
 - A pure tooling / docs / CI change that doesn't touch the published package needs **no** changeset. If you want to record "intentionally nothing to release", run `bun run changeset -- --empty`.
 - Bump type: default to `patch` for every change, including features and pre-1.0 breaking changes. Use `minor` or `major` only when the maintainer explicitly requests that bump for the change being released.
-- The frontmatter must name a **publishable workspace package** — today `"@sma1lboy/rove"` or `"@sma1lboy/rove-plugin-sdk"`. The `@sma1lboy/kobe` names are compatibility aliases that still publish alongside, but a changeset must not version them (they were canonical before 2026-08-13, so stale examples are all over the git history — don't copy an old changeset).
+- The frontmatter must name a **publishable workspace package** — today `"@sma1lboy/rove"` or `"@sma1lboy/rove-plugin-sdk"`. Never `"@sma1lboy/kobe"`: the CLI under that name is no longer published, and the SDK alias is published from the canonical version rather than versioned on its own. Those names were canonical before 2026-08-13, so stale examples are all over the git history — don't copy an old changeset.
 
 Validate before committing:
 
@@ -30,23 +32,25 @@ bun run hooks:install           # once per clone — runs the same check on comm
 
 Worth the two seconds: a bad package name is only caught downstream, by `package-distribution.test.ts` inside `typecheck-and-test`. Once it merges, **main and every branch cut from it stay red** until someone retargets that line (PR #445, 2026-08-15). The pre-commit hook exists to move that discovery from "everyone else's CI" to "your keyboard".
 
-### 2. Cutting a release — automatic (default)
+### 2. Cutting a release — on demand
 
-Releases are fully automatic via [`changesets.yml`](../.github/workflows/changesets.yml): **any push to `main` that carries pending changesets IS a release.** No bot PR, no button. The workflow:
+**Merging a PR banks its changeset; it does not release.** A release happens when someone runs [`changesets.yml`](../.github/workflows/changesets.yml) (Actions → Changesets → Run workflow), and it consumes every changeset banked since the last one. The workflow:
 
-1. Waits for the triggering commit's `ci.yml` run to go green (a red run releases nothing — land the fix, and the next push releases the accumulated changesets; a run cancelled by a newer push defers to that push's workflow).
+1. Waits for main's HEAD `ci.yml` run to go green (a red or cancelled run releases nothing — land the fix and run the workflow again).
 2. Runs the same regeneration `release.sh` does (`changeset version` + lockfile refresh + lint:fix), verifies with `bun install --frozen-lockfile` + the lint gate, commits `chore: release — X.Y.Z`, pushes it, and tags `vX.Y.Z`.
 3. Dispatches `release.yml` on the tag (a GITHUB_TOKEN tag push never fires tag triggers — the dispatch is explicit), which re-runs every publish gate from the tag checkout before `npm publish`.
 
-Consequence to keep in mind: a `minor`/`major` changeset auto-ships that bump the moment it lands on `main` — the changeset file in the PR **is** the release decision, so review bump types at PR review time.
+This used to fire on every push to `main`, which meant ~10 published versions on a busy day: no two users were on the same build, and no released combination of changes had been exercised as a whole before shipping. Batching is the point — the accumulated set is what you decide to release.
 
-### 2b. Cutting a release by hand (fallback)
+Between releases, `main` still ships continuously on the **nightly channel** (below), so anyone who wants the unbatched stream can opt into it.
+
+### 2b. Cutting a release from your machine
 
 ```bash
 scripts/release.sh
 ```
 
-Same pipeline driven locally — useful when Actions is down or you want the interactive confirm. Don't run it while the bot's `tag` job is mid-flight on the same version (both would race to push the same tag; harmless when identical, noisy when not).
+Same pipeline, interactive confirm — this is the usual path when you're at a terminal anyway. Don't run it while the workflow's `tag` job is mid-flight on the same version (both would race to push the same tag; harmless when identical, noisy when not).
 
 > **PR-only exception.** Development lands on `main` exclusively via pull
 > requests (AGENTS.md "PR-only mainline"); the `chore: release — X.Y.Z`
@@ -63,7 +67,7 @@ With a green gate, it consumes every pending `.changeset/*.md`:
 4. Commits `chore: release — X.Y.Z`. **No tag yet.**
 5. (After confirming) pushes the release commit to `main`, then **waits for that commit's `ci.yml` run** — typecheck-and-test, behavior, render-track, visual-ground-truth on real CI hardware, the same set `release.yml` makes `publish` wait on. Only when it's green does the script tag `vX.Y.Z` and push the tag.
 
-If CI comes back red, **no tag exists and the version number is not burned**: `package.json` on `main` already carries X.Y.Z, so land the fix on `main` (no new changeset needed) and re-run `scripts/release.sh` — with zero pending changesets and an untagged committed version it enters **resume mode**: waits for CI at the fixed HEAD, then tags the same `vX.Y.Z` there. The same resume path covers answering `N` at the push prompt and a CI run cancelled by a newer main push.
+If CI comes back red, **no tag exists and the version number is not burned**: `package.json` on `main` already carries X.Y.Z, so land the fix on `main` (no new changeset needed) and re-run `scripts/release.sh` — with zero pending changesets and an untagged committed version it enters **resume mode**: waits for CI at the fixed HEAD, then tags the same `vX.Y.Z` there. The same resume path covers answering `N` at the push prompt, a CI run cancelled by a newer main push, and any failure of the tag step itself (v0.9.61 hit `fatal: no tag message?` on a machine with `tag.gpgSign = true`, since a signed tag must be annotated — the script now tags with `-a -m`).
 
 The push triggers `.github/workflows/release.yml`, which gates on **lint + typecheck + unit tests (fast + socket) + build**, waits on the same **behavior** suite `ci.yml`'s PR gate runs, publishes `@sma1lboy/rove`, then publishes the same files/version/bins as the `@sma1lboy/kobe` compatibility alias and extracts the new `CHANGELOG.md` section as the GitHub release body. Both publish steps are idempotent so a rerun can finish a partially published pair. npm is the sole distribution channel — standalone binaries were dropped 2026-08-02 (nothing consumed them; `packages/kobe/scripts/compile.ts` still builds one locally on demand). The same publish job also piggyback-publishes **`@sma1lboy/rove-plugin-sdk`** whenever its independently changeset-versioned version isn't on npm yet, then republishes the identical artifact as the **`@sma1lboy/kobe-plugin-sdk`** compatibility alias. The SDK has no tag of its own; an SDK-only release still rides the next Rove release.
 
@@ -82,6 +86,30 @@ What the list drives:
 
 Worktrees are never part of a reset — the gate's cost to the user is daemon/session teardown (plus the task index only if they choose `--hard`).
 
+## The nightly channel
+
+[`nightly.yml`](../.github/workflows/nightly.yml) publishes today's `main` to the npm `nightly` dist-tag every morning (09:00 UTC), behind the same behavior + render + visual gates a release passes. It is less baked by virtue of *what it contains* — unbatched, unreviewed-as-a-set changes — not by skipping verification.
+
+Users opt in and out with the CLI; there is no setting to configure:
+
+```bash
+rove update nightly     # switch to the nightly channel
+rove update latest      # switch back to stable
+rove update             # stay on whichever channel you're on
+```
+
+The channel an install follows is **derived from the version it is running**, not stored: a nightly build carries a `-nightly.<date>` tail, so `channelOf()` reports `nightly` and the update check resolves against the `nightly` dist-tag. Nothing can drift out of sync with reality, and switching channels is just installing from the other one.
+
+Three properties worth knowing before changing any of this:
+
+- **A nightly leaves no tag and no commit.** Its version (`X.Y.(Z+1)-nightly.<date>`) exists only inside the workflow's checkout, so the changeset ledger is untouched and tomorrow's real release still computes its number as if nightlies never happened.
+- **`latest` never moves.** `npm i @sma1lboy/rove` and every existing install keep resolving to the stable line.
+- **A nightly sorts *below* the release it anticipates** (semver §11), which is what you want: when `X.Y.(Z+1)` really ships, every nightly of it is older, so nightly users roll forward onto the stable build instead of being stranded above it.
+
+That ordering is why `isNewerSemver` compares prerelease tails while `compareSemver` deliberately does not — see the note on each in [`src/version.ts`](../packages/kobe/src/version.ts). The split is load-bearing in both directions: without the tail, consecutive nightlies compare equal and nightly users never see an update; with the tail in `compareSemver`, a nightly carrying a breaking change would stop tripping the `rove reset` boot gate.
+
 ## Prereleases
 
-A prerelease tag (`v0.7.0-experimental.0`) publishes to an npm dist-tag named after the prerelease identifier (`experimental`), so `latest` stays on the stable line while testers opt in with `npm i @sma1lboy/rove@experimental`. The matching `@sma1lboy/kobe@experimental` alias is published in lockstep. Use Changesets' [prerelease mode](https://github.com/changesets/changesets/blob/main/docs/prereleases.md) (`changeset pre enter experimental` … `changeset pre exit`) to generate those versions.
+A prerelease tag (`v0.7.0-experimental.0`) publishes to an npm dist-tag named after the prerelease identifier (`experimental`), so `latest` stays on the stable line while testers opt in with `npm i @sma1lboy/rove@experimental`. Use Changesets' [prerelease mode](https://github.com/changesets/changesets/blob/main/docs/prereleases.md) (`changeset pre enter experimental` … `changeset pre exit`) to generate those versions.
+
+This is the manual, one-off cousin of the nightly channel: same dist-tag mechanism, but tagged and versioned through `main` rather than cut daily into a throwaway tree.

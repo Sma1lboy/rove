@@ -1,5 +1,26 @@
 # @sma1lboy/rove-plugin-sdk
 
+## 0.1.6
+
+### Patch Changes
+
+- [#623](https://github.com/Sma1lboy/rove/pull/623) [`bb40b81`](https://github.com/Sma1lboy/rove/commit/bb40b8101982f3c5b0ec5b9f4aed8137eb2bcabb) Remove the `task.archived` plugin event and archive diff field
+
+  The archive concept is being retired (issue [#75](https://github.com/Sma1lboy/rove/issues/75)). As the first slice, this
+  change removes the public plugin contract surface:
+
+  - `task.archived` is no longer emitted from the daemon's snapshot-diff reducer.
+  - `archived` is removed from the watched task-diff fields, so `task.changed`
+    will no longer include `archived` in `detail.fields`.
+  - The event is removed from `@sma1lboy/rove-plugin-sdk`'s `PLUGIN_EVENT_NAMES`
+    catalog.
+  - Plugin-author docs (`PLUGIN-AUTHORING.md`, `PLUGIN-EVENTS.md`, and
+    `docs/design/plugin-events.md`) no longer list `task.archived`.
+
+  **Breaking change for plugins:** any plugin subscribing to `task.archived` will
+  stop receiving that event. Use `task.changed` / `task.deleted` / `worktree.created`
+  if you need to observe task lifecycle or worktree transitions. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.1.5
 
 ### Patch Changes

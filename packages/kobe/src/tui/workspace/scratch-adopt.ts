@@ -26,7 +26,7 @@
  * only decides.
  */
 
-/** An unarchived, non-scratch task that could already own the shell's cwd. */
+/** A non-scratch task that could already own the shell's cwd. */
 export interface ScratchOwnerTask {
   readonly id: string
   readonly kind: "main" | "task" | "dir"

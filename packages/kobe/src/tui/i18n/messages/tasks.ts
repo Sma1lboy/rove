@@ -31,17 +31,20 @@ export const en = {
     newChat: "New conversation",
     newShell: "New shell",
     newTask: "New task",
+    /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
+    forgetProject: "Remove project",
     rename: "Rename",
     pin: "Pin",
     unpin: "Unpin",
-    localMerge: "Merge into local",
-    archive: "Archive",
+    reorder: "Reorder row",
     delete: "Delete",
   },
   /** Inline chip while move/reorder mode is active */
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
+  /** The fold row standing in for a project's routine sessions (issue #91) */
+  routinesRow: "{count} routine sessions",
   /** Empty-state messages */
   empty: {
     noMatchSearch: "No matching tasks — esc to clear.",
@@ -53,6 +56,8 @@ export const en = {
     rateLimited: "rate limited",
     permissionNeeded: "needs permission",
     error: "error",
+    /** The engine PROCESS is gone (pty exit record), not a failed turn. */
+    dead: "engine exited",
   },
   /** Row-view special subtitle words */
   subtitle: {
@@ -92,18 +97,18 @@ export const en = {
   /** Toast / error messages */
   toast: {
     noDaemonWorktree: "No daemon running — can't create the worktree",
-    noDaemonOpen: "No daemon running — can't open this task",
     noEditor: "No editor found — set ROVE_OPEN_EDITOR (e.g. 'code', 'cursor', 'nvim')",
     openWorktreeFailed: "Couldn't open worktree with {label}",
-    sessionStartFailed: "Couldn't start this task's session",
-    moveTaskFailed: "Couldn't move task: {message}",
-    alreadyLatest: "Already on the latest version (v{version})",
+    worktreeErrorDeleting: "This task is being deleted — it can't be opened",
     worktreeErrorNotGit:
       "This project isn't a git repo yet — a task needs a git branch. Run `git init` (+ a first commit) in the project, then open the task. Non-git support is coming.",
     worktreeErrorGeneric: "Couldn't create the worktree: {message}",
     scratchAdopted: "Adopted into {repo} — save it as a project from New Task if you want it in the picker",
     scratchOpenFailed: "Couldn't open a scratch shell: {message}",
     scratchCloseFailed: "Couldn't close the scratch task: {message}",
+    worktreeGoneTitle: 'Worktree for "{title}" is gone',
+    worktreeGoneBody:
+      "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
   },
 }
 
@@ -129,15 +134,16 @@ export const zh: typeof en = {
     newChat: "新建会话",
     newShell: "新建终端",
     newTask: "新建任务",
+    forgetProject: "移除项目",
     rename: "重命名",
     pin: "置顶",
     unpin: "取消置顶",
-    localMerge: "合入本地分支",
-    archive: "归档",
+    reorder: "重新排序",
     delete: "删除",
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
+  routinesRow: "{count} 个 routine 会话",
   empty: {
     noMatchSearch: "无匹配任务——按 esc 清除。",
     noActiveProject: "该项目暂无活跃任务。",
@@ -147,6 +153,7 @@ export const zh: typeof en = {
     rateLimited: "请求受限",
     permissionNeeded: "等待授权",
     error: "错误",
+    dead: "引擎已退出",
   },
   subtitle: {
     noTracking: "不跟踪活动",
@@ -178,17 +185,16 @@ export const zh: typeof en = {
   },
   toast: {
     noDaemonWorktree: "守护进程未运行——无法创建 worktree",
-    noDaemonOpen: "守护进程未运行——无法打开此任务",
     noEditor: "未找到编辑器——请设置 ROVE_OPEN_EDITOR（如 'code'、'cursor'、'nvim'）",
     openWorktreeFailed: "无法用 {label} 打开 worktree",
-    sessionStartFailed: "无法启动此任务的会话",
-    moveTaskFailed: "无法移动任务：{message}",
-    alreadyLatest: "已是最新版本（v{version}）",
+    worktreeErrorDeleting: "该任务正在删除中——无法打开",
     worktreeErrorNotGit:
       "该项目尚非 git 仓库——任务需要 git 分支。请在项目中执行 `git init`（+ 首次提交）后再打开任务。非 git 项目的支持即将推出。",
     worktreeErrorGeneric: "无法创建 worktree：{message}",
     scratchAdopted: "已归入 {repo}——若要出现在项目选择器里,可在新建任务中保存为项目",
     scratchOpenFailed: "无法打开临时 Shell:{message}",
     scratchCloseFailed: "无法关闭临时任务:{message}",
+    worktreeGoneTitle: '"{title}" 的 worktree 已消失',
+    worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
   },
 }

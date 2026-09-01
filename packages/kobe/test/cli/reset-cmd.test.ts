@@ -7,6 +7,15 @@ const mocks = vi.hoisted(() => ({
   stopDaemonProcess: vi.fn(),
   stopLegacyTmux: vi.fn(),
   stampResetGate: vi.fn(),
+  /** Answer the reset command's y/N prompt reads off stdin. */
+  promptAnswer: { value: "n" },
+}))
+
+vi.mock("node:readline", () => ({
+  createInterface: () => ({
+    question: (_q: string, cb: (answer: string) => void) => cb(mocks.promptAnswer.value),
+    close: () => undefined,
+  }),
 }))
 
 vi.mock("@sma1lboy/kobe-daemon/daemon/lifecycle", () => ({
@@ -126,6 +135,85 @@ describe("runResetSubcommand", () => {
 
     await expect(runResetSubcommand(["--hard", "--yes"])).rejects.toThrow("failed to remove task index")
     expect(output()).not.toContain("reset complete")
+  })
+
+  it("--hard without --yes on a non-TTY refuses: nothing stopped, nothing wiped", async () => {
+    // Every other test passes --yes, so the whole confirmation block
+    // (reset-cmd.ts:104-116) can be deleted with the suite still green. This
+    // is the regression that block exists to prevent: `rove reset --hard` in
+    // a pipe/CI/agent shell silently wiping the task index with no prompt.
+    const tasksPath = join(home, ".rove", "tasks.json")
+    const statePath = join(home, ".config", "rove", "state.json")
+    mkdirSync(join(home, ".config", "rove"), { recursive: true })
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    writeFileSync(statePath, "{}")
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: false, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+
+    expect(existsSync(tasksPath)).toBe(true)
+    expect(existsSync(statePath)).toBe(true)
+    // The refusal is a true preflight: it returns BEFORE any runtime is torn
+    // down, so a refused reset leaves the daemon and PTY host running.
+    expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
+    expect(mocks.stopLegacyTmux).not.toHaveBeenCalled()
+    expect(mocks.stampResetGate).not.toHaveBeenCalled()
+    expect(output()).toContain("re-run with --yes to proceed")
+    expect(output()).not.toContain("reset complete")
+  })
+
+  it("declining the interactive y/N prompt aborts with nothing changed", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    mocks.promptAnswer.value = "n"
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+
+    expect(existsSync(tasksPath)).toBe(true)
+    expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
+    expect(output()).toContain("aborted — nothing changed")
+  })
+
+  it("accepting the prompt proceeds — the gate blocks, it does not disable --hard", async () => {
+    const tasksPath = join(home, ".rove", "tasks.json")
+    writeFileSync(tasksPath, JSON.stringify({ tasks: [{ id: "a" }] }))
+    mocks.promptAnswer.value = "y"
+    const tty = process.stdin.isTTY
+    Object.defineProperty(process.stdin, "isTTY", { value: true, configurable: true })
+    try {
+      await runResetSubcommand(["--hard"])
+    } finally {
+      Object.defineProperty(process.stdin, "isTTY", { value: tty, configurable: true })
+    }
+
+    expect(existsSync(tasksPath)).toBe(false)
+    expect(mocks.stopDaemonProcess).toHaveBeenCalled()
+  })
+
+  it("an unknown argument exits 2 before anything is stopped", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("__exit__")
+    }) as never)
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true)
+    try {
+      await expect(runResetSubcommand(["--hardd", "--yes"])).rejects.toThrow("__exit__")
+      expect(exit).toHaveBeenCalledWith(2)
+      expect(stderr.mock.calls.join("")).toContain('unknown argument "--hardd"')
+    } finally {
+      exit.mockRestore()
+      stderr.mockRestore()
+    }
+    // A typo must not be read as a bare `reset` and tear the daemon down.
+    expect(mocks.stopDaemonProcess).not.toHaveBeenCalled()
   })
 
   it("help names Hosted PTY and legacy tmux cleanup", async () => {

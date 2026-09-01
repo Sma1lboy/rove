@@ -45,9 +45,11 @@ import {
 } from "../lib/keymap"
 import { useOptionalDialog } from "../ui/dialog"
 import { HelpDialog } from "./help-dialog"
+import { ShortcutRevealBadge } from "./shortcut-reveal"
 
 export type StatusKeyHintItem = {
   text: string
+  bindingId?: string
   /** Mouse activation — the same action the advertised key would run. */
   onPress?: () => void
 }
@@ -67,8 +69,13 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // them re-renders this consumer and re-runs the effect below.
   const focus = useOptionalFocus()
   const dialog = useOptionalDialog()
-  useKeymapVersion()
-  useBindingStackVersion()
+  const keymapVersion = useKeymapVersion()
+  const stackVersion = useBindingStackVersion()
+  // The ONE thing the effect needs from kv, read during render as a plain
+  // boolean. `kv` itself must not be a dependency: KVProvider rebuilds its
+  // context value on every snapshot, so any `kv.set` anywhere in the app
+  // hands this hook a new identity — see the effect's note below.
+  const hintsEnabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
   const [snapshot, setSnapshot] = useState<{ tokens: readonly StatusHintToken[]; modal: boolean }>({
     tokens: [],
     modal: false,
@@ -80,8 +87,9 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // Effects run children-first, so by the time this one
   // fires the whole tree's refs and registrations are current. The
   // compare-and-set keeps the no-change case from looping.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the version/focus deps are INVALIDATION KEYS, not values this body reads — it reads live module state (currentBindingReachability, modalActive, currentPrefixConfiguration) whose changes are observable ONLY through them. Dropping them restores the no-dependency-array loop described below.
   useEffect(() => {
-    const enabled = keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))
+    const enabled = hintsEnabled
     // Two independent signals, both meaning "an overlay owns input": the
     // registered modal barrier, and a non-empty dialog stack. The stack
     // fills a render EARLIER (the workspace bindings gate themselves off
@@ -104,7 +112,34 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
         ? prev
         : { tokens: nextTokens, modal: nextModal }
     })
-  })
+    // Dependencies, NOT a bare effect (React #185, 2026-08-31): this hook
+    // renders in the workspace FOOTER, which wraps the whole pane tree, so its
+    // setState re-renders every sidebar row — and each row's `useBindings`
+    // bumps `stackVersion` on unmount/remount, which re-renders the footer.
+    // With no dependency array the effect ran on every one of those renders,
+    // leaving only the compare-and-set between that cycle and an infinite
+    // loop. Deleting tasks in a burst (rows unmounting while focus and the
+    // prefix state churn) got past the compare and the workspace crashed with
+    // "Maximum update depth exceeded".
+    //
+    // These ARE the effect's inputs: the two version counters cover every
+    // keymap/registration change, and focus + the dialog stack cover the rest
+    // of what reachability reads. The after-commit timing the comment above
+    // relies on is unchanged — an effect with dependencies still runs after
+    // the commit that changed them.
+    //
+    // `kv` is NOT among them, and that is the whole fix (React #185 again,
+    // this time on boot with the dependency array already in place).
+    // `KVProvider` rebuilds its context value from a `useMemo` keyed on the
+    // kv snapshot, so EVERY `kv.set` anywhere in the app — tab adoption
+    // writing a task's tab list, a pane marking a hint used — hands this hook
+    // a brand-new `kv` object. As a dependency that re-ran the effect on all
+    // of them, which is the same "runs on every render" the array was
+    // supposed to stop: setSnapshot -> footer re-render -> sidebar rows
+    // remount -> stackVersion bumps -> kv writes -> round again, 50 deep.
+    // Only the enabled FLAG is read here, so depend on that boolean instead:
+    // it changes when the user toggles hints, not when unrelated state lands.
+  }, [keymapVersion, stackVersion, focus?.focused, dialog?.stack.length, hintsEnabled])
   // Click = the action the advertised key would run. Arming the prefix goes
   // through the REAL dispatcher state, so the which-key guide that appears
   // accepts a keyboard second stroke exactly like a pressed ctrl+a.
@@ -128,9 +163,10 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
   // terminals disagree on whether it takes 1 or 2 cells and the row
   // misaligns per OS/font. Stays on screen while a modal owns input, but
   // inert — Settings must not open under a dialog.
-  if (opts?.onOpenSettings && !opts.compact && keyHintsEnabled(kv?.get(KEY_HINTS_ENABLED_KEY, true))) {
+  if (opts?.onOpenSettings && !opts.compact && hintsEnabled) {
     items.push({
       text: `[${t("hints.status.settings")}]`,
+      bindingId: "settings.open",
       onPress: snapshot.modal ? undefined : opts.onOpenSettings,
     })
   }
@@ -150,10 +186,11 @@ export function StatusKeyHintBar(props: { onOpenSettings?: () => void; compact?:
             {" · "}
           </text>
         ) : null,
-        <box key={item.text} onMouseUp={item.onPress}>
+        <box key={item.text} position="relative" onMouseUp={item.onPress}>
           <text fg={theme.textMuted} wrapMode="none">
             {item.text}
           </text>
+          {item.bindingId ? <ShortcutRevealBadge bindingId={item.bindingId} cover /> : null}
         </box>,
       ])}
     </box>

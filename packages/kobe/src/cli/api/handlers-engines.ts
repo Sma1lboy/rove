@@ -9,8 +9,11 @@
  * write twin: it resolves the command's protocol here (the preset registry
  * lives in kobe's state.json, which the daemon cannot read) and sends both.
  *
- * Spec + handler live together (the PANE_VERB pattern) so `verbs.ts` stays
- * under the file-size cap.
+ * Spec + handler live together (the PANE_VERB pattern) rather than the spec
+ * sitting in a `verbs-*.ts` group: these two read the engine preset registry,
+ * so keeping the flag list next to the code that consumes it is what stops the
+ * documented values and the accepted values drifting apart. `verbs.ts` imports
+ * the finished specs.
  */
 
 import { pluginEngineIds } from "../../engine/contrib-engines.ts"
@@ -42,6 +45,7 @@ function listAllEnginePresets() {
 
 export const ENGINE_LIST_VERB: VerbSpec = {
   name: "engine-list",
+  group: "discover",
   summary:
     "List every engine Rove can launch — built-ins, registered presets, and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. Returns { engines }.",
   flags: [],
@@ -69,6 +73,7 @@ export async function setCommand(ctx: VerbContext): Promise<unknown> {
 
 export const SET_COMMAND_VERB: VerbSpec = {
   name: "set-command",
+  group: "edit",
   summary:
     "Set a task's engine launch command (takes effect on the next session rebuild). The protocol Rove speaks to it is derived from the command — the result reports which one, `generic` when the command names no engine Rove knows.",
   flags: [F.taskId(), { ...F.command(), required: true }],

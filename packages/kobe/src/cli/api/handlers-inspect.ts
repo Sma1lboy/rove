@@ -102,11 +102,15 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
 
 /** Durable death records (`pty-exits.json`) — survive the host's idle-exit,
  *  so "how did it die" stays answerable with no host running. Includes the
- *  exit-time output tail (plain text). */
+ *  exit-time output tail (plain text). TWO layers: `layer: "pty"` is the
+ *  session's own child, `layer: "engine"` is the AI process gone from a
+ *  session that stayed alive (`parentAlive: true`). Legacy records predate
+ *  the field and are all PTY-layer. Newest first — a triage read wants
+ *  today's deaths, not the file's key order. */
 async function sessionExitsSection(taskId: string | undefined): Promise<unknown> {
   try {
     const { readPtyExitRecords } = await import("@sma1lboy/kobe-daemon/daemon/pty-exit-store")
-    const records = Object.values(readPtyExitRecords())
+    const records = Object.values(readPtyExitRecords()).sort((a, b) => (a.at < b.at ? 1 : -1))
     return taskId ? records.filter((r) => r.key.startsWith(`${taskId}::`)) : records
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) }
@@ -176,6 +180,7 @@ async function inspect(ctx: VerbContext): Promise<unknown> {
 /** Spec half — spread into {@link VERBS} in `verbs.ts`. */
 export const INSPECT_VERB: VerbSpec = {
   name: "inspect",
+  group: "read",
   summary:
     "Production diagnostics in one read: daemon activity registry (raw states, probe vendors, watchdogs), pty-host sessions joined with a live process-tree engine walk, durable session death records (exit code/signal/output tail), and the persisted tab snapshots the sidebar renders from. Read-only; missing daemon/host degrade to null.",
   flags: [F.taskId(false)],

@@ -128,7 +128,6 @@ describe("RemoteOrchestrator channel handling", () => {
       worktreePath: `/wt/${id}`,
       kind: "worktree",
       status: "idle",
-      archived: false,
       pinned: false,
       vendor: "claude",
       createdAt: 1,
@@ -194,7 +193,6 @@ describe("RemoteOrchestrator channel handling", () => {
       worktreePath: `/wt/${id}`,
       kind: "worktree",
       status: "idle",
-      archived: false,
       pinned: false,
       vendor: "claude",
       createdAt: 1,
@@ -264,7 +262,7 @@ describe("RemoteOrchestrator channel handling", () => {
 
   // `worktree.changes` — the daemon-collected `+N −M` map (issue #6). Each
   // push REPLACES the whole map (the daemon publishes the full picture and
-  // prunes deleted/archived tasks' entries itself), so unlike engine-state
+  // prunes deleted tasks' entries itself), so unlike engine-state
   // there's no snapshot reconciliation — but unchanged pushes must still be
   // identity no-ops or every sidebar row re-renders on bus-replay noise.
   describe("worktree.changes channel", () => {
@@ -285,7 +283,7 @@ describe("RemoteOrchestrator channel handling", () => {
       expect(first?.get("/wt/a")).toEqual({ added: 2, deleted: 1 })
       expect(first?.size).toBe(2)
 
-      // The daemon pruned /wt/b (task archived/deleted) — the replacement
+      // The daemon pruned /wt/b (task deleted) — the replacement
       // map is authoritative; the stale key is gone without client logic.
       emit("worktree.changes", { changes: { "/wt/a": { added: 2, deleted: 1 } } })
       const second = orch.worktreeChangesSignal()()

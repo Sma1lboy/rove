@@ -1,10 +1,14 @@
 /**
  * Shell-wrapping helpers for a terminal tab's PTY spawn — the argv → typed
- * shell command line translation, split out of `terminal-tabs-core.ts` (the
- * tab-list transitions) purely for the 500-line file-size cap. Self-contained:
- * no tab-shape imports, just string → `TabSpawn`. Kept as its own module so
- * both the core transitions and the component read one source for the
- * shell-quoting rule.
+ * shell command line translation.
+ *
+ * The leaf of this corner of the tree, and deliberately so: it imports
+ * nothing. Not the tab shapes, not the engine registry, not core — just
+ * `string[] → TabSpawn`. That is what makes the shell-quoting rule testable
+ * as pure string work and lets the core transitions, the component and
+ * `terminal-tab-argv.ts` all read ONE source for it. Anything that needs to
+ * know what a tab is does not belong here; that knowledge would make this
+ * file impossible to reason about in isolation, which is its whole value.
  */
 
 /** What a tab's PTY should spawn: an argv, plus optional bytes typed into

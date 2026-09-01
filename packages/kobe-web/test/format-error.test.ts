@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { formatError } from "../src/lib/toast.ts"
 
 /**
- * Every failed mutation (rename/archive/create/delete) routes through
+ * Every failed mutation (rename/create/delete) routes through
  * reportError → formatError for its toast text. Lock the `label: cause` shape
  * so a thrown Error shows its message (not "[object Object]") and a non-Error
  * still produces readable text instead of swallowing the failure.

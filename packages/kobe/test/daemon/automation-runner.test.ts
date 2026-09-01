@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, it, vi } from "vitest"
 import type { DaemonRpcClient } from "../../../kobe-daemon/src/client/rpc.ts"
+import type { DispatchRuntime } from "../../../kobe-daemon/src/daemon/automation-dispatch.ts"
 import {
   dueAutomations,
   resolveDueOccurrence,
@@ -47,12 +48,17 @@ function fakeDeps(args: {
   store: AutomationsStore
   createTask?: (input: unknown) => Promise<DaemonTask>
   start?: (link: DaemonRpcClient, taskId: string, prompt: string) => Promise<boolean>
+  /** Tasks `resolveStandingTask` can find, keyed by id (issue #91). */
+  tasks?: Record<string, DaemonTask>
+  deliver?: DispatchRuntime["deliverPromptToLiveEngineDetailed"]
 }) {
   const created: unknown[] = []
   const prompts: string[] = []
+  const delivered: string[] = []
   return {
     created,
     prompts,
+    delivered,
     deps: {
       store: args.store,
       orch: {
@@ -62,6 +68,7 @@ function fakeDeps(args: {
             created.push(input)
             return { id: "task-1" } as DaemonTask
           }),
+        getTask: (id: string) => args.tasks?.[id],
       },
       runtime: {
         startTaskSessionWithPrompt:
@@ -69,6 +76,12 @@ function fakeDeps(args: {
           (async (_l: DaemonRpcClient, _id: string, prompt: string) => {
             prompts.push(prompt)
             return true
+          }),
+        deliverPromptToLiveEngineDetailed:
+          args.deliver ??
+          (async (_task: unknown, prompt: string) => {
+            delivered.push(prompt)
+            return { outcome: "delivered" as const, tabId: "tab-1" }
           }),
       },
       link,

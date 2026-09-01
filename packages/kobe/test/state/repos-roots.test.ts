@@ -143,7 +143,9 @@ describe("normalizeSavedRepos", () => {
   })
 
   test("no-op when every entry is already canonical (file left untouched)", () => {
-    addSavedRepo("/already/canonical")
+    // Synthetic stand-in: what's pinned is that normalization leaves an
+    // already-canonical file untouched, not whether the path is admissible.
+    addSavedRepo("/already/canonical", { skipGate: true })
     const before = fs.statSync(statePath()).mtimeMs
     normalizeSavedRepos()
     expect(getSavedRepos()).toEqual(["/already/canonical"])

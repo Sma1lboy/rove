@@ -3,19 +3,15 @@
  * KanbanPage — the daemon-owned issue store as a Backlog / In progress /
  * Parked / Done board. One PROJECT at a time (tab/←/→ or click cycles the
  * rolling selector), four full-height bordered columns matching the workspace
- * host's border grammar. Full-page swap in the workspace host, same shape as
- * WorktreesPage (issue #23 precedent): esc/ctrl+c closes, `r` refetches,
- * plus a light poll so agent-driven moves (`kobe api issue-update --task`)
- * show up while the page is open.
+ * host's border grammar. Full-page swap like WorktreesPage (issue #23
+ * precedent): esc/ctrl+c closes, `r` refetches, plus a light poll so
+ * agent-driven moves (`kobe api issue-update --task`) show up while open.
  *
  * The BOARD stays read-only (agents move cards via `kobe api issue-*`); the
- * human surface on top of it is selection + the detail drawer: ←↓↑→ moves
- * the card cursor (highlighted border), Enter (or clicking the selected
- * card) opens {@link IssueDetailDialog}, whose Start action hands an
- * {@link IssueChatStart} up to the host (engine + workspace placement +
- * attachments). Column math is the framework-free `state/issue-board.ts` —
- * columns derive from the issue's own lifecycle (done > parked > linked-task
- * > backlog), never from task status.
+ * human surface is selection + the detail drawer (←↓↑→ moves the cursor,
+ * Enter opens {@link IssueDetailDialog}, whose Start hands an
+ * {@link IssueChatStart} to the host). Column math is framework-free
+ * (`state/issue-board.ts`): done > parked > linked-task > backlog.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -25,23 +21,23 @@ import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
+import { errorMessage } from "../../lib/error-message"
 import { type BoardColumnKey, applyBoardAttention, buildIssueBoard, moveBoardSelection } from "../../state/issue-board"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import type { VendorId } from "../../types/task"
+import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { FRAME } from "../ui/frame"
 import { quickForkDefaultVendor } from "../workspace/quick-fork"
 import type { IssueChatStart } from "../workspace/use-issue-chat"
 import { IssueDetailDialog } from "./issue-detail-dialog"
 import { KanbanCard } from "./kanban-card"
-
-/** Agent moves land within one poll; issue.list is a local JSON read, so
- *  polling while the page is open is cheap. */
-const POLL_MS = 5_000
+import { useKanbanBoards } from "./use-kanban-boards"
 
 const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
   backlog: "kanban.column.backlog",
@@ -71,11 +67,18 @@ export function KanbanPage(props: {
   const columnBorder = transparentBackground ? theme.border : theme.borderSubtle
   const t = useT()
   const dialog = useDialog()
+  // Surface mutation failures as on-screen toasts: under an alternate screen
+  // a bare console.error is invisible (it only reaches the daemon log), so a
+  // failed create/delete would look like a silent no-op. taskId/tabId match
+  // WorktreesPage — this page is not scoped to a single chat tab.
+  const notif = useNotifications()
+  function notifyError(message: string): void {
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
+  }
   // Below the narrow breakpoint four side-by-side columns degrade to
   // one-word-per-line strips, so the board shows ONE full-width lane there.
   const narrow = isNarrowWidth(useTerminalDimensions().width)
 
-  const [boards, setBoards] = useState<readonly RepoIssues[] | null>(null)
   // Detected engines for the detail drawer's picker — one probe per page
   // open (account files on disk; cheap and refreshed enough).
   const [engines, setEngines] = useState<readonly VendorId[]>([])
@@ -88,45 +91,10 @@ export function KanbanPage(props: {
       disposed = true
     }
   }, [])
-  const [reloadTick, setReloadTick] = useState(0)
-  // Keyed by repoRoot (not index) so the poll refetch keeps the selection.
-  const [activeRepo, setActiveRepo] = useState<string | null>(null)
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the effect body doesn't read it) — the WorktreesPage refetch guard.
-  useEffect(() => {
-    let disposed = false
-    const orch = props.orchestrator
-    if (!orch) {
-      setBoards([])
-      return
-    }
-    const repos = [...new Set(orch.listTasks().map((task) => task.repo))]
-    void Promise.all(repos.map((repo) => orch.listIssues(repo).catch(() => null))).then((results) => {
-      if (disposed) return
-      // A repo whose issue file doesn't exist yet still gets a section —
-      // `exists: false` just means an empty board, not an error.
-      const next = results.filter((res): res is RepoIssues => res !== null)
-      next.sort((a, b) => a.repoRoot.localeCompare(b.repoRoot))
-      setBoards(next)
-      // First load lands on the focus task's project (opened via `c` on a
-      // task row) or, without one, the project you opened kobe in — the
-      // active task's repo (loose realpath tolerance, like WorktreesPage).
-      const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
-      const activeId = orch.activeTaskSignal().get()
-      const targetRepo = props.focusTask?.repo ?? orch.listTasks().find((task) => task.id === activeId)?.repo
-      const initialBoard = targetRepo ? next.find((board) => norm(board.repoRoot) === norm(targetRepo)) : undefined
-      setActiveRepo((prev) => prev ?? initialBoard?.repoRoot ?? null)
-      // …and the card cursor on the focus task's linked story, if any.
-      const focusId = props.focusTask?.id
-      const linked = focusId ? initialBoard?.issues.find((issue) => issue.taskId === focusId) : undefined
-      if (linked) setSelectedId((prev) => prev ?? linked.id)
-    })
-    const timer = setInterval(() => setReloadTick((tick) => tick + 1), POLL_MS)
-    return () => {
-      disposed = true
-      clearInterval(timer)
-    }
-  }, [props.orchestrator, reloadTick])
+  const { boards, activeRepo, setActiveRepo, selectedId, setSelectedId, reload } = useKanbanBoards({
+    orchestrator: props.orchestrator,
+    focusTask: props.focusTask,
+  })
 
   const boardList = boards ?? []
   const activeIndex = Math.max(
@@ -141,10 +109,6 @@ export function KanbanPage(props: {
     (taskId) => props.engineStates?.get(taskId)?.state,
   )
 
-  // Card cursor — an issue id (not an index) so a poll refetch that reorders
-  // a column keeps the selection on the same story.
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-
   function cycleProject(delta: number): void {
     if (boardList.length === 0) return
     const next = (activeIndex + delta + boardList.length) % boardList.length
@@ -157,19 +121,17 @@ export function KanbanPage(props: {
     if (next != null) setSelectedId(next)
   }
 
-  // ←/→ MOVED from project-cycling to card selection when cards exist —
-  // tab still cycles projects. On an empty board they fall through to
-  // project cycling so the old muscle memory keeps working there.
+  // ←/→ select cards when any exist; tab still cycles projects. On an empty
+  // board they fall through to project cycling (the old muscle memory).
   function moveOrCycle(dir: "left" | "right"): void {
     if (columns.some((column) => column.issues.length > 0)) moveCursor(dir)
     else cycleProject(dir === "left" ? -1 : 1)
   }
 
-  /** Enter (or clicking the selected card): the story's detail drawer.
-   *  EVERY outcome carries the drafted title/body — a dirty patch persists
-   *  through `issue.mutate update` (best-effort: an edit must not block the
-   *  start/open the user asked for), then the outcome routes to the host.
-   *  undefined = discarded (ctrl+c / backdrop). */
+  /** Enter (or clicking the selected card): the story's detail drawer. Every
+   *  outcome carries the drafted title/body — a dirty patch persists through
+   *  `issue.mutate update` (best-effort: an edit must not block the start/open
+   *  the user asked for). undefined = discarded (ctrl+c / backdrop). */
   function openDetail(issue: Issue): void {
     const board = activeBoard
     if (!board) return
@@ -186,8 +148,14 @@ export function KanbanPage(props: {
       if (patch.title !== issue.title || patch.body !== issue.body) {
         await props.orchestrator
           ?.mutateIssue(board.repoRoot, { type: "update", id: issue.id, ...patch })
-          .catch((err: unknown) => console.error("[rove kanban] issue update failed:", err))
-        setReloadTick((tick) => tick + 1)
+          .catch((err: unknown) => {
+            // The reload below repaints from the store, so a rejected edit
+            // leaves the card showing its OLD title — indistinguishable from
+            // the edit never having been made.
+            console.error("[rove kanban] issue update failed:", err)
+            notifyError(t("kanban.updateFailed", { id: String(issue.id), error: errorMessage(err) }))
+          })
+        reload()
       }
       if (outcome.kind === "open") {
         props.onOpenTask(outcome.taskId)
@@ -203,11 +171,6 @@ export function KanbanPage(props: {
         jump: outcome.jump,
       })
     })
-  }
-
-  function openSelectedDetail(): void {
-    const issue = activeBoard?.issues.find((entry) => entry.id === selectedId)
-    if (issue) openDetail(issue)
   }
 
   /** `n` — the new-story intake: the detail drawer in create mode. ctrl+s
@@ -239,7 +202,7 @@ export function KanbanPage(props: {
           title: outcome.title,
           body: outcome.body,
         })
-        setReloadTick((tick) => tick + 1)
+        reload()
         if (!outcome.start) return
         // The daemon allocates the id from nextId; fall back to the newest
         // record if another writer raced the counter between open and save.
@@ -256,6 +219,7 @@ export function KanbanPage(props: {
         })
       } catch (err) {
         console.error("[rove kanban] issue create failed:", err)
+        notifyError(t("kanban.createFailed", { error: errorMessage(err) }))
       }
     })
   }
@@ -270,15 +234,21 @@ export function KanbanPage(props: {
       dialog,
       t("kanban.confirmDelete.title", { id: String(issue.id) }),
       t("kanban.confirmDelete.body", { title: issue.title }),
+      undefined,
+      undefined,
+      { danger: true },
     ).then((confirmed) => {
       if (!confirmed) return
       void props.orchestrator
         ?.mutateIssue(board.repoRoot, { type: "delete", id: issue.id })
         .then(() => {
           setSelectedId(null)
-          setReloadTick((tick) => tick + 1)
+          reload()
         })
-        .catch((err: unknown) => console.error("[rove kanban] issue delete failed:", err))
+        .catch((err: unknown) => {
+          console.error("[rove kanban] issue delete failed:", err)
+          notifyError(t("kanban.deleteFailed", { id: String(issue.id), error: errorMessage(err) }))
+        })
     })
   }
 
@@ -289,13 +259,19 @@ export function KanbanPage(props: {
     enabled: dialog.stack.length === 0 && props.focused !== false,
     bindings: [
       ...pageCloseBindings(props.onClose),
-      { key: "r", cmd: () => setReloadTick((tick) => tick + 1) },
+      { key: "r", cmd: () => reload() },
       { key: "tab", cmd: () => cycleProject(1) },
       { key: "up", cmd: () => moveCursor("up") },
       { key: "down", cmd: () => moveCursor("down") },
       { key: "right", cmd: () => moveOrCycle("right") },
       { key: "left", cmd: () => moveOrCycle("left") },
-      { key: "return", cmd: () => openSelectedDetail() },
+      {
+        key: "return",
+        cmd: () => {
+          const issue = activeBoard?.issues.find((entry) => entry.id === selectedId)
+          if (issue) openDetail(issue)
+        },
+      },
       { key: "n", cmd: () => openIntake() },
       { key: "d", cmd: () => requestDelete() },
     ],
@@ -309,9 +285,9 @@ export function KanbanPage(props: {
   } satisfies Record<BoardColumnKey, unknown>
 
   function card(issue: Issue, column: BoardColumnKey): ReactNode {
-    // Linked cards in the live lanes track their task's engine activity —
-    // the stay-on-the-board half of the background-start trigger. Parked
-    // keeps the badge as passive signal; only In progress floats/counts it.
+    // Linked cards in the live lanes track their task's engine activity (the
+    // stay-on-the-board half of the background-start trigger); only In
+    // progress floats/counts the badge, Parked keeps it as passive signal.
     const live = column === "in_progress" || column === "parked"
     const activity = live && issue.taskId ? props.engineStates?.get(issue.taskId)?.state : undefined
     return (
@@ -332,7 +308,7 @@ export function KanbanPage(props: {
    *  wide-layout nicety; narrow keeps only the label that identifies. */
   function projectSelector(active: RepoIssues): ReactNode {
     return (
-      <box flexDirection="row" justifyContent="space-between" paddingTop={1} paddingLeft={3} paddingRight={3}>
+      <box flexDirection="row" justifyContent="space-between" paddingTop={1}>
         <box flexDirection="row" onMouseUp={() => cycleProject(1)}>
           <text fg={theme.primary} attributes={TextAttributes.BOLD} wrapMode="none" flexShrink={0}>
             {sidebarProjectLabel(active.repoRoot, repoRoots)}
@@ -365,7 +341,9 @@ export function KanbanPage(props: {
         key={col.key}
         flexGrow={1}
         flexBasis={0}
-        border={true}
+        // Rounded like every other framed surface — see ui/frame.ts for why
+        // this is spread rather than written out.
+        {...FRAME}
         borderColor={columnBorder}
         paddingLeft={1}
         paddingRight={1}
@@ -383,10 +361,8 @@ export function KanbanPage(props: {
           </box>
         ) : null}
         {/* paddingRight keeps a one-cell gutter under the scrollbar thumb —
-            without it the thumb paints over the cards' right borders (the
-            help-dialog / versions-page convention). The horizontal bar is
-            hidden outright: a lane never scrolls sideways, and its arrow
-            glyphs were painting stray diamonds over card borders. */}
+            without it the thumb paints over the cards' right borders. The
+            horizontal bar is hidden outright: a lane never scrolls sideways. */}
         <scrollbox
           flexGrow={1}
           paddingTop={1}
@@ -420,8 +396,8 @@ export function KanbanPage(props: {
       columns[0]
     if (!active) return null
     return (
-      <box flexDirection="column" flexGrow={1} paddingTop={1} paddingLeft={1} paddingRight={1}>
-        <box flexDirection="row" gap={2} paddingLeft={2}>
+      <box flexDirection="column" flexGrow={1} paddingTop={1}>
+        <box flexDirection="row" gap={2}>
           {columns.map((col) => (
             <text
               key={col.key}
@@ -448,7 +424,7 @@ export function KanbanPage(props: {
   function board(): ReactNode {
     if (narrow) return narrowBoard()
     return (
-      <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1} paddingLeft={1} paddingRight={1}>
+      <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1}>
         {columns.map((col) => column(col))}
       </box>
     )
@@ -456,13 +432,19 @@ export function KanbanPage(props: {
 
   const loading = boards === null
 
-  // One shared left baseline at x=3: the board is inset one cell (border at
-  // x=1, +border cell +padding = text at x=3), and every header/selector row
-  // gets paddingLeft=3 — Kanban / project / Backlog / cards all align, with
-  // one cell of air between the borders and the screen edge.
+  // One shared left baseline across rail pages: the root pads x=2 (the same
+  // inset Routines / Issues / Versions / Worktrees use), so the Kanban title,
+  // project selector, and board all start at x=2 — no per-child inset.
   return (
-    <box flexGrow={1} backgroundColor={theme.background} paddingTop={1} paddingBottom={1}>
-      <box flexDirection="row" justifyContent="space-between" gap={2} paddingLeft={3} paddingRight={3}>
+    <box
+      flexGrow={1}
+      backgroundColor={theme.background}
+      paddingTop={1}
+      paddingBottom={1}
+      paddingLeft={2}
+      paddingRight={2}
+    >
+      <box flexDirection="row" justifyContent="space-between" gap={2}>
         <text attributes={TextAttributes.BOLD} fg={theme.text} wrapMode="none" flexShrink={0}>
           {t("kanban.title")}
         </text>
@@ -473,13 +455,9 @@ export function KanbanPage(props: {
         </text>
       </box>
       {loading ? (
-        <text fg={theme.textMuted} paddingLeft={3}>
-          {t("kanban.loading")}
-        </text>
+        <text fg={theme.textMuted}>{t("kanban.loading")}</text>
       ) : boardList.length === 0 || !activeBoard ? (
-        <text fg={theme.textMuted} paddingLeft={3}>
-          {t("kanban.noRepos")}
-        </text>
+        <text fg={theme.textMuted}>{t("kanban.noRepos")}</text>
       ) : (
         <>
           {projectSelector(activeBoard)}

@@ -8,7 +8,7 @@
  */
 
 import { execSync } from "node:child_process"
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
@@ -17,6 +17,10 @@ import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
 let root: string
 let repo: string
 let manager: GitWorktreeManager
+/** `<home>/.rove/worktrees` for the temp home below — the root that makes a
+ *  path Rove's to delete outright (see isUnderManagedWorktreesRoot). */
+let managedRoot: string
+let previousHome: string | undefined
 
 const gitEnv = {
   ...process.env,
@@ -28,6 +32,13 @@ const gitEnv = {
 
 beforeAll(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "kobe-wtm-edge-")))
+  // The managed-roots guard reads `$KOBE_HOME_DIR`; point it at the temp root
+  // so the orphaned-worktree cases below exercise a REAL managed root instead
+  // of the developer's own `~/.rove`.
+  previousHome = process.env.KOBE_HOME_DIR
+  process.env.KOBE_HOME_DIR = root
+  managedRoot = join(root, ".rove", "worktrees")
+  mkdirSync(managedRoot, { recursive: true })
   repo = join(root, "repo")
   mkdirSync(repo)
   execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: repo, env: gitEnv })
@@ -35,6 +46,8 @@ beforeAll(() => {
 })
 
 afterAll(() => {
+  if (previousHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+  else process.env.KOBE_HOME_DIR = previousHome
   rmSync(root, { recursive: true, force: true })
 })
 
@@ -61,6 +74,55 @@ describe("remove() / currentBranch() edges", () => {
     const plain = join(root, "plain-dir")
     mkdirSync(plain)
     await expect(manager.remove(plain)).rejects.toThrow(/is not a git worktree/)
+  })
+
+  it("remove({force}) deletes a worktree whose upstream repo is gone", async () => {
+    // Field report: macOS pruned a checkout under `/tmp`, taking its `.git`
+    // with it. The orphaned worktree then had no resolvable owning repo, so
+    // `git worktree remove` could never run — the task sat in
+    // `deletion.phase: "error"` and every retry re-ran the same
+    // unsatisfiable path, with no supported command able to clear it.
+    const owner = join(root, "doomed-repo")
+    mkdirSync(owner)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
+    // Under a managed root, which is what authorizes the outright delete.
+    const wt = join(managedRoot, "orphaned")
+    await manager.create(owner, "kobe/orphaned", wt)
+    writeFileSync(join(wt, "output.txt"), "work")
+    rmSync(join(owner, ".git"), { recursive: true, force: true }) // upstream dies
+
+    await expect(manager.remove(wt, { force: true })).resolves.toBeUndefined()
+    expect(existsSync(wt)).toBe(false)
+  })
+
+  it("remove() without force still refuses an orphaned worktree", async () => {
+    // `force` is what carries the "delete it even though I cannot verify
+    // what's inside" consent. Without it the unresolvable repo stays an error
+    // and the directory stays put.
+    const owner = join(root, "doomed-repo-2")
+    mkdirSync(owner)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
+    const wt = join(managedRoot, "orphaned-keep")
+    await manager.create(owner, "kobe/orphaned-keep", wt)
+    rmSync(join(owner, ".git"), { recursive: true, force: true })
+
+    await expect(manager.remove(wt)).rejects.toThrow(/is not a git worktree/)
+    expect(existsSync(wt)).toBe(true)
+  })
+
+  it("remove({force}) refuses an orphaned directory outside the managed roots", async () => {
+    // The guard that keeps this from becoming "force deletes any path": an
+    // unreachable repo plus force is still not permission to delete a
+    // directory Rove never created.
+    const owner = join(root, "doomed-repo-3")
+    mkdirSync(owner)
+    execSync("git init -q -b main && git commit -q --allow-empty -m init", { cwd: owner, env: gitEnv })
+    const wt = join(root, "outside-managed") // NOT under a managed root
+    await manager.create(owner, "kobe/outside", wt)
+    rmSync(join(owner, ".git"), { recursive: true, force: true })
+
+    await expect(manager.remove(wt, { force: true })).rejects.toThrow(/not under a Rove worktrees root/)
+    expect(existsSync(wt)).toBe(true)
   })
 
   it("remove() of an already-deleted worktree dir resolves quietly (best-effort prune)", async () => {
@@ -106,5 +168,61 @@ describe("renameBranch() convergence (issue #44)", () => {
     execSync("git branch rename-b", { cwd: repo, env: gitEnv })
     await expect(manager.renameBranch(wt, "rename-a", "rename-b")).rejects.toThrow(/branch -m/)
     expect(await manager.currentBranch(wt)).toBe("rename-a")
+  })
+})
+
+/**
+ * `remove({ deleteBranch })` against REAL git. Every other layer (api handler →
+ * daemon → coordinator) asserts the flag as a value being passed along; this is
+ * the only place that asks git whether the branch is actually still there.
+ */
+describe("remove({ deleteBranch }) — the branch actually lives or dies", () => {
+  function branchExists(name: string): boolean {
+    const out = execSync(`git branch --list ${JSON.stringify(name)}`, { cwd: repo, env: gitEnv, encoding: "utf8" })
+    return out.trim().length > 0
+  }
+
+  it("deleteBranch: true removes the branch from the owning repo", async () => {
+    const wt = join(root, "wt-branch-doomed")
+    await manager.create(repo, "kobe/doomed", wt)
+    expect(branchExists("kobe/doomed")).toBe(true)
+
+    await manager.remove(wt, { deleteBranch: true })
+
+    // Red if `deleteBranchIn` is never reached — including if the HEAD capture
+    // moves to AFTER the worktree is removed (manager.ts:225-228): the
+    // worktree is gone by then, `currentBranch` throws, the `.catch(() => null)`
+    // makes `branch` null and the delete is silently skipped.
+    expect(branchExists("kobe/doomed")).toBe(false)
+  })
+
+  it("without the opt-in the branch survives — git is the durable record", async () => {
+    const wt = join(root, "wt-branch-kept")
+    await manager.create(repo, "kobe/kept", wt)
+
+    await manager.remove(wt)
+
+    expect(branchExists("kobe/kept")).toBe(true)
+  })
+
+  it("an unmerged branch is refused by `-d` and force escalates to `-D`", async () => {
+    // The `-d`/`-D` choice in manager-branch.ts:50. Swap the ternary and both
+    // halves of this go red: `-D` would nuke the unmerged branch on the
+    // no-force path, `-d` would refuse it on the force path.
+    const wt = join(root, "wt-branch-unmerged")
+    await manager.create(repo, "kobe/unmerged", wt)
+    writeFileSync(join(wt, "work.txt"), "unmerged work")
+    execSync("git add -A && git commit -q -m work", { cwd: wt, env: gitEnv })
+
+    // Safe delete: the commit isn't on main, so `-d` refuses. Best-effort —
+    // the refusal is swallowed and the worktree removal still succeeds.
+    await manager.remove(wt, { deleteBranch: true })
+    expect(branchExists("kobe/unmerged")).toBe(true)
+
+    // Same branch, re-materialised, this time with force: `-D` drops it.
+    const wt2 = join(root, "wt-branch-unmerged-2")
+    await manager.create(repo, "kobe/unmerged", wt2)
+    await manager.remove(wt2, { force: true, deleteBranch: true })
+    expect(branchExists("kobe/unmerged")).toBe(false)
   })
 })

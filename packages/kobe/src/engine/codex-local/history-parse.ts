@@ -88,8 +88,16 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
 
     const usageFields = codexUsageFields(parsed)
     if (!usageFields) continue
-    const snapshot = codexUsageToSnapshot(usageFields.usage, { contextWindowTokens: usageFields.contextWindow })
-    if (!snapshot) continue
+    const base = codexUsageToSnapshot(usageFields.usage, { contextWindowTokens: usageFields.contextWindow })
+    if (!base) continue
+    // The last turn's total input (cached included) IS its full prompt — the
+    // context figure the transcript header shows. Engine-reported, so no
+    // approximate flag; absent on records with no per-turn split.
+    const lastPrompt = usageFields.lastUsage ? numberOr(usageFields.lastUsage.input_tokens) : 0
+    const snapshot: EngineUsageSnapshot = {
+      ...base,
+      ...(lastPrompt > 0 ? { context_tokens: lastPrompt } : {}),
+    }
     // Attach THIS turn's usage to its assistant message so the History panel's
     // per-message token sum is non-zero for codex. token_count is a standalone
     // record that follows the turn's response_items, so the nearest preceding

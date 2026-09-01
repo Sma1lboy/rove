@@ -28,7 +28,6 @@ const mocks = vi.hoisted(() => ({
     sessionFromPayload: vi.fn(() => undefined as unknown),
     globalSettingsPath: vi.fn((): string | null => "/fake/.claude/settings.json"),
     installActivityHooks: vi.fn(),
-    installWorktreeWatchHook: vi.fn(),
     removeActivityHooks: vi.fn(),
     removeWorktreeWatchHook: vi.fn(),
     removeWorktreeSyncHook: vi.fn(),
@@ -85,9 +84,8 @@ beforeEach(() => {
   mocks.adapter.sessionFromPayload.mockClear().mockReturnValue(undefined)
   mocks.adapter.globalSettingsPath.mockClear().mockReturnValue("/fake/.claude/settings.json")
   mocks.adapter.installActivityHooks.mockClear()
-  mocks.adapter.installWorktreeWatchHook.mockClear()
   mocks.adapter.removeActivityHooks.mockClear()
-  mocks.adapter.removeWorktreeWatchHook.mockClear()
+  mocks.adapter.removeWorktreeWatchHook.mockReset()
   mocks.adapter.removeWorktreeSyncHook.mockClear()
   stubStdin({})
 })
@@ -202,31 +200,6 @@ describe("runHookSubcommand — activity verbs", () => {
   })
 })
 
-describe("runHookSubcommand worktree-created", () => {
-  it("does NOT adopt on `git worktree add` — creation is mechanical, not intent", async () => {
-    // Owner decision 2026-08-24: agents mint worktrees for PR isolation and no
-    // engine session ever enters; adoption needs a session-start in a managed
-    // root or an explicit `rove add .`. The hook never touches the daemon.
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree add -b feat .claude/worktrees/lynx main" } })
-    await runHookSubcommand(["worktree-created"])
-    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
-  })
-
-  it("asks the daemon to archive the task of a `git worktree remove`", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree remove -f ../wt" } })
-    await runHookSubcommand(["worktree-created"])
-    expect(mocks.request).toHaveBeenCalledWith("worktree.archiveRemoved", {
-      worktreePath: resolve("/repo", "../wt"),
-    })
-  })
-
-  it("no-ops fast on a Bash command that isn't a worktree add/remove", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git status && ls" } })
-    await runHookSubcommand(["worktree-created"])
-    expect(mocks.connectIfRunning).not.toHaveBeenCalled()
-  })
-})
-
 describe("kobe hook setup (deprecated cleanup)", () => {
   it("removes the old WorktreeCreate hook from the global settings and persists sync=off", async () => {
     const outSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true)
@@ -269,14 +242,17 @@ describe("kobe hook setup (deprecated cleanup)", () => {
 })
 
 describe("ensureGlobalKobeHooks (default-ON global install)", () => {
-  it("installs activity + worktree-watch hooks into each engine's own settings file, then cleans the removed WorktreeCreate hook", async () => {
+  it("installs activity hooks into each engine's own settings file, then cleans the removed WorktreeCreate hook", async () => {
     await ensureGlobalKobeHooks()
     // toolEvents:false — no enabled plugin declares a tool.* hook in this
     // test home, so the gated tool family stays out of the engine config.
     expect(mocks.adapter.installActivityHooks).toHaveBeenCalledWith("/fake/.claude/settings.json", {
       toolEvents: false,
     })
-    expect(mocks.adapter.installWorktreeWatchHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
+    // The retired PostToolUse(Bash) watch hook is UNINSTALLED on every launch —
+    // that is how an already-registered user stops paying its per-Bash-call
+    // spawn. Nothing installs it any more.
+    expect(mocks.adapter.removeWorktreeWatchHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     // The WorktreeCreate provider-hook cleanup runs on every launch.
     expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"))
     expect(getPersistedString("externalWorktreeSync")).toBe("off")
@@ -286,9 +262,17 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
     mocks.adapter.globalSettingsPath.mockReturnValue(null)
     await ensureGlobalKobeHooks()
     expect(mocks.adapter.installActivityHooks).not.toHaveBeenCalled()
-    expect(mocks.adapter.installWorktreeWatchHook).not.toHaveBeenCalled()
+    expect(mocks.adapter.removeWorktreeWatchHook).not.toHaveBeenCalled()
     // Cleanup still runs — it doesn't depend on the engine settings path.
     expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalled()
+  })
+
+  // A fresh install has no watch hook to remove. The uninstall still runs
+  // (it cannot know in advance) and must be harmless — a failure there would
+  // block the launch of a user who never had the hook at all.
+  it("never throws when the watch-hook uninstall fails on a fresh install", async () => {
+    mocks.adapter.removeWorktreeWatchHook.mockRejectedValue(new Error("ENOENT"))
+    await expect(ensureGlobalKobeHooks()).resolves.toBeUndefined()
   })
 
   it("never throws when an install fails (best-effort, must not block launch)", async () => {
@@ -323,15 +307,5 @@ describe("runHookSubcommand cleanup (plugin migration path)", () => {
     )
     expect(cleanedVendors).toEqual(["claude"])
     outSpy.mockRestore()
-  })
-})
-
-describe("runHookSubcommand worktree-created failure swallowing", () => {
-  it("swallows a daemon error mid-archive — the Bash hook must exit 0", async () => {
-    stubStdin({ cwd: "/repo", tool_input: { command: "git worktree remove wt" } })
-    mocks.request.mockRejectedValue(new Error("daemon blew up"))
-    await expect(runHookSubcommand(["worktree-created"])).resolves.toBeUndefined()
-    // The socket is still closed on the failure path.
-    expect(mocks.close).toHaveBeenCalledTimes(1)
   })
 })

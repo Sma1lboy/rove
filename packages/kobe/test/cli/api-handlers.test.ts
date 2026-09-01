@@ -114,11 +114,12 @@ describe("add handler", () => {
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x", command: "my-wrapper --go", vendor: "generic" })
   })
 
-  it("delivers an explicit prompt to the created task", async () => {
+  it("delivers an explicit prompt to the created task and persists the brief on the record", async () => {
     const task = taskFixture({ kind: "task", vendor: "codex", modelEffort: "high" })
     const client = new FakeClient({
       "task.create": () => ({ taskId: "t1", task }),
       "task.get": () => ({ task }),
+      "task.setPrompt": () => ({}),
     })
     const { calls, deliver } = recordingDelivery()
     const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
@@ -132,6 +133,30 @@ describe("add handler", () => {
       prompt: "do it",
     })
     expect(result).toMatchObject({ started: true, engineReady: true, delivered: true, session: "t1::tab-1" })
+    // The brief is written to the task record AFTER delivery confirms — the
+    // engine transcript is not durable, and this field is the copy that
+    // survives a dead engine. Never recorded when the paste never landed.
+    expect(client.requests).toContainEqual({ name: "task.setPrompt", payload: { taskId: "t1", prompt: "do it" } })
+  })
+
+  it("reports a created task whose prompt never landed (issue #72/#73)", async () => {
+    const task = taskFixture({ kind: "task", vendor: "kimi" })
+    const client = new FakeClient({
+      "task.create": () => ({ taskId: "t1", task }),
+      "task.get": () => ({ task }),
+      "task.setPrompt": () => ({}),
+    })
+    await expectApiError(
+      () =>
+        invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
+          client,
+          runtime: stubRuntime({ deliverPrompt: recordingDelivery({ delivered: false }).deliver }),
+        }),
+      "NOT_DELIVERED",
+    )
+    // A prompt that never reached the engine is never persisted: `get-task`'s
+    // `.task.prompt` must always mean "the engine was given exactly this".
+    expect(client.requestNames).not.toContain("task.setPrompt")
   })
 
   it("keeps the spawn-task alias", async () => {
@@ -285,7 +310,49 @@ describe("send handler", () => {
       // The self-teach pointer: a receiver that has never seen kobe learns
       // where the rest of the coordination verbs live.
       expect(calls[0].prompt).toContain("Rove agent skill")
-      expect(calls[0].prompt).toMatch(/: hi$/)
+      // The sender's text is LAST and whole, after a blank line — not the
+      // object of the provenance sentence. A model generates in the language
+      // of the tokens nearest its turn, so a non-English prompt wrapped in an
+      // English clause came back in English.
+      expect(calls[0].prompt).toMatch(/\)\n\nhi$/)
+    })
+
+    it("keeps a non-English prompt intact and last, so nothing follows it", async () => {
+      const { calls, deliver } = recordingDelivery()
+      await invokeVerb("send", ["--task-id", "abc", "--prompt", "帮我重构登录模块"], {
+        client: peerClient(),
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })
+      expect(calls[0].prompt.endsWith("帮我重构登录模块")).toBe(true)
+      // The prompt is not spliced into the sentence: everything before it is
+      // provenance, and the last thing the receiver reads is the sender's own words.
+      const [provenance, ...rest] = calls[0].prompt.split("\n\n")
+      expect(rest.join("\n\n")).toBe("帮我重构登录模块")
+      expect(provenance).not.toContain("帮我重构登录模块")
+    })
+
+    it("gives a dispatched task the same reply address in its opening brief", async () => {
+      // `add --prompt` from inside a kobe session is agent-to-agent too, and
+      // its brief is where the reply address matters most: every report that
+      // task ever sends flows back through it. Before this, `add` recorded the
+      // sender only as `dispatcher` on the task ROW — data a receiver has to
+      // think to go read — so a dispatched survey finished and sat waiting
+      // (2026-09-01, issue #92).
+      const { calls, deliver } = recordingDelivery()
+      await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "研究一下 X"], {
+        client: new FakeClient({
+          "task.create": () => ({ taskId: "child-1", task: taskFixture({ id: "child-1" }) }),
+          "task.get": (payload) => {
+            const id = (payload as { taskId: string }).taskId
+            return { task: taskFixture({ id, title: id === "sender-1" ? "Auth attempt" : "T" }) }
+          },
+        }),
+        runtime: stubRuntime({ deliverPrompt: deliver }),
+      })
+      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
+      expect(calls[0].prompt).toContain("send --task-id sender-1 --tab tab-1")
+      // Same shape as `send`: the brief is last and whole.
+      expect(calls[0].prompt.endsWith("研究一下 X")).toBe(true)
     })
 
     it("--plain sends verbatim", async () => {

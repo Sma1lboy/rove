@@ -268,6 +268,10 @@ describe("deriveCodexUsageMetrics — real rollout event_msg token_count", () =>
       input_tokens: 1000, // total_input (1200) − cached (200)
       output_tokens: 340,
       cache_read_input_tokens: 200,
+      // The last turn's total input IS its full prompt — the context figure
+      // the transcript header renders (moved into the adapter so no neutral
+      // layer re-derives vendor math).
+      context_tokens: 400,
       context_window_tokens: 258_400,
     })
   })

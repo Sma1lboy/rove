@@ -41,7 +41,7 @@ export async function maybeAutoStart(
   if (!enabled()) return "skipped"
   const task = orch.getTask(taskId)
   if (!task) return "skipped"
-  if ((task.kind ?? "task") === "main" || task.archived) return "skipped"
+  if ((task.kind ?? "task") === "main") return "skipped"
   if (task.status !== "backlog") return "skipped"
   await orch.setStatus(taskId, "in_progress")
   return "moved"

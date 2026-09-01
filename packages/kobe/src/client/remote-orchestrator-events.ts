@@ -1,10 +1,15 @@
 /**
- * Daemon push-channel event handling for `RemoteOrchestrator` — split out
- * of `remote-orchestrator.ts` (which was over the repo's 500-line
- * file-size cap) into its own file. Same behavior, moved verbatim:
- * `handleOrchestratorEvent` is the exact body of the old
- * `RemoteOrchestrator.handleEvent`, now taking an explicit
- * {@link OrchestratorSignals} deps bag instead of closing over `this`.
+ * Daemon push-channel event handling for `RemoteOrchestrator` — the INBOUND
+ * direction, the one place the daemon drives us rather than the other way
+ * round. It is the third side of the same split: `-reads.ts` answers from the
+ * local cache, `-writes.ts` pushes RPCs out, and this is what keeps that cache
+ * true as the daemon reports changes.
+ *
+ * Taking an explicit {@link OrchestratorSignals} deps bag instead of closing
+ * over `this` is what makes that testable: hand it plain closures and drive
+ * event payloads through with no daemon and no class. Same behavior, moved
+ * verbatim — `handleOrchestratorEvent` is the exact body of the old
+ * `RemoteOrchestrator.handleEvent`.
  */
 
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"

@@ -17,6 +17,7 @@ import { TextAttributes } from "@opentui/core"
 import { SIDEBAR_HOVER_TOOLTIP_Z_INDEX, resolveSidebarHoverTooltipLayout } from "../../tui/panes/sidebar/hover-layout"
 import { truncateTitle } from "../../tui/panes/sidebar/labels"
 import { useTheme } from "../context/theme"
+import { FRAME } from "./frame"
 
 /** Above the hover tooltip: if both are somehow up, the menu is the one the
  *  user is interacting with. */
@@ -53,7 +54,7 @@ export function ContextMenu(props: {
       top={layout.top}
       width={layout.boxWidth}
       flexDirection="column"
-      border
+      {...FRAME}
       borderColor={theme.focusAccent}
       backgroundColor={theme.backgroundElement}
       paddingLeft={1}

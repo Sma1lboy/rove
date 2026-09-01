@@ -15,7 +15,9 @@
  * session and, after a host restart, `--resume` it.
  */
 
-import { interactiveEngineCommand, withClaudeSessionId } from "@/engine/interactive-command"
+import { withPinnedSessionId } from "@/engine/engine-presets"
+import { interactiveEngineCommand } from "@/engine/interactive-command"
+
 import type { VendorId } from "@/types/vendor"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { issueWorktreePrompt } from "../../state/issue-chat"
@@ -55,7 +57,7 @@ export function buildIssueChatBackgroundSpawn(input: {
   shell?: string
 }): IssueChatBackgroundSpawn {
   const base = interactiveEngineCommand(input.vendor)
-  const { sessionId } = withClaudeSessionId(base, input.vendor)
+  const { sessionId } = withPinnedSessionId(base, input.vendor)
   const fresh = initialTabs()
   const tab: EngineTab = { ...(fresh.tabs[0] as EngineTab), sessionId }
   const state: TabsState = { ...fresh, tabs: [tab] }

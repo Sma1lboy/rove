@@ -67,7 +67,10 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
     marker = join(env.home, "editor-opens.log")
     const stateDir = join(env.home, ".config", "rove")
     await mkdir(stateDir, { recursive: true })
-    await writeFile(join(stateDir, "state.json"), JSON.stringify({ onboarded: true }))
+    // Both flags: `onboarded` alone means "the questions were asked" (it is
+    // set before the wizard renders), not "the wizard finished". Without the
+    // primer, this launch gets the wizard instead of the TUI.
+    await writeFile(join(stateDir, "state.json"), JSON.stringify({ onboarded: true, onboardedPrimer: true }))
     const codeShim = join(env.bin, "code")
     await writeFile(codeShim, `#!/bin/sh\nprintf '%s\\n' "$1" >> "${marker}"\n`)
     await chmod(codeShim, 0o755)

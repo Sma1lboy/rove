@@ -1,7 +1,11 @@
 /**
  * Wire-payload types + pure parse/decode/compare helpers for
- * `RemoteOrchestrator` — split out of `remote-orchestrator.ts` (which was
- * over the repo's 500-line file-size cap) purely mechanically: same
+ * `RemoteOrchestrator`.
+ *
+ * The seam is the wire: this file knows the daemon's payload SHAPES and
+ * nothing about the connection, so decoding a task or comparing two snapshots
+ * is checkable against literals with no socket in play. That also makes it the
+ * file the other three can all depend on without depending on each other. Same
  * types/functions, moved verbatim, re-exported from `remote-orchestrator.ts`
  * so existing importers (tests, `deserializeTask` callers) keep their path.
  *
@@ -384,8 +388,8 @@ export function deserializeTask(s: SerializedTask): Task {
     worktreePath: s.worktreePath,
     kind: s.kind,
     ...(s.scratch ? { scratch: true } : {}),
+    ...(s.routine ? { routine: s.routine } : {}),
     status: s.status,
-    archived: s.archived,
     pinned: s.pinned,
     vendor: s.vendor,
     prStatus: s.prStatus,

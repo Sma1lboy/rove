@@ -36,7 +36,7 @@ function task(): Task {
     worktreePath: "/repo/kobe/worktrees/sidebar",
     kind: "task",
     status: "backlog", // neutral lifecycle so the badge comes purely from activity
-    archived: false,
+
     pinned: false,
     vendor: "claude",
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -107,13 +107,15 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.loading).toBe(false)
     expect(row.stateGlyph).toBe("◷")
     expect(row.tone).toBe("warning")
-    expect(row.subtitleText).toBe("rate limited")
+    // The subtitle shows the BRANCH, not a state word: the one-line tree row
+    // has no subtitle at all, so the glyph above is the whole signal.
+    expect(row.subtitleText).toBe("feature/sidebar")
   })
 
   it("turn failed (billing classifies as rate-limited too)", () => {
     const row = rowAfterClaudeHook("StopFailure", { error_type: "billing_error" })
     expect(row.stateGlyph).toBe("◷")
-    expect(row.subtitleText).toBe("rate limited")
+    expect(row.subtitleText).toBe("feature/sidebar")
   })
 
   it("turn failed (other): unknown error_type shows the error badge", () => {
@@ -121,7 +123,7 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.loading).toBe(false)
     expect(row.stateGlyph).toBe("×")
     expect(row.tone).toBe("error")
-    expect(row.subtitleText).toBe("error")
+    expect(row.subtitleText).toBe("feature/sidebar")
   })
 
   it("waiting on permission: the Notification permission hook shows the ? badge", () => {
@@ -131,7 +133,7 @@ describe("activity pipeline — vendor hook payload to sidebar badge", () => {
     expect(row.loading).toBe(false)
     expect(row.stateGlyph).toBe("?")
     expect(row.tone).toBe("warning")
-    expect(row.subtitleText).toBe("needs permission")
+    expect(row.subtitleText).toBe("feature/sidebar")
   })
 
   it("session end: the row returns to neutral runtime chrome", () => {

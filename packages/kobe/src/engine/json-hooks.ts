@@ -32,13 +32,6 @@ export interface HookEventSpec {
   readonly verb: EngineActivityKind
 }
 
-/** The `PostToolUse` event name + tool matcher both engines use for the
- *  creation-time worktree-watch observer. */
-export const WORKTREE_WATCH_EVENT = "PostToolUse"
-export const WORKTREE_WATCH_MATCHER = "Bash"
-/** Command substring identifying kobe's worktree-watch hook in a settings file. */
-export const WORKTREE_WATCH_MARKER = "worktree-created"
-
 export function isObject(v: unknown): v is Record<string, unknown> {
   return !!v && typeof v === "object" && !Array.isArray(v)
 }
@@ -136,21 +129,23 @@ export function mergeActivityHooks(
 }
 
 /**
- * Build kobe's worktree-WATCH hook: a global `PostToolUse` observer scoped to
- * the `Bash` tool. After every Bash call, `kobe hook worktree-created` runs and
- * — only when the command was a `git worktree remove` — archives the task
- * pinned to that worktree. (`add` no longer adopts, owner decision 2026-08-24:
- * creation is mechanical, adoption needs an engine session-start or an
- * explicit adopt.) A pure observer (fires AFTER the tool), so its presence
- * never changes git/`--worktree` behaviour.
+ * The `PostToolUse` (Bash) hook Rove used to install: an observer that fired
+ * `kobe hook worktree-created` after EVERY Bash call, machine-wide, to archive
+ * the task pinned to a removed worktree. Archive was removed (issue #75), so
+ * the hook had nothing left to do — it just paid a ~170ms process spawn on
+ * every Bash call of every session. Retired 2026-08-30; these two constants
+ * survive only so {@link removeWorktreeWatchHook} can find and delete the
+ * entries already written into users' settings files.
  */
-export function buildWorktreeWatchHook(inv: readonly string[] = kobeHookInvocation()): Record<string, unknown> {
-  const command = quoteShellArgv([...inv, "hook", WORKTREE_WATCH_MARKER])
-  return { [WORKTREE_WATCH_EVENT]: [{ matcher: WORKTREE_WATCH_MATCHER, hooks: [{ type: "command", command }] }] }
-}
+const RETIRED_WATCH_EVENT = "PostToolUse"
+export const WORKTREE_WATCH_MARKER = "worktree-created"
 
-/** True if a PostToolUse group is kobe's worktree-watch hook. */
-function isKobeWorktreeWatchGroup(group: unknown): boolean {
+/** True if a PostToolUse group is the retired Rove worktree-watch hook.
+ *  Keys on the command substring, so both the quoted (`'hook'
+ *  'worktree-created'`) and legacy unquoted install forms are matched — and
+ *  nothing else in the file is (a user's own PostToolUse hooks, and the hooks
+ *  other tools install, never carry this verb). */
+function isRetiredWatchGroup(group: unknown): boolean {
   if (!isObject(group) || !Array.isArray(group.hooks)) return false
   return group.hooks.some(
     (h) => isObject(h) && typeof h.command === "string" && (h.command as string).includes(WORKTREE_WATCH_MARKER),
@@ -158,22 +153,19 @@ function isKobeWorktreeWatchGroup(group: unknown): boolean {
 }
 
 /**
- * Pure merge: add (`install`) or remove kobe's `PostToolUse` worktree-watch hook
- * in a SHARED settings object, preserving the user's own PostToolUse hooks +
- * every other key. Idempotent + merge-safe (replaces only kobe's group).
+ * Pure merge: drop the retired worktree-watch hook from a SHARED settings
+ * object. Removal-only (there is no install counterpart any more) and
+ * merge-safe: it filters ONLY the groups whose command names Rove's verb, so a
+ * hand-edited settings file keeps the user's own PostToolUse hooks and every
+ * other key untouched. Idempotent — a second pass finds nothing and returns an
+ * equal object, so the write is skipped.
  */
-export function mergeWorktreeWatchHook(
-  current: Record<string, unknown>,
-  install: boolean,
-  inv: readonly string[] = kobeHookInvocation(),
-): Record<string, unknown> {
+export function removeWorktreeWatchHook(current: Record<string, unknown>): Record<string, unknown> {
   const { hooks: rawHooks, ...restSettings } = current
   const hooks: Record<string, unknown> = isObject(rawHooks) ? { ...rawHooks } : {}
-  const key = WORKTREE_WATCH_EVENT
-  const prior = Array.isArray(hooks[key]) ? (hooks[key] as unknown[]) : []
-  const kept = prior.filter((g) => !isKobeWorktreeWatchGroup(g))
-  if (install) kept.push(...(buildWorktreeWatchHook(inv)[key] as unknown[]))
-  if (kept.length > 0) hooks[key] = kept
-  else delete hooks[key]
+  const prior = Array.isArray(hooks[RETIRED_WATCH_EVENT]) ? (hooks[RETIRED_WATCH_EVENT] as unknown[]) : []
+  const kept = prior.filter((g) => !isRetiredWatchGroup(g))
+  if (kept.length > 0) hooks[RETIRED_WATCH_EVENT] = kept
+  else delete hooks[RETIRED_WATCH_EVENT]
   return Object.keys(hooks).length > 0 ? { ...restSettings, hooks } : { ...restSettings }
 }

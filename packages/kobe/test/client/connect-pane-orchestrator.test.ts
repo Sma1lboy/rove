@@ -131,7 +131,6 @@ function helloTaskClient(): KobeDaemonClient {
               worktreePath: "/wt/t1",
               kind: "worktree",
               status: "backlog",
-              archived: false,
               pinned: false,
               vendor: "claude",
               createdAt: 1,

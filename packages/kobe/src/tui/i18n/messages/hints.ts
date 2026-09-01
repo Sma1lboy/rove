@@ -21,7 +21,7 @@ export const en = {
   pane: {
     move: "move",
     open: "open",
-    fold: "fold",
+    collapse: "collapse",
     diff: "diff",
   },
 }
@@ -36,7 +36,7 @@ export const zh: typeof en = {
   pane: {
     move: "移动",
     open: "打开",
-    fold: "折叠",
+    collapse: "折叠",
     diff: "差异",
   },
 }

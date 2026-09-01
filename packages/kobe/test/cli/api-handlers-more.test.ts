@@ -13,6 +13,8 @@ import {
   API_SCHEMA_VERSION,
   ApiError,
   type ApiRuntime,
+  VERBS,
+  VERB_GROUPS,
   VerbArgs,
   findVerb,
   invokeVerb,
@@ -111,6 +113,10 @@ describe("schema drill-ins", () => {
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
       ["set-vendor", ["api", "set-command", "--help"], /set-command/],
+      // archive died with issue #75; the rejection must point at delete AND
+      // say the branch survives — a coordinator closing a round should not
+      // have to guess between delete and --delete-branch.
+      ["archive", ["api", "delete", "--help"], /branch.*survives/s],
     ])("%s fails with UNKNOWN_VERB and the replacement command", async (verb, nextArgs, hintPattern) => {
       const err = await rejectionOf(verb)
       expect(err.code).toBe("UNKNOWN_VERB")
@@ -131,6 +137,12 @@ describe("schema drill-ins", () => {
     })
   })
 
+  // Hardcoded on purpose: the neighbouring "every advertised group" test
+  // compares the listing against `VERB_GROUPS`, and both now derive from
+  // `VerbSpec.group`, so they move together. This one is the independent pin —
+  // and it is in canonical VERBS order, which is the order the index, `--all`
+  // and `--help` already used, so a group listing can no longer disagree with
+  // them.
   it("--group lists that group's verbs compactly (name + summary only)", async () => {
     const result = (await invokeVerb("schema", ["--group", "read"], offline)) as {
       group: string
@@ -140,12 +152,12 @@ describe("schema drill-ins", () => {
     expect(result.verbs.map((v) => v.name)).toEqual([
       "list",
       "get-task",
+      "pty-list",
       "collect",
       "digest",
       "agent-turns",
-      "pty-list",
-      "read-output",
       "inspect",
+      "read-output",
     ])
     for (const v of result.verbs) expect(v.summary.length).toBeGreaterThan(0)
   })
@@ -160,11 +172,31 @@ describe("schema drill-ins", () => {
     expect(result.verbs.length).toBeGreaterThan(10)
   })
 
-  it("a verb outside every group is reported as group 'other'", async () => {
-    const schema = verbSchema({ name: "not-grouped", summary: "s", flags: [], handler: async () => null }) as {
-      group: string
+  // Regression for issue #95: `prompt` was declared in `verbs-drive.ts` but
+  // never added to the hand-written group table, so it reported group "other"
+  // — a name `--group` then rejected as unknown, leaving it in NO browsable
+  // group. Groups are now derived from `VerbSpec.group`, so this holds for
+  // every verb by construction; the assertion is what fails if someone
+  // reintroduces a fallback.
+  it("every verb is reachable through the group it reports", async () => {
+    for (const v of VERBS) {
+      const listing = (await invokeVerb("schema", ["--group", v.group], offline)) as {
+        verbs: Array<{ name: string }>
+      }
+      expect(listing.verbs.map((entry) => entry.name)).toContain(v.name)
     }
-    expect(schema.group).toBe("other")
+  })
+
+  it("every advertised group is browsable, and lists exactly its own verbs", async () => {
+    for (const [group, names] of Object.entries(VERB_GROUPS)) {
+      const listing = (await invokeVerb("schema", ["--group", group], offline)) as {
+        group: string
+        verbs: Array<{ name: string; summary: string }>
+      }
+      expect(listing.group).toBe(group)
+      expect(listing.verbs.map((v) => v.name)).toEqual([...names])
+      for (const v of listing.verbs) expect(v.summary.length).toBeGreaterThan(0)
+    }
   })
 })
 

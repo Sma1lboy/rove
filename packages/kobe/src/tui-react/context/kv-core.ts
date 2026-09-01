@@ -91,7 +91,20 @@ export function createKvCore(): KvCore {
       return store.get()[key] ?? defaultValue
     },
     set(key, value) {
-      store.update((s) => ({ ...s, [key]: value }))
+      // `undefined` DELETES: the key must leave the snapshot, not sit in it
+      // as an enumerable `undefined` — `sweepOrphanTabsSnapshots` walks
+      // `Object.keys` and re-deletes anything still present, and its effect
+      // re-runs on every kv identity change, so a spread-back key turned one
+      // sweep into an infinite setState loop (React #185, 2026-09-01). Disk
+      // already had delete semantics (patchStateFile drops explicit-undefined
+      // entries); this aligns the in-memory snapshot with it.
+      store.update((s) => {
+        if (value !== undefined) return { ...s, [key]: value }
+        if (!(key in s)) return s // already absent — no snapshot churn
+        const next = { ...s }
+        delete next[key]
+        return next
+      })
       dirtyKeys.add(key)
       scheduleWrite()
     },

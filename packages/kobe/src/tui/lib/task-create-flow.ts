@@ -1,7 +1,7 @@
 /**
  * The shared create/adopt flow behind the NewTaskDialog — split from
  * task-actions.ts (which keeps the mutation flows on EXISTING tasks:
- * archive / delete / rename / vendor). Same testability rule: NO `@opentui`
+ * delete / rename / vendor). Same testability rule: NO `@opentui`
  * imports; the dialog reaches this module only as the `promptNewTask`
  * adapter callback, so the flow runs under plain vitest with mocks
  * (`test/tui/create-task-flow.test.ts`).
@@ -11,7 +11,7 @@ import { availableEngineIds } from "@/engine/account-detect"
 import { errorMessage } from "@/lib/error-message"
 import { addSavedRepo, getSavedRepos } from "@/state/repos"
 import { t } from "@/tui/i18n"
-import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
+import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
 import type { NewTaskDialogOptions, NewTaskInput } from "../component/new-task-dialog/state"
 import type { TaskActionContext } from "./task-actions"
 
@@ -55,6 +55,20 @@ export interface CreateTaskContext extends TaskActionContext {
 }
 
 /**
+ * Repo roots that have a `main` task, keyed the way the sidebar groups them
+ * (trailing slashes trimmed) so a path typed with one still matches.
+ */
+function mainRepoSet(tasks: readonly Task[]): ReadonlySet<string> {
+  const out = new Set<string>()
+  for (const task of tasks) {
+    if (task.kind !== "main") continue
+    const key = task.repo.trim().replace(/[\\/]+$/, "")
+    if (key) out.add(key)
+  }
+  return out
+}
+
+/**
  * Create (or adopt) a task through the shared NewTaskDialog flow: default
  * repo → dialog →
  * persist vendor + repo choices → `task.create` / `adoptWorktree` → land
@@ -83,15 +97,44 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     defaultVendor,
     availableVendors,
     discoverAdoptable: orch ? (repo) => orch.discoverAdoptableWorktrees(repo) : undefined,
+    // Which repos already own a project checkout — the Existing tab offers
+    // "open the project" only for these (issue #90). Read from the LIVE task
+    // list rather than savedRepos: a saved repo with no main row has no
+    // project to open, and the difference is exactly what the choice turns on.
+    mainRepos: mainRepoSet(ctx.tasks()),
   })
   if (!result) return
-  ctx.rememberVendor(result.repo, result.vendor)
   // Auto-save the chosen repo so the saved list self-populates and
-  // `kobe add` stays optional.
-  addSavedRepo(result.repo)
+  // `kobe add` stays optional. `addSavedRepo` normalizes to the git toplevel
+  // and RETURNS that path — use it, so a repo entered as a subdirectory is
+  // remembered and vendor-keyed under the same root the task record gets.
+  const repo = addSavedRepo(result.repo).path
+  ctx.rememberVendor(repo, result.vendor)
   ctx.onRepoSaved?.()
   if (!orch) {
+    // The dialog has already closed by here. Without a toast the submit reads
+    // as a success that produced no task.
     ctx.logger.error(`${ctx.logPrefix} no daemon; cannot create task`)
+    ctx.notifyError?.(t("tasks.toast.noDaemonWorktree"))
+    return
+  }
+  // "Open the project" (issue #90) — the repo's OWN checkout, not a worktree
+  // branched off it. `ensureMainTask` is idempotent, so this both REVIVES a
+  // project the sidebar hid (its main row and savedRepos entry never went
+  // away — only the row did) and creates the row for a saved repo that has
+  // none yet. Deliberately ahead of the "Creating task…" toast: nothing is
+  // being created, and claiming otherwise for what is really a navigation
+  // would misreport the one path whose whole point is that it adds nothing.
+  if (result.mode === "open") {
+    try {
+      const main = await orch.ensureMainTask(repo)
+      await ctx.reload?.()
+      ctx.selectTask?.(main.id)
+      await ctx.enterTask?.(main.id)
+    } catch (err) {
+      ctx.logger.error(`${ctx.logPrefix} ensureMainTask failed:`, err)
+      ctx.notifyError?.(t("newTask.open.failed", { error: errorMessage(err) }))
+    }
     return
   }
   // The create/adopt awaits a real git-worktree operation with no other
@@ -112,7 +155,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     for (const w of result.adopt) {
       try {
         const task = await orch.adoptWorktree({
-          repo: result.repo,
+          repo,
           worktreePath: w.worktreePath,
           branch: w.branch,
           vendor: result.vendor,
@@ -133,7 +176,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   } else {
     try {
       const task = await orch.createTask({
-        repo: result.repo,
+        repo,
         baseRef: result.baseRef,
         vendor: result.vendor,
       })

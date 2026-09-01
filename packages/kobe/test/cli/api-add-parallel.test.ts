@@ -213,4 +213,33 @@ describe("add --count (parallel round)", () => {
       })
     }
   })
+
+  it("counts a deferred sibling as a success, not a delivery failure", async () => {
+    // A sibling whose composer is briefly busy resolves accepted-but-deferred
+    // (issue #78 B-layer): `delivered:false` but `deferred` present. The daemon
+    // owns the message and queued an inbox episode — the caller must NOT retry.
+    // It must land in `tasks` (with the marker), never in `failures`, so the
+    // round does not throw PARTIAL_FANOUT and a script does not double-deliver.
+    const deliver: ApiRuntime["deliverPrompt"] = async (_client, target) => ({
+      session: `${target.id}::tab-1`,
+      pane: `${target.id}::tab-1`,
+      started: true,
+      engineReady: true,
+      delivered: target.id !== "t2",
+      ...(target.id === "t2" ? { deferred: { id: "d1", layer: "composer-not-empty" as const } } : {}),
+    })
+    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "3"], {
+      client: fanClient(),
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as {
+      count: number
+      tasks: Array<{ taskId: string; deferred?: { id: string; layer: string } }>
+      failures: unknown[]
+    }
+    expect(result.count).toBe(3)
+    expect(result.failures).toEqual([])
+    expect(result.tasks.map((t) => t.taskId)).toEqual(["t1", "t2", "t3"])
+    const deferredRow = result.tasks.find((t) => t.taskId === "t2")
+    expect(deferredRow?.deferred).toEqual({ id: "d1", layer: "composer-not-empty" })
+  })
 })

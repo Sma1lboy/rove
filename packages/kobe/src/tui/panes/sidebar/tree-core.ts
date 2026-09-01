@@ -24,7 +24,12 @@ import { homedir } from "node:os"
 import type { Task } from "@/types/task"
 import { truncateStart } from "../../lib/truncate"
 import { fuzzyMatch } from "./fuzzy"
-import { repoBasename, sidebarProjectKey } from "./groups"
+import { compareRecent, repoBasename, sidebarProjectKey, sidebarProjectLabel } from "./groups"
+
+// Search lives in its own module — this file decides what rows EXIST, that one
+// decides which survive a query — but stays part of tree-core's public surface,
+// so every caller imports the tree's vocabulary from one place.
+export { filterTreeRows } from "./tree-search"
 
 /** Separator between a task id and a tab id in a tab row's id. Matches the
  *  PTY registry's key format so one parse rule covers both. */
@@ -56,6 +61,21 @@ export type TreeRow =
       readonly depth: 2
     }
   | { readonly kind: "recent"; readonly id: typeof RECENT_ROW_ID; readonly task: Task; readonly depth: 1 }
+  /**
+   * The routine count row (issue #91): one row standing in for a project's
+   * routine session tasks, which are background noise beside the handful of
+   * tasks the user opened themselves — 7 daily routines are 49 rows a week.
+   * Opening it reveals those tasks; they are never removed from the data.
+   */
+  | {
+      readonly kind: "routines"
+      readonly id: string
+      /** Project key these routines belong to — the row sits under it. */
+      readonly projectKey: string
+      readonly count: number
+      readonly expanded: boolean
+      readonly depth: 1
+    }
 
 /**
  * Navigation id of the narrow-mode "↩ recent" jump row (issue #14, 2A).
@@ -72,6 +92,31 @@ export const RECENT_ROW_ID = "~recent"
  * miss — a Scratch header has no main task to move and no repo to file into.
  */
 export const SCRATCH_SECTION_ID = "~scratch"
+
+/**
+ * Navigation id of a project's routine count row (issue #91). Prefixed like
+ * the other sentinels so it can never collide with a ULID, and carrying the
+ * project key so two projects' rows stay distinct.
+ *
+ * This row is the ONE fold in a tree that otherwise has none (owner call
+ * 2026-08-01, round 5 — see `tree-panel.tsx`). It is scoped deliberately: it
+ * folds only tasks a SCHEDULE created, never a task a human opened, so the
+ * "everything under a project is always visible" promise still holds for
+ * everything the user made themselves.
+ */
+export function routinesRowId(projectKey: string): string {
+  return `~routines:${projectKey}`
+}
+
+/** The project key a routines row id names, or null for any other id. */
+export function projectKeyOfRoutinesRow(id: string): string | null {
+  return id.startsWith("~routines:") ? id.slice("~routines:".length) : null
+}
+
+/** True for a task the sidebar folds behind a routine count row. */
+export function isRoutineTask(task: Task): boolean {
+  return task.routine !== undefined
+}
 
 /**
  * Prepend the "↩ recent: <task>" jump row (narrow mode only — the caller
@@ -161,6 +206,54 @@ export interface TreeInput {
   /** Tabs per task id. A task absent from the map contributes no tab rows —
    *  its tabs have never mounted, which is not the same as having none. */
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
+  /** Task sort applied within each project group. Defaults to input order. */
+  readonly sortMode?: import("./groups").TaskSortMode
+  /** Project keys whose routine count row is open (issue #91). Absent = all
+   *  closed, which is the resting state a fresh session starts in. */
+  readonly expandedRoutines?: ReadonlySet<string>
+}
+
+/**
+ * A project you closed down to nothing: its ONLY row is the repo's main
+ * checkout (or a directory you opened), and that row's last tab is closed.
+ *
+ * Such a project is hidden from the tree (owner call 2026-08-31). Nothing is
+ * deleted — the main task and the `savedRepos` entry both stay.
+ *
+ * The way BACK is the new-task dialog's Existing tab: pick the repo and
+ * choose "the project itself" instead of a new task worktree, which submits
+ * `mode: "open"` and routes to `ensureMainTask` (issue #90). That choice
+ * renders only for a repo that already has a main row — which is exactly the
+ * set of repos this rule can hide. Until it existed the promise made here was
+ * false: every submit path went through `createTask`, which always mints a
+ * `kind: "task"`, so picking a hidden repo added a worktree beside the
+ * project and still left no project row.
+ *
+ * This is the whole difference from Forget (`d` on the row →
+ * `forgetProject`), which un-saves the repo: closing the last tab is a "I'm
+ * done here for now" gesture, not a "remove this from my machine" one.
+ *
+ * A `dir` row folds the same way (owner call 2026-09-01). It has no
+ * picker entry to return through and does not need one: the way back is the
+ * `rove .` that opened it in the first place, and a directory was never in
+ * `savedRepos` to be lost from. Excluding it only made "close the last tab"
+ * mean two different things depending on a row kind the user never chose —
+ * the sidebar shows a folder and a checkout as the same shape of row.
+ *
+ * Deliberately narrow. It requires:
+ *   - exactly one task in the project, and that task is a `main` or `dir`
+ *     row — anything else is real work with a branch behind it, and
+ *   - its tabs are KNOWN and empty — an absent entry means "never mounted
+ *     since restart", which is every project on a fresh TUI. Hiding on that
+ *     would make the sidebar boot empty.
+ *
+ * A project with any worktree task under it always renders, even with every
+ * tab closed: those rows are how you get back to that work.
+ */
+function isClosedDownProject(tasks: readonly Task[], tabsByTask: TreeInput["tabsByTask"]): boolean {
+  const only = tasks.length === 1 ? tasks[0] : undefined
+  if (!only || (only.kind !== "main" && only.kind !== "dir")) return false
+  return tabsByTask.get(only.id)?.length === 0
 }
 
 /**
@@ -187,6 +280,7 @@ export interface TreeInput {
  */
 export function buildTreeRows(input: TreeInput): TreeRow[] {
   const { tasks, tabsByTask } = input
+  const sortMode = input.sortMode ?? "default"
   const byProject = new Map<string, { repo: string; tasks: Task[] }>()
 
   // Scratch tasks (issue #33) never mint a project header: their cwd is
@@ -194,6 +288,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   // directory would name a home they don't have. They render in one
   // Scratch section ABOVE every project — the "unfiled live sessions" bench.
   const scratchTasks = tasks.filter((task) => task.kind === "dir" && task.scratch === true)
+  if (sortMode === "recent") scratchTasks.sort(compareRecent)
 
   for (const task of tasks) {
     if (task.kind === "dir" && task.scratch === true) continue
@@ -232,9 +327,21 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
     }
   }
 
+  if (sortMode === "recent") {
+    for (const entry of byProject.values()) {
+      entry.tasks.sort((a, b) => {
+        // Keep the repo's main checkout as the first worktree row under its
+        // project header; only the regular worktrees reorder by recency.
+        if (a.kind === "main" && b.kind !== "main") return -1
+        if (b.kind === "main" && a.kind !== "main") return 1
+        return compareRecent(a, b)
+      })
+    }
+  }
+
   const rows: TreeRow[] = []
   // Scratch section first — above pinned and every project (issue #33): the
-  // bench of unfiled live shells is what you reach for next, not an archive.
+  // bench of unfiled live shells is what you reach for next.
   // The header reuses the project-row shape (id is a sentinel no repo path
   // can be — see SCRATCH_SECTION_ID); the renderer translates its label.
   if (scratchTasks.length > 0) {
@@ -257,11 +364,51 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
       }
     }
   }
-  for (const key of orderedKeys) {
+  // Header labels disambiguate against EVERY other project on screen, not
+  // just against themselves: with 5 repos open, `~/work/api` and `~/oss/api`
+  // both rendered the bare basename `api`, so two headers read as one repo
+  // while the toast that had just named one of them said `work/api`. Same
+  // helper every other surface already uses (Inbox, Kanban, work items,
+  // automations) — the tree was the last holdout.
+  // Projects closed down to nothing drop out of the tree entirely — header
+  // and row (see `isClosedDownProject`). Computed BEFORE the label pass so a
+  // hidden project can't influence how the visible ones disambiguate.
+  const visibleKeys = orderedKeys.filter((key) => {
+    const entry = byProject.get(key)
+    return entry ? !isClosedDownProject(entry.tasks, tabsByTask) : false
+  })
+  const projectRepos = visibleKeys.map((key) => byProject.get(key)?.repo ?? "")
+  for (const key of visibleKeys) {
     const entry = byProject.get(key)
     if (!entry) continue
-    rows.push({ kind: "project", id: key, repo: entry.repo, label: repoBasename(entry.repo), depth: 0 })
-    for (const task of entry.tasks) pushWorktree(rows, task, tabsByTask)
+    rows.push({
+      kind: "project",
+      id: key,
+      repo: entry.repo,
+      label: sidebarProjectLabel(entry.repo, projectRepos),
+      depth: 0,
+    })
+    // Routine sessions (issue #91) sort to the END of their project, behind
+    // one count row: they are a schedule's output, so they must never push
+    // the tasks the user opened themselves down the pane.
+    const routineTasks = entry.tasks.filter(isRoutineTask)
+    for (const task of entry.tasks) {
+      if (!isRoutineTask(task)) pushWorktree(rows, task, tabsByTask)
+    }
+    if (routineTasks.length > 0) {
+      const expanded = input.expandedRoutines?.has(key) === true
+      rows.push({
+        kind: "routines",
+        id: routinesRowId(key),
+        projectKey: key,
+        count: routineTasks.length,
+        expanded,
+        depth: 1,
+      })
+      // Opened, the folded tasks render as ordinary worktree rows — the fold
+      // hides them at rest, it does not make them a different kind of thing.
+      if (expanded) for (const task of routineTasks) pushWorktree(rows, task, tabsByTask)
+    }
   }
   return rows
 }
@@ -285,75 +432,20 @@ function pushWorktree(rows: TreeRow[], task: Task, tabsByTask: ReadonlyMap<strin
 export function treeFlatIds(rows: readonly TreeRow[]): string[] {
   const ids: string[] = []
   for (const row of rows) {
+    // The routines count row IS navigable, unlike a project header: opening
+    // it is the whole point, so the cursor has to be able to land on it.
     if (row.kind !== "project") ids.push(row.id)
   }
   return ids
 }
 
-/** The project a row belongs to. A `dir` task's project is its directory —
+/** The project a row belongs to — exported for `tree-search`, which prunes
+ *  by the same grouping the tree builds with. A `dir` task's project is its
+ *  directory. A `dir` task's project is its directory —
  *  the same key `buildTreeRows` groups it under. */
-function ownerProjectKey(task: Task): string | null {
+export function ownerProjectKey(task: Task): string | null {
   if (task.kind === "dir" && task.scratch === true) return SCRATCH_SECTION_ID
   return sidebarProjectKey(task.repo)
-}
-
-/** What a row's text is matched against. */
-function rowHaystack(row: TreeRow): string {
-  if (row.kind === "project") return row.label
-  if (row.kind === "tab") return row.tab.label
-  return `${row.task.title} ${row.task.branch ?? ""} ${repoBasename(row.task.repo)}`
-}
-
-/**
- * Prune the tree to what matches `query`, keeping every hit's ANCESTORS so a
- * match never floats free of the worktree and project it lives in.
- *
- * Match semantics per kind, chosen so one query answers all three questions
- * the tree can be asked:
- *   - project  → repo basename. A hit keeps the WHOLE subtree ("show me
- *     everything in kobe").
- *   - worktree → title + branch + repo basename: the flat sidebar's haystack
- *     plus the branch the tree actually labels the row with. A hit keeps the
- *     worktree's tabs ("that branch, and what's running in it").
- *   - tab      → the tab's label, i.e. its live OSC window title. This is the
- *     tree's own increment over the flat sidebar, which can only search task
- *     titles: it answers "which tab is running that thing".
- */
-export function filterTreeRows(rows: readonly TreeRow[], query: string): TreeRow[] {
-  const q = query.trim()
-  if (q === "") return [...rows]
-
-  // Pass 1 — rows matching on their own text, plus the ancestors each hit
-  // keeps alive.
-  const selfMatch = new Set<string>()
-  const keep = new Set<string>()
-  for (const row of rows) {
-    if (!fuzzyMatch(q, rowHaystack(row))) continue
-    selfMatch.add(row.id)
-    keep.add(row.id)
-    if (row.kind === "project") continue
-    if (row.kind === "tab") keep.add(row.task.id)
-    const project = ownerProjectKey(row.task)
-    if (project !== null) keep.add(project)
-  }
-
-  // Pass 2 — emit a row when it matched, when a descendant kept it, or when
-  // an ancestor matched outright (a project hit brings its subtree along).
-  const out: TreeRow[] = []
-  for (const row of rows) {
-    if (row.kind === "project") {
-      if (keep.has(row.id)) out.push(row)
-      continue
-    }
-    const project = ownerProjectKey(row.task)
-    const underMatchedProject = project !== null && selfMatch.has(project)
-    if (row.kind === "worktree") {
-      if (underMatchedProject || keep.has(row.id)) out.push(row)
-      continue
-    }
-    if (underMatchedProject || selfMatch.has(row.task.id) || keep.has(row.id)) out.push(row)
-  }
-  return out
 }
 
 /**
@@ -393,31 +485,8 @@ export function mainTaskIdOfProject(tasks: readonly Task[], projectKey: string):
   return null
 }
 
-/**
- * Which activity entry names a TAB row's state glyph.
- *
- * The daemon publishes activity at two levels. Tab-level is the precise
- * answer. Task-level is a last-event-wins rollup across every tab, so it may
- * only stand in for a task whose engine reports NO tab identity at all — a
- * `claude` the user typed into a shell, which has no `KOBE_TAB_ID` to tag its
- * hook events with.
- *
- * Once ANY tab of the task has reported, the rollup means "whichever tab
- * moved last", and lending it to whichever tab happens to be active made a
- * switch inside a busy worktree light the tab you switched TO with its
- * sibling's spinner until its own state landed (owner report 2026-08-10).
- */
-export function tabRowActivity<T>(args: {
-  /** This tab's own entry, when the daemon has one. */
-  readonly tabActivity: T | undefined
-  /** How many tabs of this task have reported at all. */
-  readonly reportedTabCount: number
-  /** The task-level rollup. */
-  readonly taskActivity: T | undefined
-  /** Whether this row is the task's active tab. */
-  readonly active: boolean
-}): T | undefined {
-  if (args.tabActivity !== undefined) return args.tabActivity
-  if (!args.active || args.reportedTabCount > 0) return undefined
-  return args.taskActivity
-}
+// Tab-row activity resolution lives in its own module: it answers which of the
+// daemon's two activity levels speaks for a row, which is not a question about
+// rows existing and needs none of this file's shapes. Re-exported here so
+// callers still name it through the tree's vocabulary.
+export { tabRowActivity } from "./tab-row-activity"

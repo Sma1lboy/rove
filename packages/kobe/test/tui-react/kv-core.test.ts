@@ -86,6 +86,25 @@ describe("createKvCore", () => {
     expect(readState(home)).toEqual({ kept: 2 })
   })
 
+  it("set(key, undefined) removes the key from the in-memory snapshot", () => {
+    // React #185 (2026-09-01): the spread `{ ...s, [key]: undefined }` kept
+    // the deleted key ENUMERABLE in the snapshot, so the orphan sweep
+    // (`sweepOrphanTabsSnapshots`, which walks Object.keys and re-deletes)
+    // re-set it on every task-list change — each set a new snapshot identity,
+    // each identity a re-run of the sweep effect: an infinite setState loop
+    // that crashed the workspace whenever a stale `terminalTabs.*` key
+    // existed. Deletion must actually shrink Object.keys.
+    isolatedHome({ "terminalTabs.dead": { tabs: [] }, kept: 1 })
+    const kv = createKvCore()
+    kv.set("terminalTabs.dead", undefined)
+    expect(Object.keys(kv.snapshot())).toEqual(["kept"])
+    // Idempotent: deleting an absent key must not mint a new snapshot
+    // identity (that identity churn is what re-armed the sweep effect).
+    const before = kv.snapshot()
+    kv.set("terminalTabs.dead", undefined)
+    expect(kv.snapshot()).toBe(before)
+  })
+
   it("seed() is visible in memory but never persisted", () => {
     const home = isolatedHome({ existing: "x" })
     const kv = createKvCore()
@@ -146,6 +165,18 @@ describe("createKvCore", () => {
     // Pending dirty keys must not survive the wipe via a later flush.
     expect(kv.flush()).toBe(true)
     expect(readState(home)).toEqual({})
+  })
+
+  it("writes state.json compact — no pretty-print indentation", () => {
+    const home = isolatedHome({})
+    const kv = createKvCore()
+    kv.set("nested", { a: 1, b: [1, 2] })
+    expect(kv.flush()).toBe(true)
+    // The file is rewritten whole on EVERY flush and read only by machines;
+    // `null, 2` used to triple its bytes. Round-tripping through parse must
+    // reproduce the exact bytes — the cheapest compactness invariant.
+    const raw = readFileSync(statePath(home), "utf8")
+    expect(raw).toBe(JSON.stringify(JSON.parse(raw)))
   })
 
   it("notifies subscribers on set and supports unsubscribe", () => {

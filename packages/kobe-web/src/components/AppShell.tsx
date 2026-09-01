@@ -105,7 +105,7 @@ function StatusBar() {
   const task = selectedTaskId
     ? tasks.find((t) => t.id === selectedTaskId)
     : null
-  const count = tasks.filter((t) => !t.archived).length
+  const count = tasks.length
   return (
     <footer className="flex h-7 shrink-0 items-center gap-4 border-t border-line bg-surface px-3 text-[11px] text-subtle">
       <span>

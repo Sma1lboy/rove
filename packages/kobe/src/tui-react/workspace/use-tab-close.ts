@@ -1,17 +1,19 @@
 /**
- * Everything about a tab going away — extracted from `TerminalTabs.tsx` for
- * the file-size cap, joining `use-tab-dialogs` / `use-tab-handoffs` /
- * `use-tab-lifecycle` as a per-render hook (state freshness comes from being
- * rebuilt each render, plus refs for the mount-only callers).
+ * Everything about a tab going away, in one hook so the four exits below stay
+ * one policy — they differ in ways that are easy to get subtly wrong, and
+ * scattering them across the component is how two of them drift. Joins
+ * `use-tab-dialogs` / `use-tab-handoffs` / `use-tab-lifecycle` as a per-render
+ * hook (state freshness comes from being rebuilt each render, plus refs for
+ * the mount-only callers).
  *
  * The four exits a tab has, and why they differ:
  *
- *   - `closeActive`   — ctrl+w. Refuses the last tab with a toast — except
- *     on a scratch task, where closing the last tab tears the task down
- *     (issue #42; same zero-ceremony path as the shell exiting).
+ *   - `closeActive`   — ctrl+w. Closes the last tab too (owner call
+ *     2026-08-31), leaving the task with none: its sidebar row stays and
+ *     re-opens on ⏎ / ctrl+e. On a scratch task the last tab still tears the
+ *     task down instead (issue #42) — its whole life IS that one shell.
  *   - `closeById`     — a close named from OUTSIDE the component (the sidebar
- *     tree's menu). Same semantics as ctrl+w minus the toast: the menu omits
- *     the entry when it would be refused.
+ *     tree's menu). Same semantics as ctrl+w minus the toast.
  *   - `closeExited`   — the tab's process ended. No viewport carve-out is
  *     needed: that process is already gone.
  *   - `handleActiveExit` — the policy layer above `closeExited`, deciding
@@ -47,7 +49,8 @@ export interface TabCloseDeps {
   /** One-shot-per-tab dead-on-attach resume marks, owned by the component so
    *  they survive this hook being rebuilt every render. */
   readonly resumeTriedRef: { readonly current: Set<string> }
-  /** Surface ctrl+w's refusal to close a task's only tab. */
+  /** Surface a refused close. Reachable only on a scratch task whose
+   *  teardown hook is missing — an ordinary task's last tab now closes. */
   readonly notifyCannotCloseLast: (tabId: string) => void
   /** Scratch task (issue #33): the LAST tab going away — its shell exiting
    *  OR ctrl+w on it (issue #42) — ends the task itself (the host deletes
@@ -86,9 +89,12 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeById(id: string): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === id)
-    const { state: next, closedId } = closeTab(current, id)
-    // Refused (the task's last tab): leave the state alone. The tree's menu
-    // omits the entry in that case, so this is the defensive half.
+    // A task may be closed down to zero tabs (owner call 2026-08-31): its
+    // sidebar row stays and re-opens on ⏎ / ctrl+e. Scratch tasks keep the
+    // old shape — their last tab going away ends the task, which
+    // `closeActive` routes through `onScratchExit`.
+    const { state: next, closedId } = closeTab(current, id, { allowEmpty: deps.onScratchExit === undefined })
+    // Refused: nothing named `id`, or a scratch task's last tab.
     if (!closedId) return
     deps.updateRef.current(next)
     releaseClosedTabPtys(taskId(), closing, closedId)
@@ -97,7 +103,13 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeActive(): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === current.activeId)
-    const { state: next, closedId } = closeActiveTab(current)
+    // Ordinary task: ctrl+w on the last tab empties it (the row stays, and
+    // re-opens on ⏎ / ctrl+e). Scratch: `closeActiveTab` still refuses, and
+    // the refusal below tears the task down — its whole life IS that shell.
+    const { state: next, closedId } =
+      deps.onScratchExit === undefined
+        ? closeTab(current, current.activeId, { allowEmpty: true })
+        : closeActiveTab(current)
     if (!closedId) {
       // Scratch task (issue #42): ctrl+w on its only tab tears down the
       // whole task — same zero-ceremony semantics (and same path) as the

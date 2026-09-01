@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { charWidth, displayWidth } from "../../src/lib/display-width.ts"
+import { charWidth, displayWidth, padEndCells } from "../../src/lib/display-width.ts"
 
 /**
  * Cell-width contract for `charWidth`/`displayWidth`. These feed the
@@ -150,5 +150,31 @@ describe("displayWidth", () => {
   it("sums wide enclosed-ideograph glyphs over code points, not UTF-16 units", () => {
     expect(displayWidth("🈚x")).toBe(3) // wide (2) + ascii (1)
     expect(displayWidth("🀄🃏")).toBe(4)
+  })
+})
+
+/**
+ * `padEndCells` — the cell-based `String.padEnd`. Callers align columnar
+ * text (welcome-pane key caps); plain padEnd counts UTF-16 units, so a wide
+ * glyph under-pads and every column to its right drifts.
+ */
+describe("padEndCells", () => {
+  it("pads ASCII to the cell target", () => {
+    expect(padEndCells("ab", 4)).toBe("ab  ")
+    expect(padEndCells("ab", 2)).toBe("ab")
+  })
+
+  it("pads a wide CJK string by cells, not code units", () => {
+    expect(padEndCells("中文", 6)).toBe("中文  ") // 4 cells + 2 spaces
+    expect(padEndCells("中文", 4)).toBe("中文") // already at target
+  })
+
+  it("pads a chord cap like ⌘N to the cell target", () => {
+    expect(padEndCells("⌘N", 5)).toBe("⌘N   ")
+  })
+
+  it("passes through strings already at or past the target", () => {
+    expect(padEndCells("abcdef", 3)).toBe("abcdef")
+    expect(padEndCells("中文", 0)).toBe("中文")
   })
 })

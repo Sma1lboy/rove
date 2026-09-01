@@ -14,8 +14,11 @@ describe("pane-open handler", () => {
   })
 
   it("wraps --command in the login shell's -ilc, defaults split/right, titles from the command word", async () => {
-    const client = new FakeClient({ "tab.open": () => ({ ok: true }) })
-    await invokeVerb("pane-open", ["--command", "btop --utf-force"], { client, runtime: stubRuntime() })
+    const client = new FakeClient({ "tab.open": () => ({ ok: true, clients: 1 }) })
+    const result = (await invokeVerb("pane-open", ["--command", "btop --utf-force"], {
+      client,
+      runtime: stubRuntime(),
+    })) as { ok: boolean; clients: number; title: string }
     expect(client.requestNames).toEqual(["tab.open"])
     expect(client.requests[0].payload).toEqual({
       taskId: "env-task",
@@ -24,26 +27,41 @@ describe("pane-open handler", () => {
       placement: "split",
       direction: "right",
     })
+    // The resolved title rides back in the result — it is what `pane-close
+    // --title` must match — and the daemon's reach signal passes through.
+    expect(result).toEqual({ ok: true, clients: 1, title: "btop" })
   })
 
   it("no --command opens an interactive login shell; explicit flags pass through", async () => {
-    const client = new FakeClient({ "tab.open": () => ({ ok: true }) })
-    await invokeVerb("pane-open", ["--task-id", "t9", "--direction", "down", "--placement", "tab", "--title", "logs"], {
-      client,
-      runtime: stubRuntime(),
-    })
+    const client = new FakeClient({ "tab.open": () => ({ ok: true, clients: 2 }) })
+    const result = (await invokeVerb(
+      "pane-open",
+      ["--task-id", "t9", "--direction", "down", "--placement", "tab", "--title", "logs"],
+      {
+        client,
+        runtime: stubRuntime(),
+      },
+    )) as { title: string }
     const payload = client.requests[0].payload as { taskId: string; argv: string[]; title: string }
     expect(payload.taskId).toBe("t9")
     expect(payload.argv).toEqual([resolveLoginShell({ fallback: "/bin/sh" }), "-il"])
     expect(payload.title).toBe("logs")
     expect(client.requests[0].payload).toMatchObject({ placement: "tab", direction: "down" })
+    // An explicit --title is echoed back verbatim.
+    expect(result.title).toBe("logs")
   })
 
   it("pane-close passes taskId + title over tab.close; --title is required", async () => {
-    const client = new FakeClient({ "tab.close": () => ({ ok: true }) })
-    await invokeVerb("pane-close", ["--task-id", "t9", "--title", "fx"], { client, runtime: stubRuntime() })
+    const client = new FakeClient({ "tab.close": () => ({ ok: true, clients: 0 }) })
+    const result = (await invokeVerb("pane-close", ["--task-id", "t9", "--title", "fx"], {
+      client,
+      runtime: stubRuntime(),
+    })) as { ok: boolean; clients: number }
     expect(client.requestNames).toEqual(["tab.close"])
     expect(client.requests[0].payload).toEqual({ taskId: "t9", title: "fx" })
+    // The daemon's reach signal (0 = no attached TUI performed the close)
+    // passes through unaltered — a headless close must be visible.
+    expect(result).toEqual({ ok: true, clients: 0 })
     const bare = new FakeClient()
     await expectApiError(() => invokeVerb("pane-close", [], { client: bare, runtime: stubRuntime() }), "MISSING_FLAG")
     expect(bare.requestNames).toEqual([])

@@ -3,7 +3,7 @@
  * load() recovery (missing file, corrupt JSON, unsupported version, non-object
  * root, malformed rows), prStatus load coercion, the loaded-guard, update/move
  * error paths, the subscribe contract (eager fire, unsubscribe, throwing
- * listener isolation), and the archive/remove conveniences.
+ * listener isolation), and the remove convenience.
  *
  * Why they matter: load() recovery is the difference between "Rove boots with
  * an empty sidebar and a warning" and "Rove crashes on a half-written
@@ -14,6 +14,7 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { flushClientLog } from "@sma1lboy/kobe-daemon/client/client-log"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
@@ -123,6 +124,55 @@ describe("load() recovery", () => {
     await writeManifest(JSON.stringify({ version: 99, tasks: [] }))
     expect((await store.load()).tasks).toEqual([])
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unsupported version"))
+    warn.mockRestore()
+  })
+
+  it("an unsupported version backs the original bytes up before recovering empty", async () => {
+    // A user who ran a build that stamped v4 and then went back to this one
+    // loses EVERY task: the empty recovery base is what the next save
+    // read-merge-writes from, so the file is replaced. Identical consequence
+    // to the corrupt-JSON branch above, so it needs the identical backup.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    await primeDir()
+    const future = JSON.stringify({
+      version: 4,
+      tasks: [{ id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", title: "would-be-lost" }],
+    })
+    await writeManifest(future)
+
+    expect((await store.load()).tasks).toEqual([])
+
+    const backups = (await readdir(join(home, ".rove"))).filter((name) => name.startsWith("tasks.json.corrupt-"))
+    expect(backups.length).toBeGreaterThanOrEqual(1)
+    expect(await readFile(join(home, ".rove", backups[0] ?? ""), "utf8")).toBe(future)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("backed up to"))
+
+    // The save that replaces the manifest leaves the copy intact.
+    await store.create({
+      repo: "/r",
+      title: "after-recovery",
+      branch: "",
+      worktreePath: "",
+      status: "backlog",
+      kind: "task",
+      vendor: "claude",
+    })
+    expect(await readFile(join(home, ".rove", backups[0] ?? ""), "utf8")).toBe(future)
+    warn.mockRestore()
+  })
+
+  it("routes the recovery warning to client.log, not only the painted-over stdout", async () => {
+    // Every pane runs under an opentui alternate screen, so a console.warn
+    // about an emptied task index is written where no human will ever see
+    // it — the entire reason client-log.ts exists.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    await primeDir()
+    await writeManifest(JSON.stringify({ version: 4, tasks: [] }))
+    await store.load()
+    await flushClientLog()
+
+    const log = await readFile(join(home, ".rove", "client.log"), "utf8")
+    expect(log).toContain("unsupported version=4")
     warn.mockRestore()
   })
 

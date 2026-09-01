@@ -1,9 +1,13 @@
 /**
- * `files.*` keybinding rows — split out of `keybindings.ts` (which was
- * over the repo's 500-line file-size cap) purely mechanically: same
- * entries, same order, moved verbatim. See `keybindings.ts`'s doc comment
- * for the full contract (id stability, scope semantics, hint display
- * rules).
+ * `files.*` keybinding rows — the `scope: "files"` slice of the one binding
+ * table, spread back into `keybindings-table.ts`.
+ *
+ * Same kind of cut as `keybindings-sidebar.ts` and `keybindings-chat.ts`:
+ * a long array literal sliced at the scope headers it already carried as
+ * comments. No responsibility boundary — which file a row lives in is
+ * decided by its `scope` field and nothing else. See `keybindings-table.ts`
+ * for the contract these rows must satisfy (stable `id`, spread order is
+ * display order, `hint` vs `keys`).
  */
 
 import type { KobeBinding } from "./keybindings-table.ts"
@@ -46,9 +50,9 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "enter" },
   },
   {
-    // `[` / `]` cycle the All / Changes tabs. Bracket pair matches
-    // the sidebar's Working/Archives view-switcher so the muscle
-    // memory is consistent across panes.
+    // `[` / `]` cycle the All / Changes tabs. A bracket pair, the same
+    // shape as the `ctrl+[` / `ctrl+]` terminal-tab cycle one tier up —
+    // brackets mean "adjacent tab" everywhere.
     // POSITIONAL: [previous tab, next tab] pairs (slot dispatch).
     id: "files.tab",
     scope: "files",
@@ -96,9 +100,9 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "o" },
   },
   {
-    // `a` → inject `@<path>` into the engine (claude/codex) pane via
-    // tmux send-keys. Enter stays the full-width preview; this
-    // is the "add as a mention" action. Plain letter, files-scoped per
+    // `a` → paste `@<path>` into the engine (claude/codex) pane's composer,
+    // without submitting — the "add as a mention" action, so the user keeps
+    // typing around it. Plain letter, files-scoped per
     // the keybinding-boundaries rule, so it can't collide elsewhere.
     id: "files.mention",
     scope: "files",
@@ -122,7 +126,7 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     keys: [],
     prefixKeys: ["p", "shift+p"],
     category: "Files",
-    description: "Create PR from the current task",
+    description: "Ask the agent to create a PR from the current task",
   },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
   // Owner sign-off 2026-07-27: plain letters, diff-tab-scoped raw bindings

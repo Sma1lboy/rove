@@ -29,8 +29,11 @@ test("engine choices keep a breathing row between their labels and lower borders
   const rows = (await frame()).split("\n")
   const labelRow = rows.findIndex((row) => row.includes("Claude") && row.includes("Codex") && row.includes("Copilot"))
   expect(labelRow).toBeGreaterThan(0)
-  expect(rows[labelRow - 1]).toContain("┌")
+  // Rounded corners — the chips spread the shared FRAME (ui/frame.ts) like
+  // every other framed surface. The geometry this test guards is unchanged:
+  // the corner glyph moved, the breathing row did not.
+  expect(rows[labelRow - 1]).toContain("╭")
   expect(rows[labelRow + 1]).toContain("│")
-  expect(rows[labelRow + 1]).not.toContain("└")
-  expect(rows[labelRow + 2]).toContain("└")
+  expect(rows[labelRow + 1]).not.toContain("╰")
+  expect(rows[labelRow + 2]).toContain("╰")
 })

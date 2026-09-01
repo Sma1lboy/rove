@@ -73,7 +73,7 @@ export async function makeBehaviorEnv(): Promise<BehaviorEnv> {
   // renames itself; `read` blocks in-process, so argv[0] stays `claude`.
   await writeFile(
     join(bin, "claude"),
-    `#!/bin/sh\necho "fake-claude ready $*"\nwhile :; do read -r _ignored || sleep 600; done\n`,
+    `#!/bin/sh\necho "fake-claude ready $*"\nwhile :; do\n  printf '\\342\\235\\257\\n'\n  read -r _ignored || sleep 600\ndone\n`,
   )
   await chmod(join(bin, "claude"), 0o755)
 

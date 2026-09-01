@@ -143,7 +143,10 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     })
     h.triggerClose()
     expect(orch.connectionStateSignal()()).toBe("disconnected")
-    await sleep(50)
+    // The first GUI attempt carries up to 400ms of jitter (so concurrent
+    // GUIs don't all probe a cold-starting daemon at the same instant);
+    // wait past that window rather than assuming an immediate retry.
+    await sleep(600)
     expect(ensureCalls).toBe(1)
     expect(h.helloCount()).toBe(1)
     expect(orch.connectionStateSignal()()).toBe("online")
@@ -161,7 +164,8 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     })
 
     h.triggerClose()
-    await sleep(800)
+    // jitter (≤400ms) + the failed first attempt's 500ms backoff.
+    await sleep(1400)
 
     expect(ensureCalls).toBe(2)
     expect(h.helloCount()).toBe(1)
@@ -175,5 +179,85 @@ describe("RemoteOrchestrator auto-reconnect", () => {
     h.triggerClose()
     await sleep(800)
     expect(h.helloCount()).toBe(0) // disposed → loop bails before any attempt
+  })
+})
+
+/**
+ * Issue #96. A GUI whose own install has been deleted cannot ever bring a
+ * daemon up: `ensureReachable` fails identically on every attempt. The loop
+ * used to retry it forever — the owner had a GUI two days into that, logging
+ * the same resolution failure and looking, from the UI, exactly like a client
+ * that was about to reconnect.
+ *
+ * Stopping is also the SAFE direction. PR #733 established that a client
+ * which cannot spawn must not keep pressure on a healthy daemon; a client
+ * that can NEVER spawn is the extreme of that case.
+ */
+describe("RemoteOrchestrator on a stale install", () => {
+  // Same isolation as the suite above: the loop's error logging writes to
+  // client.log, which must never land in the real ~/.rove.
+  let home: string
+  const prev = process.env.KOBE_HOME_DIR
+
+  beforeEach(async () => {
+    home = await mkdtemp(join(tmpdir(), "kobe-orch-stale-"))
+    process.env.KOBE_HOME_DIR = home
+  })
+
+  afterEach(async () => {
+    // biome-ignore lint/performance/noDelete: env must fully unset when it was unset pre-test (assigning undefined leaves the string "undefined").
+    if (prev === undefined) delete process.env.KOBE_HOME_DIR
+    else process.env.KOBE_HOME_DIR = prev
+    await rm(home, { recursive: true, force: true })
+  })
+
+  /** Shaped like the real one: `isStaleInstallError` keys on `name`, so a
+   *  bare Error here would not be recognized — which is the point. */
+  function staleInstallError(): Error {
+    const err = new Error("rove: this process is running from an install that no longer exists on disk")
+    err.name = "StaleInstallError"
+    return err
+  }
+
+  it("stops retrying, and says so, instead of failing forever", async () => {
+    const h = fakeClient()
+    let ensureCalls = 0
+    const orch = new RemoteOrchestrator(h.client, {
+      role: "gui",
+      ensureReachable: async () => {
+        ensureCalls++
+        throw staleInstallError()
+      },
+    })
+    expect(orch.staleInstallSignal()()).toBe(null)
+
+    h.triggerClose()
+    // Long enough for several ordinary retries: jitter (≤400ms) plus the
+    // 500ms → 1000ms → 2000ms backoff would be at least four attempts.
+    await sleep(2500)
+
+    // Once. Not "fewer" — a second attempt would resolve the same missing
+    // path and is pure waste.
+    expect(ensureCalls).toBe(1)
+    expect(h.helloCount()).toBe(0)
+    // And it is now VISIBLE. Silence here is the actual bug: the client
+    // looked like it was reconnecting for two days.
+    expect(orch.staleInstallSignal()()).toContain("no longer exists on disk")
+  })
+
+  it("still retries an ordinary spawn failure — the two must not be conflated", async () => {
+    const h = fakeClient()
+    let ensureCalls = 0
+    const orch = new RemoteOrchestrator(h.client, {
+      role: "gui",
+      ensureReachable: async () => {
+        ensureCalls++
+        if (ensureCalls === 1) throw new Error("daemon did not start (or stayed wedged)")
+      },
+    })
+    h.triggerClose()
+    await sleep(1400)
+    expect(ensureCalls).toBe(2) // retried, recovered
+    expect(orch.staleInstallSignal()()).toBe(null) // and never flagged
   })
 })

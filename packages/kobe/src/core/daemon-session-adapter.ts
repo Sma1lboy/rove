@@ -3,6 +3,7 @@ import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
+  ComposerBusyError,
   deliverToHostedKey,
   ensureHostedEngine,
   ensureHostedSessionHost,
@@ -13,6 +14,7 @@ import {
   openHostedSessionHost,
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
+import { engineEntry } from "../engine/registry.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
@@ -45,7 +47,10 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
     // so a missed paste leaves an idle prompt, not a failed session.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
-      await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage).catch(() => false)
+      await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
+        initMarkerPath: launch.initMarkerPath,
+        initTimeoutMs: launch.initTimeoutMs,
+      }).catch(() => false)
     }
   } finally {
     host.close()
@@ -69,6 +74,12 @@ export async function startTaskSessionWithPromptAdapter(
   prompt: string,
 ): Promise<boolean> {
   const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
+  // Learn the user's language from their own first prompt, so the text Rove
+  // injects LATER — when no user message is in hand (a quota resume fired by
+  // a timer) — comes out in the language they actually write. Best-effort:
+  // this is an observation, and failing to record it must never block the
+  // session it was observed from.
+  await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
   // "new-task", not "explicit": both callers (automation runner, work-item
   // start) create the task right before this call, so the first prompt gets
   // the branch-rename coda like every other new-worktree entry point.
@@ -82,7 +93,11 @@ export async function startTaskSessionWithPromptAdapter(
     // lands means the prompt was not delivered — report false.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
-      return await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage)
+      const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
+        initMarkerPath: launch.initMarkerPath,
+        initTimeoutMs: launch.initTimeoutMs,
+      })
+      return outcome !== null
     }
     return true
   } finally {
@@ -134,10 +149,61 @@ export async function deliverPromptToLiveEngineAdapter(
     const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor })[0]
     const key = findHostedEngineKey(sessions, task.id, engineBin)
     if (!key) return false
-    const delivered = await deliverToHostedKey(host.rpc, key, prompt)
-    return delivered
-  } catch {
+    const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
+    return (await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })) !== null
+  } catch (err) {
+    // Composer-busy is not a silent failure: let the quota-resume runner log
+    // it instead of dropping the prompt without a trace.
+    if (err instanceof ComposerBusyError) throw err
     return false
+  } finally {
+    host.close()
+  }
+}
+
+/** The tab a hosted session key names (`<taskId>::<tabId>`), default tab-1. */
+function tabIdFromHostedKey(key: string): string {
+  return key.split("::")[1] ?? "tab-1"
+}
+
+/**
+ * {@link deliverPromptToLiveEngineAdapter} reporting composer-busy as a VALUE.
+ *
+ * The routine runner (issue #91) must not drop a daily report the way
+ * quota-resume drops a continue nudge: a dropped report and a routine that
+ * never ran look identical to the user. It needs the busy layer and the tab
+ * to file a deferral, and the daemon cannot catch `ComposerBusyError` by type
+ * across the package boundary — so the outcome crosses as data.
+ */
+export async function deliverPromptToLiveEngineDetailedAdapter(
+  task: { readonly id: string; readonly vendor?: VendorId; readonly command?: string; readonly worktreePath: string },
+  prompt: string,
+): Promise<
+  | { outcome: "delivered"; tabId: string }
+  | { outcome: "no-session" }
+  | { outcome: "busy"; tabId: string; layer: "recent-human-write" | "composer-not-empty" }
+> {
+  const host = await openHostedSessionHost()
+  if (!host) return { outcome: "no-session" }
+  try {
+    const sessions = await listHostedSessions(host.rpc)
+    const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor })[0]
+    const key = findHostedEngineKey(sessions, task.id, engineBin)
+    if (!key) return { outcome: "no-session" }
+    const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
+    try {
+      const delivered = await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })
+      return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
+    } catch (err) {
+      if (err instanceof ComposerBusyError) {
+        return { outcome: "busy", tabId: tabIdFromHostedKey(key), layer: err.layer }
+      }
+      throw err
+    }
+  } catch {
+    // A host that went away mid-delivery is indistinguishable from one that
+    // was never there — both mean "revive it", which is the caller's fallback.
+    return { outcome: "no-session" }
   } finally {
     host.close()
   }

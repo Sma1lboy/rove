@@ -1,5 +1,6 @@
-/** PtyHost's public contract types — split from `pty-host.ts` for the
- *  file-size cap; behavior and ownership stay with the host. */
+/** PtyHost's public contract types. Their own module so a caller can name what
+ *  it sends the host without importing the host itself — behavior and
+ *  ownership stay there; this is only the vocabulary. */
 
 import { StringDecoder } from "node:string_decoder"
 import type { DaemonFrame, PtySessionExit } from "./protocol.ts"
@@ -91,6 +92,10 @@ export interface PtySessionState {
   restored: boolean
   /** Freeze bookkeeping: output/exit drift since the last persisted snapshot. */
   lastFreezeAtMs: number
+  /** Epoch ms of the most recent write that originated from an attached
+   *  client (a human typing). Zero means "never seen a human write". Used by
+   *  the delivery gate to refuse auto-pastes while the user is composing. */
+  lastHumanWriteMs: number
 }
 
 /** Durable-snapshot sink the host reports freezeable moments to. */
@@ -111,6 +116,9 @@ export interface PtyHostOptions {
   readonly scrollbackCap?: number
   /** How children spawn. Default Bun's; the Windows host injects node-pty's. */
   readonly driver?: PtyDriver
+  /** Grace after an attached-client write during which headless delivery is
+   *  blocked. Defaults to `KOBE_PTY_HUMAN_WRITE_QUIET_MS` or 10s. */
+  readonly humanWriteQuietMs?: number
   readonly log?: (event: string, message: string) => void
 }
 
@@ -139,5 +147,6 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     exit: null,
     restored: false,
     lastFreezeAtMs: 0,
+    lastHumanWriteMs: 0,
   }
 }

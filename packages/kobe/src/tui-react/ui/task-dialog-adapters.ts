@@ -30,7 +30,8 @@ export function taskDialogAdapters(dialog: DialogContext): {
   ) => ReturnType<typeof NewTaskDialog.show>
 } {
   return {
-    confirm: async (p) => (await DialogConfirm.show(dialog, p.title, p.body, p.cancelLabel, p.confirmLabel)) === true,
+    confirm: async (p) =>
+      (await DialogConfirm.show(dialog, p.title, p.body, p.cancelLabel, p.confirmLabel, { danger: p.danger })) === true,
     promptText: (initial, opts) => RenameTaskDialog.show(dialog, initial, opts),
     promptNewTask: (defaultRepo, repos, opts) => NewTaskDialog.show(dialog, defaultRepo, repos, opts),
   }
@@ -44,8 +45,8 @@ export const vendorPrefAdapters = {
 
 /**
  * `onTaskDeleted` — move the host's cursor off a deleted task: prefer the
- * flow-computed next task, else the first non-archived task, else the first
- * row, else clear. No-op when the deleted task wasn't the cursor.
+ * flow-computed next task, else the first remaining task, else clear. No-op
+ * when the deleted task wasn't the cursor.
  */
 export function selectNextAfterDelete(args: {
   readonly tasks: () => readonly Task[]
@@ -55,7 +56,7 @@ export function selectNextAfterDelete(args: {
   return (taskId, nextTask) => {
     if (args.selectedId() !== taskId) return
     const remaining = args.tasks()
-    args.setSelectedId(nextTask?.id ?? (remaining.find((t) => !t.archived) ?? remaining[0])?.id ?? null)
+    args.setSelectedId(nextTask?.id ?? remaining[0]?.id ?? null)
   }
 }
 

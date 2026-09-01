@@ -22,7 +22,7 @@ import type { VerbContext, VerbSpec } from "./types.ts"
 const DEFAULT_SINCE_DAYS = 7
 
 export interface TaskDigest {
-  /** Tasks touched inside the window (by `updatedAt`), archived included. */
+  /** Tasks touched inside the window (by `updatedAt`). */
   readonly total: number
 }
 
@@ -99,6 +99,7 @@ export async function digest(ctx: VerbContext): Promise<unknown> {
 /** Spec half of the digest verb — spread into {@link VERBS} in `verbs.ts`. */
 export const DIGEST_VERB: VerbSpec = {
   name: "digest",
+  group: "read",
   summary:
     "Aggregate a repo's recent agent work: tasks touched in the window plus routine run outcomes. Reads state Rove already persists — the measurement any workflow change has to move.",
   flags: [

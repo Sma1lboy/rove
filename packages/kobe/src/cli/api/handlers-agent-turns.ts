@@ -73,6 +73,7 @@ async function agentTurns(ctx: VerbContext): Promise<unknown> {
 
 export const AGENT_TURNS_VERB: VerbSpec = {
   name: "agent-turns",
+  group: "read",
   summary:
     "Per-turn agent telemetry: one record per completed engine turn (task/tab/vendor/model/timings/tokens), newest first, plus totals. Engine-produced, daemon-stored; read-only.",
   flags: [

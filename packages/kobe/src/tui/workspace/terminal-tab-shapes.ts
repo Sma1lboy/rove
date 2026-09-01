@@ -1,9 +1,13 @@
 /**
  * The tab SHAPES — `TabBase` and the three `kind`-discriminated variants
- * that make up {@link TerminalTab}. Split out of `terminal-tabs-core.ts`
- * (which owns the pure state transitions) for the file-size cap, the same
- * way the split-tree and argv helpers already were; core re-exports these
- * so existing importers keep one entry point.
+ * that make up {@link TerminalTab}.
+ *
+ * The seam is data vs. behavior: this file declares what a tab IS,
+ * `terminal-tabs-core.ts` declares what happens TO the list of them. That
+ * makes it the file everything else can depend on without depending on the
+ * transitions — the split tree, argv composition and the component all need
+ * the shapes, and none of them should be pulling in tab-list logic to get
+ * them. Core re-exports these so importers still have one entry point.
  *
  * Types only — no runtime code, so the core↔shapes pair is erased at build
  * time and can never become an import cycle.

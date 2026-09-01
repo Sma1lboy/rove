@@ -59,7 +59,9 @@ const browser = await chromium.launch({ headless: true })
 try {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor })
   const webgl = args.includes("--webgl") ? "&webgl=1" : ""
-  await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${webgl}`).catch(() => {
+  const wp = args.find((a) => a.startsWith("--wallpaper="))?.slice(12)
+  const wallpaper = wp ? `&wallpaper=${encodeURIComponent(wp)}` : ""
+  await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${webgl}${wallpaper}`).catch(() => {
     throw new Error(`no server on :${HERO_WEB_PORT} — start \`bun e2e/hero-serve.ts\` first`)
   })
   await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })

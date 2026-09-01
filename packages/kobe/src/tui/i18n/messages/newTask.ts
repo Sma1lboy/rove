@@ -21,6 +21,14 @@ export const en = {
     folderName: "folder name",
     baseBranch: "base branch",
     adoptFilter: "filter (path glob)",
+    /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
+    opens: "opens",
+  },
+
+  /** Existing-tab intent labels (issue #90). */
+  intent: {
+    task: "a new task worktree",
+    project: "the project itself",
   },
 
   placeholder: {
@@ -40,6 +48,11 @@ export const en = {
   picker: {
     moreAbove: "↑ {count} more",
     moreBelow: "↓ {count} more",
+  },
+
+  /** "Open the project" failures (issue #90). {error} is the daemon's message. */
+  open: {
+    failed: "Couldn't open the project: {error}",
   },
 
   adopt: {
@@ -76,6 +89,8 @@ export const en = {
     targetExists: "target already exists: {path}",
     cloneFailed: "git clone failed: {error}",
     noAdoptable: "no adoptable worktrees to import",
+    /** Two saved repos share this basename — the name alone can't pick one. */
+    repoAmbiguous: "more than one saved repo is named {name} — pick the one you mean from the list",
   },
 }
 
@@ -97,6 +112,14 @@ export const zh: typeof en = {
     folderName: "文件夹名",
     baseBranch: "基准分支",
     adoptFilter: "过滤（路径 glob）",
+    /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
+    opens: "打开",
+  },
+
+  /** Existing-tab intent labels (issue #90). */
+  intent: {
+    task: "新建任务 worktree",
+    project: "项目本身",
   },
 
   placeholder: {
@@ -116,6 +139,11 @@ export const zh: typeof en = {
   picker: {
     moreAbove: "↑ 还有 {count} 项",
     moreBelow: "↓ 还有 {count} 项",
+  },
+
+  /** "Open the project" failures (issue #90). {error} is the daemon's message. */
+  open: {
+    failed: "无法打开项目：{error}",
   },
 
   adopt: {
@@ -152,5 +180,7 @@ export const zh: typeof en = {
     targetExists: "目标路径已存在：{path}",
     cloneFailed: "git clone 失败：{error}",
     noAdoptable: "没有可接管的 worktree",
+    /** Two saved repos share this basename — the name alone can't pick one. */
+    repoAmbiguous: "有多个已保存仓库都叫 {name} — 请从列表中选择你要的那个",
   },
 }

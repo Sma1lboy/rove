@@ -11,7 +11,7 @@ import { TextAttributes } from "@opentui/core"
 import { relativeAgeMs } from "../../../tui/history/message-core"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { type PluginSettingRowView, isBooleanOn } from "./plugin-settings-core"
+import { type PluginSettingRowView, displaySettingValue, isBooleanOn } from "./plugin-settings-core"
 import type { PluginRowView } from "./plugins-core"
 import type { SectionCursorProps } from "./rows"
 
@@ -44,7 +44,7 @@ function SettingRow(props: { setting: PluginSettingRowView; cursor: boolean; onA
       ? isBooleanOn(setting.value)
         ? t("settings.general.on")
         : t("settings.general.off")
-      : setting.value || t("settings.plugins.settingUnset")
+      : displaySettingValue(setting) || t("settings.plugins.settingUnset")
   return (
     <box
       flexDirection="row"
@@ -134,25 +134,44 @@ export function PluginSettingsSection(
                 <box flexDirection="row" gap={1} paddingLeft={5} paddingRight={1}>
                   <text fg={plugin.declares ? theme.textMuted : theme.warning} wrapMode="none">
                     {plugin.declares
-                      ? t("settings.plugins.declares", {
-                          actions: String(plugin.declares.actions),
-                          events: String(plugin.declares.events),
-                          panes: String(plugin.declares.panes),
-                        })
+                      ? plugin.declares.engines > 0
+                        ? t("settings.plugins.declaresWithEngines", {
+                            actions: String(plugin.declares.actions),
+                            events: String(plugin.declares.events),
+                            panes: String(plugin.declares.panes),
+                            engines: String(plugin.declares.engines),
+                          })
+                        : t("settings.plugins.declares", {
+                            actions: String(plugin.declares.actions),
+                            events: String(plugin.declares.events),
+                            panes: String(plugin.declares.panes),
+                          })
                       : t("settings.plugins.manifestUnreadable")}
                   </text>
-                  <text fg={plugin.lastRun?.ok === false ? theme.error : theme.textMuted} wrapMode="none">
-                    {plugin.lastRun
-                      ? t("settings.plugins.lastRun", {
-                          label: plugin.lastRun.label,
-                          status: plugin.lastRun.ok
-                            ? t("settings.plugins.runOk")
-                            : plugin.lastRun.spawnError
-                              ? t("settings.plugins.runFailed")
-                              : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
-                          ago: relativeAgeMs(plugin.lastRun.at, now),
-                        })
-                      : t("settings.plugins.neverRun")}
+                  <text
+                    fg={
+                      !plugin.platformOk ? theme.warning : plugin.lastRun?.ok === false ? theme.error : theme.textMuted
+                    }
+                    wrapMode="none"
+                  >
+                    {!plugin.platformOk
+                      ? t("settings.plugins.unsupportedPlatform")
+                      : plugin.lastRun
+                        ? t("settings.plugins.lastRun", {
+                            label: plugin.lastRun.label,
+                            status: plugin.lastRun.ok
+                              ? t("settings.plugins.runOk")
+                              : plugin.lastRun.spawnError
+                                ? t("settings.plugins.runFailed")
+                                : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
+                            ago: relativeAgeMs(plugin.lastRun.at, now),
+                          })
+                        : // "never run" only means something when the plugin
+                          // declares commands that could have run; a
+                          // panes/settings/engines-only plugin is quiet by design.
+                          plugin.hooksDeclared
+                          ? t("settings.plugins.neverRun")
+                          : t("settings.plugins.noHooks")}
                   </text>
                 </box>
                 {plugin.settings.map((setting, s) => (

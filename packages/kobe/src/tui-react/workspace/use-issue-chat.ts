@@ -105,9 +105,13 @@ export function useIssueChat(
     // Vendor lands on the task for future tabs; the story flip is
     // best-effort (a status write must not strand the chat).
     await orch.setVendor(main.id, vendor)
-    await orch
-      .mutateIssue(repoRoot, { type: "setStatus", id: issue.id, status: "doing" })
-      .catch((err: unknown) => console.error("[rove kanban] issue setStatus failed:", err))
+    await orch.mutateIssue(repoRoot, { type: "setStatus", id: issue.id, status: "doing" }).catch((err: unknown) => {
+      // Best-effort by design — a refused status write must not strand the
+      // chat. But "not fatal" isn't "not worth saying": the card silently
+      // stays in Backlog while its session runs.
+      console.error("[rove kanban] issue setStatus failed:", err)
+      hooks.notifyError(t("kanban.statusFailed", { id: String(issue.id), error: errorMessage(err) }))
+    })
     const { tab } = appendBackgroundEngineTab(kv, main.id, defaultShell(), { vendor })
     const spawn = buildIssueTabSpawn({
       taskId: main.id,
@@ -135,9 +139,13 @@ export function useIssueChat(
     setRepoLastActiveVendor(repoRoot, vendor)
     addSavedRepo(repoRoot)
     const task = await orch.createTask({ repo: repoRoot, title: issueChatTaskTitle(issue), vendor })
-    await orch
-      .mutateIssue(repoRoot, { type: "link", id: issue.id, taskId: task.id })
-      .catch((err: unknown) => console.error("[rove kanban] issue link failed:", err))
+    await orch.mutateIssue(repoRoot, { type: "link", id: issue.id, taskId: task.id }).catch((err: unknown) => {
+      // Also best-effort: the task exists and runs either way. Unsaid, the
+      // story just never grows its `linked to a session` badge and the
+      // drawer's "open the linked session" never appears.
+      console.error("[rove kanban] issue link failed:", err)
+      hooks.notifyError(t("kanban.linkFailed", { id: String(issue.id), error: errorMessage(err) }))
+    })
     const worktreePath = await orch.ensureWorktree(task.id)
     const spawn = buildIssueChatBackgroundSpawn({ issue, taskId: task.id, repoRoot, worktreePath, vendor, api })
     getDefaultPtyRegistry().acquire(spawn.ptyKey, worktreePath, {

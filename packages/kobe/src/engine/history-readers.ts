@@ -1,6 +1,11 @@
 /**
- * The per-vendor {@link EngineHistoryReader} implementations, split out of
- * `registry.ts` (file-size cap). Each is a thin adapter over its vendor's
+ * The per-vendor {@link EngineHistoryReader} implementations.
+ *
+ * Their own module because `registry.ts` declares the CONTRACT every engine
+ * must satisfy while this file holds the vendor-specific mess of satisfying
+ * it — and only this half grows when a vendor changes its on-disk transcript
+ * format. Adding an engine touches the registry's table; a vendor rearranging
+ * its store touches only here. Each is a thin adapter over its vendor's
  * `*-local/history.ts` module, normalizing store quirks to the registry's
  * contract — nothing else in the tree should import these directly; go
  * through `engineEntry(vendor).history`.
@@ -50,6 +55,7 @@ export const claudeHistoryReader: EngineHistoryReader = {
     return [...files].sort((a, b) => a.mtimeMs - b.mtimeMs).map((f) => f.sessionId)
   },
   readHistory: (sessionId) => claudeHistory.readHistory(sessionId),
+  readUsageSnapshot: (sessionId) => claudeHistory.readUsageSnapshot(sessionId),
   async transcriptPath(sessionId, worktree) {
     const files = await claudeHistory.listSessionFilesForWorktree(worktree)
     return files.find((f) => f.sessionId === sessionId)?.path ?? null
@@ -61,6 +67,7 @@ export const claudeHistoryReader: EngineHistoryReader = {
 export const codexHistoryReader: EngineHistoryReader = {
   listSessionIdsForWorktree: (worktree) => codexHistory.listSessionIdsForWorktree(worktree),
   readHistory: (sessionId) => codexHistory.readHistory(sessionId),
+  readUsageSnapshot: async (sessionId) => (await codexHistory.readHistoryWithMetrics(sessionId)).usageMetrics,
   // The rollout filename embeds the UUID; the store is date-keyed, not
   // worktree-keyed, so the worktree argument is unused here.
   transcriptPath: async (sessionId) => (await codexHistory.findRolloutFile(sessionId)) ?? null,
@@ -70,6 +77,7 @@ export const codexHistoryReader: EngineHistoryReader = {
 export const copilotHistoryReader: EngineHistoryReader = {
   listSessionIdsForWorktree: (worktree) => copilotHistory.listSessionIdsForWorktree(worktree),
   readHistory: (sessionId) => copilotHistory.readHistory(sessionId),
+  readUsageSnapshot: async (sessionId) => (await copilotHistory.readHistoryWithMetrics(sessionId)).usageMetrics,
   // Each session is a dir holding the `events.jsonl` this reader already
   // parses — so the handoff has a file to name (the earlier "not mapped to
   // a per-session file" note predated `findSessionDir`).

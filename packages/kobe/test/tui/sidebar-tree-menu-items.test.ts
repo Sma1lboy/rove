@@ -22,7 +22,6 @@ function task(over: Partial<Task> = {}): Task {
     worktreePath: "/wt/a",
     kind: "task",
     status: "in_progress",
-    archived: false,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...over,
@@ -36,21 +35,42 @@ const tabRow: TreeRow = { kind: "tab", id: "a::tab-2", task: task(), tab: { id: 
 const actions = (row: TreeRow, ctx = {}) => treeMenuItems(row, ctx).map((item) => item.action)
 
 describe("treeMenuItems", () => {
-  test("a project header only offers New task", () => {
-    expect(actions(projectRow)).toEqual(["newTask"])
+  test("a project header offers New task and Remove project", () => {
+    // Both mirror a chord the row already answers to — `d` on a project row
+    // has always routed to `forgetProject` behind a confirm; the menu was
+    // simply missing it.
+    expect(actions(projectRow)).toEqual(["newTask", "forgetProject"])
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {
-    expect(actions(worktreeRow())).toEqual([
+    expect(actions(worktreeRow())).toEqual(["open", "newChat", "newShell", "rename", "pin", "reorder", "delete"])
+  })
+
+  test("a main row (the project's own checkout) is not offered a pin — setPinned silently no-ops on it", () => {
+    const mainRow = worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" })
+    expect(actions(mainRow)).toEqual(["open", "newChat", "newShell", "rename", "reorder", "delete"])
+    const mainTab: TreeRow = {
+      kind: "tab",
+      id: "a::tab-2",
+      task: task({ kind: "main", branch: "", worktreePath: "/repos/rove" }),
+      tab: { id: "tab-2", label: "tab 2" },
+      depth: 2,
+    }
+    expect(actions(mainTab, { tabCount: 2 })).toEqual([
       "open",
+      "closeTab",
       "newChat",
       "newShell",
       "rename",
-      "pin",
-      "localMerge",
-      "archive",
+      "reorder",
       "delete",
     ])
+  })
+
+  test("a dir row keeps every verb — pin and title-rename both work there", () => {
+    const dirRow = worktreeRow({ kind: "dir", branch: "" })
+    expect(actions(dirRow)).toContain("pin")
+    expect(actions(dirRow)).toContain("rename")
   })
 
   test("a tab row carries the same session + task verbs, plus its own close", () => {
@@ -61,17 +81,23 @@ describe("treeMenuItems", () => {
       "newShell",
       "rename",
       "pin",
-      "localMerge",
-      "archive",
+      "reorder",
       "delete",
     ])
   })
 
-  test("the LAST tab is not offered a close (closeTab would refuse it)", () => {
-    expect(actions(tabRow, { tabCount: 1 })).not.toContain("closeTab")
-    // …but it can still start a new session, which is what makes the refusal
-    // reachable in the first place.
+  test("the LAST tab IS offered a close (owner call 2026-08-31)", () => {
+    // Closing it leaves the task with no sessions; its sidebar row stays and
+    // re-opens on ⏎ / ctrl+e. The entry used to be withheld because closeTab
+    // refused the last tab, which is no longer true.
+    expect(actions(tabRow, { tabCount: 1 })).toContain("closeTab")
     expect(actions(tabRow, { tabCount: 1 })).toContain("newChat")
+  })
+
+  test("a tab row with NO known tabs is offered no close", () => {
+    // `tabCount` 0 means the count could not be read; offering an action that
+    // names nothing is the entry-that-does-nothing this module rules out.
+    expect(actions(tabRow, { tabCount: 0 })).not.toContain("closeTab")
   })
 
   test("pin reads the task's own state", () => {
