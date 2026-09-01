@@ -127,6 +127,23 @@ test("a tab the task does not have reports failure", () => {
   expect(closeTaskTab(fakeKv(), "t1", "tab-9")).toBe(false)
 })
 
+test("a mounted task does not claim a tab id it does not have", () => {
+  tabsByTask.clear()
+  tabsByTask.set("t1", state(["tab-1"]))
+  const claimed: string[] = []
+  const listener = () => {
+    const id = takeTabClose("t1")
+    if (id) claimed.push(id)
+  }
+  tabActivationListeners.add(listener)
+  try {
+    expect(closeTaskTab(fakeKv(), "t1", "tab-9")).toBe(false)
+  } finally {
+    tabActivationListeners.delete(listener)
+  }
+  expect(claimed).toEqual([])
+})
+
 test("a task with only a restart snapshot still closes", () => {
   // The tree lists tabs for worktrees that have not mounted since restart —
   // those live in kv, not the module map.

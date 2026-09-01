@@ -254,6 +254,11 @@ export type DaemonRequestName =
   // The inverse: publish a `tab.close` channel event asking the TUI hosting
   // the task to close panes previously opened under a title.
   | "tab.close"
+  // Exact Terminal Tab lifecycle: ask an attached TUI to run its normal
+  // ctrl+w close path, then acknowledge whether it owned the tab. The CLI
+  // falls back to the standalone PTY Host when nobody confirms.
+  | "terminalTab.close"
+  | "terminalTab.closeReply"
   // Broadcast one toast to every attached UI over the `notice.event`
   // channel (`kobe api notify`). The daemon only validates + publishes.
   | "notice.send"

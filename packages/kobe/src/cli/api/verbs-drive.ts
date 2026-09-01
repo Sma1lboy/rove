@@ -10,7 +10,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { PANE_CLOSE_VERB, PANE_VERB } from "./handlers-pane.ts"
+import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -79,6 +79,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
   },
   PANE_VERB,
   PANE_CLOSE_VERB,
+  TAB_CLOSE_VERB,
   {
     name: "notify",
     group: "drive",

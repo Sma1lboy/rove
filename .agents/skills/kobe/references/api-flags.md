@@ -85,6 +85,7 @@ note        --task-id(REQ) --text(REQ)
 note-list   --repo(REQ)
 pane-open   --command --task-id --tab --direction[right|down] --placement[split|tab] --title
 pane-close  --title(REQ) --task-id --tab
+tab-close   --task-id(REQ) --tab(REQ)
 notify      --title(REQ) --kind --task-id --source
 prompt      --title(REQ) --placeholder --initial --timeout
 set-active  --task-id | --none
@@ -105,6 +106,12 @@ treatment and an unread mark, anything else renders neutrally.
 
 `pane-open --command` runs through the login shell's `-ilc`, so pipes and
 your rc's PATH work.
+
+`tab-close` names one exact Terminal Tab from `get-task .tabs[].id`. Unlike
+`pane-close`, it also works headless: it removes the persisted tab snapshot
+and ends that tab's hosted PTYs. It accepts engine, shell/command, and content
+tabs; closing the last tab leaves the task open with no session. A missing or
+already-closed id returns `TAB_NOT_FOUND` and points back to `get-task`.
 
 ## create / edit / lifecycle
 

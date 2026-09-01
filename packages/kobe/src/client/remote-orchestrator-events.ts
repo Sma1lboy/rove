@@ -324,7 +324,14 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
   }
   if (name === "tab.close") {
     const p = payload as Partial<TabClosePayload> | undefined
-    if (typeof p?.taskId !== "string" || typeof p.at !== "number" || typeof p.title !== "string") {
+    const terminalTab = p && "kind" in p && p.kind === "terminal-tab"
+    const valid = terminalTab
+      ? typeof p.taskId === "string" &&
+        typeof p.tabId === "string" &&
+        typeof p.requestId === "string" &&
+        typeof p.at === "number"
+      : typeof p?.taskId === "string" && typeof p.at === "number" && "title" in p && typeof p.title === "string"
+    if (!valid) {
       logClientError("orch", `dropped tab.close event: malformed payload (${describePayload(payload)})`)
       return
     }

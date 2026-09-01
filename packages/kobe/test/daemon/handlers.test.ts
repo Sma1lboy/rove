@@ -82,6 +82,8 @@ describe("daemon handler registry", () => {
       "ui.promptReply",
       "tab.open",
       "tab.close",
+      "terminalTab.close",
+      "terminalTab.closeReply",
       "notice.send",
       "note.file",
       "note.list",
@@ -181,6 +183,33 @@ describe("daemon handler registry", () => {
       await dispatch("tab.close", { taskId: "t1", title: "demo", tabId: "tab-3" }, ctx)
       const event = rec.published[0] as { payload: Record<string, unknown> }
       expect(event.payload.tabId).toBe("tab-3")
+    })
+  })
+
+  describe("terminalTab.close", () => {
+    it("waits for an attached TUI to confirm the exact tab close", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
+      const pending = dispatch("terminalTab.close", { taskId: "t1", tabId: "tab-3" }, ctx)
+      const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
+      expect(event.channel).toBe("tab.close")
+      expect(event.payload).toMatchObject({ kind: "terminal-tab", taskId: "t1", tabId: "tab-3" })
+      const requestId = event.payload.requestId as string
+      expect(await dispatch("terminalTab.closeReply", { requestId, closed: true }, ctx)).toEqual({ ok: true })
+      expect(await pending).toEqual({ ok: true, handled: true })
+      expect(await dispatch("terminalTab.closeReply", { requestId, closed: true }, ctx)).toEqual({ ok: false })
+    })
+
+    it("returns immediately for headless callers and rejects an unknown task", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
+      ;(ctx.daemon as { guiCount: () => number }).guiCount = () => 0
+      await expect(dispatch("terminalTab.close", { taskId: "t1", tabId: "tab-1" }, ctx)).resolves.toEqual({
+        ok: true,
+        handled: false,
+      })
+      expect(rec.published).toHaveLength(0)
+      await expect(dispatch("terminalTab.close", { taskId: "missing", tabId: "tab-1" }, ctx)).rejects.toThrow(
+        /task not found/,
+      )
     })
   })
 

@@ -11,6 +11,7 @@ import {
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
 } from "@sma1lboy/kobe-daemon/daemon/server"
+import { TabCloseBroker } from "@sma1lboy/kobe-daemon/daemon/tab-close-broker"
 import type { WorkItemCache } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import type { Orchestrator } from "../../src/orchestrator/core.ts"
@@ -146,6 +147,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     // Never hits `gh`: work-item behavior has its own suite.
     workItems: { list: async () => [], clear: () => {} } as unknown as WorkItemCache,
     selfLink: { request: async () => ({}) } as unknown as DaemonRpcClient,
+    tabCloses: new TabCloseBroker(),
     daemon: {
       startedAt: new Date("2026-06-01T00:00:00.000Z"),
       socketPath: "/tmp/fake/daemon.sock",

@@ -11,6 +11,7 @@ import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-prese
 
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
+import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
 // Kept for existing callers in this directory; new callers should import from
@@ -27,6 +28,7 @@ import {
 } from "./pty-delivery.ts"
 import {
   type TaskSessionRow,
+  closeTabsSnapshot,
   hasLiveEngineTab,
   joinTaskTabs,
   markCliTabSession,
@@ -152,6 +154,47 @@ const realPromptDeliveryOps: PromptDeliveryOps = {
   deliverHosted: (target, worktree, prompt, defer) => deliverHosted(target, worktree, prompt, defer),
 }
 
+/** Headless half of ctrl+w: remove the persisted tab, then end every hosted
+ * PTY the tab owns. Attached TUIs run their existing close path instead. */
+async function closeHeadlessTerminalTab(
+  taskId: string,
+  tabId: string,
+): Promise<{ kind: TerminalTab["kind"]; wasAlive: boolean }> {
+  const host = await openPtyHost()
+  try {
+    const sessions = host ? await listSessions(host.rpc) : []
+    const snapshot = readTabsSnapshot(taskId)
+    const saved = snapshot?.tabs.find((tab) => tab.id === tabId)
+    const directKey = `${taskId}::${tabId}`
+    const unregisteredAlive = sessions.some((session) => session.key === directKey && session.alive)
+    if (!saved && !unregisteredAlive) {
+      throw new ApiError(`tab ${tabId} does not exist on task ${taskId}`, "TAB_NOT_FOUND", {
+        hint: "refresh the task's tab ids with get-task, then retry with one of its .tabs[].id values",
+        nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+      })
+    }
+
+    const closing = saved ? closeTabsSnapshot(taskId, tabId) : undefined
+    if (saved && !closing) {
+      throw new ApiError(`tab ${tabId} no longer exists on task ${taskId}`, "TAB_NOT_FOUND", {
+        hint: "the tab closed while this command was running; refresh with get-task before retrying",
+        nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+      })
+    }
+
+    const baseKey = closing ? tabPtyKeyFor(taskId, closing) : directKey
+    const ownsBase = !(closing?.kind === "engine" && closing.ptyTask)
+    const keys = sessions
+      .filter((session) => (ownsBase && session.key === baseKey) || session.key.startsWith(`${baseKey}::`))
+      .map((session) => session.key)
+    const wasAlive = sessions.some((session) => keys.includes(session.key) && session.alive)
+    if (host) await killTaskSessions(host.rpc, keys)
+    return { kind: closing?.kind ?? "engine", wasAlive }
+  } finally {
+    host?.close()
+  }
+}
+
 export async function deliverPrompt(
   client: DaemonRpc,
   target: PromptTarget,
@@ -239,6 +282,7 @@ export const defaultApiRuntime: ApiRuntime = {
       running: hasLiveEngineTab(snapshot, taskId, sessions),
     }
   },
+  closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   defaultVendor: async (repo) => {

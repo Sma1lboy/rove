@@ -66,6 +66,7 @@ import {
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import type { TabCloseBroker } from "./tab-close-broker.ts"
 import type { TaskDeletionScheduler } from "./task-deletion-runner.ts"
 import type { WorkItemCache } from "./work-items.ts"
 
@@ -121,6 +122,8 @@ export interface DaemonHandlerContext {
   readonly engineEvents?: import("./engine-events-log.ts").EngineEventLog
   /** Pending host-dialog prompts (`ui.prompt` / `ui.promptReply`). */
   readonly prompts?: import("./prompt-broker.ts").PromptBroker
+  /** Pending exact Terminal Tab closes awaiting a TUI acknowledgement. */
+  readonly tabCloses?: TabCloseBroker
   /** Plugin sink for agent-lifecycle events — a direct feed, deliberately NOT a bus channel. */
   readonly plugins?: Pick<import("../plugins/runtime.ts").PluginHost, "handleEngineReport" | "handleUiReport">
   /** Daemon-process facts + lifecycle controls handlers surface or drive. */

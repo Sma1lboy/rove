@@ -20,6 +20,10 @@ interface PtyListResult {
   sessions: Array<{ key: string; alive: boolean; command: string[] }>
 }
 
+interface GetTaskResult {
+  tabs: Array<{ id: string; alive: boolean }>
+}
+
 /**
  * Poll `check` until it reports convergence (returns null) or the deadline
  * passes, then fail with the last observed state. Deletion is deliberately
@@ -74,12 +78,50 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
     expect(sessions).toContainEqual(expect.objectContaining({ key: session, alive: true }))
   }, 30_000)
 
-  it("send reuses the canonical session and delete tears it down", async () => {
+  it("tab-close removes one headless tab and ends only its hosted session", () => {
     const sent = runRove(["api", "send", "--task-id", taskId, "--prompt", "follow-up", "--pretty"], env)
     expect(sent.code, `send failed: stdout=${JSON.stringify(sent.stdout)} stderr=${sent.stderr}`).toBe(0)
     const afterSend = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
     expect(afterSend.sessions.filter((entry) => entry.key === session && entry.alive)).toHaveLength(1)
 
+    const opened = runRove(
+      ["api", "send", "--task-id", taskId, "--tab", "new", "--prompt", "second tab", "--pretty"],
+      env,
+    )
+    expect(opened.code, `new tab failed: stdout=${JSON.stringify(opened.stdout)} stderr=${opened.stderr}`).toBe(0)
+    const secondSession = (JSON.parse(opened.stdout) as AddResult).session
+    expect(secondSession).toBe(`${taskId}::tab-2`)
+
+    const closed = runRove(["api", "tab-close", "--task-id", taskId, "--tab", "tab-2", "--pretty"], env)
+    expect(closed.code, `tab-close failed: stdout=${JSON.stringify(closed.stdout)} stderr=${closed.stderr}`).toBe(0)
+    expect(JSON.parse(closed.stdout)).toMatchObject({
+      ok: true,
+      taskId,
+      tabId: "tab-2",
+      handledBy: "headless",
+      kind: "engine",
+      wasAlive: true,
+    })
+
+    const task = JSON.parse(runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env).stdout) as GetTaskResult
+    expect(task.tabs.map((tab) => tab.id)).toEqual(["tab-1"])
+    const afterClose = JSON.parse(runRove(["api", "pty-list", "--pretty"], env).stdout) as PtyListResult
+    expect(afterClose.sessions.some((entry) => entry.key === secondSession)).toBe(false)
+    expect(afterClose.sessions.some((entry) => entry.key === session && entry.alive)).toBe(true)
+
+    const alreadyClosed = runRove(["api", "tab-close", "--task-id", taskId, "--tab", "tab-2", "--pretty"], env)
+    expect(alreadyClosed.code).toBe(1)
+    const error = JSON.parse(alreadyClosed.stderr) as {
+      error: { code: string; hint: string; nextCommandArgs: string[] }
+    }
+    expect(error.error).toMatchObject({
+      code: "TAB_NOT_FOUND",
+      nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+    })
+    expect(error.error.hint).toContain("get-task")
+  }, 30_000)
+
+  it("delete tears down the remaining session and worktree", async () => {
     const deleted = runRove(["api", "delete", "--task-id", taskId, "--force"], env)
     expect(deleted.code, `delete failed: stdout=${JSON.stringify(deleted.stdout)} stderr=${deleted.stderr}`).toBe(0)
 

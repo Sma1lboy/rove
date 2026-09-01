@@ -322,8 +322,8 @@ export interface TabOpenPayload {
   readonly at: number
 }
 
-/** The `tab.close` channel payload — close panes opened under `title`. */
-export interface TabClosePayload {
+/** The `tab.close` channel's pane-close variant. */
+export interface PaneClosePayload {
   readonly taskId: string
   /** Pane label to close — matches the `title` split leaves / command tabs
    *  were opened with (`tab.open`); engine leaves are never closed. */
@@ -334,6 +334,19 @@ export interface TabClosePayload {
   /** Publish time (ms epoch) — the consumer-side dedupe key. */
   readonly at: number
 }
+
+/** The `tab.close` channel's exact Terminal Tab close variant. */
+export interface TerminalTabClosePayload {
+  readonly kind: "terminal-tab"
+  readonly taskId: string
+  readonly tabId: string
+  /** Correlates the TUI's close result with the waiting CLI request. */
+  readonly requestId: string
+  readonly at: number
+}
+
+/** Pane closes retain their existing wire shape; exact tab closes discriminate by `kind`. */
+export type TabClosePayload = PaneClosePayload | TerminalTabClosePayload
 
 /** The `ui.prompt` channel payload — one host-dialog text-input request. */
 export interface UiPromptPayload {
