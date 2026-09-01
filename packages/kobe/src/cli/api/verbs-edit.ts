@@ -32,7 +32,8 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
   SET_COMMAND_VERB,
   {
     name: "set-status",
-    summary: "Set a task's lifecycle status.",
+    summary:
+      "Set a task's lifecycle LABEL. Cosmetic — the task row, its worktree, its branch and its engine session all stay exactly as they are, so `--status canceled` does NOT close, stop, or clean up anything. To end a task use `delete` (which keeps the git branch).",
     flags: [
       F.taskId(),
       { name: "status", type: "enum", required: true, values: TASK_STATUSES, description: "New status." },
