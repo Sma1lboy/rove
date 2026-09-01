@@ -148,21 +148,24 @@ describe("daemon socket takeover guard", () => {
     try {
       const socketPath = join(dir, "daemon.sock")
       const pidPath = join(dir, "daemon.pid")
-      // Stand in for the live owner's files; the never-armed guard must not
-      // touch either. Plain files, so a stray unlink is unambiguous.
-      writeFileSync(socketPath, "live-owner-socket")
-      writeFileSync(pidPath, "4242\n")
 
       let lost = false
       const guard = createSocketOwnershipGuard({
-        socketPath: join(dir, "absent.sock"), // never existed → arm() cannot stamp
+        socketPath,
         pidPath,
         watchMs: 0,
         onLost: () => {
           lost = true
         },
       })
+      // Arm while the path is ABSENT — the incumbent's socket was already
+      // clobbered in its bind→arm window, so no stamp is recorded.
       await guard.arm()
+      // ...and only THEN does the new owner bind the path and write its pid.
+      // Both files belong to a live daemon now. Plain files, so a stray
+      // unlink is unambiguous.
+      writeFileSync(socketPath, "live-owner-socket")
+      writeFileSync(pidPath, "4242\n")
 
       let unrefs = 0
       let closes = 0
