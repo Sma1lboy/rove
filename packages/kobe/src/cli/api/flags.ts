@@ -6,6 +6,7 @@
  * the table of specs.
  */
 
+import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { expandTilde } from "../../lib/path-home.ts"
 import { getCustomEngineIds } from "../../state/repos.ts"
@@ -79,7 +80,20 @@ export const F = {
     type: "string",
     required,
     placeholder: "TEXT",
-    description: desc,
+    description: `${desc} Required unless --prompt-file is given.`,
+  }),
+  /**
+   * The escape hatch for a prompt the shell would mangle: backticks inside
+   * double quotes are command substitution, so a `--prompt "reply via
+   * `rove api send …`"` RUNS that command and ships its output instead.
+   * Read the text from a file (or stdin as `-`) and no quoting rule applies.
+   */
+  promptFile: (): FlagSpec => ({
+    name: "prompt-file",
+    type: "string",
+    placeholder: "PATH",
+    description:
+      "Read the prompt from this file instead of --prompt (`-` = stdin). Use it whenever the text has backticks, $vars, or quotes you don't want the shell to touch. Exactly one of --prompt / --prompt-file.",
   }),
 }
 
@@ -144,7 +158,9 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
     }
   }
   for (const f of verb.flags) {
-    if (f.required && !flags.get(f.name))
+    // --prompt-file stands in for a required --prompt; `promptText` rejects both at once.
+    const satisfied = flags.get(f.name) || (f.name === "prompt" && flags.get("prompt-file"))
+    if (f.required && !satisfied)
       throw new ApiError(`--${f.name} is required for "${verb.name}"`, "MISSING_FLAG", helpStep(verb.name))
     if (f.type === "enum" && f.values) {
       const raw = flags.get(f.name)
@@ -202,6 +218,23 @@ export class VerbArgs {
   present(name: string): boolean {
     this.spec(name)
     return this.flags.get(name) !== undefined
+  }
+
+  /**
+   * The prompt text from `--prompt` or `--prompt-file` (`-` = stdin), never
+   * both. `undefined` when neither was given — callers that need one wrap
+   * this in their own MISSING_FLAG.
+   */
+  promptText(): string | undefined {
+    const inline = this.str("prompt")
+    const file = this.str("prompt-file")
+    if (inline !== undefined && file !== undefined) {
+      throw new ApiError("pass --prompt or --prompt-file, not both", "BAD_FLAG", helpStep(this.verb.name))
+    }
+    if (file === undefined) return inline
+    const text = readFileSync(file === "-" ? 0 : resolve(process.cwd(), expandTilde(file)), "utf8")
+    if (text.trim().length === 0) throw new ApiError(`--prompt-file ${file} is empty`, "BAD_FLAG")
+    return text
   }
 
   /** Required string value (MISSING_FLAG when absent). */

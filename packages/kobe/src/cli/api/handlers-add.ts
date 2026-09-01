@@ -96,7 +96,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
-  const prompt = args.str("prompt")
+  const prompt = args.promptText()
   if (!prompt) return { taskId, task, started: false }
   // Same provenance prefix `send` carries: a task created from inside another
   // kobe session is agent-to-agent, and its opening brief is where the reply
@@ -172,7 +172,7 @@ async function addParallel(
   const { args } = ctx
   // A parallel round with nothing to deliver would spawn N idle worktrees —
   // the prompt IS the round.
-  const prompt = args.str("prompt")
+  const prompt = args.promptText()
   if (!prompt) {
     throw new ApiError(
       "--count/--agents spawn parallel attempts of ONE prompt — pass --prompt",

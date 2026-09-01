@@ -23,6 +23,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     flags: [
       F.taskId(false),
       F.prompt(true, "Text pasted + submitted into the engine pane."),
+      F.promptFile(),
       {
         name: "tab",
         type: "string",
