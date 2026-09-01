@@ -51,6 +51,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onDeleteRequest: NOOP,
     onRenameRequest: NOOP,
     onPinRequest: NOOP,
+    onSetStatusRequest: NOOP,
     moveMode: false,
     onMoveRequest: NOOP,
     onMoveModeExit: NOOP,

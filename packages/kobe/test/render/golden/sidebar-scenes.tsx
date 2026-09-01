@@ -205,6 +205,24 @@ export const SCENES: readonly Scene[] = [
     }),
   },
   {
+    name: "worktree-status-chip",
+    about:
+      "the human-set board status joins the same right-edge cluster, LEFT of the machine PR chip; backlog/in_progress stay bare",
+    setup: () => seedTabs([]),
+    element: tree({
+      tasks: [
+        // in_review beside a passing PR: the pair the agent protocol produces
+        // (the engine sets in_review, CI reports the branch) and the one place
+        // the two chips must stay readable side by side.
+        task("review", { status: "in_review", prStatus: { checkState: "passing" } as Task["prStatus"] }),
+        task("shipped", { status: "done" }),
+        task("dropped", { status: "canceled" }),
+        task("broke", { status: "error" }),
+        task("quiet", { status: "backlog" }),
+      ],
+    }),
+  },
+  {
     name: "long-labels",
     about:
       "a clipped label ends in a visible … (never Yoga's bare hard cut), and the right-edge cluster still gets its cells",

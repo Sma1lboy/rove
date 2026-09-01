@@ -37,7 +37,28 @@ export const en = {
     pin: "Pin",
     unpin: "Unpin",
     reorder: "Reorder row",
+    /** The one entry with no chord behind it — status has no key yet, so the
+     *  menu is its only route. */
+    setStatus: "Set status",
     delete: "Delete",
+  },
+  /** The six `TaskStatus` values, for the set-status picker and its row chip.
+   *  A LABEL on the board — nothing here stops a session or removes a
+   *  worktree, so the words must not read like teardown verbs. */
+  status: {
+    backlog: "Backlog",
+    inProgress: "In progress",
+    inReview: "In review",
+    done: "Done",
+    canceled: "Canceled",
+    error: "Error",
+  },
+  /** Set-status picker dialog. */
+  setStatus: {
+    title: "Set status",
+    /** Marks the task's current value in the list. */
+    current: "current",
+    footer: "↑↓ choose · enter set · esc cancel",
   },
   /** Inline chip while move/reorder mode is active */
   moveChip: " move",
@@ -139,7 +160,21 @@ export const zh: typeof en = {
     pin: "置顶",
     unpin: "取消置顶",
     reorder: "重新排序",
+    setStatus: "设置状态",
     delete: "删除",
+  },
+  status: {
+    backlog: "待办",
+    inProgress: "进行中",
+    inReview: "待评审",
+    done: "已完成",
+    canceled: "已取消",
+    error: "出错",
+  },
+  setStatus: {
+    title: "设置状态",
+    current: "当前",
+    footer: "↑↓ 选择 · enter 设置 · esc 取消",
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",

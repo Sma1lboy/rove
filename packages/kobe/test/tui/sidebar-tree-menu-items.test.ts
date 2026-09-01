@@ -43,12 +43,21 @@ describe("treeMenuItems", () => {
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {
-    expect(actions(worktreeRow())).toEqual(["open", "newChat", "newShell", "rename", "pin", "reorder", "delete"])
+    expect(actions(worktreeRow())).toEqual([
+      "open",
+      "newChat",
+      "newShell",
+      "rename",
+      "pin",
+      "reorder",
+      "setStatus",
+      "delete",
+    ])
   })
 
   test("a main row (the project's own checkout) is not offered a pin — setPinned silently no-ops on it", () => {
     const mainRow = worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" })
-    expect(actions(mainRow)).toEqual(["open", "newChat", "newShell", "rename", "reorder", "delete"])
+    expect(actions(mainRow)).toEqual(["open", "newChat", "newShell", "rename", "reorder", "setStatus", "delete"])
     const mainTab: TreeRow = {
       kind: "tab",
       id: "a::tab-2",
@@ -63,6 +72,7 @@ describe("treeMenuItems", () => {
       "newShell",
       "rename",
       "reorder",
+      "setStatus",
       "delete",
     ])
   })
@@ -82,6 +92,7 @@ describe("treeMenuItems", () => {
       "rename",
       "pin",
       "reorder",
+      "setStatus",
       "delete",
     ])
   })

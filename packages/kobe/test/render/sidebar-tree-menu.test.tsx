@@ -287,3 +287,32 @@ test("a press ON the menu still picks its entry", async () => {
   expect(renamed).toEqual(["a"])
   expect(await frame()).not.toContain("Delete")
 })
+
+/**
+ * "Set status" is the one entry with no chord behind it, which makes this the
+ * ONLY route a human has to the board status the injected agent protocol
+ * already tells every engine to write. A menu row that renders but dispatches
+ * nowhere looks identical to one that works, so the assertion is the callback
+ * firing with the row's task id — not the label being on screen.
+ */
+test("Set status fires the row's callback with that row's task", async () => {
+  tabsByTask.clear()
+  const asked: string[] = []
+  const { frame, mockMouse, mockInput } = await renderComponent(tree({ onSetStatusRequest: (id) => asked.push(id) }), {
+    width: 40,
+    height: 24,
+  })
+  await settle()
+  await mockMouse.click(2, lineOf(await frame(), "feat/b"), RIGHT)
+  await settle()
+  expect(await frame()).toContain("Set status")
+
+  // open, newChat, newShell, rename, pin, reorder, setStatus — six steps from
+  // the highlight's start on "Open".
+  mockInput.typeText("jjjjjj")
+  await settle()
+  mockInput.pressEnter()
+  await settle()
+
+  expect(asked).toEqual(["b"])
+})

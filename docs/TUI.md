@@ -44,8 +44,17 @@ Task rows carry worktree-level facts:
 |---|---|
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
+| `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
 | `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
+
+The status mark is what a person said about the Task; the check mark next to it
+is what CI reports, so the two can disagree. `backlog` and `in_progress` show
+nothing — those are the states Rove moves a Task through on its own, so a mark
+there would say only that the row is ordinary. Set the status from the row's
+right-click menu (**Set status**) or with `rove api set-status`; it is a label,
+and changing it leaves the worktree, the branch, and every running session
+alone.
 
 Session state belongs to the engine tab that runs it, so the status glyph sits
 on the **tab rows** underneath:

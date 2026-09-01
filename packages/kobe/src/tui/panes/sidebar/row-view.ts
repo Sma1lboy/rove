@@ -408,3 +408,41 @@ function activityBadgeFor(
       return null
   }
 }
+
+/**
+ * The human-set lifecycle chip for a worktree row. `task.status` is the board
+ * lifecycle the user drives (`rove api set-status`, the sidebar menu's
+ * "Set status"); this maps it to one coloured glyph so a row can say where its
+ * work stands without opening it.
+ *
+ * `backlog` and `in_progress` return null on purpose. They are the two states
+ * a task passes through automatically (`monitor/status-rules.ts` moves
+ * backlog → in_progress on the first turn), so charging every ordinary row a
+ * cell to say "this is an ordinary row" would just add noise; the chip appears
+ * exactly when a human has said something the row could not otherwise tell you.
+ *
+ * The glyphs deliberately REUSE the tree's existing failure vocabulary rather
+ * than inventing a second one: `×` is what an errored engine already wears on
+ * a tab row and `†` what a dead one does, and "the user marked this errored /
+ * abandoned" is the same news about the same task. `◇`/`◆` are new here and
+ * pair on purpose — outline = still open for a human, filled = closed out —
+ * the same outline/filled contrast the tab rows use for `○`/`●`.
+ *
+ * Distinct from {@link prCheckChip}, which reports a MACHINE fact (CI) and
+ * keeps its own `✓`/`✗`; the two render side by side, so neither may borrow
+ * the other's glyphs. Pure — pinned by `test/golden/sidebar-row-state.golden.txt`.
+ */
+export function statusChip(task: Task): { glyph: string; tone: SidebarTone } | null {
+  switch (task.status) {
+    case "in_review":
+      return { glyph: "◇", tone: "primary" }
+    case "done":
+      return { glyph: "◆", tone: "success" }
+    case "canceled":
+      return { glyph: DEAD_GLYPH, tone: "textMuted" }
+    case "error":
+      return { glyph: ERROR_GLYPH, tone: "error" }
+    default:
+      return null
+  }
+}

@@ -36,6 +36,11 @@ export type SidebarTaskCallbacks = {
    * Solid era; see the sidebar.pin row in context/keybindings-sidebar.ts).
    */
   onPinRequest?: (taskId: string) => void
+  /**
+   * Set the task's board status. Menu-only for now — there is no chord, so
+   * unlike its siblings this one never arrives from `use-tree-bindings`.
+   */
+  onSetStatusRequest?: (taskId: string) => void
 }
 
 export type SidebarProps = SidebarTaskCallbacks & {

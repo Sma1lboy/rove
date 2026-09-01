@@ -46,6 +46,8 @@ export interface HostSidebarProps {
   readonly onDeleteRequest: (taskId: string) => void
   readonly onRenameRequest: (taskId: string) => void
   readonly onPinRequest: (taskId: string) => void
+  /** Menu-only (no chord): open the board-status picker for the row's task. */
+  readonly onSetStatusRequest: (taskId: string) => void
   readonly moveMode: boolean
   readonly onMoveRequest: (taskId: string, delta: -1 | 1) => void
   readonly onMoveModeExit: () => void
@@ -124,6 +126,7 @@ export function HostSidebar(props: HostSidebarProps) {
     onDeleteRequest: props.onDeleteRequest,
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
+    onSetStatusRequest: props.onSetStatusRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,
     moveMode: props.moveMode,
     onMoveRequest: props.onMoveRequest,
