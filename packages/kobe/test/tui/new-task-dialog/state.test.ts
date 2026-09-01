@@ -30,6 +30,7 @@ import {
   isBlankText,
   nextDialogTab,
   nextField,
+  offersProjectIntent,
   pickerModeFor,
   prevDialogTab,
   resolveBaseRef,
@@ -133,6 +134,33 @@ describe("splitRepoRow (repo rows lead with the basename)", () => {
 
   it("keeps a repo at the filesystem root identifiable", () => {
     expect(splitRepoRow("/kobe")).toEqual({ base: "kobe", dir: "/" })
+  })
+})
+
+describe("offersProjectIntent (issue #90)", () => {
+  it("offers only for a repo that already has a project checkout", () => {
+    const mains = new Set(["/repos/codefox"])
+    expect(offersProjectIntent("/repos/codefox", mains)).toBe(true)
+    // No main row means nothing to open — `createTask` is what mints one, and
+    // only for a repo the admission gate accepts.
+    expect(offersProjectIntent("/repos/orphan", mains)).toBe(false)
+  })
+
+  it("normalizes the trailing slash the sidebar also trims", () => {
+    // The set is keyed the way `sidebarProjectKey` groups; a path typed with
+    // a slash must still find its own project.
+    expect(offersProjectIntent("/repos/codefox/", new Set(["/repos/codefox"]))).toBe(true)
+  })
+
+  it("never offers for blank or whitespace input", () => {
+    // The repo field starts prefilled but can be cleared; an empty path has
+    // no project, and `""` must not match a set that happens to hold it.
+    expect(offersProjectIntent("", new Set(["/repos/codefox"]))).toBe(false)
+    expect(offersProjectIntent("   ", new Set([""]))).toBe(false)
+  })
+
+  it("offers nothing when the caller passes no projects at all", () => {
+    expect(offersProjectIntent("/repos/codefox", new Set())).toBe(false)
   })
 })
 
