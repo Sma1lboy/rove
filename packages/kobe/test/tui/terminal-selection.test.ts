@@ -82,6 +82,17 @@ describe("terminal grid selection", () => {
     expect(overlaySelection([ROWS[0]], range, 0, 14)[0]).toBe(ROWS[0])
   })
 
+  it("toggles inverse off when selected content is already reverse-video", () => {
+    const source = [[{ text: "plain" } as Chunk, { text: "reverse", attributes: ATTR.INVERSE | ATTR.BOLD } as Chunk]]
+    const range = { anchor: { row: 0, col: 0 }, head: { row: 0, col: 11 } }
+
+    const out = overlaySelection(source, range, 0, 12)[0]
+
+    expect((out[0]?.attributes ?? 0) & ATTR.INVERSE).toBe(ATTR.INVERSE)
+    expect((out[1]?.attributes ?? 0) & ATTR.INVERSE).toBe(0)
+    expect((out[1]?.attributes ?? 0) & ATTR.BOLD).toBe(ATTR.BOLD)
+  })
+
   it("overlaySelection paints highlight over unpainted padding cells", () => {
     const short = [row("ab")]
     const range = { anchor: { row: 0, col: 0 }, head: { row: 0, col: 5 } }

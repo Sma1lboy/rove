@@ -118,6 +118,34 @@ export function overlayCursor(
   return rows.map((row, y) => (y === cursor.y ? overlayCursorRow(row, cursor.x, colors) : row))
 }
 
+/** Resolve reverse-video to literal colors before OpenTUI sees it. */
+export function resolveInverseAttributes(
+  rows: readonly (readonly Chunk[])[],
+  defaultFg: RGB,
+  defaultBg: RGB,
+): readonly (readonly Chunk[])[] {
+  return rows.map((row) => {
+    let out: Chunk[] | null = null
+    for (let i = 0; i < row.length; i++) {
+      const chunk = row[i] as Chunk
+      const attributes = chunk.attributes ?? 0
+      if ((attributes & ATTR.INVERSE) === 0) {
+        if (out) out.push(chunk)
+        continue
+      }
+      out ??= row.slice(0, i)
+      const resolvedAttributes = attributes & ~ATTR.INVERSE
+      out.push({
+        text: chunk.text,
+        fg: chunk.bg ?? defaultBg,
+        bg: chunk.fg ?? defaultFg,
+        ...(resolvedAttributes !== 0 ? { attributes: resolvedAttributes } : {}),
+      })
+    }
+    return out ?? row
+  })
+}
+
 /**
  * LOCAL PATCH for an opentui attribute leak (kept in kobe rather than
  * upstreamed — see the `sealRowEndAttributes` call in the React pane).

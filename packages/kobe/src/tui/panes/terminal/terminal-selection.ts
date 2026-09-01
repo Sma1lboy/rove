@@ -169,7 +169,7 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[
     }
     const { before, selected, after } = sliceTextByCells(chunk.text, from - start, to - start)
     if (before) out.push({ ...chunk, text: before })
-    out.push({ ...chunk, text: selected, attributes: (chunk.attributes ?? 0) | ATTR.INVERSE })
+    out.push({ ...chunk, text: selected, attributes: (chunk.attributes ?? 0) ^ ATTR.INVERSE })
     if (after) out.push({ ...chunk, text: after })
   }
   // Selection reaching past the row's painted cells: show the highlight
