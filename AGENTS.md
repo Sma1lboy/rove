@@ -45,7 +45,7 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ## Hard rules (non-negotiable)
 
 ### How work lands on `main`
-- **Default: PR, and merging it needs no fresh approval.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate; don't stop to ask. Unattended/agent-driven work always takes this path. (Standing authorization, owner 2026-09-01. Does not extend to a release — that still needs the word.)
+- **Default: PR → merge → release, none of it needs fresh approval.** Feature branch → commits → `gh pr create` → CI green (typecheck/test, behavior, file-size-cap, coverage-cap) → `gh pr merge --squash --delete-branch`. Green CI IS the gate; don't stop to ask, and don't park a shipped fix waiting for someone to say "release" — a fix nobody can install isn't fixed. Cut the release the same turn unless the change is mid-stack or the owner is still deciding. (Standing authorization, owner 2026-09-01.)
 - **Skipping the PR** (local merge/cherry-pick into `main`, or a direct push) needs the owner to say so **in that turn** — never inferred, never carried into the next task. Same quality gates (lint, typecheck, tests, changeset) either way.
 - `scripts/release.sh` pushes its own `chore: release — X.Y.Z` commit + tag (see [`docs/RELEASING.md`](./docs/RELEASING.md)).
 - `git fetch` before pushing. Force-push ONLY to rebase your own unmerged PR branch, and only with `--force-with-lease`; never onto `main`, a shared branch, or commits someone has reviewed.
@@ -56,9 +56,8 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 - **NEVER** use `--no-verify` / `--no-gpg-sign` or skip hooks. Fix the underlying issue.
 
 ### Releases
-- **Changeset bump is `patch` by default.** Only an EXPLICIT instruction in that turn promotes it to `minor`/`major` — never infer `minor` from "it's a feature" (pre-1.0 ships features as patches). Confirm the bump and check for pending changesets that may override your choice before tagging.
+- **Changeset bump is `patch` by default.** Only an EXPLICIT instruction that turn promotes it to `minor`/`major` — never infer `minor` from "it's a feature" (pre-1.0 ships features as patches). A pending changeset carrying a bigger bump overrides you: check before tagging and surface it.
 - Release notes may thank human contributors/testers. No AI/Anthropic/Claude/Codex/tool attribution anywhere (commits, tags, notes).
-- Run lint + typecheck locally before pushing; don't assume CI will catch it.
 
 ### Deletion
 - **NEVER** delete files, branches, worktrees, or run `rm -rf` unless the user explicitly says "delete"/"remove" *in the same conversation turn* — including cleanup of stale worktrees or "fixing" layout by removing files. If a task seems to need deletion, surface and ask first.
