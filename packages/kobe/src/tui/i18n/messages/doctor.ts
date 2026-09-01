@@ -62,6 +62,13 @@ export const en = {
     /** Why engine-tab restarts are print-only */
     engineTabsWhy: "kills that tab's live engine session — your call, not doctor's",
 
+    /** This process's entry point was deleted out from under it */
+    staleInstall: "the install this Rove runs from no longer exists on disk",
+    /** The manual action for {@link staleInstall} */
+    staleInstallAction: "npm install -g @sma1lboy/rove, then relaunch Rove",
+    /** Why {@link staleInstall} is print-only */
+    staleInstallWhy: "doctor cannot reinstall Rove over the running process — a human has to, then relaunch",
+
     /** Why installs/logins are print-only */
     humanOnlyWhy: "doctor does not install software or log in to accounts for you",
     /** git missing from PATH */
@@ -110,6 +117,10 @@ export const zh: typeof en = {
     engineTabs: "引擎 tab 可能持有过期的 daemon socket 路径",
     engineTabsAction: "在 TUI 里关闭并重开受影响的引擎 tab",
     engineTabsWhy: "会杀掉该 tab 的活动引擎会话 — 由你决定, doctor 不代劳",
+
+    staleInstall: "当前 Rove 所在的安装已从磁盘删除",
+    staleInstallAction: "npm install -g @sma1lboy/rove, 然后重新启动 Rove",
+    staleInstallWhy: "doctor 无法在运行中的进程上重装 Rove — 需要人工重装后重新启动",
 
     humanOnlyWhy: "doctor 不会替你安装软件或登录账号",
     git: "PATH 上找不到 git",

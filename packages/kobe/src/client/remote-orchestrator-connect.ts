@@ -13,6 +13,7 @@
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
+import { isStaleInstallError } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import {
   type ChannelName,
   DAEMON_PROTOCOL_VERSION,
@@ -41,6 +42,15 @@ export interface PerformInitOptions {
  * the daemon via `ensureReachable`; a pane only retries the existing socket
  * so helper panes never defeat daemon lazy-shutdown. Failures stay silent in
  * the UI with the caller-supplied bounded forensic logging policy.
+ *
+ * Retrying assumes the next attempt could differ from this one. Exactly one
+ * failure breaks that assumption: this process is running from an install
+ * that has been deleted, so `ensureReachable` cannot resolve an entry point
+ * to re-exec and fails identically forever. The loop gives up there and
+ * reports it once, via `onFatal`. Giving up is the SAFE direction — a client
+ * that cannot spawn is not a reason to keep pressure on a healthy daemon
+ * (PR #733), and the remedy is reinstalling, which no amount of waiting
+ * performs.
  */
 export async function runReconnectLoop(deps: {
   readonly isDisposed: () => boolean
@@ -48,6 +58,8 @@ export async function runReconnectLoop(deps: {
   readonly ensureReachable: () => Promise<unknown>
   readonly init: () => Promise<void>
   readonly shouldLogAttempt: (attempt: number) => boolean
+  /** Called once, then the loop stops, when retrying cannot ever succeed. */
+  readonly onFatal?: (err: unknown) => void
 }): Promise<void> {
   // A GUI used to retry with ZERO delay, which made every GUI in the process
   // wake at the same instant after a shared daemon drop and probe a daemon
@@ -67,6 +79,14 @@ export async function runReconnectLoop(deps: {
       logClient("orch", `reconnected and re-subscribed after ${attempt} attempt(s) — task list re-synced`)
       return
     } catch (err) {
+      // The one non-transient failure: our own install is gone. Retrying is
+      // not recovery here, it is two days of identical throws (the owner's
+      // pid 59121). Say it once and stop.
+      if (isStaleInstallError(err)) {
+        logClientError("orch-reconnect-fatal", err)
+        deps.onFatal?.(err)
+        return
+      }
       // Pane failures are expected while no GUI owns a daemon; GUI failures
       // mean ensure/start itself is temporarily failing.
       if (deps.shouldLogAttempt(attempt)) logClientError("orch-reconnect", err)

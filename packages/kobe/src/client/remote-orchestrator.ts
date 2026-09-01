@@ -159,6 +159,8 @@ export class RemoteOrchestrator {
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
   private readonly keybindingsRevAcc = createStateCell<number | null>(null)
   private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online")
+  /** Set once, by the reconnect loop giving up — see {@link staleInstallSignal}. */
+  private readonly staleInstallAcc = createStateCell<string | null>(null)
   private readonly ensureReachable: () => Promise<unknown>
   private readonly role: SubscribeRole
   /** Per-channel subscribe filter; `undefined` = subscribe to all channels. */
@@ -275,6 +277,7 @@ export class RemoteOrchestrator {
       ensureReachable: this.ensureReachable,
       init: () => this.init(),
       shouldLogAttempt: shouldLogReconnectAttempt,
+      onFatal: (err) => this.staleInstallAcc.set(err instanceof Error ? err.message : String(err)),
     })
     this.reconnectTask = task
     const clear = (): void => {
@@ -295,6 +298,14 @@ export class RemoteOrchestrator {
 
   connectionStateSignal(): ReadableState<DaemonConnectionState> {
     return this.connectionStateAcc
+  }
+
+  /** The reconnect loop's one terminal failure, as a message: non-null once
+   *  this process is confirmed to be running from a deleted install. Latched,
+   *  never cleared — only a reinstall clears it, and the alternative is what
+   *  a stale install already looked like: "reconnecting", forever. */
+  staleInstallSignal(): ReadableState<string | null> {
+    return this.staleInstallAcc
   }
 
   /** Explicitly force the same spawning recovery used by a GUI socket drop. */

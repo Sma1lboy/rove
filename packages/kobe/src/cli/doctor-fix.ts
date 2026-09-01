@@ -91,6 +91,21 @@ export function engineTabsManualFix(): DoctorFix {
   }
 }
 
+/**
+ * The install this process runs from was deleted (issue #96). Print-only,
+ * and not because it is dangerous: doctor cannot reinstall Rove over the
+ * running process, and the running process is the one asking.
+ */
+export function reinstallManualFix(): DoctorFix {
+  return {
+    kind: "manual",
+    id: "reinstall",
+    label: t("doctor.fix.staleInstall"),
+    action: t("doctor.fix.staleInstallAction"),
+    why: t("doctor.fix.staleInstallWhy"),
+  }
+}
+
 type HumanOnlyReason = "git" | "noEngine" | "windowsNode"
 
 /** Installs and logins: doctor can only point, a human has to act. */

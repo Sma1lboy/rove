@@ -5,6 +5,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
   ensureDaemonReachable,
+  isStaleInstallError,
   probeDaemonSocket,
   resolveKobeSpawn,
   testDaemonResponds,
@@ -34,6 +35,31 @@ describe("resolveKobeSpawn", () => {
       "daemon",
       "start",
     ])
+  })
+
+  // Issue #96. `bun`/`node` hold an entry open by inode, so uninstalling
+  // Rove out from under a running process leaves it alive on a path that no
+  // longer exists — `/opt/homebrew/lib/node_modules/@sma1lboy/` was gone
+  // while a GUI kept running from it (owner's machine, 2026-09-01). The
+  // failure has to be DISTINGUISHABLE from an ordinary spawn failure,
+  // because the two want opposite handling: retry a transient one, stop on
+  // this one.
+  it("throws an identifiable StaleInstallError when its own install is gone", () => {
+    const gone = "/opt/homebrew/lib/node_modules/@sma1lboy/rove/dist/client/daemon-process.js"
+    let thrown: unknown
+    try {
+      resolveKobeSpawn(["daemon", "start"], { ROVE_INVOKED_AS: "rove" }, gone)
+    } catch (err) {
+      thrown = err
+    }
+    expect(isStaleInstallError(thrown)).toBe(true)
+    // And it names the remedy, since waiting is not one.
+    expect((thrown as Error).message).toContain("npm install -g @sma1lboy/rove")
+  })
+
+  it("does not mistake an intact install for a stale one", () => {
+    expect(isStaleInstallError(new Error("daemon did not start"))).toBe(false)
+    expect(isStaleInstallError(undefined)).toBe(false)
   })
 })
 
@@ -368,6 +394,82 @@ describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
       expect(outcome.value).toBe(socketPath)
     } finally {
       busyDaemon.kill("SIGKILL")
+      restoreEnv()
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 30_000)
+})
+
+/**
+ * Issue #96, the destructive half — and the one nobody reported, because its
+ * symptom is indistinguishable from the reported one.
+ *
+ * `ensureDaemonReachable` used to call `stopDaemonProcess` FIRST and
+ * `resolveKobeSpawn` second. On a stale install that ordering does damage:
+ * the client kills the daemon and unlinks its socket + pidfile, and only
+ * then discovers it has no entry point to re-exec — so it has removed a
+ * daemon it cannot replace. PR #733 established that a client which cannot
+ * spawn must not be a reason to take down a daemon; this is that rule
+ * applied to the one client that can NEVER spawn.
+ *
+ * The assertion is about EFFECTS, not the message: a stale install must
+ * leave the pidfile and the daemon process exactly as it found them.
+ * Asserting only "it threw" would stay green with the ordering restored,
+ * since it throws either way.
+ */
+describe("ensureDaemonReachable on a stale install", () => {
+  it("destroys nothing — it cannot replace what it would kill", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kobe-stale-install-"))
+    const socketPath = join(SOCK_DIR, `kobe-dpr-stale-${process.pid}.sock`)
+    const pidPath = join(dir, "daemon.pid")
+    const restoreEnv = overrideRoveEnv({
+      DAEMON_SOCKET_PATH: socketPath,
+      DAEMON_PID_PATH: pidPath,
+      HOME_DIR: dir,
+      // Cleared, or `insideEngineSession` short-circuits on a wedged socket
+      // before the spawn path is ever reached.
+      TASK_ID: undefined,
+      TAB_ID: undefined,
+    })
+
+    // A live daemon process that is silent — the shape that sends the client
+    // down the stop+spawn path. A real child, because the question is what
+    // survives, and `stopDaemonProcess` skips a pidfile naming ourselves.
+    const daemon = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], { stdio: "ignore" })
+    const daemonPid = daemon.pid as number
+    const seen: string[] = []
+    // Never answers hello: alive, unreachable, so the client must decide
+    // what to do about it — which on a stale install is "nothing".
+    await listenAt(socketPath, busyThenHealthy(Number.POSITIVE_INFINITY, seen))
+
+    // The resolver's verdict for an install that is gone. Built by the REAL
+    // resolver against a directory that does not exist, so this test cannot
+    // drift from what `resolveKobeSpawn` actually throws.
+    const staleDir = join(dir, "gone", "node_modules", "@sma1lboy", "rove", "dist", "client")
+    const resolveSpawn = (): string[] => {
+      resolveKobeSpawn([], { ROVE_INVOKED_AS: "rove" }, join(staleDir, "daemon-process.js"))
+      throw new Error("unreachable: the resolver was supposed to reject a missing install")
+    }
+
+    try {
+      writeFileSync(pidPath, String(daemonPid))
+      const err = await ensureDaemonReachable(resolveSpawn).then(
+        () => undefined,
+        (e: unknown) => e,
+      )
+
+      expect(isStaleInstallError(err)).toBe(true)
+      // THE invariant: nothing was taken down. `stopDaemonProcess` opens with
+      // a `daemon.stop` RPC and unlinks the pidfile on its way out, so these
+      // are three independent reads of "we touched nothing".
+      expect(seen).not.toContain("daemon.stop")
+      expect(isProcessAlive(daemonPid)).toBe(true)
+      expect(existsSync(pidPath)).toBe(true)
+      // And the spawn lock was released, so a client on a GOOD install can
+      // still recover this daemon after we bailed.
+      expect(existsSync(`${pidPath}.spawn-lock`)).toBe(false)
+    } finally {
+      daemon.kill("SIGKILL")
       restoreEnv()
       rmSync(dir, { recursive: true, force: true })
     }

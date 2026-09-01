@@ -176,7 +176,11 @@ export function tryAcquireSpawnLock(lockPath: string, staleMs: number = SPAWN_LO
  * comes up — or, inside an engine session, when the daemon is wedged
  * (session helpers never kill/replace the shared daemon).
  */
-export async function ensureDaemonReachable(): Promise<string> {
+export async function ensureDaemonReachable(
+  /** Seam for tests: the spawn argv resolver. A stale install cannot be
+   *  reproduced otherwise without deleting the running source tree. */
+  resolveSpawn: (subcommand: readonly string[]) => string[] = resolveKobeSpawn,
+): Promise<string> {
   const socketPath = defaultDaemonSocketPath()
   const state = await probeDaemonSocket(socketPath)
   if (state === "alive") return socketPath
@@ -246,13 +250,20 @@ export async function ensureDaemonReachable(): Promise<string> {
       // (graceful → SIGTERM → SIGKILL) is the right tool.
     }
 
-    // Absent, or wedged outside a session: kill any wedged process FIRST —
-    // `stopDaemonProcess` is idempotent (just clears stale socket/pidfile
-    // when nothing is alive) and prevents a fresh spawn from racing a
-    // still-alive wedged daemon onto the same tasks.json (split-brain).
-    await stopDaemonProcess(socketPath, defaultDaemonPidPath()).catch(() => {})
+    // Resolve the replacement's argv BEFORE tearing anything down. These two
+    // steps were the other way round, and on a stale install that ordering
+    // was destructive: `stopDaemonProcess` killed the daemon and unlinked
+    // its socket + pidfile, and only THEN did `resolveKobeSpawn` discover it
+    // had no entry point to re-exec — so the client removed a working daemon
+    // and could not put one back. Resolving first makes a stale install
+    // INERT: it throws here, having touched nothing.
+    const [command, ...args] = resolveSpawn(DAEMON_START_ARGS)
 
-    const [command, ...args] = resolveKobeSpawn(DAEMON_START_ARGS)
+    // Kill any wedged process FIRST — `stopDaemonProcess` is idempotent (just
+    // clears stale socket/pidfile when nothing is alive) and prevents a fresh
+    // spawn from racing a still-alive wedged daemon onto the same tasks.json
+    // (split-brain).
+    await stopDaemonProcess(socketPath, defaultDaemonPidPath()).catch(() => {})
     spawnDetachedDaemon(command, args, autospawnDaemonEnv(), defaultDaemonLogPath())
 
     const deadline = Date.now() + 5000
@@ -375,6 +386,38 @@ export async function testDaemonResponds(
 }
 
 /**
+ * This process is running from an install that is no longer on disk.
+ *
+ * Not a spawn failure — a spawn failure is transient (a busy daemon, a lost
+ * race) and retrying is the right answer. This one is structural: the entry
+ * point {@link resolveKobeSpawn} would re-exec was unlinked out from under
+ * the running process, so every future attempt fails identically. The shape
+ * is ordinary rather than exotic: a brew copy uninstalled while its GUI kept
+ * running, leaving the process alive on an unlinked inode (the owner's
+ * machine, 2026-09-01 — one GUI 2 days into a reconnect loop that could
+ * never succeed).
+ *
+ * Callers that retry must treat it as terminal (see `runReconnectLoop`), and
+ * `rove doctor` names it, because the remedy is reinstalling, not waiting.
+ */
+export class StaleInstallError extends Error {
+  readonly candidates: readonly string[]
+  constructor(cliName: string, dir: string, candidates: readonly string[]) {
+    super(
+      `${cliName}: this process is running from an install that no longer exists on disk — no ${cliName} entry near ${dir} (checked ${candidates.join(", ")}). Reinstall (\`npm install -g @sma1lboy/rove\`) and relaunch Rove.`,
+    )
+    this.name = "StaleInstallError"
+    this.candidates = candidates
+  }
+}
+
+/** True for {@link StaleInstallError}, across the package boundary (an
+ *  `instanceof` over two copies of the module would miss). */
+export function isStaleInstallError(err: unknown): boolean {
+  return err instanceof Error && err.name === "StaleInstallError"
+}
+
+/**
  * Build the argv used to spawn a detached CLI child.
  * Returns `[command, ...args]`; callers pass to `child_process.spawn`
  * as `spawn(command, args, opts)`.
@@ -391,8 +434,15 @@ export async function testDaemonResponds(
  *    IS the kobe binary, so we re-exec it directly. After the kobed → kobe
  *    bin merge, no sibling lookup is needed.
  */
-export function resolveKobeSpawn(subcommand: readonly string[], env: NodeJS.ProcessEnv = process.env): string[] {
-  const here = fileURLToPath(import.meta.url)
+export function resolveKobeSpawn(
+  subcommand: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+  /** The module's own path. Injectable so a test can point at a directory
+   *  that does not exist — the stale-install case cannot otherwise be
+   *  reproduced without deleting the running source tree. */
+  moduleFile: string = fileURLToPath(import.meta.url),
+): string[] {
+  const here = moduleFile
   if (here.startsWith("/$bunfs") || here.startsWith("B:\\~BUN")) {
     return [process.execPath, ...subcommand]
   }
@@ -408,5 +458,5 @@ export function resolveKobeSpawn(subcommand: readonly string[], env: NodeJS.Proc
   ]
   const entry = candidates.find((candidate) => existsSync(candidate))
   if (entry) return [process.execPath, entry, ...subcommand]
-  throw new Error(`${cliName}: could not locate ${cliName} entry near ${dir}; checked ${candidates.join(", ")}`)
+  throw new StaleInstallError(cliName, dir, candidates)
 }

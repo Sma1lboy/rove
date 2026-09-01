@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
+import { isStaleInstallError, resolveKobeSpawn } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { resolveNodeBinary } from "@sma1lboy/kobe-daemon/client/pty-process"
 import {
   defaultDaemonLogPath,
@@ -25,6 +26,7 @@ import {
   defaultFixRuntime,
   engineTabsManualFix,
   humanOnlyFix,
+  reinstallManualFix,
   resetManualFix,
   skillInstallFix,
 } from "./doctor-fix.ts"
@@ -118,6 +120,30 @@ function tailFile(path: string, count: number): string {
   }
 }
 
+/**
+ * Is the entry point this process would re-exec still on disk? Runs the
+ * spawn path's own resolver rather than re-deriving the candidate list, so
+ * doctor cannot pass while the spawn path fails (or vice versa). Only a
+ * StaleInstallError is a finding: any other throw means the resolver itself
+ * had a problem, which is not a verdict about the install.
+ */
+function describeInstall(): { line: string; ok: boolean } {
+  try {
+    const [, entry] = resolveKobeSpawn([])
+    return { line: `install:  ✓ ${entry ?? process.execPath}`, ok: true }
+  } catch (err) {
+    if (!isStaleInstallError(err)) return { line: `install:  ? could not check (${String(err)})`, ok: true }
+    return {
+      line: [
+        "install:  ✗ GONE — this process is running from an install that no longer exists on disk",
+        "          it cannot start a daemon; every reconnect fails the same way until you reinstall",
+        "          → npm install -g @sma1lboy/rove   (then relaunch Rove)",
+      ].join("\n"),
+      ok: false,
+    }
+  }
+}
+
 async function appendUnavailableProcess(
   out: string[],
   label: string,
@@ -149,6 +175,14 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   if (!git.found) fixes.push(humanOnlyFix("git"))
   const engines = await probeEngines()
   if (!engines.anyUsable) fixes.push(humanOnlyFix("noEngine"))
+  // Can this process still re-exec itself? A `bun`/`node` process holds its
+  // entry open by inode, so uninstalling Rove out from under a running one
+  // leaves it alive on a path that is gone — it keeps working until it needs
+  // to spawn a daemon, then fails identically forever (issue #96). The check
+  // is exactly the resolution the spawn path performs, so the two can never
+  // disagree about whether this install is intact.
+  const install = describeInstall()
+  if (!install.ok) fixes.push(reinstallManualFix())
   const out = [
     "Rove doctor",
     `  build:  v${CURRENT_VERSION} (${process.platform} ${process.arch}, bun ${Bun.version})`,
@@ -158,6 +192,8 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
     git.line,
     "",
     ...engines.lines,
+    "",
+    install.line,
     "",
   ]
 
