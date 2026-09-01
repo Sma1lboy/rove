@@ -145,6 +145,18 @@ describe("nextField / firstFieldFor (per-tab field cycling)", () => {
     expect(nextField("engine", "existing")).toBe("repo")
   })
 
+  it("inserts the intent stop only when that row renders (issue #90)", () => {
+    // The row exists only for a repo that already has a project checkout, so
+    // the walk is TOLD whether it is on screen. Offering the stop
+    // unconditionally parks focus on nothing; omitting it when the row IS
+    // there makes it keyboard-unreachable — which is how it first shipped.
+    expect(nextField("repo", "existing", { intentVisible: true })).toBe("intent")
+    expect(nextField("intent", "existing", { intentVisible: true })).toBe("baseRef")
+    // Default (and explicit false) keep the original chain untouched.
+    expect(nextField("repo", "existing")).toBe("baseRef")
+    expect(nextField("repo", "existing", { intentVisible: false })).toBe("baseRef")
+  })
+
   it("cycles the clone tab through the selectors + all four inputs to confirm and back", () => {
     expect(nextField("engine", "clone")).toBe("cloneUrl")
     expect(nextField("cloneUrl", "clone")).toBe("cloneParent")
