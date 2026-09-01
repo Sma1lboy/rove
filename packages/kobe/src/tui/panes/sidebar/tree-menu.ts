@@ -9,6 +9,13 @@
  * (`withCursorTask` walks up from a tab to its worktree, because rename /
  * delete have no tab-level meaning).
  *
+ * `setStatus` is the one documented exception, and it is a SEQUENCING one
+ * rather than a change of rule: a chord is the owner's call (AGENTS.md,
+ * "Keybindings"), and until one is agreed the menu is the only place a human
+ * can set a status the injected agent protocol already tells every engine to
+ * write (`engine/worktree-protocol.ts`). When the chord lands, this entry
+ * mirrors it like the rest.
+ *
  * The new-conversation pair reads the same rule one pane over (owner ask
  * 2026-08-18): ctrl+e already opens the engine/shell picker for the task the
  * row points at, so the menu routes to THAT — the entry activates the row and
@@ -34,6 +41,7 @@ export type TreeMenuAction =
   | "rename"
   | "pin"
   | "reorder"
+  | "setStatus"
   | "delete"
 
 export interface TreeMenuItem {
@@ -70,6 +78,11 @@ function taskVerbs(pinned: boolean, kind: Task["kind"]): TreeMenuItem[] {
   const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename" }]
   if (kind !== "main") verbs.push({ action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" })
   verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder" })
+  // The ONE entry with no chord behind it. Status had no route outside
+  // `rove api set-status` at all, and adding a chord is the owner's call
+  // (AGENTS.md) — so the menu carries it alone until one is agreed. Not
+  // danger-toned: it relabels the task and touches nothing else.
+  verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
   verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
   return verbs
 }

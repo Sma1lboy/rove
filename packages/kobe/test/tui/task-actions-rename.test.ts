@@ -20,8 +20,9 @@ import {
   cycleVendorFlow,
   renameBranchFlow,
   renameTaskFlow,
+  setStatusFlow,
 } from "../../src/tui/lib/task-actions"
-import type { Task } from "../../src/types/task"
+import type { Task, TaskStatus } from "../../src/types/task"
 
 function makeTask(overrides: Omit<Partial<Task>, "id"> & { id: string }): Task {
   return {
@@ -40,6 +41,7 @@ type OrchMock = {
   setTitle: ReturnType<typeof vi.fn>
   setBranch: ReturnType<typeof vi.fn>
   setVendor: ReturnType<typeof vi.fn>
+  setStatus: ReturnType<typeof vi.fn>
 }
 
 function makeOrch(overrides: Partial<OrchMock> = {}): OrchMock {
@@ -47,18 +49,29 @@ function makeOrch(overrides: Partial<OrchMock> = {}): OrchMock {
     setTitle: vi.fn(async () => {}),
     setBranch: vi.fn(async () => {}),
     setVendor: vi.fn(async () => {}),
+    setStatus: vi.fn(async () => {}),
     ...overrides,
   }
 }
 
-function makeCtx(opts: { tasks: readonly Task[]; orch: OrchMock | null; promptTextResult?: string | undefined }): {
+function makeCtx(opts: {
+  tasks: readonly Task[]
+  orch: OrchMock | null
+  promptTextResult?: string | undefined
+  /** `undefined` = the picker was cancelled; omit the key entirely to leave
+   *  `pickStatus` unwired, the shape a host without the dialog has. */
+  pickStatusResult?: TaskStatus | undefined
+  wirePickStatus?: boolean
+}): {
   ctx: TaskActionContext
   promptText: ReturnType<typeof vi.fn>
+  pickStatus: ReturnType<typeof vi.fn>
   notifyError: ReturnType<typeof vi.fn>
   notifyInfo: ReturnType<typeof vi.fn>
   reload: ReturnType<typeof vi.fn>
 } {
   const promptText = vi.fn(async () => opts.promptTextResult)
+  const pickStatus = vi.fn(async () => opts.pickStatusResult)
   const notifyError = vi.fn()
   const notifyInfo = vi.fn()
   const reload = vi.fn(async () => {})
@@ -67,13 +80,14 @@ function makeCtx(opts: { tasks: readonly Task[]; orch: OrchMock | null; promptTe
     tasks: () => opts.tasks,
     confirm: async () => true,
     promptText,
+    ...(opts.wirePickStatus === false ? {} : { pickStatus }),
     logger: { error: vi.fn() },
     logPrefix: "[test]",
     notifyError,
     notifyInfo,
     reload,
   }
-  return { ctx, promptText, notifyError, notifyInfo, reload }
+  return { ctx, promptText, pickStatus, notifyError, notifyInfo, reload }
 }
 
 describe("renameTaskFlow", () => {
@@ -224,5 +238,103 @@ describe("cycleVendorFlow", () => {
     const { ctx } = makeCtx({ tasks, orch: null })
 
     await cycleVendorFlow(ctx, "t1")
+  })
+})
+
+/**
+ * The set-status flow. Its whole job is one RPC, so the tests name the FIELD
+ * that RPC carries: dropping the `setStatus` call, or sending the old value,
+ * has to turn something red here.
+ *
+ * The cosmetic contract is asserted as an absence — no other orchestrator
+ * method may fire. A status is a board LABEL (`docs/CONCEPTS.md`), and the
+ * failure this guards against is a future "canceled should also stop the
+ * session" edit quietly turning a relabel into a teardown.
+ */
+describe("setStatusFlow", () => {
+  test("writes the picked status and reloads", async () => {
+    const tasks = [makeTask({ id: "t1", status: "in_progress" })]
+    const orch = makeOrch()
+    const { ctx, pickStatus, notifyInfo, reload } = makeCtx({ tasks, orch, pickStatusResult: "in_review" })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(pickStatus).toHaveBeenCalledWith("in_progress")
+    expect(orch.setStatus).toHaveBeenCalledWith("t1", "in_review")
+    expect(notifyInfo).toHaveBeenCalledWith("Status → in_review")
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  test("relabels only — no worktree, branch, vendor or title RPC rides along", async () => {
+    const tasks = [makeTask({ id: "t1", status: "in_progress" })]
+    const orch = makeOrch()
+    const { ctx } = makeCtx({ tasks, orch, pickStatusResult: "canceled" })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(orch.setStatus).toHaveBeenCalledWith("t1", "canceled")
+    expect(orch.setBranch).not.toHaveBeenCalled()
+    expect(orch.setTitle).not.toHaveBeenCalled()
+    expect(orch.setVendor).not.toHaveBeenCalled()
+  })
+
+  test("cancelled picker skips the RPC", async () => {
+    const tasks = [makeTask({ id: "t1", status: "backlog" })]
+    const orch = makeOrch()
+    const { ctx, reload } = makeCtx({ tasks, orch, pickStatusResult: undefined })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(orch.setStatus).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  test("re-picking the current status skips the RPC", async () => {
+    const tasks = [makeTask({ id: "t1", status: "done" })]
+    const orch = makeOrch()
+    const { ctx, reload } = makeCtx({ tasks, orch, pickStatusResult: "done" })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(orch.setStatus).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  test("RPC failure surfaces a toast and skips reload", async () => {
+    const tasks = [makeTask({ id: "t1", status: "backlog" })]
+    const orch = makeOrch({
+      setStatus: vi.fn(async () => {
+        throw new Error("daemon down")
+      }),
+    })
+    const { ctx, notifyError, notifyInfo, reload } = makeCtx({ tasks, orch, pickStatusResult: "error" })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(notifyError).toHaveBeenCalledWith("Couldn't set status: daemon down")
+    expect(notifyInfo).not.toHaveBeenCalled()
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  test("a host with no picker adapter never opens one and never writes", async () => {
+    const tasks = [makeTask({ id: "t1", status: "backlog" })]
+    const orch = makeOrch()
+    const { ctx, pickStatus } = makeCtx({ tasks, orch, pickStatusResult: "done", wirePickStatus: false })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(pickStatus).not.toHaveBeenCalled()
+    expect(orch.setStatus).not.toHaveBeenCalled()
+  })
+
+  test("unknown taskId is a no-op", async () => {
+    const tasks = [makeTask({ id: "t1" })]
+    const orch = makeOrch()
+    const { ctx, pickStatus } = makeCtx({ tasks, orch, pickStatusResult: "done" })
+
+    await setStatusFlow(ctx, "missing")
+
+    expect(pickStatus).not.toHaveBeenCalled()
+    expect(orch.setStatus).not.toHaveBeenCalled()
   })
 })

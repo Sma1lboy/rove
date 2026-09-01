@@ -21,10 +21,17 @@
 
 import { errorMessage } from "@/lib/error-message"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { applyVendorChange, cycleVendorFlow, deleteTaskFlow, renameTaskFlow } from "../../tui/lib/task-actions"
+import {
+  applyVendorChange,
+  cycleVendorFlow,
+  deleteTaskFlow,
+  renameTaskFlow,
+  setStatusFlow,
+} from "../../tui/lib/task-actions"
 import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-create-flow"
 import type { Task, VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
+import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
 
@@ -53,6 +60,8 @@ export type WorkspaceTaskActions = {
   setVendor: (id: string, vendor: VendorId) => Promise<void>
   togglePin: (id: string) => Promise<void>
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
+  /** Tree-menu "Set status" — a picker over the six board statuses. */
+  setStatus: (id: string) => Promise<void>
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
@@ -70,6 +79,9 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
       logPrefix: "[rove workspace]",
       enterTask: deps.activateTask,
     }),
+    // The set-status picker, supplied as an adapter so `setStatusFlow` stays
+    // opentui-free like every other flow (task-actions.ts's testability rule).
+    pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
     onTaskDeleted: (() => {
       // Reclaim the deleted task's terminal-tab snapshot (O19), THEN move the
       // host cursor off it (the shared selection move — the base's bare
@@ -131,5 +143,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     },
     togglePin,
     moveTask,
+    setStatus: (id) => setStatusFlow(taskActions, id),
   }
 }

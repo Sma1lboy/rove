@@ -37,6 +37,7 @@ import {
   mainRowBlock,
   prChipBlock,
   spinnerBlock,
+  statusChipBlock,
   statusVsActivityBlock,
   subagentBlock,
   subtitleBudgetBlock,
@@ -70,6 +71,7 @@ test("sidebar row state matrix matches the committed golden", () => {
       lines: statusVsActivityBlock(),
     },
     { title: "PR check chip", lines: prChipBlock() },
+    { title: "board status chip", lines: statusChipBlock() },
     { title: "tabRowActivity — which entry a TAB row may read", lines: tabActivityBlock() },
   ])
 
@@ -138,13 +140,28 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["✓", "U+2713 — seen; the one dingbat-adjacent glyph both fonts carry"],
     ["?", "ASCII — needs input"],
     ["▴", "U+25B4 — pinned marker"],
+    ["✗", "U+2717 — PR checks failing; the sibling of ✓ both fonts carry"],
+    ["•", "U+2022 General Punctuation — PR checks pending"],
+    // U+25C6 joins its hollow twin U+25C7 (already here for the subagent
+    // prefix) for the `done` status chip. `fc-list :charset=25c6`: Fira Code,
+    // FiraCode/JetBrainsMono Nerd Font, Menlo AND Monaco — strictly wider
+    // coverage than U+25C7, so if the outline diamond is safe this is.
+    ["◆", "U+25C6 — status done; in Fira Code / JetBrainsMono / Menlo / Monaco"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render
-  // directly (they never reach `buildSidebarRowView`).
+  // directly (they never reach `buildSidebarRowView`). The two CHIP blocks
+  // are scanned too: they render into the same row at the same one cell, so a
+  // chip glyph that falls back oversized overruns the label exactly like a
+  // state glyph would — leaving them out is how `◆` would have entered the
+  // vocabulary unchecked.
   const rendered = new Set<string>([NO_STATE_GLYPH])
   for (const line of activityCrossProduct()) {
     const glyph = / glyph=(\S+)/.exec(line)?.[1]
+    if (glyph) for (const ch of glyph) rendered.add(ch)
+  }
+  for (const line of [...prChipBlock(), ...statusChipBlock()]) {
+    const glyph = /chip=(\S+) \(/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }
   for (const glyph of rendered) {

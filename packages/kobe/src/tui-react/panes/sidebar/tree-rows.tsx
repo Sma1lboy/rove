@@ -23,6 +23,7 @@ import {
   NO_STATE_GLYPH,
   buildSidebarRowView,
   prCheckChip,
+  statusChip,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
@@ -204,6 +205,10 @@ export function WorktreeTreeRow(props: {
   const isCursor = shared.cursorIndex === props.flatIndex
   const changes = useChanges(shared, task)
   const chip = prCheckChip(task)
+  // Two chips, two different questions: `status` is what a HUMAN said about
+  // the task, `chip` is what CI reports. Human first (left of the machine
+  // fact) so a scan reads intent then evidence; they never share a glyph.
+  const status = statusChip(task)
   // A worktree row is named by its BRANCH; branchless rows fall back to
   // their tail-truncated path (the one derivation rule — `worktreeRowLabel`,
   // issue #42). Which rows have to LOOK UP that branch is
@@ -227,6 +232,7 @@ export function WorktreeTreeRow(props: {
     (materializing ? 2 : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
+    (status ? 2 : 0) +
     (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
     (changes.deleted > 0 ? clusterCells(`−${changes.deleted}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
@@ -244,6 +250,11 @@ export function WorktreeTreeRow(props: {
         {task.pinned === true ? (
           <text fg={theme.warning} wrapMode="none" flexShrink={0}>
             ▴
+          </text>
+        ) : null}
+        {status ? (
+          <text fg={toneColor(theme, status.tone)} wrapMode="none" flexShrink={0}>
+            {status.glyph}
           </text>
         ) : null}
         {chip ? (

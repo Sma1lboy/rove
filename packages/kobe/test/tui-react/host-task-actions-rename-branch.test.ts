@@ -19,6 +19,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../src/tui-react/component/branch-picker-dialog", () => ({
   BranchPickerDialog: { show: mocks.branchPickerShow },
 }))
+// Not exercised here (see host-task-actions-set-status.test.ts) but imported
+// by the module under test, and the real one drags in `@opentui/react`.
+vi.mock("../../src/tui-react/component/status-picker-dialog", () => ({
+  StatusPickerDialog: { show: vi.fn() },
+}))
 vi.mock("../../src/tui-react/ui/task-dialog-adapters", () => ({
   buildBaseCreateTaskContext: vi.fn(() => ({})),
   selectNextAfterDelete: vi.fn(() => vi.fn()),

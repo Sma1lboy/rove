@@ -1529,6 +1529,14 @@ checkState=passing           chip=✓ (success)
 checkState=failing           chip=✗ (error)
 checkState=pending           chip=• (warning)
 
+## board status chip
+status=backlog               chip=<none>
+status=in_progress           chip=<none>
+status=in_review             chip=◇ (primary)
+status=done                  chip=◆ (success)
+status=canceled              chip=† (textMuted)
+status=error                 chip=× (error)
+
 ## tabRowActivity — which entry a TAB row may read
 tabActivity=-        reported=0   active=0   -> <none>
 tabActivity=-        reported=0   active=1   -> ROLLUP

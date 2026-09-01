@@ -24,10 +24,16 @@ import type { TaskActivityState } from "@/engine/hook-events"
 import { TASK_ACTIVITY_STATES } from "@/engine/hook-events"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import type { SidebarRowView } from "@/tui/panes/sidebar/row-view"
-import { buildSidebarRowView, prCheckChip, rowIsLoading, withSpinnerFrame } from "@/tui/panes/sidebar/row-view"
+import {
+  buildSidebarRowView,
+  prCheckChip,
+  rowIsLoading,
+  statusChip,
+  withSpinnerFrame,
+} from "@/tui/panes/sidebar/row-view"
 import { tabRowActivity } from "@/tui/panes/sidebar/tree-core"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
-import { type Task, type TaskDeletionPhase, type TaskStatus, toTaskId } from "@/types/task"
+import { TASK_STATUSES, type Task, type TaskDeletionPhase, type TaskStatus, toTaskId } from "@/types/task"
 import { BUILTIN_VENDORS } from "@/types/vendor"
 import { pad } from "./golden-file"
 
@@ -411,6 +417,25 @@ export function prChipBlock(): string[] {
     })
     const chip = prCheckChip(subject)
     return `${pad(`checkState=${checkState ?? "<no prStatus>"}`, 28)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`
+  })
+}
+
+/**
+ * The board-status chip: a pure map from the human-set `task.status`.
+ *
+ * Enumerated over the WHOLE union rather than the four states that render, so
+ * the two deliberate silences (`backlog`, `in_progress` — the states the auto
+ * status rule drives, which every ordinary row sits in) are pinned as
+ * behavior instead of left to be re-decided, and a seventh status added to
+ * `TaskStatus` shows up in this diff on the day it lands.
+ *
+ * Read it against the PR-chip block above: the two chips share a row, so no
+ * glyph may appear in both tables.
+ */
+export function statusChipBlock(): string[] {
+  return TASK_STATUSES.map((status) => {
+    const chip = statusChip(task({ status }))
+    return `${pad(`status=${status}`, 28)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`
   })
 }
 

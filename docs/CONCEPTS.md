@@ -39,7 +39,14 @@ worktree), the shell folds into that Task as a new terminal tab, running
 session and all, instead of becoming a duplicate row.
 
 Each Task has a `status` you set yourself (`backlog`, `in_progress`,
-`in_review`, `done`, `canceled`, `error`).
+`in_review`, `done`, `canceled`, `error`) — from the sidebar row's right-click
+menu (**Set status**) or with `rove api set-status`. It is a label and nothing
+more: `canceled` does not stop a session or remove a worktree, and `done` does
+not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
+when its engine starts a turn, and the system prompt asks the agent to set
+`in_review` when it finishes; everything past that is yours. The sidebar row
+shows the status as a mark once it leaves `backlog`/`in_progress`
+(see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
 
 **Delete is explicit and kind-aware.** A project-main Task cannot go through
 Task deletion; pressing `d` on its row instead forgets the saved project and

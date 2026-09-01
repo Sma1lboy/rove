@@ -150,7 +150,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, setVendor, togglePin, moveTask } =
+  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, setVendor, togglePin, moveTask, setStatus } =
     useWorkspaceTaskActions({
       orchestrator: orch,
       tasks: () => tasks,
@@ -389,6 +389,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onDeleteRequest={(id) => void deleteTask(id)}
           onRenameRequest={(id) => void renameTask(id)}
           onPinRequest={(id) => void togglePin(id)}
+          onSetStatusRequest={(id) => void setStatus(id)}
           moveMode={moveMode}
           onMoveRequest={(id, delta) => void moveTask(id, delta)}
           onMoveModeExit={() => setMoveMode(false)}

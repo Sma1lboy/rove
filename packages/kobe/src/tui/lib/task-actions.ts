@@ -20,7 +20,7 @@ import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessi
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
 import { DIRTY_WORKTREE_CODE } from "@/orchestrator/errors"
-import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "@/types/task"
+import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
 
 export interface TaskActionLogger {
@@ -71,6 +71,14 @@ export interface TaskActionContext {
   readonly confirm: (prompt: ConfirmPrompt) => Promise<boolean>
   /** Text-input adapter — host implements with `RenameTaskDialog.show(dialog, …)`. */
   readonly promptText: (initial: string, opts?: TextPromptOpts) => Promise<string | undefined>
+  /**
+   * DIVERGENCE — the six-value {@link TaskStatus} picker behind
+   * {@link setStatusFlow}. Optional because only the workspace host has a
+   * surface that offers it (the tree's right-click menu); a host that omits
+   * it makes the flow a no-op rather than forcing every host to carry a
+   * dialog it never opens. Resolves `undefined` on cancel, like `promptText`.
+   */
+  readonly pickStatus?: (current: TaskStatus) => Promise<TaskStatus | undefined>
   readonly logger: TaskActionLogger
   /** Forensic log tag — `[rove]` (outer monitor) vs `[rove tasks]` (Tasks pane). */
   readonly logPrefix: string
@@ -343,5 +351,36 @@ export async function cycleVendorFlow(ctx: TaskActionContext, taskId: string): P
   const engines = await availableEngineIds()
   const next = nextVendorWithin(engines, task.vendor ?? DEFAULT_TASK_VENDOR)
   if (!(await applyVendorChange(ctx, taskId, next))) return
+  await ctx.reload?.()
+}
+
+/**
+ * Set a task's lifecycle status via `task.status` — a picker over the six
+ * {@link TaskStatus} values, then one RPC.
+ *
+ * COSMETIC, and the copy has to keep saying so: the status is a LABEL on the
+ * board (`docs/CONCEPTS.md`), so `canceled` does not close, stop, or clean up
+ * anything — the worktree, the branch and every hosted session are exactly
+ * where they were. That is the same framing the CLI verb carries
+ * (`cli/api/verbs-edit.ts`), and the two must not drift: a "cancel" the user
+ * reads as teardown is how someone loses a session they meant to keep.
+ *
+ * The success toast exists for the same reason `applyVendorChange`'s does —
+ * a status the row renders as a chip only when it leaves backlog/in_progress
+ * would otherwise look like a no-op on the two states that show nothing.
+ */
+export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
+  const task = ctx.tasks().find((t) => t.id === taskId)
+  if (!task || !ctx.orch || !ctx.pickStatus) return
+  const next = await ctx.pickStatus(task.status)
+  if (!next || next === task.status) return
+  try {
+    await ctx.orch.setStatus(taskId, next)
+  } catch (err) {
+    ctx.logger.error(`${ctx.logPrefix} task.status failed:`, err)
+    ctx.notifyError?.(`Couldn't set status: ${errorMessage(err)}`)
+    return
+  }
+  ctx.notifyInfo?.(`Status → ${next}`)
   await ctx.reload?.()
 }
