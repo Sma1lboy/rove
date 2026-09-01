@@ -63,6 +63,50 @@ function StripDriver(props: { tabs: readonly TerminalTab[]; start: string; width
   )
 }
 
+/**
+ * A title longer than the pane is truncated, not drawn past the strip.
+ *
+ * The strip is `overflow: hidden`, so an over-long title did not merely spill
+ * — it pushed the tab's own right frame off the edge and ran to the last
+ * column with no ellipsis, so nothing on screen said the name had been cut.
+ * The narrow form (`tab-strip-narrow.test.tsx`) always truncated; this is the
+ * same rule for the wide one.
+ *
+ * Truncation happens before the width each entry reports, so this also guards
+ * the scroll math: measuring an untruncated title would scroll the viewport by
+ * a width nothing ever draws.
+ */
+test("a title wider than the pane is ellipsised inside its own frame", async () => {
+  const tabs: readonly TerminalTab[] = [
+    {
+      kind: "command",
+      id: "tab-1",
+      title: "a-very-long-shell-name-that-definitely-overflows-this-particular-pane-width-by-a-lot",
+      ordinal: 1,
+      command: ["zsh"],
+    },
+  ]
+  const { frame } = await renderComponent(
+    <TabStrip
+      tabs={tabs}
+      activeId="tab-1"
+      turnStates={new Map<string, ChatTabTurnState>()}
+      onSelect={() => {}}
+      vendor="claude"
+      liveTitles={new Map()}
+      turnVendors={new Map()}
+    />,
+    // Above NARROW_BREAKPOINT, so this exercises the wide path.
+    { width: 72, height: 6, providers: { kv: true } },
+  )
+  const titleRow = (await frame()).split("\n").find((line) => line.includes("a-very-long-shell")) ?? ""
+  // Cut, and visibly so.
+  expect(titleRow).toContain("…")
+  // The tab's own right frame survived: both verticals are on the row, which
+  // is exactly what an over-long title used to push off the edge.
+  expect(count(titleRow, "│")).toBe(2)
+})
+
 test("every tab is a closed box; only the active tab's bottom edge is missing", async () => {
   const tabs: readonly TerminalTab[] = [
     { kind: "engine", id: "tab-1", title: "one", ordinal: 1 },

@@ -111,8 +111,10 @@ test("each automation renders as a boxed strip", async () => {
   const row = lines.findIndex((line) => line.includes("weekday audit"))
   expect(row).toBeGreaterThan(0)
   // Border above and below: three cells tall, per the owner's layout call.
-  expect(lines[row - 1]).toContain("┌")
-  expect(lines[row + 1]).toContain("└")
+  // Rounded — the strip spreads the shared FRAME (ui/frame.ts); the geometry
+  // this guards is the three-cell height, not the corner glyph.
+  expect(lines[row - 1]).toContain("╭")
+  expect(lines[row + 1]).toContain("╰")
   // Everything on the one content line.
   expect(lines[row]).toContain("0 9 * * MON-FRI")
   expect(lines[row]).toContain("in 1h")
