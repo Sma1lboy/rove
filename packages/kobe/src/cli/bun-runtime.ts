@@ -23,12 +23,43 @@ import { constants, accessSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, delimiter, dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import pkg from "../../package.json" with { type: "json" }
 import { activeCliName } from "./rename-compat.ts"
 
 /** Point Rove at a specific Bun binary (skips every other candidate). */
 export const BUN_OVERRIDE_ENV = "ROVE_BUN"
 /** Set to `1` to make a missing Bun a hard error instead of an install offer. */
 export const NO_BOOTSTRAP_ENV = "ROVE_NO_BUN_BOOTSTRAP"
+/** Set to `1` to run on a Bun below {@link MIN_BUN_VERSION} anyway (unsupported). */
+export const SKIP_VERSION_CHECK_ENV = "ROVE_SKIP_BUN_CHECK"
+
+/**
+ * Oldest Bun this build runs on, read from `package.json#engines.bun`.
+ *
+ * The requirement is real and load-bearing: the terminal backend spawns with
+ * Bun's PTY option (`Bun.spawn(…, { terminal })`, src/tui/panes/terminal/pty.ts),
+ * which an older Bun drops as an unknown option — no error, no PTY, no output.
+ * NOBODY enforces `engines` for us: `bun install` ignores the field outright and
+ * npm only honours it under `engine-strict`, so a too-old machine installs
+ * cleanly and then runs a Rove whose every terminal tab is silently dead. This
+ * constant is what turns that into a sentence the user can act on.
+ *
+ * `engines.bun` is the single source of truth; scripts/install.sh carries the
+ * same floor and test/architecture/bun-version-floor.test.ts holds the three in sync.
+ */
+export const MIN_BUN_VERSION: string = pkg.engines.bun.match(/\d+\.\d+\.\d+/)?.[0] ?? "0.0.0"
+
+/** A Bun that exists and runs, but predates {@link MIN_BUN_VERSION}. */
+export interface StaleBun {
+  readonly path: string
+  readonly version: string
+}
+
+/** What {@link resolveUsableBun} found: a Bun to run, and/or the too-old one it skipped. */
+export interface BunResolution {
+  readonly bun: string | null
+  readonly stale: StaleBun | null
+}
 
 export interface BunLookup {
   env?: NodeJS.ProcessEnv
@@ -37,6 +68,8 @@ export interface BunLookup {
   /** Directory of the launcher, used to find a Bun installed beside the package. */
   launcherDir?: string
   isExecutable?: (path: string) => boolean
+  /** Reads a candidate's `bun --version`; injected so tests never spawn. */
+  bunVersionOf?: (path: string) => string | null
 }
 
 const defaultIsExecutable = (path: string): boolean => {
@@ -49,6 +82,47 @@ const defaultIsExecutable = (path: string): boolean => {
 }
 
 const bunFileName = (platform: NodeJS.Platform): string => (platform === "win32" ? "bun.exe" : "bun")
+
+/** `bun --version` for one candidate, or null when it cannot be asked. */
+const defaultBunVersionOf = (path: string): string | null => {
+  const result = spawnSync(path, ["--version"], { encoding: "utf8", timeout: 5_000 })
+  if (result.error || result.status !== 0) return null
+  return result.stdout?.split("\n")[0]?.trim() || null
+}
+
+/** `1.3.14`, `v1.3.14`, `1.3.14-canary.3` -> `1.3.14`; null when it isn't a version at all. */
+export function parseBunVersion(raw: string): string | null {
+  return raw.trim().match(/^v?(\d+\.\d+\.\d+)/)?.[1] ?? null
+}
+
+/**
+ * Whether a reported Bun version clears the floor.
+ *
+ * Deliberately fails OPEN on anything unparseable: this predicate gates
+ * starting Rove at all, and a Bun whose `--version` we cannot read is a worse
+ * reason to refuse than the PTY bug is to proceed.
+ *
+ * Not `version.ts`'s `compareSemver` — everything in this file runs under plain
+ * node before any Bun exists, and that module reaches the Bun bundle.
+ */
+export function isBunAtLeast(raw: string, minimum: string = MIN_BUN_VERSION): boolean {
+  const found = parseBunVersion(raw)
+  const floor = parseBunVersion(minimum)
+  if (!found || !floor) return true
+  const a = found.split(".").map(Number)
+  const b = floor.split(".").map(Number)
+  for (let i = 0; i < 3; i++) {
+    const av = a[i] ?? 0
+    const bv = b[i] ?? 0
+    if (av !== bv) return av > bv
+  }
+  return true
+}
+
+/** Whether the user has opted out of the version floor for this run. */
+export function bunVersionCheckDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env[SKIP_VERSION_CHECK_ENV] === "1"
+}
 
 /**
  * Every place a Bun runtime plausibly lives, in precedence order: explicit
@@ -87,6 +161,32 @@ export function bunCandidates(lookup: BunLookup = {}): string[] {
 export function resolveBunBinary(lookup: BunLookup = {}): string | null {
   const isExecutable = lookup.isExecutable ?? defaultIsExecutable
   return bunCandidates(lookup).find((candidate) => isExecutable(candidate)) ?? null
+}
+
+/**
+ * First candidate that both runs and clears {@link MIN_BUN_VERSION}, plus the
+ * oldest-first stale one it walked past.
+ *
+ * Skipping rather than stopping matters: a system Bun on PATH shadowing a
+ * current `~/.bun` one is the common shape of this, and Rove works fine if it
+ * just uses the newer one. Costs one `bun --version` per candidate until the
+ * first hit (~4ms), paid only on the node launcher path, which is already
+ * about to pay for a full re-exec.
+ */
+export function resolveUsableBun(lookup: BunLookup = {}): BunResolution {
+  const isExecutable = lookup.isExecutable ?? defaultIsExecutable
+  const versionOf = lookup.bunVersionOf ?? defaultBunVersionOf
+  if (bunVersionCheckDisabled(lookup.env ?? process.env)) {
+    return { bun: resolveBunBinary(lookup), stale: null }
+  }
+  let stale: StaleBun | null = null
+  for (const candidate of bunCandidates(lookup)) {
+    if (!isExecutable(candidate)) continue
+    const raw = versionOf(candidate)
+    if (raw === null || isBunAtLeast(raw)) return { bun: candidate, stale }
+    stale ??= { path: candidate, version: parseBunVersion(raw) ?? raw }
+  }
+  return { bun: null, stale }
 }
 
 /** Directory of the running launcher — the anchor for sibling-file lookups. */
@@ -128,6 +228,30 @@ export function missingBunMessage(
   ].join("\n")
 }
 
+/**
+ * Shown when every Bun on the machine predates {@link MIN_BUN_VERSION}.
+ *
+ * Names the binary and its version, because the fix depends on which one it is
+ * — upgrading `~/.bun` does nothing for a Homebrew Bun earlier on PATH.
+ */
+export function staleBunMessage(bunPath: string, version: string, cliName: string = activeCliName()): string {
+  return [
+    `${cliName}: this machine's Bun is too old for Rove — found ${version} at ${bunPath}, need ${MIN_BUN_VERSION} or newer.`,
+    "",
+    "Rove's terminals are built on Bun's PTY API. An older Bun ignores it silently,",
+    "so every terminal and engine tab would open empty and stay empty.",
+    "",
+    "Upgrade Bun, then run this command again:",
+    "  bun upgrade                 # Bun installed itself (~/.bun)",
+    "  brew upgrade bun            # Homebrew",
+    "  npm install -g bun@latest   # npm-managed Bun",
+    "",
+    `Have a newer Bun elsewhere? Point Rove at it: ${BUN_OVERRIDE_ENV}=/path/to/bun`,
+    `Run on this one anyway (unsupported, terminals will be blank): ${SKIP_VERSION_CHECK_ENV}=1`,
+    "",
+  ].join("\n")
+}
+
 /** Whether the launcher may offer to install Bun (needs consent, so needs a TTY). */
 export function canOfferBunInstall(
   env: NodeJS.ProcessEnv = process.env,
@@ -149,8 +273,10 @@ export function installBun(lookup: BunLookup = {}, spawn: Spawn = spawnSync): st
   const result = spawn(command, args, { stdio: "inherit" })
   if (result.error || result.status !== 0) return null
   // The installer edits shell rc files, not this process's PATH, so re-probe
-  // the well-known prefixes rather than trusting PATH to have grown.
-  return resolveBunBinary(lookup)
+  // the well-known prefixes rather than trusting PATH to have grown. Version-
+  // aware, or an install run to escape a stale Bun would hand back that same
+  // stale Bun whenever it sits earlier on PATH than the fresh `~/.bun` one.
+  return resolveUsableBun(lookup).bun
 }
 
 /** Exit code for a re-exec'd child, mapping a fatal signal the way a shell does. */

@@ -2,13 +2,17 @@
  * The published bins start under whichever runtime the installer chose
  * (Bun for `bun install -g`, node for `npm i -g` / `npx`), so the launcher's
  * Bun discovery is what keeps a Bun-less machine from getting
- * `env: bun: No such file or directory`. Pure functions here; the launcher
- * itself is a 60-line shell around them.
+ * `env: bun: No such file or directory` — and its version floor is what keeps
+ * a too-OLD Bun from installing cleanly and then running a Rove whose terminal
+ * tabs silently never paint. Pure functions here; the launcher itself is a
+ * 70-line shell around them.
  */
 
 import { describe, expect, it } from "vitest"
 import {
   BUN_OVERRIDE_ENV,
+  MIN_BUN_VERSION,
+  SKIP_VERSION_CHECK_ENV,
   bunCandidates,
   bunInstallerCommand,
   canOfferBunInstall,
@@ -19,6 +23,8 @@ import {
   missingBunMessage,
   relaunchWithBun,
   resolveBunBinary,
+  resolveUsableBun,
+  staleBunMessage,
 } from "../../src/cli/bun-runtime.ts"
 
 const posix = { platform: "linux" as const, home: "/home/dev", env: { PATH: "/usr/bin:/opt/bin" } }
@@ -60,6 +66,73 @@ describe("resolveBunBinary", () => {
 
   it("returns null when no candidate exists", () => {
     expect(resolveBunBinary({ ...posix, isExecutable: () => false })).toBeNull()
+  })
+})
+
+describe("resolveUsableBun", () => {
+  const all = { ...posix, isExecutable: () => true }
+
+  it("skips a Bun below the floor and uses a newer one further down the list", () => {
+    const found = resolveUsableBun({
+      ...all,
+      bunVersionOf: (path) => (path === "/usr/bin/bun" ? "1.2.21" : "1.3.14"),
+    })
+
+    expect(found.bun).toBe("/opt/bin/bun")
+    expect(found.stale).toEqual({ path: "/usr/bin/bun", version: "1.2.21" })
+  })
+
+  it("reports the first stale Bun when every candidate is too old", () => {
+    const found = resolveUsableBun({ ...all, bunVersionOf: () => "1.2.21" })
+
+    expect(found.bun).toBeNull()
+    expect(found.stale).toEqual({ path: "/usr/bin/bun", version: "1.2.21" })
+  })
+
+  it("accepts a Bun whose version cannot be read rather than refusing to start", () => {
+    const found = resolveUsableBun({ ...all, bunVersionOf: () => null })
+
+    expect(found.bun).toBe("/usr/bin/bun")
+    expect(found.stale).toBeNull()
+  })
+
+  it("takes the first executable candidate when the check is opted out", () => {
+    const probes: string[] = []
+    const found = resolveUsableBun({
+      ...all,
+      env: { ...posix.env, [SKIP_VERSION_CHECK_ENV]: "1" },
+      bunVersionOf: (path) => {
+        probes.push(path)
+        return "1.2.21"
+      },
+    })
+
+    expect(found.bun).toBe("/usr/bin/bun")
+    expect(probes).toEqual([])
+  })
+
+  it("has no stale Bun to report when there is no Bun at all", () => {
+    expect(resolveUsableBun({ ...posix, isExecutable: () => false })).toEqual({ bun: null, stale: null })
+  })
+})
+
+describe("staleBunMessage", () => {
+  it("names the offending binary, its version, and the floor", () => {
+    const message = staleBunMessage("/usr/bin/bun", "1.2.21", "rove")
+
+    expect(message).toContain("/usr/bin/bun")
+    expect(message).toContain("1.2.21")
+    expect(message).toContain(MIN_BUN_VERSION)
+  })
+
+  it("offers an upgrade route per package manager, plus both escape hatches", () => {
+    const message = staleBunMessage("/opt/homebrew/bin/bun", "1.2.21", "rove")
+
+    expect(message).toContain("bun upgrade")
+    expect(message).toContain("brew upgrade bun")
+    expect(message).toContain("npm install -g bun@latest")
+    expect(message).toContain(BUN_OVERRIDE_ENV)
+    expect(message).toContain(SKIP_VERSION_CHECK_ENV)
   })
 })
 
@@ -136,17 +209,33 @@ const spawnResult = (over: Record<string, unknown> = {}) =>
 describe("installBun", () => {
   it("re-probes the well-known prefixes after the installer ran", () => {
     const calls: string[][] = []
-    const found = installBun({ ...posix, isExecutable: (path) => path === "/home/dev/.bun/bin/bun" }, (cmd, args) => {
-      calls.push([cmd, ...args])
-      return spawnResult()
-    })
+    const found = installBun(
+      { ...posix, isExecutable: (path) => path === "/home/dev/.bun/bin/bun", bunVersionOf: () => "1.3.14" },
+      (cmd, args) => {
+        calls.push([cmd, ...args])
+        return spawnResult()
+      },
+    )
 
     expect(found).toBe("/home/dev/.bun/bin/bun")
     expect(calls[0]?.[0]).toBe("bash")
   })
 
+  it("does not hand back the stale Bun the install was meant to escape", () => {
+    const found = installBun(
+      { ...posix, isExecutable: () => true, bunVersionOf: (path) => (path === "/usr/bin/bun" ? "1.2.21" : "1.3.14") },
+      () => spawnResult(),
+    )
+
+    expect(found).toBe("/opt/bin/bun")
+  })
+
   it("gives up when the installer fails", () => {
-    expect(installBun({ ...posix, isExecutable: () => true }, () => spawnResult({ status: 1 }))).toBeNull()
+    expect(
+      installBun({ ...posix, isExecutable: () => true, bunVersionOf: () => "1.3.14" }, () =>
+        spawnResult({ status: 1 }),
+      ),
+    ).toBeNull()
   })
 })
 

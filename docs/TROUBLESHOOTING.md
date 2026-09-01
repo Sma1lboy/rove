@@ -26,6 +26,28 @@ see it too. The bare `env: bun: No such file or directory` message comes from an
 made before the launcher shipped, whose bin needed Bun on `PATH`. `rove update`
 replaces it.
 
+## `rove` exits with "this machine's Bun is too old"
+
+Rove's terminals are built on Bun's PTY API, which arrived in Bun 1.3.11
+(`engines.bun` in the published package). An older Bun ignores the option
+silently, so Rove would start, look healthy, and open every terminal and engine
+tab empty — Rove refuses to start instead.
+
+Nothing else catches this for you: `bun install` ignores `engines` outright and
+npm only honours it under `engine-strict`, so the install itself always
+succeeds. Upgrade Bun with whichever manager owns it:
+
+```bash
+bun upgrade                 # Bun installed itself (~/.bun)
+brew upgrade bun            # Homebrew
+npm install -g bun@latest   # npm-managed Bun
+```
+
+A newer Bun elsewhere on the machine is enough — Rove skips a too-old candidate
+and uses the next one it finds, or you can name it with `ROVE_BUN=/path/to/bun`.
+`ROVE_SKIP_BUN_CHECK=1` runs on the old Bun anyway; it is unsupported and the
+terminals stay blank, so use it only to reach `rove doctor` or `rove update`.
+
 ## Windows opens Rove, but engine and terminal tabs never start
 
 Windows needs three separate runtimes:

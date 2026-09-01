@@ -106,7 +106,7 @@ export function reinstallManualFix(): DoctorFix {
   }
 }
 
-type HumanOnlyReason = "git" | "noEngine" | "windowsNode"
+type HumanOnlyReason = "git" | "noEngine" | "windowsNode" | "staleBun"
 
 /** Installs and logins: doctor can only point, a human has to act. */
 export function humanOnlyFix(reason: HumanOnlyReason): DoctorFix {

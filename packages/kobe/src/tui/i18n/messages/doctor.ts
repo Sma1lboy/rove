@@ -83,6 +83,11 @@ export const en = {
     windowsNode: "Node.js is missing — the Windows PTY host cannot start",
     /** The manual action for {@link windowsNode} */
     windowsNodeAction: "install Node.js from https://nodejs.org",
+    /** Running under a Bun older than package.json#engines.bun */
+    staleBun: "the Bun running Rove is older than this build supports — terminals will not paint",
+    /** The manual action for {@link staleBun} */
+    staleBunAction:
+      "upgrade Bun (`bun upgrade`, `brew upgrade bun`, or `npm install -g bun@latest`), then relaunch Rove",
   },
 }
 
@@ -129,5 +134,7 @@ export const zh: typeof en = {
     noEngineAction: "安装任一引擎 CLI（claude、codex、copilot 或 kimi）并登录",
     windowsNode: "缺少 Node.js — Windows PTY host 无法启动",
     windowsNodeAction: "从 https://nodejs.org 安装 Node.js",
+    staleBun: "运行 Rove 的 Bun 版本低于本构建的要求 — 终端不会有任何输出",
+    staleBunAction: "升级 Bun (`bun upgrade` / `brew upgrade bun` / `npm install -g bun@latest`), 然后重新启动 Rove",
   },
 }
