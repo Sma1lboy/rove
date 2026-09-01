@@ -62,6 +62,7 @@
     "./daemon/quota-usage-cache": "./src/daemon/quota-usage-cache.ts",
     "./daemon/runtime": "./src/daemon/runtime.ts",
     "./daemon/server": "./src/daemon/server.ts",
+    "./daemon/socket-guard": "./src/daemon/socket-guard.ts",
     "./daemon/status-disposition": "./src/daemon/status-disposition.ts",
     "./daemon/task-deletion-audit": "./src/daemon/task-deletion-audit.ts",
     "./daemon/terminal-colors": "./src/daemon/terminal-colors.ts",

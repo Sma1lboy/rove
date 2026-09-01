@@ -332,12 +332,15 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   }
 
   await listenOnUnixSocket(server, socketPath)
+  // Fingerprint FIRST, before any other await. Every await between bind and
+  // arm is a window in which a usurper can unlink+rebind the path; arming
+  // late meant either no stamp at all or a stamp of the usurper's inode.
+  await sockGuard.arm()
   await writeFile(pidPath, `${process.pid}\n`, "utf8")
   // A pre-rename binary only knows `.kobe`; without these it starts a second
   // daemon on the same task index. See compat-link.ts.
   await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))
   await linkLegacyRuntimePath(pidPath, legacyDaemonPidPath(homeDir))
-  await sockGuard.arm()
 
   async function stopSoon(): Promise<void> {
     if (lifetime.isStopping()) return
