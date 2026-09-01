@@ -140,8 +140,8 @@ const AUTOMATION = {
   updatedAt: "2026-07-01T00:00:00Z",
 }
 
-/** The page reads the daemon connection signal to decide whether its
- *  daemon-hold state is still a claim it can make (daemon-down-banner.test.tsx).
+/** The page no longer reads the connection signal, but the fake orchestrator
+ *  still answers it so a re-added reader can't silently crash this test.
  *  Hoisted so `useSyncExternalStore` sees one stable store identity. */
 const ONLINE = createStateCell("online")
 

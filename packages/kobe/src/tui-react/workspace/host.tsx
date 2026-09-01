@@ -15,14 +15,14 @@ import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
 import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
-import { DaemonDownBanner, VersionSkewBanner } from "../component/version-skew-banner"
+import { VersionSkewBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { bootPaneHost } from "../lib/host-boot"
-import { useAccessor, useDaemonDown } from "../lib/use-accessor"
+import { useAccessor } from "../lib/use-accessor"
 import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
@@ -276,31 +276,25 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
 
-  // The one production consumer of `connectionStateSignal()`. Every surface
-  // below is fed by the daemon and every one of them swallows its own failed
-  // read and keeps painting the last good snapshot — a dead daemon rendered
-  // as a healthy routine list counting down to a run that will never happen.
-  // One banner above the surface switch answers it for all of them, including
-  // pages added later; the alternative is a catch block per page, which is
-  // where the silence came from in the first place.
-  const daemonDown = useDaemonDown(orch)
-  // The skew banner's twin problem, and its twin fix. `daemonStaleSignal()`
+  // The skew banner's problem, and its fix. `daemonStaleSignal()`
   // has been accurate since it was written and its ONLY reader was the mock
   // workbench — so the state it names has been invisible in the product the
   // whole time. That state is not an edge case here: Rove ships several times
   // a day and the daemon is a long-lived process that outlives an `npm i -g`,
   // which makes "new binary, old daemon" the ordinary result of updating.
   //
-  // Down beats stale: with the socket gone there is no daemon to be out of
-  // date with, and the red banner already says the screen is a photograph.
   const daemonStale = useAccessor(orch.daemonStaleSignal())
   const daemonVersion = useAccessor(orch.daemonVersionSignal())
   // Daemon-polled npm check (collectors' update channel). The chip is the
   // passive half of the update surface; `u` / a click opens the page.
   const updateInfo = useAccessor(orch.updateSignal())
-  const banner = daemonDown ? (
-    <DaemonDownBanner down={true} width={dims.width} />
-  ) : (
+  // Skew only. A daemon-disconnect banner used to sit in front of this one:
+  // a full-width red alert on every socket drop. It was the wrong weight —
+  // the reconnect loop recovers most drops in under a second, and Rove keeps
+  // working through the ones it doesn't, so the alert interrupted to announce
+  // something with nothing to act on. Skew is different: it persists until
+  // someone restarts the daemon, which is why it kept its banner.
+  const banner = (
     <VersionSkewBanner
       stale={daemonStale}
       daemonVersion={daemonVersion}

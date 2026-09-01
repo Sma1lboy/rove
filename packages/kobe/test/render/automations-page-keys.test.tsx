@@ -34,8 +34,8 @@ const ONLINE = createStateCell("online")
 
 function orchestrator(automations: unknown[] = []) {
   return {
-    // The page reads the connection signal to decide whether its daemon-hold
-    // state is still a claim it can make (see daemon-down-banner.test.tsx).
+    // The page no longer reads this; kept so a re-added reader can't
+    // silently crash the test.
     connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),

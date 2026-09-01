@@ -134,11 +134,14 @@ test("the host mounts the skew banner and drives it from the daemon signal", asy
   expect(await frame()).not.toContain("DAEMON OUT OF DATE")
 })
 
-test("a disconnected daemon shows the down banner instead of the skew one", async () => {
-  // Down beats stale. With the socket gone there is nothing to be out of date
-  // WITH, and the red banner already says the whole screen is a photograph —
-  // stacking an amber "restart the daemon" on top would send the user to fix
-  // a version when the process is not answering at all.
+test("a socket disconnect paints no banner of its own", async () => {
+  // This used to assert precedence between two banners: a red DAEMON
+  // DISCONNECTED strip took the slot from the amber skew one. The red banner
+  // is gone — Rove keeps working with the daemon down and the socket usually
+  // returns within a second, so it interrupted with nothing to act on. What
+  // is left to pin is that its removal did not take the skew banner with it:
+  // a stale build is still worth saying while the socket is down, because
+  // restarting the daemon is what fixes BOTH.
   const { orchestrator, stale, daemonVersion, connection } = fakeOrchestrator()
   const { frame } = await mountHost(orchestrator)
   await act(async () => {
@@ -148,6 +151,6 @@ test("a disconnected daemon shows the down banner instead of the skew one", asyn
   })
   await settle(60)
   const text = await frame()
-  expect(text).toContain("DAEMON DISCONNECTED")
-  expect(text).not.toContain("DAEMON OUT OF DATE")
+  expect(text).not.toContain("DAEMON DISCONNECTED")
+  expect(text).toContain("DAEMON OUT OF DATE")
 })
