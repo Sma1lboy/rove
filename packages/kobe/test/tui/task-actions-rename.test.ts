@@ -316,6 +316,29 @@ describe("setStatusFlow", () => {
     expect(reload).not.toHaveBeenCalled()
   })
 
+  /**
+   * `done ↔ error` is refused by the orchestrator (`IllegalTransitionError`,
+   * task-editor.ts) — a guard written when nothing but code could attempt it
+   * ("we still refuse … to surface bad code"). The picker offers all six
+   * values, so a person can now walk into it, which makes the toast the only
+   * thing standing between them and a silent no-op. Pinned here so that
+   * remains true whoever changes the guard next.
+   */
+  test("a transition the orchestrator refuses reports instead of failing quietly", async () => {
+    const tasks = [makeTask({ id: "t1", status: "done" })]
+    const orch = makeOrch({
+      setStatus: vi.fn(async () => {
+        throw new Error("illegal transition for task t1: done -> error")
+      }),
+    })
+    const { ctx, notifyError, reload } = makeCtx({ tasks, orch, pickStatusResult: "error" })
+
+    await setStatusFlow(ctx, "t1")
+
+    expect(notifyError).toHaveBeenCalledWith("Couldn't set status: illegal transition for task t1: done -> error")
+    expect(reload).not.toHaveBeenCalled()
+  })
+
   test("a host with no picker adapter never opens one and never writes", async () => {
     const tasks = [makeTask({ id: "t1", status: "backlog" })]
     const orch = makeOrch()
