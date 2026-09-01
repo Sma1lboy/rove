@@ -74,6 +74,14 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
  * never used as a tiebreak — tasks.json leads with the oldest saved repo's
  * main task, which is how every SSH reconnect used to land on an untouched
  * project instead of the one being worked on.
+ *
+ * The recency fallback SKIPS a routine's standing session (issue #91): a
+ * schedule that fired at 03:00 makes it the most recently updated task in the
+ * install, but it is the least likely thing you meant to open — and its
+ * sidebar row is folded away, so booting onto it would leave the cursor on a
+ * session with no visible row. It stays reachable by every deliberate route
+ * (search, the Routines page, the Inbox); it just never wins by default.
+ * An explicit active/lastActive id still selects it — that was a real choice.
  */
 export function firstSelectableTask(
   tasks: readonly Task[],
@@ -85,6 +93,11 @@ export function firstSelectableTask(
   const active = alive(activeId) ?? alive(lastActiveId)
   if (active) return active
   const live = tasks.filter((task) => !task.deletion)
-  if (live.length > 0) return live.reduce((newest, task) => (task.updatedAt > newest.updatedAt ? task : newest))
-  return tasks.find((task) => !task.deletion)
+  const newest = (pool: readonly Task[]): Task | undefined =>
+    pool.length > 0 ? pool.reduce((best, task) => (task.updatedAt > best.updatedAt ? task : best)) : undefined
+  // Routine sessions are the fallback of last resort, never the default: an
+  // overnight firing would otherwise win every cold boot on recency alone.
+  return (
+    newest(live.filter((task) => task.routine === undefined)) ?? newest(live) ?? tasks.find((task) => !task.deletion)
+  )
 }

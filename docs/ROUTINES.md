@@ -180,6 +180,11 @@ from the Routines page (`enter` on the routine), and still raises an **Inbox**
 entry when its turn finishes or it needs you. That entry is how you learn what
 last night's routine said — you do not go looking for it.
 
+It also never wins the "which task should I open?" fallback on a cold start. A
+routine that fired at 03:00 is genuinely the most recently touched task in the
+install and the least likely one you meant; opening Rove lands on your own work
+instead.
+
 ### When the engine has exited
 
 Continuity comes from the engine's own live conversation, which the PTY host
