@@ -66,13 +66,12 @@ No Linear. Backlog/open issues live in the daemon-owned issue store (web Issues 
 ### Scope
 - Edit only files within the declared slice; surface cross-slice changes, don't make them silently.
 - 3-strike rule: same root cause fails 3× → stop and surface. Max-depth: 3+ levels of sub-investigation → surface before going deeper.
-- When fixing a feature, scope the requirement explicitly — if a fix applies to one subcommand/file, confirm whether it should extend to all similar cases before declaring it done.
+- Fixing one subcommand/file? Confirm whether it should extend to every similar case before calling it done.
 
-### File size cap: ~500 lines (code-review gate)
-- Every source file should stay at or under ~500 lines.
-- If your change touches a file that is over 500 lines, the change is NOT done until that file is refactored/split back to ~500 or below — touch it → you own shrinking it. CI hard-gates this (`ci.yml` file-size-cap job on touched files).
-- New files must not be born over 500 lines.
-- Exemptions: generated files, lockfiles, snapshots/test fixtures, and `refs/`. A deliberate exception needs a one-line justification in the PR/commit.
+### File size: ~500 lines is a refactor prompt, not a budget
+- **The goal is refactoring, not the number.** 500 means "this file probably does more than one job — find the seam". It must never decide what code you write: write the clear thing, then split. Name the SEAM (this half owns X, that half owns Y), never the line count.
+- Touch a file that is over → you own splitting it along a real boundary. No seam? Say so in the PR — a valid answer.
+- CI gates touched files (`ci.yml` file-size-cap). Exempt: generated, lockfiles, fixtures, `refs/`; a deliberate exception needs one line of justification.
 
 ### Don't touch
 - `refs/` — read-only study material, forever.

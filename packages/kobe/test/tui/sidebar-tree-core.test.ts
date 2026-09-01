@@ -365,6 +365,22 @@ describe("a project closed down to nothing (owner call 2026-08-31)", () => {
     expect(out).toEqual([])
   })
 
+  test("hides a closed-down `dir` row too — the same gesture on the same kind of row", () => {
+    // A directory opened with `rove .` folds away like a project does. It has
+    // no new-task-picker entry to come back through, and does not need one:
+    // the way back is the same `rove .` that opened it. Leaving it on screen
+    // made "close the last tab" mean two different things depending on a row
+    // kind the user never chose.
+    const dir = task("d", { kind: "dir", repo: "/Users/me/i/notes", branch: "", worktreePath: "/Users/me/i/notes" })
+    expect(rows({ tasks: [dir], tabsByTask: new Map([["d", []]]) })).toEqual([])
+  })
+
+  test("still shows a `dir` row whose tabs are unknown", () => {
+    // Same fresh-TUI carve-out the main rule has: absent ≠ empty.
+    const dir = task("d", { kind: "dir", repo: "/Users/me/i/notes", branch: "", worktreePath: "/Users/me/i/notes" })
+    expect(rows({ tasks: [dir], tabsByTask: new Map() }).map((r) => r.kind)).toEqual(["project", "worktree"])
+  })
+
   test("still shows it when its tabs are merely UNKNOWN (fresh TUI)", () => {
     // Absent from the map = never mounted since restart, which is every
     // project on a cold boot. Hiding on that would make the sidebar start

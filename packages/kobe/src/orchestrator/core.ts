@@ -7,6 +7,7 @@
 import { type ReadableState, type StateCell, createStateCell } from "../lib/external-store.ts"
 import { readLastActiveTaskId, writeLastActiveTaskId } from "../state/last-active.ts"
 import { getRemoteRepoConfig, getSavedRepos, removeSavedRepo } from "../state/repos.ts"
+import { isGitRepo, resolveRepoRoot } from "../state/repos.ts"
 import { resolvePreferredVendor } from "../state/vendor-prefs.ts"
 import type {
   Task,
@@ -25,6 +26,7 @@ import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemov
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
+import { promotableDirTasks } from "./promote-dir-tasks.ts"
 import { TaskDeletionCoordinator, type TaskDeletionOpts } from "./task-deletion.ts"
 import { TaskEditor } from "./task-editor.ts"
 import { PLACEHOLDER_TASK_TITLE } from "./title.ts"
@@ -123,12 +125,32 @@ export class Orchestrator {
 
   /**
    * Pre-flight hook for the TUI to await before the first render.
-   * Currently a no-op — kept for API parity with the v0.5 daemon
-   * orchestrator + future expansion.
+   *
+   * One job: absorb `dir` rows that are sitting on a repository root into
+   * that repo's `main` row. `rove .` has routed a repo root to
+   * `ensureMainTask` since 2026-08-31, so nothing new lands mis-shaped — but
+   * the rows created before that rule keep rendering as a bare path, outside
+   * every behaviour written for a project row (ordering, pin, the fold on a
+   * closed last tab). `ensure` only runs when somebody names the repo, so
+   * without a sweep those rows stay wrong forever.
+   *
+   * Best-effort by construction: it runs before the first frame, and a repo
+   * that has moved or a git that will not answer must not stop the TUI from
+   * starting. `ensureIfEligible` reuses the same admission gate and the same
+   * adoption branch as every other caller — the promoted row keeps its task
+   * id, so its terminal tabs come with it.
    */
   async init(): Promise<void> {
-    // No-op in v0.6. v0.5 had startup polling for plan-usage and rc-bridge;
-    // both are gone. The TUI awaits this for parity.
+    try {
+      const promotable = promotableDirTasks({
+        tasks: this.store.list(),
+        isRepoRoot: (path) => isGitRepo(path) && resolveRepoRoot(path) === path,
+      })
+      for (const task of promotable) await this.mainTasks.ensureIfEligible(task.repo, "explicit")
+    } catch {
+      // A promotion that cannot happen is a row that renders the way it did
+      // yesterday, not a boot failure.
+    }
   }
 
   /**
