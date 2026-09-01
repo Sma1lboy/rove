@@ -36,24 +36,31 @@ function repo(): string {
  * Mount the dialog the way a host does — through `NewTaskDialog.show` on a
  * live dialog stack, which is the wiring under test.
  */
-function Harness(props: { repo: string; mainRepos?: ReadonlySet<string>; onSubmit: (v: NewTaskInput) => void }) {
+function Harness(props: {
+  repo: string
+  saved?: readonly string[]
+  mainRepos?: ReadonlySet<string>
+  onSubmit: (v: NewTaskInput) => void
+}) {
   const dialog = useDialog()
   const opened = useRef(false)
   useEffect(() => {
     if (opened.current) return
     opened.current = true
-    void NewTaskDialog.show(dialog, props.repo, [props.repo], { mainRepos: props.mainRepos }).then((result) => {
-      if (result) props.onSubmit(result)
-    })
-  }, [dialog, props.repo, props.mainRepos, props.onSubmit])
+    void NewTaskDialog.show(dialog, props.repo, props.saved ?? [props.repo], { mainRepos: props.mainRepos }).then(
+      (result) => {
+        if (result) props.onSubmit(result)
+      },
+    )
+  }, [dialog, props.repo, props.saved, props.mainRepos, props.onSubmit])
   // DialogProvider renders the stack itself; this component only opens it.
   return <box />
 }
 
-async function mount(dir: string, mainRepos?: ReadonlySet<string>) {
+async function mount(dir: string, mainRepos?: ReadonlySet<string>, saved?: readonly string[]) {
   const submitted: NewTaskInput[] = []
   const handle = await renderComponent(
-    <Harness repo={dir} mainRepos={mainRepos} onSubmit={(v) => submitted.push(v)} />,
+    <Harness repo={dir} saved={saved} mainRepos={mainRepos} onSubmit={(v) => submitted.push(v)} />,
     {
       width: 100,
       height: 40,
@@ -139,6 +146,45 @@ test("tab from the project intent lands on Create, not the hidden branch field",
   await settle()
   // The focused Create button is the only field marker still on screen.
   expect(await frame()).toContain("▸ [ Create ]")
+})
+
+test("picking a different repo resets the intent back to a task worktree", async () => {
+  // The choice is per-repo, so it must not survive a repo change. Driven
+  // through the PICKER (Enter on the dropdown), which is the route that used
+  // to skip the reset: three call sites wrote `setRepo` directly, so typing
+  // reset the intent and picking did not. Everything goes through
+  // `changeRepo` now.
+  const a = repo()
+  const b = repo()
+  const { frame, mockInput } = await mount(a, new Set([a, b]), [a, b])
+
+  await tabToIntent(mockInput)
+  await act(async () => {
+    mockInput.pressArrow("right")
+  })
+  await settle()
+  expect(await frame()).toContain("▸ the project itself")
+
+  // Back to the repo field (intent → confirm → tabs → engine → repo), then
+  // pick the other saved repo out of the dropdown.
+  for (let i = 0; i < 4; i++) {
+    await act(async () => {
+      mockInput.pressTab()
+    })
+    await settle()
+  }
+  await act(async () => {
+    mockInput.pressArrow("down")
+  })
+  await settle()
+  await act(async () => {
+    mockInput.pressEnter()
+  })
+  await settle()
+
+  const text = await frame()
+  expect(text).toContain("▸ a new task worktree")
+  expect(text).not.toContain("▸ the project itself")
 })
 
 test("left returns to the task intent and the branch field comes back", async () => {

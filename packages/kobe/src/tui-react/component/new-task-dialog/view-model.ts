@@ -165,14 +165,28 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
 
   /* ── Input handlers (strip newlines + reset the affected cursor) ── */
 
+  /**
+   * The repo changed — by ANY route (typing, Enter on the picker, a click).
+   *
+   * Owns the intent reset: a different repo may have no project checkout at
+   * all, and the choice is per-repo, so carrying "project" across a change
+   * leaves the row asserting something about the previous path. `submit` is
+   * separately guarded on `canOpenProject` (derived from the CURRENT repo),
+   * so this is about the row telling the truth, not about safety.
+   *
+   * Three call sites used to write `setRepo` directly and skip it — typing
+   * reset the intent, picking the same repo from the dropdown did not.
+   */
+  function changeRepo(next: string): void {
+    setRepo(next)
+    setIntent("task")
+  }
+
   function setRepoText(v: string): void {
     setRepoPicked(false)
-    setRepo(stripNewlines(v))
+    changeRepo(stripNewlines(v))
     setRepoCursor(0)
     setBranchCursor(0)
-    // A different repo may have no project at all, and a stale "project"
-    // intent would then submit a mode the flow has nothing to open.
-    setIntent("task")
   }
   function setBaseRefText(v: string): void {
     setBaseRefTouched(true)
@@ -262,7 +276,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     if (!repo.trim() && mode === "saved") {
       const picked = activeList[0]
       if (picked) {
-        setRepo(picked)
+        changeRepo(picked)
         setField(advanceField("repo"))
         return
       }
@@ -271,7 +285,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       const picked = subdirFiltered[repoCursor]
       if (picked) {
         // Enter = SELECT this dir as the repo and advance (no drill).
-        setRepo(joinPicked(repo, subdirSplit.base, picked))
+        changeRepo(joinPicked(repo, subdirSplit.base, picked))
         setRepoCursor(0)
         setRepoPicked(true)
       }
@@ -279,7 +293,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       return
     }
     const picked = activeList[repoCursor]
-    if (picked) setRepo(picked)
+    if (picked) changeRepo(picked)
     setField(advanceField("repo"))
   }
 
@@ -287,10 +301,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
     const picked = activeList[absoluteIndex]
     if (!picked) return
     if (mode === "browse") {
-      setRepo(joinPicked(repo, subdirSplit.base, picked))
+      changeRepo(joinPicked(repo, subdirSplit.base, picked))
       setRepoPicked(true)
     } else {
-      setRepo(picked)
+      changeRepo(picked)
     }
     setRepoCursor(absoluteIndex)
     setField(advanceField("repo"))
