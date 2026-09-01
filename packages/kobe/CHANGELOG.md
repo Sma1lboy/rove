@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.9.74
+
+### Patch Changes
+
+- [#740](https://github.com/Sma1lboy/rove/pull/740) [`99fd1d5`](https://github.com/Sma1lboy/rove/commit/99fd1d559fa2fe8b9c93d04279d6937a42b58827) Keep the whole screen a stuck engine was showing, not just its last line
+
+  A task waiting on a dialog recorded one readable line of its death record —
+  the `Enter to confirm · Esc to cancel` footer — with the question, its
+  options, and the reason all missing. The tail budget was 40 lines and it kept
+  1: an engine painting a full screen moves the cursor instead of writing
+  newlines, and stripping the escapes first collapsed every row into one line.
+  Vertical cursor motion now becomes a row break before the escapes are
+  stripped, so `rove api read-output` and a dead tab's recorded tail both show
+  the screen the engine was actually on. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#741](https://github.com/Sma1lboy/rove/pull/741) [`ad8863a`](https://github.com/Sma1lboy/rove/commit/ad8863a453105b250ec25a9e1e810a0e4a060466) Fix the two flaky tests that blocked the v0.9.72 npm publish twice.
+
+  Both were fixed-budget bets on async work, and both lost the bet on a loaded
+  CI runner rather than on any code change:
+
+  - `test/render/new-chat-flow.test.tsx` asserted on a frame 60ms after
+    `requestNewChat()`, but every open is gated on an async engine probe
+    (`availableEngineIds()` — a `which` + `stat` per vendor) that runs before the
+    dialog mounts. That took 38ms of the 60ms budget on an idle Mac, so a slower
+    runner read the pre-dialog frame, which is blank. All five call sites now wait
+    for the dialog's own text with `waitForFrameText`.
+  - `test/daemon/attention-inbox.test.ts` drove its retention-cap fixture through
+    510 `record()` calls, each rewriting the whole store file — ~17.7MB of I/O
+    against a 5s timeout. The timeout then abandoned the loop mid-write, so the
+    `afterEach` cleanup hit `ENOTEMPTY` on a directory that loop was still writing
+    into; one defect, two symptoms. The fixture is now seeded through the store
+    file, and only the episodes that actually cross the cap are recorded.
+
+  No retries, no bumped timeouts, no skips — tests only. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.73
 
 ### Patch Changes
