@@ -69,6 +69,9 @@ export function KanbanCard(props: {
   return (
     <box
       border={true}
+      // Rounded to match the column that holds it — a square card inside a
+      // rounded column reads as two different systems one cell apart.
+      borderStyle="rounded"
       borderColor={selected ? theme.primary : needsAttention ? theme.warning : columnBorder}
       backgroundColor={theme.backgroundElement}
       padding={1}
