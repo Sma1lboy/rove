@@ -13,6 +13,10 @@
  * and was still dropped here; only a live write → daemon restart → read-back
  * caught it. This test makes the next one fail in CI instead.
  *
+ * The third list is the decode back into a Task
+ * (`test/client/deserialize-task-fields.test.ts`), which is where these same
+ * seven fields were being dropped on the way to the TUI.
+ *
  * Same technique as the disk guard: `DeepRequired` forces the fixture to
  * name every field at compile time, so a new optional breaks the build here
  * until it is listed, and the assertion then goes red until `serializeTask`
