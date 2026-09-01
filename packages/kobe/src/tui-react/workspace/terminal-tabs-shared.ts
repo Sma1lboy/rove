@@ -16,6 +16,7 @@ import {
   type TerminalTab,
   initialTabs,
   rehydrateTabs,
+  reopenTabs,
 } from "../../tui/workspace/terminal-tabs-core"
 import type { VendorId } from "../../types/vendor"
 import { type TabsSnapshotKv, forgetTaskTabsSnapshot, terminalTabsKey } from "./terminal-tabs-persist"
@@ -41,6 +42,25 @@ export function setTaskTabs(taskId: string, state: TabsState): void {
   tabsRevision.update((n) => n + 1)
 }
 
+/**
+ * Revive a task whose last tab was closed, returning true when it did.
+ *
+ * Selecting the task is the affordance (owner call 2026-08-31): the sidebar
+ * row IS the button, so entering an emptied task reopens the kind of tab that
+ * was there rather than landing on a pane with nothing to press. A snapshot
+ * from before `reopenAs` existed reopens the default engine tab — see
+ * {@link reopenTabs}.
+ *
+ * No-op for every other state: a task with tabs, and a task that has never
+ * opened any (`null`, not empty — TerminalTabs mounts and mints its own).
+ */
+export function reviveEmptiedTabs(kv: TabsSnapshotKv | null, taskId: string, shell: string): boolean {
+  const known = knownTabsState(kv, taskId)
+  if (!known || known.tabs.length > 0) return false
+  setTaskTabs(taskId, reopenTabs(known, shell))
+  return true
+}
+
 /** Drop a task's tab state AND notify React readers. */
 export function deleteTaskTabs(taskId: string): void {
   if (!tabsByTask.delete(taskId)) return
@@ -60,7 +80,7 @@ export function activeTabIdFor(taskId: string): string | null {
  *  mounted before the context exists) still sees the live tabs instead of
  *  crashing: the in-memory map is authoritative for anything running now,
  *  and the snapshot only adds tasks that have not mounted since restart. */
-function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
+export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
   const live = tabsByTask.get(taskId)
   if (live) return live
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined
