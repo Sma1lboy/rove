@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.9.67
+
+### Patch Changes
+
+- [#723](https://github.com/Sma1lboy/rove/pull/723) [`78fc567`](https://github.com/Sma1lboy/rove/commit/78fc567f654a31ec0218854b61475203a693b7e6) Give a dispatched task the reply address in its opening brief.
+
+  `rove api send` prefixes a cross-task prompt with who sent it and the exact command to answer. `rove api add --prompt` — which is how one agent starts another — did not, so a task began its work with no idea who dispatched it or how to report back. The sender was recorded as `dispatcher` on the task row, but that is data a receiver has to think to go read, and has no reason to suspect exists.
+
+  A task's opening brief is where the reply address matters most: every report it will ever send flows back through it. Both delivery verbs now carry the same prefix, from one shared implementation. A create from a plain shell is unchanged — the prefix only appears when the caller is a verified Rove session, and never when a task addresses itself. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#726](https://github.com/Sma1lboy/rove/pull/726) [`c91b890`](https://github.com/Sma1lboy/rove/commit/c91b8907ca62cad6eea1d05a501c8ffa5f0647e4) Fix reverse-video regions and drag selections in embedded terminals so their text stays visible. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#724](https://github.com/Sma1lboy/rove/pull/724) [`23b7857`](https://github.com/Sma1lboy/rove/commit/23b7857a80044fec79fdce26a86520c21046a8d3) One source for the TUI's rounded borders, transparency that reaches the last solid tiles, and tab titles that stop overflowing their strip.
+
+  **Rounded corners come from one place now.** opentui hard-codes square corners as its Box default and offers no global override, so every framed surface had to opt in by hand — and half of them never did. The workspace pane, files pane and tab strip were rounded while the prefix HUD, context menu, story dialog, automations strips and split frames were square. All ten spread a shared `FRAME` instead, so the next framed box is rounded because its author spread the shared thing, not because they remembered a prop whose absence only shows up in a screenshot.
+
+  **Transparent mode reaches the cards and the story dialog.** A kanban card and the dialog's input wells kept a solid fill with transparency on — the one thing on screen you could not see through. Opaque mode is unchanged.
+
+  **A kanban card costs one row less.** `padding={1}` was doing three jobs at once (air inside the card, separation from the next card, a break between title and description) and charging two rows for it. Split into horizontal padding, a lane margin, and the existing box gap: same three effects, one row cheaper per card.
+
+  **A tab title wider than the pane is now ellipsised.** It used to push the tab's own right frame off the clipped strip and run to the last column with nothing saying it had been cut — a long shell name did this routinely. Truncation happens before the width the scroll math reads, so the viewport still scrolls by a width that is actually drawn. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#727](https://github.com/Sma1lboy/rove/pull/727) [`5f7a070`](https://github.com/Sma1lboy/rove/commit/5f7a070497bf2ab6feb9e50d347dbdba68b4c753) Deleting a KV key (`set(key, undefined)`) now removes it from the in-memory snapshot instead of leaving it enumerable. A stale `terminalTabs.*` snapshot left the orphan sweep re-"deleting" the same key on every task-list change — each pass a new snapshot identity, which re-armed the sweep effect into an infinite setState loop and crashed the workspace with React [#185](https://github.com/Sma1lboy/rove/issues/185). — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.66
 
 ### Patch Changes
