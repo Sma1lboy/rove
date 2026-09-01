@@ -8,4 +8,4 @@ Test-only. The case waited for the published window's `startLine` to equal exact
 
 Unloaded it passes in 50ms, because there every refresh folds exactly one line. That gap is the whole flake: it blocked four unrelated pull requests and one release in a single day while looking perfectly healthy on the machine of anyone who ran it alone.
 
-It now waits for the shift to have landed rather than to be a particular size, which is not a weaker check — the code under test is handed both windows and derives the distance itself, so the assertions hold for any landed shift.
+Two changes. The wait now accepts any landed shift rather than one of exactly ten lines — not a weaker check, since the code under test is handed both windows and derives the distance itself. And the budget goes to thirty seconds, because `refreshSnapshot` refuses to snapshot a half-painted frame and re-queues itself, which its own comment describes as bouncing forever under rapid redraws; pumping two hundred lines in a loop is that shape, so on a runner sharing a CPU the pipeline can bounce many rounds before it lands one.

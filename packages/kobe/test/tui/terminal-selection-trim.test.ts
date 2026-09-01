@@ -47,7 +47,22 @@ const SCROLLBACK = 50
  * window had been published yet, `expected 16 to be 10` when only part of the
  * output had been folded in. Both were read as flakes; both were this.
  */
-const settleUntil = (check: () => void): Promise<void> => vi.waitFor(check, { timeout: 5000, interval: 10 })
+/**
+ * Wait for the snapshot pipeline to catch up with what was pumped in.
+ *
+ * The budget is large on purpose, and 100× what this test costs when it runs
+ * alone (~50ms). `refreshSnapshot` refuses to snapshot a half-painted frame
+ * and re-queues itself 16ms later — its own comment says a new sync block can
+ * open before the previous write lands, "bouncing forever". Pumping 200 lines
+ * in a loop is exactly that shape, so under a runner sharing a CPU with seven
+ * other workers the pipeline can bounce for many rounds before it lands one.
+ *
+ * That is why a five-second budget still expired on CI while passing in 50ms
+ * on every developer machine, and why raising it is the honest fix rather than
+ * a papered-over race: nothing here is unordered, the work just takes as long
+ * as it takes to win a scheduling slot (issue #94).
+ */
+const settleUntil = (check: () => void): Promise<void> => vi.waitFor(check, { timeout: 30_000, interval: 10 })
 
 type Frame = { snapshot: readonly TerminalRow[]; window: TerminalSnapshotWindow | null }
 
