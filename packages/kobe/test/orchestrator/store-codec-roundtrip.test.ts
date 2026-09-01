@@ -9,6 +9,11 @@
  * groupId, quotaResume, linkedWorkItem, dispatcher, `deletion.deleteBranch` —
  * and now `observedLanguage`.
  *
+ * Two sibling guards close the same class one layer out each: the wire
+ * (`test/daemon/serialize-task-fields.test.ts`) and the decode into the TUI
+ * (`test/client/deserialize-task-fields.test.ts`). A field has to survive
+ * all three hand-written lists to be visible in the product.
+ *
  * This test closes the class, not the instance. `DeepRequired<Task>` forces
  * the fixture to carry EVERY field, nested optionals included, at compile
  * time — so adding an eighth optional field to Task (or its sub-records)
