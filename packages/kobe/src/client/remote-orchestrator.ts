@@ -97,6 +97,7 @@ import {
   mutateIssueOp,
   openDirectoryTaskOp,
   removeWorktreeOp,
+  replyTabCloseOp,
   reportEngineInterruptOp,
   resolveDeferredPromptOp,
   runAutomationNowOp,
@@ -360,9 +361,7 @@ export class RemoteOrchestrator {
   /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
   readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
 
-  /** Acknowledge whether this TUI closed an exact Terminal Tab request. */
-  readonly replyTerminalTabClose = (requestId: string, closed: boolean): void =>
-    void this.client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
+  replyTerminalTabClose = (requestId: string, closed: boolean): void => replyTabCloseOp(this.client, requestId, closed)
 
   /** Latest `ui.prompt` request (host input dialog) — consumers dedupe on `at`. */
   readonly uiPromptStore = (): ExternalStore<UiPromptPayload | null> => this.uiPromptAcc

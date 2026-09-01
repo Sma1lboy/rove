@@ -319,3 +319,12 @@ export async function startWorkItemOp(
 export async function setActiveTaskOp(client: KobeDaemonClient, id: TaskId | string | null): Promise<void> {
   await client.request("task.setActive", { taskId: id === null ? null : String(id) })
 }
+
+/**
+ * Acknowledge whether this TUI closed an exact Terminal Tab request
+ * (`terminalTab.closeReply`). Fire-and-forget: a dead daemon just means the
+ * broker times out on its side.
+ */
+export function replyTabCloseOp(client: KobeDaemonClient, requestId: string, closed: boolean): void {
+  void client.request("terminalTab.closeReply", { requestId, closed }).catch(() => {})
+}
