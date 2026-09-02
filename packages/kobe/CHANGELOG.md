@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.83
+
+### Patch Changes
+
+- [#766](https://github.com/Sma1lboy/rove/pull/766) [`8b56e18`](https://github.com/Sma1lboy/rove/commit/8b56e188279a26c1bbc1b216bc885a337dc789a9) Show the sidebar update chip in the theme's warning color, matching the emphasized Inbox count, and keep both host-backed chips readable against detected terminal backgrounds without changing warning text on opaque surfaces. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#745](https://github.com/Sma1lboy/rove/pull/745) [`d4a2ba4`](https://github.com/Sma1lboy/rove/commit/d4a2ba40530b4299874b0d6c556bbf40b3ce79c5) Deliver follow-up prompts over Codex's empty composer placeholder without submitting an identical user draft, and stop a second deferred prompt from replacing the first.
+
+  Codex draws `Ask Codex to do anything` in a dim style after the prompt glyph when its composer is empty. Rove now requires both the exact text and the placeholder style. A user who types the same words keeps their draft, and changed upstream copy fails closed.
+
+  The deferred-prompt store keeps the first accepted message for a tab until a human releases or dismisses it. A later send fails with `DEFERRED_PROMPT_PENDING` instead of dropping the older text while reporting success. New clients also fail safely against an older replace-on-file daemon, and a retry rebuilds an Inbox pointer if the daemon stopped between the two durable writes. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#765](https://github.com/Sma1lboy/rove/pull/765) [`c79c1dd`](https://github.com/Sma1lboy/rove/commit/c79c1ddf46a35a99d94930453bb9db0b667d359a) Render every OpenTUI screenshot and recording through a renderer that supports
+  xterm custom block glyphs. The shared harness now selects WebGL for opaque
+  captures and Canvas for transparent captures, so engine banner logos no longer
+  split into strips when a capture entry point omits its own renderer flag. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#764](https://github.com/Sma1lboy/rove/pull/764) [`3cd2a10`](https://github.com/Sma1lboy/rove/commit/3cd2a102a49625094137ebda5bc16196fb197f69) Pane crash logs now keep React component names readable in minified builds and include the component stack plus a bounded, content-safe trace of recent daemon, KV, and tab-state changes. Production minification previously left React [#185](https://github.com/Sma1lboy/rove/issues/185) reports with renderer-internal function names only. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#790](https://github.com/Sma1lboy/rove/pull/790) [`b18a661`](https://github.com/Sma1lboy/rove/commit/b18a661dbf6d67f20ea9f5e4e87ccbd4dea46580) Restore the `setThemeMode` helper that two concurrent changes raced on: one deleted it as unused while the other added its only caller, and main failed to typecheck once both landed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.82
 
 ### Patch Changes
