@@ -78,8 +78,10 @@ spec, and unknown flags are rejected (exit 2). `--repo` resolves relative
 paths against `$PWD` (`~` expanded). `spawn-task` is an alias of `add`.
 
 Engines are chosen by COMMAND, not by a vendor enum: `--command` takes an
-engine id from `engine-list` (`claude`, `codex`, `copilot`, `kimi`, plus any
-engine you registered) **or** a full command line Rove runs verbatim
+engine id from `engine-list` (`claude`, `codex`, `copilot`, `kimi`, the shipped
+contrib engines whose CLI is installed — `gemini`, `opencode`, `cursor`,
+`grok`, `droid`, `amp` — plus any engine you registered) **or** a full command
+line Rove runs verbatim
 (`--command "codex --search"`). Nothing validates an engine's flags, so probe
 an unfamiliar one with `<cmd> --help` before dispatching. See
 [ENGINES.md](./ENGINES.md#engine-presets-and-protocols) for how the protocol
@@ -95,8 +97,10 @@ replacement in `nextCommandArgs`.
   (groups + verb summaries, no flags); drill in with `--verb <name>` (full
   flag detail for one verb), `--group <g>`, or `--all` (everything; large).
   Includes an `apiVersion` agents can gate on.
-- `engine-list` *(offline)*: every engine Rove can launch — built-ins, your
-  registered presets, and engines contributed by enabled plugins — each with
+- `engine-list` *(offline)*: every engine Rove can launch — the same set the
+  TUI's engine pickers offer: built-ins, your registered presets, the shipped
+  contrib engines whose CLI is on `PATH`, and engines contributed by enabled
+  plugins — each with
   the RAW command it runs, its display
   name, and its `protocol` (the adapter Rove speaks to it: history reads,
   trust pre-answer, first-message delivery; `generic` = none). What it

@@ -33,6 +33,7 @@ import { randomUUID } from "node:crypto"
 import { engineEntry } from "@/engine/registry"
 import { getCustomEngineIds, getPersistedString } from "@/state/repos"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { isContribEngine } from "./contrib-engines.ts"
 import { vendorFromArgv } from "./foreground.ts"
 import {
   defaultEngineCommand,
@@ -71,16 +72,23 @@ export function engineProtocolKey(id: string): string {
   return `engineProtocol.${id}`
 }
 
-/** A preset's declared protocol, or undefined (built-ins ARE their protocol). */
+/**
+ * A preset's declared protocol, or undefined.
+ *
+ * Built-ins and contrib engines ARE their own protocol: each has a registry
+ * entry carrying the knowledge a protocol names (a screen manifest, for a
+ * contrib engine), so answering `generic` for `opencode` would throw away
+ * the badge rules `engineEntry("opencode")` already holds.
+ */
 export function getEngineProtocol(id: string): VendorId | undefined {
-  if (isBuiltinVendor(id)) return id
+  if (isBuiltinVendor(id) || isContribEngine(id)) return id
   const raw = getPersistedString(engineProtocolKey(id))?.trim()
   return raw && ENGINE_PROTOCOLS.includes(raw) ? raw : undefined
 }
 
 /** True when `id` names an engine kobe can launch by NAME alone. */
 export function isPresetId(id: string): boolean {
-  return isBuiltinVendor(id) || getCustomEngineIds().includes(id)
+  return isBuiltinVendor(id) || isContribEngine(id) || getCustomEngineIds().includes(id)
 }
 
 /** Every registered engine id, built-ins first. */
