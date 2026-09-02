@@ -16,7 +16,6 @@
  * subprocesses through the same {@link ExecHost} the worktree manager uses.
  */
 
-import fs from "node:fs"
 import path from "node:path"
 import type { ExecHost } from "../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
@@ -25,6 +24,7 @@ import { EmptyBranchDirtyWorktreeError, EmptyBranchError, LandConflictError, Mai
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
+import { canonicalize } from "./worktree/paths.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
 export type LandStrategy = "merge" | "squash"
@@ -140,15 +140,6 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   }
 }
 
-/** Best-effort realpath for containment/identity checks (`/var` vs `/private/var`). */
-function resolveReal(p: string): string {
-  try {
-    return fs.realpathSync.native(p)
-  } catch {
-    return path.resolve(p)
-  }
-}
-
 /**
  * Post-land worktree removal. Never throws — the merge has already committed,
  * so every refusal/failure is reported in the result instead of failing the
@@ -163,10 +154,15 @@ async function removeLandedWorktree(
 ): Promise<LandWorktreeCleanup> {
   const worktreePath = task.worktreePath.trim()
   if (!worktreePath) return { removed: false, reason: "task has no worktree on disk (never materialised)" }
-  const wt = resolveReal(worktreePath)
-  if (wt === resolveReal(task.repo)) return { removed: false, reason: "refusing to remove the base checkout" }
+  // Same canonicalizer that matched this worktree to its task (`canonPath` /
+  // `canonicalize`, plain `fs.realpathSync`) — the refusals below are string
+  // compares, so the guard must normalise exactly the way the assignment did.
+  // This used to be the repo's only `realpathSync.native` caller; the two
+  // agree everywhere we run, and one implementation beats a second syscall.
+  const wt = canonicalize(worktreePath)
+  if (wt === canonicalize(task.repo)) return { removed: false, reason: "refusing to remove the base checkout" }
   if (callerCwd) {
-    const rel = path.relative(wt, resolveReal(callerCwd))
+    const rel = path.relative(wt, canonicalize(callerCwd))
     if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
       return {
         removed: false,
