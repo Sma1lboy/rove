@@ -19,7 +19,9 @@ import {
   EmptyBranchDirtyWorktreeError,
   EmptyBranchError,
   LandConflictError,
+  MISSING_REF_CODE,
   MainCheckoutDirtyError,
+  MissingRefError,
 } from "../../src/orchestrator/errors.ts"
 import { landTask, landTaskWithCleanup } from "../../src/orchestrator/land.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
@@ -168,6 +170,29 @@ describe("landTask", () => {
     // The uncommitted file survives the refusal, and the base is untouched.
     expect(fs.existsSync(path.join(wt, "wip.txt"))).toBe(true)
     expect(fs.existsSync(path.join(repo, "wip.txt"))).toBe(false)
+  })
+
+  test("a branch that no longer resolves is MISSING_REF, not a phantom conflict", async () => {
+    // The recorded branch was renamed outside Rove, so `git rev-list --count
+    // main..feat` exits 128 with empty stdout. Before the exitCode guard the
+    // unparseable count read as "has work", the merge then failed with "not
+    // something we can merge", and land reported LAND_CONFLICT with an empty
+    // conflicted-file list — sending the operator hunting for files to resolve.
+    git(["checkout", "-b", "feat"], repo)
+    write("b.txt", "feature\n")
+    git(["add", "."], repo)
+    git(["commit", "-m", "feat commit"], repo)
+    git(["checkout", "main"], repo)
+    git(["branch", "-m", "feat", "feat-renamed"], repo)
+    const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).stdout.trim()
+
+    await expect(landTask(task("feat"))).rejects.toBeInstanceOf(MissingRefError)
+    await expect(landTask(task("feat"))).rejects.toThrow(MISSING_REF_CODE)
+    await expect(landTask(task("feat"))).rejects.toThrow(/'feat' does not resolve/)
+    // No merge was attempted: base checkout clean, HEAD unmoved.
+    const status = spawnSync("git", ["status", "--porcelain"], { cwd: repo, encoding: "utf8" }).stdout.trim()
+    expect(status).toBe("")
+    expect(spawnSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).stdout.trim()).toBe(head)
   })
 
   test("refuses a dirty base checkout", async () => {

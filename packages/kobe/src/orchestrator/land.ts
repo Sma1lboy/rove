@@ -21,7 +21,13 @@ import path from "node:path"
 import type { ExecHost } from "../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task, TaskId } from "../types/task.ts"
-import { EmptyBranchDirtyWorktreeError, EmptyBranchError, LandConflictError, MainCheckoutDirtyError } from "./errors.ts"
+import {
+  EmptyBranchDirtyWorktreeError,
+  EmptyBranchError,
+  LandConflictError,
+  MainCheckoutDirtyError,
+  MissingRefError,
+} from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
@@ -311,6 +317,13 @@ function porcelainPaths(stdout: string): string[] {
  *   - worktree clean/gone → genuine no-op ({@link EmptyBranchError}).
  * An unreadable worktree (already removed, remote path mismatch) falls through
  * to the clean case — ambiguity must not hide the no-op signal.
+ *
+ * The count itself has a THIRD outcome that is neither: `git rev-list` exiting
+ * non-zero, which means git could not resolve `<base>..<branch>` at all (the
+ * branch was renamed or deleted outside Rove). That is a broken task record —
+ * {@link MissingRefError} — and must not fall through to the merge, which would
+ * fail with "not something we can merge" and get reported as a phantom
+ * LAND_CONFLICT carrying an empty conflicted-file list.
  */
 async function assertBranchHasWork(
   task: Task,
@@ -321,6 +334,13 @@ async function assertBranchHasWork(
   deps: WorktreeExecDeps,
 ): Promise<void> {
   const aheadOut = await git(exec, dir, ["rev-list", "--count", `${landedOn}..${branch}`], { readOnly: true })
+  // Exit code first, and it is NOT the same question as an unparseable count:
+  // non-zero means git never counted (the ref does not resolve) → refuse the
+  // land; exit 0 with output we cannot parse means git counted and we failed to
+  // read it, where assuming "has work" and letting the merge speak is the safe
+  // fallback. Collapsing the two is what made a renamed branch look like a
+  // merge conflict.
+  if (aheadOut.exitCode !== 0) throw new MissingRefError(branch, landedOn, dir)
   const ahead = Number.parseInt(aheadOut.stdout.trim(), 10)
   if (!Number.isFinite(ahead) || ahead > 0) return
   const worktreePath = task.worktreePath.trim()
@@ -350,6 +370,9 @@ async function assertBranchHasWork(
  *   - the task has a branch to land (a never-materialised task has none);
  *   - the base checkout is clean — a merge into a dirty tree would entangle the
  *     user's in-progress work with the landed branch, so we refuse;
+ *   - the branch RESOLVES in the base repo — a branch renamed or deleted
+ *     outside Rove is a stale task record, refused as {@link MissingRefError}
+ *     rather than handed to a merge that fails for an unrelated reason;
  *   - the branch has at least one commit ahead of the base — a zero-commit
  *     branch is a no-op land ("worker reported success, delivered nothing"),
  *     refused as {@link EmptyBranchError}, or as

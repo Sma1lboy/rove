@@ -501,10 +501,11 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `land --task-id ID [--strategy merge|squash] [--delete-branch]
   [--remove-worktree=false]`: merge a task's branch back into its
   base repo's current branch (`--no-ff` merge, or one squash commit). Refuses
-  a dirty base checkout and a branch with no commits ahead of base
-  (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when uncommitted work is
-  still sitting in the worktree, with a send-back recovery command); on
-  conflict it aborts and returns the conflicted files. Returns
+  a dirty base checkout, a branch that no longer resolves in the base repo
+  (`MISSING_REF` — renamed or deleted outside Rove), and a branch with no
+  commits ahead of base (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when
+  uncommitted work is still sitting in the worktree, with a send-back recovery
+  command); on conflict it aborts and returns the conflicted files. Returns
   `{ landedOn, commit }`.
   **A successful land removes the task's worktree by default** — the
   directory is spent once the branch is in. Pass `--remove-worktree=false` to
