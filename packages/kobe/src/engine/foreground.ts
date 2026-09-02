@@ -56,7 +56,15 @@ function binaryName(token: string): string {
  * is what identifies, and the tree walk finds that one).
  */
 export function vendorFromArgv(commandLine: string): VendorId | null {
-  for (const token of commandLine.trim().split(/\s+/).slice(0, 4)) {
+  // Walk the leading env-assignment (`FOO=1`) and wrapper (`env`, `node`, …)
+  // tokens an engine launches behind, and identify by the FIRST
+  // executable-position token after them — the loop returns there, so
+  // arguments past the binary are never scanned (scanning them is what made
+  // the title heuristic wrong). No fixed token window: a small cap silently
+  // dropped the engine once the prefix ran past it — `env A=1 B=2 C=3 claude`
+  // (a proxy wrapper plus three routing vars) read as a bare shell, breaking
+  // both the tab's engine identity and the delivery gate.
+  for (const token of commandLine.trim().split(/\s+/)) {
     // `env FOO=1 claude` — the assignments sit between wrapper and binary.
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue
     const name = binaryName(token)
