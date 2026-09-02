@@ -185,7 +185,9 @@ async function enginesResponse(runtime: DaemonRuntimeAdapter): Promise<Response>
       label: runtime.engineDisplayName(id),
       effortLevels: runtime.engineEntry(id).effortLevels,
     }))
-    return Response.json({ engines: engines.length > 0 ? engines : [{ id: "claude", label: "Claude" }] })
+    // Empty stays empty: the SPA keeps its own four-built-in fallback only
+    // when the route yields nothing, and a synthesized entry defeats that.
+    return Response.json({ engines })
   } catch (err) {
     return webRpcErrorResponse(err, 500)
   }

@@ -38,12 +38,13 @@ const VENDOR_WORD = /\b(Claude|Codex|Copilot|Kimi)\b/
  * line contains one of its allowed fragments.
  */
 const EXEMPT_LINES: Record<string, readonly string[]> = {
-  // Both serve the engine-owned list; the literals only fire against an
-  // older bridge / empty registry (see each file's header comment). The SPA
-  // covers every BUILTIN_VENDOR because that fallback is the only other path
-  // to a vendor — a short list silently made the rest unselectable.
+  // The SPA's fallback only fires before `/api/engines` answers or against an
+  // older bridge (see the file's header comment). It covers every
+  // BUILTIN_VENDOR because it is the only other path to a vendor — a short
+  // list silently made the rest unselectable. The daemon route has NO
+  // fallback of its own: an empty registry yields `{ engines: [] }`, which is
+  // what lets the SPA keep this list.
   "packages/kobe-web/src/lib/engines.ts": ['label: "Claude"', 'label: "Codex"', 'label: "Copilot"', 'label: "Kimi"'],
-  "packages/kobe-daemon/src/daemon/web-server.ts": ['label: "Claude"'],
 }
 
 function sourceFiles(dir: string, files: string[] = []): string[] {

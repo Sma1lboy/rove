@@ -223,13 +223,22 @@ describe("daemon web request handler", () => {
   })
 
   describe("/api/engines", () => {
-    it("returns at least the claude entry", async () => {
-      const { handle } = build()
+    it("lists exactly the engines the runtime reports available", async () => {
+      const { handle } = build({ runtime: { availableEngineIds: async () => ["codex", "kimi"] } })
       const res = await handle(new Request("http://localhost/api/engines"))
       expect(res.status).toBe(200)
       const json = (await res.json()) as { engines: Array<{ id: string; label: string }> }
-      expect(json.engines.length).toBeGreaterThan(0)
-      expect(json.engines.some((e) => e.id === "claude")).toBe(true)
+      expect(json.engines.map((e) => e.id)).toEqual(["codex", "kimi"])
+      expect(json.engines.every((e) => typeof e.label === "string" && e.label.length > 0)).toBe(true)
+    })
+
+    it("returns an empty list when no engine is available — never a synthesized entry", async () => {
+      // The SPA keeps its own four-built-in fallback only when this is
+      // empty; a made-up claude row would overwrite that with one engine.
+      const { handle } = build({ runtime: { availableEngineIds: async () => [] } })
+      const res = await handle(new Request("http://localhost/api/engines"))
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ engines: [] })
     })
   })
 
