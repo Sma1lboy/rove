@@ -224,9 +224,9 @@ Rove separates two things a "vendor" used to conflate:
 
 The protocol is **derived** from the command, never declared beside it:
 
-1. `argv[0]` names a registered preset (built-in or yours) → that preset's
-   protocol. Deterministic, and it answers before anything spawns. This is
-   the normal path.
+1. `argv[0]` names a preset — a built-in, a contrib engine from the table
+   above, or one of yours → that preset's protocol. Deterministic, and it
+   answers before anything spawns. This is the normal path.
 2. Otherwise Rove can recognise a known engine binary through wrappers
    (`env FOO=1 claude`, `node …/codex.js`), the same walk the process probe
    uses at runtime.

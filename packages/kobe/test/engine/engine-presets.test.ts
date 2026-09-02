@@ -12,7 +12,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { engineCanFork, engineForkArgv, engineLaunchArgv } from "../../src/engine/engine-presets.ts"
+import {
+  GENERIC_PROTOCOL,
+  engineCanFork,
+  engineForkArgv,
+  engineLaunchArgv,
+  resolveCommandProtocol,
+} from "../../src/engine/engine-presets.ts"
 
 let home: string
 let originalHome: string | undefined
@@ -142,5 +148,32 @@ describe("fork through a declared protocol", () => {
     })
     expect(engineCanFork("mykimi")).toBe(false)
     expect(engineForkArgv(["kimi-wrapper"], "mykimi", "src")).toBeNull()
+  })
+})
+
+// Why: the six shipped contrib engines (`contrib-engines.ts`) each carry a
+// screen manifest, which is exactly the badge knowledge a protocol names —
+// but resolution only consulted the built-in and custom registries, so
+// `rove api add --command opencode` recorded `generic` and the task's
+// activity monitor read "unknown" forever. The TUI's own engine picker never
+// had this gap, so an agent-dispatched fleet was badge-blind while a
+// hand-picked one was not.
+describe("contrib engines resolve as their own protocol", () => {
+  it("names a bare contrib id instead of falling through to generic", () => {
+    expect(resolveCommandProtocol("opencode")).toBe("opencode")
+    expect(resolveCommandProtocol("cursor")).toBe("cursor")
+    expect(resolveCommandProtocol("gemini")).toBe("gemini")
+  })
+
+  it("launches a contrib id through its catalog command, honouring an override", () => {
+    // `cursor` launches `cursor-agent` — the id is not the binary, so a
+    // verbatim argv split would run a binary that does not exist.
+    expect(engineLaunchArgv({ command: "cursor" })).toEqual(["cursor-agent"])
+    writeState({ "engineCommand.opencode": "opencode --model sonnet" })
+    expect(engineLaunchArgv({ command: "opencode" })).toEqual(["opencode", "--model", "sonnet"])
+  })
+
+  it("still answers generic for a command that names no engine", () => {
+    expect(resolveCommandProtocol("some-random-agent --go")).toBe(GENERIC_PROTOCOL)
   })
 })

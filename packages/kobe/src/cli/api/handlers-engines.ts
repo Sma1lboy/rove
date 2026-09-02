@@ -18,8 +18,13 @@
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { pluginEngineIds } from "../../engine/contrib-engines.ts"
-import { GENERIC_PROTOCOL, listEnginePresets, resolveCommandProtocol } from "../../engine/engine-presets.ts"
+import { installedEngineIds } from "../../engine/account-detect.ts"
+import {
+  GENERIC_PROTOCOL,
+  describePreset,
+  listEnginePresets,
+  resolveCommandProtocol,
+} from "../../engine/engine-presets.ts"
 import { loadPluginEngines } from "../../engine/plugin-engines.ts"
 import { engineEntry } from "../../engine/registry.ts"
 import { type VendorId, coerceVendorId } from "../../types/vendor.ts"
@@ -27,20 +32,23 @@ import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
-function listAllEnginePresets() {
+/**
+ * The same engines the TUI's pickers offer: `listEnginePresets()` (built-ins +
+ * registered custom presets) widened with everything else
+ * `installedEngineIds()` finds — the shipped contrib engines whose binary is
+ * on PATH, and every plugin-contributed engine. One list, so `engine-list` and
+ * Settings → Engines cannot disagree about what Rove can launch; a contrib
+ * engine `engine-list` could not name was dispatched as `generic` and lost its
+ * activity badges.
+ */
+async function listAllEnginePresets() {
   // Plugin-contributed engines are loaded from enabled plugin manifests at
   // process start in the TUI, but the CLI path must load them explicitly.
   loadPluginEngines()
   const presets = [...listEnginePresets()]
-  for (const id of pluginEngineIds()) {
-    const entry = engineEntry(id as VendorId)
-    presets.push({
-      id,
-      name: entry.displayName,
-      command: entry.defaultCommand.join(" "),
-      protocol: GENERIC_PROTOCOL,
-      builtin: false,
-    })
+  const seen = new Set(presets.map((p) => p.id))
+  for (const id of await installedEngineIds()) {
+    if (!seen.has(id)) presets.push(describePreset(id))
   }
   return presets
 }
@@ -49,11 +57,11 @@ export const ENGINE_LIST_VERB: VerbSpec = {
   name: "engine-list",
   group: "discover",
   summary:
-    "List every engine Rove can launch — built-ins, registered presets, and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. Returns { engines }.",
+    "List every engine Rove can launch — built-ins, registered presets, the shipped contrib engines whose CLI is on PATH (gemini, opencode, cursor, grok, droid, amp), and engines contributed by enabled plugins — each with its RAW launch command, exactly as it runs. Copy one into `add --command` / `send --tab new --command` verbatim, or edit its flags first. `protocol` is the adapter Rove speaks to it (history, trust, delivery); `generic` = none, which still runs fine but loses transcript reads. Returns { engines }.",
   flags: [],
   // Presets live in state.json + plugin manifests, not the daemon — no RPC, no daemon needed.
   offline: true,
-  handler: async () => ({ engines: listAllEnginePresets() }),
+  handler: async () => ({ engines: await listAllEnginePresets() }),
 }
 
 export async function setCommand(ctx: VerbContext): Promise<unknown> {
