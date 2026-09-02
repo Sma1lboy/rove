@@ -72,6 +72,7 @@ focus or dialog.
 | Key | Action |
 |---|---|
 | `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
+| `ctrl+n` | New task from any non-input UI surface; inside an engine composer or embedded shell terminal it keeps its readline/emacs meaning and passes through |
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New engine tab |
 | `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
@@ -91,6 +92,11 @@ Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
 by the "no sessions here" pane, which has no input and no tab of its own —
 everywhere else in the workspace it reaches the terminal as usual.
+
+`ctrl+n` has the same input boundary as an ordinary typed key. It opens New
+task from the sidebar, Files, read-only content tabs, and the Kanban, Routines,
+and Issues pages. When an engine or shell terminal owns input, Rove does not
+reserve the chord; the PTY receives its `ctrl+n` byte unchanged.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);

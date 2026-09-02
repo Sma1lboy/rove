@@ -23,7 +23,9 @@ export function bindByIds(handlers: Record<string, Binding["cmd"] | PrefixAction
       console.warn(`[rove/keybindings] bindByIds: id="${id}" has no chords (or doesn't exist in KobeKeymap)`)
       continue
     }
-    chords.forEach((key, slot) => out.push({ key, cmd, action, slot, id }))
+    chords.forEach((key, slot) =>
+      out.push({ key, cmd, action, slot, id, yieldToPassthrough: binding?.yieldToPassthrough }),
+    )
     prefixChords.forEach((key, slot) => out.push({ key, prefix: true, cmd, action, slot, id }))
   }
   return out

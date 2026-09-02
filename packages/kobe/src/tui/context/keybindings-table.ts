@@ -106,6 +106,8 @@ export type KobeBinding = {
   hint?: KobeBindingHint
   /** User-facing tier. Only the deliberately small Kobe-owned direct set opts in. */
   presentation?: "onePress"
+  /** Let an enabled PTY input binding win this direct chord. */
+  yieldToPassthrough?: boolean
 }
 
 /**
@@ -138,6 +140,18 @@ export const KobeKeymap: readonly KobeBinding[] = [
     category: "Sidebar",
     description: "New task",
     hint: { keys: "n" },
+  },
+  {
+    // Direct from every non-input UI surface. Unlike the old global
+    // ctrl+n, this yields when an engine composer or shell terminal owns
+    // input, preserving readline/emacs next-history inside the PTY.
+    id: "task.new.global",
+    scope: "global",
+    keys: ["ctrl+n"],
+    category: "Global",
+    description: "New task",
+    presentation: "onePress",
+    yieldToPassthrough: true,
   },
   {
     id: "task.openEditor",

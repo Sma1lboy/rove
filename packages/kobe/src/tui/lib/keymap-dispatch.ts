@@ -27,6 +27,8 @@ export type Binding = {
   prefix?: boolean
   /** Terminal/shell input used to detect the PTY boundary. The configured prefix remains Kobe-owned. */
   passthrough?: boolean
+  /** Skip this match when the current input surface forwards keys to a PTY. */
+  yieldToPassthrough?: boolean
   /**
    * Owning KobeKeymap binding id (`tab.new`) — `bindByIds` fills it in so
    * the prefix HUD can name what a resolved sequence did. Hand-rolled
@@ -380,6 +382,7 @@ function dispatchMode(
       if (hit) break
     }
     if (hit) {
+      if (hit.yieldToPassthrough && inputPassthroughReachable(snapshot)) continue
       if (!cfg.modal && isDev()) warnShadowedMatch(snapshot, i, candidates, prefix)
       runCmd(() => hit!.cmd(evt, hit!.slot))
       return hit

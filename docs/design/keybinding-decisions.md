@@ -8,6 +8,23 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## New task from non-input panes
+
+**2026-09-02 — `ctrl+n` opens New task from non-input UI surfaces; the
+sidebar keeps bare `n`, and engine composers and embedded terminals keep
+`ctrl+n` as input.** The owner wanted task creation directly reachable from
+the content side without first returning to the sidebar. Restoring the old
+unconditional global binding would also restore the reason it was removed:
+readline and emacs-style inputs use `ctrl+n` for next-history, including inside
+the embedded engine and shell terminals.
+
+The binding is therefore global across Rove UI surfaces but explicitly yields
+at the PTY input boundary. It is reachable from the sidebar, Files, read-only
+content tabs, Kanban, Routines, and Issues. When the focused surface forwards
+input to a PTY, dispatch and shortcut discovery both exclude the Rove action,
+so the engine receives the byte and F1 or the direct-shortcut guide does not
+advertise a command that cannot run there.
+
 ## Prefix tap presentation
 
 **2026-08-28 — the prefix has tap behavior only. Every tap opens the complete

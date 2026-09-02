@@ -22,6 +22,7 @@ export const en = {
   desc: {
     "help.open": "Show keybindings help",
     "task.new": "New task",
+    "task.new.global": "New task",
     "task.openEditor": "Open active Task directory in editor",
     "task.moveMode": "Reorder sidebar rows (then j/k — tab, task, or project)",
     "settings.open": "Open settings",
@@ -118,6 +119,7 @@ export const zh: typeof en = {
   desc: {
     "help.open": "显示快捷键帮助",
     "task.new": "新建任务",
+    "task.new.global": "新建任务",
     "task.openEditor": "在编辑器中打开当前 Task 的目录",
     "task.moveMode": "调整侧边栏行顺序（然后 j/k——tab / 任务 / 项目）",
     "settings.open": "打开设置",

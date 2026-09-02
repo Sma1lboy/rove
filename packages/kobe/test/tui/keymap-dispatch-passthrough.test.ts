@@ -2,6 +2,7 @@
 
 import type { KeyEvent } from "@opentui/core"
 import { beforeEach, describe, expect, test } from "vitest"
+import { bindByIds } from "../../src/tui/context/keybindings"
 import {
   type RegisteredBinding,
   configurePrefix,
@@ -192,5 +193,67 @@ describe("prefix passthrough boundary", () => {
     expect(prefixFired).toBe(false)
     expect(prefixHudState().armed).toBe(false)
     expect(prefixHudState().entries).toHaveLength(0)
+  })
+})
+
+describe("content-only direct chords", () => {
+  test("ctrl+n opens New task on a UI surface", () => {
+    let opened = false
+    const ui: RegisteredBinding = {
+      id: 1,
+      config: () => ({
+        bindings: bindByIds({
+          "task.new.global": () => {
+            opened = true
+          },
+        }),
+      }),
+    }
+
+    const evt = makeEvt("n", { ctrl: true })
+    expect(dispatchKeyEvent([ui], evt, 100)).toBe(true)
+    expect(opened).toBe(true)
+    expect(evt.defaultPrevented).toBe(true)
+    expect(bindingReachability([ui]).direct).toContain("task.new.global")
+  })
+
+  test("ctrl+n yields to engine and shell input even when the host binding is above it", () => {
+    let opened = false
+    let forwarded = false
+    const terminal: RegisteredBinding = {
+      id: 1,
+      config: () => ({
+        bindings: [
+          {
+            key: "ctrl+n",
+            passthrough: true,
+            cmd: () => {
+              forwarded = true
+            },
+          },
+        ],
+      }),
+    }
+    // React registers ancestor effects after child effects, so the host is
+    // above the terminal in production. The content-only policy, not stack
+    // order, must still leave readline/emacs ctrl+n with the PTY.
+    const host: RegisteredBinding = {
+      id: 2,
+      config: () => ({
+        bindings: bindByIds({
+          "task.new.global": () => {
+            opened = true
+          },
+        }),
+      }),
+    }
+
+    const evt = makeEvt("n", { ctrl: true })
+    expect(dispatchKeyEvent([terminal, host], evt, 100)).toBe(true)
+    expect(opened).toBe(false)
+    expect(forwarded).toBe(true)
+    expect(evt.defaultPrevented).toBe(true)
+    expect(bindingReachability([terminal, host]).direct).not.toContain("task.new.global")
+    expect(bindingReachability([terminal, host]).inputPassthrough).toBe(true)
   })
 })

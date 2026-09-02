@@ -127,6 +127,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     bindings: [
       ...bindByIds({
         "help.open": () => HelpDialog.show(dialog, focus.focused),
+        "task.new.global": () => deps.createTask(),
         "focus.previous": prefixAction(() => cyclePane(-1)),
         // f4 — reserved from terminal passthrough, so the cycle behaves
         // identically from every pane including inside the terminal.
