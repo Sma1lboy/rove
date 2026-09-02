@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.88
+
+### Patch Changes
+
+- [#806](https://github.com/Sma1lboy/rove/pull/806) [`0f0be55`](https://github.com/Sma1lboy/rove/commit/0f0be558c7469a7615460af8449262b3e3f1db7f) Removed `test/tui/terminal-selection-trim.test.ts`: its one case raced real timers and failed on CI with the same `expected 0 >= 10` signature regardless of the change under test, blocking three releases in one day. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#807](https://github.com/Sma1lboy/rove/pull/807) [`80051e2`](https://github.com/Sma1lboy/rove/commit/80051e2e3f99e0bcb2962a0f97379a08504bb5a3) Chinese, Japanese and Korean input works again in kitty-protocol terminals (iTerm2 3.5+, kitty, Ghostty, WezTerm). 0.9.8x requested the protocol's "report all keys as escape codes" flag for the ctrl-hold guide, which makes the terminal encode an input-method commit as a text event whose characters travel only under the "report associated text" flag; that flag is now requested too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.87
 
 ### Patch Changes
