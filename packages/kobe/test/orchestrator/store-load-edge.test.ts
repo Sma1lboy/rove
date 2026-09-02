@@ -1,9 +1,8 @@
 /**
  * TaskIndexStore edges not covered by the concurrency / heal / reorder suites:
  * load() recovery (missing file, corrupt JSON, unsupported version, non-object
- * root, malformed rows), prStatus load coercion, the loaded-guard, update/move
- * error paths, the subscribe contract (eager fire, unsubscribe, throwing
- * listener isolation), and the remove convenience.
+ * root, malformed rows) and per-field load coercion. The runtime contract
+ * (loaded-guard, update/move, subscribe) lives in `store-contract-edge.test.ts`.
  *
  * Why they matter: load() recovery is the difference between "Rove boots with
  * an empty sidebar and a warning" and "Rove crashes on a half-written
@@ -382,127 +381,5 @@ describe("load() recovery", () => {
       requestedAt: "2026-07-15T00:00:00.000Z",
     })
     expect(malformed?.deletion).toBeUndefined()
-  })
-})
-
-describe("loaded guard", () => {
-  it("reads before load() throw the call-load-first error", () => {
-    expect(() => store.list()).toThrow(/call load\(\)/)
-    expect(() => store.get("x")).toThrow(/call load\(\)/)
-  })
-})
-
-describe("update / move / remove edges", () => {
-  beforeEach(async () => {
-    await store.load()
-  })
-
-  it("update throws for an unknown id", async () => {
-    await expect(store.update("missing", { title: "x" })).rejects.toThrow(/task not found/)
-  })
-
-  it("update refuses to change id/createdAt but bumps updatedAt", async () => {
-    const t = await store.create({
-      repo: "/r",
-      title: "a",
-      branch: "",
-      worktreePath: "",
-      status: "backlog",
-      kind: "task",
-      vendor: "claude",
-    })
-    const next = await store.update(t.id, {
-      id: "hijacked",
-      createdAt: "1999-01-01T00:00:00.000Z",
-      title: "b",
-    } as never)
-    expect(next.id).toBe(t.id)
-    expect(next.createdAt).toBe(t.createdAt)
-    expect(next.title).toBe("b")
-    expect(next.updatedAt >= t.updatedAt).toBe(true)
-  })
-
-  it("move throws for an unknown id and for an id outside the given group", async () => {
-    const t = await store.create({
-      repo: "/r",
-      title: "a",
-      branch: "",
-      worktreePath: "",
-      status: "backlog",
-      kind: "task",
-      vendor: "claude",
-    })
-    await expect(store.move("missing", 1)).rejects.toThrow(/task not found/)
-    await expect(store.move(t.id, 1, ["other-id"])).rejects.toThrow(/not movable/)
-  })
-
-  it("remove is a silent no-op for an unknown id", async () => {
-    await expect(store.remove("missing")).resolves.toBeUndefined()
-  })
-})
-
-describe("subscribe contract", () => {
-  it("fires eagerly with the current snapshot when already loaded, and unsubscribes cleanly", async () => {
-    await store.load()
-    const seen: number[] = []
-    const unsub = store.subscribe((snapshot) => {
-      seen.push(snapshot.length)
-    })
-    expect(seen).toEqual([0]) // eager fire on subscribe
-    await store.create({
-      repo: "/r",
-      title: "a",
-      branch: "",
-      worktreePath: "",
-      status: "backlog",
-      kind: "task",
-      vendor: "claude",
-    })
-    expect(seen.at(-1)).toBe(1)
-    unsub()
-    await store.create({
-      repo: "/r",
-      title: "b",
-      branch: "",
-      worktreePath: "",
-      status: "backlog",
-      kind: "task",
-      vendor: "claude",
-    })
-    expect(seen.at(-1)).toBe(1)
-  })
-
-  it("does not fire eagerly before load(), then delivers the load() snapshot", async () => {
-    const seen: number[] = []
-    store.subscribe((snapshot) => {
-      seen.push(snapshot.length)
-    })
-    expect(seen).toEqual([])
-    await store.load()
-    expect(seen).toEqual([0])
-  })
-
-  it("a throwing listener is isolated — other listeners still get notified", async () => {
-    const error = vi.spyOn(console, "error").mockImplementation(() => {})
-    await store.load()
-    store.subscribe(() => {
-      throw new Error("bad listener")
-    })
-    const seen: number[] = []
-    store.subscribe((snapshot) => {
-      seen.push(snapshot.length)
-    })
-    await store.create({
-      repo: "/r",
-      title: "a",
-      branch: "",
-      worktreePath: "",
-      status: "backlog",
-      kind: "task",
-      vendor: "claude",
-    })
-    expect(seen.at(-1)).toBe(1)
-    expect(error).toHaveBeenCalled()
-    error.mockRestore()
   })
 })

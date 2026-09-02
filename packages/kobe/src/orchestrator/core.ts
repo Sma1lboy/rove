@@ -398,12 +398,7 @@ export class Orchestrator {
     this.editor.setQuotaResume(id, state)
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt = (id: TaskId | string, prompt: string): Promise<void> => this.editor.setPrompt(id, prompt)
-  recordCommunication = (
-    fromTaskId: TaskId | string,
-    toTaskId: TaskId | string,
-    at?: string,
-    firstMessagePreview?: string,
-  ): Promise<void> => this.editor.recordCommunication(fromTaskId, toTaskId, at, firstMessagePreview)
+  recordCommunication: TaskEditor["recordCommunication"] = (...args) => this.editor.recordCommunication(...args)
 
   /**
    * Permanently remove a task. Refuses to delete `kind: "main"`
