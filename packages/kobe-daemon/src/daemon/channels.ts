@@ -93,8 +93,9 @@ export interface ChannelPayloads {
    * `transparentBackground` / `focusAccent` / `activeSortMode`), pushed
    * whenever the daemon's file watcher sees them change. Every pane host
    * applies the payload live so a theme switch in one session's Settings
-   * restyles the Tasks/Ops panes of EVERY task session — without this, each
-   * pane read the prefs once at boot and kept the old look forever. The
+   * restyles the Tasks/Ops panes of EVERY task session — without the push,
+   * each pane would read the prefs once at boot and keep that look forever.
+   * The
    * same fan-out carries `sortMode`: toggling the Tasks-pane sort (`t`) in
    * one session re-sorts the Tasks pane of EVERY session, instead of only
    * the pane the key was pressed in; `keysCollapsed` likewise syncs the
@@ -154,7 +155,7 @@ export interface ChannelPayloads {
     error?: string
   }
   /**
-   * Uncommitted-change counts for every collected worktree (issue #6) —
+   * Uncommitted-change counts for every collected worktree —
    * the daemon is the SINGLE `git status` collector; panes render these
    * pushes instead of each running their own per-row git polls (N panes ×
    * M tasks of duplicated subprocesses, the pre-daemon shape). The payload

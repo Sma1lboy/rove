@@ -72,13 +72,12 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // `isForeignDaemonHome` in protocol.ts.
   const homeDir = resolveDaemonHomeDir(options.homeDir)
   const startedAt = options.startedAt ?? new Date()
-  // Never steal a live daemon's socket: an unconditional pre-bind unlink let
-  // an autospawned daemon usurp the path while the incumbent kept serving its
-  // attached clients — hooks and TUI split across two daemons, activity
-  // badges gone (prod 2026-08-10). Probed FIRST so a refused boot constructs
-  // nothing. A dead ("absent") or hung ("wedged", connects but won't answer
-  // hello — replaceable, same recoverability the unconditional unlink
-  // provided) socket may still be cleared below.
+  // Never steal a live daemon's socket: an unconditional pre-bind unlink lets
+  // an autospawned daemon usurp the path while the incumbent keeps serving
+  // its attached clients — hooks and TUI split across two daemons, activity
+  // badges gone. Probed FIRST so a refused boot constructs nothing. A dead
+  // ("absent") or hung ("wedged", connects but won't answer hello —
+  // replaceable) socket may still be cleared below.
   if ((await probeDaemonSocket(socketPath)) === "alive") {
     throw new Error(`rove daemon: another daemon is already serving ${socketPath} — refusing to replace it`)
   }
@@ -210,8 +209,8 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     // deletes (`kobe api`) where no TUI sends pty.kill. Fire-and-forget;
     // never spawns a host, never throws. MUST pass this server's homeDir
     // (like every other path above): a temp-home daemon resolving the
-    // ambient default sweeps the REAL pty-host with its own task list —
-    // the 2026-07-07/08 "every test run killed my running engines" incident.
+    // ambient default sweeps the REAL pty-host with its own task list, which
+    // kills the engines a human is running.
     void sweepPtyHostSessions(
       snapshot.map((t) => t.id),
       options.homeDir,
@@ -250,7 +249,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // the collectors, and the sweep only reads it on a tick.
       plugins: () => pluginHost,
       // A standing routine session whose composer is busy hands its report to
-      // these instead of dropping it (issue #91).
+      // these instead of dropping it.
       ...(deferredPrompts ? { deferred: deferredPrompts } : {}),
       inbox,
     },
@@ -284,7 +283,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // of the TUI's misleading "daemon did not start".
   let webError: string | null = null
 
-  // Ownership watch (issue #10, rationale in socket-guard.ts): a daemon whose
+  // Ownership watch (rationale in socket-guard.ts): a daemon whose
   // socket path was taken over is unreachable for every NEW connection and
   // must not linger as a split-brain island — stop, so the attached clients'
   // reconnect loops migrate them to the new owner.
@@ -458,7 +457,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
         writeEvent: (target, name, payload) => writeFrame(target as ClientState, { type: "event", name, payload }),
       })
       if (!hadSubscribers && lifetime.hasSubscribers()) {
-        // The poller's startup tick ran before this client could subscribe;
+        // The poller's startup tick can land ahead of a client's subscribe;
         // wake it now instead of leaving a cold footer empty for 60 seconds.
         for (const vendor of runtime.vendorsWithQuotaProbe()) void quotaUsage.refreshIfDue(vendor)
       }
@@ -476,9 +475,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       writeFrame(client, { type: "response", id: req.id, name: req.name, payload })
     } catch (err) {
       // shapeDaemonError (handlers.ts) is the ONE place a thrown error
-      // becomes a wire DaemonError — message + Error name, same bytes as
-      // the old inline shaping. The parse-error path below deliberately
-      // stays bare `{ message }` (it never carried a `name` on the wire).
+      // becomes a wire DaemonError — message + Error name. The parse-error
+      // path below deliberately stays bare `{ message }`: a `name` has never
+      // been part of that frame's wire shape.
       writeFrame(client, { type: "response", id: req.id, name: req.name, error: shapeDaemonError(err) })
     }
   }

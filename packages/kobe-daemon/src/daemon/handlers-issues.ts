@@ -16,10 +16,10 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "issue.mutate",
     async handle(payload, ctx) {
       const repoRoot = requireString(payload, "repoRoot")
-      // A `link` op names a task, and until this guard NOTHING checked that the
-      // task exists — the store only type-checked `taskId` as a non-empty
-      // string. A typo'd id was accepted and the card sat in In progress
-      // pointing at nothing. The check lives HERE, not in the store: both the
+      // A `link` op names a task, and the store only type-checks `taskId` as a
+      // non-empty string — without this guard a typo'd id is accepted and the
+      // card sits in In progress pointing at nothing. The check lives HERE,
+      // rather than in the store: both the
       // CLI (`issue-update --task`) and the web link route funnel through this
       // one RPC, and the task index is on the handler context, so the issue
       // store keeps knowing nothing about tasks. The prose is the same one

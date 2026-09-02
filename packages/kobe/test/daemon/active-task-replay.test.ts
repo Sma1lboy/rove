@@ -2,12 +2,11 @@
  * Connect-time replay of the restored focus (`active-task` channel).
  *
  * Why this matters: the orchestrator seeds its active-task signal from the
- * persisted `lastActive` record, but the channel used to be published only
- * by the `task.setActive` handler — a FRESH daemon replayed tasks with no
- * focus, so every newly attached TUI fell back to "first task in the list"
- * instead of the last focused one (the "opens on the wrong task" bug).
- * The server now warms the channel at startup; this pins that behavior
- * over the real Unix socket.
+ * persisted `lastActive` record. If the channel were published only by the
+ * `task.setActive` handler, a FRESH daemon would replay tasks with no focus
+ * and every newly attached TUI would fall back to "first task in the list"
+ * instead of the last focused one. The server warms the channel at startup;
+ * this pins that behavior over the real Unix socket.
  */
 
 import { afterEach, describe, expect, it } from "vitest"

@@ -1,5 +1,5 @@
 /**
- * A routine's STANDING session (issue #91): one task re-delivered into every
+ * A routine's STANDING session: one task re-delivered into every
  * firing, instead of a fresh worktree + branch per run.
  *
  * The four paths a firing can take are here because they are the ones that

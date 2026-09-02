@@ -37,12 +37,12 @@ export type ClientState = DaemonClientConnection & {
   holdsLifetime: boolean
   /**
    * Per-channel subscribe filter (KOB — per-channel subscribe). `null` =
-   * "no filter, deliver every channel" (the historical behavior — what a
-   * subscriber that omits `channels` gets). A non-null set restricts both
-   * the connect-time replay AND every later `broadcast` to the named
-   * channels, so a narrow consumer (e.g. host-boot's UiPrefsSync, which
-   * only wants `ui-prefs` + `keybindings`) no longer receives — and
-   * deserializes — the full `task.snapshot` fan-out it never reads. The
+   * "no filter, deliver every channel" — what a subscriber that omits
+   * `channels` gets. A non-null set restricts both the connect-time replay
+   * AND every later `broadcast` to the named channels, so a narrow consumer
+   * (e.g. host-boot's UiPrefsSync, which only wants `ui-prefs` +
+   * `keybindings`) never receives — or deserializes — the full
+   * `task.snapshot` fan-out it does not read. The
    * `daemon.stopping` lifecycle frame is NOT a channel and bypasses this
    * filter (every subscriber must learn the daemon is going down).
    */
@@ -74,7 +74,7 @@ export function broadcast(clients: ReadonlySet<ClientState>, frame: DaemonFrame)
   //
   // Per-channel filter (KOB — per-channel subscribe): a channel event is
   // skipped for a client whose `channels` filter excludes it, so a narrow
-  // consumer no longer receives (nor parses) fan-out it never reads. The
+  // consumer never receives (or parses) fan-out it does not read. The
   // `daemon.stopping` lifecycle frame is NOT a channel — it bypasses the
   // filter so every subscriber learns the daemon is going down.
   const channel = frame.type === "event" && frame.name !== "daemon.stopping" ? (frame.name as ChannelName) : null

@@ -100,7 +100,7 @@ describe("daemon attention inbox", () => {
   })
 
   it("resolves an episode on open and ignores a stale open after a replacement", async () => {
-    // Queue-drain model (owner 2026-07-16): opening REMOVES the episode
+    // Queue-drain model: opening REMOVES the episode
     // (markRead is a legacy alias for delete); a fresh event re-records at
     // the latest position, and a stale open (old `at`) must not eat it.
     let now = 100
@@ -127,7 +127,7 @@ describe("daemon attention inbox", () => {
     now = 150
     await store.record("task-2", "turn-complete", undefined, "tab-1")
 
-    // A fresh event on task-1/tab-1 replaces the old episode — dedupe keeps
+    // A fresh event on task-1/tab-1 replaces the stale episode — dedupe keeps
     // ONE pending entry per task+tab and re-stamps it to the queue tail.
     now = 200
     await store.record("task-1", "awaiting-input", { waiting: "permission" }, "tab-1")
@@ -171,8 +171,8 @@ describe("daemon attention inbox", () => {
     // MAX_EPISODES + 10 distinct episodes, oldest first — the ten oldest
     // must fall off the tail-ward end and stay off after a reload. Without
     // the cap these would all persist: episodes of forgotten tasks leave
-    // only on visit / turn-start / hard-delete, so this queue used to grow
-    // without bound (one whole-file rewrite per recorded episode).
+    // only on visit / turn-start / hard-delete, so the queue grows without
+    // bound (one whole-file rewrite per recorded episode).
     // The first MAX_EPISODES are seeded (see `seed`); the ten that cross the
     // cap are recorded for real, so each one runs the prune in `commit()`.
     const path = await seed(MAX_EPISODES, 1000)

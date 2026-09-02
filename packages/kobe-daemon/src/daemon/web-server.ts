@@ -149,8 +149,8 @@ const WEB_EXPOSED_RPCS = webExposedRpcNames(createDaemonHandlerRegistry())
  * carry identical fields. Two deliberate HTTP-side differences, both pinned
  * by tests: the message travels under `error` (the SPA's api-client parses
  * `error`, not `message` — packages/kobe-web/src/lib/api-client.ts), and a
- * plain anonymous Error's `name: "Error"` stays off the wire (historical
- * shape, pinned by kobe-web's bridge-routes test).
+ * plain anonymous Error's `name: "Error"` stays off the wire (pinned by
+ * kobe-web's bridge-routes test).
  */
 export function webRpcErrorBody(err: unknown): { error: string; name?: string } {
   const { message, name } = shapeDaemonError(err)
@@ -432,9 +432,9 @@ export function createDirectWebLink(args: {
  * veto over daemon startup and must NEVER kill whatever holds the port.
  *   - port free               → bind.
  *   - held by another kobe web → SKIP (don't fight another daemon for it;
- *     since ADR 0003 the port-holder IS a live daemon process, so SIGTERM-ing
- *     it would kill every parallel session — the 2026-07-07 sweep failure
- *     shape). The already-listening daemon serves the browser fine.
+ *     the port-holder IS a live daemon process, so SIGTERM-ing it would kill
+ *     every parallel session). The already-listening daemon serves the
+ *     browser fine.
  *   - held by a non-kobe svc   → SKIP (a stray `vite preview` on the port must
  *     not make kobe unbootable).
  * A skip degrades the daemon to socket-only; it never throws.

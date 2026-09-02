@@ -64,8 +64,8 @@ function normalizeItem(value: unknown): AttentionInboxItem | null {
     tabId: item.tabId,
     state: item.state,
     ...(item.detail ? { detail: item.detail } : {}),
-    // All retained episodes are pending. Preserve the compatibility field
-    // when loading snapshots, but the queue model no longer reads it.
+    // All retained episodes are pending. The field is written for snapshot
+    // compatibility; the queue model does not read it.
     unread: item.unread !== false,
     at: item.at,
   }
@@ -111,13 +111,12 @@ export class AttentionInboxStore {
   }
 
   /**
-   * `tabId` is nullable (owner call 2026-08-10): an engine the user typed
-   * into a shell that kobe did not spawn — including the shell an exited
-   * engine leaves behind in place — inherits no `KOBE_TAB_ID`, so its hooks
-   * report task-only. Dropping those events entirely is why such a session
-   * finished without ever showing up in the Inbox. A task-level episode
-   * still navigates (the task's active tab); the tab-level one is simply
-   * more precise when the identity is there.
+   * `tabId` is nullable: an engine the user typed into a shell that kobe did
+   * not spawn — including the shell an exited engine leaves behind in place —
+   * inherits no `KOBE_TAB_ID`, so its hooks report task-only. Dropping those
+   * events would keep such a session out of the Inbox entirely. A task-level
+   * episode still navigates (the task's active tab); the tab-level one is
+   * simply more precise when the identity is there.
    */
   async record(
     taskId: string,
@@ -136,7 +135,7 @@ export class AttentionInboxStore {
       } else {
         const state = stateFor(kind, detail)
         if (!state) return
-        // Dedupe rule (owner 2026-07-16): one pending episode per task+tab —
+        // Dedupe rule: one pending episode per task+tab —
         // a fresh event REPLACES the stale one and takes the latest position
         // (delete-then-set so the fresh `at` re-sorts it to the queue tail).
         next.delete(key)
@@ -161,11 +160,10 @@ export class AttentionInboxStore {
    * `record()` kind, for the same reason `recordPromptDeferred` has one —
    * there is no hook event behind it, so it has no {@link EngineActivityKind}.
    *
-   * This is the queue's blindest spot until now: every OTHER episode is
-   * something the engine reported about itself, so an engine that was KILLED
-   * (no Stop, no SessionEnd, no hook at all) produced no episode, and the one
-   * surface whose job is "what needs me" stayed silent about seven dead
-   * agents at once (2026-08-30).
+   * Every OTHER episode is something the engine reported about itself, so a
+   * KILLED engine (no Stop, no SessionEnd, no hook at all) has nothing to
+   * report — without this path the one surface whose job is "what needs me"
+   * stays silent about every dead agent.
    *
    * Deduped per task+tab like every other episode: a fresh death replaces the
    * previous episode for that tab and takes the queue tail.
@@ -181,7 +179,7 @@ export class AttentionInboxStore {
   }
 
   /**
-   * Record a `prompt_deferred` episode (issue #78 B-layer): a prompt the
+   * Record a `prompt_deferred` episode: a prompt the
    * delivery gate blocked was accepted into the DeferredPromptsStore, and the
    * episode points at that record by id (the prompt text is NOT copied here —
    * `EngineActivityDetail` describes engine activity). One pending episode per

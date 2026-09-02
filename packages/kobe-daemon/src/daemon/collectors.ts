@@ -56,14 +56,14 @@ export interface AutomationCollectorDeps {
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
-  /** Where a standing session's blocked report goes (issue #91) instead of
+  /** Where a standing session's blocked report goes instead of
    *  being dropped. Optional so tests that don't exercise it keep working. */
   readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
   readonly inbox?: import("./automation-dispatch.ts").DispatchInbox
 }
 
 /**
- * Tier-(b) protocol sniff (issue #31): the observer's evidence hook that
+ * Tier-(b) protocol sniff: the observer's evidence hook that
  * upgrades a GENERIC task record from its live session. Only `tab-1` — the
  * deterministic engine tab launched from the task's own command (kobe's
  * `hosted-session.ts`) — may speak for the record: an engine a user starts
@@ -121,7 +121,7 @@ export function createProtocolUpgradeReporter(
  *   - keybindings watcher (KOB — cross-session keybinding propagation):
  *     watch `~/.rove/settings/keybindings.yaml` and ping the `keybindings`
  *     channel on change, so every pane re-reads + re-applies the file live.
- *   - worktree-changes collector (issue #6): the daemon runs the guarded
+ *   - worktree-changes collector: the daemon runs the guarded
  *     `git status` polls for every local worktree and publishes
  *     the counts map on the `worktree.changes` channel, so panes render
  *     pushes instead of each spawning their own per-row git polls.
@@ -141,15 +141,15 @@ export function startDaemonCollectors(
   options: DaemonCollectorOptions,
   quotaUsage?: QuotaUsageCache,
   automations?: AutomationCollectorDeps,
-  /** The activity registry — enables the activity observer (issues #11/#16:
-   *  PTY output heartbeat + foreground-walk reconciler + restart seeding).
+  /** The activity registry — enables the activity observer (PTY output
+   *  heartbeat + foreground-walk reconciler + restart seeding).
    *  Optional so handler-level tests that build collectors without one keep
    *  working; the real server always passes it. */
   activity?: DaemonActivityRegistry,
 ): () => void {
   // Activity observer: first tick immediately (restart seeding), then the
   // slow poll; gated per-tick on subscribers like every collector here. Its
-  // per-session evidence also feeds the tier-(b) protocol sniff (#31).
+  // per-session evidence also feeds the tier-(b) protocol sniff.
   const stopActivityObserver = activity
     ? startActivityObserver(
         activity,

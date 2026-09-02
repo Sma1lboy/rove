@@ -72,9 +72,9 @@ describe("TaskDeletionRunner", () => {
     expect(orch.finishTaskDeletion).toHaveBeenCalledTimes(2)
   })
 
-  // Regression (2026-08-29): only a FAILED removal was ever logged, so a
-  // successful delete — the destructive case that actually closes somebody's
-  // tabs — left no trace, and neither line said what was destroyed.
+  // Logging only a FAILED removal leaves a successful delete — the
+  // destructive case that actually closes somebody's tabs — with no trace,
+  // and neither line says what was destroyed.
   it("audits both outcomes, naming the task even though the index has dropped it", async () => {
     const lines: string[] = []
     const spy = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {

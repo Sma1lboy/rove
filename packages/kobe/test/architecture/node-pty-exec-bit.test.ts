@@ -1,6 +1,6 @@
 /**
  * scripts/fix-node-pty-exec-bit.mjs — the postinstall backstop for node-pty
- * shipping its macOS `spawn-helper` at 0644 (issue #85). Builds the tarball's
+ * shipping its macOS `spawn-helper` at 0644. Builds the tarball's
  * layout in a temp tree at the broken mode and proves the fixer restores
  * 0755, leaves an already-executable helper alone, and reports a helper it
  * cannot change instead of throwing (postinstall must never fail the

@@ -49,7 +49,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // Dispatcher provenance (issue #21): the CLI reads its own
+      // Dispatcher provenance: the CLI reads its own
       // $KOBE_TASK_ID/$KOBE_TAB_ID and sends both flat — the daemon process
       // has no caller env of its own. Recorded only when the task id is
       // present; the tab floor is tab-1, the canonical first engine tab.
@@ -180,10 +180,10 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (accepted) ctx.deletions.enqueue(taskId)
       // `accepted` is the whole point of the reply. Removal itself runs in the
       // background (a worktree teardown can take tens of seconds), so this can
-      // only ever report that the request was TAKEN, never that it finished —
-      // and a refusal used to be indistinguishable from a success because both
-      // returned `{}`. `queued: false` means nothing was scheduled: the task id
-      // does not exist, so no deletion will ever run for it.
+      // only ever report that the request was TAKEN, never that it finished.
+      // A bare `{}` would make a refusal indistinguishable from a success:
+      // `queued: false` means nothing was scheduled, because the task id does
+      // not exist and no deletion will ever run for it.
       return { taskId, queued: accepted }
     },
   },
@@ -300,7 +300,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // Scratch → project migration (issue #33): repoint a scratch task at the
+    // Scratch → project migration: repoint a scratch task at the
     // repo its shell settled in and clear the flag. No-op on non-scratch rows.
     name: "task.adoptScratchRepo",
     web: true,
@@ -332,7 +332,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      // Long-operation feedback (issue #5): `git worktree add` is
+      // Long-operation feedback: `git worktree add` is
       // minute-class on a huge repo, and the RPC stays BLOCKING (callers
       // need the path before the engine session can start) — so publish lifecycle
       // progress on the `task.jobs` channel around the call. Every

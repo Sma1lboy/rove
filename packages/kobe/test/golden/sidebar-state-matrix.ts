@@ -53,9 +53,8 @@ const BRANCH = "feat/sidebar"
 const CUSTOM_VENDOR = "my-engine"
 
 /** `undefined` is a real, distinct INPUT everywhere below — no activity entry
- *  at all reaches different code than an `idle` one, even though both now
- *  render as the same dim `·` (the tab row's separate `◌ unknown` glyph was
- *  dropped 2026-08-15). Keeping them apart here is what proves that. */
+ *  at all reaches different code than an `idle` one, even though both render
+ *  as the same dim `·`. Keeping them apart here is what proves that. */
 const ACTIVITY_STATES: ReadonlyArray<TaskActivityState | undefined> = [undefined, ...TASK_ACTIVITY_STATES]
 
 const DELETION_PHASES = [undefined, "queued", "running", "error"] as const
@@ -104,10 +103,10 @@ const JOB: TaskJobState = { kind: "ensureWorktree" }
  * Every scalar field of `SidebarRowView`, in the order the golden prints them.
  *
  * Hand-picking a subset is how a golden quietly reintroduces the sampling
- * problem it exists to remove: the first cut of this file recorded only
- * glyph/tone/loading/subtitle, so `isMain`, `titleText` and `materializing`
- * (which selects the sweep bar over the shimmer) could all have regressed
- * without moving a single line. {@link RECORDED_FIELDS} is therefore checked
+ * problem it exists to remove: recording only glyph/tone/loading/subtitle
+ * lets `isMain`, `titleText` and `materializing` (which selects the sweep bar
+ * over the shimmer) all regress without moving a single line.
+ * {@link RECORDED_FIELDS} is therefore checked
  * against the real object's keys by the test — adding a field to the interface
  * fails loudly until someone decides where it belongs.
  *
@@ -336,8 +335,8 @@ export function completionGraceBlock(): string[] {
     }
   }
   // No transcript facts at all, and a ZERO mtime (a record the collector wrote
-  // before it could stat the file) — both are the pre-daemon-collector path,
-  // which must stay exactly the old behavior rather than guessing.
+  // before it could stat the file) — both take the no-facts path, which must
+  // render from what it has rather than guessing.
   for (const seen of [false, true]) {
     const view = build({ task: task(), activity: activityOf("turn_complete"), completionSeen: seen })
     lines.push(row([pad("mtime=<none>", 22), `seen=${seen ? 1 : 0}`], view))

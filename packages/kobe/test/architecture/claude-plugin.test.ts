@@ -54,10 +54,10 @@ describe("claude-plugin hooks.json mirrors the Claude hook adapter", () => {
     }
   })
 
-  // The retired PostToolUse(Bash) observer fired `hook worktree-created` after
-  // EVERY Bash call to archive the task pinned to a removed worktree. Archive
-  // was removed (issue #75), leaving a ~170ms process spawn per Bash call that
-  // did nothing. A plugin install pays that too, so the plugin must not ship it.
+  // A PostToolUse(Bash) observer firing `hook worktree-created` after EVERY
+  // Bash call costs a ~170ms process spawn per Bash call, and there is no
+  // archive step left for it to drive. A plugin install pays that cost too,
+  // so the plugin must not ship it.
   test("the retired worktree-watch observer is NOT shipped", () => {
     expect(JSON.stringify(pluginHooks())).not.toContain("worktree-created")
   })

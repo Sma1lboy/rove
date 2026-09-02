@@ -71,7 +71,7 @@ export function exhaustedResetAtMs(usage: EngineQuotaUsage, nowMs: number): numb
  * event storm collapses onto one upstream fetch) and arm the task's resume
  * schedule. Called fire-and-forget from `engine.reportEvent` on a rate-limit
  * failure. No usable reset time arms nothing — the sticky `rate_limited`
- * badge keeps the task visible to the user, exactly as before this feature.
+ * badge is then the only thing keeping the task visible to the user.
  */
 export async function scheduleQuotaResume(
   orch: DaemonOrchestrator,

@@ -94,9 +94,9 @@ describe("recomputeTabActivity", () => {
     expect(eff).toMatchObject({ state: "running", source: "hook" })
   })
 
-  it("a corrected observation carries its own session lineage once the hook slot is retired (#27)", () => {
-    // The registry drops a disproved hook slot, so the lineage it used to
-    // supply has to live on the observed slot instead.
+  it("a corrected observation carries its own session lineage once the hook slot is dropped", () => {
+    // The registry drops a disproved hook slot, so the lineage it supplied
+    // has to live on the observed slot instead.
     const eff = recomputeTabActivity({ observed: { state: "idle", at: T, vendor: "claude", session: { id: "s1" } } }, T)
     expect(eff).toMatchObject({ state: "idle", source: "observed", vendor: "claude", session: { id: "s1" } })
   })

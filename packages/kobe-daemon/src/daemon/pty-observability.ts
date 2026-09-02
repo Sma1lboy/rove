@@ -139,11 +139,11 @@ const TITLE_CARRY_CAP = 1024
  * complete title). Only a trailing INCOMPLETE OSC-title sequence matters,
  * and it begins at the last OSC introducer `\x1b]` — a buffer ending in a
  * bare ESC may be that introducer's first byte. Anchoring on any *later*
- * bare ESC (the pre-fix `lastIndexOf("\x1b")`) strands the real title: a
+ * bare ESC (a bare `lastIndexOf("\x1b")`) strands the real title: a
  * split ST terminator (`…title\x1b` | `\`) or a color escape after an
- * in-progress title both leave a later ESC that is NOT the introducer, so
- * the whole `\x1b]0;title` prefix — and the tab name it drives — was lost
- * (regression of b8737857, reintroduced by the #334 module extraction).
+ * in-progress title both leave a later ESC that is NOT the introducer, and
+ * anchoring there loses the whole `\x1b]0;title` prefix — and the tab name
+ * it drives.
  */
 function titleCarryFrom(rest: string): string {
   const osc = rest.lastIndexOf("\x1b]")

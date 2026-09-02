@@ -26,8 +26,8 @@ describe("attention inbox store invariants", () => {
     expect(await store.markRead("task-1", "tab-1", 100)).toBe(true)
   })
 
-  // A missing tab identity records at TASK level (owner call 2026-08-10 — an
-  // engine typed into a bare shell inherits no KOBE_TAB_ID). An EMPTY string
+  // A missing tab identity records at TASK level (an engine typed into a bare
+  // shell inherits no KOBE_TAB_ID). An EMPTY string
   // is not a tab either: normalize it to null rather than keying an episode
   // on `""`.
   it("normalizes an empty tab identity to a task-level episode", async () => {

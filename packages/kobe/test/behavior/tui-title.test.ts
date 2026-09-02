@@ -1,7 +1,7 @@
 /**
  * Regression pin: the pure-TUI host owns the outer terminal tab title while
- * it is running. Packaged Rove previously emitted no OSC title, so iTerm2
- * fell back to the JavaScript runtime name (observed as "node").
+ * it is running. Without an emitted OSC title, iTerm2 falls back to the
+ * JavaScript runtime name (it shows up as "node").
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest"

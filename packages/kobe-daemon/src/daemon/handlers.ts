@@ -1,23 +1,18 @@
 /**
  * Daemon RPC handler registry.
  *
- * `server.ts`'s `dispatch` used to be one ~275-line switch over
- * {@link DaemonRequestName}: every case inlined payload extraction, error
- * wording, and the Orchestrator call, and the dispatch layer had zero tests.
- * This module breaks the switch into self-contained entries —
+ * Every {@link DaemonRequestName} is a self-contained entry —
  * `{ name, handle(payload, ctx) }` — keyed in a registry map, so the dispatch
- * seam is: look up entry → validate (the same `requireString`-family helpers,
- * now shared here) → handle → uniform error shaping
+ * seam is: look up entry → validate (the shared `requireString`-family
+ * helpers) → handle → uniform error shaping
  * ({@link shapeDaemonError}, the ONE place a thrown error becomes a
  * {@link DaemonError}).
  *
- * Hard constraint: WIRE COMPATIBILITY. Every entry must produce
- * byte-equivalent success and error payloads to the pre-registry switch for
- * the same inputs — socket clients and the daemon web transport parse these
- * shapes. Success payload KEY ORDER is
- * load-bearing for byte equality (`JSON.stringify` preserves insertion
- * order), so handlers keep the exact literal shapes the switch returned,
- * `{}` returns included. Error message wording is part of the contract too
+ * Hard constraint: WIRE COMPATIBILITY. Socket clients and the daemon web
+ * transport parse these payload shapes, so an entry may never reshape one.
+ * Success payload KEY ORDER is load-bearing for byte equality
+ * (`JSON.stringify` preserves insertion order), so handlers return exact
+ * literal shapes, `{}` returns included. Error message wording is part of the contract too
  * (`"${key} is required"`, `"unknown daemon request: …"`).
  *
  * One request is deliberately NOT here: `subscribe`. It is connection
@@ -105,7 +100,7 @@ export interface DaemonHandlerContext {
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
   readonly notes?: NotesStore
-  /** Deferred prompts accepted by the delivery gate (issue #78; absent in older tests). */
+  /** Deferred prompts accepted by the delivery gate (absent in older tests). */
   readonly deferredPrompts?: DeferredPromptsStore
   /** Short-TTL cache over external tracker items (read-only view). */
   readonly workItems: WorkItemCache
@@ -116,7 +111,7 @@ export interface DaemonHandlerContext {
   readonly selfLink: DaemonRpcClient
   /** Rate-limited cache in front of the engine quota probes. */
   readonly quotaUsage: QuotaUsageCache
-  /** Durable per-turn telemetry (issue #32; absent in older tests). */
+  /** Durable per-turn telemetry (absent in older tests). */
   readonly agentTurns?: AgentTurnsStore
   /** Per-task recent engine events (`task.recentEvents`; absent in older tests). */
   readonly engineEvents?: import("./engine-events-log.ts").EngineEventLog
@@ -133,8 +128,8 @@ export interface DaemonHandlerContext {
     /** The state root this daemon serves (`<homeDir>/.kobe`). Reported by
      *  `hello` so a client can detect a daemon from a DIFFERENT home sitting
      *  on its socket — a sandbox/dev daemon that inherited the production
-     *  socket path serves an EMPTY task index, which used to reach the TUI as
-     *  a legitimate "you have no tasks" (prod 2026-08-13). */
+     *  socket path serves an EMPTY task index, which the TUI would otherwise
+     *  render as a legitimate "you have no tasks". */
     readonly homeDir?: string
     /** Loopback web transport port, when this daemon is exposing browser routes. */
     readonly webPort?: number
@@ -258,8 +253,9 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           minProtocolVersion: MIN_COMPATIBLE_PROTOCOL_VERSION,
           // The daemon's BUILD version (package.json). The protocol range above
           // only catches a breaking wire change; this lets the client detect a
-          // stale-build daemon after a patch upgrade (same protocol, old code in
-          // memory) and surface a non-fatal "restart the daemon" banner (KOB).
+          // stale-build daemon after a patch upgrade (same protocol, still
+          // running the code it booted with) and surface a non-fatal "restart
+          // the daemon" banner (KOB).
           kobeVersion: ctx.runtime.currentVersion,
           capabilities: [...CHANNEL_NAMES],
           daemonPid: ctx.daemon.pid,

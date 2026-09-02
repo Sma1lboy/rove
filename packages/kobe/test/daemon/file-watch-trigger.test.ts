@@ -2,7 +2,7 @@
  * file-watch-trigger (shared file-change trigger backing the ui-prefs,
  * keybindings, and pty-exit fan-outs). Why these tests matter: this module is
  * the load-bearing half of "edit a file on disk → daemon refreshes the
- * channel". The internals are a stat-poll (issue #61: macOS FSEvents arms
+ * channel". The internals are a stat-poll (macOS FSEvents arms
  * asynchronously and permanently drops writes landing in the arm window, so
  * fs-event watching — fs.watch or chokidar — cannot be lossless); the
  * EXTERNAL contract the callers depend on must be intact:

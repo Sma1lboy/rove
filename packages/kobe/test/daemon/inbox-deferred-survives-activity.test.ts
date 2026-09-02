@@ -6,12 +6,10 @@
  * that key — the dedupe rule that keeps a queue of stale turn-completes from
  * piling up. `prompt_deferred` does not belong to that family: the daemon is
  * holding a human's message and the episode is how a human reaches it. When
- * the target agent simply carried on (a `turn-start`, then a `turn-complete`),
- * the episode was dropped and the record in `deferred-prompts.json` became an
- * orphan — retained for its 24h TTL, reachable from nowhere.
- *
- * Observed in production 2026-09-01: four stored prompts, `attention-inbox
- * .json` holding `items: []`.
+ * the target agent simply carries on (a `turn-start`, then a `turn-complete`),
+ * sharing the lane drops the episode and orphans the record in
+ * `deferred-prompts.json` — retained for its 24h TTL, reachable from nowhere,
+ * with `attention-inbox.json` holding `items: []`.
  */
 
 import { mkdtemp, rm } from "node:fs/promises"

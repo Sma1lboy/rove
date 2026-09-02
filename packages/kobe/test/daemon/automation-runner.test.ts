@@ -48,7 +48,7 @@ function fakeDeps(args: {
   store: AutomationsStore
   createTask?: (input: unknown) => Promise<DaemonTask>
   start?: (link: DaemonRpcClient, taskId: string, prompt: string) => Promise<boolean>
-  /** Tasks `resolveStandingTask` can find, keyed by id (issue #91). */
+  /** Tasks `resolveStandingTask` can find, keyed by id. */
   tasks?: Record<string, DaemonTask>
   deliver?: DispatchRuntime["deliverPromptToLiveEngineDetailed"]
 }) {

@@ -17,7 +17,7 @@
  * Runs through the user's login shell so the command reads the same as it
  * would typed into a terminal (pipes, `&&`, PATH/exports from their rc
  * files). It uses the same `-ilc` form `session-launch.ts` spawns engine
- * tabs with (#26): the interactive bit is what sources `.zshrc`/`.bashrc`,
+ * tabs with: the interactive bit is what sources `.zshrc`/`.bashrc`,
  * so a precheck sees the same environment as the engine it gates. Interactive
  * rc output (e.g. a prompt framework's banner) rides along in the captured
  * streams; the exit code stays the only decision signal, and the timeout

@@ -1,5 +1,5 @@
 /**
- * Durable deferred-prompt store (issue #78 B-layer).
+ * Durable deferred-prompt store.
  *
  * When the delivery gate (A: recent human keystrokes / C: composer non-empty)
  * blocks a prompt, the prompt is NOT dropped and NOT hard-rejected — ownership

@@ -1,6 +1,5 @@
 /**
- * Regression guard for #307: the shipped bundles must NOT contain React's
- * development build.
+ * The shipped bundles must NOT contain React's development build.
  *
  * Bun defaults `process.env.NODE_ENV` to "development" during `Bun.build`,
  * so without an explicit `define` the bundler resolves react and

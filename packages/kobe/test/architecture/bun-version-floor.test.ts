@@ -6,8 +6,8 @@
  *
  * A floor that drifts between them is invisible in the worst direction: the
  * install path would keep waving through a Bun the runtime then refuses, or
- * — the shape that produced this guard — the declaration is raised for a new
- * Bun API and the two enforcement points keep passing the old one through.
+ * the declaration is raised for a new Bun API while the two enforcement
+ * points keep waving through the version below it.
  *
  * So: package.json is the source of truth, and this test is what makes the
  * other two follow it. When you raise `engines.bun`, this test tells you the

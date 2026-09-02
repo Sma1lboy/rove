@@ -43,7 +43,7 @@ export interface DaemonStores {
 /**
  * Create + init the durable stores and the per-task teardown runner. `homeDir`
  * is the UNRESOLVED `options.homeDir` — the store path helpers resolve it, and
- * matching the previous inline wiring exactly keeps sandbox isolation identical.
+ * resolving anywhere else breaks sandbox isolation.
  */
 export async function initDaemonStores(
   orch: DaemonOrchestrator,
@@ -58,12 +58,12 @@ export async function initDaemonStores(
   const activity = new DaemonActivityRegistry(bus, undefined, undefined, livenessAt)
   const inbox = new AttentionInboxStore(defaultAttentionInboxPath(homeDir), bus)
   await inbox.init().catch((err) => logDaemonError("attention-inbox-init", err))
-  // Durable per-turn telemetry (issue #32) — written by the `turn-complete`
+  // Durable per-turn telemetry — written by the `turn-complete`
   // hook ingest, read by `agentTurn.list`. Same homeDir isolation as the
   // other daemon-owned stores so a sandbox home never writes to the real one.
   const agentTurns = new AgentTurnsStore(defaultAgentTurnsPath(homeDir))
   await agentTurns.init().catch((err) => logDaemonError("agent-turns-init", err))
-  // Deferred prompts (issue #78 B-layer) — the delivery gate hands blocked
+  // Deferred prompts — the delivery gate hands blocked
   // prompts to daemon ownership; same homeDir isolation as the other stores.
   const deferredPrompts = new DeferredPromptsStore(defaultDeferredPromptsPath(homeDir))
   const clearTaskState = (taskId: string) =>

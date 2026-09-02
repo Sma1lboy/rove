@@ -10,8 +10,8 @@
  *
  * `worktree.created` is snapshot-derived (empty → non-empty worktreePath, or
  * a task-kind row born with one) so EVERY materialization path fires it —
- * lazy ensure, adopt, scratch-adopt — not just the ensureWorktree job that an
- * earlier version keyed on. It is deliberately blind to the first snapshot
+ * lazy ensure, adopt, scratch-adopt — rather than only the ensureWorktree
+ * job. It is deliberately blind to the first snapshot
  * after daemon start — replayed state must not re-fire hooks for tasks that
  * already existed.
  */

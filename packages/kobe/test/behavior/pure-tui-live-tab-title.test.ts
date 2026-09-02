@@ -1,5 +1,5 @@
 /**
- * Regression pin (owner report 2026-08-15): a sidebar tab row's TITLE must
+ * Regression pin: a sidebar tab row's TITLE must
  * track the live session, like the state glyph beside it already does — not
  * wait for you to click into that task.
  *

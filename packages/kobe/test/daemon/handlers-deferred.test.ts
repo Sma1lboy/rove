@@ -6,7 +6,7 @@ import { DeferredPromptsStore as Store } from "@sma1lboy/kobe-daemon/daemon/defe
 import { afterEach, describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
-describe("deferredPrompt RPC handlers (issue #78 B)", () => {
+describe("deferredPrompt RPC handlers", () => {
   let dir: string | null = null
 
   afterEach(async () => {

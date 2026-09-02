@@ -3,10 +3,10 @@
  * and the generated docs illustrations.
  *
  * `package-distribution.test.ts` pins the npm/repository contract and
- * `active-product-copy.test.ts` pins retired-architecture claims. Neither sees
+ * `active-product-copy.test.ts` pins stale-architecture claims. Neither sees
  * the third failure mode of the Kobe -> Rove rename: a page that still tells a
- * user to run `kobe …`, or prints a state path / branch prefix Rove no longer
- * writes. Those are silent because they are only wrong for NEW users.
+ * user to run `kobe …`, or prints a state path / branch prefix Rove does not
+ * write. Those are silent because they are only wrong for NEW users.
  *
  * NEGATIVE assertions only, same rule as `active-product-copy.test.ts`: assert
  * the absence of the stale spelling, never the presence of an exact sentence.
@@ -17,9 +17,9 @@
  * `.kobe/worktrees` discovery, the `kobe-plugin` topic,
  * the installed `.agents/skills/kobe/SKILL.md` path,
  * and the persisted `kobe hook` invocation.
- * `[KOBE PEER]`/`[KOBE FIELD NOTE]` LEFT this list 2026-08-25 (owner call):
- * the message prefixes are read by LLMs, not parsed by code, so they renamed
- * to `[ROVE PEER]`/`[ROVE FIELD NOTE]` with no compat shim — guarded below.
+ * `[KOBE PEER]`/`[KOBE FIELD NOTE]` are deliberately NOT compatibility: the
+ * message prefixes are read by LLMs, not parsed by code, so `[ROVE PEER]`/
+ * `[ROVE FIELD NOTE]` need no compat shim — guarded below.
  * Historical records (`docs/adr/`, `docs/superpowers/`, CHANGELOG, and the
  * superseded design notes) keep their original wording on purpose.
  */
@@ -57,7 +57,7 @@ const TYPED_KOBE_COMMAND =
   /\bkobe (?!hook\b)(api|attach|daemon|doctor|reset|update|plugin|skill|theme|repo|config|web|add|remove|list|feedback|export|completions|pty-host)\b/
 
 /**
- * The product called by its retired name. Compatibility spellings survive the
+ * The product called `kobe` rather than `rove`. Compatibility spellings survive the
  * lookahead: `packages/kobe-docs`, `kobe-plugin`, `.agents/skills/kobe/`, and
  * `packages/kobe/src/…` all continue with `-`, `/`,
  * or `.`, so only a bare "kobe"/"Kobe"/"kobe's" — the product itself — trips.
@@ -118,9 +118,9 @@ describe("current docs and landing copy speak Rove", () => {
     expect(match?.[0], `the file-issue skill still teaches "${match?.[0]}"`).toBeUndefined()
   })
 
-  // The peer/field-note prefixes renamed 2026-08-25 — LLM-read text, no code
-  // parses the literal, so there is no compat shim to preserve. Producers and
-  // the skill must not regrow the old spelling.
+  // The peer/field-note prefixes are LLM-read text: no code parses the
+  // literal, so there is no compat shim to preserve. Producers and the skill
+  // must not regrow the `KOBE` spelling.
   test.each([
     "packages/kobe/src/cli/api/handlers-tasks.ts",
     "packages/kobe-daemon/src/daemon/handlers-ui.ts",

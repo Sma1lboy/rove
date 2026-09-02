@@ -1,5 +1,5 @@
 /**
- * Deferred-prompt RPC handlers (issue #78 B-layer). The delivery gate ran in a
+ * Deferred-prompt RPC handlers. The delivery gate ran in a
  * kobe (CLI) process and found the target composer busy; it calls
  * `deferredPrompt.file` to hand ownership to the daemon, which stores the text
  * and records a `prompt_deferred` inbox episode. The exit path reads the text

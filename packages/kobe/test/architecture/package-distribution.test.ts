@@ -18,7 +18,7 @@ describe("Rove package distribution", () => {
 
     // Find the page rather than hardcoding its directory: sync-docs.mjs owns
     // the docs/ source -> site slug mapping, and a module split moves pages
-    // between subdirectories (ad017cbd put these under rove/). Searching keeps
+    // between subdirectories. Searching keeps
     // this assertion about the VIDEO EMBED instead of the current tree shape.
     const contentRoot = join(ROOT, "packages/kobe-docs/content/docs")
     const findPage = (page: string) => {
@@ -136,7 +136,7 @@ describe("Rove package distribution", () => {
     // reach no user install. The ONLY thing that puts node-pty on disk under an
     // installed @sma1lboy/rove is this declaration; removing it breaks the
     // Windows ConPTY host with MODULE_NOT_FOUND (verified against a packed
-    // tarball installed into a clean npm prefix, issue #50). knip flags it as
+    // tarball installed into a clean npm prefix). knip flags it as
     // unused because it cannot see the dynamic import — that is a false
     // positive, suppressed in knip.json, not a license to delete.
     const pkg = json<{ dependencies: Record<string, string> }>("packages/kobe/package.json")
@@ -178,9 +178,9 @@ describe("Rove package distribution", () => {
   })
 
   test("release publishes Rove and no longer publishes the @sma1lboy/kobe alias", () => {
-    // The old package name is frozen at 0.9.64 (owner call). The alias step
-    // was a rewrite of package.json#name, so its absence is what this asserts:
-    // a release must never resume publishing that name. The SDK keeps its own
+    // The `@sma1lboy/kobe` name is frozen at 0.9.64. The alias step is a
+    // rewrite of package.json#name, so its ABSENCE is what this asserts: a
+    // release must never resume publishing that name. The SDK keeps its own
     // alias — pinned by the next test — so this checks the CLI name only.
     const workflow = read(".github/workflows/release.yml")
 
@@ -319,9 +319,9 @@ describe("Rove package distribution", () => {
     expect(releaseSkill).toContain("# Release Rove")
     expect(releaseSkill).toContain('"@sma1lboy/rove": minor')
     expect(releaseSkill).not.toContain('"@sma1lboy/kobe": minor')
-    // The CLI alias is frozen at 0.9.64 and no longer published, so the skill
-    // must NOT tell a release to verify it — a missing @sma1lboy/kobe is the
-    // expected state now, and checking for it would read as a failed release.
+    // The CLI alias is frozen at 0.9.64 and unpublished, so the skill must NOT
+    // tell a release to verify it — a missing @sma1lboy/kobe is the expected
+    // state, and checking for it would read as a failed release.
     // Anchored on `@<new-version>` so the SDK's own alias check still stands.
     expect(releaseSkill.indexOf("npm view @sma1lboy/rove@<new-version>")).toBeGreaterThanOrEqual(0)
     expect(releaseSkill).not.toContain("npm view @sma1lboy/kobe@<new-version>")
@@ -353,7 +353,7 @@ describe("Rove package distribution", () => {
 
     // Match the REFERENCE, not its exact spelling: `defer`/`async` are
     // performance attributes a page may legitimately gain, and pinning the
-    // literal tag turned that into a failure (PR #594).
+    // literal tag turns that into a failure.
     expect(home).toMatch(/<script[^>]+src="\/index\.js"/)
     expect(homeScript).toContain("https://api.github.com/repos/Sma1lboy/rove")
     expect(themes).toContain('<link rel="stylesheet" href="/themes.css">')

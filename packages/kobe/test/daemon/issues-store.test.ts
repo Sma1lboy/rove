@@ -177,7 +177,7 @@ describe("IssuesStore", () => {
   })
 
   // The reverse of `link`, fired by `task.delete`. Nothing else clears
-  // `Issue.taskId`, so before this the link outlived the task it named.
+  // `Issue.taskId`, so without it a link outlives the task it names.
   describe("unlinkTask", () => {
     async function linkedStore(): Promise<{ repo: string; store: IssuesStore }> {
       const repo = await makeRepo()

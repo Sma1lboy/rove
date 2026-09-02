@@ -55,8 +55,8 @@ describe("daemon refcounted lazy shutdown", () => {
   it("stays up for a transient pane subscriber (a bare subscribe defaults to the pane role)", async () => {
     h = await boot()
     // A bare subscribe() (no role) is a "pane": it must NOT keep the daemon
-    // alive. This is the bug — N ChatTab Tasks panes subscribed and the count
-    // never hit 0 on quit, so the daemon never idle-stopped.
+    // alive. Counting panes means N ChatTab Tasks panes subscribe and the
+    // count never hits 0 on quit, so the daemon never idle-stops.
     const pane = h.client()
     await pane.subscribe()
     pane.close()
