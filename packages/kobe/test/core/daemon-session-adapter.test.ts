@@ -3,6 +3,14 @@ import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
+  ComposerBusyError: class extends Error {
+    constructor(
+      readonly layer: "recent-human-write" | "composer-not-empty",
+      readonly key: string,
+    ) {
+      super(`composer busy on ${key}: ${layer}`)
+    }
+  },
   close: vi.fn(),
   ensureHost: vi.fn(),
   openHost: vi.fn(),
@@ -19,6 +27,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("../../src/engine/hosted-session.ts", () => ({
+  ComposerBusyError: mocks.ComposerBusyError,
   ensureHostedSessionHost: mocks.ensureHost,
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,
@@ -179,7 +188,36 @@ describe("daemon session adapter", () => {
         "do not run this in zsh",
       ),
     ).resolves.toEqual({ outcome: "no-session" })
-    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, "claude")
+    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, ["claude", "--dangerously-skip-permissions", "-c"])
     expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  it("passes the custom engine's complete launch argv to the foreground gate", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+
+    await deliverPromptToLiveEngineTabDetailedAdapter(
+      {
+        id: "task-3",
+        tabId: "tab-1",
+        command: "env MODEL=sonnet /opt/tools/aider --yes",
+        worktreePath: "/worktrees/story",
+      },
+      "safe prompt",
+    )
+
+    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, ["env", "MODEL=sonnet", "/opt/tools/aider", "--yes"])
+  })
+
+  it("propagates an ambiguous delivery error after entering the PTY write", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.deliver.mockRejectedValueOnce(new Error("transport lost after write"))
+
+    await expect(
+      deliverPromptToLiveEngineTabDetailedAdapter(
+        { id: "task-3", tabId: "tab-1", vendor: "claude", worktreePath: "/worktrees/story" },
+        "possibly written",
+      ),
+    ).rejects.toThrow("transport lost after write")
+    expect(mocks.close).toHaveBeenCalledOnce()
   })
 })

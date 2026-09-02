@@ -7,12 +7,12 @@ import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from ".
  */
 export async function sessionHasEngine(
   pid: number | null | undefined,
-  extraBin?: string,
+  extraLaunch?: string | readonly string[],
   snapshot: PsSnapshot = psSnapshot,
 ): Promise<boolean> {
   if (!pid) return false
   try {
-    return engineProcessIn(parsePsSnapshot(await snapshot()), pid, extraBin)
+    return engineProcessIn(parsePsSnapshot(await snapshot()), pid, extraLaunch)
   } catch {
     return false
   }

@@ -86,7 +86,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
       if (kind === "tab.closed" && taskId && typeof eventDetail?.tabId === "string" && ctx.deferredPrompts) {
         const dropped = await ctx.deferredPrompts.discardTab(taskId, eventDetail.tabId, "tab closed")
-        if (dropped.length > 0) await ctx.inbox.deleteEpisode(taskId, eventDetail.tabId)
+        for (const record of dropped) {
+          await ctx.inbox.deleteEpisode(taskId, eventDetail.tabId, undefined, "prompt_deferred", record.id)
+        }
       }
       ctx.plugins?.handleUiReport({
         kind: kind as import("../plugins/manifest.ts").PluginEventName,

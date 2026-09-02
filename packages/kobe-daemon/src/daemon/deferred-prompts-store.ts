@@ -46,8 +46,10 @@ export interface DeferredPromptRecord {
   readonly senderTaskId?: string
   /** Epoch ms of deferral. */
   readonly at: number
-  /** Persisted delivery tombstone: cleanup may retry, PTY delivery may not. */
+  /** Confirmed PTY delivery; retained only while Inbox cleanup is pending. */
   readonly deliveredAt?: number
+  /** Persisted before the PTY write: an ambiguous attempt may clean up, never retry. */
+  readonly deliveryStartedAt?: number
 }
 
 export interface DeferredPromptClaim {
@@ -97,6 +99,9 @@ function normalizeRecord(value: unknown): DeferredPromptRecord | null {
     at: raw.at,
     ...(typeof raw.deliveredAt === "number" && Number.isFinite(raw.deliveredAt)
       ? { deliveredAt: raw.deliveredAt }
+      : {}),
+    ...(typeof raw.deliveryStartedAt === "number" && Number.isFinite(raw.deliveryStartedAt)
+      ? { deliveryStartedAt: raw.deliveryStartedAt }
       : {}),
   }
 }
@@ -210,7 +215,41 @@ export class DeferredPromptsStore {
     })
   }
 
-  /** Persist the no-redelivery boundary before cross-store Inbox cleanup. */
+  /** Persist the no-redelivery boundary before attempting a PTY write. */
+  async beginDelivery(claim: DeferredPromptClaim): Promise<DeferredPromptRecord> {
+    return await this.enqueue(async () => {
+      this.requireClaim(claim)
+      const store = await readStore(this.path)
+      const current = store.records.find((record) => record.id === claim.record.id)
+      if (!current) throw new Error(`deferred prompt ${claim.record.id} disappeared while claimed`)
+      const started = current.deliveryStartedAt !== undefined ? current : { ...current, deliveryStartedAt: this.now() }
+      if (current.deliveryStartedAt === undefined) {
+        await writeStore(
+          this.path,
+          store.records.map((record) => (record.id === current.id ? started : record)),
+        )
+      }
+      return started
+    })
+  }
+
+  /** Undo the boundary only when the runtime confirms no PTY write occurred. */
+  async resetDelivery(claim: DeferredPromptClaim): Promise<void> {
+    await this.enqueue(async () => {
+      this.requireClaim(claim)
+      const store = await readStore(this.path)
+      const current = store.records.find((record) => record.id === claim.record.id)
+      if (!current) throw new Error(`deferred prompt ${claim.record.id} disappeared while claimed`)
+      if (current.deliveryStartedAt === undefined) return
+      const { deliveryStartedAt: _deliveryStartedAt, ...reset } = current
+      await writeStore(
+        this.path,
+        store.records.map((record) => (record.id === current.id ? reset : record)),
+      )
+    })
+  }
+
+  /** Persist confirmed delivery before cross-store Inbox cleanup. */
   async markDelivered(claim: DeferredPromptClaim): Promise<DeferredPromptRecord> {
     return await this.enqueue(async () => {
       this.requireClaim(claim)
@@ -329,6 +368,29 @@ export class DeferredPromptsStore {
       await writeStore(
         this.path,
         store.records.filter((record) => record.taskId !== taskId || record.tabId !== tabId),
+      )
+      return dropped
+    })
+  }
+
+  /** Drop exactly one prompt referenced by an Inbox item, never its replacement. */
+  async discard(id: string, reason: DeferredPromptDiscardReason): Promise<DeferredPromptRecord | null> {
+    for (;;) {
+      const waiting = await this.enqueue(async () => this.claims.get(id)?.done)
+      if (!waiting) break
+      await waiting
+    }
+    return await this.enqueue(async () => {
+      const store = await readStore(this.path)
+      const dropped = store.records.find((record) => record.id === id)
+      if (!dropped) return null
+      logDaemonInfo(
+        SUBSYSTEM,
+        `dropped deferred prompt ${dropped.id} for ${dropped.taskId}::${dropped.tabId} — ${reason}`,
+      )
+      await writeStore(
+        this.path,
+        store.records.filter((record) => record.id !== id),
       )
       return dropped
     })

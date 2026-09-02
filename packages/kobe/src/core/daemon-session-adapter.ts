@@ -292,14 +292,19 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
   if (!host) return { outcome: "no-session" }
   try {
     const key = `${target.id}::${target.tabId}`
-    const sessions = await listHostedSessions(host.rpc)
+    let sessions: Awaited<ReturnType<typeof listHostedSessions>>
+    try {
+      sessions = await listHostedSessions(host.rpc)
+    } catch {
+      return { outcome: "no-session" }
+    }
     const session = sessions.find((candidate) => candidate.alive && candidate.key === key)
     if (!session) return { outcome: "no-session" }
-    const engineBin = engineLaunchArgv({
+    const engineArgv = engineLaunchArgv({
       command: target.command,
       vendor: target.vendor,
-    })[0]
-    if (!(await sessionHasEngine(session.pid, engineBin))) return { outcome: "no-session" }
+    })
+    if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-session" }
     const manifest = target.vendor ? engineEntry(target.vendor).screenManifest : undefined
     try {
       const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
@@ -312,8 +317,6 @@ export async function deliverPromptToLiveEngineTabDetailedAdapter(
       }
       throw err
     }
-  } catch {
-    return { outcome: "no-session" }
   } finally {
     host.close()
   }

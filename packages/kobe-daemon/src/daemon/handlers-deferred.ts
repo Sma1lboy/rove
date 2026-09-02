@@ -3,8 +3,8 @@
  * kobe (CLI) process and found the target composer busy; it calls
  * `deferredPrompt.file` to hand ownership to the daemon, which stores the text
  * and records a `prompt_deferred` inbox episode. Release and bulk flush both
- * claim the record, deliver through the exact-tab runtime, then durably mark
- * delivery before the Inbox pointer is cleaned up.
+ * claim the record, persist a no-redelivery marker, then attempt exact-tab
+ * delivery and clean up the Inbox pointer.
  */
 
 import {
@@ -116,6 +116,10 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+async function deleteDeferredInboxPointer(record: DeferredPromptRecord, ctx: DaemonHandlerContext): Promise<void> {
+  await ctx.inbox.deleteEpisode(record.taskId, record.tabId, undefined, "prompt_deferred", record.id)
+}
+
 async function cleanupDeliveredClaim(
   claim: DeferredPromptClaim,
   ctx: DaemonHandlerContext,
@@ -124,7 +128,7 @@ async function cleanupDeliveredClaim(
   if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
   const { record } = claim
   try {
-    await ctx.inbox.deleteEpisode(record.taskId, record.tabId)
+    await deleteDeferredInboxPointer(record, ctx)
     await ctx.deferredPrompts.completeClaim(claim)
     report.cleaned.push(record.id)
   } catch (error) {
@@ -145,7 +149,7 @@ async function deliverClaim(
 ): Promise<void> {
   if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
   const { record } = claim
-  if (record.deliveredAt) {
+  if (record.deliveredAt || record.deliveryStartedAt) {
     await cleanupDeliveredClaim(claim, ctx, report)
     return
   }
@@ -160,7 +164,10 @@ async function deliverClaim(
     })
     return
   }
+  let deliveryStarted = false
   try {
+    await ctx.deferredPrompts.beginDelivery(claim)
+    deliveryStarted = true
     const outcome = await ctx.runtime.deliverPromptToLiveEngineTabDetailed(
       {
         id: task.id,
@@ -176,6 +183,7 @@ async function deliverClaim(
       report.delivered.push(record.id)
       await cleanupDeliveredClaim(claim, ctx, report)
     } else {
+      await ctx.deferredPrompts.resetDelivery(claim)
       await ctx.deferredPrompts.releaseClaim(claim)
       report.retained.push(
         outcome.outcome === "busy"
@@ -196,13 +204,22 @@ async function deliverClaim(
     }
   } catch (error) {
     await ctx.deferredPrompts.releaseClaim(claim).catch(() => {})
-    report.retained.push({
-      id: record.id,
-      taskId: record.taskId,
-      tabId: record.tabId,
-      reason: "error",
-      error: errorText(error),
-    })
+    if (deliveryStarted) {
+      report.cleanupPending.push({
+        id: record.id,
+        taskId: record.taskId,
+        tabId: record.tabId,
+        error: errorText(error),
+      })
+    } else {
+      report.retained.push({
+        id: record.id,
+        taskId: record.taskId,
+        tabId: record.tabId,
+        reason: "error",
+        error: errorText(error),
+      })
+    }
   }
 }
 
@@ -234,7 +251,7 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
       continue
     }
     try {
-      await ctx.inbox.deleteEpisode(expired.taskId, expired.tabId)
+      await deleteDeferredInboxPointer(expired, ctx)
       await ctx.deferredPrompts.completeClaim(claimed.claim)
       report.expired.push(expired.id)
     } catch (error) {
@@ -248,7 +265,7 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
     }
   }
   for (const record of listed.records) {
-    if (record.deliveredAt) {
+    if (record.deliveredAt || record.deliveryStartedAt) {
       const claimed = await ctx.deferredPrompts.claim(record.id)
       if (claimed.kind === "claimed") await cleanupDeliveredClaim(claimed.claim, ctx, report)
       continue
@@ -352,7 +369,7 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       const tabId = requireString(payload, "tabId")
       if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
       const dropped = await ctx.deferredPrompts.discardTab(taskId, tabId, "tab closed")
-      if (dropped.length > 0) await ctx.inbox.deleteEpisode(taskId, tabId)
+      for (const record of dropped) await deleteDeferredInboxPointer(record, ctx)
       return { dropped: dropped.map((record) => record.id) }
     },
   },

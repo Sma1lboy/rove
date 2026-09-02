@@ -10,18 +10,19 @@ async function discardMatchingDeferredPrompt(
   tabId: string | null,
   at: number | undefined,
   reason: DeferredPromptDiscardReason,
-): Promise<void> {
-  if (!tabId || !ctx.deferredPrompts) return
-  const matches = ctx.inbox
+): Promise<string | undefined> {
+  if (!tabId || !ctx.deferredPrompts) return undefined
+  const deferredId = ctx.inbox
     .snapshot()
-    .some(
+    .find(
       (item) =>
         item.taskId === taskId &&
         item.tabId === tabId &&
         item.state === "prompt_deferred" &&
         (at === undefined || item.at === at),
-    )
-  if (matches) await ctx.deferredPrompts.discardTab(taskId, tabId, reason)
+    )?.detail?.deferredPrompt?.id
+  if (deferredId) await ctx.deferredPrompts.discard(deferredId, reason)
+  return deferredId
 }
 
 export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
@@ -31,8 +32,14 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
       const at = payload.at === undefined ? undefined : requireNumber(payload, "at")
-      await discardMatchingDeferredPrompt(ctx, taskId, tabId, at, "Inbox item dismissed")
-      const deleted = await ctx.inbox.deleteEpisode(taskId, tabId, at)
+      const deferredId = await discardMatchingDeferredPrompt(ctx, taskId, tabId, at, "Inbox item dismissed")
+      const deleted = await ctx.inbox.deleteEpisode(
+        taskId,
+        tabId,
+        at,
+        deferredId ? "prompt_deferred" : undefined,
+        deferredId,
+      )
       if (deleted) {
         ctx.plugins?.handleUiReport({
           kind: "attention.handled",
@@ -49,8 +56,14 @@ export const ATTENTION_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const tabId = optionalString(payload, "tabId") ?? null
       const at = requireNumber(payload, "at")
-      await discardMatchingDeferredPrompt(ctx, taskId, tabId, at, "Inbox item read by legacy client")
-      const updated = await ctx.inbox.markRead(taskId, tabId, at)
+      const deferredId = await discardMatchingDeferredPrompt(ctx, taskId, tabId, at, "Inbox item read by legacy client")
+      const updated = await ctx.inbox.markRead(
+        taskId,
+        tabId,
+        at,
+        deferredId ? "prompt_deferred" : undefined,
+        deferredId,
+      )
       if (updated) {
         ctx.plugins?.handleUiReport({
           kind: "attention.handled",
