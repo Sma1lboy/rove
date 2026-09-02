@@ -85,6 +85,23 @@ describe("runWebSubcommand", () => {
     expect(err()).toContain("--port needs a number")
   })
 
+  // The attached form used to fall through to the default port with no
+  // error (#58): `indexOf("--port")` never saw the `--port=…` token.
+  it("--port=foo exits 2 exactly like the separated form", async () => {
+    await expect(runWebSubcommand(["--port=foo"])).rejects.toThrow("exit 2")
+    expect(err()).toContain("--port needs a number")
+    expect(mocks.ensureDaemonReachable).not.toHaveBeenCalled()
+  })
+
+  it("--port=N binds N, not the default", async () => {
+    fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve("kobe-web") })
+    void runWebSubcommand(["--port=5399", "--routes-only"])
+    await vi.waitFor(() => {
+      expect(out()).toContain("listening on http://localhost:5399 (routes only)")
+    })
+    expect(process.env.ROVE_DAEMON_WEB_PORT).toBe("5399")
+  })
+
   it("routes-only success: sets the port env, verifies the health marker, prints the URL + home label", async () => {
     fetchMock.mockResolvedValue({ ok: true, text: () => Promise.resolve("kobe-web") })
     process.env.ROVE_DAEMON_WEB_PORT = "4999"
