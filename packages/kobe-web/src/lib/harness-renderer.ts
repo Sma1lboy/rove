@@ -1,4 +1,4 @@
-export type HarnessRenderer = "automatic" | "dom"
+import type { TerminalRendererMode } from "./terminal-renderer.ts"
 
 /**
  * Captures use xterm's custom-glyph renderers by default. They draw block and
@@ -8,6 +8,6 @@ export type HarnessRenderer = "automatic" | "dom"
  */
 export function resolveHarnessRenderer(
   search: URLSearchParams,
-): HarnessRenderer {
+): TerminalRendererMode {
   return search.get("renderer") === "dom" ? "dom" : "automatic"
 }

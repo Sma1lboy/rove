@@ -198,8 +198,9 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   engine banner art and pane borders meet without gaps. The DOM renderer draws
   each cell from the font and leaves visible seams; use
   `/harness?renderer=dom` only to compare renderers while diagnosing a capture.
-  If WebGL or Canvas cannot initialize, `ChatTerminal` still falls back to DOM
-  rather than failing the take.
+  If opaque WebGL cannot initialize or loses its context, `ChatTerminal` tries
+  Canvas before it falls back to DOM. Transparent Canvas failures fall back to
+  DOM rather than failing the take.
 - **The plugin takes need their plugins linked BEFORE the harness boots.** The
   TUI reads the plugin registry once at start (`loadPluginEngines()`, and the
   pane/settings sections alongside it), so a plugin linked mid-take contributes

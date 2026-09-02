@@ -76,7 +76,7 @@ function PtyHarness() {
         taskId={sessionId}
         mode="shell"
         testId="opentui-terminal"
-        disableWebgl={renderer === "dom"}
+        renderer={renderer}
         transparent={wallpaper !== null || hostbg !== null}
         hostBackground={hostbg ?? undefined}
         onStatusChange={setStatus}
