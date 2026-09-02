@@ -85,6 +85,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     filesPaneVisible: true,
     searchActive: false,
     selectedId: null,
+    cursorTaskId: () => null,
     openTaskWorktree: NOOP,
     createTask: NOOP,
     renameBranch: NOOP,

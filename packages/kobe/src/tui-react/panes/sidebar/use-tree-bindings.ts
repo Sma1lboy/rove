@@ -44,6 +44,17 @@ export interface TreeBindingsOpts {
   readonly markKeysUsed: () => void
 }
 
+/**
+ * The task a cursor row names, or null when the row is not a task (the
+ * "↩ recent" jump row, an empty tree). Shared by the tree's own row verbs
+ * and the host's sidebar-scope chords (`b`/`v`/`o`) so both resolve the
+ * same target.
+ */
+export function cursorTaskIdOf(rowId: string | undefined): string | null {
+  if (rowId === undefined || rowId === RECENT_ROW_ID) return null
+  return parseRowId(rowId).taskId
+}
+
 export function useTreeBindings(opts: TreeBindingsOpts): void {
   const {
     focused,
@@ -63,10 +74,8 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
   } = opts
 
   function withCursorTask(fn?: (taskId: string) => void): void {
-    const rowId = flatIdsRef.current[cursorRef.current]
-    if (rowId === undefined || !fn) return
-    if (rowId === RECENT_ROW_ID) return
-    fn(parseRowId(rowId).taskId)
+    const taskId = cursorTaskIdOf(flatIdsRef.current[cursorRef.current])
+    if (taskId !== null && fn) fn(taskId)
   }
 
   // 1. Main navigation & per-row verbs — only when no transient mode has the

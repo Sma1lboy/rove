@@ -67,6 +67,10 @@ describe("workspace open-worktree bindings", () => {
       pages,
       searchActive: false,
       selectedId: "task-1",
+      // The cursor sits on a DIFFERENT row than the active task — the
+      // sidebar-scope chords must follow the cursor; the global prefix `o`
+      // follows the cursor too while the sidebar has focus.
+      cursorTaskId: () => "task-2",
       openTaskWorktree,
       createTask: vi.fn(),
       renameBranch,
@@ -98,8 +102,10 @@ describe("workspace open-worktree bindings", () => {
     cycleEngine?.cmd({} as never)
     sort?.cmd({} as never)
     expect(openTaskWorktree).toHaveBeenCalledTimes(2)
-    expect(renameBranch).toHaveBeenCalledWith("task-1")
-    expect(cycleVendor).toHaveBeenCalledWith("task-1")
+    expect(openTaskWorktree).toHaveBeenNthCalledWith(1, "task-2")
+    expect(openTaskWorktree).toHaveBeenNthCalledWith(2, "task-2")
+    expect(renameBranch).toHaveBeenCalledWith("task-2")
+    expect(cycleVendor).toHaveBeenCalledWith("task-2")
     expect(toggleSortMode).toHaveBeenCalledTimes(1)
   })
 
@@ -140,6 +146,7 @@ describe("workspace open-worktree bindings", () => {
       pages,
       searchActive: false,
       selectedId: "task-1",
+      cursorTaskId: () => "task-2",
       openTaskWorktree: vi.fn(),
       createTask: vi.fn(),
       renameBranch: vi.fn(),
@@ -193,6 +200,7 @@ describe("workspace open-worktree bindings", () => {
       pages,
       searchActive: false,
       selectedId: null,
+      cursorTaskId: () => null,
       openTaskWorktree: vi.fn(),
       createTask: vi.fn(),
       renameBranch: vi.fn(),

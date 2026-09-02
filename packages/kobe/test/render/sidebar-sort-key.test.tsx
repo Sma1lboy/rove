@@ -85,6 +85,7 @@ function SortHost() {
     pages: closedPages(),
     searchActive: false,
     selectedId: OLDER.id,
+    cursorTaskId: () => null,
     openTaskWorktree: () => {},
     createTask: () => {},
     renameBranch: () => {},

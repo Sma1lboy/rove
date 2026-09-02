@@ -20,7 +20,7 @@
 import type { Task } from "@/types/task"
 import type { BoxRenderable, ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { type MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID, type TreeRow, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { MAIN_BRANCH_POLL_MS, SIDEBAR_WIDTH } from "../../../tui/panes/sidebar/view-core"
@@ -35,7 +35,7 @@ import { SidebarBrandHeader, SidebarCreateAction, SidebarNavRail, SidebarSearchI
 import { SidebarTreeBody } from "./tree-panel"
 import type { TreeRowShared } from "./tree-rows"
 import type { SidebarProps } from "./types"
-import { useTreeBindings } from "./use-tree-bindings"
+import { cursorTaskIdOf, useTreeBindings } from "./use-tree-bindings"
 import { useTreeMenu } from "./use-tree-menu"
 import { useTreeSearch } from "./use-tree-search"
 import { useTreeState } from "./use-tree-state"
@@ -55,6 +55,9 @@ export type SidebarTreeProps = SidebarProps & {
   /** Narrow mode's "↩ recent" jump target (issue #14, 2A) — renders as the
    *  first navigable row; ⏎ re-enters that task's workspace. */
   recentTask?: Task | null
+  /** Filled with a reader of the task under the cursor, so the host's
+   *  sidebar-scope chords (`b`/`v`/`o`) can target the highlighted row. */
+  cursorTaskIdRef?: MutableRefObject<() => string | null>
 }
 
 export function SidebarTree(props: SidebarTreeProps) {
@@ -101,6 +104,14 @@ export function SidebarTree(props: SidebarTreeProps) {
     setCursorIndexState(next)
   }, [])
   const flatIdsRef = useLatest(tree.flatIds)
+  // Hand the host a reader, not a value: the cursor ref is written
+  // synchronously on every move, so a chord in the same tick as the `j`
+  // still sees the new row.
+  const cursorTaskIdRef = props.cursorTaskIdRef
+  useEffect(() => {
+    if (!cursorTaskIdRef) return
+    cursorTaskIdRef.current = () => cursorTaskIdOf(flatIdsRef.current[cursorRef.current])
+  }, [cursorTaskIdRef])
 
   // Follow the active row when the selection moves from elsewhere (the F7
   // attention jump, the inbox). EDGE-triggered on the active row CHANGING —

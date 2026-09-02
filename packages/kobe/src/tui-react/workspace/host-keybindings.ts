@@ -45,7 +45,15 @@ export type WorkspaceKeybindingDeps = {
   /** False while the files pane is unmounted (zen, or a rail page). */
   filesPaneVisible?: boolean
   searchActive: boolean
+  /** The ACTIVE task — what the workspace shows. Global-scope verbs act on it. */
   selectedId: string | null
+  /**
+   * The task under the sidebar CURSOR (null on a non-task row or an empty
+   * tree). `j`/`k` move the cursor without selecting, so the two diverge the
+   * moment the user walks the tree; sidebar-scope row verbs act on this one,
+   * like the tree's own `d`/`r`/`P` do.
+   */
+  cursorTaskId: () => string | null
   openTaskWorktree: (id: string) => void
   createTask: () => void
   renameBranch: (id: string) => void
@@ -140,8 +148,11 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // the chord was dead outside the sidebar.
         "settings.open": prefixAction(() => deps.pages.openSettings()),
         "files.createPR": prefixAction(() => deps.createPR()),
+        // Global scope, so it acts on the active task — except while the
+        // sidebar has focus, where the highlighted row is what the user means.
         "task.openEditor": prefixAction(() => {
-          if (deps.selectedId) deps.openTaskWorktree(deps.selectedId)
+          const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
+          if (id) deps.openTaskWorktree(id)
         }),
       }),
     ],
@@ -176,20 +187,23 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
   // d/a/r/pin/move fire from the Sidebar's OWN keys via the Request props;
   // these three are host-scoped in both hosts. Gated on sidebar focus + no
   // dialog + search inactive (typing `n` into the search box must not open
-  // the new-task dialog — same chord-leak class).
+  // the new-task dialog — same chord-leak class). Like the tree's own row
+  // verbs they act on the CURSOR row, not the active task: after a `j`
+  // without enter the two differ, and `b`/`v` rewrite a real worktree.
   useBindings(() => ({
     enabled: pagesClosed && focus.focused === "sidebar" && !deps.searchActive,
     bindings: bindByIds({
       "task.new": () => deps.createTask(),
       "tasks.openWorktree": () => {
-        if (deps.selectedId) deps.openTaskWorktree(deps.selectedId)
+        const id = deps.cursorTaskId()
+        if (id) deps.openTaskWorktree(id)
       },
       "tasks.renameBranch": () => {
-        const id = deps.selectedId
+        const id = deps.cursorTaskId()
         if (id) deps.renameBranch(id)
       },
       "tasks.cycleEngine": () => {
-        const id = deps.selectedId
+        const id = deps.cursorTaskId()
         if (id) deps.cycleVendor(id)
       },
       // Right arrow — the tmux Tasks pane's "go right into the engine"

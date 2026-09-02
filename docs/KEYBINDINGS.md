@@ -128,6 +128,12 @@ is active.
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
 | `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Switch task sort (default ↔ recent) |
 
+Sidebar row verbs (`b`, `v`, `o`, `d`, `r`, `shift+p`, `shift+m`) act on the
+row under the cursor — the highlight `j`/`k` moves, which may differ from the
+active task until you press `enter`. Prefix chords (`ctrl+a o`, `ctrl+a p`)
+are global and act on the active task; only `ctrl+a o` follows the cursor
+while the sidebar has focus.
+
 In reorder mode, `j`/`k` moves the highlighted project and `enter` or `esc`
 finishes. Project headings themselves aren't cursor rows; the move routes
 through a Task row in that project.
