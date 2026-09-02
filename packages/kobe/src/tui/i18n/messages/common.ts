@@ -5,6 +5,8 @@
 
 export const en = {
   cancel: "Cancel",
+  /** Placeholder text a page shows while its data is still null. */
+  loading: "Loading…",
   /** Footer verb for a step that leads to another prompt. */
   create: "create",
   confirm: "Confirm",
@@ -31,6 +33,7 @@ export const en = {
 
 export const zh: typeof en = {
   cancel: "取消",
+  loading: "加载中…",
   create: "创建",
   confirm: "确认",
   paneCrash: {

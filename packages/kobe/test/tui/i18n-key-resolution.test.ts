@@ -9,9 +9,11 @@
  * fallback is meant to make loud, surfaced one layer too late (at runtime, in
  * front of the user, instead of in CI).
  *
- * This scans `src/tui/**` for the i18n call sites and fails on any key that
- * doesn't resolve in English:
- *   - literal `t("…")` / `t('…')` calls, and
+ * This scans `src/tui/**` and `src/tui-react/**` for the i18n call sites and
+ * fails on any key that doesn't resolve in English:
+ *   - literal `t("…")` / `t('…')` calls,
+ *   - `labelKey: "…"` table entries, whose `t(row.labelKey)` call site has no
+ *     literal of its own, and
  *   - the two enumerable dynamic `t()` template families
  *     (`settings.sections.<id>` and `settings.general.accent<Slot>`), checked
  *     against their runtime value sets so a new section / accent slot can't
@@ -30,7 +32,12 @@ import { SECTIONS } from "../../src/tui/component/settings-dialog/model"
 import { en } from "../../src/tui/i18n/catalog"
 import { UI_PREFS_FOCUS_ACCENT_SLOTS } from "../../src/tui/lib/apply-ui-prefs"
 
-const TUI_ROOT = fileURLToPath(new URL("../../src/tui", import.meta.url))
+const SRC_ROOT = fileURLToPath(new URL("../../src", import.meta.url))
+
+/** Both TUI trees: the legacy `src/tui` (which still owns the i18n catalog and
+ *  the dialogs) and `src/tui-react`, the active React UI. Scanning only the
+ *  first let `tui-react` ship keys with no catalog entry. */
+const TUI_ROOTS = [join(SRC_ROOT, "tui"), join(SRC_ROOT, "tui-react")]
 
 /** Top-level catalog namespaces — a literal `t()` key starting with one of
  *  these is unambiguously an i18n key (and not some other `t(`-shaped call). */
@@ -66,18 +73,27 @@ function listSources(dir: string, acc: string[] = []): string[] {
  *  call. `\bt\(` ignores `tKeys(` (no `t(` boundary) and `format(` (`t` mid-word). */
 const T_CALL_RE = /\bt\(\s*["']([^"'\n]+)["']/g
 
-/** Every literal i18n key referenced under `src/tui`, with the files using it. */
+/** Keys parked in a lookup table and passed to `t()` indirectly — e.g. the
+ *  Kanban card's `ACTIVITY_BADGE[state].labelKey`, whose `t(badge.labelKey)`
+ *  call site carries no literal for `T_CALL_RE` to see. */
+const LABEL_KEY_RE = /\blabelKey:\s*["']([^"'\n]+)["']/g
+
+/** Every literal i18n key referenced under the TUI trees, with the files using it. */
 function collectLiteralKeys(): Map<string, string[]> {
   const keyToFiles = new Map<string, string[]>()
-  for (const file of listSources(TUI_ROOT)) {
-    const source = readFileSync(file, "utf8")
-    const rel = file.slice(TUI_ROOT.length + 1)
-    for (const match of source.matchAll(T_CALL_RE)) {
-      const key = match[1] as string
-      if (!isI18nKey(key)) continue
-      const files = keyToFiles.get(key) ?? []
-      if (!files.includes(rel)) files.push(rel)
-      keyToFiles.set(key, files)
+  for (const root of TUI_ROOTS) {
+    for (const file of listSources(root)) {
+      const source = readFileSync(file, "utf8")
+      const rel = file.slice(SRC_ROOT.length + 1)
+      for (const re of [T_CALL_RE, LABEL_KEY_RE]) {
+        for (const match of source.matchAll(re)) {
+          const key = match[1] as string
+          if (!isI18nKey(key)) continue
+          const files = keyToFiles.get(key) ?? []
+          if (!files.includes(rel)) files.push(rel)
+          keyToFiles.set(key, files)
+        }
+      }
     }
   }
   return keyToFiles
