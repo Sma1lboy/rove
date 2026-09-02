@@ -1,5 +1,5 @@
 /**
- * Activity observer (issues #11/#16) — the daemon-side ground-truth loop
+ * Activity observer — the daemon-side ground-truth loop
  * behind the sidebar running dots. Hook events are the primary signal, but
  * they lie by omission: an ESC interrupt fires no hook, a daemon restart
  * wipes the in-memory registry while engines keep running, and a died
@@ -35,7 +35,7 @@
  * Findings fold into the registry via `observeTab` (hook events outrank
  * observation; only a stale hook `running` is ever corrected — see there).
  * The FIRST tick runs immediately and includes a walk, so a daemon restart
- * re-seeds busy sessions' dots within seconds (#16) instead of at the next
+ * re-seeds busy sessions' dots within seconds instead of at the next
  * turn boundary.
  */
 
@@ -55,7 +55,7 @@ export const DEFAULT_OBSERVER_POLL_MS = 10_000
  * single missed/slow poll can't flap the dot.
  */
 export const DEFAULT_SILENCE_MS = 30_000
-/** Walk cadence in ticks (~60s at the default poll — the issue-#11 reconciler). */
+/** Walk cadence in ticks (~60s at the default poll — the foreground reconciler). */
 export const DEFAULT_WALK_EVERY_TICKS = 6
 /**
  * Never correct a hook-claimed `running` younger than this: at a turn
@@ -84,7 +84,7 @@ export interface ActivityObserverIo {
   /** Engine-owned title verdict — see kobe's `engineTitleTurnHint`. */
   titleTurnHint(vendor: string, title: string): "working" | "rest" | null
   /**
-   * Live naming evidence for each ALIVE, WALKED session (issue #31 tier-b
+   * Live naming evidence for each ALIVE, WALKED session (tier-b
    * protocol sniff): relayed as-is once per tick; the consumer owns
    * eligibility and must never feed it back into activity claims (a sniff
    * names an engine, it does not resurrect a dot). Optional.
@@ -132,8 +132,8 @@ interface SessionTrack {
 }
 
 /**
- * Start the observer loop. First tick fires immediately (with a walk — the
- * #16 restart seeding); per-tick work is gated on `hasSubscribers` like the
+ * Start the observer loop. First tick fires immediately (with a walk, which
+ * is the restart seeding); per-tick work is gated on `hasSubscribers` like the
  * other collectors, so a parked daemon polls nobody. Returns stop().
  */
 export function startActivityObserver(
@@ -195,7 +195,7 @@ export function startActivityObserver(
         seen.add(s.key)
         if (!s.alive) {
           // An exited child is positive evidence — even one that was never
-          // tracked alive (dead before this daemon's first pass): a stale
+          // tracked alive (dead before the daemon's first pass): a stale
           // hook `running` for it must still be corrected.
           const track = tracks.get(s.key)
           applyRest(track ?? { taskId: parts[0], tabId: parts[1], vendor: undefined }, "session exited")
@@ -233,7 +233,7 @@ export function startActivityObserver(
       }
 
       // Foreground walk: every `walkEvery` ticks, plus immediately for
-      // sessions first seen this tick (the #16 seeding path).
+      // sessions first seen this tick (the seeding path).
       const toWalk = live.filter((t) => walkTick || newborn.has(`${t.taskId}::${t.tabId}`) || t.vendor === undefined)
       if (toWalk.length > 0) {
         const pidByKey = new Map<string, number>()
@@ -278,7 +278,7 @@ export function startActivityObserver(
       // resting title (event-grade engine verdict) → rest; observed
       // output/title movement inside the window → working; a WORKING title
       // frame → working, but only until the silence window proves it frozen
-      // (the #16 restart seeding path — a busy claude re-lights on the
+      // (the restart seeding path — a busy claude re-lights on the
       // first pass off its ⠂/⠐ frame alone); full silence → rest; a quiet
       // never-moved session with no title verdict → no claim (unknown).
       for (const track of live) {

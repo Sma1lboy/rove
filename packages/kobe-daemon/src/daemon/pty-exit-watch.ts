@@ -85,7 +85,7 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
       .catch((err) => opts.log?.(`pty-exit inbox: ${String(err)}`))
   }
 
-  // Watch BEFORE the baseline read (issue #61 pattern): the trigger's
+  // Watch BEFORE the baseline read: the trigger's
   // baseline stamp is taken synchronously in here, so a crash record
   // written before it lands in the baseline below (predates this daemon)
   // and one written after it flips the stamp and sweeps — a record can

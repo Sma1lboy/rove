@@ -2,12 +2,12 @@
  * Shared daemon test harness — ONE call boots a real daemon server on a
  * throwaway temp home + temp Unix socket with an injectable orchestrator
  * double; one call tears everything down (clients, raw sockets, server,
- * env, temp dir). Extracted from the boot code previously hand-rolled by
- * lazy-shutdown / channel-filter / active-task-replay / activity-state
- * (and mirrored by scripts/perf-golden.ts), so every daemon integration
- * test isolates the same way: never the real `~/.kobe`, never the default
- * sockets (the 2026-07-07/08 "test run swept the real pty host" incident),
- * no leaked clients or sockets between tests.
+ * env, temp dir). One boot path shared by lazy-shutdown / channel-filter /
+ * active-task-replay / activity-state (and mirrored by
+ * scripts/perf-golden.ts), so every daemon integration test isolates the same
+ * way: never the real `~/.kobe`, never the default sockets — a test run on
+ * the default pty-host socket sweeps the user's live engine sessions — and no
+ * leaked clients or sockets between tests.
  *
  * Web transport: vitest's fork workers run under NODE (no `Bun.serve`), so
  * the harness cannot bind the real ephemeral-port web server here. Instead

@@ -212,8 +212,8 @@ export interface TranscriptActivityCollectorOptions {
 
 /**
  * Tick-driven collector. `tick()` is synchronous and never throws: it
- * prunes entries for worktrees no longer tracked (deleted/now-
- * remote tasks), starts guarded probes for due worktrees, and publishes the
+ * prunes entries for worktrees the daemon stopped tracking (deleted/remote
+ * tasks), starts guarded probes for due worktrees, and publishes the
  * full map when — and only when — membership or a value changed. Exposed as
  * a class so tests drive `tick()` directly with a fake lister/bus/runner;
  * `startTranscriptActivityCollector` is the production interval binding.

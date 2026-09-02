@@ -110,9 +110,9 @@ describe("DaemonLifetime", () => {
   })
 
   // Why: the arm-on-transition rule alone means a daemon that NEVER sees a
-  // gui never self-stops — the 2026-07-13 zombie daemons (autospawned by a
-  // helper inside an engine tab) lived for days holding the prod socket.
-  // Autospawned daemons arm a boot-time first-gui grace instead.
+  // gui never self-stops — a daemon autospawned by a helper inside an engine
+  // tab then holds the socket for days. Autospawned daemons arm a boot-time
+  // first-gui grace instead.
   it("firstGuiGraceMs: an autospawned daemon that never sees a gui self-stops", () => {
     const { onIdleStop, clock } = make([PANE], { firstGuiGraceMs: 100 })
     clock.fire()

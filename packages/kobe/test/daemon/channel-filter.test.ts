@@ -1,12 +1,12 @@
 /**
  * Per-channel subscribe filter — daemon → client round-trip (KOB —
- * per-channel subscribe). The daemon used to write EVERY channel frame to
- * EVERY subscribed socket; a narrow consumer (host-boot's UiPrefsSync wants
- * only ui-prefs + keybindings) still received — and parsed — the full
- * `task.snapshot` fan-out it never reads. The reserved `channels` filter is
- * now enforced: a filtered subscriber gets ONLY its channels in both the
- * connect-time replay and later broadcasts; an UNfiltered subscriber still
- * gets everything (back-compat). Exercised over the real Unix socket.
+ * per-channel subscribe). Writing EVERY channel frame to EVERY subscribed
+ * socket makes a narrow consumer (host-boot's UiPrefsSync wants only
+ * ui-prefs + keybindings) receive — and parse — the full `task.snapshot`
+ * fan-out it never reads. The `channels` filter is enforced instead: a
+ * filtered subscriber gets ONLY its channels in both the connect-time replay
+ * and later broadcasts; an UNfiltered subscriber gets everything
+ * (back-compat). Exercised over the real Unix socket.
  */
 
 import { afterEach, describe, expect, it } from "vitest"

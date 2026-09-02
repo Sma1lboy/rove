@@ -1,5 +1,5 @@
 /**
- * Durable per-turn telemetry store (issue #32) — the daemon side of the
+ * Durable per-turn telemetry store — the daemon side of the
  * engine-owned {@link AgentTurnRecord} contract.
  *
  * The engine adapter produces turns from its own transcript; this store does

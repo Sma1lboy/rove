@@ -2,7 +2,7 @@
  * Automation sweep: fire due schedules.
  *
  * WHERE a firing's prompt lands is `automation-dispatch.ts` (fresh task per
- * run, or one standing session re-delivered into — issue #91). This module
+ * run, or one standing session re-delivered into). This module
  * owns only WHEN, and recording what happened.
  *
  * Shape copied wholesale from {@link startQuotaResumeRunner} — same stateless
@@ -70,7 +70,7 @@ export function resolveDueOccurrence(
 }
 
 /** The slice of the orchestrator this runner needs. `getTask` resolves a
- *  standing session's task before re-delivering into it (issue #91). */
+ *  standing session's task before re-delivering into it. */
 export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask">
 
 export type AutomationRuntime = Pick<

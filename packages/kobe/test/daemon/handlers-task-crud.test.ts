@@ -135,9 +135,9 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
     })
 
     // The issue owns the link (`Issue.taskId`), so nothing else would ever
-    // clear it: without this cascade a deleted task's card stayed In progress
+    // clear it: without this cascade a deleted task's card stays In progress
     // forever, its "open the linked session" action pointing at a task the
-    // sidebar no longer lists.
+    // sidebar does not list.
     it("task.delete unlinks the deleted task's issue and republishes the board", async () => {
       const { ctx, rec } = fakeCtx({
         getTask: () => TASK,
@@ -179,8 +179,8 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.deletions).toEqual([])
     })
 
-    // Regression (2026-08-29): a delete left no record of WHO asked, so an
-    // agent deleting somebody's live task was untraceable. The CLI sends its
+    // Without a record of WHO asked, an agent deleting somebody's live task
+    // is untraceable. The CLI sends its
     // verified session; the handler must put it in the audit line — and must
     // write that line even when the delete is REFUSED, since a refused
     // destructive request is exactly as worth recording.
@@ -218,10 +218,10 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.inboxTaskDeleted).toEqual(["missing"])
     })
 
-    // The point of the whole change: a REFUSED delete must not be reportable
-    // as a successful one. Both outcomes used to return a bare `{}`, so a
-    // caller deleting a list of tasks could not tell which ones were even
-    // scheduled — the wire carried no evidence either way. Asserting the two
+    // A REFUSED delete must not be reportable as a successful one. If both
+    // outcomes returned a bare `{}`, a caller deleting a list of tasks could
+    // not tell which ones were even scheduled — the wire would carry no
+    // evidence either way. Asserting the two
     // responses are UNEQUAL is what fails if `queued` ever stops riding along,
     // whatever value it settles on.
     it("task.delete reports a refusal differently from an acceptance", async () => {
@@ -311,7 +311,7 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.ensureWorktree", {}, ctx)).rejects.toThrow("taskId is required")
     })
 
-    // Long-operation feedback (issue #5): `git worktree add` is minute-class
+    // Long-operation feedback: `git worktree add` is minute-class
     // on a huge repo and the RPC stays blocking, so the handler must publish
     // lifecycle progress on `task.jobs` around the call — running before,
     // and ALWAYS a terminal phase after (done on success, error on throw).

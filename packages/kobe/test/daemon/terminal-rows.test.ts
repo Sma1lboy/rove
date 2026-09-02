@@ -1,14 +1,13 @@
 /**
- * Alt-screen row recovery (issue #97).
+ * Alt-screen row recovery.
  *
- * The incident: a task whose engine put up a "you've hit your weekly limit"
- * dialog and waited. Its durable death record kept ONE readable line —
- * `Enter to confirm · Esc to cancel` — so the question, its three options,
- * and the reason were all gone, and the tab was indistinguishable from a
- * crash. The tail budget was 40 lines and it kept 1, because a full-screen
- * engine paints with cursor motion and writes no newline for the screen: the
- * old `replace(ANSI_RE, "")` deleted the row breaks along with the colors and
- * concatenated the whole screen into a single line.
+ * A full-screen engine — say one holding a "you've hit your weekly limit"
+ * dialog — paints with cursor motion and writes no newline for the screen. A
+ * bare `replace(ANSI_RE, "")` deletes the row breaks along with the colors
+ * and concatenates the whole screen into a single line, so a 40-line tail
+ * budget keeps ONE readable line (`Enter to confirm · Esc to cancel`) and the
+ * question, its options, and the reason are all gone — a death record
+ * indistinguishable from a crash.
  *
  * The fixture is that screen, reduced to the shape that matters: CSI row
  * motion, and not one `\n` in the whole capture.
@@ -78,7 +77,8 @@ describe("terminalRows", () => {
 describe("plainTail (the death record's tail)", () => {
   it("keeps the dialog's question, not just its last painted line", () => {
     const tail = plainTail(ALT_SCREEN_DIALOG)
-    // Before the fix this was exactly ["Enter to confirm · Esc to cancel"].
+    // Concatenating the screen collapses this to exactly
+    // ["Enter to confirm · Esc to cancel"].
     expect(tail.length).toBeGreaterThan(1)
     expect(tail.join("\n")).toContain("What do you want to do?")
     expect(tail[tail.length - 1]).toContain("Enter to confirm")

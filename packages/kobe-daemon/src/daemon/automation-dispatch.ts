@@ -1,5 +1,5 @@
 /**
- * How ONE automation firing reaches an engine (issue #91).
+ * How ONE automation firing reaches an engine.
  *
  * Its own module along a real seam: the runner owns WHEN a schedule fires,
  * this owns WHERE the prompt lands. That is also what makes the four delivery
@@ -8,8 +8,8 @@
  *
  * Two shapes, chosen per routine by `Automation.persistentSession`:
  *
- *  - **Fresh** (default, and what every routine did before this): create a
- *    task, spawn its engine with the prompt on the argv. One worktree and one
+ *  - **Fresh** (default): create a task, spawn its engine with the prompt on
+ *    the argv. One worktree and one
  *    branch per firing — what a routine that EDITS code needs, since a week of
  *    runs piled onto one branch is a branch nobody can land.
  *

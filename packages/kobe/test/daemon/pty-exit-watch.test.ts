@@ -95,7 +95,7 @@ describe("startPtyExitWatch → activity registry", () => {
       activity,
     })
     try {
-      // The 2026-08-30 shape: SIGTERM'd engine, 403 quota text in the tail.
+      // The quota-death shape: SIGTERM'd engine, 403 quota text in the tail.
       recordPtyExit(
         {
           key: "task-1::tab-1",

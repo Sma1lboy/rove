@@ -6,10 +6,9 @@ import { describe, expect, it } from "vitest"
 /**
  * Web-exposure policy + error-shape parity for the unified dispatch seam.
  *
- * WHY these matter: the web transport's RPC allowlist used to be a
- * hand-maintained constant that could silently drift from the handler
- * registry, and its error envelope was hand-rolled separately from the
- * socket's shapeDaemonError. Both now derive from the registry
+ * WHY these matter: a hand-maintained web allowlist constant silently drifts
+ * from the handler registry, and a hand-rolled error envelope drifts from the
+ * socket's shapeDaemonError. Both derive from the registry instead
  * (`web: true` per entry / webExposedRpcNames) and from shapeDaemonError
  * (webRpcErrorBody). These tests pin the SECURITY contract — the exact set
  * of browser-reachable verbs, so exposing a new one is a deliberate,

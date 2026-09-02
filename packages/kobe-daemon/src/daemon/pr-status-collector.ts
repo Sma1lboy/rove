@@ -50,9 +50,9 @@
  * A status is only ever WRITTEN from a successful `gh pr list` (exit 0, a
  * non-empty array); an error or empty keeps the last value, so a transient
  * auth/network blip never clobbers a known chip. A non-zero exit is ALWAYS an
- * `error` now — "no PR" only comes from the structural empty-array success
- * path, never from a guessed stderr pattern, so a `gh` failure can no longer
- * silently masquerade as "no PR". Best-effort + sequential (gentle on the
+ * `error` — "no PR" only comes from the structural empty-array success path,
+ * never from a guessed stderr pattern, so a `gh` failure cannot silently
+ * masquerade as "no PR". Best-effort + sequential (gentle on the
  * subprocess budget); a per-task failure is logged, never fatal, never blocks
  * the other tasks in the pass.
  */
@@ -352,19 +352,18 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
  * `intervalMs <= 0` to disable (no-op stop).
  *
  * The consumer gate is `hasSubscribers() || hasWorkingAgent()`. `prStatus` is
- * the ONLY CI truth Rove holds, and the original gate ("no GUI ⇒ nobody wants
- * this") silently assumed every consumer is a human at a pane. An agent
- * working unattended is a consumer too, and it is the one whose need is
- * sharpest: an unattended run is precisely when there is no GUI, so
- * `checkState` was guaranteed stale or missing at the exact moment a worker
- * asked whether its PR was green. That gap is one mechanism behind "CI is
- * green" being asserted from a local test run.
+ * the ONLY CI truth Rove holds, and a gate of "no GUI ⇒ nobody wants this"
+ * assumes every consumer is a human at a pane. An agent working unattended is
+ * a consumer too, and it is the one whose need is sharpest: an unattended run
+ * is precisely when there is no GUI, so a GUI-only gate leaves `checkState`
+ * stale or missing at the exact moment a worker asks whether its PR is green
+ * — one mechanism behind "CI is green" being asserted from a local test run.
  *
  * `hasWorkingAgent` is the engine-activity registry (`currentNonIdle()`), fed
  * by the ungated `engine.reportEvent` hook path, so it is a free in-memory
- * read that needs no network and no pane. It keeps the gate's original point
- * intact — a daemon with no GUI **and** no live engine still polls nobody,
- * which is the parked-daemon case the gate was written for.
+ * read that needs no network and no pane. It keeps the gate's point intact —
+ * a daemon with no GUI **and** no live engine still polls nobody, which is
+ * the parked-daemon case the gate exists for.
  */
 export function startPrStatusPoller(
   orch: DaemonOrchestrator,

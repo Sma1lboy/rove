@@ -87,10 +87,9 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
   // why the reduced-motion pulse was removed, and the collision would
   // otherwise be invisible in a golden full of correct-looking glyphs.
   //
-  // `·` joined this set on 2026-08-15, when it became the single no-state
-  // glyph (untracked custom engine + non-agent tab + unobserved agent tab) and
-  // simultaneously stopped being a spinner frame — Claude's brand set, which
-  // opened and closed on it, was removed the same day.
+  // `·` is in this set because it is the single no-state glyph (untracked
+  // custom engine + non-agent tab + unobserved agent tab), so no spinner set
+  // may use it as a frame.
   const settled = new Set(["●", "○", "·", "✓", "?", "◷", "×"])
   const spinnerLines = spinnerBlock().filter((line) => line.includes("frames(0..25)="))
   expect(spinnerLines.length).toBeGreaterThan(0)
@@ -112,10 +111,10 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
  * label beside it. Ambiguous-width codepoints hide this, because everyone in
  * the pipeline still calls them 1 cell.
  *
- * That shipped: `◌` U+25CC (the tab row's old "unknown" glyph) is absent from
- * FiraCode Nerd Font and SF Mono, so macOS drew it from HiraginoSans at 1.62
- * cells and it sat on the first letter of every tab name (2026-08-15). `✕`
- * U+2715 did the same at 1.24 cells via ZapfDingbats.
+ * Measured: `◌` U+25CC is absent from FiraCode Nerd Font and SF Mono, so
+ * macOS draws it from HiraginoSans at 1.62 cells and it sits on the first
+ * letter of every tab name. `✕` U+2715 does the same at 1.24 cells via
+ * ZapfDingbats.
  *
  * So the vocabulary is an allowlist, and adding to it means checking the
  * candidate against the fonts people actually run first. The dingbat block

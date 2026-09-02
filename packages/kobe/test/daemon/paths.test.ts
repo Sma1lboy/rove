@@ -3,10 +3,9 @@
  *
  * Load-bearing rule: an explicit `KOBE_HOME_DIR` (env var or argument)
  * MUST win over `XDG_RUNTIME_DIR`. Linux desktops set the runtime dir
- * unconditionally, and the previous resolver placed the socket there
- * regardless — which made `dev:sandbox` / any isolated-state daemon
- * share a socket with the production daemon. Same socket = collisions
- * + cross-contamination.
+ * unconditionally, so a resolver that places the socket there regardless
+ * makes `dev:sandbox` / any isolated-state daemon share a socket with the
+ * production daemon. Same socket = collisions + cross-contamination.
  */
 
 import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
@@ -117,8 +116,8 @@ describe("defaultDaemonSocketPath", () => {
   })
 
   test("two isolated home dirs produce disjoint socket paths", () => {
-    // The whole point of the fix: dev:sandbox and prod must not
-    // collide. Even with XDG set, the two explicit homes diverge.
+    // The whole point: dev:sandbox and prod must not collide. Even with XDG
+    // set, the two explicit homes diverge.
     process.env.XDG_RUNTIME_DIR = "/run/user/1000"
     const prod = defaultDaemonSocketPath("/Users/me")
     const sandbox = defaultDaemonSocketPath("/Users/me/.dev-sandbox/home")

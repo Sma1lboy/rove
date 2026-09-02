@@ -26,7 +26,7 @@
  * Freeze/restore (`pty-freeze-store.ts`): every session's metadata and
  * ring persist to disk (throttled while streaming, immediately on exit,
  * fully at shutdown), so the host PROCESS ending — idle-exit, crash, a
- * machine reboot — no longer takes the work scene with it. The next host
+ * machine reboot — does not take the work scene with it. The next host
  * thaws each session as a dead "restored" corpse with its scrollback, and
  * the first `open` respawns the child in place using the caller's launch
  * spec (the TUI's dead-reattach passes its engine `--resume` argv). Only
@@ -56,8 +56,8 @@ export { foldOscTitle } from "./pty-observability.ts"
 export type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 
 /** Writes at or above this size get a `daemon.log` line. Above the tty's
- *  1024-byte canonical buffer, so anything big enough to have been silently
- *  truncated by the old delivery path is recorded. */
+ *  1024-byte canonical buffer, so anything big enough to be silently
+ *  truncated by a delivery path is recorded. */
 const LOGGED_WRITE_BYTES = 1024
 
 /** Per-session scrollback cap — same order as the web PTY sidecar's 256KB. */
@@ -196,7 +196,7 @@ export class PtyHost {
       // SIGWINCH makes a full-screen app repaint at the new size, fixing
       // what the stale-size replay painted. Size-less opens
       // (headless delivery/ensure clients) never resize: shrinking a live
-      // session out from under its attached TUI garbles the pane (#18).
+      // session out from under its attached TUI garbles the pane.
       this.resize(key, spec.cols, spec.rows)
     }
     const defaultColors = parseTerminalDefaultColors(spec.defaultColors)
@@ -302,13 +302,13 @@ export class PtyHost {
   }
 
   /**
-   * Re-key a running session (`pty.rename`) — the scratch-fold move (issue
-   * #40): the shell keeps running untouched, only its ownership label
-   * changes, so task-deletion sweeps and every future attach see it under
-   * the adopting task. No-ops (false) when the source is missing or the
-   * target key is taken — the caller must pick a free tab id first. The
-   * old key's freeze record moves with it; attached sinks keep streaming
-   * (frames carry `session.key`, which is now the new one).
+   * Re-key a running session (`pty.rename`) — the scratch-fold move: the
+   * shell keeps running untouched, only its ownership label changes, so
+   * task-deletion sweeps and every future attach see it under the adopting
+   * task. No-ops (false) when the source is missing or the target key is
+   * taken — the caller must pick a free tab id first. The source key's
+   * freeze record moves with it; attached sinks keep streaming (frames
+   * carry `session.key`, which is the new one from here on).
    */
   rename(from: string, to: string): boolean {
     const session = this.sessions.get(from)
@@ -425,7 +425,7 @@ export class PtyHost {
   }
 
   /**
-   * Bring a freeze-restored corpse back to life IN PLACE: the old ring
+   * Bring a freeze-restored corpse back to life IN PLACE: the thawed ring
    * stays (the reattaching client replays where the session left off and
    * live output appends after it), the child restarts from the caller's
    * spec when it carries a command, else the frozen one. `restored` clears

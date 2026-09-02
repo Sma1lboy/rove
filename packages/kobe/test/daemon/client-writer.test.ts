@@ -2,8 +2,8 @@
  * Per-client socket write backpressure (fix E). The daemon is a single
  * long-lived writer fanning channel frames out to every subscribed socket;
  * `socket.write()` returning `false` (OS send buffer full for a slow client)
- * used to be ignored, so Node queued unbounded heap → the daemon could grow to
- * GBs and OOM. {@link ClientWriter} obeys backpressure per client: it pauses on
+ * must not be ignored: Node then queues unbounded heap and the daemon grows
+ * to GBs and OOMs. {@link ClientWriter} obeys backpressure per client: it pauses on
  * `false`, resumes on `'drain'`, bounds its queue (dropping the oldest
  * droppable frames), and NEVER drops a critical (lifecycle/response) frame nor
  * reorders a single client's stream.

@@ -36,8 +36,8 @@ async function readInvocations(marker: string): Promise<string[]> {
  * to the sidebar, but `app.quit` binds BOTH `q` and `ctrl+q` in scope
  * sidebar — so once focus is already there, the same byte opens the quit
  * confirm, whose modal barrier then swallows every `o` for the rest of the
- * loop. Tried on 2026-08-10; it turned an occasional slow-boot flake into a
- * deterministic failure on all three retries.
+ * loop. It turns an occasional slow-boot flake into a deterministic failure
+ * on every retry.
  */
 async function pressUntilInvoked(
   child: { write(data: string): void },
@@ -106,7 +106,7 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
       expect(raw).toContain("scratch-repo")
 
       // Boot lands focus in the CONTENT pane when there is a session to
-      // resume into (owner 2026-08-09), and sidebar `o` is gated on sidebar
+      // resume into, and sidebar `o` is gated on sidebar
       // focus. ctrl+q is the documented way back, so press it before the
       // sidebar-scoped chord — otherwise `o` is legitimately dead here.
       child.write("\x11")

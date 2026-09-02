@@ -4,9 +4,8 @@
  * `parseEngineCommand` (and `process.argv`) keep `--flag=value` as ONE token,
  * so a bare `argv.includes("--flag")` guard silently misses the attached form —
  * the recurring bug class behind double `--session-id` (claude refuses to
- * launch) and double `--append-system-prompt` injection, fixed one guard at
- * a time across three PRs (#361 → #365 → #386) before this test existed, and
- * behind `rove web --port=N` binding the default port with no error (#58).
+ * launch), double `--append-system-prompt` injection, and `rove web
+ * --port=N` binding the default port with no error.
  * The rule: presence checks go through `argvHasFlag`, value reads through
  * `flagValue` (both in src/cli/argv.ts). A check that genuinely must match
  * ONLY the bare token needs an allowlist entry here with its reason.
@@ -42,8 +41,8 @@ const BOOLEAN_FLAG_ALLOWED = new Set([
 
 // Rule 1 — any receiver probed with an exact-token method for a `-`-leading
 // flag literal (`args.includes("--port")`, `rest.indexOf("--ref")`). The
-// receiver name is deliberately unconstrained: the first version of this
-// guard required it to end in `argv`, and every CLI file names it `args`.
+// receiver name is deliberately unconstrained: requiring it to end in `argv`
+// would miss every CLI file, which names it `args`.
 const BARE_FLAG_LITERAL = /\.(includes|indexOf)\(\s*(["'`])(-[-\w][^"'`]*)\2/
 
 // Rule 2 — value extraction: `indexOf` on an argv-shaped receiver, flag

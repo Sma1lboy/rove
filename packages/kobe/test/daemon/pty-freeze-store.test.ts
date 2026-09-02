@@ -134,10 +134,10 @@ describe("pty freeze store", () => {
 
 describe("existing-permission remediation", () => {
   // The whole point: `mode:` on mkdirSync/writeFileSync binds only at
-  // CREATION. An install that froze sessions before PR #662 keeps a 0755
-  // directory and 0644 records, so a mode argument alone fixes nobody who
-  // was already exposed. Asserting the call arguments would pass while the
-  // bug persists — these read the real filesystem bits back.
+  // CREATION. A freeze directory created under a laxer umask keeps its 0755
+  // directory and 0644 records, so a mode argument alone fixes nobody who is
+  // already exposed. Asserting the call arguments would pass while the bug
+  // persists — these read the real filesystem bits back.
   function modeOf(path: string): string {
     return (statSync(path).mode & 0o777).toString(8)
   }

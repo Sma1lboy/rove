@@ -81,11 +81,10 @@ export interface DaemonLifetimeOptions {
    * gui within this window self-stops. For AUTOSPAWNED daemons only
    * (`KOBE_DAEMON_AUTOSPAWNED`, set by `connectOrStartDaemon`'s spawn) —
    * they exist to serve the client that spawned them, and one whose client
-   * never attached as a gui otherwise lives FOREVER (the arm-on-transition
-   * rule above never fires without a >0 → 0 gui drop; that hole bred the
-   * 2026-07-13 zombie daemons holding the prod socket). A deliberate
-   * `kobe daemon start` never sets the env flag and keeps the documented
-   * stays-up behavior.
+   * never attached as a gui otherwise lives FOREVER — the arm-on-transition
+   * rule above never fires without a >0 → 0 gui drop, leaving a zombie daemon
+   * holding the socket. A deliberate `kobe daemon start` never sets the env
+   * flag and keeps the documented stays-up behavior.
    */
   readonly firstGuiGraceMs?: number
   /**

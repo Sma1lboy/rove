@@ -78,7 +78,7 @@ describe("PtyHost driver seam", () => {
     // close() is the driver's "release the handle" hook — skipping it leaks a
     // ConPTY pseudoconsole per session on Windows.
     expect(rec.calls).toContain("close")
-    // The exit frame carries the death cause (issue #9) — key/pid plus
+    // The exit frame carries the death cause — key/pid plus
     // code/signal/at so an attached client can render "engine died: 1".
     const exit = frames.find((f) => f.name === "pty.exit")
     expect(exit?.payload).toMatchObject({ key: "t::tab-1", pid: 4242, code: 0, signal: null })
@@ -133,7 +133,7 @@ describe("PtyHost driver seam", () => {
 
   test("escalates to SIGKILL and still finishes when the child never reports exiting", async () => {
     // The node-pty driver's `exited` settles only when ConPTY delivers onExit.
-    // An unbounded await here used to hang killAll(), and with it the host's
+    // An unbounded await here hangs killAll(), and with it the host's
     // shutdown and `kobe reset`.
     const rec = recordingDriver()
     const host = new PtyHost({ driver: rec.driver })

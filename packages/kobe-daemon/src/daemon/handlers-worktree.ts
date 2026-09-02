@@ -4,11 +4,11 @@
  * The `worktree.` slice of the one registry, grouped by RPC-name prefix like
  * `handlers-task.ts` / `handlers-ui.ts` and spread back in by `handlers.ts`.
  *
- * `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
- * 2026-08-24: creation is mechanical, not intent — adoption now needs an
- * engine session-start in a managed root or an explicit `rove add .`/adopt.
+ * There is deliberately no adopt-on-`git worktree add`: creating a worktree
+ * is mechanical, not intent, so adoption needs an engine session-start in a
+ * managed root or an explicit `rove add .`/adopt.
  *
- * `list`/`remove` are NEW — the standalone worktree-management TUI page
+ * `list`/`remove` back the standalone worktree-management TUI page
  * (`tui/component/worktrees-page.tsx`). Unlike the other four, they don't
  * need `ctx.orch`: `GitWorktreeManager` and `getSavedRepos()` are already
  * public, orchestrator-independent primitives, so these compose them

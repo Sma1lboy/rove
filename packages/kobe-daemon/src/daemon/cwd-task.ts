@@ -64,7 +64,7 @@ function managedWorktreeRootsFor(repo: string): readonly string[] {
 export interface CwdMatchTask {
   readonly id: string
   readonly worktreePath?: string | null
-  /** The task's repo root — used to know which repos kobe already tracks. */
+  /** The task's repo root — names which repos kobe already tracks. */
   readonly repo?: string | null
 }
 

@@ -9,10 +9,10 @@ import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 /**
  * RPC dispatch seam tests (registry in `kobe-daemon/src/daemon/handlers.ts`).
  *
- * WHY these matter: the daemon's dispatch used to be a ~275-line switch in
- * `server.ts` with ZERO direct tests — the only proof the RPC surface worked
- * was the end-to-end socket suite. The registry makes the seam testable
- * WITHOUT a socket: dispatch through a fake context and assert the payload. These tests pin the
+ * WHY these matter: the registry makes the RPC dispatch seam testable WITHOUT
+ * a socket — dispatch through a fake context and assert the payload, instead
+ * of leaving the end-to-end socket suite as the only proof the surface works.
+ * These tests pin the
  * WIRE CONTRACT — success payload shapes (including which calls return `{}`
  * vs an object), validation-error wording (`"repo is required"`), and the
  * unknown-request error — so a future handler edit that drifts the on-wire
@@ -256,7 +256,7 @@ describe("daemon handler registry", () => {
     it("publishes with an explicit tabId and rejects an unknown task", async () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       const result = await dispatch("session.deliver", { taskId: "t1", text: "hi", tabId: "tab-2" }, ctx)
-      // `clients` counts attached connections (#499's reached-nobody probe).
+      // `clients` counts attached connections (the reached-nobody probe).
       expect(result).toEqual({ ok: true, clients: 1 })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("session.deliver")
@@ -313,11 +313,11 @@ describe("daemon handler registry", () => {
   })
 
   describe("broadcast reach (clients)", () => {
-    // Broadcast-only handlers used to return a bare { ok: true } — an agent
-    // headless (no TUI attached) read that as "the pane opened" and reported
-    // a thing that never happened. `clients` is the same reach signal
-    // `session.deliver` already reports (#499): connection count, where 0 is
-    // the unambiguous "nobody performed it".
+    // A broadcast-only handler returning a bare { ok: true } reads to a
+    // headless agent (no TUI attached) as "the pane opened", reporting a
+    // thing that never happened. `clients` is the same reach signal
+    // `session.deliver` reports: connection count, where 0 is the
+    // unambiguous "nobody performed it".
     it("tab.open / tab.close / notice.send report clients: 0 when nothing is attached", async () => {
       const { ctx } = fakeCtx({ getTask: () => TASK })
       ;(ctx.daemon as { clientCount: () => number }).clientCount = () => 0

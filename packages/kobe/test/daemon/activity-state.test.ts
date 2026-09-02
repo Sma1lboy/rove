@@ -28,7 +28,7 @@ describe("daemon activity state", () => {
     await client.subscribe()
 
     // A real completion follows a tracked turn — a bare Stop with no turn in
-    // flight is an automated wake and no longer completes anything.
+    // flight is an automated wake and completes nothing.
     await client.request("engine.reportEvent", { taskId: "task-1", kind: "turn-start" })
     await client.request("engine.reportEvent", { taskId: "task-1", kind: "turn-complete" })
     await sleep(TTL_MS + 50)
@@ -122,7 +122,7 @@ describe("daemon activity state", () => {
 
     // A Stop on a KNOWN untracked state is the other case — an automated
     // wake (a background monitor stream ending), which must NOT light the
-    // ● lamp: the state stays idle (owner bug 2026-08-02).
+    // ● lamp: the state stays idle.
     registry.report("task-warm", "session-start")
     published.length = 0
     registry.report("task-warm", "turn-complete")
@@ -150,8 +150,8 @@ describe("daemon activity state", () => {
   // Why: the F7 attention jump's tab precision rides these — a tabId-carrying
   // report must ledger per-tab (published + replayed with the tabId), the
   // task-level rollup must stay identical for every existing consumer, and a
-  // question dialog (`awaiting-input` waiting:"input") is now a blocking
-  // attention state, not `running` (owner call 2026-07-12).
+  // question dialog (`awaiting-input` waiting:"input") is a blocking
+  // attention state, not `running`.
   it("tracks tabId-carrying reports per tab: publish, replay, session-end + clearTask cleanup", () => {
     const bus = new DaemonEventBus()
     const registry = new DaemonActivityRegistry(bus, 1_000)
@@ -226,11 +226,11 @@ describe("daemon activity state", () => {
     registry.close()
   })
 
-  // Why: the task-level carry-forward used to ride along on tab-tagged
-  // publishes — a session-less event on a FRESH tab (codex hooks pipe no
-  // session id) inherited the previous tab's (even another ENGINE's) session
-  // and stamped it onto the new tab forever. A tab publish must carry only
-  // the tab's own lineage.
+  // Why: if the task-level carry-forward rode along on tab-tagged publishes,
+  // a session-less event on a FRESH tab (codex hooks pipe no session id)
+  // would inherit the previous tab's — even another ENGINE's — session and
+  // stamp it onto the new tab forever. A tab publish must carry only the
+  // tab's own lineage.
   it("a session-less event on a NEW tab does not inherit another tab's session", () => {
     const bus = new DaemonEventBus()
     const registry = new DaemonActivityRegistry(bus, 1_000)

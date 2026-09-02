@@ -14,7 +14,7 @@ function spyDaemonLog(): { lines: string[]; restore: () => void } {
   return { lines, restore: () => spy.mockRestore() }
 }
 
-describe("daemon deferred-prompts store (issue #78 B)", () => {
+describe("daemon deferred-prompts store", () => {
   let dir: string | null = null
   let now = 1_000_000
 

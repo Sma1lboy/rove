@@ -19,10 +19,10 @@ export type {
 
 /** Engine id (kobe `VendorId`). Deliberately plain `string`: the daemon
  *  treats vendor ids as opaque pass-through values and never narrows on
- *  the built-in literals — the old `"claude" | "codex" | "copilot" |
- *  (string & {})` union drifted from kobe's list (it missed `kimi`) AND
- *  its open string branch would have hidden the next drift inside an
- *  exhaustive-looking switch. Where the daemon DOES need the built-in
+ *  the built-in literals. A `"claude" | "codex" | ... | (string & {})`
+ *  union drifts from kobe's list, and its open string branch hides that
+ *  drift inside an exhaustive-looking switch. Where the daemon DOES need
+ *  the built-in
  *  list (plugin engine ids may not shadow a built-in or shipped-contrib
  *  engine), `plugins/manifest.ts` carries `RESERVED_ENGINE_IDS` as its
  *  own source of truth, locked to kobe's lists by a kobe-side test. */
@@ -100,10 +100,10 @@ export interface DaemonTask {
   readonly branch: string
   readonly worktreePath: string
   readonly kind?: "main" | "task" | "dir"
-  /** Scratch shell task (issue #33): a dir task with no settled cwd, living
+  /** Scratch shell task: a dir task with no settled cwd, living
    *  in the sidebar's Scratch section; cleared when named or adopted. */
   readonly scratch?: boolean
-  /** Standing session for a routine (issue #91): the one task a
+  /** Standing session for a routine: the one task a
    *  `persistentSession` automation re-delivers into, folded behind a count
    *  row in the sidebar instead of a loose task row. */
   readonly routine?: TaskRoutineLink
@@ -191,14 +191,14 @@ export interface DaemonOrchestrator {
     modelEffort?: string
     groupId?: string
     dispatcher?: TaskDispatcher
-    /** Mark this the standing session task of a routine (issue #91). */
+    /** Mark this the standing session task of a routine. */
     routine?: TaskRoutineLink
   }): Promise<DaemonTask>
   ensureMainTask(repo: string): Promise<DaemonTask>
   /** Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
    *  `scratch` marks it a temp shell task for the sidebar's Scratch section. */
   openDirectoryTask(input: { dir: string; vendor?: VendorId; scratch?: boolean }): Promise<DaemonTask>
-  /** Migrate a scratch task into `repo` (issue #33 adoption): repoint the
+  /** Migrate a scratch task into `repo`: repoint the
    *  task at the repo root and clear the scratch flag. */
   adoptScratchRepo(id: string, repo: string): Promise<void>
   ensureWorktree(id: string): Promise<string>
@@ -278,7 +278,7 @@ export interface EngineActivityDetail {
    * pty-host's exit record. `code`/`signal` answer "who killed it" (143 =
    * 128+SIGTERM, an outside signal, not a self-exit) and `lastLine` is the
    * last non-blank line of the recorded tail — the 403 / auth / quota text
-   * that was already on disk but reached no UI.
+   * that sits on disk with nothing else surfacing it.
    */
   readonly exit?: {
     readonly code?: number | null
@@ -286,7 +286,7 @@ export interface EngineActivityDetail {
     readonly lastLine?: string
   }
   /**
-   * Reference to a daemon-owned deferred-prompt record (issue #78 B-layer).
+   * Reference to a daemon-owned deferred-prompt record.
    * Present only on `prompt_deferred` inbox episodes. The prompt TEXT lives in
    * the DeferredPromptsStore, never here — this contract describes engine
    * activity, and a raw prompt is not engine activity.
@@ -307,14 +307,14 @@ export type TaskActivityState =
   /**
    * The engine PROCESS died — an exit record exists for the tab's session
    * (`pty-exits.json`). Distinct from `error`: `error` is an engine that ran
-   * and reported a failed turn, `dead` is an engine that is no longer there.
+   * and reported a failed turn, `dead` is an engine that is gone.
    * A killed engine fires no hook at all, so this state can only ever be
    * written from the exit record, never from `reduceActivity`.
    */
   | "dead"
 
 /**
- * The ENGINE half of a turn record (issue #32) — what the vendor's adapter
+ * The ENGINE half of a turn record — what the vendor's adapter
  * lifts from its own transcript. Mirrors `kobe/src/engine/agent-turn.ts`,
  * which is the contract's source of truth; this is the daemon's structural
  * copy (the daemon package never imports kobe sources).
@@ -379,8 +379,8 @@ export function attentionInboxItemKey(item: {
   // engine, so one-per-tab is right: a fresh turn-complete should replace the
   // stale one. A deferred prompt is not a description — the daemon is holding
   // a human's text and this episode is the only pointer to it, so sharing the
-  // tab's single slot meant the target's next turn silently orphaned the
-  // record (observed 2026-09-01: four stored prompts, an empty inbox).
+  // tab's single slot lets the target's next turn silently orphan the record
+  // — stored prompts with nothing in the inbox pointing at them.
   const lane = item.state === "prompt_deferred" ? "\0deferred" : ""
   return `${item.taskId}\0${item.tabId ?? ""}${lane}`
 }

@@ -1,11 +1,11 @@
 /**
  * Tests for the daemon crash net.
  *
- * Regression target: the daemon used to "die easily" — it ran with no
- * `unhandledRejection` / `uncaughtException` handler, so a single stray
- * rejected promise from one of its fire-and-forget `void someAsync()`
- * calls terminated the whole process (Node/Bun's default). Registering
- * the handlers flips that default to "log and keep serving."
+ * Without an `unhandledRejection` / `uncaughtException` handler the daemon
+ * "dies easily": a single stray rejected promise from one of its
+ * fire-and-forget `void someAsync()` calls terminates the whole process
+ * (Node/Bun's default). Registering the handlers flips that default to
+ * "log and keep serving."
  *
  * These tests invoke the registered listener functions directly rather
  * than `process.emit(...)`, so the vitest runner's own process-level

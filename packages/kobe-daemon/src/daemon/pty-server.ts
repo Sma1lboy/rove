@@ -173,7 +173,7 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
    *
    * Self-termination only, and only on evidence about THIS process: nothing
    * here reads the process table or signals a pid it did not write itself,
-   * so it cannot reach another home's host — see the pty-sweep incident.
+   * so it cannot reach another home's host.
    */
   const orphaned = (): string | null => {
     if (maxLifetimeMs !== null && Date.now() - bootedAtMs >= maxLifetimeMs) {

@@ -1,7 +1,6 @@
 /**
- * Regression pin for issue #22 (owner report 2026-08-12, wisp): a session you
- * have already read must not come back UNREAD after you quit kobe and start
- * it again.
+ * Regression pin: a session you have already read must not come back UNREAD
+ * after you quit kobe and start it again.
  *
  * The bug is environment-shaped, which is why this test spends two real TUI
  * processes on it: the daemon's activity registry outlives the TUI, so the
@@ -83,7 +82,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
   beforeAll(async () => {
     env = await makeBehaviorEnv()
     repo = await makeScratchRepo(env)
-    // Rove reads and writes its canonical state; the old path is migration
+    // Rove reads and writes its canonical state; the legacy path is migration
     // input only, not a live mirror.
     const stateDir = join(env.home, ".config", "rove")
     await mkdir(stateDir, { recursive: true })

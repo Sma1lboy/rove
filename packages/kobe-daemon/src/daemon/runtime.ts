@@ -49,7 +49,7 @@ export interface DaemonRuntimeAdapter {
    * pid (kobe's `engine/foreground.ts`, the same primitive `kobe api
    * inspect` uses). The engine's own vendor AND pid, or null for "no engine
    * in this tree". Consumed by the daemon activity observer's reconciler
-   * (issues #11/#16); the pid is what a death record names as the process
+   * the pid is what a death record names as the process
    * that actually died, distinct from the PTY that outlived it.
    */
   foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, { vendor: VendorId; pid: number } | null>>
@@ -61,7 +61,7 @@ export interface DaemonRuntimeAdapter {
    */
   titleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null
   /**
-   * Tier-(b) protocol sniff consumer (issue #31): given a task record and
+   * Tier-(b) protocol sniff consumer: given a task record and
    * live evidence from its engine tab (foreground-walk vendor + OSC title),
    * the `setCommand` payload that upgrades a generic record to the named
    * protocol — or null to leave the record alone. Naming + eligibility are
@@ -73,7 +73,7 @@ export interface DaemonRuntimeAdapter {
     evidence: { readonly walkVendor: VendorId | null; readonly title: string },
   ): { command: string; vendor: VendorId } | null
   /**
-   * Engine-owned per-turn telemetry (issue #32): completed turns read out of
+   * Engine-owned per-turn telemetry: completed turns read out of
    * ONE session transcript by the vendor's own adapter. `[]` when the engine
    * ships no turn reader or the file is unreadable — the daemon never parses
    * a vendor transcript itself.
@@ -141,9 +141,9 @@ export interface DaemonRuntimeAdapter {
    * {@link deliverPromptToLiveEngine} with the composer-busy outcome as DATA
    * rather than a thrown `ComposerBusyError` — the error class lives in the
    * `rove` package, which depends on this one, so the daemon cannot catch it
-   * by type. A caller that must not drop the prompt (a routine's daily report
-   * — issue #91) reads `busy` and files a deferral; quota-resume keeps using
-   * the boolean form, where dropping is the right answer.
+   * by type. A caller that must not drop the prompt (a routine's daily
+   * report) reads `busy` and files a deferral; quota-resume keeps using the
+   * boolean form, where dropping is the right answer.
    *
    * `tabId` names which tab the live engine was found on, so the deferral and
    * its Inbox episode point at the tab a human will actually open.

@@ -270,8 +270,8 @@ export class AutomationsStore {
           : patch.sessionTaskId !== undefined
             ? { sessionTaskId: patch.sessionTaskId }
             : {}),
-        // Re-anchor the schedule whenever the expression changes, else the old
-        // nextRunAt would fire on a rule the user just replaced.
+        // Re-anchor the schedule whenever the expression changes, else a stale
+        // nextRunAt fires on a rule the user just replaced.
         ...(patch.schedule !== undefined ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
         updatedAt: new Date(nowMs).toISOString(),
       }
@@ -307,7 +307,7 @@ export class AutomationsStore {
       try {
         nextRunAt = new Date(nextCronAfter(current.schedule, afterMs)).toISOString()
       } catch (err) {
-        // A stored schedule that no longer resolves (hand-edited file, or a
+        // A stored schedule that fails to resolve (hand-edited file, or a
         // once-only date now in the past) must not wedge the sweep on a
         // permanently-due row: disable it and surface it in `automation-list`.
         logDaemonError("automations-advance", err)

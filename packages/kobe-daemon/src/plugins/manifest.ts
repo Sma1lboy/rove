@@ -78,8 +78,8 @@ export interface PluginPane extends PluginCommandSpec {
 }
 
 /**
- * One coding-CLI engine a plugin contributes (docs/design/plugin-events.md
- * follow-up; same shape as kobe's shipped contrib-engine catalog): identity +
+ * One coding-CLI engine a plugin contributes (same shape as kobe's shipped
+ * contrib-engine catalog): identity +
  * launch command + declarative screen-state rules. The TUI overlays this onto
  * the empty custom registry entry — launch + selector + screen-based badges,
  * no account/history/hook surfaces (those require a built-in adapter).

@@ -127,8 +127,7 @@ describe("rove api hosted PTY lifecycle (behavior)", () => {
 
     // The converged end state: the task is unaddressable (TASK_NOT_FOUND, not
     // a parse of empty output), its hosted session is dead, and its worktree
-    // is gone. Before the archive removal (issue #75) this asserted the
-    // archived row lingered in the index; delete has no such lingering state.
+    // is gone. Delete leaves no lingering row in the index.
     await waitForConverged(() => {
       const task = runRove(["api", "get-task", "--task-id", taskId, "--pretty"], env)
       if (task.code !== 1 || !task.stderr.includes("TASK_NOT_FOUND")) {

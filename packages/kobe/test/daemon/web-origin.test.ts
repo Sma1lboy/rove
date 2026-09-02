@@ -4,11 +4,11 @@ import { allowedHostForBindHost, isLoopbackOrigin, originAllowed } from "../../.
 /**
  * Browser-Origin policy for daemon-hosted web routes.
  *
- * Regression (this file): a bind host carrying any uppercase letter — routine
- * for mDNS names like `MyMac.local` — used to 403 every browser request. The
- * browser (and `new URL().hostname`) lowercase the Origin host, but the allowed
- * bind host was compared with its original case, so `mymac.local === MyMac.local`
- * was false. Hostnames are case-insensitive (RFC 4343); the comparison now is.
+ * Regression: a bind host carrying any uppercase letter — routine for mDNS
+ * names like `MyMac.local` — 403s every browser request when the comparison
+ * is case-sensitive. The browser (and `new URL().hostname`) lowercase the
+ * Origin host, so `mymac.local === MyMac.local` is false. Hostnames are
+ * case-insensitive (RFC 4343), and so is this comparison.
  */
 describe("originAllowed", () => {
   it("allows a request with no Origin (non-browser client)", () => {

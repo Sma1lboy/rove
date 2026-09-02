@@ -4,8 +4,9 @@
  * The record is what `pty-exit-watch.ts` replays as an engine death — a `dead`
  * activity state, a durable Inbox episode, and a red toast. A session someone
  * CLOSED is not a death: its child still exits under a signal, so nothing
- * downstream can tell it from a crash. Deleting a task tears its sessions down
- * that way, which is how every successful delete used to toast an error.
+ * downstream can tell it from a crash. Deleting a task tears its sessions
+ * down that way, so without the distinction every successful delete toasts
+ * an error.
  *
  * Driven through a fake `PtyDriver`, like `pty-host-freeze.test.ts`.
  */

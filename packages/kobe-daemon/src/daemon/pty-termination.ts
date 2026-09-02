@@ -14,7 +14,7 @@ import type { PtyChild } from "./pty-driver.ts"
  * as settled — an exit is an exit however the runtime reports it.
  *
  * Every wait on a child's exit MUST go through this. `Bun.spawn`'s `exited`
- * always settles, so awaiting it bare used to be safe; the node-pty driver's
+ * always settles, so awaiting it bare is safe there; the node-pty driver's
  * resolves only when ConPTY delivers `onExit`, and one wedged child would
  * otherwise hang the host's shutdown behind it.
  */
@@ -81,7 +81,7 @@ const TERMINATION_GRACE_MS = 500
 /**
  * End one PTY child: SIGTERM its process group, escalate to SIGKILL past a
  * short grace, then fire `onSettled`. BOUNDED on purpose. Bun's
- * `proc.exited` always settles, so an unbounded await was safe; the
+ * `proc.exited` always settles, so an unbounded await is safe there; the
  * node-pty driver's resolves only when ConPTY delivers onExit, and a
  * wedged one would hang the host's shutdown — and with it `kobe reset`.
  * A child that outlives SIGKILL is already beyond this process's reach;

@@ -1,5 +1,5 @@
 /**
- * Daemon-side worktree-changes collector (issue #6).
+ * Daemon-side worktree-changes collector.
  *
  * Before this, EVERY pane process polled `git status` itself for the
  * sidebar's per-row `+N −M` chips (`tui/panes/sidebar/worktree-changes-poller.ts`
@@ -171,16 +171,15 @@ export interface WorktreeChangesCollectorOptions {
    * for nobody. The timer keeps ticking, so the FIRST tick after a pane
    * subscribes repopulates, and the bus's last-value replay hands that late
    * subscriber the current map. Omit (or return `true`) to collect every
-   * tick — the historical behavior, used by tests that drive `tick()`
-   * directly.
+   * tick — what tests that drive `tick()` directly use.
    */
   readonly hasSubscribers?: () => boolean
 }
 
 /**
  * Tick-driven collector. `tick()` is synchronous and never throws: it
- * prunes entries for worktrees no longer tracked (deleted/now-
- * remote tasks), starts guarded status runs for due worktrees, and
+ * prunes entries for worktrees the daemon stopped tracking (deleted/remote
+ * tasks), starts guarded status runs for due worktrees, and
  * publishes the full map when — and only when — membership or a value
  * changed. Run completions publish as they land (each is a real change
  * by construction). Exposed as a class so tests drive `tick()` directly

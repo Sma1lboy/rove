@@ -160,7 +160,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(direction === "right" || direction === "down" ? { direction } : {}),
         at: Date.now(),
       })
-      // Same reach report as `session.deliver` (#499): the split is performed
+      // Same reach report as `session.deliver`: the split is performed
       // by an attached TUI, so with nothing listening the pane goes nowhere
       // while a bare `ok` would read as "opened". `clients` counts CONNECTIONS
       // — the calling CLI is one, so 1 does not prove a host is listening; 0
@@ -263,8 +263,8 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         .catch(() => false)
       const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo)
       // No dispatcher seat, or the dispatcher noting to itself: accepted
-      // but unrouted — filing must never error a working agent. Still
-      // persisted above, which is why an unrouted note is no longer a loss.
+      // but unrouted — filing must never error a working agent. It is
+      // persisted above, so an unrouted note is not a loss.
       const routed = !!main && main.id !== author.id
       if (routed && main) {
         ctx.bus.publish("session.deliver", {

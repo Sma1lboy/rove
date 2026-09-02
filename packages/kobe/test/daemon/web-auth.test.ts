@@ -11,9 +11,9 @@ import { type DaemonHarness, bootDaemonHarness } from "./harness.ts"
  *
  * Why this file exists: 22 RPCs are marked `web: true`, including
  * `task.setCommand` — which sets the engine's launch argv, i.e. arbitrary
- * command execution. The only gate used to be the Origin check, and Origin is
- * a CSRF control, not authentication: `originAllowed(null)` returns true, so
- * any `curl` (which sends no Origin) could drive the daemon. The first
+ * command execution. The other gate, the Origin check, is a CSRF control and
+ * not authentication: `originAllowed(null)` returns true, so on its own it
+ * lets any `curl` (which sends no Origin) drive the daemon. The first
  * describe block below is the whole point of the feature.
  */
 
@@ -129,10 +129,10 @@ describe("token file", () => {
   })
 
   it("tightens an ALREADY-EXISTING 0644 file in an 0755 directory", () => {
-    // The #662/#681 lesson: `mode` on mkdirSync/writeFileSync binds only at
-    // CREATION, so an install that predates this module keeps its loose modes
-    // forever. Asserting the call arguments would miss that entirely — this
-    // builds the loose fixture on disk and re-reads the modes afterwards.
+    // `mode` on mkdirSync/writeFileSync binds only at CREATION, so a path
+    // created under a laxer umask keeps its loose modes forever. Asserting
+    // the call arguments would miss that entirely — this builds the loose
+    // fixture on disk and re-reads the modes afterwards.
     const loose = join(dir, "loose")
     mkdirSync(loose, { recursive: true })
     chmodSync(loose, 0o755)

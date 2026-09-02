@@ -1,5 +1,5 @@
 /**
- * Daemon worktree-changes collector (issue #6) — the single `git status`
+ * Daemon worktree-changes collector — the single `git status`
  * collector that replaces per-pane polling. What matters here:
  *
  *   - **Exclusions**: remote (`ssh://`) projects are never collected — a
