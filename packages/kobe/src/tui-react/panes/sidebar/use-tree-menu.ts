@@ -138,6 +138,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       setMenu(null)
       if (row.kind === "project") {
         if (action === "newTask") deps.onAddTask?.()
+        if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
         // Forget routes to the SAME flow `d` runs (task-actions.ts sends a
         // main row to `forgetProject` behind a confirm). The header itself is
         // not navigable, so the row the flow needs is the project's main

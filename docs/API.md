@@ -352,7 +352,8 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   future worktree session on this repo starts with it in its system prompt;
   and forwarded to the dispatcher session for live relay to in-flight tasks.
 - `note-list --repo PATH`: read a repo's accumulated field notes, newest
-  first. Returns `{ notes }`.
+  first. Returns `{ notes }`. The same list is readable inside the TUI from
+  the project header's right-click menu (**Field notes**, see [TUI.md](./TUI.md)).
 - `set-active [--task-id ID] [--none]`: set (or clear) the shared active
   task every attached sidebar highlights.
 - `pane-open [--task-id ID] [--tab TAB] [--command CMD] [--direction

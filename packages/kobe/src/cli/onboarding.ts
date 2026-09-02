@@ -71,16 +71,16 @@ export function installCompletions(shell: ShellKind, home: string = homedir(), c
   return rc
 }
 
-export function isOnboarded(): boolean {
+function isOnboarded(): boolean {
   return getPersistedBool(ONBOARDED_KEY, false)
 }
 
-export function markOnboarded(): void {
+function markOnboarded(): void {
   setPersistedBool(ONBOARDED_KEY, true)
 }
 
 /** The "Keyboard basics" page (and primer-mode re-run) was delivered. */
-export function isPrimerDone(): boolean {
+function isPrimerDone(): boolean {
   return getPersistedBool(PRIMER_KEY, false)
 }
 

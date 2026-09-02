@@ -89,6 +89,7 @@ import {
   getDeferredPromptOp,
   landTaskOp,
   listAutomationsOp,
+  listFieldNotesOp,
   listIssuesOp,
   listWorkItemsOp,
   listWorktreesOp,
@@ -405,8 +406,7 @@ export class RemoteOrchestrator {
     return subscribeTasksOp(this.reads, listener)
   }
 
-  // --- write --- (each a thin delegate; bodies moved to remote-orchestrator-writes.ts)
-  // Terse one-liners on purpose: pure forwarding, and this file is at the cap.
+  // --- write --- thin delegates (bodies in remote-orchestrator-writes.ts); terse because this file is at the cap.
 
   createTask = (input: Parameters<typeof createTaskOp>[1]): Promise<Task> => createTaskOp(this.client, input)
   ensureMainTask = (repo: string): Promise<Task> => ensureMainTaskOp(this.client, repo)
@@ -465,8 +465,7 @@ export class RemoteOrchestrator {
     return mutateIssueOp(this.client, repoRoot, op)
   }
 
-  // Automations + external work items (docs/design/{automations,work-items}.md).
-  // Terse one-liners on purpose: pure forwarding, and this file is at the cap.
+  // Automations, work items, field notes — terse forwarding; this file is at the cap.
   listAutomations = () => listAutomationsOp(this.client)
   createAutomation = (i: Parameters<typeof createAutomationOp>[1]) => createAutomationOp(this.client, i)
   automationRuns = (id: string) => automationRunsOp(this.client, id)
@@ -474,6 +473,7 @@ export class RemoteOrchestrator {
   runAutomationNow = (id: string) => runAutomationNowOp(this.client, id)
   deleteAutomation = (id: string) => deleteAutomationOp(this.client, id)
   listWorkItems = (a: Parameters<typeof listWorkItemsOp>[1]) => listWorkItemsOp(this.client, a)
+  listFieldNotes = (repo: string) => listFieldNotesOp(this.client, repo)
   startWorkItem = (a: Parameters<typeof startWorkItemOp>[1]) => startWorkItemOp(this.client, a)
 
   /** Remove a worktree (`worktree.remove`); refuses a dirty one unless

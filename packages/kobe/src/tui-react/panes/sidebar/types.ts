@@ -53,6 +53,8 @@ export type SidebarTaskCallbacks = {
   /** Menu route of `v`, as a picker over the available engines rather than
    *  the chord's blind cycle (owner call 2026-09-01). */
   onChangeEngineRequest?: (taskId: string) => void
+  /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
+  onFieldNotesRequest?: (repo: string) => void
 }
 
 export type SidebarProps = SidebarTaskCallbacks & {

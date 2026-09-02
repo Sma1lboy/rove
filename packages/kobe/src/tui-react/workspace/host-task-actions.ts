@@ -36,6 +36,7 @@ import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-creat
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import { EnginePickerDialog } from "../component/engine-picker-dialog"
+import { FieldNotesDialog } from "../component/field-notes-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
@@ -72,6 +73,8 @@ export type WorkspaceTaskActions = {
   setStatus: (id: string) => Promise<void>
   /** Tree-menu "Copy branch name" / "Copy path" — system clipboard + toast. */
   copyTaskField: (id: string, field: "branch" | "path") => void
+  /** Project-row menu "Field notes" — read-only list of the repo's notes. */
+  showFieldNotes: (repo: string) => void
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
@@ -171,5 +174,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     moveTask,
     setStatus: (id) => setStatusFlow(taskActions, id),
     copyTaskField: (id, field) => copyTaskFieldFlow(taskActions, id, field),
+    showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, load: () => orchestrator.listFieldNotes(repo) }),
   }
 }

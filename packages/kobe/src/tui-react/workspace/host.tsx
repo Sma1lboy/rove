@@ -162,6 +162,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     moveTask,
     setStatus,
     copyTaskField,
+    showFieldNotes,
   } = useWorkspaceTaskActions({
     orchestrator: orch,
     tasks: () => tasks,
@@ -409,6 +410,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onOpenEditorRequest={openTaskWorktree}
           onRenameBranchRequest={(id) => void renameBranch(id)}
           onChangeEngineRequest={(id) => void pickVendor(id)}
+          onFieldNotesRequest={showFieldNotes}
           moveMode={moveMode}
           onMoveRequest={(id, delta) => void moveTask(id, delta)}
           onMoveModeExit={() => setMoveMode(false)}

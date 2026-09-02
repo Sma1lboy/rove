@@ -3,7 +3,7 @@
  * list is a data assertion; the real right-click that produces it is covered
  * in the render track's `sidebar-tree-menu.test.tsx`).
  *
- * The rules worth locking: a project header is only ever "New task", the
+ * The rules worth locking: a project header offers exactly its three entries, the
  * per-task verbs reach a tab row too, `closeTab` appears only above one tab,
  * and the new-conversation pair rides both task-bearing row kinds.
  */
@@ -35,11 +35,11 @@ const tabRow: TreeRow = { kind: "tab", id: "a::tab-2", task: task(), tab: { id: 
 const actions = (row: TreeRow, ctx = {}) => treeMenuItems(row, ctx).map((item) => item.action)
 
 describe("treeMenuItems", () => {
-  test("a project header offers New task and Remove project", () => {
-    // Both mirror a chord the row already answers to — `d` on a project row
-    // has always routed to `forgetProject` behind a confirm; the menu was
-    // simply missing it.
-    expect(actions(projectRow)).toEqual(["newTask", "forgetProject"])
+  test("a project header offers New task, Field notes, then Remove project", () => {
+    // New task / Remove project mirror chords the row already answers to (`d`
+    // routes to `forgetProject` behind a confirm). Field notes is menu-only,
+    // like setStatus: the repo's durable note store had no in-product reader.
+    expect(actions(projectRow)).toEqual(["newTask", "fieldNotes", "forgetProject"])
   })
 
   test("a worktree row opens, adds a session, then the task verbs", () => {
