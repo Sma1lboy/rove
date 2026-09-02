@@ -29,6 +29,8 @@ export const DEFERRED_PROMPT_TTL_MS = 24 * 60 * 60 * 1000
 
 export type DeferredPromptLayer = "recent-human-write" | "composer-not-empty"
 
+export type DeferredPromptDiscardReason = "Inbox item dismissed" | "Inbox item read by legacy client" | "tab closed"
+
 /** One daemon-owned deferred prompt, awaiting a human's release from the Inbox. */
 export interface DeferredPromptRecord {
   /** Stable id — the inbox episode references the record by this. */
@@ -163,6 +165,27 @@ export class DeferredPromptsStore {
     return await this.enqueue(async () => (await readStore(this.path)).records.find((r) => r.id === id) ?? null)
   }
 
+  /**
+   * List every live record in insertion order. A flush is also a successful
+   * store operation, so it enforces the same TTL boundary as filing a prompt.
+   */
+  async list(): Promise<readonly DeferredPromptRecord[]> {
+    return await this.enqueue(async () => {
+      const now = this.now()
+      const store = await readStore(this.path)
+      const kept = store.records.filter((record) => {
+        if (now - record.at <= DEFERRED_PROMPT_TTL_MS) return true
+        logDaemonInfo(
+          SUBSYSTEM,
+          `expired deferred prompt ${record.id} for ${record.taskId}::${record.tabId} (age ${Math.round((now - record.at) / 1000)}s) — dropped`,
+        )
+        return false
+      })
+      if (kept.length !== store.records.length) await writeStore(this.path, kept)
+      return kept
+    })
+  }
+
   /** Remove one record (called after its prompt was inserted, or on dismiss). */
   async resolve(id: string): Promise<boolean> {
     return await this.enqueue(async () => {
@@ -171,6 +194,27 @@ export class DeferredPromptsStore {
       if (kept.length === store.records.length) return false
       await writeStore(this.path, kept)
       return true
+    })
+  }
+
+  /** Drop a tab's prompt after an explicit user/UI lifecycle action, with a log. */
+  async discardTab(
+    taskId: string,
+    tabId: string,
+    reason: DeferredPromptDiscardReason,
+  ): Promise<readonly DeferredPromptRecord[]> {
+    return await this.enqueue(async () => {
+      const store = await readStore(this.path)
+      const dropped = store.records.filter((record) => record.taskId === taskId && record.tabId === tabId)
+      if (dropped.length === 0) return []
+      for (const record of dropped) {
+        logDaemonInfo(SUBSYSTEM, `dropped deferred prompt ${record.id} for ${taskId}::${tabId} — ${reason}`)
+      }
+      await writeStore(
+        this.path,
+        store.records.filter((record) => record.taskId !== taskId || record.tabId !== tabId),
+      )
+      return dropped
     })
   }
 

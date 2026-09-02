@@ -184,6 +184,23 @@ export async function resolveDeferredPromptOp(client: KobeDaemonClient, id: stri
   return res.removed
 }
 
+export interface DeferredPromptFlushResult {
+  readonly delivered: readonly string[]
+  readonly retained: readonly {
+    readonly id: string
+    readonly taskId: string
+    readonly tabId: string
+    readonly reason: "busy" | "unavailable" | "error"
+    readonly layer?: "recent-human-write" | "composer-not-empty"
+    readonly error?: string
+  }[]
+}
+
+/** Retry every daemon-owned prompt after the screen-based gate turns off. */
+export async function flushDeferredPromptsOp(client: KobeDaemonClient): Promise<DeferredPromptFlushResult> {
+  return await client.request<DeferredPromptFlushResult>("deferredPrompt.flush", {})
+}
+
 /** Land a task's branch back into its base repo (`task.land`). Merge or
  *  squash; optionally delete the branch after. The daemon throws with a
  *  `LAND_CONFLICT`/`MAIN_CHECKOUT_DIRTY` sentinel in the message on the

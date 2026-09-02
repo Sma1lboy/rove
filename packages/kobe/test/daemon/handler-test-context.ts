@@ -72,6 +72,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       clearTask: (taskId: string) => rec.cleared.push(taskId),
     } as unknown as DaemonActivityRegistry,
     inbox: {
+      snapshot: () => (orch.inboxItems as unknown[] | undefined) ?? [],
       record: (taskId: string, kind: string, detail?: unknown, tabId?: string) => {
         rec.inboxRecords.push({ taskId, kind, detail, tabId })
         return Promise.resolve()

@@ -327,9 +327,12 @@ The second one reads the engine's CURRENT on-screen layout, so a vendor
 redesign can make it wrong: it holds every message while reporting a composer
 you can see is empty. If that happens, turn the check off in **Settings → Dev
 → Check the composer before delivering**. Delivery then skips the screen read
-and relies on the keystroke-recency guard alone, which measures time instead
-of parsing a layout and so cannot go stale — a composer you are typing into
-right now stays protected either way.
+and immediately retries every queued prompt in its original order. A prompt
+that still cannot reach its exact tab stays in the Inbox; later tabs are still
+attempted, so one dead or recently typed-in tab cannot strand the rest. The
+keystroke-recency guard remains active and can keep a prompt queued until the
+10-second quiet period passes. Explicitly closing that tab discards its queued
+prompt, clears the stale Inbox entry, and records the discard in the daemon log.
 
 Leave it on otherwise. It is what stops an agent's message landing in the
 middle of a half-typed sentence.

@@ -8,6 +8,7 @@
 import { errorMessage } from "@/lib/error-message"
 import { type BoxRenderable, type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
+import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { type KobeOrchestrator, RemoteOrchestrator, type UsageSnapshotMap } from "../../../client/remote-orchestrator"
 import { createStateCell } from "../../../lib/external-store"
@@ -70,14 +71,17 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const [feedbackStatus, setFeedbackStatus] = useState("")
   const themeNames = useMemo<readonly string[]>(() => themeCtx.all().slice().sort(), [themeCtx])
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
-
-  const prefs = useSettingsPrefs(props.kv, dialog)
+  const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
+  const prefs = useSettingsPrefs(props.kv, dialog, () => {
+    if (!remote) return
+    void remote
+      .flushDeferredPrompts()
+      .catch((error) => logClientError("settings", `deferred prompt flush failed: ${errorMessage(error)}`))
+  })
   const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
-
   // Daemon-pushed per-vendor quota snapshots (General's top-right dashboard).
   // Only the RemoteOrchestrator has the channel; a local orchestrator (tests,
   // direct mode) reads the empty fallback cell and the dashboard stays hidden.
-  const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.

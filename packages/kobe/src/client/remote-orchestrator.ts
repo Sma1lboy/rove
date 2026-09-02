@@ -85,6 +85,7 @@ import {
   dismissAttentionOp,
   ensureMainTaskOp,
   ensureWorktreeOp,
+  flushDeferredPromptsOp,
   forgetProjectOp,
   getDeferredPromptOp,
   landTaskOp,
@@ -434,6 +435,7 @@ export class RemoteOrchestrator {
     markAttentionReadOp(this.client, taskId, tabId, at)
   getDeferredPrompt = (id: string): Promise<DeferredPromptRecord | null> => getDeferredPromptOp(this.client, id)
   resolveDeferredPrompt = (id: string): Promise<boolean> => resolveDeferredPromptOp(this.client, id)
+  flushDeferredPrompts = () => flushDeferredPromptsOp(this.client)
 
   /** Land a task's branch back into its base repo (`task.land`). Throws with a
    *  `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the message on the

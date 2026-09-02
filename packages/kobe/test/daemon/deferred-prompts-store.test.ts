@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { DEFERRED_PROMPT_TTL_MS, DeferredPromptsStore } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-/** Capture the daemon-log lines the store writes on expiry. */
+/** Capture the daemon-log lines the store writes on expiry or explicit discard. */
 function spyDaemonLog(): { lines: string[]; restore: () => void } {
   const lines: string[] = []
   const spy = vi.spyOn(process.stderr, "write").mockImplementation(((chunk: unknown) => {
@@ -84,6 +84,23 @@ describe("daemon deferred-prompts store (issue #78 B)", () => {
       expect(await store.get(a.id)).toBeNull()
       expect(await store.get(b.id)).toEqual(b)
       expect(log.lines.join("")).toContain("task-1 deleted")
+    } finally {
+      log.restore()
+    }
+  })
+
+  it("discardTab removes only that tab and logs why the prompt was dropped", async () => {
+    const { store } = await create()
+    const log = spyDaemonLog()
+    try {
+      const dropped = await store.file({ ...base, at: now })
+      const kept = await store.file({ ...base, tabId: "tab-2", at: now + 1 })
+
+      expect(await store.discardTab("task-1", "tab-1", "tab closed")).toEqual([dropped])
+      expect(await store.get(dropped.id)).toBeNull()
+      expect(await store.get(kept.id)).toEqual(kept)
+      expect(log.lines.join("")).toContain(`dropped deferred prompt ${dropped.id}`)
+      expect(log.lines.join("")).toContain("tab closed")
     } finally {
       log.restore()
     }

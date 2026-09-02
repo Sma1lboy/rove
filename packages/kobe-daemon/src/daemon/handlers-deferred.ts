@@ -55,6 +55,75 @@ async function fileWithInbox(
   return { kind, record }
 }
 
+type FlushRetained =
+  | { readonly id: string; readonly taskId: string; readonly tabId: string; readonly reason: "unavailable" }
+  | {
+      readonly id: string
+      readonly taskId: string
+      readonly tabId: string
+      readonly reason: "busy"
+      readonly layer: "recent-human-write" | "composer-not-empty"
+    }
+  | {
+      readonly id: string
+      readonly taskId: string
+      readonly tabId: string
+      readonly reason: "error"
+      readonly error: string
+    }
+
+async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
+  delivered: string[]
+  retained: FlushRetained[]
+}> {
+  if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+  const delivered: string[] = []
+  const retained: FlushRetained[] = []
+  for (const record of await ctx.deferredPrompts.list()) {
+    const task = ctx.orch.getTask(record.taskId)
+    if (!task?.worktreePath) {
+      retained.push({ id: record.id, taskId: record.taskId, tabId: record.tabId, reason: "unavailable" })
+      continue
+    }
+    try {
+      const outcome = await ctx.runtime.deliverPromptToLiveEngineTabDetailed(
+        {
+          id: task.id,
+          tabId: record.tabId,
+          vendor: task.vendor,
+          command: task.command,
+          worktreePath: task.worktreePath,
+        },
+        record.prompt,
+      )
+      if (outcome.outcome === "delivered") {
+        await ctx.deferredPrompts.resolve(record.id)
+        await ctx.inbox.deleteEpisode(record.taskId, record.tabId)
+        delivered.push(record.id)
+      } else if (outcome.outcome === "busy") {
+        retained.push({
+          id: record.id,
+          taskId: record.taskId,
+          tabId: record.tabId,
+          reason: "busy",
+          layer: outcome.layer,
+        })
+      } else {
+        retained.push({ id: record.id, taskId: record.taskId, tabId: record.tabId, reason: "unavailable" })
+      }
+    } catch (error) {
+      retained.push({
+        id: record.id,
+        taskId: record.taskId,
+        tabId: record.tabId,
+        reason: "error",
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+  return { delivered, retained }
+}
+
 export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     // Socket-only (see deferredPrompt.get) — not on the pinned web allowlist.
@@ -102,6 +171,12 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       const removed = await ctx.deferredPrompts.resolve(id)
       if (record) await ctx.inbox.deleteEpisode(record.taskId, record.tabId)
       return { removed }
+    },
+  },
+  {
+    name: "deferredPrompt.flush",
+    async handle(_payload, ctx) {
+      return await flushDeferredPrompts(ctx)
     },
   },
 ]

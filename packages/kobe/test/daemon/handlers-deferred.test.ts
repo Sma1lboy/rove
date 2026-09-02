@@ -3,6 +3,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { DeferredPromptsStore } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import { DeferredPromptsStore as Store } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
+import type { DaemonRuntimeAdapter } from "@sma1lboy/kobe-daemon/daemon/runtime"
 import { afterEach, describe, expect, it } from "vitest"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 
@@ -171,5 +172,154 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
 
     await dispatch("deferredPrompt.resolve", { id }, ctx)
     expect(rec.inboxDeleted).toEqual([{ taskId: TASK.id, tabId: "tab-1" }])
+  })
+
+  it("flush delivers every queued prompt in file order and resolves each episode", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const now = Date.now()
+    const first = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-2",
+      prompt: "first",
+      layer: "composer-not-empty",
+      at: now,
+    })
+    const second = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "second",
+      layer: "composer-not-empty",
+      at: now + 1,
+    })
+    const delivered: Array<{ tabId: string; prompt: string }> = []
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
+      ...ctx.runtime,
+      deliverPromptToLiveEngineTabDetailed: async (target, prompt) => {
+        delivered.push({ tabId: target.tabId, prompt })
+        return { outcome: "delivered", tabId: target.tabId }
+      },
+    }
+
+    const result = await dispatch("deferredPrompt.flush", {}, ctx)
+
+    expect(delivered).toEqual([
+      { tabId: "tab-2", prompt: "first" },
+      { tabId: "tab-1", prompt: "second" },
+    ])
+    expect(result).toEqual({ delivered: [first.id, second.id], retained: [] })
+    expect(await store.get(first.id)).toBeNull()
+    expect(await store.get(second.id)).toBeNull()
+    expect(rec.inboxDeleted).toEqual([
+      { taskId: TASK.id, tabId: "tab-2" },
+      { taskId: TASK.id, tabId: "tab-1" },
+    ])
+  })
+
+  it("flush keeps a mid-queue failure visible and continues with later tabs", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const now = Date.now()
+    const first = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "first",
+      layer: "composer-not-empty",
+      at: now,
+    })
+    const blocked = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-2",
+      prompt: "blocked",
+      layer: "composer-not-empty",
+      at: now + 1,
+    })
+    const third = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-3",
+      prompt: "third",
+      layer: "composer-not-empty",
+      at: now + 2,
+    })
+    const attempted: string[] = []
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
+      ...ctx.runtime,
+      deliverPromptToLiveEngineTabDetailed: async (target) => {
+        attempted.push(target.tabId)
+        if (target.tabId === "tab-2") {
+          return { outcome: "busy", tabId: target.tabId, layer: "recent-human-write" }
+        }
+        return { outcome: "delivered", tabId: target.tabId }
+      },
+    }
+
+    const result = await dispatch("deferredPrompt.flush", {}, ctx)
+
+    expect(attempted).toEqual(["tab-1", "tab-2", "tab-3"])
+    expect(result).toEqual({
+      delivered: [first.id, third.id],
+      retained: [
+        {
+          id: blocked.id,
+          taskId: TASK.id,
+          tabId: "tab-2",
+          reason: "busy",
+          layer: "recent-human-write",
+        },
+      ],
+    })
+    expect(await store.get(first.id)).toBeNull()
+    expect(await store.get(blocked.id)).toEqual(blocked)
+    expect(await store.get(third.id)).toBeNull()
+    expect(rec.inboxDeleted).toEqual([
+      { taskId: TASK.id, tabId: "tab-1" },
+      { taskId: TASK.id, tabId: "tab-3" },
+    ])
+  })
+
+  it("discarding or closing a tab drops its stored prompt with its Inbox episode", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const now = Date.now()
+    const dismissed = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "dismiss me",
+      layer: "composer-not-empty",
+      at: now,
+    })
+    const closed = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-2",
+      prompt: "close me",
+      layer: "composer-not-empty",
+      at: now + 1,
+    })
+    ;(ctx.inbox as unknown as { snapshot: () => unknown[] }).snapshot = () => [
+      { taskId: TASK.id, tabId: "tab-1", state: "prompt_deferred", unread: true, at: now },
+    ]
+
+    await dispatch("attention.dismiss", { taskId: TASK.id, tabId: "tab-1", at: now }, ctx)
+    await dispatch("ui.reportEvent", { kind: "tab.closed", taskId: TASK.id, detail: { tabId: "tab-2" } }, ctx)
+
+    expect(await store.get(dismissed.id)).toBeNull()
+    expect(await store.get(closed.id)).toBeNull()
+    expect(rec.inboxDeleted).toContainEqual({ taskId: TASK.id, tabId: "tab-2" })
+  })
+
+  it("does not discard a newer deferred prompt for a stale Inbox dismissal", async () => {
+    const { ctx, store } = await ctxWithStore()
+    const now = Date.now()
+    const queued = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "newer",
+      layer: "composer-not-empty",
+      at: now,
+    })
+    ;(ctx.inbox as unknown as { snapshot: () => unknown[] }).snapshot = () => [
+      { taskId: TASK.id, tabId: "tab-1", state: "prompt_deferred", unread: true, at: now + 1 },
+    ]
+
+    await dispatch("attention.dismiss", { taskId: TASK.id, tabId: "tab-1", at: now }, ctx)
+
+    expect(await store.get(queued.id)).toEqual(queued)
   })
 })
