@@ -22,8 +22,8 @@
  * command in `engineCommand.<id>`, its display name in `engineName.<id>`,
  * and — new here — the protocol it speaks in `engineProtocol.<id>`,
  * declared once at registration so every later dispatch is deterministic
- * instead of re-sniffed. A preset registered before this key existed reads
- * as generic until its protocol is set.
+ * instead of re-sniffed. A preset with no `engineProtocol.<id>` recorded
+ * reads as generic until its protocol is set.
  *
  * State-reading by construction, which is why it is NOT in `registry.ts`
  * (that module stays state-free so vitest and the daemon can import it).
@@ -176,7 +176,7 @@ export interface EngineLaunchSpec {
  *     silently drop every flag, so a declared protocol would buy nothing at
  *     launch time.
  *
- * A built-in id resolves to itself, so this is the same argv it always was.
+ * A built-in id resolves to itself, so the two rules agree for a built-in.
  */
 export function engineLaunchArgv(spec: EngineLaunchSpec): readonly string[] {
   const command = spec.command?.trim()
@@ -210,9 +210,8 @@ function presetBaseArgv(id: string): readonly string[] | null {
  * terminal-title flags, applied to session identity: a preset `claudecpa`
  * declaring the claude protocol IS a claude launch, so it takes claude's
  * `--session-id` / `--resume`. Keying off the id instead would find the
- * empty custom entry and silently drop both — which is exactly what the old
- * `withClaudeSessionId` did with its literal `vendor === "claude"` check,
- * and why every wrapper engine lost its conversation on restart.
+ * empty custom entry and silently drop both, so a wrapper engine would lose
+ * its conversation on restart.
  */
 export function sessionProtocol(vendor: VendorId | undefined): VendorId {
   const id = vendor?.trim()
@@ -228,10 +227,10 @@ export function sessionProtocol(vendor: VendorId | undefined): VendorId {
  * command) and must stay keyed on the raw id. This answers "how do we TALK to
  * it": the transcript reader, the workspace-trust store and first-message
  * delivery are all the wrapped engine's, exactly as `docs/ENGINES.md`
- * promises. Keying those off the raw id found the empty custom entry, so a
- * `claudecpa` preset read no history, got the trust dialog Rove is supposed
- * to pre-answer, and — for a kimi-protocol preset — took the first message on
- * argv, which kills the launch.
+ * promises. Keying those off the raw id finds the empty custom entry, so a
+ * `claudecpa` preset would read no history, meet the trust dialog Rove is
+ * supposed to pre-answer, and — for a kimi-protocol preset — take the first
+ * message on argv, which kills the launch.
  */
 export function protocolEntry(vendor: VendorId | undefined): EngineRegistryEntry {
   return engineEntry(sessionProtocol(vendor))
@@ -277,8 +276,7 @@ export function engineResumeArgv(
  *
  * Protocol-resolved like {@link withPinnedSessionId}: a preset `claudecpa`
  * declaring the claude protocol IS a claude launch, so it forks. Keying off
- * the raw id instead found the empty custom entry and refused — the same
- * silent gap `withClaudeSessionId` had.
+ * the raw id instead finds the empty custom entry and refuses.
  */
 export function engineCanFork(vendor: VendorId | undefined): boolean {
   return acceptsSessionFork(engineEntry(sessionProtocol(vendor)).sessionIdentity)

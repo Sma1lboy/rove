@@ -52,7 +52,7 @@ export async function ensureMainTaskOp(client: KobeDaemonClient, repo: string): 
 }
 
 /** Open a directory as a `kind:"dir"` task; `scratch` marks a temp shell
- *  task for the sidebar's Scratch section (issue #33). */
+ *  task for the sidebar's Scratch section. */
 export async function openDirectoryTaskOp(
   client: KobeDaemonClient,
   input: { dir: string; scratch?: boolean },
@@ -61,7 +61,7 @@ export async function openDirectoryTaskOp(
   return deserializeTask(res.task)
 }
 
-/** Scratch → project migration (issue #33): repoint + clear the flag. */
+/** Scratch → project migration: repoint + clear the flag. */
 export async function adoptScratchRepoOp(client: KobeDaemonClient, id: TaskId | string, repo: string): Promise<void> {
   await client.request("task.adoptScratchRepo", { taskId: String(id), repo })
 }
@@ -77,7 +77,7 @@ export async function forgetProjectOp(client: KobeDaemonClient, repo: string): P
 
 /**
  * Fire-and-forget `turn-interrupted` report for a tab whose engine ended
- * its turn with NO hook of its own — an ESC interrupt (issue #15; the TUI's
+ * its turn with NO hook of its own — an ESC interrupt (the TUI's
  * `InterruptObserver` confirmed the engine's resting title against a
  * hook-claimed `running`). Same `engine.reportEvent` verb the `kobe hook`
  * processes use, so the daemon reduces + broadcasts it like any hook event.
@@ -172,7 +172,7 @@ export async function markAttentionReadOp(
   return res.updated
 }
 
-/** Read one deferred prompt back by id (issue #78 B-layer exit path). */
+/** Read one deferred prompt back by id — the deferral exit path. */
 export async function getDeferredPromptOp(client: KobeDaemonClient, id: string): Promise<DeferredPromptRecord | null> {
   const res = await client.request<{ record: DeferredPromptRecord | null }>("deferredPrompt.get", { id })
   return res.record

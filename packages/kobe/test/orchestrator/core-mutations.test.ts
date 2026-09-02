@@ -105,8 +105,8 @@ describe("setVendor", () => {
   })
 
   it("persists an effort-only change even though the vendor is unchanged", async () => {
-    // The same-vendor early return used to swallow this: a user moving codex
-    // from medium to high changes nothing the store ever sees.
+    // A same-vendor early return swallows this: a user moving codex from
+    // medium to high changes nothing the store ever sees.
     const t = await makeTask()
     await orch.setVendor(t.id, "codex", "medium")
     await orch.setVendor(t.id, "codex", "high")
@@ -245,7 +245,7 @@ describe("moveTask", () => {
     expect(orch.listTasks().map((t) => t.id)).toEqual(before)
   })
 
-  // Projects render stored order (owner 2026-07-16), so main rows are
+  // Projects render stored order, so main rows are
   // movable — among each other only, never mixing into the task partition.
   it("moves a main row among other main rows, leaving tasks in place", async () => {
     const regular = await makeTask({ title: "reg" })

@@ -1,8 +1,9 @@
 /**
  * Deleting a branch must not make its commits unreachable.
  *
- * `land --strategy squash --delete-branch` is the sequence that used to lose
- * work: the squash writes ONE new commit onto the base with no link back, the
+ * `land --strategy squash --delete-branch` is the sequence that loses work
+ * without an anchor: the squash writes ONE new commit onto the base with no
+ * link back, the
  * worktree removal takes `.git/worktrees/<slug>/logs/HEAD` (the only reflog
  * that ever recorded this branch's tip, because the base checkout never had
  * the branch checked out), and `git branch -D` then takes the branch ref AND

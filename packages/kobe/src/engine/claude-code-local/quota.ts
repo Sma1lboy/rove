@@ -138,9 +138,9 @@ async function readKeychainCredentials(): Promise<OAuthCredentials | null> {
     // `-a` is load-bearing, not decoration: a machine can carry SEVERAL
     // items under this one service name (a stale `acct=unknown` row from an
     // older CLI alongside today's login). Querying by service alone returns
-    // whichever `security` scans first — for the owner that was a token
-    // expired two weeks earlier, so the usage dashboard stayed empty through
-    // repeated re-logins. The CLI itself always pairs `-a $USER` with `-s`
+    // whichever `security` scans first, which can be a long-expired token —
+    // the usage dashboard then stays empty through repeated re-logins. The
+    // CLI itself always pairs `-a $USER` with `-s`
     // (refs/claude-code `macOsKeychainStorage.ts`); mirror it exactly.
     const result = await spawnCapture(
       "security",

@@ -1,6 +1,6 @@
 /**
  * Tier (b) of protocol resolution — naming the engine behind a session whose
- * launch command tier (a) could not name (issue #30).
+ * launch command tier (a) could not name.
  *
  * The rule under test is conservatism: evidence identifies, absence of
  * evidence answers null, and AMBIGUOUS evidence also answers null. A wrong

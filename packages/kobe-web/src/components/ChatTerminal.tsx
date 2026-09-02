@@ -86,12 +86,12 @@ const TERMINAL_FONT_FAMILIES = [
 /**
  * Warm every family in the stack, not just the first.
  *
- * `document.fonts.load()` resolves one family at a time, and awaiting only
- * JetBrains Mono left the Nerd Fonts to load lazily — i.e. after the first
- * frame that needed them. Interactively nobody notices; a scripted capture
- * screenshots the frame in between and photographs missing-glyph boxes where
- * the icons belong, which is how `docs/assets/workspace.png` shipped with
- * `▯▯` in place of `▶▶`. Each family is settled independently so an absent
+ * `document.fonts.load()` resolves one family at a time, so awaiting only
+ * JetBrains Mono leaves the Nerd Fonts to load lazily — i.e. after the first
+ * frame that needs them. Interactively nobody notices; a scripted capture
+ * screenshots the frame in between and photographs missing-glyph boxes (`▯▯`
+ * in place of `▶▶`) where the icons belong. Each family is settled
+ * independently so an absent
  * one (a machine without Nerd Fonts) cannot block the others.
  */
 async function loadTerminalFont(): Promise<void> {
@@ -181,7 +181,7 @@ export function ChatTerminal({
   const [draft, setDraft] = useState(() =>
     mode === "engine" ? (consumePendingPrompt(taskId) ?? "") : "",
   )
-  // Shell-like prompt recall: ↑/↓ walk previously-sent prompts (newest-first).
+  // Shell-like prompt recall: ↑/↓ walk already-sent prompts (newest-first).
   const [history, setHistory] = useState<string[]>(() =>
     mode === "engine" ? loadHistory(taskId) : [],
   )

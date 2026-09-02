@@ -143,8 +143,8 @@ export class ClaudeTurnDetector extends EngineTurnDetector {
   /**
    * Marker memo keyed by transcript path, valid while the file's mtime is
    * unchanged. The Ops pane calls `latestCompletion` from a 1.5s poll, and
-   * before this gate every call re-read + re-parsed up to 4 WHOLE session
-   * JSONLs (multi-MB for a day-long session) even though nothing had been
+   * without this gate every call re-reads + re-parses up to 4 WHOLE session
+   * JSONLs (multi-MB for a day-long session) even when nothing has been
    * appended — the mtime the lister already stat()s is enough to prove the
    * parse would produce the identical marker (it's a pure function of the
    * file content + path + mtime). Pruned to the files of the latest scan,

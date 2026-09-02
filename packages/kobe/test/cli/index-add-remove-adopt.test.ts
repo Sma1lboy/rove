@@ -17,9 +17,9 @@ const fake = vi.hoisted(() => ({
   repoRootOf: {} as Record<string, string>,
   adoptable: [] as Array<{ path: string; branch: string; dirty?: boolean; kobeManaged?: boolean }>,
   discoverError: null as Error | null,
-  // Mirrors the real `addSavedRepo`, which owns the admission gate as of
-  // 2026-08-31: an ineligible path comes back `rejected` instead of being
-  // written. `rove add` turns that into its exit-1 error.
+  // Mirrors the real `addSavedRepo`, which owns the admission gate: an
+  // ineligible path comes back `rejected` instead of being written.
+  // `rove add` turns that into its exit-1 error.
   addSavedRepo: vi.fn((p: string) =>
     fake.isGitRepo ? { added: true, path: p, total: 1 } : { added: false, path: p, total: 0, rejected: "notGitRepo" },
   ),

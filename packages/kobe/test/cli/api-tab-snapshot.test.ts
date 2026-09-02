@@ -304,7 +304,7 @@ describe("joinTaskTabs", () => {
   })
 
   it("a task with no snapshot still lists its live sessions as unregistered rows", () => {
-    // Before issue #20 this returned [] — an alive engine invisible to the
+    // Returning [] here would make an alive engine invisible to the
     // discovery read.
     expect(joinTaskTabs(undefined, "t1", [{ key: "t1::tab-1", alive: true }])).toEqual([
       {
@@ -322,9 +322,9 @@ describe("joinTaskTabs", () => {
     ])
   })
 
-  it("surfaces an alive session the snapshot does not list — the issue-#20 invisible engine", () => {
-    // The incident replay: snapshot holds only tab-2, yet the pty host has
-    // tab-1 + tab-2 alive. tab-1 ran for 1h44m with zero UI presence.
+  it("surfaces an alive session the snapshot does not list — the invisible engine", () => {
+    // The shape: snapshot holds only tab-2, yet the pty host has tab-1 +
+    // tab-2 alive, so tab-1 runs for hours with zero UI presence.
     const snap = {
       tabs: [{ kind: "engine", id: "tab-2", title: null, ordinal: 2 }],
       activeId: "tab-2",

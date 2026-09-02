@@ -1,8 +1,8 @@
 /**
  * Engine registry (engine/registry.ts) — the consolidation point for the
- * per-vendor conditionals that used to be scattered through
- * monitor/auto-title.ts, engine/hook-adapter.ts and the
- * three account detectors. These tests pin the registry's contract:
+ * per-vendor conditionals that would otherwise scatter through
+ * monitor/auto-title.ts, engine/hook-adapter.ts and the three account
+ * detectors. These tests pin the registry's contract:
  *
  *  - known vendors resolve to REAL entries (the right detector, the right
  *    history reader, claude's hook adapter);
@@ -55,7 +55,7 @@ describe("engineEntry — built-in vendors", () => {
     expect(supportsStructuredHistory("claude")).toBe(true)
     expect(supportsStructuredHistory("kimi")).toBe(false)
     expect(supportsStructuredHistory("my-custom-engine")).toBe(false)
-    // First-message delivery (issue #25): kimi's positional CLI slot is a
+    // First-message delivery: kimi's positional CLI slot is a
     // subcommand, so its first message pastes post-spawn; claude/codex and
     // custom engines keep the argv contract.
     expect(engineEntry("kimi").firstMessageDelivery).toBe("paste")

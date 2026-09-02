@@ -119,8 +119,9 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   // Gate it on the worktree ACTUALLY being gone. git refuses to delete a
   // branch a live worktree has checked out, and `deleteBranch` is best-effort
   // (`allowFail`, exit code discarded) — so every path that keeps the worktree
-  // (`removeWorktree: false`, a dirty tree, the caller's own cwd) used to run
-  // the delete, have git refuse it, and report success anyway, anchor and all.
+  // (`removeWorktree: false`, a dirty tree, the caller's own cwd) would
+  // otherwise run the delete, have git refuse it, and report success anyway,
+  // anchor and all.
   // A task that never materialised a worktree has nothing holding the branch,
   // so it deletes normally.
   let branchAnchor: SalvageRecord | null = null
@@ -163,8 +164,8 @@ async function removeLandedWorktree(
   // Same canonicalizer that matched this worktree to its task (`canonPath` /
   // `canonicalize`, plain `fs.realpathSync`) — the refusals below are string
   // compares, so the guard must normalise exactly the way the assignment did.
-  // This used to be the repo's only `realpathSync.native` caller; the two
-  // agree everywhere we run, and one implementation beats a second syscall.
+  // `realpathSync.native` agrees with it everywhere we run, and one
+  // implementation beats a second syscall.
   const wt = canonicalize(worktreePath)
   if (wt === canonicalize(task.repo)) return { removed: false, reason: "refusing to remove the base checkout" }
   if (callerCwd) {
@@ -200,7 +201,7 @@ async function removeLandedWorktree(
   // A removal git half-completed (metadata deregistered, directory undeletable)
   // resolves rather than throws — the worktree IS deregistered, so the land's
   // cleanup is done and reporting `removed: false` would send the user to
-  // retry something git can no longer act on.
+  // retry something git cannot act on at all.
   let residue: WorktreeResidue | undefined
   try {
     await deps.worktrees.remove(worktreePath, {
@@ -214,7 +215,7 @@ async function removeLandedWorktree(
   // Past this point the directory IS gone, so the outcome is `removed: true`
   // whatever the store write does. Folding the two calls into one try/catch
   // would report `removed: false` when only the bookkeeping failed — telling
-  // the user to go look for a worktree that no longer exists. The failure is
+  // the user to go look for a worktree that is already gone. The failure is
   // still reported, in `reason`, because a dangling `worktreePath` is real.
   try {
     await deps.clearWorktreePath(task.id)

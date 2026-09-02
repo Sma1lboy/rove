@@ -66,7 +66,7 @@ export const CLAUDE_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
   { event: "PostToolUseFailure", verb: "tool-failed" },
 ]
 
-/** The events kobe owns — used to replace only these in a merge. Deduped:
+/** The events kobe owns — a merge replaces only these. Deduped:
  *  one event can carry several matcher-scoped specs. */
 export const KOBE_HOOK_EVENTS: readonly string[] = [...new Set(CLAUDE_HOOK_EVENT_MAP.map((e) => e.event))]
 

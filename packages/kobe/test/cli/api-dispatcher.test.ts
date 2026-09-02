@@ -1,5 +1,5 @@
 /**
- * Dispatcher provenance — the collaboration loop's reply address (issue #21).
+ * Dispatcher provenance — the collaboration loop's reply address.
  *
  * The contract under test is RECEIVER-side routing, not sender-side success:
  * a create records who dispatched it, a worker's bare `send` must land on
@@ -80,9 +80,9 @@ describe("verifiedSelfSession (issue #24: env identity is inheritable, so it mus
   })
 
   it("REFUSES an inherited env: a detached background process no longer descends from the tab", async () => {
-    // The incident shape: a Claude Code background daemon forked out of
-    // boccha's tab-1, reparented to init, and kept exporting boccha's ids.
-    // The session is still perfectly alive — only the lineage is broken.
+    // The shape: a Claude Code background daemon forked out of boccha's
+    // tab-1, reparented to init, and still exporting boccha's ids. The
+    // session is perfectly alive — only the lineage is broken.
     expect(
       await verifiedSelfSession(
         { KOBE_TASK_ID: "boccha", KOBE_TAB_ID: "tab-1" },
@@ -311,7 +311,7 @@ describe("bare send replies to the dispatcher", () => {
       "DISPATCHER_UNREACHABLE",
     )
     // The delivery layer is never entered: a dead reply target must not
-    // boot a fresh engine that swallows the outcome (issue #19's mode).
+    // boot a fresh engine that swallows the outcome.
     expect(calls).toHaveLength(0)
   })
 

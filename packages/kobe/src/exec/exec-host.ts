@@ -170,11 +170,11 @@ export function sshConnectArgs(spec: RemoteSpec, opts: { tty?: boolean; batch?: 
 }
 
 /**
- * Async spawn that collects stdout/stderr and resolves with the same result
- * contract `spawnSync` produced (`status ?? -1`, `stdout/stderr ?? ""`):
+ * Async spawn that collects stdout/stderr and resolves with `spawnSync`'s
+ * result contract (`status ?? -1`, `stdout/stderr ?? ""`):
  *   - non-zero exit → resolved result with that exitCode (never rejects);
  *   - spawn failure (ENOENT, bad cwd, …) → `{ stdout: "", stderr: "", exitCode: -1 }`,
- *     matching the old `SpawnSyncReturns`-derived shape exactly.
+ *     the same shape `SpawnSyncReturns` yields.
  */
 function spawnCollect(
   argv: readonly string[],

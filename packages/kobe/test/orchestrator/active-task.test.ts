@@ -44,12 +44,13 @@ describe("Orchestrator active task recency", () => {
     expect(orch.getTask(task.id)?.updatedAt).toBe("2026-01-02T00:00:00.000Z")
   })
 
-  // CORRECTNESS PIN for the perf fix (store.touchRecency): dropping the
-  // fsync'd `store.update(id, {})` from the focus path must NOT drop the
-  // `recent` ordering it fed. After a sequence of setActive calls the sidebar's
-  // `recent` sort must still order tasks most-recently-focused first — the bump
-  // now lives in-cache, but it must still change `updatedAt` that `buildRows`
-  // reads. `active-task`/`lastActive` track ONE id; this pins the full ORDER.
+  // CORRECTNESS PIN for `store.touchRecency`: keeping the fsync'd
+  // `store.update(id, {})` off the focus path must NOT cost the `recent`
+  // ordering it would have fed. After a sequence of setActive calls the
+  // sidebar's `recent` sort must still order tasks most-recently-focused
+  // first — the bump lives in-cache, but it must still change the `updatedAt`
+  // that `buildRows` reads. `active-task`/`lastActive` track ONE id; this
+  // pins the full ORDER.
   it("`recent` sort still orders by focus recency after a sequence of setActive calls", async () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"))
     const a = await orch.createTask({ repo: "/repo", title: "a", branch: "a", vendor: "claude" })

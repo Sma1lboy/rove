@@ -1,6 +1,6 @@
 /**
- * Kimi's path-only history reader: the store layout is verified (live
- * install, 2026-08-13) even though the wire format isn't, which is exactly
+ * Kimi's path-only history reader: the store layout is verified against a
+ * live install even though the wire format isn't, which is exactly
  * enough for a cross-engine handoff — it hands over a PATH, not messages.
  */
 

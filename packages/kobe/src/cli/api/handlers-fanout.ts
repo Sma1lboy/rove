@@ -1,9 +1,8 @@
 /**
  * Verb handlers for `collect` and `feedback` — grouped separately from
- * `handlers-tasks.ts` since they don't touch single-task CRUD. The
- * `fan-out` handler that named this file folded into `add --count`
- * (`handlers-add.ts`, issue #30); the file keeps its name so its git
- * history stays traceable.
+ * `handlers-tasks.ts` since they don't touch single-task CRUD. The parallel
+ * create path this file is named for lives in `handlers-add.ts`, behind
+ * `add --count`.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -82,7 +81,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       vendor: task.vendor,
       status: task.status,
       ...(task.groupId ? { groupId: task.groupId } : {}),
-      // Lineage read (issue #21): who dispatched this task, so a parallel
+      // Lineage read: who dispatched this task, so a parallel
       // round's parent is programmatically discoverable.
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),
       running,

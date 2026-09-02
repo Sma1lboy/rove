@@ -4,8 +4,8 @@
  * Split out of `api-handlers-lifecycle.test.ts` (file-size cap). These cover
  * one question the rest of the lifecycle suite does not: a delete has THREE
  * outcomes — queued, refused, and queued-then-failed — and each must reach
- * the caller as a different reply. They used to be one indistinguishable
- * empty object, with a failed worktree removal recorded only in `daemon.log`.
+ * the caller as a different reply, not one indistinguishable empty object
+ * with the failed worktree removal recorded only in `daemon.log`.
  */
 
 import { describe, expect, it } from "vitest"
@@ -48,10 +48,10 @@ describe("task delete handler", () => {
     expect(client.requests[1].payload).toEqual({ taskId: "t1", force: false, deleteBranch: true })
   })
 
-  // Requirement of this change: the three outcomes of a delete must be three
-  // different replies. Queued-then-FAILED is the one that used to be
-  // unreachable — `finish()` wrote the git error to the task record and
-  // `daemon.log`, and the caller got the same `{}` a success returned.
+  // The three outcomes of a delete must be three
+  // different replies. Queued-then-FAILED is the easiest one to lose:
+  // `finish()` writes the git error to the task record and `daemon.log`, so
+  // without this the caller gets the same `{}` a success returns.
   it("--wait reports a background removal that failed, with the git error", async () => {
     const client = new FakeClient({
       "task.delete": () => ({ taskId: "t1", queued: true }),

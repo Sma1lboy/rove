@@ -1,11 +1,11 @@
 /**
  * Which `dir` rows deserve to become a project's `main` row.
  *
- * `rove .` has routed a repo root to `ensureMainTask` since 2026-08-31, so
- * nothing new lands mis-shaped. The rows created BEFORE that have no owner:
- * they sit on a git toplevel rendering as a bare path, outside every rule
- * written for `main` — the project ordering, the pin, the fold on a closed
- * last tab. This is the sweep that finds them.
+ * `rove .` routes a repo root to `ensureMainTask`, so nothing new lands
+ * mis-shaped. A `dir` row already on disk has no owner: it sits on a git
+ * toplevel rendering as a bare path, outside every rule written for `main` —
+ * the project ordering, the pin, the fold on a closed last tab. This is the
+ * sweep that finds them.
  *
  * The exclusions are the whole reason this is a function and not a filter
  * inline: each one is a row that LOOKS promotable and must not be.
@@ -63,7 +63,7 @@ describe("promotableDirTasks", () => {
 
   it("promotes only the first of two dir rows on the SAME root", () => {
     // Both would resolve to one main row; the second would be absorbed into a
-    // row that no longer needs it, so it stays a dir row and the user decides.
+    // row that does not need it, so it stays a dir row and the user decides.
     const a = task("a", { repo: "/i/site" })
     const b = task("b", { repo: "/i/site" })
     expect(ids(promotableDirTasks({ tasks: [a, b], isRepoRoot: anyRepo }))).toEqual(["a"])

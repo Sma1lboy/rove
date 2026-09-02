@@ -3,14 +3,14 @@
  *
  * The one thing pinned here is log rotation. `pty.log` is stdout/stderr
  * inherited as an append fd from the parent's `spawnDetachedDaemon`, so boot
- * is the only point at which it can safely be rotated — and it was the one
- * log of the three that never got that call (issue #26 capped client.log and
- * daemon.log only). The PTY host is also the longest-lived process in the
+ * is the only point at which it can safely be rotated — and it is the
+ * easiest of the three logs to leave uncapped. The PTY host is also the
+ * longest-lived process in the
  * system by design, so it is the least likely to ever restart and clean up
  * after itself.
  *
  * Real filesystem against a ROVE_HOME_DIR tempdir; only the server itself is
- * mocked, so the path resolution the fix depends on stays real.
+ * mocked, so the path resolution the rotation depends on stays real.
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"

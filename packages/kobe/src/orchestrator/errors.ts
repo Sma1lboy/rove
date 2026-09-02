@@ -194,8 +194,8 @@ export const LAND_CONFLICT_CODE = "LAND_CONFLICT"
 
 /**
  * Thrown by `landTask` when the merge hit conflicts. The merge is aborted
- * before this throws, so the base checkout is left exactly as it was; the
- * conflicted paths are carried so the caller can show the human what to resolve.
+ * before the throw, so the base checkout is left untouched; the conflicted
+ * paths are carried so the caller can show the human what to resolve.
  */
 export class LandConflictError extends Error {
   constructor(

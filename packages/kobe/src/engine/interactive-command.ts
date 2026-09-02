@@ -154,12 +154,11 @@ export function withEngineTerminalTitle(argv: readonly string[], vendor: VendorI
  * dropped rather than passed through — a bogus value makes the engine refuse
  * to launch.
  *
- * The argv used to be a `v === "codex"` branch under a data-driven level
- * gate, so an engine that declared `effortLevels` had its level accepted by
- * the gate, shown in the TUI and web pickers, threaded through
- * `/api/engines`, and then silently dropped at launch — the user picked
- * "high" and got the default with no error. Same shape as the
- * `withClaudeSessionId` tombstone below.
+ * Keying the argv off a literal vendor id instead would let an engine that
+ * declares `effortLevels` have its level accepted by the gate, shown in the
+ * TUI and web pickers, threaded through `/api/engines`, and then silently
+ * dropped at launch — the user picks "high" and gets the default, with no
+ * error.
  *
  * `vendor` must already be PROTOCOL-RESOLVED by the caller (both call sites
  * do): a preset `mycodex` declaring the codex protocol is a codex launch and
@@ -177,31 +176,9 @@ export function withEngineEffort(
   return entry.effortArgv?.(argv, trimmed) ?? argv
 }
 
-// `argvHasFlag` moved to `../cli/argv.ts` (neutral, no engine import) so the
+// `argvHasFlag` lives in `../cli/argv.ts` (neutral, no engine import) so the
 // CLI value-flag parsers share it; re-exported here for the engine callers.
 export { argvHasFlag } from "../cli/argv.ts"
-
-/**
- * `withClaudeSessionId` lived here (removed 2026-08-29). Its first line was
- * `coerceVendorId(vendor) !== "claude"`, so only an engine literally NAMED
- * claude ever got a session id — kimi tabs and custom wrappers (`claudecpa`)
- * silently got none and lost their conversation on every restart. The pin
- * flag, the "already controls its own session" flags, and the resume verb
- * are now DECLARED by each engine (`engine/session-identity.ts`) and read
- * through `withPinnedSessionId` / `engineResumeArgv` in `registry.ts`.
- */
-
-/**
- * `canForkSession` / `forkSessionArgv` lived here (removed 2026-08-30).
- * Both were vendor ladders — a hardcoded `v === "claude" || v === "codex"`
- * and an inline if-chain of argv shapes — so an engine that ships a fork
- * verb silently could not fork until someone edited this file, and a custom
- * preset declaring a built-in protocol was refused despite launching that
- * exact binary. The verb is now DECLARED by each engine
- * (`EngineSessionIdentity.forkArgv`) and read through `engineCanFork` /
- * `engineForkArgv` in `engine-presets.ts`, which resolve the preset's
- * protocol first — the same fix `withClaudeSessionId` got.
- */
 
 /**
  * Shell-ready `… api` command prefix for protocol prompts. Packaged builds
@@ -209,8 +186,7 @@ export { argvHasFlag } from "../cli/argv.ts"
  * (`bun --preload … src/cli/kobe.ts api`) — the same {@link
  * kobeCliInvocation} every kobe-owned pane uses. Without this, a protocol
  * agent in a dev sandbox resolves `kobe` to whatever STALE global install
- * is on PATH, and any verb newer than that install dies with BAD_VERB
- * (field bug: the dispatcher's `dispatch` verb on kobe@0.7.24).
+ * is on PATH, and any verb newer than that install dies with BAD_VERB.
  */
 export function kobeApiInvocation(): string {
   const quote = (a: string): string => (/^[A-Za-z0-9_/.:=-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`)
@@ -226,16 +202,11 @@ export function kobeApiInvocation(): string {
 /**
  * The system-prompt PROTOCOLS (`statusReportProtocol` / `noteFilingProtocol` /
  * `noteRecallProtocol` / `worktreeProtocol` / `dispatcherProtocol` and their
- * `with*` injectors) moved to `./worktree-protocol.ts` (2026-08-30).
- *
- * Two reasons, one move. Both injectors opened with
- * `coerceVendorId(vendor) !== "claude"` — the third and fourth copies of the
- * ladder the `withClaudeSessionId` tombstone above describes, so a wrapper
- * preset (`claudecpa`) got no status protocol and no field notes, silently.
- * The fix is `sessionProtocol()`, which lives in `engine-presets.ts` — and
+ * `with*` injectors) live in `./worktree-protocol.ts`, not here. They resolve
+ * a launch's protocol through `sessionProtocol()` in `engine-presets.ts`, and
  * that module imports THIS one, so resolving a protocol here would close an
- * import cycle. Moving the block one file over breaks the cycle and keeps
- * both files under the size cap.
+ * import cycle. Keeping the block one file over also keeps both files under
+ * the size cap.
  *
  * Anything that gates on "is this launch a claude launch" belongs behind
  * `sessionProtocol()`, never a literal id compare.

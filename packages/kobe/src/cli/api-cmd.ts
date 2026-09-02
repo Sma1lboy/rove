@@ -76,11 +76,11 @@ import { type DaemonSession, openDaemonSession } from "./daemon-session.ts"
 import type { DaemonRpc } from "./daemon-session.ts"
 
 function emit(value: unknown, pretty: boolean): void {
-  // A verb that refused an UNVERIFIED $ROVE_TASK_ID (issue #24) degraded
-  // quietly — the create/send succeeded, it just recorded no dispatcher. Ride
-  // the notice on the result object so an agent sees it: stderr is reserved
-  // for the one JSON error envelope (docs/API.md), and a silent degrade is
-  // exactly what made the wrong reply address invisible for weeks.
+  // A verb that refuses an UNVERIFIED $ROVE_TASK_ID degrades quietly — the
+  // create/send succeeds, it just records no dispatcher. Ride the notice on
+  // the result object so an agent sees it: stderr is reserved for the one
+  // JSON error envelope (docs/API.md), and a silent degrade makes a wrong
+  // reply address invisible.
   const warning = takeIdentityWarning()
   // Objects only — spreading an array would flatten it into numeric keys.
   const mergeable = warning && value && typeof value === "object" && !Array.isArray(value)
@@ -153,9 +153,9 @@ export function toApiError(err: unknown): ApiError {
  *   - new CLI × old daemon — the daemon predates the verb.
  *   - old CLI × new daemon — the daemon dropped a verb this CLI still ships.
  *
- * Untyped, this is the incident that motivated the mapping: an agent asked
- * `schema --verb archive`, got a full spec and exit 0, ran `archive`, and got
- * a bare `RPC_ERROR` 200ms later. Schema is how an agent discovers a
+ * Untyped, the failure looks like this: an agent asks `schema --verb archive`,
+ * gets a full spec and exit 0, runs `archive`, and gets a bare `RPC_ERROR`
+ * 200ms later. Schema is how an agent discovers a
  * capability, so a `RPC_ERROR` there reads as "this call failed, retry" rather
  * than "this binary and that daemon disagree about what exists".
  */

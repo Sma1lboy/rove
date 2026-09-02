@@ -1,8 +1,8 @@
 /**
- * Repo-convention branch naming (issue #39).
+ * Repo-convention branch naming.
  *
- * A managed task's auto branch used to be `rove/<slug>-<id6>`, which baked
- * the tool's brand into the user's git history. Instead we scan the target
+ * A managed task's auto branch must not bake the tool's brand into the user's
+ * git history (`rove/<slug>-<id6>` and the like). Instead we scan the target
  * repo's existing branch names (local + origin) and infer its dominant
  * naming style — conventional type prefixes (`feat/`, `fix/`, `chore/`, …)
  * or bare kebab slugs — then apply that style to a slug derived from the

@@ -69,7 +69,7 @@ describe("hosted session helpers", () => {
           key: "task-a::tab-1",
           cwd: "/worktree",
           // No cols/rows: a size-less open must never resize a live
-          // session away from its attached TUI (issue #18).
+          // session away from its attached TUI.
           command: ["engine", "--resume", "session-1"],
           defaultColors,
         },

@@ -130,8 +130,8 @@ export function AppShell() {
   const { settingsOpen } = useGlobalUiState()
   const [adoptOpen, setAdoptOpen] = useState(false)
   // The right tools rail is a fixed column at lg+, and a slide-in drawer on
-  // narrow windows (where it used to vanish entirely, making rename/changes
-  // unreachable on a phone).
+  // narrow windows — without the drawer it vanishes entirely there, putting
+  // rename/changes out of reach on a phone.
   const [toolsOpen, setToolsOpen] = useState(false)
 
   useEffect(() => {

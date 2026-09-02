@@ -5,10 +5,9 @@
  * arriving nothing breaks loudly: `kobe hook` is best-effort by contract
  * (never spawns a daemon, always exits 0, swallows every failure), and the
  * daemon's activity observer keeps painting the badges off a ~10s poll. The
- * UI therefore looks *slow*, not broken — the shape of the 2026-08-26 field
- * report, where every badge lagged 2-3s because an engine's inherited
- * `*_DAEMON_SOCKET_PATH` still pointed at the pre-rename `.kobe` socket and
- * every hook silently dropped its event.
+ * UI therefore looks *slow*, not broken: every badge lags 2-3s, and the
+ * usual cause is an engine whose inherited `*_DAEMON_SOCKET_PATH` points at
+ * a socket nothing is listening on, so every hook drops its event.
  *
  * The tell is already in `debug.inspect`: each tab entry records whether its
  * activity came from a `hook` or from `observed` polling. Live engine tabs
@@ -85,9 +84,9 @@ export function hookChannelDoctorLines(
     "         badges fall back to a ~10s poll, so activity looks seconds late",
     `         daemon socket: ${input.socketPath}`,
   ]
-  // The failure that produced this check: an engine (and every hook it
-  // forks) inherited a `*_DAEMON_SOCKET_PATH` that no longer exists, so
-  // every hook connected to nothing and dropped its event without a word.
+  // The failure this names: an engine (and every hook it forks) inherits a
+  // `*_DAEMON_SOCKET_PATH` pointing at a socket that is gone, so every hook
+  // connects to nothing and drops its event without a word.
   // That env belongs to the engine process, not to doctor, so the hint
   // points at how to read it rather than pretending to check it here.
   out.push(

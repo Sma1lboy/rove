@@ -21,8 +21,8 @@
  *
  * Reading the exit code as the whole truth reports that as a total failure and
  * leaves the caller with no forward move: git's own view is that this worktree
- * no longer exists, so no retry, remove, or prune can ever advance it (issue
- * #89 — a task parked in `deletion.phase = "error"` forever). So a non-zero
+ * is already gone, so no retry, remove, or prune can ever advance it, and the
+ * task parks in `deletion.phase = "error"` forever. So a non-zero
  * exit is CLASSIFIED, not trusted, and the leftover directory is reported
  * through `onResidue` rather than deleted: an undeletable tree is exactly the
  * kind of thing that holds something the user still wants.
@@ -159,9 +159,9 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // the previous removal already refused to delete.
     //
     // Retrying a removal that already deregistered its worktree must land on
-    // the same answer it gave the first time — git can no longer act on this
-    // path at all, so a second `worktree remove` only ever says `fatal: is not
-    // a working tree` and the caller is stuck (issue #89). Where the pointer
+    // the same answer it gave the first time — git cannot act on this path at
+    // all, so a second `worktree remove` only ever says `fatal: is not a
+    // working tree` and the caller is stuck. Where the pointer
     // survives (macOS) that is answered here; where it does not (Linux) the
     // post-`rm -rf` check below answers it.
     if (await deregisteredWorktreeResidue(exec, worktreePath)) {
@@ -249,7 +249,7 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
 
   // Anchored like `deleteBranch`: `-D` takes the reflog too, and this
   // worktree's own reflog died with the directory a few lines up. Runs on the
-  // residue path too — the branch is no longer checked out anywhere, which is
-  // the only thing that made it undeletable before.
+  // residue path too: by then the branch is checked out nowhere, which is the
+  // only thing that makes it undeletable.
   if (branch) await deleteBranchAnchored(deps.branchDeps(), exec, repo, branch, { force })
 }

@@ -127,12 +127,11 @@ export class Orchestrator {
    * Pre-flight hook for the TUI to await before the first render.
    *
    * One job: absorb `dir` rows that are sitting on a repository root into
-   * that repo's `main` row. `rove .` has routed a repo root to
-   * `ensureMainTask` since 2026-08-31, so nothing new lands mis-shaped — but
-   * the rows created before that rule keep rendering as a bare path, outside
-   * every behaviour written for a project row (ordering, pin, the fold on a
-   * closed last tab). `ensure` only runs when somebody names the repo, so
-   * without a sweep those rows stay wrong forever.
+   * that repo's `main` row. `rove .` routes a repo root to `ensureMainTask`,
+   * so nothing new lands mis-shaped — but a `dir` row already on disk renders
+   * as a bare path, outside every behaviour written for a project row
+   * (ordering, pin, the fold on a closed last tab). `ensure` only runs when
+   * somebody names the repo, so without a sweep those rows stay wrong forever.
    *
    * Best-effort by construction: it runs before the first frame, and a repo
    * that has moved or a git that will not answer must not stop the TUI from
@@ -231,8 +230,8 @@ export class Orchestrator {
     // Bring the project row into existence alongside the task — but only if
     // the repo may BE a project (state/project-eligibility.ts). A `/tmp`
     // fixture or a checkout inside `.dev-sandbox` still gets its task; it
-    // just stops leaving a permanent sidebar row behind, which is how the
-    // owner's project list reached 12 rows on 2 saved repos. `buildTreeRows`
+    // just stops leaving a permanent sidebar row behind — which is how a
+    // project list reaches a dozen rows on two saved repos. `buildTreeRows`
     // groups a main-less task under a header derived from its own repo, so
     // the task still renders — the header just dies with it.
     //
@@ -242,9 +241,9 @@ export class Orchestrator {
     // succeeds in a subdir) otherwise splits into two sidebar projects: the
     // main row keyed on `/my-monorepo`, this task keyed on
     // `/my-monorepo/packages/app` — a ghost project named after a
-    // subdirectory, with its own worktree root. That normalization used to
-    // ride on the returned main row, so taking it from `normalizeMainRepo`
-    // directly keeps it working when no row is created.
+    // subdirectory, with its own worktree root. Taking the normalization from
+    // `normalizeMainRepo` directly, rather than off the returned main row,
+    // keeps it working when no row is created.
     // Dir/scratch tasks do NOT come through here (see openDirectoryTask),
     // so pinning a user-owned directory is unaffected.
     const mainTask = await this.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
@@ -284,21 +283,21 @@ export class Orchestrator {
    * (`kobe .`). Deliberately NO project association: no main task is
    * ensured, no worktree or branch is created — the task pins the
    * directory itself and deletion later only drops the index entry.
-   * Every call creates a NEW task (owner 2026-07-20): opening the same
+   * Every call creates a NEW task: opening the same
    * directory twice is two parallel sessions in it, so the title gets a
    * random suffix (`kobe-af3x`) to tell the rows apart.
    */
   async openDirectoryTask(input: {
     readonly dir: string
     readonly vendor?: VendorId
-    /** Temp shell task for the sidebar's Scratch section (issue #33): same
+    /** Temp shell task for the sidebar's Scratch section: same
      *  dir-task shape, `scratch: true`, shell-exit deletes the row. */
     readonly scratch?: boolean
   }): Promise<Task> {
     if (!input.dir) throw new Error("openDirectoryTask: dir is required")
     const dir = canonPath(input.dir)
     // A scratch shell's home is unsettled by definition, so it mints NO
-    // auto-name (issue #42): title stays empty until the user names it or
+    // auto-name: title stays empty until the user names it or
     // adoption derives one; every display surface falls back to path/branch.
     return this.store.create({
       repo: dir,
@@ -313,7 +312,7 @@ export class Orchestrator {
   }
 
   /**
-   * Migrate a scratch task into a repo (issue #33 adoption): the shell's
+   * Migrate a scratch task into a repo (adoption): the shell's
    * live cwd landed in `repo` and a coding harness was detected there, so
    * the row earns a project home. Repoints `repo`/`worktreePath` at the
    * repo root and clears the scratch flag — the task becomes an ordinary

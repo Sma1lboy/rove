@@ -1,13 +1,12 @@
 /**
  * The `add` verb — the one create path, single or parallel.
  *
- * `fan-out` used to be a separate verb for "N tasks of one prompt"; it was
- * the same create-then-deliver loop with a count, and having two verbs meant
- * an agent had to know which one to reach for before it knew how many
- * attempts it wanted. `add --count N` (and `--agents claude:2,codex:1`) is
- * that verb folded back in: `--count` absent = exactly one task, and the
- * whole parallel contract (shared `groupId`, `#i/N` titles, per-sibling
- * failure rows, PARTIAL_FANOUT) applies unchanged from N=2 up.
+ * There is deliberately no separate "N tasks of one prompt" verb: it is the
+ * same create-then-deliver loop with a count, and two verbs would make an
+ * agent choose one before it knows how many attempts it wants. `--count`
+ * absent = exactly one task, and the whole parallel contract (shared
+ * `groupId`, `#i/N` titles, per-sibling failure rows, PARTIAL_FANOUT) applies
+ * from N=2 up.
  *
  * Its own module rather than living beside `send` in `handlers-tasks.ts`: the
  * handlers there act on a task that already exists, while everything here is
@@ -81,7 +80,7 @@ export async function add(ctx: VerbContext): Promise<unknown> {
 async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
-  // Record who dispatched this create (issue #21) — the reply address a
+  // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
   const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice) }
@@ -132,7 +131,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   )
   // A prompt that never confirmed AND was not deferred is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.
-  // Deferred (issue #78 B-layer) is a SUCCESS: the daemon owns the message now.
+  // A deferred prompt is a SUCCESS: the daemon owns the message now.
   if (!delivered.delivered && !delivered.deferred) {
     throw new ApiError(
       `task ${taskId} created but the prompt was not delivered (paste did not land)`,
@@ -166,8 +165,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
 /**
  * `--count N` / `--agents e:2,f:1`: N sibling tasks of ONE prompt, each in
  * its own worktree + branch. Every sibling of this round shares one groupId,
- * so the grouping outlives this CLI call (the JSON output used to be its only
- * record). Siblings share the prompt, so bare titles would converge onto the
+ * so the grouping outlives this CLI call rather than living only in the JSON
+ * output. Siblings share the prompt, so bare titles would converge onto the
  * SAME name — an explicit --title gets its `#i/N` ordinal here; placeholder-
  * titled siblings get theirs appended by the daemon's auto-title pass (keyed
  * on groupId) when the prompt-derived name lands.
@@ -241,7 +240,7 @@ async function addParallel(
   // can retry or delete them instead of double-spawning.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
-  // Every sibling records the same dispatcher (issue #21) — the reply
+  // Every sibling records the same dispatcher — the reply
   // address each worker's bare `send` routes its outcome back to.
   const dispatcher = await dispatcherEnvPayload()
   for (const [i, vendor] of plan.entries()) {
@@ -295,7 +294,7 @@ async function addParallel(
   settled.forEach((r, i) => {
     const { taskId, vendor } = created[i]
     if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
-      // Deferred (issue #78 B-layer) is a SUCCESS, exactly as `addOne`/`send`
+      // A deferred prompt is a SUCCESS, exactly as `addOne`/`send`
       // treat it: the daemon took ownership of the prompt and queued an inbox
       // episode, so the caller must NOT retry (the tab stays occupied until
       // that deferred prompt is released, dismissed, or expires). It

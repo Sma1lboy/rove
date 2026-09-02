@@ -4,11 +4,11 @@
  * Goal: prevent two Rove instances from racing to write `~/.rove/tasks.json`
  * and corrupting it. The lockfile holds `pid:token` — the holder's PID plus a
  * per-acquire random token, so two stores in the SAME process are still
- * distinguishable holders (issue #53).
+ * distinguishable holders.
  *
  * Creation is atomic-or-fail: contents are written to a private sidecar file
  * first, then `link(2)`ed into place. The lockfile is therefore never
- * observable in a half-written (empty) state — an empty read used to classify
+ * observable in a half-written (empty) state — an empty read would classify
  * a live holder as stale and break mutual exclusion outright.
  *
  * Failure modes:

@@ -1,5 +1,5 @@
 /**
- * Tier-(b) protocol sniff CONSUMER (issue #31) — the observer→record chain
+ * Tier-(b) protocol sniff CONSUMER — the observer→record chain
  * that upgrades a `generic` task from its live session. Two layers under
  * test with the real naming rule (`protocolUpgradeFromLiveSession`) plugged
  * in end-to-end:
@@ -75,7 +75,7 @@ describe("createProtocolUpgradeReporter", () => {
     report("task-1", "tab-1", { walkVendor: "claude", title: "⠂ working" })
     await Promise.resolve()
     expect(orch.setCommandCalls).toEqual([{ id: "task-1", command: "my-wrapper.sh", vendor: "claude" }])
-    // Idempotent: the upgraded record is no longer generic, so the next
+    // Idempotent: the upgraded record is not generic any more, so the next
     // tick's identical evidence resolves to no write at all.
     report("task-1", "tab-1", { walkVendor: "claude", title: "⠂ working" })
     await Promise.resolve()

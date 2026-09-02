@@ -27,15 +27,15 @@
  * ten braille frames), so that rule costs nothing now and is what keeps a
  * future engine borrowing a glyph from silently stealing its identity.
  *
- * The consumer (issue #31) is {@link protocolUpgradeFromLiveSession}: the
+ * The consumer is {@link protocolUpgradeFromLiveSession}: the
  * daemon's activity observer relays each walked live session's evidence
  * (foreground-walk vendor + OSC title) and, when a task that recorded the
  * generic protocol is identified, upgrades the record's `vendor` via
  * `setCommand` — metadata only, so the history reader / trust store /
  * delivery mode start applying while WHAT LAUNCHES never changes. The
  * session-store read stays unconsumed there on purpose: a transcript can
- * outlive the engine that wrote it (a worktree previously run with claude,
- * later re-pinned to a genuinely different CLI, would mis-identify), so the
+ * outlive the engine that wrote it (a worktree whose transcripts came from
+ * claude and was later re-pinned to a different CLI would mis-identify), so the
  * record upgrade only trusts evidence that describes the session running
  * right now. Both sniff reads stay pure.
  */

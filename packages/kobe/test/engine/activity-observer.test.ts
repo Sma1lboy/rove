@@ -213,7 +213,7 @@ describe("activity observer", () => {
     const w = world()
     w.registry.report(TASK, "awaiting-input", { waiting: "permission" }, "tab-1", { id: "s1" }, "claude")
     // The blocked engine writes nothing and its title rests — exactly the
-    // state the old watchdog wrongly idled. The observer must not.
+    // state a byte/title watchdog reads as idle. The observer must not.
     w.state.sessions = [{ key: KEY, alive: true, pid: 42, title: "✳ waiting", totalBytes: 100 }]
     w.state.engines.set(42, "claude")
     await wait(100)

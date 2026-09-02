@@ -8,7 +8,7 @@
  * The store is the one seam we fake: a thin subclass whose `update` can be made
  * to throw once (the write that records `worktreePath`) or to drop the task the
  * instant after a successful write (a concurrent delete). Both are the real
- * failure modes that used to strand an orphan worktree or surface a spurious
+ * failure modes that strand an orphan worktree or surface a spurious
  * `TaskNotFoundError`.
  */
 
@@ -156,10 +156,10 @@ describe("ensureWorktree — partial-failure cleanup (no orphans)", () => {
 describe("ensureWorktree — concurrent delete after a successful write", () => {
   test("returns the created path instead of throwing TaskNotFound", async () => {
     const task = await orch.createTask({ repo })
-    // The write lands, then the task is dropped (a delete racing in the window
-    // where the lock used to be released before the re-fetch). The old code
-    // re-fetched after the lock and threw TaskNotFoundError; we return the path
-    // computed before releasing the lock.
+    // The write lands, then the task is dropped (a delete racing the window
+    // between releasing the lock and a re-fetch). Re-fetching after the lock
+    // would throw TaskNotFoundError; we return the path computed before
+    // releasing the lock.
     store.deleteAfterNextUpdate = true
 
     const p = await orch.ensureWorktree(task.id)
@@ -189,7 +189,7 @@ describe("ensureWorktree — recorded baseRef (durable fork point)", () => {
     expect(orch.getTask(task.id)?.baseRef).toBe("side-base")
 
     // Simulated daemon restart: a brand-new Orchestrator over the SAME store
-    // (the old side-map died with the "process"). The worktree must still
+    // (an in-memory side-map would die with the "process"). The worktree must still
     // cut from side-base, not silently from the repo's current HEAD.
     const restarted = new Orchestrator({ store, worktrees: new GitWorktreeManager() })
     const p = await restarted.ensureWorktree(task.id)

@@ -7,8 +7,7 @@
  * Taking the client + subscribe options + an explicit
  * {@link OrchestratorSignals} deps bag instead of closing over `this` is what
  * makes that testable: drive a handshake or a retry policy with fakes, no
- * socket and no real backoff. Same behavior, moved verbatim — `performInit` is
- * the exact body of the old `RemoteOrchestrator.init`.
+ * socket and no real backoff.
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
@@ -48,9 +47,8 @@ export interface PerformInitOptions {
  * that has been deleted, so `ensureReachable` cannot resolve an entry point
  * to re-exec and fails identically forever. The loop gives up there and
  * reports it once, via `onFatal`. Giving up is the SAFE direction — a client
- * that cannot spawn is not a reason to keep pressure on a healthy daemon
- * (PR #733), and the remedy is reinstalling, which no amount of waiting
- * performs.
+ * that cannot spawn is not a reason to keep pressure on a healthy daemon,
+ * and the remedy is reinstalling, which no amount of waiting performs.
  */
 export async function runReconnectLoop(deps: {
   readonly isDisposed: () => boolean
@@ -61,9 +59,9 @@ export async function runReconnectLoop(deps: {
   /** Called once, then the loop stops, when retrying cannot ever succeed. */
   readonly onFatal?: (err: unknown) => void
 }): Promise<void> {
-  // A GUI used to retry with ZERO delay, which made every GUI in the process
-  // wake at the same instant after a shared daemon drop and probe a daemon
-  // that is still cold-starting. Jitter the first GUI attempt so they arrive
+  // Retrying with ZERO delay wakes every GUI in the process at the same
+  // instant after a shared daemon drop, all probing a daemon that is still
+  // cold-starting. Jitter the first GUI attempt so they arrive
   // staggered: the first one through does the work, the rest find a live
   // daemon and never enter the spawn path at all. Small enough to stay
   // imperceptible, wide enough to separate same-tick wakeups.
@@ -80,8 +78,8 @@ export async function runReconnectLoop(deps: {
       return
     } catch (err) {
       // The one non-transient failure: our own install is gone. Retrying is
-      // not recovery here, it is two days of identical throws (the owner's
-      // pid 59121). Say it once and stop.
+      // not recovery here, it is days of identical throws. Say it once and
+      // stop.
       if (isStaleInstallError(err)) {
         logClientError("orch-reconnect-fatal", err)
         deps.onFatal?.(err)
@@ -144,8 +142,8 @@ export async function performInit(
   // Reject a daemon serving a DIFFERENT home BEFORE any of its state is
   // believed. A sandbox daemon that inherited the production socket path
   // answers hello perfectly and hands back its own empty task list; without
-  // this the TUI adopted it as the truth and blanked the sidebar while every
-  // task sat intact on disk (prod 2026-08-13). Throwing keeps the caller's
+  // this the TUI adopts it as the truth and blanks the sidebar while every
+  // task sits intact on disk. Throwing keeps the caller's
   // reconnect loop running, so the moment the real daemon reclaims the socket
   // the client re-syncs on its own.
   const clientHome = homeDir()
@@ -173,11 +171,11 @@ export async function performInit(
   // role so the daemon's lazy-shutdown refcount counts only real
   // front-end attaches (`gui`), not in-tmux helper panes (`pane`).
   await client.subscribe({ role: opts.role, channels: opts.channels })
-  // Daemon-collected worktree changes (issue #6): gate on the hello
+  // Daemon-collected worktree changes: gate on the hello
   // capability list — the honest "does this daemon run the collector?"
   // signal during a rolling upgrade. A capable daemon replays the
-  // channel's last value during subscribe (handled above by handleEvent
-  // before this response resolves); when no value was published yet, an
+  // channel's last value during subscribe (handled by handleEvent before
+  // this response resolves); when no value has been published yet, an
   // EMPTY map (not null) says "daemon collects — trust pushes, spawn no
   // local git". An old daemon without the capability resets the signal
   // to null so the sidebar's local poller engages cleanly — including

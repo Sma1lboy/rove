@@ -39,13 +39,10 @@ const THEME_VERB_ALIASES: Readonly<Record<string, string>> = { ls: "list", rm: "
 /**
  * The bundled theme names, read from the map that owns the JSON imports.
  *
- * This list used to be hand-mirrored here, because importing the theme module
- * dragged in opentui + Solid (it built a Solid store at module load). That
- * stopped being true when Solid was removed: `bundled.ts` is now nothing but
- * three `with { type: "json" }` imports and a type-only import, so the CLI can
- * read the real map and the two "keep these in sync" comments can go. Still no
- * disk read — in a published binary those JSONs live inside the compiled JS,
- * not next to it.
+ * Read from the real map rather than hand-mirrored: `bundled.ts` is nothing
+ * but three `with { type: "json" }` imports and a type-only import, so this
+ * pulls in no opentui and no UI runtime. Still no disk read — in a published
+ * binary those JSONs live inside the compiled JS, not next to it.
  */
 const BUNDLED_NAMES: readonly string[] = Object.keys(BUNDLED_THEME_JSONS)
 

@@ -18,9 +18,9 @@ import type { Issue, RepoIssues } from "./types.ts"
 
 /**
  * One card on the board: always an issue, carrying its source `repo` so
- * project-grouping can key it. (The board used to be a unified task+issue
- * board; tasks were dropped — the lag came from per-card live engine/worktree
- * subscriptions, and tasks still live in the Workspace view.)
+ * project-grouping can key it. Tasks are deliberately not cards: per-card
+ * live engine/worktree subscriptions are where the lag comes from, and tasks
+ * have the Workspace view.
  */
 export interface BoardCard {
   repo: string

@@ -3,8 +3,8 @@ import { handleOrchestratorEvent } from "../../src/client/remote-orchestrator-ev
 import type { OrchestratorSignals } from "../../src/client/remote-orchestrator-payloads.ts"
 
 /**
- * Transient lifecycle marks must never outlive their evidence (the
- * 2026-07-29 stale-mark class): a cancelled compaction sends no
+ * Transient lifecycle marks must never outlive their evidence: a cancelled
+ * compaction sends no
  * post-compact and an esc-interrupted turn may send no idle/stop, so the
  * fold clears marks on every turn edge — and keeps NO compaction state at
  * all, since that one has no reliable clearing event.

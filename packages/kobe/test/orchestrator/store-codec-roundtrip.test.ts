@@ -1,5 +1,5 @@
 /**
- * Schema round-trip guard for the tasks.json codec (issue #57).
+ * Schema round-trip guard for the tasks.json codec.
  *
  * `coerceTask` is a hand-written coercer: the WRITE path picks up a new Task
  * field automatically (object spread), but the READ path needs a hand-written

@@ -46,7 +46,7 @@ export class TaskEditor {
   }
 
   /** Rename a task. Empty / whitespace-only titles are rejected. Naming a
-   *  SCRATCH task is the "keep this" gesture (issue #33) — it clears the
+   *  SCRATCH task is the "keep this" gesture — it clears the
    *  flag, so the row survives its shell exiting. */
   async setTitle(id: TaskId | string, title: string): Promise<void> {
     const trimmed = title.trim()
@@ -62,7 +62,7 @@ export class TaskEditor {
    * branch is still the placeholder-derived default (`new-task`, or a legacy
    * `rove/`/`kobe/` spelling). This is what lets a task auto-named from its
    * first prompt also pick up a meaningful branch. It fires at most
-   * once: after the first rename the branch no longer matches the placeholder
+   * once: after the first rename the branch stops matching the placeholder
    * derivation, so a later title change (or a manual `setBranch`) is never
    * clobbered. Skipped for `main` (no branch) and for not-yet-materialised
    * tasks (their branch is derived fresh from the title in `ensureWorktree`,
@@ -73,7 +73,7 @@ export class TaskEditor {
    * stand, and the placeholder branch simply stays):
    *   - never rename a branch that has an upstream (`branch -m` would orphan
    *     the remote branch / any open PR); an unreadable probe counts as
-   *     ambiguity and also keeps the old name;
+   *     ambiguity and also keeps the existing name;
    *   - a collision with an existing local branch resolves to a `-2`, `-3`…
    *     suffixed unique name instead of failing.
    */
@@ -188,10 +188,10 @@ export class TaskEditor {
   /**
    * Move a task up/down within its visible ordering partition. Main
    * (project) rows move among each other — the sidebar renders projects in
-   * the mains' stored order (owner 2026-07-16), so reordering the store IS
-   * reordering the project list. Regular tasks move within their REPO's
-   * partition (issue #43: the sidebar tree groups tasks under their repo, so
-   * a cross-repo swap would be invisible or jump groups), still split by the
+   * the mains' stored order, so reordering the store IS reordering the
+   * project list. Regular tasks move within their REPO's partition (the
+   * sidebar tree groups tasks under their repo, so a cross-repo swap would be
+   * invisible or jump groups), still split by the
    * pinned flag. Edge-stop: `store.move` past the partition's first/last is
    * a no-op, never a wrap.
    */
@@ -278,8 +278,9 @@ export class TaskEditor {
   /**
    * Record the task brief: the full text of the prompt `add --prompt`
    * delivered into this task's engine. Written on the delivery path so the
-   * brief survives the engine's own transcript — a dead engine used to take
-   * the only copy down with it. Stored verbatim (never truncated); a
+   * brief survives the engine's own transcript — a dead engine would
+   * otherwise take the only copy down with it. Stored verbatim (never
+   * truncated); a
    * whitespace-only prompt is rejected. No-op when the stored text already
    * matches, so a redundant call never churns a write + broadcast.
    */

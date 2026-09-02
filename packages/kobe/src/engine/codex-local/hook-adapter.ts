@@ -52,7 +52,7 @@ const EVENT_MAP: readonly HookEventSpec[] = [
   { event: "PostToolUse", verb: "tool-post" },
 ]
 
-/** The Codex events kobe owns — used to replace only these in a merge. */
+/** The Codex events kobe owns — a merge replaces only these. */
 export const KOBE_CODEX_HOOK_EVENTS: readonly string[] = EVENT_MAP.map((e) => e.event)
 
 /** Where Codex reads user hook definitions. */

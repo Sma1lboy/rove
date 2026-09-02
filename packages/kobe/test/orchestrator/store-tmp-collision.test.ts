@@ -1,14 +1,14 @@
 /**
- * Deterministic reconstruction of the CI flake behind issue #53:
+ * Deterministic reconstruction of the CI flake
  * `ENOENT: rename '.../tasks.json.tmp' -> '.../tasks.json'`.
  *
- * The flake needed two writers inside the critical section at once (the old
- * lockfile could be stolen through its empty-content window) PLUS a shared
- * staging file: writer B renamed `<path>.tmp` away, so writer A's rename hit
- * ENOENT. Stress runs only reproduced it under a full 8-worker suite; this
- * test builds the interleaving by construction instead — it pauses writer A
- * between its tmp write and its rename, force-breaks the lock the way the
- * old steal did, lets writer B complete a save, then resumes A.
+ * The flake needs two writers inside the critical section at once (a lockfile
+ * stealable through an empty-content window) PLUS a shared staging file:
+ * writer B renames `<path>.tmp` away, so writer A's rename hits ENOENT.
+ * Stress runs only reproduce it under a full 8-worker suite; this test builds
+ * the interleaving by construction instead — it pauses writer A between its
+ * tmp write and its rename, force-breaks the lock the way a steal would, lets
+ * writer B complete a save, then resumes A.
  *
  * Own file because it module-mocks `node:fs/promises` to add the pause hook.
  */
@@ -88,15 +88,15 @@ describe("TaskIndexStore staging-file isolation (issue #53)", () => {
     const saveA = storeA.create(input("alpha"))
     await paused // A holds the lock; tmp written; rename pending
 
-    // Force-break the lock exactly the way the old empty-window steal did:
+    // Force-break the lock exactly the way an empty-window steal does:
     // the lockfile vanishes under A, so B's save enters the critical section
     // while A is still inside it.
     await unlink(join(home, ".rove", "tasks.json.lock"))
     await storeB.create(input("beta"))
 
-    // Resume A. With the old SHARED `<path>.tmp`, B's completed save had
-    // renamed the staging file away and this rename threw ENOENT — the CI
-    // flake. With per-save staging names it completes. (B's task is
+    // Resume A. With a SHARED `<path>.tmp`, B's completed save has renamed
+    // the staging file away and this rename throws ENOENT — the CI flake.
+    // With per-save staging names it completes. (B's task is
     // legitimately clobbered here: we broke the mutex on purpose, so
     // last-write-wins on the whole file is the expected data outcome — the
     // invariant under test is only that A's save cannot CRASH.)

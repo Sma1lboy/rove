@@ -233,11 +233,11 @@ describe("task lifecycle handlers", () => {
   })
 
   it("plain land leaves removeWorktree undefined (daemon default: remove) and always sends callerCwd", async () => {
-    // Removal is the default path now, so the "refusing to remove the caller's
+    // Removal is the default path, so the "refusing to remove the caller's
     // own worktree" guard must be armed on EVERY land — sending callerCwd only
     // for the explicit flag would leave an agent free to delete its own cwd.
     // `removeWorktree` stays undefined so the orchestrator default applies;
-    // coercing it to false here would silently pin the old opt-in behaviour.
+    // coercing it to false here would silently pin an opt-in it does not have.
     const client = new FakeClient({
       "task.land": () => ({ result: { branch: "b", strategy: "merge", landedOn: "main", commit: "abc" } }),
     })

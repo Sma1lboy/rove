@@ -6,15 +6,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 /**
- * Home-ownership guard (prod 2026-08-13).
+ * Home-ownership guard.
  *
- * A `dev:sandbox` daemon inherited `KOBE_DAEMON_SOCKET_PATH` from the task
+ * A `dev:sandbox` daemon inherits `KOBE_DAEMON_SOCKET_PATH` from the task
  * terminal it was launched in. Because an explicit socket override outranks
- * `*_HOME_DIR`, it bound the PRODUCTION socket while serving its own — empty —
- * task index. Attached TUIs reconnected onto it, `hello` succeeded, and the
- * sidebar went blank ("No active tasks") with all 27 tasks intact on disk.
+ * `*_HOME_DIR`, it binds the PRODUCTION socket while serving its own — empty —
+ * task index. Attached TUIs reconnect onto it, `hello` succeeds, and the
+ * sidebar goes blank ("No active tasks") with every task intact on disk.
  *
- * Every other handshake check passed, because nothing was wrong with the
+ * Every other handshake check passes, because nothing is wrong with the
  * wire. What these lock is that a client refuses a daemon belonging to a
  * DIFFERENT home before adopting a single task from it.
  */

@@ -130,7 +130,7 @@ describe("add handler", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })) as Record<string, unknown>
     // newTask marks this as a fresh worktree task's FIRST prompt — the
-    // delivery layer appends the branch-rename coda for it (issue #8).
+    // delivery layer appends the branch-rename coda for it.
     expect(calls[0]).toMatchObject({
       target: { id: "t1", vendor: "codex", modelEffort: "high", newTask: true },
       prompt: "do it",
@@ -183,7 +183,7 @@ describe("send handler", () => {
     expect(client.subscribeCount).toBe(0)
     expect(calls[0].prompt).toBe("hi")
     // send targets an EXISTING task — never flagged as a new-task first
-    // prompt, so the branch-rename coda can't reach it (issue #8).
+    // prompt, so the branch-rename coda can't reach it.
     expect(calls[0].target.newTask).toBeUndefined()
     expect(result).toMatchObject({ ok: true, taskId: "abc", started: true })
   })
@@ -313,7 +313,7 @@ describe("send handler", () => {
     const saved = process.env.KOBE_TASK_ID
     beforeEach(async () => {
       process.env.KOBE_TASK_ID = "sender-1"
-      // Identity is the VERIFIED env pair (issue #24) — prime the memo with a
+      // Identity is the VERIFIED env pair — prime the memo with a
       // process tree where this process really does descend from the tab's
       // shell, so no real pty-host/ps read happens here.
       await verifiedSelfSession(
@@ -377,10 +377,9 @@ describe("send handler", () => {
     it("gives a dispatched task the same reply address in its opening brief", async () => {
       // `add --prompt` from inside a kobe session is agent-to-agent too, and
       // its brief is where the reply address matters most: every report that
-      // task ever sends flows back through it. Before this, `add` recorded the
-      // sender only as `dispatcher` on the task ROW — data a receiver has to
-      // think to go read — so a dispatched survey finished and sat waiting
-      // (2026-09-01, issue #92).
+      // task ever sends flows back through it. Recording the sender only as
+      // `dispatcher` on the task ROW — data a receiver has to think to go
+      // read — leaves a dispatched worker finished and sitting waiting.
       const { calls, deliver } = recordingDelivery()
       await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "研究一下 X"], {
         client: new FakeClient({

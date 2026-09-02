@@ -386,7 +386,7 @@ export class RemoteOrchestrator {
       .request("ui.reportEvent", { kind, ...(taskId ? { taskId } : {}), ...(detail ? { detail } : {}) })
       .catch(() => {})
 
-  /** Confirmed ESC interrupt on a hook-running tab (issue #15) — see
+  /** Confirmed ESC interrupt on a hook-running tab — see
    *  {@link reportEngineInterruptOp}. */
   readonly reportEngineInterrupt = (taskId: TaskId | string, tabId: string): void =>
     reportEngineInterruptOp(this.client, String(taskId), tabId)

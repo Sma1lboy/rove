@@ -33,13 +33,12 @@ export class MainTaskCoordinator {
    * Ensure a `kind: "main"` task exists for the given repo. Idempotent.
    *
    * A directory task already sitting on that exact root is PROMOTED rather
-   * than joined by a second row (owner call 2026-08-25). Both rows pin the
-   * same checkout, so minting a main beside one produced two rows with the
-   * same diff under one project header — one labelled by branch, one by path
-   * — reading as a duplicate of itself. Promotion keeps the session's id, so
-   * its terminal tabs move under the main row instead of being stranded.
-   * Scratch rows are never promoted: their cwd is unsettled by definition and
-   * they belong to the Scratch bench (issue #33).
+   * than joined by a second row. Both rows pin the same checkout, so minting
+   * a main beside one gives two rows with the same diff under one project
+   * header — one labelled by branch, one by path — reading as a duplicate of
+   * itself. Promotion keeps the session's id, so its terminal tabs move under
+   * the main row instead of being stranded. Scratch rows are never promoted:
+   * their cwd is unsettled by definition and they belong to the Scratch bench.
    *
    * Ineligible repos throw — see {@link ensureIfEligible} for the variant
    * every internal caller uses. Direct callers are the ones acting on an
@@ -58,8 +57,8 @@ export class MainTaskCoordinator {
    * {@link ensure}, but returning null instead of creating a row the path
    * does not deserve.
    *
-   * This is the gate on the leak that put four fixture paths permanently in
-   * the owner's sidebar (12 project rows behind 2 saved repos). `createTask`
+   * This is the gate on the leak that puts fixture paths permanently in the
+   * sidebar (a dozen project rows behind two saved repos). `createTask`
    * and `adopt` call this while doing their real work: a task whose repo is a
    * `/tmp` fixture still gets created, it just does not also mint a permanent
    * project row. Nothing breaks downstream — `buildTreeRows` derives a
@@ -81,12 +80,11 @@ export class MainTaskCoordinator {
     if (inflight) return inflight
     const promise = (async () => {
       // A project row and a saved-repos entry are the same fact: the sidebar
-      // shows what the new-task picker offers. They used to be written by
-      // separate paths, so a row minted here (`createTask` on a fresh repo)
-      // was a project you could SEE but could not pick — and closing its last
-      // tab, which now hides it, would have lost it with no way back.
-      // Writing both here keeps them from diverging again. `explicit`: this
-      // path already passed the admission gate above.
+      // shows what the new-task picker offers. Written by separate paths they
+      // diverge: a row minted here (`createTask` on a fresh repo) would be a
+      // project you can SEE but cannot pick, and closing its last tab (which
+      // hides it) would lose it with no way back. `explicit`: this path
+      // already passed the admission gate above.
       addSavedRepo(normalizedRepo, { intent: "explicit" })
       const adoptable = this.store
         .list()

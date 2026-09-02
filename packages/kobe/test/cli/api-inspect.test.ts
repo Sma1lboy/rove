@@ -2,7 +2,7 @@
  * `kobe api inspect` — hermetic offline run. No daemon, no PTY host: the
  * daemon/sessions sections must degrade to null (an honest "couldn't look",
  * never an error), while the offline sections still answer — the persisted
- * tab snapshots from state.json and, since issue #9, the durable session
+ * tab snapshots from state.json and the durable session
  * death records from pty-exits.json (the one place a crashed engine's exit
  * code + output tail survives the host's idle-exit).
  */

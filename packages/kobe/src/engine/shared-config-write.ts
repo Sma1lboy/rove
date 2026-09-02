@@ -50,8 +50,8 @@ import { acquireWithRetry } from "../orchestrator/index/store-codec.ts"
  * Staging path, unique per CALL rather than per process. A shared `<file>.tmp`
  * — or a pid-only one, the moment a caller gains an `await` — lets a second
  * writer clobber the first's staging file and fail the survivor's rename with
- * ENOENT. That is issue #53, already paid for once in the task index
- * (`orchestrator/index/store.ts`).
+ * ENOENT. The task index (`orchestrator/index/store.ts`) stages the same way
+ * for the same reason.
  */
 function stagingPath(file: string): string {
   return `${file}.rove-${process.pid}-${randomBytes(6).toString("hex")}.tmp`

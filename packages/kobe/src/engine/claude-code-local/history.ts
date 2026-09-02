@@ -22,7 +22,7 @@
  * Each JSONL line is a record like:
  *
  *     { "type": "user", "message": { "role": "user", "content": "..." },
- *       "timestamp": "2026-05-09T03:59:51.343Z",
+ *       "timestamp": "<iso-8601>",
  *       "sessionId": "<uuid>", "cwd": "/Users/...", ... }
  *
  * The shapes vary — Claude Code persists not just messages but also
@@ -99,16 +99,15 @@ const defaultDeps: HistoryDeps = {
  * Claude Code replaces **every** non-alphanumeric character with `-` —
  * its own encoder is `cwd.replace(/[^a-zA-Z0-9]/g, "-")` (verified in the
  * shipped CLI bundle), so `/`, `.`, `_`, spaces, and non-ASCII letters
- * all fold. Matching only `/` and `.` (the old behavior) pointed every
- * encoding-dependent consumer at a directory Claude never created
- * whenever the worktree path contained e.g. an underscore — silently
- * disabling session-file discovery, activity mtime detection, and
- * interrupted-prompt rescue for that task.
+ * all fold. Matching only `/` and `.` points every encoding-dependent
+ * consumer at a directory Claude never created whenever the worktree path
+ * contains e.g. an underscore, which silently disables session-file
+ * discovery, activity mtime detection, and interrupted-prompt rescue for
+ * that task.
  *
  * No legacy fallback on purpose: the dirs under `~/.claude/projects` are
- * created by Claude with this encoding, so the fix *restores* access to
- * them. The only dirs the old encoding could name were rescue-created by
- * kobe itself, holding orphaned prompts Claude's `--resume` never read.
+ * created by Claude with this encoding, so this is the only encoding that
+ * names a real one.
  *
  * The encoding is lossy (see file-level docstring) and reversal is
  * unreliable — we never decode, only iterate/derive.

@@ -168,7 +168,7 @@ export function rolloutCwd(raw: string): string {
  * rollout filenames embed a UUID + ISO timestamp so a path is never
  * reused — a successfully parsed, non-empty cwd is immutable and can be
  * cached forever. The polling callers (the Ops pane's 2.5s activity poll
- * and 1.5s turn poll, the daemon's 4s auto-title tick) previously
+ * and 1.5s turn poll, the daemon's 4s auto-title tick) would otherwise
  * re-READ up to 12–200 whole rollout JSONLs per tick just to re-derive
  * the same first-line cwd.
  *

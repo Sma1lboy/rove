@@ -8,7 +8,7 @@
  * The base ref comes from the TASK RECORD first: `add --base-branch` is
  * persisted on the task at create time, so a task cut from `release/2.x`
  * is measured against `release/2.x`, not against a guess. Records that
- * predate the field (or whose recorded ref no longer resolves) fall back
+ * predate the field (or whose recorded ref does not resolve) fall back
  * to the re-resolution the worktrees page uses: `origin/HEAD` →
  * `origin/main` → `origin/master` → local `main`/`master`. All reads are
  * lock-free (`GIT_OPTIONAL_LOCKS=0`) and best-effort — a repo with no
@@ -56,7 +56,7 @@ export function resolveBaseRef(worktreePath: string): string | null {
 /**
  * The base to measure against: the task's RECORDED fork point when present
  * and still resolvable, else the {@link resolveBaseRef} guess for records
- * that predate the persisted field. A recorded ref that no longer resolves
+ * that predate the persisted field. A recorded ref that stops resolving
  * (base branch deleted, remote renamed) falls back too — an honest guess
  * beats a stale certainty.
  */

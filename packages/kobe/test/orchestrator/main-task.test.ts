@@ -75,7 +75,7 @@ describe("ensureMainTask", () => {
     expect(task.repo).not.toBe(sub)
     expect(task.repo.endsWith(path.join("packages", "app"))).toBe(false)
     // One project row, not two: the sidebar groups by string comparison on
-    // this exact field, so task and main agreeing IS the fix.
+    // this exact field, so task and main must agree on it exactly.
     const mains = orch.listTasks().filter((t) => t.kind === "main")
     expect(mains).toHaveLength(1)
     expect(task.repo).toBe(mains[0]?.repo)
@@ -84,8 +84,8 @@ describe("ensureMainTask", () => {
 
   test("promotes an existing directory task on the same root instead of adding a second row", async () => {
     // Both rows pin the SAME checkout, so minting a main beside a dir task
-    // put two rows with the same diff under one project header — one labelled
-    // by branch, one by path (owner report 2026-08-25, `~/i/quill-all`).
+    // puts two rows with the same diff under one project header — one
+    // labelled by branch, one by path.
     const dir = await orch.openDirectoryTask({ dir: repo })
     await orch.createTask({ repo, title: "t" })
     const mains = orch.listTasks().filter((t) => t.kind === "main")
@@ -222,9 +222,9 @@ describe("project admission (state/project-eligibility.ts)", () => {
 
 describe("a project row and a saved-repos entry are the same fact", () => {
   test("ensureMainTask saves the repo, so the sidebar and the picker agree", async () => {
-    // They used to be written by separate paths: a row minted by createTask
-    // was a project you could SEE but not pick. Once closing the last tab
-    // hides such a project, that gap loses it with no way back.
+    // Written by separate paths they diverge: a row minted by createTask is a
+    // project you can SEE but not pick. Once closing the last tab hides such
+    // a project, that gap loses it with no way back.
     expect(getSavedRepos()).not.toContain(repo)
     await orch.ensureMainTask(repo)
     expect(getSavedRepos()).toContain(repo)

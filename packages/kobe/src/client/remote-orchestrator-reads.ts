@@ -135,7 +135,7 @@ export function taskJobsSignalOp(s: ReadSignals): ReadableState<ReadonlyMap<stri
 
 /**
  * Daemon-collected `+N −M` uncommitted-change counts keyed by worktree
- * path, pushed live on the `worktree.changes` channel (issue #6 — ONE
+ * path, pushed live on the `worktree.changes` channel (ONE
  * collector in the daemon instead of per-pane git polling). `null` =
  * no daemon-collected data (old daemon without the channel, or before
  * `init()`): the sidebar then falls back to its local poller; non-null

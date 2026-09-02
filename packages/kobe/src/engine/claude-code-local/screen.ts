@@ -2,7 +2,7 @@
  * Claude Code screen-state manifest.
  *
  * Claude reports turn state through hooks and its OSC title, so this manifest
- * only covers the delivery gate's composer-empty detection (issue #78).
+ * only covers the delivery gate's composer-empty detection.
  *
  * The composer is NOT the last thing on screen. Claude draws it inside a box
  * and hangs its own status furniture below:

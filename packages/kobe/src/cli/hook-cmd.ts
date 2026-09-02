@@ -88,7 +88,7 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     await runHookSetup(rest)
     return
   }
-  // `cleanup` — the sanctioned migration path (issue #37): remove the
+  // `cleanup` — the sanctioned migration path: remove the
   // settings-managed Rove hooks after the Claude Code plugin takes over.
   // User-invoked and loud; the launch-time gate only ever PROMPTS for this.
   if (verb === "cleanup") {
@@ -150,10 +150,10 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
       client.close()
     }
   } catch (err) {
-    // Still swallowed — a hook must never fail the engine — but no longer
-    // INVISIBLE. A silently-dropped Stop leaves the sidebar spinning with
-    // zero evidence anywhere; debugging that cost a session precisely
-    // because this catch left no trace. Opt-in so normal runs stay quiet.
+    // Swallowed — a hook must never fail the engine — but not INVISIBLE. A
+    // silently-dropped Stop leaves the sidebar spinning with zero evidence
+    // anywhere, and a catch that leaves no trace is undebuggable. Opt-in so
+    // normal runs stay quiet.
     if (process.env.KOBE_HOOK_DEBUG) {
       console.error(`[rove hook] ${verb} failed:`, err instanceof Error ? err.message : String(err))
     }
@@ -179,7 +179,7 @@ function globalSettingsPath(): string {
   return join(homedir(), ".claude", "settings.json")
 }
 
-/** Resolve a persisted sync setting to the settings-file path the old
+/** Resolve a persisted sync setting to the settings-file path the
  *  WorktreeCreate hook was written into (so cleanup finds it), or undefined when
  *  off/unset. Accepts the current form (an absolute path) AND the older
  *  `global` / `repo:<path>` forms for back-compat. */
@@ -199,19 +199,17 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
  *     user's global `~/.claude/settings.json`, so EVERY Claude session reports
  *     normalized events; the daemon maps each hook's cwd to a task. Always
  *     global (a task's badge must light up wherever its engine runs).
- *  2. **Worktree-watch removal** — earlier Rove installed a global `PostToolUse`
- *     (Bash) observer firing `kobe hook worktree-created` after every Bash call,
- *     to archive the task pinned to a removed worktree. Archive was removed
- *     (issue #75), so the hook became a pure tax: a ~170ms process spawn on
- *     EVERY Bash call of every session machine-wide, for nothing. It is no
- *     longer installed, and the removal runs on each launch so users who already
- *     have the entry get it dropped.
- *  3. **WorktreeCreate cleanup** — earlier kobe (0.7.4–0.7.9) installed a global
- *     `WorktreeCreate` hook for external-worktree sync. That was WRONG:
- *     `WorktreeCreate` is a VCS *provider* hook — its mere presence makes Claude
- *     Code delegate worktree creation to it and skip the native git path, so
- *     kobe's observer hook (which returns no path) BROKE `claude --worktree` /
- *     `EnterWorktree` in every repo. We now remove any such hook we ever wrote.
+ *  2. **Worktree-watch removal** — a global `PostToolUse` (Bash) observer
+ *     firing `kobe hook worktree-created` after every Bash call is a pure tax:
+ *     a ~170ms process spawn on EVERY Bash call of every session machine-wide,
+ *     for nothing. Rove never installs it, and the removal runs on each launch
+ *     so a settings file that already carries the entry gets it dropped.
+ *  3. **WorktreeCreate cleanup** — a global `WorktreeCreate` hook for
+ *     external-worktree sync must never be installed: `WorktreeCreate` is a VCS
+ *     *provider* hook, so its mere presence makes Claude Code delegate worktree
+ *     creation to it and skip the native git path, and an observer hook (which
+ *     returns no path) BREAKS `claude --worktree` / `EnterWorktree` in every
+ *     repo. Any such hook already on disk is removed here.
  *     Nothing replaces it: worktree adoption is intent-driven — the daemon's
  *     `session-start` auto-adopt (`daemon/cwd-task.ts` `findAdoptableWorktree`)
  *     catches worktrees first entered by an engine session, and `rove add .`
@@ -222,7 +220,7 @@ function persistedSyncPath(stored: string | undefined): string | undefined {
  */
 export async function ensureGlobalKobeHooks(): Promise<void> {
   try {
-    // 0. Plugin takeover (issue #37): when the Rove Claude Code PLUGIN is
+    // 0. Plugin takeover: when the Rove Claude Code PLUGIN is
     //    enabled, its own hooks.json already carries the Claude activity +
     //    worktree-watch hooks, so the settings-managed install for CLAUDE is
     //    skipped — installing both would double-fire every event. Detection
@@ -252,13 +250,12 @@ export async function ensureGlobalKobeHooks(): Promise<void> {
       const enginePath = a.globalSettingsPath()
       if (!enginePath) continue
       await a.installActivityHooks(enginePath, { toolEvents })
-      // Uninstall the RETIRED PostToolUse(Bash) watch hook. It spawned `kobe
-      // hook worktree-created` after EVERY Bash call to archive the task
-      // pinned to a removed worktree; archive was removed (issue #75), so the
-      // hook had nothing left to do but cost a ~170ms process spawn per Bash
-      // call, machine-wide. Running the removal on every launch is how
-      // already-registered users get it dropped — idempotent, merge-safe, and
-      // it touches only Rove's own group.
+      // Uninstall the PostToolUse(Bash) watch hook. It spawns `kobe hook
+      // worktree-created` after EVERY Bash call for a ~170ms process spawn
+      // per Bash call, machine-wide, and nothing in return. Running the
+      // removal on every launch is how an already-registered settings file
+      // gets it dropped — idempotent, merge-safe, and it touches only Rove's
+      // own group.
       await a.removeWorktreeWatchHook(enginePath)
     }
     // 3. Remove the legacy WorktreeCreate hook wherever it was ever written.
@@ -337,10 +334,10 @@ async function runHookCleanup(): Promise<void> {
 }
 
 /**
- * `kobe hook setup` — DEPRECATED. The external-worktree-sync it configured used
- * a global `WorktreeCreate` hook that broke `claude --worktree` / `EnterWorktree`
- * in every repo (see {@link ensureGlobalKobeHooks}). The command now only cleans
- * up any previously-installed hook; sync is automatic on the daemon side.
+ * `kobe hook setup` — DEPRECATED. External-worktree-sync was configured with a
+ * global `WorktreeCreate` hook, which breaks `claude --worktree` /
+ * `EnterWorktree` in every repo (see {@link ensureGlobalKobeHooks}). The command
+ * only cleans up an installed hook; sync is automatic on the daemon side.
  */
 async function runHookSetup(_argv: readonly string[]): Promise<void> {
   await cleanupWorktreeSyncHook()

@@ -140,7 +140,7 @@ export interface EngineSessionLaunch {
   /**
    * When the launch includes a repo-init script, this is the marker file the
    * script creates on success. Paste-delivery spawners wait for it before
-   * starting the engine-startup timer (issue #73).
+   * starting the engine-startup timer.
    */
   readonly initMarkerPath?: string
   /**
@@ -187,7 +187,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
     dispatcherTaskId,
     gates?.dispatcher,
   )
-  // Paste-delivery vendors (kimi — issue #25) must NOT see the first message
+  // Paste-delivery vendors (kimi) must NOT see the first message
   // in their argv: their positional slot is a subcommand, so the text would
   // kill the launch as an unknown command. The spawner pastes it instead
   // (see EngineSessionLaunch.firstMessage).

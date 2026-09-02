@@ -81,8 +81,8 @@ describe("isComposerEmpty", async () => {
     // and in a 12-row buffer those wrapped around and fused rows together
     // (`──⏵⏵ bypass permissions on …` — a rule and the hint row in one line).
     // A \r\n-joined fixture cannot reproduce it: it renders identically at 12
-    // and 60 rows, which is why the first version of this test passed against
-    // the very constant it was meant to pin.
+    // and 60 rows, so it would pass against the very constant it is meant to
+    // pin.
     const E = String.fromCharCode(27)
     const parts: string[] = []
     for (let i = 0; i < 40; i++) parts.push(`\r${E}[2C${E}[1Boutput line ${i}`)

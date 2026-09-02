@@ -1,5 +1,5 @@
 /**
- * Claude Code plugin takeover detection (issue #37, migration hard-gate).
+ * Claude Code plugin takeover detection — the migration hard-gate.
  *
  * Once the user installs the Rove Claude Code plugin (`claude-plugin/` in this
  * repo, enabled as `rove@<marketplace>` in `~/.claude/settings.json`), the

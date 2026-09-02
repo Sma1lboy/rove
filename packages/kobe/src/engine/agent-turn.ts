@@ -1,5 +1,5 @@
 /**
- * `AgentTurn` — the engine-owned per-turn attribution record (issue #32).
+ * `AgentTurn` — the engine-owned per-turn attribution record.
  *
  * One record per completed agent turn: which model ran, how long it took,
  * what it cost in tokens. The engine adapter is the ONLY thing that knows
@@ -20,8 +20,8 @@ import type { EngineUsageSnapshot } from "@/types/engine"
 
 export interface AgentTurn {
   /**
-   * Vendor-stable identity for this turn, used to dedupe repeated reads of
-   * the same transcript (the hook fires on every Stop, and a transcript is
+   * Vendor-stable identity for this turn: the dedupe key for repeated reads
+   * of the same transcript (the hook fires on every Stop, and a transcript is
    * re-read from the top each time). Claude uses the turn's last assistant
    * `message.id`; another vendor may use whatever it persists — the only
    * contract is that the SAME turn yields the SAME id across reads.

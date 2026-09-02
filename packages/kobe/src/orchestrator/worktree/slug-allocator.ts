@@ -1,8 +1,8 @@
 /**
  * Allocate animal-name slugs for worktree directories.
  *
- * Replaces the old "directory = task ULID" scheme (which produced 26-
- * char dir names that overflowed the terminal pane). The new shape is:
+ * A directory is named for a slug, not the task's ULID — a 26-char dir name
+ * overflows the terminal pane. The shape is:
  *
  *   ~/.rove/worktrees/<repo-key>/panda/
  *   ~/.rove/worktrees/<repo-key>/panda-v2/   # if `panda` was recycled

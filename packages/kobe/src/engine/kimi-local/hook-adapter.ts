@@ -149,9 +149,8 @@ export function mergeKimiHooks(
  *     included, which is why the class name alone is not enough).
  *   - `error_message` carries a `[provider.*]` code prefix from Kimi's own
  *     ErrorCodes — `provider.rate_limit` for a limit, and
- *     `provider.auth_error` for the 403 in the 2026-08-30 incident
- *     ("You've reached your 5-hour usage limit"), which Kimi files under
- *     AUTH but is a quota wall.
+ *     `provider.auth_error` for the 403 that carries "You've reached your
+ *     5-hour usage limit", which Kimi files under AUTH but is a quota wall.
  *
  * `billing`, not `rate_limit`, for the auth/quota-wall case: it needs a human
  * (re-auth, or a plan change), and the daemon deliberately does NOT arm a
@@ -186,9 +185,8 @@ export class KimiHookAdapter implements EngineHookAdapter {
   /** Kimi's stdin payload spells tool fields `tool_name`; the permission
    *  event is always a permission (Kimi has no elicitation notification).
    *  `turn-failed` classifies the StopFailure — without it every Kimi
-   *  failure reduced to `error` and Kimi could never reach `rate_limited`
-   *  (so it never armed auto-resume), which is exactly what happened when
-   *  Kimi hit its 5-hour limit on 2026-08-30. */
+   *  failure reduces to `error`, Kimi can never reach `rate_limited`, and
+   *  auto-resume is never armed when Kimi hits its 5-hour limit. */
   activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
@@ -228,7 +226,7 @@ export class KimiHookAdapter implements EngineHookAdapter {
   }
 
   async removeWorktreeWatchHook(): Promise<void> {
-    /* Never installed the retired PostToolUse watch hook. */
+    /* Kimi never installed the PostToolUse watch hook. */
   }
 }
 

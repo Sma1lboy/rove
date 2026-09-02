@@ -260,7 +260,7 @@ describe("RemoteOrchestrator channel handling", () => {
     })
   })
 
-  // `worktree.changes` — the daemon-collected `+N −M` map (issue #6). Each
+  // `worktree.changes` — the daemon-collected `+N −M` map. Each
   // push REPLACES the whole map (the daemon publishes the full picture and
   // prunes deleted tasks' entries itself), so unlike engine-state
   // there's no snapshot reconciliation — but unchanged pushes must still be
