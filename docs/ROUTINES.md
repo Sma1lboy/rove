@@ -66,6 +66,18 @@ rove api routine-run-now --id <id>          # fire it now, skipping the precheck
 rove api routine-runs --id <id>             # run history, newest first
 ```
 
+A prompt with backticks, `$vars` or quotes goes through `--prompt-file`
+(`-` reads stdin), the same escape hatch `send` and `add` have. Inside double
+quotes the shell runs a backticked command and ships its output instead of the
+words:
+
+```bash
+rove api routine-create --repo . --name "Morning reply" --schedule "0 9 * * *" \
+  --persistent-session --prompt-file - <<'EOF'
+Reply via `rove api send --task-id $ROVE_TASK_ID` with what changed overnight.
+EOF
+```
+
 Full flag list: `rove api schema --group routine`, or [rove api](API.md).
 
 ## Reading the page
