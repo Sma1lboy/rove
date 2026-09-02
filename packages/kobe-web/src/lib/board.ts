@@ -13,8 +13,8 @@
  * affordance) but the task itself is NOT a card here (docs/design/web-kanban.md).
  */
 
+import type { Issue, RepoIssues } from "./issues.ts"
 import { textMatchesQuery } from "./text-match.ts"
-import type { Issue, RepoIssues } from "./types.ts"
 
 /**
  * One card on the board: always an issue, carrying its source `repo` so
@@ -89,7 +89,9 @@ export function issueColumnKey(issue: Issue): string {
   return "backlog"
 }
 
-/** True when an issue is linked to a task — drives the "open task" affordance. */
+/** True when an issue is linked to a task — drives the "open task" affordance,
+ *  and a LIVE task here hides the issue from the unified board (the task card
+ *  represents it). */
 export function isLinkedIssue(issue: Issue): boolean {
   return issue.taskId !== undefined && issue.taskId !== ""
 }

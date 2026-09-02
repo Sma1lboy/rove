@@ -6,6 +6,11 @@
  */
 
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
+import type {
+  Issue,
+  IssueStatus,
+  RepoIssues,
+} from "@sma1lboy/kobe-daemon/daemon/issues-store"
 // One implementation of the story prompts, shared with the TUI
 // (`kobe/src/state/issue-chat.ts`). The copies these two files kept by hand
 // had already drifted apart.
@@ -37,26 +42,14 @@ async function fetchKobeApiInvocation(): Promise<string> {
     : DEFAULT_CLI_API
 }
 
-export type IssueStatus = "open" | "doing" | "hold" | "done"
-
-export interface Issue {
-  id: number
-  title: string
-  status: IssueStatus
-  created: string
-  body: string
-  /** Task this issue was quick-started into — kept in sync with the web
-   *  Task interface (lib/types.ts). A live task here hides the issue from the
-   *  unified board. */
-  taskId?: string
-}
-
-export interface RepoIssues {
-  repoRoot: string
-  exists: boolean
-  nextId: number
-  issues: Issue[]
-}
+/** The daemon's own issue shape, re-exported so the web keeps importing
+ *  these from `lib/issues.ts`. They used to be hand-copied here and in
+ *  `lib/types.ts`, which is two places for a field the daemon adds. */
+export type {
+  Issue,
+  IssueStatus,
+  RepoIssues,
+} from "@sma1lboy/kobe-daemon/daemon/issues-store"
 
 export async function fetchProjects(): Promise<string[]> {
   const data = await api.get<{ projects?: unknown }>("/api/projects", {
@@ -336,7 +329,11 @@ export async function quickStartIssue(
   setActiveTaskBestEffort(taskId)
   const api = await fetchKobeApiInvocation().catch(() => DEFAULT_CLI_API)
   const tabId = ensureEngineTab(taskId)
-  await sendPtyText(tabId, taskId, issueWorktreePrompt(issue, api, displayProductName()))
+  await sendPtyText(
+    tabId,
+    taskId,
+    issueWorktreePrompt(issue, api, displayProductName()),
+  )
   return { taskId }
 }
 
@@ -412,7 +409,11 @@ export async function startIssueChat(
     )
     setActiveTaskBestEffort(mainId)
     const tabId = addTab(mainId, taskId)
-    await sendPtyText(tabId, taskId, issueWorktreePrompt(issue, api, displayProductName()))
+    await sendPtyText(
+      tabId,
+      taskId,
+      issueWorktreePrompt(issue, api, displayProductName()),
+    )
     return { taskId, workspaceTaskId: mainId }
   }
   // `project` — no worktree, no task link: the engine runs on the checkout.
