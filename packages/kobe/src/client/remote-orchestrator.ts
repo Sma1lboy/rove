@@ -140,8 +140,8 @@ export {
 export type KobeOrchestrator = Orchestrator | RemoteOrchestrator
 
 export class RemoteOrchestrator {
-  private readonly tasksAcc = createStateCell<Task[]>([])
-  private readonly activeTaskAcc = createStateCell<string | null>(null)
+  private readonly tasksAcc = createStateCell<Task[]>([], "orchestrator.tasks")
+  private readonly activeTaskAcc = createStateCell<string | null>(null, "orchestrator.active-task")
   private readonly updateAcc = createStateCell<UpdateInfo | null>(null)
   private readonly daemonVersionAcc = createStateCell<string | null>(null)
   private readonly daemonStaleAcc = mapReadableState(this.daemonVersionAcc, (version) =>
@@ -161,7 +161,7 @@ export class RemoteOrchestrator {
   private readonly engineLifecycleAcc = createStateCell<EngineLifecycleMap>(new Map())
   private readonly uiPrefsAcc = createStateCell<UiPrefsPayload | null>(null)
   private readonly keybindingsRevAcc = createStateCell<number | null>(null)
-  private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online")
+  private readonly connectionStateAcc = createStateCell<DaemonConnectionState>("online", "orchestrator.connection")
   /** Set once, by the reconnect loop giving up — see {@link staleInstallSignal}. */
   private readonly staleInstallAcc = createStateCell<string | null>(null)
   private readonly ensureReachable: () => Promise<unknown>

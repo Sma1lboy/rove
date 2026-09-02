@@ -34,7 +34,7 @@ export const tabsByTask = new Map<string, TabsState>()
 /** Bumped on every `tabsByTask` write — the subscribable half of the map, so
  *  a React surface reading it re-renders when it changes. Cheap: a counter,
  *  not a copy of the state; readers still go to the map for the value. */
-export const tabsRevision = createStateCell(0)
+export const tabsRevision = createStateCell(0, "tabs.revision")
 
 /** Write a task's tab state AND notify React readers. */
 export function setTaskTabs(taskId: string, state: TabsState): void {

@@ -38,7 +38,9 @@ const result = await Bun.build({
   entrypoints: ["./src/cli/rove.ts"],
   conditions: ["browser"],
   external: ["node-pty"],
-  minify: true,
+  // Keep React component names readable in pane-crash diagnostics while
+  // still minifying syntax and whitespace.
+  minify: { syntax: true, whitespace: true, identifiers: false },
   // Same reason as build.ts: default NODE_ENV is "development", which ships
   // React's development reconciler and its per-update debug bookkeeping (#307).
   define: { "process.env.NODE_ENV": JSON.stringify("production") },

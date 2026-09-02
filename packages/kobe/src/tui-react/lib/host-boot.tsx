@@ -32,9 +32,10 @@ import {
   setClientLogContext,
 } from "@sma1lboy/kobe-daemon/client/client-log"
 import type { UiPrefsPayload } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { Component, type ReactNode, useEffect } from "react"
+import { Component, type ErrorInfo, type ReactNode, useEffect } from "react"
 import { connectPaneOrchestrator } from "../../client/connect-pane-orchestrator"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { recentStateChangesForDiagnostics } from "../../lib/external-store"
 import { applyUserKeybindings, reloadUserKeybindings } from "../../tui/context/keybindings-user"
 import { loadUserThemes } from "../../tui/context/theme/loader"
 import { type UiPrefsTarget, applyUiPrefs } from "../../tui/lib/apply-ui-prefs"
@@ -173,12 +174,10 @@ function UiPrefsSync() {
   return null
 }
 
-/** Themed crash fallback — logs once, paints a minimal placeholder. */
-function PaneCrashFallback(props: { error: unknown }) {
+/** Themed crash fallback. Logging belongs to componentDidCatch below because
+ *  that is the only React boundary callback carrying the component stack. */
+function PaneCrashFallback() {
   const { theme } = useTheme()
-  useEffect(() => {
-    logClientError("pane-crash", props.error)
-  }, [props.error])
   return (
     <box flexDirection="column" flexGrow={1} backgroundColor={theme.background} paddingLeft={1} paddingTop={1} gap={1}>
       <text fg={theme.error}>{t("common.paneCrash.title")}</text>
@@ -187,18 +186,32 @@ function PaneCrashFallback(props: { error: unknown }) {
   )
 }
 
+/** Preserve the ordinary error stack, then add React ownership and the last
+ *  bounded state transitions. State summaries contain shapes/counts only. */
+export function formatPaneCrashDiagnostic(error: unknown, info: ErrorInfo): string {
+  const base = error instanceof Error ? (error.stack ?? error.message) : String(error)
+  const componentStack = info.componentStack?.trim() || "(unavailable)"
+  const stateChanges = recentStateChangesForDiagnostics()
+  return `${base}\nReact component stack:\n${componentStack}\nRecent state changes:\n${
+    stateChanges.length > 0 ? stateChanges.join("\n") : "(none recorded)"
+  }`
+}
+
 /**
  * React's boundary primitive is still a class component. Catches render
  * errors from the host's view tree; fire-and-forget rejections are covered
  * by `installClientCrashHandlers`, same split as the Solid host.
  */
-class PaneErrorBoundary extends Component<{ children?: ReactNode }, { error: unknown | null }> {
+export class PaneErrorBoundary extends Component<{ children?: ReactNode }, { error: unknown | null }> {
   override state: { error: unknown | null } = { error: null }
   static getDerivedStateFromError(error: unknown) {
     return { error }
   }
+  override componentDidCatch(error: unknown, info: ErrorInfo): void {
+    logClientError("pane-crash", formatPaneCrashDiagnostic(error, info))
+  }
   override render() {
-    if (this.state.error !== null) return <PaneCrashFallback error={this.state.error} />
+    if (this.state.error !== null) return <PaneCrashFallback />
     return this.props.children
   }
 }
