@@ -77,15 +77,6 @@ beforeAll(() => {
   fs.mkdirSync(process.env.KOBE_HOME_DIR, { recursive: true })
   repo = path.join(root, "repo")
   worktree = path.join(root, "wt")
-  // A wrapper preset registered the way every pre-`engineProtocol` one is on
-  // disk: a command and a name, NO `engineProtocol.claudecpa`. That absence is
-  // the bug under test, so the fixture must not paper over it.
-  const stateDir = path.join(process.env.KOBE_HOME_DIR as string, ".config", "rove")
-  fs.mkdirSync(stateDir, { recursive: true })
-  fs.writeFileSync(
-    path.join(stateDir, "state.json"),
-    JSON.stringify({ customEngineIds: ["claudecpa"], "engineCommand.claudecpa": "claudecpa" }),
-  )
   fs.mkdirSync(repo)
   git(repo, "init", "-b", "main")
   git(repo, "commit", "--allow-empty", "-m", "init")
@@ -182,29 +173,46 @@ describe("requestNewChat dispatch", () => {
     const projectDir = path.join(process.env.CLAUDE_CONFIG_DIR as string, "projects", encodeCwd(worktree))
     fs.mkdirSync(projectDir, { recursive: true })
     fs.writeFileSync(path.join(projectDir, "wrapped.jsonl"), "{}\n")
+    // A wrapper preset registered the way every pre-`engineProtocol` one is on
+    // disk: a command and a name, NO `engineProtocol.claudecpa`. That absence is
+    // the bug under test, so the fixture must not paper over it.
+    //
+    // Scoped to THIS test, not the file: custom engines are always offered, so
+    // a registration left standing changes what the picker highlights for
+    // everyone else — and on a runner with no claude binary it becomes the only
+    // entry, which is how it broke the two neighbours that assert on "claude".
+    const statePath = path.join(process.env.KOBE_HOME_DIR as string, ".config", "rove", "state.json")
+    fs.mkdirSync(path.dirname(statePath), { recursive: true })
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ customEngineIds: ["claudecpa"], "engineCommand.claudecpa": "claudecpa" }),
+    )
+    try {
+      const { frame, mockInput, captured } = await mountFlow({
+        // The reported shape: launched as claudecpa, walked to claude, no pin.
+        tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "claudecpa", liveVendor: "claude" }],
+        activeId: "tab-1",
+        nextOrdinal: 2,
+      })
+      act(() => captured.request({ context: "continue" }))
+      await waitForFrameText(frame, "continue this conversation")
+      act(() => mockInput.pressEnter())
+      await waitFor(() => captured.updates.length > 0 || captured.errors.length > 0)
+      expect(captured.errors).toHaveLength(0)
 
-    const { frame, mockInput, captured } = await mountFlow({
-      // The reported shape: launched as claudecpa, walked to claude, no pin.
-      tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "claudecpa", liveVendor: "claude" }],
-      activeId: "tab-1",
-      nextOrdinal: 2,
-    })
-    act(() => captured.request({ context: "continue" }))
-    await waitForFrameText(frame, "continue this conversation")
-    act(() => mockInput.pressEnter())
-    await waitFor(() => captured.updates.length > 0 || captured.errors.length > 0)
-    expect(captured.errors).toHaveLength(0)
-
-    const next = captured.updates[0]!
-    const forked = next.tabs[1]!
-    // Still LAUNCHES the preset the user picked; only the protocol is claude's.
-    expect(forked).toMatchObject({ kind: "engine", engineCommand: "claudecpa", vendor: "claude" })
-    expect(engineTabArgv(forked as EngineTab, ["claudecpa"], false)).toEqual([
-      "claudecpa",
-      "--resume",
-      "wrapped",
-      "--fork-session",
-    ])
+      const next = captured.updates[0]!
+      const forked = next.tabs[1]!
+      // Still LAUNCHES the preset the user picked; only the protocol is claude's.
+      expect(forked).toMatchObject({ kind: "engine", engineCommand: "claudecpa", vendor: "claude" })
+      expect(engineTabArgv(forked as EngineTab, ["claudecpa"], false)).toEqual([
+        "claudecpa",
+        "--resume",
+        "wrapped",
+        "--fork-session",
+      ])
+    } finally {
+      fs.rmSync(statePath, { force: true })
+    }
   })
 
   test("fork+fresh opens the QuickTaskComposer; submit reaches onQuickFork", async () => {
