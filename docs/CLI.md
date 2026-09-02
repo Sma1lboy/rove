@@ -303,7 +303,8 @@ rove doctor [--report] [--fix]
 ```
 
 Read-only check of your build, terminal, git, engine CLIs and logins, daemon,
-running sessions, agent skill, and state files. The terminal section names
+running sessions, node-pty's macOS `spawn-helper` exec bit, agent skill, and
+state files. The terminal section names
 `TERM`/`TERM_PROGRAM`/`COLORTERM`, whether you are inside a multiplexer (tmux,
 zellij, screen — all three rewrite keys on the way in), and asks the terminal
 live whether it speaks the kitty keyboard protocol. That last answer settles
@@ -320,7 +321,8 @@ and prints its path; attach that to bug reports.
 
 - **Safe fixes run after a per-fix `y/N`** — each shows the exact command
   before asking (e.g. `rove daemon restart` for a stale/dead daemon or a dead
-  hook channel, `rove skill install` for a missing/stale agent skill). Nothing
+  hook channel, `rove skill install` for a missing/stale agent skill, `chmod
+  755` on a node-pty `spawn-helper` that lost its exec bit). Nothing
   is batched; declining one fix never skips the next prompt.
 - **Risky remedies are printed, never executed** — anything that kills live
   sessions (`rove reset`, closing engine tabs) or needs a human (installing

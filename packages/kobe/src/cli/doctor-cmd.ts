@@ -30,8 +30,10 @@ import {
   reinstallManualFix,
   resetManualFix,
   skillInstallFix,
+  spawnHelperFix,
 } from "./doctor-fix.ts"
 import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
+import { installedSpawnHelpers, spawnHelperDoctorLines } from "./doctor-node-pty.ts"
 import { terminalDoctorLines } from "./doctor-terminal.ts"
 import { probeEngines, probeGit } from "./env-checks.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
@@ -290,6 +292,14 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
         : "         node: ✗ not found on PATH — the Windows PTY host cannot start\n         → install Node.js from https://nodejs.org",
     )
     if (!node) fixes.push(humanOnlyFix("windowsNode"))
+  }
+  // macOS: node-pty@1.1.0 ships spawn-helper at 0644 (issue #85). The root
+  // postinstall restores +x on install; a tree from before that fix keeps
+  // failing every node-pty spawn with nothing on screen, so name it here.
+  if (process.platform === "darwin") {
+    const helpers = spawnHelperDoctorLines(installedSpawnHelpers())
+    out.push(...helpers.lines)
+    if (helpers.broken.length > 0) fixes.push(spawnHelperFix(helpers.broken))
   }
   out.push("")
 
