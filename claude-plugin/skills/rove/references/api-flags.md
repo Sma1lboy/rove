@@ -9,6 +9,11 @@ Authoritative source is still the binary — `rove api schema --verb <name>` or
 `rove api <verb> --help`. Read that when this file and a rejection disagree;
 the CLI is what ships.
 
+Every fenced block below is GENERATED from the same verb specs `schema`
+serves (`bun scripts/gen-skill-api-flags.ts`); the prose between them is
+written by hand. Notation: `(REQ)` required, `(x)` the default when the flag is
+omitted, `{a|b}` the allowed values, `--a|--b` two spellings of one choice.
+
 Global: `--pretty` (readable JSON), `--help` (usage, exit).
 Every `--repo` resolves relative paths against `$PWD` and wants the git toplevel.
 
@@ -52,24 +57,32 @@ Seeing one of these in guidance means that guidance predates the rename —
 
 ## read
 
+<!-- generated:begin read -->
 ```text
-list          (none)                     every task
-get-task      --task-id(REQ)             one task + .tabs[] — the read before `send --tab`
-collect       --task-ids <csv> --repo    comparison snapshot across tasks
-inspect       --task-id                  daemon activity + pty walk + tab snapshots
-pty-list      (none)                     live hosted PTYs: key, alive, pid, command, OSC title
-read-output   --task-id --tab --source[auto|history|terminal] --cursor --limit
-digest        --repo(REQ) --since-days(7)
-agent-turns   --task-id --repo --since-days(7) --limit(200)
+list         (none)
+get-task     --task-id(REQ)
+pty-list     (none)
+collect      --task-ids <a,b,c> --group --repo
+digest       --repo(REQ) --since-days(7)
+agent-turns  --task-id --repo --since-days(7) --limit(200)
+inspect      --task-id
+read-output  --task-id --tab --source{auto|history|terminal}(auto) --cursor --limit(40)
 ```
+<!-- generated:end -->
+
+`get-task` is the read before `send --tab` — one task plus its `.tabs[]`.
+`collect` is the comparison snapshot across tasks: pass `--group <groupId>`
+(what `add --count` returned), a `--task-ids` csv, or a `--repo`; `inspect` is
+the wider diagnostic — daemon activity, a pty walk, and every tab snapshot.
 
 `pty-list` is what `NO_ENGINE_TAB`'s hint points at: when `.tabs[]` and reality
-disagree, it is the ground truth for what is actually alive.
+disagree, it is the ground truth for what is actually alive — key, alive, pid,
+command, OSC title.
 
-`read-output --limit` maxes at 50 (default 40). `--tab` is terminal-only —
-it cannot combine with `--source history`. The cursor is pinned to one
-source/session/tab; a moved target returns `SOURCE_CHANGED` rather than
-silently paging something else.
+`read-output --limit` maxes at 50. `--tab` is terminal-only — it cannot combine
+with `--source history`. The cursor is pinned to one source/session/tab; a
+moved target returns `SOURCE_CHANGED` rather than silently paging something
+else.
 
 `digest` and `agent-turns` are the measurement reads — `digest` aggregates a
 repo's recent task + routine activity, `agent-turns` is per-turn telemetry
@@ -78,23 +91,32 @@ needs numbers, not when you want to know what a task is doing.
 
 ## drive
 
+<!-- generated:begin drive -->
 ```text
-send        --prompt|--prompt-file(REQ) --task-id --tab --command --plain
-dispatch    --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-note        --task-id(REQ) --text(REQ)
-note-list   --repo(REQ)
-pane-open   --command --task-id --tab --direction[right|down] --placement[split|tab] --title
-pane-close  --title(REQ) --task-id --tab
-notify      --title(REQ) --kind --task-id --source
-prompt      --title(REQ) --placeholder --initial --timeout
-set-active  --task-id | --none
+send           --task-id --prompt|--prompt-file(REQ) --tab --command --plain --allow-empty
+dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
+note           --task-id(REQ) --text(REQ)
+note-list      --repo(REQ)
+pane-open      --task-id --tab --command --direction{right|down}(right)
+               --placement{split|tab}(split) --title
+pane-close     --task-id --title(REQ) --tab
+tab-close      --task-id(REQ) --tab(REQ)
+notify         --title(REQ) --kind(done) --task-id --source
+prompt         --title(REQ) --placeholder --initial --timeout
+engine-report  --task-id --kind(REQ) --engine --tab --detail
+set-active     --task-id --none
 ```
+<!-- generated:end -->
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes
 (every future session on this repo starts with them) AND relayed to the
 dispatcher. Read them back with `note-list --repo`. This is the right home for
 a resolved gotcha; an issue is for work that still needs doing.
+
+`send --allow-empty` is the escape hatch for a `succeeded:` report from a task
+that legitimately produced no commits (an investigation, a review, a question
+answered); without it such a report is refused with `EMPTY_SUCCESS_REPORT`.
 
 `notify --kind` styles the toast: `done`, `needs_input`, `error` get severity
 treatment and an unread mark, anything else renders neutrally.
@@ -106,18 +128,42 @@ treatment and an unread mark, anything else renders neutrally.
 `pane-open --command` runs through the login shell's `-ilc`, so pipes and
 your rc's PATH work.
 
+`tab-close` names one exact Terminal Tab from `get-task .tabs[].id`. Unlike
+`pane-close`, it also works headless: it removes the persisted tab snapshot
+and ends that tab's hosted PTYs. It accepts engine, shell/command, and content
+tabs; closing the last tab leaves the task open with no session. A missing or
+already-closed id returns `TAB_NOT_FOUND` and points back to `get-task`.
+
+`engine-report` is the engine adapter's own channel for reporting a session
+event (`--kind`) back to the daemon — not a verb you reach for by hand.
+
+`set-active` takes one or the other: a `--task-id` to focus, or `--none` to
+clear the shared active task.
+
 ## create / edit / lifecycle
 
+<!-- generated:begin create,edit,lifecycle -->
 ```text
-add            --repo(REQ) + the hot-path flags above
-rename         --task-id(REQ) --title(REQ)
-set-branch     --task-id(REQ) --branch(REQ)
-set-command    --task-id(REQ) --command(REQ)      next launch only
-set-status     --task-id(REQ) --status(REQ)[backlog|in_progress|in_review|done|canceled|error]
-pin            --task-id(REQ) --pinned(true)
-land           --task-id(REQ) --strategy[merge|squash] --delete-branch --remove-worktree(true)
-delete         --task-id(REQ) --force --delete-branch
+add          --repo(REQ) --title --branch --base-branch --command --count
+             --agents <claude:2,codex:1>
+             --status{backlog|in_progress|in_review|done|canceled|error}(backlog) --pin
+             --activate(false) --prompt|--prompt-file
+rename       --task-id(REQ) --title(REQ)
+set-branch   --task-id(REQ) --branch(REQ)
+set-command  --task-id(REQ) --command(REQ)
+set-effort   --task-id(REQ) --level(REQ)
+set-status   --task-id(REQ)
+             --status{backlog|in_progress|in_review|done|canceled|error}(REQ)
+pin          --task-id(REQ) --pinned(true)
+land         --task-id(REQ) --strategy{merge|squash}(merge) --delete-branch
+             --remove-worktree(true)
+delete       --task-id(REQ) --force --delete-branch --wait
 ```
+<!-- generated:end -->
+
+`set-command` takes effect on the NEXT launch only. `set-effort --level` is
+engine-owned — the levels a vendor accepts come from its registry entry, so
+check `engine-list` rather than guessing.
 
 Task `--status` and issue `--status` are DIFFERENT enums — a task is
 `backlog|in_progress|in_review|done|canceled|error`, an issue is
@@ -128,22 +174,29 @@ ahead (`EMPTY_BRANCH`; `EMPTY_BRANCH_DIRTY_WORKTREE` when the worktree still
 holds the uncommitted work, with a send-back recovery path). Conflict aborts
 cleanly and returns the conflicted files.
 
+`delete --wait` is what turns "queued" into an answer — without it the call
+returns before the worktree is gone.
+
 ## worktree
 
+<!-- generated:begin worktree -->
 ```text
-ensure-worktree      --task-id(REQ)
-discover-adoptable   --repo(REQ)
-adopt                --repo(REQ) --worktree(REQ) --branch --title --command
+ensure-worktree     --task-id(REQ)
+discover-adoptable  --repo(REQ)
+adopt               --repo(REQ) --worktree(REQ) --branch --command --title
 ```
+<!-- generated:end -->
 
 ## issues (daemon-owned)
 
+<!-- generated:begin issues -->
 ```text
 issue-list        --repo(REQ)
 issue-create      --repo(REQ) --title(REQ) --body
-issue-update      --repo(REQ) --id(REQ,int) --title --body --task
-issue-set-status  --repo(REQ) --id(REQ,int) --status(REQ)[open|doing|hold|done]
+issue-set-status  --repo(REQ) --id(REQ) --status{open|doing|hold|done}(REQ)
+issue-update      --repo(REQ) --id(REQ) --title --body --task
 ```
+<!-- generated:end -->
 
 `--id` is an int, not the ULID a task uses. `issue-update --task <taskId>` is
 the kanban "move to In progress"; `--task none` unlinks. Kanban semantics are
@@ -154,15 +207,19 @@ in SKILL.md — do not move cards with `issue-set-status doing`.
 Read-only against the repo's real GitHub issues; nothing is copied into Rove's
 own store. These are the INBOUND user reports; Rove issues are the backlog.
 
+<!-- generated:begin workitems -->
 ```text
-workitem-list   --repo(REQ) --state[open|closed|all] --limit(20,max 50) --search --assignee --label
-workitem-start  --repo(REQ) --number(REQ,int) --vendor --base-branch
+workitem-list   --repo(REQ) --state{open|closed|all}(open) --limit(20) --search --assignee
+                --label
+workitem-start  --repo(REQ) --number(REQ) --vendor{claude|codex|copilot|kimi}
+                --base-branch
 ```
+<!-- generated:end -->
 
-`workitem-start` creates a worktree + engine whose first message carries the
-issue title, body, and URL, and keeps a link back to the issue. Note it takes
-`--vendor` (an engine enum), not `--command` — the one place the older
-vocabulary survives.
+`workitem-list --limit` caps at 50. `workitem-start` creates a worktree +
+engine whose first message carries the issue title, body, and URL, and keeps a
+link back to the issue. Note it takes `--vendor` (an engine enum), not
+`--command` — the one place the older vocabulary survives.
 
 ## routines (scheduled prompts)
 
@@ -173,18 +230,21 @@ turn of the same conversation (a Claude Code-style routine: one window, one
 vendor, messages keep arriving). An enabled routine holds the daemon alive so
 it fires with no TUI attached.
 
+<!-- generated:begin routine -->
 ```text
 routine-list         (none)
-routine-create       --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
-                     --vendor --base-branch --precheck --precheck-timeout(120) --grace(60)
-                     --persistent-session --disabled
-routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor --base-branch
-                     --precheck --precheck-timeout --grace --persistent-session
-routine-set-enabled  --id(REQ) --enabled(REQ,bool)
+routine-create       --repo(REQ) --name(REQ) --prompt(REQ) --schedule(REQ)
+                     --vendor{claude|codex|copilot|kimi} --base-branch --precheck
+                     --precheck-timeout(120) --grace(60) --persistent-session --disabled
+routine-update       --id(REQ) --name --prompt --schedule
+                     --vendor{claude|codex|copilot|kimi} --base-branch --precheck
+                     --precheck-timeout(120) --grace(60) --persistent-session
+routine-set-enabled  --id(REQ) --enabled(REQ)
 routine-delete       --id(REQ)
 routine-run-now      --id(REQ)
 routine-runs         --id(REQ)
 ```
+<!-- generated:end -->
 
 `--schedule` is five-field cron in the DAEMON HOST's local time
 (`'0 9 * * MON-FRI'`). `--precheck` is a shell command run in the repo before
@@ -205,9 +265,14 @@ is gone when the next firing arrives (an overnight gap usually means it is),
 the daemon respawns it in the SAME worktree — files and branch carry over, the
 conversation does not — and records that run as `revived`, not `dispatched`.
 
-`--prompt-file` (`-` = stdin) is the same escape hatch as `send`'s: a prompt
-with backticks, `$vars` or quotes goes through it, never a double-quoted
-`--prompt`.
+**Routines take `--prompt` only.** Unlike `send`/`add`/`dispatch` there is no
+`--prompt-file` here, so a prompt with backticks, `$vars` or quotes has no
+escape hatch — write it with single quotes and keep `$` out of it, or set it
+from the TUI.
+
+A bare `--enabled` means true, so pausing a routine is
+`routine-set-enabled --id <id> --enabled=false` (the same `=false` spelling
+`pin --pinned=false` uses).
 
 `routine-update --schedule` re-anchors the next run. `--precheck ''` clears it.
 `routine-run-now` skips the precheck deliberately (asking for it IS the answer)
@@ -221,11 +286,17 @@ prompt is queued in the Inbox, NOT lost), `skipped_precheck` (nothing to do),
 
 ## discover / feedback
 
+<!-- generated:begin discover,feedback -->
 ```text
-schema        --verb <name> | --group <g> | --all      (bare = compact index)
-engine-list   (none)                                   ids + RAW launch command + protocol
-feedback      --title(REQ) --body(REQ) --category(feedback)
+schema       --verb --group --all
+engine-list  (none)
+feedback     --title(REQ) --body(REQ) --category(feedback)
 ```
+<!-- generated:end -->
+
+Bare `schema` is the compact index; `--verb <name>` drills into one verb,
+`--group <g>` lists one group, `--all` dumps everything. `engine-list` is the
+ids + RAW launch command + protocol.
 
 `feedback` opens a GitHub Discussion in the Rove repo through `gh` — Rove's own
 product feedback channel, not a way to file work for another project (that is
@@ -242,6 +313,8 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 | `BAD_FLAG` | flag not on that verb | check the table above, then `schema --verb <v>` |
 | `TASK_NOT_FOUND` | id deleted or mistyped | `rove api list` |
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
+| `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
 | `DISPATCHER_UNREACHABLE` | bare `send` reply, dispatcher gone | nothing alive to reply to — never silently spawns |
+| `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |

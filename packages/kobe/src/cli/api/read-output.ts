@@ -415,6 +415,7 @@ export const READ_OUTPUT_VERB: VerbSpec = {
       name: "limit",
       type: "int",
       placeholder: "N",
+      default: String(DEFAULT_PAGE_MESSAGES),
       description: `History messages per page (default ${DEFAULT_PAGE_MESSAGES}, max ${MAX_PAGE_MESSAGES}).`,
     },
   ],
