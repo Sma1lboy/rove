@@ -93,7 +93,14 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   // exactly like the `ahead: null` it returns for an unresolvable base.
   let ahead: number | null
   try {
-    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath)).ahead
+    // Paired with `collect`'s read in handlers-fanout.ts: both measure against
+    // the task's RECORDED base (`add --base-branch`), never the origin/main
+    // guess. Reading against the guess produced BOTH failure modes at once on
+    // a task cut from `release/2.x` two commits ahead of `main`: an empty
+    // branch read `ahead: 2` (the guard let a hollow success through), and a
+    // HEAD behind the guessed base read a false positive — the exact
+    // "false POSITIVE blocks a worker" case the paragraph above warns against.
+    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath, sender.baseRef)).ahead
   } catch {
     return
   }
