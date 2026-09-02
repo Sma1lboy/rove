@@ -17,6 +17,7 @@ vi.mock("../../src/engine/account-detect", () => ({
 import type { KobeOrchestrator } from "../../src/client/remote-orchestrator"
 import {
   type TaskActionContext,
+  copyTaskFieldFlow,
   cycleVendorFlow,
   renameBranchFlow,
   renameTaskFlow,
@@ -62,16 +63,20 @@ function makeCtx(opts: {
    *  `pickStatus` unwired, the shape a host without the dialog has. */
   pickStatusResult?: TaskStatus | undefined
   wirePickStatus?: boolean
+  /** Same shape as `wirePickStatus`: false = a host with no clipboard writer. */
+  wireCopyText?: boolean
 }): {
   ctx: TaskActionContext
   promptText: ReturnType<typeof vi.fn>
   pickStatus: ReturnType<typeof vi.fn>
+  copyText: ReturnType<typeof vi.fn>
   notifyError: ReturnType<typeof vi.fn>
   notifyInfo: ReturnType<typeof vi.fn>
   reload: ReturnType<typeof vi.fn>
 } {
   const promptText = vi.fn(async () => opts.promptTextResult)
   const pickStatus = vi.fn(async () => opts.pickStatusResult)
+  const copyText = vi.fn()
   const notifyError = vi.fn()
   const notifyInfo = vi.fn()
   const reload = vi.fn(async () => {})
@@ -81,13 +86,14 @@ function makeCtx(opts: {
     confirm: async () => true,
     promptText,
     ...(opts.wirePickStatus === false ? {} : { pickStatus }),
+    ...(opts.wireCopyText === false ? {} : { copyText }),
     logger: { error: vi.fn() },
     logPrefix: "[test]",
     notifyError,
     notifyInfo,
     reload,
   }
-  return { ctx, promptText, pickStatus, notifyError, notifyInfo, reload }
+  return { ctx, promptText, pickStatus, copyText, notifyError, notifyInfo, reload }
 }
 
 describe("renameTaskFlow", () => {
@@ -359,5 +365,49 @@ describe("setStatusFlow", () => {
 
     expect(pickStatus).not.toHaveBeenCalled()
     expect(orch.setStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe("copyTaskFieldFlow", () => {
+  test("branch: copies the stored branch verbatim and toasts it", () => {
+    const tasks = [makeTask({ id: "t1", branch: "feat/copy" })]
+    const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
+
+    copyTaskFieldFlow(ctx, "t1", "branch")
+
+    expect(copyText).toHaveBeenCalledWith("feat/copy")
+    expect(notifyInfo).toHaveBeenCalledTimes(1)
+    expect(notifyInfo.mock.calls[0][0]).toContain("feat/copy")
+  })
+
+  test("path: copies the RECORDED worktree path — never materializes it", () => {
+    // The path may not exist yet (a task opened once never ran ensureWorktree);
+    // a copy is a read, so the flow has no orchestrator call to make at all.
+    const orch = makeOrch()
+    const tasks = [makeTask({ id: "t1", worktreePath: "/wt/not-yet" })]
+    const { ctx, copyText } = makeCtx({ tasks, orch })
+
+    copyTaskFieldFlow(ctx, "t1", "path")
+
+    expect(copyText).toHaveBeenCalledWith("/wt/not-yet")
+    for (const fn of Object.values(orch)) expect(fn).not.toHaveBeenCalled()
+  })
+
+  test("an empty branch (main/dir row) copies nothing and shows no toast", () => {
+    const tasks = [makeTask({ id: "t1", branch: "", kind: "main" })]
+    const { ctx, copyText, notifyInfo } = makeCtx({ tasks, orch: makeOrch() })
+
+    copyTaskFieldFlow(ctx, "t1", "branch")
+
+    expect(copyText).not.toHaveBeenCalled()
+    expect(notifyInfo).not.toHaveBeenCalled()
+  })
+
+  test("a host with no clipboard writer is a silent no-op, not a crash", () => {
+    const tasks = [makeTask({ id: "t1" })]
+    const { ctx, notifyInfo } = makeCtx({ tasks, orch: makeOrch(), wireCopyText: false })
+
+    expect(() => copyTaskFieldFlow(ctx, "t1", "path")).not.toThrow()
+    expect(notifyInfo).not.toHaveBeenCalled()
   })
 })

@@ -16,6 +16,12 @@ const mocks = vi.hoisted(() => ({
   branchPickerShow: vi.fn(),
 }))
 
+// The hook's one React import (the renderer the copy flow's OSC52 writer
+// needs); the real module drags in react-reconciler.
+vi.mock("@opentui/react", () => ({
+  useRenderer: () => ({ copyToClipboardOSC52: vi.fn() }),
+}))
+
 vi.mock("../../src/tui-react/component/branch-picker-dialog", () => ({
   BranchPickerDialog: { show: mocks.branchPickerShow },
 }))

@@ -41,6 +41,11 @@ export type SidebarTaskCallbacks = {
    * unlike its siblings this one never arrives from `use-tree-bindings`.
    */
   onSetStatusRequest?: (taskId: string) => void
+  /**
+   * Copy the task's branch name or worktree path to the system clipboard.
+   * Menu-only, like `onSetStatusRequest` — no chord yet.
+   */
+  onCopyRequest?: (taskId: string, field: "branch" | "path") => void
 }
 
 export type SidebarProps = SidebarTaskCallbacks & {

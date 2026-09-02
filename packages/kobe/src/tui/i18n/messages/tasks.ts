@@ -40,6 +40,9 @@ export const en = {
     /** The one entry with no chord behind it — status has no key yet, so the
      *  menu is its only route. */
     setStatus: "Set status",
+    /** Also chord-less: put the row's branch / worktree path on the clipboard. */
+    copyBranch: "Copy branch name",
+    copyPath: "Copy path",
     delete: "Delete",
   },
   /** The six `TaskStatus` values, for the set-status picker and its row chip.
@@ -130,6 +133,8 @@ export const en = {
     worktreeGoneTitle: 'Worktree for "{title}" is gone',
     worktreeGoneBody:
       "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
+    copiedBranch: "Copied branch {text}",
+    copiedPath: "Copied path {text}",
   },
 }
 
@@ -161,6 +166,8 @@ export const zh: typeof en = {
     unpin: "取消置顶",
     reorder: "重新排序",
     setStatus: "设置状态",
+    copyBranch: "复制分支名",
+    copyPath: "复制路径",
     delete: "删除",
   },
   status: {
@@ -231,5 +238,7 @@ export const zh: typeof en = {
     scratchCloseFailed: "无法关闭临时任务:{message}",
     worktreeGoneTitle: '"{title}" 的 worktree 已消失',
     worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
+    copiedBranch: "已复制分支 {text}",
+    copiedPath: "已复制路径 {text}",
   },
 }

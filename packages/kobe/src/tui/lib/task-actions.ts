@@ -20,6 +20,7 @@ import { hostedTaskKeys, killHostedSessions, listHostedSessions, openHostedSessi
 import { engineDisplayName } from "@/engine/interactive-command"
 import { errorMessage } from "@/lib/error-message"
 import { DIRTY_WORKTREE_CODE } from "@/orchestrator/errors"
+import { t } from "@/tui/i18n"
 import { DEFAULT_TASK_VENDOR, type Task, type TaskStatus, type VendorId } from "@/types/task"
 import { nextVendorWithin } from "@/types/vendor"
 
@@ -79,6 +80,13 @@ export interface TaskActionContext {
    * dialog it never opens. Resolves `undefined` on cancel, like `promptText`.
    */
   readonly pickStatus?: (current: TaskStatus) => Promise<TaskStatus | undefined>
+  /**
+   * DIVERGENCE — system-clipboard writer behind {@link copyTaskFieldFlow}.
+   * Optional for the same reason as `pickStatus`: only the workspace host has
+   * a renderer to hand the OSC52 half to; a host that omits it makes the flow
+   * a no-op.
+   */
+  readonly copyText?: (text: string) => void
   readonly logger: TaskActionLogger
   /** Forensic log tag — `[rove]` (outer monitor) vs `[rove tasks]` (Tasks pane). */
   readonly logPrefix: string
@@ -383,4 +391,28 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
   }
   ctx.notifyInfo?.(`Status → ${next}`)
   await ctx.reload?.()
+}
+
+/**
+ * Copy a task's branch name or worktree path to the system clipboard (tree
+ * menu "Copy branch name" / "Copy path"), for a `git checkout` / `cd` in
+ * another shell.
+ *
+ * Reads the RECORDED `task.worktreePath` verbatim — it does NOT materialize the
+ * worktree the way opening the task does (`openTaskWorktreeFor` calls
+ * `ensureWorktree` first). A copy is a read; creating a directory as its side
+ * effect would be the kind of surprise `rove api get-task` never springs. A
+ * task never entered records "" for both fields, and the menu withholds the
+ * entries then (tree-menu.ts); the empty-string guard here is the backstop.
+ *
+ * The success toast is the only feedback a clipboard write can have on screen,
+ * so it echoes what was copied rather than a bare "copied".
+ */
+export function copyTaskFieldFlow(ctx: TaskActionContext, taskId: string, field: "branch" | "path"): void {
+  const task = ctx.tasks().find((candidate) => candidate.id === taskId)
+  if (!task || !ctx.copyText) return
+  const text = field === "branch" ? task.branch : task.worktreePath
+  if (text === "") return
+  ctx.copyText(text)
+  ctx.notifyInfo?.(t(field === "branch" ? "tasks.toast.copiedBranch" : "tasks.toast.copiedPath", { text }))
 }

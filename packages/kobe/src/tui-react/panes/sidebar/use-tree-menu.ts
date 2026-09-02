@@ -178,6 +178,12 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "setStatus":
           actions.onSetStatusRequest?.(taskId)
           break
+        case "copyBranch":
+          actions.onCopyRequest?.(taskId, "branch")
+          break
+        case "copyPath":
+          actions.onCopyRequest?.(taskId, "path")
+          break
         case "delete":
           actions.onDeleteRequest?.(taskId)
           break
