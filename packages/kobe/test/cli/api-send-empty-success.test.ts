@@ -126,6 +126,26 @@ describe("send refuses an empty-branch success report", () => {
     expect(calls).toHaveLength(0)
   })
 
+  it("measures against the task's RECORDED base, not the origin/main guess", async () => {
+    // A task cut from `release/2.x` (ahead of main) with no commits of its
+    // own: against the recorded base it is empty; against the guess it reads
+    // ahead — the read that let a hollow success walk past this guard.
+    const { calls, deliver } = recordingDelivery()
+    await expect(
+      invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
+        client: clientWith({ baseRef: "release/2.x" }),
+        runtime: stubRuntime({
+          deliverPrompt: deliver,
+          readBranchSignals: async (_worktree, recordedBaseRef) =>
+            recordedBaseRef === "release/2.x"
+              ? { baseRef: "release/2.x", ahead: 0, diff: null }
+              : { baseRef: "origin/main", ahead: 2, diff: null },
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EMPTY_SUCCESS_REPORT" })
+    expect(calls).toHaveLength(0)
+  })
+
   it("--plain is not an escape hatch — a verbatim false claim is the same false claim", async () => {
     const { calls, deliver } = recordingDelivery()
     await expectApiError(
