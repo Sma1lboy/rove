@@ -151,9 +151,17 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     if (!task) return
     const current = task.vendor ?? DEFAULT_TASK_VENDOR
     const engines = await availableEngineIds()
-    const next = await EnginePickerDialog.show(dialog, { engines: engines.length > 0 ? engines : [current], current })
-    if (!next || next === current) return
-    await applyVendorChange(taskActions, id, next)
+    const pick = await EnginePickerDialog.show(dialog, {
+      engines: engines.length > 0 ? engines : [current],
+      current,
+      currentEffort: task.modelEffort,
+    })
+    if (!pick) return
+    // Not `pick.vendor === current` — re-picking the same engine at a
+    // different reasoning level is a real change, and the early return used
+    // to eat it.
+    if (pick.vendor === current && (pick.effort === undefined || pick.effort === (task.modelEffort ?? ""))) return
+    await applyVendorChange(taskActions, id, pick.vendor, { effort: pick.effort })
   }
 
   return {

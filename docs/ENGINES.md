@@ -69,6 +69,17 @@ Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, passed as
 `-c model_reasoning_effort=<level>`. Other engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 
+Three places select one:
+
+- the web board's engine picker, when you start a task from an issue;
+- the sidebar row menu's **Change engine** entry, whose second row lists the
+  engine's levels (`←→` picks one, and "engine default" clears it). Engines
+  that declare no levels show no row;
+- `rove api set-effort --task-id ID --level LEVEL` from a shell.
+
+All three take effect on the task's next session rebuild, not on the running
+one.
+
 ### Workspace trust
 
 Claude, Codex, and Kimi each gate a first launch in a never-seen directory

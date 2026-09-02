@@ -417,7 +417,8 @@ export class RemoteOrchestrator {
   forgetProject = (repo: string): Promise<void> => forgetProjectOp(this.client, repo)
   setTitle = (id: TaskId | string, title: string): Promise<void> => setTitleOp(this.client, id, title)
   setBranch = (id: TaskId | string, branch: string): Promise<void> => setBranchOp(this.client, id, branch)
-  setVendor = (id: TaskId | string, vendor: VendorId): Promise<void> => setVendorOp(this.client, id, vendor)
+  setVendor = (id: TaskId | string, vendor: VendorId, effort?: string): Promise<void> =>
+    setVendorOp(this.client, id, vendor, effort)
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     setCommandOp(this.client, id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => setPinnedOp(this.client, id, pinned)

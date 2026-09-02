@@ -142,10 +142,23 @@ export class TaskEditor {
     await this.store.update(task.id, { observedLanguage: observed })
   }
 
-  async setVendor(id: TaskId | string, vendor: VendorId): Promise<void> {
+  /**
+   * `effort` is a THREE-state field, because "leave it alone" and "clear it"
+   * are different asks: `undefined` keeps the task's recorded level (the
+   * caller had no opinion), `""` clears it (back to the engine's own
+   * default), any other string records that level. Without the tri-state the
+   * engine picker could never take a codex task back off `xhigh`.
+   *
+   * The same-vendor early return must not swallow an effort-only change — a
+   * user re-picking codex to move it from `medium` to `high` is changing
+   * something, even though the vendor is identical.
+   */
+  async setVendor(id: TaskId | string, vendor: VendorId, effort?: string): Promise<void> {
     const task = this.requireTask(id)
-    if (task.vendor === vendor) return
-    await this.store.update(task.id, { vendor })
+    const nextEffort = effort?.trim() ? effort.trim() : undefined
+    const effortChanges = effort !== undefined && task.modelEffort !== nextEffort
+    if (task.vendor === vendor && !effortChanges) return
+    await this.store.update(task.id, { vendor, ...(effort !== undefined ? { modelEffort: nextEffort } : {}) })
   }
 
   /**

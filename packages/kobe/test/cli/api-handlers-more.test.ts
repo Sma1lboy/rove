@@ -225,6 +225,61 @@ describe("edit verbs — RPC name + payload", () => {
     ])
   })
 
+  describe("set-effort", () => {
+    /** A task.get responder — the verb reads the task to learn its engine. */
+    const taskOf = (task: Record<string, unknown>) => ({ "task.get": () => ({ task: { id: "t1", ...task } }) })
+
+    it("sends the level on task.setVendor once the task's engine declares it", async () => {
+      const client = new FakeClient({ ...taskOf({ vendor: "codex" }), "task.setVendor": () => ({}) })
+      const out = await invokeVerb("set-effort", ["--task-id", "t1", "--level", "xhigh"], {
+        client,
+        runtime: stubRuntime(),
+      })
+      expect(out).toEqual({ ok: true, taskId: "t1", engine: "codex", effort: "xhigh" })
+      expect(client.requests.at(-1)).toEqual({
+        name: "task.setVendor",
+        payload: { taskId: "t1", vendor: "codex", effort: "xhigh" },
+      })
+    })
+
+    it("resolves the engine from a PINNED command, not just the recorded vendor", async () => {
+      // A task launched with `--command "codex --search"` is a codex launch;
+      // reading `vendor` alone would judge the level against the wrong engine.
+      const client = new FakeClient({
+        ...taskOf({ vendor: "generic", command: "codex --search" }),
+        "task.setVendor": () => ({}),
+      })
+      await invokeVerb("set-effort", ["--task-id", "t1", "--level", "high"], { client, runtime: stubRuntime() })
+      expect(client.requests.at(-1)).toEqual({
+        name: "task.setVendor",
+        payload: { taskId: "t1", vendor: "codex", effort: "high" },
+      })
+    })
+
+    it("refuses a level the engine does not declare, naming the ones it does", async () => {
+      // The whole point of the verb: `withEngineEffort` DROPS an unknown
+      // level at launch, so passing it through would look like success and
+      // run at the default.
+      const client = new FakeClient(taskOf({ vendor: "codex" }))
+      await expectApiError(
+        () => invokeVerb("set-effort", ["--task-id", "t1", "--level", "turbo"], { client, runtime: stubRuntime() }),
+        "BAD_EFFORT",
+        /none, low, medium, high, xhigh/,
+      )
+      expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
+    })
+
+    it("refuses any level on an engine with no declared levels", async () => {
+      const client = new FakeClient(taskOf({ vendor: "claude" }))
+      await expectApiError(
+        () => invokeVerb("set-effort", ["--task-id", "t1", "--level", "xhigh"], { client, runtime: stubRuntime() }),
+        "BAD_EFFORT",
+        /declares no reasoning effort levels/,
+      )
+      expect(client.requests.map((r) => r.name)).toEqual(["task.get"])
+    })
+  })
+
   it("set-status → task.status with a validated status", async () => {
     const client = new FakeClient({ "task.status": () => ({}) })
     await invokeVerb("set-status", ["--task-id", "t1", "--status", "in_review"], { client, runtime: stubRuntime() })

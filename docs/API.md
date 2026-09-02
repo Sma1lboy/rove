@@ -406,6 +406,12 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   to it is derived from the command; the result reports which one, and
   `generic` when the command names no engine Rove knows. Replaces the
   removed `set-vendor`.
+- `set-effort --task-id ID --level LEVEL`: set a task's reasoning effort
+  level (takes effect on the next session rebuild). Levels are declared by
+  the task's engine — codex accepts `none`, `low`, `medium`, `high`, `xhigh`;
+  claude declares none. A level the engine does not declare is rejected
+  (`BAD_EFFORT`, naming the levels it does accept) rather than passed through,
+  because the launch path drops an unknown level silently.
 - `set-status --task-id ID --status S`: set lifecycle status:
   `backlog`, `in_progress`, `in_review`, `done`, `canceled`, `error`.
 

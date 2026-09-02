@@ -335,11 +335,17 @@ export async function applyVendorChange(
    * not have, which is exactly the divergence this function was added to
    * surface.
    */
-  opts: { readonly silentSuccess?: boolean } = {},
+  opts: {
+    readonly silentSuccess?: boolean
+    /** Reasoning level to persist alongside the engine. Absent = leave the
+     *  task's alone (the engine declares none, or the caller has no opinion);
+     *  `""` = clear it back to the engine's own default. */
+    readonly effort?: string
+  } = {},
 ): Promise<boolean> {
   if (!ctx.orch) return false
   try {
-    await ctx.orch.setVendor(taskId, next)
+    await ctx.orch.setVendor(taskId, next, opts.effort)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.setVendor failed:`, err)
     ctx.notifyError?.(`Couldn't switch engine: ${errorMessage(err)}`)
