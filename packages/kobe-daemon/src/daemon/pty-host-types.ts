@@ -86,6 +86,11 @@ export interface PtySessionState {
   parkedScreenBytes: number
   /** Death cause, recorded once by markExited; null while alive. */
   exit: PtySessionExit | null
+  /** Set by `kill()` — this session is ending because someone ASKED for it
+   *  (tab close, task-deletion teardown/sweep, `rove reset`). The child still
+   *  exits under a signal, so without this flag the exit is indistinguishable
+   *  from a crash and gets persisted as a death record. */
+  closedByRequest?: boolean
   /** True between "rebuilt from a freeze record at host boot" and the first
    *  `open` that respawns it — the marker that separates a host-death
    *  casualty (respawn on attach) from an ordinary corpse (view only). */

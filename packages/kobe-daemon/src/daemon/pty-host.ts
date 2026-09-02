@@ -125,15 +125,23 @@ export class PtyHost {
         // Final freeze: the exit record AND the scrollback as it stood at death
         // must both survive this host's own end (idle-exit, crash).
         this.maybeFreeze(session, true)
-        try {
-          this.opts.onSessionExit?.({
-            key: session.key,
-            pid: session.proc?.pid ?? null,
-            exit,
-            tail: ringTail(session.chunks, session.bytes, EXIT_TAIL_BYTES),
-          })
-        } catch {
-          // A death-record hook must never block session teardown.
+        // A session someone CLOSED did not die. The child still exits under a
+        // signal, so the death record's clean-exit noise rule cannot tell the
+        // two apart, and a requested close was reaching the UI as an engine
+        // death: deleting a task killed its engine, `pty-exit-watch` replayed
+        // that as `dead`, and `attentionKindFor` turned it into a red toast on
+        // every single successful delete.
+        if (!session.closedByRequest) {
+          try {
+            this.opts.onSessionExit?.({
+              key: session.key,
+              pid: session.proc?.pid ?? null,
+              exit,
+              tail: ringTail(session.chunks, session.bytes, EXIT_TAIL_BYTES),
+            })
+          } catch {
+            // A death-record hook must never block session teardown.
+          }
         }
         this.opts.onSessionEnd?.()
       },
@@ -286,7 +294,9 @@ export class PtyHost {
     if (!session) return Promise.resolve()
     this.sessions.delete(key)
     // An explicit close is not a restart casualty — drop the freeze record
-    // so the next host incarnation does not resurrect what was closed.
+    // so the next host incarnation does not resurrect what was closed. Nor is
+    // it a death: `onExit` reads this flag to skip the death record.
+    session.closedByRequest = true
     this.opts.freeze?.drop(key)
     return this.childController.endChild(session)
   }
