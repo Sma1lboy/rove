@@ -9,9 +9,8 @@
  * keeping it thin is what stops either of them leaking into the component.
  */
 
-import { engineCanFork } from "@/engine/engine-presets"
+import { engineCanFork, protocolEntry } from "@/engine/engine-presets"
 import { engineDisplayName } from "@/engine/interactive-command"
-import { engineEntry } from "@/engine/registry"
 import { buildHandoffPrompt } from "@/engine/session-handoff"
 import type { VendorId } from "@/types/vendor"
 import {
@@ -54,7 +53,7 @@ export async function planChatContinuation(
   const sessionId = await forkSourceSessionId(active, source, worktree)
   if (!sessionId) return { kind: "no-session" }
   if (target === source && engineCanFork(source)) return { kind: "fork", sessionId }
-  const transcriptPath = await engineEntry(source).history.transcriptPath(sessionId, worktree)
+  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
   if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
   return {
     kind: "handoff",
@@ -76,7 +75,7 @@ export async function planWorktreeHandoff(
 ): Promise<ChatForkPlan> {
   const sessionId = await forkSourceSessionId(active, source, worktree)
   if (!sessionId) return { kind: "no-session" }
-  const transcriptPath = await engineEntry(source).history.transcriptPath(sessionId, worktree)
+  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
   if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
   return {
     kind: "handoff",
@@ -99,7 +98,7 @@ export async function forkSourceSessionId(
 ): Promise<string | null> {
   if (active.kind !== "engine") return null
   if (active.sessionId) return active.sessionId
-  const ids = await engineEntry(vendor).history.listSessionIdsForWorktree(worktree)
+  const ids = await protocolEntry(vendor).history.listSessionIdsForWorktree(worktree)
   return ids.at(-1) ?? null
 }
 
