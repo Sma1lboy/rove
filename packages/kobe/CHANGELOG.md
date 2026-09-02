@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.82
+
+### Patch Changes
+
+- [#787](https://github.com/Sma1lboy/rove/pull/787) [`891dbae`](https://github.com/Sma1lboy/rove/commit/891dbae465d7e8b095cbe77ea05831e7a8c660fe) `rove api` now reaches the six shipped contrib engines. `engine-list` lists Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid and Amp whenever their CLI is on `PATH` — the same set Settings → Engines already offered — and `add --command opencode` / `set-command --command cursor` record that engine's protocol instead of falling through to `generic`, so an agent-dispatched fleet gets the activity badges a hand-picked one already had. Existing tasks already recorded as `generic` keep that value; re-run `set-command` to move one over. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#788](https://github.com/Sma1lboy/rove/pull/788) [`723f3b3`](https://github.com/Sma1lboy/rove/commit/723f3b3413567e6113b519f156f82209f138d4b2) A custom engine's `engineProtocol.<id>` now reaches workspace trust, first-message delivery and the transcript reader, not just session pinning. A preset declaring the claude protocol reads its history again (so `ctrl+a c` can fork and `rove api read-output --source history` returns real entries) and gets its worktree pre-trusted instead of stopping at claude's trust dialog. A preset declaring the kimi protocol now gets its first message pasted after launch rather than appended to argv, where kimi read it as an unknown subcommand and exited. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#786](https://github.com/Sma1lboy/rove/pull/786) [`36fc230`](https://github.com/Sma1lboy/rove/commit/36fc230ec3603bd65888b1f9a62ed6fa78506264) The Kanban card's activity badge showed the raw key `tasks.status.working` instead of "working" while a linked task's engine was mid-turn, crowding the card's created date off the row. The badge now points at `tasks.activity.working`, which exists in both locales, and the pages that showed `common.loading` while their data loaded render a real string too. The CI guard that catches an i18n key missing from every catalog only walked `src/tui`, so the whole React UI could ship keys with no catalog entry — it now scans `src/tui-react` as well, and reads `labelKey:` lookup tables, which is how the Kanban badge slipped past a literal-only scan. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#789](https://github.com/Sma1lboy/rove/pull/789) [`eefaab9`](https://github.com/Sma1lboy/rove/commit/eefaab9b1b9760807404460ccd3238fda2778fa7) Linking an issue to a task that does not exist is now refused, and deleting a task unlinks its issue. `rove api issue-update --task <id>` accepted any string, so a typo'd id parked the card in In progress pointing at nothing; deleting a linked task left the same dead link behind, because nothing ever cleared it. Both paths are fixed at the RPC the CLI and the web board share, and the kanban board now treats a link the task list cannot resolve as unlinked, so a card stranded by an older build falls back to Backlog where Start works again. The story drawer also gains an Unlink action next to "Open the linked session", so a stranded story is recoverable without the CLI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.81
 
 ### Patch Changes
