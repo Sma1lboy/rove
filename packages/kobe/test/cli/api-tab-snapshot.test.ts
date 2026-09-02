@@ -19,6 +19,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
+  closeTabsSnapshot,
   hasLiveEngineTab,
   joinTaskTabs,
   markCliTabSession,
@@ -163,6 +164,30 @@ describe("readTabsSnapshot", () => {
     expect(readTabsSnapshot("t1")).toEqual(snap)
     expect(readTabsSnapshot("bad")).toBeUndefined()
     expect(readTabsSnapshot("missing")).toBeUndefined()
+  })
+})
+
+describe("closeTabsSnapshot", () => {
+  it("uses ctrl+w semantics, including closing the last tab", () => {
+    writeState({
+      "terminalTabs.t1": {
+        tabs: [{ kind: "command", id: "tab-4", title: "shell", ordinal: 4, command: ["/bin/zsh"] }],
+        activeId: "tab-4",
+        nextOrdinal: 5,
+      },
+      unrelated: "keep",
+    })
+    expect(closeTabsSnapshot("t1", "tab-4")).toMatchObject({ id: "tab-4", kind: "command" })
+    const state = readState()
+    expect((state["terminalTabs.t1"] as TabsState).tabs).toEqual([])
+    expect(state.unrelated).toBe("keep")
+  })
+
+  it("does not write when the tab is absent", () => {
+    const snapshot = { tabs: [], activeId: "tab-1", nextOrdinal: 2 }
+    writeState({ "terminalTabs.t1": snapshot })
+    expect(closeTabsSnapshot("t1", "tab-9")).toBeUndefined()
+    expect(readState()["terminalTabs.t1"]).toEqual(snapshot)
   })
 })
 

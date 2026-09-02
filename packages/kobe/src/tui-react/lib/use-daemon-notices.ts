@@ -21,8 +21,10 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { createStateCell } from "../../lib/external-store"
 import type { NotifyInput } from "../../tui/lib/notify-state"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
+import { useKV } from "../context/kv"
 import { t } from "../i18n"
 import type { DialogContext } from "../ui/dialog"
+import { closeTaskTab } from "../workspace/terminal-tabs-close"
 import { requestPaneClose, requestTabOpen } from "../workspace/terminal-tabs-shared"
 import { useAccessor } from "./use-accessor"
 
@@ -52,16 +54,22 @@ function useDaemonTabOpens(orch: RemoteOrchestrator | null): void {
   }, [request])
 }
 
-/** Bridge `tab.close` broadcasts (pane-close) the same way. */
+/** Bridge pane-close and exact Terminal Tab close broadcasts. */
 function useDaemonTabCloses(orch: RemoteOrchestrator | null): void {
+  const kv = useKV()
   const request = useAccessor(orch ? orch.tabCloseStore() : NO_TAB_CLOSES)
   const seenAt = useRef<number | null>(null)
   useEffect(() => {
     if (!request || request.at === seenAt.current) return
     seenAt.current = request.at
     if (Date.now() - request.at > STALE_NOTICE_MS) return
+    if ("requestId" in request) {
+      const closed = closeTaskTab(kv, request.taskId, request.tabId)
+      orch?.replyTerminalTabClose(request.requestId, closed)
+      return
+    }
     requestPaneClose(request.taskId, request.title, request.tabId)
-  }, [request])
+  }, [request, kv, orch])
 }
 
 /**

@@ -380,6 +380,15 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   `tab.close` channel; an attached TUI performs the close (headless, nothing
   happens). The result's `clients` is the reach signal: `0` = no attached TUI
   performed the close (same semantics as `dispatch`'s).
+- `tab-close --task-id ID --tab TAB`: close one exact Terminal Tab using the
+  id returned by `get-task` in `.tabs[].id`. Engine, interactive-shell,
+  command, and content tabs are all valid. With an attached TUI, the command
+  runs the same close path as ctrl+w, so the tab strip updates immediately;
+  headless, it removes the persisted tab snapshot and ends the tab's hosted
+  PTY plus any split-leaf PTYs directly. Closing the last tab leaves the task
+  open with no session, matching ctrl+w. A tab that still exists in the
+  snapshot may be closed after its process dies; an absent or already-closed
+  id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
 - `notify --title TEXT [--kind KIND] [--task-id ID] [--source TAG]`: show
   a toast in every attached Rove UI. `done` / `needs_input` / `error` get
   severity styling; any other kind renders neutrally. The result's `clients`

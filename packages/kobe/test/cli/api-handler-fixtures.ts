@@ -67,6 +67,7 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
   return {
     isTaskRunning: async () => false,
     taskTabs: async () => ({ tabs: [], running: false }),
+    closeTerminalTab: async () => ({ kind: "engine", wasAlive: false }),
     deliverPrompt: async () => {
       throw new Error("deliverPrompt should not run in this test")
     },

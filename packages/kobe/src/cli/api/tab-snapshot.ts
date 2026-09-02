@@ -22,9 +22,9 @@
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { loadStateFile, patchStateFile } from "../../state/store.ts"
+import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
-import { type TabsState, type TerminalTab, initialTabs } from "../../tui/workspace/terminal-tabs-core.ts"
+import { type TabsState, type TerminalTab, closeTab, initialTabs } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
 
 /**
@@ -70,6 +70,31 @@ export function readTabsSnapshot(taskId: string): TabsState | undefined {
   } catch {
     return undefined
   }
+}
+
+/**
+ * Remove one persisted tab with the same pure transition ctrl+w uses.
+ * Returns the removed tab, or undefined when the current snapshot does not
+ * name it. The fresh-state transaction prevents a stale CLI snapshot from
+ * overwriting a newer TUI tab list.
+ */
+export function closeTabsSnapshot(taskId: string, tabId: string): TerminalTab | undefined {
+  let closing: TerminalTab | undefined
+  const key = terminalTabsKey(taskId)
+  updateStateFile((store) => {
+    const state = store[key] as TabsState | undefined
+    if (!state || !Array.isArray(state.tabs)) return false
+    closing = state.tabs.find((tab) => tab.id === tabId)
+    if (!closing) return false
+    const { state: next, closedId } = closeTab(state, tabId, { allowEmpty: true })
+    if (!closedId) {
+      closing = undefined
+      return false
+    }
+    store[key] = next
+    return undefined
+  })
+  return closing
 }
 
 const aliveKeysOf = (sessions: readonly TaskSessionRow[]): Set<string> =>
