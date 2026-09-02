@@ -154,6 +154,13 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       }),
     ],
   }))
+  // New task belongs to every non-input UI surface, including the Worktrees
+  // and Update full-window pages. Keep the explicit input gates here instead
+  // of inheriting the broader page gate used by ordinary workspace chords.
+  useBindings(() => ({
+    enabled: !pages.dialogOpen && !pages.settingsOpen && !deps.searchActive,
+    bindings: bindByIds({ "task.new.global": () => deps.createTask() }),
+  }))
   useBindings(() => ({
     enabled: pagesClosed && focus.focused !== "sidebar",
     bindings: bindByIds({ "focus.sidebar": () => focus.setFocused("sidebar") }),
