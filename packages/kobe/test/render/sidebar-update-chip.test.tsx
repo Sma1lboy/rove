@@ -8,6 +8,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { DEFAULT_THEME, type ThemeJson, ThemeProvider, addTheme, setTheme } from "../../src/tui-react/context/theme"
 import { SidebarBrandHeader } from "../../src/tui-react/panes/sidebar/chrome"
 import { renderComponent } from "./harness"
 
@@ -55,4 +56,37 @@ test("clicking the chip opens the update surface", async () => {
 
   await mockMouse.click(text.split("\n")[row].indexOf("0.9.99"), row)
   expect(calls).toBe(1)
+})
+
+test("uses the configured warning color for the update chip", async () => {
+  const name = "sidebar-update-chip-test"
+  const warning: [number, number, number, number] = [255, 170, 0, 255]
+  expect(
+    addTheme(name, {
+      theme: {
+        background: "#000000",
+        text: "#ffffff",
+        textMuted: "#999999",
+        warning: "#ffaa00",
+        success: "#00aa55",
+      },
+    } satisfies ThemeJson),
+  ).toBe(true)
+
+  const handle = await renderComponent(
+    <ThemeProvider theme={name}>
+      <SidebarBrandHeader focused={false} status={null} update={{ label: "↑ 0.9.99" }} />
+    </ThemeProvider>,
+    { width: 30, height: 3, providers: { theme: false } },
+  )
+
+  try {
+    const updateSpan = (await handle.spans()).lines
+      .flatMap((line) => line.spans)
+      .find((span) => span.text.includes("0.9.99"))
+    expect(updateSpan?.fg.toInts()).toEqual(warning)
+  } finally {
+    handle.destroy()
+    setTheme(DEFAULT_THEME)
+  }
 })
