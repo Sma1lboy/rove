@@ -20,6 +20,8 @@ import { errorMessage } from "@/lib/error-message"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { readRoveEnv, setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { DEFAULT_DAEMON_WEB_PORT } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { parsePositiveInt } from "./api/flags.ts"
+import { argvHasFlag, flagValue } from "./argv.ts"
 import { activeCliName } from "./rename-compat.ts"
 
 const CLI_NAME = activeCliName()
@@ -181,10 +183,11 @@ export async function runWebSubcommand(args: readonly string[]): Promise<void> {
   enforceResetGate()
 
   let port = DEFAULT_DAEMON_WEB_PORT
-  const portIdx = args.indexOf("--port")
-  if (portIdx !== -1) {
-    const value = Number.parseInt(args[portIdx + 1] ?? "", 10)
-    if (!Number.isFinite(value)) {
+  if (argvHasFlag(args, "--port")) {
+    // `--port 5399` and `--port=5399` alike; a whole-value integer check so
+    // `--port 51abc` fails loudly instead of binding 51.
+    const value = parsePositiveInt(flagValue(args, "--port") ?? "")
+    if (value === undefined) {
       process.stderr.write(`${CLI_NAME} web: --port needs a number\n`)
       process.exit(2)
     }

@@ -32,6 +32,7 @@ import type { EngineActivityDetail } from "../engine/hook-events.ts"
 import { isEngineActivityKind } from "../engine/hook-events.ts"
 import { getPersistedString, setPersistedString } from "../state/repos.ts"
 import { ALL_VENDORS } from "../types/vendor.ts"
+import { flagValue } from "./argv.ts"
 import { activeCliName } from "./rename-compat.ts"
 
 /** Default timeout for the stdin race — bounds a manual invocation without
@@ -76,14 +77,6 @@ async function readStdinPayload(): Promise<Record<string, unknown>> {
   } catch {
     return {}
   }
-}
-
-function flagValue(argv: readonly string[], name: string): string | undefined {
-  for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === name) return argv[i + 1]
-    if (argv[i].startsWith(`${name}=`)) return argv[i].slice(name.length + 1)
-  }
-  return undefined
 }
 
 export async function runHookSubcommand(argv: readonly string[]): Promise<void> {

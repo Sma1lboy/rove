@@ -22,6 +22,7 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/kobe-daemon/plugins/registry"
+import { flagValue } from "./argv.ts"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
@@ -226,11 +227,6 @@ function tailLog(id: string, count: number): void {
   }
   const lines = text.trimEnd().split("\n")
   for (const line of lines.slice(-count)) console.log(line)
-}
-
-function flagValue(rest: string[], flag: string): string | undefined {
-  const i = rest.indexOf(flag)
-  return i >= 0 ? rest[i + 1] : undefined
 }
 
 export async function runPluginSubcommand(rest: string[]): Promise<void> {

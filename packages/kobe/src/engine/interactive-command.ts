@@ -177,21 +177,9 @@ export function withEngineEffort(
   return entry.effortArgv?.(argv, trimmed) ?? argv
 }
 
-/**
- * True when `argv` carries `flag` — in EITHER the separated form
- * (`--flag value`, the flag its own token) or the attached form
- * (`--flag=value`, one token). {@link parseEngineCommand} deliberately keeps
- * the attached form as a single token ("the common CLI idiom"), so a bare
- * `argv.includes(flag)` silently misses `--resume=<id>` /
- * `--append-system-prompt="…"` — the root cause behind double session
- * control and double prompt injection. Every "the command already sets this
- * flag, don't add our own" guard must go through this helper; an
- * architecture test (`test/architecture/argv-flag-guards.test.ts`) rejects
- * new `argv.includes("--…")` guards. Prefix-safe: `--resume-x` ≠ `--resume`.
- */
-export function argvHasFlag(argv: readonly string[], flag: string): boolean {
-  return argv.some((a) => a === flag || a.startsWith(`${flag}=`))
-}
+// `argvHasFlag` moved to `../cli/argv.ts` (neutral, no engine import) so the
+// CLI value-flag parsers share it; re-exported here for the engine callers.
+export { argvHasFlag } from "../cli/argv.ts"
 
 /**
  * `withClaudeSessionId` lived here (removed 2026-08-29). Its first line was
