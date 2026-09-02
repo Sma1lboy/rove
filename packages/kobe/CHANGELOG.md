@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.9.87
+
+### Patch Changes
+
+- [#805](https://github.com/Sma1lboy/rove/pull/805) [`a1f9584`](https://github.com/Sma1lboy/rove/commit/a1f958446bc00f792f1dd739a7f9f0883086d770) comments: history removed from engine, cli, web, orchestrator, client, worktree, exec and kobe-web; no code change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#802](https://github.com/Sma1lboy/rove/pull/802) [`f6528ba`](https://github.com/Sma1lboy/rove/commit/f6528bac159f947d5c7312d5b02f5e6de97e13f7) comments: history removed from tui, state, types, lib, core and monitor; no code change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#803](https://github.com/Sma1lboy/rove/pull/803) [`cb5b4de`](https://github.com/Sma1lboy/rove/commit/cb5b4de75deecc261cf454c18301a3e4547565b5) comments: history removed from tui-react; no code change — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#804](https://github.com/Sma1lboy/rove/pull/804) [`b7bbe74`](https://github.com/Sma1lboy/rove/commit/b7bbe74d63729128801036e5f810421249746d47) comments: history removed from kobe-daemon and the remaining test dirs; no code change — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#743](https://github.com/Sma1lboy/rove/pull/743) [`2072349`](https://github.com/Sma1lboy/rove/commit/2072349ab9bf2f94df63419f7a3273c91fb84e53) Show a height-bounded guide for currently reachable Ctrl shortcuts after either Ctrl key is held for 400 ms, close it when focus or modal reachability changes, and preserve kitty flag-8 keypad, navigation, function-key, and supplementary Unicode input forwarded to embedded PTYs. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#762](https://github.com/Sma1lboy/rove/pull/762) [`7b72d95`](https://github.com/Sma1lboy/rove/commit/7b72d950a9f1deb1d7269386ce68d75ca244537e) Open New task with `ctrl+n` from non-input panes and workspace pages, including
+  the Worktrees and Update full-window views.
+
+  The sidebar keeps its bare `n` shortcut. Sidebar search, Settings, dialogs,
+  engine composers, and embedded shell terminals keep input ownership instead
+  of opening the dialog. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#798](https://github.com/Sma1lboy/rove/pull/798) [`757c1d4`](https://github.com/Sma1lboy/rove/commit/757c1d45c7383aa16914efb13b12382612b96ac3) Flush queued peer and API prompts when the composer screen check is turned off.
+
+  Rove now retries every deferred prompt in insertion order after the setting is durably disabled. Each record is claimed before exact-engine-tab delivery, and a durable delivered marker prevents a failed Inbox cleanup from sending it twice. Concurrent flush, Inbox release, dismiss, and tab-close operations converge without duplicate delivery; expired records clean their Inbox pointers.
+
+  A busy, temporarily unavailable, or failed tab stays queued while later tabs continue. Re-enabling the check synchronously cancels the remaining flush, an older daemon that lacks the flush verb produces an on-screen warning, and both attached-TUI and headless tab closing discard the tab's queued prompt. — [@NarwhalChen](https://github.com/NarwhalChen)
+
 ## 0.9.86
 
 ### Patch Changes
