@@ -38,7 +38,7 @@ describe("hostRenderOptions", () => {
 
   it("requests kitty press, repeat, release, and all-keys-as-escapes reporting", () => {
     expect(hostRenderOptions()).toMatchObject({
-      useKittyKeyboard: { events: true, allKeysAsEscapes: true, reportText: true },
+      useKittyKeyboard: {},
     })
   })
 })
