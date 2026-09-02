@@ -27,11 +27,6 @@ export interface BoardCard {
   issue: Issue
 }
 
-/** A card's repo — typed accessor (kept for call-site symmetry). */
-export function cardRepo(card: BoardCard): string {
-  return card.repo
-}
-
 export interface BoardColumnSpec {
   key: string
   title: string

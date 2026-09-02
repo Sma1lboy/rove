@@ -99,10 +99,6 @@ export function setFocusAccent(v: FocusAccentSlot): void {
   store.update((s) => ({ ...s, focusAccent: v }))
 }
 
-export function setThemeMode(mode: "dark" | "light"): void {
-  store.update((s) => ({ ...s, mode }))
-}
-
 export type ThemeContextValue = {
   /** The resolved palette. Plain object — re-renders arrive via context. */
   theme: Theme
