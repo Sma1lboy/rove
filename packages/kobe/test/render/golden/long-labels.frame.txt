@@ -8,13 +8,13 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Agent Topology               |
 |                              |
 | rove ─────────────────────── |
 |  refactor/tab-strip-res… ▴ ✓ |
 |  · persist scrollback acros… |
 |  feat/alpha                  |
 |▌ · build                     |
+|                              |
 |                              |
 |                              |
 |                              |

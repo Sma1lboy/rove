@@ -53,7 +53,7 @@ shows only actions that can run right now.
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
 | `ctrl+a` `w` | Close the active split |
-| `ctrl+a` `1` / `2` / `3` / `4` | Kanban / Routines / Issues / Agent Topology |
+| `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` / `P` | Create a PR from the active task |
@@ -223,7 +223,6 @@ active only while the page has focus.
 
 | Page | Keys |
 |---|---|
-| Agent Topology | `j`/`k` or up/down select nodes; left/right cycles roots; `tab` changes project; `enter` opens the selected Task |
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
 | Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |

@@ -98,14 +98,6 @@ const FULL_TASK: DeepRequired<Task> = {
   },
   prompt: "the full task brief — never truncated on the way to disk",
   baseRef: "release/2.x",
-  communications: [
-    {
-      targetTaskId: "01ARZ3NDEKTSV4RRFFFFFFFFFF",
-      count: 2,
-      lastAt: "2026-08-22T10:00:00.000Z",
-      firstMessagePreview: "first message on this edge",
-    },
-  ],
   createdAt: "2026-08-27T00:00:00.000Z",
   updatedAt: "2026-08-27T00:00:00.000Z",
 }

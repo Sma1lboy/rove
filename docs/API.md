@@ -123,12 +123,7 @@ replacement in `nextCommandArgs`.
   the persisted snapshot does not list still gets a row, marked
   `unregistered: true`; an alive engine is never invisible here.
   `.task.dispatcher` (`{taskId, tabId}`) = the Rove session that created the
-  task, when one did — the lineage read for a parallel round's parent.
-  `.task.communications` = the sender's bounded list of confirmed peer targets
-  (`targetTaskId`/`count`/`lastAt`/optional `firstMessagePreview`), used by
-  Agent Topology to draw directed message edges. The preview is a whitespace-
-  normalized snapshot of at most 160 characters, captured only when an edge
-  is first created; later sends never replace it.
+  task, when one did: the lineage read for a parallel round's parent.
   `.task.command` = the raw launch command pinned on the task; `.task.vendor`
   = the protocol derived from it. `.task.prompt` = the full text of the
   prompt `add --prompt` delivered into the task's engine (verbatim, never
@@ -304,15 +299,7 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   `NO_ENGINE_TAB` rather than silently spawning a duplicate engine. Only a
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
-  session (vs. delivery into an existing one). After a verified cross-task
-  delivery is confirmed, Rove coalesces a sender → recipient communication
-  edge in task metadata (at most 32 distinct recipients per sender) and keeps
-  a single-line, 160-character preview of the first message that established
-  it. Repeated sends to the same task increment `count` and refresh `lastAt`
-  without replacing that preview or appending unbounded events. The result
-  reports `communicationRecorded`; a metadata write failure remains
-  `ok: true` with `communicationRecorded: false` because retrying an
-  already-delivered prompt would duplicate it.
+  session (vs. delivery into an existing one).
 
   A prompt opening with `succeeded:` is checked against the SENDER's own
   branch before any delivery: sent from a verified managed task whose branch

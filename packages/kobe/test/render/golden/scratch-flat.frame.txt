@@ -8,7 +8,6 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Agent Topology               |
 |                              |
 | SCRATCH ──────────────────── |
 |  · shell 1                   |
@@ -16,6 +15,7 @@
 | rove ─────────────────────── |
 |  feat/alpha                  |
 |▌ · build                     |
+|                              |
 |                              |
 |                              |
 |                              |

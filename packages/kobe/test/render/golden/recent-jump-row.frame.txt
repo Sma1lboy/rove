@@ -8,7 +8,6 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Agent Topology               |
 |                              |
 |  ↩ Recent: bravo             |
 |                              |
@@ -18,6 +17,7 @@
 |  · review                    |
 |  feat/bravo                  |
 |  · tests                     |
+|                              |
 |                              |
 |                              |
 |                              |

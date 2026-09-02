@@ -45,10 +45,8 @@ function fakeOrchestrator(): RemoteOrchestrator {
 function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
   return {
     orchestrator: fakeOrchestrator(),
-    tasks: [SELECTED_TASK],
     selectedTask: SELECTED_TASK,
     worktreesOpen: false,
-    agentsOpen: false,
     automationsOpen: false,
     workItemsOpen: false,
     kanbanOpen: false,
@@ -57,7 +55,6 @@ function deps(overrides: Partial<HostPageDeps>): HostPageDeps {
     closeAutomations: () => {},
     closeWorkItems: () => {},
     closeKanban: () => {},
-    closeAgents: () => {},
     closeUpdate: () => {},
     activateTask: () => {},
     contentFocused: true,
