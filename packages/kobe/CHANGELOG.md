@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.89
+
+### Patch Changes
+
+- [#808](https://github.com/Sma1lboy/rove/pull/808) [`bd61c76`](https://github.com/Sma1lboy/rove/commit/bd61c7650d3ee1813dc05fbe6b6249629dfeee18) Rove no longer asks the terminal for the kitty keyboard protocol's "report all keys as escape codes" mode. 0.9.87 and 0.9.88 requested it for the ctrl-hold shortcut guide, and on iTerm2 3.5 typing with a Chinese input method then crashed the whole terminal app. Keyboard handling is back to what it was before 0.9.87; the ctrl-hold guide does not appear until a terminal can report bare modifier keys without that mode. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.88
 
 ### Patch Changes
