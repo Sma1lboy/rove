@@ -50,7 +50,7 @@ export interface TaskEngineState {
   readonly transcriptPath?: string
   /** The tab that produced this entry, when the event carried one — on the
    *  TASK rollup it records which tab last wrote it, so a tab-scoped idle
-   *  only clears a rollup its own tab owns (issue #11). */
+   *  only clears a rollup its own tab owns. */
   readonly tabId?: string
   readonly at: number
 }
@@ -77,7 +77,7 @@ export interface TaskJobState {
 
 /**
  * Daemon-collected `+N −M` counts keyed by worktree path, from the
- * `worktree.changes` channel (issue #6 — one collector in the daemon
+ * `worktree.changes` channel (one collector in the daemon
  * instead of per-pane git polling). `null` means "no daemon-collected
  * data": either the daemon predates the channel (absent from
  * `hello.capabilities`) or `init()` hasn't completed — the sidebar then
@@ -312,8 +312,8 @@ export interface RemoteOrchestratorOptions {
    * receive EVERY channel (the default — what a primary orchestrator
    * driving the task list needs). Pass a narrow set for a single-purpose
    * consumer: host-boot's UiPrefsSync passes `["ui-prefs", "keybindings"]`
-   * so it no longer receives — nor deserializes — the full `task.snapshot`
-   * fan-out it never reads. When the filter excludes `task.snapshot`, the
+   * so it never receives — nor deserializes — the full `task.snapshot`
+   * fan-out it does not read. When the filter excludes `task.snapshot`, the
    * `hello` task hydration is also skipped (the task list would be dead
    * weight), and `worktreeChangesSignal()` is left null (its consumer isn't
    * subscribed). An older daemon ignores the filter and sends everything;

@@ -4,8 +4,8 @@
  * The wire format (`agents/<agent>/wire.jsonl`, a protocol stream rather
  * than a message log) is still unverified against a real conversation, so
  * Rove does not parse it: `readHistory` stays empty and auto-title keeps
- * the placeholder rather than guessing. What IS verified (live install,
- * 2026-08-13) is the layout, and that is all a cross-engine handoff needs
+ * the placeholder rather than guessing. What IS verified is the layout, and
+ * that is all a cross-engine handoff needs
  * — it hands the next agent the transcript's PATH and lets it read the
  * file in whatever format it finds (see `session-handoff.ts`).
  *

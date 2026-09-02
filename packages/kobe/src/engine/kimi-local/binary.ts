@@ -1,6 +1,6 @@
 /**
  * Kimi Code CLI binary discovery. The installer puts the launcher at
- * `~/.kimi-code/bin/kimi` (verified on a live install, 2026-07-18) and
+ * `~/.kimi-code/bin/kimi` and
  * users may also symlink it onto PATH — so probe `which` first, then the
  * install dir, then the usual bin directories.
  */

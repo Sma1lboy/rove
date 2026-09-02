@@ -122,7 +122,7 @@ export async function hasLocalBranch(deps: BranchDeps, worktreePath: string, bra
  * noticing. Idempotent: returns silently when `from === to`, and also when
  * `from` is already gone while `to` exists — the recorded `from` can be
  * stale (a retried call whose first attempt renamed but whose response was
- * lost, a concurrent rename, an out-of-band `git branch -m`; issue #44), and
+ * lost, a concurrent rename, an out-of-band `git branch -m`), and
  * branch refs are shared across worktrees, so old-gone + new-present IS the
  * requested end state. If `to` already exists alongside `from`, throws.
  */

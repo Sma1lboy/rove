@@ -1,5 +1,5 @@
 /**
- * `pty-delivery.ts` delivery gates (issue #78): A-layer recent-human-write
+ * `pty-delivery.ts` delivery gates: A-layer recent-human-write
  * and C-layer composer-empty rejections surface as typed `COMPOSER_BUSY`
  * errors instead of silently concatenating peer text with user input.
  *

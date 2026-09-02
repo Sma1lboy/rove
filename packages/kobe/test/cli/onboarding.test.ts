@@ -238,11 +238,11 @@ describe("applyOnboardingChoices", () => {
     expect(lines.some((l) => l.includes("rove skill install"))).toBe(true)
   })
 
-  // The package ships BOTH bins. The final "Run `…` to launch the TUI" line
-  // used to be the ONE line in the wizard that didn't interpolate the invoked
-  // name — a `kobe` user was sent to run a command they'd never installed
-  // under that name. Asserting the kobe direction is the point: the previous
-  // test only checked rove, where the hardcoded literal happened to be right.
+  // The package ships BOTH bins, and the final "Run `…` to launch the TUI"
+  // line is the easiest one to leave un-interpolated — which sends a `kobe`
+  // user to a command they never installed under that name. Asserting the
+  // kobe direction is the point: a rove-only check passes on a hardcoded
+  // literal.
   it("tells a kobe user to run kobe, not rove", async () => {
     setProduct("kobe")
     const { applyOnboardingChoices } = await import("../../src/cli/onboarding.ts")
@@ -350,8 +350,8 @@ describe("maybeRunOnboarding", () => {
     expect(lines.some((l) => l.includes("completions hooked into"))).toBe(true)
   })
 
-  // `onboardedPrimer` is new, so its absence cannot mean "killed wizard":
-  // every user who onboarded before this build looks identical to one. They
+  // An ABSENT `onboardedPrimer` cannot mean "killed wizard": an
+  // already-onboarded user predating the flag looks identical to one. They
   // must not be handed a surprise wizard on upgrade — and since a `true`
   // return means the caller exits instead of starting the TUI, that upgrade
   // would also cost them the launch they asked for.

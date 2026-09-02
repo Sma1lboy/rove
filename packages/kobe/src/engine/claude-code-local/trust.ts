@@ -1,5 +1,5 @@
 /**
- * Claude Code workspace trust (issue #28). Claude gates a first launch in a
+ * Claude Code workspace trust. Claude gates a first launch in a
  * never-seen directory behind a "Do you trust the files in this folder?"
  * dialog; a Rove task worktree is always such a directory, so a hosted
  * session would sit at the dialog forever. Rove created the worktree from a

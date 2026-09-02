@@ -101,7 +101,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     // kobe's Stop coexists with the user's Stop hook.
     expect(JSON.stringify(hooks.Stop)).toContain("turn-complete")
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")
-    // The retired PostToolUse(Bash) watch observer is never installed again.
+    // The PostToolUse(Bash) watch observer is never installed.
     expect(hooks.PostToolUse).toBeUndefined()
   })
 
@@ -118,7 +118,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
   })
 
   // End-to-end uninstall through real file I/O: this is what an upgrading user
-  // gets on their next launch. The retired hook goes; a co-resident hook from
+  // gets on their next launch. The watch hook goes; a co-resident hook from
   // another tool must survive, and a second launch must not churn the file.
   it("uninstalls an already-registered watch hook, sparing another tool's entry", async () => {
     await writeFile(

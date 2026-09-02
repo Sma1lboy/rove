@@ -9,8 +9,8 @@
  * it can move, so the ruler ships before anything that claims to learn.
  *
  * Task OUTCOMES are deliberately absent: completion flows back to the
- * spawning agent's chat tab (`send`), not into Rove state — the stored
- * `workerReport` channel was removed because nothing read it.
+ * spawning agent's chat tab (`send`), not into Rove state. There is
+ * deliberately no stored `workerReport` channel: nothing would read it.
  */
 
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/kobe-daemon/daemon/contracts"

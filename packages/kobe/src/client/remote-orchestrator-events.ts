@@ -7,9 +7,7 @@
  *
  * Taking an explicit {@link OrchestratorSignals} deps bag instead of closing
  * over `this` is what makes that testable: hand it plain closures and drive
- * event payloads through with no daemon and no class. Same behavior, moved
- * verbatim — `handleOrchestratorEvent` is the exact body of the old
- * `RemoteOrchestrator.handleEvent`.
+ * event payloads through with no daemon and no class.
  */
 
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
@@ -41,12 +39,12 @@ import {
 } from "./remote-orchestrator-payloads.ts"
 
 /**
- * Drop engine-state entries for tasks that no longer exist (leak guard).
+ * Drop engine-state entries for tasks that are gone (leak guard).
  * The `engine-state` channel only removes an entry on an explicit `idle`
  * event for that taskId — a task deleted/pruned while non-idle (running /
  * permission-needed / error, the common delete case) never gets one, so
- * in a long-lived pane process the map grew one stale entry per deleted
- * task, forever. Reconcile against each `task.snapshot` instead: any key
+ * in a long-lived pane process the map grows one stale entry per deleted
+ * task, forever. Reconcile against each `task.snapshot`: any key
  * absent from the authoritative task list is dead. Benign race: an
  * `engine-state` event arriving before the snapshot that introduces its
  * task would be dropped here — the next engine-state event re-adds it
@@ -65,9 +63,9 @@ function pruneEngineState(tasks: readonly SerializedTask[], signals: Orchestrato
     }
     if (next) signals.setEngineStateSig(next)
   }
-  // Same leak guard for the per-tab map — a task deleted while a tab was
-  // non-idle never gets its per-tab idle events on this client if it was
-  // disconnected at the time.
+  // Same leak guard for the per-tab map — a task deleted while a tab is
+  // non-idle never delivers its per-tab idle events to a client that was
+  // disconnected for them.
   const tabs = signals.engineTabStateAcc()
   if (tabs.size > 0) {
     let nextTabs: Map<string, ReadonlyMap<string, TaskEngineState>> | null = null
@@ -92,7 +90,7 @@ function pruneEngineState(tasks: readonly SerializedTask[], signals: Orchestrato
 }
 
 /**
- * Drop task-job entries for tasks that no longer exist — the same leak
+ * Drop task-job entries for tasks that are gone — the same leak
  * guard as {@link pruneEngineState}. A `done`/`error` publish normally
  * clears the entry, but a task DELETED while its job runs (or a dropped
  * terminal frame across a reconnect) would otherwise pin a phantom
@@ -112,7 +110,6 @@ function pruneTaskJobs(tasks: readonly SerializedTask[], signals: OrchestratorSi
   if (next) signals.setTaskJobsSig(next)
 }
 
-/** The exact body of the old `RemoteOrchestrator.handleEvent`. */
 export function handleOrchestratorEvent(name: string, payload: unknown, signals: OrchestratorSignals): void {
   if (name === "task.snapshot") {
     const value = (payload as { tasks?: SerializedTask[] } | undefined)?.tasks
@@ -166,10 +163,10 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     // Accumulate per-task into a fresh Map (new ref → re-render). A tabId-
     // carrying event updates BOTH levels: the daemon publishes one event per
     // report, and the task entry is its last-event-wins rollup — EXCEPT that
-    // a tab-scoped idle only clears a rollup the SAME tab wrote (issue #11:
-    // the activity observer publishes per-tab idles for quiet sessions, and
-    // letting any tab's idle delete the rollup blanked a task whose live
-    // work — another tab, or an untagged external session — was still going).
+    // a tab-scoped idle only clears a rollup the SAME tab wrote: the activity
+    // observer publishes per-tab idles for quiet sessions, and letting any
+    // tab's idle delete the rollup blanks a task whose live work — another
+    // tab, or an untagged external session — is still going.
     const prevTask = signals.engineStateAcc().get(p.taskId)
     const prevTaskState = prevTask?.state
     const next = new Map(signals.engineStateAcc())
@@ -195,7 +192,7 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       signals.setEngineLifecycleSig(lifecycle)
     }
     if (tabId) {
-      // An idle entry is KEPT as a tombstone, not deleted (issue #11): the
+      // An idle entry is KEPT as a tombstone, not deleted: the
       // sidebar renders absence as UNKNOWN (no signal — a dotted ◌), so
       // "the daemon said this tab is idle" must stay distinguishable from
       // "the daemon never said anything". Bounded by tabs-per-task; the

@@ -2,9 +2,9 @@
  * `rove doctor` row for node-pty's macOS `spawn-helper`. node-pty@1.1.0 is
  * published with `prebuilds/darwin-*\/spawn-helper` at 0644 and no installer
  * adds the exec bit back, so every PTY spawn through node-pty fails until
- * something runs chmod (issue #85). The root `postinstall` does that for
- * installs made after the fix; this row is for the tree that predates it,
- * so the symptom has a name instead of a silent dead terminal.
+ * something runs chmod. The root `postinstall` does that on install; this row
+ * covers a tree where it did not run, so the symptom has a name instead of a
+ * silent dead terminal.
  */
 
 import { readdirSync, statSync } from "node:fs"

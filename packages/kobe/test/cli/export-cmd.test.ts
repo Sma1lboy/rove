@@ -67,7 +67,7 @@ describe("renderExport", () => {
     // display width (4 cells) exceeds its code-unit length (2). With true
     // display-width padding both rows pad the title column to the same cell
     // width, so every later column lines up and the two rows share one total
-    // display width. Measuring by String.length (the old bug) would under-pad
+    // display width. Measuring by String.length would under-pad
     // the CJK row by 2 cells and shove its trailing columns left.
     const asciiTitle = "ab"
     const cjkTitle = String.fromCodePoint(0x4e2d, 0x6587) // 中文

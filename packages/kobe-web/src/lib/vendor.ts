@@ -2,12 +2,12 @@
  * vendor — the SPA's vendor-identity rules, in one place.
  *
  * "Which engine does a task run, what do we call it, and does this workspace
- * mix engines?" used to be split three ways: `engines.ts` owned the label
- * lookup, `task-list.ts` owned the vendor aggregations, and the per-row
- * "label only when mixed" rule was inlined in AppShell — each independently
- * coalescing an unset `task.vendor` to the literal `"claude"`. This module owns
- * all of it, so the unset-vendor default lives in ONE place ({@link
- * DEFAULT_VENDOR}) and the rules are unit-testable without rendering a row.
+ * mix engines?" is answered here and nowhere else: the label lookup, the
+ * vendor aggregations, and the per-row "label only when mixed" rule. Split
+ * across modules, each would coalesce an unset `task.vendor` to the literal
+ * `"claude"` on its own; here the unset-vendor default lives in ONE place
+ * ({@link DEFAULT_VENDOR}) and the rules are unit-testable without rendering
+ * a row.
  *
  * `engines.ts` keeps ONLY its job: fetching the engine-owned list from the
  * bridge (`useEngines` + {@link EngineOption}). This module takes that list as

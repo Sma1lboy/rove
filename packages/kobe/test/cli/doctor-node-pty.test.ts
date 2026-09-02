@@ -1,5 +1,5 @@
 /**
- * `rove doctor` node-pty row (issue #85): the pure formatter over injected
+ * `rove doctor` node-pty row: the pure formatter over injected
  * helper states, plus the real resolver against this checkout — which the
  * root postinstall has already fixed, so on macOS it must report healthy.
  */

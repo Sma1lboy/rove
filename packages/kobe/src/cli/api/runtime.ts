@@ -96,7 +96,7 @@ async function deliverHosted(
       engineLaunchArgv({ command: launchCommand, vendor: launchVendor, effort: target.modelEffort }),
       launchVendor,
     )
-    // Pre-trust the worktree in the protocol's first-run store (issue #28) —
+    // Pre-trust the worktree in the protocol's first-run store —
     // a hosted session can't answer a trust dialog. A generic protocol has
     // no store kobe knows how to pre-answer, and trustEngineWorktree no-ops.
     trustEngineWorktree(launchVendor, worktree)
@@ -121,16 +121,16 @@ async function deliverHosted(
       },
     )
     // `started && !delivered` is the real failure: the session was created but
-    // the prompt never reached it. `engineReady` no longer stands in for that
-    // — it is now an independent readiness observation, and an engine that
-    // never announced bracketed paste can still have been written to.
+    // the prompt never reached it. `engineReady` does NOT stand in for that —
+    // it is an independent readiness observation, and an engine that never
+    // announced bracketed paste can still have been written to.
     if (result.started && !result.delivered && !result.deferred) {
       throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
     }
     // Make the session visible to the sidebar tree, which lists a worktree's
-    // tabs from the task's persisted snapshot — a CLI-started session used to
-    // run live with no snapshot, so the tree showed the worktree with no tabs
-    // under it at all. Write-once (a --tab new spawn already appended its tab
+    // tabs from the task's persisted snapshot. Without this a CLI-started
+    // session runs live with no snapshot, so the tree shows the worktree with
+    // no tabs under it at all. Write-once (a --tab new spawn already appended its tab
     // in mintCliTab); see `tab-snapshot.ts`. When THIS delivery started the
     // session, record the pinned session id + spawned flag too, so a later
     // dead-reattach resumes the conversation (see engineTabArgv).
@@ -219,11 +219,11 @@ export async function deliverPrompt(
     await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
   }
 
-  // The deferral sink hands a composer-busy prompt to daemon ownership
-  // (issue #78 B-layer): the daemon stores the text and queues an inbox
-  // episode, and this send reports accepted-but-deferred. The distinct verb
-  // is the rolling-upgrade guard: an old replace-on-file daemon rejects it,
-  // so the caller fails instead of losing the prompt it previously accepted.
+  // The deferral sink hands a composer-busy prompt to daemon
+  // ownership: the daemon stores the text and queues an inbox episode, and
+  // this send reports accepted-but-deferred. The distinct verb is the
+  // rolling-upgrade guard: a replace-on-file daemon rejects it, so the caller
+  // fails instead of losing a prompt it has already accepted.
   const defer: PromptDeferralSink = {
     defer: async (info) => {
       const result = await client.request<unknown>("deferredPrompt.fileIfVacant", info)
@@ -256,7 +256,7 @@ export const defaultApiRuntime: ApiRuntime = {
         host.close()
       }
     }
-    // Live foreground-walk verdicts per session (issue #33): ONE ps snapshot,
+    // Live foreground-walk verdicts per session: ONE ps snapshot,
     // the same shallowest-engine walk inspect/live-engine run — so get-task's
     // `liveVendor` reflects what runs NOW, not what a mounted TUI last
     // recorded. Best-effort: a failed ps just keeps the recorded values.

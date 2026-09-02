@@ -7,12 +7,12 @@
  * method EVERY built-in implements, including the readers that ship no
  * message parser.
  *
- * That last point is the whole reason this module exists. The existence
- * check used to be `readHistory(id).length > 0`, which silently means "this
- * engine has a message parser": kimi's reader is paths-only, so every kimi
- * tab answered "your session does not exist", never set `spawned`, and
- * respawned blank on restart even once its id was known. Listing ids is the
- * question actually being asked, and every engine can answer it.
+ * That last point is the whole reason this module exists. Testing existence
+ * with `readHistory(id).length > 0` silently means "this engine has a message
+ * parser": kimi's reader is paths-only, so every kimi tab would answer "your
+ * session does not exist", never set `spawned`, and respawn blank on restart
+ * even once its id was known. Listing ids is the question actually being
+ * asked, and every engine can answer it.
  */
 
 import type { VendorId } from "../types/vendor.ts"

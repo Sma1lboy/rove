@@ -81,7 +81,7 @@ export function schemaIndex(): unknown {
 /**
  * The verbs in ONE group (compact). Every group here has verbs and every verb
  * is in a group — both sides come from the same `VerbSpec.group` field, so the
- * listing can no longer disagree with the `group` an agent read off the index.
+ * listing cannot disagree with the `group` an agent read off the index.
  */
 export function groupSchema(group: string): unknown {
   const verbs = VERBS.filter((v) => v.group === group)

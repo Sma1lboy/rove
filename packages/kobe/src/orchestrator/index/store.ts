@@ -129,7 +129,7 @@ export class TaskIndexStore {
     } catch (err) {
       // Back the original bytes up FIRST: the next save read-merge-writes
       // from this empty recovery base and replaces the corrupt file, so
-      // without a copy the user's tasks are gone for good (PR #276).
+      // without a copy the user's tasks are gone for good.
       const backup = await backupCorruptManifest(sourcePath)
       warnManifestRecovery(
         `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
@@ -192,9 +192,9 @@ export class TaskIndexStore {
       // file is read only by machines, and pretty-printing tripled the bytes.
       const json = `${JSON.stringify(payload)}\n`
 
-      // Unique per save: a shared `<path>.tmp` let a second writer clobber the
-      // first's staging file whenever mutual exclusion broke, failing the
-      // survivor's rename with ENOENT (issue #53).
+      // Unique per save: a shared `<path>.tmp` lets a second writer clobber
+      // the first's staging file whenever mutual exclusion breaks, failing
+      // the survivor's rename with ENOENT.
       const tmpPath = `${this.path}.${process.pid}.${ulid()}.tmp`
       try {
         // 0600: task titles are free-form user prose and every record names a
@@ -292,10 +292,10 @@ export class TaskIndexStore {
    * Bump `updatedAt` to now for recency ONLY — the focus-switch hot path.
    *
    * `setActiveTask` is the most frequent action in the TUI (every task/focus
-   * switch). It used to call {@link update} with an empty patch purely to move
-   * `updatedAt` so the sidebar's `recent` sort tracks focus order — but that
-   * paid a full fsync'd read-merge-write ({@link doSave}) on EVERY switch, all
-   * to move one field the default sort never reads.
+   * switch), and it only needs `updatedAt` moved so the sidebar's `recent`
+   * sort tracks focus order. Routing that through {@link update} with an empty
+   * patch would pay a full fsync'd read-merge-write ({@link doSave}) on EVERY
+   * switch, all to move one field the default sort never reads.
    *
    * This bumps `updatedAt` in the in-memory cache and notifies listeners (so
    * `recent` reorders LIVE, this session, from the pushed snapshot), then marks
@@ -305,7 +305,7 @@ export class TaskIndexStore {
    * orchestrator restores focus from there), so the only thing riding the lazy
    * flush is the finer-grained `recent` ORDERING across a hard restart, which
    * is best-effort and re-established as tasks get real writes. No-op on an
-   * unknown id (mirrors the old empty-patch guard in `setActiveTask`).
+   * unknown id.
    */
   touchRecency(id: TaskId | string): void {
     this.assertLoaded()
@@ -404,7 +404,7 @@ export class TaskIndexStore {
     // Record the deletion so the read-merge-write doesn't resurrect this task
     // from a stale on-disk copy, and stop treating it as a pending edit. The
     // save persists it as a tombstone so PEER writers that still hold the
-    // task dirty in memory don't write it back either (issue #47).
+    // task dirty in memory don't write it back either.
     this.dirtyIds.delete(String(id))
     this.removedIds.set(String(id), new Date().toISOString())
     await this.save()

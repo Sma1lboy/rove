@@ -119,7 +119,7 @@ async function sessionExitsSection(taskId: string | undefined): Promise<unknown>
 
 /**
  * Persisted tab snapshots (what the sidebar tree names its rows from),
- * RECONCILED against the live session inventory (issue #20): each task also
+ * RECONCILED against the live session inventory: each task also
  * reports `unregistered` — alive `<taskId>::tab-N` sessions its snapshot
  * does not list — and a task with live sessions but no snapshot at all still
  * gets an entry. A live engine must never be invisible in this read.

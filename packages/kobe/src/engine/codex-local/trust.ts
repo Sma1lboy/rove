@@ -1,5 +1,5 @@
 /**
- * Codex workspace trust (issue #28). Codex gates a never-seen directory
+ * Codex workspace trust. Codex gates a never-seen directory
  * behind its own trust prompt; the store is `~/.codex/config.toml` —
  * `[projects."<abspath>"] trust_level = "trusted"`. Pre-trusting a
  * Rove-created worktree is the same trust domain as the repo the user
@@ -8,9 +8,9 @@
  * Append-only: a `[projects.*]` table at EOF attaches to nothing, so the
  * rest of the user's config is never parsed or rewritten.
  *
- * Concurrency: the read-check-append sequence used to be unguarded, so
- * two spawns for the SAME worktree (a retried launch, TUI and daemon at
- * once) could both append the table. Duplicate TOML keys make codex
+ * Concurrency: an unguarded read-check-append lets two spawns for the SAME
+ * worktree (a retried launch, TUI and daemon at once) both append the
+ * table. Duplicate TOML keys make codex
  * reject the ENTIRE config — every codex task on the machine fails, not
  * just the raced one. Two layers prevent that:
  *

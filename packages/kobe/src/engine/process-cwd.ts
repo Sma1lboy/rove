@@ -1,5 +1,5 @@
 /**
- * Live cwd of a process — the scratch-task adoption read (issue #33): a
+ * Live cwd of a process — the scratch-task adoption read: a
  * scratch shell "settles" wherever the user cd'd, and that directory (plus
  * a detected harness) decides which project group the row migrates into.
  *

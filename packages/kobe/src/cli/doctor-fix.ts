@@ -92,7 +92,7 @@ export function engineTabsManualFix(): DoctorFix {
 }
 
 /**
- * The install this process runs from was deleted (issue #96). Print-only,
+ * The install this process runs from was deleted. Print-only,
  * and not because it is dangerous: doctor cannot reinstall Rove over the
  * running process, and the running process is the one asking.
  */
@@ -106,7 +106,7 @@ export function reinstallManualFix(): DoctorFix {
   }
 }
 
-/** node-pty's spawn-helper lost its exec bit (issue #85): chmod is idempotent and undoable. */
+/** node-pty's spawn-helper lost its exec bit: chmod is idempotent and undoable. */
 export function spawnHelperFix(paths: readonly string[]): DoctorFix {
   return {
     kind: "run",

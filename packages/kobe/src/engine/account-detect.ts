@@ -71,7 +71,7 @@ export type CopilotAccount =
 /**
  * Kimi Code stores an OAuth token bundle at
  * `~/.kimi-code/credentials/kimi-code.json` (`access_token` +
- * `refresh_token` + `expires_at`; verified on a live install 2026-07-18).
+ * `refresh_token` + `expires_at`).
  * The JWT payload has no email claim — only opaque ids — so a logged-in
  * account is reported without one.
  */

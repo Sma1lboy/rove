@@ -81,15 +81,15 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     // Rove pins a fresh uuid at launch and the tab is trackable from its
     // first frame. `--session-id <uuid>` is documented; the control flags
     // are every documented way a command can already own its session —
-    // appending a second one makes claude refuse to launch (issue #58).
+    // appending a second one makes claude refuse to launch.
     sessionIdentity: {
       pinFlag: "--session-id",
       sessionControlFlags: ["--session-id", "--resume", "-r", "--continue", "-c", "--from-pr"],
       resumeArgv: (base, id) => [...base, "--resume", id],
       // Fork = resume + branch, and claude lets the caller name the branch,
       // so the forked tab is trackable from its first frame like any other
-      // claude tab. The three flags combine (probed against claude 2.x: the
-      // fork lands in the id we pass).
+      // claude tab. The three flags combine, and the fork lands in the id
+      // we pass.
       forkArgv: (base, sourceId, newId) => {
         const forked = [...base, "--resume", sourceId, "--fork-session"]
         return newId ? [...forked, "--session-id", newId] : forked
@@ -104,8 +104,8 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     builtin: true,
     displayName: codexIdentity.shortName,
     defaultCommand: ["codex"],
-    // Effort levels real `codex exec` accepts (the broken `minimal` is
-    // deliberately excluded — CHANGELOG 0.5.17).
+    // Effort levels real `codex exec` accepts; `minimal` is broken there and
+    // deliberately excluded.
     effortLevels: ["none", "low", "medium", "high", "xhigh"],
     effortArgv: (base, level) => [...base, "-c", `model_reasoning_effort=${level}`],
     history: codexHistoryReader,
@@ -139,14 +139,14 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     // No pin flag — codex mints its own thread id and reports it in the OSC
     // title (see `terminalTitle.sessionIdFromTitle`), which is origin (2) in
     // `session-identity.ts`. Resume is a SUBCOMMAND with the id positional
-    // (`codex resume [OPTIONS] [SESSION_ID]`, probed 2026-08-29), so the
+    // (`codex resume [OPTIONS] [SESSION_ID]`), so the
     // launch flags stay between the verb and the id.
     sessionIdentity: {
       resumeArgv: (base, id) => {
         const [bin, ...rest] = base
         return bin ? [bin, "resume", ...rest, id] : base
       },
-      // `codex fork [OPTIONS] [SESSION_ID]` (probed 2026-08-30) — same
+      // `codex fork [OPTIONS] [SESSION_ID]` — same
       // subcommand shape as resume, so the launch flags stay between the
       // verb and the positional id. Codex mints the forked thread's own id,
       // so a caller-set one has nowhere to go.
@@ -175,7 +175,7 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     displayName: "Kimi",
     defaultCommand: ["kimi"],
     // kimi's positional CLI slot is a subcommand (export/provider/acp/…),
-    // not an initial prompt — argv delivery kills it (issue #25).
+    // not an initial prompt — argv delivery kills it.
     firstMessageDelivery: "paste",
     // The installed Mach-O binary rewrites its process title to `kimi-co`
     // after launch, so a live kimi session's argv[0] never reads `kimi`.
@@ -186,8 +186,8 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     createHookAdapter: () => new KimiHookAdapter(),
     createTurnDetector: () => new UnknownTurnDetector("kimi"),
     // Kimi cannot be TOLD what to call a new session — `-S [id]` only
-    // resumes an existing one (probed 2026-08-29: "Resume a session. With
-    // ID: resume that session. Without ID: interactively pick."). So its id
+    // resumes an existing one ("Resume a session. With ID: resume that
+    // session. Without ID: interactively pick."). So its id
     // is origin (3): discovered after the fact from the session store this
     // entry's `history` reader already indexes by worktree. `-c/--continue`
     // and `-S` both mean the user's command owns the session already.

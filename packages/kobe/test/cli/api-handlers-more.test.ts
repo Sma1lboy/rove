@@ -94,12 +94,12 @@ describe("schema drill-ins", () => {
     await expectApiError(() => invokeVerb("schema", ["--verb", "frobnicate"], offline), "BAD_VERB")
   })
 
-  // Issue #30 removed `fan-out` and `set-vendor` with NO aliases, because both
-  // changed their flag contract in the process — an alias would accept the old
-  // flags and do something subtly different. What replaces the alias is a
-  // distinct code (`UNKNOWN_VERB`, not the typo code) plus argv an agent that
-  // learned the old name from a stale skill can run verbatim.
-  describe("retired verbs point at their replacement", () => {
+  // `fan-out` and `set-vendor` were removed with NO aliases, because both
+  // changed their flag contract in the process — an alias would accept the
+  // superseded flags and do something subtly different. What replaces the
+  // alias is a distinct code (`UNKNOWN_VERB`, not the typo code) plus argv an
+  // agent that learned the name from a stale skill can run verbatim.
+  describe("removed verbs point at their replacement", () => {
     /** The thrown ApiError itself — this suite asserts on its `data`. */
     async function rejectionOf(verb: string): Promise<ApiError> {
       try {
@@ -114,7 +114,8 @@ describe("schema drill-ins", () => {
     it.each([
       ["fan-out", ["api", "add", "--help"], /--count/],
       ["set-vendor", ["api", "set-command", "--help"], /set-command/],
-      // archive died with issue #75; the rejection must point at delete AND
+      // `archive` died with the archived-task dimension; the rejection must
+      // point at delete AND
       // say the branch survives — a coordinator closing a round should not
       // have to guess between delete and --delete-branch.
       ["archive", ["api", "delete", "--help"], /branch.*survives/s],
@@ -142,8 +143,7 @@ describe("schema drill-ins", () => {
   // compares the listing against `VERB_GROUPS`, and both now derive from
   // `VerbSpec.group`, so they move together. This one is the independent pin —
   // and it is in canonical VERBS order, which is the order the index, `--all`
-  // and `--help` already used, so a group listing can no longer disagree with
-  // them.
+  // and `--help` already use, so a group listing cannot disagree with them.
   it("--group lists that group's verbs compactly (name + summary only)", async () => {
     const result = (await invokeVerb("schema", ["--group", "read"], offline)) as {
       group: string
@@ -173,12 +173,11 @@ describe("schema drill-ins", () => {
     expect(result.verbs.length).toBeGreaterThan(10)
   })
 
-  // Regression for issue #95: `prompt` was declared in `verbs-drive.ts` but
-  // never added to the hand-written group table, so it reported group "other"
-  // — a name `--group` then rejected as unknown, leaving it in NO browsable
-  // group. Groups are now derived from `VerbSpec.group`, so this holds for
-  // every verb by construction; the assertion is what fails if someone
-  // reintroduces a fallback.
+  // A verb declared in `verbs-drive.ts` but missing from a hand-written group
+  // table would report group "other" — a name `--group` then rejects as
+  // unknown, leaving it in NO browsable group. Groups derive from
+  // `VerbSpec.group`, so this holds by construction; the assertion is what
+  // fails if someone reintroduces a fallback.
   it("every verb is reachable through the group it reports", async () => {
     for (const v of VERBS) {
       const listing = (await invokeVerb("schema", ["--group", v.group], offline)) as {

@@ -104,8 +104,8 @@ void _everyStateListed
 /**
  * The activity state machine. Defined ONCE, in the daemon package — the
  * daemon is the only production caller (`DaemonActivityRegistry`), and kobe
- * depends on kobe-daemon (never the reverse), so this side re-exports.
- * A second copy lived here and drifted; a fix now lands in one place.
+ * depends on kobe-daemon (never the reverse), so this side re-exports
+ * rather than keeping a second copy that can drift.
  * @see {@link import("@sma1lboy/kobe-daemon/daemon/activity-reduce").reduceActivity}
  */
 export { reduceActivity } from "@sma1lboy/kobe-daemon/daemon/activity-reduce"

@@ -79,7 +79,7 @@ const CURRENT_VERSION = 3 as const
  * Copy a corrupt manifest's ORIGINAL bytes aside before the store recovers
  * to an empty index. Without this, the next save read-merge-writes from the
  * empty recovery base and REPLACES the corrupt file — permanently
- * destroying whatever tasks its bytes still held (ported from PR #276).
+ * destroying whatever tasks its bytes still held.
  * Best-effort: a backup failure must never block startup/save; returns the
  * backup path for the caller's warn line, or null when the copy failed.
  */
@@ -242,8 +242,8 @@ function coerceTombstones(parsed: unknown): TaskTombstone[] {
  *   - OUR changes win for ids we touched (`dirty`) — last-write-wins per task.
  *   - A DELETION beats a concurrent edit, from either side: our pending
  *     removals (`removed`) and the on-disk tombstones a peer persisted both
- *     suppress the task, even if we hold it dirty (issue #47 — task ids are
- *     ULIDs and never reused, so a tombstone can't shadow a legit new task).
+ *     suppress the task, even if we hold it dirty (task ids are ULIDs and
+ *     never reused, so a tombstone can't shadow a legit new task).
  *   - A task a peer removed pre-tombstones (gone from disk, untouched by us)
  *     is still NOT resurrected from our stale cache.
  *   - A task a peer created/updated (on disk, untouched by us) is preserved —
@@ -374,7 +374,7 @@ function coerceTask(value: unknown): Task | null {
     // lost the tracker item it was started from.
     ...(quotaResume ? { quotaResume } : {}),
     ...(linkedWorkItem ? { linkedWorkItem } : {}),
-    // Reply address for the collaboration loop (issue #21) — must survive the
+    // Reply address for the collaboration loop — must survive the
     // load coercion or a daemon restart severs every sub-task's route home.
     // Records that predate the field normalize to undefined.
     ...(dispatcher ? { dispatcher } : {}),
@@ -400,7 +400,7 @@ function coerceDispatcher(value: unknown): TaskDispatcher | undefined {
   return { taskId: v.taskId, tabId: v.tabId }
 }
 
-/** Routine back-pointer (issue #91). A link with no automation id is junk —
+/** Routine back-pointer. A link with no automation id is junk —
  *  dropped, so the task reads as an ordinary one rather than folding itself
  *  behind a routine section that can never be resolved back to a schedule. */
 function coerceRoutine(value: unknown): TaskRoutineLink | undefined {

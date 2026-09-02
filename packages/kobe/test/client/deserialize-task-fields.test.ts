@@ -3,7 +3,7 @@
  * allowlist a Task field has to survive, and the last one before the TUI.
  *
  * The other two: `test/orchestrator/store-codec-roundtrip.test.ts` closes the
- * disk side (`coerceTask`, issue #57), `test/daemon/serialize-task-fields.test.ts`
+ * disk side (`coerceTask`), `test/daemon/serialize-task-fields.test.ts`
  * closes the wire side (`serializeTask`). This closes the decode side, which
  * had no coverage — and it is the single funnel every task the TUI renders
  * passes through, so a field dropped here is invisible in the product even

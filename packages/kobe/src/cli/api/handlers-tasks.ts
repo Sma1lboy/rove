@@ -195,8 +195,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     text,
   )
   // A prompt that never landed AND was not deferred is a delivery FAILURE the
-  // script must see — non-zero exit, not a phantom `ok:true`. Deferred
-  // (issue #78 B-layer) is a SUCCESS: the daemon owns the message and queued
+  // script must see — non-zero exit, not a phantom `ok:true`. A deferred
+  // prompt is a SUCCESS: the daemon owns the message and queued
   // an inbox episode. The caller must NOT retry — a retry would stack a
   // duplicate of the same message in the deferred queue.
   if (!delivered.delivered && !delivered.deferred) {
@@ -305,7 +305,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   const deleteBranch = ctx.args.bool("delete-branch") ?? false
   // Deleting somebody else's task destroys their worktree and every tab in
   // it, so the daemon's audit line has to name WHO asked. Same verified
-  // identity `send`/`add` use (never the bare env — issue #24): unverifiable
+  // identity `send`/`add` use, never the bare env: unverifiable
   // stays unattributed rather than blaming a stranger's session.
   const self = await verifiedSelfSession()
   const res = (await daemon.request("task.delete", {
@@ -370,12 +370,12 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       // Left UNDEFINED when the flag is absent so the orchestrator's default
       // (remove it) applies; only an explicit `--remove-worktree=false` keeps
       // the worktree. Coercing undefined to false here would pin the CLI to
-      // the old opt-in behaviour.
+      // an opt-in it does not have.
       removeWorktree: ctx.args.bool("remove-worktree"),
       // Sent on EVERY land: the daemon refuses to remove the worktree the
       // caller is running from, and it can only know where that is if we tell
-      // it. Since removal is now the default rather than an opt-in flag, an
-      // agent landing its own task would otherwise delete its own cwd.
+      // it. Removal is the default, so an agent landing its own task would
+      // otherwise delete its own cwd.
       callerCwd: process.cwd(),
     })
   } catch (err) {

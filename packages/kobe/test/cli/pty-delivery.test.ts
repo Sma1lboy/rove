@@ -62,11 +62,11 @@ describe("deliverToKey", () => {
   it("peeks (never attaches/resizes) then writes bracketed prompt + deferred CR", async () => {
     const { rpc, calls } = recorder()
     const ok = await deliverToKey(rpc, "t1::tab-1", "do the thing")
-    // The outcome is OBSERVED now, not assumed: it carries the byte count,
+    // The outcome is OBSERVED, not assumed: it carries the byte count,
     // the readiness verdict, and whether the tail was echoed back.
     expect(ok).toMatchObject({ ready: true, confirmed: true })
     // pty.peek, NOT pty.open: an open would last-attach-wins resize the
-    // live session away from its attached TUI (issue #18) — delivery must
+    // live session away from its attached TUI — delivery must
     // be indistinguishable from keyboard input (pure pty.write).
     // Peeks (gate, readiness, confirm) then two writes — still no open/resize.
     expect(calls.map((c) => c.name)).toEqual(["pty.peek", "pty.peek", "pty.write", "pty.write", "pty.peek"])
@@ -178,10 +178,10 @@ describe("deliverHostedPrompt", () => {
     expect(calls).toContain("pty.write")
   })
 
-  it("delivers into a surviving shell-wrapped engine tab instead of spawning (issue #19 incident)", async () => {
-    // The incident shape: tab-1 dead, tab-2 a live shell-wrapped engine.
-    // Pre-fix this spawned a fresh unsandboxed engine at launch.key and
-    // returned ok while tab-2 never saw the prompt.
+  it("delivers into a surviving shell-wrapped engine tab instead of spawning", async () => {
+    // The shape that breaks: tab-1 dead, tab-2 a live shell-wrapped engine.
+    // Spawning here mints a fresh unsandboxed engine at launch.key and
+    // returns ok while tab-2 never sees the prompt.
     const calls: string[] = []
     const engine = echoingPeek()
     const rpc = {

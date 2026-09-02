@@ -26,7 +26,7 @@
  *   - Strictly read-only: never spawns, attaches, resizes, or mutates
  *     task/engine lifecycle (terminal reads go through `pty.peek`).
  *
- * Tab precision (2026-08-16): the default terminal read resolves the
+ * Tab precision: the default terminal read resolves the
  * task's CANONICAL engine tab; `--tab tab-N` reads exactly that hosted
  * session instead (the API's smallest unit is one tab, same as
  * `send --tab`). A tab read is terminal-only — history is

@@ -11,8 +11,8 @@
  * Everything in this file must run under plain node: no Bun globals, no
  * imports that pull the Bun bundle in.
  *
- * Deliberately NOT solved by declaring `bun` an optionalDependency (owner,
- * reaffirmed 2026-08-19): that downloads a ~90MB platform binary on EVERY
+ * Deliberately NOT solved by declaring `bun` an optionalDependency: that
+ * downloads a ~90MB platform binary on EVERY
  * install, including `bun install -g`, where a Bun is already present. The
  * install offer below costs nothing and covers the same gap; the npm-package
  * path stays a lookup candidate for anyone who installs `bun` themselves.
@@ -68,7 +68,7 @@ export interface BunLookup {
   env?: NodeJS.ProcessEnv
   platform?: NodeJS.Platform
   home?: string
-  /** Directory of the launcher, used to find a Bun installed beside the package. */
+  /** Directory of the launcher, for finding a Bun installed beside the package. */
   launcherDir?: string
   isExecutable?: (path: string) => boolean
   /** Reads a candidate's `bun --version`; injected so tests never spawn. */
@@ -184,9 +184,8 @@ export function resolveBunBinary(lookup: BunLookup = {}): string | null {
  * Skipping rather than stopping matters: a system Bun on PATH shadowing a
  * current `~/.bun` one is the common shape of this, and Rove works fine if it
  * just uses the newer one. The same holds for a candidate that will not run —
- * a `bun` that is a stray text file, crashes, or hangs, all of which were
- * observed to be relaunched-into before this probe existed, producing garbage
- * output or a wedged process instead of an error.
+ * a `bun` that is a stray text file, crashes, or hangs. Relaunching into one
+ * of those produces garbage output or a wedged process instead of an error.
  *
  * Costs one `bun --version` per candidate until the first hit (~4ms, measured,
  * against a ~300ms node→Bun re-exec), and only on the node launcher path;

@@ -102,8 +102,8 @@ export function worktreeRootFor(repo: string): string {
  * the worktrees under A fall out of managed listing + slug allocation.
  * Those tasks are NOT lost — each task record pins its own absolute
  * `worktreePath`, so opening/removing them keeps working; they just stop
- * appearing in "list kobe-managed worktrees" and their slugs no longer
- * block reuse. Recording every base ever used would close the gap but is
+ * appearing in "list kobe-managed worktrees" and their slugs stop blocking
+ * reuse. Recording every base ever used would close the gap but is
  * deliberately out of scope here.
  */
 export function managedWorktreeRootsFor(repo: string): readonly string[] {
@@ -218,7 +218,7 @@ export function isKobeManagedPath(repo: string, candidate: string): boolean {
  * needing to know which repo owns it.
  *
  * `isKobeManagedPath` answers the same question but takes a repo, and the one
- * caller that needs this is the case where the repo can no longer be resolved:
+ * caller that needs this is the case where the repo cannot be resolved at all:
  * a worktree whose upstream `.git` was destroyed (macOS pruning `/tmp`, a
  * deleted checkout) has no discoverable owner, so `remove()` cannot use the
  * repo-keyed form to decide whether the directory is its own to delete.

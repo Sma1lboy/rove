@@ -38,10 +38,10 @@ export function isObject(v: unknown): v is Record<string, unknown> {
 
 /** The `hook <verb>` fragments a kobe activity command may have been written
  *  with, independent of the CLI invocation prefix: the current shell-quoted
- *  `'hook' '<verb>'` form AND the legacy unquoted `hook <verb>` form. Early
- *  kobe wrote the unquoted form; recognizing only the quoted one left those
- *  stale entries behind on every re-install, so upgraded users had every
- *  event firing twice (double `kobe hook` spawns + duplicate daemon reports). */
+ *  `'hook' '<verb>'` form AND the legacy unquoted `hook <verb>` form.
+ *  Recognizing only the quoted one leaves the unquoted entries in place on
+ *  every re-install, which makes every event fire twice (double `kobe hook`
+ *  spawns + duplicate daemon reports). */
 function activityMarkers(eventMap: readonly HookEventSpec[]): string[] {
   return eventMap.flatMap((e) => [quoteShellArgv(["hook", e.verb]), `hook ${e.verb}`])
 }
@@ -129,18 +129,16 @@ export function mergeActivityHooks(
 }
 
 /**
- * The `PostToolUse` (Bash) hook Rove used to install: an observer that fired
- * `kobe hook worktree-created` after EVERY Bash call, machine-wide, to archive
- * the task pinned to a removed worktree. Archive was removed (issue #75), so
- * the hook had nothing left to do — it just paid a ~170ms process spawn on
- * every Bash call of every session. Retired 2026-08-30; these two constants
- * survive only so {@link removeWorktreeWatchHook} can find and delete the
- * entries already written into users' settings files.
+ * A `PostToolUse` (Bash) hook Rove only ever REMOVES: an observer that fires
+ * `kobe hook worktree-created` after every Bash call, machine-wide, for a
+ * ~170ms process spawn each time and nothing in return. These two constants
+ * exist so {@link removeWorktreeWatchHook} can find and delete the entries
+ * already written into users' settings files.
  */
 const RETIRED_WATCH_EVENT = "PostToolUse"
 export const WORKTREE_WATCH_MARKER = "worktree-created"
 
-/** True if a PostToolUse group is the retired Rove worktree-watch hook.
+/** True if a PostToolUse group is Rove's worktree-watch hook.
  *  Keys on the command substring, so both the quoted (`'hook'
  *  'worktree-created'`) and legacy unquoted install forms are matched — and
  *  nothing else in the file is (a user's own PostToolUse hooks, and the hooks
@@ -153,8 +151,8 @@ function isRetiredWatchGroup(group: unknown): boolean {
 }
 
 /**
- * Pure merge: drop the retired worktree-watch hook from a SHARED settings
- * object. Removal-only (there is no install counterpart any more) and
+ * Pure merge: drop the worktree-watch hook from a SHARED settings
+ * object. Removal-only (there is no install counterpart) and
  * merge-safe: it filters ONLY the groups whose command names Rove's verb, so a
  * hand-edited settings file keeps the user's own PostToolUse hooks and every
  * other key untouched. Idempotent — a second pass finds nothing and returns an

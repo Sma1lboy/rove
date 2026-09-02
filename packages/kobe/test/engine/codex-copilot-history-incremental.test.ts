@@ -13,8 +13,8 @@ import {
 /**
  * Why these tests matter: the history pane polls `readHistory` every ~2.5s
  * and Solid's `<For>` keys rows by object reference — all-new identities per
- * poll destroy + recreate every rendered row. PR #233 gave the claude reader
- * an append-aware parse cache; these tests pin the same contract for the
+ * poll destroy + recreate every rendered row. The claude reader has an
+ * append-aware parse cache; these tests pin the same contract for the
  * codex and copilot readers: (a) already-seen messages keep object identity
  * when the file only appended, (b) output stays identical to a full re-parse,
  * falling back on rewrite/truncation, and (c) copilot's cross-line fold state

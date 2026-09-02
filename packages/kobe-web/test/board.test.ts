@@ -354,7 +354,7 @@ describe("buildBoardView — the whole board view-model", () => {
       "/u/kobe",
       "/u/web",
     ])
-    // Only issue #1 matches "auth", so one shown card, one project board.
+    // Only the id-1 issue matches "auth", so one shown card, one project board.
     expect(view.shownCount).toBe(1)
     expect(view.projectBoards.map((b) => b.repo)).toEqual(["/u/kobe"])
     expect(view.hasAnyCard).toBe(true)

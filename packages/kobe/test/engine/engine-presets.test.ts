@@ -1,5 +1,5 @@
 /**
- * `engineLaunchArgv` — what a task or tab actually spawns (issue #30).
+ * `engineLaunchArgv` — what a task or tab actually spawns.
  *
  * The subtle rule is the preset-id indirection: `--command claude` must mean
  * "my claude" (the `engineCommand.claude` override I configured in Settings),
@@ -111,9 +111,9 @@ describe("engineLaunchArgv", () => {
 })
 
 // Why: `engine-presets.ts:22-26` promises a declared protocol makes the
-// built-in adapter's knowledge apply — but fork used to read the RAW vendor
-// id, find the empty custom entry, and refuse. A `claudecpa` wrapper launches
-// the claude binary and forks exactly like claude; resolving the protocol
+// built-in adapter's knowledge apply. Reading the RAW vendor id for fork
+// finds the empty custom entry and refuses; a `claudecpa` wrapper launches
+// the claude binary and forks exactly like claude, so resolving the protocol
 // first is what makes the promise true. Needs state, so it lives here rather
 // than beside the other fork tests.
 describe("fork through a declared protocol", () => {

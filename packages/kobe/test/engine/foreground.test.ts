@@ -9,9 +9,9 @@ import {
 } from "../../src/engine/foreground.ts"
 
 /**
- * Verbatim `ps -A -o pid=,ppid=,args=` lines captured while the owner's
- * `claudecpa` zsh function ran in a real PTY (2026-07-27): the shell
- * spawns cc-switch's `/bin/sh -c` wrapper, which spawns the actual
+ * Verbatim `ps -A -o pid=,ppid=,args=` lines captured while a `claudecpa`
+ * zsh function ran in a real PTY: the shell spawns cc-switch's
+ * `/bin/sh -c` wrapper, which spawns the actual
  * claude binary two levels down.
  */
 const REAL_TREE = `
@@ -42,7 +42,7 @@ describe("vendorFromArgv", () => {
   })
 
   it("identifies kimi by its rewritten process title (registry processNames)", () => {
-    // Verbatim `ps -o args=` lines from two live kimi sessions (2026-08-15):
+    // Verbatim `ps -o args=` lines from two live kimi sessions:
     // the Mach-O launcher rewrites argv[0] to `kimi-co`, and what follows is
     // environ memory, not arguments.
     expect(vendorFromArgv("kimi-co NVM_RC_VERSION=")).toBe("kimi")

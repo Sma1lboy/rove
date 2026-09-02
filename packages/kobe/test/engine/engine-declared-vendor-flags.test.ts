@@ -98,8 +98,8 @@ afterEach(() => {
 describe("declared effort reaches the launch argv", () => {
   it("applies a NON-CODEX engine's own effortArgv", () => {
     // The whole bug: this engine declares levels, so "high" passes the gate,
-    // shows in the picker and rides /api/engines — and under the old
-    // `if (v === "codex")` it was then dropped with no error.
+    // shows in the picker and rides /api/engines — and an `if (v === "codex")`
+    // argv branch would then drop it with no error.
     expect(withEngineEffort(["fake-cli"], "fakeengine", "high")).toEqual(["fake-cli", "--reasoning", "high"])
   })
 

@@ -3,8 +3,8 @@
  * `main` row.
  *
  * `rove .` already routes a repo root to `ensureMainTask` (open-dir-cmd.ts),
- * so nothing NEW lands as a mis-shaped row. What has no owner is the rows
- * created before that rule: a `dir` task pinned to a git toplevel, rendering
+ * so nothing NEW lands as a mis-shaped row. What has no owner is a row
+ * already on disk: a `dir` task pinned to a git toplevel, rendering
  * under its own path as though the directory were not a project, and outside
  * every rule written for `main` — the sidebar's project ordering, the pin, the
  * fold. `MainTaskCoordinator.ensure` already knows how to absorb such a row
@@ -33,7 +33,7 @@ export interface PromotableDeps {
  * The repo roots that a `dir` task occupies and no `main` row claims yet.
  *
  * Excludes:
- *   - **scratch** rows — their cwd is unsettled by definition (issue #33), and
+ *   - **scratch** rows — their cwd is unsettled by definition, and
  *     a scratch shell that happens to start inside a repo is still a scratch
  *     shell, not that repo's project row;
  *   - roots that ALREADY have a main row — promoting there would mint a

@@ -1,7 +1,7 @@
 /**
- * Toast store — the web UI's one error/notice surface. RPC failures used to
- * be swallowed (`.catch(() => {})`) so a failed rename/create looked
- * like nothing happened; every mutation path now reports here instead.
+ * Toast store — the web UI's one error/notice surface. A swallowed RPC
+ * failure (`.catch(() => {})`) makes a failed rename/create look like nothing
+ * happened, so every mutation path reports here instead.
  * Module-level external store, same persistence semantics as store.ts/tabs.ts.
  */
 

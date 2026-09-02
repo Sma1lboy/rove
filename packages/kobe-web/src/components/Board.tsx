@@ -17,8 +17,8 @@
  * exception: once a quickStart resolves with a taskId we optimistically flip
  * that issue into the In progress column (lib/use-issue-actions.ts) so the
  * board reflects the start before the snapshot's `taskId` link lands. There is
- * NO per-card live engine / worktree / task.snapshot subscription — that was
- * the old unified board's lag source and is gone. Column rendering lives in
+ * NO per-card live engine / worktree / task.snapshot subscription — that is
+ * the board's main lag source. Column rendering lives in
  * BoardColumns.tsx.
  */
 

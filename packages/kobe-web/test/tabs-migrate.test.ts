@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest"
 import { migrateStoredTab } from "../src/lib/tabs.ts"
 
 /**
- * Stale localStorage from older builds can carry retired tab kinds. The
- * migration must coerce them to current kinds so the SPA never renders an
+ * Stale localStorage from older builds can carry tab kinds this build does
+ * not have. The migration must coerce them to current kinds so the SPA never
+ * renders an
  * unknown tab (or crashes) on load.
  */
 

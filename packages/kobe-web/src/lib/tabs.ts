@@ -117,8 +117,8 @@ export function withTaskTab(next: TabsState, taskId: string): TabsState {
 
 /**
  * Migrate one stored tab object to a current {@link WorkspaceTab}. Stale
- * localStorage can carry retired kinds — `notes` (the old right-rail tab,
- * now an empty chooser) and `chat` (renamed to `vendor`); anything without a
+ * localStorage can carry kinds this build does not have — `notes` (an empty
+ * chooser now) and `chat` (spelled `vendor`); anything without a
  * recognized kind defaults to `vendor`. Pure (a `notes` migration mints a
  * fresh empty tab id); exported for tests.
  *
@@ -239,11 +239,11 @@ export function resetLayout(): void {
 }
 
 /**
- * Sweep tab state for tasks that no longer exist (deleted in the TUI, via
- * `kobe api`, or by another browser). Kills the dead tasks' PTYs server-side
- * — without this, a deleted task's engine kept running in the pty sidecar,
- * orphaned and invisible (same bug class as the tmux orphan `kobe api delete`
- * had). Call ONLY with an authoritative live-daemon task list.
+ * Sweep tab state for tasks the daemon does not list (deleted in the TUI,
+ * via `kobe api`, or by another browser). Kills the dead tasks' PTYs
+ * server-side — without this a deleted task's engine keeps running in the pty
+ * sidecar, orphaned and invisible. Call ONLY with an authoritative
+ * live-daemon task list.
  */
 export function pruneMissingTasks(liveTaskIds: ReadonlySet<string>): void {
   // A vendor tab pinned to a dead engine task is equally orphaned even though

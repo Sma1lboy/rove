@@ -76,7 +76,7 @@ export async function killHostedSessions(rpc: HostedSessionRpc, keys: readonly s
  * word. Hosted engine tabs launch via `<shell> -ilc '…<engineBin> …'`
  * (`buildEngineSessionLaunch`), so `command[0]` is ALWAYS the shell — an
  * argv[0] comparison against the engine binary never matches in production
- * (issue #19: that dead fallback made delivery silently spawn a duplicate
+ * (a dead fallback there makes delivery silently spawn a duplicate
  * engine). Bare shell tabs (`[shell, "-il"]`) carry no engine word.
  */
 export function commandHasEngineWord(command: readonly string[], engineBin: string): boolean {
@@ -112,12 +112,12 @@ function tabOrder(key: string): number {
  * lowest-numbered alive tab running ANY registered engine. Bare shell tabs
  * never match — they must never receive a prompt.
  *
- * That last rung is vendor-AGNOSTIC on purpose (issue #36): `engineBin`
- * comes from the task's recorded vendor, which drifts from what its tabs
- * actually run — a task pinned to the custom preset `claudecpa` (a zsh
- * wrapper) whose live tabs launch plain `claude` resolved to null, and a
- * bare `send` refused with NO_ENGINE_TAB while its engine sat right there.
- * The delivery gate (`engineProcessIn`) has always accepted any live engine
+ * That last rung is vendor-AGNOSTIC on purpose: `engineBin` comes from the
+ * task's recorded vendor, which drifts from what its tabs actually run — a
+ * task pinned to the custom preset `claudecpa` (a zsh wrapper) whose live
+ * tabs launch plain `claude` would resolve to null, and a bare `send` would
+ * refuse with NO_ENGINE_TAB while its engine sat right there.
+ * The delivery gate (`engineProcessIn`) accepts any live engine
  * and `--tab tab-N` has always allowed cross-vendor send; this makes the
  * resolver agree with both. Safety is unchanged: the caller still re-checks
  * the pick against a live `ps` walk before writing a single byte.
@@ -143,7 +143,7 @@ export function findHostedEngineKey(
 /** Delay between bracketed paste and submit CR so the engine reads two tty events. */
 const SUBMIT_DELAY_MS = 150
 
-/** Typed rejection from the delivery gate (issue #78). Neutral code catches
+/** Typed rejection from the delivery gate. Neutral code catches
  *  this and surfaces a `COMPOSER_BUSY` ApiError to the user/agent. */
 export class ComposerBusyError extends Error {
   constructor(
@@ -348,9 +348,9 @@ export async function writeHostedPrompt(
  *
  * `pty.peek`, NOT `pty.open`: an open from this headless client would
  * last-attach-wins resize a live session out from under the attached TUI
- * (the engine repaints at the delivery client's size and the pane garbles
- * — issue #18), and an open for a key that just died would spawn a bare
- * shell and paste the prompt into it. Peek never attaches, spawns, or
+ * (the engine repaints at the delivery client's size and the pane garbles),
+ * and an open for a key that just died would spawn a bare shell and paste
+ * the prompt into it. Peek never attaches, spawns, or
  * resizes — delivery is pure `pty.write`, exactly like keyboard input.
  */
 export async function deliverToHostedKey(
@@ -415,7 +415,7 @@ export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
 }
 
 /**
- * Deliver a paste-delivery vendor's FIRST message (issue #25): the launch
+ * Deliver a paste-delivery vendor's FIRST message: the launch
  * spawned the bare engine (its positional argv slot is a subcommand, not a
  * prompt), so the prompt is bracketed-pasted once the engine process is
  * actually up — the same reason `send` into a cold engine embeds nowhere
@@ -437,7 +437,7 @@ export async function pastePromptWhenEngineUp(
   // If the session was launched with a repo-init script, the engine child does
   // not appear until init finishes. Wait for the init marker before starting
   // the engine-startup budget so a slow `bun install` does not eat the whole
-  // paste-delivery window (issue #73).
+  // paste-delivery window.
   if (opts.initMarkerPath) {
     const initDeadline = Date.now() + (opts.initTimeoutMs ?? REPO_INIT_TIMEOUT_SECONDS * 1000)
     while (Date.now() < initDeadline) {
@@ -464,7 +464,7 @@ export async function pastePromptWhenEngineUp(
       if (up) {
         // The engine process exists; now wait for it to actually be READING
         // (see `awaitPasteReady`). Only when it never announces bracketed
-        // paste do we fall back to the old blind settle.
+        // paste do we fall back to a blind settle.
         if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
           await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
         }

@@ -1,5 +1,5 @@
 /**
- * `agent-turns` — the read end of per-turn agent telemetry (issue #32).
+ * `agent-turns` — the read end of per-turn agent telemetry.
  *
  * The records are produced by each engine's own adapter (the turn's model,
  * timings, and token usage come from that vendor's transcript) and joined to

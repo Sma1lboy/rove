@@ -85,8 +85,8 @@ describe("runWebSubcommand", () => {
     expect(err()).toContain("--port needs a number")
   })
 
-  // The attached form used to fall through to the default port with no
-  // error (#58): `indexOf("--port")` never saw the `--port=…` token.
+  // An `indexOf("--port")` scan never sees the `--port=…` token, so the
+  // attached form falls through to the default port with no error.
   it("--port=foo exits 2 exactly like the separated form", async () => {
     await expect(runWebSubcommand(["--port=foo"])).rejects.toThrow("exit 2")
     expect(err()).toContain("--port needs a number")

@@ -313,9 +313,9 @@ export function resolveIssueRepoSelection(
  * through the pty sidecar's spawn-on-send path, which materializes the worktree
  * + engine.
  *
- * The task no longer reverse-references the issue: `Task.issueId` was dropped,
- * so `task.create` carries no `issueId` — `Issue.taskId` (set by `linkIssue`)
- * is the only link, and the daemon's done-mirror is a reverse lookup over it.
+ * The link is ONE-WAY: `task.create` carries no `issueId`, so `Issue.taskId`
+ * (set by `linkIssue`) is the only link, and the daemon's done-mirror is a
+ * reverse lookup over it.
  *
  * `vendor` is the engine chosen in the drawer; when omitted it falls back to
  * the shared Settings default. `effort` is the engine's reasoning/effort level

@@ -49,10 +49,10 @@ function binaryLabel(binary: BinaryStatus): string {
 /**
  * One "engines:" block: per-engine CLI binary + account state (read-only).
  *
- * Loops over the REGISTERED engines rather than a fixed set of rows — kimi
- * shipped with a real `detectKimiAccount` and never appeared here, and a
- * contrib/custom engine never could, because adding one meant editing a
- * neutral CLI file. `detectEngineStatuses` is the same probe Settings →
+ * Loops over the REGISTERED engines rather than a fixed set of rows: a fixed
+ * set hides an engine that ships a real account detector, and a contrib or
+ * custom engine can never reach it at all without editing a neutral CLI file.
+ * `detectEngineStatuses` is the same probe Settings →
  * Accounts uses, so the two surfaces can't disagree.
  *
  * Order is `listPresetIds()`: the built-ins in their stable cycle order

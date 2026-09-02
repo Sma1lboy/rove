@@ -4,9 +4,9 @@
  *
  * Real git, real `chmod -w`: an unwritable directory inside a worktree makes
  * `git worktree remove --force` exit 255 AFTER it has already deregistered the
- * worktree. Reading the exit code as the whole truth reported that as a total
- * failure and left every retry fatal (`is not a working tree`), so a task
- * parked in `deletion.phase = "error"` forever (issue #89).
+ * worktree. Reading the exit code as the whole truth reports that as a total
+ * failure and leaves every retry fatal (`is not a working tree`), parking the
+ * task in `deletion.phase = "error"` forever.
  *
  * These are the only tests that ask GIT what actually happened rather than
  * asserting on a mock's arguments — a stub cannot produce the split.
@@ -97,8 +97,8 @@ describe("remove() when git deregisters but cannot delete", () => {
     const wt = undeletableWorktree("wt-locked", "kobe/locked")
     const seen: WorktreeResidue[] = []
 
-    // Red before the fix: `runGit` threw on exit 255 and the caller saw a
-    // GitCommandError for a removal git had already half-applied.
+    // Treating exit 255 as a plain `runGit` failure hands the caller a
+    // GitCommandError for a removal git has already half-applied.
     await expect(manager.remove(wt, { force: true, onResidue: (r) => seen.push(r) })).resolves.toBeUndefined()
 
     expect(seen).toHaveLength(1)
@@ -124,9 +124,9 @@ describe("remove() when git deregisters but cannot delete", () => {
     await manager.remove(wt, { force: true, onResidue: () => {} })
 
     const second: WorktreeResidue[] = []
-    // Red before the fix AND red if the retry only stops throwing: git can no
-    // longer resolve this path, so without the deregistered-dir probe the call
-    // threw `is not a git worktree` and the caller had no forward move.
+    // Also red if the retry merely stops throwing: git cannot resolve this
+    // path at all, so without the deregistered-dir probe the call answers
+    // `is not a git worktree` and the caller has no forward move.
     await expect(manager.remove(wt, { force: true, onResidue: (r) => second.push(r) })).resolves.toBeUndefined()
     expect(second).toHaveLength(1)
     expect(second[0].path).toBe(wt)

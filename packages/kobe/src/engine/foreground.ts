@@ -3,11 +3,11 @@
  * actually running in this shell right now", answered from the process
  * tree instead of the OSC window title.
  *
- * The title was the old signal (`vendorFromTerminalTitle`) and it is
- * structurally wrong: an engine's title is free-form activity text it
- * writes for HUMANS ("✳ Claude Code" at launch, then a summary of what
- * it's doing), so a claude session whose summary happened to mention
- * "codex" identified as codex — a substring collision, not an identity.
+ * The OSC title is structurally wrong for this: an engine's title is
+ * free-form activity text it writes for HUMANS ("✳ Claude Code" at launch,
+ * then a summary of what it's doing), so a claude session whose summary
+ * mentions "codex" identifies as codex — a substring collision, not an
+ * identity.
  *
  * A process tree can't collide like that: we walk the PTY shell's
  * descendants and ask each one's ARGV[0] (the executable, never its
@@ -96,7 +96,7 @@ function childrenIndex(rows: readonly ProcRow[]): Map<number, ProcRow[]> {
 /**
  * Is `ancestorPid` anywhere on `pid`'s parent chain (or `pid` itself)?
  *
- * The lineage half of "am I really running inside this tab" (issue #24):
+ * The lineage half of "am I really running inside this tab":
  * `$KOBE_TASK_ID` is an ordinary env var and inherits down the whole
  * process tree, so a background daemon forked out of an engine tab keeps
  * that identity for as long as it lives. A pid chain can't be inherited —
@@ -139,8 +139,8 @@ export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): F
 
 /**
  * Is ANY engine process running under `rootPid`? The delivery gate's
- * question (herdr's "agent is no longer the pane foreground process"):
- * kobe's keepAlive wrapper keeps a tab's PTY alive after its engine exits,
+ * question — is an agent still the pane's foreground process? kobe's
+ * keepAlive wrapper keeps a tab's PTY alive after its engine exits,
  * so "session alive" never proves an engine is there — and pasting a prompt
  * into the fallback SHELL executes it as commands. Vendor-agnostic on
  * purpose: any engine may receive text (cross-vendor send is legitimate);

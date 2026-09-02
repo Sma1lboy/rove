@@ -5,7 +5,7 @@
  *
  * One fold pass extracts BOTH the conversation messages (`response_item`
  * records) and the latest usage snapshot (real rollout `event_msg token_count`,
- * or legacy `codex exec --json` `turn.completed`) — previously two separate
+ * or legacy `codex exec --json` `turn.completed`) instead of two separate
  * full scans of the raw text per poll. The fold is line-local
  * apart from the usage carry-over (latest snapshot + its timestamp), which
  * threads through the cached state, so folding the appended slice onto the
@@ -110,10 +110,10 @@ function foldRolloutChunk(chunk: string, prev: CodexParseState, sessionId: strin
       latestUsage = snapshot
     } else if (latestUsageTimestampMs === null) {
       // No timestamped record has won yet — keep advancing to the latest in
-      // FILE order. Gating on `latestUsage === undefined` (the old check) froze
-      // on the FIRST snapshot when turn.completed lines carry no timestamp, so
-      // every later turn's usage was silently discarded and the session
-      // reported stale first-turn tokens.
+      // FILE order. Gating on `latestUsage === undefined` instead freezes on
+      // the FIRST snapshot when turn.completed lines carry no timestamp, so
+      // every later turn's usage is silently discarded and the session
+      // reports stale first-turn tokens.
       latestUsage = snapshot
     }
   }
@@ -137,9 +137,9 @@ interface CodexUsageFields {
  *   - REAL rollout: `{ type: "event_msg", payload: { type: "token_count",
  *     info: { total_token_usage: {…}, last_token_usage: {…},
  *     model_context_window } } }`. This is what codex-cli actually writes to
- *     `~/.codex/sessions/**.jsonl`; the old parser matched none of it, so
- *     History showed 0 tok and context% was always 0 even though
- *     `model_context_window` was sitting in the file. `total_token_usage` is
+ *     `~/.codex/sessions/**.jsonl`. A parser that misses it shows 0 tok and
+ *     0 context% with `model_context_window` sitting right there in the
+ *     file. `total_token_usage` is
  *     the session aggregate; `last_token_usage` is this turn's delta.
  *   - LEGACY stream: top-level `{ type: "turn.completed", usage: {…} }`, the
  *     `codex exec --json` event shape (no context window, no per-turn split).

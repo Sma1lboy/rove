@@ -134,12 +134,12 @@ describe("runDoctorSubcommand", () => {
   })
 
   it("prints the whole terminal section, multiplexer and kitty probe included", async () => {
-    // Regression guard: the section shrank to a single env line when the tmux
-    // RUNTIME was removed (b5e3bfd2a) — collateral damage, since multiplexer
-    // NESTING and the kitty probe were never about Rove hosting tmux. The
-    // consequence is real: docs/KEYBINDINGS.md says both split chords need
-    // the kitty protocol, so with the probe gone doctor could not answer a
-    // "split doesn't work" report at all.
+    // Regression guard: this section collapses to a single env line if it is
+    // treated as tmux-runtime output. Multiplexer NESTING and the kitty probe
+    // are not about Rove hosting tmux, and the consequence of losing them is
+    // real: docs/KEYBINDINGS.md says both split chords need the kitty
+    // protocol, so without the probe doctor cannot answer a "split doesn't
+    // work" report at all.
     mocks.request.mockResolvedValue(null)
     await runDoctorSubcommand([])
     const text = output()
@@ -218,9 +218,9 @@ describe("runDoctorSubcommand", () => {
   })
 })
 
-// Why: doctor used to hardcode three rows (claude/codex/copilot) with three
-// hand-written label functions, so kimi was INVISIBLE despite shipping a real
-// `detectKimiAccount`, and no contrib/custom engine could ever appear. The
+// Why: hardcoding three rows (claude/codex/copilot) with three hand-written
+// label functions makes kimi INVISIBLE despite its real `detectKimiAccount`,
+// and no contrib/custom engine can ever appear. The
 // test that catches a regression is "every registered id gets a row", not
 // "these four names are present".
 describe("runDoctorSubcommand engines block", () => {
@@ -279,9 +279,9 @@ describe("runDoctorSubcommand engines block", () => {
     expect(output()).toContain("⚠ parse /home/u/.kimi-code/credentials/kimi-code.json: bad json")
   })
 
-  it("counts ANY usable engine, not just the three that used to be listed", async () => {
-    // Only kimi is installed and logged in. `anyUsable` used to OR three
-    // hardcoded vendors, so this user was told they had NO engine at all.
+  it("counts ANY usable engine, not a hardcoded few", async () => {
+    // Only kimi is installed and logged in. An `anyUsable` that ORs three
+    // hardcoded vendors tells this user they have NO engine at all.
     // The verdict is only visible as a proposed fix, so count them: the
     // no-engine finding is present in one case and absent in the other.
     mocks.listPresetIds.mockReturnValue(["claude", "codex", "copilot", "kimi"])

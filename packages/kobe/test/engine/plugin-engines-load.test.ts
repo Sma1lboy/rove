@@ -75,8 +75,8 @@ describe("loadPluginEngines", () => {
     expect(loadPluginEngines()).toEqual(["aider"])
     const entry = engineEntry("aider")
     expect(entry.displayName).toBe("Aider")
-    // The manifest still sets `input_placeholder` (a retired key): it must
-    // register without throwing and the field is simply absent.
+    // The manifest sets `input_placeholder`, a key the loader does not know:
+    // it must register without throwing, and the field is simply absent.
     expect(entry.identity).toEqual({ vendorId: "aider", shortName: "Aid" })
   })
 

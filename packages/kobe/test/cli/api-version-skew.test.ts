@@ -1,10 +1,10 @@
 /**
  * A verb whose daemon RPC does not exist is a VERSION SKEW, not a failed call.
  *
- * The incident: `rove api schema --verb archive` printed a full spec and
- * exited 0, then `rove api archive --task-id …` came back
+ * The failure shape: `rove api schema --verb archive` prints a full spec and
+ * exits 0, then `rove api archive --task-id …` comes back
  * `{"error":{"message":"unknown daemon request: task.archive","code":"RPC_ERROR"}}`
- * 200ms later — the CLI was an older build than the daemon that had dropped
+ * 200ms later, because the CLI is an older build than the daemon that dropped
  * the verb. Schema is how an agent DISCOVERS a capability, so the rejection
  * has to say "these two builds disagree", not "the call failed".
  */
@@ -38,7 +38,7 @@ describe("unknown daemon request", () => {
   })
 
   it("covers both skew directions — old CLI × new daemon is the same rejection", () => {
-    // The removed-verb case from the incident: this CLI still ships `archive`,
+    // The removed-verb direction: this CLI still ships `archive`,
     // the newer daemon does not serve `task.archive`. Identical wire error, so
     // one branch has to answer both directions.
     const err = toApiError(new Error("unknown daemon request: task.archive"))

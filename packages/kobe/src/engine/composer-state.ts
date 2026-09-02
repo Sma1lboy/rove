@@ -1,7 +1,7 @@
 /**
  * Composer-empty detection for hosted engine sessions.
  *
- * The delivery gate (issue #78) needs to know whether the engine's composer
+ * The delivery gate needs to know whether the engine's composer
  * already contains user text before auto-pasting a peer/API message. This is
  * a pure function: raw ring bytes + an engine-owned manifest → empty / not
  * empty / unknown. No real PTY is started; rendering happens in a throwaway
@@ -12,18 +12,17 @@ import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import type { ComposerEmptyRule, EngineScreenManifest } from "./screen-state.ts"
 
-/** Fixed width for composer rendering — see issue #78. Claude's composer
+/** Fixed width for composer rendering. Claude's composer
  *  line is stable across 150–236 cols; 150 is enough and cheap. */
 export const COMPOSER_RENDER_COLS = 150
 /**
  * Rows the throwaway terminal renders into.
  *
- * Must exceed a real engine screen, not just the footer we want to read. At
- * 12 the ring's own line count overran the buffer and lines CONCATENATED
- * (`──⏵⏵ bypass permissions on …` — a rule and the hint row fused into one),
- * so the composer line was not merely off-window, it no longer existed as a
- * line to match. Every Claude delivery then read as "composer has text" and
- * deferred, whatever the composer actually held.
+ * Must exceed a real engine screen, not just the footer we want to read. Too
+ * few rows and the ring's own line count overruns the buffer, fusing lines
+ * together (`──⏵⏵ bypass permissions on …` — a rule and the hint row in one),
+ * so the composer line does not exist as a line to match at all and every
+ * delivery reads as "composer has text", whatever the composer holds.
  *
  * 60 covers a full-screen engine with headroom. The cost is one throwaway
  * xterm per delivery gate, which is already the price of the render.
@@ -86,11 +85,11 @@ function bottomRegion(capture: readonly RenderedComposerLine[], lines: number): 
  *   `absent` — its ANCHOR is not on screen at all, so this rule saw no
  *              composer and has nothing to say about one.
  *
- * The third outcome is the one that matters. Collapsing it into `text` is
- * what turned a Claude layout change into a total delivery outage: the prompt
- * glyph moved out of the inspected window, no rule matched, and every message
- * to every Claude task deferred as "composer busy" — including the ones whose
- * composers were plainly empty. "I could not see it" is not evidence of text.
+ * The third outcome is the one that matters. Collapsing it into `text` turns
+ * any engine layout change into a total delivery outage: the prompt glyph
+ * moves out of the inspected window, no rule matches, and every message to
+ * that engine defers as "composer busy" — including the ones whose composers
+ * are plainly empty. "I could not see it" is not evidence of text.
  */
 type RuleOutcome = "empty" | "text" | "absent"
 

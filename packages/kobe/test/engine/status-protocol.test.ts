@@ -81,7 +81,7 @@ describe("statusReportProtocol", () => {
   it("the api prefix is injectable — packaged builds bake plain `kobe api`", () => {
     // The default resolves the environment's CLI invocation (the dev bun
     // line from a source checkout), so a protocol agent never drives a
-    // stale global `kobe` that predates a new verb (BAD_VERB field bug).
+    // stale global `kobe` that predates a new verb and answers BAD_VERB.
     expect(statusReportProtocol("t9", "kobe api")).toContain("kobe api set-status --task-id t9")
     expect(noteFilingProtocol("t9", "kobe api")).toContain('kobe api note --task-id t9 --text "<one line')
     expect(dispatcherProtocol("m9", "kobe api")).toContain("kobe api dispatch --task-id <id>")
@@ -193,7 +193,7 @@ describe("dispatcherProtocol", () => {
     const text = dispatcherProtocol("01HMAIN")
     expect(text).toContain("task 01HMAIN")
     expect(text).not.toContain("set-status")
-    // The radar is display-only by explicit decision (2026-06-13): the
+    // The radar is display-only by explicit decision: the
     // dispatcher must never instruct merges/rebases over conflicts.
     expect(text).toContain("Take no action on merge conflicts")
     expect(text).not.toContain("merge-tree")

@@ -1,5 +1,5 @@
 /**
- * Vendor worktree pre-trust (issue #28): each adapter writes its vendor's
+ * Vendor worktree pre-trust: each adapter writes its vendor's
  * first-run trust record for a Rove-created worktree — merge-preserving and
  * idempotent, because these stores belong to the user's real CLI installs.
  * Runs against temp HOME dirs; the real stores are never touched.

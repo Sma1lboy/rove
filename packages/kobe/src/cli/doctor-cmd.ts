@@ -181,7 +181,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   // Can this process still re-exec itself? A `bun`/`node` process holds its
   // entry open by inode, so uninstalling Rove out from under a running one
   // leaves it alive on a path that is gone — it keeps working until it needs
-  // to spawn a daemon, then fails identically forever (issue #96). The check
+  // to spawn a daemon, then fails identically forever. The check
   // is exactly the resolution the spawn path performs, so the two can never
   // disagree about whether this install is intact.
   const install = describeInstall()
@@ -293,9 +293,9 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
     )
     if (!node) fixes.push(humanOnlyFix("windowsNode"))
   }
-  // macOS: node-pty@1.1.0 ships spawn-helper at 0644 (issue #85). The root
-  // postinstall restores +x on install; a tree from before that fix keeps
-  // failing every node-pty spawn with nothing on screen, so name it here.
+  // macOS: node-pty@1.1.0 ships spawn-helper at 0644. The root postinstall
+  // restores +x on install; a tree where it did not run fails every node-pty
+  // spawn with nothing on screen, so name it here.
   if (process.platform === "darwin") {
     const helpers = spawnHelperDoctorLines(installedSpawnHelpers())
     out.push(...helpers.lines)

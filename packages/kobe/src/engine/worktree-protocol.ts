@@ -35,12 +35,11 @@ const SYSTEM_PROMPT_PROTOCOL = "claude"
  * True when a launch of `vendor` accepts Rove's system-prompt injection —
  * i.e. it speaks the claude protocol, natively or by declaration.
  *
- * PROTOCOL-resolved, not id-compared. The raw
- * `coerceVendorId(vendor) !== "claude"` this replaced is the same shape as
- * the `withClaudeSessionId` tombstone in `interactive-command.ts`: only an
- * engine literally NAMED claude passed, so a wrapper preset silently got no
- * status protocol (its card never left `in_progress` under
- * `experimental.autoStatus`) and no field notes — with no error anywhere.
+ * PROTOCOL-resolved, not id-compared. A raw
+ * `coerceVendorId(vendor) !== "claude"` would pass only an engine literally
+ * NAMED claude, so a wrapper preset would silently get no status protocol
+ * (its card never leaving `in_progress` under `experimental.autoStatus`) and
+ * no field notes — with no error anywhere.
  */
 function acceptsSystemPrompt(vendor: string | undefined): boolean {
   return sessionProtocol(vendor) === SYSTEM_PROMPT_PROTOCOL

@@ -193,7 +193,7 @@ export interface EngineRegistryEntry {
    *   - "argv" (default): appended to the launch argv as a positional arg —
    *     claude/codex accept an initial prompt there.
    *   - "paste": the CLI's positional slot is a SUBCOMMAND, not a prompt
-   *     (kimi exits `Unknown command` on one — issue #25), so the launch
+   *     (kimi exits `Unknown command` on one), so the launch
    *     spawns bare and the spawner pastes the message once the engine
    *     process is up (`pastePromptWhenEngineUp` in `hosted-session.ts`).
    * Custom engines keep "argv" — their launch-command contract is the
@@ -204,7 +204,7 @@ export interface EngineRegistryEntry {
    * Extra executable basenames this engine's LIVE process may show as in
    * `ps`, beyond `defaultCommand[0]` — for binaries that rewrite their
    * process title post-launch (kimi's Mach-O launcher rewrites argv[0] to
-   * `kimi-co`, verified on two live sessions 2026-08-15). The foreground
+   * `kimi-co`). The foreground
    * walk (`engine/foreground.ts`) matches these the same way it matches
    * the launch binary; without them a running engine reads as a plain
    * shell and prompt delivery refuses with ENGINE_NOT_RUNNING.
@@ -212,7 +212,7 @@ export interface EngineRegistryEntry {
   readonly processNames?: readonly string[]
   /**
    * Pre-trust a Rove-created worktree in the vendor's first-run trust
-   * store (issue #28). Every vendor gates a never-seen directory behind a
+   * store. Every vendor gates a never-seen directory behind a
    * modal trust dialog; hosted sessions can't answer one (kimi's even
    * EXITS when the pasted first message's Enter lands on "Don't trust").
    * Called before a hosted spawn; must be idempotent and merge-preserving.
@@ -220,7 +220,7 @@ export interface EngineRegistryEntry {
    */
   readonly trustWorktree?: (worktreePath: string) => void
   /**
-   * Per-turn telemetry reader (issue #32): completed {@link AgentTurn}s
+   * Per-turn telemetry reader: completed {@link AgentTurn}s
    * lifted from ONE of this engine's session transcripts. Engine-owned by
    * construction — only the adapter knows where its vendor records the
    * model, timings, and token usage of a turn. Absent = this engine has no
@@ -288,15 +288,6 @@ export function supportsStructuredHistory(vendor: VendorId): boolean {
   return engineEntry(vendor).history.readHistory !== EMPTY_HISTORY.readHistory
 }
 
-/*
- * `vendorFromTerminalTitle` lived here (removed 2026-07-27). It matched a
- * live OSC title against each engine's product name / binary by substring,
- * which is how a shell tab where the user typed `claude` joined turn-status
- * management — and also how a claude session whose activity summary said
- * "codex" became a codex tab. Identity now comes from the process tree:
- * `engine/foreground.ts` + `tui/workspace/live-engine.ts`.
- */
-
 /**
  * Every status glyph any built-in engine declares. The fallback vocabulary
  * for a vendor that declares none of its own — see
@@ -326,9 +317,9 @@ export function engineStatusPrefixes(vendor: VendorId): readonly string[] {
  * running the real claude), or simply a process-tree probe that has not
  * answered yet — falls back to the union of every built-in's glyphs. This is
  * the common case, not an edge: the probe is a ~2s `ps` walk, so gating on it
- * let a raw `✳ …` through on every tick it could not answer, and that title
- * is what gets RECORDED (owner report 2026-08-10: the prefix kept coming
- * back). The union is safe precisely because these glyphs are decoration in
+ * lets a raw `✳ …` through on every tick it cannot answer, and that title
+ * is what gets RECORDED. The union is safe precisely because these glyphs
+ * are decoration in
  * any vendor's title — nothing writes a leading `⠹` it wants kept.
  */
 export function stripEngineStatusPrefix(title: string, vendor: VendorId | null | undefined): string {

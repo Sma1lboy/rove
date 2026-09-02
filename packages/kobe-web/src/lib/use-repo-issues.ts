@@ -1,7 +1,7 @@
 /**
- * use-repo-issues — the issue-snapshot data plumbing extracted from the old
- * IssuesPage so the unified Board can render a repo's issues without
- * re-deriving the fetch/seq/live-push machinery.
+ * use-repo-issues — the issue-snapshot data plumbing, held apart from any one
+ * page so the Board can render a repo's issues without re-deriving the
+ * fetch/seq/live-push machinery.
  *
  * Two truth sources, merged per repo into one cache:
  *   1. an initial `/api/issues` GET per repo (and on demand via `refresh`);

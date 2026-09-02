@@ -274,8 +274,8 @@ describe("landTaskWithCleanup worktree cleanup", () => {
 
   test("a half-removed worktree still counts as landed, and names the leftover directory", async () => {
     // git deregisters the worktree, then fails to unlink it (an unwritable
-    // directory inside). Before issue #89 this reported `removed: false` and
-    // sent the user to retry a removal git can no longer act on at all.
+    // directory inside). Reporting `removed: false` here would send the user
+    // to retry a removal git cannot act on at all.
     makeWorktree()
     // Committed, not untracked: an untracked file would trip the dirty
     // refusal, which is a different (already-covered) branch. The tree is
@@ -345,7 +345,7 @@ describe("landTaskWithCleanup worktree cleanup", () => {
   /**
    * Same ordering bug as the worktrees page, reached through land: the dirty
    * check that let this land through ran seconds earlier in `landTask`, and
-   * an engine still running has kept writing since. Removing its directory
+   * an engine still running has kept writing since then. Removing its directory
    * first means every write after that goes to an unlinked inode.
    *
    * The assertion is the ORDER — recorded at the moment teardown runs, when
@@ -432,11 +432,11 @@ describe("landTaskWithCleanup worktree cleanup", () => {
       { removeWorktree: false, deleteBranch: true, strategy: "squash" },
       d,
     )
-    // git kept the branch either way — the fix is that the RESULT now says so.
+    // git keeps the branch either way; the point is that the RESULT says so.
     expect(branchExists("feat")).toBe(true)
     expect(res.branchKept?.reason).toMatch(/still has the branch checked out/)
-    // No anchor: it used to be written before the delete was even attempted,
-    // naming a salvage ref for a branch nothing deleted.
+    // No anchor: writing one before the delete is attempted would name a
+    // salvage ref for a branch nothing deleted.
     expect(res.branchAnchor).toBeUndefined()
   })
 

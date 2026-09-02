@@ -86,9 +86,9 @@ export type VerbHandler = (ctx: VerbContext) => Promise<unknown>
  * purpose: a verb's group is a REQUIRED field on {@link VerbSpec}, so a new
  * verb does not compile until it is grouped, and `VERB_GROUPS` is derived from
  * the specs instead of being hand-maintained beside them. There is
- * deliberately no `other`: the old fallback let an ungrouped verb report a
- * group name that `--group` then rejected as unknown — invisible until an
- * agent actually browsed by group.
+ * deliberately no `other`: such a fallback lets an ungrouped verb report a
+ * group name that `--group` then rejects as unknown — invisible until an
+ * agent actually browses by group.
  */
 export const VERB_GROUP_IDS = [
   "discover",
@@ -165,17 +165,16 @@ export interface DeliveredPrompt {
    * The engine had its tty in raw mode and was READING when we wrote —
    * observed via DECSET 2004 in the session ring, not inferred from the
    * process table. This is the field that decides whether a large prompt
-   * can survive: a write before this is true is silently truncated to the
-   * tty's 1024-byte canonical buffer.
+   * can survive: a write made while this is false is silently truncated to
+   * the tty's 1024-byte canonical buffer.
    *
-   * It used to be a literal copy of {@link delivered}, which made it a
-   * second voice repeating one guess rather than an independent signal.
+   * Never a copy of {@link delivered} — that would be a second voice
+   * repeating one guess rather than an independent signal.
    */
   readonly engineReady: boolean
   /**
    * The prompt was written to the engine's pty AFTER it was confirmed
-   * reading. This is a real observation now — previously the spawn path
-   * hardcoded `true` without checking anything.
+   * reading. A real observation, never a hardcoded `true`.
    *
    * It does NOT promise the engine's composer rendered the text; that is
    * {@link promptEcho}. Delivery is byte-level truth, echo is UI-level
@@ -191,7 +190,7 @@ export interface DeliveredPrompt {
   readonly bytes?: number
   /**
    * Whether the prompt's tail was seen echoed back on capture — the capture
-   * confirmation `delivered` used to claim in its docs but never performed.
+   * confirmation that {@link delivered} deliberately does not make.
    *
    * `"confirmed"` is positive proof. `"unconfirmed"` is INCONCLUSIVE, not
    * failure: engines that collapse a big paste into a placeholder never echo
@@ -200,7 +199,7 @@ export interface DeliveredPrompt {
   readonly promptEcho?: "confirmed" | "unconfirmed"
   /**
    * Present when the delivery gate found the composer busy and the prompt was
-   * accepted-but-deferred rather than dropped (issue #78 B-layer): the daemon
+   * accepted-but-deferred rather than dropped: the daemon
    * stored the text and queued a `prompt_deferred` inbox episode. This is a
    * SUCCESS outcome for the caller — the daemon now owns the message and will
    * hold it for a human to release from the Inbox. Callers MUST NOT retry a

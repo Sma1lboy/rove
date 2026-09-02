@@ -1,4 +1,4 @@
-/** Per-turn telemetry extraction from Claude's JSONL (issue #32). */
+/** Per-turn telemetry extraction from Claude's JSONL. */
 
 import { parseClaudeTurns } from "@/engine/claude-code-local/turns"
 import { describe, expect, test } from "vitest"

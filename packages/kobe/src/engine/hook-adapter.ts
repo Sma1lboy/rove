@@ -78,25 +78,24 @@ export interface EngineHookAdapter {
   removeActivityHooks(settingsFilePath: string): Promise<void>
 
   /**
-   * Whether this engine ever installed a worktree-sync (`WorktreeCreate`) hook —
-   * used now only to know whose hook needs CLEANUP. The hook itself is removed:
-   * `WorktreeCreate` is a VCS *provider* hook, so installing kobe's observer
-   * broke `claude --worktree` / `EnterWorktree` everywhere. Sync moved to the
-   * daemon (auto-adopt a worktree under a tracked repo on session-start).
+   * Whether this engine's settings file may carry a worktree-sync
+   * (`WorktreeCreate`) hook — the only use is knowing whose file needs
+   * CLEANUP. Rove never installs one: `WorktreeCreate` is a VCS *provider*
+   * hook, so kobe's observer there breaks `claude --worktree` /
+   * `EnterWorktree` everywhere. Sync lives in the daemon instead (auto-adopt
+   * a worktree under a tracked repo on session-start).
    */
   supportsWorktreeSync(): boolean
-  /** Remove the old kobe `WorktreeCreate` hook from a settings file. Idempotent +
+  /** Remove kobe's `WorktreeCreate` hook from a settings file. Idempotent +
    *  merge-safe (preserves the user's own WorktreeCreate hooks). No-op when
    *  unsupported. */
   removeWorktreeSyncHook(settingsFilePath: string): Promise<void>
 
   /**
-   * Remove the retired worktree-WATCH hook — a global `PostToolUse` (Bash)
-   * observer Rove used to install, which spawned `kobe hook worktree-created`
-   * after EVERY Bash call to archive the task pinned to a removed worktree.
-   * Archive was removed (issue #75), leaving the hook a pure ~170ms-per-Bash-call
-   * tax, so it is no longer installed — only uninstalled, on every launch,
-   * until every user's settings file is clean. Idempotent + merge-safe
+   * Remove the worktree-WATCH hook — a global `PostToolUse` (Bash) observer
+   * that spawns `kobe hook worktree-created` after EVERY Bash call, a pure
+   * ~170ms-per-Bash-call tax. Rove never installs it; it uninstalls on every
+   * launch, until every user's settings file is clean. Idempotent + merge-safe
    * (touches only Rove's own group). No-op when {@link supportsHooks} is false.
    */
   removeWorktreeWatchHook(settingsFilePath: string): Promise<void>

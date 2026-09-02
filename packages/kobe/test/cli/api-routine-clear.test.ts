@@ -1,9 +1,9 @@
 /**
  * `routine-update`'s clear-by-empty convention: `--precheck ''` and
  * `--base-branch ''` must reach the daemon as an explicit `null`, which its
- * `automation.update` handler reads as "clear this field". The CLI used to
- * fold the empty value into "absent" (VerbArgs.str drops `""`), so the clear
- * was silently dropped on the wire and the existing value stayed put.
+ * `automation.update` handler reads as "clear this field". Folding the empty
+ * value into "absent" (VerbArgs.str drops `""`) drops the clear silently on
+ * the wire and leaves the existing value in place.
  */
 
 import { describe, expect, it } from "vitest"
