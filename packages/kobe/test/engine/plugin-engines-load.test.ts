@@ -61,6 +61,7 @@ name = "Aider"
 command = ["aider"]
 
 [engines.identity]
+short_name = "Aid"
 input_placeholder = "Ask Aider anything…"
 
 [[engines.rules]]
@@ -69,18 +70,21 @@ any = ["ctrl-c to interrupt"]
 `
 
 describe("loadPluginEngines", () => {
-  it("registers enabled plugins' engines with identity fallbacks", () => {
+  it("registers enabled plugins' engines, ignoring retired identity keys", () => {
     homeWith([{ id: "acme.engines", root: pluginRoot(MANIFEST) }])
     expect(loadPluginEngines()).toEqual(["aider"])
     const entry = engineEntry("aider")
     expect(entry.displayName).toBe("Aider")
-    // Declared field survives; undeclared ones fall back to the name.
-    expect(entry.identity).toMatchObject({
-      vendorId: "aider",
-      productName: "Aider",
-      shortName: "Aider",
-      inputPlaceholder: "Ask Aider anything…",
-    })
+    // The manifest still sets `input_placeholder` (a retired key): it must
+    // register without throwing and the field is simply absent.
+    expect(entry.identity).toEqual({ vendorId: "aider", shortName: "Aid" })
+  })
+
+  it("shortName falls back to the engine name when identity is absent", () => {
+    const bare = MANIFEST.replace(/\[engines\.identity\][^\[]*/, "")
+    homeWith([{ id: "acme.engines", root: pluginRoot(bare) }])
+    expect(loadPluginEngines()).toEqual(["aider"])
+    expect(engineEntry("aider").identity).toEqual({ vendorId: "aider", shortName: "Aider" })
   })
 
   it("skips disabled plugins and unreadable manifests without throwing", () => {

@@ -173,11 +173,8 @@ name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
 
-[engines.identity]               # optional product identity for UI copy
-product_name = "Aider"           # each field falls back to `name`
-short_name = "Aider"
-assistant_name = "Aider"         # how the assistant is referred to
-input_placeholder = "Ask Aider…" # composer placeholder
+[engines.identity]               # optional product identity for UI labels
+short_name = "Aider"             # falls back to `name`
 
 [[engines.rules]]                # screen-state rules, first match wins;
 state = "blocked"                # declare blocked before working

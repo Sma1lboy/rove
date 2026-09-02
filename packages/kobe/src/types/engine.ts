@@ -123,10 +123,7 @@ export interface EngineCapabilities {
  */
 export interface EngineIdentity {
   readonly vendorId: VendorId
-  readonly productName: string
   readonly shortName: string
-  readonly assistantName: string
-  readonly inputPlaceholder: string
 }
 
 /**

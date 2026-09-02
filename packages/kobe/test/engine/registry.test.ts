@@ -102,7 +102,7 @@ describe("engineEntry — built-in vendors", () => {
 
   it("exposes Codex identity and its harness default model through capabilities", () => {
     const entry = engineEntry("codex")
-    expect(entry.identity?.inputPlaceholder).toBe("Ask Codex…")
+    expect(entry.identity?.shortName).toBe("Codex")
     expect(entry.capabilities?.defaultModelId()).toBe("gpt-5.3-codex")
     expect(entry.capabilities?.permissionModes).toEqual([])
     expect(entry.terminalTitle?.ownsStatus).toBe(true)

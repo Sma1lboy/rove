@@ -102,13 +102,10 @@ export interface PluginEngine {
   readonly processNames?: readonly string[]
   /** Screen-state rules, first match wins (declare blocked before working). */
   readonly rules: readonly PluginEngineRule[]
-  /** Product identity for UI copy (composer placeholder, labels). Absent
-   *  fields fall back to `name`/id derivations. */
+  /** Product identity for UI labels. Absent `shortName` falls back to `name`.
+   *  Unknown keys in the table are ignored. */
   readonly identity?: {
-    readonly productName?: string
     readonly shortName?: string
-    readonly assistantName?: string
-    readonly inputPlaceholder?: string
   }
 }
 
@@ -434,15 +431,9 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       const idt = identityRaw as Record<string, unknown>
       const opt = (key: string): string | undefined =>
         idt[key] === undefined ? undefined : asString(idt[key], `engines[${i}].identity.${key}`)
-      const productName = opt("product_name")
       const shortName = opt("short_name")
-      const assistantName = opt("assistant_name")
-      const inputPlaceholder = opt("input_placeholder")
       identity = {
-        ...(productName !== undefined ? { productName } : {}),
         ...(shortName !== undefined ? { shortName } : {}),
-        ...(assistantName !== undefined ? { assistantName } : {}),
-        ...(inputPlaceholder !== undefined ? { inputPlaceholder } : {}),
       }
     }
     return {
