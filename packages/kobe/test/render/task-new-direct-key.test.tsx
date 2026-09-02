@@ -2,7 +2,11 @@
 /** Real-render coverage for ctrl+n's UI-only New task scope. */
 
 import { describe, expect, it } from "bun:test"
+import type { KeyEvent } from "@opentui/core"
+import { useRenderer } from "@opentui/react"
+import { useEffect } from "react"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"
+import { SidebarSearchInput } from "../../src/tui-react/panes/sidebar/chrome"
 import { useTerminalBindings } from "../../src/tui-react/panes/terminal/keys"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
@@ -11,7 +15,9 @@ import { act, renderComponent, settle } from "./harness"
 
 const NOOP = (): void => {}
 
-function pages(open?: "kanbanOpen" | "automationsOpen" | "workItemsOpen"): HostPagesState {
+type OpenPage = "worktreesOpen" | "updateOpen" | "kanbanOpen" | "automationsOpen" | "workItemsOpen"
+
+function pages(open?: OpenPage): HostPagesState {
   return {
     nav: "terminal",
     setNav: NOOP,
@@ -19,10 +25,10 @@ function pages(open?: "kanbanOpen" | "automationsOpen" | "workItemsOpen"): HostP
     settingsOpen: false,
     openSettings: NOOP,
     closeSettings: NOOP,
-    worktreesOpen: false,
+    worktreesOpen: open === "worktreesOpen",
     openWorktrees: NOOP,
     closeWorktrees: NOOP,
-    updateOpen: false,
+    updateOpen: open === "updateOpen",
     openUpdate: NOOP,
     closeUpdate: NOOP,
     kanbanOpen: open === "kanbanOpen",
@@ -31,9 +37,6 @@ function pages(open?: "kanbanOpen" | "automationsOpen" | "workItemsOpen"): HostP
     automationsOpen: open === "automationsOpen",
     openAutomations: NOOP,
     closeAutomations: NOOP,
-    agentsOpen: false,
-    openAgents: NOOP,
-    closeAgents: NOOP,
     workItemsOpen: open === "workItemsOpen",
     openWorkItems: NOOP,
     closeWorkItems: NOOP,
@@ -52,9 +55,25 @@ function TerminalInput(props: { writes: string[] }) {
   return <text>engine composer</text>
 }
 
+function SearchInput(props: { defaultPrevented: boolean[] }) {
+  const renderer = useRenderer()
+  useEffect(() => {
+    const listener = (event: KeyEvent): void => {
+      if (event.name === "n" && event.ctrl) props.defaultPrevented.push(event.defaultPrevented)
+    }
+    renderer.keyInput.on("keypress", listener)
+    return () => {
+      renderer.keyInput.off("keypress", listener)
+    }
+  }, [renderer, props.defaultPrevented])
+  return <SidebarSearchInput query="" matchCount={0} totalCount={0} />
+}
+
 function Driver(props: {
   initialFocus: PaneId
-  openPage?: "kanbanOpen" | "automationsOpen" | "workItemsOpen"
+  openPage?: OpenPage
+  searchActive?: boolean
+  searchEvents?: boolean[]
   terminalWrites?: string[]
 }) {
   const focus = useFocus()
@@ -64,8 +83,9 @@ function Driver(props: {
     dialog,
     pages: pages(props.openPage),
     filesPaneVisible: true,
-    searchActive: false,
+    searchActive: props.searchActive ?? false,
     selectedId: null,
+    cursorTaskId: () => null,
     openTaskWorktree: NOOP,
     createTask: () => dialog.replace(() => <text>New task dialog opened</text>),
     renameBranch: NOOP,
@@ -77,7 +97,9 @@ function Driver(props: {
     createPR: NOOP,
     toggleSortMode: NOOP,
   })
-  return props.terminalWrites ? <TerminalInput writes={props.terminalWrites} /> : <text>content pane</text>
+  if (props.terminalWrites) return <TerminalInput writes={props.terminalWrites} />
+  if (props.searchEvents) return <SearchInput defaultPrevented={props.searchEvents} />
+  return <text>content pane</text>
 }
 
 async function pressCtrlN(props: Parameters<typeof Driver>[0]): Promise<string> {
@@ -112,6 +134,19 @@ describe("ctrl+n New task", () => {
     for (const openPage of ["kanbanOpen", "automationsOpen", "workItemsOpen"] as const) {
       expect(await pressCtrlN({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
     }
+  })
+
+  it("opens the dialog from the Worktrees and Update full-window pages", async () => {
+    for (const openPage of ["worktreesOpen", "updateOpen"] as const) {
+      expect(await pressCtrlN({ initialFocus: "workspace", openPage })).toContain("New task dialog opened")
+    }
+  })
+
+  it("leaves ctrl+n unclaimed while the real sidebar search input is active", async () => {
+    const searchEvents: boolean[] = []
+    const text = await pressCtrlN({ initialFocus: "sidebar", searchActive: true, searchEvents })
+    expect(text).not.toContain("New task dialog opened")
+    expect(searchEvents).toEqual([false])
   })
 
   it("does not open over an engine composer or terminal and forwards ctrl+n", async () => {

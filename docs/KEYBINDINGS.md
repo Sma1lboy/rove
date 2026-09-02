@@ -94,9 +94,10 @@ by the "no sessions here" pane, which has no input and no tab of its own —
 everywhere else in the workspace it reaches the terminal as usual.
 
 `ctrl+n` has the same input boundary as an ordinary typed key. It opens New
-task from the sidebar, Files, read-only content tabs, and the Kanban, Routines,
-and Issues pages. When an engine or shell terminal owns input, Rove does not
-reserve the chord; the PTY receives its `ctrl+n` byte unchanged.
+task from the sidebar, Files, read-only content tabs, Worktrees, Update, and
+the Kanban, Routines, and Issues pages. Sidebar search, Settings, dialogs, and
+engine or shell terminals keep input ownership; a focused PTY receives its
+`ctrl+n` byte unchanged.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);

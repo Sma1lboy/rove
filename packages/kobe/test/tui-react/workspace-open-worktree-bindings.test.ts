@@ -81,8 +81,13 @@ describe("workspace open-worktree bindings", () => {
     })
 
     const registrations = mocks.bindingFactories.map((factory) => factory())
-    const globalOpen = registrations[0]?.bindings.find((binding) => binding.key === "o" && binding.prefix)
-    const sidebarBindings = registrations[3]?.bindings ?? []
+    const globalOpen = registrations
+      .flatMap((registration) => registration.bindings)
+      .find((binding) => binding.key === "o" && binding.prefix)
+    const sidebarBindings =
+      registrations.find((registration) =>
+        registration.bindings.some((binding) => binding.key === "b" && !binding.prefix),
+      )?.bindings ?? []
     const sidebarOpen = sidebarBindings.find((binding) => binding.key === "o" && !binding.prefix)
     const rename = sidebarBindings.find((binding) => binding.key === "b")
     const cycleEngine = sidebarBindings.find((binding) => binding.key === "v")
@@ -154,7 +159,9 @@ describe("workspace open-worktree bindings", () => {
     })
 
     const registrations = mocks.bindingFactories.map((factory) => factory())
-    const sidebarRow = registrations[3]
+    const sidebarRow = registrations.find((registration) =>
+      registration.bindings.some((binding) => binding.key === "o" && !binding.prefix),
+    )
     expect(sidebarRow?.bindings.find((binding) => binding.key === "o" && !binding.prefix)).toBeDefined()
     expect(sidebarRow?.enabled).toBe(false)
     // The global prefix chord stays reachable from any pane.
@@ -206,14 +213,20 @@ describe("workspace open-worktree bindings", () => {
     }
   }
 
-  // Registration order: [0] global, [1] focus.sidebar, [2] the sidebar
-  // page/quit group (s/x/u/q), [3] the task-lifecycle group.
-  const sidebarGroupIndex = 2
+  function findSidebarPageGroup() {
+    return mocks.bindingFactories
+      .map((factory) => factory())
+      .find((registration) =>
+        ["s", "x", "u", "q"].every((key) =>
+          registration.bindings.some((binding) => binding.key === key && !binding.prefix),
+        ),
+      )
+  }
 
   test("sidebar page/quit chords are gated off while the sidebar search box is active", () => {
     useWorkspaceKeybindings(makeDeps({ searchActive: true }))
 
-    const group = mocks.bindingFactories.map((factory) => factory())[sidebarGroupIndex]
+    const group = findSidebarPageGroup()
     expect(group?.enabled).toBe(false)
     // `s` (settings), `x` (worktrees), `u` (update) and the bare `q` quit
     // chord must all stand down — the raw search listener only sees keys
@@ -226,7 +239,7 @@ describe("workspace open-worktree bindings", () => {
   test("the same group is live when the search box is inactive", () => {
     useWorkspaceKeybindings(makeDeps({ searchActive: false }))
 
-    const group = mocks.bindingFactories.map((factory) => factory())[sidebarGroupIndex]
+    const group = findSidebarPageGroup()
     expect(group?.enabled).toBe(true)
   })
 
@@ -240,7 +253,7 @@ describe("workspace open-worktree bindings", () => {
     const deps = makeDeps()
     deps.pages = { ...deps.pages, openUpdate }
     useWorkspaceKeybindings(deps)
-    const group = mocks.bindingFactories.map((factory) => factory())[sidebarGroupIndex]
+    const group = findSidebarPageGroup()
     group?.bindings.find((binding) => binding.key === "u")?.cmd({} as never)
     expect(openUpdate).toHaveBeenCalledTimes(1)
   })

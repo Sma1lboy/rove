@@ -18,12 +18,13 @@ unconditional global binding would also restore the reason it was removed:
 readline and emacs-style inputs use `ctrl+n` for next-history, including inside
 the embedded engine and shell terminals.
 
-The binding is therefore global across Rove UI surfaces but explicitly yields
-at the PTY input boundary. It is reachable from the sidebar, Files, read-only
-content tabs, Kanban, Routines, and Issues. When the focused surface forwards
-input to a PTY, dispatch and shortcut discovery both exclude the Rove action,
-so the engine receives the byte and F1 or the direct-shortcut guide does not
-advertise a command that cannot run there.
+The binding is therefore global across non-input Rove UI surfaces. It is
+reachable from the sidebar, Files, read-only content tabs, Worktrees, Update,
+Kanban, Routines, and Issues. Sidebar search, Settings, and dialogs retain
+input or modal ownership. When the focused surface forwards input to a PTY,
+dispatch and shortcut discovery both exclude the Rove action, so the engine
+receives the byte and F1 or the direct-shortcut guide does not advertise a
+command that cannot run there.
 
 ## Prefix tap presentation
 
