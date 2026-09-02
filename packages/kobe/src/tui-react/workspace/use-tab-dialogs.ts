@@ -48,6 +48,7 @@ import {
   type ChatForkPlan,
   addForkTab,
   addHandoffTab,
+  liveSourceProtocol,
   planChatContinuation,
   planWorktreeHandoff,
 } from "./fork-chat-tab"
@@ -105,12 +106,17 @@ export function useTabDialogs(deps: {
     )
 
   /** destination=tab: land the picked engine as a sibling tab — fresh
-   *  (plain `addTab`) or continuing (fork/handoff, old `ctrl+a c`). */
-  const openTabHere = async (choice: NewChatChoice, source: VendorId): Promise<void> => {
+   *  (plain `addTab`) or continuing (fork/handoff, old `ctrl+a c`).
+   *  `tabVendor` is the id the active tab was LAUNCHED under, `source` the
+   *  protocol it speaks; picking that same id is "continue here", so it
+   *  continues under the same protocol rather than reading as a handoff to a
+   *  foreign engine. */
+  const openTabHere = async (choice: NewChatChoice, tabVendor: VendorId, source: VendorId): Promise<void> => {
     const vendor = choice.pick as VendorId
     if (choice.context === "continue") {
-      const plan = await planChatContinuation(active, source, vendor, deps.worktree)
-      if (plan.kind === "fork") update(pinSession(addForkTab(state, vendor, plan.sessionId), vendor))
+      const target = vendor === tabVendor ? source : vendor
+      const plan = await planChatContinuation(active, source, target, deps.worktree)
+      if (plan.kind === "fork") update(pinSession(addForkTab(state, vendor, target, plan.sessionId), target))
       else if (plan.kind === "handoff") update(pinSession(addHandoffTab(state, vendor, plan.prompt), vendor))
       else notifyRefusal(plan)
       return
@@ -161,7 +167,8 @@ export function useTabDialogs(deps: {
    *  open it with a toggle pre-flipped. Dispatches the four combos above. */
   const requestNewChat = (preset: NewChatPreset = {}): void => {
     void (async () => {
-      const source = (active.kind === "engine" ? active.vendor : undefined) ?? deps.vendor
+      const tabVendor = (active.kind === "engine" ? active.vendor : undefined) ?? deps.vendor
+      const source = liveSourceProtocol(active, tabVendor)
       const available = await availableEngineIds()
       // Installed plugin panes ride the same picker (owner ask 2026-07-29):
       // ctrl+e is "what runs in this tab", and a pane is exactly that. Reads
@@ -179,7 +186,7 @@ export function useTabDialogs(deps: {
         // Continue-presets highlight the tab's own engine (the conversation
         // being continued); the pristine entry keeps ctrl+e's task-engine
         // default.
-        preset.context === "continue" ? source : deps.vendor,
+        preset.context === "continue" ? tabVendor : deps.vendor,
         {
           allowShell: true,
           allowScratch: deps.onOpenScratch !== undefined,
@@ -212,7 +219,7 @@ export function useTabDialogs(deps: {
         deps.onOpenScratch?.()
         return
       }
-      await openTabHere(choice, source)
+      await openTabHere(choice, tabVendor, source)
     })()
   }
 
