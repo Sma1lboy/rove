@@ -404,6 +404,7 @@ export function deserializeTask(s: SerializedTask): Task {
     dispatcher: s.dispatcher,
     prompt: s.prompt,
     baseRef: s.baseRef,
+    communications: s.communications,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   }

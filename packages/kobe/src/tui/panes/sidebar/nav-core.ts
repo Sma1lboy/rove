@@ -17,7 +17,7 @@
  * the sidebar's task list selects — and has no rail row of its own: you are
  * already there, and selecting a task is how you get back.
  */
-export type SidebarNav = "terminal" | "kanban" | "automations" | "issues"
+export type SidebarNav = "terminal" | "agents" | "kanban" | "automations" | "issues"
 
 export interface SidebarNavItem {
   readonly nav: SidebarNav
@@ -36,6 +36,9 @@ export const SIDEBAR_NAV_ITEMS: readonly SidebarNavItem[] = [
   { nav: "kanban", labelKey: "tasks.nav.kanban", bindingId: "kanban.open" },
   { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
   { nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" },
+  // Row 4 = prefix+4: appended so the existing 1/2/3 chords keep their rows
+  // (PROPOSED placement, pending owner sign-off).
+  { nav: "agents", labelKey: "tasks.nav.agents", bindingId: "agents.open" },
 ]
 
 /**

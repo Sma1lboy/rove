@@ -114,7 +114,11 @@ it.
 1. ensure the Worktree;
 2. ensure the PTY Host;
 3. reuse an alive canonical engine session, or open `tab-1` once;
-4. deliver the prompt and detach the short-lived client.
+4. deliver the prompt and detach the short-lived client;
+5. after a confirmed, verified cross-task `send`, best-effort coalesce a
+   bounded sender → recipient communication edge in daemon-owned Task
+   metadata. This records direction/count/recency, never message content;
+   failure cannot make an already-delivered prompt retryable.
 
 The PTY Host's key-level `pty.open` idempotence prevents concurrent callers
 from creating duplicate children.
@@ -124,7 +128,8 @@ from creating duplicate children.
 - Engine adapters own identity, launch commands, capabilities, models,
   history, completion markers, and telemetry normalization.
 - The Orchestrator owns Task metadata and git Worktree mutations, not engine
-  children.
+  children. That includes durable spawn provenance and bounded peer
+  communication edges consumed by Agent Topology.
 - The Daemon is the Task-index writer and channel publisher, not the terminal
   process owner.
 - The PTY Host owns child lifetime and buffered terminal bytes, not Task

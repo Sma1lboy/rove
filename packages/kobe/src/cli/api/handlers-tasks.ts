@@ -6,6 +6,7 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { normalizeMessagePreview } from "@/lib/message-preview"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { kobeApiInvocation } from "../../engine/interactive-command.ts"
@@ -168,6 +169,10 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   // same false claim) — a refused report must never reach the coordinator.
   await assertNotEmptySuccess(daemon, ctx, prompt)
   const text = ctx.args.bool("plain") ? prompt : await withPeerProvenance(daemon, taskId, prompt)
+  // The communication edge is recorded for --plain too: provenance is about
+  // what the RECEIVER reads, the edge is about who talked to whom.
+  const self = await verifiedSelfSession()
+  const senderTaskId = self && self.taskId !== taskId ? self.taskId : undefined
   const delivered = await ctx.runtime.deliverPrompt(
     daemon,
     {
@@ -195,6 +200,21 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   if (!delivered.delivered && !delivered.deferred) {
     throw new ApiError(`prompt was not confirmed in ${taskId}'s engine (paste did not land)`, "NOT_DELIVERED")
   }
+  let communicationRecorded: boolean | undefined
+  if (senderTaskId) {
+    try {
+      await daemon.request("task.recordCommunication", {
+        fromTaskId: senderTaskId,
+        toTaskId: taskId,
+        firstMessagePreview: normalizeMessagePreview(prompt),
+      })
+      communicationRecorded = true
+    } catch {
+      // Delivery already happened. Never turn a metadata failure into a
+      // retryable send error that could duplicate the user's prompt.
+      communicationRecorded = false
+    }
+  }
   return {
     ok: true,
     taskId,
@@ -209,6 +229,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
           delivered: false,
         }
       : {}),
+    ...(communicationRecorded !== undefined ? { communicationRecorded } : {}),
   }
 }
 

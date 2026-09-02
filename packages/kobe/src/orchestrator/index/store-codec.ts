@@ -28,8 +28,10 @@ import { copyFile, readFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import { logClient } from "@sma1lboy/kobe-daemon/client/client-log"
 import { defaultClientLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { normalizeMessagePreview } from "../../lib/message-preview.ts"
 import type {
   Task,
+  TaskCommunication,
   TaskDeletionState,
   TaskDispatcher,
   TaskLinkedWorkItem,
@@ -334,6 +336,7 @@ function coerceTask(value: unknown): Task | null {
   const linkedWorkItem = coerceLinkedWorkItem(v.linkedWorkItem)
   const dispatcher = coerceDispatcher(v.dispatcher)
   const routine = coerceRoutine(v.routine)
+  const communications = coerceCommunications(v.communications)
 
   return {
     id: toTaskId(v.id),
@@ -387,9 +390,30 @@ function coerceTask(value: unknown): Task | null {
     // materialises (branches then silently cut from the guessed base), and
     // `collect`'s ahead/diffstat signals revert to the wrong comparison ref.
     ...(typeof v.baseRef === "string" && v.baseRef.trim().length > 0 ? { baseRef: v.baseRef } : {}),
+    ...(communications.length > 0 ? { communications } : {}),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   }
+}
+
+function coerceCommunications(value: unknown): TaskCommunication[] {
+  if (!Array.isArray(value)) return []
+  const byTarget = new Map<string, TaskCommunication>()
+  for (const raw of value.slice(-32)) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue
+    const v = raw as Record<string, unknown>
+    if (typeof v.targetTaskId !== "string" || v.targetTaskId.length === 0) continue
+    if (typeof v.count !== "number" || !Number.isSafeInteger(v.count) || v.count < 1) continue
+    if (typeof v.lastAt !== "string" || Number.isNaN(Date.parse(v.lastAt))) continue
+    const firstMessagePreview = normalizeMessagePreview(v.firstMessagePreview)
+    byTarget.set(v.targetTaskId, {
+      targetTaskId: v.targetTaskId,
+      count: v.count,
+      lastAt: v.lastAt,
+      ...(firstMessagePreview ? { firstMessagePreview } : {}),
+    })
+  }
+  return [...byTarget.values()].slice(-32)
 }
 
 function coerceDispatcher(value: unknown): TaskDispatcher | undefined {

@@ -8,11 +8,11 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
+| Agent Topology               |
 |                              |
 |                              |
 | No active tasks — create one |
 | above.                       |
-|                              |
 |                              |
 |                              |
 |                              |

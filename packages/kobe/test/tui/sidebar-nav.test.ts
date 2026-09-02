@@ -7,6 +7,7 @@ describe("sidebar navigation metadata", () => {
       { nav: "kanban", labelKey: "tasks.nav.kanban", bindingId: "kanban.open" },
       { nav: "automations", labelKey: "tasks.nav.automations", bindingId: "automations.open" },
       { nav: "issues", labelKey: "tasks.nav.issues", bindingId: "workItems.open" },
+      { nav: "agents", labelKey: "tasks.nav.agents", bindingId: "agents.open" },
     ])
   })
 
@@ -14,8 +15,9 @@ describe("sidebar navigation metadata", () => {
     expect(cycleNavTarget("kanban", 1)).toBe("automations")
     expect(cycleNavTarget("automations", 1)).toBe("issues")
     expect(cycleNavTarget("issues", -1)).toBe("automations")
-    expect(cycleNavTarget("issues", 1)).toBe("kanban")
-    expect(cycleNavTarget("kanban", -1)).toBe("issues")
+    expect(cycleNavTarget("issues", 1)).toBe("agents")
+    expect(cycleNavTarget("agents", 1)).toBe("kanban")
+    expect(cycleNavTarget("kanban", -1)).toBe("agents")
     expect(cycleNavTarget("terminal", 1)).toBeNull()
 
     expect(focusPaneForNav("terminal")).toBe("sidebar")

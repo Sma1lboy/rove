@@ -53,7 +53,7 @@ function tree(over: Partial<Parameters<typeof SidebarTree>[0]> = {}) {
 async function labelLines(frame: () => Promise<string>): Promise<Record<string, number>> {
   const lines = (await frame()).split("\n")
   const out: Record<string, number> = {}
-  for (const label of ["Kanban", "Routines", "Issues"]) {
+  for (const label of ["Kanban", "Routines", "Issues", "Agent Topology"]) {
     const index = lines.findIndex((line) => line.includes(label))
     if (index >= 0) out[label] = index
   }
@@ -68,9 +68,9 @@ test("every destination gets its own line, in declared order", async () => {
   const rendered = Object.entries(lines)
     .sort(([, a], [, b]) => a - b)
     .map(([label]) => label)
-  expect(rendered).toEqual(["Kanban", "Routines", "Issues"])
+  expect(rendered).toEqual(["Kanban", "Routines", "Issues", "Agent Topology"])
   // Distinct rows — a horizontal strip would share lines.
-  expect(new Set(Object.values(lines)).size).toBe(3)
+  expect(new Set(Object.values(lines)).size).toBe(4)
 })
 
 test("no label is truncated at the 24-cell rail width", async () => {
@@ -78,6 +78,7 @@ test("no label is truncated at the 24-cell rail width", async () => {
   await new Promise((r) => setTimeout(r, SETTLE))
   const text = await frame()
   expect(text).toContain("Routines")
+  expect(text).toContain("Agent Topology")
   expect(text).not.toContain("Routin…")
 })
 
@@ -94,7 +95,7 @@ test("the rail has no row for the terminal — the task list IS that destination
 test("the task list stays visible whatever the rail selects", async () => {
   // The rail swaps the CONTENT pane on the right; the sidebar is unchanged, so
   // clicking a task while the Kanban is up can switch back to its terminal.
-  for (const nav of ["terminal", "kanban", "automations", "issues"] as const) {
+  for (const nav of ["terminal", "agents", "kanban", "automations", "issues"] as const) {
     const { frame } = await renderComponent(tree({ nav }), { width: 24, height: 40 })
     await new Promise((r) => setTimeout(r, SETTLE))
     expect(await frame(), nav).toContain("feat/a")
@@ -102,11 +103,13 @@ test("the task list stays visible whatever the rail selects", async () => {
 })
 
 test("nav-core cycling wraps in both directions", () => {
+  expect(cycleNavTarget("agents", 1)).toBe("kanban")
   expect(cycleNavTarget("kanban", 1)).toBe("automations")
   expect(cycleNavTarget("automations", 1)).toBe("issues")
-  expect(cycleNavTarget("issues", 1)).toBe("kanban")
-  expect(cycleNavTarget("kanban", -1)).toBe("issues")
-  expect(cycleNavTarget("issues", -1)).toBe("automations")
+  expect(cycleNavTarget("issues", 1)).toBe("agents")
+  expect(cycleNavTarget("agents", 1)).toBe("kanban")
+  expect(cycleNavTarget("kanban", -1)).toBe("agents")
+  expect(cycleNavTarget("agents", -1)).toBe("issues")
   // `terminal` is not on the rail — it is reached by selecting a task.
   expect(cycleNavTarget("terminal", 1)).toBeNull()
 })
@@ -116,6 +119,7 @@ test("opening a rail page carries focus into the content pane", () => {
   // Automations page rendered "Press n to create one" while `n` still went to
   // the sidebar's new-task chord.
   expect(focusPaneForNav("kanban")).toBe("workspace")
+  expect(focusPaneForNav("agents")).toBe("workspace")
   expect(focusPaneForNav("automations")).toBe("workspace")
   expect(focusPaneForNav("issues")).toBe("workspace")
   // Back to the terminal means back to the task list.

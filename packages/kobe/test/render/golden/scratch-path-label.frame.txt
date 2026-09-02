@@ -8,6 +8,7 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
+| Agent Topology               |
 |                              |
 | SCRATCH ──────────────────── |
 |  …deep/nested/project-dir    |
@@ -15,7 +16,6 @@
 | rove ─────────────────────── |
 |  feat/alpha                  |
 |▌ · build                     |
-|                              |
 |                              |
 |                              |
 |                              |
