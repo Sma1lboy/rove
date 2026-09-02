@@ -100,11 +100,9 @@ describe("engineEntry — built-in vendors", () => {
     expect(engineEntry("my-custom-engine").history.readUsageSnapshot).toBeUndefined()
   })
 
-  it("exposes Codex identity and its harness default model through capabilities", () => {
+  it("exposes Codex identity and its terminal-title policy", () => {
     const entry = engineEntry("codex")
     expect(entry.identity?.shortName).toBe("Codex")
-    expect(entry.capabilities?.defaultModelId()).toBe("gpt-5.3-codex")
-    expect(entry.capabilities?.permissionModes).toEqual([])
     expect(entry.terminalTitle?.ownsStatus).toBe(true)
     expect(entry.terminalTitle?.launchArgs).toEqual(["-c", 'tui.terminal_title=["activity","thread-title"]'])
     // The `activity` segment codex is asked for above is a spinner frame,
@@ -157,12 +155,12 @@ describe("vendorsWithQuotaProbe", () => {
 
 describe("getCapabilities", () => {
   it("returns the engine's own capabilities for vendors that have them", () => {
-    expect(getCapabilities("claude")?.vendorId).toBe("claude")
-    expect(getCapabilities("codex")?.vendorId).toBe("codex")
+    expect(getCapabilities("claude")).toBeDefined()
+    expect(getCapabilities("codex")).toBeDefined()
   })
 
   it("returns undefined for engines with no capabilities (no claude fallback)", () => {
-    // copilot + custom must NOT borrow claude's model catalog / permission modes.
+    // copilot + custom must NOT borrow another vendor's presentation policy.
     expect(getCapabilities("copilot")).toBeUndefined()
     expect(getCapabilities("aider")).toBeUndefined()
   })

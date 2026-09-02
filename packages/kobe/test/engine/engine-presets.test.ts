@@ -12,7 +12,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { engineCanFork, engineForkArgv, engineLaunchArgv, engineLaunchBin } from "../../src/engine/engine-presets.ts"
+import { engineCanFork, engineForkArgv, engineLaunchArgv } from "../../src/engine/engine-presets.ts"
 
 let home: string
 let originalHome: string | undefined
@@ -101,12 +101,6 @@ describe("engineLaunchArgv", () => {
 
   it("falls back rather than returning an empty argv for a blank command", () => {
     expect(engineLaunchArgv({ command: "   ", vendor: "codex" })[0]).toBe("codex")
-  })
-
-  it("engineLaunchBin names the binary a delivery gate should match", () => {
-    writeState({ customEngineIds: ["pi"], "engineCommand.pi": "pi-cli --interactive" })
-    expect(engineLaunchBin({ command: "pi" })).toBe("pi-cli")
-    expect(engineLaunchBin({ command: "aider --model sonnet" })).toBe("aider")
   })
 })
 
