@@ -36,6 +36,24 @@ to that same armed state, so switching the display does not add a second input
 state machine or require terminal key-repeat/release reporting. The combined
 default keeps spatial teaching on existing controls while the guide remains a
 complete reference and clickable mouse entry.
+## Agent Topology rail row: prefix+4
+
+**PROPOSED (not yet an owner call) — `agents.open` = `ctrl+a` `4`.** The
+rail already maps prefix+1/2/3 to its rows top-to-bottom (owner call
+2026-08-01), so a fourth rail row takes the next digit and is appended as row
+4 rather than inserted at the top: moving Kanban/Routines/Issues off 1/2/3
+would break existing muscle memory for a page nobody has used yet. Placement
+is open for the owner to change (a letter, a different row order) before or
+right after merge.
+
+## Agent Topology root switching
+
+**2026-08-22 — left/right cycle spawn roots (owner call, same turn).** The
+topology can contain several independent agent groups in one repository, so
+root switching is spatial navigation rather than ordinary list traversal.
+`j`/`k` and up/down keep their node-selection meaning; left/right jump to and
+center the previous/next root. The binding is page-scoped, so it claims no
+keys while an engine terminal has focus.
 
 ## Repo context filter — removed, chord revoked
 

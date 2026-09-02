@@ -17,6 +17,7 @@
  * examples) is left in the calling code as-is — it isn't language.
  */
 
+import { en as agents, zh as agentsZh } from "./messages/agents"
 import { en as automations, zh as automationsZh } from "./messages/automations"
 import { en as common, zh as commonZh } from "./messages/common"
 import { en as doctor, zh as doctorZh } from "./messages/doctor"
@@ -39,6 +40,7 @@ import { en as workspace, zh as workspaceZh } from "./messages/workspace"
 import { en as worktrees, zh as worktreesZh } from "./messages/worktrees"
 
 export const en = {
+  agents,
   settings,
   tasks,
   terminal,
@@ -69,6 +71,7 @@ export const en = {
 export type Messages = typeof en
 
 export const zh: Messages = {
+  agents: agentsZh,
   settings: settingsZh,
   tasks: tasksZh,
   terminal: terminalZh,

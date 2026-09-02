@@ -229,6 +229,16 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Open GitHub issues (external tracker)",
   },
   {
+    // Rail row 4 — see kanban.open above. PROPOSED chord (pending owner
+    // sign-off): appended after the existing 1/2/3 so none of them move.
+    id: "agents.open",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["4"],
+    category: "Global",
+    description: "Open agent topology (task message graph)",
+  },
+  {
     // Sidebar-only — single letter `q` opens the quit confirm. ctrl+q is
     // also registered here for the native workspace's tmux-like two-stage
     // detach: first ctrl+q returns focus to the sidebar, second ctrl+q exits

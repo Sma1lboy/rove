@@ -169,6 +169,53 @@ describe("setQuotaResume", () => {
   })
 })
 
+describe("recordCommunication", () => {
+  it("coalesces counts, keeps recency, and validates both endpoints", async () => {
+    const sender = await makeTask({ title: "sender" })
+    const target = await makeTask({ title: "target" })
+    await orch.recordCommunication(sender.id, target.id, "2026-08-22T01:00:00.000Z", "  first\nmessage  ")
+    await orch.recordCommunication(sender.id, target.id, "2026-08-22T02:00:00.000Z", "replacement")
+
+    expect(orch.getTask(sender.id)?.communications).toEqual([
+      {
+        targetTaskId: String(target.id),
+        count: 2,
+        lastAt: "2026-08-22T02:00:00.000Z",
+        firstMessagePreview: "first message",
+      },
+    ])
+    await expect(orch.recordCommunication("missing", target.id)).rejects.toThrow(TaskNotFoundError)
+    await expect(orch.recordCommunication(sender.id, "missing")).rejects.toThrow(TaskNotFoundError)
+    await expect(orch.recordCommunication(sender.id, target.id, "not-a-date")).rejects.toThrow(/ISO-8601/)
+  })
+
+  it("keeps only the 32 most recent distinct recipients", async () => {
+    const sender = await makeTask({ title: "sender" })
+    const target = await makeTask({ title: "newest-target" })
+    const previous = Array.from({ length: 32 }, (_, index) => ({
+      targetTaskId: `old-${index}`,
+      count: 1,
+      lastAt: `2026-08-22T01:${String(index).padStart(2, "0")}:00.000Z`,
+    }))
+    await store.update(sender.id, { communications: previous })
+
+    await orch.recordCommunication(sender.id, target.id, "2026-08-22T02:00:00.000Z")
+
+    expect(orch.getTask(sender.id)?.communications).toHaveLength(32)
+    expect(orch.getTask(sender.id)?.communications?.[0]?.targetTaskId).toBe("old-1")
+    expect(orch.getTask(sender.id)?.communications?.at(-1)?.targetTaskId).toBe(String(target.id))
+  })
+
+  it("does not mislabel a later message as the first preview on a legacy edge", async () => {
+    const sender = await makeTask({ title: "legacy-sender" })
+    const target = await makeTask({ title: "legacy-target" })
+    await orch.recordCommunication(sender.id, target.id, "2026-08-22T01:00:00.000Z")
+    await orch.recordCommunication(sender.id, target.id, "2026-08-22T02:00:00.000Z", "this arrived later")
+
+    expect(orch.getTask(sender.id)?.communications?.[0]?.firstMessagePreview).toBeUndefined()
+  })
+})
+
 describe("moveTask", () => {
   it("moves a task within its partition and skips pinned siblings", async () => {
     const a = await makeTask({ title: "a" })

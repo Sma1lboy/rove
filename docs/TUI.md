@@ -335,11 +335,46 @@ engine's own picker (e.g. claude-code's `/resume`) inside a fresh engine
 tab. Availability and restart behavior vary by engine; see
 [Resuming a conversation](SESSIONS.md#resuming-a-conversation).
 
-## Pages: `ctrl+a` `1` / `2` / `3`
+## Workspace pages
 
-Three pages replace the workspace pane while the sidebar stays put. `esc` or
-`q` closes a page; selecting a task in the sidebar also returns you to the
-workspace. The chords stay live, so you can hop between pages directly.
+Four pages replace the workspace pane while the sidebar stays put. Open one
+from its sidebar rail row or its `ctrl+a` `1` / `2` / `3` / `4` chord (Kanban,
+Routines, GitHub Issues, Agent Topology). `esc` or `q` closes a page, and selecting a
+task in the sidebar returns you to the workspace.
+
+### Agent Topology (sidebar rail)
+
+Agent Topology is the live graph of Rove-created collaboration. Each task is a
+node, and a directed spawn edge comes from its durable `dispatcher.taskId`.
+That same dispatcher identity is where a subagent's bare `rove api send` reply
+goes. A node with children is labelled **COORD**; this includes a subagent that
+spawns its own subagents, not just the original root.
+
+Siblings created by one parallel `rove api add --count` or `--agents` call are
+enclosed in a **BATCH** derived from their shared `groupId`. A batch is launch
+metadata, not a synthetic agent or an extra graph level. Dagre places the
+durable spawn graph. Solid arrows show ownership/spawn; bright dashed arrows
+show confirmed `rove api send` relationships, including replies that visibly
+close a loop back to an owner. Communication edges come from explicit verified
+sender/recipient metadata and never from parsing engine transcripts. Each
+relationship stores only the normalized, 160-character preview of the first
+message that established it. Each relationship gets a separate card port: a
+filled diamond `◆` marks the sender and an open arrowhead sits against the
+receiving card. Selecting a node
+brightens only its incoming/outgoing message edges, and the footer names those
+peers as `SENT →` and `RECEIVED ←`; unrelated traffic stays dim. Repeated sends
+reuse one edge, so a long conversation does not turn the graph into
+parallel-line noise. Hovering a communication line opens a compact inspector
+with its sender, recipient, and saved first-message preview; relationships
+recorded by older versions have no preview and do not invent one later.
+
+Each node shows its engine-owned identity and normalized activity state.
+Missing dispatcher tasks and corrupt cycles remain visible as ORPHAN or CYCLE
+nodes instead of being dropped. `j`/`k` or up/down move through nodes,
+left/right cycles spawn roots and centers the selected root, `tab` cycles
+projects, and `enter` opens the selected task. The page
+intentionally has no global chord: its sidebar row is the discoverable entry,
+so no terminal key is claimed for an observability view.
 
 ### Kanban (`ctrl+a` `1`)
 

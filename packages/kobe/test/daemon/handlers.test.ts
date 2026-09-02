@@ -38,6 +38,7 @@ describe("daemon handler registry", () => {
       "task.list",
       "task.get",
       "task.create",
+      "task.recordCommunication",
       "task.rename",
       "task.setBranch",
       "task.observeLanguage",

@@ -8,7 +8,6 @@
  * only job is to be a single writer for the task index. The protocol
  * shrinks to a task-CRUD + subscribe shape.
  */
-
 import type { ChannelName } from "./channels.ts"
 import type { DaemonTask } from "./contracts.ts"
 import type {
@@ -67,8 +66,12 @@ export {
  * event frames). Additive — an older client never sends `pty.*`, a newer
  * client against an older daemon gets "unknown daemon request" and falls back
  * to a local PTY — so MIN stays 2.
+ *
+ * v5: additive `task.recordCommunication` request + serialized communication edges.
+ * v6: additive bounded `firstMessagePreview` on communication edges. Older
+ * peers ignore the field, so MIN stays 2 across both revisions.
  */
-export const DAEMON_PROTOCOL_VERSION = 4
+export const DAEMON_PROTOCOL_VERSION = 6
 
 /** Oldest protocol version this build can still interoperate with. */
 export const MIN_COMPATIBLE_PROTOCOL_VERSION = 2
@@ -167,6 +170,7 @@ export type DaemonRequestName =
   // presets live in kobe's state.json, which the daemon cannot read — and
   // sends both, so the record stays self-consistent.
   | "task.setCommand"
+  | "task.recordCommunication"
   | "task.delete"
   // Land a task's branch back into its base repo (merge/squash). The last step
   // of the worktree→engine→branch lifecycle that had no product path; refuses a
@@ -381,6 +385,8 @@ export interface SerializedTask {
   readonly prompt?: DaemonTask["prompt"]
   /** The recorded fork point (`add --base-branch`) branch signals measure against. */
   readonly baseRef?: DaemonTask["baseRef"]
+  /** Bounded successful peer-message edges originating at this task. */
+  readonly communications?: DaemonTask["communications"]
   readonly createdAt: string
   readonly updatedAt: string
 }
@@ -423,6 +429,7 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     dispatcher: task.dispatcher,
     prompt: task.prompt,
     baseRef: task.baseRef,
+    communications: task.communications,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
   }
