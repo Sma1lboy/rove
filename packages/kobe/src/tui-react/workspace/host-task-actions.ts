@@ -22,6 +22,7 @@
 import { errorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { availableEngineIds } from "../../engine/account-detect"
 import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
   applyVendorChange,
@@ -32,8 +33,9 @@ import {
   setStatusFlow,
 } from "../../tui/lib/task-actions"
 import { type CreateTaskContext, createTaskFlow } from "../../tui/lib/task-create-flow"
-import type { Task, VendorId } from "../../types/task.ts"
+import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
+import { EnginePickerDialog } from "../component/engine-picker-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
@@ -58,6 +60,9 @@ export type WorkspaceTaskActions = {
   renameTask: (id: string) => Promise<void>
   renameBranch: (id: string) => Promise<void>
   cycleVendor: (id: string) => Promise<void>
+  /** Tree-menu "Change engine" — `v`'s persist behind a picker over the
+   *  available engines instead of the chord's blind cycle. */
+  pickVendor: (id: string) => Promise<void>
   /** ctrl+e picker's engine pick — same persist as `cycleVendor`, but silent
    *  on success: the tab it opens already shows the result. */
   setVendor: (id: string, vendor: VendorId) => Promise<void>
@@ -138,12 +143,23 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     })
   }
 
+  async function pickVendor(id: string): Promise<void> {
+    const task = tasks().find((t) => t.id === id)
+    if (!task) return
+    const current = task.vendor ?? DEFAULT_TASK_VENDOR
+    const engines = await availableEngineIds()
+    const next = await EnginePickerDialog.show(dialog, { engines: engines.length > 0 ? engines : [current], current })
+    if (!next || next === current) return
+    await applyVendorChange(taskActions, id, next)
+  }
+
   return {
     createTask: () => createTaskFlow(taskActions),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),
     renameBranch,
     cycleVendor: (id) => cycleVendorFlow(taskActions, id),
+    pickVendor,
     // The ctrl+e picker's engine pick. Silent on success: the tab it just
     // opened IS the new engine, so a toast saying the change "applies on
     // reopen" contradicted what the user was already looking at. Failures

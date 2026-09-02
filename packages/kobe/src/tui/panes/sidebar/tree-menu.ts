@@ -45,6 +45,9 @@ export type TreeMenuAction =
   | "setStatus"
   | "copyBranch"
   | "copyPath"
+  | "openEditor"
+  | "renameBranch"
+  | "changeEngine"
   | "delete"
 
 export interface TreeMenuItem {
@@ -95,6 +98,13 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // `ensureWorktree` allocates them (orchestrator/core.ts).
   if (task.branch !== "") verbs.push({ action: "copyBranch", labelKey: "tasks.menu.copyBranch" })
   if (task.worktreePath !== "") verbs.push({ action: "copyPath", labelKey: "tasks.menu.copyPath" })
+  // `o` / `b` / `v` on the row, routed to the ROW's task (the chords read the
+  // active task — see use-tree-menu.ts). `b` is gated exactly like
+  // `copyBranch`: a `main`/`dir` row has no branch of its own to rename, and
+  // `set-branch` refuses it, so the entry could only end in the error toast.
+  verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor" })
+  if (task.branch !== "") verbs.push({ action: "renameBranch", labelKey: "tasks.menu.renameBranch" })
+  verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine" })
   verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
   return verbs
 }

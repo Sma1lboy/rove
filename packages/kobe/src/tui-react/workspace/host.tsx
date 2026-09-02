@@ -156,6 +156,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     renameTask,
     renameBranch,
     cycleVendor,
+    pickVendor,
     setVendor,
     togglePin,
     moveTask,
@@ -247,6 +248,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     activateTask,
   })
 
+  // `o` and the row menu's "Open in editor" share this; the chord passes the
+  // active task, the menu passes its row.
+  const openTaskWorktree = (id: string): void =>
+    openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError })
+
   useWorkspaceKeybindings({
     focus,
     dialog,
@@ -254,8 +260,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     filesPaneVisible: !zen && pages.nav === "terminal" && pageRender.showSidebar && pageRender.showContent,
     searchActive,
     selectedId,
-    openTaskWorktree: (id) =>
-      openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError }),
+    openTaskWorktree,
     createTask: () => void createTask(),
     renameBranch: (id) => void renameBranch(id),
     cycleVendor: (id) => void cycleVendor(id),
@@ -401,6 +406,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onPinRequest={(id) => void togglePin(id)}
           onSetStatusRequest={(id) => void setStatus(id)}
           onCopyRequest={(id, field) => copyTaskField(id, field)}
+          onOpenEditorRequest={openTaskWorktree}
+          onRenameBranchRequest={(id) => void renameBranch(id)}
+          onChangeEngineRequest={(id) => void pickVendor(id)}
           moveMode={moveMode}
           onMoveRequest={(id, delta) => void moveTask(id, delta)}
           onMoveModeExit={() => setMoveMode(false)}

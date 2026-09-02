@@ -46,6 +46,13 @@ export type SidebarTaskCallbacks = {
    * Menu-only, like `onSetStatusRequest` — no chord yet.
    */
   onCopyRequest?: (taskId: string, field: "branch" | "path") => void
+  /** Menu route of `o`: open the task's worktree in the detected editor. */
+  onOpenEditorRequest?: (taskId: string) => void
+  /** Menu route of `b`: the branch picker/rename for the row's task. */
+  onRenameBranchRequest?: (taskId: string) => void
+  /** Menu route of `v`, as a picker over the available engines rather than
+   *  the chord's blind cycle (owner call 2026-09-01). */
+  onChangeEngineRequest?: (taskId: string) => void
 }
 
 export type SidebarProps = SidebarTaskCallbacks & {
