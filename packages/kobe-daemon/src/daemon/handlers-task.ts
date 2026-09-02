@@ -72,20 +72,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "task.recordCommunication",
-    async handle(payload, ctx) {
-      const fromTaskId = requireString(payload, "fromTaskId")
-      const toTaskId = requireString(payload, "toTaskId")
-      await ctx.orch.recordCommunication(
-        fromTaskId,
-        toTaskId,
-        optionalString(payload, "at"),
-        optionalString(payload, "firstMessagePreview"),
-      )
-      return {}
-    },
-  },
-  {
     name: "task.rename",
     web: true,
     async handle(payload, ctx) {

@@ -41,7 +41,7 @@ type GuideAction = { action: string; strokes: string[] }
 type GuideGroup = { category: string; actions: GuideAction[] }
 
 function guideCategory(action: string): string {
-  if (["kanban.open", "automations.open", "workItems.open", "agents.open"].includes(action)) return "Views"
+  if (["kanban.open", "automations.open", "workItems.open"].includes(action)) return "Views"
   if (action.startsWith("focus.")) return "Navigation"
   if (action.startsWith("inbox.") || action.startsWith("attention.")) return "Attention"
   if (action.startsWith("chat.tab.") || action.startsWith("chat.session.")) return "Sessions"

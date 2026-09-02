@@ -7,7 +7,6 @@ export const en = {
   /** Top-level navigation rail — one row per destination */
   nav: {
     workspace: "Workspace",
-    agents: "Agent Topology",
     kanban: "Kanban",
     automations: "Routines",
     issues: "Issues",
@@ -161,7 +160,6 @@ export const en = {
 export const zh: typeof en = {
   nav: {
     workspace: "工作区",
-    agents: "Agent 拓扑",
     kanban: "看板",
     automations: "例行任务",
     issues: "议题",

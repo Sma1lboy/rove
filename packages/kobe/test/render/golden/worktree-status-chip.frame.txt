@@ -8,7 +8,6 @@
 | Kanban                       |
 | Routines                     |
 | Issues                       |
-| Agent Topology               |
 |                              |
 | rove ─────────────────────── |
 |▌ feat/review             ◇ ✓ |
@@ -16,6 +15,7 @@
 |  feat/dropped              † |
 |  feat/broke                × |
 |  feat/quiet                  |
+|                              |
 |                              |
 |                              |
 |                              |

@@ -11,7 +11,6 @@
  */
 
 import { detectLanguage } from "@sma1lboy/kobe-daemon/prompts/observed-language"
-import { normalizeMessagePreview } from "../lib/message-preview.ts"
 import { samePrStatus } from "../monitor/pr-status.ts"
 import type {
   Task,
@@ -276,32 +275,5 @@ export class TaskEditor {
     const task = this.requireTask(id)
     if (task.prompt === prompt) return
     await this.store.update(task.id, { prompt })
-  }
-
-  /** Coalesce one confirmed peer delivery and retain only the edge's first
-   * bounded preview. Later messages update count/recency but never replace it. */
-  async recordCommunication(
-    fromTaskId: TaskId | string,
-    toTaskId: TaskId | string,
-    at?: string,
-    firstMessagePreview?: string,
-  ): Promise<void> {
-    const sender = this.requireTask(fromTaskId)
-    this.requireTask(toTaskId)
-    if (String(fromTaskId) === String(toTaskId)) return
-    const timestamp = at ?? new Date().toISOString()
-    if (Number.isNaN(Date.parse(timestamp))) throw new Error("recordCommunication: at must be an ISO-8601 timestamp")
-    const existing = sender.communications?.find((edge) => edge.targetTaskId === String(toTaskId))
-    const preview = existing ? existing.firstMessagePreview : normalizeMessagePreview(firstMessagePreview)
-    const next = [
-      ...(sender.communications ?? []).filter((edge) => edge.targetTaskId !== String(toTaskId)),
-      {
-        targetTaskId: String(toTaskId),
-        count: Math.min(Number.MAX_SAFE_INTEGER, (existing?.count ?? 0) + 1),
-        lastAt: timestamp,
-        ...(preview ? { firstMessagePreview: preview } : {}),
-      },
-    ].slice(-32)
-    await this.store.update(sender.id, { communications: next })
   }
 }

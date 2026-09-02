@@ -82,17 +82,6 @@ export interface TaskPRStatus {
   readonly lastError?: string
 }
 
-/** One directed, successfully delivered peer-message relationship.
- * Stored on the sender task and coalesced per target so topology metadata is
- * bounded instead of growing once per message. */
-export interface TaskCommunication {
-  readonly targetTaskId: string
-  readonly count: number
-  readonly lastAt: string
-  /** Bounded, single-line preview captured only when this edge is created. */
-  readonly firstMessagePreview?: string
-}
-
 export type TaskDeletionPhase = "queued" | "running" | "error"
 
 /** Durable state for daemon-owned background worktree cleanup. */
@@ -285,8 +274,6 @@ export interface Task {
    * guess.
    */
   readonly baseRef?: string
-  /** Bounded, daemon-recorded `api send` edges originating at this task. */
-  readonly communications?: readonly TaskCommunication[]
   readonly createdAt: string
   readonly updatedAt: string
 }

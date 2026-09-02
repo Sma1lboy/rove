@@ -141,7 +141,6 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         "kanban.open": prefixAction(() => deps.pages.openKanban()),
         "automations.open": prefixAction(() => deps.pages.openAutomations()),
         "workItems.open": prefixAction(() => deps.pages.openWorkItems()),
-        "agents.open": prefixAction(() => deps.pages.openAgents()),
         "task.moveMode": prefixAction(() => deps.enterMoveMode()),
         // prefix+, — the global companion to the sidebar's bare `s`. The
         // row shipped in the table (and docs) without a handler here, so
