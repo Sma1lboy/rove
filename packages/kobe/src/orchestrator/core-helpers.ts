@@ -8,23 +8,17 @@
  * Moved verbatim from `core.ts`.
  */
 
-import { realpathSync } from "node:fs"
-import { resolve } from "node:path"
 import { getRemoteRepoConfig, isRemoteRepoKey, resolveRepoRoot } from "../state/repos.ts"
+import { canonicalize } from "./worktree/paths.ts"
 
 /**
  * Resolve symlinks so two strings naming the same node compare equal
- * (macOS `/var` → `/private/var`). Falls back to `resolve` when the path
- * doesn't exist. Used to de-dupe discovered worktrees against task paths,
- * which may be stored in different (caller vs git) forms.
+ * (macOS `/var` → `/private/var`). Used to de-dupe discovered worktrees
+ * against task paths, which may be stored in different (caller vs git)
+ * forms. The one implementation is {@link canonicalize} in
+ * `worktree/paths.ts`; this name is kept so its call sites stay put.
  */
-export function canonPath(p: string): string {
-  try {
-    return realpathSync(p)
-  } catch {
-    return resolve(p)
-  }
-}
+export const canonPath = canonicalize
 
 /**
  * Short random suffix for `kind:"dir"` task titles (`kobe .`): every open
