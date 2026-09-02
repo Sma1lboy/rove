@@ -270,6 +270,20 @@ export function setTabForkFrom(state: TabsState, id: string, sourceSessionId: st
   return { ...state, tabs }
 }
 
+/**
+ * Pin the RAW launch command on an engine tab (see `EngineTab.engineCommand`),
+ * so the tab launches `command` while its `vendor` carries the protocol kobe
+ * resolved for it. Set together with a vendor when the two differ — a custom
+ * preset (`claudecpa`) launches by its own name but speaks the wrapped
+ * engine's session verbs.
+ */
+export function setTabEngineCommand(state: TabsState, id: string, command: string): TabsState {
+  const tabs = state.tabs.map(
+    (t): TerminalTab => (t.id === id && t.kind === "engine" ? { ...t, engineCommand: command } : t),
+  )
+  return { ...state, tabs }
+}
+
 /** Give an engine tab its own first-spawn prompt (see
  *  `EngineTab.initialPrompt`) — the cross-engine handoff brief. */
 export function setTabInitialPrompt(state: TabsState, id: string, prompt: string): TabsState {

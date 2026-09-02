@@ -34,7 +34,7 @@ import type { QuickTaskResult } from "../../src/tui-react/component/quick-task-c
 import { useT } from "../../src/tui-react/i18n"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { type NewChatPreset, useTabDialogs } from "../../src/tui-react/workspace/use-tab-dialogs"
-import type { TabsState } from "../../src/tui/workspace/terminal-tabs-core"
+import { type EngineTab, type TabsState, engineTabArgv } from "../../src/tui/workspace/terminal-tabs-core"
 import { act, renderComponent, settle, waitForFrameText } from "./harness"
 
 let root: string
@@ -161,6 +161,58 @@ describe("requestNewChat dispatch", () => {
     await frame()
     expect(captured.updates).toHaveLength(0)
     expect(captured.errors).toEqual(["No conversation in this tab to fork yet"])
+  })
+
+  // Why (owner report 2026-09-02): `claudecpa` is a zsh function that ends up
+  // running the real claude binary. Registered with no `engineProtocol`, its id
+  // resolves to the empty custom registry entry — no transcript reader, no fork
+  // verb — so this gesture refused with the "nothing to continue" toast on a tab
+  // that had been talking to claude all along. The walk already recorded the
+  // truth as `liveVendor`; this drives the same keys the owner did.
+  test("tab+continue forks through a wrapper preset's LIVE engine (issue: claudecpa)", async () => {
+    const projectDir = path.join(process.env.CLAUDE_CONFIG_DIR as string, "projects", encodeCwd(worktree))
+    fs.mkdirSync(projectDir, { recursive: true })
+    fs.writeFileSync(path.join(projectDir, "wrapped.jsonl"), "{}\n")
+    // A wrapper preset registered the way every pre-`engineProtocol` one is on
+    // disk: a command and a name, NO `engineProtocol.claudecpa`. That absence is
+    // the bug under test, so the fixture must not paper over it.
+    //
+    // Scoped to THIS test, not the file: custom engines are always offered, so
+    // a registration left standing changes what the picker highlights for
+    // everyone else — and on a runner with no claude binary it becomes the only
+    // entry, which is how it broke the two neighbours that assert on "claude".
+    const statePath = path.join(process.env.KOBE_HOME_DIR as string, ".config", "rove", "state.json")
+    fs.mkdirSync(path.dirname(statePath), { recursive: true })
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ customEngineIds: ["claudecpa"], "engineCommand.claudecpa": "claudecpa" }),
+    )
+    try {
+      const { frame, mockInput, captured } = await mountFlow({
+        // The reported shape: launched as claudecpa, walked to claude, no pin.
+        tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "claudecpa", liveVendor: "claude" }],
+        activeId: "tab-1",
+        nextOrdinal: 2,
+      })
+      act(() => captured.request({ context: "continue" }))
+      await waitForFrameText(frame, "continue this conversation")
+      act(() => mockInput.pressEnter())
+      await waitFor(() => captured.updates.length > 0 || captured.errors.length > 0)
+      expect(captured.errors).toHaveLength(0)
+
+      const next = captured.updates[0]!
+      const forked = next.tabs[1]!
+      // Still LAUNCHES the preset the user picked; only the protocol is claude's.
+      expect(forked).toMatchObject({ kind: "engine", engineCommand: "claudecpa", vendor: "claude" })
+      expect(engineTabArgv(forked as EngineTab, ["claudecpa"], false)).toEqual([
+        "claudecpa",
+        "--resume",
+        "wrapped",
+        "--fork-session",
+      ])
+    } finally {
+      fs.rmSync(statePath, { force: true })
+    }
   })
 
   test("fork+fresh opens the QuickTaskComposer; submit reaches onQuickFork", async () => {
