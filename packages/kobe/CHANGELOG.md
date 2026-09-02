@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.9.79
+
+### Patch Changes
+
+- [#768](https://github.com/Sma1lboy/rove/pull/768) [`6595956`](https://github.com/Sma1lboy/rove/commit/6595956f73063cfa15268e340138b6db49dd862b) `rove web --port=5399` now binds port 5399, and `rove plugin install owner/repo --ref=v1.2` now checks out `v1.2`. Both value flags only recognised the separated form (`--port 5399`), so the attached `--flag=value` spelling fell through to the default with no error: `rove web --port=foo` proceeded on the default port where `--port foo` already exited with "--port needs a number". The two forms now behave identically, and the port check rejects partial numbers like `51abc` instead of binding 51. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#742](https://github.com/Sma1lboy/rove/pull/742) [`f45fc19`](https://github.com/Sma1lboy/rove/commit/f45fc19f2de77a5d330507324258ff6987fe3cc1) Add `rove api tab-close --task-id <id> --tab <tab-N>` to close an exact
+  Terminal Tab with or without an attached TUI. The command follows the normal
+  ctrl+w lifecycle, including hosted PTY cleanup and the empty-task result when
+  the last tab closes. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#761](https://github.com/Sma1lboy/rove/pull/761) [`5ff8d1c`](https://github.com/Sma1lboy/rove/commit/5ff8d1c3e893a26e2a5d42856f627e0d2cdb6c10) Document what closing a project's last tab means on the Concepts page: the project leaves the sidebar but nothing is deleted, and New task → "the project itself" brings it back. Forgetting a project stays the separate un-saving gesture. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#771](https://github.com/Sma1lboy/rove/pull/771) [`8aba781`](https://github.com/Sma1lboy/rove/commit/8aba7817610c4a1cd932f11f6fda698965e0a489) Read a repo's field notes without leaving Rove: the project header's right-click menu gained a **Field notes** entry that opens a read-only list of the notes agents filed with `rove api note`, newest first, each with its author and time. Until now `rove api note-list` in a shell was the only reader. Also trims `state/zen.ts` to the two state.json keys it actually owns (its three unused helpers and tmux-era doc are gone) and un-exports three onboarding helpers nothing imported. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#770](https://github.com/Sma1lboy/rove/pull/770) [`9b26c20`](https://github.com/Sma1lboy/rove/commit/9b26c20f15bf50ceed03de1e345e6a3700de2379) Restore the exec bit on node-pty's macOS `spawn-helper` after every install. node-pty@1.1.0 is published with `prebuilds/darwin-*/spawn-helper` at mode 0644, and neither bun nor npm adds an exec bit the tarball never carried, so on macOS every PTY spawned through node-pty failed — and because `.rove/init.sh` runs `bun install` in each new worktree, the breakage came back on every task Rove created (issue [#85](https://github.com/Sma1lboy/rove/issues/85)). The root `postinstall` now runs `scripts/fix-node-pty-exec-bit.mjs`, which chmods any non-executable `spawn-helper` under `node_modules` (no-op off macOS, and a chmod failure warns instead of failing the install). `rove doctor` gains a `node-pty:` row that names the broken helpers on a tree from before this fix, and `--fix` offers the chmod. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#759](https://github.com/Sma1lboy/rove/pull/759) [`7ea98df`](https://github.com/Sma1lboy/rove/commit/7ea98dfad76a983e4567c514ecbe32f8eb5dacd7) The sidebar row menu now carries the three verbs its keyboard already had: **Open in editor** (`o`), **Rename branch** (`b`), and **Change engine** (`v`). Each acts on the row you right-clicked, and the engine entry opens a picker over your available engines instead of cycling blindly. Rename branch is left out on rows with no branch of their own, such as a project's main checkout. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#769](https://github.com/Sma1lboy/rove/pull/769) [`adb23d1`](https://github.com/Sma1lboy/rove/commit/adb23d184ada2e81d9eb010058162e20e97bc797) Sidebar `b` (rename branch), `v` (change engine) and `o` (open in editor) now act on the row under the cursor, like `d`/`r`/`shift+p` already did. Before, they acted on the active task even after `j`/`k` had moved the highlight elsewhere, so a rename or engine change could silently land on a different worktree than the one highlighted. The global `ctrl+a o` still opens the active task unless the sidebar has focus, where it follows the cursor too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#758](https://github.com/Sma1lboy/rove/pull/758) [`b468d09`](https://github.com/Sma1lboy/rove/commit/b468d09a8552249ba0c80adbe1a21559e6c65ce8) Add an Agent Topology page to the sidebar rail (fourth row, `ctrl+a` `4`). Dagre lays out owner-to-subagent spawn edges from each task's recorded dispatcher, batch outlines group siblings from one parallel launch, and task nodes show engine-normalized roles and live activity. Confirmed `rove api send` deliveries are now recorded on the sender as bounded `communications` edges (target, count, last time, and a 160-character preview of the first message) and drawn as directed message lines; hovering a line shows that preview, and selecting a node spotlights its traffic. Left/right cycles between independent spawn roots. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.78
 
 ### Patch Changes
