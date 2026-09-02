@@ -249,11 +249,14 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     activateTask,
   })
 
-  // `o` and the row menu's "Open in editor" share this; the chord passes the
-  // active task, the menu passes its row.
+  // `o` and the row menu's "Open in editor" share this; both pass the row
+  // under the cursor (the menu's row IS the cursor row).
   const openTaskWorktree = (id: string): void =>
     openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError })
 
+  // Filled by the mounted SidebarTree; null until it mounts (a rail page,
+  // zen), which is fine — every reader is gated on sidebar focus.
+  const cursorTaskIdRef = useRef<() => string | null>(() => null)
   useWorkspaceKeybindings({
     focus,
     dialog,
@@ -261,6 +264,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     filesPaneVisible: !zen && pages.nav === "terminal" && pageRender.showSidebar && pageRender.showContent,
     searchActive,
     selectedId,
+    cursorTaskId: () => cursorTaskIdRef.current(),
     openTaskWorktree,
     createTask: () => void createTask(),
     renameBranch: (id) => void renameBranch(id),
@@ -428,6 +432,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onZenClick={toggleZen}
           onFocusRequest={() => focus.setFocused("sidebar")}
           recentTask={pageRender.recentTask}
+          cursorTaskIdRef={cursorTaskIdRef}
         />
       ) : null}
 

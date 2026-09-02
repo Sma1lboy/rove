@@ -10,7 +10,7 @@
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
 import type { Task } from "@/types/task"
-import { useCallback } from "react"
+import { type MutableRefObject, useCallback } from "react"
 import type { TaskSortMode } from "../../tui/panes/sidebar/groups"
 import type { SidebarNav } from "../../tui/panes/sidebar/nav-core"
 import type { WorktreeChanges } from "../../tui/panes/sidebar/worktree-changes"
@@ -73,6 +73,8 @@ export interface HostSidebarProps {
   readonly recentTask?: Task | null
   /** Global task sort mode driven by the `t` chord. */
   readonly sortMode?: TaskSortMode
+  /** Reader of the task under the tree cursor — see `SidebarTreeProps`. */
+  readonly cursorTaskIdRef?: MutableRefObject<() => string | null>
 }
 
 export function HostSidebar(props: HostSidebarProps) {
@@ -170,6 +172,7 @@ export function HostSidebar(props: HostSidebarProps) {
         onNewTab={newTab}
         onMoveTabRequest={moveTab}
         recentTask={props.recentTask ?? null}
+        cursorTaskIdRef={props.cursorTaskIdRef}
       />
       {/* First-use key hint (component/keyboard-hints.tsx): renders until
           the sidebar's own keys have been used, then never again. */}
