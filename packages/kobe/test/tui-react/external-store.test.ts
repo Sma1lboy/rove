@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
-import { createExternalStore } from "../../src/lib/external-store"
+import {
+  clearRecentStateChangesForTest,
+  createExternalStore,
+  recentStateChangesForDiagnostics,
+} from "../../src/lib/external-store"
 
 describe("createExternalStore", () => {
   it("get returns the current snapshot; set replaces it", () => {
@@ -50,5 +54,17 @@ describe("createExternalStore", () => {
     store.set(1)
     store.set(2)
     expect(seen).toEqual(["a", "b", "b"])
+  })
+
+  it("records labeled transitions by shape without retaining string contents", () => {
+    clearRecentStateChangesForTest()
+    const store = createExternalStore("private-task-title", "diagnostic-probe")
+    store.set("another-private-title")
+    const trace = recentStateChangesForDiagnostics()
+    expect(trace).toHaveLength(1)
+    expect(trace[0]).toContain("diagnostic-probe: string(18) -> string(21)")
+    expect(trace[0]).not.toContain("private-task-title")
+    expect(trace[0]).not.toContain("another-private-title")
+    clearRecentStateChangesForTest()
   })
 })

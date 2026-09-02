@@ -18,6 +18,11 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { createKvCore } from "../../src/tui-react/context/kv-core"
+import {
+  type TabsSnapshotKv,
+  sweepOrphanTabsSnapshots,
+  terminalTabsKey,
+} from "../../src/tui-react/workspace/terminal-tabs-persist"
 
 let savedHome: string | undefined
 
@@ -103,6 +108,34 @@ describe("createKvCore", () => {
     const before = kv.snapshot()
     kv.set("terminalTabs.dead", undefined)
     expect(kv.snapshot()).toBe(before)
+  })
+
+  it("an orphan sweep triggered by kv snapshot changes converges instead of recursively rearming itself", () => {
+    isolatedHome({ [terminalTabsKey("orphan")]: { tabs: [] } })
+    const kv = createKvCore()
+    const sweepKv: TabsSnapshotKv = {
+      get store() {
+        return kv.snapshot()
+      },
+      set: kv.set,
+    }
+    let sweeps = 0
+    const runSweep = () => {
+      sweeps++
+      if (sweeps > 5) throw new Error("orphan sweep recursively rearmed")
+      sweepOrphanTabsSnapshots(sweepKv, ["live"])
+    }
+    const unsubscribe = kv.subscribe(runSweep)
+
+    // Models useWorkspaceSelection's effect: the first sweep changes the KV
+    // identity and triggers one follow-up sweep. The follow-up sees no orphan,
+    // performs no write, and the subscription chain settles.
+    runSweep()
+
+    expect(sweeps).toBe(2)
+    expect(Object.keys(kv.snapshot())).toEqual([])
+    unsubscribe()
+    expect(kv.flush()).toBe(true)
   })
 
   it("seed() is visible in memory but never persisted", () => {

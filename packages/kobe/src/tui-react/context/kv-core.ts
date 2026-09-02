@@ -45,7 +45,7 @@ export interface KvCore {
 }
 
 export function createKvCore(): KvCore {
-  const store = createExternalStore<Record<string, unknown>>(loadStateFile())
+  const store = createExternalStore<Record<string, unknown>>(loadStateFile(), "kv.snapshot")
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()
