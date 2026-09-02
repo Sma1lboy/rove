@@ -88,6 +88,7 @@ describe("daemon handler registry", () => {
       "note.file",
       "note.list",
       "deferredPrompt.file",
+      "deferredPrompt.fileIfVacant",
       "deferredPrompt.get",
       "deferredPrompt.resolve",
     ]

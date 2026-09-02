@@ -307,8 +307,14 @@ silently spawns an engine on a guess.
 
 A `deferred` result is a success, not an error: the delivery gate found the
 target busy, so the daemon took ownership of the text and queued a
-`prompt_deferred` episode for you to release from the Inbox. Retrying stacks a
-duplicate — the daemon already has the message.
+`prompt_deferred` episode for you to release from the Inbox. Do not retry. The
+daemon keeps the first deferred prompt for each tab. A later send fails with
+`DEFERRED_PROMPT_PENDING` until you release or dismiss the existing Inbox item,
+or until it expires, so no accepted prompt is silently replaced.
+
+If the send instead fails with an unknown `deferredPrompt.fileIfVacant`
+request, the client found an older running daemon whose filing behavior is not
+safe for this retry. Restart Rove, then run the original send again.
 
 Two gates can defer, and the `layer` in the response says which:
 

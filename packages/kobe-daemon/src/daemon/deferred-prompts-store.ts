@@ -10,10 +10,10 @@
  *
  * Shape follows notes-store.ts: one JSON file, atomic tmp+rename, `version: 1`.
  * Retention is explicit and logged — a record never vanishes silently:
- * - at most ONE deferred prompt per (taskId, tabId) — a newer deferral for a
- *   tab that already has one REPLACES it (the displaced text is logged);
- * - records older than {@link DEFERRED_PROMPT_TTL_MS} are evicted on write
- *   (also logged).
+ * - at most ONE deferred prompt per (taskId, tabId) — the first writer keeps
+ *   the slot until release, and a later writer gets an explicit rejection;
+ * - records older than {@link DEFERRED_PROMPT_TTL_MS} are evicted during a
+ *   successful file operation (also logged).
  */
 
 import { randomUUID } from "node:crypto"
@@ -24,7 +24,7 @@ import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { writeJsonAtomic } from "./json-file.ts"
 
-/** One deferred prompt per tab is kept; a newer deferral displaces the older. */
+/** One deferred prompt per tab is kept until release or expiry. */
 export const DEFERRED_PROMPT_TTL_MS = 24 * 60 * 60 * 1000
 
 export type DeferredPromptLayer = "recent-human-write" | "composer-not-empty"
@@ -44,6 +44,14 @@ export interface DeferredPromptRecord {
   readonly senderTaskId?: string
   /** Epoch ms of deferral. */
   readonly at: number
+}
+
+/** A tab already has daemon-owned text, so a later prompt was not accepted. */
+export class DeferredPromptPendingError extends Error {
+  constructor(readonly existing: DeferredPromptRecord) {
+    super(`task ${existing.taskId} tab ${existing.tabId} already has a deferred prompt (${existing.id})`)
+    this.name = "DeferredPromptPendingError"
+  }
 }
 
 interface DeferredPromptsFile {
@@ -117,9 +125,10 @@ export class DeferredPromptsStore {
   }
 
   /**
-   * Store one deferred prompt, displacing any existing record for the same
-   * (taskId, tabId) and evicting TTL-expired records. Both displacements and
-   * expiries are logged — a deferred prompt never disappears silently.
+   * Store one deferred prompt when its (taskId, tabId) slot is vacant, while
+   * evicting TTL-expired records when the new prompt is accepted. A live
+   * record wins over later writers, so a prompt the daemon already accepted
+   * cannot disappear under a second send.
    * Returns the stored record (with its minted id).
    */
   async file(record: Omit<DeferredPromptRecord, "id">): Promise<DeferredPromptRecord> {
@@ -127,6 +136,7 @@ export class DeferredPromptsStore {
       const now = this.now()
       const store = await readStore(this.path)
       const kept: DeferredPromptRecord[] = []
+      let occupied: DeferredPromptRecord | null = null
       for (const existing of store.records) {
         if (now - existing.at > DEFERRED_PROMPT_TTL_MS) {
           logDaemonInfo(
@@ -136,14 +146,11 @@ export class DeferredPromptsStore {
           continue
         }
         if (existing.taskId === record.taskId && existing.tabId === record.tabId) {
-          logDaemonInfo(
-            SUBSYSTEM,
-            `displaced deferred prompt ${existing.id} for ${record.taskId}::${record.tabId} (superseded by a newer deferral) — older text dropped`,
-          )
-          continue
+          occupied = existing
         }
         kept.push(existing)
       }
+      if (occupied) throw new DeferredPromptPendingError(occupied)
       const next: DeferredPromptRecord = { ...record, id: randomUUID() }
       kept.push(next)
       await writeStore(this.path, kept)
@@ -151,7 +158,7 @@ export class DeferredPromptsStore {
     })
   }
 
-  /** Fetch one record by id, or null when it was released/expired/displaced. */
+  /** Fetch one record by id, or null when absent after release or later expiry cleanup. */
   async get(id: string): Promise<DeferredPromptRecord | null> {
     return await this.enqueue(async () => (await readStore(this.path)).records.find((r) => r.id === id) ?? null)
   }

@@ -32,8 +32,14 @@ export const COMPOSER_RENDER_ROWS = 60
 /** Default trailing lines to inspect for the composer prompt. */
 export const COMPOSER_BOTTOM_LINES = 3
 
-/** Render raw PTY ring bytes to plain text via headless xterm. */
-function renderRingToText(bytes: Uint8Array, cols: number, rows: number): Promise<string> {
+interface RenderedComposerLine {
+  readonly text: string
+  /** Same cells as `text`, with non-dim glyphs blanked out. */
+  readonly dimmedText: string
+}
+
+/** Render raw PTY ring bytes and retain the one style bit composer manifests use. */
+function renderRing(bytes: Uint8Array, cols: number, rows: number): Promise<readonly RenderedComposerLine[]> {
   const term = new XtermHeadless({
     allowProposedApi: true,
     cols,
@@ -45,19 +51,30 @@ function renderRingToText(bytes: Uint8Array, cols: number, rows: number): Promis
   return new Promise((resolve) => {
     term.write(bytes, () => {
       const active = term.buffer.active
-      const lines: string[] = []
+      const lines: RenderedComposerLine[] = []
       for (let y = 0; y < active.length; y++) {
         const line = active.getLine(y)
-        lines.push(line?.translateToString(true) ?? "")
+        if (!line) {
+          lines.push({ text: "", dimmedText: "" })
+          continue
+        }
+        let dimmedText = ""
+        for (let x = 0; x < line.length; x++) {
+          const cell = line.getCell(x)
+          if (!cell || cell.getWidth() === 0) continue
+          const chars = cell.getChars() || " "
+          dimmedText += cell.isDim() ? chars : " ".repeat(Array.from(chars).length)
+        }
+        lines.push({ text: line.translateToString(true), dimmedText: dimmedText.trimEnd() })
       }
       term.dispose()
-      resolve(lines.join("\n"))
+      resolve(lines)
     })
   })
 }
 
-function bottomRegion(captureText: string, lines: number): readonly string[] {
-  const nonEmpty = captureText.split("\n").filter((l) => l.trim().length > 0)
+function bottomRegion(capture: readonly RenderedComposerLine[], lines: number): readonly RenderedComposerLine[] {
+  const nonEmpty = capture.filter((line) => line.text.trim().length > 0)
   return nonEmpty.slice(-lines)
 }
 
@@ -77,8 +94,11 @@ function bottomRegion(captureText: string, lines: number): readonly string[] {
  */
 type RuleOutcome = "empty" | "text" | "absent"
 
-function ruleOutcome(rule: ComposerEmptyRule, region: readonly string[]): RuleOutcome {
-  const haystack = region.join("\n").toLowerCase()
+function ruleOutcome(rule: ComposerEmptyRule, region: readonly RenderedComposerLine[]): RuleOutcome {
+  const haystack = region
+    .map((line) => line.text)
+    .join("\n")
+    .toLowerCase()
   // `all`/`any` are ANCHORS — the prompt glyph that says "the composer is on
   // this screen". Missing them means the region does not show the composer.
   if (rule.all && !rule.all.every((s) => haystack.includes(s.toLowerCase()))) return "absent"
@@ -86,9 +106,16 @@ function ruleOutcome(rule: ComposerEmptyRule, region: readonly string[]): RuleOu
   // Anchored: the line shape decides empty vs typed-into.
   if (rule.lineRegex) {
     const regexes = rule.lineRegex.map((r) => new RegExp(r, "i"))
-    if (!region.some((line) => regexes.some((re) => re.test(line)))) return "text"
+    if (!region.some((line) => regexes.some((re) => re.test(line.text)))) return "text"
   }
-  return rule.all || rule.any || rule.lineRegex ? "empty" : "absent"
+  if (rule.dimmed) {
+    const dimmedHaystack = region
+      .map((line) => line.dimmedText)
+      .join("\n")
+      .toLowerCase()
+    if (!rule.dimmed.every((text) => dimmedHaystack.includes(text.toLowerCase()))) return "text"
+  }
+  return rule.all || rule.any || rule.lineRegex || rule.dimmed ? "empty" : "absent"
 }
 
 /**
@@ -112,10 +139,10 @@ export async function isComposerEmpty(
   manifest: EngineScreenManifest | undefined,
 ): Promise<boolean | null> {
   if (!manifest?.composerEmpty || manifest.composerEmpty.length === 0) return null
-  const text = await renderRingToText(ringBytes, COMPOSER_RENDER_COLS, COMPOSER_RENDER_ROWS)
+  const capture = await renderRing(ringBytes, COMPOSER_RENDER_COLS, COMPOSER_RENDER_ROWS)
   let sawComposer = false
   for (const rule of manifest.composerEmpty) {
-    const region = bottomRegion(text, rule.bottomLines ?? COMPOSER_BOTTOM_LINES)
+    const region = bottomRegion(capture, rule.bottomLines ?? COMPOSER_BOTTOM_LINES)
     if (region.length === 0) continue
     const outcome = ruleOutcome(rule, region)
     if (outcome === "empty") return true

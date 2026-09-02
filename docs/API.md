@@ -304,6 +304,13 @@ placeholder branch to a descriptive name. Prompts into existing sessions
   task with no live session at all auto-starts its canonical engine tab, in
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
+  If a busy composer defers the prompt, the result has `delivered: false` and
+  a `deferred` record id. The daemon keeps one deferred prompt per tab. A
+  later send to that tab fails with `DEFERRED_PROMPT_PENDING` until the Inbox
+  item is released, dismissed, or expires; it never replaces text the daemon
+  already accepted. During an upgrade, a new client fails the send if the
+  running daemon cannot provide first-writer-wins filing. Restart Rove to use
+  the new daemon, then retry the original command.
 
   A prompt opening with `succeeded:` is checked against the SENDER's own
   branch before any delivery: sent from a verified managed task whose branch

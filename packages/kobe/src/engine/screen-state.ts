@@ -46,6 +46,9 @@ export interface ComposerEmptyRule {
   readonly any?: readonly string[]
   /** At least one region line must match one of these regexes (case-insensitive). */
   readonly lineRegex?: readonly string[]
+  /** Every string must appear in cells rendered with SGR dim. This separates
+   *  placeholder furniture from identical user-authored text. */
+  readonly dimmed?: readonly string[]
 }
 
 /** An engine's screen-state manifest. Rules are evaluated in order; the

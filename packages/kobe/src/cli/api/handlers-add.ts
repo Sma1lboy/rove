@@ -297,7 +297,8 @@ async function addParallel(
     if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
       // Deferred (issue #78 B-layer) is a SUCCESS, exactly as `addOne`/`send`
       // treat it: the daemon took ownership of the prompt and queued an inbox
-      // episode, so the caller must NOT retry (a retry stacks a duplicate). It
+      // episode, so the caller must NOT retry (the tab stays occupied until
+      // that deferred prompt is released, dismissed, or expires). It
       // resolves with `delivered:false`, so route it here — not to `failures` —
       // and carry the marker through so a script can see it was queued.
       tasks.push({

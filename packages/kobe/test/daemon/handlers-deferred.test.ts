@@ -41,6 +41,95 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
     ])
   })
 
+  it("fileIfVacant reports an occupied tab without replacing its pending prompt", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const first = (await dispatch(
+      "deferredPrompt.fileIfVacant",
+      {
+        taskId: TASK.id,
+        tabId: "tab-1",
+        prompt: "first",
+        layer: "composer-not-empty",
+      },
+      ctx,
+    )) as { kind: string; id: string }
+
+    const second = (await dispatch(
+      "deferredPrompt.fileIfVacant",
+      {
+        taskId: TASK.id,
+        tabId: "tab-1",
+        prompt: "second",
+        layer: "composer-not-empty",
+      },
+      ctx,
+    )) as { kind: string; id: string; layer?: string }
+
+    expect(first.kind).toBe("filed")
+    expect(second).toEqual({ kind: "occupied", id: first.id, layer: "composer-not-empty" })
+    expect((await store.get(first.id))?.prompt).toBe("first")
+    expect(rec.inboxPromptDeferred).toEqual([
+      { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
+      { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
+    ])
+  })
+
+  it("rebuilds a missing Inbox episode when a filing retry finds the record", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const original = ctx.inbox.recordPromptDeferred.bind(ctx.inbox)
+    let fail = true
+    ctx.inbox.recordPromptDeferred = async (...args) => {
+      if (fail) {
+        fail = false
+        throw new Error("inbox commit failed")
+      }
+      return await original(...args)
+    }
+    const payload = {
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "first",
+      layer: "composer-not-empty",
+    }
+
+    await expect(dispatch("deferredPrompt.fileIfVacant", payload, ctx)).rejects.toThrow("inbox commit failed")
+    const [orphan] = await store.listForTask(TASK.id)
+    expect(orphan?.prompt).toBe("first")
+    expect(rec.inboxPromptDeferred).toEqual([])
+
+    await expect(dispatch("deferredPrompt.fileIfVacant", payload, ctx)).resolves.toEqual({
+      kind: "occupied",
+      id: orphan?.id,
+      layer: "composer-not-empty",
+    })
+    expect(rec.inboxPromptDeferred).toEqual([
+      { taskId: TASK.id, tabId: "tab-1", deferredId: orphan?.id, layer: "composer-not-empty" },
+    ])
+  })
+
+  it("rejects an occupied tab for clients that do not request a structured conflict", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const first = (await dispatch(
+      "deferredPrompt.file",
+      { taskId: TASK.id, tabId: "tab-1", prompt: "first", layer: "composer-not-empty" },
+      ctx,
+    )) as { id: string }
+
+    await expect(
+      dispatch(
+        "deferredPrompt.file",
+        { taskId: TASK.id, tabId: "tab-1", prompt: "second", layer: "composer-not-empty" },
+        ctx,
+      ),
+    ).rejects.toThrow(/already has a deferred prompt/)
+
+    expect((await store.get(first.id))?.prompt).toBe("first")
+    expect(rec.inboxPromptDeferred).toEqual([
+      { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
+      { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
+    ])
+  })
+
   it("file rejects a bad layer and an unknown task", async () => {
     const { ctx } = await ctxWithStore()
     await expect(

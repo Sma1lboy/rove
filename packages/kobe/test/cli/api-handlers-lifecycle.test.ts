@@ -400,4 +400,32 @@ describe("deliverPrompt", () => {
     })
     await expectApiError(() => deliverPrompt(new FakeClient(), target, "hello", ops), "SESSION_FAILED")
   })
+
+  it("never calls a legacy deferral verb that can replace an accepted prompt", async () => {
+    let legacyReplacements = 0
+    const client = new FakeClient({
+      "deferredPrompt.fileIfVacant": () => {
+        throw new Error("unknown daemon request: deferredPrompt.fileIfVacant")
+      },
+      "deferredPrompt.file": () => {
+        legacyReplacements++
+        return { id: "legacy-replacement" }
+      },
+    })
+    const { ops } = fakeOps({
+      deliverHosted: async (blockedTarget, _worktree, prompt, defer) => {
+        await defer?.defer({
+          taskId: blockedTarget.id,
+          tabId: "tab-1",
+          prompt,
+          layer: "composer-not-empty",
+        })
+        throw new Error("unreachable: an old daemon must reject the new verb")
+      },
+    })
+
+    await expect(deliverPrompt(client, target, "second", ops)).rejects.toThrow(/unknown daemon request/)
+    expect(client.requestNames).toEqual(["deferredPrompt.fileIfVacant"])
+    expect(legacyReplacements).toBe(0)
+  })
 })

@@ -195,7 +195,7 @@ describe("standing session — later firings", () => {
 describe("standing session — busy composer", () => {
   it("hands the report to the deferred store instead of dropping it", async () => {
     const dir = mkdtempSync(join(tmpdir(), "kobe-routine-defer-"))
-    const deferred = new DeferredPromptsStore(join(dir, "deferred.json"))
+    const deferred = new DeferredPromptsStore(join(dir, "deferred.json"), () => NOW)
     const episodes: Array<{ taskId: string; tabId: string; layer: string }> = []
     const { deps } = harness({
       tasks: { "task-1": task() },
@@ -236,6 +236,39 @@ describe("standing session — busy composer", () => {
 
     expect(outcome.status).toBe("dispatch_failed")
     expect(outcome.error).toContain("composer busy")
+  })
+
+  it("reports a failure instead of replacing an earlier deferred report", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "kobe-routine-defer-full-"))
+    const deferred = new DeferredPromptsStore(join(dir, "deferred.json"), () => NOW)
+    const first = await deferred.file({
+      taskId: "task-1",
+      tabId: "tab-1",
+      prompt: "first report",
+      layer: "composer-not-empty",
+      at: NOW - 1,
+    })
+    const { deps } = harness({
+      tasks: { "task-1": task() },
+      deliver: async () => ({ outcome: "busy" as const, tabId: "tab-1", layer: "composer-not-empty" as const }),
+    })
+    const episodes: string[] = []
+
+    const outcome = await dispatchAutomation(
+      {
+        ...deps,
+        deferred,
+        inbox: { recordPromptDeferred: async (_taskId, _tabId, id) => void episodes.push(id) },
+      },
+      automation({ sessionTaskId: "task-1" }),
+    )
+
+    expect(outcome).toMatchObject({ status: "dispatch_failed", taskId: "task-1" })
+    expect(outcome.error).toContain(first.id)
+    expect(await deferred.get(first.id)).toEqual(first)
+    // If the first filing died after the record rename, this retry repairs
+    // the missing Inbox pointer while still rejecting the newer report.
+    expect(episodes).toEqual([first.id])
   })
 })
 

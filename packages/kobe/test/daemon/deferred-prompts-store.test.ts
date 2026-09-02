@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { DEFERRED_PROMPT_TTL_MS, DeferredPromptsStore } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-/** Capture the daemon-log lines the store writes on displacement/expiry. */
+/** Capture the daemon-log lines the store writes on expiry. */
 function spyDaemonLog(): { lines: string[]; restore: () => void } {
   const lines: string[] = []
   const spy = vi.spyOn(process.stderr, "write").mockImplementation(((chunk: unknown) => {
@@ -45,23 +45,17 @@ describe("daemon deferred-prompts store (issue #78 B)", () => {
     expect(await store.resolve(record.id)).toBe(false)
   })
 
-  it("keeps only the newest record per task+tab, logging the displaced one", async () => {
+  it("keeps the first record per task+tab and rejects a later deferral", async () => {
     const { store, path } = await create()
-    const log = spyDaemonLog()
-    try {
-      const first = await store.file({ ...base, prompt: "first", at: now })
-      const second = await store.file({ ...base, prompt: "second", at: now + 1 })
+    const first = await store.file({ ...base, prompt: "first", at: now })
 
-      const records = (JSON.parse(await readFile(path, "utf8")) as { records: unknown[] }).records
-      expect(records).toHaveLength(1)
-      expect(await store.get(first.id)).toBeNull()
-      expect(await store.get(second.id)).toEqual(second)
-      // Displacement is explicit, not silent — the dropped record is named by id.
-      expect(log.lines.join("")).toContain("displaced deferred prompt")
-      expect(log.lines.join("")).toContain(first.id)
-    } finally {
-      log.restore()
-    }
+    await expect(store.file({ ...base, prompt: "second", at: now + 1 })).rejects.toThrow(
+      /already has a deferred prompt/,
+    )
+
+    const records = (JSON.parse(await readFile(path, "utf8")) as { records: unknown[] }).records
+    expect(records).toEqual([first])
+    expect(await store.get(first.id)).toEqual(first)
   })
 
   it("evicts TTL-expired records on write, logging the drop", async () => {
