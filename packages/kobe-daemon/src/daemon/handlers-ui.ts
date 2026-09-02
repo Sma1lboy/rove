@@ -82,12 +82,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const taskId = optionalString(payload, "taskId")
       const detail = payload.detail
+      const eventDetail =
+        detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
+      if (kind === "tab.closed" && taskId && typeof eventDetail?.tabId === "string" && ctx.deferredPrompts) {
+        const dropped = await ctx.deferredPrompts.discardTab(taskId, eventDetail.tabId, "tab closed")
+        for (const record of dropped) {
+          await ctx.inbox.deleteEpisode(taskId, eventDetail.tabId, undefined, "prompt_deferred", record.id)
+        }
+      }
       ctx.plugins?.handleUiReport({
         kind: kind as import("../plugins/manifest.ts").PluginEventName,
         ...(taskId ? { taskId } : {}),
-        ...(detail && typeof detail === "object" && !Array.isArray(detail)
-          ? { detail: detail as Record<string, unknown> }
-          : {}),
+        ...(eventDetail ? { detail: eventDetail } : {}),
       })
       return {}
     },

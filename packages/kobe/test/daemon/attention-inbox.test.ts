@@ -99,6 +99,26 @@ describe("daemon attention inbox", () => {
     ])
   })
 
+  it("can delete only the deferred lane while preserving task activity", async () => {
+    let now = 100
+    const { store } = await create(() => now)
+    await store.record("task-1", "awaiting-input", { waiting: "permission" }, "tab-1")
+    now = 200
+    await store.recordPromptDeferred("task-1", "tab-1", "deferred-1", "composer-not-empty")
+
+    expect(await store.deleteEpisode("task-1", "tab-1", 200, "prompt_deferred")).toBe(true)
+    expect(store.snapshot()).toEqual([
+      {
+        taskId: "task-1",
+        tabId: "tab-1",
+        state: "permission_needed",
+        detail: { waiting: "permission" },
+        unread: true,
+        at: 100,
+      },
+    ])
+  })
+
   it("resolves an episode on open and ignores a stale open after a replacement", async () => {
     // Queue-drain model: opening REMOVES the episode
     // (markRead is a legacy alias for delete); a fresh event re-records at

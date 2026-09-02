@@ -165,6 +165,30 @@ export interface DaemonRuntimeAdapter {
         readonly layer: "recent-human-write" | "composer-not-empty"
       }
   >
+  /**
+   * Deliver to one exact live tab. Used when draining daemon-owned deferred
+   * prompts: rerouting a queued tab-2 message into tab-1 would be data loss.
+   */
+  deliverPromptToLiveEngineTabDetailed(
+    target: {
+      readonly id: string
+      readonly tabId: string
+      readonly vendor?: VendorId
+      readonly command?: string
+      readonly worktreePath: string
+    },
+    prompt: string,
+  ): Promise<
+    | { readonly outcome: "delivered"; readonly tabId: string }
+    | { readonly outcome: "no-session" }
+    | {
+        readonly outcome: "busy"
+        readonly tabId: string
+        readonly layer: "recent-human-write" | "composer-not-empty"
+      }
+  >
+  /** Fresh persisted state, checked between deferred-queue deliveries. */
+  composerGateEnabled(): boolean
   settingsSnapshot(): Response
   settingsPatch(request: Request): Promise<Response>
   handleDiffRequest(request: Request, url: URL): Promise<Response | null>

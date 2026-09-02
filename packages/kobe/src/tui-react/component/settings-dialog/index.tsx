@@ -32,6 +32,7 @@ import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
+import { flushDeferredPromptsWithFeedback } from "./deferred-flush-feedback"
 import { SettingsCursorElContext } from "./rows"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
@@ -70,14 +71,12 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const [feedbackStatus, setFeedbackStatus] = useState("")
   const themeNames = useMemo<readonly string[]>(() => themeCtx.all().slice().sort(), [themeCtx])
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
-
-  const prefs = useSettingsPrefs(props.kv, dialog)
-  const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
-
-  // Daemon-pushed per-vendor quota snapshots (General's top-right dashboard).
-  // Only the RemoteOrchestrator has the channel; a local orchestrator (tests,
-  // direct mode) reads the empty fallback cell and the dashboard stays hidden.
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
+  const prefs = useSettingsPrefs(props.kv, dialog, () => {
+    if (remote) void flushDeferredPromptsWithFeedback(remote, dialog)
+  })
+  const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
+  // A local orchestrator has no daemon quota channel and uses the empty cell.
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.

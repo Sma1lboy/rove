@@ -30,7 +30,13 @@ import {
 } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabClose, setTaskTabs, tabsByTask, takeUnclaimedTabClose } from "./terminal-tabs-shared"
+import {
+  reportTabsDelta,
+  requestTabClose,
+  setTaskTabs,
+  tabsByTask,
+  takeUnclaimedTabClose,
+} from "./terminal-tabs-shared"
 
 /**
  * Release a closing tab's PTYs — the split leaves plus the tab's own.
@@ -111,6 +117,7 @@ export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
   if (!closedId) return false
   setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
+  reportTabsDelta(taskId, state.tabs, next.tabs)
   releaseClosedTabPtys(taskId, closing, closedId)
   return true
 }

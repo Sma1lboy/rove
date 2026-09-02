@@ -116,7 +116,23 @@ describe("engineProcessIn (delivery foreground gate)", () => {
 11 10 /usr/local/bin/aider --model gpt
 `)
     expect(engineProcessIn(rows, 10)).toBe(false)
-    expect(engineProcessIn(rows, 10, "aider")).toBe(true)
+    expect(engineProcessIn(rows, 10, ["aider"])).toBe(true)
+  })
+
+  it("matches custom launch argv through absolute paths and env wrappers", () => {
+    const absolute = parsePsSnapshot(`
+10 1 -zsh
+11 10 /usr/local/bin/aider --model gpt
+`)
+    expect(engineProcessIn(absolute, 10, ["/usr/local/bin/aider", "--model", "gpt"])).toBe(true)
+
+    const wrapped = parsePsSnapshot(`
+10 1 -zsh
+11 10 /usr/bin/env OPENAI_API_KEY=redacted /opt/tools/aider --model sonnet
+`)
+    expect(
+      engineProcessIn(wrapped, 10, ["env", "OPENAI_API_KEY=redacted", "/opt/tools/aider", "--model", "sonnet"]),
+    ).toBe(true)
   })
 })
 

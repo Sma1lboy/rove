@@ -82,20 +82,19 @@ function deferredItem(at: number): AttentionInboxItem {
 
 interface OrchMock {
   orch: RemoteOrchestrator
-  /** Live counter — read `.resolveCalls` after the fact. */
-  state: { resolveCalls: number }
+  /** Live counter — read `.releaseCalls` after the fact. */
+  state: { releaseCalls: number }
   dismissed: Array<{ taskId: string; tabId: string | null; at: number }>
 }
 
-function orchMock(over: { deferredRecord?: unknown } = {}): OrchMock {
+function orchMock(over: { release?: "unavailable" | "missing" } = {}): OrchMock {
   const dismissed: Array<{ taskId: string; tabId: string | null; at: number }> = []
-  const state = { resolveCalls: 0 }
+  const state = { releaseCalls: 0 }
   const orch = {
     getTask: () => task("task-1"),
-    getDeferredPrompt: () => Promise.resolve(over.deferredRecord ?? null),
-    resolveDeferredPrompt: () => {
-      state.resolveCalls += 1
-      return Promise.resolve(true)
+    releaseDeferredPrompt: () => {
+      state.releaseCalls += 1
+      return Promise.resolve(over.release ?? "unavailable")
     },
     dismissAttention: (taskId: string, tabId: string | null, at: number) => {
       dismissed.push({ taskId, tabId, at })
@@ -136,9 +135,7 @@ test("opening a prompt_deferred item with no live host keeps it queued (no resol
   process.env.KOBE_HOME_DIR = home
   infoMessages = []
   try {
-    const { orch, state, dismissed } = orchMock({
-      deferredRecord: { id: "d1", taskId: "task-1", tabId: "tab-1", prompt: "hi", layer: "composer-not-empty", at: 1 },
-    })
+    const { orch, state, dismissed } = orchMock()
     const { destroy } = await renderComponent(<InboxProbe orch={orch} items={[deferredItem(1)]} />, {
       width: 80,
       height: 24,
@@ -150,7 +147,7 @@ test("opening a prompt_deferred item with no live host keeps it queued (no resol
     // Insert reached the hosted-PTY boundary; with no host socket the message
     // stays queued — surfaced via toast, not resolved, not dismissed.
     expect(infoMessages.length).toBeGreaterThan(0)
-    expect(state.resolveCalls).toBe(0)
+    expect(state.releaseCalls).toBe(1)
     expect(dismissed).toHaveLength(0)
     destroy()
   } finally {
@@ -166,7 +163,7 @@ test("opening a prompt_deferred item whose record is gone dismisses the stale ep
   process.env.KOBE_HOME_DIR = home
   infoMessages = []
   try {
-    const { orch, dismissed } = orchMock({ deferredRecord: null })
+    const { orch, dismissed } = orchMock({ release: "missing" })
     const { destroy } = await renderComponent(<InboxProbe orch={orch} items={[deferredItem(2)]} />, {
       width: 80,
       height: 24,

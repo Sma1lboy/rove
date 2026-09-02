@@ -14,7 +14,7 @@
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
-import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
+import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
   ComposerBusyError,
   type HostedSessionRpc,
@@ -33,39 +33,15 @@ import {
 } from "../../engine/hosted-session.ts"
 import { engineEntry } from "../../engine/registry.ts"
 import type { EngineScreenManifest } from "../../engine/screen-state.ts"
+import { sessionHasEngine } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
-/**
- * Foreground gate for delivery into an EXISTING session — is an agent still
- * the pane's foreground process, answered from the process tree? A session's
- * spawn argv says what WAS launched, not what is
- * running now — kobe's keepAlive drops an exited engine into a fallback
- * SHELL, where a pasted prompt executes as shell commands. Walk the PTY
- * child's descendants: any registered engine counts (cross-vendor send is
- * legitimate), `extraBin` additionally matches a custom engine's binary
- * name. False on no pid / ps failure — unverifiable is "not an engine".
- *
- * Known ceiling: during an engine's first ~1-2s (login shell still sourcing
- * rc, engine child not yet spawned) the gate reads "shell only" and refuses;
- * the typed error's hint makes the retry trivial. Watching the spawn argv
- * would close it but can't distinguish boot from the post-exit exec'd shell.
- */
-async function sessionHasEngine(
-  pid: number | null | undefined,
-  extraBin?: string,
-  snapshot: PsSnapshot = psSnapshot,
-): Promise<boolean> {
-  if (!pid) return false
-  try {
-    return engineProcessIn(parsePsSnapshot(await snapshot()), pid, extraBin)
-  } catch {
-    return false
-  }
-}
-
+// `sessionHasEngine` is the foreground gate for delivery into an existing
+// hosted session: an alive PTY may now be a fallback shell after the engine
+// exits, and pasting there would execute the prompt as shell commands.
 /**
  * The narrow pty-host surface this module needs: request/response RPC plus
  * cleanup. `KobeDaemonClient` satisfies it; tests inject a fake that
@@ -143,10 +119,10 @@ function outcomeFields(outcome: PromptWriteOutcome | null): {
  * session was created", never "delivered into an existing one".
  *
  * When alive tabs exist but none resolves as an engine, this THROWS
- * (NO_ENGINE_TAB) instead of spawning. A silent-spawn fallback boots an
- * unsandboxed `--dangerously-skip-permissions` engine — cwd'd at the MAIN
- * repo — while both sender and receiver believe the message was delivered.
- * A well-meaning fallback here is
+ * (NO_ENGINE_TAB) instead of spawning. Issue #19: the silent-spawn fallback
+ * booted an unsandboxed `--dangerously-skip-permissions` engine (in the
+ * incident, cwd'd at the MAIN repo) while both sender and receiver believed
+ * the message was delivered. A well-meaning fallback here is
  * indistinguishable from success on both sides — it must stay loud.
  */
 export async function deliverHostedPrompt(
@@ -241,7 +217,7 @@ export async function deliverHostedPrompt(
         delivered: false,
       }
     }
-    // Paste-delivery vendor (kimi): the launch spawned the bare
+    // Paste-delivery vendor (kimi — issue #25): the launch spawned the bare
     // engine and carried the first message OUTSIDE its argv; paste it once
     // the engine process is up. A paste that never lands is a failed start,
     // not a delivered prompt.
@@ -285,10 +261,10 @@ export async function deliverHostedPrompt(
     }
     // OUR launch carried the prompt in its argv, so no paste happened here.
     // The engine receives the prompt from its own command line — a delivery
-    // this code never observed, and must not claim to have confirmed.
-    // Hardcoding `delivered = true` here (and copying it into engineReady)
-    // is how a task that received nothing reports a clean success on all
-    // three fields.
+    // this code never observed, and must not claim to have confirmed. It
+    // used to hardcode `delivered = true` (and copy that into engineReady),
+    // which is how a task that received nothing still reported a clean
+    // success on all three fields.
     return {
       session: launch.key,
       pane: launch.key,
@@ -359,7 +335,7 @@ function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | unde
 }
 
 /**
- * Gate blocked the paste. With a deferral sink, try to
+ * Gate blocked the paste. With a deferral sink (issue #78 B-layer), try to
  * hand the prompt to daemon ownership. Report deferred success only when the
  * daemon accepts it; an occupied slot or failed handoff is an error. Without
  * a sink there is no queue, so surface the legacy typed error.

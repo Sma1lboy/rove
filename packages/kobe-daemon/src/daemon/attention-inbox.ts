@@ -41,6 +41,8 @@ interface AttentionInboxFile {
  */
 export const MAX_EPISODES = 500
 
+export type AttentionInboxLane = "activity" | "prompt_deferred"
+
 export function defaultAttentionInboxPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "attention-inbox.json")
 }
@@ -212,25 +214,35 @@ export class AttentionInboxStore {
    * (`deleteEpisode` via attention.dismiss). Kept for old clients whose
    * open still calls attention.markRead — treat it as the same resolve.
    */
-  async markRead(taskId: string, tabId: string | null, at: number): Promise<boolean> {
-    return await this.deleteEpisode(taskId, tabId, at)
+  async markRead(
+    taskId: string,
+    tabId: string | null,
+    at: number,
+    lane?: AttentionInboxLane,
+    deferredId?: string,
+  ): Promise<boolean> {
+    return await this.deleteEpisode(taskId, tabId, at, lane, deferredId)
   }
 
-  /** Nullable tabId addresses legacy task-level data only; new writes require a tab. */
-  async deleteEpisode(taskId: string, tabId: string | null, at?: number): Promise<boolean> {
+  /** Delete a matching episode; lane and deferredId narrow cross-store cleanup. */
+  async deleteEpisode(
+    taskId: string,
+    tabId: string | null,
+    at?: number,
+    lane?: AttentionInboxLane,
+    deferredId?: string,
+  ): Promise<boolean> {
     return await this.enqueue(async () => {
-      // Both lanes for this tab — the activity episode and any deferred-prompt
-      // one. Callers address a TAB ("I dealt with this"), not a lane; making
-      // them name the lane would leave whichever they forgot on screen.
-      const keys = [
-        attentionInboxItemKey({ taskId, tabId }),
-        attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" }),
-      ]
+      const activityKey = attentionInboxItemKey({ taskId, tabId })
+      const deferredKey = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
+      const keys =
+        lane === "activity" ? [activityKey] : lane === "prompt_deferred" ? [deferredKey] : [activityKey, deferredKey]
       const next = new Map(this.items)
       let removed = false
       for (const key of keys) {
         const item = this.items.get(key)
         if (!item || (at !== undefined && item.at !== at)) continue
+        if (deferredId !== undefined && item.detail?.deferredPrompt?.id !== deferredId) continue
         next.delete(key)
         removed = true
       }

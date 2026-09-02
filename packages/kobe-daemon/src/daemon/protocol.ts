@@ -304,11 +304,15 @@ export type DaemonRequestName =
   // Deferred prompts: the delivery gate accepted a prompt
   // it could not paste (composer busy) into daemon ownership. New clients use
   // `fileIfVacant`, whose distinct name makes old replace-on-file daemons fail
-  // loud. `get` reads one back; `resolve` drops it after insert or dismiss.
+  // loud. `release` and `flush` claim records before exact-tab delivery;
+  // `get`/`resolve` remain only for loud legacy skew and pre-restart cleanup.
   | "deferredPrompt.file"
   | "deferredPrompt.fileIfVacant"
   | "deferredPrompt.get"
   | "deferredPrompt.resolve"
+  | "deferredPrompt.release"
+  | "deferredPrompt.discardTab"
+  | "deferredPrompt.flush"
 
 /**
  * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's

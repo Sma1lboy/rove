@@ -3,6 +3,14 @@ import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
+  ComposerBusyError: class extends Error {
+    constructor(
+      readonly layer: "recent-human-write" | "composer-not-empty",
+      readonly key: string,
+    ) {
+      super(`composer busy on ${key}: ${layer}`)
+    }
+  },
   close: vi.fn(),
   ensureHost: vi.fn(),
   openHost: vi.fn(),
@@ -10,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   listSessions: vi.fn(async () => [{ key: "task-3::tab-1", alive: true }]),
   taskKeys: vi.fn(() => ["task-3::tab-1"]),
   killSessions: vi.fn(async () => {}),
+  deliver: vi.fn(async () => ({ bytes: 1 })),
+  sessionHasEngine: vi.fn(async () => true),
   buildLaunch: vi.fn((input: { task: { id: string } }): { key: string; command: string[]; firstMessage?: string } => ({
     key: `${input.task.id}::tab-1`,
     command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
@@ -17,16 +27,20 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("../../src/engine/hosted-session.ts", () => ({
+  ComposerBusyError: mocks.ComposerBusyError,
   ensureHostedSessionHost: mocks.ensureHost,
   openHostedSessionHost: mocks.openHost,
   ensureHostedEngine: mocks.ensureEngine,
   listHostedSessions: mocks.listSessions,
   hostedTaskKeys: mocks.taskKeys,
   killHostedSessions: mocks.killSessions,
+  deliverToHostedKey: mocks.deliver,
 }))
 vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
+vi.mock("../../src/engine/session-engine-presence.ts", () => ({ sessionHasEngine: mocks.sessionHasEngine }))
 
 import {
+  deliverPromptToLiveEngineTabDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
@@ -162,5 +176,48 @@ describe("daemon session adapter", () => {
     await expect(engineSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
     await expect(terminalSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
     expect(mocks.ensureEngine).not.toHaveBeenCalled()
+  })
+
+  it("does not paste into an alive PTY after its engine exited to the fallback shell", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+
+    await expect(
+      deliverPromptToLiveEngineTabDetailedAdapter(
+        { id: "task-3", tabId: "tab-1", vendor: "claude", worktreePath: "/worktrees/story" },
+        "do not run this in zsh",
+      ),
+    ).resolves.toEqual({ outcome: "no-session" })
+    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, expect.arrayContaining(["claude"]))
+    expect(mocks.deliver).not.toHaveBeenCalled()
+  })
+
+  it("passes the custom engine's complete launch argv to the foreground gate", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+
+    await deliverPromptToLiveEngineTabDetailedAdapter(
+      {
+        id: "task-3",
+        tabId: "tab-1",
+        command: "env MODEL=sonnet /opt/tools/aider --yes",
+        worktreePath: "/worktrees/story",
+      },
+      "safe prompt",
+    )
+
+    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, ["env", "MODEL=sonnet", "/opt/tools/aider", "--yes"])
+  })
+
+  it("propagates an ambiguous delivery error after entering the PTY write", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.deliver.mockRejectedValueOnce(new Error("transport lost after write"))
+
+    await expect(
+      deliverPromptToLiveEngineTabDetailedAdapter(
+        { id: "task-3", tabId: "tab-1", vendor: "claude", worktreePath: "/worktrees/story" },
+        "possibly written",
+      ),
+    ).rejects.toThrow("transport lost after write")
+    expect(mocks.close).toHaveBeenCalledOnce()
   })
 })
