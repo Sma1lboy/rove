@@ -75,14 +75,23 @@ export function moveBoardSelection(
   return currentId
 }
 
-export function issueColumnKey(issue: Issue): BoardColumnKey {
+/**
+ * `taskExists` is the DEFENSIVE half of the link contract: the daemon unlinks
+ * an issue when its task is deleted, so a link should always resolve — but a
+ * store restored from an older home (written before that unlink existed) can
+ * still carry one that doesn't. Given the predicate, an unresolvable link
+ * reads as unlinked and the card falls back to Backlog, where it is startable
+ * again. Omitted, the link alone decides — the behavior every caller had
+ * before, and the right one for a surface that cannot see the task index.
+ */
+export function issueColumnKey(issue: Issue, taskExists?: (taskId: string) => boolean): BoardColumnKey {
   // Terminal disposition (today: `done`) wins over a stale task link; parked
   // (`hold` / unknown) outranks the link too — a parked story stopped on
   // purpose and must not render as active work just because it's linked.
   const disposition = statusDisposition(issue.status)
   if (disposition === "terminal") return "done"
   if (disposition === "parked") return "parked"
-  if (issue.taskId !== undefined && issue.taskId !== "") return "in_progress"
+  if (issue.taskId !== undefined && issue.taskId !== "" && (taskExists?.(issue.taskId) ?? true)) return "in_progress"
   return "backlog"
 }
 
@@ -139,9 +148,12 @@ export function compareIssues(a: Issue, b: Issue): number {
 
 /** Bucket issues into the four render-ready columns, sorted; the accreting
  *  columns (Parked, Done) are capped. */
-export function buildIssueBoard(issues: readonly Issue[]): IssueBoardColumn[] {
+export function buildIssueBoard(
+  issues: readonly Issue[],
+  taskExists?: (taskId: string) => boolean,
+): IssueBoardColumn[] {
   const buckets: Record<BoardColumnKey, Issue[]> = { backlog: [], in_progress: [], parked: [], done: [] }
-  for (const issue of issues) buckets[issueColumnKey(issue)].push(issue)
+  for (const issue of issues) buckets[issueColumnKey(issue, taskExists)].push(issue)
   return BOARD_COLUMN_ORDER.map((key) => {
     const capped = key === "done" || key === "parked"
     const sorted = buckets[key].sort(compareIssues)

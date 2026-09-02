@@ -176,6 +176,40 @@ describe("IssuesStore", () => {
     })
   })
 
+  // The reverse of `link`, fired by `task.delete`. Nothing else clears
+  // `Issue.taskId`, so before this the link outlived the task it named.
+  describe("unlinkTask", () => {
+    async function linkedStore(): Promise<{ repo: string; store: IssuesStore }> {
+      const repo = await makeRepo()
+      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-unlink-"))
+      cleanups.push(home)
+      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      await store.mutate(repo, { type: "create", title: "Linked" })
+      await store.mutate(repo, { type: "link", id: 1, taskId: "task-abc" })
+      return { repo, store }
+    }
+
+    it("clears the link of the issue pointing at the task", async () => {
+      const { repo, store } = await linkedStore()
+      const next = await store.unlinkTask(repo, "task-abc")
+      expect(next?.issues.find((i) => i.id === 1)?.taskId).toBeUndefined()
+      // Persisted, not just returned — the board re-reads from disk.
+      expect((await store.list(repo)).issues.find((i) => i.id === 1)?.taskId).toBeUndefined()
+    })
+
+    it("leaves the issue otherwise untouched — status and title survive", async () => {
+      const { repo, store } = await linkedStore()
+      await store.mutate(repo, { type: "setStatus", id: 1, status: "doing" })
+      const next = await store.unlinkTask(repo, "task-abc")
+      expect(next?.issues.find((i) => i.id === 1)).toMatchObject({ title: "Linked", status: "doing" })
+    })
+
+    it("returns null when no issue is linked to that task", async () => {
+      const { repo, store } = await linkedStore()
+      expect(await store.unlinkTask(repo, "task-nope")).toBeNull()
+    })
+  })
+
   describe("created stamp", () => {
     // Pins the visual-fixture determinism seam: the Kanban screenshot gate
     // renders `created` on every card, so KOBE_ISSUES_TODAY must override the

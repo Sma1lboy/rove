@@ -61,10 +61,11 @@ export const en = {
       follow: "Jump to the session",
     },
     startLegend: "enter/ctrl+enter start · tab fields · ←→ engine · ↑↓ workspace · esc save & close",
-    /** Linked-story jump action: section header + the button itself. */
+    /** Linked-story actions: section header, the jump, and the way back out. */
     sessionLabel: "SESSION",
     openAction: "Open the linked session ↵",
-    openLegend: "enter/ctrl+enter open the linked session · tab fields · esc save & close",
+    unlinkAction: "Unlink",
+    openLegend: "enter open the focused action · tab fields · unlink returns the card to Backlog · esc save & close",
     /** EVENTS feed under a linked story — the engine's recent lifecycle events. */
     eventsLabel: "EVENTS",
     eventsLoading: "Loading events…",
@@ -96,6 +97,9 @@ export const en = {
   /** Linking a story to its new task was rejected. The task exists and runs;
    *  only the story↔task link is missing, so no `linked` badge appears. */
   linkFailed: "Story #{id} isn't linked to its task: {error}",
+  /** The drawer's Unlink was rejected — the card stays In progress, still
+   *  pointing at the task it was supposed to let go of. */
+  unlinkFailed: "Story #{id} is still linked: {error}",
 }
 
 export const zh: typeof en = {
@@ -142,7 +146,8 @@ export const zh: typeof en = {
     startLegend: "enter/ctrl+enter 启动 · tab 切字段 · ←→ 引擎 · ↑↓ 工作区 · esc 保存关闭",
     sessionLabel: "会话",
     openAction: "打开关联会话 ↵",
-    openLegend: "enter/ctrl+enter 打开已关联会话 · tab 切字段 · esc 保存关闭",
+    unlinkAction: "解除关联",
+    openLegend: "enter 执行选中操作 · tab 切字段 · 解除关联把卡片退回 Backlog · esc 保存关闭",
     eventsLabel: "事件",
     eventsLoading: "正在加载事件…",
     eventsNone: "暂无引擎事件记录。",
@@ -162,4 +167,5 @@ export const zh: typeof en = {
   updateFailed: "保存 story #{id} 失败：{error}",
   statusFailed: "Story #{id} 仍留在原来的列：{error}",
   linkFailed: "Story #{id} 未能关联到它的任务：{error}",
+  unlinkFailed: "Story #{id} 仍处于关联状态：{error}",
 }

@@ -22,19 +22,31 @@ function issue(id: number, over: Record<string, unknown> = {}) {
   return { id, title: `story-${id}`, status: "open", created: "2026-08-01", body: "", ...over }
 }
 
-/** What KanbanPage touches on mount; everything else is unused here. */
-function orchestrator(issues: readonly unknown[]) {
+/** What KanbanPage touches on mount; everything else is unused here.
+ *  `listTasks` carries real ids because the board resolves each card's link
+ *  against it — a link naming a task the list doesn't have reads as unlinked. */
+function orchestrator(
+  issues: readonly unknown[],
+  tasks: readonly unknown[] = [
+    { id: "T1", repo: REPO },
+    { id: "T2", repo: REPO },
+  ],
+) {
   return {
-    listTasks: () => [{ repo: REPO }],
+    listTasks: () => tasks,
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 99, issues }),
     activeTaskSignal: () => ({ get: () => null }),
   } as never
 }
 
-async function board(issues: readonly unknown[], engineStates?: ReadonlyMap<string, TaskEngineState>) {
+async function board(
+  issues: readonly unknown[],
+  engineStates?: ReadonlyMap<string, TaskEngineState>,
+  tasks?: readonly unknown[],
+) {
   const { frame } = await renderComponent(
     <KanbanPage
-      orchestrator={orchestrator(issues)}
+      orchestrator={tasks ? orchestrator(issues, tasks) : orchestrator(issues)}
       focused={true}
       onClose={() => {}}
       onStartChat={async () => {}}
@@ -66,6 +78,30 @@ test("a blocked card's column header reports how many need you", async () => {
   // A board with nothing blocked must not spend a single cell on the count.
   const quiet = await board([issue(1, { taskId: "T1" })], new Map([["T1", { state: "running", at: 1 }]]))
   expect(quiet).not.toContain("need you")
+})
+
+/**
+ * A link the task index cannot resolve reads as unlinked. The daemon now
+ * unlinks an issue when its task is deleted, so this is the belt to that
+ * braces: a store carried over from a build without the cascade still holds
+ * dead links, and In progress used to be a one-way door for them — the
+ * drawer swapped Start for "open the linked session", which jumped at
+ * nothing. In Backlog the card is startable again.
+ */
+test("a card linked to a task the index does not have renders in Backlog", async () => {
+  const text = await board([issue(1, { taskId: "T1" }), issue(2, { taskId: "GONE" })], undefined, [
+    { id: "T1", repo: REPO },
+  ])
+  const backlog = text.indexOf("Backlog")
+  const inProgress = text.indexOf("In progress")
+  // Columns render side by side, so a card's COLUMN is the header its text
+  // sits under — compare the cards' horizontal offsets on their own rows.
+  const columnOf = (title: string) => {
+    const row = text.split("\n").find((line) => line.includes(title)) ?? ""
+    return row.indexOf(title) < inProgress - backlog + 4 ? "backlog" : "in_progress"
+  }
+  expect(columnOf("story-2")).toBe("backlog")
+  expect(columnOf("story-1")).toBe("in_progress")
 })
 
 /**

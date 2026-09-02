@@ -104,8 +104,21 @@ export function KanbanPage(props: {
   const activeBoard: RepoIssues | undefined = boardList[activeIndex]
   const repoRoots = boardList.map((board) => board.repoRoot)
   // Rendering-only attention float: blocked-on-you cards lead In progress.
+  // The task index decides In progress, not the link alone: the daemon
+  // unlinks an issue when its task is deleted, but a store carried over from
+  // a build that predates that can still hold a link to a task nobody has —
+  // and such a card would sit In progress with no way back. Unresolvable =
+  // Backlog, where the drawer offers Start again.
+  //
+  // An EMPTY index means "not loaded yet", never "every task is gone": the
+  // page can render before the task list arrives, and demoting on that would
+  // dump every In-progress card into Backlog for a frame. No tasks known ⇒
+  // no predicate ⇒ the link alone decides, exactly as before.
+  const knownTaskIds = new Set<string>((props.orchestrator?.listTasks() ?? []).map((task) => task.id))
   const { columns, attentionCount } = applyBoardAttention(
-    activeBoard ? buildIssueBoard(activeBoard.issues) : [],
+    activeBoard
+      ? buildIssueBoard(activeBoard.issues, knownTaskIds.size === 0 ? undefined : (taskId) => knownTaskIds.has(taskId))
+      : [],
     (taskId) => props.engineStates?.get(taskId)?.state,
   )
 
@@ -159,6 +172,16 @@ export function KanbanPage(props: {
       }
       if (outcome.kind === "open") {
         props.onOpenTask(outcome.taskId)
+        return
+      }
+      if (outcome.kind === "unlink") {
+        await props.orchestrator
+          ?.mutateIssue(board.repoRoot, { type: "unlink", id: issue.id })
+          .catch((err: unknown) => {
+            console.error("[rove kanban] issue unlink failed:", err)
+            notifyError(t("kanban.unlinkFailed", { id: String(issue.id), error: errorMessage(err) }))
+          })
+        reload()
         return
       }
       // "close" saved above; "create" never comes from detail mode.

@@ -36,7 +36,7 @@ import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
 import { FRAME } from "../ui/frame"
-import { IssueEventsSection, SectionHeader } from "./issue-detail-parts"
+import { ChipButton, IssueEventsSection, SectionHeader } from "./issue-detail-parts"
 
 export interface IssueDetailOptions {
   readonly issue: Issue
@@ -59,6 +59,11 @@ export interface IssueDetailOptions {
 export type IssueDetailOutcome =
   | { kind: "start"; vendor: VendorId; placement: IssueChatPlacement; jump: boolean; title: string; body: string }
   | { kind: "open"; taskId: string; title: string; body: string }
+  /** Drop the story's task link — the only way back out of In progress when
+   *  the linked task is gone (deleted before the daemon unlinked, or a store
+   *  restored from an older home). The page clears `taskId`; the task, its
+   *  branch and its worktree are untouched. */
+  | { kind: "unlink"; title: string; body: string }
   | { kind: "close"; title: string; body: string }
   /** Create-mode result — `start` null = save only ("New story" Save). */
   | {
@@ -68,7 +73,7 @@ export type IssueDetailOutcome =
       start: { vendor: VendorId; placement: IssueChatPlacement; jump: boolean } | null
     }
 
-type Field = "title" | "description" | "engine" | "workspace" | "jump" | "open"
+type Field = "title" | "description" | "engine" | "workspace" | "jump" | "open" | "unlink"
 
 /** Description editor height — tall enough to read a story, short enough
  *  to keep the start config on screen. */
@@ -110,7 +115,7 @@ export function IssueDetailDialogView(
   const fields: readonly Field[] = startable
     ? ["title", "description", "engine", "workspace", "jump"]
     : linkedTaskId
-      ? ["title", "description", "open"]
+      ? ["title", "description", "open", "unlink"]
       : ["title", "description"]
 
   function insertPlaceholders(paths: readonly string[]): void {
@@ -193,6 +198,12 @@ export function IssueDetailDialogView(
     dialog.clear()
   }
 
+  /** Unlink and close — a stranded card's way back to Backlog. */
+  function unlink(): void {
+    props.onSubmit({ kind: "unlink", ...draft() })
+    dialog.clear()
+  }
+
   function close(): void {
     // Detail esc saves (there's a record to patch); create esc cancels —
     // nothing exists yet, and esc-created empty stories would be litter.
@@ -234,8 +245,9 @@ export function IssueDetailDialogView(
             { key: "return", cmd: () => commit() },
           ]
         : []),
-      // The linked story's jump action — enter fires it when focused.
+      // The linked story's two actions — enter fires whichever is focused.
       ...(field === "open" ? [{ key: "return", cmd: () => commit() }] : []),
+      ...(field === "unlink" ? [{ key: "return", cmd: () => unlink() }] : []),
     ],
   }))
 
@@ -337,34 +349,18 @@ export function IssueDetailDialogView(
           <box gap={0}>
             {sectionHeader(t("kanban.detail.engine"), "engine", "←/→")}
             <box flexDirection="row" gap={1}>
-              {/* No fill on chips: border cells share the box bg, so a
-                  backgroundElement fill halos AROUND the border line — the
-                  primary border + bold text alone mark selection. */}
-              {props.engines.map((engine) => {
-                const selected = engine === vendor
-                return (
-                  <box
-                    key={engine}
-                    {...FRAME}
-                    borderColor={selected ? theme.primary : theme.borderSubtle}
-                    paddingLeft={2}
-                    paddingRight={2}
-                    paddingBottom={1}
-                    onMouseUp={() => {
-                      setField("engine")
-                      setVendor(engine)
-                    }}
-                  >
-                    <text
-                      fg={selected ? theme.primary : theme.textMuted}
-                      attributes={selected ? TextAttributes.BOLD : undefined}
-                      wrapMode="none"
-                    >
-                      {props.engineLabel(engine)}
-                    </text>
-                  </box>
-                )
-              })}
+              {props.engines.map((engine) => (
+                <ChipButton
+                  key={engine}
+                  label={props.engineLabel(engine)}
+                  selected={engine === vendor}
+                  paddingBottom={1}
+                  onPress={() => {
+                    setField("engine")
+                    setVendor(engine)
+                  }}
+                />
+              ))}
             </box>
           </box>
 
@@ -403,30 +399,17 @@ export function IssueDetailDialogView(
           <box gap={0} paddingBottom={1}>
             {sectionHeader(t("kanban.detail.jumpLabel"), "jump", "←/→")}
             <box flexDirection="row" gap={1}>
-              {([false, true] as const).map((option) => {
-                const active = option === jump
-                return (
-                  <box
-                    key={String(option)}
-                    {...FRAME}
-                    borderColor={active ? theme.primary : theme.borderSubtle}
-                    paddingLeft={2}
-                    paddingRight={2}
-                    onMouseUp={() => {
-                      setField("jump")
-                      setJump(option)
-                    }}
-                  >
-                    <text
-                      fg={active ? theme.primary : theme.textMuted}
-                      attributes={active ? TextAttributes.BOLD : undefined}
-                      wrapMode="none"
-                    >
-                      {t(option ? "kanban.detail.jump.follow" : "kanban.detail.jump.stay")}
-                    </text>
-                  </box>
-                )
-              })}
+              {([false, true] as const).map((option) => (
+                <ChipButton
+                  key={String(option)}
+                  label={t(option ? "kanban.detail.jump.follow" : "kanban.detail.jump.stay")}
+                  selected={option === jump}
+                  onPress={() => {
+                    setField("jump")
+                    setJump(option)
+                  }}
+                />
+              ))}
             </box>
           </box>
 
@@ -438,29 +421,31 @@ export function IssueDetailDialogView(
         </box>
       ) : linkedTaskId ? (
         <box gap={1}>
-          {/* SESSION — the visible jump to the story's running workspace
-              (mouse or enter); the board closes and the task activates. */}
+          {/* SESSION — jump to the story's running workspace (mouse or
+              enter; the board closes and the task activates), and the way
+              back out: Unlink returns the card to Backlog. Unlink is the
+              only recovery when the linked task no longer exists — the
+              Open action would then jump at nothing. */}
           <box gap={0}>
             {sectionHeader(t("kanban.detail.sessionLabel"), "open")}
-            <box flexDirection="row">
-              <box
-                {...FRAME}
-                borderColor={field === "open" ? theme.primary : theme.borderSubtle}
-                paddingLeft={2}
-                paddingRight={2}
-                onMouseUp={() => {
+            <box flexDirection="row" gap={1}>
+              <ChipButton
+                label={t("kanban.detail.openAction")}
+                selected={field === "open"}
+                tone="text"
+                onPress={() => {
                   setField("open")
                   commit()
                 }}
-              >
-                <text
-                  fg={field === "open" ? theme.primary : theme.text}
-                  attributes={field === "open" ? TextAttributes.BOLD : undefined}
-                  wrapMode="none"
-                >
-                  {t("kanban.detail.openAction")}
-                </text>
-              </box>
+              />
+              <ChipButton
+                label={t("kanban.detail.unlinkAction")}
+                selected={field === "unlink"}
+                onPress={() => {
+                  setField("unlink")
+                  unlink()
+                }}
+              />
             </box>
           </box>
           {/* EVENTS — what the linked session's engine has been doing. */}
