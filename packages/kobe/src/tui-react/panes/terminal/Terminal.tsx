@@ -203,6 +203,9 @@ export function Terminal(props: TerminalProps) {
    * the scroll was forwarded — the selection hook then tracks the content
    * shifts the app's redraws cause under the fixed snapshot rows.
    */
+  // True between a press the app accepted and its release.
+  const mouseOwnedByApp = useRef(false)
+
   const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
     if (lines === 0) return false
     const direction = lines < 0 ? "up" : "down"
@@ -216,6 +219,32 @@ export function Terminal(props: TerminalProps) {
     }
     scrollBy(lines)
     return false
+  }
+
+  /**
+   * Emulator order for a button transition, mirroring `scrollFromPointer`:
+   * the app enabled mouse tracking → encode an SGR event and hand the click
+   * to the app (Claude Code's expandable tool rows, vim, less…), and this
+   * pane's grid selection never sees it. Shift bypasses the app the way
+   * iTerm/kitty do, so text can still be selected out of a mouse-aware app.
+   * A press that was forwarded owns its release too — a drag that leaves the
+   * grid must not fall through into a local selection halfway through.
+   */
+  const forwardMouse = (
+    kind: "down" | "up" | "drag",
+    evt: { button: number; x: number; y: number; modifiers?: { shift: boolean; alt: boolean; ctrl: boolean } },
+  ): boolean => {
+    if (kind === "down") mouseOwnedByApp.current = false
+    if (!pty || pty.killed || !bodyEl) return false
+    if (kind !== "down" && !mouseOwnedByApp.current) return false
+    if (evt.modifiers?.shift) return false
+    if (evt.button !== 0 && evt.button !== 1 && evt.button !== 2) return kind !== "down" && mouseOwnedByApp.current
+    const col = Math.max(1, evt.x - bodyEl.screenX + 1)
+    const row = Math.max(1, evt.y - bodyEl.screenY + 1)
+    const forwarded = pty.click(kind, evt.button, col, row, evt.modifiers)
+    if (kind === "down") mouseOwnedByApp.current = forwarded
+    // A drag the app declined (x10/vt200 tracking) is still its gesture.
+    return forwarded || mouseOwnedByApp.current
   }
 
   /* --------- viewport slicing ---------- */
@@ -370,22 +399,25 @@ export function Terminal(props: TerminalProps) {
       overflow="hidden"
       backgroundColor={theme.background}
       onMouseDown={(evt) => {
-        if (evt.button !== 0) return
         // Focus on press — but ONLY when not already focused, so clicking
         // inside a focused terminal is a pure no-op. A text-selection
         // drag still works regardless.
         if (!focused) props.onRequestFocus?.()
+        if (forwardMouse("down", evt)) return
+        if (evt.button !== 0) return
         const cell = selection.cellFromEvent(evt)
         if (!cell) return
         selection.beginSelection(cell)
       }}
       onMouseDrag={(evt) => {
+        if (forwardMouse("drag", evt)) return
         // Past the top/bottom edge this keeps scrolling on its own — opentui
         // captures the drag here, so the coordinates stay real off-pane.
         selection.dragTo(evt)
       }}
-      onMouseUp={() => {
+      onMouseUp={(evt) => {
         setFocusedLocal(true)
+        if (forwardMouse("up", evt)) return
         if (!selection.isDragging()) return
         selection.endDragging()
         if (selection.selection) {

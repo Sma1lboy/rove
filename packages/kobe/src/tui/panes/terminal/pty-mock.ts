@@ -30,6 +30,9 @@ export class MockTaskPty implements TaskPtyLike {
    */
   deadOnAttach = false
   readonly wheels: { direction: "up" | "down"; col: number; row: number }[] = []
+  readonly clicks: { kind: "down" | "up" | "drag"; button: number; col: number; row: number }[] = []
+  /** Flip to make the mock claim the app owns the mouse (mouse tracking on). */
+  appOwnsMouse = false
   private _cols: number
   private _rows: number
   private _cursor: CursorPos | null = null
@@ -152,6 +155,12 @@ export class MockTaskPty implements TaskPtyLike {
     if (this._killed) return false
     this.wheels.push({ direction, col, row })
     return false
+  }
+
+  click(kind: "down" | "up" | "drag", button: 0 | 1 | 2, col: number, row: number): boolean {
+    if (this._killed) return false
+    this.clicks.push({ kind, button, col, row })
+    return this.appOwnsMouse
   }
 
   onExit(cb: () => void): () => void {

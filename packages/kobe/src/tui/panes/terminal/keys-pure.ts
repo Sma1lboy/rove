@@ -318,3 +318,29 @@ export function encodeWheel(
   }
   return null
 }
+
+/**
+ * Encode one mouse button transition (SGR 1006) for an app that enabled
+ * mouse tracking — the other half of `encodeWheel`. Null when the app did
+ * not ask for the mouse, so the caller keeps the click for its own grid
+ * selection. Modifiers use the xterm bit layout (shift 4, alt 8, ctrl 16).
+ * `drag` is button-held motion; only reported when the app asked for
+ * button-event or any-event tracking (mode 1002/1003).
+ */
+export function encodeMouseButton(
+  modes: { mouseTracking: "none" | "x10" | "vt200" | "drag" | "any" },
+  kind: "down" | "up" | "drag",
+  button: 0 | 1 | 2,
+  col: number,
+  row: number,
+  modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
+): string | null {
+  if (modes.mouseTracking === "none") return null
+  if (kind === "drag" && modes.mouseTracking !== "drag" && modes.mouseTracking !== "any") return null
+  let code: number = button
+  if (kind === "drag") code += 32
+  if (modifiers?.shift) code += 4
+  if (modifiers?.alt) code += 8
+  if (modifiers?.ctrl) code += 16
+  return `\x1b[<${code};${Math.max(1, col)};${Math.max(1, row)}${kind === "up" ? "m" : "M"}`
+}

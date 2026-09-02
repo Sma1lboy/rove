@@ -7,6 +7,7 @@ import {
   PASSTHROUGH_NAMES,
   RESERVED_GLOBAL_CHORDS,
   TRAPPED_KEYS,
+  encodeMouseButton,
   keyEventToShellBytes,
 } from "../../src/tui/panes/terminal/keys-pure"
 
@@ -189,5 +190,29 @@ describe("key routing tables", () => {
   it("synthesizes modifier bytes for synthetic events", () => {
     expect(keyEventToShellBytes(evt({ name: "tab", shift: true }))).toBe("\x1b[Z")
     expect(keyEventToShellBytes(evt({ name: "b", option: true } as never))).toBe("\x1bb")
+  })
+})
+
+describe("encodeMouseButton", () => {
+  it("returns null when the app never asked for the mouse", () => {
+    expect(encodeMouseButton({ mouseTracking: "none" }, "down", 0, 5, 7)).toBeNull()
+  })
+
+  it("encodes SGR press/release with 1-based clamped coordinates", () => {
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "down", 0, 5, 7)).toBe("\x1b[<0;5;7M")
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "up", 0, 0, 0)).toBe("\x1b[<0;1;1m")
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "down", 2, 3, 4)).toBe("\x1b[<2;3;4M")
+  })
+
+  it("adds the xterm modifier bits", () => {
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "down", 0, 1, 1, { ctrl: true, alt: true })).toBe(
+      "\x1b[<24;1;1M",
+    )
+  })
+
+  it("reports drags only under button-event or any-event tracking", () => {
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "drag", 0, 2, 2)).toBeNull()
+    expect(encodeMouseButton({ mouseTracking: "drag" }, "drag", 0, 2, 2)).toBe("\x1b[<32;2;2M")
+    expect(encodeMouseButton({ mouseTracking: "any" }, "drag", 0, 2, 2)).toBe("\x1b[<32;2;2M")
   })
 })

@@ -4,7 +4,7 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
-import { encodeWheel } from "./keys-pure"
+import { encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
@@ -166,6 +166,33 @@ export abstract class XtermTaskPty implements TaskPtyLike {
         direction,
         col,
         row,
+      )
+      if (seq !== null) {
+        this.write(seq)
+        return true
+      }
+    } catch {
+      /* mode probe is best-effort */
+    }
+    return false
+  }
+
+  click(
+    kind: "down" | "up" | "drag",
+    button: 0 | 1 | 2,
+    col: number,
+    row: number,
+    modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
+  ): boolean {
+    if (this._killed) return false
+    try {
+      const seq = encodeMouseButton(
+        { mouseTracking: this.term.modes.mouseTrackingMode },
+        kind,
+        button,
+        col,
+        row,
+        modifiers,
       )
       if (seq !== null) {
         this.write(seq)

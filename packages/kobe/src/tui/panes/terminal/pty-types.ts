@@ -164,6 +164,20 @@ export interface TaskPtyLike {
    * local scrollback view, exactly like a normal terminal's wheel.
    */
   wheel(direction: "up" | "down", col: number, row: number): boolean
+  /**
+   * Route a mouse button transition the same way: the app enabled mouse
+   * tracking → encode an SGR press/release/drag at (col,row) and forward
+   * it, returning true — the app owns the click (claude's expandable tool
+   * rows, vim, less…). False when the app did not ask for the mouse — the
+   * CALLER then keeps the click for its local grid selection.
+   */
+  click(
+    kind: "down" | "up" | "drag",
+    button: 0 | 1 | 2,
+    col: number,
+    row: number,
+    modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
+  ): boolean
   resize(cols: number, rows: number): void
   /** Current emulator geometry in cells — the last size pushed via
    *  `resize()` (the spawn size before any resize). Backends without a
