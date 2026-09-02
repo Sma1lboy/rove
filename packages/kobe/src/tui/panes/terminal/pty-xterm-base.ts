@@ -204,6 +204,16 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     return false
   }
 
+  get appOwnsMouse(): boolean {
+    if (this._killed) return false
+    try {
+      return this.term.modes.mouseTrackingMode !== "none"
+    } catch {
+      /* mode probe is best-effort */
+      return false
+    }
+  }
+
   onData(
     cb: (snapshot: readonly TerminalRow[], cursor: CursorPos | null, window: TerminalSnapshotWindow | null) => void,
   ): () => void {

@@ -264,6 +264,15 @@ tab. Split layouts and custom names survive a Rove restart, but which split had
 focus does not. If a split process exits, its leaf disappears and the remaining
 layout collapses naturally.
 
+Who owns the mouse inside a terminal decides who owns selection. At a plain
+shell prompt — a `git log`, a `cat`, anything that never asks for the mouse —
+drag to select and Rove copies the text to your system clipboard on release.
+Inside an app that tracks the mouse itself (Claude Code, Codex, `vim`, `less`,
+`htop`) the click goes to the app instead, so its own selection and copy work
+as they do in any terminal, and Rove paints nothing over them. Launching such
+an app clears a selection Rove was still showing. Hold `shift` while dragging
+to select out of a mouse-aware app anyway, the way iTerm2 and kitty do.
+
 The optional horizontal tab strip can be always visible, visible only for
 multiple tabs, or hidden. The sidebar tree still lists every tab in all three
 modes. Persistence and process-lifetime details live in

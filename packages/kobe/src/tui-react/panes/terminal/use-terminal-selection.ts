@@ -58,6 +58,7 @@ import {
   type SelectionRange,
   type SelectionShadow,
   type SelectionShiftState,
+  appTookMouse,
   extractShadowedSelection,
   followContentShift,
   followWindowShift,
@@ -92,6 +93,16 @@ export interface UseTerminalSelectionOpts {
    * to start measuring content shifts against the snapshot.
    */
   scrollBy: (lines: number, screenX: number, screenY: number) => boolean
+  /**
+   * The app inside the PTY has mouse tracking on right now — see
+   * {@link appTookMouse} for why the pane's own selection yields to it.
+   * Re-read on every render, so the flip is noticed on the frame the app
+   * repaints with.
+   * ponytail: an app that enabled tracking and drew NOTHING would go
+   * unnoticed until its next output; entering vim/claude/less always
+   * repaints, so that frame is the flip.
+   */
+  appOwnsMouse: boolean
 }
 
 export interface UseTerminalSelectionResult {
@@ -194,6 +205,13 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     if (!autoScrollRef.current) return
     clearInterval(autoScrollRef.current)
     autoScrollRef.current = null
+  }
+
+  const stopDragging = (): void => {
+    draggingRef.current = false
+    captureDrag(null)
+    dragPointRef.current = null
+    stopAutoScroll()
   }
 
   /**
@@ -300,6 +318,23 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     applyShift(followContentShift(state, prevSnapshot, opts.snapshot, draggingRef.current))
   }, [opts.snapshot, opts.snapshotWindow])
 
+  // The app TAKING the mouse ends the pane's claim on the selection: `vim`
+  // typed at a prompt where text is still highlighted, or launched mid-drag,
+  // would otherwise leave a second highlight stacked on the app's own — and a
+  // live drag would keep extending it INSIDE the app, since the press that
+  // started it was never forwarded. Edge-triggered on purpose (see
+  // `appTookMouse`): a shift-drag begun while the app already owned the mouse
+  // sees no edge and keeps its highlight.
+  const appOwnedMouseRef = useRef(opts.appOwnsMouse)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the ownership flip alone; the two teardown helpers are re-made every render and listing them would re-run this on every frame.
+  useEffect(() => {
+    const took = appTookMouse(appOwnedMouseRef.current, opts.appOwnsMouse)
+    appOwnedMouseRef.current = opts.appOwnsMouse
+    if (!took) return
+    stopDragging()
+    clearSelectionState()
+  }, [opts.appOwnsMouse])
+
   // Unmount mid-drag (tab closed, pane swapped) must not leave a timer behind.
   useEffect(
     () => () => {
@@ -320,12 +355,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     beginSelection,
     dragTo,
     isDragging: () => draggingRef.current,
-    endDragging: () => {
-      draggingRef.current = false
-      captureDrag(null)
-      dragPointRef.current = null
-      stopAutoScroll()
-    },
+    endDragging: stopDragging,
     clearSelection: clearSelectionState,
     copySelection,
     noteAppScroll: () => {

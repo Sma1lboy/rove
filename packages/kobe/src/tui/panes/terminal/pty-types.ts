@@ -178,6 +178,16 @@ export interface TaskPtyLike {
     row: number,
     modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
   ): boolean
+  /**
+   * True while the app has mouse tracking enabled — the SAME
+   * `mouseTrackingMode` read `click()` gates on, exposed so the pane can see
+   * the app TAKE the mouse without waiting for a click. That is the case a
+   * forwarded press cannot cover: `vim` typed at a prompt where the pane's
+   * own selection is still highlighted leaves two highlights stacked, and
+   * the app cannot see (or clear) ours. Backends with no emulator behind
+   * them (`PipeTaskPty`) omit it and the pane keeps the mouse.
+   */
+  readonly appOwnsMouse?: boolean
   resize(cols: number, rows: number): void
   /** Current emulator geometry in cells — the last size pushed via
    *  `resize()` (the spawn size before any resize). Backends without a
