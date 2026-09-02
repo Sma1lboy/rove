@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.80
+
+### Patch Changes
+
+- [#773](https://github.com/Sma1lboy/rove/pull/773) [`cc9818a`](https://github.com/Sma1lboy/rove/commit/cc9818a6d37a621e2490c33c05f79310a36ecb13) `rove api add --count`/`--agents` now applies `--status` and `--pin` to every sibling it creates. Both flags previously validated, exited 0, and silently did nothing on a parallel round, so a fleet meant to land pinned and in review arrived unpinned in the backlog. The single and parallel paths now share one `applyPostCreateFlags` helper so they cannot drift apart again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#774](https://github.com/Sma1lboy/rove/pull/774) [`19c1e14`](https://github.com/Sma1lboy/rove/commit/19c1e149f24d15b0a7fba2656a1148eac29e7c73) Guard every Automation field across a daemon restart. A new test creates an automation with all seventeen fields set, reloads the store from disk the way a restart does, and compares the whole record, so a field the loader forgets now fails CI instead of silently disappearing after `rove daemon restart`. The same test checks that every `AutomationPatch` key actually changes the record through update, and that clearing precheck, baseRef, or the standing-session link removes the field on disk. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#775](https://github.com/Sma1lboy/rove/pull/775) [`4ecc51d`](https://github.com/Sma1lboy/rove/commit/4ecc51d0ee676db06c8a198458639a3699a84e18) The daemon's six file-backed stores (issues, field notes, automations, attention inbox, deferred prompts, agent turns) now share one atomic JSON write. Issues and notes previously staged through a fixed `.tmp` name, which two daemons overlapping during `rove daemon restart` could truncate and rename over the real file; every store now uses a per-process, per-write temp name. On-disk format is unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#777](https://github.com/Sma1lboy/rove/pull/777) [`77f5c11`](https://github.com/Sma1lboy/rove/commit/77f5c11744d92399e8baa1b948d133d17eccf3af) `rove api send` now measures a `succeeded:` report against the task's recorded base branch (`add --base-branch`), the same read `collect` makes. Before, a task cut from a branch ahead of `main` was measured against the `origin/main` guess, so an empty branch read as having commits and a hollow success reached the coordinator unrefused, only to be caught later by `land`. The opposite mistake, a false refusal when the worktree sat behind the guessed base, is gone too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#779](https://github.com/Sma1lboy/rove/pull/779) [`eeee80d`](https://github.com/Sma1lboy/rove/commit/eeee80d90317a57949499bd79393210907745b46) The Issues page (`ctrl+a` `3`) no longer duplicates work. An issue that already has a task shows that task's title on its detail line, and `enter` opens the existing task instead of creating a second worktree, branch and engine session. Unlinked issues still start a fresh task as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#778](https://github.com/Sma1lboy/rove/pull/778) [`98e6460`](https://github.com/Sma1lboy/rove/commit/98e64602f325527b9f553ee01c703256a1e087b1) `rove api land` no longer reports a phantom merge conflict when a task's branch was renamed or deleted outside Rove. The ahead-count probe ignored git's exit status, so an unresolvable branch produced an unreadable count that read as "this branch has work", and the merge that followed failed for an unrelated reason and surfaced as `LAND_CONFLICT` with an empty conflicted-file list. Land now refuses up front with `MISSING_REF`, naming the branch, the base branch, and the base repo, and leaves the base checkout untouched. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#776](https://github.com/Sma1lboy/rove/pull/776) [`05c4bf0`](https://github.com/Sma1lboy/rove/commit/05c4bf001260959fd531e5621a4f01aa0aee4fe5) `rove api land` now refuses to remove the base checkout or the caller's own worktree using the same path canonicalizer that matched the worktree to its task. Previously the land-time guard resolved symlinks with a different primitive than the code that assigned the path, so the two could in principle disagree on macOS `/var` vs `/private/var` style paths. One `canonicalize` in `worktree/paths.ts` now backs every path-identity check in the orchestrator. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#780](https://github.com/Sma1lboy/rove/pull/780) [`98d2c83`](https://github.com/Sma1lboy/rove/commit/98d2c83c7b223fba7ad9478188eac13713a45269) Drop 29 locale keys nothing renders any more, including the whole `history` namespace left behind by the removed read-only engine-history pane. The rest are the `tasks.hints` legend from the retired ShortcutHints component, two unused sidebar section headers, a nav label the rail no longer lists, a placeholder terminal message, and a stray `common.next`. English and Chinese stay in parity at 724 keys each, and no visible string changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#772](https://github.com/Sma1lboy/rove/pull/772) [`78c4f88`](https://github.com/Sma1lboy/rove/commit/78c4f88a742596ec80c5be1f78b378c5d790b213) Revert the Agent Topology page ([#758](https://github.com/Sma1lboy/rove/issues/758)). The panel, its `ctrl+a` `4` rail row, the `communications` task field, and the `task.recordCommunication` API verb are withdrawn pending a product decision on the multi-agent view. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.79
 
 ### Patch Changes
