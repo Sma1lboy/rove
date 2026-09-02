@@ -1,7 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Story-drawer parts that outgrew `issue-detail-dialog.tsx`: the BOLD CAPS
- * section header every section wears, and the EVENTS feed — the last
+ * section header every section wears, the bordered CHIP the drawer's four
+ * pickers and both linked-story actions are all built from, and the EVENTS
+ * feed — the last
  * {@link EVENT_FEED_LIMIT} engine lifecycle events of the story's linked
  * task (docs/design/plugin-events.md).
  *
@@ -16,6 +18,7 @@ import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
+import { FRAME } from "../ui/frame"
 import { EVENT_FEED_LIMIT, type EventRow, eventRows } from "./issue-events-core"
 
 /** Section header: BOLD CAPS, primary + underlined when its field is focused. */
@@ -35,6 +38,47 @@ export function SectionHeader(props: { label: string; focused: boolean; hint?: s
           {props.hint}
         </text>
       ) : null}
+    </box>
+  )
+}
+
+/**
+ * The drawer's one button shape: a bordered box that lights up PRIMARY +
+ * BOLD when it is the selected/focused choice. Engine chips, the after-start
+ * toggle, and the linked story's Open/Unlink actions were four copies of the
+ * same twenty lines; they are one component now, so a new action costs a
+ * label and a handler.
+ *
+ * No fill on purpose: border cells share the parent box's background, so a
+ * `backgroundElement` fill halos AROUND the border line. The primary border
+ * plus bold text alone mark selection.
+ */
+export function ChipButton(props: {
+  label: string
+  selected: boolean
+  onPress: () => void
+  /** Colour when NOT selected: `muted` for a picker option (default), `text`
+   *  for an action meant to stay readable while focus is elsewhere. */
+  tone?: "muted" | "text"
+  paddingBottom?: number
+}) {
+  const { theme } = useTheme()
+  return (
+    <box
+      {...FRAME}
+      borderColor={props.selected ? theme.primary : theme.borderSubtle}
+      paddingLeft={2}
+      paddingRight={2}
+      {...(props.paddingBottom === undefined ? {} : { paddingBottom: props.paddingBottom })}
+      onMouseUp={props.onPress}
+    >
+      <text
+        fg={props.selected ? theme.primary : props.tone === "text" ? theme.text : theme.textMuted}
+        attributes={props.selected ? TextAttributes.BOLD : undefined}
+        wrapMode="none"
+      >
+        {props.label}
+      </text>
     </box>
   )
 }

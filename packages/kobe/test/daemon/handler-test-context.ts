@@ -116,6 +116,13 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
         rec.issueCalls.push({ method: "mutate", repo, op })
         return { repoRoot: String(repo), exists: true, nextId: 2, issues: [] }
       },
+      // `task.delete` clears the deleted task's issue link. Returning a state
+      // (not null) keeps the snapshot-publish path covered by default; a test
+      // that wants the "nothing linked" branch supplies its own fake.
+      unlinkTask: async (repo: unknown, taskId: unknown) => {
+        rec.issueCalls.push({ method: "unlinkTask", repo, op: { taskId } })
+        return { repoRoot: String(repo), exists: true, nextId: 2, issues: [] }
+      },
     } as unknown as IssuesStore,
     // Field-note store fake. `appendThrows` lets a test drive the
     // persist-failure path — filing must degrade to routing-only, never

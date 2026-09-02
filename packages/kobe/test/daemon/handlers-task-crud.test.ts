@@ -134,6 +134,34 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.deletions).toEqual(["t1"])
     })
 
+    // The issue owns the link (`Issue.taskId`), so nothing else would ever
+    // clear it: without this cascade a deleted task's card stayed In progress
+    // forever, its "open the linked session" action pointing at a task the
+    // sidebar no longer lists.
+    it("task.delete unlinks the deleted task's issue and republishes the board", async () => {
+      const { ctx, rec } = fakeCtx({
+        getTask: () => TASK,
+        prepareTaskDeletion: async () => true,
+      })
+      await dispatch("task.delete", { taskId: "t1" }, ctx)
+      expect(rec.issueCalls).toEqual([{ method: "unlinkTask", repo: "/repo", op: { taskId: "t1" } }])
+      expect(rec.published).toEqual([
+        { channel: "issue.snapshot", payload: { repoRoot: "/repo", exists: true, nextId: 2, issues: [] } },
+      ])
+    })
+
+    // The deletion already committed by the time the unlink runs, so an issue
+    // store that throws (missing repo, raced write) must not turn a completed
+    // delete into a failed RPC.
+    it("task.delete survives an issue store that throws on unlink", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => TASK, prepareTaskDeletion: async () => true })
+      ;(ctx.issues as unknown as { unlinkTask: () => Promise<never> }).unlinkTask = () => {
+        throw new Error("disk on fire")
+      }
+      await expect(dispatch("task.delete", { taskId: "t1" }, ctx)).resolves.toEqual({ taskId: "t1", queued: true })
+      expect(rec.deletions).toEqual(["t1"])
+    })
+
     it("task.delete refuses a dirty worktree before any destructive step", async () => {
       // The dirty-worktree preflight lives in prepareTaskDeletion; when it
       // throws, the handler must abort BEFORE the destructive tail: no
@@ -242,6 +270,31 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
           payload: { repoRoot: "/repo", exists: true, nextId: 2, issues: [] },
         },
       ])
+    })
+
+    // The link op names a task and until this guard nothing checked it
+    // existed: `issue-update --task NOPE` returned exit 0 with taskId "NOPE"
+    // and the card sat In progress pointing at nothing, with no unlink
+    // gesture in the TUI to recover it. The guard is on the RPC (not in the
+    // store) so the CLI and the web link route are both covered; the prose
+    // matches every other handler's, which `toApiError` maps to a typed
+    // TASK_NOT_FOUND carrying the `api list` recovery command.
+    it("issue.mutate refuses a link to a task that does not exist", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => undefined })
+      await expect(
+        dispatch("issue.mutate", { repoRoot: "/repo", op: { type: "link", id: 1, taskId: "NOPE" } }, ctx),
+      ).rejects.toThrow("task not found: NOPE")
+      // Refused BEFORE the store: nothing was written, nothing published.
+      expect(rec.issueCalls).toEqual([])
+      expect(rec.published).toEqual([])
+    })
+
+    it("issue.mutate links to a task that exists", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
+      await expect(
+        dispatch("issue.mutate", { repoRoot: "/repo", op: { type: "link", id: 1, taskId: "t1" } }, ctx),
+      ).resolves.toEqual({ repoRoot: "/repo", exists: true, nextId: 2, issues: [] })
+      expect(rec.issueCalls).toEqual([{ method: "mutate", repo: "/repo", op: { type: "link", id: 1, taskId: "t1" } }])
     })
   })
 

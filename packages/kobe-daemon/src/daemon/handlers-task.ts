@@ -164,6 +164,19 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // A hard task delete is an explicit user deletion, so it is the one
       // lifecycle action allowed to cascade its durable Inbox episodes.
       await ctx.inbox.deleteTaskBestEffort(taskId)
+      // Drop the issue link too, for the same reason: the issue owns the link
+      // (`Issue.taskId`), so nothing else would ever clear it, and a card whose
+      // task is gone would render In progress forever. Best-effort like the
+      // done-mirror above — the deletion already committed, so a missing repo
+      // or a raced issue write is logged, never surfaced as a failed delete.
+      if (task) {
+        try {
+          const next = await ctx.issues.unlinkTask(task.repo, taskId)
+          if (next) ctx.bus.publish("issue.snapshot", next)
+        } catch (err) {
+          logDaemonError("issue-delete-unlink", err)
+        }
+      }
       if (accepted) ctx.deletions.enqueue(taskId)
       // `accepted` is the whole point of the reply. Removal itself runs in the
       // background (a worktree teardown can take tens of seconds), so this can

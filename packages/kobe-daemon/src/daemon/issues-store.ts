@@ -229,6 +229,31 @@ export class IssuesStore {
     })
   }
 
+  /**
+   * Drop the link from whatever issue points at `taskId` — the reverse of the
+   * `link` op, fired when the task itself is deleted. Without it the link
+   * outlives its task and `issueColumnKey` parks the card in In progress
+   * forever with no gesture to recover it.
+   *
+   * Same shape as {@link mirrorTaskDone}: one lock, reverse look-up on
+   * `Issue.taskId`, `null` when there is nothing to unlink.
+   */
+  async unlinkTask(repo: unknown, taskId: string): Promise<RepoIssues | null> {
+    const { repoRoot, repoKey } = await resolveRepo(repo)
+    if (!taskId) return null
+    return withLock(this.path, async () => {
+      const store = await readStore(this.path)
+      const record = store.repos[repoKey]
+      if (!record) return null
+      const issue = record.issues.find((i) => i.taskId === taskId)
+      if (!issue) return null
+      issue.taskId = undefined
+      record.repoRoot = repoRoot
+      await writeStore(this.path, store)
+      return response(repoRoot, record)
+    })
+  }
+
   async mutate(repo: unknown, op: unknown): Promise<RepoIssues> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!op || typeof op !== "object" || Array.isArray(op) || typeof (op as { type?: unknown }).type !== "string") {
