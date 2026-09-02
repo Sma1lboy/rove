@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.78
+
+### Patch Changes
+
+- [#748](https://github.com/Sma1lboy/rove/pull/748) [`8a0120a`](https://github.com/Sma1lboy/rove/commit/8a0120a33515878bd674222ff2939054b12c6a4e) Refuse to run on a Bun older than `engines.bun` (1.3.11) instead of starting with silently dead terminals. Rove's terminal backend uses Bun's PTY spawn option, which an older Bun drops as an unknown option — no error, no output — and nothing was checking: `bun install` ignores `engines` outright and npm only honours it under `engine-strict`, so an old machine installed Rove cleanly, passed `rove doctor`, and then opened every terminal and engine tab empty. The launcher now skips a too-old Bun in favour of any newer one on the machine, and when there is none it names the binary, its version, and the upgrade command for whichever manager owns it (`ROVE_SKIP_BUN_CHECK=1` overrides, unsupported). `install.sh` checks the same floor before installing — upgrading a self-installed Bun in place, and refusing with instructions for a Bun it does not own — and `rove doctor` flags a below-floor Bun. — [@ZHallen122](https://github.com/ZHallen122)
+
+- [#757](https://github.com/Sma1lboy/rove/pull/757) [`bcdfe52`](https://github.com/Sma1lboy/rove/commit/bcdfe52dc42ec9635a7e2283d42bfe98cfaaf4bc) A task row's right-click menu now offers **Copy branch name** and **Copy path**, so a `git checkout` or `cd` into a task's worktree from another shell no longer means retyping a truncated sidebar label or shelling out to `rove api get-task`. Both write through the same two channels the terminal's copy-on-select already uses (the local clipboard command plus OSC 52, which is what reaches your machine over SSH) and confirm with a toast naming what was copied. Copy path copies the recorded worktree path without creating the worktree, and a project-main or directory row, whose stored branch is empty, offers only Copy path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#756](https://github.com/Sma1lboy/rove/pull/756) [`ebb52a0`](https://github.com/Sma1lboy/rove/commit/ebb52a033655304cdea5c88ce2bb73faf837a124) The daemon's `/api/engines` route no longer invents a lone Claude entry when no engine is available. That synthesized row overwrote the web dashboard's own four-built-in fallback, so on a machine with no detected engine, or with every engine switched off in Settings, every vendor picker collapsed to Claude with no way to reach the rest. An empty list now stays empty and the New Task dialog offers all four built-ins again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#755](https://github.com/Sma1lboy/rove/pull/755) [`dda9149`](https://github.com/Sma1lboy/rove/commit/dda9149f234948f1a62d7dd4d30ecc75d7f826e1) Retire the `productName`, `assistantName`, and `inputPlaceholder` fields on engine identity. Nothing ever read them: only `shortName` reaches the UI, so the built-in engines, plugin engines, and the plugin manifest parser now carry `shortName` alone. Plugin manifests that still set `product_name`, `assistant_name`, or `input_placeholder` keep loading unchanged, since unknown identity keys are ignored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.77
 
 ### Patch Changes
