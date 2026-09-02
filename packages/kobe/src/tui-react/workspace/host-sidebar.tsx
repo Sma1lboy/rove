@@ -54,6 +54,8 @@ export interface HostSidebarProps {
   readonly onOpenEditorRequest: (taskId: string) => void
   readonly onRenameBranchRequest: (taskId: string) => void
   readonly onChangeEngineRequest: (taskId: string) => void
+  /** Menu-only (no chord): open the repo's field-notes reader. */
+  readonly onFieldNotesRequest: (repo: string) => void
   readonly moveMode: boolean
   readonly onMoveRequest: (taskId: string, delta: -1 | 1) => void
   readonly onMoveModeExit: () => void
@@ -137,6 +139,7 @@ export function HostSidebar(props: HostSidebarProps) {
     onOpenEditorRequest: props.onOpenEditorRequest,
     onRenameBranchRequest: props.onRenameBranchRequest,
     onChangeEngineRequest: props.onChangeEngineRequest,
+    onFieldNotesRequest: props.onFieldNotesRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,
     moveMode: props.moveMode,
     onMoveRequest: props.onMoveRequest,

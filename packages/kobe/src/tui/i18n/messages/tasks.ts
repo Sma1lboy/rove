@@ -34,6 +34,8 @@ export const en = {
     newTask: "New task",
     /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
     forgetProject: "Remove project",
+    /** Project row: read the repo's durable field notes (`rove api note`). */
+    fieldNotes: "Field notes",
     rename: "Rename",
     pin: "Pin",
     unpin: "Unpin",
@@ -73,6 +75,13 @@ export const en = {
     title: "Change engine",
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
+  },
+  /** Field-notes reader dialog (project row menu). */
+  fieldNotes: {
+    title: "Field notes",
+    empty: "No field notes for this repo yet — agents file one with `rove api note`.",
+    loading: "Loading…",
+    footer: "↑↓ scroll · esc close",
   },
   /** Inline chip while move/reorder mode is active */
   moveChip: " move",
@@ -173,6 +182,7 @@ export const zh: typeof en = {
     newShell: "新建终端",
     newTask: "新建任务",
     forgetProject: "移除项目",
+    fieldNotes: "现场笔记",
     rename: "重命名",
     pin: "置顶",
     unpin: "取消置顶",
@@ -202,6 +212,12 @@ export const zh: typeof en = {
     title: "切换引擎",
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
+  },
+  fieldNotes: {
+    title: "现场笔记",
+    empty: "该仓库暂无现场笔记——agent 可用 `rove api note` 记录。",
+    loading: "加载中…",
+    footer: "↑↓ 滚动 · esc 关闭",
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",

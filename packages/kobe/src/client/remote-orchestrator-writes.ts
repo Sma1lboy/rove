@@ -18,6 +18,7 @@ import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import type { LandResult } from "../orchestrator/land.ts"
 import type { WorktreeResidue } from "../orchestrator/worktree/manager-remove.ts"
+import type { StoredFieldNote } from "../state/field-notes.ts"
 import type { Task, TaskId, TaskStatus, VendorId } from "../types/task.ts"
 import type { AdoptableWorktree, WorktreeProject } from "../types/worktree.ts"
 import { deserializeTask } from "./remote-orchestrator-payloads.ts"
@@ -244,6 +245,15 @@ export async function removeWorktreeOp(
 /** A repo's daemon-owned issues (`issue.list`) — the TUI kanban page's read. */
 export async function listIssuesOp(client: KobeDaemonClient, repoRoot: string): Promise<RepoIssues> {
   return client.request<RepoIssues>("issue.list", { repoRoot })
+}
+
+/** A repo's durable field notes, newest first (`note.list`) — the sidebar's
+ *  project-row reader. Same wire shape `state/field-notes.ts` reads at launch,
+ *  but through the daemon so the reader sees the whole live store (50), not
+ *  the 15-note launch cap. */
+export async function listFieldNotesOp(client: KobeDaemonClient, repo: string): Promise<readonly StoredFieldNote[]> {
+  const res = await client.request<{ notes?: readonly StoredFieldNote[] }>("note.list", { repo })
+  return res.notes ?? []
 }
 
 /** One issue-store mutation (`issue.mutate`) — the op union lives in the

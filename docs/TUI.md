@@ -26,8 +26,10 @@ from the keyboard, including **New conversation** and **New shell** for that
 Task's worktree, plus **Copy branch name** and **Copy path**, which put the
 Task's branch or worktree path on the system clipboard for a `git checkout` or
 `cd` in another shell, and **Open in editor**, **Rename branch**, and
-**Change engine** for the row you clicked. Clicking anywhere else dismisses
-that menu.
+**Change engine** for the row you clicked. Right-clicking a project header
+offers **New task**, **Field notes** (a read-only list of the notes agents filed
+on that repo with `rove api note`, newest first, each with its author and time)
+and **Remove project**. Clicking anywhere else dismisses that menu.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate

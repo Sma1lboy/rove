@@ -35,6 +35,7 @@ import type { TreeRow } from "./tree-core"
 export type TreeMenuAction =
   | "open"
   | "forgetProject"
+  | "fieldNotes"
   | "closeTab"
   | "newChat"
   | "newShell"
@@ -115,8 +116,12 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     // rows to `forgetProject` behind a confirm). The menu was missing the
     // entry, which broke this module's own rule: a row's menu is what that
     // row's keyboard already does.
+    // Field notes are menu-only, like `setStatus` (no chord — a chord is the
+    // owner's call). Agents file them with `rove api note`; before this entry
+    // `rove api note-list` in a shell was the only reader.
     return [
       { action: "newTask", labelKey: "tasks.menu.newTask" },
+      { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },
       { action: "forgetProject", labelKey: "tasks.menu.forgetProject", danger: true },
     ]
   }

@@ -132,6 +132,8 @@ test("right-click on a project header offers the project's own actions", async (
   // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
   // to `forgetProject` behind a confirm) — the menu was missing it.
   expect(after).toContain("Remove project")
+  // The repo's durable note store had no in-product reader before this entry.
+  expect(after).toContain("Field notes")
   // A project is not a checkout — no per-task verbs on its header.
   expect(after).not.toContain("Rename")
   expect(after).not.toContain("Delete")
