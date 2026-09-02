@@ -78,9 +78,12 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "\\", ctrl: true, sequence: "\\", raw: "\x1b[92;5u" } as never))).toBe(
       "\x1c",
     )
+    expect(keyEventToShellBytes(evt({ name: "pageup", ctrl: true, sequence: "\x1b[57354;5u" } as never))).toBe(
+      "\x1b[5;5~",
+    )
     // A ctrl chord the synthesizer can't map is dropped — typing a stray
     // literal into the shell would be worse.
-    expect(keyEventToShellBytes(evt({ name: "pageup", ctrl: true, sequence: "\x1b[57362;5u" } as never))).toBeNull()
+    expect(keyEventToShellBytes(evt({ name: "pause", ctrl: true, sequence: "\x1b[57362;5u" } as never))).toBeNull()
     // Legacy bytes keep forwarding verbatim (raw == sequence, not CSI-u).
     expect(keyEventToShellBytes(evt({ name: "delete", sequence: "\x1b[3~", raw: "\x1b[3~" } as never))).toBe("\x1b[3~")
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "\x03", raw: "\x03" } as never))).toBe("\x03")
@@ -90,6 +93,49 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "a", sequence: "a", raw: "\x1b[97u" } as never))).toBe("a")
     expect(keyEventToShellBytes(evt({ name: "1", sequence: "1", raw: "\x1b[49u" } as never))).toBe("1")
     expect(keyEventToShellBytes(evt({ name: "z", shift: true, sequence: "Z", raw: "\x1b[90;2u" } as never))).toBe("Z")
+    expect(keyEventToShellBytes(evt({ name: "😀", sequence: "😀", raw: "\x1b[128512u" } as never))).toBe("😀")
+    expect(keyEventToShellBytes(evt({ name: "𠀀", sequence: "𠀀", raw: "\x1b[131072u" } as never))).toBe("𠀀")
+  })
+
+  it("re-encodes kitty keypad and event-form navigation keys for a legacy PTY", () => {
+    expect(keyEventToShellBytes(evt({ name: "kpenter", sequence: "\x1b[57414u", raw: "\x1b[57414u" } as never))).toBe(
+      "\r",
+    )
+    for (const [name, codepoint, expected] of [
+      ["kpleft", 57417, "\x1b[D"],
+      ["kpright", 57418, "\x1b[C"],
+      ["kpup", 57419, "\x1b[A"],
+      ["kpdown", 57420, "\x1b[B"],
+      ["kppageup", 57421, "\x1b[5~"],
+      ["kppagedown", 57422, "\x1b[6~"],
+      ["kphome", 57423, "\x1b[H"],
+      ["kpend", 57424, "\x1b[F"],
+      ["kpinsert", 57425, "\x1b[2~"],
+      ["kpdelete", 57426, "\x1b[3~"],
+    ] as const) {
+      const raw = `\x1b[${codepoint}u`
+      expect(keyEventToShellBytes(evt({ name, sequence: raw, raw } as never))).toBe(expected)
+    }
+    expect(
+      keyEventToShellBytes(evt({ name: "up", sequence: "\x1b[1;1:1A", raw: "\x1b[1;1:1A", source: "kitty" } as never)),
+    ).toBe("\x1b[A")
+  })
+
+  it("re-encodes kitty PUA function keys and standard navigation keys for a legacy PTY", () => {
+    for (const [name, codepoint, expected] of [
+      ["insert", 57348, "\x1b[2~"],
+      ["pageup", 57354, "\x1b[5~"],
+      ["pagedown", 57355, "\x1b[6~"],
+      ["f6", 57369, "\x1b[17~"],
+      ["f8", 57371, "\x1b[19~"],
+      ["f9", 57372, "\x1b[20~"],
+      ["f10", 57373, "\x1b[21~"],
+      ["f11", 57374, "\x1b[23~"],
+      ["f12", 57375, "\x1b[24~"],
+    ] as const) {
+      const raw = `\x1b[${codepoint}u`
+      expect(keyEventToShellBytes(evt({ name, sequence: raw, raw, source: "kitty" } as never))).toBe(expected)
+    }
   })
 
   it("keeps the typed uppercase for shift+letter keystrokes on both wire formats", () => {
@@ -112,7 +158,7 @@ describe("keyEventToShellBytes", () => {
   })
 
   it("returns null for unknown multi-char names and nameless events", () => {
-    expect(keyEventToShellBytes(evt({ name: "pageup" }))).toBeNull()
+    expect(keyEventToShellBytes(evt({ name: "pause" }))).toBeNull()
     expect(keyEventToShellBytes(evt({ name: "" }))).toBeNull()
   })
 })

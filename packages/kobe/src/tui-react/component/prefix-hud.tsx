@@ -176,13 +176,16 @@ export function PrefixHud(props: { left: number; width: number }) {
       if (bound > chunkStart) columnChunks.push(groups.slice(chunkStart, bound))
       chunkStart = bound
     }
-    const guideHeight =
+    const contentHeight =
       3 +
       columnChunks.reduce(
         (tallest, chunk) =>
           Math.max(tallest, chunk.reduce((sum, group) => sum + groupHeight(group), 0) + (chunk.length - 1)),
         0,
       )
+    const maxGuideHeight = Math.max(3, dims.height - BOTTOM_MARGIN)
+    const clipped = contentHeight > maxGuideHeight
+    const guideHeight = Math.min(contentHeight + (clipped ? 1 : 0), maxGuideHeight)
     const top = Math.max(0, dims.height - BOTTOM_MARGIN - guideHeight)
     return (
       <box
@@ -191,6 +194,8 @@ export function PrefixHud(props: { left: number; width: number }) {
         left={2}
         top={top}
         width={guideWidth}
+        height={guideHeight}
+        overflow="hidden"
         {...FRAME}
         borderColor={theme.borderActive}
         backgroundColor={theme.backgroundDialog}
@@ -204,7 +209,14 @@ export function PrefixHud(props: { left: number; width: number }) {
           </text>
           <text fg={theme.textMuted}>{guide?.kind === "direct" ? t("help.releaseCtrl") : t("help.escCancel")}</text>
         </box>
-        <box flexDirection="row" gap={narrow ? 0 : 1} alignItems="flex-start">
+        <box
+          flexDirection="row"
+          gap={narrow ? 0 : 1}
+          alignItems="flex-start"
+          flexGrow={1}
+          flexShrink={1}
+          overflow="hidden"
+        >
           {columnChunks.map((chunk) => (
             <box key={chunk.map((group) => group.category).join("-")} flexDirection="column" flexGrow={1} flexBasis={0}>
               {chunk.map((group, groupIndex) => (
@@ -225,7 +237,9 @@ export function PrefixHud(props: { left: number; width: number }) {
                         }}
                       >
                         <box width={groupKeyWidth(group)}>
-                          <text fg={theme.primary}>{strokes}</text>
+                          <text fg={theme.primary} wrapMode="char">
+                            {strokes}
+                          </text>
                         </box>
                         <text fg={theme.text} wrapMode="word" flexGrow={1} flexShrink={1}>
                           {actionLabel(action.action, t)}
@@ -238,6 +252,7 @@ export function PrefixHud(props: { left: number; width: number }) {
             </box>
           ))}
         </box>
+        {clipped ? <text fg={theme.textMuted}>{t("help.overflow")}</text> : null}
       </box>
     )
   }

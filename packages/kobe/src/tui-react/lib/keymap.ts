@@ -147,19 +147,33 @@ export function invokeArmedPrefixActionFromCurrentStack(actionId: string, stroke
   return invokeArmedPrefixAction(stack, actionId, stroke)
 }
 
-// Registration-change signal. Registrations land in mount EFFECTS (after the
-// tree rendered), so anything that derives render output from the stack —
-// the status-bar key hint reads `currentBindingReachability()` — would
-// otherwise compute against an empty/stale stack on its first pass and never
-// find out. Bumped on every insert/remove; consumers subscribe below.
+// Reachability-change signal. Registrations land in mount EFFECTS (after the
+// tree rendered), and enabled gates can change with focus/page state, so
+// anything deriving render output from the stack must subscribe below. Each
+// bump also closes an in-flight direct guide before it can show stale commands.
 let stackVersion = 0
 const stackListeners = new Set<() => void>()
 function bumpStackVersion(): void {
+  prefixHudHideDirect()
   stackVersion++
   for (const listener of stackListeners) listener()
 }
 
-/** Re-render the caller whenever bindings register or unregister. */
+function bindingReachabilitySignature(config: BindingsConfig): string {
+  const bindings = config.bindings
+    .map((binding) =>
+      [
+        binding.id ?? "",
+        binding.key,
+        binding.prefix === true ? "p" : "d",
+        binding.passthrough === true ? "i" : "u",
+      ].join(":"),
+    )
+    .join("|")
+  return `${config.enabled === false ? "off" : "on"};${config.modal === true ? "modal" : "plain"};${bindings}`
+}
+
+/** Re-render when registrations or their current reachability change. */
 export function useBindingStackVersion(): number {
   return useSyncExternalStore(
     (onChange) => {
@@ -187,6 +201,14 @@ export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: 
 
   const configRef = useLatest(config)
   const scope = useContext(ModalScopeContext)
+  const reachabilitySignature = bindingReachabilitySignature(config())
+  const previousReachabilitySignature = useRef(reachabilitySignature)
+
+  useEffect(() => {
+    if (previousReachabilitySignature.current === reachabilitySignature) return
+    previousReachabilitySignature.current = reachabilitySignature
+    bumpStackVersion()
+  }, [reachabilitySignature])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once registration; scope/owner tokens are stable for the component's lifetime.
   useEffect(() => {

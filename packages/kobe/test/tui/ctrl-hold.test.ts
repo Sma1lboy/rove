@@ -61,6 +61,39 @@ describe("ctrl hold detector", () => {
     expect(onReveal).toHaveBeenCalledOnce()
   })
 
+  it("keeps a pending reveal while the other ctrl key overlaps", () => {
+    vi.useFakeTimers()
+    const onReveal = vi.fn()
+    const onHide = vi.fn()
+    const detector = createCtrlHoldDetector({ onReveal, onHide })
+
+    detector.keypress(event("leftctrl"))
+    vi.advanceTimersByTime(CTRL_HOLD_THRESHOLD_MS - 50)
+    detector.keypress(event("rightctrl"))
+    detector.keyrelease(event("leftctrl", "release"))
+    vi.advanceTimersByTime(50)
+
+    expect(onReveal).toHaveBeenCalledOnce()
+    expect(onHide).not.toHaveBeenCalled()
+    detector.keyrelease(event("rightctrl", "release"))
+    expect(onHide).toHaveBeenCalledOnce()
+  })
+
+  it("keeps a visible reveal until both overlapping ctrl keys are released", () => {
+    vi.useFakeTimers()
+    const onHide = vi.fn()
+    const detector = createCtrlHoldDetector({ onReveal: vi.fn(), onHide })
+
+    detector.keypress(event("leftctrl"))
+    vi.advanceTimersByTime(CTRL_HOLD_THRESHOLD_MS)
+    detector.keypress(event("rightctrl"))
+    detector.keyrelease(event("leftctrl", "release"))
+    expect(onHide).not.toHaveBeenCalled()
+
+    detector.keyrelease(event("rightctrl", "release"))
+    expect(onHide).toHaveBeenCalledOnce()
+  })
+
   it("a quick ctrl tap stays invisible", () => {
     vi.useFakeTimers()
     const onReveal = vi.fn()

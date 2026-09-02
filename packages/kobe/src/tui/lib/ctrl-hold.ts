@@ -5,8 +5,8 @@ export const CTRL_HOLD_THRESHOLD_MS = 400
 
 type CtrlHoldState =
   | { readonly kind: "idle" }
-  | { readonly kind: "pending"; readonly key: CtrlModifierKeyName; readonly timer: ReturnType<typeof setTimeout> }
-  | { readonly kind: "visible"; readonly key: CtrlModifierKeyName }
+  | { readonly kind: "pending"; readonly timer: ReturnType<typeof setTimeout> }
+  | { readonly kind: "visible" }
 
 export type CtrlHoldDetector = Readonly<{
   keypress: (event: Pick<KeyEvent, "name" | "eventType">) => void
@@ -19,31 +19,41 @@ export function createCtrlHoldDetector(callbacks: {
   readonly onHide: () => void
 }): CtrlHoldDetector {
   let state: CtrlHoldState = { kind: "idle" }
+  const held = new Set<CtrlModifierKeyName>()
 
-  const cancel = (): void => {
+  const reset = (): void => {
     if (state.kind === "pending") clearTimeout(state.timer)
     if (state.kind === "visible") callbacks.onHide()
     state = { kind: "idle" }
   }
 
+  const cancel = (): void => {
+    reset()
+    held.clear()
+  }
+
   const keypress = (event: Pick<KeyEvent, "name" | "eventType">): void => {
-    if (state.kind !== "idle") {
-      if (event.name === state.key && (event.eventType === "press" || event.eventType === "repeat")) return
+    if (!isCtrlModifierKeyName(event.name)) {
       cancel()
       return
     }
-    if (!isCtrlModifierKeyName(event.name) || event.eventType !== "press") return
+    if (event.eventType === "repeat" && held.has(event.name)) return
+    if (event.eventType !== "press") return
 
-    const key = event.name
+    held.add(event.name)
+    if (state.kind !== "idle") return
+
     const timer = setTimeout(() => {
-      state = { kind: "visible", key }
+      state = { kind: "visible" }
       callbacks.onReveal()
     }, CTRL_HOLD_THRESHOLD_MS)
-    state = { kind: "pending", key, timer }
+    state = { kind: "pending", timer }
   }
 
   const keyrelease = (event: Pick<KeyEvent, "name" | "eventType">): void => {
-    if (state.kind !== "idle" && event.name === state.key) cancel()
+    if (!isCtrlModifierKeyName(event.name) || event.eventType !== "release") return
+    held.delete(event.name)
+    if (held.size === 0) reset()
   }
 
   return { keypress, keyrelease, cancel }
