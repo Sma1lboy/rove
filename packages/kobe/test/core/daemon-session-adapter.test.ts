@@ -111,7 +111,7 @@ describe("daemon session adapter", () => {
     })
   })
 
-  it("surfaces a paste-delivery vendor's first message in the engine spec (issue #25)", async () => {
+  it("surfaces a paste-delivery vendor's first message in the engine spec", async () => {
     // kimi's repo init-prompt rides OUTSIDE the launch argv; the web PTY
     // sidecar pastes it post-spawn, so the spec must carry it — dropping it
     // here would silently lose the message.

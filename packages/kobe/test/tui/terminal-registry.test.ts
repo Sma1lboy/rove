@@ -115,7 +115,7 @@ describe("TaskPty onExit contract (mock backend)", () => {
   })
 })
 
-describe("releaseWhere (task-scoped teardown, issue #16)", () => {
+describe("releaseWhere (task-scoped teardown)", () => {
   it("kills exactly the matching task's tab PTYs and leaves the rest alive", () => {
     const reg = new PtyRegistry(mockFactory)
     const a1 = reg.acquire("task-a::tab-1", "/a")

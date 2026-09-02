@@ -29,7 +29,7 @@ describe("task deletion wire state", () => {
     expect(deserializeTask(wire).deletion).toEqual(task.deletion)
   })
 
-  it("an empty title serializes with a display fallback — no consumer can render blank (issue #42)", () => {
+  it("an empty title serializes with a display fallback — no consumer can render blank", () => {
     const scratch: Task = {
       id: toTaskId("s1"),
       title: "",

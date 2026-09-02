@@ -211,7 +211,7 @@ describe("deliverHostedPrompt", () => {
     expect(calls).not.toContain("pty.open") // NEVER a new engine while one lives
   })
 
-  it("FAILS LOUD instead of spawning when live tabs exist but none is an engine (issue #19)", async () => {
+  it("FAILS LOUD instead of spawning when live tabs exist but none is an engine", async () => {
     // A live shell tab, no engine anywhere: pre-fix this silently booted a
     // brand-new engine at tab-1 and reported ok — sender and receiver both
     // believed the message arrived. It must be a typed error instead.
@@ -238,7 +238,7 @@ describe("deliverHostedPrompt", () => {
     expect(calls).not.toContain("pty.write") // and nothing was pasted anywhere
   })
 
-  it("bare send reaches a live non-tab-1 engine instead of refusing (issue #36)", async () => {
+  it("bare send reaches a live non-tab-1 engine instead of refusing", async () => {
     // End-to-end shape of the report: the task's only live tab is tab-22
     // running plain `claude` while the task's vendor is the `claudecpa`
     // preset. Pre-fix the resolver returned null and this threw

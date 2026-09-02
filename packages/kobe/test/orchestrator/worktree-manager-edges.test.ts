@@ -145,7 +145,7 @@ describe("remove() / currentBranch() edges", () => {
   })
 })
 
-describe("renameBranch() convergence (issue #44)", () => {
+describe("renameBranch() convergence", () => {
   it("resolves when the recorded old name is stale but the branch already carries the new name", async () => {
     const wt = join(root, "wt-stale-rename")
     await manager.create(repo, "rename-old", wt)

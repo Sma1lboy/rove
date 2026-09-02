@@ -230,7 +230,7 @@ test("a tab row's menu opens a new shell in its worktree", async () => {
   expect(asked).toEqual([["a", "shell"]])
 })
 
-test("a worktree's LAST tab DOES offer a close (owner call 2026-08-31)", async () => {
+test("a worktree's LAST tab DOES offer a close", async () => {
   // Closing it leaves the task with no sessions — the row stays and re-opens
   // on ⏎ / ctrl+e — so there is nothing for the menu to withhold.
   tabsByTask.clear()

@@ -50,7 +50,7 @@ describe("engine-owned terminal style rewrites", () => {
   })
 })
 
-describe("solid-block minimum-contrast immunity (issue #1 zebra)", () => {
+describe("solid-block minimum-contrast immunity (the zebra artefact)", () => {
   it("fg==bg solid blocks become bg-only spaces", async () => {
     const row = await rowFor("\x1b[38;2;238;238;238m\x1b[48;2;238;238;238m▄▄▄\x1b[0m")
     expect(row).toHaveLength(1)

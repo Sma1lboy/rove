@@ -189,7 +189,7 @@ describe("parseNumstatRows", () => {
     expect(parseNumstatRows("0\t0\t\0ü.txt\0üv2.txt\0")).toEqual([numstat("üv2.txt", 0, 0, "ü.txt")])
   })
 
-  test("issue #63 regression: literal brace in a rename path", () => {
+  test("a literal brace survives a rename path", () => {
     // Brace-compaction makes this path unparseable without `-z`:
     //   path:       src/{a{b/f.txt  →  src/c/f.txt
     //   non-z:      src/{{a{b => c}/f.txt   (three `{`, ambiguous)

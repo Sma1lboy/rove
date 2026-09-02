@@ -60,7 +60,7 @@ describe("hosted engine session launch", () => {
     expect(launch.command[2]).not.toContain("set-branch")
   })
 
-  test("keeps a paste vendor's first message OUT of the argv and hands it to the spawner (issue #25)", () => {
+  test("keeps a paste vendor's first message OUT of the argv and hands it to the spawner", () => {
     const launch = buildEngineSessionLaunch({
       task: { id: "task-1", kind: "task", vendor: "kimi", repo: "/repo" },
       worktreePath: "/repo/.worktrees/task-1",

@@ -71,7 +71,7 @@ describe("closeActive on the only tab", () => {
   })
 })
 
-describe("closing down to zero tabs (owner call 2026-08-31)", () => {
+describe("closing down to zero tabs", () => {
   it("an emptied task keeps its snapshot empty across a remount", () => {
     // The close only appears to take if rehydration honours it. Without
     // `allowEmpty` the task grows a fresh tab back on the next mount, and

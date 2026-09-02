@@ -119,7 +119,7 @@ describe("buildTreeRows", () => {
     expect(result.filter((r) => r.kind === "tab")).toHaveLength(0)
   })
 
-  test("scratch tasks render in one Scratch section above every project (issue #33)", () => {
+  test("scratch tasks render in one Scratch section above every project", () => {
     const result = rows({
       tasks: [
         task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
@@ -136,7 +136,7 @@ describe("buildTreeRows", () => {
     ])
   })
 
-  test("a scratch task with tabs renders NO worktree row — tabs hang under the header (issue #41)", () => {
+  test("a scratch task with tabs renders NO worktree row — tabs hang under the header", () => {
     // The auto-generated scratch name is noise; the shell IS the session.
     // The task stays real in the data layer — only its middle row is skipped.
     const result = rows({
@@ -300,7 +300,7 @@ describe("rowLiveBranchPath", () => {
   })
 })
 
-describe("worktreeRowLabel (issue #42)", () => {
+describe("worktreeRowLabel", () => {
   test("a branch names the row, over everything else", () => {
     expect(worktreeRowLabel(task("a", { branch: "feat/a", title: "some title" }))).toBe("feat/a")
   })
@@ -353,7 +353,7 @@ describe("worktreeRowLabel (issue #42)", () => {
   })
 })
 
-describe("a project closed down to nothing (owner call 2026-08-31)", () => {
+describe("a project closed down to nothing", () => {
   const mainOf = (repo: string, id = "m") => task(id, { kind: "main", repo, title: repo.split("/").pop() ?? repo })
 
   test("hides the project when its only row is main and its tabs are closed", () => {

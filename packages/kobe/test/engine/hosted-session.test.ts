@@ -79,7 +79,7 @@ describe("hosted session helpers", () => {
   })
 })
 
-describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () => {
+describe("pastePromptWhenEngineUp (first-message paste delivery)", () => {
   const noSleep = () => Promise.resolve()
   // ps -A -o pid=,ppid=,args= shape: a shell (pid 42) with a kimi child.
   const withEngine = "  42   1 /bin/zsh -ilc kimi\n  43  42 kimi\n"
@@ -148,7 +148,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
     expect(request).not.toHaveBeenCalledWith("pty.write", expect.anything())
   })
 
-  it("waits for the init marker before budgeting engine-startup time (issue #73)", async () => {
+  it("waits for the init marker before budgeting engine-startup time", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
     const marker = path.join(tmp, "marker")
     let written = ""
@@ -214,7 +214,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
   })
 })
 
-describe("deliverToHostedKey A+C gates (issue #78)", () => {
+describe("deliverToHostedKey A+C gates", () => {
   function rpcWith(
     peek: Partial<{ alive: boolean; data: string; lastHumanWriteMs: number; humanWriteQuietMs: number }>,
   ) {

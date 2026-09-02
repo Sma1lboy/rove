@@ -68,7 +68,7 @@ function deliveryRpc(host: PtyHost): HostedSessionRpc {
   }
 }
 
-describe("prompt delivery vs pane size (issue #18)", () => {
+describe("prompt delivery vs pane size", () => {
   test("after a peer delivery, the PTY still has the attached pane's size", async () => {
     const host = makeHost()
     const { frames, sink } = collector()

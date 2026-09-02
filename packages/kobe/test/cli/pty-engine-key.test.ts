@@ -70,7 +70,7 @@ describe("findEngineKey", () => {
     expect(findEngineKey(sessions, "t1", "codex")).toBe("t1::tab-5")
   })
 
-  it("resolves a SHELL-WRAPPED engine tab when tab-1 is absent (issue #19)", () => {
+  it("resolves a SHELL-WRAPPED engine tab when tab-1 is absent", () => {
     // Every hosted session launches via `<shell> -ilc '…<engine> …'`
     // (buildEngineSessionLaunch), so command[0] is NEVER the engine binary.
     // The old `command[0] === engineBin` fallback was dead code in
@@ -103,7 +103,7 @@ describe("findEngineKey", () => {
     expect(findEngineKey(sessions, "t1")).toBe("t1::tab-1")
   })
 
-  it("resolves a live engine tab whose binary is NOT the task's vendor (issue #36)", () => {
+  it("resolves a live engine tab whose binary is NOT the task's vendor", () => {
     // The reported shape: a long-lived task pinned to the custom preset
     // `claudecpa` (a zsh wrapper) whose tab-1 is long gone and whose only
     // live tabs launch plain `claude`. engineBin is `claudecpa`, so the

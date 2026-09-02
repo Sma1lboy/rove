@@ -120,7 +120,7 @@ describe("PtyRegistry.parkIdle", () => {
     expect(reg.get("t::tab-1")).toBe(woken)
   })
 
-  it("carries the parked screen into the wake acquire exactly once (issue #29)", () => {
+  it("carries the parked screen into the wake acquire exactly once", () => {
     const SCREEN: ParkedScreen = {
       serialized: "\x1b[1mparked\x1b[0m",
       title: "vim",

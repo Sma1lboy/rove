@@ -22,7 +22,7 @@ describe("recomputeTabActivity", () => {
     expect(recomputeTabActivity({}, T)).toBeUndefined()
   })
 
-  it("observed running fills the hole when no hook ever reported (#16 restart seeding)", () => {
+  it("observed running fills the hole when no hook ever reported (restart seeding)", () => {
     const eff = recomputeTabActivity({ observed: { state: "running", at: T } }, T)
     expect(eff).toMatchObject({ state: "running", source: "observed" })
   })

@@ -296,7 +296,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     c.kill()
   })
 
-  test("park + wake restores the exact screen: serialize at park, only the delta replayed (issue #29)", async () => {
+  test("park + wake restores the exact screen: serialize at park, only the delta replayed", async () => {
     // A sibling handle that never detaches is the oracle: after the parked
     // handle wakes, its screen must be BYTE-IDENTICAL to the sibling's —
     // the contract that made re-enabling the auto-park sweep safe.

@@ -158,7 +158,7 @@ describe("treeMenuItems", () => {
     ])
   })
 
-  test("the LAST tab IS offered a close (owner call 2026-08-31)", () => {
+  test("the LAST tab IS offered a close", () => {
     // Closing it leaves the task with no sessions; its sidebar row stays and
     // re-opens on ⏎ / ctrl+e. The entry is NOT withheld — closeTab accepts
     // the last tab.
