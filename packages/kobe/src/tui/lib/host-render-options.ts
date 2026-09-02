@@ -13,13 +13,23 @@
  * spread in only when present so a host without teardown passes the exact
  * same shape as before.
  */
+/**
+ * Kitty keyboard protocol flags. `events` + `allKeysAsEscapes` are what let a
+ * kitty-protocol terminal report bare modifier press/release (the ctrl-hold
+ * shortcut guide). `allKeysAsEscapes` also makes the terminal encode IME
+ * commits as a `CSI 0 u` text event whose characters live ONLY in the third
+ * field, and that field is sent only under `reportText` — without it every
+ * Chinese/Japanese/Korean input arrives as an empty key and is dropped.
+ */
+const KITTY_KEYBOARD = { events: true, allKeysAsEscapes: true, reportText: true } as const
+
 export function hostRenderOptions(onDestroy?: () => void): Record<string, unknown> {
   const base = {
     backgroundColor: "transparent",
     externalOutputMode: "passthrough",
     exitOnCtrlC: false,
     screenMode: "alternate-screen",
-    useKittyKeyboard: { events: true, allKeysAsEscapes: true },
+    useKittyKeyboard: KITTY_KEYBOARD,
   }
   return onDestroy ? { ...base, onDestroy } : base
 }
@@ -41,7 +51,7 @@ export function inlineRenderOptions(heightRows: number, onDestroy?: () => void):
     exitOnCtrlC: false,
     screenMode: "split-footer",
     footerHeight: heightRows,
-    useKittyKeyboard: { events: true, allKeysAsEscapes: true },
+    useKittyKeyboard: KITTY_KEYBOARD,
   }
   return onDestroy ? { ...base, onDestroy } : base
 }
