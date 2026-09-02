@@ -6,7 +6,6 @@
 export const en = {
   cancel: "Cancel",
   /** Footer verb for a step that leads to another prompt. */
-  next: "next",
   create: "create",
   confirm: "Confirm",
   /** Fallback shown when a pane's render tree throws, replacing the raw
@@ -32,7 +31,6 @@ export const en = {
 
 export const zh: typeof en = {
   cancel: "取消",
-  next: "下一步",
   create: "创建",
   confirm: "确认",
   paneCrash: {

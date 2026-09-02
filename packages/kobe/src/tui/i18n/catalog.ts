@@ -23,7 +23,6 @@ import { en as doctor, zh as doctorZh } from "./messages/doctor"
 import { en as files, zh as filesZh } from "./messages/files"
 import { en as help, zh as helpZh } from "./messages/help"
 import { en as hints, zh as hintsZh } from "./messages/hints"
-import { en as history, zh as historyZh } from "./messages/history"
 import { en as kanban, zh as kanbanZh } from "./messages/kanban"
 import { en as keys, zh as keysZh } from "./messages/keys"
 import { en as newTask, zh as newTaskZh } from "./messages/newTask"
@@ -50,7 +49,6 @@ export const en = {
   quickTask,
   help,
   hints,
-  history,
   common,
   keys,
   workspace,
@@ -80,7 +78,6 @@ export const zh: Messages = {
   quickTask: quickTaskZh,
   help: helpZh,
   hints: hintsZh,
-  history: historyZh,
   common: commonZh,
   keys: keysZh,
   workspace: workspaceZh,

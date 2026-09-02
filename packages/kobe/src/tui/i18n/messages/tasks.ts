@@ -6,15 +6,12 @@
 export const en = {
   /** Top-level navigation rail — one row per destination */
   nav: {
-    workspace: "Workspace",
     kanban: "Kanban",
     automations: "Routines",
     issues: "Issues",
   },
   /** Section headers */
   header: {
-    projects: "PROJECTS",
-    tasks: "TASKS",
     scratch: "SCRATCH",
   },
   /** Search bar */
@@ -109,25 +106,6 @@ export const en = {
     deleting: "deleting",
     deleteFailed: "delete failed",
   },
-  /** ShortcutHints legend */
-  hints: {
-    /** Collapsible legend header (folded / unfolded) */
-    headerFolded: "── keys ?▸ ──",
-    headerUnfolded: "── keys ?▾ ──",
-    /** In-pane action labels */
-    fullHelp: "full help",
-    newTask: "new task",
-    settings: "settings",
-    open: "open",
-    focusEngine: "focus engine",
-    openWorktree: "open wt",
-    delete: "delete",
-    views: "views",
-    project: "project",
-    /** Move/reorder mode labels */
-    reorder: "reorder",
-    done: "done",
-  },
   /** Set-branch (re-branch) dialog — lists the repo's local branches with
       filter-as-you-type; typing a new name renames the task's branch. */
   reBranch: {
@@ -159,14 +137,11 @@ export const en = {
 
 export const zh: typeof en = {
   nav: {
-    workspace: "工作区",
     kanban: "看板",
     automations: "例行任务",
     issues: "议题",
   },
   header: {
-    projects: "项目",
-    tasks: "任务",
     scratch: "临时",
   },
   search: {
@@ -236,21 +211,6 @@ export const zh: typeof en = {
     materializing: "正在创建 worktree",
     deleting: "正在删除",
     deleteFailed: "删除失败",
-  },
-  hints: {
-    headerFolded: "── 快捷键 ?▸ ──",
-    headerUnfolded: "── 快捷键 ?▾ ──",
-    fullHelp: "完整帮助",
-    newTask: "新建任务",
-    settings: "设置",
-    open: "打开",
-    focusEngine: "聚焦引擎",
-    openWorktree: "打开 worktree",
-    delete: "删除",
-    views: "视图",
-    project: "项目",
-    reorder: "重新排序",
-    done: "完成",
   },
   reBranch: {
     title: "设置分支",
