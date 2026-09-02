@@ -14,14 +14,15 @@
  * same shape as before.
  */
 /**
- * Kitty keyboard protocol flags. `events` + `allKeysAsEscapes` are what let a
- * kitty-protocol terminal report bare modifier press/release (the ctrl-hold
- * shortcut guide). `allKeysAsEscapes` also makes the terminal encode IME
- * commits as a `CSI 0 u` text event whose characters live ONLY in the third
- * field, and that field is sent only under `reportText` — without it every
- * Chinese/Japanese/Korean input arrives as an empty key and is dropped.
+ * Kitty keyboard protocol flags: opentui's defaults only (disambiguate +
+ * alternate keys). `allKeysAsEscapes` is deliberately NOT requested: under it
+ * a terminal encodes input-method commits as `CSI 0 u` text events, and
+ * iTerm2 3.5.x crashes on that path (owner report: typing Chinese quit the
+ * whole app). The ctrl-hold shortcut guide, which wanted bare modifier
+ * press/release, degrades to "never shows" on every terminal, the same way
+ * it already did on Terminal.app and inside tmux.
  */
-const KITTY_KEYBOARD = { events: true, allKeysAsEscapes: true, reportText: true } as const
+const KITTY_KEYBOARD = {} as const
 
 export function hostRenderOptions(onDestroy?: () => void): Record<string, unknown> {
   const base = {
