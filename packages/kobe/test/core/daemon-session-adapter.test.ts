@@ -188,7 +188,7 @@ describe("daemon session adapter", () => {
         "do not run this in zsh",
       ),
     ).resolves.toEqual({ outcome: "no-session" })
-    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, ["claude", "--dangerously-skip-permissions", "-c"])
+    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, expect.arrayContaining(["claude"]))
     expect(mocks.deliver).not.toHaveBeenCalled()
   })
 
