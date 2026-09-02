@@ -1,9 +1,10 @@
 import { execFile } from "node:child_process"
-import { mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises"
+import { readFile, realpath, stat } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, isAbsolute, join, resolve } from "node:path"
+import { isAbsolute, join, resolve } from "node:path"
 import { promisify } from "node:util"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { writeJsonAtomic } from "./json-file.ts"
 
 const execFileAsync = promisify(execFile)
 
@@ -150,10 +151,7 @@ async function readStore(path: string): Promise<IssuesStoreFile> {
 }
 
 async function writeStore(path: string, store: IssuesStoreFile): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, store)
 }
 
 function response(repoRoot: string, record: RepoIssueRecord | null): RepoIssues {

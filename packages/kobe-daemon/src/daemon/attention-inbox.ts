@@ -9,10 +9,9 @@
  * the older item at the end of the queue.
  */
 
-import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import {
   type AttentionInboxItem,
@@ -24,6 +23,7 @@ import {
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { writeJsonAtomic } from "./json-file.ts"
 
 interface AttentionInboxFile {
   readonly version: 1
@@ -84,11 +84,8 @@ async function readStore(path: string): Promise<AttentionInboxItem[]> {
 }
 
 async function writeStore(path: string, items: readonly AttentionInboxItem[]): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   const body: AttentionInboxFile = { version: 1, items: [...items] }
-  await writeFile(tmp, `${JSON.stringify(body, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, body)
 }
 
 export class AttentionInboxStore {

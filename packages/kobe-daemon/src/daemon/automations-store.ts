@@ -14,13 +14,14 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
+import { writeJsonAtomic } from "./json-file.ts"
 
 /** Per-automation run history cap. The whole document is re-serialized on every
  *  write, so an unbounded log makes each save permanently slower. */
@@ -136,11 +137,8 @@ async function readStore(path: string): Promise<{ automations: Automation[]; run
 }
 
 async function writeStore(path: string, automations: readonly Automation[], runs: readonly AutomationRun[]) {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   const body: AutomationsFile = { version: 1, automations: [...automations], runs: [...runs] }
-  await writeFile(tmp, `${JSON.stringify(body, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, body)
 }
 
 /**

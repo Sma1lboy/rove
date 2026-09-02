@@ -14,11 +14,12 @@
  */
 
 import { execFile } from "node:child_process"
-import { mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises"
+import { readFile, realpath, stat } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, isAbsolute, join, resolve } from "node:path"
+import { isAbsolute, join, resolve } from "node:path"
 import { promisify } from "node:util"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { writeJsonAtomic } from "./json-file.ts"
 
 const execFileAsync = promisify(execFile)
 
@@ -146,10 +147,7 @@ export class NotesStore {
       record.repoRoot = repoRoot
       record.notes = [note, ...record.notes].slice(0, NOTES_RETENTION_CAP)
       store.repos[repoKey] = record
-      await mkdir(dirname(this.path), { recursive: true })
-      const tmp = `${this.path}.tmp`
-      await writeFile(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8")
-      await rename(tmp, this.path)
+      await writeJsonAtomic(this.path, store)
     })
   }
 }
