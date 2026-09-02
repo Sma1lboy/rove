@@ -36,7 +36,8 @@ const PRECHECK_FLAGS = [
     name: "precheck-timeout",
     type: "int",
     placeholder: "SEC",
-    description: "Seconds before the precheck is killed and the run skipped (default 120).",
+    default: "120",
+    description: "Seconds before the precheck is killed and the run skipped.",
   },
 ] as const
 
@@ -44,8 +45,9 @@ const GRACE_FLAG = {
   name: "grace",
   type: "int",
   placeholder: "MIN",
+  default: "60",
   description:
-    "How late a missed occurrence may still run when the daemon was down (default 60). Only the most recent missed occurrence is ever run.",
+    "How late a missed occurrence may still run when the daemon was down. Only the most recent missed occurrence is ever run.",
 } as const
 
 const PERSISTENT_FLAG = {

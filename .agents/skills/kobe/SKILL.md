@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 40 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 41 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -229,12 +229,22 @@ Four names that have actually been guessed wrong here: `add --vendor` is
 `--prompt` (`--text` belongs to `note`); `issue-list` has no `--state` at all
 — filter its JSON yourself.
 
-**[`references/api-flags.md`](references/api-flags.md) is every verb and flag**,
-including the groups this file leaves out on purpose: `routine-*` (scheduled
-prompts), `workitem-*` (GitHub issues via `gh`), `note`/`note-list` (the repo's
-durable field-note store), `read-output`/`digest`/`agent-turns`/`pty-list`, and
-the error-code table. Read it when you need a verb that is not above; reach for
-`schema` when the binary and that file disagree.
+**[`references/api-flags.md`](references/api-flags.md) is every verb and flag.**
+Find your section by what you were ASKED, not by Rove's noun for it:
+
+| You are asked to … | Read section |
+|---|---|
+| schedule / recur / cron / "every morning" / "keep messaging one window" / 定时 / 每天自动 | routines |
+| a GitHub issue, "file it upstream" / 提 issue | workitems |
+| track work in Rove's own backlog, move a kanban card | issues |
+| remember this for the repo, leave a field note / 记一笔 | drive |
+| what did the agent do, per-turn cost, read its screen | read |
+| make / rename / retarget / land / close a task | create / edit / lifecycle |
+| materialize or adopt a checkout | worktree |
+| which engines exist, send Rove product feedback | discover / feedback |
+| an error code came back, `nextCommandArgs` | Error codes |
+
+Reach for `schema` when the binary and that file disagree.
 
 ```bash
 rove api schema --verb add    # or --group create, --all
