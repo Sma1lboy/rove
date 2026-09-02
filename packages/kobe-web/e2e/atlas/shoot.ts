@@ -201,10 +201,7 @@ async function shootFlow(flow: Flow): Promise<void> {
   const runId = `atlas-${flow.name}-${Date.now()}`
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 })
   try {
-    // `webgl=1` for the same reason the stills use it: the DOM renderer cannot
-    // draw xterm's `customGlyphs`, so pane borders photograph with a seam at
-    // every cell boundary. A failed context falls back to DOM in ChatTerminal.
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&webgl=1`).catch(() => {
+    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}`).catch(() => {
       throw new Error(`no server on :${HERO_WEB_PORT} — start \`bun e2e/hero-serve.ts\` first`)
     })
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })

@@ -192,17 +192,14 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   one, the seeded engine picks up Rove's contributor rules and narrates them.
   One take photographed an engine apologising for a commit flag those rules
   forbid, in a transcript meant to show a toy client getting a timeout.
-- **Recordings render through WebGL; stills do not.** The harness defaults to
-  xterm's DOM renderer, which draws every cell as its own span using the font
-  and therefore cannot use `customGlyphs` — xterm's geometric drawing of
-  block-element and box-drawing characters. Engine banner art and pane borders
-  are built from exactly those, so under DOM they photograph with a seam at
-  every cell boundary rather than the solid shapes a real terminal draws.
-  `hero-capture.ts` opens the harness with `?webgl=1`; `hero-shot.ts` takes an
-  optional `--webgl` for comparison but keeps DOM by default, because a WebGL
-  context is not guaranteed in every CI container and a still that fails to
-  render is worse than one with a seam. A failed context falls back to DOM
-  inside `ChatTerminal` either way, so the switch cannot break a take.
+- **The harness owns renderer selection for every capture.** Opaque stills and
+  recordings use WebGL. Transparent wallpaper captures use Canvas. Both can
+  draw xterm's `customGlyphs`, so block-element and box-drawing characters in
+  engine banner art and pane borders meet without gaps. The DOM renderer draws
+  each cell from the font and leaves visible seams; use
+  `/harness?renderer=dom` only to compare renderers while diagnosing a capture.
+  If WebGL or Canvas cannot initialize, `ChatTerminal` still falls back to DOM
+  rather than failing the take.
 - **The plugin takes need their plugins linked BEFORE the harness boots.** The
   TUI reads the plugin registry once at start (`loadPluginEngines()`, and the
   pane/settings sections alongside it), so a plugin linked mid-take contributes

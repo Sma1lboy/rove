@@ -241,9 +241,9 @@ export function ChatTerminal({
       // Plain URLs in engine output become clickable.
       term.loadAddon(new WebLinksAddon())
       term.open(el)
-      // The visual harness pins the stock renderer so browser screenshots and
-      // buffer synchronization do not depend on GPU/WebGL availability.
-      // Renderer choice, and it is a three-way trade rather than a preference:
+      // The visual harness normally keeps this renderer policy. Its explicit
+      // DOM diagnostic mode passes `disableWebgl`; buffer reads stay renderer-
+      // independent either way. Renderer choice is a three-way trade:
       //
       //   DOM    — always available, but each cell is its own span drawn with
       //            the font, so `customGlyphs` is off and block-drawing

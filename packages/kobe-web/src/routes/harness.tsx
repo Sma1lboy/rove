@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useState } from "react"
 import { ChatTerminal, type WsStatus } from "../components/ChatTerminal.tsx"
+import { resolveHarnessRenderer } from "../lib/harness-renderer.ts"
 
 /**
  * `/harness` — the one fixed-viewport observation surface for the real
@@ -12,16 +13,13 @@ function PtyHarness() {
   const rawRun =
     new URLSearchParams(window.location.search).get("run") ?? "manual"
   const runId = rawRun.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 48) || "manual"
-  // `?webgl=1` opts INTO the WebGL renderer. The DOM renderer stays the
-  // default because it cannot fail to initialize, but it renders every cell
-  // as its own span using the font — and xterm's `customGlyphs`, which draws
-  // block-element and box-drawing characters geometrically so they tile with
-  // no seam, is documented as DOM-renderer-incompatible. Engine banner art
-  // (Claude Code's logo is `▛█▝▀`) therefore photographs with a gap in every
-  // cell. Recordings turn this on; a WebGL context that fails to come up
-  // falls back to DOM inside ChatTerminal, so the switch cannot break a take.
-  const useWebgl =
-    new URLSearchParams(window.location.search).get("webgl") === "1"
+  // Renderer policy belongs to the one capture boundary, not to every script
+  // that opens it. Opaque captures use WebGL and transparent captures use
+  // Canvas inside ChatTerminal; both draw custom block glyphs without gaps.
+  // `?renderer=dom` remains a diagnostic comparison path.
+  const renderer = resolveHarnessRenderer(
+    new URLSearchParams(window.location.search),
+  )
   // `?wallpaper=<path>` paints a backdrop behind the terminal. Same-origin
   // paths only: this route renders whatever it is handed, and a capture URL is
   // not a place to accept an arbitrary remote image.
@@ -78,7 +76,7 @@ function PtyHarness() {
         taskId={sessionId}
         mode="shell"
         testId="opentui-terminal"
-        disableWebgl={!useWebgl}
+        disableWebgl={renderer === "dom"}
         transparent={wallpaper !== null || hostbg !== null}
         hostBackground={hostbg ?? undefined}
         onStatusChange={setStatus}

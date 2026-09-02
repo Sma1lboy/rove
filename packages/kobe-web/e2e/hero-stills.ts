@@ -200,11 +200,7 @@ try {
       viewport: { width, height },
       deviceScaleFactor: still.scale ?? STILL_SCALE,
     })
-    // `webgl=1` for the same reason recordings use it: the DOM renderer cannot
-    // use xterm's `customGlyphs`, so block-element and box-drawing characters
-    // (pane borders, engine banner art) photograph with a seam at every cell
-    // boundary. A failed context falls back to DOM inside ChatTerminal.
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&webgl=1`)
+    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}`)
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
     await look(page, "orbit-sdk", 60_000)
     await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: Math.min(400, height - 80) } })
