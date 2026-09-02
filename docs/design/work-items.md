@@ -95,7 +95,9 @@ available when the TUI is not open.
 When it is shown, it is pointed at the selected task's project.
 
 `enter` is the page: it starts a task on the highlighted issue and lands on its
-workspace. `a` toggles assigned-to-me, `tab` cycles projects, `r` forces past
+workspace. When a task already carries that issue in `linkedWorkItem`, the row
+shows its title and `enter` opens it instead of starting another — the daemon's
+`workitem-start` creates unconditionally, so the guard lives on the page. `a` toggles assigned-to-me, `tab` cycles projects, `r` forces past
 the daemon's 60s cache, `j`/`k` move.
 
 A `gh` failure renders its own message verbatim — the three fixes differ, and

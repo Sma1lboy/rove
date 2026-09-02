@@ -414,8 +414,10 @@ When the page opens, `a` filters to issues assigned to you, `tab` switches
 repos, and `r` refreshes past the cache. `enter` starts a Rove task from the
 selected issue: the issue body arrives as the first prompt (fenced, and
 explicitly marked as an untrusted report), and the task keeps a
-`linkedWorkItem` pointer back to the issue. Nothing is imported into the local
-issue store and nothing is written back to GitHub.
+`linkedWorkItem` pointer back to the issue. An issue that already has a task
+shows that task's title on its detail line, and `enter` opens the task instead
+of creating a second one. Nothing is imported into the local issue store and
+nothing is written back to GitHub.
 
 ## Updates and version warnings
 

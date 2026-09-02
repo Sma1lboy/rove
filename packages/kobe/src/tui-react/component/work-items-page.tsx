@@ -9,7 +9,9 @@
  *
  * Enter is the whole point of the page — it creates a task whose branch derives
  * from the issue title and whose engine opens with the issue already in hand,
- * replacing copy-title → invent-branch → create-task → paste-body.
+ * replacing copy-title → invent-branch → create-task → paste-body. An issue
+ * that already has a task (`task.linkedWorkItem`) shows that task on its
+ * detail line, and enter opens it instead of minting a duplicate.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -19,6 +21,7 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
+import type { Task } from "../../types/task"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
@@ -33,6 +36,11 @@ function reposOf(orch: RemoteOrchestrator | null): string[] {
     if (task.repo && !seen.includes(task.repo)) seen.push(task.repo)
   }
   return seen
+}
+
+/** The task already started from `number` on `repo`, if any. */
+function linkedTaskFor(orch: RemoteOrchestrator | null, repo: string, number: number): Task | undefined {
+  return orch?.listTasks().find((task) => task.repo === repo && task.linkedWorkItem?.number === number)
 }
 
 function errorHint(error: string, t: ReturnType<typeof useT>): string {
@@ -136,6 +144,14 @@ export function WorkItemsPage(props: {
     const orch = props.orchestrator
     const item = rows[cursor]
     if (!orch || !item || !repo || starting) return
+    // Already started: land on that task. The daemon creates unconditionally
+    // by contract; this page is the surface that knows what the user sees.
+    const linked = linkedTaskFor(orch, repo, item.number)
+    if (linked) {
+      setNotice(t("workItems.openingLinked", { title: linked.title }))
+      props.onOpenTask?.(linked.id)
+      return
+    }
     setStarting(true)
     setNotice(t("workItems.starting", { number: item.number }))
     try {
@@ -199,6 +215,7 @@ export function WorkItemsPage(props: {
             // line. The number leads the title because that is how an issue is
             // referred to out loud, and it survives truncation there.
             const chrome = resolveRowSelectionChrome(theme, { cursor: index === cursor, selected: false })
+            const linked = linkedTaskFor(props.orchestrator, repo, item.number)
             return (
               <box
                 key={`${item.number}`}
@@ -232,6 +249,11 @@ export function WorkItemsPage(props: {
                     <text fg={theme.textMuted} wrapMode="none" flexGrow={1}>
                       {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(" · ")}
                     </text>
+                    {linked ? (
+                      <text fg={theme.textMuted} wrapMode="none">
+                        {t("workItems.linkedChip", { title: linked.title })}
+                      </text>
+                    ) : null}
                     <text fg={theme.textMuted} wrapMode="none">
                       {relativeAge(item.updatedAt, now)}
                     </text>
