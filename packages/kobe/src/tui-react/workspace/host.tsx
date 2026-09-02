@@ -12,10 +12,8 @@ import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
-import { StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
@@ -27,6 +25,7 @@ import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
+import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
@@ -297,62 +296,20 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
 
-  // The skew banner's problem, and its fix. `daemonStaleSignal()`
-  // has been accurate since it was written and its ONLY reader was the mock
-  // workbench — so the state it names has been invisible in the product the
-  // whole time. That state is not an edge case here: Rove ships several times
-  // a day and the daemon is a long-lived process that outlives an `npm i -g`,
-  // which makes "new binary, old daemon" the ordinary result of updating.
-  //
-  const daemonStale = useAccessor(orch.daemonStaleSignal())
-  const daemonVersion = useAccessor(orch.daemonVersionSignal())
-  // Daemon-polled npm check (collectors' update channel). The chip is the
-  // passive half of the update surface; `u` / a click opens the page.
-  const updateInfo = useAccessor(orch.updateSignal())
-  // Skew only. A daemon-disconnect banner used to sit in front of this one:
-  // a full-width red alert on every socket drop. It was the wrong weight —
-  // the reconnect loop recovers most drops in under a second, and Rove keeps
-  // working through the ones it doesn't, so the alert interrupted to announce
-  // something with nothing to act on. Skew is different: it persists until
-  // someone restarts the daemon, which is why it kept its banner.
-  // The one condition that outranks skew: this process's install was deleted,
-  // so it cannot start a daemon at all. It used to be invisible — the client
-  // just looked like it was reconnecting, for two days (issue #96). Latched,
-  // never cleared: only a reinstall fixes it.
-  const staleInstall = useAccessor(orch.staleInstallSignal())
-  const banner = staleInstall ? (
-    <StaleInstallBanner message={staleInstall} width={dims.width} />
-  ) : (
-    <VersionSkewBanner
-      stale={daemonStale}
-      daemonVersion={daemonVersion}
-      clientVersion={CURRENT_VERSION}
-      width={dims.width}
-    />
-  )
+  // Top-of-window banner (skew / gone-install) + the update chip's payload —
+  // one question, three render paths below. See `host-banner.tsx`.
+  const banner = useHostBanner(orch, dims.width)
 
-  // Settings and the full-window pages replace the WHOLE window, frame
-  // included, so each needs the banner wrapped around it rather than relying
-  // on WorkspaceFrame.
-  if (pageRender.settingsPage) {
+  const fullWindow = pageRender.settingsPage ?? pageRender.fullWindowPage
+  if (fullWindow)
     return (
-      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
-        {banner}
-        {pageRender.settingsPage}
-      </box>
+      <FullWindowPage banner={banner.element} background={theme.background}>
+        {fullWindow}
+      </FullWindowPage>
     )
-  }
-  if (pageRender.fullWindowPage) {
-    return (
-      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
-        {banner}
-        {pageRender.fullWindowPage}
-      </box>
-    )
-  }
 
   return (
-    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings} banner={banner}>
+    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings} banner={banner.element}>
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
           ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —
@@ -430,7 +387,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
             emphasize: inbox.counts.total > 0,
           }}
           onHeaderStatusClick={inbox.show}
-          updateChip={updateInfo?.hasUpdate ? { label: t("update.chip", { version: updateInfo.latest }) } : null}
+          updateChip={banner.update?.hasUpdate ? { label: t("update.chip", { version: banner.update.latest }) } : null}
           onUpdateChipClick={pages.openUpdate}
           zenActive={zen}
           onZenClick={toggleZen}
@@ -487,6 +444,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onMention={editor.onMention}
           onZenToggle={toggleZen}
           onCreatePR={() => void editor.onCreatePR()}
+          taskKind={selectedTask?.kind}
         />
       ) : null}
 

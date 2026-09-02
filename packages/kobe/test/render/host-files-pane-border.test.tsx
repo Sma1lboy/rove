@@ -42,6 +42,7 @@ function mounted(worktree: string, initial: "workspace" | "files") {
         onMention={NOOP}
         onZenToggle={NOOP}
         onCreatePR={NOOP}
+        taskKind="task"
       />
     </FocusProvider>
   )

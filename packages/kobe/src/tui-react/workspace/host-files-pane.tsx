@@ -28,6 +28,13 @@ export function HostFilesPane(props: {
   readonly onMention: (relPath: string) => void
   readonly onZenToggle: () => void
   readonly onCreatePR: () => void
+  /** Selected task's `kind`. A `"main"` row IS the repo's root checkout —
+   *  `branch: ""`, `worktreePath === repo` — so it has no task branch to open
+   *  a PR from and `createPRAction` can only answer with its
+   *  already-on-the-target-branch toast. The header withholds the chip there.
+   *  `"dir"` rows point at a directory whose branch Rove does not own, so they
+   *  keep it. */
+  readonly taskKind: "main" | "task" | "dir" | undefined
 }) {
   const { theme } = useTheme()
   const focus = useFocus()
@@ -52,7 +59,10 @@ export function HostFilesPane(props: {
         onOpenDiff={props.onOpenDiff}
         onMention={props.onMention}
         onZenToggle={props.onZenToggle}
-        onCreatePR={props.onCreatePR}
+        // Withholding the chip is not withholding the action: `files.createPR`
+        // is a GLOBAL prefix binding, so prefix+P still fires on a main row and
+        // still explains itself with the toast.
+        onCreatePR={props.taskKind === "main" ? undefined : props.onCreatePR}
       />
     </box>
   )
