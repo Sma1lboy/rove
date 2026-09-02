@@ -184,6 +184,19 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "copyPath":
           actions.onCopyRequest?.(taskId, "path")
           break
+        // The `o` / `b` / `v` trio. Routed through the MENU's row (`taskId`),
+        // not the active task the chords read (host-keybindings.ts
+        // `deps.selectedId`) — a right-click names one row, and the verb
+        // must land on that row.
+        case "openEditor":
+          actions.onOpenEditorRequest?.(taskId)
+          break
+        case "renameBranch":
+          actions.onRenameBranchRequest?.(taskId)
+          break
+        case "changeEngine":
+          actions.onChangeEngineRequest?.(taskId)
+          break
         case "delete":
           actions.onDeleteRequest?.(taskId)
           break

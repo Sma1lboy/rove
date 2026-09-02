@@ -164,7 +164,11 @@ statuses and writes the one you choose. **Copy branch name** and **Copy path**
 put the Task's branch or recorded worktree path on the system clipboard (local
 clipboard command plus OSC 52, so it also works over SSH); copying never
 creates the worktree, and a project-main or directory row, whose stored branch
-is empty, offers only Copy path. (If right-click opens your *terminal's* menu
+is empty, offers only Copy path. **Open in editor**, **Rename branch**, and
+**Change engine** are the `o`, `b`, and `v` chords for the row you clicked;
+the engine entry opens a picker over your available engines instead of
+cycling, and Rename branch follows the same empty-branch rule as Copy branch
+name. (If right-click opens your *terminal's* menu
 instead, see [Troubleshooting](./TROUBLESHOOTING.md).)
 
 ## Terminal scrollback

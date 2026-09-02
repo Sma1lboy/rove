@@ -53,6 +53,9 @@ describe("treeMenuItems", () => {
       "setStatus",
       "copyBranch",
       "copyPath",
+      "openEditor",
+      "renameBranch",
+      "changeEngine",
       "delete",
     ])
   })
@@ -83,6 +86,8 @@ describe("treeMenuItems", () => {
       "reorder",
       "setStatus",
       "copyPath",
+      "openEditor",
+      "changeEngine",
       "delete",
     ])
     const mainTab: TreeRow = {
@@ -101,6 +106,8 @@ describe("treeMenuItems", () => {
       "reorder",
       "setStatus",
       "copyPath",
+      "openEditor",
+      "changeEngine",
       "delete",
     ])
   })
@@ -109,6 +116,27 @@ describe("treeMenuItems", () => {
     const dirRow = worktreeRow({ kind: "dir", branch: "" })
     expect(actions(dirRow)).toContain("pin")
     expect(actions(dirRow)).toContain("rename")
+  })
+
+  test('Rename branch is withheld from any row whose branch is "" — main, dir, or a never-entered task', () => {
+    // Same gate as Copy branch: `set-branch` has nothing to rename there (a
+    // main row's branch is the live HEAD), so the entry could only end in the
+    // error toast. Open in editor and Change engine stay — both work on any
+    // task row.
+    for (const row of [
+      worktreeRow({ kind: "main", branch: "" }),
+      worktreeRow({ kind: "dir", branch: "" }),
+      worktreeRow({ branch: "" }),
+    ]) {
+      expect(actions(row)).not.toContain("renameBranch")
+      expect(actions(row)).toContain("openEditor")
+      expect(actions(row)).toContain("changeEngine")
+    }
+    expect(actions(worktreeRow())).toContain("renameBranch")
+  })
+
+  test("the o/b/v trio never reaches a project header", () => {
+    for (const verb of ["openEditor", "renameBranch", "changeEngine"]) expect(actions(projectRow)).not.toContain(verb)
   })
 
   test("a tab row carries the same session + task verbs, plus its own close", () => {
@@ -123,6 +151,9 @@ describe("treeMenuItems", () => {
       "setStatus",
       "copyBranch",
       "copyPath",
+      "openEditor",
+      "renameBranch",
+      "changeEngine",
       "delete",
     ])
   })
