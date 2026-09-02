@@ -1,9 +1,9 @@
 /**
- * PTY parking (issue #28) — the registry's idle sweep.
+ * PTY parking — the registry's idle sweep.
  *
- * Why this matters: every open tab used to keep a full @xterm/headless
- * instance (grid + scrollback) resident forever — the workspace host sat
- * at 250-300MB and was the first process killed under memory pressure.
+ * Why this matters: without it every open tab keeps a full @xterm/headless
+ * instance (grid + scrollback) resident forever — the workspace host sits
+ * at 250-300MB and is the first process killed under memory pressure.
  * The sweep detaches persistent-backend handles that have had no data
  * subscriber for the idle window; the child keeps running in the pty
  * host, and re-acquire reattaches + replays the host ring buffer (the

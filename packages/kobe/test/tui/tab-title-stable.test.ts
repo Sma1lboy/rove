@@ -5,13 +5,13 @@
  * renders tabs it does not host, so it has no live title stream and reads the
  * RECORDED `lastTitle`.
  *
- * That recording used to be the engine's whole status line (`⠐ 利用自进化…`),
- * so the rule threw it away — which left every row reading "claude 1" while
- * the tab strip showed the real conversation title (owner report
- * 2026-08-10). The status prefix is now stripped where the title enters the
- * app, so what is recorded is the NAME and the tree keeps it. Titles recorded
- * before that fix still carry their prefix and are stripped again here, so
- * old snapshots heal on display without a migration.
+ * The status prefix is stripped where the title enters the
+ * app, so what is recorded is the NAME and the tree keeps it. Throwing that
+ * recording away instead — as one must when it is the engine's whole status
+ * line (`⠐ 利用自进化…`) — leaves every row reading "claude 1" while
+ * the tab strip shows the real conversation title. Titles recorded by an
+ * older kobe still carry their prefix and are stripped again here, so
+ * those snapshots heal on display without a migration.
  */
 
 import { describe, expect, it } from "vitest"
@@ -47,7 +47,7 @@ describe("tabTitleStable", () => {
     expect(tabTitleStable(withAuto, "claude", "claude")).toBe("wire up the digest verb")
   })
 
-  // Regression (owner report 2026-08-10): a tab pinned to a user WRAPPER
+  // Regression: a tab pinned to a user WRAPPER
   // (`claudecpa` — a zsh function that ends up running real claude) is a
   // custom vendor and declares no glyph vocabulary, so its rows kept the
   // prefix. Cleaning is not gated on `ownsStatus` for exactly this reason.
@@ -93,9 +93,9 @@ describe("tabTitleStable", () => {
     expect(tabTitleStable(tab, "codex", "claude")).toBe("claude 1")
   })
 
-  // Regression (owner report 2026-08-10): quit kobe with `claude` running in
-  // a shell tab, restart, and the sidebar row read "shell N" — the rule only
-  // carried a resolved vendor through for tabs already born as engine tabs.
+  // Regression: quit kobe with `claude` running in
+  // a shell tab, restart, and the sidebar row reads "shell N" if the rule
+  // carries a resolved vendor through only for tabs born as engine tabs.
   it("names a shell tab after the engine running in it, not 'shell'", () => {
     const tab = {
       kind: "command",
@@ -111,10 +111,10 @@ describe("tabTitleStable", () => {
     expect(tabTitleStable(named, "claude", "claude")).toBe("wire up the digest verb 2")
   })
 
-  // Regression (owner report 2026-08-10): clicking into a tab flashed the
+  // Regression: clicking into a tab flashes the
   // engine's live status line before settling. The live vendor comes from a
   // ~2s ps walk, so for one render the probe answers `undefined` — without
-  // the RECORDED identity the rule dropped to the raw-title branch.
+  // the RECORDED identity the rule drops to the raw-title branch.
   it("falls back to the RECORDED vendor so the status line never flashes", () => {
     const tab = {
       kind: "command",
@@ -135,7 +135,7 @@ describe("tabTitleStable", () => {
 
   // Codex's OSC title is its thread ID until the thread is named, so the
   // recorded/live title on a codex row is `01a00ee9-…` — an identifier, not a
-  // name (owner report 2026-08-17).
+  // name.
   it("a codex thread id is not a name — the first prompt is", () => {
     const id = "01a00ee9-f0e9-7503-a11c-83b4eface0f6"
     const tab = engineTab({ vendor: "codex", lastTitle: id, autoTitle: "add a login form" })

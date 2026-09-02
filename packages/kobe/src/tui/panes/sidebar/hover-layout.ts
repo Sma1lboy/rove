@@ -1,12 +1,11 @@
 import { approxCellWidth } from "../../../lib/display-width"
 
-// Cell measurement moved to the shared width module; re-exported so
-// existing importers (tests, panes) keep compiling.
+// Cell measurement lives in the shared width module; re-exported here so
+// importers (tests, panes) reach it from one place.
 export { approxCellWidth }
 
-// The hover TOOLTIP itself was cut with the flat sidebar's row cards
-// (2026-08-30): nothing feeds a SidebarHover anymore and no renderer
-// consumed one. What survives here is the placement math, reused by the
+// There is no hover TOOLTIP: nothing feeds a SidebarHover and no renderer
+// consumes one. This module owns only the placement math, reused by the
 // right-click ContextMenu — same "a box of text lines pinned near the
 // pointer" problem.
 export const SIDEBAR_HOVER_TOOLTIP_Z_INDEX = 2750

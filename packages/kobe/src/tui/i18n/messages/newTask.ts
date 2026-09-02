@@ -22,11 +22,11 @@ export const en = {
     folderName: "FOLDER NAME",
     baseBranch: "BASE BRANCH",
     adoptFilter: "FILTER (PATH GLOB)",
-    /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
+    /** Existing tab: task vs project — only for a repo with a main row. */
     opens: "OPENS",
   },
 
-  /** Existing-tab intent labels (issue #90). */
+  /** Existing-tab intent labels. */
   intent: {
     task: "a new task worktree",
     project: "the project itself",
@@ -51,7 +51,7 @@ export const en = {
     moreBelow: "↓ {count} more",
   },
 
-  /** "Open the project" failures (issue #90). {error} is the daemon's message. */
+  /** "Open the project" failures. {error} is the daemon's message. */
   open: {
     failed: "Couldn't open the project: {error}",
   },
@@ -113,11 +113,11 @@ export const zh: typeof en = {
     folderName: "文件夹名",
     baseBranch: "基准分支",
     adoptFilter: "过滤（路径 glob）",
-    /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
+    /** Existing tab: task vs project — only for a repo with a main row. */
     opens: "打开",
   },
 
-  /** Existing-tab intent labels (issue #90). */
+  /** Existing-tab intent labels. */
   intent: {
     task: "新建任务 worktree",
     project: "项目本身",
@@ -142,7 +142,7 @@ export const zh: typeof en = {
     moreBelow: "↓ 还有 {count} 项",
   },
 
-  /** "Open the project" failures (issue #90). {error} is the daemon's message. */
+  /** "Open the project" failures. {error} is the daemon's message. */
   open: {
     failed: "无法打开项目：{error}",
   },

@@ -9,7 +9,7 @@
  *     C-escaped string, and emits non-ASCII as three-digit OCTAL bytes
  *     (`\303\274` = the UTF-8 bytes of `ü`).
  *   - rename resolution: porcelain uses ` -> ` with each side quoted
- *     independently; numstat uses `-z` and emits the old and new paths as
+ *     independently; numstat uses `-z` and emits the source and destination paths as
  *     separate NUL-delimited fields, avoiding brace-compaction ambiguity.
  *   - the join: porcelain quotes a spaced path (`"a b.txt"`) while numstat
  *     with `-z` emits the raw path (`a b.txt\0`); unquoting BOTH yields one
@@ -144,7 +144,7 @@ describe("parseNumstatRows", () => {
   })
 
   test("resolves a same-directory rename", () => {
-    // `git diff --numstat -z` emits the old and new paths as separate fields.
+    // `git diff --numstat -z` emits the source and destination paths as separate fields.
     expect(parseNumstatRows("0\t0\t\0src/old.txt\0src/new.txt\0")).toEqual([
       numstat("src/new.txt", 0, 0, "src/old.txt"),
     ])
@@ -229,7 +229,7 @@ describe("porcelain ↔ numstat path coherence (the join the bug breaks)", () =>
 
   test("a move OUT of a subdirectory keys onto the same porcelain path", () => {
     // `git mv src/sub/a.txt src/a.txt`. Porcelain reports the full new path;
-    // numstat with `-z` emits the old and new paths as separate fields. Both
+    // numstat with `-z` emits the source and destination paths as separate fields. Both
     // must resolve to `src/a.txt` or the +/- counts orphan from the status row.
     const [p] = parsePorcelainRows("R  src/sub/a.txt -> src/a.txt")
     const [n] = parseNumstatRows("4\t2\t\0src/sub/a.txt\0src/a.txt\0")

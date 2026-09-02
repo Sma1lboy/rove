@@ -1,8 +1,8 @@
 /**
- * Event-loop stall telemetry (incident 2026-07-07/08): when the TUI
- * "freezes" we could never tell after the fact whether the event loop was
- * blocked by JS (a kobe bug — sample would show the stack) or the whole
- * process was paged out under memory pressure (an OS-level stall — nothing
+ * Event-loop stall telemetry: when the TUI "freezes", nothing after the
+ * fact distinguishes an event loop blocked by JS (a kobe bug — `sample`
+ * would show the stack) from the whole
+ * process being paged out under memory pressure (an OS-level stall — nothing
  * in-process is at fault). A 1s heartbeat measures wall-clock drift; when a
  * beat arrives far later than scheduled, the gap IS the stall, and the log
  * line carries heap numbers so the next freeze report starts with ground

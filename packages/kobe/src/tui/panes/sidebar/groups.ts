@@ -1,8 +1,7 @@
 /**
  * Pure list-shaping helpers for the sidebar pane.
  *
- * Wave 4.5 dropped repo grouping; the archive view was removed in issue #75.
- * The sidebar is now a flat list of task rows showing the working set only.
+ * The sidebar is a flat list of task rows showing the working set only.
  * Repo / branch / worktree metadata for the SELECTED task is shown in the
  * topbar instead — see `src/tui/component/topbar.tsx`.
  *
@@ -18,9 +17,9 @@
  * already emits all `main` rows before any task row, the renderer only needs
  * the index of the first non-main row to place the divider.
  *
- * No reactivity here: pure functions over `readonly Task[]`. The Solid
- * component (`Sidebar.tsx`) wraps these in `createMemo` so they recompute
- * only when the upstream task signal changes.
+ * No reactivity here: pure functions over `readonly Task[]`. The Sidebar
+ * component memoizes them so they recompute only when the upstream task
+ * list changes.
  */
 
 import { reconcileStableRows } from "@/tui/lib/stable-rows"
@@ -58,7 +57,7 @@ export type SidebarRowSections = {
  * → regular ordering so users filtering inside a long list still see the
  * same predictable shape.
  *
- * `projectFilter` scopes BOTH sections to the one repo (owner 2026-07-17):
+ * `projectFilter` scopes BOTH sections to the one repo:
  * the filter label lives on the PROJECTS header, so the PROJECTS list must
  * agree with it — main rows outside the filtered repo are hidden along with
  * their tasks.
@@ -72,7 +71,7 @@ export type SidebarRowSections = {
  * handles the empty-state placeholder separately; we don't emit a
  * synthetic header for that.
  *
- * Pure: no Solid, no opentui. Component code calls this inside a memo;
+ * Pure: no framework, no opentui. Component code calls this inside a memo;
  * tests call it directly.
  */
 export function buildRows(
@@ -101,7 +100,7 @@ export function buildRows(
     if (t.pinned === true) pinnedRegular.push(t)
     else regular.push(t)
   }
-  // Projects keep their STORED order (owner 2026-07-16): tasks.json order =
+  // Projects keep their STORED order: tasks.json order =
   // save order, so a newly-added repo lands at the end and the list never
   // reshuffles on its own. Manual reordering goes through move mode
   // (`moveTask` covers main rows within the projects partition). `recent`
@@ -146,7 +145,7 @@ function taskTime(task: Task): number {
  *
  * Exported for the Sidebar's row renderer — main tasks display this
  * as the title (instead of `task.title`, which is a stored copy that
- * could drift if the user renamed the directory). Pure / no Solid.
+ * could drift if the user renamed the directory). Pure / framework-free.
  */
 export function repoBasename(repo: string): string {
   const segments = repo.split("/").filter(Boolean)
@@ -205,9 +204,9 @@ export function cursorIndexForProjectScope(rows: readonly SidebarRow[], projectF
 
 /**
  * Where the cursor should sit after the external selection or the flat id list
- * changed — the single owner of the "follow selection / clamp into range" policy
- * the Sidebar's sync effect used to inline. Returns the TARGET index (may equal
- * `cursor`, i.e. leave it put). Pure, so the edge cases that kept biting —
+ * changed — the single owner of the "follow selection / clamp into range"
+ * policy. Returns the TARGET index (may equal
+ * `cursor`, i.e. leave it put). Pure, so the edge cases that keep biting —
  * selection cleared, selected task vanished from another surface and the list
  * shrank, cursor left dangling past a shortened list — are unit-tested instead
  * of hand-traced. `cursor` is the current index (-1 when unset).
@@ -292,9 +291,9 @@ export function sameSidebarRowTask(a: Task, b: Task): boolean {
  * Why: every daemon `task.snapshot` push deserializes ALL-new Task
  * objects, so `buildRows` produces all-new `SidebarRow` wrappers even
  * when nothing the row renders changed (the common case: a
- * `setActiveTask` recency touch echoing back). Solid's `<For>` keys by
- * object identity, so without reconciliation each push destroyed and
- * recreated every row's opentui renderables — and @opentui/core 0.2.4
+ * `setActiveTask` recency touch echoing back). List rendering keys by
+ * object identity, so without reconciliation each push destroys and
+ * recreates every row's opentui renderables — and @opentui/core 0.2.4
  * retains ~300B of native memory per renderable create/destroy cycle.
  * A Tasks pane lives for days in every tmux session; task switches
  * happen constantly; multiply and that's unbounded native growth

@@ -1,5 +1,5 @@
 /**
- * Framework-free keymap DISPLAY seam (issue #15, G3): grouping for the help
+ * Framework-free keymap DISPLAY seam: grouping for the help
  * dialog plus the chord-cap resolution the Tasks-pane footer legend and the
  * help dialog share. `groupBindings` stays generic over the `category`
  * field; the cap helpers read the real keymap via `findBinding` (itself

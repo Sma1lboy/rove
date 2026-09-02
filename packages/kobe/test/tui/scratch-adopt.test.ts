@@ -1,8 +1,8 @@
 /**
- * Scratch adoption decision + the cwd read behind it (issues #33/#40). The
+ * Scratch adoption decision + the cwd read behind it. The
  * decision is the confidence gate: a repo alone (browsing) or a harness
  * alone (working in a non-repo) must both stay in Scratch. Once confident,
- * the fold check (#40) de-dupes against existing tasks so migrating a shell
+ * the fold check de-dupes against existing tasks so migrating a shell
  * parked in an already-tracked directory never mints a duplicate row.
  */
 
@@ -53,7 +53,7 @@ describe("decideScratchAdopt", () => {
     ).toEqual({ kind: "stay" })
   })
 
-  // --- issue #40: fold instead of minting a duplicate row -----------------
+  // --- fold instead of minting a duplicate row ----------------------------
 
   const mainTask: ScratchOwnerTask = { id: "T-main", kind: "main", dir: "/repos/rove" }
   const managed: ScratchOwnerTask = { id: "T-wt", kind: "task", dir: "/wt/kobe/feature-x" }

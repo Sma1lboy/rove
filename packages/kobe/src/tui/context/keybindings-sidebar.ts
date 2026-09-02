@@ -40,11 +40,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "enter" },
   },
   {
-    // Owner call 2026-08-01: the tree has NO fold — every level is always
-    // expanded — so `l` is "go in" rather than "unfold": it opens the row
-    // under the cursor, and on a tab row (the last level) that means
-    // entering that tab's chat. `space` rides along from the original
-    // proposal; `h` was released with the fold it used to drive.
+    // The tree has NO fold — every level is always expanded — so `l` is "go
+    // in" rather than "unfold": it opens the row under the cursor, and on a
+    // tab row (the last level) that means entering that tab's chat.
     id: "sidebar.tree.open",
     scope: "sidebar",
     keys: ["l", "space"],
@@ -54,8 +52,7 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // Slot pair [top, bottom]: slot 0 (g) arms/completes the gg
-    // double-tap, slot 1 (shift+g) jumps to the bottom. Previously a
-    // single "g" row with an evt.shift gate (un-rebindable).
+    // double-tap, slot 1 (shift+g) jumps to the bottom.
     id: "sidebar.goto",
     scope: "sidebar",
     keys: ["g", "shift+g"],
@@ -71,9 +68,9 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "r" },
   },
   {
-    // Explicit shift+m chord (matchKey mints `shift+m` from Shift+M) —
-    // previously keys: ["m"] with an evt.shift gate in the handler, which
-    // made the id un-rebindable (FIXED_BINDING_IDS).
+    // Explicit shift+m chord (matchKey mints `shift+m` from Shift+M). An
+    // evt.shift gate in the handler instead would make the id un-rebindable
+    // (FIXED_BINDING_IDS).
     id: "sidebar.localMerge",
     scope: "sidebar",
     keys: ["shift+m"],
@@ -82,10 +79,10 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     hint: { keys: "M" },
   },
   {
-    // Capital P pins / unpins a managed task — an explicit shift+p chord
-    // (previously keys: ["p"] + an evt.shift gate, which kept the id in
-    // FIXED_BINDING_IDS). A mistyped lowercase `p` matches nothing, so it
-    // can't churn the flag. Pinned managed tasks float to the top of the
+    // Capital P pins / unpins a managed task — an explicit shift+p chord; an
+    // evt.shift gate instead would keep the id in FIXED_BINDING_IDS. A
+    // mistyped lowercase `p` matches nothing, so it can't churn the flag.
+    // Pinned managed tasks float to the top of the
     // sidebar's flat list, just below the saved-repo "main" rows.
     // `kind: "main"` rows ignore the chord — they're implicitly pinned.
     id: "sidebar.pin",
@@ -95,9 +92,6 @@ export const SIDEBAR_BINDINGS: readonly KobeBinding[] = [
     description: "Pin / unpin task at top (Shift+P)",
     hint: { keys: "P" },
   },
-  // `sidebar.view` ([/]) and `sidebar.archive` (a) retired with the archived
-  // view (issue #75) — the sidebar shows only the working set now; both chords
-  // are free again.
   {
     id: "sidebar.sort",
     scope: "sidebar",

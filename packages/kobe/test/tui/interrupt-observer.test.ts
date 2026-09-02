@@ -1,5 +1,5 @@
 /**
- * ESC-interrupt observer (issue #15) — the "打断后 sidebar 状态 N 秒内翻转"
+ * ESC-interrupt observer — the "打断后 sidebar 状态 N 秒内翻转"
  * behavior. An ESC interrupt runs NO hook (claude-code's abort path returns
  * before its stop hooks), so the observer reads the engine's own title
  * rewrite — working frame → resting form — against a hook-claimed `running`,

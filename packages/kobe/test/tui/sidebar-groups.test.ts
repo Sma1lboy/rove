@@ -63,7 +63,7 @@ describe("sidebar task ordering", () => {
   })
 
   it("projects sit tight in recent mode — stored order, not reshuffled by use", () => {
-    // Projects render STORED order (save order; owner 2026-07-16): zeta was
+    // Projects render STORED order (save order): zeta was
     // saved first and used more recently, but neither recency nor alphabet
     // reshuffles the projects section — only move mode reorders it.
     const rows = buildRows(
@@ -254,12 +254,12 @@ describe("sidebar project filter cursor", () => {
  * Identity contract for the sidebar's row reconciler (docs/DESIGN.md §5.5).
  *
  * Why these matter: the Tasks pane lives for days in every tmux session,
- * Solid's `<For>` keys rows by OBJECT IDENTITY, and @opentui/core 0.2.4
+ * list rendering keys rows by OBJECT IDENTITY, and @opentui/core 0.2.4
  * retains ~300B of native memory per renderable create/destroy cycle.
  * Every daemon `task.snapshot` push deserializes ALL-new Task objects —
  * including the no-visual-change push from `setActiveTask`'s recency
  * touch on EVERY task switch — so without reconciliation each push
- * destroyed and recreated every row's renderables (the same leak class
+ * destroys and recreates every row's renderables (the same leak class
  * as the Ops-pane filetree, `test/tui/filetree-rows.test.ts`). The fix
  * is invisible to value-equality assertions: these tests pin identity
  * reuse with toBe — break it and the UI renders identically while the

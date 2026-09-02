@@ -1,6 +1,5 @@
 /**
- * Framework-free view logic for the React sidebar (issue #15, G3; the Solid
- * original was removed 2026-07-07). Pure derivations only — no React, no
+ * Framework-free view logic for the React sidebar. Pure derivations only — no React, no
  * opentui: view-tab cycling, line budgets, the search-input keystroke
  * reducer, empty-state / label i18n-key selection, and small row helpers
  * (theme-core / lookup / message-core precedent).
@@ -10,8 +9,7 @@ import { charWidth, displayWidth } from "../../../lib/display-width"
 import { truncateEnd, truncateEndCells } from "../../lib/truncate"
 import type { SidebarTone } from "./row-view"
 
-/** Minimum width of the PureTUI task-list rail (32 → 26 → 24, owner calls
- * 2026-07-27/28 — the herdr-density pass kept shrinking it). Also the width
+/** Minimum width of the PureTUI task-list rail. Also the width
  * at and below ~144 cols, see {@link sidebarWidthFor}. */
 export const SIDEBAR_WIDTH = 24
 
@@ -29,9 +27,6 @@ export function sidebarWidthFor(terminalWidth: number): number {
 
 /** Polling interval for the per-main-row git branch refresh. */
 export const MAIN_BRANCH_POLL_MS = 2_000
-
-// VIEW_TABS / viewTabLabelKey / cycleViewTarget were retired with the
-// Archived sidebar view (issue #75): the sidebar always shows the working set.
 
 /**
  * Two-line card budgets. Line 1: selection marker (1) + badge (1) +

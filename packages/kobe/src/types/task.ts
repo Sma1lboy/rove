@@ -63,9 +63,9 @@ export type PRCheckState = "none" | "pending" | "passing" | "failing" | "unknown
 export type PRLifecycleState = "creating" | "open" | "ready_to_merge" | "merged" | "closed" | "unknown"
 
 /**
- * PR status persisted on Task. v0.6 keeps the shape (the monitor can
- * still display it) but the orchestrator no longer drives PR creation
- * itself; create-PR flows ask the active engine through Hosted PTY delivery.
+ * PR status persisted on Task. The monitor displays it; the orchestrator
+ * does NOT drive PR creation itself — create-PR flows ask the active engine
+ * through Hosted PTY delivery.
  */
 export interface TaskPRStatus {
   readonly provider: PRProviderId
@@ -160,7 +160,7 @@ export interface Task {
    */
   readonly kind?: "main" | "task" | "dir"
   /**
-   * A SCRATCH shell task (issue #33): a `kind: "dir"` task whose cwd is not
+   * A SCRATCH shell task: a `kind: "dir"` task whose cwd is not
    * settled yet — an ad-hoc shell opened to poke around, living in the
    * sidebar's Scratch section instead of a project group. Zero-ceremony
    * lifecycle: its shell exiting deletes the row outright. The flag CLEARS
@@ -170,8 +170,8 @@ export interface Task {
    */
   readonly scratch?: boolean
   /**
-   * The routine (`Automation`) this task is the standing session for
-   * (issue #91). A routine with `persistentSession` creates ONE task and
+   * The routine (`Automation`) this task is the standing session for.
+   * A routine with `persistentSession` creates ONE task and
    * re-delivers into it on every firing, instead of a fresh worktree per
    * run — so a daily check can read what it said yesterday.
    *
@@ -257,8 +257,8 @@ export interface Task {
   /**
    * The task brief: the full text of the prompt `add --prompt` delivered
    * into this task's engine, recorded on the delivery path. The engine's
-   * own transcript is NOT durable — a dead engine used to take the brief
-   * down with it, and the only recovery was the user re-pasting it. Stored
+   * own transcript is NOT durable — without this a dead engine takes the
+   * brief down with it, and the only recovery is the user re-pasting it. Stored
    * verbatim (never truncated: the constraints an agent needs most often
    * sit at the END of a long brief). Optional + additive: tasks created
    * without a prompt never get one.
@@ -303,7 +303,7 @@ export interface TaskLinkedWorkItem {
 /**
  * A persisted deletion marker. A concurrent writer that still holds the
  * deleted task dirty in memory must not write it back — the tombstone makes
- * the deletion visible to peers (issue #47). Pruned after a TTL at save time.
+ * the deletion visible to peers. Pruned after a TTL at save time.
  */
 export interface TaskTombstone {
   readonly id: string
@@ -316,8 +316,8 @@ export interface TaskIndex {
   readonly tasks: readonly Task[]
   /**
    * Deletion tombstones. Optional and absent when empty: builds that predate
-   * the field ignore it on read and drop it on write, degrading to the old
-   * last-write-wins behavior without corrupting anything (which is also why
+   * the field ignore it on read and drop it on write, degrading to plain
+   * last-write-wins without corrupting anything (which is also why
    * `version` stays 3 — older readers treat an unknown version as an empty
    * index, losing everything).
    */

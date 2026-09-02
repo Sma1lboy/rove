@@ -5,9 +5,8 @@
  * `buildSidebarRowView` over its whole input space — every activity state ×
  * seen bit × job × deletion phase × vendor × transcript, plus the spinner sets,
  * the completion grace window, subagent marks and subtitle truncation. Every
- * per-state assertion that used to live in this file was one sampled row of
- * that table, so those cases were removed rather than kept as a second, less
- * complete copy that could disagree with it.
+ * per-state assertion belongs in that table rather than here, as a second,
+ * less complete copy that could disagree with it.
  *
  * What stayed is what a table of outputs cannot say:
  *

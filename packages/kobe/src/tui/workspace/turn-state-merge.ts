@@ -24,7 +24,7 @@ import type { ChatTabTurnState } from "../../engine/turn-detector.ts"
 export interface HookTabState {
   readonly state: TaskActivityState
   /** The state's stamp — the key the durable completion-seen mark is
-   *  recorded under (issue #23). Absent on the poll-only path. */
+   *  recorded under. Absent on the poll-only path. */
   readonly at?: number
 }
 

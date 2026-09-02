@@ -7,7 +7,7 @@
  * it back from the session transcript. We take the FIRST user message
  * of the task's origin session and truncate it via
  * `deriveTitleFromPrompt` (no model call — pure string work, the cheap
- * replacement for the old headless `claude -p` naming path).
+ * replacement for a headless `claude -p` naming call).
  *
  * Engine-aware via the registry: the task's `vendor` resolves an
  * `EngineHistoryReader` (claude-code's per-worktree `~/.claude/projects/*`

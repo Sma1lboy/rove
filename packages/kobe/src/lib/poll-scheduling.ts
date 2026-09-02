@@ -1,6 +1,6 @@
 /**
- * Pure scheduling core for subprocess-backed background polling —
- * extracted from `src/tui/lib/background-poll.ts` (issue #6) so the
+ * Pure scheduling core for subprocess-backed background polling, kept out
+ * of `src/tui/lib/background-poll.ts` so the
  * daemon's worktree-changes collector can reuse the EXACT guards that
  * keep huge-repo `git status` off the event loop, without importing
  * UI state primitives into daemon code.

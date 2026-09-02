@@ -380,7 +380,7 @@ describe("bounded-scrollback trimming (snapshot window)", () => {
     expect(followWindowShift(state, { epoch: 1, startLine: 7 }, { epoch: 1, startLine: 7 }, 10, false)).toBe(state)
     // Alternate screen (no line numbering) is the other mechanism's business.
     expect(followWindowShift(state, null, null, 10, false)).toBe(state)
-    // A resize reflows history: those ids no longer mean anything.
+    // A resize reflows history: those ids mean nothing afterwards.
     expect(followWindowShift(state, { epoch: 1, startLine: 7 }, { epoch: 2, startLine: 0 }, 10, false)).toBeNull()
   })
 })

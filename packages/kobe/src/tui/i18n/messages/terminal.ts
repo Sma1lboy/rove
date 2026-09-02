@@ -1,5 +1,5 @@
 /**
- * `terminal.*` messages — the embedded terminal pane (issue #16): the
+ * `terminal.*` messages — the embedded terminal pane: the
  * in-process PTY running the task's engine CLI (or a plain worktree
  * shell). English is the source of truth; `zh: typeof en` locks shapes.
  */
@@ -17,7 +17,7 @@ export const en = {
     renameField: "TAB TITLE",
     renameSubmit: "rename",
     chooseEngineHint: "←/→ or h/l choose, enter confirm, esc cancel",
-    // Unified new-conversation dialog (issue #7): the ctrl+e picker plus
+    // Unified new-conversation dialog: the ctrl+e picker plus
     // two footer toggles — tab flips the destination, ctrl+f the context.
     newChat: {
       title: "New conversation",

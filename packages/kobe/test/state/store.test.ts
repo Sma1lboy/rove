@@ -2,10 +2,10 @@
  * Unit tests for `src/state/store.ts` — the single owner of
  * `~/.config/rove/state.json` I/O.
  *
- * The module exists to fix a multi-process lost-update bug: the TUI's
- * KVProvider used to debounce-write its ENTIRE in-memory snapshot, so a
+ * The module exists to prevent a multi-process lost update: a KVProvider
+ * that debounce-writes its ENTIRE in-memory snapshot silently reverts a
  * key another kobe process (Tasks pane, quick-task, a CLI command) wrote
- * in the meantime was silently reverted on the next flush. These tests
+ * in the meantime, on its next flush. These tests
  * pin the read-merge-write contract that prevents that, plus the
  * atomicity and corrupt-file behaviors carried over from the two former
  * writers.
@@ -113,7 +113,7 @@ describe("patchStateFile — the lost-update fix", () => {
 
     // Process A flushes its one dirty key. Its snapshot never contained
     // lastSelectedVendor — under whole-snapshot write-back this is the
-    // moment B's write used to be erased.
+    // moment B's write would be erased.
     patchStateFile({ activeTheme: "tokyonight" })
 
     expect(readDisk()).toEqual({

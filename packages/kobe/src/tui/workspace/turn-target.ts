@@ -1,11 +1,11 @@
 /**
- * Pure "what should this tab's turn detector track" resolution — extracted
- * out of `turn-polls.ts` (issue #16 React migration) so the Solid poll loop
- * and the React `use-turn-polls.ts` hook share ONE identity rule instead of
- * two hand-kept copies. Framework-free: no signals, no React state, just
+ * Pure "what should this tab's turn detector track" resolution, kept apart
+ * from `turn-polls.ts` so every consumer — including the
+ * `use-turn-polls.ts` hook — shares ONE identity rule instead of
+ * hand-kept copies. Framework-free: no signals, no React state, just
  * `TabsState` + a title lookup.
  *
- * Unified process-identity model (owner 2026-07-07): every tab is a shell;
+ * Unified process-identity model: every tab is a shell;
  * an engine is just a process running in it. A tab's turn detector target
  * is either the tab's OWN kobe-launched engine (by construction) or, for
  * any other tab, whatever its solo live PTY's OSC title says is running —
@@ -36,8 +36,8 @@ export function soloKey(taskId: string, tab: TerminalTab): string | null {
  *
  * `vendorOf` is the tri-state live process identity (`live-engine.ts`, a
  * process-tree walk): a vendor / null ("shell walked, no engine") /
- * undefined ("couldn't look"). The pin used to win unconditionally for
- * engine tabs, which kept a ctrl+C'd codex tab identified as codex forever —
+ * undefined ("couldn't look"). The pin must NOT win unconditionally for
+ * engine tabs: that keeps a ctrl+C'd codex tab identified as codex forever —
  * wrong detector, wrong persisted identity, wrong sidebar label. A confirmed
  * engine-free shell is a shell, whatever the tab was born as; and an engine
  * tab where the user then typed a DIFFERENT engine tracks that one.

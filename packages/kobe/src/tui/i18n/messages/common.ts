@@ -10,8 +10,8 @@ export const en = {
   /** Footer verb for a step that leads to another prompt. */
   create: "create",
   confirm: "Confirm",
-  /** Fallback shown when a pane's render tree throws, replacing the raw
-   *  shell the process used to drop to. */
+  /** Fallback shown when a pane's render tree throws, instead of dropping
+   *  the process to a raw shell. */
   paneCrash: {
     title: "This pane crashed",
     hint: "Reload it from the Tasks pane (the error was logged to client.log).",

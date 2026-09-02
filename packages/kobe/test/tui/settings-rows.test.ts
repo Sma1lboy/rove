@@ -4,11 +4,11 @@
  * Why these tests matter: the dialog's keyboard nav (j/k/enter), the
  * engines-section row-gated keys (r/x/d), and every section view's
  * cursor highlight all key off "a row's body index is its position in
- * the section's row list". Before the registry this was hand-chained
+ * the section's row list". The alternative is hand-chained
  * offset arithmetic (transparentRowIndex = themeCount, toastRowIndex =
- * themeCount+1+accentCount, ...) where one insertion shifted every
+ * themeCount+1+accentCount, ...) where one insertion shifts every
  * downstream index. These tests pin (a) the exact on-screen row ORDER
- * per section, (b) count parity with the old offset formulas for
+ * per section, (b) count parity with those offset formulas for
  * representative input sizes, and (c) the id-lookup helpers the views
  * use instead of arithmetic. If a row is added or reordered, the order
  * test here is the single place that must change with it.

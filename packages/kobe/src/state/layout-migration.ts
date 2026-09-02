@@ -240,7 +240,7 @@ function migrateLegacyPluginTree(env: NodeJS.ProcessEnv): StateLayoutMigrationRe
       if (!lstatIfExists(source) || lstatIfExists(destination)) continue
       renameSync(source, destination)
       moved += 1
-      // Leave the old path pointing at the new one: a `rove`/`kobe` binary
+      // Leave the former path pointing at the new one: a `rove`/`kobe` binary
       // predating the rename reads only `.kobe/plugins.json`, and finding it
       // empty reads as "you have no plugins", not as "look elsewhere".
       try {

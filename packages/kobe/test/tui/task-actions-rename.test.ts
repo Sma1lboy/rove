@@ -251,7 +251,7 @@ describe("cycleVendorFlow", () => {
 
 /**
  * The set-status flow. Its whole job is one RPC, so the tests name the FIELD
- * that RPC carries: dropping the `setStatus` call, or sending the old value,
+ * that RPC carries: dropping the `setStatus` call, or sending a stale value,
  * has to turn something red here.
  *
  * The cosmetic contract is asserted as an absence — no other orchestrator

@@ -42,8 +42,8 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
     if (!opened.alive) throw new Error(`failed to start hosted engine session for ${taskId}`)
-    // Paste-delivery vendor (kimi — issue #25) with a repo init-prompt: the
-    // message rode outside the argv. Best-effort paste — the engine IS up,
+    // Paste-delivery vendor (kimi) with a repo init-prompt: the
+    // message rides outside the argv. Best-effort paste — the engine IS up,
     // so a missed paste leaves an idle prompt, not a failed session.
     if (launch.firstMessage) {
       const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
@@ -81,14 +81,14 @@ export async function startTaskSessionWithPromptAdapter(
   // session it was observed from.
   await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
   // "new-task", not "explicit": both callers (automation runner, work-item
-  // start) create the task right before this call, so the first prompt gets
+  // start) create the task immediately ahead of this call, so the first prompt gets
   // the branch-rename coda like every other new-worktree entry point.
   const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt })
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
     if (!opened.alive) return false
-    // Paste-delivery vendor (kimi — issue #25): the prompt rode OUTSIDE the
+    // Paste-delivery vendor (kimi): the prompt rides OUTSIDE the
     // argv; deliver it once the engine process is up. A paste that never
     // lands means the prompt was not delivered — report false.
     if (launch.firstMessage) {
@@ -106,7 +106,7 @@ export async function startTaskSessionWithPromptAdapter(
 }
 
 function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptIntent: PromptDeliveryIntent) {
-  // Pre-trust the worktree in the vendor's first-run store (issue #28).
+  // Pre-trust the worktree in the vendor's first-run store.
   trustEngineWorktree(task.vendor, worktreePath)
   return buildEngineSessionLaunch({
     task: { id: task.id, kind: task.kind, vendor: task.vendor, repo: task.repo },
@@ -120,7 +120,7 @@ function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptInte
 export async function engineSpecAdapter(link: DaemonRpcClient, taskId: string) {
   const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
   const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" })
-  // Paste-delivery vendor (kimi — issue #25): the repo init-prompt rode
+  // Paste-delivery vendor (kimi): the repo init-prompt rides
   // OUTSIDE the argv; the web PTY sidecar pastes it after the fresh spawn
   // (the sidecar owns its own PTYs — the daemon's hosted paste can't reach
   // them). Without this the message would be silently dropped.
@@ -169,7 +169,7 @@ function tabIdFromHostedKey(key: string): string {
 /**
  * {@link deliverPromptToLiveEngineAdapter} reporting composer-busy as a VALUE.
  *
- * The routine runner (issue #91) must not drop a daily report the way
+ * The routine runner must not drop a daily report the way
  * quota-resume drops a continue nudge: a dropped report and a routine that
  * never ran look identical to the user. It needs the busy layer and the tab
  * to file a deferral, and the daemon cannot catch `ComposerBusyError` by type

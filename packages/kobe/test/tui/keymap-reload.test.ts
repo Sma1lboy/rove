@@ -21,9 +21,9 @@ describe("resetKeymapToDefaults", () => {
   })
 
   test("navigation keeps ctrl+q direct and uses only relative prefix h/l pane cycling", () => {
-    // Owner call 2026-07-14: release ctrl+h/j/k/l to the embedded engine
-    // and replace the four absolute prefix targets with relative cycling.
-    // Owner call 2026-07-17: h/l (left/right) — the panes sit side by side.
+    // ctrl+h/j/k/l belong to the embedded engine, and pane movement is
+    // relative cycling rather than four absolute prefix targets.
+    // h/l (left/right) — the panes sit side by side.
     expect(findBinding("focus.sidebar")?.keys).toEqual(["ctrl+q"])
     expect(findBinding("focus.sidebar")?.prefixKeys).toBeUndefined()
     expect(findBinding("focus.numeric")).toBeUndefined()

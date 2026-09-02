@@ -1,5 +1,5 @@
 /**
- * Shared mock task fixtures for the sidebar smoke hosts (issue #15, G3).
+ * Shared mock task fixtures for the sidebar smoke hosts.
  * Framework-free, so the React mock hosts (e.g.
  * `src/tui-react/panes/sidebar/mock-host.tsx`) can render the same
  * synthetic task list without a daemon, tasks.json, or real worktrees.

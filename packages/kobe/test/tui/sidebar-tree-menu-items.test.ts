@@ -160,8 +160,8 @@ describe("treeMenuItems", () => {
 
   test("the LAST tab IS offered a close (owner call 2026-08-31)", () => {
     // Closing it leaves the task with no sessions; its sidebar row stays and
-    // re-opens on ⏎ / ctrl+e. The entry used to be withheld because closeTab
-    // refused the last tab, which is no longer true.
+    // re-opens on ⏎ / ctrl+e. The entry is NOT withheld — closeTab accepts
+    // the last tab.
     expect(actions(tabRow, { tabCount: 1 })).toContain("closeTab")
     expect(actions(tabRow, { tabCount: 1 })).toContain("newChat")
   })

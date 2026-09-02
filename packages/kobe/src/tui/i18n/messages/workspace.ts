@@ -58,7 +58,7 @@ export const en = {
       running: "running",
       /** A dead engine PROCESS (pty exit record), not a failed turn. */
       dead: "engine exited",
-      /** A peer/API message accepted by the daemon but not yet pasted (issue #78). */
+      /** A peer/API message accepted by the daemon but not yet pasted. */
       promptDeferred: "message queued",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
@@ -118,7 +118,7 @@ export const zh: typeof en = {
       rateLimited: "限流",
       running: "进行中",
       dead: "引擎已退出",
-      /** peer/API 消息已被 daemon 受理但尚未插入（issue #78）。 */
+      /** peer/API 消息已被 daemon 受理但尚未插入。 */
       promptDeferred: "消息已排队",
     },
     resumesAt: "{time} 恢复",

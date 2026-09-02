@@ -1,8 +1,8 @@
 /**
  * ctrl+w on a task's ONLY tab: a scratch task tears down the whole task
- * (issue #42 — same zero-ceremony path as its shell exiting,
- * `onScratchExit`), while an ordinary task is simply left with no tabs
- * (owner call 2026-08-31): the row stays and re-opens on ⏎ / ctrl+e.
+ * (the same zero-ceremony path as its shell exiting,
+ * `onScratchExit`), while an ordinary task is simply left with no tabs:
+ * the row stays and re-opens on ⏎ / ctrl+e.
  */
 
 import { describe, expect, it, vi } from "vitest"
@@ -61,7 +61,7 @@ describe("closeActive on the only tab", () => {
   })
 
   it("ordinary task: closes it, leaving the task with no tabs", () => {
-    // Owner call 2026-08-31. The task and its worktree stay — its sidebar row
+    // The task and its worktree stay — its sidebar row
     // remains and re-opens on ⏎ / ctrl+e — so there is nothing to warn about.
     const { close, calls } = harness(initialShellTabs("/bin/zsh"))
     close.closeActive()
@@ -88,7 +88,7 @@ describe("closing down to zero tabs (owner call 2026-08-31)", () => {
   })
 
   it("records what the closed tab WAS, so re-entry reopens the same kind", () => {
-    // Owner ask 2026-08-31: re-entering an emptied task should bring back the
+    // Re-entering an emptied task must bring back the
     // kind of session that was there, not always an engine.
     const shellOnly: TabsState = {
       tabs: [{ kind: "command", id: "tab-1", title: null, ordinal: 1, command: ["/bin/zsh"] }],
@@ -120,12 +120,12 @@ describe("closing down to zero tabs (owner call 2026-08-31)", () => {
     expect(revived.tabs[0]?.kind).toBe("engine")
     expect(revived.tabs[0]).toMatchObject({ vendor: "codex" })
     // The session is NOT carried: that PTY died with the tab, so reviving it
-    // would resume a conversation that no longer has a process.
+    // would resume a conversation with no process behind it.
     expect(revived.tabs[0]).not.toHaveProperty("sessionId")
   })
 
   it("a snapshot written before reopenAs existed falls back to a default engine tab", () => {
-    // The upgrade path (owner ask): an install that emptied a task on an older
+    // The upgrade path: an install that emptied a task on an older
     // build has no `reopenAs`, and must still reopen rather than stay stuck.
     const legacy: TabsState = { tabs: [], activeId: "tab-1", nextOrdinal: 2 }
     const revived = reopenTabs(legacy, "/bin/zsh")

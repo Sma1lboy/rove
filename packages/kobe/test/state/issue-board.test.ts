@@ -52,7 +52,7 @@ describe("issueColumnKey", () => {
   // The defensive half of the link contract. The daemon unlinks an issue when
   // its task is deleted, so a live link resolves — but a store carried over
   // from a build that predates that cascade can hold one that doesn't, and
-  // such a card used to sit In progress with no gesture to get it out.
+  // such a card would sit In progress with no gesture to get it out.
   test("a link to a task that no longer exists reads as backlog", () => {
     const gone = () => false
     expect(issueColumnKey(issue({ id: 11, taskId: "01GONE" }), gone)).toBe("backlog")

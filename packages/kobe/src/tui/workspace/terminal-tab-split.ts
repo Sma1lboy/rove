@@ -84,8 +84,8 @@ export function splitLeafPtyKey(tabKey: string, leafId: string): string {
 }
 
 /**
- * Display names for a split tab's leaves, id → name (owner semantics
- * 2026-07-06: the TAB is the "group"; each leaf carries its OWN name).
+ * Display names for a split tab's leaves, id → name (the TAB is the
+ * "group"; each leaf carries its OWN name).
  * Naming flow mirrors tabs: a manual rename (`leaf.title`) always wins.
  *
  * The ENGINE leaf (`null` content = the tab's own command) reads the
@@ -140,7 +140,7 @@ export function splitLeafNames(
 }
 
 /**
- * Default tab names are "$process $ordinal" (owner naming 2026-07-07):
+ * Default tab names are "$process $ordinal":
  * a tab IS a terminal, so its name says what runs in it — "claude 3",
  * "shell 5", "vim 2" — never an opaque "tab N". `liveName` is the tab's
  * live foreground-process display name from `useTurnPolls().liveTitles`;
@@ -198,20 +198,16 @@ function isEngineDecoration(text: string, vendor: VendorId): boolean {
  * A tab's name for a surface that shows kobe's OWN state glyph beside it —
  * the sidebar tree.
  *
- * This used to DISCARD the recorded `lastTitle` for a status-owning engine
- * and fall through to the first-prompt summary or the vendor default,
- * because that recording was the engine's whole status line — `⠐ 利用自进化…`
- * still spinning on a row whose glyph said idle. Since the status prefix is
- * stripped where the title enters the app (`stripEngineStatusPrefix`), what
- * is recorded is the NAME, and throwing it away left every tree row reading
- * "claude 1" while the tab strip showed the real conversation title (owner
- * report 2026-08-10).
+ * The rule: strip the decoration, keep the name. The status prefix is
+ * stripped where the title enters the app (`stripEngineStatusPrefix`), so
+ * what `lastTitle` records is the NAME — discarding it for a status-owning
+ * engine would leave every tree row reading "claude 1" while the tab strip
+ * showed the real conversation title.
  *
- * So the rule is now: strip the decoration, keep the name. Titles recorded
- * BEFORE that fix still carry their prefix, so it is stripped again here —
- * display-side, so old snapshots heal without a migration (same approach as
- * `meaningfulAutoTitle`). A manual rename still wins: that is the user's
- * name, not the engine's.
+ * Snapshots written by an older kobe still carry their prefix, so it is
+ * stripped again here — display-side, so they heal without a migration
+ * (same approach as `meaningfulAutoTitle`). A manual rename still wins:
+ * that is the user's name, not the engine's.
  *
  * `liveTitle` is the pty host's CURRENT OSC title for this tab's session,
  * when the caller has one. `lastTitle` is a recording written only by the
@@ -239,12 +235,11 @@ export function tabTitleStable(
   }
   // Resolution order for "whose title is this": the live probe, then the
   // tab's own RECORDED identity, then an engine tab's creation pin. The
-  // recorded step matters for the flash (owner report 2026-08-10): clicking
-  // a tab writes `lastTitle` immediately, but the live probe is a ~2s ps
-  // walk, so for one render there is no live vendor — and without the
-  // recorded fallback this dropped to the raw-title branch below and flashed
-  // the engine's own status line ("⠐ Refactoring the parser") before
-  // settling back to "claude 1".
+  // recorded step matters for the flash: clicking a tab writes `lastTitle`
+  // immediately, but the live probe is a ~2s ps walk, so for one render
+  // there is no live vendor — and without the recorded fallback this drops
+  // to the raw-title branch below and flashes the engine's own status line
+  // ("⠐ Refactoring the parser") before settling back to "claude 1".
   const vendor =
     liveVendor ?? tab.liveVendor ?? (tab.kind === "engine" ? (tab.vendor ?? taskVendor) : undefined) ?? undefined
   // Cleaning the recorded title is NOT gated on `ownsStatus`: a status glyph
@@ -309,11 +304,11 @@ export function tabTitle(tab: TerminalTab, taskVendor: VendorId, liveName?: stri
   const sole = ls.length === 1 ? ls[0] : undefined
   if (sole && sole.id !== "leaf-1") return sole.title ?? `${liveName ?? SHELL_LEAF_NAME} ${tab.ordinal}`
   // The RUNNING process names the tab first (liveName — the OSC title
-  // stream, owner order 2026-07-09: rename > live process > first-prompt >
-  // vendor default). The first-prompt autoTitle and vendor derivation are
+  // stream; order is rename > live process > first-prompt > vendor default).
+  // The first-prompt autoTitle and vendor derivation are
   // only the pre-title fallback. Deriving from the task's CURRENT vendor
-  // relabelled every inherit-mode tab the moment a new tab switched the
-  // task engine, while their PTYs kept running the old one.
+  // instead would relabel every inherit-mode tab the moment a new tab
+  // switches the task engine, while their PTYs keep running the previous one.
   // A live title only names the tab when it IS a name: an engine that puts a
   // placeholder there (codex's thread id) must fall through to the rungs
   // below, which is where the conversation's first prompt lives.

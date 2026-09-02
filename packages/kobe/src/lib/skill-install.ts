@@ -23,7 +23,7 @@
  * Absent skill → one-shot hint, never nags. Stale skill on an interactive
  * terminal → a yes / no / don't-notify-this-version prompt (runs before the
  * screen takeover); "no" re-asks next launch, "don't notify" mutes that
- * skill version, non-TTY falls back to the old one-shot hint.
+ * skill version, non-TTY falls back to the one-shot hint.
  */
 
 import { accessSync, existsSync, constants as fsConstants, readFileSync } from "node:fs"
@@ -173,7 +173,7 @@ export function npxMissingMessage(): string {
  *
  * Checks for `npx` FIRST: `Bun.spawn` THROWS on a missing binary (unlike
  * `spawnSync`, which returns `status: undefined`), and no caller on this path
- * catches — the throw used to escape all the way to `main().catch` and print
+ * catches — the throw would escape all the way to `main().catch` and print
  * `rove failed to start: Executable not found in $PATH: "npx"`. Returning
  * {@link NPX_MISSING_EXIT} keeps the callers' existing exit-code contract.
  */
@@ -281,11 +281,11 @@ function promptLine(): Promise<string> {
  *   - stale + interactive terminal → prompt: yes (install now) / no (ask
  *     again next launch) / don't notify for this version (persists
  *     `HINT_SEEN_KEY:vN`, so the next skill-version bump prompts again).
- *   - stale + non-TTY → the old one-shot stderr hint, gated per version.
+ *   - stale + non-TTY → the one-shot stderr hint, gated per version.
  * Safe to call on every startup.
  */
 export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void> {
-  // Plugin takeover (issue #37): when the Rove Claude Code plugin is enabled
+  // Plugin takeover: when the Rove Claude Code plugin is enabled
   // it BUNDLES the skill, and that copy versions with the plugin — not with
   // KOBE_SKILL_VERSION. Both the install nudge and the staleness prompt step
   // aside: nagging the user to `skill install` alongside the plugin's copy

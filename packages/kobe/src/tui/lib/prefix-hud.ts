@@ -12,7 +12,7 @@ import { type ReadableState, createStateCell } from "../../lib/external-store"
 /** How long a resolved line stays visible before the overlay flushes it. */
 export const PREFIX_HUD_TTL_MS = 4000
 
-/** Fast users finish before this; learners then get the complete command map. */
+/** Fast users finish inside this window; learners then get the complete command map. */
 export const PREFIX_GUIDE_DELAY_MS = 180
 
 const MAX_ENTRIES = 3

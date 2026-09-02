@@ -121,10 +121,10 @@ describe("xtermLineMatchesChunks — allocation-free semantic check", () => {
  * A solid-block cell whose fg and bg are the SAME pixel color but declared
  * through different color modes — exactly what half-block renderers
  * (carbonyl, the ASCII video player) emit when they mix palette and
- * truecolor. The builder used to compare color KEYS (`pal:15` ≠
- * `rgb:16777215`) while the matcher compared resolved RGB (equal), so the
- * two disagreed on whether to substitute a bg-only space — the matcher
- * reported "changed" on every single compare and the pane re-rendered
+ * truecolor. A builder comparing color KEYS (`pal:15` ≠
+ * `rgb:16777215`) while the matcher compares resolved RGB (equal) makes the
+ * two disagree on whether to substitute a bg-only space — the matcher then
+ * reports "changed" on every single compare and the pane re-renders
  * forever (the visible "redraw keeps getting bumped").
  */
 function mixedModeBlockCell(chars: string) {

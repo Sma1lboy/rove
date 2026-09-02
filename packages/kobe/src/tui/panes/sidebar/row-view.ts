@@ -15,9 +15,9 @@ export interface SidebarRowView {
   readonly subtitleText: string
   readonly loading: boolean
   /**
-   * The row's status glyph. ONE vocabulary for project and task rows (owner
-   * call 2026-07-30) — a project used to fall back to `★`, which read as a
-   * different kind of thing rather than a different state of the same thing.
+   * The row's status glyph. ONE vocabulary for project and task rows — a
+   * project-only glyph like `★` reads as a different kind of thing rather
+   * than a different state of the same thing.
    */
   readonly stateGlyph: string
   readonly tone: SidebarTone
@@ -40,12 +40,9 @@ export interface SidebarRowView {
  * materializing worktree, a still-writing transcript) — `loading` otherwise
  * paints every such row `primary`.
  *
- * It used to return a WORD too ("rate limited" / "needs permission" /
- * "error") that replaced the branch in the subtitle. The subtitle went away
- * with the two-line cards: the tree row (`tree-rows.tsx`) is one cell and
- * renders the glyph plus the tab label, nothing else. The words were computed
- * on every row build, asserted by tests, and read by nobody — so they are
- * gone, and the glyph carries the state alone. That is the whole reason the
+ * No WORD accompanies the tone: the tree row (`tree-rows.tsx`) is one cell
+ * and renders the glyph plus the tab label, nothing else, so the glyph
+ * carries the state alone. That is the whole reason the
  * glyphs must stay distinct (`◷` vs `×` vs `†`): with no subtitle there is no
  * second channel to disambiguate them.
  */
@@ -98,14 +95,15 @@ export function prCheckChip(task: Task): { glyph: string; tone: SidebarTone } | 
 
 /**
  * The dim dot every row wears when it has no state to report. Three cases
- * converge on it deliberately (2026-08-15): a custom engine with no
+ * converge on it deliberately: a custom engine with no
  * transcript store the monitor can watch (`monitor/activity.ts`), a
  * non-agent tab (shell / command / content), and a row the daemon has
- * simply not observed yet. A dotted `◌` used to carry that last case as its
- * own "unknown" state, but it told the reader nothing they could act on —
- * both "idle" and "unknown" mean open it to find out — and U+25CC is absent
- * from several popular terminal fonts, so it fell back to a CJK face at 1.62
- * cells and overlapped the label beside it. `·` is in every font at one cell.
+ * simply not observed yet. That last case gets no separate "unknown"
+ * glyph: it would tell the reader nothing they could act on —
+ * both "idle" and "unknown" mean open it to find out — and a dotted `◌`
+ * (U+25CC) is absent from several popular terminal fonts, so it falls back
+ * to a CJK face at 1.62 cells and overlaps the label beside it. `·` is in
+ * every font at one cell.
  *
  * Exported so the tab rows share the constant rather than re-declaring it.
  */
@@ -124,9 +122,9 @@ const ERROR_GLYPH = "×"
  * Dead-engine glyph — the engine PROCESS is gone (killed, or exited under a
  * wrapper), from the pty-host's exit record. `†` (U+2020 DAGGER), not a
  * variant of `×`: an errored engine RAN and reported a failed turn, a dead one
- * is no longer there, and only one of the two can be answered by restarting.
+ * is gone, and only one of the two can be answered by restarting.
  * General Punctuation, so every monospace font has it at exactly one cell —
- * the constraint that retired `◌` (U+25CC fell back oversized) and `✕`.
+ * the same constraint that rules out `◌` (U+25CC renders oversized) and `✕`.
  */
 const DEAD_GLYPH = "†"
 
@@ -307,12 +305,12 @@ export function buildSidebarRowView(opts: {
     job: opts.job,
     transcript: opts.transcript,
   })
-  // One frame set for every engine (see `spinner-frames.ts` for why the
-  // per-vendor field went away). It must stay visually distinct from the
+  // One frame set for every engine (see `spinner-frames.ts`). It must stay
+  // visually distinct from the
   // STATIC badge glyphs below (`●` unseen-complete, `○` idle, `·` no state):
   // a spinner that borrows a badge glyph makes a RUNNING row read as a
-  // finished one. That collision is why the reduced-motion `●`/`·` pulse was
-  // removed (2026-07-30).
+  // finished one — which is also what rules out a reduced-motion `●`/`·`
+  // pulse.
   const spinnerFrames = DEFAULT_SPINNER_FRAMES
   const spinner = spinnerFrames[opts.spinnerFrame % spinnerFrames.length] ?? spinnerFrames[0]
   const tone = deleteFailed
@@ -365,7 +363,7 @@ export function buildSidebarRowView(opts: {
 /**
  * Overlay the LIVE spinner frame onto a row view built with a fixed
  * `spinnerFrame: 0`. The frame is passed as an ACCESSOR and read only
- * when the row is actually loading — inside a Solid memo that makes the
+ * when the row is actually loading — inside a memo that makes the
  * 10Hz frame signal a conditional dependency, so an idle row never
  * re-derives on the spinner tick (with N tasks and nothing running, the
  * tick has zero subscribers — no row rebuilds its view 10×/s). For a loading row this
@@ -381,9 +379,9 @@ export function withSpinnerFrame(view: SidebarRowView, frame: () => number): Sid
 }
 
 /**
- * herdr-style status circles (2026-07-27, ? for blocked-on-user since 07-29):
+ * herdr-style status circles (`?` for blocked-on-user):
  * ● turn done (not yet viewed), ○ idle. `completionSeen` is the herdr "seen"
- * bit — and seen means CONSUMED (owner 2026-08-02): a completion you have
+ * bit — and seen means CONSUMED: a completion you have
  * already looked at is simply over, so the badge drops back to the idle
  * circle rather than lingering as a ✓ the row would wear forever.
  */
@@ -395,7 +393,7 @@ function activityBadgeFor(
     case "rate_limited":
       return { glyph: "◷", tone: "warning" }
     // Needs-input reads as a literal question — the one state where the
-    // icon asks the user for something (owner call 2026-07-29).
+    // icon asks the user for something.
     case "permission_needed":
       return { glyph: "?", tone: "warning" }
     case "error":

@@ -255,8 +255,8 @@ describe("dispatchKeyEvent", () => {
   })
 
   // ─── Snapshot / re-entrancy stability ───────────────────────────────
-  // A matched handler's `cmd()` can synchronously mount/unmount components
-  // (Solid effects), which push/remove entries on the live binding stack
+  // A matched handler's `cmd()` can synchronously mount/unmount components,
+  // which push/remove entries on the live binding stack
   // mid-dispatch. The scan must run over a snapshot taken at entry so those
   // mutations can't skip or double-visit the in-flight scan, and the matched
   // binding must still fire exactly once.
@@ -331,7 +331,7 @@ describe("dispatchKeyEvent", () => {
     expect(fires).toBe(2)
   })
 
-  // ─── Legacy C0 fallback (issue #192) ─────────────────────────────────
+  // ─── Legacy C0 fallback ──────────────────────────────────────────────
   // Non-kitty terminals (macOS Terminal.app) deliver ctrl+h as raw 0x08 →
   // parsed {name:"backspace", raw:"\b"} and ctrl+j as 0x0a →
   // {name:"linefeed"}. matchKey aliases those back to the ctrl chords so
@@ -430,7 +430,7 @@ describe("dispatchKeyEvent", () => {
     expect(seen).toEqual([0])
   })
 
-  // The modal barrier (owner mandate 2026-07-08): a dialog must make the
+  // The modal barrier: a dialog must make the
   // WHOLE background unreachable structurally, not via per-pane gates.
   describe("modal barrier", () => {
     test("cuts off every binding below it without consuming the event", () => {
@@ -493,8 +493,8 @@ describe("dispatchKeyEvent", () => {
     })
 
     // Declared modal scope (insertRegistration): barrier-vs-body precedence
-    // used to be an accident of React committing the barrier's effect before
-    // the body's (sibling tree order). It is now declared data — the barrier
+    // is declared data, not an accident of React committing the barrier's
+    // effect before the body's (sibling tree order) — the barrier
     // carries `modalOwner`, body entries carry `modalMember`, and
     // insertRegistration slots the barrier BELOW its members. These tests pin
     // the invariant under BOTH registration orders.
@@ -603,8 +603,8 @@ describe("dispatchKeyEvent", () => {
   })
 
   // Why: the ctrl+w split-close bug — two ENABLED entries sharing a chord
-  // resolve by LIFO order, which React inverted vs Solid (ancestors on
-  // top), silently flipping the winner. The contract is mutual gating;
+  // resolve by LIFO order, and React stacks ancestors on top, so the
+  // winner flips silently. The contract is mutual gating;
   // dispatch (dev mode, KOBE_DEV=1) flags a second enabled match so the
   // violation is loud. Production skips the scan — it would break the
   // read-one-config-on-hit budget (perf-budgets.test.ts).

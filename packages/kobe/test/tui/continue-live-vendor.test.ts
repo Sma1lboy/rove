@@ -1,5 +1,5 @@
 /**
- * "Continue this conversation" on a WRAPPER preset (owner report 2026-09-02).
+ * "Continue this conversation" on a WRAPPER preset.
  *
  * A custom engine registered before `engineProtocol.<id>` existed — the
  * `claudecpa` zsh function that ends up running the real claude binary — has

@@ -60,7 +60,7 @@ const SCROLLBACK = 50
  * That is why a five-second budget still expired on CI while passing in 50ms
  * on every developer machine, and why raising it is the honest fix rather than
  * a papered-over race: nothing here is unordered, the work just takes as long
- * as it takes to win a scheduling slot (issue #94).
+ * as it takes to win a scheduling slot.
  */
 const SETTLE_MS = 30_000
 const settleUntil = (check: () => void): Promise<void> => vi.waitFor(check, { timeout: SETTLE_MS, interval: 10 })
@@ -69,7 +69,7 @@ type Frame = { snapshot: readonly TerminalRow[]; window: TerminalSnapshotWindow 
 
 describe("selection across a bounded-scrollback trim", () => {
   // The waits above may spend the full SETTLE_MS; vitest's default 5s test
-  // cap must not expire underneath them, or the budget is fiction (#94).
+  // cap must not expire underneath them, or the budget is fiction.
   it(
     "keeps the highlight on the content it selected while output streams",
     { timeout: SETTLE_MS + 5_000 },
@@ -104,7 +104,7 @@ describe("selection across a bounded-scrollback trim", () => {
         // and when it does the wait can only time out. That is this test's whole
         // flake history: it blocked four unrelated PRs and one release in a day
         // while passing in 50ms unloaded, because unloaded every refresh folds
-        // exactly one line (issue #94).
+        // exactly one line.
         //
         // `>=` is not a weaker assertion here. What the test is about is that a
         // selection follows the window it was taken in, and `followWindowShift`

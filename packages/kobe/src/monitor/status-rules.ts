@@ -1,7 +1,6 @@
 /**
- * Daemon-side status rules (docs/design/web-kanban.md M5, revised
- * 2026-06-11: the small-model judge was dropped in favor of rule + agent
- * self-report).
+ * Daemon-side status rules (docs/design/web-kanban.md M5): a pure rule plus
+ * the agent's own self-report, no small-model judge.
  *
  * The one rule that needs no judgment: an engine STARTING a turn on a
  * `backlog` task means work has begun — `turn-start` is unambiguous, so a

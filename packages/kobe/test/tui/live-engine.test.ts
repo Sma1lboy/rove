@@ -1,7 +1,7 @@
 /**
- * The live-engine store is what replaced OSC-title sniffing as kobe's
- * process identity (a claude session whose summary said "codex" used to
- * relabel its tab codex). These lock the two properties the fix depends
+ * The live-engine store owns kobe's process identity, NOT OSC-title
+ * sniffing (a claude session whose summary says "codex" would
+ * relabel its tab codex). These lock the two properties it depends
  * on: identity comes from the tree under the tab's OWN shell pid, and it
  * is released the moment that process is gone.
  */

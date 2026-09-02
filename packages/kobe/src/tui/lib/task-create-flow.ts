@@ -85,7 +85,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
   const defaultRepo = ctx.cursorRepo() ?? repos[0] ?? process.cwd()
   const defaultVendor = ctx.lastVendor(defaultRepo) ?? DEFAULT_TASK_VENDOR
   const availableVendors = await availableEngineIds()
-  // First-run guard (#24): no built-in engine detected AND no custom engine
+  // First-run guard: no built-in engine detected AND no custom engine
   // configured. The dialog would still let the user pick a vendor, then the
   // missing binary surfaces only as a raw shell error inside the pane. Warn
   // up front but still allow proceeding (they may install it after picking).
@@ -98,7 +98,7 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     availableVendors,
     discoverAdoptable: orch ? (repo) => orch.discoverAdoptableWorktrees(repo) : undefined,
     // Which repos already own a project checkout — the Existing tab offers
-    // "open the project" only for these (issue #90). Read from the LIVE task
+    // "open the project" only for these. Read from the LIVE task
     // list rather than savedRepos: a saved repo with no main row has no
     // project to open, and the difference is exactly what the choice turns on.
     mainRepos: mainRepoSet(ctx.tasks()),
@@ -118,11 +118,11 @@ export async function createTaskFlow(ctx: CreateTaskContext): Promise<void> {
     ctx.notifyError?.(t("tasks.toast.noDaemonWorktree"))
     return
   }
-  // "Open the project" (issue #90) — the repo's OWN checkout, not a worktree
+  // "Open the project" — the repo's OWN checkout, not a worktree
   // branched off it. `ensureMainTask` is idempotent, so this both REVIVES a
-  // project the sidebar hid (its main row and savedRepos entry never went
-  // away — only the row did) and creates the row for a saved repo that has
-  // none yet. Deliberately ahead of the "Creating task…" toast: nothing is
+  // project the sidebar hid (its main task and savedRepos entry are both
+  // still there — only the row is hidden) and creates the row for a saved
+  // repo that has none yet. Deliberately ahead of the "Creating task…" toast: nothing is
   // being created, and claiming otherwise for what is really a navigation
   // would misreport the one path whose whole point is that it adds nothing.
   if (result.mode === "open") {

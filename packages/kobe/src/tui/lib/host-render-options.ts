@@ -1,8 +1,8 @@
 /**
- * Framework-free host-boot pieces shared by the Solid pane host
- * (`./host-boot.tsx`) and the React one (`src/tui-react/lib/host-boot.tsx`,
- * issue #15 G3). Extracted so the render-option contract and the
- * exit-signal backstop cannot drift between the two boot paths.
+ * Framework-free host-boot pieces used by the pane host
+ * (`src/tui-react/lib/host-boot.tsx`), kept apart from it so the
+ * render-option contract and the exit-signal backstop cannot drift
+ * between boot paths.
  */
 
 /**
@@ -129,12 +129,11 @@ export function installPaneExitBackstop(): void {
 }
 
 /**
- * Orphan watchdog (issue #25) — the signal-FREE half of the leak defense.
+ * Orphan watchdog — the signal-FREE half of the leak defense.
  * The signal backstop above only fires when a signal actually arrives; when
- * the parent chain is SIGKILLed (2026-07-07: OOM killed the tmux server and
- * 41 pane hosts survived reparented to init, ~8.7GB RSS, which then fed the
- * next OOM), nothing is delivered and the host lives forever with a revoked
- * tty. A host's parent is always its tmux pane shell or the user's shell,
+ * the parent chain is SIGKILLed (an OOM kill takes the tmux server with it,
+ * reparenting every pane host to init), nothing is delivered and the host
+ * lives forever with a revoked tty, holding RSS that feeds the next OOM. A host's parent is always its tmux pane shell or the user's shell,
  * so PPID 1 can only mean "my pane/terminal is gone" — exit.
  *
  * Poll, don't listen: there is no parent-death event on macOS for an

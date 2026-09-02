@@ -2,7 +2,7 @@
  * Live tab identity — the ONE transition that turns an engine tab back into
  * a shell tab when its engine exits.
  *
- * The model (owner 2026-08-10): every tab IS a shell. An engine is just a
+ * The model: every tab IS a shell. An engine is just a
  * process running inside it — `shellSpawn` types the CLI into the user's
  * shell, so exiting claude lands on a normal prompt with the PTY still very
  * much alive. `kind` therefore describes what the tab is running NOW, not

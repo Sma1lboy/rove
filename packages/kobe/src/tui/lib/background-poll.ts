@@ -12,7 +12,7 @@
  * fire-and-forget — while `read(key)` stays a cheap reactive signal read.
  *
  * One poller instance owns a module-level entry map: per key (a repo /
- * worktree path), a Solid signal holding the last good value plus
+ * worktree path), a value cell holding the last good value plus
  * scheduling state. Three guards keep the child-process budget sane:
  *
  *   - **in-flight dedupe** — one run per key at a time; ticks that land
@@ -27,10 +27,10 @@
  * The guards themselves (the pure scheduling math + the abort/timeout run
  * wrapper + `spawnCapture`) live in the dependency-free
  * `src/lib/poll-scheduling.ts`, shared with the DAEMON's worktree-changes
- * collector (issue #6) — this module holds a per-key value cell that `poll`
+ * collector — this module holds a per-key value cell that `poll`
  * writes and `read` returns. Callers (the React panes) read imperatively on
  * their own render cadence; the re-exports below keep this module's public
- * API exactly what it was before the extraction.
+ * API stable for them.
  *
  * Failure contract: a run that throws, is aborted, or resolves after the
  * timeout never writes — `read` keeps returning the last good value (or

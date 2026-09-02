@@ -170,7 +170,7 @@ describe("buildHandoffPrompt", () => {
 
 // Why: a handoff opens a LATER tab, so it can't ride the task-level prompt
 // (first-engine-tab only). It must fire exactly once — a replay on restart
-// would make the new engine re-read and re-announce the old session forever.
+// would make the new engine re-read and re-announce that session forever.
 describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
   const opts = {
     live: false,
@@ -193,7 +193,7 @@ describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
     const script = engineTabSpawnFor(state, handoff, ["codex"], opts).command[2]
     expect(script).toContain("read /r.jsonl")
     // A handoff opens on an EXISTING worktree — never a new-task first
-    // prompt, so the branch-rename coda must not ride along (issue #8).
+    // prompt, so the branch-rename coda must not ride along.
     expect(script).not.toContain("set-branch")
   })
 
@@ -207,7 +207,7 @@ describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
   })
 })
 
-// Why (issue #25): kimi's positional CLI slot is a SUBCOMMAND — a prompt in
+// Why: kimi's positional CLI slot is a SUBCOMMAND — a prompt in
 // the argv exits the engine `Unknown command` before it does any work. The
 // registry declares `firstMessageDelivery: "paste"` for kimi, so the TUI
 // spawn must keep the prompt OUT of the launch line and surface it as

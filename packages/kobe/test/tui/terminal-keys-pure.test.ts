@@ -47,9 +47,9 @@ describe("keyEventToShellBytes", () => {
   it("re-encodes kitty CSI-u keystrokes instead of trusting sequence", () => {
     // The host renderer runs with useKittyKeyboard, so on kitty-capable
     // terminals modifier chords arrive CSI-u encoded. Field shapes below
-    // were measured on the real wire (Bun PTY probe, 2026-07-06): for
+    // were measured on the real wire (Bun PTY probe): for
     // ctrl+c opentui puts the LOGICAL key ("c") in `sequence` — forwarding
-    // it verbatim typed a literal "c" instead of interrupting — while for
+    // it verbatim types a literal "c" instead of interrupting — while for
     // esc `sequence` carries the raw CSI-u bytes.
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "c", raw: "\x1b[99;5u" } as never))).toBe("\x03")
     expect(keyEventToShellBytes(evt({ name: "escape", sequence: "\x1b[27u", raw: "\x1b[27u" } as never))).toBe("\x1b")
@@ -68,9 +68,9 @@ describe("keyEventToShellBytes", () => {
   })
 
   it("keeps the typed uppercase for shift+letter keystrokes on both wire formats", () => {
-    // Regression (2026-07-18): shift+letter became a bindable chord and
-    // Shift+Z on kitty terminals typed lowercase "z" — the CSI-u path
-    // synthesized from `name` ("z"), dropping the shift. The parser puts
+    // Regression: shift+letter is a bindable chord, and
+    // Shift+Z on kitty terminals types lowercase "z" if the CSI-u path
+    // synthesizes from `name` ("z"), dropping the shift. The parser puts
     // the typed TEXT in `sequence` ("Z"); with no ctrl/alt that is the
     // byte to forward.
     expect(keyEventToShellBytes(evt({ name: "z", shift: true, sequence: "Z", raw: "\x1b[122:90;2u" } as never))).toBe(
@@ -95,19 +95,19 @@ describe("keyEventToShellBytes", () => {
 describe("key routing tables", () => {
   it("reserves ONLY the minimal kobe chords; the engine owns the rest", () => {
     expect(TRAPPED_KEYS).toEqual(["ctrl+pageup", "ctrl+pagedown"])
-    // Owner decision 2026-07-06: ctrl+q escape hatch + tab management +
+    // The reserved set: ctrl+q escape hatch + tab management +
     // splits + reset, plus f4 (focus.next pane cycle — the one cross-pane
     // chord besides ctrl+q reachable from inside the terminal). Anything
-    // beyond this list steals a chord from the engine CLI. f6 was the zen
-    // toggle 2026-07-07..17, released back to the shell when zen moved to
-    // prefix-only prefix+z; f7 (attention.next — jump to the next waiting
+    // beyond this list steals a chord from the engine CLI. f6 is NOT here —
+    // zen is prefix-only (prefix+z), so f6 belongs to the shell;
+    // f7 (attention.next — jump to the next waiting
     // task) same rationale as f4.
-    // NOT ctrl+g for attention.next: that's the engine's readline abort —
-    // it moved to f7 so ctrl+g passes through to the engine again.
-    // ctrl+<digit> joined 2026-07-29 (owner request): jump to the task
+    // NOT ctrl+g for attention.next: that's the engine's readline abort, so
+    // attention.next takes f7 and ctrl+g passes through to the engine.
+    // ctrl+<digit>: jump to the task
     // showing that digit, which only works if the digits don't reach the
     // engine. ctrl+1 is NOT here — the legacy terminal protocol can't
-    // encode it (verified on the owner's terminal), so the rows print
+    // encode it, so the rows print
     // 2…9,0 instead. The cost is the shell's ctrl+digit control bytes
     // (ctrl+3 = ESC, ctrl+8 = DEL); the real escape/backspace keys are
     // untouched.
@@ -131,9 +131,8 @@ describe("key routing tables", () => {
         "ctrl+w",
         "ctrl+\\",
         "ctrl+=",
-        // f1 joined 2026-08-09 (owner call): "F1 anywhere" is the docs'
-        // promise and the status-bar hint advertises it inside the
-        // terminal — no engine binds F1.
+        // f1: "F1 anywhere" is the docs' promise and the status-bar hint
+        // advertises it inside the terminal — no engine binds F1.
         "f1",
         "f2",
         "f3",

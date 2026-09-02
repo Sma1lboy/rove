@@ -169,8 +169,8 @@ describe("pure-TUI workspace task activation", () => {
   })
 
   // Why: the SSH-reconnect "reopens on the oldest project" bug — a stale or
-  // freshly-respawned daemon replays a null/ancient focus, and the old
-  // fallback took tasks.json ARRAY order, which leads with the oldest saved
+  // freshly-respawned daemon replays a null/ancient focus, and a
+  // fallback on tasks.json ARRAY order leads with the oldest saved
   // repo's main task (wakey). Restore order must be: daemon focus →
   // persisted lastActive → newest updatedAt; never raw array position.
   test("selection restore prefers active → persisted lastActive → most recently updated", () => {

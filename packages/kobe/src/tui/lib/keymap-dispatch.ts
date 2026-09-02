@@ -25,7 +25,7 @@ export type Binding = {
   key: string
   /** True when `key` is the second stroke of the PureTUI prefix. */
   prefix?: boolean
-  /** Terminal/shell input used to detect the PTY boundary. The configured prefix remains Kobe-owned. */
+  /** Terminal/shell input that marks the PTY boundary. The configured prefix remains Kobe-owned. */
   passthrough?: boolean
   /**
    * Owning KobeKeymap binding id (`tab.new`) — `bindByIds` fills it in so
@@ -94,9 +94,9 @@ export type RegisteredBinding = {
  * (LIFO, unchanged). A modal OWNER (barrier) is inserted BELOW the lowest
  * already-registered MEMBER of its scope, so members win over the barrier
  * and the barrier still cuts off everything older — regardless of whether
- * React committed the body's effects before or after the barrier's. This
- * is the explicit contract that used to be an effect-commit-order accident
- * (see tui-react/ui/dialog.tsx). O(n) only at mount/unmount, never on the
+ * React commits the body's effects before or after the barrier's. Making
+ * that ordering explicit here keeps it from being an effect-commit-order
+ * accident (see tui-react/ui/dialog.tsx). O(n) only at mount/unmount, never on the
  * per-keypress dispatch path.
  */
 export function insertRegistration(stack: RegisteredBinding[], reg: RegisteredBinding): void {
@@ -124,11 +124,11 @@ export function matchKey(evt: KeyEvent): string[] {
   if (name === "return") base.push("enter")
   if (name === "enter") base.push("return")
 
-  // Legacy C0 fallback (issue #192). Terminals without the kitty keyboard
+  // Legacy C0 fallback. Terminals without the kitty keyboard
   // protocol (macOS Terminal.app) send ctrl+h as raw 0x08 and ctrl+j as raw
   // 0x0a, which opentui's legacy parser surfaces as {name:"backspace"} /
   // {name:"linefeed"} with ctrl=false — so `ctrl+h`/`ctrl+j` chords (pane
-  // focus) were dead there while ctrl+k/ctrl+l (0x0b/0x0c) worked. Alias the
+  // focus) would be dead there while ctrl+k/ctrl+l (0x0b/0x0c) work. Alias the
   // two ambiguous bytes back to their chord names. The real Backspace key
   // sends 0x7f, so it never aliases; a terminal configured to "Backspace
   // sends ^H" trades deletion for pane focus, same as kitty-mode terminals.

@@ -1,10 +1,9 @@
 /**
  * Sidebar tree shaping — project → Task → Terminal Tab, as ONE flat row list.
  *
- * The owner's call (2026-08-01) retires the horizontal chattab strip: a
- * a Task's tabs become child rows under it in the sidebar, and the right
- * side is nothing but the active terminal. This module owns the shape; the
- * renderer owns the glyphs.
+ * There is no horizontal chattab strip: a Task's tabs are child rows under
+ * it in the sidebar, and the right side is nothing but the active terminal.
+ * This module owns the shape; the renderer owns the glyphs.
  *
  * Why flat rows with a `depth` instead of a nested structure: the entire
  * sidebar navigation model is a cursor over `flatTaskIds` (see
@@ -43,7 +42,7 @@ export interface TreeTab {
    *  Resolving precedence is the tab module's job, not the tree's. */
   readonly label: string
   /** The task's ACTIVE tab — the row that carries the session's state glyph
-   *  (owner call 2026-08-01: state lives on the chattab, not the worktree). */
+   *  (state lives on the chattab, not the worktree). */
   readonly active?: boolean
   /** A coding-agent tab. Shell/command/content tabs are outside the state
    *  vocabulary entirely — they always wear the plain dot. */
@@ -62,7 +61,7 @@ export type TreeRow =
     }
   | { readonly kind: "recent"; readonly id: typeof RECENT_ROW_ID; readonly task: Task; readonly depth: 1 }
   /**
-   * The routine count row (issue #91): one row standing in for a project's
+   * The routine count row: one row standing in for a project's
    * routine session tasks, which are background noise beside the handful of
    * tasks the user opened themselves — 7 daily routines are 49 rows a week.
    * Opening it reveals those tasks; they are never removed from the data.
@@ -78,7 +77,7 @@ export type TreeRow =
     }
 
 /**
- * Navigation id of the narrow-mode "↩ recent" jump row (issue #14, 2A).
+ * Navigation id of the narrow-mode "↩ recent" jump row.
  * Not a ULID and free of {@link TAB_ROW_SEPARATOR}, so `parseRowId` on it
  * yields a task id no task can have — cursor chords that don't special-case
  * it fall through to a lookup miss instead of acting on a real task.
@@ -86,7 +85,7 @@ export type TreeRow =
 export const RECENT_ROW_ID = "~recent"
 
 /**
- * Header id of the Scratch section (issue #33). Like {@link RECENT_ROW_ID},
+ * Header id of the Scratch section. Like {@link RECENT_ROW_ID},
  * not a repo path and free of the separator, so project-header consumers
  * (move mode, context menu, `mainTaskIdOfProject`) that look it up simply
  * miss — a Scratch header has no main task to move and no repo to file into.
@@ -94,12 +93,12 @@ export const RECENT_ROW_ID = "~recent"
 export const SCRATCH_SECTION_ID = "~scratch"
 
 /**
- * Navigation id of a project's routine count row (issue #91). Prefixed like
+ * Navigation id of a project's routine count row. Prefixed like
  * the other sentinels so it can never collide with a ULID, and carrying the
  * project key so two projects' rows stay distinct.
  *
- * This row is the ONE fold in a tree that otherwise has none (owner call
- * 2026-08-01, round 5 — see `tree-panel.tsx`). It is scoped deliberately: it
+ * This row is the ONE fold in a tree that otherwise has none (see
+ * `tree-panel.tsx`). It is scoped deliberately: it
  * folds only tasks a SCHEDULE created, never a task a human opened, so the
  * "everything under a project is always visible" promise still holds for
  * everything the user made themselves.
@@ -154,12 +153,12 @@ export function parseRowId(rowId: string): { taskId: string; tabId: string | nul
 export const PATH_LABEL_MAX = 24
 
 /**
- * What a worktree row is CALLED — the one derivation rule (issue #42):
+ * What a worktree row is CALLED — the one derivation rule:
  * a task with a branch is named by it; a branchless `dir` task (plain
  * `rove .` opens and scratch shells alike) by its tail-truncated
  * directory — the stored title is deliberately ignored there, because
- * dir-task titles are auto-generated noise (`jacksonc-xxxx`) and legacy
- * rows render by the new rule with no data migration. A regular task
+ * dir-task titles are auto-generated noise (`jacksonc-xxxx`) and existing
+ * rows render by this rule with no data migration. A regular task
  * before its worktree materialises (no branch yet, path not its own)
  * keeps its title, else the label falls back to the path and finally
  * "scratch" so a row is never blank.
@@ -208,7 +207,7 @@ export interface TreeInput {
   readonly tabsByTask: ReadonlyMap<string, readonly TreeTab[]>
   /** Task sort applied within each project group. Defaults to input order. */
   readonly sortMode?: import("./groups").TaskSortMode
-  /** Project keys whose routine count row is open (issue #91). Absent = all
+  /** Project keys whose routine count row is open. Absent = all
    *  closed, which is the resting state a fresh session starts in. */
   readonly expandedRoutines?: ReadonlySet<string>
 }
@@ -217,26 +216,26 @@ export interface TreeInput {
  * A project you closed down to nothing: its ONLY row is the repo's main
  * checkout (or a directory you opened), and that row's last tab is closed.
  *
- * Such a project is hidden from the tree (owner call 2026-08-31). Nothing is
+ * Such a project is hidden from the tree. Nothing is
  * deleted — the main task and the `savedRepos` entry both stay.
  *
  * The way BACK is the new-task dialog's Existing tab: pick the repo and
  * choose "the project itself" instead of a new task worktree, which submits
- * `mode: "open"` and routes to `ensureMainTask` (issue #90). That choice
+ * `mode: "open"` and routes to `ensureMainTask`. That choice
  * renders only for a repo that already has a main row — which is exactly the
- * set of repos this rule can hide. Until it existed the promise made here was
- * false: every submit path went through `createTask`, which always mints a
- * `kind: "task"`, so picking a hidden repo added a worktree beside the
- * project and still left no project row.
+ * set of repos this rule can hide. Without it every submit path goes through
+ * `createTask`, which always mints a
+ * `kind: "task"`, so picking a hidden repo would add a worktree beside the
+ * project and still leave no project row.
  *
  * This is the whole difference from Forget (`d` on the row →
  * `forgetProject`), which un-saves the repo: closing the last tab is a "I'm
  * done here for now" gesture, not a "remove this from my machine" one.
  *
- * A `dir` row folds the same way (owner call 2026-09-01). It has no
+ * A `dir` row folds the same way. It has no
  * picker entry to return through and does not need one: the way back is the
- * `rove .` that opened it in the first place, and a directory was never in
- * `savedRepos` to be lost from. Excluding it only made "close the last tab"
+ * `rove .` that opened it in the first place, and a directory is never in
+ * `savedRepos` to be lost from. Excluding it would make "close the last tab"
  * mean two different things depending on a row kind the user never chose —
  * the sidebar shows a folder and a checkout as the same shape of row.
  *
@@ -274,16 +273,16 @@ function isClosedDownProject(tasks: readonly Task[], tabsByTask: TreeInput["tabs
  * what lets "main" carry tabs like any other worktree.
  *
  * `dir` tasks (`kobe .` on an arbitrary directory) group under THEIR
- * DIRECTORY as the project header (owner 2026-08-02) — their `repo` IS the
+ * DIRECTORY as the project header — their `repo` IS the
  * directory, so the grouping rule is the same one every task uses. Emitting
- * them loose after the last project made them read as that project's rows.
+ * them loose after the last project would read as that project's rows.
  */
 export function buildTreeRows(input: TreeInput): TreeRow[] {
   const { tasks, tabsByTask } = input
   const sortMode = input.sortMode ?? "default"
   const byProject = new Map<string, { repo: string; tasks: Task[] }>()
 
-  // Scratch tasks (issue #33) never mint a project header: their cwd is
+  // Scratch tasks never mint a project header: their cwd is
   // unsettled by definition, so grouping them under their (temporary)
   // directory would name a home they don't have. They render in one
   // Scratch section ABOVE every project — the "unfiled live sessions" bench.
@@ -340,16 +339,16 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
   }
 
   const rows: TreeRow[] = []
-  // Scratch section first — above pinned and every project (issue #33): the
+  // Scratch section first — above pinned and every project: the
   // bench of unfiled live shells is what you reach for next.
   // The header reuses the project-row shape (id is a sentinel no repo path
   // can be — see SCRATCH_SECTION_ID); the renderer translates its label.
   if (scratchTasks.length > 0) {
     rows.push({ kind: "project", id: SCRATCH_SECTION_ID, repo: "", label: "Scratch", depth: 0 })
-    // A scratch task renders NO worktree row of its own (issue #41): its
+    // A scratch task renders NO worktree row of its own: its
     // auto-generated name is noise, and the shell IS the whole session — so
     // its tab rows hang directly under the section header. The task remains a
-    // real task in the data layer (#472's migration machinery is untouched);
+    // real task in the data layer;
     // only the render skips its middle row. When its tabs are unknown (never
     // mounted since restart) the worktree row stays as the only reachable
     // handle — a task with zero rows would be invisible AND unnavigable.
@@ -388,7 +387,7 @@ export function buildTreeRows(input: TreeInput): TreeRow[] {
       label: sidebarProjectLabel(entry.repo, projectRepos),
       depth: 0,
     })
-    // Routine sessions (issue #91) sort to the END of their project, behind
+    // Routine sessions sort to the END of their project, behind
     // one count row: they are a schedule's output, so they must never push
     // the tasks the user opened themselves down the pane.
     const routineTasks = entry.tasks.filter(isRoutineTask)

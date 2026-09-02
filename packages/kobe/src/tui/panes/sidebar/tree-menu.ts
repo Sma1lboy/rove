@@ -17,13 +17,13 @@
  * row's branch / worktree path for another shell. When a chord lands, the
  * entry mirrors it like the rest.
  *
- * The new-conversation pair reads the same rule one pane over (owner ask
- * 2026-08-18): ctrl+e already opens the engine/shell picker for the task the
+ * The new-conversation pair reads the same rule one pane over:
+ * ctrl+e already opens the engine/shell picker for the task the
  * row points at, so the menu routes to THAT — the entry activates the row and
  * hands the request to its workspace, exactly like pressing the chord there.
  *
- * No Expand/Collapse entries anywhere: the tree has no fold (owner call
- * 2026-08-01) — every level always shows everything.
+ * No Expand/Collapse entries anywhere: the tree has no fold — every level
+ * always shows everything.
  *
  * Pure: labels are i18n KEYS, not text. The renderer runs them through `t()`
  * so the menu follows a language switch like everything else.
@@ -62,7 +62,7 @@ export interface TreeMenuItem {
 
 export interface TreeMenuContext {
   /** How many tabs the row's worktree has. Closing the LAST one is allowed
-   *  now (owner call 2026-08-31) — the task keeps its row and re-opens on
+   *  — the task keeps its row and re-opens on
    *  ⏎ / ctrl+e — so the entry shows for any tab that exists. */
   readonly tabCount?: number
 }
@@ -119,12 +119,11 @@ function taskVerbs(task: Task): TreeMenuItem[] {
 export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenuItem[] {
   if (row.kind === "project") {
     // `d` on a project row already forgets it (task-actions.ts routes main
-    // rows to `forgetProject` behind a confirm). The menu was missing the
-    // entry, which broke this module's own rule: a row's menu is what that
+    // rows to `forgetProject` behind a confirm), so the menu carries the
+    // entry too — this module's rule: a row's menu is what that
     // row's keyboard already does.
-    // Field notes are menu-only, like `setStatus` (no chord — a chord is the
-    // owner's call). Agents file them with `rove api note`; before this entry
-    // `rove api note-list` in a shell was the only reader.
+    // Field notes are menu-only, like `setStatus` (no chord). Agents file
+    // them with `rove api note`.
     return [
       { action: "newTask", labelKey: "tasks.menu.newTask" },
       { action: "fieldNotes", labelKey: "tasks.menu.fieldNotes" },
@@ -134,7 +133,7 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
   if (row.kind === "worktree") {
     return [{ action: "open", labelKey: "tasks.menu.open" }, ...newTabVerbs(), ...taskVerbs(row.task)]
   }
-  // The routine count row (issue #91) is a fold toggle, not a task — there is
+  // The routine count row is a fold toggle, not a task — there is
   // no task for any verb here to act on, and an entry that does nothing is
   // worse than no entry (the same rule `closeTab` follows above).
   if (row.kind === "routines") return []
