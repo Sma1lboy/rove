@@ -157,8 +157,8 @@ export interface EngineRegistryEntry {
    */
   readonly createTurnDetector: () => EngineTurnDetector
   /**
-   * Model catalog + permission modes + identity (settings, pickers).
-   * Undefined for engines without a kobe-known catalog (copilot, custom).
+   * Vendor-owned terminal-presentation policy. Undefined for engines that
+   * declare none (copilot, custom).
    */
   readonly capabilities?: EngineCapabilities
   /** Product identity (composer placeholder etc.). Paired with capabilities. */
@@ -369,9 +369,9 @@ export function isEnginePlaceholderTitle(title: string, vendor: VendorId): boole
 
 /**
  * Capabilities for a vendor, or `undefined` when the engine has none (copilot,
- * custom). Consumed by the native chat composer's model picker +
- * permission-mode cycle; callers must handle the missing case rather than
- * borrow another vendor's catalog + permission modes.
+ * custom). Consumed by the workspace terminal for the engine's
+ * `terminalPresentation`; callers must handle the missing case rather than
+ * borrow another vendor's policy.
  */
 export function getCapabilities(vendor: VendorId): EngineCapabilities | undefined {
   return engineEntry(vendor).capabilities

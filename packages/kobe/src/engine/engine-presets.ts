@@ -194,11 +194,6 @@ function presetBaseArgv(id: string): readonly string[] | null {
   return defaultEngineCommand(id)
 }
 
-/** The launch binary a delivery gate should match this spec's engine by. */
-export function engineLaunchBin(spec: EngineLaunchSpec): string | undefined {
-  return engineLaunchArgv(spec)[0]
-}
-
 /**
  * The engine whose SESSION VERBS apply to a launch of `id` — its declared
  * protocol when it is a custom preset, else the id itself.
