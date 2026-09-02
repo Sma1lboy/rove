@@ -41,6 +41,20 @@ describe("vendorFromArgv", () => {
     expect(vendorFromArgv("env FOO=1 claude")).toBe("claude")
   })
 
+  it("sees past a long wrapper + env-assignment prefix (no fixed token window)", () => {
+    // A proxy launch — `env` plus three routing vars — pushes the binary to
+    // the fifth token; a fixed scan window used to stop before it and report a
+    // bare shell.
+    expect(vendorFromArgv("env A=1 B=2 C=3 claude")).toBe("claude")
+    expect(
+      vendorFromArgv(
+        "env ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=y ANTHROPIC_MODEL=z /opt/homebrew/bin/claude --model opus",
+      ),
+    ).toBe("claude")
+    // Bare assignments (no `env` wrapper) past the old window resolve too.
+    expect(vendorFromArgv("FOO=1 BAR=2 BAZ=3 QUX=4 codex --search")).toBe("codex")
+  })
+
   it("identifies kimi by its rewritten process title (registry processNames)", () => {
     // Verbatim `ps -o args=` lines from two live kimi sessions (2026-08-15):
     // the Mach-O launcher rewrites argv[0] to `kimi-co`, and what follows is
@@ -99,6 +113,16 @@ describe("engineProcessIn (delivery foreground gate)", () => {
 `)
     // caller passed claude's bin; the running codex is still an engine
     expect(engineProcessIn(rows, 10, "claude")).toBe(true)
+  })
+
+  it("passes an engine launched behind a long env-var prefix", () => {
+    // `env` + three routing vars pushes `claude` past the old scan window;
+    // the delivery gate must still see a live engine, not a bare shell.
+    const rows = parsePsSnapshot(`
+10 1 -zsh
+11 10 env ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=y ANTHROPIC_MODEL=z claude --model opus
+`)
+    expect(engineProcessIn(rows, 10)).toBe(true)
   })
 
   it("a live kimi session passes the gate despite its rewritten title", () => {
