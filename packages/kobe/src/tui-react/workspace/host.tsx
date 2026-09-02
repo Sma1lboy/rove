@@ -150,19 +150,29 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, setVendor, togglePin, moveTask, setStatus } =
-    useWorkspaceTaskActions({
-      orchestrator: orch,
-      tasks: () => tasks,
-      dialog,
-      notifyError,
-      notifyInfo,
-      selectedId: () => selectedId,
-      setSelectedId,
-      selectedTask: () => selectedTask,
-      activateTask,
-      forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
-    })
+  const {
+    createTask,
+    deleteTask,
+    renameTask,
+    renameBranch,
+    cycleVendor,
+    setVendor,
+    togglePin,
+    moveTask,
+    setStatus,
+    copyTaskField,
+  } = useWorkspaceTaskActions({
+    orchestrator: orch,
+    tasks: () => tasks,
+    dialog,
+    notifyError,
+    notifyInfo,
+    selectedId: () => selectedId,
+    setSelectedId,
+    selectedTask: () => selectedTask,
+    activateTask,
+    forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
+  })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
   const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError })
@@ -390,6 +400,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onRenameRequest={(id) => void renameTask(id)}
           onPinRequest={(id) => void togglePin(id)}
           onSetStatusRequest={(id) => void setStatus(id)}
+          onCopyRequest={(id, field) => copyTaskField(id, field)}
           moveMode={moveMode}
           onMoveRequest={(id, delta) => void moveTask(id, delta)}
           onMoveModeExit={() => setMoveMode(false)}

@@ -48,6 +48,8 @@ export interface HostSidebarProps {
   readonly onPinRequest: (taskId: string) => void
   /** Menu-only (no chord): open the board-status picker for the row's task. */
   readonly onSetStatusRequest: (taskId: string) => void
+  /** Menu-only (no chord): copy the row's branch name or worktree path. */
+  readonly onCopyRequest: (taskId: string, field: "branch" | "path") => void
   readonly moveMode: boolean
   readonly onMoveRequest: (taskId: string, delta: -1 | 1) => void
   readonly onMoveModeExit: () => void
@@ -127,6 +129,7 @@ export function HostSidebar(props: HostSidebarProps) {
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onSetStatusRequest: props.onSetStatusRequest,
+    onCopyRequest: props.onCopyRequest,
     onLocalMergeRequest: props.onLocalMergeRequest,
     moveMode: props.moveMode,
     onMoveRequest: props.onMoveRequest,

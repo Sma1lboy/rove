@@ -17,6 +17,17 @@ import { beforeEach, describe, expect, test, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   statusPickerShow: vi.fn(),
+  copyTextToSystemClipboard: vi.fn(),
+  copyToClipboardOSC52: vi.fn(),
+}))
+
+// The host's only React hook: the renderer whose OSC52 writer the copy flow
+// needs. Stubbed to the one method the adapter calls.
+vi.mock("@opentui/react", () => ({
+  useRenderer: () => ({ copyToClipboardOSC52: mocks.copyToClipboardOSC52 }),
+}))
+vi.mock("../../src/tui/lib/clipboard-copy", () => ({
+  copyTextToSystemClipboard: mocks.copyTextToSystemClipboard,
 }))
 
 vi.mock("../../src/tui-react/component/status-picker-dialog", () => ({
@@ -111,5 +122,38 @@ describe("setStatus (workspace host)", () => {
     // would be an invisible crash, not a message.
     await expect(actions.setStatus("missing")).resolves.toBeUndefined()
     expect(notifyError).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The copy seam is the same shape as set-status: the flow is covered in
+ * `test/tui/task-actions-rename.test.ts`; what only exists HERE is the host
+ * handing the flow a clipboard writer that reaches BOTH channels (local pipe
+ * + the renderer's OSC52), and a flow with no writer is a menu row that
+ * silently copies nothing.
+ */
+describe("copyTaskField (workspace host)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  test("routes the branch through the system clipboard AND the renderer's OSC52", () => {
+    const { actions } = makeActions([task("a", { branch: "feat/copy-me" })])
+
+    actions.copyTaskField("a", "branch")
+
+    expect(mocks.copyTextToSystemClipboard).toHaveBeenCalledTimes(1)
+    const [text, osc52] = mocks.copyTextToSystemClipboard.mock.calls[0] as [string, (t: string) => void]
+    expect(text).toBe("feat/copy-me")
+    osc52("payload")
+    expect(mocks.copyToClipboardOSC52).toHaveBeenCalledWith("payload")
+  })
+
+  test("path copies the recorded worktreePath", () => {
+    const { actions } = makeActions([task("a", { worktreePath: "/wt/somewhere" })])
+
+    actions.copyTaskField("a", "path")
+
+    expect(mocks.copyTextToSystemClipboard.mock.calls[0]?.[0]).toBe("/wt/somewhere")
   })
 })

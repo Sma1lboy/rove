@@ -9,12 +9,13 @@
  * (`withCursorTask` walks up from a tab to its worktree, because rename /
  * delete have no tab-level meaning).
  *
- * `setStatus` is the one documented exception, and it is a SEQUENCING one
- * rather than a change of rule: a chord is the owner's call (AGENTS.md,
- * "Keybindings"), and until one is agreed the menu is the only place a human
- * can set a status the injected agent protocol already tells every engine to
- * write (`engine/worktree-protocol.ts`). When the chord lands, this entry
- * mirrors it like the rest.
+ * `setStatus`, `copyBranch` and `copyPath` are the documented exceptions, and
+ * they are SEQUENCING ones rather than a change of rule: a chord is the
+ * owner's call (AGENTS.md, "Keybindings"), and until one is agreed the menu is
+ * the only place a human can set a status the injected agent protocol already
+ * tells every engine to write (`engine/worktree-protocol.ts`), or copy the
+ * row's branch / worktree path for another shell. When a chord lands, the
+ * entry mirrors it like the rest.
  *
  * The new-conversation pair reads the same rule one pane over (owner ask
  * 2026-08-18): ctrl+e already opens the engine/shell picker for the task the
@@ -42,6 +43,8 @@ export type TreeMenuAction =
   | "pin"
   | "reorder"
   | "setStatus"
+  | "copyBranch"
+  | "copyPath"
   | "delete"
 
 export interface TreeMenuItem {
@@ -74,15 +77,24 @@ function newTabVerbs(): TreeMenuItem[] {
  *  is always pinned and `setPinned` silently no-ops on it (task-editor.ts),
  *  and an entry that does nothing is worse than no entry — the same rule
  *  `closeTab` follows above. */
-function taskVerbs(pinned: boolean, kind: Task["kind"]): TreeMenuItem[] {
+function taskVerbs(task: Task): TreeMenuItem[] {
   const verbs: TreeMenuItem[] = [{ action: "rename", labelKey: "tasks.menu.rename" }]
-  if (kind !== "main") verbs.push({ action: "pin", labelKey: pinned ? "tasks.menu.unpin" : "tasks.menu.pin" })
+  if (task.kind !== "main") {
+    verbs.push({ action: "pin", labelKey: task.pinned === true ? "tasks.menu.unpin" : "tasks.menu.pin" })
+  }
   verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder" })
-  // The ONE entry with no chord behind it. Status had no route outside
-  // `rove api set-status` at all, and adding a chord is the owner's call
-  // (AGENTS.md) — so the menu carries it alone until one is agreed. Not
-  // danger-toned: it relabels the task and touches nothing else.
+  // Status and the two copies are menu-only (no chord — a chord is the
+  // owner's call, AGENTS.md "Keybindings"). Status had no route outside
+  // `rove api set-status`; the copies put the two strings a row's identity is
+  // made of on the clipboard, for a `git checkout` / `cd` in another shell.
+  // None is danger-toned: they relabel or read, and touch nothing else.
   verbs.push({ action: "setStatus", labelKey: "tasks.menu.setStatus" })
+  // Each copy shows only when its string is recorded — same rule as
+  // `closeTab`. A `main`/`dir` row stores `branch === ""` (its label is the
+  // live HEAD), and a task never entered stores BOTH as "" until
+  // `ensureWorktree` allocates them (orchestrator/core.ts).
+  if (task.branch !== "") verbs.push({ action: "copyBranch", labelKey: "tasks.menu.copyBranch" })
+  if (task.worktreePath !== "") verbs.push({ action: "copyPath", labelKey: "tasks.menu.copyPath" })
   verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
   return verbs
 }
@@ -99,11 +111,7 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
     ]
   }
   if (row.kind === "worktree") {
-    return [
-      { action: "open", labelKey: "tasks.menu.open" },
-      ...newTabVerbs(),
-      ...taskVerbs(row.task.pinned === true, row.task.kind),
-    ]
+    return [{ action: "open", labelKey: "tasks.menu.open" }, ...newTabVerbs(), ...taskVerbs(row.task)]
   }
   // The routine count row (issue #91) is a fold toggle, not a task — there is
   // no task for any verb here to act on, and an entry that does nothing is
@@ -111,5 +119,5 @@ export function treeMenuItems(row: TreeRow, ctx: TreeMenuContext = {}): TreeMenu
   if (row.kind === "routines") return []
   const tabItems: TreeMenuItem[] = [{ action: "open", labelKey: "tasks.menu.openTab" }]
   if ((ctx.tabCount ?? 0) > 0) tabItems.push({ action: "closeTab", labelKey: "tasks.menu.closeTab" })
-  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task.pinned === true, row.task.kind)]
+  return [...tabItems, ...newTabVerbs(), ...taskVerbs(row.task)]
 }

@@ -23,7 +23,9 @@ moves left or right, and `ctrl+q` returns from the workspace to Tasks. From the
 Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
-Task's worktree. Clicking anywhere else dismisses that menu.
+Task's worktree, plus **Copy branch name** and **Copy path**, which put the
+Task's branch or worktree path on the system clipboard for a `git checkout` or
+`cd` in another shell. Clicking anywhere else dismisses that menu.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate

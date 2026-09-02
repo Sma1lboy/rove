@@ -20,9 +20,12 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
+import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
+import { copyTextToSystemClipboard } from "../../tui/lib/clipboard-copy"
 import {
   applyVendorChange,
+  copyTaskFieldFlow,
   cycleVendorFlow,
   deleteTaskFlow,
   renameTaskFlow,
@@ -62,10 +65,13 @@ export type WorkspaceTaskActions = {
   moveTask: (id: string, delta: -1 | 1) => Promise<void>
   /** Tree-menu "Set status" — a picker over the six board statuses. */
   setStatus: (id: string) => Promise<void>
+  /** Tree-menu "Copy branch name" / "Copy path" — system clipboard + toast. */
+  copyTaskField: (id: string, field: "branch" | "path") => void
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
   const { orchestrator, tasks, dialog, notifyError } = deps
+  const renderer = useRenderer()
 
   const taskActions: CreateTaskContext = {
     ...buildBaseCreateTaskContext({
@@ -82,6 +88,10 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     // The set-status picker, supplied as an adapter so `setStatusFlow` stays
     // opentui-free like every other flow (task-actions.ts's testability rule).
     pickStatus: (current) => StatusPickerDialog.show(dialog, { current }),
+    // The clipboard writer, supplied the same way: both channels the terminal
+    // pane's copy-on-select uses (local pbcopy-style pipe + OSC52 through the
+    // renderer, which is the half that reaches the user's machine over SSH).
+    copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
     onTaskDeleted: (() => {
       // Reclaim the deleted task's terminal-tab snapshot (O19), THEN move the
       // host cursor off it (the shared selection move — the base's bare
@@ -144,5 +154,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     togglePin,
     moveTask,
     setStatus: (id) => setStatusFlow(taskActions, id),
+    copyTaskField: (id, field) => copyTaskFieldFlow(taskActions, id, field),
   }
 }

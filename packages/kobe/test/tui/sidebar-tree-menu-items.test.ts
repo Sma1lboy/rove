@@ -51,13 +51,40 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "copyBranch",
+      "copyPath",
       "delete",
     ])
   })
 
+  test("a row with no stored branch is offered Copy path but not Copy branch", () => {
+    // `main`/`dir` rows store `branch === ""` (their label is the live HEAD),
+    // so the entry would copy nothing — the entry-that-does-nothing rule.
+    const dirRow = worktreeRow({ kind: "dir", branch: "" })
+    expect(actions(dirRow)).toContain("copyPath")
+    expect(actions(dirRow)).not.toContain("copyBranch")
+  })
+
+  test("a task never entered (both fields still empty) is offered neither copy", () => {
+    // `ensureWorktree` fills branch + worktreePath on first enter; before that
+    // there is nothing to copy, and the menu says so by omission.
+    const lazy = worktreeRow({ branch: "", worktreePath: "" })
+    expect(actions(lazy)).not.toContain("copyBranch")
+    expect(actions(lazy)).not.toContain("copyPath")
+  })
+
   test("a main row (the project's own checkout) is not offered a pin — setPinned silently no-ops on it", () => {
     const mainRow = worktreeRow({ kind: "main", branch: "", worktreePath: "/repos/rove" })
-    expect(actions(mainRow)).toEqual(["open", "newChat", "newShell", "rename", "reorder", "setStatus", "delete"])
+    expect(actions(mainRow)).toEqual([
+      "open",
+      "newChat",
+      "newShell",
+      "rename",
+      "reorder",
+      "setStatus",
+      "copyPath",
+      "delete",
+    ])
     const mainTab: TreeRow = {
       kind: "tab",
       id: "a::tab-2",
@@ -73,6 +100,7 @@ describe("treeMenuItems", () => {
       "rename",
       "reorder",
       "setStatus",
+      "copyPath",
       "delete",
     ])
   })
@@ -93,6 +121,8 @@ describe("treeMenuItems", () => {
       "pin",
       "reorder",
       "setStatus",
+      "copyBranch",
+      "copyPath",
       "delete",
     ])
   })

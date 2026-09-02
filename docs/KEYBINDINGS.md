@@ -159,9 +159,13 @@ anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
 engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
-**Set status** is the one entry with no chord: it opens a picker over the six
-Task statuses and writes the one you choose. (If right-click opens your
-*terminal's* menu instead, see [Troubleshooting](./TROUBLESHOOTING.md).)
+Three entries have no chord. **Set status** opens a picker over the six Task
+statuses and writes the one you choose. **Copy branch name** and **Copy path**
+put the Task's branch or recorded worktree path on the system clipboard (local
+clipboard command plus OSC 52, so it also works over SSH); copying never
+creates the worktree, and a project-main or directory row, whose stored branch
+is empty, offers only Copy path. (If right-click opens your *terminal's* menu
+instead, see [Troubleshooting](./TROUBLESHOOTING.md).)
 
 ## Terminal scrollback
 
