@@ -5,15 +5,15 @@
  *
  * The load-bearing export is {@link reconcileRows}: the Ops pane's
  * fs-watch refresh re-fetches `git ls-files` / `git status` and rebuilds
- * the row list from scratch, so every refresh used to produce ALL-NEW row
- * objects. Solid's `<For>` keys by object identity, which meant each
- * refresh destroyed and recreated every row's opentui renderables —
+ * the row list from scratch, so every refresh produces ALL-NEW row
+ * objects. List rendering keys by object identity, so each
+ * refresh would destroy and recreate every row's opentui renderables —
  * and @opentui/core 0.2.4 retains a small amount of native memory per
  * renderable create/destroy cycle (~300B; JS heap stays flat while RSS
  * climbs). A busy engine worktree refreshes thousands of times a day,
- * which is exactly the multi-GB Ops-pane growth observed in production.
+ * which is enough for multi-GB Ops-pane growth.
  * Reconciling by row key keeps the previous object whenever its fields
- * are unchanged, so `<For>` reuses the existing renderables and the
+ * are unchanged, so the list reuses the existing renderables and the
  * native churn drops to "rows that actually changed".
  */
 

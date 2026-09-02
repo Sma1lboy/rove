@@ -7,12 +7,12 @@
  * taken (the classic lost update). Every write therefore goes through
  * the read-merge-write transaction here.
  *
- * The fix is read-merge-write: every write re-reads the file fresh and
+ * Read-merge-write: every write re-reads the file fresh and
  * applies ONLY the keys the caller actually changed, then writes the
- * merged result atomically (tmp + rename, same crash-safety as before).
- * Concurrent writers touching DIFFERENT keys can no longer erase each
- * other; same-key writers remain last-write-wins, which is the documented
- * pre-existing semantics. There is still no flock — the merge shrinks the
+ * merged result atomically (tmp + rename).
+ * Concurrent writers touching DIFFERENT keys cannot erase each
+ * other; same-key writers are last-write-wins, which is the documented
+ * semantics. There is no flock — the merge shrinks the
  * race window to the read→rename span of a sync call, it does not
  * serialize writers. A true cross-process lock is the multi-instance
  * follow-up if same-key contention ever becomes real.
@@ -128,9 +128,9 @@ export function updateStateFile(mutate: (state: StateSnapshot) => boolean | unde
 
 /**
  * Merge a set of key changes into the file: fresh read, apply ONLY the
- * keys present in `patch` (an explicit `undefined` value DELETES the key —
- * matching the old whole-snapshot behavior where stringify dropped
- * undefined entries), atomic write. This is the multi-process-safe flush
+ * keys present in `patch` (an explicit `undefined` value DELETES the key,
+ * matching JSON stringify, which drops undefined
+ * entries), atomic write. This is the multi-process-safe flush
  * primitive: KVProvider passes just its dirty keys; `setPersisted*` passes
  * a single key. Keys this writer never touched pass through untouched.
  */

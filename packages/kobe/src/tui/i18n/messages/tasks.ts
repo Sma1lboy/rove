@@ -101,7 +101,7 @@ export const en = {
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
-  /** The fold row standing in for a project's routine sessions (issue #91) */
+  /** The fold row standing in for a project's routine sessions */
   routinesRow: "{count} routine sessions",
   /** Empty-state messages */
   empty: {

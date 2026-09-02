@@ -11,9 +11,9 @@ describe("relativeBuckets", () => {
   })
 
   test("each step ROUNDS — the behavior both consumers shipped with", () => {
-    // Pinned so the two callers can't drift apart again. Whether these should
-    // floor instead (a countdown that never overstates headroom — PR #479's
-    // argument) is an owner call; flipping it here moves every consumer.
+    // Pinned so the two callers can't drift apart. Whether these should
+    // floor instead (a countdown that never overstates headroom) is a
+    // display-convention call; flipping it here moves every consumer.
     expect(relativeBuckets(90 * MIN).hours).toBe(2) // 1h30m rounds up
     expect(relativeBuckets(89 * MIN).hours).toBe(1)
     expect(relativeBuckets(36 * 60 * MIN).days).toBe(2) // 1d12h rounds up

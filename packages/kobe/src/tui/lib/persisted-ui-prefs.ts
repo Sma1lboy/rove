@@ -4,7 +4,7 @@
  * A kobe subcommand that renders in a tmux pane (the Ops pane today,
  * a full-width preview window soon) wants to match the outer app's
  * look: same theme, transparent-bg toggle, focus accent. It can't
- * share the outer TUI's Solid runtime (separate process), so it reads
+ * share the outer TUI's runtime (separate process), so it reads
  * the persisted prefs off disk instead.
  *
  * READ-ONLY by contract: the outer app owns `state.json`; a pane
@@ -49,7 +49,7 @@ export function readPersistedUiPrefs(
     const parsed = JSON.parse(readFileSync(kvStatePath(), "utf8")) as Record<string, unknown>
     const theme =
       typeof parsed.activeTheme === "string" && isKnownTheme(parsed.activeTheme) ? parsed.activeTheme : fallbackTheme
-    // Default-true (2026-07-12): only an explicit stored `false` opts out.
+    // Default-true: only an explicit stored `false` opts out.
     const transparent = parsed.transparentBackground !== false
     const focusAccent =
       typeof parsed.focusAccent === "string" && (FOCUS_ACCENT_SLOTS as readonly string[]).includes(parsed.focusAccent)

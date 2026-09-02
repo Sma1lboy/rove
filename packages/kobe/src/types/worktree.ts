@@ -115,7 +115,7 @@ export interface WorktreeManager {
   create(repo: string, branch: string, path: string, baseRef?: string): Promise<WorktreeInfo>
 
   /**
-   * Remove a worktree previously created with {@link create}.
+   * Remove a worktree created with {@link create}.
    *
    * Guarantees: refuses to remove a dirty worktree unless `force` is
    * true. On success, the directory is gone, the worktree is

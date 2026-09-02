@@ -1,10 +1,9 @@
 /**
- * Pure tab-list state for the workspace terminal tabs (issue #16) — the
- * PTY-world successor of the tmux chattab concept. Same user contract:
+ * Pure tab-list state for the workspace terminal tabs. User contract:
  * new tab spawns the SAME engine command in the same worktree, the last
  * tab can't be closed, titles are user-renameable, bracket chords cycle.
  *
- * Framework-free on purpose: the Solid component owns signals/UI, this
+ * Framework-free on purpose: the component owns signals/UI, this
  * module owns the transitions so vitest can pin them. Tab PTYs are keyed
  * `${taskId}::${tabId}` into the existing PtyRegistry — no registry
  * changes; each tab is just another registry entry that survives task
@@ -50,9 +49,9 @@ export interface TabsState {
    * ({@link reopenTabs}). Only set when `tabs` is empty — a task with tabs
    * doesn't need it, and a stale value would outlive its meaning.
    *
-   * A snapshot written before this field existed simply lacks it, which is
-   * why {@link reopenTabs} treats absence as "use the default" rather than
-   * as an error: the whole point is that upgrading in place is silent.
+   * An older snapshot simply lacks the field, so {@link reopenTabs} treats
+   * absence as "use the default" rather than as an error: upgrading in place
+   * has to stay silent.
    */
   readonly reopenAs?: { readonly kind: "engine"; readonly vendor?: VendorId } | { readonly kind: "command" }
 }
@@ -102,7 +101,7 @@ export function reopenTabs(state: TabsState, shell: string): TabsState {
   }
 }
 
-/** A SCRATCH task's initial state (issue #33): one bare shell tab, active —
+/** A SCRATCH task's initial state: one bare shell tab, active —
  *  the task is the shell, an engine only appears when the user types one.
  *  Same shape the ctrl+e "shell" pick mints ({@link openCommandTab}). */
 export function initialShellTabs(shell: string): TabsState {
@@ -184,7 +183,7 @@ export function findContentTab(state: TabsState): ContentTab | undefined {
  * openEditorTab}. First time: insert after the active tab and focus it. Later
  * hits: retarget the existing tab to the new file/base in place (its render
  * re-reads on the prop change) and select it. Selecting is a content swap,
- * not a focus grab — the FileTree keeps keyboard focus (KOB-25); the host
+ * not a focus grab — the FileTree keeps keyboard focus; the host
  * wires it without a `focus.setFocused`.
  */
 export function openContentTab(state: TabsState, relPath: string, label: string, base?: string): TabsState {
@@ -210,8 +209,8 @@ export function openContentTab(state: TabsState, relPath: string, label: string,
 export function closeTab(
   state: TabsState,
   id: string,
-  /** Allow the task's LAST tab to close, leaving `tabs` empty (owner call
-   *  2026-08-31). Off by default: `closeActive`'s scratch branch reads a
+  /** Allow the task's LAST tab to close, leaving `tabs` empty.
+   *  Off by default: `closeActive`'s scratch branch reads a
    *  refusal as "this task is ending", so flipping this unconditionally would
    *  turn every scratch ctrl+w into a task teardown. */
   opts: { readonly allowEmpty?: boolean } = {},
@@ -301,9 +300,8 @@ export function setTabInitialPrompt(state: TabsState, id: string, prompt: string
  * An EMPTY title is also a no-op: this field exists so surfaces that render
  * a tab they don't host still know its name, and "the process has not
  * reported a title" must never erase the one it reported earlier. Recording
- * `""` renamed a live session to its vendor default a beat after the real
- * title appeared (owner report 2026-08-10) — and persisted that, so the tab
- * came back wrong on the next start too.
+ * `""` would rename a live session to its vendor default and persist that,
+ * so the tab would come back wrong on the next start too.
  */
 export function setTabLastTitle(state: TabsState, id: string, lastTitle: string): TabsState {
   if (lastTitle.length === 0) return state
@@ -364,24 +362,24 @@ export { type TabExitAction, engineTabArgv, engineTabSpawnFor, tabExitAction } f
 export { type TabSpawn, shellCommandLine, shellIdentityInput, shellSpawn } from "./terminal-tab-spawn"
 
 /**
- * Rehydrate a persisted tab snapshot (issue #22). A tab is a TERMINAL
- * (owner model 2026-07-07): claude/an editor are just processes that ran
- * in it, so EVERY tab survives restart. Engine tabs keep their identity
+ * Rehydrate a persisted tab snapshot. A tab is a TERMINAL: claude/an editor
+ * are just processes that ran in it, so EVERY tab survives restart. Engine
+ * tabs keep their identity
  * + sessionId so the host can `--resume` the conversation; command tabs
- * (a shell pick, a dead editor) come back running `shell` — their old
- * process is gone, and resurrecting a fresh engine
- * in its place was the "closed shell reopens as claude" bug. Same
+ * (a shell pick, a dead editor) come back running `shell` — their
+ * process is gone, and spawning a fresh engine
+ * in its place would reopen a closed shell as claude. Same
  * freeze-the-layout rule splitTree restore follows. Guards against a
  * corrupt/empty snapshot by falling back to `initialTabs()`; re-anchors
- * `activeId` if it pointed at a tab that no longer exists.
+ * `activeId` if it pointed at a tab that is absent.
  */
 export function rehydrateTabs(
   persisted: TabsState,
   shell: readonly string[],
-  /** Keep an intentionally-empty snapshot empty (owner call 2026-08-31).
+  /** Keep an intentionally-empty snapshot empty.
    *  Without this a task whose last tab you closed grows one back on the next
    *  mount, so the close never appears to take. Off by default so a CORRUPT
-   *  snapshot (the case this fallback was written for) still recovers. */
+   *  snapshot still recovers. */
   opts: { readonly allowEmpty?: boolean } = {},
 ): TabsState {
   const tabs = persisted.tabs.map(
@@ -418,7 +416,7 @@ export function cycleTab(state: TabsState, delta: 1 | -1): TabsState {
 
 /**
  * Move a tab up/down within its task's tab list (sidebar move mode, issue
- * #43). Edge-stops — moving the first tab up or the last down returns the
+ * Edge-stops — moving the first tab up or the last down returns the
  * SAME state object (no wrap), so callers persist nothing on a no-op. Tab
  * order IS the persisted `tabs` array order (`rehydrateTabs` keeps it), so
  * this needs no new persistence key.

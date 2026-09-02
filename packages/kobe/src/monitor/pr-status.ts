@@ -152,10 +152,10 @@ export function samePrStatus(a: TaskPRStatus | undefined, b: TaskPRStatus | unde
 // ---------------------------------------------------------------------------
 // Failure classification + adaptive backoff (the "gh broke" vs "no PR" split).
 //
-// The poller used to collapse every non-success `gh pr view` — gh missing,
+// Collapsing every non-success `gh pr view` — gh missing,
 // unauthed, a network stall, a rate-limit, malformed JSON, no GitHub remote —
-// into the same "no PR" result, so a broken `gh` was indistinguishable from a
-// branch that simply has no PR yet and the user got no signal. These pure
+// into one "no PR" result makes a broken `gh` indistinguishable from a
+// branch that simply has no PR yet, and the user gets no signal. These pure
 // helpers split a failure into a genuine `empty` (gh ran, said no PR) vs a
 // typed transport/tooling `error`, and compute the next poll delay so a
 // persistent failure backs off (and a deterministic "no GitHub remote" settles

@@ -183,7 +183,7 @@ describe("split tree (content-agnostic)", () => {
     expect(splitLeafPtyKey("task::tab-1", "leaf-2")).toBe("task::tab-1::leaf-2")
   })
 
-  // Owner semantics 2026-07-06: the TAB is the "group"; each leaf carries
+  // The TAB is the "group"; each leaf carries
   // its OWN name — F2 rename wins, default = basename of what it runs,
   // duplicate defaults get a reading-order suffix so they stay tellable
   // apart. This pins the derivation the corner tags render from.
@@ -229,7 +229,7 @@ describe("split tree (content-agnostic)", () => {
     const live = new Map([["leaf-2", "vim"]])
     const named = splitLeafNames(leaves(s.root), ["claude"], "fix the resize race", live)
     expect(named.get("leaf-2")).toBe("vim")
-    // No live title yet → the generic default, same as before this existed.
+    // No live title yet → the generic default.
     expect(splitLeafNames(leaves(s.root), ["claude"], "fix the resize race").get("leaf-2")).toBe("shell")
     // A manual rename still wins over a live title.
     const renamed = splitLeafNames(leaves(renameLeaf(s, "leaf-2", "logs").root), ["claude"], null, live)
@@ -253,9 +253,9 @@ describe("split tree (content-agnostic)", () => {
 })
 
 // Why: tabTitle is the ONE naming rule for the strip label, the rename
-// dialog prefill, and notification titles (owner order 2026-07-09:
-// rename > live process > first-prompt > vendor default). Deriving from
-// anything else relabelled running tabs — pin the precedence and the
+// dialog prefill, and notification titles (order: rename > live process >
+// first-prompt > vendor default). Deriving from
+// anything else relabels running tabs — pin the precedence and the
 // split-tab branches ("group N" / a collapsed sole shell leaf).
 describe("tabTitle (tab naming policy)", () => {
   const engine = (over: Partial<EngineTab> = {}): EngineTab => ({

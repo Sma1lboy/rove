@@ -1,7 +1,8 @@
 /**
  * Saved-repos persistence.
  *
- * The TUI's `KV` store (src/tui/context/kv.tsx) is a Solid-context wrapper
+ * The TUI's `KV` store (src/tui-react/context/kv.tsx) is a React-context
+ * wrapper
  * around `~/.config/rove/state.json`. Outside that context — e.g. from the
  * `kobe add` CLI subcommand — we can't use it. This module is the
  * non-reactive direct accessor for the same on-disk blob: load, mutate,
@@ -211,10 +212,10 @@ export interface AddSavedRepoOpts {
  * stores the repo root, not the subdir. The returned `path` is the
  * normalized form so callers report what was actually saved.
  *
- * VALIDATES (changed 2026-08-31): this used to document validation as the
- * caller's job. Of the eight call sites exactly one did it, and the other
- * seven put test fixtures and sandbox paths into the user's project list —
- * where nothing could remove them again. The gate now lives HERE, applied to
+ * VALIDATES here rather than leaving it to the caller: of the eight call
+ * sites exactly one would do it, and the other
+ * seven would put test fixtures and sandbox paths into the user's project
+ * list — where nothing could remove them again. The gate lives HERE, applied to
  * the normalized path, so no caller can skip it by forgetting; a refusal
  * comes back as `rejected` rather than an exception, because most callers
  * are opportunistic ("remember this repo while doing something else") and
@@ -247,11 +248,9 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
  * Backfill `savedRepos` from the project rows that already exist.
  *
  * The sidebar's projects and the new-task picker's repos are meant to be the
- * same set, but until 2026-08-31 they were written by different paths: a row
- * minted by `createTask` on a fresh repo appeared in the sidebar while never
- * reaching `savedRepos`. On the owner's machine that was 6 of 8 projects —
- * visible, unpickable, and (once closing the last tab hides a project) not
- * recoverable.
+ * same set, but a row minted by an older kobe could reach the sidebar
+ * without ever reaching `savedRepos` — leaving it visible, unpickable, and
+ * (once closing the last tab hides a project) not recoverable.
  *
  * `mainRepos` is the caller's list of `kind:"main"` task repos; this module
  * cannot read the task index (the daemon owns it). Entries that fail the

@@ -56,9 +56,10 @@ function notAGitRepoReason(path: string): string {
 
 /**
  * `git` itself is missing from PATH. Distinct from {@link notAGitRepoReason}
- * because `spawnSync` reports BOTH as a non-zero `status` — the ENOENT case
- * used to fall through and tell the user to run `git init && git add -A &&
- * git commit`, three commands that would each also be `command not found`.
+ * because `spawnSync` reports BOTH as a non-zero `status` — without this the
+ * ENOENT case falls through and tells the user to run `git init && git add
+ * -A && git commit`, three commands that would each also be `command not
+ * found`.
  * Same wording as the WelcomePane's own (correct) probe so one machine can't
  * show two contradictory diagnoses.
  */

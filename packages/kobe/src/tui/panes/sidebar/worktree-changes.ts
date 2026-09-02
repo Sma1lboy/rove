@@ -58,7 +58,7 @@ export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boo
 
 /**
  * Pick the DAEMON-pushed counts for a row, or `null` when the local
- * poller must serve it (issue #6). A non-null `pushed` map means a
+ * poller must serve it. A non-null `pushed` map means a
  * daemon-side collector owns git polling for this process — a worktree
  * absent from the map (just-created task, deleted row, remote project)
  * reads as zeros (chip hidden), NEVER as "poll locally": the fallback is
@@ -105,9 +105,9 @@ export function readWorktreeChanges(worktreePath: string): WorktreeChanges {
  * rename resolution) is delegated to the shared {@link parsePorcelainRows};
  * this helper only classifies each row by its raw status pair: a `D` in
  * EITHER column counts as a deletion, everything else (M, A, R, C, T, U, ??)
- * as an addition. A rename is one porcelain row → one `added` event, as
- * before — the shared parser preserves the raw `x`/`y` chars so this
- * classification is byte-for-byte the same as the old inline scan.
+ * as an addition. A rename is one porcelain row → one `added` event; the
+ * shared parser preserves the raw `x`/`y` chars so this
+ * classification stays exact.
  */
 export function parsePorcelain(text: string): WorktreeChanges {
   let added = 0

@@ -1,18 +1,15 @@
 /**
  * "Which engine is live in this tab right now" — the framework-free store
- * that replaced title sniffing as kobe's process-identity signal.
+ * that owns kobe's process-identity signal.
  *
- * Before: `vendorFromTerminalTitle` matched the OSC window title by
- * substring, so a claude session whose activity summary happened to
- * mention "codex" relabelled its tab codex and attached a Codex turn
- * detector. A window title is free-form text an engine writes for humans;
- * it was never identity.
- *
- * Now: one `ps` snapshot per tick serves every live PTY — each tab's
- * shell pid roots a process-tree walk (`engine/foreground.ts`). A tab is
- * "running claude" exactly while a claude process is alive under its
- * shell, and stops being so the moment that process exits (owner call
- * 2026-07-27: freeze the identity of what IS running; release it on exit).
+ * NOT the OSC window title: that is free-form text an engine writes for
+ * humans, so matching it by substring would relabel a claude session whose
+ * activity summary happens to mention "codex" and attach a Codex turn
+ * detector. Identity comes from the process tree instead — one `ps`
+ * snapshot per tick serves every live PTY, and each tab's shell pid roots a
+ * walk (`engine/foreground.ts`). A tab is "running claude" exactly while a
+ * claude process is alive under its shell, and stops being so the moment
+ * that process exits.
  *
  * Self-driving on purpose: it enumerates the PTY registry itself rather
  * than taking a caller-supplied key set, so the two consumers (turn-poll
@@ -42,7 +39,7 @@ export interface LiveEngineStore {
   resolve(key: string): VendorId | null | undefined
   /**
    * Auxiliary ptyKey → shell pid pairs to probe ALONGSIDE the local PTY
-   * registry (issue #33): the registry only knows PTYs this process
+   * registry: the registry only knows PTYs this process
    * attached, but the sidebar tree renders every task's hosted tabs — the
    * pty host's `pty.list` inventory carries their pids, and feeding them
    * here lights a shell-turned-agent row for tasks never opened in this
@@ -64,7 +61,7 @@ export type LiveEngineOpts = {
   /** Engines start and stop on human timescales — one `ps` every 2s. */
   intervalMs?: number
   /**
-   * Debounce for the OFF edge (issue #33): a lit identity goes dark only
+   * Debounce for the OFF edge: a lit identity goes dark only
    * after this many CONSECUTIVE engine-free walks. Engines briefly show an
    * empty tree mid-restart (claude relaunching after /login, a wrapper
    *  re-exec), and a 1-probe flicker would strobe the sidebar badge. The ON

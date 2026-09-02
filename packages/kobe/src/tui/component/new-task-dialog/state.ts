@@ -46,8 +46,8 @@ import { DEFAULT_BASE_REF } from "../../lib/git-snapshot"
  *   - open — open `repo`'s OWN checkout (its `main` row) rather than
  *     branching a worktree off it. The only way back to a project the
  *     sidebar has hidden (`isClosedDownProject`): every other path through
- *     this dialog mints a `kind: "task"`, so picking the repo used to leave
- *     the user with an extra worktree and still no project row.
+ *     this dialog mints a `kind: "task"`, so picking the repo any other way
+ *     leaves the user with an extra worktree and still no project row.
  */
 export type NewTaskInput =
   | {
@@ -137,7 +137,7 @@ export type Field =
   | "tabs"
   | "engine"
   | "repo"
-  /** The Existing tab's task-vs-project selector (issue #90). Reachable only
+  /** The Existing tab's task-vs-project selector. Reachable only
    *  while it renders — see `nextField`. */
   | "intent"
   | "baseRef"
@@ -196,11 +196,11 @@ const PICKER_MIN_VISIBLE = 2
 /**
  * Visible picker rows for a viewport `height` rows tall.
  *
- * The cap used to be a flat 8 regardless of terminal height, so the dialog's
- * own height was a constant while the space for it was not: on a 24-row
- * terminal the card overran `maxCardHeight` and the bottom rows — the Create
- * button and, worse, `submitError` — were clipped away with nothing to
- * scroll them back. A failed create then looked like nothing happening at
+ * A flat cap regardless of terminal height would make the dialog's own
+ * height a constant while the space for it is not: on a 24-row
+ * terminal the card overruns `maxCardHeight` and the bottom rows — the Create
+ * button and, worse, `submitError` — are clipped away with nothing to
+ * scroll them back, so a failed create looks like nothing happening at
  * all. Shrinking the window is what gives those rows back; the list is
  * already windowed and scrolls under the cursor, so a shorter window costs
  * only how much is visible at once, never reachability.
@@ -419,7 +419,7 @@ export function resolveBaseRef(typed: string, filteredBranches: readonly string[
 }
 
 /* --------------------------------------------------------------------- */
-/*  Existing-tab intent (issue #90)                                       */
+/*  Existing-tab intent                                                   */
 /* --------------------------------------------------------------------- */
 
 /**

@@ -149,7 +149,7 @@ describe("hosted pty inbound dispatch budget", () => {
     expect(feed.mock.instances[0]).toBe(ptys[3])
 
     // A frame for an unknown key touches NO handle (dropped by the map miss,
-    // same as the old per-handle key-compare rejecting) — and this holds no
+    // like a per-handle key-compare rejecting) — and this holds no
     // matter how many tabs are open, i.e. per-frame cost doesn't grow with N.
     feed.mockClear()
     host.push(dataFrame("nobody::tab"))

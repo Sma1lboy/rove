@@ -273,7 +273,7 @@ export function parseNumstatRows(raw: string): NumstatRow[] {
       rows.push({ path: unquoteGitPath(pathField), added, deleted })
       i++
     } else {
-      // Rename: the next two fields are the old and new paths.
+      // Rename: the next two fields are the source and destination paths.
       if (i + 2 >= fields.length) break
       rows.push({
         path: unquoteGitPath(fields[i + 2] as string),

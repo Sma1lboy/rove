@@ -38,7 +38,7 @@ export type FirstEngineMessageSource = "repo-init" | "explicit"
 export interface FirstEngineMessage {
   /** Text to paste into the engine composer as the first submitted message. */
   readonly text: string
-  /** Why this first message exists; used to keep priority rules explicit. */
+  /** Why this first message exists; keeps priority rules explicit. */
   readonly source: FirstEngineMessageSource
 }
 
@@ -71,8 +71,7 @@ export type PromptDeliveryIntent =
  * Lockfile → the directory its install step produces. A committed lockfile
  * with no install output means the worktree was never installed, so builds,
  * type-checks and tests there fail for reasons unrelated to the task — the
- * failure mode behind issue #35 (agents reporting install breakage as a
- * product regression).
+ * failure mode where agents report install breakage as a product regression.
  *
  * ponytail: a flat table, not a package-manager abstraction. Add a row when a
  * real repo needs one.

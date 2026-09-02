@@ -48,7 +48,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   isTaskStatus,
   isEngineActivityKind,
   affectsActivityState,
-  // The activity observer's foreground walk (issues #11/#16): ONE `ps`
+  // The activity observer's foreground walk: ONE `ps`
   // snapshot, then the same shallowest-engine walk `kobe api inspect` uses.
   async foregroundEngines(pids) {
     const rows = parsePsSnapshot(await psSnapshot())
@@ -60,10 +60,10 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     return out
   },
   titleTurnHint: engineTitleTurnHint,
-  // Tier-(b) protocol sniff (issue #31): the record upgrade for a generic
+  // Tier-(b) protocol sniff: the record upgrade for a generic
   // task identified by its live session — rules live with the sniffer.
   resolveProtocolUpgrade: protocolUpgradeFromLiveSession,
-  // Per-turn telemetry (issue #32) — delegated straight to the vendor's own
+  // Per-turn telemetry — delegated straight to the vendor's own
   // adapter; an engine without a turn reader simply reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await engineEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   checkLatestVersion,

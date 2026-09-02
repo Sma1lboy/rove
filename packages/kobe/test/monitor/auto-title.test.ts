@@ -1,9 +1,9 @@
 /**
- * Auto-title behavior parity through the engine registry (KOB-233).
+ * Auto-title behavior parity through the engine registry.
  *
- * auto-title.ts used to pick its history reader with an inline vendor
- * if-ladder; it now resolves `engineEntry(vendor).history`. These tests
- * pin the behavior that must not have changed:
+ * auto-title.ts resolves its history reader through
+ * `engineEntry(vendor).history`, not an inline vendor if-ladder. These tests
+ * pin the behavior that must hold:
  *
  *  - claude: read the worktree's `~/.claude/projects/*` transcripts
  *    OLDEST-first and return the first user prompt, truncated;
@@ -92,8 +92,8 @@ describe("deriveTitleFromSession (claude, through the registry)", () => {
 
 describe("deriveTitleFromSession (custom vendor)", () => {
   it("returns '' instead of mis-reading claude's transcripts", async () => {
-    // A claude transcript EXISTS for the worktree — the old `else → claude`
-    // default would have read it; the registry's empty entry must not.
+    // A claude transcript EXISTS for the worktree — an `else → claude`
+    // default would read it; the registry's empty entry must not.
     await writeSession("aaaa-1111", [userLine("aaaa-1111", "claude-only prompt")], 1_000)
     await expect(deriveTitleFromSession(WORKTREE, "my-custom-engine")).resolves.toBe("")
   })

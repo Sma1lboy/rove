@@ -1,9 +1,6 @@
 /**
- * Shared task-action flows — the ONE implementation behind the hosts
- * that expose task mutations. Today that's the in-session Tasks pane
- * (`tui/tasks-pane/host.tsx`); the deprecated outer monitor (`app.tsx`)
- * was the second host until its retirement (docs/design/app-retirement.md)
- * — consolidating here is what made that a pure deletion, not a port.
+ * Shared task-action flows — the ONE implementation behind every host
+ * that exposes task mutations.
  * Host differences are an explicit option or hook on {@link TaskActionContext},
  * never a second copy.
  *
@@ -137,10 +134,10 @@ async function stopHostedTask(taskId: string, logger: TaskActionLogger, logPrefi
 /**
  * True when `taskId` is the CURRENTLY active task, so delete should hand the
  * shared active-task focus to the next task. Deleting a BACKGROUND task must
- * not steal focus from whatever is active — the old unconditional
- * `setActiveTask(nextTask)` did exactly that (bug #6). Both real orchestrators
+ * not steal focus from whatever is active — an unconditional
+ * `setActiveTask(nextTask)` would do exactly that. Both real orchestrators
  * expose `activeTaskSignal()`; when it's absent (a bare test mock) we fall back
- * to `true` to preserve the pre-guard behavior rather than throw — real usage
+ * to `true` rather than throw — real usage
  * always resolves the active id and gets the guard.
  */
 function removedTaskIsActive(orch: KobeOrchestrator, taskId: string): boolean {
@@ -182,7 +179,7 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
   if (!task) return
   // A "project" row is a synthetic `kind: "main"` task projecting a saved
   // repo. It has no worktree of its own to destroy, and `deleteTask` refuses
-  // it (CannotDeleteMainTaskError) — pressing `d` on it used to just error.
+  // it (CannotDeleteMainTaskError), so `d` on it would just error.
   // Route it to forget-project instead: un-save the repo + drop the main row,
   // leaving the repo and any real tasks under it on disk.
   if (task.kind === "main") {
@@ -305,7 +302,7 @@ export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): 
 /**
  * Cycle the task's engine vendor via `task.setVendor`.
  * Takes effect on the task's next enter: `ensureSession` rebuilds a session
- * whose `@kobe_vendor` tag no longer matches, launching the new engine.
+ * whose `@kobe_vendor` tag does not match, launching the new engine.
  *
  * Cycle over the SAME detected-built-ins + custom set the new-task dialog
  * offers (`availableEngineIds()` + `nextVendorWithin`), not the built-ins
@@ -316,9 +313,9 @@ export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): 
 /**
  * Persist a task's engine and say so — the shared half of the two routes that
  * switch engines (`v` on a row, and the ctrl+e picker's "new tab in this
- * worktree"). Both need the same two toasts: the picker used to have neither,
- * so a rejected `setVendor` left a tab rendered under the NEW engine's label
- * while the task kept the old one — success and failure looked identical.
+ * worktree"). Both need the same two toasts: without them a rejected
+ * `setVendor` leaves a tab rendered under the NEW engine's label
+ * while the task keeps the previous one — success and failure look identical.
  *
  * Returns whether the write landed, so a caller can undo its optimistic UI.
  */
@@ -353,7 +350,7 @@ export async function applyVendorChange(
   }
   // Only for a change with nothing on screen to show it: the new vendor takes
   // effect on the task's NEXT enter (ensureSession rebuilds the pane when its
-  // `@kobe_vendor` tag no longer matches), so `v` on a row otherwise looks
+  // `@kobe_vendor` tag does not match), so `v` on a row otherwise looks
   // like a no-op.
   if (!opts.silentSuccess) ctx.notifyInfo?.(`Engine → ${engineDisplayName(next)} (applies on reopen)`)
   return true

@@ -8,7 +8,7 @@
  * which is how you end up with an Archives tab sitting next to a Kanban tab
  * as if they were the same kind of thing.
  *
- * Vertical, one per line (owner call 2026-08-01): the rail is 24 cells wide,
+ * Vertical, one per line: the rail is 24 cells wide,
  * so three horizontal chips would truncate the moment a fourth arrives.
  */
 

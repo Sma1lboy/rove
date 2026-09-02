@@ -50,7 +50,7 @@ export type AppliedOverride = {
 /**
  * Ids whose event-shape or handler contract cannot be expressed by a rebind.
  * The four diff-review chords are raw literal bindings registered by
- * preview-review.tsx (owner sign-off 2026-07-27: fixed, docs/KEYBINDINGS.md
+ * preview-review.tsx (fixed bindings, docs/KEYBINDINGS.md
  * "Diff review") — the table rows exist so F1 lists them, but no handler
  * reads the keymap, so an override would apply cleanly and change nothing.
  * `applyKeymapOverrides` rejects any id listed here, and Settings →

@@ -94,15 +94,15 @@ describe("buildTreeRows", () => {
   })
 
   test("every tab always renders — the tree has no fold", () => {
-    // Owner call 2026-08-01 round 5: no collapse anywhere, ever. The tree is
-    // a map; hiding rows made the map lie.
+    // No collapse anywhere, ever. The tree is
+    // a map; hiding rows makes the map lie.
     const tabs = new Map([["a", [tab("tab-1"), tab("tab-2")]]])
     const result = rows({ tasks: [task("a")], tabsByTask: tabs })
     expect(result.map((r) => r.id)).toEqual(["/repos/rove", "a", "a::tab-1", "a::tab-2"])
   })
 
   test("a dir task groups under its directory as the project header", () => {
-    // `kobe .` on an arbitrary directory (owner 2026-08-02): loose rows
+    // `kobe .` on an arbitrary directory: loose rows
     // after the last project read as THAT project's rows, so the directory
     // itself is the header — same grouping rule as every other task.
     const result = rows({ tasks: [task("d", { kind: "dir", repo: "/tmp/scratch" })] })
@@ -250,10 +250,10 @@ describe("mainTaskIdOfProject", () => {
   })
 })
 
-// `tabRowActivity` moved to the golden matrix
+// `tabRowActivity` is covered by the golden matrix
 // (`test/golden/sidebar-row-state.golden.txt`, "which entry a TAB row may
 // read"), which enumerates its whole truth table — tabActivity present/absent
-// x reportedTabCount 0/1/2 x active — instead of the five rows sampled here.
+// x reportedTabCount 0/1/2 x active — rather than a sample of it here.
 
 describe("withRecentRow", () => {
   test("prepends a navigable recent row whose id no task can own", () => {
@@ -439,10 +439,9 @@ describe("a project closed down to nothing (owner call 2026-08-31)", () => {
     expect(treeFlatIds(out)).toEqual([])
   })
 
-  // The half that shipped without a guard (issue #90): six tests pinned that
-  // the project GOES, none that it can come back. It could not — the dialog
-  // only ever minted `kind: "task"`. The way back is now `mode: "open"` →
-  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts); what
+  // The other half of the guard: the tests above pin that the project GOES,
+  // and the way back is `mode: "open"` →
+  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts). What
   // belongs HERE is the tree's side of that round trip.
   test("the hidden project returns as soon as its main has a tab again", () => {
     const tasks = [mainOf("/repos/codefox")]

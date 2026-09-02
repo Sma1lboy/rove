@@ -3,12 +3,11 @@
  * millisecond delta, hours from minutes, days from hours. Both TUI consumers
  * (the Routines schedule preview's `formatRelative` and the Automations
  * page's `formatWhen`) derive their units from here so the two can't drift
- * apart again — they used to be independent copies, which is how one screen
- * ended up proposing floor while its neighbor rounded (PR #479).
+ * apart — independent copies are how one screen ends up flooring while its
+ * neighbor rounds.
  *
- * Every step uses Math.round — the behavior both consumers shipped with.
- * Floor-vs-round is a display-convention call the owner makes (PR #479
- * argues countdowns should floor so they never overstate headroom); when
+ * Every step uses Math.round. Floor-vs-round is a display-convention call
+ * (a countdown that floors never overstates headroom); when
  * that's decided, change it HERE so every consumer moves together.
  */
 export function relativeBuckets(absMs: number): { minutes: number; hours: number; days: number } {

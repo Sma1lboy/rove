@@ -158,31 +158,29 @@ export const TRAPPED_KEYS = ["ctrl+pageup", "ctrl+pagedown"] as const
  *     `KobeKeymap` (keybindings-table.ts) stays the single source of truth
  *     and a user override never changes what the terminal swallows.
  *   - a chord literal — reserved even though no keymap row binds it
- *     directly anymore. #308 moved the workspace/chat management chords to
- *     prefix-only (`prefixKeys`), but the terminal passthrough kept
- *     swallowing their old direct chords on main; the literals preserve
- *     that behavior byte-for-byte until the prefix follow-up decides
+ *     directly. The workspace/chat management chords are prefix-only
+ *     (`prefixKeys`), but the terminal passthrough still swallows their
+ *     direct chords; the literals hold that behavior until the prefix
+ *     follow-up decides
  *     whether to release them to the PTY (and whether the configured
  *     prefix key itself must be reserved instead).
  *
  * `terminal-keys-pure.test.ts` pins the resolved set.
  */
 const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
-  // The live keymap reference (owner call 2026-08-09): docs promise
-  // "F1 anywhere", the rest of the F-row (f2-f5, f7) was already
+  // The live keymap reference: docs promise
+  // "F1 anywhere", the rest of the F-row (f2-f5, f7) is
   // reserved, and the status-bar hint advertises F1 inside the terminal —
-  // leaving f1 passthrough made all three lie. No engine binds F1.
+  // leaving f1 passthrough would make all three lie. No engine binds F1.
   { id: "help.open" }, // f1
   // THE escape hatch out of the terminal: ctrl+q returns to the tasks
-  // list (direct chord restored 2026-07-11, same owner call as the tab
-  // rows below).
+  // list (a direct chord, same as the tab rows below).
   { id: "focus.sidebar" }, // ctrl+q
-  // Terminal tab management (the PTY chattab, issue #16) — parity with the
-  // tmux root key-table which also intercepted these. ctrl+w / f2 double
+  // Terminal tab management (the PTY chattab) — parity with the
+  // tmux root key-table, which intercepts these too. ctrl+w / f2 double
   // as `workspace.split.close` / `workspace.split.rename` when split —
-  // same chords, so one reservation covers both. Direct chords restored
-  // as dual aliases beside the prefix strokes (owner call 2026-07-11),
-  // so these derive from the table again.
+  // same chords, so one reservation covers both. Direct chords are dual
+  // aliases beside the prefix strokes, so these derive from the table.
   { id: "chat.tab.new" }, // ctrl+t
   { id: "chat.tab.close" }, // ctrl+w
   { id: "chat.tab.cycle-next" }, // ctrl+]
@@ -191,14 +189,14 @@ const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
   // Engine picker / quick-fork (without the reservation the embedded
   // terminal forwards them to the engine CLI, e.g. emacs-style
   // forward-char on ctrl+f). ctrl+e is the unified new-conversation
-  // dialog's direct chord (issue #7); ctrl+f has no direct binding
-  // anymore (chat.fork.new is prefix-only since #308) but STAYS reserved
+  // dialog's direct chord; ctrl+f has no direct binding
+  // (chat.fork.new is prefix-only) but STAYS reserved
   // — it's the dialog's in-scope context toggle, and releasing it to the
   // PTY would make the byte mean different things per focus.
   "ctrl+e", // chat.tab.chooseEngine
-  "ctrl+f", // new-chat dialog context toggle (ex chat.fork.new direct)
-  // Split panes inside the tab (tmux % / "): direct chords restored
-  // (owner call 2026-07-22), so they derive from the table again.
+  "ctrl+f", // new-chat dialog context toggle
+  // Split panes inside the tab (tmux % / "): direct chords, so they
+  // derive from the table.
   // Reserving ctrl+\ costs the embedded shell SIGQUIT — accepted trade,
   // documented in docs/KEYBINDINGS.md.
   { id: "workspace.split.right" }, // ctrl+\
@@ -210,8 +208,8 @@ const RESERVED_SPEC: ReadonlyArray<string | { id: string }> = [
   { id: "focus.next" }, // f4
   // Terminal reset (confirm-gated).
   { id: "terminal.reset" }, // f5
-  // Zen toggle moved to prefix-only prefix+z (owner call 2026-07-17) —
-  // f6 is no longer reserved and passes through to the shell.
+  // Zen toggle is prefix-only (prefix+z) — f6 is not reserved and passes
+  // through to the shell.
   // Jump to the next waiting task. NOT ctrl+g (the engine/readline
   // abort-editing chord) — see docs/KEYBINDINGS.md.
   { id: "attention.next" }, // f7
@@ -229,8 +227,8 @@ export const RESERVED_GLOBAL_CHORDS: readonly string[] = [
 
 /**
  * Names opentui's keypress events use that we want forwarded to the
- * shell when the terminal pane is focused. Lives here (pure) so
- * `keys.ts` (Solid hook) and tests both consume the same source.
+ * shell when the terminal pane is focused. Lives here (pure) so the
+ * pane and its tests both consume the same source.
  */
 export const PASSTHROUGH_NAMES: readonly string[] = [
   // Letters

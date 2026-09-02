@@ -50,7 +50,7 @@ export async function createKobeCore(options: KobeCoreOptions = {}): Promise<Kob
   })
 
   // Heal the projects/savedRepos split (see backfillSavedReposFromProjects):
-  // rows minted before 2026-08-31 are in the sidebar but not the picker. Runs
+  // rows minted by an older kobe are in the sidebar but not the picker. Runs
   // once per daemon boot and is idempotent — after the first pass every row
   // is already saved and `addSavedRepo` reports nothing added.
   const backfilled = backfillSavedReposFromProjects(

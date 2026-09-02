@@ -6,11 +6,11 @@
  * message never lands in the middle of what someone is typing. That check
  * reads the engine's CURRENT layout through an `EngineScreenManifest`, which
  * is a rule about pixels an upstream vendor is free to change without telling
- * anyone. When Claude moved its composer behind three rows of status
- * furniture, the rule stopped matching and every delivery to every Claude task
- * was held (2026-09-01).
+ * anyone. A vendor moving its composer (Claude behind three rows of status
+ * furniture, say) stops the rule matching, and every delivery to every task
+ * on that engine is held.
  *
- * The detector is now conservative in the right direction — an unmatched
+ * The detector is conservative in the right direction — an unmatched
  * anchor answers "I can't see it" rather than "there is text" — but the
  * failure mode this switch exists for is the one that comes back: a vendor
  * moves, the gate is confidently wrong, and the user watches messages queue up

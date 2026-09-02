@@ -3,7 +3,7 @@
  * into a standalone module because `host.tsx` imports `@opentui/*` render
  * assets (a `.scm` grammar file) that vitest can't load — so the backoff
  * curves live here, where they're directly unit-testable, and `host.tsx`
- * imports them. No IO, no Solid, no tmux: just numbers.
+ * imports them. No IO, no framework, no tmux: just numbers.
  */
 
 import type { ChatTabTurnState } from "@/engine/turn-detector"
@@ -40,7 +40,7 @@ export function nextActivityPollDelay(currentMs: number, idleStreak: number): nu
 
 /**
  * Next turn-status (capture-pane) poll delay in SHARED mode (the daemon
- * publishes transcript activity, so completion no longer comes from a local
+ * publishes transcript activity, so completion does not come from a local
  * JSONL read — only the tmux pane-quiescence hash does). Sibling of
  * {@link nextActivityPollDelay}.
  *

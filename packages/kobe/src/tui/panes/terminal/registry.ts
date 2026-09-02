@@ -25,21 +25,20 @@
  *   - It does not cap concurrency. Nothing else does either — there is
  *     no cap on simultaneous running tasks.
  *
- * PTY parking (issues #28/#29) — AUTOMATIC again since 2026-07-12: the
- * idle sweep detaches hidden tabs' xterm instances, but each handle now
+ * PTY parking is AUTOMATIC: the
+ * idle sweep detaches hidden tabs' xterm instances, but each handle
  * serializes its full screen first (`capturePark` → SerializeAddon VT
  * stream, ~100-200KB in `this.parked`) and the wake feeds that stream
  * plus the host's EXACT byte delta since park (`pty.open sinceOffset`)
- * into the fresh emulator — bit-identical to never detaching, which
- * removes the 2026-07-10 objection (the 512KB ring replay couldn't
- * rebuild a long session's screen). When the delta was trimmed away or
- * the child was respawned, the wake degrades to the old full-replay +
- * repaint-wiggle path.
+ * into the fresh emulator — bit-identical to never detaching. A 512KB
+ * ring replay alone cannot rebuild a long session's screen. When the
+ * delta has been trimmed away or the child was respawned, the wake
+ * degrades to the full-replay + repaint-wiggle path.
  *
  * Concurrency: every method is synchronous and JS is single-threaded,
  * so there's no race within a single registry. Two registries pointing
  * at the same task id return the same in-process shell handle. The
- * Solid component creates exactly one registry per app instance; tests
+ * host component creates exactly one registry per app instance; tests
  * stand up disposable registries inside a single `describe` block.
  */
 
@@ -110,9 +109,9 @@ export class PtyRegistry {
       if (since === null || now - since < idleMs) continue
       // Quiet gate: a hidden tab whose child is still streaming (claude
       // working in the background) keeps its emulator resident — parking
-      // it is exactly the "input box gone on wake" bug (2026-07-10 and
-      // again 2026-07-27): the delta outruns the 512KB host ring, and the
-      // degraded wake's repaint wiggle coalesces under an active stream.
+      // it produces the "input box gone on wake" failure: the delta outruns
+      // the 512KB host ring, and the degraded wake's repaint wiggle
+      // coalesces under an active stream.
       const lastOut = pty.lastOutputAtMs?.() ?? null
       if (lastOut !== null && now - lastOut < PARK_QUIET_MS) continue
       const screen = pty.capturePark?.() ?? null
@@ -139,7 +138,7 @@ export class PtyRegistry {
    * Return the existing PTY for `taskId`, or spawn a new one bound to
    * `cwd`. The `cwd` is only used on first acquisition; subsequent
    * acquires return the existing instance regardless of `cwd`. The
-   * Solid component is expected to `release()` and re-`acquire()` if
+   * host component is expected to `release()` and re-`acquire()` if
    * the task's worktree path actually changes — but in our data model
    * the worktree path is immutable for the lifetime of the task, so
    * that's a defensive contract not a runtime concern.
@@ -197,8 +196,8 @@ export class PtyRegistry {
 
   /**
    * Kill and forget every PTY whose id matches `predicate` — the
-   * task-scoped teardown for tab-keyed PTYs (`taskId::tabId`, issue
-   * #16): deleting a task must end every engine session it owns.
+   * task-scoped teardown for tab-keyed PTYs (`taskId::tabId`):
+   * deleting a task must end every engine session it owns.
    * Parked keys match too: their host sessions are ended by the delete
    * flow, and the screens must not outlive the task.
    */

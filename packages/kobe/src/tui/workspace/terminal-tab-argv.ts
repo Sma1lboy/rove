@@ -69,7 +69,7 @@ export function engineTabArgv(
 /**
  * Full spawn composition for an engine tab — {@link engineTabArgv} wrapped
  * in the user's shell (`shellSpawn`), plus the quick-fork initial
- * prompt policy (issue #17, verified delivery 12283c57): `prompt` rides the
+ * prompt policy: `prompt` rides the
  * argv as a positional arg ONLY on the first engine tab's FIRST spawn —
  * never on a later engine tab, an already-spawned tab, or one whose PTY is
  * still live (re-render churn), so the prompt can't re-deliver. Pure so
@@ -112,7 +112,7 @@ export function engineTabSpawnFor(
   // task's first tab: its id, worktree, and tab identity — so activity,
   // hooks, and a dead-reattach resume all belong to the story's task.
   const ref = tab.ptyTask
-  // Pre-trust the worktree in the vendor's first-run store (issue #28) — a
+  // Pre-trust the worktree in the vendor's first-run store — a
   // hosted session can't answer a trust dialog. The tab's pinned vendor wins.
   trustEngineWorktree(tab.vendor ?? opts.task.vendor, ref?.worktree ?? opts.worktreePath)
   const launch = buildEngineSessionLaunch({
@@ -123,7 +123,7 @@ export function engineTabSpawnFor(
     promptIntent,
     protocolGates: opts.protocolGates,
     // No firstMessageDelivery override: the registry contract applies, so a
-    // paste vendor's (kimi — issue #25) first message comes back as
+    // paste vendor's (kimi) first message comes back as
     // `launch.firstMessage` instead of riding the argv (its positional slot
     // is a subcommand — the text would kill the launch as an unknown
     // command). The hosted PTY backend pastes it post-spawn

@@ -2,9 +2,8 @@
  * The starter `keybindings.yaml` Rove writes on request from Settings →
  * Keybindings.
  *
- * The section used to PRINT this example and leave the user to create the file
- * themselves — twelve dead lines on screen, a path that wrapped across two of
- * them, and a retyping job. The same text is worth more inside the file, where
+ * Rove writes the file rather than printing the example for the user to
+ * retype: the same text is worth more inside the file, where
  * it sits next to what you are actually writing.
  *
  * Everything is commented out, so creating the file cannot change behavior: an

@@ -9,8 +9,8 @@ export const en = {
   chip: "↑ {version}",
   current: "current",
   latest: "latest",
-  /** The registry check failed (offline, npm down, timeout). Distinct from
-   *  "you are up to date" — those two used to render identically. */
+  /** The registry check failed (offline, npm down, timeout). Must stay
+   *  distinct from "you are up to date". */
   latestUnknown: "unknown — could not reach the registry",
   releaseUrlUnavailable: "release URL unavailable",
   statusReleaseOpened: "Opened release page in your browser.",

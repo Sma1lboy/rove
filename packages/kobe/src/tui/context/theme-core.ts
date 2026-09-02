@@ -1,7 +1,6 @@
 /**
  * Framework-free theme core behind the React provider
- * (`src/tui-react/context/theme.tsx`). Extracted during the React
- * migration (issue #15, G2): JSON shape types, hex/def-ref/variant
+ * (`src/tui-react/context/theme.tsx`). JSON shape types, hex/def-ref/variant
  * resolution, and the display-time overlay (focus-accent slot +
  * transparent-background policy) all live here so the provider and
  * off-render consumers (`tui/lib/persisted-ui-prefs.ts`, tests) cannot

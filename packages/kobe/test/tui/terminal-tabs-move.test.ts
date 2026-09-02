@@ -1,5 +1,5 @@
 /**
- * Tab reorder within a task (sidebar move mode, issue #43): the pure
+ * Tab reorder within a task (sidebar move mode): the pure
  * `moveTab` core (edge-stop, no wrap) and the mounted-vs-background fork in
  * `moveTaskTab` — order must land in the module map AND the kv snapshot so
  * it survives restart (`rehydrateTabs` keeps array order).

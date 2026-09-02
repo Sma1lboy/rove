@@ -407,7 +407,7 @@ export function overlaySelection(
  *
  * Returns the input by reference when nothing moved, and `null` when line
  * numbering was RESET (a resize reflows history and bumps `epoch`): the
- * selection then addresses content that no longer exists under those ids and
+ * selection then addresses content that does not exist under those ids and
  * must be dropped, not silently mis-mapped.
  */
 export function followWindowShift(
