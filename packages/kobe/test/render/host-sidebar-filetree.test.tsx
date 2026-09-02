@@ -181,6 +181,7 @@ describe("HostFilesPane", () => {
           onMention={(p) => mentions.push(p)}
           onZenToggle={NOOP}
           onCreatePR={NOOP}
+          taskKind="task"
         />,
         24,
       ),

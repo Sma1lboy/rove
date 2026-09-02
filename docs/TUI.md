@@ -211,7 +211,9 @@ active engine. The prompt asks the agent to review the diff, commit remaining
 changes, push the branch, and run `gh pr create`.
 
 Watch the engine tab for progress, failures, or questions. The action is
-unavailable on the target branch and requires an active engine session. A repo
+unavailable on the target branch and requires an active engine session. A
+project's `main` row is that repo's own checkout rather than a task branch, so
+the chip is not offered there; `ctrl+a` `p` still answers with the reason. A repo
 can replace the prompt with `.rove/pr-instructions.md`; see
 [Per-repo init](CONFIGURATION.md#per-repo-init). Because the engine performs the
 work, its own skills and approval rules still apply. The default prompt expects

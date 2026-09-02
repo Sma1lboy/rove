@@ -443,11 +443,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onOpenDiff={editor.onOpenDiff}
           onMention={editor.onMention}
           onZenToggle={toggleZen}
-          // A `kind:"main"` row IS the repo's root checkout — `branch: ""`,
-          // `worktreePath === repo` — so there is no task branch to open a PR
-          // from, and `createPRAction` can only answer with its
-          // already-on-the-target-branch toast. Don't advertise it there.
-          onCreatePR={selectedTask?.kind === "main" ? undefined : () => void editor.onCreatePR()}
+          onCreatePR={() => void editor.onCreatePR()}
+          taskKind={selectedTask?.kind}
         />
       ) : null}
 
