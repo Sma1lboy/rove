@@ -4,9 +4,11 @@
 import { describe, expect, it } from "bun:test"
 import type { KeyEvent } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"
-import { SidebarSearchInput } from "../../src/tui-react/panes/sidebar/chrome"
+import { useBindings } from "../../src/tui-react/lib/keymap"
+import { SidebarBrandHeader, SidebarSearchInput } from "../../src/tui-react/panes/sidebar/chrome"
+import { useTreeSearch } from "../../src/tui-react/panes/sidebar/use-tree-search"
 import { useTerminalBindings } from "../../src/tui-react/panes/terminal/keys"
 import { useDialog } from "../../src/tui-react/ui/dialog"
 import { useWorkspaceKeybindings } from "../../src/tui-react/workspace/host-keybindings"
@@ -123,6 +125,63 @@ async function pressCtrlN(props: Parameters<typeof Driver>[0]): Promise<string> 
   return text
 }
 
+function SearchSurface(props: { onActiveChange: (active: boolean) => void; onOpenUpdate: () => void }) {
+  const search = useTreeSearch({ focused: true, onActiveChange: props.onActiveChange })
+  useBindings(() => ({ bindings: [{ key: "/", cmd: search.enter }] }))
+  return (
+    <box flexDirection="column">
+      <text>{search.active ? `/${search.query}` : "sidebar"}</text>
+      <SidebarBrandHeader
+        focused={true}
+        status={{ label: "Inbox 0", emphasize: false }}
+        update={{ label: "Update chip" }}
+        onUpdateClick={props.onOpenUpdate}
+      />
+    </box>
+  )
+}
+
+function SearchUnmountTransition() {
+  const focus = useFocus()
+  const dialog = useDialog()
+  const [updateOpen, setUpdateOpen] = useState(false)
+  const [searchActive, setSearchActive] = useState(false)
+  useWorkspaceKeybindings({
+    focus,
+    dialog,
+    pages: {
+      ...pages(updateOpen ? "updateOpen" : undefined),
+      openUpdate: () => setUpdateOpen(true),
+      closeUpdate: () => setUpdateOpen(false),
+    },
+    filesPaneVisible: true,
+    searchActive,
+    selectedId: null,
+    cursorTaskId: () => null,
+    openTaskWorktree: NOOP,
+    createTask: () => dialog.replace(() => <text>New task dialog opened</text>),
+    renameBranch: NOOP,
+    cycleVendor: NOOP,
+    toggleZen: NOOP,
+    jumpToNextAttention: NOOP,
+    openInbox: NOOP,
+    enterMoveMode: NOOP,
+    createPR: NOOP,
+    toggleSortMode: NOOP,
+  })
+  if (updateOpen) {
+    return (
+      <SidebarBrandHeader
+        focused={false}
+        status={{ label: "Inbox 0", emphasize: false }}
+        update={{ label: "Close Update" }}
+        onUpdateClick={() => setUpdateOpen(false)}
+      />
+    )
+  }
+  return <SearchSurface onActiveChange={setSearchActive} onOpenUpdate={() => setUpdateOpen(true)} />
+}
+
 describe("ctrl+n New task", () => {
   it("opens the dialog from sidebar, files, and a non-input content pane", async () => {
     for (const initialFocus of ["sidebar", "files", "workspace"] as const) {
@@ -147,6 +206,39 @@ describe("ctrl+n New task", () => {
     const text = await pressCtrlN({ initialFocus: "sidebar", searchActive: true, searchEvents })
     expect(text).not.toContain("New task dialog opened")
     expect(searchEvents).toEqual([false])
+  })
+
+  it("restores ctrl+n after search unmounts behind the Update page", async () => {
+    const { frame, mockInput, mockMouse } = await renderComponent(
+      <FocusProvider initial="sidebar">
+        <SearchUnmountTransition />
+      </FocusProvider>,
+      { width: 70, height: 20, providers: { dialog: true } },
+    )
+
+    await act(async () => {
+      await mockInput.typeText("/")
+    })
+    await settle()
+    let text = await frame()
+    expect(text).toContain("/")
+
+    const updateRow = text.split("\n").findIndex((line) => line.includes("Update chip"))
+    await act(async () => {
+      await mockMouse.click(text.split("\n")[updateRow]!.indexOf("Update chip") + 1, updateRow)
+    })
+    await settle()
+    text = await frame()
+    expect(text).toContain("Close Update")
+
+    const closeRow = text.split("\n").findIndex((line) => line.includes("Close Update"))
+    await act(async () => {
+      await mockMouse.click(text.split("\n")[closeRow]!.indexOf("Close Update") + 1, closeRow)
+    })
+    await settle()
+    act(() => mockInput.pressKey("n", { ctrl: true }))
+    await settle()
+    expect(await frame()).toContain("New task dialog opened")
   })
 
   it("does not open over an engine composer or terminal and forwards ctrl+n", async () => {

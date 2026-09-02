@@ -32,6 +32,14 @@ export function useTreeSearch(opts: {
   const [query, setQuery] = useState("")
   const focusedRef = useLatest(opts.focused)
   const onActiveChange = opts.onActiveChange
+  const onActiveChangeRef = useLatest(onActiveChange)
+
+  useEffect(
+    () => () => {
+      onActiveChangeRef.current?.(false)
+    },
+    [],
+  )
 
   const enter = useCallback((): void => {
     setQuery("")
