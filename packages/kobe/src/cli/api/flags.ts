@@ -80,7 +80,7 @@ export const F = {
     type: "string",
     required,
     placeholder: "TEXT",
-    description: `${desc} Required unless --prompt-file is given.`,
+    description: required ? `${desc} Required unless --prompt-file is given.` : desc,
   }),
   /**
    * The escape hatch for a prompt the shell would mangle: backticks inside

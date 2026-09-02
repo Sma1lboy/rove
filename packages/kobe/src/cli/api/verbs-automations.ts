@@ -15,6 +15,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
+import { requirePromptText } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
 
 const SCHEDULE_FLAG = {
@@ -88,6 +89,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       F.repo(),
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
       F.prompt(true, "Text delivered as the new session's first message."),
+      F.promptFile(),
       { ...SCHEDULE_FLAG, required: true },
       F.vendor(),
       {
@@ -105,7 +107,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       simpleRpc(ctx, "automation.create", {
         repo: ctx.args.requirePath("repo"),
         name: ctx.args.require("name"),
-        prompt: ctx.args.require("prompt"),
+        prompt: requirePromptText(ctx, "routine-create"),
         schedule: ctx.args.require("schedule"),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
@@ -123,6 +125,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
       { name: "name", type: "string", placeholder: "N", description: "New name." },
       F.prompt(false, "New prompt."),
+      F.promptFile(),
       SCHEDULE_FLAG,
       F.vendor(),
       { name: "base-branch", type: "string", placeholder: "B", description: "New base ref ('' to clear)." },
@@ -134,7 +137,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       simpleRpc(ctx, "automation.update", {
         id: ctx.args.require("id"),
         ...(ctx.args.str("name") !== undefined ? { name: ctx.args.str("name") } : {}),
-        ...(ctx.args.str("prompt") !== undefined ? { prompt: ctx.args.str("prompt") } : {}),
+        ...(ctx.args.promptText() !== undefined ? { prompt: ctx.args.promptText() } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         // `--base-branch ''` clears the base ref (sends null); `present` keeps
