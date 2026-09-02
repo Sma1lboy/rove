@@ -60,13 +60,44 @@ const LEGACY_FUNCTION_KEYS: Readonly<Record<string, LegacyFunctionKey>> = {
   f12: { kind: "tilde", number: 24 },
 }
 
+const XTERM_MODIFIER_NAMED_KEYS = new Set([
+  "delete",
+  "kpdelete",
+  "insert",
+  "kpinsert",
+  "up",
+  "kpup",
+  "down",
+  "kpdown",
+  "right",
+  "kpright",
+  "left",
+  "kpleft",
+  "home",
+  "kphome",
+  "end",
+  "kpend",
+  "pageup",
+  "kppageup",
+  "pagedown",
+  "kppagedown",
+])
+
 function legacyModifier(evt: KeyEvent): number {
-  return 1 + (evt.shift ? 1 : 0) + (evt.ctrl ? 4 : 0) + (evt.super ? 8 : 0) + (evt.hyper ? 16 : 0)
+  return (
+    1 +
+    (evt.shift ? 1 : 0) +
+    (evt.option || evt.meta ? 2 : 0) +
+    (evt.ctrl ? 4 : 0) +
+    (evt.super ? 8 : 0) +
+    (evt.hyper ? 16 : 0)
+  )
 }
 
-function legacyCursorSequence(evt: KeyEvent, final: string): string {
+function legacyCursorSequence(evt: KeyEvent, final: string, applicationCursorKeys: boolean): string {
   const modifier = legacyModifier(evt)
-  return modifier === 1 ? `\x1b[${final}` : `\x1b[1;${modifier}${final}`
+  if (modifier !== 1) return `\x1b[1;${modifier}${final}`
+  return applicationCursorKeys ? `\x1bO${final}` : `\x1b[${final}`
 }
 
 function legacyTildeSequence(evt: KeyEvent, number: number): string {
@@ -93,7 +124,20 @@ function legacyFunctionSequence(evt: KeyEvent, key: LegacyFunctionKey): string {
  * CSI-u shaped we synthesize from name+modifiers instead. Synthetic
  * events (unit tests) lack `sequence` and take the same synthesis path.
  */
-export function keyEventToShellBytes(evt: KeyEvent): string | null {
+export interface TerminalInputModes {
+  readonly applicationCursorKeys: boolean
+  readonly applicationKeypad: boolean
+}
+
+export const NORMAL_TERMINAL_INPUT_MODES: TerminalInputModes = {
+  applicationCursorKeys: false,
+  applicationKeypad: false,
+}
+
+export function keyEventToShellBytes(
+  evt: KeyEvent,
+  modes: TerminalInputModes = NORMAL_TERMINAL_INPUT_MODES,
+): string | null {
   if (isKittyModifierKeyEvent(evt)) return null
   const e = evt as KeyEvent & { sequence?: string; raw?: string }
   const seq = typeof e.sequence === "string" && e.sequence.length > 0 ? e.sequence : null
@@ -110,10 +154,10 @@ export function keyEventToShellBytes(evt: KeyEvent): string | null {
   // "c", which lies), and control chars like "\t" (shift+tab) fall
   // through so the back-tab CSI still wins.
   if (seq != null && !containsControlCharacter(seq) && !evt.ctrl && !e.option && !e.meta) return seq
-  return synthesizeShellBytes(evt)
+  return synthesizeShellBytes(evt, modes)
 }
 
-function synthesizeShellBytes(evt: KeyEvent): string | null {
+function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string | null {
   const name = evt.name
   if (!name) return null
 
@@ -121,19 +165,21 @@ function synthesizeShellBytes(evt: KeyEvent): string | null {
   // `sequence`): shift+tab is the back-tab CSI claude's plan-mode cycle
   // expects; alt+<key> is ESC-prefixed per xterm convention.
   if (evt.shift && name === "tab") return "\x1b[Z"
-  if (evt.option || evt.meta) {
-    const inner = synthesizeShellBytes({ ...evt, option: false, meta: false } as KeyEvent)
+  const functionKey = LEGACY_FUNCTION_KEYS[name]
+  const xtermModifiedNamedKey = functionKey !== undefined || XTERM_MODIFIER_NAMED_KEYS.has(name)
+  if ((evt.option || evt.meta) && !xtermModifiedNamedKey) {
+    const inner = synthesizeShellBytes({ ...evt, option: false, meta: false } as KeyEvent, modes)
     return inner == null ? null : `\x1b${inner}`
   }
 
-  const functionKey = LEGACY_FUNCTION_KEYS[name]
   if (functionKey) return legacyFunctionSequence(evt, functionKey)
 
   switch (name) {
     case "return":
     case "enter":
-    case "kpenter":
       return "\r"
+    case "kpenter":
+      return modes.applicationKeypad && legacyModifier(evt) === 1 ? "\x1bOM" : "\r"
     case "tab":
       return "\t"
     case "backspace":
@@ -146,22 +192,22 @@ function synthesizeShellBytes(evt: KeyEvent): string | null {
       return legacyTildeSequence(evt, 2)
     case "up":
     case "kpup":
-      return legacyCursorSequence(evt, "A")
+      return legacyCursorSequence(evt, "A", modes.applicationCursorKeys)
     case "down":
     case "kpdown":
-      return legacyCursorSequence(evt, "B")
+      return legacyCursorSequence(evt, "B", modes.applicationCursorKeys)
     case "right":
     case "kpright":
-      return legacyCursorSequence(evt, "C")
+      return legacyCursorSequence(evt, "C", modes.applicationCursorKeys)
     case "left":
     case "kpleft":
-      return legacyCursorSequence(evt, "D")
+      return legacyCursorSequence(evt, "D", modes.applicationCursorKeys)
     case "home":
     case "kphome":
-      return legacyCursorSequence(evt, "H")
+      return legacyCursorSequence(evt, "H", modes.applicationCursorKeys)
     case "end":
     case "kpend":
-      return legacyCursorSequence(evt, "F")
+      return legacyCursorSequence(evt, "F", modes.applicationCursorKeys)
     case "pageup":
     case "kppageup":
       return legacyTildeSequence(evt, 5)

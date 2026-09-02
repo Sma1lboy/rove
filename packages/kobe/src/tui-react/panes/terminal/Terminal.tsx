@@ -313,6 +313,7 @@ export function Terminal(props: TerminalProps) {
     // TerminalSplit explicitly assigns IME ownership to its active leaf.
     // Require that explicit signal here so standalone/future mounts fail closed.
     unfocusedAttachmentTarget,
+    inputModes: () => pty?.inputModes() ?? { applicationCursorKeys: false, applicationKeypad: false },
     write: (data) => {
       if (!pty || pty.killed) return
       pty.write(data)

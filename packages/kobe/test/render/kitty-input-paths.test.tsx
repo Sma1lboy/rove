@@ -76,6 +76,33 @@ test("kitty modifier, text, keypad, and navigation events are re-encoded for the
   expect(harness.last().writeLog.join("")).toBe(expected)
 })
 
+test("kitty navigation follows the child PTY application cursor and keypad modes", async () => {
+  const harness = createScriptedPtyRegistry()
+  const { mockInput, frame } = await renderComponent(
+    <Terminal cwd="/wt" taskId="kitty-application-modes" focused registry={harness.registry} />,
+    { width: 60, height: 12, providers: { dialog: true } },
+  )
+  await frame()
+
+  harness.last().modes = { applicationCursorKeys: true, applicationKeypad: true }
+  act(() => {
+    mockInput.pressKey("\x1b[1;1:1A")
+    mockInput.pressKey("\x1b[1;1:1H")
+    mockInput.pressKey("\x1b[57414u")
+  })
+  await settle()
+  expect(harness.last().writeLog.join("")).toBe("\x1bOA\x1bOH\x1bOM")
+
+  harness.last().modes = { applicationCursorKeys: false, applicationKeypad: false }
+  act(() => {
+    mockInput.pressKey("\x1b[1;1:1A")
+    mockInput.pressKey("\x1b[1;1:1H")
+    mockInput.pressKey("\x1b[57414u")
+  })
+  await settle()
+  expect(harness.last().writeLog.join("")).toBe("\x1bOA\x1bOH\x1bOM\x1b[A\x1b[H\r")
+})
+
 test("kitty all-keys mode keeps bracketed paste as one paste event", async () => {
   const harness = createScriptedPtyRegistry()
   const { mockInput, frame } = await renderComponent(

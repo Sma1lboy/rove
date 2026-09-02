@@ -121,6 +121,27 @@ describe("keyEventToShellBytes", () => {
     ).toBe("\x1b[A")
   })
 
+  it("encodes Alt-modified named keys with xterm modifier parameters", () => {
+    expect(keyEventToShellBytes(evt({ name: "up", option: true } as never))).toBe("\x1b[1;3A")
+    expect(keyEventToShellBytes(evt({ name: "left", meta: true } as never))).toBe("\x1b[1;3D")
+    expect(keyEventToShellBytes(evt({ name: "home", option: true } as never))).toBe("\x1b[1;3H")
+    expect(keyEventToShellBytes(evt({ name: "pageup", option: true } as never))).toBe("\x1b[5;3~")
+    expect(keyEventToShellBytes(evt({ name: "f1", option: true } as never))).toBe("\x1b[1;3P")
+    expect(keyEventToShellBytes(evt({ name: "f5", ctrl: true, option: true } as never))).toBe("\x1b[15;7~")
+  })
+
+  it("uses the child PTY cursor and keypad application modes", () => {
+    const applicationModes = { applicationCursorKeys: true, applicationKeypad: true }
+    expect(keyEventToShellBytes(evt({ name: "up" }), applicationModes)).toBe("\x1bOA")
+    expect(keyEventToShellBytes(evt({ name: "home" }), applicationModes)).toBe("\x1bOH")
+    expect(keyEventToShellBytes(evt({ name: "kpenter" }), applicationModes)).toBe("\x1bOM")
+
+    const normalModes = { applicationCursorKeys: false, applicationKeypad: false }
+    expect(keyEventToShellBytes(evt({ name: "up" }), normalModes)).toBe("\x1b[A")
+    expect(keyEventToShellBytes(evt({ name: "home" }), normalModes)).toBe("\x1b[H")
+    expect(keyEventToShellBytes(evt({ name: "kpenter" }), normalModes)).toBe("\r")
+  })
+
   it("re-encodes kitty PUA function keys and standard navigation keys for a legacy PTY", () => {
     for (const [name, codepoint, expected] of [
       ["insert", 57348, "\x1b[2~"],

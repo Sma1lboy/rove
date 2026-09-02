@@ -1,3 +1,4 @@
+import type { TerminalInputModes } from "./keys-pure"
 import {
   type CursorPos,
   DEFAULT_COLS,
@@ -36,6 +37,7 @@ export class MockTaskPty implements TaskPtyLike {
   private _cols: number
   private _rows: number
   private _cursor: CursorPos | null = null
+  modes: TerminalInputModes = { applicationCursorKeys: false, applicationKeypad: false }
 
   constructor(opts: TaskPtyOpts) {
     this.taskId = opts.taskId
@@ -85,6 +87,10 @@ export class MockTaskPty implements TaskPtyLike {
   write(data: string): void {
     if (this._killed) return
     this.writes.push(data)
+  }
+
+  inputModes(): TerminalInputModes {
+    return this.modes
   }
 
   /**

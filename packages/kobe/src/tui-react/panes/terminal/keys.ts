@@ -20,10 +20,12 @@ import { useEffect, useMemo, useRef } from "react"
 import { asAttachmentPaths } from "../../../tui/lib/attachments"
 import {
   DEFAULT_PAGE_SIZE,
+  NORMAL_TERMINAL_INPUT_MODES,
   PASSTHROUGH_CHORDS,
   TRAPPED_KEYS,
   keyEventToShellBytes,
 } from "../../../tui/panes/terminal/keys-pure"
+import type { TerminalInputModes } from "../../../tui/panes/terminal/keys-pure"
 import { bindByIds } from "../../context/keybindings"
 import { type Binding, modalActive, useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
@@ -39,6 +41,8 @@ export type TerminalBindingsOpts = {
   unfocusedAttachmentTarget: boolean
   /** Forward a byte sequence to the underlying PTY. */
   write: (data: string) => void
+  /** Read the child PTY's current cursor/keypad application modes. */
+  inputModes?: () => TerminalInputModes
   /** Deliver pasted text (backend applies bracketed-paste wrapping). */
   paste: (text: string) => void
   /** Scroll the local scrollback view by N lines (negative = up). */
@@ -75,7 +79,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
       }),
     )
     const forward = (evt: KeyEvent): void => {
-      const bytes = keyEventToShellBytes(evt)
+      const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes != null) optsRef.current.write(bytes)
     }
     for (const chord of PASSTHROUGH_CHORDS) table.push({ key: chord, cmd: forward, passthrough: true })
@@ -102,7 +106,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
     // by the modal barrier; raw listeners must gate themselves.
     const forwardUnhandled = (evt: KeyEvent) => {
       if (!optsRef.current.focused || evt.defaultPrevented || modalActive()) return
-      const bytes = keyEventToShellBytes(evt)
+      const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes == null) return
       optsRef.current.write(bytes)
       evt.preventDefault()
