@@ -166,14 +166,20 @@ vocabulary survives.
 
 ## routines (scheduled prompts)
 
-Each firing creates a FRESH task — worktree, engine, delivered prompt. An
-enabled routine holds the daemon alive so it fires with no TUI attached.
+A cron rule + a prompt + a repo, owned by the daemon. By default each firing
+creates a FRESH task — worktree, engine, delivered prompt. With
+`--persistent-session` every firing lands in ONE standing task as the next
+turn of the same conversation (a Claude Code-style routine: one window, one
+vendor, messages keep arriving). An enabled routine holds the daemon alive so
+it fires with no TUI attached.
 
 ```text
 routine-list         (none)
-routine-create       --repo(REQ) --name(REQ) --prompt(REQ) --schedule(REQ)
-                     --vendor --base-branch --precheck --precheck-timeout(120) --grace(60) --disabled
-routine-update       --id(REQ) --name --prompt --schedule --vendor --base-branch --precheck --precheck-timeout --grace
+routine-create       --repo(REQ) --name(REQ) --prompt|--prompt-file(REQ) --schedule(REQ)
+                     --vendor --base-branch --precheck --precheck-timeout(120) --grace(60)
+                     --persistent-session --disabled
+routine-update       --id(REQ) --name --prompt|--prompt-file --schedule --vendor --base-branch
+                     --precheck --precheck-timeout --grace --persistent-session
 routine-set-enabled  --id(REQ) --enabled(REQ,bool)
 routine-delete       --id(REQ)
 routine-run-now      --id(REQ)
@@ -187,13 +193,31 @@ which is the cheap way to not burn a turn on "nothing to do". `--grace` is how
 late a missed occurrence may still run after the daemon was down; only the
 most recent missed occurrence ever runs.
 
+Pick the mode by what the prompt DOES. A routine that EDITS code wants the
+default: each run is its own branch you can review and land; a week of runs
+piled onto one branch is a branch nobody can merge. A routine that ASKS the
+same question every day (a trend check, a digest, "what changed since
+yesterday?") is worthless from zero each morning — give it
+`--persistent-session`. Its standing task is folded behind the sidebar's
+`N routine sessions` row, raises an Inbox entry when a turn finishes, and
+never wins the cold-start "which task to open" fallback. If the engine process
+is gone when the next firing arrives (an overnight gap usually means it is),
+the daemon respawns it in the SAME worktree — files and branch carry over, the
+conversation does not — and records that run as `revived`, not `dispatched`.
+
+`--prompt-file` (`-` = stdin) is the same escape hatch as `send`'s: a prompt
+with backticks, `$vars` or quotes goes through it, never a double-quoted
+`--prompt`.
+
 `routine-update --schedule` re-anchors the next run. `--precheck ''` clears it.
 `routine-run-now` skips the precheck deliberately (asking for it IS the answer)
 and does not shift the schedule. `routine-delete` leaves already-created tasks
 alone.
 
-Run statuses from `routine-runs`: `dispatched`, `skipped_precheck` (nothing to
-do), `skipped_missed`, `skipped_unavailable`, `dispatch_failed`.
+Run statuses from `routine-runs`: `dispatched`, `revived` (standing session
+respawned — files kept, conversation did not), `deferred` (composer busy; the
+prompt is queued in the Inbox, NOT lost), `skipped_precheck` (nothing to do),
+`skipped_missed`, `skipped_unavailable`, `dispatch_failed`.
 
 ## discover / feedback
 
