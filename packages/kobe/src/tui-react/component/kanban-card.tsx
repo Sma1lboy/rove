@@ -25,7 +25,7 @@ import { FRAME } from "../ui/frame"
 const ACTIVITY_BADGE: Partial<
   Record<TaskActivityState, { labelKey: string; tone: "accent" | "warning" | "error" | "success" }>
 > = {
-  running: { labelKey: "tasks.status.working", tone: "accent" },
+  running: { labelKey: "tasks.activity.working", tone: "accent" },
   turn_complete: { labelKey: "kanban.turnComplete", tone: "success" },
   rate_limited: { labelKey: "tasks.activity.rateLimited", tone: "warning" },
   permission_needed: { labelKey: "tasks.activity.permissionNeeded", tone: "warning" },

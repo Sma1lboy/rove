@@ -111,6 +111,8 @@ export const en = {
   },
   /** Row-view engine activity labels (shown in subtitle, override branch) */
   activity: {
+    /** A turn is in flight — the engine is producing output right now. */
+    working: "working",
     rateLimited: "rate limited",
     permissionNeeded: "needs permission",
     error: "error",
@@ -230,6 +232,7 @@ export const zh: typeof en = {
     noActive: "暂无活跃任务——在上方新建。",
   },
   activity: {
+    working: "运行中",
     rateLimited: "请求受限",
     permissionNeeded: "等待授权",
     error: "错误",
