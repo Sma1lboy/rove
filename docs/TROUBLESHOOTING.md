@@ -488,6 +488,18 @@ chord on the row itself (`r` rename, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
 
+## Holding ctrl does not open the direct-shortcut guide
+
+The guide needs kitty keyboard protocol modifier press and release events. It
+works in iTerm2 3.5+, kitty, Ghostty, and WezTerm. Terminal.app and xterm.js do
+not provide these events. The guide also does not work when Rove runs inside
+tmux, because tmux does not pass the required modifier events through.
+
+Run `rove doctor` to check whether the current terminal answers the kitty
+keyboard protocol probe. Unsupported terminals silently keep the legacy input
+path. Typing and existing shortcuts continue to work. Only the hold-to-reveal
+guide is unavailable.
+
 ## Mouse wheel in the embedded terminal
 
 The wheel follows real terminal-emulator semantics, in order:

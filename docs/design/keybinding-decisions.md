@@ -37,6 +37,33 @@ state machine or require terminal key-repeat/release reporting. The combined
 default keeps spatial teaching on existing controls while the guide remains a
 complete reference and clickable mouse entry.
 
+## Hold ctrl to reveal direct shortcuts
+
+**2026-09-01. Holding either Ctrl key for 400 ms opens the Ctrl follow-up
+guide.** The owner confirmed that the panel answers one question: while Ctrl is
+still held, which next keys do something? The guide therefore reads reachable
+direct bindings from the current Binding Stack, keeps only exact
+`ctrl+<single-key>` chords, and displays the key after `ctrl+`. Bare keys,
+F-row keys, multi-modifier chords, and prefix second strokes stay out. One
+synthetic row shows the current prefix's follow-up key as "More commands
+(prefix)"; it does not create a binding. The 400 ms threshold is a default,
+subject to tuning — the owner signed off on the panel's semantics, not on that
+number.
+
+The live keymap remains the only direct-chord list, so rebindings and
+pane-specific reachability stay accurate. A page or dialog barrier shrinks the
+guide to the Ctrl chords that remain dispatchable in that context.
+
+The guide opens while an embedded engine terminal has focus. This is a discovery
+hint, not a modal input state. Releasing Ctrl or pressing any other key closes
+it, and the next key still follows the ordinary Rove or PTY path. Rove consumes
+bare modifier events before composer and PTY forwarding, so requesting kitty
+keyboard modifier events cannot type their key names into either input.
+
+Terminals without kitty keyboard protocol support silently keep the legacy input
+path. The hold gesture is unavailable in Terminal.app, xterm.js, and inside
+tmux. Existing shortcuts and terminal bytes are unchanged there.
+
 ## Repo context filter — removed, chord revoked
 
 **2026-08-16 — `ctrl+p` repo filter removed entirely (owner call, same

@@ -2,7 +2,8 @@
  * Keystroke HUD feed — a tiny framework-free stream the dispatch layer
  * writes and the workspace overlay renders (bottom-left of the Tasks
  * sidebar). Carries resolved PureTUI prefix sequences AND direct modifier
- * chords (`prefixKey: ""`). Keeps the last three plus the live armed flag;
+ * chords (`prefixKey: ""`). Keeps the last three plus the active prefix or
+ * direct-shortcut guide;
  * entries carry a timestamp and the OVERLAY enforces expiry, so this module
  * owns no timers and stays inert for headless/unit-test dispatch.
  */
@@ -29,12 +30,7 @@ export type PrefixHudEntry = {
 }
 
 export type PrefixHudSnapshot = {
-  /** True while the prefix is armed and waiting on the second stroke. */
-  armed: boolean
-  /** Timestamp used by the renderer to delay the expanded guide. */
-  armedAt: number | null
-  /** Prefix strokes reachable in the live Binding Stack when it was armed. */
-  options: readonly PrefixHudOption[]
+  guide: PrefixHudGuide | null
   entries: readonly PrefixHudEntry[]
 }
 
@@ -43,7 +39,18 @@ export type PrefixHudOption = {
   action: string
 }
 
-const cell = createStateCell<PrefixHudSnapshot>({ armed: false, armedAt: null, options: [], entries: [] })
+export type PrefixHudGuide =
+  | {
+      readonly kind: "prefix"
+      readonly armedAt: number
+      readonly options: readonly PrefixHudOption[]
+    }
+  | {
+      readonly kind: "direct"
+      readonly options: readonly PrefixHudOption[]
+    }
+
+const cell = createStateCell<PrefixHudSnapshot>({ guide: null, entries: [] })
 let nextEntryId = 1
 
 export const prefixHudState: ReadableState<PrefixHudSnapshot> = cell
@@ -54,22 +61,28 @@ export function prefixHudSetArmed(
   armedAt: number | null = null,
 ): void {
   cell.update((current) => {
-    if (!armed && !current.armed && current.options.length === 0) return current
-    return { ...current, armed, armedAt: armed ? armedAt : null, options: armed ? options : [] }
+    if (!armed) return current.guide?.kind === "prefix" ? { ...current, guide: null } : current
+    return { ...current, guide: { kind: "prefix", armedAt: armedAt ?? Date.now(), options } }
   })
+}
+
+export function prefixHudShowDirect(options: readonly PrefixHudOption[]): void {
+  cell.update((current) => ({ ...current, guide: { kind: "direct", options } }))
+}
+
+export function prefixHudHideDirect(): void {
+  cell.update((current) => (current.guide?.kind === "direct" ? { ...current, guide: null } : current))
 }
 
 export function prefixHudPush(entry: Omit<PrefixHudEntry, "id">): void {
   cell.update((current) => ({
     ...current,
-    armed: false,
-    armedAt: null,
-    options: [],
+    guide: null,
     entries: [...current.entries, { ...entry, id: nextEntryId++ }].slice(-MAX_ENTRIES),
   }))
 }
 
 /** Test seam — clears the feed between unit tests. */
 export function resetPrefixHud(): void {
-  cell.set({ armed: false, armedAt: null, options: [], entries: [] })
+  cell.set({ guide: null, entries: [] })
 }

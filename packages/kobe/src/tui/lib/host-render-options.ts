@@ -19,7 +19,7 @@ export function hostRenderOptions(onDestroy?: () => void): Record<string, unknow
     externalOutputMode: "passthrough",
     exitOnCtrlC: false,
     screenMode: "alternate-screen",
-    useKittyKeyboard: {},
+    useKittyKeyboard: { events: true, allKeysAsEscapes: true },
   }
   return onDestroy ? { ...base, onDestroy } : base
 }
@@ -41,7 +41,7 @@ export function inlineRenderOptions(heightRows: number, onDestroy?: () => void):
     exitOnCtrlC: false,
     screenMode: "split-footer",
     footerHeight: heightRows,
-    useKittyKeyboard: {},
+    useKittyKeyboard: { events: true, allKeysAsEscapes: true },
   }
   return onDestroy ? { ...base, onDestroy } : base
 }

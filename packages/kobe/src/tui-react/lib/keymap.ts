@@ -22,17 +22,21 @@
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
+import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../tui/lib/ctrl-hold"
 import {
   type Binding,
   type BindingsConfig,
   type RegisteredBinding,
   armPrefixNow,
+  currentPrefixConfiguration,
   dispatchKeyEvent,
   insertRegistration,
   invokeArmedPrefixAction,
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
+import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
+import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
 export type { Binding, BindingsConfig, RegisteredBinding } from "../../tui/lib/keymap-dispatch"
@@ -57,6 +61,8 @@ const stack: RegisteredBinding[] = []
 let installedRenderer: unknown = null
 let installed: KeyHandler | null = null
 let listener: ((evt: KeyEvent) => void) | null = null
+let releaseListener: ((evt: KeyEvent) => void) | null = null
+let ctrlHoldDetector: CtrlHoldDetector | null = null
 /** Renderers this process has already moved past. A superseded renderer's
  *  tree can keep re-rendering after teardown (pending timers — the test
  *  harness destroys the renderer without unmounting React), and its
@@ -71,6 +77,8 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   if (installedRenderer === renderer) return
   if (supersededRenderers.has(renderer as object)) return
   if (installed && listener) installed.off("keypress", listener)
+  if (installed && releaseListener) installed.off("keyrelease", releaseListener)
+  ctrlHoldDetector?.cancel()
   if (installedRenderer) supersededRenderers.add(installedRenderer as object)
   // New renderer → fresh stack. The superseded renderer's tree may be torn
   // down without React cleanups (test harness destroy, hard renderer swap) —
@@ -82,7 +90,16 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   resetPrefixState()
   installedRenderer = renderer
   installed = renderer.keyInput
+  ctrlHoldDetector = createCtrlHoldDetector({
+    onReveal: () => {
+      resetPrefixState()
+      const options = directGuideOptions(bindingReachability(stack), currentPrefixConfiguration().key)
+      if (options.length > 0) prefixHudShowDirect(options)
+    },
+    onHide: prefixHudHideDirect,
+  })
   listener = (evt: KeyEvent) => {
+    ctrlHoldDetector?.keypress(evt)
     dispatchKeyEvent(stack, evt, Date.now(), {
       // OpenTUI's renderer renders synchronously on input. React state updates
       // scheduled from a non-React event listener (the keyInput emitter) are
@@ -93,7 +110,9 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
       flushSync,
     })
   }
+  releaseListener = (evt: KeyEvent) => ctrlHoldDetector?.keyrelease(evt)
   installed.on("keypress", listener)
+  installed.on("keyrelease", releaseListener)
 }
 
 /**
@@ -124,19 +143,33 @@ export function invokeArmedPrefixActionFromCurrentStack(actionId: string, stroke
   return invokeArmedPrefixAction(stack, actionId, stroke)
 }
 
-// Registration-change signal. Registrations land in mount EFFECTS (after the
-// tree rendered), so anything that derives render output from the stack —
-// the status-bar key hint reads `currentBindingReachability()` — would
-// otherwise compute against an empty/stale stack on its first pass and never
-// find out. Bumped on every insert/remove; consumers subscribe below.
+// Reachability-change signal. Registrations land in mount EFFECTS (after the
+// tree rendered), and enabled gates can change with focus/page state, so
+// anything deriving render output from the stack must subscribe below. Each
+// bump also closes an in-flight direct guide before it can show stale commands.
 let stackVersion = 0
 const stackListeners = new Set<() => void>()
 function bumpStackVersion(): void {
+  prefixHudHideDirect()
   stackVersion++
   for (const listener of stackListeners) listener()
 }
 
-/** Re-render the caller whenever bindings register or unregister. */
+function bindingReachabilitySignature(config: BindingsConfig): string {
+  const bindings = config.bindings
+    .map((binding) =>
+      [
+        binding.id ?? "",
+        binding.key,
+        binding.prefix === true ? "p" : "d",
+        binding.passthrough === true ? "i" : "u",
+      ].join(":"),
+    )
+    .join("|")
+  return `${config.enabled === false ? "off" : "on"};${config.modal === true ? "modal" : "plain"};${bindings}`
+}
+
+/** Re-render when registrations or their current reachability change. */
 export function useBindingStackVersion(): number {
   return useSyncExternalStore(
     (onChange) => {
@@ -164,6 +197,14 @@ export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: 
 
   const configRef = useLatest(config)
   const scope = useContext(ModalScopeContext)
+  const reachabilitySignature = bindingReachabilitySignature(config())
+  const previousReachabilitySignature = useRef(reachabilitySignature)
+
+  useEffect(() => {
+    if (previousReachabilitySignature.current === reachabilitySignature) return
+    previousReachabilitySignature.current = reachabilitySignature
+    bumpStackVersion()
+  }, [reachabilitySignature])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once registration; scope/owner tokens are stable for the component's lifetime.
   useEffect(() => {

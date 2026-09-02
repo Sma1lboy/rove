@@ -4,7 +4,7 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
-import { encodeMouseButton, encodeWheel } from "./keys-pure"
+import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
@@ -119,6 +119,17 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       this.transportWrite(data)
     } catch {
       this.markDead(false)
+    }
+  }
+
+  inputModes(): TerminalInputModes {
+    try {
+      return {
+        applicationCursorKeys: this.term.modes.applicationCursorKeysMode === true,
+        applicationKeypad: this.term.modes.applicationKeypadMode === true,
+      }
+    } catch {
+      return { applicationCursorKeys: false, applicationKeypad: false }
     }
   }
 

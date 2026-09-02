@@ -2,6 +2,7 @@ import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import { parse } from "@ansi-tools/parser"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
+import type { TerminalInputModes } from "./keys-pure"
 import type { Chunk } from "./sgr"
 
 /** One rendered row: a list of opentui-ready style runs. */
@@ -121,6 +122,8 @@ export interface TaskPtyLike {
   readonly killed: boolean
 
   write(data: string): void
+  /** Current child-requested keyboard modes used when kitty input must be re-encoded. */
+  inputModes(): TerminalInputModes
   /**
    * Deliver pasted text. Backends that can see the app's DECSET 2004
    * state wrap it in bracketed-paste markers when (and only when) the

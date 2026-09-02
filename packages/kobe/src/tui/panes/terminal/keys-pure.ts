@@ -11,6 +11,7 @@
 import type { KeyEvent } from "@opentui/core"
 
 import { defaultChordsOf } from "../../context/keybindings.ts"
+import { isKittyModifierKeyEvent } from "../../lib/modifier-keys.ts"
 
 /**
  * Kitty keyboard-protocol CSI-u sequence (e.g. ctrl+c = `\x1b[99;5u`,
@@ -21,6 +22,14 @@ import { defaultChordsOf } from "../../context/keybindings.ts"
 // biome-ignore lint/suspicious/noControlCharactersInRegex: matching the raw ESC-prefixed kitty wire encoding is the whole point
 const KITTY_CSI_U_RE = /^\x1b\[[\d:;]*u$/
 
+function containsControlCharacter(value: string): boolean {
+  for (const character of value) {
+    const codePoint = character.codePointAt(0)
+    if (codePoint === undefined || codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) return true
+  }
+  return false
+}
+
 /** Classic C0 mappings for ctrl+punctuation (ctrl+\ = SIGQUIT etc.). */
 const CTRL_PUNCT_C0: Record<string, string> = {
   "@": "\x00",
@@ -30,6 +39,76 @@ const CTRL_PUNCT_C0: Record<string, string> = {
   "^": "\x1e",
   _: "\x1f",
   "?": "\x7f",
+}
+
+type LegacyFunctionKey =
+  | { readonly kind: "ss3"; readonly final: string }
+  | { readonly kind: "tilde"; readonly number: number }
+
+const LEGACY_FUNCTION_KEYS: Readonly<Record<string, LegacyFunctionKey>> = {
+  f1: { kind: "ss3", final: "P" },
+  f2: { kind: "ss3", final: "Q" },
+  f3: { kind: "ss3", final: "R" },
+  f4: { kind: "ss3", final: "S" },
+  f5: { kind: "tilde", number: 15 },
+  f6: { kind: "tilde", number: 17 },
+  f7: { kind: "tilde", number: 18 },
+  f8: { kind: "tilde", number: 19 },
+  f9: { kind: "tilde", number: 20 },
+  f10: { kind: "tilde", number: 21 },
+  f11: { kind: "tilde", number: 23 },
+  f12: { kind: "tilde", number: 24 },
+}
+
+const XTERM_MODIFIER_NAMED_KEYS = new Set([
+  "delete",
+  "kpdelete",
+  "insert",
+  "kpinsert",
+  "up",
+  "kpup",
+  "down",
+  "kpdown",
+  "right",
+  "kpright",
+  "left",
+  "kpleft",
+  "home",
+  "kphome",
+  "end",
+  "kpend",
+  "pageup",
+  "kppageup",
+  "pagedown",
+  "kppagedown",
+])
+
+function legacyModifier(evt: KeyEvent): number {
+  return (
+    1 +
+    (evt.shift ? 1 : 0) +
+    (evt.option || evt.meta ? 2 : 0) +
+    (evt.ctrl ? 4 : 0) +
+    (evt.super ? 8 : 0) +
+    (evt.hyper ? 16 : 0)
+  )
+}
+
+function legacyCursorSequence(evt: KeyEvent, final: string, applicationCursorKeys: boolean): string {
+  const modifier = legacyModifier(evt)
+  if (modifier !== 1) return `\x1b[1;${modifier}${final}`
+  return applicationCursorKeys ? `\x1bO${final}` : `\x1b[${final}`
+}
+
+function legacyTildeSequence(evt: KeyEvent, number: number): string {
+  const modifier = legacyModifier(evt)
+  return modifier === 1 ? `\x1b[${number}~` : `\x1b[${number};${modifier}~`
+}
+
+function legacyFunctionSequence(evt: KeyEvent, key: LegacyFunctionKey): string {
+  if (key.kind === "tilde") return legacyTildeSequence(evt, key.number)
+  const modifier = legacyModifier(evt)
+  return modifier === 1 ? `\x1bO${key.final}` : `\x1b[1;${modifier}${key.final}`
 }
 
 /**
@@ -45,12 +124,28 @@ const CTRL_PUNCT_C0: Record<string, string> = {
  * CSI-u shaped we synthesize from name+modifiers instead. Synthetic
  * events (unit tests) lack `sequence` and take the same synthesis path.
  */
-export function keyEventToShellBytes(evt: KeyEvent): string | null {
+export interface TerminalInputModes {
+  readonly applicationCursorKeys: boolean
+  readonly applicationKeypad: boolean
+}
+
+export const NORMAL_TERMINAL_INPUT_MODES: TerminalInputModes = {
+  applicationCursorKeys: false,
+  applicationKeypad: false,
+}
+
+export function keyEventToShellBytes(
+  evt: KeyEvent,
+  modes: TerminalInputModes = NORMAL_TERMINAL_INPUT_MODES,
+): string | null {
+  if (isKittyModifierKeyEvent(evt)) return null
   const e = evt as KeyEvent & { sequence?: string; raw?: string }
   const seq = typeof e.sequence === "string" && e.sequence.length > 0 ? e.sequence : null
-  const kittyWire =
-    (typeof e.raw === "string" && KITTY_CSI_U_RE.test(e.raw)) || (seq != null && KITTY_CSI_U_RE.test(seq))
-  if (seq != null && !kittyWire) return seq
+  const kittyInput =
+    e.source === "kitty" ||
+    (typeof e.raw === "string" && KITTY_CSI_U_RE.test(e.raw)) ||
+    (seq != null && KITTY_CSI_U_RE.test(seq))
+  if (seq != null && !kittyInput) return seq
   // Kitty wire, but the parser already extracted the typed TEXT into
   // `sequence` (shift+z → "Z", shift+1 → "!"). With no ctrl/alt/meta a
   // printable single char IS the byte to type — synthesis would drop the
@@ -58,11 +153,11 @@ export function keyEventToShellBytes(evt: KeyEvent): string | null {
   // terminals). ctrl chords keep synthesizing (ctrl+c carries sequence
   // "c", which lies), and control chars like "\t" (shift+tab) fall
   // through so the back-tab CSI still wins.
-  if (seq != null && seq.length === 1 && seq >= " " && seq !== "\x7f" && !evt.ctrl && !e.option && !e.meta) return seq
-  return synthesizeShellBytes(evt)
+  if (seq != null && !containsControlCharacter(seq) && !evt.ctrl && !e.option && !e.meta) return seq
+  return synthesizeShellBytes(evt, modes)
 }
 
-function synthesizeShellBytes(evt: KeyEvent): string | null {
+function synthesizeShellBytes(evt: KeyEvent, modes: TerminalInputModes): string | null {
   const name = evt.name
   if (!name) return null
 
@@ -70,33 +165,57 @@ function synthesizeShellBytes(evt: KeyEvent): string | null {
   // `sequence`): shift+tab is the back-tab CSI claude's plan-mode cycle
   // expects; alt+<key> is ESC-prefixed per xterm convention.
   if (evt.shift && name === "tab") return "\x1b[Z"
-  if (evt.option || evt.meta) {
-    const inner = synthesizeShellBytes({ ...evt, option: false, meta: false } as KeyEvent)
+  const functionKey = LEGACY_FUNCTION_KEYS[name]
+  const xtermModifiedNamedKey = functionKey !== undefined || XTERM_MODIFIER_NAMED_KEYS.has(name)
+  if ((evt.option || evt.meta) && !xtermModifiedNamedKey) {
+    const inner = synthesizeShellBytes({ ...evt, option: false, meta: false } as KeyEvent, modes)
     return inner == null ? null : `\x1b${inner}`
   }
+
+  if (functionKey) return legacyFunctionSequence(evt, functionKey)
 
   switch (name) {
     case "return":
     case "enter":
       return "\r"
+    case "kpenter":
+      return modes.applicationKeypad && legacyModifier(evt) === 1 ? "\x1bOM" : "\r"
     case "tab":
       return "\t"
     case "backspace":
       return "\x7f"
     case "delete":
-      return "\x1b[3~"
+    case "kpdelete":
+      return legacyTildeSequence(evt, 3)
+    case "insert":
+    case "kpinsert":
+      return legacyTildeSequence(evt, 2)
     case "up":
-      return "\x1b[A"
+    case "kpup":
+      return legacyCursorSequence(evt, "A", modes.applicationCursorKeys)
     case "down":
-      return "\x1b[B"
+    case "kpdown":
+      return legacyCursorSequence(evt, "B", modes.applicationCursorKeys)
     case "right":
-      return "\x1b[C"
+    case "kpright":
+      return legacyCursorSequence(evt, "C", modes.applicationCursorKeys)
     case "left":
-      return "\x1b[D"
+    case "kpleft":
+      return legacyCursorSequence(evt, "D", modes.applicationCursorKeys)
     case "home":
-      return "\x1b[H"
+    case "kphome":
+      return legacyCursorSequence(evt, "H", modes.applicationCursorKeys)
     case "end":
-      return "\x1b[F"
+    case "kpend":
+      return legacyCursorSequence(evt, "F", modes.applicationCursorKeys)
+    case "pageup":
+    case "kppageup":
+      return legacyTildeSequence(evt, 5)
+    case "pagedown":
+    case "kppagedown":
+      return legacyTildeSequence(evt, 6)
+    case "clear":
+      return "\x1b[E"
     case "escape":
       return "\x1b"
     case "space":

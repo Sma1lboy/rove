@@ -1,8 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Bottom-left prefix HUD (over the Tasks sidebar — NOT the terminal column,
+ * Bottom-left shortcut HUD (over the Tasks sidebar — NOT the terminal column,
  * where it collided with the engine's own status line): while the PureTUI
- * prefix is armed it shows a live `ctrl+a ⋯` line, and each resolved
+ * prefix is armed it shows a live `ctrl+a ⋯` line, a held Ctrl key shows the
+ * direct-shortcut guide, and each resolved
  * sequence lands a `ctrl+a + t → tab.new` line (or `∅` on a miss). The last
  * three lines stream like a mini log and flush PREFIX_HUD_TTL_MS after they
  * land — flush timers live HERE; the framework-free feed only timestamps
@@ -15,6 +16,7 @@ import { displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudState } from "../../tui/lib/prefix-hud"
+import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../tui/lib/shortcut-reveal"
 import { truncateEnd } from "../../tui/lib/truncate"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
@@ -31,10 +33,16 @@ const BOTTOM_MARGIN = 1
  * clipped at its `:` lead when present (`Quick-fork: create child task…` →
  * `Quick-fork`). Falls back to the raw id for rows without a description.
  */
-function actionLabel(action: string): string {
+function actionLabel(action: string, translate: ReturnType<typeof useT>): string {
+  if (action === DIRECT_GUIDE_PREFIX_ACTION_ID) return translate("help.moreCommandsPrefix")
   const binding = findBinding(action)
   if (!binding) return action
-  return tKeys("desc", action)
+  // HUD rows are cheat-sheet captions, not documentation: also clip a
+  // dash-led elaboration ("New conversation — engine/shell picker with …"
+  // → "New conversation"). The F1 help dialog keeps the full description.
+  const label = tKeys("desc", action)
+  const dash = label.search(/\s—\s|——/)
+  return dash > 0 ? label.slice(0, dash) : label
 }
 
 type GuideAction = { action: string; strokes: string[] }
@@ -77,8 +85,10 @@ export function PrefixHud(props: { left: number; width: number }) {
   const t = useT()
   const dims = useTerminalDimensions()
   const hud = useAccessor(prefixHudState)
+  const guide = hud.guide
   const { activeSurface } = useShortcutRevealPresentation()
-  const showCommandGuide = activeSurface !== null
+  const showPrefixGuide = guide?.kind === "prefix" && activeSurface !== null
+  const showCommandGuide = guide?.kind === "direct" || showPrefixGuide
   const [, setFlushTick] = useState(0)
 
   const now = Date.now()
@@ -96,42 +106,86 @@ export function PrefixHud(props: { left: number; width: number }) {
   }, [oldestAt])
 
   useEffect(() => {
-    if (!showCommandGuide || hud.armedAt === null) return
-    const remaining = hud.armedAt + PREFIX_GUIDE_DELAY_MS - Date.now()
+    if (!showPrefixGuide || guide?.kind !== "prefix") return
+    const remaining = guide.armedAt + PREFIX_GUIDE_DELAY_MS - Date.now()
     if (remaining <= 0) return
     const timer = setTimeout(() => setFlushTick((tick) => tick + 1), remaining)
     return () => clearTimeout(timer)
-  }, [showCommandGuide, hud.armedAt])
+  }, [showPrefixGuide, guide])
 
   const lineCount = fresh.length + (showCommandGuide ? 1 : 0)
   if (lineCount === 0) return null
-  const armedKey = currentPrefixConfiguration().key ?? ""
-  const showGuide = showCommandGuide && hud.armedAt !== null && now - hud.armedAt >= PREFIX_GUIDE_DELAY_MS
-  const groups = showGuide ? groupPrefixGuideOptions(hud.options) : []
+  const prefixKey = currentPrefixConfiguration().key ?? ""
+  const showGuide =
+    guide?.kind === "direct" ||
+    (showPrefixGuide && guide?.kind === "prefix" && now - guide.armedAt >= PREFIX_GUIDE_DELAY_MS)
+  const groups = showGuide && guide ? groupPrefixGuideOptions(guide.options) : []
 
   if (showGuide) {
     const narrow = dims.width < 88
     const columns = narrow ? 1 : Math.min(dims.width < 140 ? 2 : 3, Math.max(1, groups.length))
-    const groupRows = Array.from({ length: Math.ceil(groups.length / columns) }, (_, index) =>
-      groups.slice(index * columns, (index + 1) * columns),
-    )
     const guideWidth = Math.max(20, dims.width - 4)
     const groupWidth = narrow ? guideWidth - 4 : Math.max(18, Math.floor((guideWidth - 4) / columns))
-    const actionHeight = (action: GuideAction): number => {
+    // ONE key-cap width per group (its widest stroke), so every label in the
+    // group starts at the same column instead of each row measuring its own.
+    const groupKeyWidth = (group: GuideGroup): number =>
+      Math.min(9, Math.max(3, ...group.actions.map((action) => displayWidth(action.strokes.join("/")))))
+    const actionHeight = (group: GuideGroup, action: GuideAction): number => {
       const strokes = action.strokes.join("/")
       // Cell widths, not String.length: CJK action labels and ⌘-class chord
       // glyphs occupy 2 (or ambiguous) cells — .length under-measures them
       // and the guide's height estimate runs off the screen bottom.
-      const keyWidth = Math.min(9, Math.max(3, displayWidth(strokes)))
+      const keyWidth = groupKeyWidth(group)
       const labelWidth = Math.max(1, groupWidth - keyWidth - 1)
-      return Math.max(1, Math.ceil(displayWidth(actionLabel(action.action)) / labelWidth))
+      const keyLines = Math.ceil(displayWidth(strokes) / keyWidth)
+      const labelLines = Math.ceil(displayWidth(actionLabel(action.action, t)) / labelWidth)
+      return Math.max(1, keyLines, labelLines)
     }
-    const guideHeight = groupRows.reduce(
-      (height, row) =>
-        height +
-        Math.max(1, ...row.map((group) => 1 + group.actions.reduce((sum, action) => sum + actionHeight(action), 0))),
-      3,
-    )
+    const groupHeight = (group: GuideGroup): number =>
+      1 + group.actions.reduce((sum, action) => sum + actionHeight(group, action), 0)
+    // Order-preserving balanced columns: split the ordered group list into
+    // `columns` CONTIGUOUS chunks minimizing the tallest column, then stack
+    // each chunk vertically. Short groups pack under each other instead of
+    // leaving the row-aligned holes the old rows-of-columns layout had.
+    const heights = groups.map(groupHeight)
+    const chunkHeight = (from: number, to: number): number =>
+      heights.slice(from, to).reduce((sum, h) => sum + h, 0) + Math.max(0, to - from - 1)
+    const partitionBounds = (count: number): number[] => {
+      let best: number[] = [groups.length]
+      let bestMax = Number.POSITIVE_INFINITY
+      const walk = (start: number, left: number, cuts: number[], tallest: number): void => {
+        if (left === 1) {
+          const max = Math.max(tallest, chunkHeight(start, groups.length))
+          if (max < bestMax) {
+            bestMax = max
+            best = [...cuts, groups.length]
+          }
+          return
+        }
+        for (let end = start + 1; end <= groups.length - left + 1; end++) {
+          walk(end, left - 1, [...cuts, end], Math.max(tallest, chunkHeight(start, end)))
+        }
+      }
+      walk(0, Math.max(1, count), [], 0)
+      return best
+    }
+    const bounds = partitionBounds(Math.min(columns, groups.length))
+    const columnChunks: GuideGroup[][] = []
+    let chunkStart = 0
+    for (const bound of bounds) {
+      if (bound > chunkStart) columnChunks.push(groups.slice(chunkStart, bound))
+      chunkStart = bound
+    }
+    const contentHeight =
+      3 +
+      columnChunks.reduce(
+        (tallest, chunk) =>
+          Math.max(tallest, chunk.reduce((sum, group) => sum + groupHeight(group), 0) + (chunk.length - 1)),
+        0,
+      )
+    const maxGuideHeight = Math.max(3, dims.height - BOTTOM_MARGIN)
+    const clipped = contentHeight > maxGuideHeight
+    const guideHeight = Math.min(contentHeight + (clipped ? 1 : 0), maxGuideHeight)
     const top = Math.max(0, dims.height - BOTTOM_MARGIN - guideHeight)
     return (
       <box
@@ -140,6 +194,8 @@ export function PrefixHud(props: { left: number; width: number }) {
         left={2}
         top={top}
         width={guideWidth}
+        height={guideHeight}
+        overflow="hidden"
         {...FRAME}
         borderColor={theme.borderActive}
         backgroundColor={theme.backgroundDialog}
@@ -148,14 +204,23 @@ export function PrefixHud(props: { left: number; width: number }) {
         flexDirection="column"
       >
         <box flexDirection="row" justifyContent="space-between">
-          <text fg={theme.primary}>{t("help.commandLayer", { prefix: armedKey })}</text>
-          <text fg={theme.textMuted}>{t("help.escCancel")}</text>
+          <text fg={theme.primary}>
+            {guide?.kind === "direct" ? t("help.directLayer") : t("help.commandLayer", { prefix: prefixKey })}
+          </text>
+          <text fg={theme.textMuted}>{guide?.kind === "direct" ? t("help.releaseCtrl") : t("help.escCancel")}</text>
         </box>
-        <box flexDirection="column">
-          {groupRows.map((row) => (
-            <box key={row.map((group) => group.category).join("-")} flexDirection="row" gap={narrow ? 0 : 1}>
-              {row.map((group) => (
-                <box key={group.category} flexDirection="column" flexGrow={1} flexBasis={0}>
+        <box
+          flexDirection="row"
+          gap={narrow ? 0 : 1}
+          alignItems="flex-start"
+          flexGrow={1}
+          flexShrink={1}
+          overflow="hidden"
+        >
+          {columnChunks.map((chunk) => (
+            <box key={chunk.map((group) => group.category).join("-")} flexDirection="column" flexGrow={1} flexBasis={0}>
+              {chunk.map((group, groupIndex) => (
+                <box key={group.category} flexDirection="column" marginTop={groupIndex === 0 ? 0 : 1}>
                   <text fg={theme.accent}>{tKeys("category", group.category)}</text>
                   {group.actions.map((action) => {
                     const strokes = action.strokes.join("/")
@@ -166,15 +231,18 @@ export function PrefixHud(props: { left: number; width: number }) {
                         gap={1}
                         onMouseUp={(event: { stopPropagation(): void }) => {
                           event.stopPropagation()
+                          if (guide?.kind !== "prefix") return
                           const stroke = action.strokes[0]
                           if (stroke) invokeArmedPrefixActionFromCurrentStack(action.action, stroke)
                         }}
                       >
-                        <box width={Math.min(9, Math.max(3, displayWidth(strokes)))}>
-                          <text fg={theme.primary}>{strokes}</text>
+                        <box width={groupKeyWidth(group)}>
+                          <text fg={theme.primary} wrapMode="char">
+                            {strokes}
+                          </text>
                         </box>
                         <text fg={theme.text} wrapMode="word" flexGrow={1} flexShrink={1}>
-                          {actionLabel(action.action)}
+                          {actionLabel(action.action, t)}
                         </text>
                       </box>
                     )
@@ -184,6 +252,7 @@ export function PrefixHud(props: { left: number; width: number }) {
             </box>
           ))}
         </box>
+        {clipped ? <text fg={theme.textMuted}>{t("help.overflow")}</text> : null}
       </box>
     )
   }
@@ -205,7 +274,7 @@ export function PrefixHud(props: { left: number; width: number }) {
           <text fg={theme.textMuted} wrapMode="none">
             {truncateEnd(
               `${entry.prefixKey ? `${entry.prefixKey} + ` : ""}${entry.stroke} ${
-                entry.action ? `→ ${actionLabel(entry.action)}` : "∅"
+                entry.action ? `→ ${actionLabel(entry.action, t)}` : "∅"
               }`,
               width - 2,
             )}
@@ -215,7 +284,7 @@ export function PrefixHud(props: { left: number; width: number }) {
       {showCommandGuide ? (
         <box paddingLeft={1} paddingRight={1} backgroundColor={theme.backgroundDialog}>
           <text fg={theme.textMuted} wrapMode="none">
-            {`${armedKey} ⋯`}
+            {`${prefixKey} ⋯`}
           </text>
         </box>
       ) : null}
