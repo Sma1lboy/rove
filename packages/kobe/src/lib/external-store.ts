@@ -24,7 +24,7 @@ export interface StateCell<T> extends ReadableState<T> {
 /** Backward-compatible name for callers already using the store vocabulary. */
 export type ExternalStore<T> = StateCell<T>
 
-const STATE_CHANGE_LIMIT = 32
+const STATE_CHANGE_LIMIT = 64
 const recentStateChanges: string[] = []
 
 function snapshotShape(value: unknown): string {

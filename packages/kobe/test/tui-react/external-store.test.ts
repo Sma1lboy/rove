@@ -67,4 +67,16 @@ describe("createExternalStore", () => {
     expect(trace[0]).not.toContain("another-private-title")
     clearRecentStateChangesForTest()
   })
+
+  it("retains the latest 64 transitions when the diagnostic ring overflows", () => {
+    clearRecentStateChangesForTest()
+    const store = createExternalStore(-1, "overflow-probe")
+    for (let value = 0; value <= 64; value += 1) store.set(value)
+
+    const trace = recentStateChangesForDiagnostics()
+    expect(trace).toHaveLength(64)
+    expect(trace[0]).toContain("overflow-probe: 0 -> 1")
+    expect(trace.at(-1)).toContain("overflow-probe: 63 -> 64")
+    clearRecentStateChangesForTest()
+  })
 })
