@@ -164,7 +164,7 @@ test("the detail frame stays mounted with nothing selected", async () => {
   )
   await new Promise((r) => setTimeout(r, 120))
   const text = await frame()
-  expect(text).toContain("┌")
+  expect(text).toContain("╭")
   expect(text).toContain("A routine runs its prompt")
 })
 
