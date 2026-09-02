@@ -17,11 +17,12 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import { logDaemonInfo } from "./crash-log.ts"
+import { writeJsonAtomic } from "./json-file.ts"
 
 /** One deferred prompt per tab is kept; a newer deferral displaces the older. */
 export const DEFERRED_PROMPT_TTL_MS = 24 * 60 * 60 * 1000
@@ -90,11 +91,8 @@ async function readStore(path: string): Promise<DeferredPromptsFile> {
 }
 
 async function writeStore(path: string, records: readonly DeferredPromptRecord[]): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   const body: DeferredPromptsFile = { version: 1, records: [...records] }
-  await writeFile(tmp, `${JSON.stringify(body, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, body)
 }
 
 const SUBSYSTEM = "deferred-prompts"
