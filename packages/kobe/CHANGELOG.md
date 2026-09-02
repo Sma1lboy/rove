@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.9.84
+
+### Patch Changes
+
+- [#791](https://github.com/Sma1lboy/rove/pull/791) [`67dd5af`](https://github.com/Sma1lboy/rove/commit/67dd5af6e141bfc322d88244110186bd59c23be5) The Files pane header no longer opens with a two-row hole. Its Zen and Create-PR
+  chips always wrap (they are wider than the pane), and the row's `gap` was
+  applying vertically as well as horizontally, so the header spent five rows on
+  two hints. It now spends two or three. A project's `main` row also stops
+  offering **Ask agent to create PR** — that row is the repo's own checkout with no
+  task branch, so the action could only answer with its already-on-the-target-branch
+  toast. `ctrl+a` `p` still fires there and still says why. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#794](https://github.com/Sma1lboy/rove/pull/794) [`de0c491`](https://github.com/Sma1lboy/rove/commit/de0c4911a0057ef4c20ebdfcec583ce9073c90aa) Every dialog now wears one look. The New task and New routine cards had
+  lowercase labels and bare inputs while the kanban story drawer had capitalised
+  labels, rounded field wells and a key legend — same card, two grammars. The
+  story-drawer version won and is now shared components, so New task, New
+  routine, Set status and the rename prompt all draw their fields as rounded
+  wells, mark focus the same way, and close with the same key legend.
+
+  The Routines card's square-cornered fields are the visible half of that: a
+  framed box only gets rounded corners if its author asks, and now nobody has
+  to. On a terminal shorter than 34 rows the frames drop away instead of the
+  Create button, which is the row budget that made those borders unaffordable. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#792](https://github.com/Sma1lboy/rove/pull/792) [`8872554`](https://github.com/Sma1lboy/rove/commit/88725547ccb838804251cf724c77ad1c3d9ac6cf) Stop every successful task delete from raising a red error toast. Deleting a task tears down its engine sessions, and the PTY host recorded that requested kill in `pty-exits.json` exactly like a crash — the only thing separating the two was the exit status, and a killed child exits under `SIGKILL` either way. The daemon's exit watcher then replayed it as an engine death: a `dead` activity state, a durable Inbox episode, and an error toast titled with the raw task id, arriving a moment after the task itself was already gone. `PtyHost.kill()` now marks the session as closed on request and skips the death record, so a close you asked for is no longer reported as a death — this covers the sidebar delete, the Worktrees page delete, the headless task-deletion sweep, and closing a terminal tab. A crash still records and still toasts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#793](https://github.com/Sma1lboy/rove/pull/793) [`d01591f`](https://github.com/Sma1lboy/rove/commit/d01591f7ecde9a736ab41758833c6bd53718d963) A terminal selection now gets out of the way of an app that owns the mouse. Selecting text at a shell prompt and then starting Claude Code, `vim` or `less` used to leave Rove's highlight painted on top of the app's own screen, and a drag begun before the app launched kept extending underneath it. Launching a mouse-aware app clears the pane's selection; drag-to-copy still works everywhere the app does not want the mouse, and `shift`+drag still selects out of one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.83
 
 ### Patch Changes
