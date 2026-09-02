@@ -94,8 +94,15 @@ export async function setBranchOp(client: KobeDaemonClient, id: TaskId | string,
   await client.request("task.setBranch", { taskId: String(id), branch })
 }
 
-export async function setVendorOp(client: KobeDaemonClient, id: TaskId | string, vendor: VendorId): Promise<void> {
-  await client.request("task.setVendor", { taskId: String(id), vendor })
+export async function setVendorOp(
+  client: KobeDaemonClient,
+  id: TaskId | string,
+  vendor: VendorId,
+  effort?: string,
+): Promise<void> {
+  // `effort` is omitted from the payload when the caller has no opinion, so
+  // the daemon can tell "leave the level alone" from `""` = clear it.
+  await client.request("task.setVendor", { taskId: String(id), vendor, ...(effort !== undefined ? { effort } : {}) })
 }
 
 export async function setCommandOp(

@@ -208,7 +208,9 @@ describe("cycleVendorFlow", () => {
 
     // account-detect is mocked to ["claude", "codex"] — cycling from claude
     // lands on codex.
-    expect(orch.setVendor).toHaveBeenCalledWith("t1", "codex")
+    // `undefined` effort = the cycle chord has no opinion on the reasoning
+    // level, so the task keeps the one it has.
+    expect(orch.setVendor).toHaveBeenCalledWith("t1", "codex", undefined)
     expect(notifyInfo).toHaveBeenCalledWith(expect.stringContaining("applies on reopen"))
     expect(reload).toHaveBeenCalledTimes(1)
   })

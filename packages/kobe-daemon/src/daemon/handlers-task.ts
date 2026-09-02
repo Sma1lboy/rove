@@ -114,7 +114,11 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const vendor = optionalVendor(payload, "vendor")
       if (!vendor) throw new Error("task.setVendor: vendor is required")
-      await ctx.orch.setVendor(taskId, vendor)
+      // Not `optionalString`: that maps `""` to undefined, and `""` is the
+      // wire spelling of "clear the level". Absent stays absent.
+      const rawEffort = payload.effort
+      if (rawEffort !== undefined && typeof rawEffort !== "string") throw new Error("effort must be a string")
+      await ctx.orch.setVendor(taskId, vendor, rawEffort)
       return {}
     },
   },

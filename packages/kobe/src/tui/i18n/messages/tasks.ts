@@ -73,6 +73,12 @@ export const en = {
     title: "Change engine",
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
+    /** Leading label of the reasoning-level row (engines that declare levels). */
+    effortLabel: "Effort",
+    /** The level choice meaning "don't pin one — use the engine's own default". */
+    noEffort: "engine default",
+    /** Footer for an engine that HAS levels: the row needs its own keys. */
+    footerEffort: "↑↓ engine · ←→ effort · enter set · esc cancel",
   },
   /** Run-again confirm dialog: the stored brief, verbatim and scrollable,
    *  before it is re-fired into a fresh task. */
@@ -198,6 +204,9 @@ export const zh: typeof en = {
     title: "切换引擎",
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
+    effortLabel: "推理强度",
+    noEffort: "引擎默认",
+    footerEffort: "↑↓ 引擎 · ←→ 强度 · enter 设置 · esc 取消",
   },
   runAgain: {
     title: "重新运行",

@@ -62,7 +62,7 @@ export interface IssueChatOrchestrator {
   createTask(input: { repo: string; title?: string; vendor?: VendorId }): Promise<Task>
   ensureMainTask(repo: string): Promise<Task>
   ensureWorktree(id: string): Promise<string>
-  setVendor(id: string, vendor: VendorId): Promise<void>
+  setVendor(id: string, vendor: VendorId, effort?: string): Promise<void>
   mutateIssue(repoRoot: string, op: unknown): Promise<unknown>
 }
 

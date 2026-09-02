@@ -10,7 +10,7 @@
 import type { TaskStatus } from "../../types/task.ts"
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { SET_COMMAND_VERB } from "./handlers-engines.ts"
+import { SET_COMMAND_VERB, SET_EFFORT_VERB } from "./handlers-engines.ts"
 import { TASK_STATUSES } from "./task-statuses.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -35,6 +35,7 @@ export const EDIT_VERBS: readonly VerbSpec[] = [
       simpleRpc(ctx, "task.setBranch", { taskId: ctx.args.require("task-id"), branch: ctx.args.require("branch") }),
   },
   SET_COMMAND_VERB,
+  SET_EFFORT_VERB,
   {
     name: "set-status",
     group: "edit",

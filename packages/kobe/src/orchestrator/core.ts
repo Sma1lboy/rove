@@ -382,7 +382,8 @@ export class Orchestrator {
   setBranch = (id: TaskId | string, branch: string): Promise<void> => this.editor.setBranch(id, branch)
   /** Record the language a task's user writes in, from their own prompt text. */
   observeLanguage = (id: TaskId | string, text: string): Promise<void> => this.editor.observeLanguage(id, text)
-  setVendor = (id: TaskId | string, vendor: VendorId): Promise<void> => this.editor.setVendor(id, vendor)
+  setVendor = (id: TaskId | string, vendor: VendorId, effort?: string): Promise<void> =>
+    this.editor.setVendor(id, vendor, effort)
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)

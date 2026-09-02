@@ -92,6 +92,37 @@ describe("setVendor", () => {
   it("throws TaskNotFoundError for an unknown id", async () => {
     await expect(orch.setVendor("nope", "codex")).rejects.toThrow(TaskNotFoundError)
   })
+
+  // `effort` is tri-state on purpose — absent, a level, and "" (clear) are
+  // three different asks, and collapsing any two of them strands a codex task
+  // on whatever level it launched with.
+  it("leaves the recorded level alone when no effort is passed", async () => {
+    const t = await makeTask()
+    await orch.setVendor(t.id, "codex", "xhigh")
+    expect(orch.getTask(t.id)?.modelEffort).toBe("xhigh")
+    await orch.setVendor(t.id, "codex")
+    expect(orch.getTask(t.id)?.modelEffort).toBe("xhigh")
+  })
+
+  it("persists an effort-only change even though the vendor is unchanged", async () => {
+    // The same-vendor early return used to swallow this: a user moving codex
+    // from medium to high changes nothing the store ever sees.
+    const t = await makeTask()
+    await orch.setVendor(t.id, "codex", "medium")
+    await orch.setVendor(t.id, "codex", "high")
+    expect(orch.getTask(t.id)?.modelEffort).toBe("high")
+  })
+
+  it("clears the level on an empty effort, and still no-ops when nothing changes", async () => {
+    const t = await makeTask()
+    await orch.setVendor(t.id, "codex", "high")
+    await orch.setVendor(t.id, "codex", "")
+    expect(orch.getTask(t.id)?.modelEffort).toBeUndefined()
+
+    const before = orch.getTask(t.id)?.updatedAt
+    await orch.setVendor(t.id, "codex", "")
+    expect(orch.getTask(t.id)?.updatedAt).toBe(before)
+  })
 })
 
 describe("setPinned", () => {
