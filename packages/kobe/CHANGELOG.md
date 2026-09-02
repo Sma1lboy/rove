@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.86
+
+### Patch Changes
+
+- [#799](https://github.com/Sma1lboy/rove/pull/799) [`e93f3ca`](https://github.com/Sma1lboy/rove/commit/e93f3ca6f32392f9ac60676d047cf7389acbb9ce) The agent skill's flag reference is generated from the verb specs
+
+  `references/api-flags.md` was hand-written and had drifted from the CLI: it
+  listed `--prompt-file` on `routine-create`/`routine-update`, where that flag
+  does not exist, and omitted `set-effort`, `engine-report`, `collect --group`,
+  `send --allow-empty` and `delete --wait` entirely. Its flag tables now come
+  from the same verb specs `rove api schema` serves, with an architecture test
+  that fails naming the stale verb, and SKILL.md points into the file by what a
+  user asks for ("every morning", "file it upstream") rather than by Rove's own
+  group names. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#801](https://github.com/Sma1lboy/rove/pull/801) [`c8db368`](https://github.com/Sma1lboy/rove/commit/c8db368c85734f36f504eb37ac327bf916b614a5) `rove api routine-create` and `routine-update` take `--prompt-file` (`-` = stdin), the same escape hatch `send` and `add` have for a prompt with backticks, `$vars` or quotes. Optional `--prompt` flags no longer claim to be "required unless --prompt-file is given" in `--help`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#800](https://github.com/Sma1lboy/rove/pull/800) [`0fc8c10`](https://github.com/Sma1lboy/rove/commit/0fc8c10b02408dbde20470a9372c7efbb41be845) The Routines page's detail box now draws the same rounded frame as every other framed surface; it was the last square-cornered box in the TUI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#797](https://github.com/Sma1lboy/rove/pull/797) [`efc3547`](https://github.com/Sma1lboy/rove/commit/efc354776701e1b330e2d1cd6367bbab63cee42e) The Rove agent skill's routine reference now documents `--persistent-session` (one standing task, every firing a new turn), `--prompt-file`, and the `revived` / `deferred` run statuses the binary already reports. Skill version 40. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.85
 
 ### Patch Changes
