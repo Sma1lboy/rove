@@ -73,7 +73,6 @@ export const en = {
     /** Insert feedback: the release attempt errored (RPC/PTY hiccup). */
     deferredInsertFailed: "Couldn't insert the queued message — it's still in the Inbox.",
   },
-  terminalComing: "Embedded terminal is starting...",
 }
 
 export const zh: typeof en = {
@@ -132,5 +131,4 @@ export const zh: typeof en = {
     /** 插入反馈：放行过程出错（RPC/PTY 故障）。 */
     deferredInsertFailed: "无法插入排队的消息——它仍在收件箱中。",
   },
-  terminalComing: "嵌入终端正在启动……",
 }
