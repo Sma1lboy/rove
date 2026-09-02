@@ -15,7 +15,6 @@
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { logClient, logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
-import type { DeferredPromptRecord } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import {
   type ChannelName,
@@ -87,7 +86,6 @@ import {
   ensureWorktreeOp,
   flushDeferredPromptsOp,
   forgetProjectOp,
-  getDeferredPromptOp,
   landTaskOp,
   listAutomationsOp,
   listFieldNotesOp,
@@ -98,10 +96,10 @@ import {
   moveTaskOp,
   mutateIssueOp,
   openDirectoryTaskOp,
+  releaseDeferredPromptOp,
   removeWorktreeOp,
   replyTabCloseOp,
   reportEngineInterruptOp,
-  resolveDeferredPromptOp,
   runAutomationNowOp,
   setActiveTaskOp,
   setAutomationEnabledOp,
@@ -433,8 +431,7 @@ export class RemoteOrchestrator {
     dismissAttentionOp(this.client, taskId, tabId, at)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     markAttentionReadOp(this.client, taskId, tabId, at)
-  getDeferredPrompt = (id: string): Promise<DeferredPromptRecord | null> => getDeferredPromptOp(this.client, id)
-  resolveDeferredPrompt = (id: string): Promise<boolean> => resolveDeferredPromptOp(this.client, id)
+  releaseDeferredPrompt = (id: string) => releaseDeferredPromptOp(this.client, id)
   flushDeferredPrompts = () => flushDeferredPromptsOp(this.client)
 
   /** Land a task's branch back into its base repo (`task.land`). Throws with a

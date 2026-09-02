@@ -13,7 +13,7 @@ import {
   partitionAttentionInboxAvailability,
   visitResolvedEpisodes,
 } from "./attention-inbox-core"
-import { deferredManifestFor, insertDeferredPrompt } from "./deferred-prompt-insert"
+import { insertDeferredPrompt } from "./deferred-prompt-insert"
 import { requestInboxItemOpen } from "./inbox-open-action"
 import { notifyInboxRpcFailure } from "./inbox-rpc-errors"
 import { writeInboxVisit } from "./inbox-visits"
@@ -97,32 +97,18 @@ export function useInboxHost(args: {
   }, [unavailableSignature, orch])
 
   /**
-   * Release a `prompt_deferred` episode. The text is
+   * Release a `prompt_deferred` episode (issue #78 B exit path). The text is
    * fetched from the daemon store (the episode carries only its id), inserted
    * with a FRESH A/C gate, and — only on success — resolved. The gate still
    * blocking means the human is typing again; the message stays queued.
    */
-  async function releaseDeferredPrompt(
-    item: AttentionInboxItem,
-    deferredId: string,
-    vendor: Task["vendor"],
-  ): Promise<void> {
+  async function releaseDeferredPrompt(item: AttentionInboxItem, deferredId: string): Promise<void> {
     try {
-      const record = await orch.getDeferredPrompt(deferredId)
-      if (!record) {
-        // The record was released or cleaned up after expiry — drop the stale
-        // episode so it doesn't point at a record that is gone.
+      const outcome = await insertDeferredPrompt({ orch, deferredId })
+      if (outcome === "missing") {
         notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", args.notifyError)
         return
       }
-      const outcome = await insertDeferredPrompt({
-        orch,
-        taskId: item.taskId,
-        tabId: item.tabId ?? "tab-1",
-        prompt: record.prompt,
-        deferredId,
-        manifest: deferredManifestFor(vendor),
-      })
       if (outcome === "deferred-again") args.notifyInfo(t("workspace.inbox.deferredStillQueued"))
       else if (outcome === "unavailable") args.notifyInfo(t("workspace.inbox.deferredUnavailable"))
       // "inserted" → the resolve RPC dropped both the record and the episode.
@@ -144,7 +130,7 @@ export function useInboxHost(args: {
       args.selectTask(item.taskId)
       requestTabActivation(item.taskId, item.tabId)
       args.focusWorkspace()
-      void releaseDeferredPrompt(item, deferredId, task?.vendor)
+      void releaseDeferredPrompt(item, deferredId)
       return
     }
 

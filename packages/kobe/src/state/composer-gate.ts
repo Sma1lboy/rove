@@ -46,12 +46,14 @@ export function toggleComposerGatePreference(
 ): "enabled" | "disabled" | "persist-failed" {
   const next = !composerGatePreferenceOn(store)
   store.set(COMPOSER_GATE_KEY, next)
-  if (next) return "enabled"
-  // KV writes are normally debounced. Flush before notifying the daemon so
-  // its fresh state.json read cannot race this transition and see the old ON.
-  if (!store.flush()) return "persist-failed"
-  onDisabled?.()
-  return "disabled"
+  // BOTH edges are synchronous: an in-progress daemon flush reads this value
+  // between records, so ON is its cancellation signal just as OFF starts it.
+  if (!store.flush()) {
+    store.set(COMPOSER_GATE_KEY, !next)
+    return "persist-failed"
+  }
+  if (!next) onDisabled?.()
+  return next ? "enabled" : "disabled"
 }
 
 /** Whether the screen-based composer check runs. Default true. */

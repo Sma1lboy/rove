@@ -91,6 +91,8 @@ describe("daemon handler registry", () => {
       "deferredPrompt.fileIfVacant",
       "deferredPrompt.get",
       "deferredPrompt.resolve",
+      "deferredPrompt.release",
+      "deferredPrompt.discardTab",
       "deferredPrompt.flush",
     ]
     const registry = createDaemonHandlerRegistry()

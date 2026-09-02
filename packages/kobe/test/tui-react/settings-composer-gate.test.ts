@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest"
 import { composerGatePreferenceOn, toggleComposerGatePreference } from "../../src/state/composer-gate.ts"
 
 describe("composer delivery check setting", () => {
-  it("flushes only on the enabled-to-disabled transition", () => {
+  it("persists both transitions synchronously and drains only when disabled", () => {
     const values = new Map<string, unknown>()
     const calls: string[] = []
     const kv = {
@@ -27,17 +27,20 @@ describe("composer delivery check setting", () => {
     expect(toggleComposerGatePreference(kv, drain)).toBe("enabled")
     expect(composerGatePreferenceOn(kv)).toBe(true)
     expect(drain).toHaveBeenCalledTimes(1)
+    expect(calls).toEqual(["set:false", "flush", "drain", "set:true", "flush"])
   })
 
   it("does not drain when the disabled value could not be persisted", () => {
     const drain = vi.fn()
+    const values: unknown[] = []
     const kv = {
       get: () => true,
-      set: () => {},
+      set: (_key: string, value: unknown) => values.push(value),
       flush: () => false,
     }
 
     expect(toggleComposerGatePreference(kv, drain)).toBe("persist-failed")
     expect(drain).not.toHaveBeenCalled()
+    expect(values).toEqual([false, true])
   })
 })

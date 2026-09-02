@@ -20,6 +20,7 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
     dir = await mkdtemp(join(tmpdir(), "kobe-deferred-handlers-"))
     const store = new Store(join(dir, "deferred-prompts.json"))
     ;(ctx as { deferredPrompts?: DeferredPromptsStore }).deferredPrompts = store
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = { ...ctx.runtime, composerGateEnabled: () => false }
     return { ctx, rec, store }
   }
 
@@ -145,7 +146,7 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
     ).rejects.toThrow(/task not found/)
   })
 
-  it("get reads a record back by id (null once resolved)", async () => {
+  it("fails the legacy pre-claim read path loud and resolves a pre-restart insert through a claim", async () => {
     const { ctx, store } = await ctxWithStore()
     const { id } = (await dispatch(
       "deferredPrompt.file",
@@ -153,12 +154,11 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
       ctx,
     )) as { id: string }
 
-    const got = (await dispatch("deferredPrompt.get", { id }, ctx)) as { record: { prompt: string } | null }
-    expect(got.record?.prompt).toBe("queued")
+    await expect(dispatch("deferredPrompt.get", { id }, ctx)).rejects.toThrow(
+      "legacy deferred prompt release is unsafe",
+    )
 
-    await dispatch("deferredPrompt.resolve", { id }, ctx)
-    const after = (await dispatch("deferredPrompt.get", { id }, ctx)) as { record: unknown }
-    expect(after.record).toBeNull()
+    await expect(dispatch("deferredPrompt.resolve", { id }, ctx)).resolves.toMatchObject({ removed: true })
     expect(await store.get(id)).toBeNull()
   })
 
@@ -206,7 +206,13 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
       { tabId: "tab-2", prompt: "first" },
       { tabId: "tab-1", prompt: "second" },
     ])
-    expect(result).toEqual({ delivered: [first.id, second.id], retained: [] })
+    expect(result).toEqual({
+      delivered: [first.id, second.id],
+      cleaned: [first.id, second.id],
+      expired: [],
+      retained: [],
+      cleanupPending: [],
+    })
     expect(await store.get(first.id)).toBeNull()
     expect(await store.get(second.id)).toBeNull()
     expect(rec.inboxDeleted).toEqual([
@@ -256,6 +262,8 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
     expect(attempted).toEqual(["tab-1", "tab-2", "tab-3"])
     expect(result).toEqual({
       delivered: [first.id, third.id],
+      cleaned: [first.id, third.id],
+      expired: [],
       retained: [
         {
           id: blocked.id,
@@ -265,6 +273,7 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
           layer: "recent-human-write",
         },
       ],
+      cleanupPending: [],
     })
     expect(await store.get(first.id)).toBeNull()
     expect(await store.get(blocked.id)).toEqual(blocked)
@@ -273,6 +282,140 @@ describe("deferredPrompt RPC handlers (issue #78 B)", () => {
       { taskId: TASK.id, tabId: "tab-1" },
       { taskId: TASK.id, tabId: "tab-3" },
     ])
+  })
+
+  it("single-flights concurrent flush, release, and dismiss operations", async () => {
+    const { ctx, store } = await ctxWithStore()
+    const queued = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "once",
+      layer: "composer-not-empty",
+      at: Date.now(),
+    })
+    let enterDelivery = () => {}
+    const entered = new Promise<void>((resolve) => {
+      enterDelivery = resolve
+    })
+    let finishDelivery = () => {}
+    const finish = new Promise<void>((resolve) => {
+      finishDelivery = resolve
+    })
+    let deliveries = 0
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
+      ...ctx.runtime,
+      composerGateEnabled: () => false,
+      deliverPromptToLiveEngineTabDetailed: async () => {
+        deliveries++
+        enterDelivery()
+        await finish
+        return { outcome: "delivered", tabId: "tab-1" }
+      },
+    }
+    ;(ctx.inbox as unknown as { snapshot: () => unknown[] }).snapshot = () => [
+      { taskId: TASK.id, tabId: "tab-1", state: "prompt_deferred", unread: true, at: queued.at },
+    ]
+
+    const firstFlush = dispatch("deferredPrompt.flush", {}, ctx)
+    await entered
+    const competing = Promise.all([
+      dispatch("deferredPrompt.flush", {}, ctx),
+      dispatch("deferredPrompt.release", { id: queued.id }, ctx),
+      dispatch("attention.dismiss", { taskId: TASK.id, tabId: "tab-1", at: queued.at }, ctx),
+    ])
+    finishDelivery()
+    await Promise.all([firstFlush, competing])
+
+    expect(deliveries).toBe(1)
+    expect(await store.get(queued.id)).toBeNull()
+  })
+
+  it("persists delivery before Inbox cleanup and converges without redelivery after an injected fault", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const queued = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "exactly once",
+      layer: "composer-not-empty",
+      at: Date.now(),
+    })
+    let deliveries = 0
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
+      ...ctx.runtime,
+      composerGateEnabled: () => false,
+      deliverPromptToLiveEngineTabDetailed: async () => {
+        deliveries++
+        return { outcome: "delivered", tabId: "tab-1" }
+      },
+    }
+    const deleteEpisode = ctx.inbox.deleteEpisode.bind(ctx.inbox)
+    let failCleanup = true
+    ctx.inbox.deleteEpisode = async (...args) => {
+      if (failCleanup) {
+        failCleanup = false
+        throw new Error("inbox rename failed")
+      }
+      return await deleteEpisode(...args)
+    }
+
+    const first = await dispatch("deferredPrompt.flush", {}, ctx)
+    expect(first).toMatchObject({ delivered: [queued.id], cleanupPending: [{ id: queued.id }] })
+    expect((await store.get(queued.id))?.deliveredAt).toEqual(expect.any(Number))
+
+    const retry = await dispatch("deferredPrompt.flush", {}, ctx)
+    expect(retry).toMatchObject({ delivered: [], cleaned: [queued.id], cleanupPending: [] })
+    expect(deliveries).toBe(1)
+    expect(await store.get(queued.id)).toBeNull()
+    expect(rec.inboxDeleted).toEqual([{ taskId: TASK.id, tabId: "tab-1" }])
+  })
+
+  it("cancels the remaining flush generation when the composer gate is re-enabled", async () => {
+    const { ctx, store } = await ctxWithStore()
+    const first = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "first",
+      layer: "composer-not-empty",
+      at: Date.now(),
+    })
+    const second = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-2",
+      prompt: "second",
+      layer: "composer-not-empty",
+      at: Date.now() + 1,
+    })
+    let gateEnabled = false
+    ;(ctx as { runtime: DaemonRuntimeAdapter }).runtime = {
+      ...ctx.runtime,
+      composerGateEnabled: () => gateEnabled,
+      deliverPromptToLiveEngineTabDetailed: async (_target, _prompt) => {
+        gateEnabled = true
+        return { outcome: "delivered", tabId: "tab-1" }
+      },
+    }
+
+    const result = await dispatch("deferredPrompt.flush", {}, ctx)
+    expect(result).toMatchObject({
+      delivered: [first.id],
+      retained: [{ id: second.id, reason: "gate-enabled" }],
+    })
+    expect(await store.get(second.id)).toEqual(second)
+  })
+
+  it("returns TTL-pruned ids and removes their stale Inbox pointers", async () => {
+    const { ctx, rec, store } = await ctxWithStore()
+    const expired = await store.file({
+      taskId: TASK.id,
+      tabId: "tab-1",
+      prompt: "expired",
+      layer: "composer-not-empty",
+      at: Date.now() - 24 * 60 * 60 * 1000 - 1,
+    })
+
+    const result = await dispatch("deferredPrompt.flush", {}, ctx)
+    expect(result).toMatchObject({ expired: [expired.id], delivered: [] })
+    expect(rec.inboxDeleted).toEqual([{ taskId: TASK.id, tabId: "tab-1" }])
   })
 
   it("discarding or closing a tab drops its stored prompt with its Inbox episode", async () => {

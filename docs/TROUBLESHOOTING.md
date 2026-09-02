@@ -328,11 +328,17 @@ redesign can make it wrong: it holds every message while reporting a composer
 you can see is empty. If that happens, turn the check off in **Settings → Dev
 → Check the composer before delivering**. Delivery then skips the screen read
 and immediately retries every queued prompt in its original order. A prompt
-that still cannot reach its exact tab stays in the Inbox; later tabs are still
-attempted, so one dead or recently typed-in tab cannot strand the rest. The
+that still cannot reach its exact live engine tab stays in the Inbox; an alive
+PTY whose engine exited into its fallback shell is never used. Later tabs are
+still attempted, so one dead or recently typed-in tab cannot strand the rest. The
 keystroke-recency guard remains active and can keep a prompt queued until the
 10-second quiet period passes. Explicitly closing that tab discards its queued
 prompt, clears the stale Inbox entry, and records the discard in the daemon log.
+
+Turning the check back on cancels the remaining flush after its current item;
+both setting transitions are persisted synchronously. If the attached daemon
+is too old to support queue flushing, Settings shows an error dialog. Restart
+Rove to load the matching daemon, then toggle the setting again.
 
 Leave it on otherwise. It is what stops an agent's message landing in the
 middle of a half-typed sentence.

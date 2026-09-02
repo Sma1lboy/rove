@@ -58,19 +58,56 @@ describe("daemon deferred-prompts store (issue #78 B)", () => {
     expect(await store.get(first.id)).toEqual(first)
   })
 
-  it("evicts TTL-expired records on write, logging the drop", async () => {
+  it("returns TTL-expired records to the caller instead of silently dropping their Inbox identity", async () => {
     const { store } = await create()
     const log = spyDaemonLog()
     try {
       const old = await store.file({ ...base, taskId: "task-old", at: now })
       now += DEFERRED_PROMPT_TTL_MS + 1_000
-      await store.file({ ...base, taskId: "task-new", at: now })
+      const fresh = await store.file({ ...base, taskId: "task-new", at: now })
 
-      expect(await store.get(old.id)).toBeNull()
+      expect(await store.get(old.id)).toEqual(old)
+      expect(await store.list()).toEqual({ records: [fresh], expired: [old] })
       expect(log.lines.join("")).toContain("expired deferred prompt")
     } finally {
       log.restore()
     }
+  })
+
+  it("blocks same-tab replacement while expiry cleanup owns the record", async () => {
+    const { store } = await create()
+    const old = await store.file({ ...base, at: now })
+    now += DEFERRED_PROMPT_TTL_MS + 1
+    const claimed = await store.claim(old.id)
+    expect(claimed.kind).toBe("claimed")
+    await expect(store.file({ ...base, prompt: "new", at: now })).rejects.toThrow("cleanup is in flight")
+    if (claimed.kind !== "claimed") throw new Error("claim missing")
+    await store.completeClaim(claimed.claim)
+
+    const fresh = await store.file({ ...base, prompt: "new", at: now })
+    expect(await store.listForTask(base.taskId)).toEqual([fresh])
+  })
+
+  it("replaces an expired record in the same tab without leaving a duplicate cleanup target", async () => {
+    const { store } = await create()
+    const old = await store.file({ ...base, at: now })
+    now += DEFERRED_PROMPT_TTL_MS + 1_000
+
+    const fresh = await store.file({ ...base, prompt: "fresh", at: now })
+
+    expect(await store.get(old.id)).toBeNull()
+    expect(await store.list()).toEqual({ records: [fresh], expired: [] })
+  })
+
+  it("does not let an unrelated expired claim block filing another tab", async () => {
+    const { store } = await create()
+    const old = await store.file({ ...base, at: now })
+    now += DEFERRED_PROMPT_TTL_MS + 1_000
+    expect(await store.claim(old.id)).toMatchObject({ kind: "claimed" })
+
+    const fresh = await store.file({ ...base, tabId: "tab-2", prompt: "fresh", at: now })
+
+    expect(await store.get(fresh.id)).toEqual(fresh)
   })
 
   it("deleteTask drops the task's records with a log line", async () => {

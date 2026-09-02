@@ -187,6 +187,8 @@ export interface DaemonRuntimeAdapter {
         readonly layer: "recent-human-write" | "composer-not-empty"
       }
   >
+  /** Fresh persisted state, checked between deferred-queue deliveries. */
+  composerGateEnabled(): boolean
   settingsSnapshot(): Response
   settingsPatch(request: Request): Promise<Response>
   handleDiffRequest(request: Request, url: URL): Promise<Response | null>
