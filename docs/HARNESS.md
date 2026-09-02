@@ -154,9 +154,9 @@ bun e2e/hero-plugin-demos.ts      # docs/assets/plugins/*.{mp4,gif} (2× cut)
 the typed-and-verified input helpers, and the encode — so a storyboard file is
 only its beats. `--encode-only` re-encodes the take already on disk.
 
-- **`HOME` stays the operator's**, alone among the isolation knobs: the engine
-  under capture is the real `claude`, and a redirected home photographs a
-  login screen. `ROVE_HOME_DIR` and the settings blob still land in
+- **`HOME` stays the operator's** (as in `dev:sandbox`), alone among the
+  isolation knobs: the engine under capture is the real `claude`, and a
+  redirected home photographs a login screen. `ROVE_HOME_DIR` and the settings blob still land in
   `.scratch/hero/`, and every inherited daemon/task/`CLAUDE_CODE_*` marker is
   scrubbed — a capture run from inside a Rove task must never reach the
   operator's daemon, and an inherited child-session marker turns the engine's

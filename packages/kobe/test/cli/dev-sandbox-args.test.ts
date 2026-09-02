@@ -85,6 +85,15 @@ describe("sandboxChildEnv", () => {
     expect(env.KOBE_HOME_DIR).toBe("/tmp/isolated")
   })
 
+  // A redirected HOME hid ~/.claude.json, ~/.codex/auth.json and friends from
+  // the engines, so the sandbox offered a different vendor set than production.
+  it("keeps the operator's HOME so engines see production credentials", () => {
+    const env = sandboxChildEnv("/tmp/isolated", { HOME: "/Users/op" })
+    expect(env.HOME).toBe("/Users/op")
+    expect(env.XDG_CONFIG_HOME).toBeUndefined()
+    expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
+  })
+
   it("ignores an ambient production web port and uses the sandbox default", () => {
     const env = sandboxChildEnv("/tmp/isolated", {
       ROVE_DAEMON_WEB_PORT: "45174",

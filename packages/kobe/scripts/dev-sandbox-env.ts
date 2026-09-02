@@ -11,8 +11,11 @@ export function sandboxRuntimePaths(home: string) {
  * Build a child environment whose sandbox invariants beat ambient aliases.
  *
  * This drops inherited production path overrides, pins the daemon/PTY socket
- * and pidfiles under the sandbox home, and stamps the web port. The HOME
- * policy is always "redirect": the dev sandbox is a throwaway home.
+ * and pidfiles under the sandbox home, and stamps the web port. `HOME` stays
+ * the operator's: only Rove's own state (`*_HOME_DIR`) is thrown away, so the
+ * engines under test see the same credentials, accounts, and vendor set as
+ * production — a redirected HOME made every engine look logged-out and the
+ * sandbox stopped reproducing what users run.
  */
 export function sandboxChildEnv(
   home: string,
@@ -28,7 +31,7 @@ export function sandboxChildEnv(
     root,
     home,
     ports,
-    homePolicy: "redirect",
+    homePolicy: "keep",
     parentEnv: parent,
     extra: { ROVE_DEV: "1", KOBE_DEV: "1" },
   })
