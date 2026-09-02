@@ -203,11 +203,6 @@ export function cursorIndexForProjectScope(rows: readonly SidebarRow[], projectF
   return projectRow?.flatIndex ?? rows[0]?.flatIndex ?? -1
 }
 
-/** Extract the flat list of navigable task ids. */
-export function flattenIds(rows: readonly SidebarRow[]): string[] {
-  return rows.map((r) => r.task.id)
-}
-
 /**
  * Where the cursor should sit after the external selection or the flat id list
  * changed — the single owner of the "follow selection / clamp into range" policy

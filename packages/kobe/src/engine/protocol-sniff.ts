@@ -91,18 +91,6 @@ export async function sniffProtocolFromSessions(worktree: string | undefined): P
   return found.length === 1 ? found[0] : null
 }
 
-/**
- * Combined sniff: the title first (it answers instantly and describes the
- * process that is running RIGHT NOW), then the session store (slower, and a
- * file can outlive the engine that wrote it). Null = stay generic.
- */
-export async function sniffProtocol(input: {
-  readonly title?: string | null
-  readonly worktree?: string
-}): Promise<VendorId | null> {
-  return sniffProtocolFromTitle(input.title) ?? (await sniffProtocolFromSessions(input.worktree))
-}
-
 /** What the observer knows about one LIVE, walked engine-tab session. */
 export interface LiveSessionEvidence {
   /** Foreground-walk verdict for the session's pid: a built-in vendor whose
