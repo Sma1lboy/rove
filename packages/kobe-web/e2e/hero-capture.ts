@@ -163,27 +163,17 @@ export async function record(workDir: string, storyboard: (page: Page) => Promis
   })
   try {
     const page = await context.newPage()
-    // `webgl=1`: recordings need xterm's WebGL renderer, not the DOM one the
-    // harness defaults to. The DOM renderer draws every cell as its own span
-    // using the font, which disables `customGlyphs` — xterm's geometric
-    // drawing of block-element and box-drawing characters. Engine banner art
-    // is built from those (Claude Code's logo is `▛█▝▀`), so under DOM it
-    // photographs with a seam down every cell boundary instead of the solid
-    // shape a real terminal shows. Stills keep the DOM default: a WebGL
-    // context is not guaranteed in every CI container, and a still that fails
-    // to render is worse than one with a seam. A failed context falls back to
-    // DOM inside ChatTerminal either way.
     // `HERO_CAPTURE_WALLPAPER` swaps the flat backdrop for a desktop wallpaper
     // showing through a transparent terminal, which is what makes a capture
-    // read as a window rather than a rectangle. The renderer follows from that
-    // choice (see ChatTerminal): transparent takes the canvas renderer, opaque
-    // ones take WebGL. Both tile block-drawing glyphs without a seam; the DOM
-    // renderer, which does not, is only ever the fallback.
+    // read as a window rather than a rectangle. `/harness` owns renderer
+    // selection for both wallpaper and opaque captures.
     const wallpaper = process.env.HERO_CAPTURE_WALLPAPER
-    const query = wallpaper
-      ? `wallpaper=${encodeURIComponent(wallpaper)}`
-      : "webgl=1"
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&${query}`)
+    const wallpaperQuery = wallpaper
+      ? `&wallpaper=${encodeURIComponent(wallpaper)}`
+      : ""
+    await page.goto(
+      `http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${wallpaperQuery}`,
+    )
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
     await look(page, "orbit-sdk", 60_000)
     await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: 400 } })

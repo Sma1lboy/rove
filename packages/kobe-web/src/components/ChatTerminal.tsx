@@ -12,12 +12,10 @@
  * scrollback ring on re-attach, so reattaching is loss-free.
  */
 
-import { CanvasAddon } from "@xterm/addon-canvas"
 import { ClipboardAddon } from "@xterm/addon-clipboard"
 import { FitAddon } from "@xterm/addon-fit"
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
-import { WebglAddon } from "@xterm/addon-webgl"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
 import { CornerDownLeft, RotateCw } from "lucide-react"
@@ -30,6 +28,10 @@ import {
 import { useAppState } from "../lib/store.ts"
 import { consumePendingPrompt } from "../lib/tabs.ts"
 import { type PtyMode, ptyUrl } from "../lib/terminal.ts"
+import {
+  loadTerminalRenderer,
+  type TerminalRendererMode,
+} from "../lib/terminal-renderer.ts"
 import { xtermTheme } from "../lib/theme.ts"
 import { isWebTransportOffline } from "../lib/web-transport.ts"
 
@@ -116,7 +118,7 @@ type ChatTerminalProps = {
   taskId: string
   mode: PtyMode
   testId?: string
-  disableWebgl?: boolean
+  renderer?: TerminalRendererMode
   /**
    * Let whatever is behind the terminal show through the cells the TUI does
    * not paint. The product already renders with a transparent background by
@@ -154,7 +156,7 @@ export function ChatTerminal({
   taskId,
   mode,
   testId,
-  disableWebgl = false,
+  renderer = "automatic",
   transparent = false,
   hostBackground,
   onStatusChange,
@@ -241,9 +243,9 @@ export function ChatTerminal({
       // Plain URLs in engine output become clickable.
       term.loadAddon(new WebLinksAddon())
       term.open(el)
-      // The visual harness pins the stock renderer so browser screenshots and
-      // buffer synchronization do not depend on GPU/WebGL availability.
-      // Renderer choice, and it is a three-way trade rather than a preference:
+      // The visual harness normally keeps this renderer policy. Its explicit
+      // DOM diagnostic mode skips both accelerated addons; buffer reads stay
+      // renderer-independent either way. Renderer choice is a three-way trade:
       //
       //   DOM    — always available, but each cell is its own span drawn with
       //            the font, so `customGlyphs` is off and block-drawing
@@ -254,22 +256,9 @@ export function ChatTerminal({
       //   Canvas — draws glyphs the same way WebGL does, on a 2D context that
       //            composites over what is behind it.
       //
-      // So transparency picks canvas and opacity picks WebGL.
-      if (transparent) {
-        try {
-          term.loadAddon(new CanvasAddon())
-        } catch {
-          /* DOM renderer fallback */
-        }
-      } else if (!disableWebgl) {
-        try {
-          const webgl = new WebglAddon()
-          webgl.onContextLoss(() => webgl.dispose())
-          term.loadAddon(webgl)
-        } catch {
-          /* DOM renderer fallback */
-        }
-      }
+      // So transparency picks Canvas and opacity picks WebGL. Opaque WebGL
+      // failures fall through Canvas before the final DOM fallback.
+      loadTerminalRenderer(term, renderer, transparent)
       try {
         fit.fit()
       } catch {
@@ -345,7 +334,7 @@ export function ChatTerminal({
     taskId,
     mode,
     epoch,
-    disableWebgl,
+    renderer,
     transparent,
     hostBackground,
     onStatusChange,
