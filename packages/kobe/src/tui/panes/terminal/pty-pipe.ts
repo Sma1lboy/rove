@@ -186,6 +186,10 @@ export class PipeTaskPty implements TaskPtyLike {
     return false
   }
 
+  click(): boolean {
+    return false
+  }
+
   onExit(cb: () => void): () => void {
     if (this._killed) {
       cb()

@@ -3,8 +3,8 @@
  *
  * Three fixtures build an isolated Rove home, seed a throwaway git repo, and
  * create tasks with real chat tabs. They legitimately differ on `HOME` policy:
- * README capture keeps the operator's HOME so the real engine finds credentials,
- * while CI visual tests and the dev sandbox redirect HOME for determinism.
+ * README capture and the dev sandbox keep the operator's HOME so the real engine
+ * finds credentials, while CI visual tests redirect HOME for determinism.
  * This module makes that policy explicit and pins every runtime path so a stray
  * inherited override cannot attach a fixture to the operator's live daemon.
  */

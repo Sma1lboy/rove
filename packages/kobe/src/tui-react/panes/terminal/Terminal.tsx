@@ -36,7 +36,7 @@
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
@@ -63,6 +63,7 @@ import { DialogConfirm } from "../../ui/dialog-confirm"
 import { useTerminalBindings } from "./keys"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
+import { useTerminalPointerForward } from "./use-terminal-pointer-forward"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalReset } from "./use-terminal-reset"
 import { useTerminalSelection } from "./use-terminal-selection"
@@ -191,32 +192,9 @@ export function Terminal(props: TerminalProps) {
     setScrollState((current) => moveViewportScroll(current, snapshot.length, bodyRows, lines, snapshotWindow))
   }
 
-  /**
-   * Emulator order for ANY scroll this pane performs — a wheel tick or a
-   * selection drag hanging past an edge. An app that owns its own scrollback
-   * (mouse tracking, or a fullscreen app on the alternate screen) gets wheel
-   * events; only when it wants neither do we move kobe's local viewport.
-   * Engine tabs are why this matters for the drag: Claude Code runs on the
-   * ALTERNATE screen, where there is no local scrollback to move at all, so a
-   * drag held at the edge has to ask the app to scroll, exactly as the wheel
-   * does. `screenX`/`screenY` are absolute pointer coords. Returns true when
-   * the scroll was forwarded — the selection hook then tracks the content
-   * shifts the app's redraws cause under the fixed snapshot rows.
-   */
-  const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
-    if (lines === 0) return false
-    const direction = lines < 0 ? "up" : "down"
-    if (pty && !pty.killed && bodyEl) {
-      const col = Math.max(1, screenX - bodyEl.screenX + 1)
-      const row = Math.max(1, screenY - bodyEl.screenY + 1)
-      if (pty.wheel(direction, col, row)) {
-        for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row)
-        return true
-      }
-    }
-    scrollBy(lines)
-    return false
-  }
+  // Pointer → PTY routing in emulator order (wheel and buttons); the pane
+  // only scrolls its local viewport when the app wants neither.
+  const { scrollFromPointer, forwardMouse } = useTerminalPointerForward({ pty, bodyEl, scrollBy })
 
   /* --------- viewport slicing ---------- */
 
@@ -370,22 +348,25 @@ export function Terminal(props: TerminalProps) {
       overflow="hidden"
       backgroundColor={theme.background}
       onMouseDown={(evt) => {
-        if (evt.button !== 0) return
         // Focus on press — but ONLY when not already focused, so clicking
         // inside a focused terminal is a pure no-op. A text-selection
         // drag still works regardless.
         if (!focused) props.onRequestFocus?.()
+        if (forwardMouse("down", evt)) return
+        if (evt.button !== 0) return
         const cell = selection.cellFromEvent(evt)
         if (!cell) return
         selection.beginSelection(cell)
       }}
       onMouseDrag={(evt) => {
+        if (forwardMouse("drag", evt)) return
         // Past the top/bottom edge this keeps scrolling on its own — opentui
         // captures the drag here, so the coordinates stay real off-pane.
         selection.dragTo(evt)
       }}
-      onMouseUp={() => {
+      onMouseUp={(evt) => {
         setFocusedLocal(true)
+        if (forwardMouse("up", evt)) return
         if (!selection.isDragging()) return
         selection.endDragging()
         if (selection.selection) {
