@@ -30,7 +30,7 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { engineEntry } from "@/engine/registry"
+import { type EngineRegistryEntry, engineEntry } from "@/engine/registry"
 import { getCustomEngineIds, getPersistedString } from "@/state/repos"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
 import { isContribEngine } from "./contrib-engines.ts"
@@ -218,6 +218,23 @@ export function sessionProtocol(vendor: VendorId | undefined): VendorId {
   const id = vendor?.trim()
   if (!id) return "claude"
   return getEngineProtocol(id) ?? id
+}
+
+/**
+ * The registry entry whose PROTOCOL behaviour applies to `vendor` — its
+ * declared `engineProtocol.<id>` when it is a custom preset, else its own.
+ *
+ * `engineEntry(vendor)` answers "what IS this engine" (display name, default
+ * command) and must stay keyed on the raw id. This answers "how do we TALK to
+ * it": the transcript reader, the workspace-trust store and first-message
+ * delivery are all the wrapped engine's, exactly as `docs/ENGINES.md`
+ * promises. Keying those off the raw id found the empty custom entry, so a
+ * `claudecpa` preset read no history, got the trust dialog Rove is supposed
+ * to pre-answer, and — for a kimi-protocol preset — took the first message on
+ * argv, which kills the launch.
+ */
+export function protocolEntry(vendor: VendorId | undefined): EngineRegistryEntry {
+  return engineEntry(sessionProtocol(vendor))
 }
 
 /**

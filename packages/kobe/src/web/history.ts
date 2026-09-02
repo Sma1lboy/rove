@@ -26,7 +26,7 @@
 
 import { isAbsolute } from "node:path"
 import { errorMessage } from "@/lib/error-message"
-import { engineEntry } from "../engine/registry.ts"
+import { protocolEntry } from "../engine/engine-presets.ts"
 
 const SESSIONS_ROUTE = "/api/history/sessions"
 const MESSAGES_ROUTE = "/api/history/messages"
@@ -55,7 +55,7 @@ async function handleSessions(url: URL): Promise<Response> {
     return Response.json({ error: "invalid vendor" }, { status: 400 })
   }
   try {
-    const reader = engineEntry(vendor).history
+    const reader = protocolEntry(vendor).history
     const [sessions, latestMtime] = await Promise.all([
       reader.listSessionIdsForWorktree(worktreePath),
       reader.latestTranscriptMtimeForWorktree(worktreePath),
@@ -76,7 +76,7 @@ async function handleMessages(url: URL): Promise<Response> {
     return Response.json({ error: "invalid sessionId" }, { status: 400 })
   }
   try {
-    const reader = engineEntry(vendor).history
+    const reader = protocolEntry(vendor).history
     const messages = await reader.readHistory(sessionId)
     const usage = reader.readUsageSnapshot ? await reader.readUsageSnapshot(sessionId) : undefined
     return Response.json({ messages, ...(usage ? { usage } : {}) })

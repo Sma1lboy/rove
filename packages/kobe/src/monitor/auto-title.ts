@@ -20,7 +20,7 @@
  * transcripts.
  */
 
-import { engineEntry } from "@/engine/registry"
+import { protocolEntry } from "@/engine/engine-presets"
 import { deriveTitleFromPrompt } from "@/orchestrator/title"
 import type { Message } from "@/types/engine"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "@/types/task"
@@ -56,7 +56,7 @@ export async function deriveTitleFromSession(
   vendor: VendorId = DEFAULT_TASK_VENDOR,
 ): Promise<string> {
   if (!worktree) return ""
-  const { history } = engineEntry(vendor)
+  const { history } = protocolEntry(vendor)
   const ids = await history.listSessionIdsForWorktree(worktree)
   // Walk sessions oldest-first (the task's origin conversation comes
   // first) and return the first that yields a usable title. We don't
@@ -81,7 +81,7 @@ export async function deriveTitleFromSession(
 export async function deriveTitleFromSessionId(vendor: VendorId, sessionId: string): Promise<string> {
   if (!sessionId) return ""
   try {
-    return titleFromMessages(await engineEntry(vendor).history.readHistory(sessionId))
+    return titleFromMessages(await protocolEntry(vendor).history.readHistory(sessionId))
   } catch {
     return ""
   }

@@ -35,8 +35,8 @@
  */
 
 import type { PtyPeekResult, SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { type EngineHistoryReader, engineEntry, supportsStructuredHistory } from "../../engine/registry.ts"
+import { engineLaunchArgv, protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
+import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
 import type { Message } from "../../types/engine.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -360,7 +360,7 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
   const vendor = task.vendor as VendorId | undefined
   const tab = ctx.args.str("tab")
   const deps: ReadOutputDeps = {
-    history: vendor && supportsStructuredHistory(vendor) ? engineEntry(vendor).history : null,
+    history: vendor && supportsStructuredHistory(sessionProtocol(vendor)) ? protocolEntry(vendor).history : null,
     peekTerminal: (tabId, sinceOffset) => peekTaskTerminal(taskId, vendor, tabId, sinceOffset),
   }
   const envelope = await readTaskOutput(

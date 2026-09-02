@@ -15,15 +15,15 @@
  * question actually being asked, and every engine can answer it.
  */
 
-import { type VendorId, coerceVendorId } from "../types/vendor.ts"
-import { engineEntry } from "./registry.ts"
+import type { VendorId } from "../types/vendor.ts"
+import { protocolEntry } from "./engine-presets.ts"
 import { pickUnclaimedSessionId } from "./session-identity.ts"
 
 /** Session ids this engine recorded for `worktree`, oldest-first; `[]` on error. */
 async function sessionIds(vendor: VendorId | undefined, worktree: string): Promise<readonly string[]> {
   if (!worktree) return []
   try {
-    return await engineEntry(coerceVendorId(vendor)).history.listSessionIdsForWorktree(worktree)
+    return await protocolEntry(vendor).history.listSessionIdsForWorktree(worktree)
   } catch {
     // Readers are best-effort by contract; an unreadable store is "no
     // evidence", never an error the tab has to handle.

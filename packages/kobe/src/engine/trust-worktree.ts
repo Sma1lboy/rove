@@ -9,12 +9,12 @@
  * launch (a failed write leaves the pre-#28 status quo — the dialog).
  */
 
-import { type VendorId, coerceVendorId } from "../types/vendor.ts"
-import { engineEntry } from "./registry.ts"
+import type { VendorId } from "../types/vendor.ts"
+import { protocolEntry } from "./engine-presets.ts"
 
 export function trustEngineWorktree(vendor: VendorId | undefined, worktreePath: string): void {
   try {
-    engineEntry(coerceVendorId(vendor)).trustWorktree?.(worktreePath)
+    protocolEntry(vendor).trustWorktree?.(worktreePath)
   } catch {
     /* best-effort — see the module doc */
   }

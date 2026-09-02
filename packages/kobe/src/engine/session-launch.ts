@@ -3,8 +3,8 @@ import { worktreeInitMarkerPath } from "../env.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
-import { type VendorId, coerceVendorId } from "../types/vendor.ts"
-import { engineEntry } from "./registry.ts"
+import type { VendorId } from "../types/vendor.ts"
+import { protocolEntry } from "./engine-presets.ts"
 import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
 
 export const SIGINT_GUARD = "trap ':' INT; "
@@ -191,8 +191,7 @@ export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): Engin
   // in their argv: their positional slot is a subcommand, so the text would
   // kill the launch as an unknown command. The spawner pastes it instead
   // (see EngineSessionLaunch.firstMessage).
-  const delivery =
-    input.firstMessageDelivery ?? engineEntry(coerceVendorId(input.task.vendor)).firstMessageDelivery ?? "argv"
+  const delivery = input.firstMessageDelivery ?? protocolEntry(input.task.vendor).firstMessageDelivery ?? "argv"
   const pasteFirstMessage = delivery === "paste" ? launchInit.firstMessage?.text : undefined
   if (launchInit.firstMessage && !pasteFirstMessage) argv = [...argv, launchInit.firstMessage.text]
   const markerPath = launchInit.initScript ? worktreeInitMarkerPath(input.worktreePath) : undefined
