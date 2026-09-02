@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.85
+
+### Patch Changes
+
+- [#796](https://github.com/Sma1lboy/rove/pull/796) [`09c5fd5`](https://github.com/Sma1lboy/rove/commit/09c5fd599583ce43ecef2aa54be2be4bfe117502) Continue a conversation from a wrapper engine. ctrl+e → continue on a tab
+  running a custom preset that wraps a built-in CLI (a `claudecpa` shell
+  function around `claude`) refused with "No conversation in this tab to fork
+  yet": the preset id resolved to the empty engine entry, so kobe read no
+  transcripts and found no fork verb. It now resolves the source engine from
+  the live process the tab is actually running, and the forked tab still
+  launches the preset the user picked. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.84
 
 ### Patch Changes
