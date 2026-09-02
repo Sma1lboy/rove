@@ -17,6 +17,7 @@ import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { NewTaskDialogView } from "../../src/tui-react/component/new-task-dialog/dialog"
+import type { AdoptableWorktree } from "../../src/types/worktree"
 import { type RenderHandle, act, renderComponent, settle } from "./harness"
 
 function repo(): string {
@@ -25,9 +26,16 @@ function repo(): string {
   return dir
 }
 
-const WORKTREES = [
-  { path: "/tmp/wt/alpha", branch: "feature/alpha", dirty: false, kobeManaged: true },
-  { path: "/tmp/wt/beta", branch: "feature/beta", dirty: true, kobeManaged: false },
+const WORKTREES: readonly AdoptableWorktree[] = [
+  {
+    path: "/tmp/wt/alpha",
+    branch: "feature/alpha",
+    head: "a1b2c3d",
+    dirty: false,
+    kobeManaged: true,
+    lastActivityMs: 2,
+  },
+  { path: "/tmp/wt/beta", branch: "feature/beta", head: "d4e5f6a", dirty: true, kobeManaged: false, lastActivityMs: 1 },
 ]
 
 /** Mount, then `ctrl+]` twice: Existing → For New Repo → Adopt Worktree. */
