@@ -112,7 +112,7 @@ describe("Settings → Engines protocol declaration", () => {
     } finally {
       script.restore()
     }
-    expect(script.asked).toEqual(["id", "command", "protocol", "name"])
+    expect(script.asked).toEqual(["ID", "COMMAND", "PROTOCOL", "NAME"])
     expect(read("customEngineIds")).toEqual(["mypi"])
     expect(read("engineCommand.mypi")).toBe("pi-cli --interactive")
     expect(read("engineProtocol.mypi")).toBe("claude")

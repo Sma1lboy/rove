@@ -11,7 +11,8 @@ import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-ta
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { ChoiceRow, PickerList, labelStyle } from "./picker-list"
+import { ChipButton, DialogField, DialogSection } from "../../ui/dialog-parts"
+import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
 /**
@@ -59,50 +60,51 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
 
   return (
     <>
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "repo")}>{t("newTask.field.repo")}</text>
+      <DialogSection label={t("newTask.field.repo")} focused={vm.field === "repo"} onPress={() => vm.setField("repo")}>
         {/* Name left, directory right — the same weighting as the picker rows
             below, so a repo reads the same whether it is being chosen or has
             been. The input still holds the full path (`vm.repo`); only which
             half of it sits in the editable cell changes. */}
-        <box flexDirection="row">
-          <input
-            value={vm.repo}
-            placeholder={splitRepoRow(vm.defaultRepo).base}
-            focused={vm.field === "repo"}
-            onMouseUp={() => vm.setField("repo")}
-            onInput={(v: string) => vm.setRepoText(v)}
-            // Every Enter routes through onRepoSubmit — it handles the
-            // empty-input pick-first case too.
-            onSubmit={() => vm.onRepoSubmit()}
-            // Two shapes, because the field holds two kinds of value.
-            //
-            // Holding a NAME, there is a directory beside it and the row has
-            // to divide: the input takes a fixed column and the directory is
-            // what gives way. `flexGrow` here is what CAUSED the bug this
-            // replaces — the input grew to the row, the directory then
-            // compressed it below the name's length, and an input narrower
-            // than its content scrolls to the cursor, so `fixture-repo`
-            // rendered as `ture-repo` with nothing to admit the cut.
-            //
-            // Holding a PATH (typed by hand, or a name too ambiguous to show)
-            // nothing sits beside it and it takes the whole row: a path needs
-            // every cell it can get, and capping it at the name's column would
-            // clip what the user is typing.
-            flexGrow={vm.repoDir ? 0 : 1}
-            flexShrink={0}
-            {...(vm.repoDir ? { flexBasis: REPO_INPUT_CELLS } : {})}
-          />
-          {/* The separating space is INSIDE the string rather than
-              `paddingLeft`: padding belongs to the box Yoga is shrinking, so a
-              full row closes it to zero and the name runs into the path. */}
-          {vm.repoDir ? (
-            <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
-              {` ${vm.repoDir}`}
-            </text>
-          ) : null}
-        </box>
-      </box>
+        <DialogField focused={vm.field === "repo"}>
+          <box flexDirection="row">
+            <input
+              value={vm.repo}
+              placeholder={splitRepoRow(vm.defaultRepo).base}
+              focused={vm.field === "repo"}
+              onMouseUp={() => vm.setField("repo")}
+              onInput={(v: string) => vm.setRepoText(v)}
+              // Every Enter routes through onRepoSubmit — it handles the
+              // empty-input pick-first case too.
+              onSubmit={() => vm.onRepoSubmit()}
+              // Two shapes, because the field holds two kinds of value.
+              //
+              // Holding a NAME, there is a directory beside it and the row has
+              // to divide: the input takes a fixed column and the directory is
+              // what gives way. `flexGrow` here is what CAUSED the bug this
+              // replaces — the input grew to the row, the directory then
+              // compressed it below the name's length, and an input narrower
+              // than its content scrolls to the cursor, so `fixture-repo`
+              // rendered as `ture-repo` with nothing to admit the cut.
+              //
+              // Holding a PATH (typed by hand, or a name too ambiguous to show)
+              // nothing sits beside it and it takes the whole row: a path needs
+              // every cell it can get, and capping it at the name's column would
+              // clip what the user is typing.
+              flexGrow={vm.repoDir ? 0 : 1}
+              flexShrink={0}
+              {...(vm.repoDir ? { flexBasis: REPO_INPUT_CELLS } : {})}
+            />
+            {/* The separating space is INSIDE the string rather than
+                `paddingLeft`: padding belongs to the box Yoga is shrinking, so a
+                full row closes it to zero and the name runs into the path. */}
+            {vm.repoDir ? (
+              <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
+                {` ${vm.repoDir}`}
+              </text>
+            ) : null}
+          </box>
+        </DialogField>
+      </DialogSection>
       {vm.field === "repo" && vm.activeList.length > 0 && !vm.repoPicked ? (
         <PickerList window={vm.activeWindow} cursor={vm.repoCursor} rows={repoRows} onPick={vm.selectRepoAt} />
       ) : null}
@@ -110,35 +112,48 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           else this row would be a control whose second option does nothing,
           so it stays absent rather than disabled. */}
       {vm.canOpenProject ? (
-        <box gap={0} paddingBottom={1}>
-          <text {...labelStyle(theme, vm.field, "intent")}>{t("newTask.field.opens")}</text>
-          <ChoiceRow
-            choices={intents}
-            selected={vm.intent}
-            onPick={(next) => {
-              vm.setIntent(next)
-              vm.setField("intent")
-            }}
-            display={(choice) => intentLabel[choice]}
-          />
-        </box>
+        <DialogSection
+          label={t("newTask.field.opens")}
+          focused={vm.field === "intent"}
+          hint="←/→"
+          onPress={() => vm.setField("intent")}
+        >
+          <box flexDirection="row" gap={1}>
+            {intents.map((choice) => (
+              <ChipButton
+                key={choice}
+                label={intentLabel[choice]}
+                selected={vm.intent === choice}
+                onPress={() => {
+                  vm.setIntent(choice)
+                  vm.setField("intent")
+                }}
+              />
+            ))}
+          </box>
+        </DialogSection>
       ) : null}
       {/* Opening the project has no branch to fork from — it enters the
           repo's own checkout — so the field goes away with the verb. */}
       {vm.intent === "project" && vm.canOpenProject ? null : (
-        <box gap={0}>
-          <text {...labelStyle(theme, vm.field, "baseRef")}>{t("newTask.field.fromBranch")}</text>
-          <input
-            value={vm.baseRef}
-            placeholder={DEFAULT_BASE_REF}
-            focused={vm.field === "baseRef"}
-            onMouseUp={() => vm.setField("baseRef")}
-            onInput={(v: string) => vm.setBaseRefText(v)}
-            // Last field on the tab — Enter resolves the highlighted branch
-            // and creates straight away.
-            onSubmit={() => vm.onBaseRefSubmit()}
-          />
-        </box>
+        <DialogSection
+          label={t("newTask.field.fromBranch")}
+          focused={vm.field === "baseRef"}
+          onPress={() => vm.setField("baseRef")}
+        >
+          <DialogField focused={vm.field === "baseRef"}>
+            <input
+              value={vm.baseRef}
+              placeholder={DEFAULT_BASE_REF}
+              focused={vm.field === "baseRef"}
+              onMouseUp={() => vm.setField("baseRef")}
+              onInput={(v: string) => vm.setBaseRefText(v)}
+              // Last field on the tab — Enter resolves the highlighted branch
+              // and creates straight away.
+              onSubmit={() => vm.onBaseRefSubmit()}
+            />
+          </DialogField>
+        </DialogSection>
       )}
       {vm.field === "baseRef" && vm.branchFiltered.length === 0 && vm.submitError == null ? (
         <box gap={0} paddingLeft={2} paddingBottom={1}>

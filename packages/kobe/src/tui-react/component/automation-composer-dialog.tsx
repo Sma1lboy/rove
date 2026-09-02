@@ -41,6 +41,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { DialogActions, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 export interface AutomationComposerResult extends ComposerDraft {}
@@ -176,87 +177,86 @@ function AutomationComposerView(props: {
     ],
   }))
 
-  const label = (target: ComposerField, text: string) => (
-    <text
-      fg={field === target ? theme.primary : theme.textMuted}
-      attributes={field === target ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
-      onMouseUp={() => setField(target)}
-    >
-      {text}
-    </text>
-  )
-
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={1}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          {t("automations.newTitle")}
-        </text>
-        <text fg={theme.textMuted} onMouseUp={() => cancel()}>
-          esc
-        </text>
-      </box>
+      <DialogHeader title={t("automations.newTitle")} onClose={() => cancel()} />
 
-      <box gap={0}>
-        {label("name", t("automations.fieldName"))}
-        <input
-          value={draft.name}
-          placeholder={t("automations.namePlaceholder")}
-          focused={field === "name"}
-          onMouseUp={() => setField("name")}
-          onInput={(v: string) => patch({ name: v })}
-          onSubmit={() => setField(nextComposerField("name"))}
-        />
-      </box>
+      <DialogSection label={t("automations.fieldName")} focused={field === "name"} onPress={() => setField("name")}>
+        <DialogField focused={field === "name"}>
+          <input
+            value={draft.name}
+            placeholder={t("automations.namePlaceholder")}
+            focused={field === "name"}
+            onMouseUp={() => setField("name")}
+            onInput={(v: string) => patch({ name: v })}
+            onSubmit={() => setField(nextComposerField("name"))}
+          />
+        </DialogField>
+      </DialogSection>
 
-      <box gap={0}>
-        {label("repo", t("automations.fieldRepo"))}
+      <DialogSection
+        label={t("automations.fieldRepo")}
+        focused={field === "repo"}
+        hint={props.repos.length === 0 ? undefined : "↑/↓"}
+        onPress={() => setField("repo")}
+      >
         {props.repos.length === 0 ? (
           <text fg={theme.textMuted}>{t("automations.needRepo")}</text>
         ) : (
-          <PickerList window={repoWindow} cursor={repoCursor} rows={repoRows} onPick={pickRepoAt} />
+          <DialogField focused={field === "repo"}>
+            <PickerList window={repoWindow} cursor={repoCursor} rows={repoRows} onPick={pickRepoAt} />
+          </DialogField>
         )}
-      </box>
+      </DialogSection>
 
-      <box gap={0}>
-        {label("prompt", t("automations.fieldPrompt"))}
-        <input
-          value={draft.prompt}
-          placeholder={t("automations.promptPlaceholder")}
-          focused={field === "prompt"}
-          onMouseUp={() => setField("prompt")}
-          onInput={(v: string) => patch({ prompt: v })}
-          onSubmit={() => setField(nextComposerField("prompt"))}
-        />
-      </box>
+      <DialogSection
+        label={t("automations.fieldPrompt")}
+        focused={field === "prompt"}
+        onPress={() => setField("prompt")}
+      >
+        <DialogField focused={field === "prompt"}>
+          <input
+            value={draft.prompt}
+            placeholder={t("automations.promptPlaceholder")}
+            focused={field === "prompt"}
+            onMouseUp={() => setField("prompt")}
+            onInput={(v: string) => patch({ prompt: v })}
+            onSubmit={() => setField(nextComposerField("prompt"))}
+          />
+        </DialogField>
+      </DialogSection>
 
-      <box gap={0}>
-        {label("schedule", t("automations.fieldSchedule"))}
-        {/* Five cells, not a text field: ←/→ picks the cell, ↑/↓ changes it.
-            Typing cron means knowing the field order before you can say
-            anything, and a typo only shows up when the preview goes red. */}
-        <box flexDirection="row" gap={2} paddingLeft={1}>
-          {CRON_SEGMENTS.map((segment, index) => {
-            const activeCell = field === "schedule" && index === segmentCursor
-            return (
-              <box key={segment} flexDirection="column" onMouseUp={() => selectSegment(index)}>
-                <text
-                  fg={activeCell ? theme.primary : theme.text}
-                  attributes={activeCell ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
-                  wrapMode="none"
-                >
-                  {segmentValues[index] ?? "*"}
-                </text>
-                <text fg={activeCell ? theme.textMuted : theme.borderSubtle} wrapMode="none">
-                  {t(`automations.cronField.${segment}`)}
-                </text>
-              </box>
-            )
-          })}
-        </box>
-        {/* The whole point of the card: a cron is unreadable, so say when it
-            actually fires, in the user's own clock. */}
-        <box flexDirection="row" gap={1} paddingLeft={1}>
+      {/* Five cells, not a text field: ←/→ picks the cell, ↑/↓ changes it.
+          Typing cron means knowing the field order before you can say
+          anything, and a typo only shows up when the preview goes red. */}
+      <DialogSection
+        label={t("automations.fieldSchedule")}
+        focused={field === "schedule"}
+        hint="←/→ ↑/↓"
+        onPress={() => setField("schedule")}
+      >
+        <DialogField focused={field === "schedule"}>
+          <box flexDirection="row" gap={2}>
+            {CRON_SEGMENTS.map((segment, index) => {
+              const activeCell = field === "schedule" && index === segmentCursor
+              return (
+                <box key={segment} flexDirection="column" onMouseUp={() => selectSegment(index)}>
+                  <text
+                    fg={activeCell ? theme.primary : theme.text}
+                    attributes={activeCell ? TextAttributes.BOLD | TextAttributes.UNDERLINE : undefined}
+                    wrapMode="none"
+                  >
+                    {segmentValues[index] ?? "*"}
+                  </text>
+                  <text fg={activeCell ? theme.textMuted : theme.borderSubtle} wrapMode="none">
+                    {t(`automations.cronField.${segment}`)}
+                  </text>
+                </box>
+              )
+            })}
+          </box>
+          {/* The whole point of the card: a cron is unreadable, so say when it
+              actually fires, in the user's own clock. */}
           {preview.kind === "ok" ? (
             <text fg={theme.success} wrapMode="none">
               {`${describeCron(draft.schedule) ?? ""}${describeCron(draft.schedule) ? " · " : ""}${preview.relative} · ${preview.absolute}`}
@@ -266,8 +266,8 @@ function AutomationComposerView(props: {
               {preview.kind === "never" ? t("automations.cronNever") : t("automations.cronInvalid")}
             </text>
           )}
-        </box>
-      </box>
+        </DialogField>
+      </DialogSection>
 
       {error ? (
         <text fg={theme.error} wrapMode="word">
@@ -275,20 +275,8 @@ function AutomationComposerView(props: {
         </text>
       ) : null}
 
-      {/* The dialog shell only owns paddingTop; the last row has to carry its
-          own bottom cell or it sits flush against the card's edge. */}
-      {/* Create sits bottom-right, matching the new-task dialog. No key
-          legend: tab/enter/esc are the same everywhere in the app, and a
-          reminder on every card is noise once you have used one. */}
-      <box flexDirection="row" justifyContent="flex-end" paddingTop={1} paddingBottom={1}>
-        <text
-          fg={field === "confirm" ? theme.primary : theme.text}
-          attributes={field === "confirm" ? TextAttributes.BOLD : undefined}
-          onMouseUp={() => commit()}
-        >
-          {`[ ${t("common.create")} ]`}
-        </text>
-      </box>
+      <DialogFooter>{t("automations.composerLegend")}</DialogFooter>
+      <DialogActions label={t("common.create")} focused={field === "confirm"} onPress={() => commit()} />
     </box>
   )
 }

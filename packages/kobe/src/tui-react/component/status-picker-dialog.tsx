@@ -15,15 +15,14 @@
  * match every other picker in the dialog layer.
  */
 
-import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
 import type { PickerWindow } from "../../tui/component/new-task-dialog/state"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { TASK_STATUSES, type TaskStatus } from "../../types/task"
-import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { DialogFooter, DialogHeader } from "../ui/dialog-parts"
 import { PickerList } from "./new-task-dialog/picker-list"
 
 /**
@@ -48,7 +47,6 @@ export function StatusPickerDialogView(props: {
   onCancel: () => void
 }) {
   const dialog = useDialog()
-  const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
 
@@ -84,14 +82,7 @@ export function StatusPickerDialogView(props: {
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={1}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          {t("tasks.setStatus.title")}
-        </text>
-        <text fg={theme.textMuted} onMouseUp={() => props.onCancel()}>
-          esc
-        </text>
-      </box>
+      <DialogHeader title={t("tasks.setStatus.title")} onClose={() => props.onCancel()} />
       <PickerList
         window={window}
         cursor={cursor}
@@ -99,9 +90,7 @@ export function StatusPickerDialogView(props: {
         onPick={(absoluteIndex) => commit(TASK_STATUSES[absoluteIndex] ?? props.current)}
         paddingBottom={1}
       />
-      <box paddingBottom={1}>
-        <text fg={theme.textMuted}>{t("tasks.setStatus.footer")}</text>
-      </box>
+      <DialogFooter>{t("tasks.setStatus.footer")}</DialogFooter>
     </box>
   )
 }

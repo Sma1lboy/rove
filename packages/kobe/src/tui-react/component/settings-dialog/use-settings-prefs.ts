@@ -165,7 +165,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   async function editEditorCustom(): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, editorCustomCommand(), {
       dialogTitle: "Custom editor command (use {file} for the path)",
-      fieldLabel: "command",
+      fieldLabel: "COMMAND",
       submitLabel: "save",
       allowEmpty: true,
     })

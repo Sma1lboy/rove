@@ -5,6 +5,7 @@
 
 export const en = {
   title: "New task",
+  legend: "enter create · tab fields · ctrl+[ ] mode · ctrl+e engine · esc cancel",
 
   tabs: {
     existing: "For Existing",
@@ -13,16 +14,16 @@ export const en = {
   },
 
   field: {
-    engine: "engine",
-    repo: "repo",
-    fromBranch: "from branch",
-    gitUrl: "git url",
-    parentDir: "parent dir",
-    folderName: "folder name",
-    baseBranch: "base branch",
-    adoptFilter: "filter (path glob)",
+    engine: "ENGINE",
+    repo: "REPO",
+    fromBranch: "FROM BRANCH",
+    gitUrl: "GIT URL",
+    parentDir: "PARENT DIR",
+    folderName: "FOLDER NAME",
+    baseBranch: "BASE BRANCH",
+    adoptFilter: "FILTER (PATH GLOB)",
     /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
-    opens: "opens",
+    opens: "OPENS",
   },
 
   /** Existing-tab intent labels (issue #90). */
@@ -73,9 +74,8 @@ export const en = {
   },
 
   button: {
-    create: "[ Create ]",
-    createFocused: "▸ [ Create ]",
-    cloning: "[ Cloning… ]",
+    create: "Create",
+    cloning: "Cloning…",
   },
 
   error: {
@@ -96,6 +96,7 @@ export const en = {
 
 export const zh: typeof en = {
   title: "新建任务",
+  legend: "enter 创建 · tab 切字段 · ctrl+[ ] 切模式 · ctrl+e 引擎 · esc 取消",
 
   tabs: {
     existing: "已有仓库",
@@ -164,9 +165,8 @@ export const zh: typeof en = {
   },
 
   button: {
-    create: "[ 创建 ]",
-    createFocused: "▸ [ 创建 ]",
-    cloning: "[ 克隆中… ]",
+    create: "创建",
+    cloning: "克隆中…",
   },
 
   error: {

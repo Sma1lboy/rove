@@ -91,7 +91,7 @@ test("omitting mainRepos entirely leaves the tab as it was", async () => {
   const { frame } = await mount(dir)
   const text = await frame()
   expect(text).not.toContain("the project itself")
-  expect(text).toContain("from branch")
+  expect(text).toContain("FROM BRANCH")
 })
 
 /** Tab from the opening focus (`tabs`) to the intent row: engine, repo, intent. */
@@ -113,7 +113,7 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   // the DIALOG tab instead), and a click-driven test passed against that.
   const dir = repo()
   const { frame, mockInput } = await mount(dir, new Set([dir]))
-  expect(await frame()).toContain("from branch")
+  expect(await frame()).toContain("FROM BRANCH")
 
   await tabToIntent(mockInput)
   await act(async () => {
@@ -122,7 +122,7 @@ test("the intent row is reachable by keyboard, and choosing the project drops th
   await settle()
 
   const text = await frame()
-  expect(text).not.toContain("from branch")
+  expect(text).not.toContain("FROM BRANCH")
   // Still on the Existing tab — `right` must not have cycled the tab strip.
   expect(text).toContain("the project itself")
 })
@@ -163,7 +163,10 @@ test("picking a different repo resets the intent back to a task worktree", async
     mockInput.pressArrow("right")
   })
   await settle()
-  expect(await frame()).toContain("▸ the project itself")
+  // The intent chips carry selection in their border colour, which a frame
+  // dump cannot see — so read the intent off its CONSEQUENCE instead: the
+  // project intent forks from nothing, so it hides the branch field.
+  expect(await frame()).not.toContain("FROM BRANCH")
 
   // Back to the repo field (intent → confirm → tabs → engine → repo), then
   // pick the other saved repo out of the dropdown.
@@ -182,9 +185,8 @@ test("picking a different repo resets the intent back to a task worktree", async
   })
   await settle()
 
-  const text = await frame()
-  expect(text).toContain("▸ a new task worktree")
-  expect(text).not.toContain("▸ the project itself")
+  // Reset to the task worktree — the branch field is back.
+  expect(await frame()).toContain("FROM BRANCH")
 })
 
 test("left returns to the task intent and the branch field comes back", async () => {
@@ -195,11 +197,11 @@ test("left returns to the task intent and the branch field comes back", async ()
     mockInput.pressArrow("right")
   })
   await settle()
-  expect(await frame()).not.toContain("from branch")
+  expect(await frame()).not.toContain("FROM BRANCH")
 
   await act(async () => {
     mockInput.pressArrow("left")
   })
   await settle()
-  expect(await frame()).toContain("from branch")
+  expect(await frame()).toContain("FROM BRANCH")
 })

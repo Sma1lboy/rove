@@ -35,8 +35,8 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import { FRAME } from "../ui/frame"
-import { ChipButton, IssueEventsSection, SectionHeader } from "./issue-detail-parts"
+import { ChipButton, DialogField, DialogFooter, DialogHeader, DialogLabel, DialogSection } from "../ui/dialog-parts"
+import { IssueEventsSection } from "./issue-detail-parts"
 
 export interface IssueDetailOptions {
   readonly issue: Issue
@@ -86,7 +86,7 @@ export function IssueDetailDialogView(
   },
 ) {
   const dialog = useDialog()
-  const { theme, transparentBackground } = useTheme()
+  const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
   const issue = props.issue
@@ -260,27 +260,12 @@ export function IssueDetailDialogView(
           ? theme.accent
           : theme.textMuted
 
-  /** Section header: BOLD CAPS, primary when its field is focused. */
-  const sectionHeader = (label: string, ownField: Field | null, hint?: string): ReactNode => (
-    <SectionHeader label={label} hint={hint} focused={ownField !== null && field === ownField} />
-  )
-
-  // Focused/selected frames light up PRIMARY — the same accent the kanban
-  // card cursor and the pane focus grammar use, not the generic borderActive.
-  const frameColor = (ownField: Field) => (field === ownField ? theme.primary : theme.borderSubtle)
-  // Transparent mode means transparent here too: a dialog's input wells were
-  // the last solid tiles left on screen with the setting on. Opaque mode is
-  // unchanged.
-  const fieldFill = transparentBackground ? "transparent" : theme.backgroundElement
-
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={1}>
-      <box flexDirection="row" justifyContent="space-between">
-        {create ? (
-          <text fg={theme.text} attributes={TextAttributes.BOLD} wrapMode="none">
-            {t("kanban.detail.newStory")}
-          </text>
-        ) : (
+      {create ? (
+        <DialogHeader title={t("kanban.detail.newStory")} onClose={() => close()} />
+      ) : (
+        <DialogHeader onClose={() => close()}>
           <box flexDirection="row" gap={2}>
             <text fg={theme.textMuted} attributes={TextAttributes.BOLD} wrapMode="none">
               #{issue.id}
@@ -297,16 +282,16 @@ export function IssueDetailDialogView(
               </text>
             ) : null}
           </box>
-        )}
-        <text fg={theme.textMuted} wrapMode="none" onMouseUp={() => close()}>
-          esc
-        </text>
-      </box>
+        </DialogHeader>
+      )}
 
       {/* TITLE — controlled input, single line. Enter walks to the body. */}
-      <box gap={0}>
-        {sectionHeader(t("kanban.detail.titleLabel"), "title")}
-        <box {...FRAME} borderColor={frameColor("title")} backgroundColor={fieldFill} paddingLeft={1} paddingRight={1}>
+      <DialogSection
+        label={t("kanban.detail.titleLabel")}
+        focused={field === "title"}
+        onPress={() => setField("title")}
+      >
+        <DialogField focused={field === "title"}>
           <input
             value={draftTitle}
             focused={field === "title"}
@@ -314,20 +299,18 @@ export function IssueDetailDialogView(
             onInput={(v: string) => setDraftTitle(stripNewlines(v))}
             onSubmit={() => setField("description")}
           />
-        </box>
-      </box>
+        </DialogField>
+      </DialogSection>
 
       {/* DESCRIPTION — uncontrolled multiline editor; pasted image paths and
           ctrl+v screenshots append `images[N]: /path` placeholder lines. */}
-      <box gap={0}>
-        {sectionHeader(t("kanban.detail.description"), "description", t("kanban.detail.attachHint"))}
-        <box
-          {...FRAME}
-          borderColor={frameColor("description")}
-          backgroundColor={fieldFill}
-          paddingLeft={1}
-          paddingRight={1}
-        >
+      <DialogSection
+        label={t("kanban.detail.description")}
+        focused={field === "description"}
+        hint={t("kanban.detail.attachHint")}
+        onPress={() => setField("description")}
+      >
+        <DialogField focused={field === "description"}>
           <textarea
             ref={(el: TextareaRenderable | null) => {
               bodyEl.current = el
@@ -340,14 +323,13 @@ export function IssueDetailDialogView(
             onMouseUp={() => setField("description")}
             onContentChange={() => setDraftBody(bodyEl.current?.plainText ?? "")}
           />
-        </box>
-      </box>
+        </DialogField>
+      </DialogSection>
 
       {startable ? (
         <box gap={0}>
           {/* ENGINE — chip buttons; selected = active border + primary bold. */}
-          <box gap={0}>
-            {sectionHeader(t("kanban.detail.engine"), "engine", "←/→")}
+          <DialogSection label={t("kanban.detail.engine")} focused={field === "engine"} hint="←/→">
             <box flexDirection="row" gap={1}>
               {props.engines.map((engine) => (
                 <ChipButton
@@ -362,18 +344,16 @@ export function IssueDetailDialogView(
                 />
               ))}
             </box>
-          </box>
+          </DialogSection>
 
           {/* WORKSPACE — the three placements as one grouped, bordered list. */}
-          <box gap={0} paddingBottom={1}>
-            {sectionHeader(t("kanban.detail.workspace"), "workspace", "↑/↓")}
-            <box
-              {...FRAME}
-              borderColor={frameColor("workspace")}
-              backgroundColor={fieldFill}
-              paddingLeft={1}
-              paddingRight={1}
-            >
+          <DialogSection
+            label={t("kanban.detail.workspace")}
+            focused={field === "workspace"}
+            hint="↑/↓"
+            paddingBottom={1}
+          >
+            <DialogField focused={field === "workspace"}>
               {ISSUE_CHAT_PLACEMENTS.map((option) => {
                 const active = option === placement
                 return (
@@ -391,13 +371,12 @@ export function IssueDetailDialogView(
                   </text>
                 )
               })}
-            </box>
-          </box>
+            </DialogField>
+          </DialogSection>
 
           {/* AFTER START — follow the session or stay on the board;
               orthogonal to placement (all three support both). */}
-          <box gap={0} paddingBottom={1}>
-            {sectionHeader(t("kanban.detail.jumpLabel"), "jump", "←/→")}
+          <DialogSection label={t("kanban.detail.jumpLabel")} focused={field === "jump"} hint="←/→" paddingBottom={1}>
             <box flexDirection="row" gap={1}>
               {([false, true] as const).map((option) => (
                 <ChipButton
@@ -411,13 +390,9 @@ export function IssueDetailDialogView(
                 />
               ))}
             </box>
-          </box>
+          </DialogSection>
 
-          <box paddingBottom={1}>
-            <text fg={theme.textMuted}>
-              {create ? t("kanban.detail.createLegend") : t("kanban.detail.startLegend")}
-            </text>
-          </box>
+          <DialogFooter>{create ? t("kanban.detail.createLegend") : t("kanban.detail.startLegend")}</DialogFooter>
         </box>
       ) : linkedTaskId ? (
         <box gap={1}>
@@ -426,8 +401,7 @@ export function IssueDetailDialogView(
               back out: Unlink returns the card to Backlog. Unlink is the
               only recovery when the linked task no longer exists — the
               Open action would then jump at nothing. */}
-          <box gap={0}>
-            {sectionHeader(t("kanban.detail.sessionLabel"), "open")}
+          <DialogSection label={t("kanban.detail.sessionLabel")} focused={field === "open"}>
             <box flexDirection="row" gap={1}>
               <ChipButton
                 label={t("kanban.detail.openAction")}
@@ -447,17 +421,13 @@ export function IssueDetailDialogView(
                 }}
               />
             </box>
-          </box>
+          </DialogSection>
           {/* EVENTS — what the linked session's engine has been doing. */}
           <IssueEventsSection taskId={linkedTaskId} orchestrator={props.orchestrator ?? null} />
-          <box paddingBottom={1}>
-            <text fg={theme.textMuted}>{t("kanban.detail.openLegend")}</text>
-          </box>
+          <DialogFooter>{t("kanban.detail.openLegend")}</DialogFooter>
         </box>
       ) : (
-        <box paddingBottom={1}>
-          <text fg={theme.textMuted}>{t("kanban.detail.doneNote")}</text>
-        </box>
+        <DialogFooter>{t("kanban.detail.doneNote")}</DialogFooter>
       )}
     </box>
   )

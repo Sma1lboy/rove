@@ -9,7 +9,8 @@
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { PickerList, labelStyle } from "./picker-list"
+import { DialogField, DialogSection } from "../../ui/dialog-parts"
+import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
 export function CloneTab({ vm }: { vm: NewTaskVm }) {
@@ -23,31 +24,41 @@ export function CloneTab({ vm }: { vm: NewTaskVm }) {
 
   return (
     <>
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "cloneUrl")}>{t("newTask.field.gitUrl")}</text>
-        <input
-          value={vm.cloneUrl}
-          placeholder="https://github.com/user/repo.git"
-          focused={vm.field === "cloneUrl"}
-          onMouseUp={() => vm.setField("cloneUrl")}
-          onInput={(v: string) => vm.setCloneUrlText(v)}
-          onSubmit={() => {
-            if (!vm.cloneUrl.trim()) return
-            vm.setField("cloneParent")
-          }}
-        />
-      </box>
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "cloneParent")}>{t("newTask.field.parentDir")}</text>
-        <input
-          value={vm.cloneParent}
-          placeholder="~/"
-          focused={vm.field === "cloneParent"}
-          onMouseUp={() => vm.setField("cloneParent")}
-          onInput={(v: string) => vm.setCloneParentText(v)}
-          onSubmit={() => vm.onCloneParentSubmit()}
-        />
-      </box>
+      <DialogSection
+        label={t("newTask.field.gitUrl")}
+        focused={vm.field === "cloneUrl"}
+        onPress={() => vm.setField("cloneUrl")}
+      >
+        <DialogField focused={vm.field === "cloneUrl"}>
+          <input
+            value={vm.cloneUrl}
+            placeholder="https://github.com/user/repo.git"
+            focused={vm.field === "cloneUrl"}
+            onMouseUp={() => vm.setField("cloneUrl")}
+            onInput={(v: string) => vm.setCloneUrlText(v)}
+            onSubmit={() => {
+              if (!vm.cloneUrl.trim()) return
+              vm.setField("cloneParent")
+            }}
+          />
+        </DialogField>
+      </DialogSection>
+      <DialogSection
+        label={t("newTask.field.parentDir")}
+        focused={vm.field === "cloneParent"}
+        onPress={() => vm.setField("cloneParent")}
+      >
+        <DialogField focused={vm.field === "cloneParent"}>
+          <input
+            value={vm.cloneParent}
+            placeholder="~/"
+            focused={vm.field === "cloneParent"}
+            onMouseUp={() => vm.setField("cloneParent")}
+            onInput={(v: string) => vm.setCloneParentText(v)}
+            onSubmit={() => vm.onCloneParentSubmit()}
+          />
+        </DialogField>
+      </DialogSection>
       {/* Persistence hint — this field remembers its last value across
           dialog opens (kv `lastClonedRepoParent`). */}
       {vm.field === "cloneParent" ? (
@@ -65,29 +76,39 @@ export function CloneTab({ vm }: { vm: NewTaskVm }) {
           onPick={vm.selectCloneParentAt}
         />
       ) : null}
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "cloneFolder")}>{t("newTask.field.folderName")}</text>
-        <input
-          value={vm.cloneFolder}
-          placeholder={t("newTask.placeholder.folderName")}
-          focused={vm.field === "cloneFolder"}
-          onMouseUp={() => vm.setField("cloneFolder")}
-          onInput={(v: string) => vm.setCloneFolderText(v)}
-          onSubmit={() => vm.setField("cloneBaseRef")}
-        />
-      </box>
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "cloneBaseRef")}>{t("newTask.field.baseBranch")}</text>
-        <input
-          value={vm.cloneBaseRef}
-          placeholder={DEFAULT_BASE_REF}
-          focused={vm.field === "cloneBaseRef"}
-          onMouseUp={() => vm.setField("cloneBaseRef")}
-          onInput={(v: string) => vm.setCloneBaseRefText(v)}
-          // Last field on the tab — Enter kicks off the clone + create.
-          onSubmit={() => void vm.commitClone()}
-        />
-      </box>
+      <DialogSection
+        label={t("newTask.field.folderName")}
+        focused={vm.field === "cloneFolder"}
+        onPress={() => vm.setField("cloneFolder")}
+      >
+        <DialogField focused={vm.field === "cloneFolder"}>
+          <input
+            value={vm.cloneFolder}
+            placeholder={t("newTask.placeholder.folderName")}
+            focused={vm.field === "cloneFolder"}
+            onMouseUp={() => vm.setField("cloneFolder")}
+            onInput={(v: string) => vm.setCloneFolderText(v)}
+            onSubmit={() => vm.setField("cloneBaseRef")}
+          />
+        </DialogField>
+      </DialogSection>
+      <DialogSection
+        label={t("newTask.field.baseBranch")}
+        focused={vm.field === "cloneBaseRef"}
+        onPress={() => vm.setField("cloneBaseRef")}
+      >
+        <DialogField focused={vm.field === "cloneBaseRef"}>
+          <input
+            value={vm.cloneBaseRef}
+            placeholder={DEFAULT_BASE_REF}
+            focused={vm.field === "cloneBaseRef"}
+            onMouseUp={() => vm.setField("cloneBaseRef")}
+            onInput={(v: string) => vm.setCloneBaseRefText(v)}
+            // Last field on the tab — Enter kicks off the clone + create.
+            onSubmit={() => void vm.commitClone()}
+          />
+        </DialogField>
+      </DialogSection>
       {vm.cloneInFlight ? (
         <box gap={0} paddingLeft={2}>
           <text fg={theme.textMuted} wrapMode="none">

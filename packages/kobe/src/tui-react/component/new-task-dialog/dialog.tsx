@@ -15,7 +15,7 @@ import type { DialogTab } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
-import { ChoiceRow, labelStyle } from "./picker-list"
+import { ChipButton, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
@@ -44,14 +44,12 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={0}>
-      <box flexDirection="row">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          {t("newTask.title")}
-        </text>
-      </box>
-      <box gap={1} paddingTop={1} paddingBottom={1}>
+      <DialogHeader title={t("newTask.title")} onClose={() => props.onCancel()} />
+      <box gap={1} paddingTop={1}>
         {/* Mode-tab selector — reachable by Tab; ←/→ switches while focused,
-            ctrl+[/] from anywhere, mouse click selects. */}
+            ctrl+[/] from anywhere, mouse click selects. Stays a tab strip
+            rather than a chip row: it navigates between three bodies, it is
+            not one of the card's fields (docs/design/dialogs.md). */}
         <box flexDirection="row" gap={2}>
           {TAB_ORDER.map((tabId) => {
             const active = vm.tab === tabId
@@ -69,20 +67,26 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
         </box>
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
-        <box gap={0}>
-          <text {...labelStyle(theme, vm.field, "engine")}>{t("newTask.field.engine")}</text>
-          <ChoiceRow
-            choices={vm.vendors}
-            selected={vm.vendor}
-            onPick={(v) => {
-              vm.setVendor(v)
-              vm.setField("engine")
-            }}
-          >
-            <box flexGrow={1} />
-            <text fg={theme.textMuted}>{t("newTask.hint.engineCycle")}</text>
-          </ChoiceRow>
-        </box>
+        <DialogSection
+          label={t("newTask.field.engine")}
+          focused={vm.field === "engine"}
+          hint={t("newTask.hint.engineCycle")}
+          onPress={() => vm.setField("engine")}
+        >
+          <box flexDirection="row" flexWrap="wrap" gap={1}>
+            {vm.vendors.map((vendor) => (
+              <ChipButton
+                key={vendor}
+                label={vendor}
+                selected={vendor === vm.vendor}
+                onPress={() => {
+                  vm.setVendor(vendor)
+                  vm.setField("engine")
+                }}
+              />
+            ))}
+          </box>
+        </DialogSection>
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}
         {vm.tab === "adopt" ? <AdoptTab vm={vm} /> : null}
@@ -92,23 +96,14 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           </text>
         ) : null}
       </box>
-      {/* Bottom action row — Create button bottom-right, matching the
-          automation composer. Create commits on click; also reachable by
-          tabbing to the confirm field (Enter), or Enter on the last input
-          of the active tab. */}
-      <box flexDirection="row" justifyContent="flex-end" alignItems="center" paddingTop={1} paddingBottom={1}>
-        <text
-          fg={vm.field === "confirm" ? theme.primary : theme.text}
-          attributes={vm.field === "confirm" ? TextAttributes.BOLD : undefined}
-          onMouseUp={() => vm.commit()}
-        >
-          {vm.cloneInFlight
-            ? t("newTask.button.cloning")
-            : vm.field === "confirm"
-              ? t("newTask.button.createFocused")
-              : t("newTask.button.create")}
-        </text>
-      </box>
+      <DialogFooter>{t("newTask.legend")}</DialogFooter>
+      {/* Create commits on click; also reachable by tabbing to the confirm
+          field (Enter), or Enter on the last input of the active tab. */}
+      <DialogActions
+        label={vm.cloneInFlight ? t("newTask.button.cloning") : t("newTask.button.create")}
+        focused={vm.field === "confirm"}
+        onPress={() => vm.commit()}
+      />
     </box>
   )
 }
