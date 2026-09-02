@@ -91,6 +91,26 @@ describe("add --count (parallel round)", () => {
     expect(calls.every((call) => call.target.newTask === true)).toBe(true)
   })
 
+  it("applies --status and --pin to every sibling, not just a single add", async () => {
+    const client = new FakeClient({
+      "task.create": (_payload, index) => ({ taskId: `t${index + 1}`, task: taskFixture({ id: `t${index + 1}` }) }),
+      "task.status": () => ({}),
+      "task.pin": () => ({}),
+    })
+    const { deliver } = recordingDelivery()
+    await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "2", "--status", "in_review", "--pin"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    const followUps = client.requests.filter((r) => r.name === "task.status" || r.name === "task.pin")
+    expect(followUps).toEqual([
+      { name: "task.status", payload: { taskId: "t1", status: "in_review" } },
+      { name: "task.pin", payload: { taskId: "t1", pinned: true } },
+      { name: "task.status", payload: { taskId: "t2", status: "in_review" } },
+      { name: "task.pin", payload: { taskId: "t2", pinned: true } },
+    ])
+  })
+
   it("expands per-vendor agent counts in order", async () => {
     const { calls, deliver } = recordingDelivery()
     await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--agents", "claude:2,codex:1"], {

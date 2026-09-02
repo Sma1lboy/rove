@@ -22,6 +22,7 @@ import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import type { TaskStatus } from "../../types/task.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import type { DaemonRpc } from "../daemon-session.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -50,6 +51,22 @@ async function engineChoice(ctx: VerbContext, repo: string): Promise<EngineChoic
 /** The engine fields as a flat `task.create` payload fragment. */
 function enginePayload(choice: EngineChoice): Record<string, string> {
   return { ...(choice.command ? { command: choice.command } : {}), ...(choice.vendor ? { vendor: choice.vendor } : {}) }
+}
+
+/**
+ * `--status` / `--pin` aren't create-time fields on the RPC — apply them as
+ * follow-ups so `add` is the one-stop "make me a task exactly like this".
+ * Shared by the single and parallel paths so the two cannot drift: the
+ * parallel path once read neither flag, and both validated, passed, and
+ * silently evaporated. Returns whether anything was applied (the caller
+ * decides whether a refreshed `task.get` is worth the round-trip).
+ */
+async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: VerbContext["args"]): Promise<boolean> {
+  const status = args.enumOf<TaskStatus>("status")
+  if (status) await daemon.request("task.status", { taskId, status })
+  const pin = args.bool("pin")
+  if (pin !== undefined) await daemon.request("task.pin", { taskId, pinned: pin })
+  return Boolean(status) || pin !== undefined
 }
 
 export async function add(ctx: VerbContext): Promise<unknown> {
@@ -84,15 +101,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // pull focus" taste.
   if (args.bool("activate")) await daemon.request("task.setActive", { taskId })
 
-  // status / pin aren't create-time fields on the RPC — apply them as
-  // follow-ups so `add` is the one-stop "make me a task exactly like this".
-  const status = args.enumOf<TaskStatus>("status")
-  if (status) await daemon.request("task.status", { taskId, status })
-  const pin = args.bool("pin")
-  if (pin !== undefined) await daemon.request("task.pin", { taskId, pinned: pin })
-
   let task = res.task
-  if (status || pin !== undefined) {
+  if (await applyPostCreateFlags(daemon, taskId, args)) {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
@@ -191,7 +201,9 @@ async function addParallel(
   // `--command` / `--count` alongside it have nothing left to say. Refuse
   // rather than silently ignore — a caller who wrote both believes both
   // applied, and a fleet is expensive to spawn wrong (same reasoning as
-  // `send --command` without `--tab new`).
+  // `send --command` without `--tab new`). `--status` / `--pin` are NOT
+  // conflicts: they apply per sibling below (applyPostCreateFlags), the same
+  // as on a single `add`.
   if (agentsSpec) {
     const conflict = count !== undefined ? "--count" : args.str("command") ? "--command" : null
     if (conflict) {
@@ -249,6 +261,11 @@ async function addParallel(
       break
     }
   }
+
+  // Same `--status` / `--pin` follow-ups a single `add` applies, once per
+  // created sibling — before delivery so the row already reads right when the
+  // engine boots.
+  for (const { taskId } of created) await applyPostCreateFlags(daemon, taskId, args)
 
   const settled = await Promise.allSettled(
     created.map(({ taskId, vendor, task }) =>
