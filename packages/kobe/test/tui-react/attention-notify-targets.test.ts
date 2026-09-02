@@ -18,10 +18,10 @@ const tabLevel = (
     ]),
   )
 
-// The cross-task notifier used to diff the TASK-level map, which the daemon
-// writes as a last-event-wins rollup. An edge only fires on a value change, so
-// the second of two tabs finishing found the rollup already at turn_complete
-// and never announced itself — two agents done, one toast.
+// Diffing the TASK-level map is not enough: the daemon writes it as a
+// last-event-wins rollup, and an edge only fires on a value change, so the
+// second of two tabs finishing finds the rollup already at turn_complete and
+// never announces itself — two agents done, one toast.
 describe("cross-task notify targets", () => {
   test("gives each reporting tab its own entry", () => {
     const { states, targets } = notifyTargetStates(
@@ -49,7 +49,7 @@ describe("cross-task notify targets", () => {
     expect([...states.keys()]).toEqual(["a:tab-1"])
   })
 
-  // The regression itself.
+  // The case the per-tab grain exists for.
   test("a second tab finishing still fires an edge", () => {
     const rollup = "turn_complete"
     const before = notifyTargetStates(
@@ -64,7 +64,7 @@ describe("cross-task notify targets", () => {
       { key: "a:tab-2", kind: "done" },
     ])
 
-    // Task-level only — what the old code diffed — sees no change at all.
+    // Task-level only sees no change at all.
     const oldBefore = new Map([["a", rollup]])
     const oldAfter = new Map([["a", rollup]])
     expect(attentionEdges(oldBefore, oldAfter, null, attentionKindFor)).toEqual([])

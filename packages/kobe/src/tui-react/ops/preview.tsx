@@ -1,15 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React `kobe ops --preview <rel>` — the `src/tui/ops/preview.tsx`
- * counterpart (issue #15, G3). React is the default runtime since
- * 2026-07-07 (`uiFramework()` in `src/env.ts`); `KOBE_SOLID=1` is the
- * legacy escape hatch. Data + syntax-style
- * mapping are the shared `tui/ops/preview-core.ts` / `preview-syntax.ts`.
- * The Solid host's single `createResource` follows THE ASYNC CANON
- * (`src/tui-react/history/host.tsx`): `useState` + a dependency-keyed
+ * `kobe ops --preview <rel>`. Data + syntax-style mapping are the shared
+ * `tui/ops/preview-core.ts` / `preview-syntax.ts`. Loading follows THE ASYNC
+ * CANON (`src/tui-react/history/host.tsx`): `useState` + a dependency-keyed
  * `useEffect` whose stale completions are dropped by an effect-local
- * `disposed` flag. The read is one-shot (the preview window is immutable
- * for its lifetime), so there's no refresh tick.
+ * `disposed` flag. The read is one-shot (the preview window is immutable for
+ * its lifetime), so there's no refresh tick.
  */
 
 import type { DiffRenderable } from "@opentui/core"
@@ -62,7 +58,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
         if (!disposed) setData(d)
       })
       .catch(() => {
-        // Same boundary as the Solid resource: a failed read (worktree torn
+        // Failure boundary: a failed read (worktree torn
         // down mid-open) leaves the loading placeholder rather than crashing.
       })
     return () => {

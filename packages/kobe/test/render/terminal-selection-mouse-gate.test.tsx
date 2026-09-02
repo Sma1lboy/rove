@@ -2,7 +2,7 @@
 /**
  * The pane's own selection yields the screen to an app that owns the mouse.
  *
- * #785 already keeps the pane out of a mouse-aware app on the PRESS — the
+ * The press-time gate already keeps the pane out of a mouse-aware app: the
  * click is forwarded and no selection starts. What it cannot cover is the app
  * arriving AFTER the selection: `vim` typed at a prompt where text is still
  * highlighted, or launched mid-drag. Both highlights then paint on the same
@@ -116,7 +116,7 @@ test("a selection is cleared when the app takes the mouse under it", async () =>
 })
 
 /**
- * The shift bypass (#785's iTerm/kitty escape hatch) is how text still gets
+ * The shift bypass (the iTerm/kitty escape hatch) is how text still gets
  * pulled out of a mouse-aware app, so a selection begun while the app ALREADY
  * owned the mouse is a deliberate override — it keeps its highlight.
  */

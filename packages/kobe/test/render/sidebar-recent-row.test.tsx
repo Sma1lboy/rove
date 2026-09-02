@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Narrow mode's "↩ Recent" jump row (issue #14, M4/2A): renders as the
+ * Narrow mode's "↩ Recent" jump row: renders as the
  * FIRST navigable row of the sidebar tree, and ⏎ on it activates the recent
  * task — real keys, real tree cursor, no new chord.
  */

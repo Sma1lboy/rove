@@ -1,5 +1,5 @@
 /**
- * Move a tab of ANY task — mounted or not (sidebar move mode, issue #43).
+ * Move a tab of ANY task — mounted or not (sidebar move mode).
  *
  * Same two routes as `closeTaskTab`, for the same reason: the sidebar tree
  * names tabs of tasks whose `TerminalTabs` may or may not be mounted, and the

@@ -10,7 +10,7 @@ const item: AttentionInboxItem = {
   at: 123,
 }
 
-// Opening RESOLVES the episode (queue-drain model, owner 2026-07-16): both
+// Opening RESOLVES the episode (queue-drain model): both
 // the available and the unavailable path dismiss it from the daemon store;
 // only navigation differs (an unavailable target can't be jumped to).
 describe("requestInboxItemOpen", () => {

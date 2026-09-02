@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * New-task dialog entry point (issue #15, G3W2) — every call site opens
+ * New-task dialog entry point — every call site opens
  * the dialog through the `show(dialog, defaultRepo, savedRepos, options)`
  * contract. NewTaskDialog is THE canonical task-creation surface — this
  * is the full dialog (Existing / New Repo / Adopt tabs, engine selector,

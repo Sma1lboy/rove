@@ -1,22 +1,17 @@
 /**
- * Workspace-host task-action wiring — React port of `tui/workspace/
- * host-task-actions.ts` (issue #16 React migration). Builds the
- * `CreateTaskContext` the shared `tui/lib/task-actions` flows run on (the
- * SAME framework-free flows the Solid host and the tmux Tasks pane use —
- * confirm copy, DIRTY_WORKTREE force-delete branch, error handling all
- * live there so no host drifts) and returns the host's action callbacks.
+ * Workspace-host task-action wiring. Builds the `CreateTaskContext` the
+ * shared `tui/lib/task-actions` flows run on — confirm copy, DIRTY_WORKTREE
+ * force-delete branch and error handling all live there, so no host drifts —
+ * and returns the host's action callbacks.
  *
  * Only this host's genuine divergences are wired here: dialog surfacing
- * (the React `DialogConfirm`/`RenameTaskDialog`/`NewTaskDialog`), toast
- * notifications and selection. No `openCreateSurface` (the in-pane NewTaskDialog IS the
+ * (`DialogConfirm`/`RenameTaskDialog`/`NewTaskDialog`), toast notifications
+ * and selection. No `openCreateSurface` (the in-pane NewTaskDialog IS the
  * surface), no `reload` (this host is fully render-driven).
  *
- * Solid→React deltas: every accessor prop (`tasks`, `selectedId`,
- * `selectedTask`) becomes a plain getter closure over the latest render's
- * value — callers pass `() => tasks` / `() => selectedId` etc. from the
- * host, same shape the flows already expect (`TaskActionContext.tasks` is
- * `() => readonly Task[]`), so this file's body is otherwise unchanged
- * from the Solid original.
+ * `tasks` / `selectedId` / `selectedTask` are passed as getter closures over
+ * the latest render's value (`() => tasks`), the shape the flows expect
+ * (`TaskActionContext.tasks` is `() => readonly Task[]`).
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -52,7 +47,7 @@ export type WorkspaceTaskActionDeps = {
   setSelectedId: (id: string | null) => void
   selectedTask: () => Task | undefined
   activateTask: (id: string) => Promise<void>
-  /** Reclaim a deleted task's terminal-tab snapshot (O19). */
+  /** Reclaim a deleted task's terminal-tab snapshot. */
   forgetTaskTabs: (taskId: string) => void
 }
 
@@ -109,7 +104,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     // renderer, which is the half that reaches the user's machine over SSH).
     copyText: (text) => copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)),
     onTaskDeleted: (() => {
-      // Reclaim the deleted task's terminal-tab snapshot (O19), THEN move the
+      // Reclaim the deleted task's terminal-tab snapshot, THEN move the
       // host cursor off it (the shared selection move — the base's bare
       // `selectNextAfterDelete` overridden with this wrapper).
       const moveSelection = selectNextAfterDelete({
@@ -140,7 +135,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
 
   // Set-branch (`b`): pick from the repo's local branches (filter-as-you-type)
   // or type a new name — the shared `renameBranchFlow`'s bare text prompt
-  // replaced by the branch-listing dialog (issue #10). `setBranch` no-ops on
+  // replaced by the branch-listing dialog. `setBranch` no-ops on
   // an unchanged name and rejects main/dir rows, so we guard/notify here:
   // opening the picker for a task whose branch can't be set would send the
   // user through a choice that only ever ends in the error toast.
@@ -175,8 +170,8 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     })
     if (!pick) return
     // Not `pick.vendor === current` — re-picking the same engine at a
-    // different reasoning level is a real change, and the early return used
-    // to eat it.
+    // different reasoning level is a real change, which that comparison
+    // would swallow.
     if (pick.vendor === current && (pick.effort === undefined || pick.effort === (task.modelEffort ?? ""))) return
     await applyVendorChange(taskActions, id, pick.vendor, { effort: pick.effort })
   }
@@ -190,7 +185,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     pickVendor,
     // The ctrl+e picker's engine pick. Silent on success: the tab it just
     // opened IS the new engine, so a toast saying the change "applies on
-    // reopen" contradicted what the user was already looking at. Failures
+    // reopen" would contradict what the user is looking at. Failures
     // still toast — see applyVendorChange.
     setVendor: async (id, vendor) => {
       await applyVendorChange(taskActions, id, vendor, { silentSuccess: true })

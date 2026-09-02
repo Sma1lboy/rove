@@ -91,12 +91,10 @@ test("a listener for a DIFFERENT task does not claim it", () => {
 })
 
 test("the last tab closes, leaving the task empty", () => {
-  // A task's last tab may go (owner call 2026-08-31): the row stays and is
-  // revived on re-entry. This file used to assert the opposite — the older
-  // rule, when an emptied task had no way back — and that stale expectation
-  // is why the background path kept refusing after the mounted one stopped:
-  // the two routes are the SAME gesture from the tree, and only one of them
-  // was updated.
+  // A task's last tab may go: the row stays and is revived on re-entry. The
+  // mounted and background routes are the SAME gesture from the tree, so both
+  // have to allow it — a refusal left on either one is invisible from the
+  // other.
   tabsByTask.clear()
   tabsByTask.set("t1", state(["tab-1"]))
   expect(closeTaskTab(fakeKv(), "t1", "tab-1")).toBe(true)

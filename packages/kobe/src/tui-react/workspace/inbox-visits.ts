@@ -6,10 +6,10 @@
  * has to answer "where was I lately". This records the visits themselves:
  * one entry per (task, TAB), newest first, capped.
  *
- * Per-tab, not per-task (owner report 2026-08-10): switching among a task's
- * chat tabs is the most common way to move around, and a task-keyed log
- * collapsed all of it into one entry — so the tabs you just left never
- * showed up and RECENT listed unrelated tasks instead.
+ * Per-tab, not per-task: switching among a task's chat tabs is the most
+ * common way to move around, and a task-keyed log collapses all of it into
+ * one entry — the tabs you just left never show up, and RECENT lists
+ * unrelated tasks instead.
  *
  * Framework-free so the pane, the host, and unit tests share one rule; the
  * KV layer just persists the array.

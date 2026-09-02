@@ -1,12 +1,9 @@
 /**
- * pane-core — the framework-free file-tree logic extracted for the React
- * port (issue #15, G3). Both runtimes drive their cursor / expansion /
- * stat-column behavior through these functions, so this suite is the single
- * behavioral pin for hierarchy navigation (`h`/`l` semantics), the
- * Changes-tab stat alignment math, git-error summarization, and the
- * fs-watch event filter. A regression here misbehaves identically in the
- * Solid pane and the React pane — which is exactly the point of the
- * extraction.
+ * pane-core — the framework-free file-tree logic. The pane drives its cursor
+ * / expansion / stat-column behavior through these functions, so this suite
+ * is the single behavioral pin for hierarchy navigation (`h`/`l` semantics),
+ * the Changes-tab stat alignment math, git-error summarization, and the
+ * fs-watch event filter.
  */
 
 import { describe, expect, test } from "vitest"

@@ -46,7 +46,7 @@ describe("applyDisplayOverlay", () => {
 
     it("guards host-backed warning without changing warning on opaque surfaces", () => {
       const out = applyDisplayOverlay(base, "primary", true, lightHost)
-      // The regression: these sit directly on the host terminal background.
+      // These sit directly on the host terminal background.
       expect(contrastRatio(out.text, lightHost)).toBeGreaterThanOrEqual(4.5)
       expect(contrastRatio(out.textMuted, lightHost)).toBeGreaterThanOrEqual(4.5)
       expect(out.warningOnHost).toBeDefined()

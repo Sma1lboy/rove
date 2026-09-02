@@ -27,11 +27,10 @@ describe("completionSeenFor", () => {
     expect(completionSeenFor(task, "turn_complete", false)).toBe(false)
   })
 
-  // Regression (owner report 2026-08-10): "I go in and it shows read, but as
-  // soon as I leave it goes back to unread." A task's tab rows all render in
-  // one pass; a sibling tab legitimately carries no activity, and with a
-  // task-wide key its clear branch wiped the bit the completed tab had just
-  // recorded — so the ✓ never survived leaving the row.
+  // "Read while I'm in it, unread the moment I leave." A task's tab rows all
+  // render in one pass; a sibling tab legitimately carries no activity, and
+  // with a task-wide key its clear branch wipes the bit the completed tab just
+  // recorded, so the ✓ never survives leaving the row.
   it("a sibling tab of the same task does not wipe the completed tab's seen bit", () => {
     const task = "task-seen-3"
     expect(completionSeenFor(task, "turn_complete", true, "tab-1")).toBe(true)
@@ -48,10 +47,10 @@ describe("completionSeenFor", () => {
     expect(completionSeenFor(task, "turn_complete", false, "tab-1")).toBe(true)
   })
 
-  // Regression (owner report 2026-08-12, issue #22): quitting kobe empties
-  // this Set while the DAEMON keeps reporting the same `turn_complete`, so a
-  // relaunch re-lit every completion already read. A fresh process is exactly
-  // this: nothing in the Set, and the persisted mark as the only witness.
+  // Quitting kobe empties this Set while the DAEMON keeps reporting the same
+  // `turn_complete`, so a relaunch relights every completion already read. A
+  // fresh process is exactly this: nothing in the Set, and the persisted mark
+  // as the only witness.
   it("a completion the persisted mark covers is read on a fresh process", () => {
     const task = "task-seen-5"
     expect(completionSeenFor(task, "turn_complete", false, "tab-1", true)).toBe(true)

@@ -2,17 +2,16 @@
 /**
  * The version-skew banner's MOUNT, not its rendering.
  *
- * `VersionSkewBanner` has been correct since it was written and its only
- * caller was the mock workbench — the component was fine, the product never
- * mounted it. So a test against the component alone stays green with the
- * wiring deleted, which is exactly the bug: this file mounts the REAL
+ * A correct `VersionSkewBanner` whose only caller is the mock workbench looks
+ * exactly like a working one, so a test against the component alone stays
+ * green with the product wiring deleted. This file mounts the REAL
  * `WorkspaceRoot` and drives `daemonStaleSignal()`, the cell the `hello`
  * handshake writes.
  *
  * Why it matters here specifically: Rove ships several times a day and the
  * daemon is a long-lived process that outlives an `npm i -g`, so "new binary,
- * old daemon" is the ordinary outcome of updating — the one state the user is
- * most likely to be in and least likely to be told about.
+ * stale daemon" is the ordinary outcome of updating — the one state the user
+ * is most likely to be in and least likely to be told about.
  */
 
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test"
@@ -108,9 +107,9 @@ async function mountHost(orchestrator: RemoteOrchestrator) {
 }
 
 test("the host mounts the skew banner and drives it from the daemon signal", async () => {
-  // The wiring IS the fix: a banner fed by a hand-set prop reproduces the bug
-  // instead of catching it, so the skew has to arrive the way it does in
-  // production — through the cell the handshake writes.
+  // The wiring is the whole claim: a banner fed by a hand-set prop reproduces
+  // the failure instead of catching it, so the skew has to arrive the way it
+  // does in production — through the cell the handshake writes.
   const { orchestrator, stale, daemonVersion } = fakeOrchestrator()
   const { frame } = await mountHost(orchestrator)
   expect(await frame()).not.toContain("DAEMON OUT OF DATE")
@@ -137,13 +136,11 @@ test("the host mounts the skew banner and drives it from the daemon signal", asy
 })
 
 test("a socket disconnect paints no banner of its own", async () => {
-  // This used to assert precedence between two banners: a red DAEMON
-  // DISCONNECTED strip took the slot from the amber skew one. The red banner
-  // is gone — Rove keeps working with the daemon down and the socket usually
-  // returns within a second, so it interrupted with nothing to act on. What
-  // is left to pin is that its removal did not take the skew banner with it:
-  // a stale build is still worth saying while the socket is down, because
-  // restarting the daemon is what fixes BOTH.
+  // There is no DAEMON DISCONNECTED strip: Rove keeps working with the daemon
+  // down and the socket usually returns within a second, so it would interrupt
+  // with nothing to act on. What this pins is that its absence does not take
+  // the skew banner with it — a stale build is still worth saying while the
+  // socket is down, because restarting the daemon is what fixes BOTH.
   const { orchestrator, stale, daemonVersion, connection } = fakeOrchestrator()
   const { frame } = await mountHost(orchestrator)
   await act(async () => {
@@ -158,12 +155,11 @@ test("a socket disconnect paints no banner of its own", async () => {
 })
 
 /**
- * Issue #96, the surfacing half. A GUI running from a deleted install can
- * never start a daemon, and until now that state had no picture at all: the
- * client looked like it was reconnecting, for two days on the owner's
- * machine. Mounted through the real host and driven from the cell the
- * reconnect loop writes, for the same reason as the skew test above — a
- * banner fed a hand-set prop would pass with the wiring deleted.
+ * The surfacing half. A GUI running from a deleted install can never start a
+ * daemon, and with no picture for that state the client just looks like it is
+ * reconnecting, indefinitely. Mounted through the real host and driven from
+ * the cell the reconnect loop writes, for the same reason as the skew test
+ * above — a banner fed a hand-set prop would pass with the wiring deleted.
  */
 test("the host mounts the stale-install banner and drives it from the orchestrator", async () => {
   const { orchestrator, staleInstall } = fakeOrchestrator()

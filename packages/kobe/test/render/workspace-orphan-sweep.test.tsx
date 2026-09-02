@@ -1,12 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Orphan-sweep timing in useWorkspaceSelection (O19 follow-up): the sweep of
- * `terminalTabs.*` snapshots whose task no longer exists must run on EVERY
- * task-list identity change, not once per session. forgetTaskTabs only fires
- * for THIS client's delete flow — a sibling client (`rove api` / web board)
- * removing a task lands here purely as a changed list, and the old
- * once-per-session ref left those orphans on disk until the next launch,
- * taxing every later kv write. This probe seeds two snapshots, then removes
+ * Orphan-sweep timing in useWorkspaceSelection: the sweep of `terminalTabs.*`
+ * snapshots whose task is gone must run on EVERY task-list identity change,
+ * not once per session. forgetTaskTabs only fires for THIS client's delete
+ * flow — a sibling client (`rove api` / web board) removing a task lands here
+ * purely as a changed list, and a once-per-session ref leaves those orphans on
+ * disk until the next launch, taxing every later kv write. This probe seeds two snapshots, then removes
  * a task from the list the way a foreign delete does, and pins the sweep to
  * follow THAT change — plus the load-bearing `tasks.length === 0` guard.
  */

@@ -18,8 +18,8 @@
  *                         (the viewport tab is active).
  *   - `project`         — no worktree: a NEW chattab appended to the main
  *                         workspace, running on the project checkout with
- *                         the story prompt riding its spawn (a busy tab-1
- *                         can no longer swallow the prompt). Jump = enter
+ *                         the story prompt riding its spawn, so a busy tab-1
+ *                         cannot swallow it. Jump = enter
  *                         the project workspace.
  *
  * Image references need no side channel — `images[N]: /path` placeholder

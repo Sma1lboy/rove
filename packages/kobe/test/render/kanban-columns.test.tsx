@@ -1,12 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * What the board actually RENDERS for the two routing rules this branch
- * added, against the real component rather than the pure column math that
+ * What the board actually RENDERS for its two routing rules, against the real
+ * component rather than the pure column math that
  * `test/state/issue-board.test.ts` already covers:
  *
  *   - a `hold` story lands under Parked even though it is linked to a task
- *     (before, the link alone pushed it into In progress, where more than a
- *     dozen shelved stories sat pretending to be active work);
+ *     (routing on the link alone puts shelved stories in In progress,
+ *     pretending to be active work);
  *   - a card whose linked engine is blocked leads its column, and the header
  *     says how many need you.
  */
@@ -81,12 +81,12 @@ test("a blocked card's column header reports how many need you", async () => {
 })
 
 /**
- * A link the task index cannot resolve reads as unlinked. The daemon now
- * unlinks an issue when its task is deleted, so this is the belt to that
- * braces: a store carried over from a build without the cascade still holds
- * dead links, and In progress used to be a one-way door for them — the
- * drawer swapped Start for "open the linked session", which jumped at
- * nothing. In Backlog the card is startable again.
+ * A link the task index cannot resolve reads as unlinked. The daemon unlinks
+ * an issue when its task is deleted, so this is the belt to that braces: a
+ * store carried over from a build without the cascade still holds dead links,
+ * and In progress would be a one-way door for them — the drawer swaps Start
+ * for "open the linked session", which jumps at nothing. In Backlog the card
+ * is startable again.
  */
 test("a card linked to a task the index does not have renders in Backlog", async () => {
   const text = await board([issue(1, { taskId: "T1" }), issue(2, { taskId: "GONE" })], undefined, [
@@ -124,7 +124,7 @@ test("a card's title sits against its own top border, with a blank lane row afte
   expect(second).toBeGreaterThan(first)
 
   // Directly above the title is the card's own top border, not a padded row:
-  // the two rows the old `padding={1}` spent are what this buys back.
+  // the two rows a `padding={1}` would spend are what this buys back.
   expect(lines[first - 1] ?? "").toContain("╭")
 
   // Between the cards, exactly one row carrying no card chrome — the lane
@@ -146,7 +146,7 @@ test("a card's title sits against its own top border, with a blank lane row afte
  *
  * Pinned against the frame because opentui's default is SQUARE: a box that
  * says `border` and nothing else silently opts out of the house style, which
- * is how the board shipped as the one page framed in `┌┐└┘`. Asserting the
+ * would leave the board the one page framed in `┌┐└┘`. Asserting the
  * absence of square glyphs is what makes this test fail if either box loses
  * its `borderStyle` again — a corner-count assertion alone would pass on the
  * default.
@@ -217,8 +217,9 @@ test("a card is see-through in transparent mode and solid outside it", async () 
 
 /**
  * The board's keys are live, not decoration: `r` refetches. A page whose
- * bindings silently do nothing renders identically to a working one, which is
- * exactly how the Automations page once shipped with every key dead.
+ * bindings silently do nothing renders identically to a working one — a
+ * `Binding[]` passed as an object literal is enough to kill every key on a
+ * page and change nothing on screen.
  */
 test("r refetches the board", async () => {
   let fetches = 0
@@ -260,8 +261,8 @@ test("an empty column renders its placeholder", async () => {
 /**
  * Below the narrow breakpoint the board renders ONE full-width lane under a
  * strip of every lane's count — four side-by-side columns at phone width
- * were one-word-per-line strips. The off-lane cards must NOT render: their
- * presence is exactly what the old layout got wrong.
+ * were one-word-per-line strips. The off-lane cards must NOT render — their
+ * presence is the whole failure mode.
  */
 test("narrow board shows a lane strip and only the selected lane's cards", async () => {
   const { frame } = await renderComponent(

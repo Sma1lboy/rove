@@ -47,7 +47,7 @@ import { useZenMode } from "./use-zen-mode"
 
 /** Exported for the render track: the banner wiring can only be proven by
  *  mounting the REAL host — a test against the banner component alone stays
- *  green when the mount is deleted, which is the exact bug being fixed. */
+ *  green even when the mount is deleted. */
 export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   const { theme } = useTheme()
   const inactiveBorder = theme.borderActive
@@ -115,8 +115,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   })
   const worktree = selectedTask?.worktreePath || null
 
-  // Toasts + global sort pref + move-mode — the wiring shared with the tmux
-  // Tasks pane, extracted to the hook next to the Sidebar itself.
+  // Toasts + global sort pref + move-mode — the sidebar-adjacent wiring,
+  // extracted to the hook next to the Sidebar itself.
   const { sortMode, toggleSortMode, moveMode, setMoveMode, notifyError, notifyInfo, onLocalMergeRequest } =
     useSidebarHostState({ kv, notif, tasks, selectedId, setSelectedId })
 
@@ -133,7 +133,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     notifyInfo,
   })
 
-  // Cross-task attention (P0): rising-edge notify for non-selected tasks +
+  // Cross-task attention: rising-edge notify for non-selected tasks +
   // the global chord's jump-to-next handler. State is engine-owned/neutral.
   const { jumpToNextAttention } = useAttention({
     tasks,
@@ -179,14 +179,14 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
   const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError })
 
-  // Quick-fork (issue #17, ctrl+f): composer → create+enter → hand the
+  // Quick-fork (ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
   // `quick-fork.ts` because the create/enter/pending-prompt shape is identical
   // regardless of host — the other caller is TerminalTabs, and both must stay
   // one implementation.
   const quickFork = useQuickFork(orch, { selectTask: setSelectedId, enterTask: activateTask, notifyError })
 
-  // Scratch temp shell tasks (issue #33) — open gesture, exit deletion, and
+  // Scratch temp shell tasks — open gesture, exit deletion, and
   // the quiet adoption loop all live in the hook.
   const scratch = useScratchShell({
     orchestrator: orch,
@@ -200,7 +200,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     notifyInfo,
   })
 
-  /* --------- zen mode (issue #18, pure-tui shape) ----------------------- */
+  /* --------- zen mode ---------------------------------------------------- */
   const { zen, toggleZen } = useZenMode({ kv, focus })
 
   // Tab open/close (and editor-file close) edges report as plugin events
@@ -213,8 +213,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // Which surface the workspace shows — settings/worktrees/update full swaps
   // plus the rail's one-at-a-time nav. State + rationale in host-pages.tsx.
   const pages = useHostPagesState(focus)
-  // Sidebar layout: the tree lists each worktree's tabs as rows (the strip is
-  // off by default to match); `flat` restores the PROJECTS / TASKS list.
   // The selected task's active tab — the tree marks that exact row as live.
   // Read from the module map rather than threaded through TerminalTabs: the
   // sidebar renders tabs for tasks whose TerminalTabs is not mounted, so the
@@ -275,8 +273,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     createPR: () => void editor.onCreatePR(),
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
-    // then j/k reorders the cursor row's level (tab/task/project — issue
-    // #43) and enter/esc exits.
+    // then j/k reorders the cursor row's level (tab/task/project) and
+    // enter/esc exits.
     enterMoveMode: () => {
       const target = selectedId ?? tasks[0]?.id
       if (!target) return
@@ -335,13 +333,12 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
             pages.setNav("terminal")
             void activateTask(id)
           }}
-          // Picking a TAB is entering that session (owner 2026-08-01): focus
-          // moves to the terminal, same as activate — a click that leaves the
-          // sidebar's letter chords (d!) live under your typing is how issues
-          // got mis-deleted. Re-clicking the tab you are ALREADY in flips focus
-          // back to the sidebar (owner 2026-08-09): the first click entered the
-          // session, so a second click on the same row means "give me the
-          // sidebar". Keyboard enter is exempt (sidebar already focused —
+          // Picking a TAB is entering that session: focus moves to the
+          // terminal, same as activate — a click that leaves the sidebar's
+          // letter chords (d!) live under your typing is how a task gets
+          // deleted by accident. Re-clicking the tab you are ALREADY in flips
+          // focus back to the sidebar: the first click entered the session, so
+          // a second click on the same row means "give me the sidebar". Keyboard enter is exempt (sidebar already focused —
           // enter always means enter the session), as is a click that brings
           // the terminal back from a rail page.
           onSelectTab={(taskId, tabId) => {
@@ -361,7 +358,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           worktreeChanges={worktreeChanges}
           transcriptActivity={transcriptActivity}
           focused={activePane === "sidebar"}
-          // Task lifecycle (issue #20): the Sidebar's own d/r/p/m keys
+          // Task lifecycle: the Sidebar's own d/r/p/m keys
           // fire these; the flows are the shared lib/task-actions bodies.
           onAddTask={() => void createTask()}
           onDeleteRequest={(id) => void deleteTask(id)}
@@ -448,12 +445,11 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
         />
       ) : null}
 
-      {/* Cross-task attention toasts (issue #15). `useAttention` above fires
-          `notif.notify()` on unfocused-task state changes, but the main app
-          never mounted the overlay that renders them (only the standalone
-          `kobe tasks` pane did) — so the bottom-right toast silently never
-          appeared. Absolute-positioned overlay, under the
-          host's NotificationsProvider. */}
+      {/* Cross-task attention toasts. `useAttention` above fires
+          `notif.notify()` on unfocused-task state changes; without this
+          overlay mounted, nothing renders them and the bottom-right toast
+          silently never appears. Absolute-positioned, under the host's
+          NotificationsProvider. */}
       <ToastOverlay />
       {/* Prefix sequence HUD — bottom-left over the Tasks sidebar (the
           terminal column is off-limits: it collided with the engine's own

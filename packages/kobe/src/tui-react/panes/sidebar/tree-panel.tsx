@@ -1,20 +1,16 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The sidebar tree's body — one scrollbox of ONE-CELL rows (owner call
- * 2026-08-01, round 3). The chrome around it (brand header / nav rail / view
- * tabs / section-header grammar for project groups) stays the flat sidebar's
- * own components; inside the tree, density wins: worktree rows compress the
- * two-line card to one line, and tab rows start at the same column with the
- * state glyph carrying the hierarchy (issue #41).
+ * The sidebar tree's body — one scrollbox of ONE-CELL rows. Density wins
+ * inside the tree: a worktree row is one line, and tab rows start at the same
+ * column with the state glyph carrying the hierarchy.
  *
- * No fold anywhere (owner round 5) with ONE scoped exception: a project's
- * routine count row (issue #91), which folds only the standing sessions a
- * SCHEDULE created. Every project and every task a human opened still shows
- * everything under it — the promise that rule protects is intact.
+ * No fold anywhere with ONE scoped exception: a project's routine count row,
+ * which folds only the standing sessions a SCHEDULE created. Every project
+ * and every task a human opened still shows everything under it.
  *
- * One scrollbox, not the flat sidebar's two: a tree's whole point is that a
- * project and its worktrees scroll together, and the cursor indexes one flat
- * id list so one viewport is what "scroll the cursor into view" needs.
+ * ONE scrollbox: a tree's whole point is that a project and its worktrees
+ * scroll together, and the cursor indexes one flat id list, so one viewport
+ * is what "scroll the cursor into view" needs.
  */
 
 import type { ScrollBoxRenderable } from "@opentui/core"
@@ -46,14 +42,14 @@ export function SidebarTreeBody(props: {
       flexGrow={1}
       minHeight={0}
       stickyScroll={false}
-      // Scrollbar fully hidden (owner taste 2026-07-09): the cursor drives
+      // Scrollbar fully hidden: the cursor drives
       // scrolling, the thumb column is pure noise.
       verticalScrollbarOptions={{ visible: false }}
     >
       <box flexShrink={0} gap={0}>
         {props.rows.map((row, i) => {
           if (row.kind === "project") {
-            // The Scratch header (issue #33) reuses the project-row shape but
+            // The Scratch header reuses the project-row shape but
             // is a fixed section, not a repo: translated label, no context
             // menu (nothing to file, nothing to move).
             const isScratch = row.id === SCRATCH_SECTION_ID

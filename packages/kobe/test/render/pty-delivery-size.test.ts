@@ -1,12 +1,12 @@
 /**
- * Issue #18 — `kobe api send` delivery must not resize the pane's PTY.
+ * `kobe api send` delivery must not resize the pane's PTY.
  *
- * The attached TUI opens a session at its real pane size; a headless
- * delivery client used to reattach via `pty.open {cols:80, rows:24}`,
- * which the host treats as last-attach-wins → the engine got SIGWINCH,
- * repainted at 80 cols, and the pane garbled (content wrapped into the
- * left half, right half blank). The anchored property: after a delivery,
- * the child's terminal size still equals the attached client's pane size.
+ * The attached TUI opens a session at its real pane size; a headless delivery
+ * client that reattaches via `pty.open {cols:80, rows:24}` hits the host's
+ * last-attach-wins rule → the engine gets SIGWINCH, repaints at 80 cols, and
+ * the pane garbles (content wrapped into the left half, right half blank).
+ * The anchored property: after a delivery, the child's terminal size still
+ * equals the attached client's pane size.
  *
  * Runs against a real Bun PTY child (`/bin/sh`, probed with `stty size`),
  * like pty-host.test.ts — the spawn/terminal plumbing is production's.

@@ -31,7 +31,7 @@ async function generalAt(width: number): Promise<string> {
 
 test("at 46 columns the label renders whole instead of being cut mid-word", async () => {
   const text = await generalAt(46)
-  // The longest General label, previously clipped by its own padding.
+  // The longest General label — the one its own padding would clip.
   expect(text).toContain("Show keyboard hints")
   // Its inline hint is dropped rather than rendered as a clipped fragment.
   expect(text).not.toContain("re-enabling relights")

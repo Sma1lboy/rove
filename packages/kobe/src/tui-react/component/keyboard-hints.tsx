@@ -112,7 +112,7 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
         ? prev
         : { tokens: nextTokens, modal: nextModal }
     })
-    // Dependencies, NOT a bare effect (React #185, 2026-08-31): this hook
+    // Dependencies, NOT a bare effect (React #185): this hook
     // renders in the workspace FOOTER, which wraps the whole pane tree, so its
     // setState re-renders every sidebar row — and each row's `useBindings`
     // bumps `stackVersion` on unmount/remount, which re-renders the footer.
@@ -128,14 +128,13 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
     // relies on is unchanged — an effect with dependencies still runs after
     // the commit that changed them.
     //
-    // `kv` is NOT among them, and that is the whole fix (React #185 again,
-    // this time on boot with the dependency array already in place).
-    // `KVProvider` rebuilds its context value from a `useMemo` keyed on the
-    // kv snapshot, so EVERY `kv.set` anywhere in the app — tab adoption
-    // writing a task's tab list, a pane marking a hint used — hands this hook
-    // a brand-new `kv` object. As a dependency that re-ran the effect on all
-    // of them, which is the same "runs on every render" the array was
-    // supposed to stop: setSnapshot -> footer re-render -> sidebar rows
+    // `kv` is deliberately NOT among them. `KVProvider` rebuilds its context
+    // value from a `useMemo` keyed on the kv snapshot, so EVERY `kv.set`
+    // anywhere in the app — tab adoption writing a task's tab list, a pane
+    // marking a hint used — hands this hook a brand-new `kv` object. As a
+    // dependency it re-runs the effect on all of them, which is the same
+    // "runs on every render" the array exists to stop (React #185):
+    // setSnapshot -> footer re-render -> sidebar rows
     // remount -> stackVersion bumps -> kv writes -> round again, 50 deep.
     // Only the enabled FLAG is read here, so depend on that boolean instead:
     // it changes when the user toggles hints, not when unrelated state lands.
@@ -152,7 +151,7 @@ export function useStatusKeyHintItems(opts?: { onOpenSettings?: () => void; comp
         sidebar: focus ? () => focus.setFocused("sidebar") : undefined,
         help: dialog ? () => HelpDialog.show(dialog, focus?.focused ?? "sidebar") : undefined,
       }
-  // Compact (narrow footer, issue #14): the chord caps alone — `⌃ A · F1` —
+  // Compact (narrow footer): the chord caps alone — `⌃ A · F1` —
   // still clickable, no verbs, and no [settings] segment below.
   const items: StatusKeyHintItem[] = snapshot.tokens.map((tok) => ({
     text: opts?.compact ? formatChord(tok.chord) : t(`hints.status.${tok.msg}`, { key: formatChord(tok.chord) }),
@@ -199,7 +198,7 @@ export function StatusKeyHintBar(props: { onOpenSettings?: () => void; compact?:
 
 /**
  * Extinguish a pane's first-use hint: call from the pane's own key handlers
- * (nav/select) — using the keys IS the proof the hint is no longer needed.
+ * (nav/select) — using the keys IS the proof the hint has done its job.
  * Writes once; safe to call per keypress.
  */
 export function usePaneHintMark(pane: HintPane): () => void {

@@ -1,11 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Dialog stack (React port of `src/tui/ui/dialog.tsx`, issue #15 G2).
- * Public API preserved: `useDialog` → `{ replace, push, pop, clear, stack,
- * size, setSize }`, dialog bodies passed as THUNKS. The thunk contract
- * matters less in React (elements are plain objects, safe to create in key
- * handlers), but keeping it means Solid call sites port unchanged and the
- * body is created fresh per render of the provider.
+ * Dialog stack: `useDialog` → `{ replace, push, pop, clear, stack, size,
+ * setSize }`, dialog bodies passed as THUNKS so each body is created fresh
+ * per render of the provider.
  *
  * The provider dims its background subtree and puts the pointer-catching
  * overlay above it. Do not implement the dimmer as a translucent full-screen
@@ -23,7 +20,7 @@ import { isNarrowWidth } from "../lib/narrow-mode"
 import { useLatest } from "../lib/use-latest"
 
 /**
- * Horizontal padding for a dialog BODY's root box (issue #14, 3A): the
+ * Horizontal padding for a dialog BODY's root box: the
  * desktop's 2 cells halve to 1 below the narrow breakpoint, so a 44-cell
  * card keeps its columns for content. One hook so every dialog body agrees
  * — and follows a live resize.
@@ -51,15 +48,14 @@ export function Dialog(props: {
 
   const dismissRef = useRef(false)
   // Default-medium = 80 cols; small (50) is for tight yes/no prompts;
-  // large/xlarge get proportional bumps. Same rationale as the Solid
-  // original (wide help/settings cards need headroom, narrow PTYs cap
-  // at width-2 via maxWidth below).
+  // large/xlarge get proportional bumps: wide help/settings cards need
+  // headroom, narrow PTYs cap at width-2 via maxWidth below.
   const width = props.size === "xlarge" ? 140 : props.size === "large" ? 110 : props.size === "small" ? 50 : 80
 
   // Vertical headroom around the card so it never lands flush against
   // the terminal's top/bottom edge.
   const VERTICAL_MARGIN = 2
-  // Narrow (issue #14, 3A): every dialog is a centered clamp — the card's
+  // Narrow: every dialog is a centered clamp — the card's
   // maxWidth (width-2) already owns the width, and upper-fifth anchoring
   // gives away rows a 70-row phone screen doesn't have spare.
   const upperFifth = props.placement === "upper-fifth" && !isNarrowWidth(dimensions.width)
@@ -140,9 +136,9 @@ export type DialogContext = {
    */
   clear(options?: { refocus?: boolean }): void
   /**
-   * Replace the current dialog (if any) with a new one. The body stays a
-   * thunk for Solid-API parity; it is evaluated inside the provider's
-   * render, so hooks/contexts resolve normally.
+   * Replace the current dialog (if any) with a new one. The body is a thunk,
+   * evaluated inside the provider's render, so hooks/contexts resolve
+   * normally.
    */
   replace(thunk: () => ReactNode, onClose?: () => void): void
   push(thunk: () => ReactNode, onClose?: () => void): void
@@ -166,8 +162,7 @@ export function DialogProvider(props: { children?: ReactNode }) {
   const focusRef = useRef<Renderable | null>(null)
   const refocusTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Cancel a pending deferred refocus on unmount so `.focus()` can't land
-  // on a renderable destroyed in the same tick (the Solid version used an
-  // owner-scoped managed timeout for this).
+  // on a renderable destroyed in the same tick.
   useEffect(
     () => () => {
       if (refocusTimer.current) clearTimeout(refocusTimer.current)
@@ -203,7 +198,7 @@ export function DialogProvider(props: { children?: ReactNode }) {
     // Opening the NEXT dialog in the same turn (addEngineFlow's chained
     // id → command → name prompts: each `clear()` is followed by the next
     // `replace()`) must cancel it, or that timer fires ~1ms later and pulls
-    // native focus off the new dialog's input — every Enter looked like it
+    // native focus off the new dialog's input — every Enter then reads as a
     // lost focus.
     if (refocusTimer.current) clearTimeout(refocusTimer.current)
     if (stackRef.current.length === 0) {
@@ -213,10 +208,10 @@ export function DialogProvider(props: { children?: ReactNode }) {
   }, [renderer])
 
   // escape and ctrl+c both dismiss the top dialog identically. A live text
-  // selection makes the FIRST press clear it and the next one close — the
-  // old version instead DISABLED the binding while a selection existed,
-  // which left esc permanently dead whenever a stale selection highlight
-  // (kept after a copy, cleared only on the next click) was still around.
+  // selection makes the FIRST press clear it and the next one close. Do NOT
+  // disable the binding while a selection exists: a stale selection highlight
+  // (kept after a copy, cleared only on the next click) then leaves esc
+  // permanently dead.
   const dismissTop = useCallback(() => {
     const selection = renderer?.getSelection()
     if (selection) {
@@ -277,8 +272,8 @@ export function DialogProvider(props: { children?: ReactNode }) {
     // reads stackRef. Consumers derive pane focus / binding gates from
     // `dialog.stack.length`; without a new context value on push/pop, a host
     // that happened to render while the modal was open could keep those
-    // gates disabled after Escape removed the barrier. A later pane click
-    // appeared to "fix" focus only because it forced that host to render.
+    // gates disabled after Escape removes the barrier — until some unrelated
+    // pane click forces that host to render again.
     [stack, size, placement, refocus, captureFocusIfFirst],
   )
 
@@ -318,9 +313,9 @@ const MODAL_SCOPE = Symbol("kobe.dialog.modal")
  * Mounted exactly while a dialog is up. Owns the esc/ctrl+c dismiss keys
  * AND the modal cut-off (`modal: true` — see keymap-dispatch.ts): any key
  * neither the dialog body nor this entry handles stops here instead of
- * reaching the panes behind the dialog. Structural fix for the "dialog is
- * open but keys still operate the background" bug class — background
- * bindings no longer rely on their own `dialog.stack.length === 0` gates.
+ * reaching the panes behind the dialog. This is what keeps keys from
+ * operating the background while a dialog is open, so background bindings
+ * need no `dialog.stack.length === 0` gates of their own.
  *
  * `modalOwner` (stack position: below the body's member registrations) and
  * `modal: true` (dispatch cut-off) together are the explicit contract —

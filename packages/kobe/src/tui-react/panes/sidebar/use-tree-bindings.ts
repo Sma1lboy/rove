@@ -16,8 +16,8 @@
  *   3. Search-mode chords (registry ids).
  *   4. Menu-mode chords + menu escape.
  *
- * Registration order mirrors the old code (main → move → search → menu), so
- * the LIFO stack priority stays identical: menu > search > move > main.
+ * Registration order is main → move → search → menu, which gives the LIFO
+ * stack the priority menu > search > move > main.
  */
 
 import type { createSidebarController } from "../../../tui/panes/sidebar/controller"

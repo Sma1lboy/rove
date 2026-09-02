@@ -1,14 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Pane focus — global, single source of truth (React port of
- * `src/tui/context/focus.tsx`, issue #15 G2). Same responsibilities: pane
- * wrappers set focus on click, panes gate their keybindings on it, global
- * single-letter shortcuts gate on the workspace NOT being focused.
- *
- * API deltas from the Solid version, by design:
- *   - `focused` is a plain value (was `Accessor<PaneId>`).
- *   - `is(pane)` returns a boolean (was a memoized `Accessor<boolean>`);
- *     Solid call sites `is("sidebar")()` become `is("sidebar")`.
+ * Pane focus — global, single source of truth. Pane wrappers set focus on
+ * click, panes gate their keybindings on it, and global single-letter
+ * shortcuts gate on the workspace NOT being focused.
  */
 
 import { useRenderer } from "@opentui/react"
@@ -48,8 +42,8 @@ export function FocusProvider(props: { children?: ReactNode; initial?: PaneId })
   const focusedRef = useLatest(focused)
 
   /**
-   * Unified focus-change entry point (same contract as the Solid provider):
-   * on a real transition blur whatever opentui renderable holds native
+   * Unified focus-change entry point: on a real transition, blur whatever
+   * opentui renderable holds native
    * focus BEFORE flipping the pane state — removing the one-tick window
    * where a composer textarea keeps eating keystrokes after the user
    * chorded away from the workspace.

@@ -4,23 +4,22 @@
  *
  * {@link VersionSkewBanner} — amber, a thin full-width strip (accent rule +
  * BOLD CAPS label + one-line action hint) that auto-hides once the condition
- * clears. The daemon answers fine, it is just an older BUILD than this process
- * (React port of `src/tui/component/version-skew-banner.tsx`, issue #15 G3).
+ * clears. The daemon answers fine, it is just running a different BUILD than
+ * this process.
  *
- * A red socket-disconnect banner shared this file and was removed: Rove keeps
- * working with the daemon down, and the reconnect loop recovers most drops in
- * under a second, so a full-width alert was interrupting with nothing to act
- * on. Skew is the opposite — it persists until someone restarts the daemon,
- * which is an action, which is why this one stayed.
+ * Do NOT add a red socket-disconnect banner here. Rove keeps working with the
+ * daemon down and the reconnect loop recovers most drops in under a second,
+ * so a full-width alert would interrupt with nothing to act on. Skew is the
+ * opposite — it persists until someone restarts the daemon, which is an
+ * action.
  *
  * {@link StaleInstallBanner} — red, the same strip, for the one condition
  * that never clears on its own: this process is running from an install that
- * has been deleted, so it can never start a daemon again. That earned a
- * banner on the same test the skew banner passed and the disconnect banner
- * failed — it persists until someone acts, and the action is reinstalling.
+ * has been deleted, so it can never start a daemon again. It passes the same
+ * test skew does — it persists until someone acts, and the action is
+ * reinstalling.
  *
- * Theme tokens only, engine-neutral copy. React canon: props are plain
- * values, not Accessors.
+ * Theme tokens only, engine-neutral copy.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -75,7 +74,7 @@ export function VersionSkewBanner(props: VersionSkewBannerProps) {
   const t = useT()
   if (!props.stale) return null
   // One-line action hint: terse + actionable, naming both versions and the
-  // two commands that fix it (same copy as the Solid `versionSkewHint`).
+  // two commands that fix it.
   const daemon = props.daemonVersion ? `v${props.daemonVersion}` : t("update.skew.olderBuild")
   return (
     <BannerStrip

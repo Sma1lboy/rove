@@ -2,9 +2,9 @@
  * Pins the workspace-host gating contract (workspace/keybinding-gates.ts):
  * an open dialog or full-page swap disables every workspace chord group,
  * and the ONE deliberate exemption — the settings page's own close keys —
- * is live exactly while settings is open with no sub-dialog above it.
- * Previously these were inline `dialog.stack.length === 0 && …` expressions
- * in host-keybindings.ts with no test.
+ * is live exactly while settings is open with no sub-dialog above it. One
+ * named predicate per group, rather than inline `dialog.stack.length === 0 && …`
+ * expressions scattered through host-keybindings.ts with nothing testing them.
  */
 
 import { describe, expect, test } from "vitest"
@@ -80,8 +80,7 @@ describe("nextFocusedPane", () => {
   })
 
   test("clamps at both ends rather than wrapping", () => {
-    // Cursor semantics, owner call 2026-07-25: "previous" from the sidebar
-    // must never jump to files.
+    // Cursor semantics: "previous" from the sidebar must never jump to files.
     expect(nextFocusedPane("sidebar", -1, withFiles)).toBeNull()
     expect(nextFocusedPane("files", 1, withFiles)).toBeNull()
   })

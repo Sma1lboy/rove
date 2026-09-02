@@ -1,6 +1,6 @@
 /**
- * Clone-tab state hook for the React new-task dialog (issue #15, G3W2) —
- * the "For New Repo" cluster split out of `./view-model.ts`: git URL,
+ * Clone-tab state hook for the new-task dialog — the "For New Repo" cluster
+ * split out of `./view-model.ts`: git URL,
  * parent-dir drill-down picker, auto-derived folder name, base branch,
  * and the async `git clone` commit path. All fs/spawn plumbing comes from
  * the shared `src/tui/component/new-task-dialog/clone.ts`.
@@ -116,8 +116,8 @@ export function useCloneState(args: {
     const targetReason = validateCloneTarget(cloneParent, cloneFolder)
     if (targetReason) {
       args.setSubmitError(targetReason)
-      // Blame the field actually at fault — same probe strategy as the
-      // Solid shell (see its commitClone for the full rationale).
+      // Blame the field actually at fault: probe which input is wrong rather
+      // than reporting the failure against the whole form.
       const folder = cloneFolder.trim()
       const folderStructurallyBad = !folder || folder.includes("/") || folder.includes("\\")
       const parentAtFault = !folderStructurallyBad && validateCloneTarget(cloneParent, "__kobe_probe__") != null

@@ -3,15 +3,15 @@
  * The status hint effect must not re-run because unrelated state was
  * persisted.
  *
- * React #185 again, on BOOT this time, with #702's dependency array already
- * in place: `kv` was one of those dependencies, and `KVProvider` rebuilds
- * its context value from a `useMemo` keyed on the kv snapshot. Every
- * `kv.set` anywhere in the app — tab adoption recording a task's tab list,
- * a pane marking its hint used — therefore handed the hook a NEW `kv`
- * object and re-ran the effect, which is the same "runs on every render"
- * the array was added to stop. setSnapshot re-renders the footer, the
- * sidebar rows under it remount, `useBindings` bumps the stack version, the
- * rows write kv again, and the workspace crashed 50 nested updates later.
+ * React #185 on BOOT, with a dependency array already in place: listing `kv`
+ * among those dependencies is enough to defeat it. `KVProvider` rebuilds its
+ * context value from a `useMemo` keyed on the kv snapshot, so every `kv.set`
+ * anywhere in the app — tab adoption recording a task's tab list, a pane
+ * marking its hint used — hands the hook a NEW `kv` object and re-runs the
+ * effect, which is the same "runs on every render" the array exists to stop.
+ * setSnapshot re-renders the footer, the sidebar rows under it remount,
+ * `useBindings` bumps the stack version, the rows write kv again, and the
+ * workspace crashes 50 nested updates later.
  *
  * `status-hints-no-loop.test.tsx` mounts WITHOUT a KV provider, so `kv` is
  * null there and stays referentially stable — which is why it stayed green

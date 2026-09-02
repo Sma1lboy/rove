@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React terminal-pane mock host (`bun run dev:mock-react-terminal`) — the
- * live render proof for the ported pane (issue #16 React migration).
- * Backs the PTY with `MockTaskPty` (no real shell spawned) so the mount
+ * Terminal-pane mock host (`bun run dev:mock-react-terminal`) — the live
+ * render proof for the pane. Backs the PTY with `MockTaskPty` (no real shell
+ * spawned) so the mount
  * is deterministic: `feed()` pushes ANSI/text as if a shell had printed
  * it, proving the SGR→StyledText render path without a live process.
  *

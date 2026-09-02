@@ -129,8 +129,8 @@ export function settle(ms = 60): Promise<void> {
  * command guide, which only opens PREFIX_GUIDE_DELAY_MS after the tap — must
  * pass a `timeoutMs` anchored to that product constant, not a bare estimate:
  * the deadline has to cover the delay plus frame latency on a loaded CI
- * runner, or the test flakes at random on unrelated PRs (issue #82: a 1s
- * budget failed at ~1.1s of test wall-clock on a slow runner).
+ * runner, or the test flakes at random on unrelated changes — a 1s budget is
+ * not enough for ~1.1s of test wall-clock on a slow runner.
  */
 export async function waitForFrameText(
   frame: () => Promise<string>,

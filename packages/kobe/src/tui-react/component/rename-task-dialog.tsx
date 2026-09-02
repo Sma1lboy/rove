@@ -1,12 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React rename dialog (issue #15, G3W2) — the
- * `src/tui/component/rename-task-dialog/` counterpart, view + `show`
- * entry in one file (the Solid split exists only for its folder
- * convention). Same contract: single pre-filled input, Enter commits,
- * esc cancels via the dialog stack; `dialogTitle` / `fieldLabel` /
- * `submitLabel` overrides let it double for chat-tab renames, branch
- * names, launch commands, etc.
+ * Rename dialog — view + `show` entry in one file. Single pre-filled input,
+ * Enter commits, esc cancels via the dialog stack; `dialogTitle` /
+ * `fieldLabel` / `submitLabel` overrides let it double for chat-tab renames,
+ * branch names, launch commands, etc.
  *
  * `stripNewlines` / `isBlankText` come from the shared framework-free
  * `state.ts` — same sanitiser as the new-task dialog (opentui `<input>`

@@ -1,7 +1,6 @@
 /**
- * Pins the framework-free history transcript formatting shared by the Solid and
- * React panes. Renderer-bound TSX stays out of vitest; this file covers the
- * extracted pure logic only.
+ * Pins the framework-free history transcript formatting. Renderer-bound TSX
+ * stays out of vitest; this file covers the extracted pure logic only.
  */
 
 import { describe, expect, it } from "vitest"
@@ -24,9 +23,9 @@ describe("history message core", () => {
   })
 
   it("cuts long summaries by code point — never bisects a surrogate pair", () => {
-    // Each 🎉 is one code point but two UTF-16 units; the old
-    // `.slice(0, 119)` by UTF-16 length could cut mid-pair and emit a lone
-    // surrogate (→ �). truncateEnd counts code points instead.
+    // Each 🎉 is one code point but two UTF-16 units, so slicing by UTF-16
+    // length can cut mid-pair and emit a lone surrogate (→ �). truncateEnd
+    // counts code points instead.
     const out = toolInputSummary({ command: "🎉".repeat(200) })
     expect(out).toBe(`${"🎉".repeat(119)}…`)
   })

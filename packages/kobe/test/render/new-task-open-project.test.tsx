@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The Existing tab's "open the project" choice (issue #90), through the real
+ * The Existing tab's "open the project" choice, through the real
  * dialog entry point.
  *
  * The flow-level tests (`test/tui/create-task-flow-open-project.test.ts`) pin
@@ -86,7 +86,7 @@ test("a repo with no project checkout does not", async () => {
 })
 
 test("omitting mainRepos entirely leaves the tab as it was", async () => {
-  // Every caller that has not been taught about the option keeps the old tab.
+  // A caller that passes no `mainRepos` gets the tab unchanged.
   const dir = repo()
   const { frame } = await mount(dir)
   const text = await frame()

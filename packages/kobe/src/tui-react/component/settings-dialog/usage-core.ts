@@ -67,7 +67,7 @@ export function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipVie
 }
 
 /**
- * Narrow-footer form (issue #14): ONE chip per vendor, pinned to the
+ * Narrow-footer form: ONE chip per vendor, pinned to the
  * session window — the "5h" rolling window every vendor reports as its
  * tightest budget — falling back to the vendor's first window when no
  * session window exists. Reset time is dropped; at 46 cols only the

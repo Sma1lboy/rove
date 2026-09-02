@@ -1,20 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The tree sidebar (owner call 2026-08-01): project → Task → Terminal Tab, with
- * the right pane showing nothing but the active session's terminal.
+ * The tree sidebar: project → Task → Terminal Tab, with the right pane
+ * showing nothing but the active session's terminal. Tasks group under their
+ * project header and a worktree's tabs render as child rows beneath it.
  *
- * Round 2 (same day): the tree keeps the flat sidebar's design language —
- * the same brand header / nav rail / view tabs chrome, the same two-line
- * row cards, the same section-header grammar for project groups. What the
- * tree CHANGES is structure only: tasks group under their project header and
- * a worktree's tabs render as child rows beneath its card. Everything starts
- * expanded (owner call, round 4) — the collapse sets hold only what you folded
- * by hand, so a new worktree or a freshly-mounted tab needs no keystroke.
+ * Everything starts expanded — the collapse sets hold only what you folded by
+ * hand, so a new worktree or a freshly-mounted tab needs no keystroke.
  *
- * Navigation is deliberately the same machinery: the cursor indexes one flat
- * id list, so j/k/gg/enter come from the same `createSidebarController` the
- * flat sidebar uses, and a tab row is selectable by exactly the mechanism
- * that already selects tasks.
+ * The cursor indexes one flat id list, so j/k/gg/enter come from
+ * `createSidebarController` and a tab row is selectable by exactly the
+ * mechanism that selects tasks.
  */
 
 import type { Task } from "@/types/task"
@@ -50,9 +45,9 @@ export type SidebarTreeProps = SidebarProps & {
   /** Open a new conversation ("chat" — the ctrl+e picker) or a bare shell tab
    *  in any worktree — offered by the worktree/tab rows' menu. */
   onNewTab?: (taskId: string, kind: "chat" | "shell") => void
-  /** Move one tab within its task (move mode on a tab row, issue #43). */
+  /** Move one tab within its task (move mode on a tab row). */
   onMoveTabRequest?: (taskId: string, tabId: string, delta: -1 | 1) => void
-  /** Narrow mode's "↩ recent" jump target (issue #14, 2A) — renders as the
+  /** Narrow mode's "↩ recent" jump target — renders as the
    *  first navigable row; ⏎ re-enters that task's workspace. */
   recentTask?: Task | null
   /** Filled with a reader of the task under the cursor, so the host's
@@ -69,8 +64,8 @@ export function SidebarTree(props: SidebarTreeProps) {
   const focused = props.focused ?? true
   const dims = useTerminalDimensions()
 
-  // The same ~2s branch/changes poll tick the flat sidebar runs — the row
-  // cards' `useChanges`/`pollCurrentBranch` effects key on it.
+  // The ~2s branch/changes poll tick — the row cards'
+  // `useChanges`/`pollCurrentBranch` effects key on it.
   const [branchTick, setBranchTick] = useState(0)
   useEffect(() => {
     const timer = setInterval(() => setBranchTick((n) => n + 1), MAIN_BRANCH_POLL_MS)
@@ -95,8 +90,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   }, [tree.flatIds])
 
   // Cursor: state + ref written together so key handlers between renders read
-  // the just-set index (React commits state later — same contract as the flat
-  // sidebar's cursor).
+  // the just-set index (React commits state later).
   const [cursorIndex, setCursorIndexState] = useState(-1)
   const cursorRef = useRef(cursorIndex)
   const setCursorIndex = useCallback((next: number): void => {
@@ -116,9 +110,8 @@ export function SidebarTree(props: SidebarTreeProps) {
   // Follow the active row when the selection moves from elsewhere (the F7
   // attention jump, the inbox). EDGE-triggered on the active row CHANGING —
   // not on every list identity churn: flatIds rebuilds on the 2s branch tick
-  // and every engine-state push, and re-anchoring then dragged the cursor
-  // back to the selected row while the user was j/k-walking the tree
-  // (prefix+h → move → yanked back, owner bug 2026-08-02). Clamps still run
+  // and every engine-state push, and re-anchoring then would drag the cursor
+  // back to the selected row while the user is j/k-walking the tree. Clamps run
   // on every list change so a shrunken list can't strand the cursor.
   const prevActiveRef = useRef<string | null>(null)
   // The row the cursor sat on LAST render — what move mode re-anchors to when
@@ -159,7 +152,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   // Land the highlight on the top match on every search keystroke. Declared
   // AFTER the follow effect so it wins while a query is open — otherwise the
   // cursor would snap back to the active row you are trying to search away
-  // from. (Same ordering contract as the flat sidebar.)
+  // from.
   useEffect(() => {
     void search.query
     if (!search.active) return
@@ -175,7 +168,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   const toggleRoutinesRow = tree.toggleRoutinesRow
   const activateRow = useCallback(
     (rowId: string): void => {
-      // The routine count row (issue #91) opens and closes instead of
+      // The routine count row opens and closes instead of
       // activating: it names no task, so `parseRowId` below would hand a
       // sentinel id to `onSelect` and land on nothing.
       if (toggleRoutinesRow(rowId)) return
@@ -206,7 +199,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   const ctrl = controllerRef.current
 
   /**
-   * Move mode is SCOPE-AWARE (issue #43): the cursor row's level is what
+   * Move mode is SCOPE-AWARE: the cursor row's level is what
    * moves. A tab row moves within its task's tab list; a task/branch row
    * moves within its repo group (`moveTask` partitions by repo); a `main`
    * row — the repo's own checkout, the group's first row and the nearest
@@ -244,8 +237,8 @@ export function SidebarTree(props: SidebarTreeProps) {
   )
 
   // What wears the move chip: a main row drags its whole PROJECT, so the
-  // group header carries the chip (the pre-#43 rendering); any other row
-  // drags itself, so the chip sits on the row under the cursor.
+  // group header carries the chip; any other row drags itself, so the chip
+  // sits on the row under the cursor.
   const cursorRowId = tree.flatIds[cursorIndex]
   const cursorMove = useMemo((): { projectId: string | null; rowId: string | null } => {
     if (cursorRowId === undefined || cursorRowId === RECENT_ROW_ID) return { projectId: null, rowId: null }
@@ -290,8 +283,8 @@ export function SidebarTree(props: SidebarTreeProps) {
     markKeysUsed,
   })
 
-  // ctrl+<digit> jump — same contract as the flat sidebar: slot N is the Nth
-  // VISIBLE row, so it follows expansion state. Not gated on focus: the chord
+  // ctrl+<digit> jump: slot N is the Nth VISIBLE row, so it follows expansion
+  // state. Not gated on focus: the chord
   // exists to switch from inside the engine pane.
   useBindings(() => ({
     enabled: true,
@@ -305,8 +298,8 @@ export function SidebarTree(props: SidebarTreeProps) {
     }),
   }))
 
-  // Viewport follow — rowEls is keyed by flat index (the row cards' own
-  // registration convention), shared by cards and tab rows alike.
+  // Viewport follow — rowEls is keyed by flat index, the registration
+  // convention every row type shares.
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const rowElsRef = useRef<Map<number, BoxRenderable> | null>(null)
   if (rowElsRef.current === null) rowElsRef.current = new Map()
@@ -323,8 +316,7 @@ export function SidebarTree(props: SidebarTreeProps) {
   useEffect(() => {
     const el = outerRef.current
     if (!el) return
-    // opentui's width setter force-zeroes flexShrink — restore it here (see
-    // the flat Sidebar for the full story).
+    // opentui's width setter force-zeroes flexShrink — restore it here.
     el.width = effectiveWidth
     el.flexShrink = 1
     el.minHeight = 0
@@ -339,7 +331,7 @@ export function SidebarTree(props: SidebarTreeProps) {
     rowEls,
     onPress: (flatIndex, rowId) => {
       // Clicking a row while a menu is up dismisses it — otherwise the menu
-      // would hang over a row it no longer describes.
+      // would hang over a row it does not describe.
       menu.close()
       setCursorIndex(flatIndex)
       activateRow(rowId)

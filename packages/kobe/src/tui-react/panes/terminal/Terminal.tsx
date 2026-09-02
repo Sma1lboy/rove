@@ -1,36 +1,23 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Embedded terminal pane — React port of `tui/panes/terminal/Terminal.tsx`
- * (issue #16 React migration). Same seam: the PureTUI Workspace Host
- * mounts it as the center column running the task's real interactive
- * engine CLI (its `command` prop); it also works as a plain worktree
- * shell. Body: a headless xterm screen snapshot fed by the task PTY,
- * clipped via opentui's `overflow` + viewport slicing.
+ * Embedded terminal pane. The PureTUI Workspace Host mounts it as the center
+ * column running the task's real interactive engine CLI (its `command`
+ * prop); it also works as a plain worktree shell. Body: a headless xterm
+ * screen snapshot fed by the task PTY, clipped via opentui's `overflow` +
+ * viewport slicing.
  *
- * Shared framework-free logic (PTY backend, key encoding, SGR→StyledText,
- * viewport math, grid selection) is imported straight from the Solid
- * cluster `tui/panes/terminal/*` — this file (plus its `use-terminal-*`
- * hooks) owns only the React reactivity. See the Solid original for the
- * full lifecycle rationale (acquire/subscribe contract, never-kill-on-
- * unmount, dead-shell banner, F5 reset). Deltas below.
+ * Framework-free logic (PTY backend, key encoding, SGR→StyledText, viewport
+ * math, grid selection) comes from `tui/panes/terminal/*`; this file plus its
+ * `use-terminal-*` hooks own only the React reactivity. The lifecycle
+ * contract — acquire/subscribe, never-kill-on-unmount, the dead-shell banner,
+ * F5 reset — is documented on `use-terminal-pty.ts`.
  *
- * Solid→React translation notes:
- *   - `cwd`/`taskId`/`focused`/`resetToken` are plain values, not
- *     Accessors — React re-renders on prop change.
- *   - The Solid original's declaration-order comment ("selection memo
- *     BEFORE the render memos — cursorRows reads selection() during its
- *     EAGER first evaluation, a later declaration is a TDZ crash") is a
- *     Solid-specific hazard: `createMemo` evaluates eagerly at
- *     declaration time there. React's `useMemo` evaluates lazily off a
- *     dependency array during render, so no such ordering constraint
- *     exists — the hooks below are ordered for readability, not
- *     correctness.
- *   - Body-box measurement and the resize-push / host-cursor-anchor
- *     effects live in `use-terminal-geometry.ts` and
- *     `use-terminal-host-cursor.ts`. They receive the PTY handle and the
- *     computed viewport cursor after `useTerminalPty` has produced them,
- *     so the call order in this file remains the same and there is no
- *     chicken-and-egg hook-ordering hazard.
+ * Hook ORDER here is for readability, not correctness: `useMemo` evaluates
+ * lazily off a dependency array, so a memo may be declared after one it
+ * reads. Body-box measurement and the resize-push / host-cursor-anchor
+ * effects live in `use-terminal-geometry.ts` and `use-terminal-host-cursor.ts`
+ * — they receive the PTY handle and the computed viewport cursor after
+ * `useTerminalPty` has produced them.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
@@ -107,7 +94,7 @@ export type TerminalProps = {
    */
   initialInput?: string
   /** Paste-delivery vendor's first message + the engine binary its up-probe
-   *  matches (`TaskPtyOpts.firstMessage`, issue #25): the hosted backend
+   *  matches (`TaskPtyOpts.firstMessage`): the hosted backend
    *  pastes it once the fresh-spawned engine is up; reattaches never
    *  redeliver it. */
   firstMessage?: string
@@ -261,14 +248,15 @@ export function Terminal(props: TerminalProps) {
     return overlayCursor(withSelection, cursorWhileUnselected, terminalColors)
   }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor, terminalColors])
 
-  // Flatten every visible row into ONE `StyledText` — see the Solid
-  // original for why a single element (not per-row `<text>`s) is load-
-  // bearing for the cursor positioning math.
+  // Flatten every visible row into ONE `StyledText`. A single element (not
+  // per-row `<text>`s) is what makes the cursor positioning math work: the
+  // cursor is placed by offset into one text node.
   //
-  // `sealRowEndAttributes` is a local workaround for an opentui renderer bug
-  // (attributes open at a row's last column leak into the rest of the frame —
-  // the "wrapped URL underlines everything below it" report). Its doc comment
-  // has the full mechanism; drop this call once opentui resets per row.
+  // `sealRowEndAttributes` is a local workaround for an opentui renderer bug:
+  // attributes open at a row's last column leak into the rest of the frame,
+  // so a wrapped underlined URL underlines everything below it. Its doc
+  // comment has the full mechanism; drop this call once opentui resets per
+  // row.
   const styledSnapshot = useMemo(() => {
     const resolved = resolveInverseAttributes(cursorRows, terminalColors.foreground, terminalColors.background)
     const sealed = sealRowEndAttributes(

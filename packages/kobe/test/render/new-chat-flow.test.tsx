@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Unified new-conversation DISPATCH (issue #7) — the four toggle combos must
+ * Unified new-conversation DISPATCH — the four toggle combos must
  * land in four different places, driven by REAL keypresses through the real
  * `useTabDialogs` hook:
  *
@@ -13,10 +13,10 @@
  * Every `requestNewChat` open is gated on an ASYNC engine probe
  * (`availableEngineIds()` → `findClaudeBinary()` &c., a `which` + `stat` per
  * vendor) that runs before `NewChatDialog.show`. A fixed `settle()` is a bet
- * that probe finishes inside 60ms; it took 38ms on an idle Mac, and lost that
- * bet on a loaded CI runner (v0.9.72 attempt 1 — the assertion read the
- * pre-dialog frame, which is blank because `Driver` renders `null`). Wait for
- * the dialog's own text with `waitForFrameText` instead.
+ * that probe finishes inside 60ms; it takes ~38ms on an idle Mac and loses
+ * that bet on a loaded CI runner, where the assertion reads the pre-dialog
+ * frame — blank, because `Driver` renders `null`. Wait for the dialog's own
+ * text with `waitForFrameText` instead.
  *
  * Engine history reads and kobe state writes are both sandboxed to a
  * tmpdir via their real env seams (`CLAUDE_CONFIG_DIR` / `CODEX_HOME` /
@@ -163,24 +163,24 @@ describe("requestNewChat dispatch", () => {
     expect(captured.errors).toEqual(["No conversation in this tab to fork yet"])
   })
 
-  // Why (owner report 2026-09-02): `claudecpa` is a zsh function that ends up
-  // running the real claude binary. Registered with no `engineProtocol`, its id
-  // resolves to the empty custom registry entry — no transcript reader, no fork
-  // verb — so this gesture refused with the "nothing to continue" toast on a tab
-  // that had been talking to claude all along. The walk already recorded the
-  // truth as `liveVendor`; this drives the same keys the owner did.
+  // Why: `claudecpa` is a zsh function that ends up running the real claude
+  // binary. Registered with no `engineProtocol`, its id resolves to the empty
+  // custom registry entry — no transcript reader, no fork verb — so this
+  // gesture would refuse with the "nothing to continue" toast on a tab that has
+  // been talking to claude all along. The process walk records the truth as
+  // `liveVendor`; this drives the real keys against it.
   test("tab+continue forks through a wrapper preset's LIVE engine (issue: claudecpa)", async () => {
     const projectDir = path.join(process.env.CLAUDE_CONFIG_DIR as string, "projects", encodeCwd(worktree))
     fs.mkdirSync(projectDir, { recursive: true })
     fs.writeFileSync(path.join(projectDir, "wrapped.jsonl"), "{}\n")
-    // A wrapper preset registered the way every pre-`engineProtocol` one is on
-    // disk: a command and a name, NO `engineProtocol.claudecpa`. That absence is
-    // the bug under test, so the fixture must not paper over it.
+    // A wrapper preset registered the way one without `engineProtocol` sits on
+    // disk: a command and a name, NO `engineProtocol.claudecpa`. That absence
+    // is the case under test, so the fixture must not paper over it.
     //
     // Scoped to THIS test, not the file: custom engines are always offered, so
     // a registration left standing changes what the picker highlights for
-    // everyone else — and on a runner with no claude binary it becomes the only
-    // entry, which is how it broke the two neighbours that assert on "claude".
+    // everyone else — and on a runner with no claude binary it becomes the
+    // only entry, breaking the two neighbours that assert on "claude".
     const statePath = path.join(process.env.KOBE_HOME_DIR as string, ".config", "rove", "state.json")
     fs.mkdirSync(path.dirname(statePath), { recursive: true })
     fs.writeFileSync(
@@ -247,8 +247,7 @@ describe("requestNewChat dispatch", () => {
     act(() => mockInput.pressEnter())
     // `forkChildTask` resolves the handoff plan asynchronously before opening
     // the QuickTaskComposer. Wait for the composer (or a refusal toast) instead
-    // of relying on a fixed settle window — issue #77 was the composer not
-    // having rendered when the assertion ran.
+    // of relying on a fixed settle window, which races the composer's render.
     await waitFor(async () => {
       const f = await frame()
       return f.includes("Quick task") || captured.errors.length > 0

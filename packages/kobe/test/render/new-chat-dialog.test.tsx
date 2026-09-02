@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Unified new-conversation dialog (issue #7) — REAL keypresses against the
- * mounted view: enter in the pristine state must reproduce the old ctrl+e
- * result exactly, `tab` / `ctrl+f` flip the destination / context toggles
+ * Unified new-conversation dialog — REAL keypresses against the mounted view:
+ * enter in the pristine state must reproduce the plain ctrl+e result exactly,
+ * `tab` / `ctrl+f` flip the destination / context toggles
  * (footer reflects them live), shell-only choices clamp onto an engine when
  * a toggle leaves the default combo, and preset props open pre-flipped.
  */

@@ -139,11 +139,11 @@ describe("HostedTaskPty over a real pty-host socket", () => {
   })
 
   test("kill() + immediate same-key reopen survives the old child's exit frame", async () => {
-    // The editor-tab file swap (and F5 reset): release the old vim and
+    // The editor-tab file swap (and F5 reset): release the running vim and
     // acquire a new PTY under the SAME key in the same tick. The host's
-    // pty.exit for the OLD child races the new handle's open over the
-    // key-routed dispatcher — pre-fix it marked the NEW handle dead, so
-    // the tab closed itself and the file needed a second click.
+    // pty.exit for the DYING child races the new handle's open over the
+    // key-routed dispatcher; marking the NEW handle dead closes the tab and
+    // the file needs a second click.
     const a = new HostedTaskPty({ taskId: "smoke::t7", ...OPTS })
     a.write("old-file\n")
     await until(() => text(a).includes("old-file"), "first session streams")
@@ -157,7 +157,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
       rows: 12,
     })
     await until(() => text(b).includes("new-file"), "respawned session streams")
-    // Let the old incarnation's exit frame land — it must not kill us.
+    // Let the dying incarnation's exit frame land — it must not kill us.
     await new Promise((r) => setTimeout(r, 300))
     expect(b.killed).toBe(false)
     expect(b.deadOnAttach).toBe(false)
@@ -190,11 +190,11 @@ describe("HostedTaskPty over a real pty-host socket", () => {
   })
 
   test("an actively-streaming reattach keeps a real gap between the wiggle's resizes", async () => {
-    // Regression (2026-07-27 "input box gone"): a streaming child's ordinary
-    // output frame lands milliseconds after the shrink and resolved the
-    // data-wait, so the restore raced back into zero-gap coalescing — one
-    // SIGWINCH at the unchanged size, no repaint. The floor must hold the
-    // two resizes apart even when data arrives instantly.
+    // "Input box gone": a streaming child's ordinary output frame lands
+    // milliseconds after the shrink and resolves the data-wait, so the restore
+    // races back into zero-gap coalescing — one SIGWINCH at the unchanged
+    // size, no repaint. The floor must hold the two resizes apart even when
+    // data arrives instantly.
     const cmd = ["/bin/sh", "-c", "echo ready; while :; do echo tick; sleep 0.02; done"]
     const a = new HostedTaskPty({ taskId: "smoke::t3-stream", cwd: dir, command: cmd, cols: 60, rows: 12 })
     await until(() => text(a).includes("ready"), "streaming session starts")
@@ -216,10 +216,10 @@ describe("HostedTaskPty over a real pty-host socket", () => {
   })
 
   test("waits 500ms for a delayed repaint before restoring the reattach size", async () => {
-    // Regression for 052e57e: a macOS repaint can arrive after the old
-    // 200ms bound. This deterministic delayed-repaint handle holds the
-    // shrink stage for 300ms, so the test both pins the 500ms contract and
-    // proves the original size is restored only after that repaint settles.
+    // A macOS repaint can arrive more than 200ms late. This deterministic
+    // delayed-repaint handle holds the shrink stage for 300ms, so the test
+    // both pins the 500ms contract and proves the original size is restored
+    // only after that repaint settles.
     const a = new HostedTaskPty({ taskId: "smoke::t3-delayed", ...OPTS })
     a.write("ready\n")
     await until(() => text(a).includes("ready"), "first delayed-repaint attach sees output")
@@ -321,7 +321,7 @@ describe("HostedTaskPty over a real pty-host socket", () => {
     const woken = new HostedTaskPty({ taskId: key, ...OPTS_P, restore: screen ?? undefined })
     await until(() => text(woken).includes("WAKE-MARKER"), "woken handle sees the while-parked delta")
     // Full-screen equality against the never-parked oracle — scrollback,
-    // colors, and the pre-park content the 512KB-ring path used to lose.
+    // colors, and the pre-park content a bounded 512KB ring would lose.
     expect(text(woken)).toBe(text(oracle))
     expect(text(woken)).toContain("pre-park line 0")
     expect(woken.captureCursor()).toEqual(oracle.captureCursor())

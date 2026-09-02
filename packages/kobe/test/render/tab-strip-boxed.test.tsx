@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Boxed tab strip (2026-08-29 design): every tab is a closed rounded box;
+ * Boxed tab strip: every tab is a closed rounded box;
  * the ACTIVE tab omits its bottom edge so the frame reads as a notch opening
  * into the pane below (claude-squad's `activeTabBorder`). Tabs sit flush —
  * the frames are the gutter — and the one-row viewport scrolls per cell to
@@ -25,7 +25,7 @@ import { TURN_GLYPHS, TabStrip } from "../../src/tui-react/workspace/tab-strip"
 import type { TerminalTab } from "../../src/tui/workspace/terminal-tabs-core"
 import { renderComponent } from "./harness"
 
-// The strip is OFF by default (2026-08-31) — the sidebar tree already lists
+// The strip is OFF by default — the sidebar tree already lists
 // these tabs. This file is about what it DRAWS when asked for, so the mode is
 // pinned to `always` for every test here.
 process.env.KOBE_HOME_DIR ??= mkdtempSync(join(tmpdir(), "kobe-tab-strip-boxed-"))
@@ -66,11 +66,11 @@ function StripDriver(props: { tabs: readonly TerminalTab[]; start: string; width
 /**
  * A title longer than the pane is truncated, not drawn past the strip.
  *
- * The strip is `overflow: hidden`, so an over-long title did not merely spill
- * — it pushed the tab's own right frame off the edge and ran to the last
- * column with no ellipsis, so nothing on screen said the name had been cut.
- * The narrow form (`tab-strip-narrow.test.tsx`) always truncated; this is the
- * same rule for the wide one.
+ * The strip is `overflow: hidden`, so an over-long title does not merely spill
+ * — it pushes the tab's own right frame off the edge and runs to the last
+ * column with no ellipsis, leaving nothing on screen to say the name was cut.
+ * The narrow form (`tab-strip-narrow.test.tsx`) truncates; this is the same
+ * rule for the wide one.
  *
  * Truncation happens before the width each entry reports, so this also guards
  * the scroll math: measuring an untruncated title would scroll the viewport by
@@ -102,8 +102,8 @@ test("a title wider than the pane is ellipsised inside its own frame", async () 
   const titleRow = (await frame()).split("\n").find((line) => line.includes("a-very-long-shell")) ?? ""
   // Cut, and visibly so.
   expect(titleRow).toContain("…")
-  // The tab's own right frame survived: both verticals are on the row, which
-  // is exactly what an over-long title used to push off the edge.
+  // The tab's own right frame survives: both verticals are on the row, which
+  // is exactly what an over-long title pushes off the edge when unclamped.
   expect(count(titleRow, "│")).toBe(2)
 })
 

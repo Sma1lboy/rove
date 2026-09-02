@@ -123,7 +123,7 @@ test("t flips the sidebar between default and recent sort", async () => {
   expect(orderOf(await frame())).toBeLessThan(0)
 
   // `t` — the sidebar-scoped chord the F1 keymap advertises — flips to
-  // recency: zzz (touched 2026-08-20) jumps above aaa (2026-08-01).
+  // recency: zzz (touched later) jumps above aaa.
   mockInput.typeText("t")
   await new Promise((r) => setTimeout(r, SETTLE))
   expect(orderOf(await frame())).toBeGreaterThan(0)

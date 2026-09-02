@@ -63,7 +63,7 @@ export type CyclePaneId = (typeof PANE_CYCLE)[number]
  * unmounted pane strands the cursor on nothing, so it drops out of the cycle
  * rather than being clamped against.
  *
- * Cursor semantics, not a ring (owner call 2026-07-25): movement clamps at
+ * Cursor semantics, not a ring: movement clamps at
  * both ends instead of wrapping, so "previous" from the sidebar never jumps
  * to files. Returns null when focus should not move.
  */

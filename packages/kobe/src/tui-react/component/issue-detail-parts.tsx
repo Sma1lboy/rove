@@ -3,13 +3,9 @@
  * The story drawer's EVENTS feed — the last {@link EVENT_FEED_LIMIT} engine
  * lifecycle events of the story's linked task (docs/design/plugin-events.md).
  *
- * The drawer's section headers and chip buttons used to live here too; they
- * were the house dialog grammar wearing a story-drawer name, and moved to
- * `ui/dialog-parts.tsx` when the rest of the dialogs adopted them.
- *
  * The feed is a SNAPSHOT: one fetch when the drawer mounts, no polling and
  * no subscription. The daemon's ring is in-memory and capped at 100, so a
- * fresh daemon — or an id it no longer knows ("task not found") — simply
+ * fresh daemon — or an id it does not know ("task not found") — simply
  * reads as "no events", never as an error the user must act on.
  */
 

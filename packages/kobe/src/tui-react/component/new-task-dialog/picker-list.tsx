@@ -1,14 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Shared windowed picker list + field-label styling for the React
- * new-task dialog (issue #15, G3W2). The Solid shell repeats the
- * "↑ N more / rows / ↓ N more" block four times (repo, branch, clone
- * parent, adopt); the React port renders all four through this one
- * component — callers supply the pre-windowed row bodies and pick
- * handler, the list owns the cursor arrow, bold, and overflow lines.
- * Also home to {@link ChoiceRow}, the horizontal choose-one row shared by
- * the engine picker, the quick composer and the new-chat dialog. (The
- * new-task dialog now spends chips instead — docs/design/dialogs.md.)
+ * Shared windowed picker list + field-label styling for the new-task dialog.
+ * All four pickers (repo, branch, clone parent, adopt) render their
+ * "↑ N more / rows / ↓ N more" block through this one component — callers
+ * supply the pre-windowed row bodies and pick handler, the list owns the
+ * cursor arrow, bold, and overflow lines.
+ *
+ * Also home to {@link ChoiceRow}, the horizontal choose-one row shared by the
+ * engine picker, the quick composer and the new-chat dialog. The new-task
+ * dialog spends chips instead — docs/design/dialogs.md.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -115,12 +115,11 @@ export function PickerList(props: {
  * composer: choices side by side (`gap={2}`), the selected one primary +
  * bold (arrowed variants prefix `▸ ` / two spaces), click picks.
  *
- * Overflow (fixed 2026-07-30): a choice label is ATOMIC. Without
- * `wrapMode="none"` + `flexShrink={0}` Yoga compressed the cells and each
- * `<text>` wrapped INTERNALLY, so with enough engines installed a label like
- * `lazygit (split)` split mid-word across two lines and the row read as
- * garbage. The labels are now unbreakable and the ROW wraps instead, moving
- * whole choices onto the next line.
+ * Overflow: a choice label is ATOMIC. Without `wrapMode="none"` +
+ * `flexShrink={0}` Yoga compresses the cells and each `<text>` wraps
+ * INTERNALLY, so with enough engines installed a label like `lazygit (split)`
+ * splits mid-word across two lines and the row reads as garbage. Unbreakable
+ * labels make the ROW wrap instead, moving whole choices onto the next line.
  */
 export function ChoiceRow<T extends string>(props: {
   choices: readonly T[]

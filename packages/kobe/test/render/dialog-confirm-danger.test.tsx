@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * DialogConfirm danger contract (owner report 2026-08-30): destructive
- * confirms used to open with focus on the confirm button, so one stray
- * Enter destroyed uncommitted work. `danger` must (1) land initial focus
+ * DialogConfirm danger contract. A destructive confirm that opens with focus
+ * on the confirm button loses uncommitted work to one stray Enter, so
+ * `danger` must (1) land initial focus
  * on Cancel, (2) draw the confirm button in the error color — the same
  * `danger` → `theme.error` convention ContextMenuEntry uses — while plain
  * confirms keep confirm-first focus for one-keystroke dismissal.
@@ -44,7 +44,7 @@ async function mountConfirm(props: { danger?: boolean; initialActive?: "confirm"
 let reshow: (() => void) | undefined
 function ShowDriver(props: { onResult: (result: DialogConfirmResult) => void }) {
   const dialog = useDialog()
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once, matching the Solid setup semantics.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once setup.
   useEffect(() => {
     reshow = () => {
       void DialogConfirm.show(
@@ -65,8 +65,8 @@ describe("DialogConfirm danger", () => {
   it("opens with focus on Cancel — a stray Enter deletes nothing", async () => {
     const { mockInput, spans, commits } = await mountConfirm({ danger: true })
 
-    // The regression: Enter on a freshly opened destructive confirm must NOT
-    // commit the destructive action.
+    // Enter on a freshly opened destructive confirm must NOT commit the
+    // destructive action.
     act(() => mockInput.pressEnter())
     await settle()
     expect(commits.confirm).toBe(0)

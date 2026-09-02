@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React task-dialogs mock host (`bun run dev:mock-react-dialogs`) —
- * live-render proof for the ported NewTaskDialog + RenameTaskDialog
- * (issue #15, G3W2). Boots through the real React pane host, opens a
+ * Task-dialogs mock host (`bun run dev:mock-react-dialogs`) — live-render
+ * proof for NewTaskDialog + RenameTaskDialog. Boots through the real pane
+ * host, opens a
  * dialog on mount with fixture data (saved repos, adoptable worktrees,
  * a detected-vendor set), and leaves the full dialog interactive:
  * tab/←→/ctrl+[]/ctrl+e all run for real; esc closes; the last dialog

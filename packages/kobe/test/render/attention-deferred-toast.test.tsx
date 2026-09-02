@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The B-layer deferral toast (issue #78): a `prompt_deferred` inbox episode is
+ * The B-layer deferral toast: a `prompt_deferred` inbox episode is
  * inbox-ONLY (no engine activity), so `useAttention` diffs the inbox episodes
  * themselves and toasts on a fresh one. Render-track proof that the wiring
  * fires — the toast is the user-visible half of accept-and-defer.

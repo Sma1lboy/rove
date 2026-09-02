@@ -1,11 +1,10 @@
 /**
- * Engines-section state for the React settings dialog (issue #15, G3) — one
- * section's state in its own file, like `use-settings-prefs` / `use-section-data`,
- * so `./index.tsx` owns only the dialog's structure. This is the section with
- * real logic behind it: a custom-engine registry and the global default. Same
- * kv keys and flows
- * as the Solid `src/tui/component/settings-dialog.tsx`: per-vendor launch
- * command + display-name overrides (engineCommand.<id> / engineName.<id>),
+ * Engines-section state for the React settings dialog — one section's state
+ * in its own file, like `use-settings-prefs` / `use-section-data`, so
+ * `./index.tsx` owns only the dialog's structure. This is the section with
+ * real logic behind it: a custom-engine registry and the global default.
+ * Per-vendor launch command + display-name overrides
+ * (engineCommand.<id> / engineName.<id>),
  * the customEngineIds registry, and the GLOBAL default engine (the ●
  * marker — only this dialog writes it; per-project picks live in
  * state/vendor-prefs.ts).
@@ -159,7 +158,7 @@ export function useEngineSettings(
     kv.set(engineNameKey(vendor), "")
     if (isCustomEngine(vendor)) {
       // A removed preset must not leave its protocol behind: re-adding the
-      // same id later would silently inherit the old declaration.
+      // same id later would silently inherit the removed one's declaration.
       kv.set(engineProtocolKey(vendor), "")
       kv.set(
         "customEngineIds",
@@ -190,7 +189,7 @@ export function useEngineSettings(
     if (command === undefined) return
     // Declared ONCE, here: a custom engine is a named PRESET, and its
     // protocol is what makes every later `--command <id>` dispatch
-    // deterministic instead of sniffed (issue #30). Blank = the generic
+    // deterministic instead of sniffed. Blank = the generic
     // protocol — the engine still launches, it just gets no transcript
     // reader, trust pre-answer, or engine-specific delivery.
     const protocol = await RenameTaskDialog.show(dialog, "", {

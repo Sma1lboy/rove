@@ -56,18 +56,18 @@ export function mentionAction(pasteToEngineFn: {
 export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesResult {
   const { orchestrator, worktree, selectedId, focus, notifyError } = opts
 
-  // Imperative handle from the currently-mounted TerminalTabs (issue #16):
-  // a ref, since FileTree's "open" only READS it at click time and
+  // Imperative handle from the currently-mounted TerminalTabs: a ref, since
+  // FileTree's "open" only READS it at click time and
   // TerminalTabs re-hands it on every mount (task/worktree switch).
   const openEditorTabFn = useRef<((command: readonly string[], label: string) => void) | null>(null)
   const sendToEngineFn = useRef<((text: string) => void) | null>(null)
   // Paste-only sibling of sendToEngineFn (no submit) — the FileTree `a` @path
   // mention, handed up through the same TerminalTabs mount-once contract.
   const pasteToEngineFn = useRef<((text: string) => void) | null>(null)
-  // Read-only diff tab opener (issue #21) — same ref pattern as the editor
-  // tab: TerminalTabs re-hands it per mount, FileTree's `d` reads it at
-  // keypress. Opening is a content swap; the host does NOT focus the
-  // workspace here (KOB-25 — a read-only open must not pull focus).
+  // Read-only diff tab opener — same ref pattern as the editor tab:
+  // TerminalTabs re-hands it per mount, FileTree's `d` reads it at keypress.
+  // Opening is a content swap; the host does NOT focus the workspace here — a
+  // read-only open must not pull focus.
   const openDiffTabFn = useRef<((relPath: string, label: string, base?: string) => void) | null>(null)
 
   // Identity guard for the async actions below: after an await, the selected

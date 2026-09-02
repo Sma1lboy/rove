@@ -1,5 +1,5 @@
 /**
- * Directory drill-down derivation (issue #15, G3W2) — memoized
+ * Directory drill-down derivation — memoized
  * split + readdir + filter over a typed path, shared by the existing
  * tab's browse-mode repo picker and the clone tab's parent-dir picker.
  * Pure plumbing from `src/tui/lib/path-helpers.ts`.

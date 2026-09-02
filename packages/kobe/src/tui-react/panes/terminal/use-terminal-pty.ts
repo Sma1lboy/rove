@@ -1,23 +1,17 @@
 /**
- * PTY acquire/subscribe lifecycle for the embedded terminal pane — React
- * port of `tui/panes/terminal/use-terminal-pty.ts` (issue #16 React
- * migration). Same contract as the Solid original:
+ * PTY acquire/subscribe lifecycle for the embedded terminal pane:
  *
  *   - When `cwd`/`taskId` resolve (and the body has measured), acquire a
  *     `TaskPty` from the registry; `acquire` reuses a live PTY for the
  *     same key — the "kept alive while in_progress" rule.
- *   - On a key change we DON'T kill the old PTY (the orchestrator owns
+ *   - On a key change we DON'T kill the outgoing PTY (the orchestrator owns
  *     release); we just resubscribe to the new one's data.
  *   - On unmount we drop our subscription and reference only.
  *
- * Solid→React prop delta: `cwd`/`taskId`/`command`/`resetToken`/
- * `bodyGeometry` are plain values here (React re-renders on prop change),
- * not Accessors. The Solid acquire effect deliberately tracks ONLY
- * `[cwd, taskId, bodyGeometryReady]` — `command` and the live geometry
- * value are read untracked at acquire time so a caller's prop swap alone
- * doesn't force a re-acquire (that's what `resetToken` is for). We
- * reproduce that by keeping `command`/`bodyGeometry` in refs and using
- * `[cwd, taskId, geometryReady]` as the effect's dependency array.
+ * The acquire effect depends ONLY on `[cwd, taskId, geometryReady]`.
+ * `command` and the live geometry value are kept in refs and read at acquire
+ * time, so a caller's prop swap alone does not force a re-acquire — that is
+ * what `resetToken` is for.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -83,8 +77,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
   // F5 reset are the recovery path.
   const [exited, setExited] = useState(false)
 
-  // Latest-render mirrors read by effect bodies that must NOT depend on
-  // them (the Solid original's untracked reads inside `on(...)`).
+  // Latest-render mirrors read by effect bodies that must NOT depend on them.
   const commandRef = useLatest(opts.command)
   const initialInputRef = useLatest(opts.initialInput)
   const firstMessageRef = useLatest(opts.firstMessage)
@@ -213,7 +206,7 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
         onFreshPtyRef.current()
       } catch (err) {
         const message = errorMessage(err)
-        // `registry.reset()` kills the old PTY BEFORE the acquire half runs,
+        // `registry.reset()` kills the outgoing PTY BEFORE the acquire half runs,
         // so on failure there is no live handle left — clear the pane to the
         // error state (same shape as the acquire effect's failure path)
         // instead of leaving a dead snapshot up with the error invisible.
@@ -227,9 +220,9 @@ export function useTerminalPty(opts: UseTerminalPtyOpts): UseTerminalPtyResult {
     [],
   )
 
-  // External forced-reacquire (see `resetToken` on TerminalProps) —
-  // skipped on the initial mount (Solid's `defer: true`) so a fresh pane
-  // doesn't reset itself the instant it acquires its first PTY.
+  // External forced-reacquire (see `resetToken` on TerminalProps) — skipped
+  // on the initial mount so a fresh pane doesn't reset itself the instant it
+  // acquires its first PTY.
   const resetMountedRef = useRef(false)
   useEffect(() => {
     // Dependency-only invalidation key — this effect fires ONLY when

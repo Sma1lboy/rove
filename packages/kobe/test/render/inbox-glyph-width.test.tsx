@@ -10,10 +10,9 @@
  * cells, overrunning the text beside it. Nothing upstream can see that; the
  * width table is not wrong, the font is just missing the glyph.
  *
- * This pane shipped `⌛` (U+231B) for rate-limited. U+231B carries the Unicode
- * Emoji property, so macOS resolved it to AppleColorEmoji at 2.13 cells — a
- * colour glyph in a monochrome pane, overflowing its column (2026-08-15, the
- * same sweep that removed the sidebar's oversized `◌` and `✕`).
+ * `⌛` (U+231B) is the trap this pane avoids for rate-limited: U+231B carries
+ * the Unicode Emoji property, so macOS resolves it to AppleColorEmoji at 2.13
+ * cells — a colour glyph in a monochrome pane, overflowing its column.
  *
  * So the assertion is on the CELL, not on the character: mount the real pane,
  * capture the real frame, and require each badge to sit in one cell of the

@@ -2,7 +2,7 @@
 /**
  * Set-branch (re-branch) dialog — the sidebar `b` flow. Lists the task
  * repo's local branches with filter-as-you-type, matching the new-task
- * dialog's `fromBranch` picker (issue #10): reuses the same pure helpers
+ * dialog's `fromBranch` picker: reuses the same pure helpers
  * (`filterBranches` / `windowAround` / `clampCursor` / `resolveBaseRef`)
  * and the shared `PickerList`, so the two branch surfaces stay in lockstep.
  *

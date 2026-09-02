@@ -213,9 +213,9 @@ describe("PtyHost", () => {
     expect(host.list()).toMatchObject([{ key: "live-task::tab1", alive: true }])
   })
 
-  // Why: issue #40 — folding a scratch shell into the task that owns its cwd
-  // re-keys the RUNNING session instead of respawning it, so the engine
-  // inside survives the move and the sweep now judges it by its new owner.
+  // Why: folding a scratch shell into the task that owns its cwd re-keys the
+  // RUNNING session instead of respawning it, so the engine inside survives
+  // the move and the sweep judges it by its new owner.
   test("rename re-keys a running session; sweep and reattach see the new owner", async () => {
     const host = makeHost()
     const a = collector()
@@ -225,7 +225,7 @@ describe("PtyHost", () => {
 
     expect(host.rename("scratch::tab-1", "owner::tab-3")).toBe(true)
     expect(host.list()).toMatchObject([{ key: "owner::tab-3", alive: true }])
-    // The old key is gone: killing it is a no-op, the session lives on.
+    // The pre-rename key is gone: killing it is a no-op, the session lives on.
     await host.kill("scratch::tab-1")
     host.sweepTasks(new Set(["owner"]))
     expect(host.list()).toMatchObject([{ key: "owner::tab-3", alive: true }])
@@ -252,9 +252,9 @@ describe("PtyHost", () => {
     expect(host.list()).toMatchObject([{ key: "t1::tab1", alive: false }])
   })
 
-  // Why: issue #9 — a crashed engine used to leave "session exited" with no
-  // cause anywhere. The real Bun child is what production runs, so this is
-  // the end-to-end proof the exit code survives the driver seam.
+  // Why: without the exit code, a crashed engine leaves "session exited" with
+  // no cause anywhere. The real Bun child is what production runs, so this is
+  // the end-to-end proof the code survives the driver seam.
   test("a real child's non-zero exit code lands in list(), the exit frame, and the death record", async () => {
     const deaths: Array<{ key: string; exit: { code: number | null }; tail: string }> = []
     const host = makeHost({ onSessionExit: (info) => deaths.push(info) })
@@ -298,8 +298,8 @@ describe("PtyHost", () => {
     expect(host.open("t1::tab1", SPEC, {}, collector().sink).created).toBe(false)
   })
 
-  // Why: the warm slot is the "pre-initialized shell" ask (2026-07-10) —
-  // an engine tab must adopt the ALREADY-RUNNING spare (same pid) instead
+  // Why: the warm slot is the pre-initialized shell — an engine tab must
+  // adopt the ALREADY-RUNNING spare (same pid) instead
   // of paying shell startup, a replacement must be warmed right away, and
   // the spare must never pin the host open (liveCount) or show in list().
   test("warm shell: adopted by a matching open, invisible otherwise", async () => {
@@ -398,8 +398,8 @@ describe("PtyHost", () => {
 // (instead of through a real PTY) is the only way to pin CROSS-CHUNK carry:
 // a real child's writes don't split at chosen byte boundaries, yet a PTY
 // read boundary can fall anywhere — including inside a title's terminator.
-// Regression pin for b8737857, whose introducer-anchored carry was lost in
-// the #334 extraction to pty-observability.ts.
+// The introducer-anchored carry is the part an extraction to
+// pty-observability.ts is most likely to drop, so it is pinned directly.
 describe("foldOscTitle", () => {
   const ESC = "\x1b"
   const BEL = "\x07"

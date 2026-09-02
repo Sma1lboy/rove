@@ -8,10 +8,10 @@
  *
  * The four exits a tab has, and why they differ:
  *
- *   - `closeActive`   — ctrl+w. Closes the last tab too (owner call
- *     2026-08-31), leaving the task with none: its sidebar row stays and
- *     re-opens on ⏎ / ctrl+e. On a scratch task the last tab still tears the
- *     task down instead (issue #42) — its whole life IS that one shell.
+ *   - `closeActive`   — ctrl+w. Closes the last tab too, leaving the task
+ *     with none: its sidebar row stays and re-opens on ⏎ / ctrl+e. On a
+ *     scratch task the last tab tears the task down instead — its whole life
+ *     IS that one shell.
  *   - `closeById`     — a close named from OUTSIDE the component (the sidebar
  *     tree's menu). Same semantics as ctrl+w minus the toast.
  *   - `closeExited`   — the tab's process ended. No viewport carve-out is
@@ -50,11 +50,11 @@ export interface TabCloseDeps {
    *  they survive this hook being rebuilt every render. */
   readonly resumeTriedRef: { readonly current: Set<string> }
   /** Surface a refused close. Reachable only on a scratch task whose
-   *  teardown hook is missing — an ordinary task's last tab now closes. */
+   *  teardown hook is missing — an ordinary task's last tab closes. */
   readonly notifyCannotCloseLast: (tabId: string) => void
-  /** Scratch task (issue #33): the LAST tab going away — its shell exiting
-   *  OR ctrl+w on it (issue #42) — ends the task itself (the host deletes
-   *  the row) instead of recycling/refusing. Absent on ordinary tasks. */
+  /** Scratch task: the LAST tab going away — its shell exiting OR ctrl+w on
+   *  it — ends the task itself (the host deletes the row) instead of
+   *  recycling/refusing. Absent on ordinary tasks. */
   readonly onScratchExit?: () => void
 }
 
@@ -68,7 +68,7 @@ export interface TabClose {
 export function useTabClose(deps: TabCloseDeps): TabClose {
   const taskId = (): string => deps.propsRef.current.taskId
 
-  /** Auto-close (issue #16): a tab closes itself when its process exits and
+  /** Auto-close: a tab closes itself when its process exits and
    *  releases its PTY. Reads the FRESH state — exit events can arrive from a
    *  stale render (see `handleActiveExit`). */
   function closeExited(id: string): void {
@@ -89,10 +89,9 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
   function closeById(id: string): void {
     const current = deps.stateRef.current
     const closing = current.tabs.find((tab) => tab.id === id)
-    // A task may be closed down to zero tabs (owner call 2026-08-31): its
-    // sidebar row stays and re-opens on ⏎ / ctrl+e. Scratch tasks keep the
-    // old shape — their last tab going away ends the task, which
-    // `closeActive` routes through `onScratchExit`.
+    // A task may be closed down to zero tabs: its sidebar row stays and
+    // re-opens on ⏎ / ctrl+e. Scratch tasks differ — their last tab going
+    // away ends the task, which `closeActive` routes through `onScratchExit`.
     const { state: next, closedId } = closeTab(current, id, { allowEmpty: deps.onScratchExit === undefined })
     // Refused: nothing named `id`, or a scratch task's last tab.
     if (!closedId) return
@@ -111,7 +110,7 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
         ? closeTab(current, current.activeId, { allowEmpty: true })
         : closeActiveTab(current)
     if (!closedId) {
-      // Scratch task (issue #42): ctrl+w on its only tab tears down the
+      // Scratch task: ctrl+w on its only tab tears down the
       // whole task — same zero-ceremony semantics (and same path) as the
       // shell exiting on its own. Ordinary tasks keep the refusal toast.
       if (deps.onScratchExit) {
@@ -131,8 +130,8 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
     // An exit event can be the echo of an intentional ctrl+w: closing kills
     // the PTY, which fires onExit into a STALE render before React swaps the
     // Terminal. If the tab is already gone from the fresh state there is
-    // nothing to do — acting on the stale snapshot resurrected the closed tab
-    // (the "ctrl+w needs two presses" bug).
+    // nothing to do — acting on the stale snapshot resurrects the closed tab,
+    // which reads as "ctrl+w needs two presses".
     if (!deps.stateRef.current.tabs.some((tab) => tab.id === active.id)) return
     // Policy is pure (`tabExitAction`): a live exit means the tab's SHELL
     // ended (engines run inside it — `shellSpawn`), so the tab closes; a
@@ -150,7 +149,7 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
       closeExited(active.id)
       return
     }
-    // Scratch task (issue #33): the last shell exiting IS the end of the
+    // Scratch task: the last shell exiting IS the end of the
     // task — zero ceremony, the row disappears. No recycle: a scratch task
     // has no engine to respawn into.
     if (deps.onScratchExit) {
@@ -160,7 +159,7 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
     }
     // Last tab: the strip can never be empty — recycle it in place as a fresh
     // engine tab (new session) instead of freezing on the exit banner.
-    // `recycleTabs` carries the old tab's title/autoTitle so the recycle does
+    // `recycleTabs` carries the outgoing tab's title/autoTitle so the recycle does
     // not visibly rename the tab.
     getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
     deps.resumeTriedRef.current.clear()

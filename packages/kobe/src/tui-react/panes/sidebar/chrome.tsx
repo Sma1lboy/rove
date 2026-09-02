@@ -1,9 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Shared sidebar chrome — the brand header, nav rail, view tabs, section
- * header, and zen chip, extracted from `panel.tsx` so the TREE sidebar
- * renders the exact same components instead of a lookalike (owner call
- * 2026-08-01: the tree keeps the flat sidebar's design language).
+ * header, and zen chip. One set of components, so every sidebar surface
+ * renders the same thing rather than a lookalike.
  */
 
 import { MouseButton, TextAttributes } from "@opentui/core"
@@ -75,9 +74,9 @@ export function SectionHeader(props: {
   )
 }
 
-/** The `/` query row. Shared by the flat sidebar and the tree so there is one
- *  search affordance rather than two lookalikes — the count suffix reads
- *  `matches/total` over whatever list the host is filtering. */
+/** The `/` query row — one search affordance for every list surface. The
+ *  count suffix reads `matches/total` over whatever list the host is
+ *  filtering. */
 export function SidebarSearchInput(props: { query: string; matchCount: number; totalCount: number }) {
   const { theme } = useTheme()
   const t = useT()
@@ -154,7 +153,7 @@ export function SidebarBrandHeader(props: {
 /** Persistent primary action for the sidebar. The full row is clickable and
  *  the keycap comes from the live keymap, so a rebound or disabled `task.new`
  *  binding never leaves stale instructions behind. The `+` trails the label
- *  next to the keycap (owner 2026-08-24) so the row reads label-first and the
+ *  next to the keycap so the row reads label-first and the
  *  affordance pair sits in the conventional right-hand shortcut column; the
  *  gap between them keeps `+ n` from reading as a literal `+n` chord. */
 export function SidebarCreateAction(props: { onAddTask?: () => void }) {
@@ -169,9 +168,9 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
     //
     // The left inset lives HERE and nowhere else. The inner box carries the
     // filled background, so it needs its own horizontal padding to keep the
-    // label off the fill's edge — and adding an inset on this wrapper too put
-    // the label at column 2 while every other sidebar element (the ROVE
-    // header, the nav rail, the tree rows, the ZEN chip) starts at column 1.
+    // label off the fill's edge. An inset on this wrapper too would put the
+    // label at column 2 while every other sidebar element (the ROVE header,
+    // the nav rail, the tree rows, the ZEN chip) starts at column 1.
     <box flexShrink={0} paddingRight={1}>
       <box
         position="relative"
@@ -200,7 +199,7 @@ export function SidebarCreateAction(props: { onAddTask?: () => void }) {
   )
 }
 
-/** Top-level rail: one destination per line (owner call 2026-08-01). The
+/** Top-level rail: one destination per line. The
  *  24-cell rail cannot fit three chips side by side — vertical scales. */
 export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNav) => void }) {
   const { theme } = useTheme()
@@ -219,8 +218,8 @@ export function SidebarNavRail(props: { nav: SidebarNav; setNav: (nav: SidebarNa
             paddingRight={1}
             onMouseUp={(e: { stopPropagation(): void }) => {
               // goToNav hands focus to the page; a bubbled sidebar
-              // focus-grab (the pane shell's onMouseUp) took it right back,
-              // so keys typed "into the page" fired sidebar chords (d!).
+              // focus-grab (the pane shell's onMouseUp) would take it right
+              // back, so keys typed "into the page" fire sidebar chords (d!).
               e.stopPropagation()
               props.setNav(item.nav)
             }}

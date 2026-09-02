@@ -1,9 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Confirm dialog — yes/no prompt with focused buttons (React port of
- * `src/tui/ui/dialog-confirm.tsx`, issue #15 G3). Same contract:
- * left/right switch focus, enter commits, esc cancels via the dialog
- * stack; `DialogConfirm.show(dialog, title, message, label?)` resolves
+ * Confirm dialog — yes/no prompt with focused buttons. Left/right switch
+ * focus, enter commits, esc cancels via the dialog stack;
+ * `DialogConfirm.show(dialog, title, message, label?)` resolves
  * `boolean | undefined` (`undefined` = dismissed without an answer).
  */
 
@@ -68,8 +67,8 @@ export function DialogConfirm(props: DialogConfirmProps) {
     ],
   }))
 
-  // Tight vertical layout — same rationale as the Solid original: title
-  // row, message right under it, buttons row right under that.
+  // Tight vertical layout: title row, message right under it, buttons row
+  // right under that.
   return (
     <box paddingLeft={padX} paddingRight={padX} paddingBottom={1} gap={0}>
       <box flexDirection="row" justifyContent="space-between">

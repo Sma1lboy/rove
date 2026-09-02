@@ -1,7 +1,6 @@
 /**
- * Framework-free KV core (src/tui-react/context/kv-core.ts) — the React
- * KVProvider's persistence half. These tests pin the semantics the Solid
- * provider fought for and the React port must not regress:
+ * Framework-free KV core (src/tui-react/context/kv-core.ts) — the
+ * KVProvider's persistence half. These tests pin its semantics:
  *
  *   - DIRTY-KEY MERGE on flush: only keys THIS core `set()` reach disk; a
  *     key another process wrote after hydration passes through untouched
@@ -92,13 +91,13 @@ describe("createKvCore", () => {
   })
 
   it("set(key, undefined) removes the key from the in-memory snapshot", () => {
-    // React #185 (2026-09-01): the spread `{ ...s, [key]: undefined }` kept
-    // the deleted key ENUMERABLE in the snapshot, so the orphan sweep
+    // A spread `{ ...s, [key]: undefined }` would keep the deleted key
+    // ENUMERABLE in the snapshot, so the orphan sweep
     // (`sweepOrphanTabsSnapshots`, which walks Object.keys and re-deletes)
-    // re-set it on every task-list change — each set a new snapshot identity,
+    // re-sets it on every task-list change — each set a new snapshot identity,
     // each identity a re-run of the sweep effect: an infinite setState loop
-    // that crashed the workspace whenever a stale `terminalTabs.*` key
-    // existed. Deletion must actually shrink Object.keys.
+    // (React #185) that crashes the workspace whenever a stale
+    // `terminalTabs.*` key exists. Deletion must actually shrink Object.keys.
     isolatedHome({ "terminalTabs.dead": { tabs: [] }, kept: 1 })
     const kv = createKvCore()
     kv.set("terminalTabs.dead", undefined)
@@ -159,8 +158,8 @@ describe("createKvCore", () => {
     expect(readState(home)).toEqual({ k: "v" })
   })
 
-  // Issues #22/#23: the debounce is a real data-loss window — a state change
-  // made inside it is gone if the process exits before the timer fires. The
+  // The debounce is a real data-loss window — a state change made inside it
+  // is gone if the process exits before the timer fires. The
   // KVProvider's "exit" hook calls flush() for exactly this; these pin that
   // flush actually beats the pending timer rather than racing it.
   it("flush() persists a write still inside the debounce window", () => {
@@ -205,9 +204,9 @@ describe("createKvCore", () => {
     const kv = createKvCore()
     kv.set("nested", { a: 1, b: [1, 2] })
     expect(kv.flush()).toBe(true)
-    // The file is rewritten whole on EVERY flush and read only by machines;
-    // `null, 2` used to triple its bytes. Round-tripping through parse must
-    // reproduce the exact bytes — the cheapest compactness invariant.
+    // The file is rewritten whole on EVERY flush and read only by machines,
+    // so it is serialized compactly (`null, 2` would triple its bytes).
+    // Round-tripping through parse must reproduce the exact bytes.
     const raw = readFileSync(statePath(home), "utf8")
     expect(raw).toBe(JSON.stringify(JSON.parse(raw)))
   })

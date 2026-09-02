@@ -71,7 +71,7 @@ export function useWorkspaceSelection(args: {
         return
       }
     }
-    // Boot lands IN the restored session (owner 2026-08-09): reopening kobe
+    // Boot lands IN the restored session: reopening kobe
     // resumes where you quit, so the content pane — not the sidebar — should
     // hold focus. One-shot, only while the user hasn't picked anything yet;
     // a boot with no restorable task leaves the sidebar focused (cold-start
@@ -80,23 +80,23 @@ export function useWorkspaceSelection(args: {
       bootFocusRef.current = true
       args.focusWorkspace()
     }
-    // A deleting task is NOT a valid selection (issue #34): the snapshot
-    // still contains it, but its sidebar row is gone (#473) and the PTY sweep
-    // below kills its sessions — leaving selection on it kept its Terminal
-    // mounted, which answered the kill with a dead-on-attach RESUME.
+    // A deleting task is NOT a valid selection: the snapshot still contains
+    // it, but its sidebar row is gone and the PTY sweep below kills its
+    // sessions — leaving selection on it keeps its Terminal mounted, which
+    // answers the kill with a dead-on-attach RESUME.
     if (selectedId && tasks.some((task) => task.id === selectedId && !task.deletion)) return
     // Fallback carries the persisted lastActive record too — a stale or
     // freshly-respawned daemon can replay a null focus while disk still
-    // knows the real one (the "reopens on the oldest project" bug).
+    // knows the real one, which lands the boot on an arbitrary project.
     setSelectedId(firstSelectableTask(tasks, activeTaskId, readLastActiveTaskId())?.id ?? null)
   }, [tasks, activeTaskId, selectedId, args.focusWorkspace])
 
-  // Orphan sweep (O19): clear `terminalTabs.*` snapshots whose task no longer
-  // exists. Runs on EVERY task-list identity change, not once per session:
-  // a sibling client (`rove api` / web board) deleting a task only lands here
-  // as a changed list — forgetTaskTabs is wired to THIS client's delete flow
-  // alone, so a once-per-session sweep left those orphans taxing every later
-  // kv write until the next launch. The sweep itself is idempotent and cheap
+  // Orphan sweep: clear `terminalTabs.*` snapshots whose task is gone. Runs
+  // on EVERY task-list identity change, not once per session: a sibling
+  // client (`rove api` / web board) deleting a task only lands here as a
+  // changed list — forgetTaskTabs is wired to THIS client's delete flow
+  // alone, so a once-per-session sweep would leave those orphans taxing every
+  // later kv write until the next launch. The sweep itself is idempotent and cheap
   // (one Set lookup per snapshot key), so re-running it on every list echo
   // costs nothing: a live task's id is always in the list, so its snapshots
   // can never be swept by a re-run.
@@ -119,7 +119,7 @@ export function useWorkspaceSelection(args: {
     )
   }, [tasks, kv])
 
-  // PTY lifecycle (issue #16): deleting a task must end every engine session
+  // PTY lifecycle: deleting a task must end every engine session
   // it owns — its tab PTYs are keyed `taskId::tabId` in the default registry,
   // invisible to the pane once unmounted. Watch the task snapshot and release
   // the corpses; the pane never kills (registry docs), so this is the one
@@ -140,20 +140,20 @@ export function useWorkspaceSelection(args: {
       if (!next.has(id)) registry.releaseWhere((key) => key === id || key.startsWith(`${id}::`))
     }
     liveTaskIdsRef.current = next
-    // Chattabs die WITH their worktree (owner call 2026-08-01): removing a
-    // task's worktree (worktrees page / web / a sibling client) clears its
-    // `worktreePath` but keeps the task — without this, its tab rows stayed
-    // in the tree, its snapshot would respawn them, and their PTYs kept
-    // shells alive in a deleted directory. A non-empty → empty transition
+    // Chattabs die WITH their worktree: removing a task's worktree (worktrees
+    // page / web / a sibling client) clears its `worktreePath` but keeps the
+    // task — without this its tab rows stay in the tree, its snapshot
+    // respawns them, and their PTYs keep shells alive in a deleted directory.
+    // A non-empty → empty transition
     // is the observable edge; task deletion itself is already covered by
     // the delete flow's forgetTaskTabs + the live-task sweep above.
     //
     // ANNOUNCE IT. This destroys every tab of a task the user did NOT delete,
     // triggered by something that happened somewhere else (another client, a
-    // web action, another agent's `rove api`) — and it did it silently, which
-    // is how "the tab I was working in just vanished" reached the owner with
-    // nothing to look at (2026-08-29). The toast is deliberately not a
-    // confirm: the worktree is ALREADY gone by the time this runs, so there is
+    // web action, another agent's `rove api`); silently is how a tab vanishes
+    // out from under someone with nothing to look at. The toast is
+    // deliberately not a confirm: the worktree is ALREADY gone by the time
+    // this runs, so there is
     // nothing left to consent to, and a modal here would interrupt for a
     // decision the user cannot make. Telling them what happened, and that the
     // branch survives, is the whole remedy.
@@ -182,9 +182,9 @@ export function useWorkspaceSelection(args: {
     if (selectedId === id) {
       // Entering the already-selected task must still publish it as active:
       // a fresh home boots with a fallback-selected task but a null active
-      // record, and without this the first Enter never wrote lastActive —
+      // record, and without this the first Enter never writes lastActive —
       // so narrow mode's "↩ recent" row (and every lastActive consumer)
-      // stayed empty until the user switched tasks once.
+      // stays empty until the user switches tasks once.
       // Focus bookkeeping, not a user gesture — the pane has already switched
       // locally, so the only casualty is the lastActive record. A toast would
       // report a failure the user just watched succeed.
@@ -206,8 +206,8 @@ export function useWorkspaceSelection(args: {
   const activationGenerationRef = useRef(0)
   async function activateTask(id: string): Promise<void> {
     const generation = ++activationGenerationRef.current
-    // Entering a task whose last tab was closed reopens one (owner call
-    // 2026-08-31). Before the worktree await, so the revived tab is published
+    // Entering a task whose last tab was closed reopens one. Before the
+    // worktree await, so the revived tab is published
     // by the time selection lands and the workspace never paints the blank
     // frame `show-workspace` renders for an empty tab list.
     reviveEmptiedTabs(kv, id, defaultShell())

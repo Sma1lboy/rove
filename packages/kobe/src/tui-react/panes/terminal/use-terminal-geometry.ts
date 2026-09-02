@@ -1,6 +1,5 @@
 /**
- * Body-box geometry measurement for the embedded terminal pane (React port of
- * the measurement half of the Solid original).
+ * Body-box geometry measurement for the embedded terminal pane.
  *
  * The seam is ordering, and the import graph pins it: this hook measures
  * BEFORE the PTY exists, so its `bodyGeometry` can feed `useTerminalPty`. The
@@ -15,10 +14,8 @@
  * stray standalone lines.
  *
  * `bodyEl` MUST be React state (not a plain ref) — the measurement effect
- * needs to re-run the instant the box ref is attached, mirroring the
- * Solid original's `bodyRef()` signal read (tracked, so setting the ref
- * re-fires the effect on first layout). A plain `useRef` would silently
- * skip that first measurement.
+ * needs to re-run the instant the box ref is attached, and a plain `useRef`
+ * would silently skip that first measurement.
  */
 
 import type { BoxRenderable } from "@opentui/core"
@@ -60,9 +57,9 @@ export function useTerminalGeometry(): UseTerminalGeometryResult {
     void dims
     void geomTick
     if (!bodyEl) return
-    // Pre-layout guard: before Yoga's first pass the box reports 0 (or
-    // junk) — flooring that into a "plausible" 20x4 and pushing it to an
-    // already-running PTY forced the engine CLI to redraw tiny.
+    // Pre-layout guard: before Yoga's first pass the box reports 0 (or junk)
+    // — flooring that into a "plausible" 20x4 and pushing it to an
+    // already-running PTY forces the engine CLI to redraw tiny.
     if (bodyEl.width <= 0 || bodyEl.height <= 0) return
     const cols = Math.max(20, bodyEl.width)
     const rows = Math.max(4, bodyEl.height)

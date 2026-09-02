@@ -3,8 +3,8 @@
  * KanbanPage — the daemon-owned issue store as a Backlog / In progress /
  * Parked / Done board. One PROJECT at a time (tab/←/→ or click cycles the
  * rolling selector), four full-height bordered columns matching the workspace
- * host's border grammar. Full-page swap like WorktreesPage (issue #23
- * precedent): esc/ctrl+c closes, `r` refetches, plus a light poll so
+ * host's border grammar. Full-page swap like WorktreesPage: esc/ctrl+c
+ * closes, `r` refetches, plus a light poll so
  * agent-driven moves (`kobe api issue-update --task`) show up while open.
  *
  * The BOARD stays read-only (agents move cards via `kobe api issue-*`); the
@@ -135,7 +135,7 @@ export function KanbanPage(props: {
   }
 
   // ←/→ select cards when any exist; tab still cycles projects. On an empty
-  // board they fall through to project cycling (the old muscle memory).
+  // board they fall through to project cycling, the same thing tab does.
   function moveOrCycle(dir: "left" | "right"): void {
     if (columns.some((column) => column.issues.length > 0)) moveCursor(dir)
     else cycleProject(dir === "left" ? -1 : 1)

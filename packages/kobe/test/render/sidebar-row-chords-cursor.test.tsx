@@ -2,8 +2,8 @@
 /**
  * The sidebar's `b` / `v` / `o` chords target the CURSOR row, not the active
  * task. `j`/`k` move the cursor without selecting (only enter selects), so
- * after one `j` the two differ — and before this contract `b` renamed the
- * ACTIVE task's git branch while the highlight sat on another row. Same shape
+ * after one `j` the two differ, and a chord bound to the active task would
+ * rename a git branch while the highlight sits on another row. Same shape
  * as sidebar-sort-key.test.tsx: the real host binding hook mounted next to
  * the real tree, keys pressed through the mock input.
  */

@@ -1,15 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Issue #23 at the render boundary: the tab strip's completion chip must
- * consult the SAME durable `(task, tab) → seen-at` record the sidebar lamp
- * reads (issue #22), so a completion you had already looked at does not come
- * back wearing a fresh ✓ after a restart.
+ * The durable seen bit at the render boundary: the tab strip's completion
+ * chip must consult the SAME `(task, tab) → seen-at` record the sidebar lamp
+ * reads, so a completion you had already looked at does not come back wearing
+ * a fresh ✓ after a restart.
  *
  * A relaunched kobe is exactly this state — no in-process history, and the
  * daemon still publishing the same sticky `turn_complete`. So the strip is
  * mounted through the REAL hook (`useDurableTabSeen`) against a seeded
- * state.json, not handed a precomputed set: the wiring is the thing that
- * broke, and `test/tui-react/completion-seen.test.ts` already owns the fold.
+ * state.json, not handed a precomputed set: the wiring is what this file
+ * owns, and `test/tui-react/completion-seen.test.ts` already owns the fold.
  *
  * The rail's counterpart lives in `sidebar-unread-restart.test.tsx`.
  */

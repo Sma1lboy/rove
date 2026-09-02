@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The Existing tab's repo field shows a NAME, with the directory demoted to
- * muted text at the row's right edge (owner report 2026-09-01) — while the
- * value it submits stays a full path.
+ * muted text at the row's right edge — while the value it submits stays a
+ * full path.
  *
  * The split is only worth having if both halves hold at once, and the two
  * halves fail in opposite directions:

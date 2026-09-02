@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Prompt-first quick-task composer (`<prefix> f`) — React port of
- * `src/tui/component/quick-task-composer.tsx`.
+ * Prompt-first quick-task composer (`<prefix> f`).
  *
  * The quick path is prompt-first: the PROMPT field is focused on open and
  * `enter` from it creates the task immediately. Engine and branch are right

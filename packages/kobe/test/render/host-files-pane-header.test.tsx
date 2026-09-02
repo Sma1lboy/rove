@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The Files pane's header row — both halves of the owner's 2026-09-02
- * screenshot.
+ * The Files pane's header row.
  *
  * 1. The Zen and Create-PR chips ALWAYS wrap: `[~] Zen` + `[^ A P] Ask agent
  *    to create PR` is 40 cells against the pane's 22-34 cell width clamp

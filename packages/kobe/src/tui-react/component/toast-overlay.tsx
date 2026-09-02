@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Toast overlay (React port of `src/tui/component/toast-overlay.tsx`,
- * issue #15 G3) — bottom-right transient cards, newest at the bottom, up
+ * Toast overlay — bottom-right transient cards, newest at the bottom, up
  * to three visible, click to dismiss early. Each toast is a framed card:
  * a semantic-colored left accent bar (the Inbox selection-bar language,
  * not a full border frame), a title row with the status glyph, and an
@@ -38,7 +37,7 @@ export function ToastOverlay() {
   // the overlay sits on top of the layout without taking flow space;
   // `zIndex` keeps it above the panes but below the dialog backdrop (3000).
   const stackRows = visibleToasts.reduce((rows, toast) => rows + cardRows(toast), 0)
-  // On a terminal narrower than the card the stack used to poke left across
+  // On a terminal narrower than the card the stack would poke left across
   // the neighbouring pane — clamp to what actually fits.
   const cardWidth = Math.min(CARD_WIDTH, Math.max(12, dims.width - RIGHT_MARGIN * 2))
   const left = Math.max(0, dims.width - cardWidth - RIGHT_MARGIN)
