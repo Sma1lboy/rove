@@ -129,7 +129,7 @@ export function SidebarBrandHeader(props: {
         {props.status ? (
           <box position="relative" onMouseUp={() => props.onStatusClick?.()}>
             <text
-              fg={props.status.emphasize ? theme.warning : theme.textMuted}
+              fg={props.status.emphasize ? theme.warningOnHost : theme.textMuted}
               attributes={props.status.emphasize ? TextAttributes.BOLD : TextAttributes.DIM}
               wrapMode="none"
             >
@@ -141,7 +141,7 @@ export function SidebarBrandHeader(props: {
       </box>
       {props.update ? (
         <box position="relative" flexShrink={0} onMouseUp={() => props.onUpdateClick?.()}>
-          <text fg={theme.warning} attributes={TextAttributes.BOLD} wrapMode="none">
+          <text fg={theme.warningOnHost} attributes={TextAttributes.BOLD} wrapMode="none">
             {props.update.label}
           </text>
           {props.onUpdateClick ? <ShortcutRevealBadge bindingId="tasks.update" /> : null}
