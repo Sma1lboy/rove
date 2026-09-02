@@ -23,8 +23,5 @@ export const codexCapabilities: EngineCapabilities = {
 
 export const codexIdentity: EngineIdentity = {
   vendorId: "codex",
-  productName: "Codex",
   shortName: "Codex",
-  assistantName: "Codex",
-  inputPlaceholder: "Ask Codex…",
 }

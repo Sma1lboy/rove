@@ -26,8 +26,5 @@ export const claudeCapabilities: EngineCapabilities = {
 
 export const claudeIdentity: EngineIdentity = {
   vendorId: "claude",
-  productName: "Claude Code",
   shortName: "Claude",
-  assistantName: "Claude",
-  inputPlaceholder: "Ask Claude…",
 }

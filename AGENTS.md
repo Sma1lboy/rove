@@ -85,7 +85,7 @@ opentui boxes are Yoga flexbox. Default to flex flow (`flexGrow`/`flexShrink`/`f
 
 ### Engine-owned UI data
 The engine adapter is the source of truth for agent/product identity, capabilities, history, and telemetry. Neutral layers (TUI, web, orchestrator) must NOT hard-code Claude/Codex strings or derive vendor metrics themselves:
-- Name/label/placeholder copy comes from the engine registry (`AIEngine.identity`: `productName`/`shortName`/…) — e.g. `Ask ${engine.shortName}`, never a literal `"Ask Claude…"`.
+- Name/label copy comes from the engine registry (`AIEngine.identity.shortName`) — e.g. `Ask ${engine.shortName}`, never a literal `"Ask Claude…"`.
 - Model catalogs + context math come from `EngineCapabilities`, keyed by the task's vendor. History is an engine-owned `EngineHistory`; token/context/speed are engine-normalized — don't parse vendor transcript files or reconstruct speed in the UI.
 - Subagent steps are engine-owned nested data (tagged by `parentId`, nested one level under the parent Agent row), not flattened transcript noise.
 - A new pane needing engine-specific data → extend the engine contract first; don't thread ad-hoc vendor checks through TUI/orchestrator code.
