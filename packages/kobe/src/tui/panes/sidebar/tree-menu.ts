@@ -43,6 +43,7 @@ export type TreeMenuAction =
   | "rename"
   | "pin"
   | "reorder"
+  | "runAgain"
   | "setStatus"
   | "copyBranch"
   | "copyPath"
@@ -87,6 +88,11 @@ function taskVerbs(task: Task): TreeMenuItem[] {
     verbs.push({ action: "pin", labelKey: task.pinned === true ? "tasks.menu.unpin" : "tasks.menu.pin" })
   }
   verbs.push({ action: "reorder", labelKey: "tasks.menu.reorder" })
+  // Re-fire the task's stored brief as a NEW task. Gated on the brief being
+  // there: `prompt` is only recorded once a prompt was actually delivered, so
+  // a task created without one has nothing to re-run — the same
+  // "no entry beats a dead entry" rule `copyBranch` follows below.
+  if (task.prompt !== undefined) verbs.push({ action: "runAgain", labelKey: "tasks.menu.runAgain" })
   // Status and the two copies are menu-only (no chord — a chord is the
   // owner's call, AGENTS.md "Keybindings"). Status had no route outside
   // `rove api set-status`; the copies put the two strings a row's identity is

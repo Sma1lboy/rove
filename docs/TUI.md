@@ -122,6 +122,13 @@ row or one of its tab rows:
   record for a directory Task, or removes a managed Task and its worktree after
   the dirty-worktree safety check.
 
+Right-clicking a row opens the same verbs as a menu, plus **Run again** on any
+Task that still has its brief. Rove stores the prompt a Task was created with,
+so the entry re-runs those exact words in a NEW Task with its own branch and
+worktree, leaving the original untouched. The confirm shows the brief in full
+before anything is created. A Task created without a prompt has no brief to
+re-run, and the entry does not appear for it.
+
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.

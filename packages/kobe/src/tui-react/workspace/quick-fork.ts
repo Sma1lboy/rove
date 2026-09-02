@@ -21,7 +21,7 @@ import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/ven
 import { appendAttachmentRefs } from "../../tui/lib/attachments"
 import { DEFAULT_BASE_REF, getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { repoBasename } from "../../tui/panes/sidebar/groups"
-import type { Task, VendorId } from "../../types/task"
+import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task"
 import type { QuickTaskComposerOptions, QuickTaskResult } from "../component/quick-task-composer"
 
 /**
@@ -57,6 +57,8 @@ export function quickForkDefaultVendor(repo: string, detected: readonly VendorId
 
 export interface QuickForkOrchestrator {
   createTask(input: { repo: string; baseRef: string; vendor: VendorId }): Promise<Task>
+  /** Record the brief on the created task — "Run again" only (see {@link runAgainTask}). */
+  setPrompt(id: string, prompt: string): Promise<void>
 }
 
 /**
@@ -105,6 +107,50 @@ export async function runQuickFork(
   }
 }
 
+/**
+ * Re-fire a task's stored brief as a NEW task ("Run again", row menu).
+ *
+ * Rove records the delivered `add --prompt` text on the task (`task.prompt`)
+ * precisely so an attempt that went wrong can be re-run clean; before this the
+ * only route was `get-task | jq -r .task.prompt` piped back into `add`. The
+ * child is a quick-fork with the SOURCE's own inputs — same repo, same engine,
+ * cut from the base ref the source was cut from — so the only difference
+ * between the two runs is the worktree.
+ *
+ * The brief rides the create path VERBATIM. It must not be routed through the
+ * quick-task composer: that field is a single-line input running
+ * `stripNewlines`, which would silently flatten a multi-line brief and re-run
+ * something the user never wrote.
+ *
+ * Returns the new task's id, or undefined when the source has no stored brief
+ * or the create failed (`runQuickFork` already reported it).
+ */
+export async function runAgainTask(
+  orch: QuickForkOrchestrator,
+  task: Task,
+  hooks: {
+    selectTask: (id: string) => void
+    enterTask: (id: string) => Promise<void>
+    notifyError: (message: string) => void
+  },
+): Promise<string | undefined> {
+  const prompt = task.prompt
+  if (prompt === undefined) return undefined
+  // Same fork point as the source, so a re-run compares against the same base.
+  // `baseRef` is only absent on records predating the field (types/task.ts) —
+  // fall back to the live branch the way `quickForkComposerOptions` does.
+  const baseRef = task.baseRef ?? getCurrentBranch(task.worktreePath || task.repo) ?? DEFAULT_BASE_REF
+  const vendor = task.vendor ?? DEFAULT_TASK_VENDOR
+  const taskId = await runQuickFork(orch, task.repo, { baseRef, vendor }, hooks)
+  if (taskId === undefined) return undefined
+  // Copy the brief onto the child so it is re-runnable in turn, and so
+  // `rove api get-task` reports the text its engine is being handed.
+  // Best-effort: the prompt is already on its way to the tab, and a failed
+  // persist must not turn a created task into an error.
+  await orch.setPrompt(taskId, prompt).catch(() => undefined)
+  return taskId
+}
+
 export interface PendingInitialPrompt {
   readonly taskId: string
   readonly prompt: string
@@ -116,6 +162,9 @@ export interface UseQuickForkResult {
   /** Pass to `ShowWorkspace`'s `initialPrompt` prop, gated on the currently
    *  selected task — undefined for every task except the one just forked. */
   readonly initialPromptFor: (taskId: string | undefined) => string | undefined
+  /** Row menu "Run again": create the child and hand it the source's brief
+   *  through the same pending slot the composer's forks use. */
+  readonly runAgain: (task: Task) => void
 }
 
 /**
@@ -140,9 +189,18 @@ export function useQuickFork(
     if (taskId) setPending({ taskId, prompt: appendAttachmentRefs(result.prompt, result.attachments) })
   }
 
+  async function onRunAgain(task: Task): Promise<void> {
+    const taskId = await runAgainTask(orch, task, hooks)
+    if (taskId && task.prompt !== undefined) setPending({ taskId, prompt: task.prompt })
+  }
+
   function initialPromptFor(taskId: string | undefined): string | undefined {
     return taskId && pending?.taskId === taskId ? pending.prompt : undefined
   }
 
-  return { onQuickFork: (repo, result) => void onQuickFork(repo, result), initialPromptFor }
+  return {
+    onQuickFork: (repo, result) => void onQuickFork(repo, result),
+    initialPromptFor,
+    runAgain: (task) => void onRunAgain(task),
+  }
 }

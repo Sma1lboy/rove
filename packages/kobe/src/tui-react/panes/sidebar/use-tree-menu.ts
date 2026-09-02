@@ -176,6 +176,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "reorder":
           actions.onLocalMergeRequest?.(taskId)
           break
+        case "runAgain":
+          actions.onRunAgainRequest?.(taskId)
+          break
         case "setStatus":
           actions.onSetStatusRequest?.(taskId)
           break
