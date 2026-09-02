@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.81
+
+### Patch Changes
+
+- [#785](https://github.com/Sma1lboy/rove/pull/785) [`ca1cc67`](https://github.com/Sma1lboy/rove/commit/ca1cc6783c5a316f270d25810766b0ba1c54ecb1) `dev:sandbox` no longer redirects `HOME`. Only Rove's own state is thrown away; engines under test see the same credentials, accounts, and vendor set as production instead of looking logged-out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#781](https://github.com/Sma1lboy/rove/pull/781) [`1a6e680`](https://github.com/Sma1lboy/rove/commit/1a6e6805d7413cf25eddf5867a8e16af4cfb8929) Delete seven exported helpers that nothing called. Four were in the TUI package (a combined protocol sniff wrapper, a theme-mode setter that duplicated the live context method, a best-effort orchestrator connect, and a one-line sidebar id mapper), and three in the daemon and web dashboard (an environment-variable delete helper, a board card accessor, and a command palette open that callers reached through the toggle instead). No behavior changes: every remaining path already went through the live equivalents. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#783](https://github.com/Sma1lboy/rove/pull/783) [`bf115b3`](https://github.com/Sma1lboy/rove/commit/bf115b3adf8e1e84de0e1e350e754be3c80375bc) Retract the unused model catalog, permission-mode list, default-model resolver, and context-window math from the engine capability contract. The native chat composer that read them was removed in the v0.6 port, so the only capability left is each engine's terminal-presentation policy, which the workspace terminal still applies unchanged. The unused `engineLaunchBin` helper goes with it. No user-visible behavior changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#782](https://github.com/Sma1lboy/rove/pull/782) [`454ab09`](https://github.com/Sma1lboy/rove/commit/454ab09363a1da4b5ae40ae2a5ed3345046b8d33) The sidebar row menu can re-run a Task's brief. Rove already stored the prompt each Task was created with, but nothing in the TUI read it — recovering a brief meant piping `rove api get-task` into `rove api add` by hand. **Run again** now shows that brief in full and re-fires it verbatim into a new Task with its own branch and worktree, leaving the original alone. Tasks created without a prompt have no brief to re-run, so the entry stays hidden for them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#784](https://github.com/Sma1lboy/rove/pull/784) [`4408eb7`](https://github.com/Sma1lboy/rove/commit/4408eb78e0b5e46bf45a689ef7cbbd248a76c502) Reasoning effort is now settable on a task that already exists. The sidebar row menu's "Change engine" dialog gained a second row listing the engine's declared levels (codex's `none`/`low`/`medium`/`high`/`xhigh`), picked with `←→`; engines that declare no levels show no row. The new `rove api set-effort --task-id ID --level LEVEL` does the same from a shell, and rejects a level the task's engine does not declare instead of passing it through to a launch that would silently drop it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#785](https://github.com/Sma1lboy/rove/pull/785) [`ca1cc67`](https://github.com/Sma1lboy/rove/commit/ca1cc6783c5a316f270d25810766b0ba1c54ecb1) Forward mouse clicks to the app inside a terminal tab when it enabled mouse tracking. Claude Code's expandable tool rows ("Read 2 files…") now open on click inside Rove, the same as in a bare terminal. Shift+click/drag keeps Rove's own text selection over a mouse-aware app. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.80
 
 ### Patch Changes
