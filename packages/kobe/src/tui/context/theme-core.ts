@@ -35,6 +35,8 @@ export type Theme = {
   accent: RGBA
   error: RGBA
   warning: RGBA
+  /** Warning ink for chrome that paints directly on the host background. */
+  warningOnHost: RGBA
   success: RGBA
   info: RGBA
   text: RGBA
@@ -143,6 +145,7 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light" = "dark"):
     accent: out.accent ?? out.primary ?? text,
     error: out.error ?? text,
     warning: out.warning ?? text,
+    warningOnHost: out.warning ?? text,
     success: out.success ?? text,
     info: out.info ?? text,
     text,
@@ -182,14 +185,12 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light" = "dark"):
  *      stays OPAQUE: a translucent modal card lets pane content bleed
  *      through the dialog text. Transparency is for the chrome around
  *      content, never for an overlay you must read.
- *   3. Also when transparent, foreground tokens that carry body text
- *      (`text`, `textMuted`) are contrast-guarded against the detected host
- *      background (see `contrast-guard.ts`): muted ink renders directly on
- *      the host terminal's background, which the palette author never saw,
- *      and a dark-palette muted gray is ~2.5:1 on a light host. The guard
- *      lifts lightness away from the host while preserving hue. When no
- *      host background is known (detection failed/timed out) the tokens
- *      pass through unchanged rather than guessing.
+ *   3. Also when transparent, body text (`text`, `textMuted`) and the
+ *      host-backed chrome token (`warningOnHost`) are contrast-guarded against
+ *      the detected host background (see `contrast-guard.ts`). The base
+ *      `warning` token stays unchanged for opaque dialog and element surfaces.
+ *      When no host background is known (detection failed/timed out), the
+ *      tokens pass through unchanged rather than guessing.
  */
 export function applyDisplayOverlay(
   base: Theme,
@@ -197,7 +198,11 @@ export function applyDisplayOverlay(
   transparentBackground: boolean,
   hostBackground?: RGBA,
 ): Theme {
-  const v: Theme = { ...base, focusAccent: base[focusAccent] ?? base.primary }
+  const v: Theme = {
+    ...base,
+    focusAccent: base[focusAccent] ?? base.primary,
+    warningOnHost: base.warning,
+  }
   if (!transparentBackground) return v
   const [backgroundR, backgroundG, backgroundB] = base.background.toInts()
   const [panelR, panelG, panelB] = base.backgroundPanel.toInts()
@@ -211,5 +216,6 @@ export function applyDisplayOverlay(
     ...transparent,
     text: ensureContrast(transparent.text, hostBackground),
     textMuted: ensureContrast(transparent.textMuted, hostBackground),
+    warningOnHost: ensureContrast(transparent.warning, hostBackground),
   }
 }

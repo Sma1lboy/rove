@@ -44,11 +44,16 @@ describe("applyDisplayOverlay", () => {
   describe("with a detected host background (transparent mode)", () => {
     const lightHost = RGBA.fromHex("#FFFFFF")
 
-    it("lifts text and textMuted to the readable floor against a light host", () => {
+    it("guards host-backed warning without changing warning on opaque surfaces", () => {
       const out = applyDisplayOverlay(base, "primary", true, lightHost)
       // The regression: these sit directly on the host terminal background.
       expect(contrastRatio(out.text, lightHost)).toBeGreaterThanOrEqual(4.5)
       expect(contrastRatio(out.textMuted, lightHost)).toBeGreaterThanOrEqual(4.5)
+      expect(out.warningOnHost).toBeDefined()
+      expect(contrastRatio(out.warningOnHost, lightHost)).toBeGreaterThanOrEqual(4.5)
+      expect(out.warning).toBe(base.warning)
+      expect(contrastRatio(out.warning, out.backgroundDialog)).toBeGreaterThanOrEqual(4.5)
+      expect(contrastRatio(out.warning, out.backgroundElement)).toBeGreaterThanOrEqual(4.5)
       // …and the lift moves away from the light host, not toward it.
       expect(out.textMuted.toInts()[0]).toBeLessThan(base.textMuted.toInts()[0])
     })
@@ -65,12 +70,16 @@ describe("applyDisplayOverlay", () => {
       const out = applyDisplayOverlay(base, "primary", true, RGBA.fromHex("#141413"))
       expect(out.text).toBe(base.text)
       expect(out.textMuted).toBe(base.textMuted)
+      expect(out.warning).toBe(base.warning)
+      expect(out.warningOnHost).toBe(base.warning)
     })
 
     it("ignores the host background when transparent mode is off", () => {
       const out = applyDisplayOverlay(base, "primary", false, lightHost)
       expect(out.text).toBe(base.text)
       expect(out.textMuted).toBe(base.textMuted)
+      expect(out.warning).toBe(base.warning)
+      expect(out.warningOnHost).toBe(base.warning)
       expect(out.background).toBe(base.background)
     })
 
@@ -78,14 +87,28 @@ describe("applyDisplayOverlay", () => {
       const out = applyDisplayOverlay(base, "primary", true)
       expect(out.text).toBe(base.text)
       expect(out.textMuted).toBe(base.textMuted)
+      expect(out.warning).toBe(base.warning)
+      expect(out.warningOnHost).toBe(base.warning)
     })
 
     it("guards every bundled theme's body text against a light host", () => {
+      for (const mode of ["dark", "light"] as const) {
+        for (const [name, json] of Object.entries(BUNDLED_THEMES)) {
+          const resolved = resolveTheme(json, mode)
+          const out = applyDisplayOverlay(resolved, "primary", true, lightHost)
+          expect(contrastRatio(out.text, lightHost), `${name} ${mode} text`).toBeGreaterThanOrEqual(4.5)
+          expect(contrastRatio(out.textMuted, lightHost), `${name} ${mode} textMuted`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    })
+
+    it("keeps every dark theme warning readable on host, dialog, and element backgrounds", () => {
       for (const [name, json] of Object.entries(BUNDLED_THEMES)) {
         const resolved = resolveTheme(json, "dark")
         const out = applyDisplayOverlay(resolved, "primary", true, lightHost)
-        expect(contrastRatio(out.text, lightHost), `${name} text`).toBeGreaterThanOrEqual(4.5)
-        expect(contrastRatio(out.textMuted, lightHost), `${name} textMuted`).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(out.warningOnHost, lightHost), `${name} host`).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(out.warning, out.backgroundDialog), `${name} dialog`).toBeGreaterThanOrEqual(4.5)
+        expect(contrastRatio(out.warning, out.backgroundElement), `${name} element`).toBeGreaterThanOrEqual(4.5)
       }
     })
   })
