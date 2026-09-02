@@ -18,7 +18,7 @@ export const en = {
   },
   rename: {
     defaultTitle: "Rename task",
-    defaultFieldLabel: "title",
+    defaultFieldLabel: "TITLE",
     /** Footer hint shown at the bottom of the rename dialog.
      *  `{submitLabel}` is interpolated with the verb (e.g. "rename"). */
     footerHint: "enter {submitLabel} · esc cancel",

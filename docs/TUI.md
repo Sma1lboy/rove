@@ -221,6 +221,14 @@ an authenticated `gh` CLI and a pushable `origin` remote.
 
 ## Creating a task
 
+Every dialog in Rove is built from the same pieces — a bold title with `esc`
+opposite it, capitalised field labels that light up when focused, rounded
+wells around the inputs, chip buttons for choose-one rows, a key legend, and
+a bottom-right `[ Action ]` where one applies. On a terminal under 34 rows
+those borders drop away so the action button is never pushed off the bottom.
+[`docs/design/dialogs.md`](design/dialogs.md) is the rule and the components
+that carry it.
+
 Focus the sidebar and press `n`. The New task dialog starts on a mode selector
 and an engine selector; `tab` walks every field and the bottom-right Create
 button, while `ctrl+e` cycles the detected engines from anywhere in the

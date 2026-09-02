@@ -136,7 +136,7 @@ export function useEngineSettings(
   async function editEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineCommandText(vendor), {
       dialogTitle: `${engineName(vendor)} launch command`,
-      fieldLabel: "command",
+      fieldLabel: "COMMAND",
       submitLabel: "save",
       allowEmpty: true, // blank clears the override → built-in default
     })
@@ -146,7 +146,7 @@ export function useEngineSettings(
   async function renameEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineName(vendor), {
       dialogTitle: `${engineName(vendor)} display name (blank = default)`,
-      fieldLabel: "name",
+      fieldLabel: "NAME",
       submitLabel: "save",
       allowEmpty: true, // blank clears the name override → default label
     })
@@ -174,7 +174,7 @@ export function useEngineSettings(
   async function addEngineFlow(): Promise<void> {
     const idRaw = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: "Add engine",
-      fieldLabel: "id",
+      fieldLabel: "ID",
       submitLabel: "next",
       placeholder: "lowercase slug, e.g. aider",
     })
@@ -183,7 +183,7 @@ export function useEngineSettings(
     if (!id || isBuiltinVendor(id) || customEngines().includes(id)) return // no blank / shadow / dup
     const command = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "command",
+      fieldLabel: "COMMAND",
       submitLabel: "next",
       placeholder: "e.g. aider --model sonnet",
     })
@@ -195,14 +195,14 @@ export function useEngineSettings(
     // reader, trust pre-answer, or engine-specific delivery.
     const protocol = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: `Add engine · ${id} — protocol (blank = none)`,
-      fieldLabel: "protocol",
+      fieldLabel: "PROTOCOL",
       submitLabel: "next",
       allowEmpty: true,
       placeholder: ENGINE_PROTOCOLS.join(" / "),
     })
     const name = await RenameTaskDialog.show(dialog, id, {
       dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "name",
+      fieldLabel: "NAME",
       submitLabel: "add",
       allowEmpty: true, // blank = humanized id
     })

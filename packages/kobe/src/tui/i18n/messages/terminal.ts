@@ -14,7 +14,7 @@ export const en = {
     // "shell 5"), not translated. Only the SPLIT label lives here.
     groupTitle: "group {n}",
     renameTitle: "Rename tab",
-    renameField: "tab title",
+    renameField: "TAB TITLE",
     renameSubmit: "rename",
     chooseEngineHint: "←/→ or h/l choose, enter confirm, esc cancel",
     // Unified new-conversation dialog (issue #7): the ctrl+e picker plus
@@ -38,7 +38,7 @@ export const en = {
     // F2-while-split rename dialog (each leaf's own name — the corner
     // tag defaults to the basename of what the leaf runs).
     renameTitle: "Rename split",
-    renameField: "split name",
+    renameField: "SPLIT NAME",
   },
   scrolledBack: "↑ scrolled {lines}L (ctrl+pgdn to follow)",
   unavailable: {

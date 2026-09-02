@@ -6,14 +6,15 @@
  * parent, adopt); the React port renders all four through this one
  * component — callers supply the pre-windowed row bodies and pick
  * handler, the list owns the cursor arrow, bold, and overflow lines.
- * Also home to {@link ChoiceRow}, the horizontal choose-one row shared
- * across the dialog layer (engine picker, quick composer, this dialog).
+ * Also home to {@link ChoiceRow}, the horizontal choose-one row shared by
+ * the engine picker, the quick composer and the new-chat dialog. (The
+ * new-task dialog now spends chips instead — docs/design/dialogs.md.)
  */
 
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
-import type { Field, PickerWindow } from "../../../tui/component/new-task-dialog/state"
-import { type Theme, useTheme } from "../../context/theme"
+import type { PickerWindow } from "../../../tui/component/new-task-dialog/state"
+import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 
 /** One visible picker row — body text plus an accent (selected) flag. */
@@ -106,13 +107,6 @@ export function PickerList(props: {
       {props.footer}
     </box>
   )
-}
-
-/** Focused field labels go primary + bold + underline; others stay muted. */
-export function labelStyle(theme: Theme, focusedField: Field, f: Field): { fg: Theme["primary"]; attributes?: number } {
-  return focusedField === f
-    ? { fg: theme.primary, attributes: TextAttributes.BOLD | TextAttributes.UNDERLINE }
-    : { fg: theme.textMuted }
 }
 
 /**

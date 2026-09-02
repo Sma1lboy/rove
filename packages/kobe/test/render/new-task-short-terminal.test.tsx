@@ -12,6 +12,11 @@
  *
  * The measurement has to be the real frame at a real height — the pure
  * `pickerVisibleRows` test cannot see whether the component calls it.
+ *
+ * The house dialog grammar (docs/design/dialogs.md) put every field in a
+ * rounded well, which costs two rows apiece and re-opened the same hole. The
+ * card now drops those borders below `FRAMED_DIALOG_MIN_ROWS`, so this file
+ * also pins WHICH thing gives way: the frame, never the button.
  */
 
 import { expect, test } from "bun:test"
@@ -54,8 +59,13 @@ test("24 rows: the Create button survives a full branch picker", async () => {
   // The picker is still there and still says how much it is hiding.
   expect(text).toContain("more")
   // Both field labels survive too — they were the first rows to merge away.
-  expect(text).toContain("repo")
-  expect(text).toContain("from branch")
+  expect(text).toContain("REPO")
+  expect(text).toContain("FROM BRANCH")
+  // …and they survive because the FRAMES gave way, not the button: below
+  // `FRAMED_DIALOG_MIN_ROWS` every well and chip drops its border, which is
+  // the two rows per field that would otherwise push Create off the bottom
+  // (ui/dialog-parts.tsx, docs/design/dialogs.md).
+  expect(text).not.toContain("╭")
 })
 
 test("a tall terminal is unchanged — the full 8-row window still renders", async () => {
@@ -63,4 +73,7 @@ test("a tall terminal is unchanged — the full 8-row window still renders", asy
   expect(text).toContain("Create")
   const shown = text.split("\n").filter((l) => l.includes("feature/branch-name-")).length
   expect(shown).toBeGreaterThanOrEqual(7)
+  // Tall enough for the house grammar: the fields wear their rounded wells.
+  expect(text).toContain("╭")
+  expect(text).toContain("╰")
 })
