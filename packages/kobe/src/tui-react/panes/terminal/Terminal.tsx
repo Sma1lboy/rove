@@ -231,6 +231,10 @@ export function Terminal(props: TerminalProps) {
     snapshot,
     snapshotWindow,
     scrollBy: scrollFromPointer,
+    // Same `mouseTrackingMode` the forwarded press is gated on, read rather
+    // than clicked — the pane has to notice the app taking the mouse under a
+    // selection that already exists, and no click announces that.
+    appOwnsMouse: pty?.appOwnsMouse ?? false,
   })
 
   const terminalColors = useMemo(() => {

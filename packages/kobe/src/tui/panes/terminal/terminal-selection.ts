@@ -350,6 +350,29 @@ export function extractShadowedSelection(
 }
 
 /**
+ * Whether the app inside the PTY just TOOK the mouse — the moment the pane's
+ * own selection has to get out of its way.
+ *
+ * Mouse ownership decides selection ownership. An app with mouse tracking on
+ * (claude, vim, htop, less) draws and copies its own selection, so a second
+ * highlight painted over it is always the wrong one — the app cannot see it
+ * and neither layer can clear the other's. A forwarded PRESS already keeps the
+ * pane out of a mouse-aware app (`encodeMouseButton` returns null only while
+ * tracking is `none`, and `Terminal.tsx` starts a selection only when the
+ * press was NOT forwarded). What a press cannot cover is the app arriving
+ * afterwards: `vim` typed at a prompt where text is still highlighted, or
+ * launched while a drag is live.
+ *
+ * So this is a RISING EDGE, not the steady state. A selection begun while the
+ * app ALREADY owned the mouse is the shift bypass — the iTerm/kitty escape
+ * hatch for pulling text out of a mouse-aware app — and a deliberate override
+ * must survive, highlight included.
+ */
+export function appTookMouse(previouslyOwned: boolean, ownedNow: boolean): boolean {
+  return ownedNow && !previouslyOwned
+}
+
+/**
  * Paint the selection over VIEWPORT rows. `firstRow` is the absolute
  * snapshot index of `rows[0]` (the viewport start), mapping the
  * absolute-addressed range onto the visible slice.
