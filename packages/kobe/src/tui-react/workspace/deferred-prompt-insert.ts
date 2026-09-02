@@ -1,20 +1,17 @@
 /**
  * Exit path for a deferred prompt (issue #78 B-layer, hard constraint #1+#3).
  *
- * Opening a `prompt_deferred` inbox item jumps to the tab AND inserts the
- * queued message — one action, reusing the existing open action (no new
- * chord). The insert RE-RUNS the A/C delivery gate: the human may be typing
+ * Opening a `prompt_deferred` inbox item jumps to the tab AND asks the daemon
+ * to release the queued message — one action, reusing the existing open action
+ * (no new chord). Release RE-RUNS the A/C delivery gate: the human may be typing
  * again at the moment they release the message, so an unconditional paste
  * would re-open the very bug this feature fixes. When the gate still blocks,
  * the message stays queued (episode + record untouched) and the caller toasts
- * "still queued"; on success the record and episode are resolved.
+ * "still queued". A daemon-side claim keeps release, flush, and dismiss from
+ * delivering the same record concurrently.
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
-import { ComposerBusyError, deliverToHostedKey, openHostedSessionHost } from "../../engine/hosted-session.ts"
-import { engineEntry } from "../../engine/registry.ts"
-import type { EngineScreenManifest } from "../../engine/screen-state.ts"
-import type { VendorId } from "../../types/vendor.ts"
 
 export type DeferredInsertOutcome =
   /** Pasted + submitted; the record and episode are resolved. */
@@ -23,36 +20,16 @@ export type DeferredInsertOutcome =
   | "deferred-again"
   /** No reachable hosted session for the tab; kept queued for a later retry. */
   | "unavailable"
+  /** The record was already resolved or expired; caller should dismiss its stale Inbox pointer. */
+  | "missing"
 
 export async function insertDeferredPrompt(args: {
-  readonly orch: Pick<RemoteOrchestrator, "resolveDeferredPrompt">
-  readonly taskId: string
-  readonly tabId: string
-  readonly prompt: string
+  readonly orch: Pick<RemoteOrchestrator, "releaseDeferredPrompt">
   readonly deferredId: string
-  readonly manifest?: EngineScreenManifest
 }): Promise<DeferredInsertOutcome> {
-  const host = await openHostedSessionHost()
-  if (!host) return "unavailable"
-  try {
-    const key = `${args.taskId}::${args.tabId}`
-    let delivered: boolean
-    try {
-      delivered = (await deliverToHostedKey(host.rpc, key, args.prompt, { screenManifest: args.manifest })) !== null
-    } catch (err) {
-      if (err instanceof ComposerBusyError) return "deferred-again"
-      throw err
-    }
-    if (!delivered) return "unavailable"
-    await args.orch.resolveDeferredPrompt(args.deferredId)
-    return "inserted"
-  } finally {
-    host.close()
-  }
-}
-
-/** The composer-empty manifest for a task's vendor (undefined → C-layer skips,
- *  fail-open, A-layer still guards). */
-export function deferredManifestFor(vendor: VendorId | undefined): EngineScreenManifest | undefined {
-  return vendor ? engineEntry(vendor).screenManifest : undefined
+  const outcome = await args.orch.releaseDeferredPrompt(args.deferredId)
+  if (outcome === "inserted" || outcome === "deferred-again" || outcome === "unavailable") return outcome
+  if (outcome === "in-flight") return "deferred-again"
+  if (outcome === "missing") return "missing"
+  throw new Error(`deferred prompt ${args.deferredId} was delivered but cleanup is still pending`)
 }

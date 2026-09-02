@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   listSessions: vi.fn(async () => [{ key: "task-3::tab-1", alive: true }]),
   taskKeys: vi.fn(() => ["task-3::tab-1"]),
   killSessions: vi.fn(async () => {}),
+  deliver: vi.fn(async () => ({ bytes: 1 })),
+  sessionHasEngine: vi.fn(async () => true),
   buildLaunch: vi.fn((input: { task: { id: string } }): { key: string; command: string[]; firstMessage?: string } => ({
     key: `${input.task.id}::tab-1`,
     command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
@@ -23,10 +25,13 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   listHostedSessions: mocks.listSessions,
   hostedTaskKeys: mocks.taskKeys,
   killHostedSessions: mocks.killSessions,
+  deliverToHostedKey: mocks.deliver,
 }))
 vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
+vi.mock("../../src/engine/session-engine-presence.ts", () => ({ sessionHasEngine: mocks.sessionHasEngine }))
 
 import {
+  deliverPromptToLiveEngineTabDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
@@ -162,5 +167,19 @@ describe("daemon session adapter", () => {
     await expect(engineSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
     await expect(terminalSpecAdapter(deleting, "task-6")).rejects.toThrow("TASK_DELETING")
     expect(mocks.ensureEngine).not.toHaveBeenCalled()
+  })
+
+  it("does not paste into an alive PTY after its engine exited to the fallback shell", async () => {
+    mocks.listSessions.mockResolvedValueOnce([{ key: "task-3::tab-1", alive: true, pid: 4242 } as never])
+    mocks.sessionHasEngine.mockResolvedValueOnce(false)
+
+    await expect(
+      deliverPromptToLiveEngineTabDetailedAdapter(
+        { id: "task-3", tabId: "tab-1", vendor: "claude", worktreePath: "/worktrees/story" },
+        "do not run this in zsh",
+      ),
+    ).resolves.toEqual({ outcome: "no-session" })
+    expect(mocks.sessionHasEngine).toHaveBeenCalledWith(4242, "claude")
+    expect(mocks.deliver).not.toHaveBeenCalled()
   })
 })

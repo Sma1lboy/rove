@@ -12,7 +12,6 @@
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
-import type { DeferredPromptRecord } from "@sma1lboy/kobe-daemon/daemon/deferred-prompts-store"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
@@ -104,7 +103,11 @@ export async function setCommandOp(
   command: string,
   vendor?: VendorId,
 ): Promise<void> {
-  await client.request("task.setCommand", { taskId: String(id), command, ...(vendor ? { vendor } : {}) })
+  await client.request("task.setCommand", {
+    taskId: String(id),
+    command,
+    ...(vendor ? { vendor } : {}),
+  })
 }
 
 export async function setPinnedOp(client: KobeDaemonClient, id: TaskId | string, pinned?: boolean): Promise<void> {
@@ -112,7 +115,10 @@ export async function setPinnedOp(client: KobeDaemonClient, id: TaskId | string,
 }
 
 export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, delta: -1 | 1): Promise<void> {
-  await client.request("task.move", { taskId: String(id), direction: delta < 0 ? "up" : "down" })
+  await client.request("task.move", {
+    taskId: String(id),
+    direction: delta < 0 ? "up" : "down",
+  })
 }
 
 export async function setStatusOp(client: KobeDaemonClient, id: TaskId | string, status: TaskStatus): Promise<void> {
@@ -124,7 +130,11 @@ export async function deleteTaskOp(
   id: TaskId | string,
   opts?: { force?: boolean; deleteBranch?: boolean },
 ): Promise<void> {
-  await client.request("task.delete", { taskId: String(id), force: opts?.force, deleteBranch: opts?.deleteBranch })
+  await client.request("task.delete", {
+    taskId: String(id),
+    force: opts?.force,
+    deleteBranch: opts?.deleteBranch,
+  })
 }
 
 /** Explicitly delete one durable attention episode. */
@@ -157,25 +167,45 @@ export async function markAttentionReadOp(
   return res.updated
 }
 
-/** Read one deferred prompt back by id (issue #78 B-layer exit path). */
-export async function getDeferredPromptOp(client: KobeDaemonClient, id: string): Promise<DeferredPromptRecord | null> {
-  const res = await client.request<{ record: DeferredPromptRecord | null }>("deferredPrompt.get", { id })
-  return res.record
-}
+export type DeferredPromptReleaseOutcome =
+  | "inserted"
+  | "deferred-again"
+  | "unavailable"
+  | "in-flight"
+  | "missing"
+  | "cleanup-pending"
 
-/** Release one deferred prompt after its text was inserted (or on dismiss). */
-export async function resolveDeferredPromptOp(client: KobeDaemonClient, id: string): Promise<boolean> {
-  const res = await client.request<{ removed: boolean }>("deferredPrompt.resolve", { id })
-  return res.removed
+/** Claim, deliver, and durably resolve one queued prompt inside the daemon. */
+export async function releaseDeferredPromptOp(
+  client: KobeDaemonClient,
+  id: string,
+): Promise<DeferredPromptReleaseOutcome> {
+  const res = await client.request<{
+    kind: "claimed" | "in-flight" | "missing"
+    delivered: readonly string[]
+    cleaned: readonly string[]
+    retained: readonly { reason: string }[]
+    cleanupPending: readonly unknown[]
+  }>("deferredPrompt.release", { id })
+  if (res.kind !== "claimed") return res.kind
+  if (res.cleanupPending.length > 0) return "cleanup-pending"
+  if (res.delivered.includes(id) || res.cleaned.includes(id)) return "inserted"
+  return res.retained[0]?.reason === "busy" ? "deferred-again" : "unavailable"
 }
 
 export interface DeferredPromptFlushResult {
   readonly delivered: readonly string[]
+  readonly cleaned: readonly string[]
+  readonly expired: readonly string[]
+  readonly cleanupPending: readonly {
+    readonly id: string
+    readonly error: string
+  }[]
   readonly retained: readonly {
     readonly id: string
     readonly taskId: string
     readonly tabId: string
-    readonly reason: "busy" | "unavailable" | "error"
+    readonly reason: "busy" | "unavailable" | "error" | "in-flight" | "gate-enabled"
     readonly layer?: "recent-human-write" | "composer-not-empty"
     readonly error?: string
   }[]
@@ -324,7 +354,14 @@ export async function deleteAutomationOp(client: KobeDaemonClient, id: string): 
  *  work-items page. `refresh` bypasses the daemon's 60s cache. */
 export async function listWorkItemsOp(
   client: KobeDaemonClient,
-  args: { repo: string; state?: string; limit?: number; search?: string; assignee?: string; refresh?: boolean },
+  args: {
+    repo: string
+    state?: string
+    limit?: number
+    search?: string
+    assignee?: string
+    refresh?: boolean
+  },
 ): Promise<{ items: WorkItem[] }> {
   return client.request<{ items: WorkItem[] }>("workitem.list", args)
 }
@@ -344,7 +381,9 @@ export async function startWorkItemOp(
  * pane + the outer monitor highlight the same task.
  */
 export async function setActiveTaskOp(client: KobeDaemonClient, id: TaskId | string | null): Promise<void> {
-  await client.request("task.setActive", { taskId: id === null ? null : String(id) })
+  await client.request("task.setActive", {
+    taskId: id === null ? null : String(id),
+  })
 }
 
 /**

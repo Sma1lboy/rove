@@ -2,15 +2,22 @@
  * Deferred-prompt RPC handlers (issue #78 B-layer). The delivery gate ran in a
  * kobe (CLI) process and found the target composer busy; it calls
  * `deferredPrompt.file` to hand ownership to the daemon, which stores the text
- * and records a `prompt_deferred` inbox episode. The exit path reads the text
- * back (`get`), inserts it with a fresh A/C gate, then releases it (`resolve`).
+ * and records a `prompt_deferred` inbox episode. Release and bulk flush both
+ * claim the record, deliver through the exact-tab runtime, then durably mark
+ * delivery before the Inbox pointer is cleaned up.
  */
 
-import { DeferredPromptPendingError, type DeferredPromptRecord } from "./deferred-prompts-store.ts"
+import {
+  type DeferredPromptClaim,
+  DeferredPromptPendingError,
+  type DeferredPromptRecord,
+} from "./deferred-prompts-store.ts"
 import { optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonHandlerContext, DaemonRequestHandler } from "./handlers.ts"
 
-type DeferredPromptInput = Omit<DeferredPromptRecord, "id" | "at"> & { readonly at: number }
+type DeferredPromptInput = Omit<DeferredPromptRecord, "id" | "at"> & {
+  readonly at: number
+}
 
 function deferredPromptInput(payload: Record<string, unknown>): DeferredPromptInput {
   const taskId = requireString(payload, "taskId")
@@ -36,7 +43,10 @@ function deferredPromptInput(payload: Record<string, unknown>): DeferredPromptIn
 async function fileWithInbox(
   input: DeferredPromptInput,
   ctx: DaemonHandlerContext,
-): Promise<{ readonly kind: "filed" | "occupied"; readonly record: DeferredPromptRecord }> {
+): Promise<{
+  readonly kind: "filed" | "occupied"
+  readonly record: DeferredPromptRecord
+}> {
   if (!ctx.orch.getTask(input.taskId)) throw new Error(`task not found: ${input.taskId}`)
   if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
   let kind: "filed" | "occupied" = "filed"
@@ -56,7 +66,12 @@ async function fileWithInbox(
 }
 
 type FlushRetained =
-  | { readonly id: string; readonly taskId: string; readonly tabId: string; readonly reason: "unavailable" }
+  | {
+      readonly id: string
+      readonly taskId: string
+      readonly tabId: string
+      readonly reason: "unavailable"
+    }
   | {
       readonly id: string
       readonly taskId: string
@@ -71,57 +86,195 @@ type FlushRetained =
       readonly reason: "error"
       readonly error: string
     }
+  | {
+      readonly id: string
+      readonly taskId: string
+      readonly tabId: string
+      readonly reason: "in-flight"
+    }
+  | {
+      readonly id: string
+      readonly taskId: string
+      readonly tabId: string
+      readonly reason: "gate-enabled"
+    }
+
+interface DeliveryReport {
+  delivered: string[]
+  cleaned: string[]
+  expired: string[]
+  retained: FlushRetained[]
+  cleanupPending: Array<{
+    id: string
+    taskId: string
+    tabId: string
+    error: string
+  }>
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+async function cleanupDeliveredClaim(
+  claim: DeferredPromptClaim,
+  ctx: DaemonHandlerContext,
+  report: DeliveryReport,
+): Promise<void> {
+  if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+  const { record } = claim
+  try {
+    await ctx.inbox.deleteEpisode(record.taskId, record.tabId)
+    await ctx.deferredPrompts.completeClaim(claim)
+    report.cleaned.push(record.id)
+  } catch (error) {
+    await ctx.deferredPrompts.releaseClaim(claim)
+    report.cleanupPending.push({
+      id: record.id,
+      taskId: record.taskId,
+      tabId: record.tabId,
+      error: errorText(error),
+    })
+  }
+}
+
+async function deliverClaim(
+  claim: DeferredPromptClaim,
+  ctx: DaemonHandlerContext,
+  report: DeliveryReport,
+): Promise<void> {
+  if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+  const { record } = claim
+  if (record.deliveredAt) {
+    await cleanupDeliveredClaim(claim, ctx, report)
+    return
+  }
+  const task = ctx.orch.getTask(record.taskId)
+  if (!task?.worktreePath) {
+    await ctx.deferredPrompts.releaseClaim(claim)
+    report.retained.push({
+      id: record.id,
+      taskId: record.taskId,
+      tabId: record.tabId,
+      reason: "unavailable",
+    })
+    return
+  }
+  try {
+    const outcome = await ctx.runtime.deliverPromptToLiveEngineTabDetailed(
+      {
+        id: task.id,
+        tabId: record.tabId,
+        vendor: task.vendor,
+        command: task.command,
+        worktreePath: task.worktreePath,
+      },
+      record.prompt,
+    )
+    if (outcome.outcome === "delivered") {
+      await ctx.deferredPrompts.markDelivered(claim)
+      report.delivered.push(record.id)
+      await cleanupDeliveredClaim(claim, ctx, report)
+    } else {
+      await ctx.deferredPrompts.releaseClaim(claim)
+      report.retained.push(
+        outcome.outcome === "busy"
+          ? {
+              id: record.id,
+              taskId: record.taskId,
+              tabId: record.tabId,
+              reason: "busy",
+              layer: outcome.layer,
+            }
+          : {
+              id: record.id,
+              taskId: record.taskId,
+              tabId: record.tabId,
+              reason: "unavailable",
+            },
+      )
+    }
+  } catch (error) {
+    await ctx.deferredPrompts.releaseClaim(claim).catch(() => {})
+    report.retained.push({
+      id: record.id,
+      taskId: record.taskId,
+      tabId: record.tabId,
+      reason: "error",
+      error: errorText(error),
+    })
+  }
+}
 
 async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
   delivered: string[]
+  cleaned: string[]
+  expired: string[]
   retained: FlushRetained[]
+  cleanupPending: DeliveryReport["cleanupPending"]
 }> {
   if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
-  const delivered: string[] = []
-  const retained: FlushRetained[] = []
-  for (const record of await ctx.deferredPrompts.list()) {
-    const task = ctx.orch.getTask(record.taskId)
-    if (!task?.worktreePath) {
-      retained.push({ id: record.id, taskId: record.taskId, tabId: record.tabId, reason: "unavailable" })
+  const report: DeliveryReport = {
+    delivered: [],
+    cleaned: [],
+    expired: [],
+    retained: [],
+    cleanupPending: [],
+  }
+  const listed = await ctx.deferredPrompts.list()
+  for (const expired of listed.expired) {
+    const claimed = await ctx.deferredPrompts.claim(expired.id)
+    if (claimed.kind !== "claimed") {
+      report.cleanupPending.push({
+        id: expired.id,
+        taskId: expired.taskId,
+        tabId: expired.tabId,
+        error: claimed.kind,
+      })
       continue
     }
     try {
-      const outcome = await ctx.runtime.deliverPromptToLiveEngineTabDetailed(
-        {
-          id: task.id,
-          tabId: record.tabId,
-          vendor: task.vendor,
-          command: task.command,
-          worktreePath: task.worktreePath,
-        },
-        record.prompt,
-      )
-      if (outcome.outcome === "delivered") {
-        await ctx.deferredPrompts.resolve(record.id)
-        await ctx.inbox.deleteEpisode(record.taskId, record.tabId)
-        delivered.push(record.id)
-      } else if (outcome.outcome === "busy") {
-        retained.push({
-          id: record.id,
-          taskId: record.taskId,
-          tabId: record.tabId,
-          reason: "busy",
-          layer: outcome.layer,
-        })
-      } else {
-        retained.push({ id: record.id, taskId: record.taskId, tabId: record.tabId, reason: "unavailable" })
-      }
+      await ctx.inbox.deleteEpisode(expired.taskId, expired.tabId)
+      await ctx.deferredPrompts.completeClaim(claimed.claim)
+      report.expired.push(expired.id)
     } catch (error) {
-      retained.push({
-        id: record.id,
-        taskId: record.taskId,
-        tabId: record.tabId,
-        reason: "error",
-        error: error instanceof Error ? error.message : String(error),
+      await ctx.deferredPrompts.releaseClaim(claimed.claim).catch(() => {})
+      report.cleanupPending.push({
+        id: expired.id,
+        taskId: expired.taskId,
+        tabId: expired.tabId,
+        error: errorText(error),
       })
     }
   }
-  return { delivered, retained }
+  for (const record of listed.records) {
+    if (record.deliveredAt) {
+      const claimed = await ctx.deferredPrompts.claim(record.id)
+      if (claimed.kind === "claimed") await cleanupDeliveredClaim(claimed.claim, ctx, report)
+      continue
+    }
+    if (ctx.runtime.composerGateEnabled()) {
+      report.retained.push({
+        id: record.id,
+        taskId: record.taskId,
+        tabId: record.tabId,
+        reason: "gate-enabled",
+      })
+      continue
+    }
+    const claimed = await ctx.deferredPrompts.claim(record.id)
+    if (claimed.kind === "in-flight") {
+      report.retained.push({
+        id: record.id,
+        taskId: record.taskId,
+        tabId: record.tabId,
+        reason: "in-flight",
+      })
+      continue
+    }
+    if (claimed.kind === "claimed") await deliverClaim(claimed.claim, ctx, report)
+  }
+  return report
 }
 
 export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
@@ -152,11 +305,11 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
     // these off the web allowlist is deliberate — the browser-reachable surface
     // is a pinned security contract (test/daemon/web-exposure.test.ts).
     name: "deferredPrompt.get",
-    async handle(payload, ctx) {
-      const id = requireString(payload, "id")
-      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
-      const record = await ctx.deferredPrompts.get(id)
-      return { record }
+    async handle() {
+      // A pre-claim client can race the daemon flusher after reading the text
+      // and paste the same record twice. Fail that mixed-version exit path
+      // loud; current clients use the atomic `release` verb below.
+      throw new Error("legacy deferred prompt release is unsafe; restart Rove to update the client")
     },
   },
   {
@@ -164,13 +317,43 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
-      // Resolve means BOTH halves: the stored text AND the inbox episode that
-      // points at it. Read the record first (for its task/tab) so the episode
-      // can be dropped even though the record is about to go.
-      const record = await ctx.deferredPrompts.get(id)
-      const removed = await ctx.deferredPrompts.resolve(id)
-      if (record) await ctx.inbox.deleteEpisode(record.taskId, record.tabId)
-      return { removed }
+      // A legacy client can still finish an insert fetched before a daemon
+      // restart. Claim before trusting its resolve so it cannot erase a
+      // record that a concurrent flush owns.
+      const claimed = await ctx.deferredPrompts.claim(id)
+      if (claimed.kind !== "claimed") return { removed: false, kind: claimed.kind }
+      const report: DeliveryReport = { delivered: [], cleaned: [], expired: [], retained: [], cleanupPending: [] }
+      await ctx.deferredPrompts.markDelivered(claimed.claim)
+      await cleanupDeliveredClaim(claimed.claim, ctx, report)
+      return { removed: report.cleaned.includes(id), cleanupPending: report.cleanupPending }
+    },
+  },
+  {
+    name: "deferredPrompt.release",
+    async handle(payload, ctx) {
+      const id = requireString(payload, "id")
+      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+      const report: DeliveryReport = {
+        delivered: [],
+        cleaned: [],
+        expired: [],
+        retained: [],
+        cleanupPending: [],
+      }
+      const claimed = await ctx.deferredPrompts.claim(id)
+      if (claimed.kind === "claimed") await deliverClaim(claimed.claim, ctx, report)
+      return { kind: claimed.kind, ...report }
+    },
+  },
+  {
+    name: "deferredPrompt.discardTab",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const tabId = requireString(payload, "tabId")
+      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+      const dropped = await ctx.deferredPrompts.discardTab(taskId, tabId, "tab closed")
+      if (dropped.length > 0) await ctx.inbox.deleteEpisode(taskId, tabId)
+      return { dropped: dropped.map((record) => record.id) }
     },
   },
   {
