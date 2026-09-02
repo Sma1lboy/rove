@@ -170,6 +170,14 @@ async function deferBlockedPrompt(
     })
   } catch (error) {
     if (!(error instanceof DeferredPromptPendingError)) throw error
+    // A previous firing may have committed the record and crashed before its
+    // Inbox pointer. Recreate that pointer before reporting the occupied slot.
+    await deps.inbox.recordPromptDeferred(
+      error.existing.taskId,
+      error.existing.tabId,
+      error.existing.id,
+      error.existing.layer,
+    )
     return {
       status: "dispatch_failed",
       taskId,

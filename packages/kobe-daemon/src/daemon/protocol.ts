@@ -306,11 +306,11 @@ export type DaemonRequestName =
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
   // Deferred prompts (issue #78 B-layer): the delivery gate accepted a prompt
-  // it could not paste (composer busy) into daemon ownership. `file` stores the
-  // text + records a `prompt_deferred` inbox episode; `get` reads one back for
-  // the exit path; `resolve` drops it after a successful insert or a dismiss.
-  // Older daemons reject the verbs; callers then surface COMPOSER_BUSY instead.
+  // it could not paste (composer busy) into daemon ownership. New clients use
+  // `fileIfVacant`, whose distinct name makes old replace-on-file daemons fail
+  // loud. `get` reads one back; `resolve` drops it after insert or dismiss.
   | "deferredPrompt.file"
+  | "deferredPrompt.fileIfVacant"
   | "deferredPrompt.get"
   | "deferredPrompt.resolve"
 

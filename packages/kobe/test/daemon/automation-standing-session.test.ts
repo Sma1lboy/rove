@@ -252,12 +252,13 @@ describe("standing session — busy composer", () => {
       tasks: { "task-1": task() },
       deliver: async () => ({ outcome: "busy" as const, tabId: "tab-1", layer: "composer-not-empty" as const }),
     })
+    const episodes: string[] = []
 
     const outcome = await dispatchAutomation(
       {
         ...deps,
         deferred,
-        inbox: { recordPromptDeferred: async () => undefined },
+        inbox: { recordPromptDeferred: async (_taskId, _tabId, id) => void episodes.push(id) },
       },
       automation({ sessionTaskId: "task-1" }),
     )
@@ -265,6 +266,9 @@ describe("standing session — busy composer", () => {
     expect(outcome).toMatchObject({ status: "dispatch_failed", taskId: "task-1" })
     expect(outcome.error).toContain(first.id)
     expect(await deferred.get(first.id)).toEqual(first)
+    // If the first filing died after the record rename, this retry repairs
+    // the missing Inbox pointer while still rejecting the newer report.
+    expect(episodes).toEqual([first.id])
   })
 })
 

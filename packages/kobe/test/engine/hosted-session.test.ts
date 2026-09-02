@@ -359,7 +359,7 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
             alive: true,
             offset: 0,
             data: Buffer.from(
-              `\x1b[?2004h› Ask Codex to do anything\r\n  gpt-5.6-sol high fast${written}`,
+              `\x1b[?2004h› \x1b[2mAsk Codex to do anything\x1b[22m\r\n  gpt-5.6-sol high fast${written}`,
               "utf8",
             ).toString("base64"),
           } as T
@@ -379,5 +379,31 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
 
     expect(outcome).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
+  })
+
+  it("does not submit a Codex draft that equals the placeholder text", async () => {
+    const writes: string[] = []
+    const rpc: HostedSessionRpc = {
+      request: async <T>(name: string): Promise<T> => {
+        if (name === "pty.peek") {
+          return {
+            exists: true,
+            alive: true,
+            offset: 0,
+            data: Buffer.from("\x1b[?2004h› Ask Codex to do anything", "utf8").toString("base64"),
+          } as T
+        }
+        if (name === "pty.write") writes.push(name)
+        return {} as T
+      },
+    }
+
+    await expect(
+      deliverToHostedKey(rpc, "t1::tab-1", "go", {
+        screenManifest: CODEX_SCREEN_MANIFEST,
+        composerGate: true,
+      }),
+    ).rejects.toBeInstanceOf(ComposerBusyError)
+    expect(writes).toEqual([])
   })
 })

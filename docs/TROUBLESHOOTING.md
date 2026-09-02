@@ -312,6 +312,10 @@ daemon keeps the first deferred prompt for each tab. A later send fails with
 `DEFERRED_PROMPT_PENDING` until you release or dismiss the existing Inbox item,
 or until it expires, so no accepted prompt is silently replaced.
 
+If the send instead fails with an unknown `deferredPrompt.fileIfVacant`
+request, the client found an older running daemon whose filing behavior is not
+safe for this retry. Restart Rove, then run the original send again.
+
 Two gates can defer, and the `layer` in the response says which:
 
 - **`recent-human-write`** — someone typed into that session within the last
