@@ -353,7 +353,7 @@ export function AutomationsPage(props: {
       {/* The detail frame is always mounted, even with nothing selected: a
           panel that appears and disappears makes the page jump, and the empty
           frame is where a first-time user reads what a routine even carries. */}
-      <box flexDirection="column" marginTop={1} border borderColor={theme.border} padding={1} flexShrink={0}>
+      <box flexDirection="column" marginTop={1} {...FRAME} borderColor={theme.border} padding={1} flexShrink={0}>
         {selected ? (
           <>
             <box flexDirection="row" justifyContent="space-between" gap={2}>
