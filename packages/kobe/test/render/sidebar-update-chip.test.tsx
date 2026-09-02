@@ -8,7 +8,14 @@
  */
 
 import { expect, test } from "bun:test"
-import { DEFAULT_THEME, type ThemeJson, ThemeProvider, addTheme, setTheme } from "../../src/tui-react/context/theme"
+import {
+  DEFAULT_THEME,
+  type ThemeJson,
+  ThemeProvider,
+  addTheme,
+  setTheme,
+  setThemeMode,
+} from "../../src/tui-react/context/theme"
 import { SidebarBrandHeader } from "../../src/tui-react/panes/sidebar/chrome"
 import { renderComponent } from "./harness"
 
@@ -60,33 +67,44 @@ test("clicking the chip opens the update surface", async () => {
 
 test("uses the configured warning color for the update chip", async () => {
   const name = "sidebar-update-chip-test"
-  const warning: [number, number, number, number] = [255, 170, 0, 255]
   expect(
     addTheme(name, {
       theme: {
         background: "#000000",
         text: "#ffffff",
         textMuted: "#999999",
-        warning: "#ffaa00",
-        success: "#00aa55",
+        warning: { dark: "#ffaa00", light: "#aa5500" },
+        success: { dark: "#00aa55", light: "#0055aa" },
       },
     } satisfies ThemeJson),
   ).toBe(true)
 
-  const handle = await renderComponent(
-    <ThemeProvider theme={name}>
-      <SidebarBrandHeader focused={false} status={null} update={{ label: "↑ 0.9.99" }} />
-    </ThemeProvider>,
-    { width: 30, height: 3, providers: { theme: false } },
-  )
-
   try {
-    const updateSpan = (await handle.spans()).lines
-      .flatMap((line) => line.spans)
-      .find((span) => span.text.includes("0.9.99"))
-    expect(updateSpan?.fg.toInts()).toEqual(warning)
+    const cases: Array<{
+      mode: "dark" | "light"
+      warning: [number, number, number, number]
+    }> = [
+      { mode: "dark", warning: [255, 170, 0, 255] },
+      { mode: "light", warning: [170, 85, 0, 255] },
+    ]
+    for (const { mode, warning } of cases) {
+      const handle = await renderComponent(
+        <ThemeProvider theme={name} mode={mode}>
+          <SidebarBrandHeader focused={false} status={null} update={{ label: "↑ 0.9.99" }} />
+        </ThemeProvider>,
+        { width: 30, height: 3, providers: { theme: false } },
+      )
+      try {
+        const updateSpan = (await handle.spans()).lines
+          .flatMap((line) => line.spans)
+          .find((span) => span.text.includes("0.9.99"))
+        expect(updateSpan?.fg.toInts()).toEqual(warning)
+      } finally {
+        handle.destroy()
+      }
+    }
   } finally {
-    handle.destroy()
     setTheme(DEFAULT_THEME)
+    setThemeMode("dark")
   }
 })
