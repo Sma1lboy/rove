@@ -40,6 +40,8 @@ export const en = {
     pin: "Pin",
     unpin: "Unpin",
     reorder: "Reorder row",
+    /** Re-fire the task's stored brief as a new task. Menu-only. */
+    runAgain: "Run again",
     /** The one entry with no chord behind it — status has no key yet, so the
      *  menu is its only route. */
     setStatus: "Set status",
@@ -75,6 +77,16 @@ export const en = {
     title: "Change engine",
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
+  },
+  /** Run-again confirm dialog: the stored brief, verbatim and scrollable,
+   *  before it is re-fired into a fresh task. */
+  runAgain: {
+    title: "Run again",
+    source: "Brief from \u201C{title}\u201D",
+    /** Says what confirming actually does — a new worktree, not a restart. */
+    hint: "Runs this brief again in a new task, on its own branch and worktree.",
+    confirm: "Run again",
+    footer: "\u2191\u2193 scroll \u00B7 \u2190\u2192 choose \u00B7 enter run \u00B7 esc cancel",
   },
   /** Field-notes reader dialog (project row menu). */
   fieldNotes: {
@@ -187,6 +199,7 @@ export const zh: typeof en = {
     pin: "置顶",
     unpin: "取消置顶",
     reorder: "重新排序",
+    runAgain: "重新运行",
     setStatus: "设置状态",
     copyBranch: "复制分支名",
     copyPath: "复制路径",
@@ -212,6 +225,13 @@ export const zh: typeof en = {
     title: "切换引擎",
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
+  },
+  runAgain: {
+    title: "重新运行",
+    source: "来自任务「{title}」的指令",
+    hint: "在新任务里重新执行这段指令，新任务有自己的分支和工作树。",
+    confirm: "重新运行",
+    footer: "\u2191\u2193 滚动 \u00B7 \u2190\u2192 选择 \u00B7 enter 运行 \u00B7 esc 取消",
   },
   fieldNotes: {
     title: "现场笔记",

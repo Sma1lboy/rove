@@ -115,6 +115,14 @@ export async function moveTaskOp(client: KobeDaemonClient, id: TaskId | string, 
   await client.request("task.move", { taskId: String(id), direction: delta < 0 ? "up" : "down" })
 }
 
+/** Record a task's brief (`task.setPrompt`). Second writer after the CLI
+ *  `add` path: the row menu's "Run again" copies a task's stored brief onto
+ *  the fork it creates, so the child can itself be re-run and `get-task`
+ *  shows the words its engine is being handed. */
+export async function setPromptOp(client: KobeDaemonClient, id: TaskId | string, prompt: string): Promise<void> {
+  await client.request("task.setPrompt", { taskId: String(id), prompt })
+}
+
 export async function setStatusOp(client: KobeDaemonClient, id: TaskId | string, status: TaskStatus): Promise<void> {
   await client.request("task.status", { taskId: String(id), status })
 }

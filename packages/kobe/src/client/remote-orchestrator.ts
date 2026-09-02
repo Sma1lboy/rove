@@ -107,6 +107,7 @@ import {
   setBranchOp,
   setCommandOp,
   setPinnedOp,
+  setPromptOp,
   setStatusOp,
   setTitleOp,
   setVendorOp,
@@ -423,6 +424,7 @@ export class RemoteOrchestrator {
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => setPinnedOp(this.client, id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => moveTaskOp(this.client, id, delta)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => setStatusOp(this.client, id, status)
+  setPrompt = (id: TaskId | string, prompt: string): Promise<void> => setPromptOp(this.client, id, prompt)
   deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
     deleteTaskOp(this.client, id, opts)
   dismissAttention = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>

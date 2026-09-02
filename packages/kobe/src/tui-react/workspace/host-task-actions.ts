@@ -37,6 +37,7 @@ import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.
 import { BranchPickerDialog } from "../component/branch-picker-dialog"
 import { EnginePickerDialog } from "../component/engine-picker-dialog"
 import { FieldNotesDialog } from "../component/field-notes-dialog"
+import { RunAgainDialog } from "../component/run-again-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
@@ -75,6 +76,13 @@ export type WorkspaceTaskActions = {
   copyTaskField: (id: string, field: "branch" | "path") => void
   /** Project-row menu "Field notes" — read-only list of the repo's notes. */
   showFieldNotes: (repo: string) => void
+  /**
+   * Row menu "Run again" — show the task's stored brief and resolve the task
+   * to re-fire once the user commits, or `undefined` on cancel. The CREATE is
+   * quick-fork's (`runAgainTask`), which owns the first-prompt handoff into
+   * the new task's mount; this half is the dialog and the lookup.
+   */
+  confirmRunAgain: (id: string) => Promise<Task | undefined>
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
@@ -146,6 +154,15 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     })
   }
 
+  async function confirmRunAgain(id: string): Promise<Task | undefined> {
+    const task = tasks().find((t) => t.id === id)
+    // The menu withholds the entry from a task with no stored brief
+    // (tree-menu.ts), so this only fires on a stale row.
+    if (task?.prompt === undefined) return undefined
+    const ok = await RunAgainDialog.show(dialog, { taskTitle: task.title, prompt: task.prompt })
+    return ok === true ? task : undefined
+  }
+
   async function pickVendor(id: string): Promise<void> {
     const task = tasks().find((t) => t.id === id)
     if (!task) return
@@ -175,5 +192,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     setStatus: (id) => setStatusFlow(taskActions, id),
     copyTaskField: (id, field) => copyTaskFieldFlow(taskActions, id, field),
     showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, load: () => orchestrator.listFieldNotes(repo) }),
+    confirmRunAgain,
   }
 }

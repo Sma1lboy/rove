@@ -163,6 +163,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     setStatus,
     copyTaskField,
     showFieldNotes,
+    confirmRunAgain,
   } = useWorkspaceTaskActions({
     orchestrator: orch,
     tasks: () => tasks,
@@ -415,6 +416,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onRenameBranchRequest={(id) => void renameBranch(id)}
           onChangeEngineRequest={(id) => void pickVendor(id)}
           onFieldNotesRequest={showFieldNotes}
+          // Confirm here, create in quick-fork: it owns the pending-prompt
+          // slot that delivers the brief on the NEW task's mount.
+          onRunAgainRequest={(id) => void confirmRunAgain(id).then((task) => task && quickFork.runAgain(task))}
           moveMode={moveMode}
           onMoveRequest={(id, delta) => void moveTask(id, delta)}
           onMoveModeExit={() => setMoveMode(false)}

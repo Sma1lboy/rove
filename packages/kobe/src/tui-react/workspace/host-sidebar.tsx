@@ -50,6 +50,8 @@ export interface HostSidebarProps {
   readonly onSetStatusRequest: (taskId: string) => void
   /** Menu-only (no chord): copy the row's branch name or worktree path. */
   readonly onCopyRequest: (taskId: string, field: "branch" | "path") => void
+  /** Menu-only (no chord): re-fire the row's stored brief as a new task. */
+  readonly onRunAgainRequest: (taskId: string) => void
   /** Menu routes of the `o` / `b` / `v` chords, landing on the ROW's task. */
   readonly onOpenEditorRequest: (taskId: string) => void
   readonly onRenameBranchRequest: (taskId: string) => void
@@ -138,6 +140,7 @@ export function HostSidebar(props: HostSidebarProps) {
     onPinRequest: props.onPinRequest,
     onSetStatusRequest: props.onSetStatusRequest,
     onCopyRequest: props.onCopyRequest,
+    onRunAgainRequest: props.onRunAgainRequest,
     onOpenEditorRequest: props.onOpenEditorRequest,
     onRenameBranchRequest: props.onRenameBranchRequest,
     onChangeEngineRequest: props.onChangeEngineRequest,

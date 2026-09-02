@@ -172,6 +172,49 @@ describe("treeMenuItems", () => {
     expect(actions(tabRow, { tabCount: 0 })).not.toContain("closeTab")
   })
 
+  test("Run again is offered only to a task that stored a brief", () => {
+    // `prompt` is recorded on the delivery path, so a task created without one
+    // has nothing to re-fire — the entry-that-does-nothing rule. It sits right
+    // after Reorder, before the status/copy block.
+    expect(actions(worktreeRow())).not.toContain("runAgain")
+    expect(actions(worktreeRow({ prompt: "print the third line\n\nthen stop" }))).toEqual([
+      "open",
+      "newChat",
+      "newShell",
+      "rename",
+      "pin",
+      "reorder",
+      "runAgain",
+      "setStatus",
+      "copyBranch",
+      "copyPath",
+      "openEditor",
+      "renameBranch",
+      "changeEngine",
+      "delete",
+    ])
+  })
+
+  test("Run again reaches a TAB row too, and never a project header", () => {
+    // Same rule as the rest of the task verbs: a tab row carries them because
+    // the chords walk up from a tab to its worktree.
+    const withBrief: TreeRow = {
+      kind: "tab",
+      id: "a::tab-2",
+      task: task({ prompt: "the brief" }),
+      tab: { id: "tab-2", label: "tab 2" },
+      depth: 2,
+    }
+    expect(actions(withBrief, { tabCount: 2 })).toContain("runAgain")
+    expect(actions(projectRow)).not.toContain("runAgain")
+  })
+
+  test("an empty-string brief still counts — only an ABSENT one hides the entry", () => {
+    // `setPrompt` rejects whitespace-only text, so "" can never be stored; the
+    // gate is presence, and testing it as truthiness would hide that.
+    expect(actions(worktreeRow({ prompt: "" }))).toContain("runAgain")
+  })
+
   test("pin reads the task's own state", () => {
     const label = (row: TreeRow) => treeMenuItems(row).find((item) => item.action === "pin")?.labelKey
     expect(label(worktreeRow())).toBe("tasks.menu.pin")

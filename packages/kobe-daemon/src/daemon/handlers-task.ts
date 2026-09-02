@@ -359,11 +359,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // NOT web-exposed: the only writer is the CLI `add` path, which records
-    // the brief AFTER the prompt is confirmed delivered into the engine. The
-    // field then means exactly "this is the prompt the engine was given" —
-    // an agent reading `get-task` can assert on it without wondering whether
-    // delivery happened.
+    // NOT web-exposed. Two writers, both on a path where the prompt is already
+    // on its way to an engine: the CLI `add` path records the brief AFTER
+    // delivery confirms, and the TUI's "Run again" copies a task's existing
+    // brief onto the fork it just created for it. The field means "this is the
+    // prompt the engine was given" in both cases — an agent reading `get-task`
+    // never sees a brief that was merely composed.
     name: "task.setPrompt",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

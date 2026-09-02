@@ -46,6 +46,11 @@ export type SidebarTaskCallbacks = {
    * Menu-only, like `onSetStatusRequest` — no chord yet.
    */
   onCopyRequest?: (taskId: string, field: "branch" | "path") => void
+  /**
+   * Re-fire the task's stored brief (`task.prompt`) as a new task. Menu-only,
+   * and the entry is withheld from a task with no stored brief.
+   */
+  onRunAgainRequest?: (taskId: string) => void
   /** Menu route of `o`: open the task's worktree in the detected editor. */
   onOpenEditorRequest?: (taskId: string) => void
   /** Menu route of `b`: the branch picker/rename for the row's task. */
