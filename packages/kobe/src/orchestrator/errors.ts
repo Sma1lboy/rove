@@ -159,6 +159,33 @@ export class EmptyBranchDirtyWorktreeError extends Error {
 }
 
 /**
+ * Stable sentinel embedded in {@link MissingRefError}'s message — same
+ * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
+ */
+export const MISSING_REF_CODE = "MISSING_REF"
+
+/**
+ * Thrown by `landTask` when git cannot resolve the `<base>..<branch>` range at
+ * all — the recorded branch was renamed or deleted outside Rove, so
+ * `git rev-list --count` exits non-zero instead of printing a number. Distinct
+ * from {@link EmptyBranchError}: that one means "git counted, and the answer
+ * was zero"; this one means "git could not count", which is a broken task
+ * record, not an empty branch.
+ */
+export class MissingRefError extends Error {
+  constructor(
+    public readonly branch: string,
+    public readonly landedOn: string,
+    public readonly dir: string,
+  ) {
+    super(
+      `${MISSING_REF_CODE}: '${branch}' does not resolve in the base repo at ${dir} (comparing against '${landedOn}') — the branch was renamed or deleted outside Rove; re-point the task with \`rove api set-branch\` or recreate the branch`,
+    )
+    this.name = "MissingRefError"
+  }
+}
+
+/**
  * Stable sentinel embedded in {@link LandConflictError}'s message — same
  * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}. The conflicted-file list
  * rides along in the message so a CLI/TUI caller can print it after matching.
