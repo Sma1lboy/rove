@@ -240,10 +240,14 @@ function parseCount(token: string): number | null {
  *   - non-rename: `<added>\t<deleted>\t<path>\0`
  *   - rename:     `<added>\t<deleted>\t\0<old>\0<new>\0`
  *
- * Binary files use `-` for the counts (→ `null`). Paths are unquoted so the
- * counts key by the same canonical path the porcelain `R` row reports. With
- * `-z`, git emits raw paths (no C-quoting), but `unquoteGitPath` is kept as a
- * harmless no-op for extra robustness. Blank / malformed fields are skipped.
+ * Binary files use `-` for the counts (→ `null`). Because `-z` disables git's
+ * path munging, these fields are ALWAYS raw — never C-quoted — so they are used
+ * VERBATIM: the counts key by the same raw bytes the porcelain `R` row unquotes
+ * back to. Unquoting here would be wrong, not merely redundant — a filename that
+ * legitimately begins with a literal `"` (valid on POSIX) looks like the start
+ * of a C-quoted token, so `unquoteGitPath` would strip that leading quote and
+ * the path would no longer match its porcelain row, breaking the very join this
+ * module exists to keep. Blank / malformed fields are skipped.
  */
 export function parseNumstatRows(raw: string): NumstatRow[] {
   const rows: NumstatRow[] = []
@@ -269,15 +273,15 @@ export function parseNumstatRows(raw: string): NumstatRow[] {
     const deleted = parseCount(header.slice(tab1 + 1, tab2))
     const pathField = header.slice(tab2 + 1)
     if (pathField.length > 0) {
-      // Non-rename: the path is the third field.
-      rows.push({ path: unquoteGitPath(pathField), added, deleted })
+      // Non-rename: the path is the third field, raw (see the `-z` note above).
+      rows.push({ path: pathField, added, deleted })
       i++
     } else {
-      // Rename: the next two fields are the old and new paths.
+      // Rename: the next two fields are the old and new paths, both raw.
       if (i + 2 >= fields.length) break
       rows.push({
-        path: unquoteGitPath(fields[i + 2] as string),
-        origPath: unquoteGitPath(fields[i + 1] as string),
+        path: fields[i + 2] as string,
+        origPath: fields[i + 1] as string,
         added,
         deleted,
       })
