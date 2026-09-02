@@ -123,7 +123,8 @@ describe("Rove package distribution", () => {
     const commands = Object.values(root.scripts)
 
     expect(commands.some((command) => command.includes("--filter @sma1lboy/rove"))).toBe(true)
-    expect(root.scripts.postinstall).toBe("bun --filter @sma1lboy/rove-plugin-sdk build")
+    // The SDK build must stay in postinstall (the exec-bit backstop runs ahead of it).
+    expect(root.scripts.postinstall).toMatch(/bun --filter @sma1lboy\/rove-plugin-sdk build$/)
     expect(root.scripts.build).toMatch(/^bun --filter @sma1lboy\/rove-plugin-sdk build && /)
     expect(commands.some((command) => /--filter @sma1lboy\/kobe(?:\s|$)/.test(command))).toBe(false)
   })

@@ -46,6 +46,11 @@ export const en = {
     /** Agent skill older than this build expects */
     skillStale: "update the Rove agent skill to the version this build expects",
 
+    /** macOS: node-pty's spawn-helper prebuild lacks the exec bit */
+    spawnHelper: "restore the exec bit on node-pty's spawn-helper — every node-pty PTY spawn fails without it",
+    /** Why the chmod fix is safe */
+    spawnHelperWhy: "safe to run: chmod on two prebuilt binaries; idempotent, and `bun install` does the same",
+
     /** Why every `reset` fix is print-only */
     resetWhy: "stops the daemon, the PTY host, and every live session — not undoable, so doctor only prints it",
     /** Daemon process alive but its socket unreachable */
@@ -113,6 +118,9 @@ export const zh: typeof en = {
     skillInstallWhy: "可安全执行: 只写入 skill 文件; 重复运行是幂等的",
     skillMissing: "安装 Rove agent skill",
     skillStale: "把 Rove agent skill 更新到当前构建期望的版本",
+
+    spawnHelper: "恢复 node-pty spawn-helper 的可执行位 — 缺了它 node-pty 的每次 PTY 启动都会失败",
+    spawnHelperWhy: "可安全执行: 只对两个预编译二进制做 chmod; 幂等, `bun install` 也会做同样的事",
 
     resetWhy: "会停掉 daemon、PTY host 和所有活动会话 — 不可撤销, 所以 doctor 只打印",
     resetDaemonWedged: "daemon 进程存活但无法连接 (卡死)",
