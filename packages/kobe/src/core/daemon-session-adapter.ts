@@ -209,6 +209,44 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
   }
 }
 
+/** Exact-tab variant used by deferred queue draining. Never reroutes or spawns. */
+export async function deliverPromptToLiveEngineTabDetailedAdapter(
+  target: {
+    readonly id: string
+    readonly tabId: string
+    readonly vendor?: VendorId
+    readonly command?: string
+    readonly worktreePath: string
+  },
+  prompt: string,
+): Promise<
+  | { outcome: "delivered"; tabId: string }
+  | { outcome: "no-session" }
+  | { outcome: "busy"; tabId: string; layer: "recent-human-write" | "composer-not-empty" }
+> {
+  const host = await openHostedSessionHost()
+  if (!host) return { outcome: "no-session" }
+  try {
+    const key = `${target.id}::${target.tabId}`
+    const sessions = await listHostedSessions(host.rpc)
+    if (!sessions.some((session) => session.alive && session.key === key)) return { outcome: "no-session" }
+    const manifest = target.vendor ? engineEntry(target.vendor).screenManifest : undefined
+    try {
+      const delivered = await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })
+      return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: target.tabId }
+    } catch (err) {
+      if (err instanceof ComposerBusyError) {
+        return { outcome: "busy", tabId: target.tabId, layer: err.layer }
+      }
+      throw err
+    }
+  } catch {
+    return { outcome: "no-session" }
+  } finally {
+    host.close()
+  }
+}
+
 export async function tearDownTaskSessionAdapter(taskId: string): Promise<void> {
   const host = await openHostedSessionHost()
   if (!host) return

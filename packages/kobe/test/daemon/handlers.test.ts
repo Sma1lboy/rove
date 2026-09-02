@@ -91,6 +91,7 @@ describe("daemon handler registry", () => {
       "deferredPrompt.fileIfVacant",
       "deferredPrompt.get",
       "deferredPrompt.resolve",
+      "deferredPrompt.flush",
     ]
     const registry = createDaemonHandlerRegistry()
     for (const name of rpcNames) expect(registry.get(name), name).toBeDefined()

@@ -29,6 +29,31 @@ import { getPersistedBool } from "./store.ts"
 
 export const COMPOSER_GATE_KEY = "delivery.composerGate"
 
+export interface ComposerGatePreferenceStore {
+  get(key: string, fallback?: unknown): unknown
+  set(key: string, value: unknown): void
+  flush(): boolean
+}
+
+export function composerGatePreferenceOn(store: ComposerGatePreferenceStore): boolean {
+  return store.get(COMPOSER_GATE_KEY, true) !== false
+}
+
+/** Toggle the persisted gate and notify only after an on-to-off edge is durable. */
+export function toggleComposerGatePreference(
+  store: ComposerGatePreferenceStore,
+  onDisabled?: () => void,
+): "enabled" | "disabled" | "persist-failed" {
+  const next = !composerGatePreferenceOn(store)
+  store.set(COMPOSER_GATE_KEY, next)
+  if (next) return "enabled"
+  // KV writes are normally debounced. Flush before notifying the daemon so
+  // its fresh state.json read cannot race this transition and see the old ON.
+  if (!store.flush()) return "persist-failed"
+  onDisabled?.()
+  return "disabled"
+}
+
 /** Whether the screen-based composer check runs. Default true. */
 export function composerGateEnabled(): boolean {
   return getPersistedBool(COMPOSER_GATE_KEY, true)

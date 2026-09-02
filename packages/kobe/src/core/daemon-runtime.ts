@@ -28,6 +28,7 @@ import { handleThemesRequest } from "../web/themes.ts"
 import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
+  deliverPromptToLiveEngineTabDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
@@ -95,6 +96,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
+  deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
   settingsSnapshot: daemonSettingsSnapshot,
   settingsPatch: daemonSettingsPatch,
   handleDiffRequest,
