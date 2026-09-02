@@ -1,7 +1,7 @@
 /**
- * Quick-fork (issue #17, KOB-74) — resolve the composer's seed defaults from
- * the active task, and drive `orch.createTask` with the same tmux-parity
- * side effects `quick-task/host.tsx` and the shared `createTaskFlow`
+ * Quick-fork — resolve the composer's seed defaults from the active task,
+ * and drive `orch.createTask` with the same side effects
+ * `quick-task/host.tsx` and the shared `createTaskFlow`
  * (`tui/lib/task-actions.ts`) both perform: `addSavedRepo` + `setRepoLastActiveVendor`
  * before create, `selectTask`/`enterTask` after. Also owns the phase-2
  * first-prompt handoff (`useQuickFork`): the composer resolves on the
@@ -10,7 +10,7 @@
  *
  * Its own module because BOTH `TerminalTabs.tsx` and `host.tsx` drive this
  * gesture: the create/enter/pending-prompt shape must not exist twice, or the
- * two entry points diverge on the tmux-parity side effects above.
+ * two entry points diverge on the side effects above.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -62,7 +62,7 @@ export interface QuickForkOrchestrator {
 }
 
 /**
- * Create the forked task and apply the same tmux-parity side effects
+ * Create the forked task and apply the same side effects
  * `createTaskFlow`/`quick-task/host.tsx` apply on submit: remember the
  * picked vendor as the repo's new default and auto-save the repo.
  */
@@ -83,7 +83,7 @@ export async function createQuickForkTask(
  * `createTaskFlow` ends on. Errors are reported via `notifyError`, never
  * thrown. Returns the created task's id (undefined on failure) so the
  * caller can hand its first-prompt delivery to the new task's TerminalTabs
- * mount (phase 2, issue #17).
+ * mount (phase 2).
  */
 export async function runQuickFork(
   orch: QuickForkOrchestrator,
@@ -111,9 +111,8 @@ export async function runQuickFork(
  * Re-fire a task's stored brief as a NEW task ("Run again", row menu).
  *
  * Rove records the delivered `add --prompt` text on the task (`task.prompt`)
- * precisely so an attempt that went wrong can be re-run clean; before this the
- * only route was `get-task | jq -r .task.prompt` piped back into `add`. The
- * child is a quick-fork with the SOURCE's own inputs — same repo, same engine,
+ * precisely so an attempt that went wrong can be re-run clean. The child is a
+ * quick-fork with the SOURCE's own inputs — same repo, same engine,
  * cut from the base ref the source was cut from — so the only difference
  * between the two runs is the worktree.
  *
@@ -171,8 +170,8 @@ export interface UseQuickForkResult {
  * Host-level quick-fork wiring: runs the create+enter flow, then holds the
  * prompt for the ONE render cycle it takes `ShowWorkspace` to remount
  * `TerminalTabs` on the new task (a plain `{ taskId, prompt } | null`, not
- * a Map — `runQuickFork`'s `enterTask` already lands `selectedTask` on the
- * new task before this resolves, so there's only ever one pending prompt).
+ * a Map — `runQuickFork`'s `enterTask` lands `selectedTask` on the new task
+ * first, so at most one prompt is ever pending).
  */
 export function useQuickFork(
   orch: QuickForkOrchestrator,

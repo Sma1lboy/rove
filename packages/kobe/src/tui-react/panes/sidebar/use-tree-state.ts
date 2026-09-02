@@ -6,13 +6,12 @@
  * loads it in Node — while this one is React state; the fold and expansion
  * rules below need that separation to stay testable as plain data.
  *
- * There is NO fold anywhere (owner call 2026-08-01, round 5) except one: a
- * project's routine count row (issue #91), which folds ONLY the standing
- * sessions a schedule created. Every project and every task a human opened
- * still shows everything under it. The tree is a map, not a filing cabinet —
- * hiding rows made the map lie, and the exception is scoped so it can't: a
- * folded routine stays findable by search, and openable from the Inbox and
- * the Routines page.
+ * There is NO fold anywhere except one: a project's routine count row, which
+ * folds ONLY the standing sessions a schedule created. Every project and every
+ * task a human opened still shows everything under it. The tree is a map, not
+ * a filing cabinet — hiding rows makes the map lie, and the exception is
+ * scoped so it can't: a folded routine stays findable by search, and openable
+ * from the Inbox and the Routines page.
  *
  * The expansion set is deliberately NOT persisted: it resets closed each
  * session, because the resting state that keeps the sidebar readable is the
@@ -88,7 +87,7 @@ export interface TreeState {
   readonly projectIdOfTask: (taskId: string) => string | null
   /** The task whose move reorders this project (its `main` checkout). */
   readonly mainTaskIdOfProject: (projectId: string) => string | null
-  /** Toggle a project's routine count row (issue #91). True when `rowId` was
+  /** Toggle a project's routine count row. True when `rowId` was
    *  one — the press is then consumed, and no task activation follows. */
   readonly toggleRoutinesRow: (rowId: string) => boolean
 }
@@ -98,7 +97,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const query = opts.query ?? ""
   const searching = query.trim() !== ""
 
-  // Which projects' routine count rows are OPEN (issue #91). Session-scoped
+  // Which projects' routine count rows are OPEN. Session-scoped
   // on purpose: closed is the resting state worth returning to, so this
   // never reaches a store.
   const [expandedRoutines, setExpandedRoutines] = useState<ReadonlySet<string>>(() => new Set())
@@ -122,10 +121,10 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   // Live pty-host inventory, for tasks the snapshot can't answer for.
   const hostSessions = useHostSessions()
 
-  // Feed the host inventory's pids into the live-engine probe (issue #33):
-  // the local PTY registry only knows tabs THIS process attached, but the
-  // tree renders every task's hosted tabs — without the aux pids a `claude`
-  // typed into another task's shell tab never lit up until you visited it.
+  // Feed the host inventory's pids into the live-engine probe: the local PTY
+  // registry only knows tabs THIS process attached, but the tree renders every
+  // task's hosted tabs — without the aux pids a `claude` typed into another
+  // task's shell tab never lights up until you visit it.
   useEffect(() => {
     const pids = new Map<string, number>()
     for (const session of hostSessions) {
@@ -140,9 +139,9 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   // ptyKey → the host's LIVE OSC title. The host scans every session's
   // output whether or not anyone attached, so this answers for tabs whose
   // `TerminalTabs` is not mounted — the ones whose recorded `lastTitle`
-  // only moves when you click into them (owner report: the row's state glyph
-  // is live via the daemon's engine-state channel while its title sat frozen
-  // beside it). Empty titles are dropped: `""` is the host's "child has set
+  // only moves when you click into them, which leaves a row whose state glyph
+  // is live (daemon engine-state channel) sitting beside a frozen title.
+  // Empty titles are dropped: `""` is the host's "child has set
   // no title yet", not a name, and letting it through would blank a row that
   // has a perfectly good recorded one.
   const liveTitles = useMemo<ReadonlyMap<string, string>>(() => {
@@ -172,8 +171,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
           // restart). Only the can't-look case falls back to the RECORDED
           // `liveVendor` (itself tri-state — the persisted twin); a confirmed
           // engine-free shell must not resurrect the identity of whatever ran
-          // there before (a ctrl+C'd codex kept its tab labelled "codex N"
-          // through the old `?? recorded` fallback).
+          // there before — a ctrl+C'd codex would keep its tab labelled
+          // "codex N" if the recorded value were a blanket fallback.
           const ptyKey = tabPtyKeyFor(task.id, tab)
           const probed = liveEngines.resolve(ptyKey)
           const live = probed === undefined ? tab.liveVendor : probed
@@ -206,8 +205,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
 
   // Backstop: any LIVE pty session the snapshots don't answer for becomes an
   // explicit unregistered row — tab-granular, so a task whose snapshot lists
-  // tab-2 while tab-1 is alive still shows tab-1 (issue #20's invisible
-  // engine). See `orphan-tabs.ts`.
+  // tab-2 while tab-1 is alive still shows tab-1 rather than hiding a live
+  // engine. See `orphan-tabs.ts`.
   const orphansByTask = useMemo<ReadonlyMap<string, readonly TreeTab[]>>(() => {
     const registered = new Set<string>()
     for (const [taskId, tabs] of snapshotTabs) for (const tab of tabs) registered.add(tabRowId(taskId, tab.id))
@@ -220,8 +219,8 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   }, [snapshotTabs, hostSessions, tasks])
 
   // …and then it stops being unregistered: a row nobody can open or close is
-  // worse than the divergence it reports (the owner watched a live engine he
-  // could neither read nor end). Adoption writes the session into the task's
+  // worse than the divergence it reports — a live engine you can neither read
+  // nor end. Adoption writes the session into the task's
   // tab state, so the ⚠ row turns into an ordinary tab on the next tick —
   // idempotent, so the poll driving it costs nothing once reconciled.
   useEffect(() => {
@@ -250,7 +249,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
   const recentTask = opts.recentTask ?? null
   const sortMode = opts.sortMode ?? "default"
   const { rows, totalCount } = useMemo(() => {
-    // A SEARCH builds the tree fully expanded (issue #91): folding the routine
+    // A SEARCH builds the tree fully expanded: folding the routine
     // sessions away at rest must not make them unfindable, and search is how
     // you reach one without opening the fold first. `filterTreeRows` then
     // drops the (now empty) count row itself.
@@ -310,7 +309,7 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
     activeRowId,
     projectIdOfTask,
     mainTaskIdOfProject: mainTaskOfProject,
-    /** Open/close a project's routine count row (issue #91). Returns true when
+    /** Open/close a project's routine count row. Returns true when
      *  `rowId` WAS a routine row, so the caller knows the press was consumed
      *  and must not also try to activate a task by that id. */
     toggleRoutinesRow: useCallback(

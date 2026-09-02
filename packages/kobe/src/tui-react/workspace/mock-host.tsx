@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `dev:mock-react-workspace` — the ported `TerminalTabs` cluster (tab
- * strip, terminal split, engine picker, rename dialog, turn polls) against
+ * `dev:mock-react-workspace` — the `TerminalTabs` cluster (tab strip,
+ * terminal split, engine picker, rename dialog, turn polls) against
  * REAL in-process PTYs, no daemon/orchestrator/engine involved — same
  * "prove the seam live, no fake" convention as `tui/mock/terminal-host.tsx`
  * (`dev:mock-terminal`). `getDefaultPtyRegistry()` has no injectable mock

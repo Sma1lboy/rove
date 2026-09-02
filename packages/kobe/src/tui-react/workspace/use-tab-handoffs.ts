@@ -44,7 +44,7 @@ export interface TabHandoffIO {
 type EnginePtyIO = Pick<TabHandoffIO, "stateRef" | "propsRef" | "engineTabSpawnRef">
 
 /** The engine tab's live PTY — the active tab when it's an engine, else the
- *  first engine tab; a parked background tab (issue #28) is re-acquired
+ *  first engine tab; a parked background tab is re-acquired
  *  (reattach + replay, then the paste lands). Reads everything through the
  *  latest-render refs, so one closure stays valid for the mount's life. */
 function resolveEnginePty(io: EnginePtyIO): ReturnType<ReturnType<typeof getDefaultPtyRegistry>["get"]> | null {
@@ -119,10 +119,10 @@ export function useTabHandoffs(io: TabHandoffIO): {
     })
   }, [])
 
-  // Read-only diff/preview tab (issue #21): the FileTree `d` action. A
-  // content swap, NOT a focus grab — `openContentTab` selects the tab but
-  // the host never calls `focus.setFocused` here (KOB-25), so keyboard focus
-  // stays on the FileTree that opened it.
+  // Read-only diff/preview tab: the FileTree `d` action. A content swap, NOT
+  // a focus grab — `openContentTab` selects the tab but the host never calls
+  // `focus.setFocused` here, so keyboard focus stays on the FileTree that
+  // opened it.
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once handoff; the callback reads propsRef/stateRef for freshness.
   useEffect(() => {
     propsRef.current.onDiffTabReady?.((relPath, label, base) => {

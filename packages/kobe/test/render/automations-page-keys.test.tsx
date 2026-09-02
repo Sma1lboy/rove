@@ -34,8 +34,8 @@ const ONLINE = createStateCell("online")
 
 function orchestrator(automations: unknown[] = []) {
   return {
-    // The page no longer reads this; kept so a re-added reader can't
-    // silently crash the test.
+    // The page does not read this; kept so a re-added reader can't silently
+    // crash the test.
     connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),
@@ -55,8 +55,8 @@ test("n opens the create flow", async () => {
 })
 
 test("esc closes the create flow", async () => {
-  // The composer used to bind escape itself and only resolve the promise —
-  // as a modal MEMBER it outranked the barrier, so the card never popped.
+  // A composer that binds escape itself and only resolves the promise is a
+  // modal MEMBER outranking the barrier, so the card never pops.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
@@ -89,8 +89,8 @@ test("esc closes the page", async () => {
 })
 
 test("keys stay dead while another pane holds focus", async () => {
-  // The sidebar binds `n` too (new task). Both are live at once now that rail
-  // pages no longer disable the workspace chords, so the page must yield.
+  // The sidebar binds `n` too (new task), and rail pages do not disable the
+  // workspace chords, so both are live at once and the page must yield.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={false} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },

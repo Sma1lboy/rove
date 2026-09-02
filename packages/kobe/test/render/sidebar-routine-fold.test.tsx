@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The sidebar's routine fold (issue #91), against real captured frames.
+ * The sidebar's routine fold, against real captured frames.
  *
  * Asserted on the FRAME, not on `buildTreeRows`' output: the thing that has to
  * be true is that a routine session's row is not on screen at rest, and a pure

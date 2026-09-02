@@ -4,20 +4,19 @@
  * quiescence poll, still the source for `liveTitles`/`turnVendors` and the
  * no-hooks fallback) and merges the daemon's hook-driven per-tab engine
  * state over it (`turn-state-merge.ts`, hook-wins per tabId). Also owns the
- * per-tab background-attention notifications that used to live inline in
- * `TerminalTabs`: a rising edge into done/error/needs_input on a NON-active
+ * per-tab background-attention notifications: a rising edge into
+ * done/error/needs_input on a NON-active
  * tab fires `notif.notify` (toast + unread). Edge detection is the shared
  * framework-free `attentionEdges` (seed rule inside — a fresh mount's
  * replayed sticky `turn_complete` paints the ✓ chip but never re-fires a
  * toast; `TerminalTabs` remounts per worktree via `key={path}`, so task
  * switches re-seed).
  *
- * Also owns the strip's half of the DURABLE seen bit (issue #23). The chip
- * used to be backed by a purely in-process unread map, so a completion you
- * had already read came back looking fresh after a restart while the
- * sidebar lamp — persisted since issue #22 — said otherwise. Both surfaces
- * now read and write the one `(task, tab) → seen-at` record in
- * `completion-seen.ts`; the strip must keep its own write because the rail
+ * Also owns the strip's half of the DURABLE seen bit. A purely in-process
+ * unread map would make a completion you already read look fresh again after
+ * a restart while the persisted sidebar lamp said otherwise, so both surfaces
+ * read and write the one `(task, tab) → seen-at` record in
+ * `completion-seen.ts`. The strip must keep its own write because the rail
  * is not always mounted (narrow layout hides it behind the workspace, which
  * is exactly where the strip is the only tab affordance).
  */
@@ -55,9 +54,9 @@ export function useTabTurnState(deps: {
   /** Task title — the toast's context line under the tab label. */
   taskTitle?: string
   notif: NotificationsContext
-  /** Tab-state writer — used to RECORD each tab's latest live title. */
+  /** Tab-state writer — RECORDS each tab's latest live title. */
   update?: (next: TabsState) => void
-  /** Confirmed ESC interrupt on a hook-running tab (issue #15) — the host
+  /** Confirmed ESC interrupt on a hook-running tab — the host
    *  reports it to the daemon as a `turn-interrupted` engine event. */
   onEngineInterrupt?: (tabId: string) => void
 }): {
@@ -71,7 +70,7 @@ export function useTabTurnState(deps: {
 
   const turnStates = useMemo(() => mergeTurnStates(deps.hookTabStates, pollStates), [deps.hookTabStates, pollStates])
 
-  // ESC-interrupt watch (issue #15): a hook-claimed `running` tab whose RAW
+  // ESC-interrupt watch: a hook-claimed `running` tab whose RAW
   // live title flipped to the engine's resting form ended its turn without
   // any hook (claude-code's abort path runs none). The observer owns the
   // Stop-race debounce; both callbacks read LIVE state through refs so a
@@ -128,8 +127,8 @@ export function useTabTurnState(deps: {
       // The engine this tab was running is gone (vendor → confirmed null):
       // reset the tab to the shell it always was, BEFORE recording the new
       // identity. `kind` describes what runs here now — leaving it at
-      // "engine" is what kept a dot on the sidebar row and made every
-      // keystroke mark an optimistic turn for a session that had exited.
+      // "engine" keeps a dot on the sidebar row and makes every keystroke
+      // mark an optimistic turn for a session that has exited.
       const tab = next.tabs.find((t) => t.id === tabId)
       const demoted = tab ? demoteExitedEngine(tab, tab.liveVendor, live, [defaultShell()]) : undefined
       if (tab && demoted && demoted !== tab) {
@@ -177,14 +176,13 @@ export function useTabTurnState(deps: {
 }
 
 /**
- * Read + record the durable completion-seen marks for this task's tabs
- * (issue #23) — the strip's counterpart to the sidebar row's
- * `useDurableCompletionSeen`.
+ * Read + record the durable completion-seen marks for this task's tabs — the
+ * strip's counterpart to the sidebar row's `useDurableCompletionSeen`.
  *
  * Only a HOOK-reported completion carries the stamp the mark is keyed on;
  * the quiescence poll infers `done` with no timestamp, so a poll-only tab
- * simply never digests (the pre-#23 behaviour) rather than being marked
- * seen against a stamp we made up. The write is an effect for the same
+ * simply never digests rather than being marked seen against a stamp we made
+ * up. The write is an effect for the same
  * reason the rail's is: `kv.set` re-renders every KV consumer.
  */
 export function useDurableTabSeen(

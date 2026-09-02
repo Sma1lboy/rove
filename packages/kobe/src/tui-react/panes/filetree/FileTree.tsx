@@ -1,10 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React file tree pane — the `src/tui/panes/filetree/FileTree.tsx`
- * counterpart (issue #15, G3). Same behavior, same shared framework-free
- * logic (`git.ts`, `rows.ts`, `pane-core.ts`, `keys-core.ts`,
- * `open-external.ts`); this file owns only the React reactivity, following
- * THE ASYNC CANON from `src/tui-react/history/host.tsx`:
+ * File tree pane. The behavior lives in the shared framework-free logic
+ * (`git.ts`, `rows.ts`, `pane-core.ts`, `keys-core.ts`, `open-external.ts`);
+ * this file owns only the React reactivity, following THE ASYNC CANON from
+ * `src/tui-react/history/host.tsx`:
  *
  *   - each async git read is `useState` + a dependency-keyed `useEffect`;
  *   - the last resolved value stays visible while a refresh is in flight;
@@ -12,15 +11,11 @@
  *   - the opt-in fs watch bumps a `refreshTick` scalar the data effect
  *     refetches from, instead of owning its own fetch.
  *
- * Solid→React prop delta: `worktreePath` / `focused` are plain values here
- * (React re-renders on prop change), not Accessors.
- *
- * Fetch-effect shape mirrors the Solid original 1:1 — three effects on
- * worktree change (wipe + reload), tab change (cache-first + cursor
- * reset), and refresh tick (cursor-preserving reload). Content-equality
- * setters (`sameFileList` / `sameStatusEntries`) keep no-change refreshes
- * from re-rendering, the same renderable-churn guard the Solid pane
- * carries (rows.ts has the memory-leak story).
+ * Three fetch effects: worktree change (wipe + reload), tab change
+ * (cache-first + cursor reset), and refresh tick (cursor-preserving reload).
+ * Content-equality setters (`sameFileList` / `sameStatusEntries`) keep
+ * no-change refreshes from re-rendering — see rows.ts for why renderable
+ * churn matters here.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -65,8 +60,7 @@ import { useLatest } from "../../lib/use-latest"
 import { FileTreeHeaderView } from "./header-view"
 import { FileTreeRowView } from "./row-view"
 
-/** Public props — the Solid `FileTreeProps` with plain values for the
- * reactive fields (see file header). Same field docs as the Solid pane. */
+/** Public props. */
 export type FileTreeProps = {
   /** Active task's worktree path; `null` renders the "No worktree" placeholder. */
   worktreePath: string | null
@@ -84,7 +78,7 @@ export type FileTreeProps = {
   onMention?: (relPath: string) => void
   /** `p` — request PR creation (workspace host only); also rendered as a chip. */
   onCreatePR?: () => void
-  /** Zen-mode chip left of Create PR (enter-only, see the Solid pane doc). */
+  /** Zen-mode chip left of Create PR (enter-only). */
   onZenToggle?: () => void
   /** Whether the pane has keyboard focus. Defaults to `true`. */
   focused?: boolean
@@ -123,7 +117,7 @@ export function FileTree(props: FileTreeProps) {
   const [expandedDirs, setExpandedDirs] = useState<ReadonlySet<string>>(() => new Set())
 
   // Latest-render mirrors for effect bodies that must read a value without
-  // depending on it (the Solid originals read these untracked inside `on(...)`).
+  // depending on it.
   const pathRef = useLatest(props.worktreePath)
   const tabRef = useLatest(tab)
   const allFilesRef = useLatest(allFiles)
@@ -183,7 +177,8 @@ export function FileTree(props: FileTreeProps) {
   )
 
   // Re-fetch when the worktree changes — wipe all caches first because the
-  // old cache no longer applies. Cleanup aborts the in-flight git read so
+  // previous worktree's cache does not apply. Cleanup aborts the in-flight
+  // git read so
   // rapid task-switches don't stack subprocesses. Scope resets to its
   // auto-fallback default (working, un-toggled) for the new task.
   useEffect(() => {
@@ -282,7 +277,7 @@ export function FileTree(props: FileTreeProps) {
 
   // Derived rows, reconciled against the previous list so unchanged rows
   // keep object identity (stable React keys + reference-equal memo output
-  // when nothing changed — same renderable-reuse story as the Solid pane).
+  // when nothing changed), so opentui reuses the renderables.
   const prevRows = useRef<readonly Row[]>([])
   const rows = useMemo<readonly Row[]>(() => {
     const next: Row[] = []

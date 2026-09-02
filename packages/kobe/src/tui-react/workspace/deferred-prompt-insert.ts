@@ -1,5 +1,5 @@
 /**
- * Exit path for a deferred prompt (issue #78 B-layer, hard constraint #1+#3).
+ * Exit path for a deferred prompt.
  *
  * Opening a `prompt_deferred` inbox item jumps to the tab AND inserts the
  * queued message — one action, reusing the existing open action (no new

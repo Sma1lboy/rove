@@ -1,17 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * KV store provider — React port of `src/tui/context/kv.tsx` (issue #15,
- * G3). Persistence semantics (snapshot hydration, dirty-key merge flush,
- * whole-file clear) live in the framework-free `./kv-core`; this file owns
- * only the React reactivity: the provider subscribes to the core via
- * `useSyncExternalStore` and rebuilds the context value per snapshot, so
- * every consumer under the provider re-renders on any `kv.set`.
+ * KV store provider. Persistence semantics (snapshot hydration, dirty-key
+ * merge flush, whole-file clear) live in the framework-free `./kv-core`;
+ * this file owns only the React reactivity: the provider subscribes to the
+ * core via `useSyncExternalStore` and rebuilds the context value per
+ * snapshot, so every consumer under the provider re-renders on any `kv.set`.
  *
- * API parity with the Solid provider: `ready` / `store` / `signal` / `get`
- * / `set` / `flush` / `clear`. Delta by design: `signal` returns a plain
- * `[read, write]` tuple (Solid's `Setter` overload has no React
- * equivalent), and `store` is the immutable snapshot rather than a
- * fine-grained proxy.
+ * API: `ready` / `store` / `signal` / `get` / `set` / `flush` / `clear`.
+ * `signal` returns a plain `[read, write]` tuple, and `store` is the
+ * immutable snapshot rather than a fine-grained proxy.
  */
 
 import { type ReactNode, createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react"
@@ -32,17 +29,16 @@ export type KVContext = {
 const Ctx = createContext<KVContext | null>(null)
 
 export function KVProvider(props: { children?: ReactNode }) {
-  // One core per provider instance, hydrated synchronously at first render
-  // (mirrors the Solid provider's init-time loadStateFile()).
+  // One core per provider instance, hydrated synchronously at first render.
   const [core] = useState<KvCore>(createKvCore)
   const snapshot = useSyncExternalStore(core.subscribe, core.snapshot, core.snapshot)
 
-  // Exit flush (issues #22/#23): writes are 250ms-debounced, and every quit
-  // path — the confirm chord, ctrl+c, the signal backstop, a page's bare
-  // `process.exit(0)` — ends the process synchronously, so a state change
-  // made inside that window never reached disk. Reading a completion and
-  // quitting straight after therefore relit the lamp on the next launch,
-  // the very bug the durable seen mark exists to prevent.
+  // Exit flush: writes are 250ms-debounced, and every quit path — the confirm
+  // chord, ctrl+c, the signal backstop, a page's bare `process.exit(0)` —
+  // ends the process synchronously, so without this a state change made
+  // inside that window never reaches disk. Reading a completion and quitting
+  // straight after would relight the lamp on the next launch, which is what
+  // the durable seen mark exists to prevent.
   //
   // Registered here rather than at the quit call sites: "exit" is the one
   // hook every path passes through (it fires on process.exit, unlike

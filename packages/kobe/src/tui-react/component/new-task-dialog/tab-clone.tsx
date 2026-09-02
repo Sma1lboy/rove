@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Clone ("For New Repo") tab of the React new-task dialog (issue #15,
- * G3W2) — git URL, parent dir (with the same drill-down picker the
+ * Clone ("For New Repo") tab of the new-task dialog — git URL, parent dir (with the same drill-down picker the
  * existing tab uses), auto-derived folder name, base branch. The async
  * clone runs in the view-model; this file is JSX only.
  */

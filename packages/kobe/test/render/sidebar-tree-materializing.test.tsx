@@ -6,13 +6,14 @@
  * a minutes-long `git worktree add`.
  *
  * The rows the user stares at during that minute are WORKTREE rows, and the
- * one row that used to carry the materializing spinner — the task's active tab
- * row — does not exist yet, because a tab is only recorded once delivery
- * succeeds. So the whole fan-out sat frozen on N identical `(new task)` rows.
+ * task's active TAB row — the natural place for a materializing spinner —
+ * does not exist yet, because a tab is only recorded once delivery succeeds.
+ * Put the spinner there and the whole fan-out sits frozen on N identical
+ * `(new task)` rows.
  *
  * A real mount here rather than a pure assertion on purpose: the claim is
- * "the spinner reaches the frame", and the previous bug was precisely a signal
- * that arrived everywhere except the cells.
+ * "the spinner reaches the frame", and the failure mode is a signal that
+ * arrives everywhere except the cells.
  */
 import { expect, test } from "bun:test"
 import { DEFAULT_SPINNER_FRAMES } from "../../src/engine/spinner-frames"
@@ -110,7 +111,7 @@ test("only the tasks WITH a job spin — a sibling that finished stops", async (
 })
 
 test("a job does NOT leak the task-level activity rollup onto sibling tabs", async () => {
-  // The guard on the fix: the worktree row reads `taskJobs` directly and must
+  // The guard: the worktree row reads `taskJobs` directly and must
   // not start routing task-level ENGINE activity onto rows that have no tab
   // identity — that rollup leak is what `carriesState` exists to stop.
   // A task-level `running` entry with no job in flight must light nothing.

@@ -28,7 +28,8 @@ import {
 export type ChatForkPlan =
   /** Same engine, native fork: it reopens its own conversation and branches. */
   | { readonly kind: "fork"; readonly sessionId: string }
-  /** Different engine: it starts fresh, briefed to read the old transcript. */
+  /** Different engine: it starts fresh, briefed to read the source
+   *  transcript. */
   | { readonly kind: "handoff"; readonly prompt: string }
   /** Nothing to continue from — this tab has no conversation yet. */
   | { readonly kind: "no-session" }
@@ -43,9 +44,9 @@ export type ChatForkPlan =
  * A custom preset registered without `engineProtocol.<id>` (the shape every
  * pre-`engineProtocol` preset has on disk) resolves to the empty custom
  * registry entry: no transcript reader, no fork verb — so a `claudecpa` tab
- * that has been talking to claude all along reported "nothing to continue"
- * (owner report 2026-09-02). The process-tree walk already answered this
- * question and recorded it as `EngineTab.liveVendor`; this is the join.
+ * that has been talking to claude all along would report "nothing to
+ * continue". The process-tree walk already answers this question and records
+ * it as `EngineTab.liveVendor`; this is the join.
  *
  * Evidence, never a default. A declared protocol (built-in, contrib, or a
  * preset that named one) is authoritative and wins; a live vendor that names
@@ -84,7 +85,7 @@ export async function planChatContinuation(
 }
 
 /**
- * "Continue this conversation" for the FORK destination (issue #7): the
+ * "Continue this conversation" for the FORK destination: the
  * child task runs in a NEW worktree, and engine-native session forks are
  * keyed to the source cwd — so this is ALWAYS a handoff (or a refusal),
  * never `{ kind: "fork" }`. The brief names the source worktree, which is

@@ -1,19 +1,17 @@
 /**
- * Workspace-host keybinding registration — React port of `tui/workspace/
- * host-keybindings.ts` (issue #16 React migration). Owns the four
- * `useBindings` blocks the native workspace needs, plus the quit/exit and
- * pane-cycle helpers only those bindings use.
+ * Workspace-host keybinding registration. Owns the four `useBindings` blocks
+ * the native workspace needs, plus the quit/exit and pane-cycle helpers only
+ * those bindings use.
  *
  * Pure wiring: every handler is a closure the host passes in; this module
  * adds no state of its own beyond the renderer handle `exitApp` needs. See
  * `docs/KEYBINDINGS.md` for the scope/boundary rules these rows follow.
  *
- * Solid→React deltas: `settingsOpen`/`worktreesOpen`/`searchActive`/
- * `selectedId` are plain values (the host re-renders on change), not
- * Accessors — `useBindings`'s config function is re-evaluated on every
- * keypress via a render-refreshed ref (`tui-react/lib/keymap.ts`), so a
- * plain closure over these params is exactly as fresh as the Solid
- * Accessor calls were.
+ * `settingsOpen`/`worktreesOpen`/`searchActive`/`selectedId` are plain values
+ * (the host re-renders on change), and `useBindings`'s config function is
+ * re-evaluated on every keypress via a render-refreshed ref
+ * (`tui-react/lib/keymap.ts`) — so a plain closure over these params reads
+ * the current value, not the one from its registering render.
  */
 
 import { useRenderer } from "@opentui/react"
@@ -100,7 +98,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     if (ok) exitApp()
   }
 
-  // Cursor semantics, not a ring (owner call 2026-07-25): focus movement
+  // Cursor semantics, not a ring: focus movement
   // clamps at both ends — sidebar ← workspace → files — instead of
   // wrapping, so "previous" from the sidebar never jumps to files.
   function cyclePane(delta: 1 | -1): void {
@@ -131,7 +129,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // f4 — reserved from terminal passthrough, so the cycle behaves
         // identically from every pane including inside the terminal.
         "focus.next": prefixAction(() => cyclePane(1)),
-        // prefix+z only (owner call 2026-07-17). The configured prefix is
+        // prefix+z only. The configured prefix is
         // Kobe-global, so this remains reachable inside the terminal pane.
         "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
         // f7 — reserved from terminal passthrough too, so "jump to the
@@ -143,8 +141,8 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         "workItems.open": prefixAction(() => deps.pages.openWorkItems()),
         "task.moveMode": prefixAction(() => deps.enterMoveMode()),
         // prefix+, — the global companion to the sidebar's bare `s`. The
-        // row shipped in the table (and docs) without a handler here, so
-        // the chord was dead outside the sidebar.
+        // row exists in the table (and docs); without a handler here the
+        // chord is dead outside the sidebar.
         "settings.open": prefixAction(() => deps.pages.openSettings()),
         "files.createPR": prefixAction(() => deps.createPR()),
         // Global scope, so it acts on the active task — except while the
@@ -182,7 +180,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       "tasks.update": () => deps.pages.openUpdate(),
     }),
   }))
-  // Task-lifecycle chords (issue #20 — the tmux Tasks pane's n/b/v set).
+  // Task-lifecycle chords — the n/b/v set.
   // d/a/r/pin/move fire from the Sidebar's OWN keys via the Request props;
   // these three are host-scoped in both hosts. Gated on sidebar focus + no
   // dialog + search inactive (typing `n` into the search box must not open

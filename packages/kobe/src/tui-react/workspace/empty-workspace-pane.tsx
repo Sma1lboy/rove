@@ -8,12 +8,12 @@
  * this state: they are all registered inside that component. Entering the
  * task from the sidebar revives it (`reviveEmptiedTabs`), but this pane is
  * also reached WITHOUT an activation — restart restore, or a task emptied
- * while already on screen — and there the placeholder used to name two keys
- * that had no handler at all.
+ * while already on screen — so a placeholder that only NAMES the keys would
+ * name two chords with no handler at all.
  *
  * So the placeholder owns them itself. Both chords do the same thing (revive
  * this task's session), because from here there is only one thing to do:
- *   - `workspace.reopenSession` (⏎) — owner sign-off 2026-08-31.
+ *   - `workspace.reopenSession` (⏎).
  *   - `chat.tab.chooseEngine` (ctrl+e) — the SAME id `TerminalTabs` binds.
  *     Registering it here is not a second chord, it is the one chord staying
  *     answerable in the state where its usual owner is unmounted.

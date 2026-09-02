@@ -1,17 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The frame goldens (`test/render/golden/*.frame.txt`) now lock what this
- * sidebar RENDERS — the project header, the per-level indent, the resting and
- * live state glyphs, the pruned search tree — as whole captured frames rather
- * than as substring probes that say nothing about the cells they don't name.
- * The cases that asserted those things were removed here rather than kept as
- * a weaker duplicate.
+ * The frame goldens (`test/render/golden/*.frame.txt`) lock what this sidebar
+ * RENDERS — the project header, the per-level indent, the resting and live
+ * state glyphs, the pruned search tree — as whole captured frames rather than
+ * as substring probes that say nothing about the cells they don't name.
  *
- * What remains is this file's original reason to exist, which no frame can
- * cover: pressing a real key and proving the CALLBACK fired. The Automations
- * page once shipped with every one of its keys dead (a `Binding[]` passed as
- * an object literal) and a frame-only test stayed green through it — a tree
- * whose j/k/enter silently do nothing looks exactly like a tree that renders
+ * This file covers what no frame can: pressing a real key and proving the
+ * CALLBACK fired. A `Binding[]` passed as an object literal is enough to kill
+ * every key on a page while a frame-only test stays green — a tree whose
+ * j/k/enter silently do nothing looks exactly like a tree that renders
  * correctly.
  */
 import { expect, test } from "bun:test"
@@ -82,8 +79,8 @@ test("enter on a tab row activates that tab, not just its task", async () => {
 })
 
 test("l on a tab row enters that tab's chat — there is no fold", async () => {
-  // Owner call 2026-08-01 round 5: the tree never folds, so `l` is "go in".
-  // On the last level (a tab row) that means entering the tab.
+  // The tree never folds, so `l` is "go in". On the last level (a tab row)
+  // that means entering the tab.
   seedTabs("a", ["tab-1", "tab-2"])
   const picked: Array<[string, string]> = []
   const { frame, mockInput } = await renderComponent(
@@ -179,7 +176,7 @@ test("escape leaves search and restores the full tree", async () => {
   expect(text).not.toContain("/bravo")
 })
 
-// ─── Move mode is scope-aware (issue #43): the cursor row's LEVEL moves ───
+// ─── Move mode is scope-aware: the cursor row's LEVEL moves ───
 
 test("move mode on a TASK row moves the task itself within its repo group", async () => {
   tabsByTask.clear()
@@ -209,7 +206,7 @@ test("move mode on a TASK row moves the task itself within its repo group", asyn
 
 test("move mode on a MAIN row drags the whole project", async () => {
   // Project order is the mains' stored order, so moving the main IS moving
-  // the group — the pre-#43 behavior, now scoped to the main row.
+  // the group. Scoped to the main row: no other row drags its project.
   tabsByTask.clear()
   const moves: Array<[string, number]> = []
   const tasks = [MAIN, task("a")]

@@ -1,5 +1,5 @@
 /**
- * kv-backed preference helpers for the settings dialog (issue #15, G3) —
+ * kv-backed preference helpers for the settings dialog —
  * the General/Dev getter+toggle closures, kept apart from `./index.tsx` so the
  * dialog's structure (which sections, which is open) never mixes with the
  * per-preference kv keys and their normalizers. Adding a preference edits only
@@ -111,8 +111,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
 
   // Chat tab strip: never / only with 2+ tabs / always. Cycles rather than
-  // toggles — the sidebar tree made "off" the default, so the setting has
-  // three states instead of the old boolean (see state/tab-strip.ts).
+  // toggles — "off" is the default now that the sidebar tree lists tabs, so
+  // the setting has three states rather than a boolean (state/tab-strip.ts).
   function tabStripMode(): TabStripMode {
     return resolveTabStripMode(kv.get(TAB_STRIP_MODE_KEY, undefined), kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined))
   }

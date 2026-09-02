@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings sections (issue #15 G3) — sidebar + General. Row indices come
+ * Settings sections — sidebar + General. Row indices come
  * from the shared framework-free row registry (`../../../tui/component/
  * settings-dialog/model`), so keyboard navigation and click targets stay
  * in lockstep with the dialog's key handlers. kv-backed prefs arrive as

@@ -3,12 +3,10 @@
  *
  * opentui hard-codes `borderStyle: "single"` (square corners) as its Box
  * default and offers no global override, so every framed surface in the TUI
- * has to opt into rounded corners itself. That is a rule nobody can follow
- * reliably from memory: half the framed boxes in `tui-react` said `border`
- * and nothing else, and each shipped square until somebody noticed it looked
- * foreign beside its neighbours — the workspace pane, the files pane and the
- * tab strip were rounded while the kanban board, the prefix HUD, the context
- * menu and the story dialog were not.
+ * has to opt into rounded corners itself. A box that says `border` and
+ * nothing else silently opts OUT of the house style, and a square frame beside
+ * rounded neighbours reads as foreign — which is a rule nobody follows
+ * reliably from memory.
  *
  * Spread this instead of writing `border` by hand:
  *

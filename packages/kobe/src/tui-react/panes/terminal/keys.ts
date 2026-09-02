@@ -1,17 +1,15 @@
 /**
- * Terminal pane key bindings — React hook layer, the
- * `tui/panes/terminal/keys.ts` counterpart (issue #16 React migration).
+ * Terminal pane key bindings — the React hook layer.
  *
- * Same passthrough contract as the Solid hook: when focused, every
- * keystroke the shell would expect (ctrl+c, ctrl+d, arrows, …) is
- * forwarded verbatim. The dynamically configured command prefix,
- * `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown scrollback chords stay
- * kobe-owned — see `keys-pure.ts` for the full rationale.
+ * Passthrough contract: when focused, every keystroke the shell would expect
+ * (ctrl+c, ctrl+d, arrows, …) is forwarded verbatim. The dynamically
+ * configured command prefix, `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown
+ * scrollback chords stay kobe-owned — see `keys-pure.ts` for the full
+ * rationale.
  *
- * Pure/runtime split preserved: `keys-pure.ts` (constants + the
- * side-effect-free byte encoder) is imported straight from the Solid
- * cluster; this file owns only the React registration (`useBindings` +
- * the raw keypress/paste listeners on the renderer).
+ * Pure/runtime split: `keys-pure.ts` holds the constants + the
+ * side-effect-free byte encoder; this file owns only the React registration
+ * (`useBindings` + the raw keypress/paste listeners on the renderer).
  */
 
 import { type KeyEvent, decodePasteBytes } from "@opentui/core"
@@ -88,10 +86,9 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
   }))
 
   // Catch-all input forwarder for IME/pinyin composition commits and any
-  // input whose `name` isn't in `PASSTHROUGH_NAMES` — see the Solid
-  // original for the full defaultPrevented rationale. Registered ONCE
-  // (empty deps) and reads the latest `opts` through a render-refreshed
-  // ref, so it doesn't re-subscribe to the renderer's emitter every render.
+  // input whose `name` isn't in `PASSTHROUGH_NAMES`. Registered ONCE (empty
+  // deps) and reads the latest `opts` through a render-refreshed ref, so it
+  // doesn't re-subscribe to the renderer's emitter every render.
   const renderer = useRenderer()
   useEffect(() => {
     if (!renderer) return

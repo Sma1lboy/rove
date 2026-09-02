@@ -1,18 +1,17 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Failed mutations must be VISIBLE — the regression this branch fixes:
+ * Failed mutations must be VISIBLE, and there are two ways for them not to be:
  *
- *   - Kanban issue create/delete logged to the daemon log only; under the
- *     alternate screen a bare `console.error` is invisible, so the card just
- *     stayed on the board.
- *   - Automations / Work-items failures rendered as a muted `textMuted`
+ *   - a Kanban issue create/delete that only logs — under the alternate screen
+ *     a bare `console.error` is invisible, so the card just stays on the board;
+ *   - an Automations / Work-items failure rendered as a muted `textMuted`
  *     inline line — reads as a hint, not a failure.
  *
- * All three pages now push failures through the shared toast queue. Each
- * test mounts the REAL page plus the REAL `ToastOverlay` and drives the REAL
- * keys (down/d/enter, e, return) against a rejecting orchestrator mock, then
+ * All three pages push failures through the shared toast queue. Each test
+ * mounts the REAL page plus the REAL `ToastOverlay` and drives the REAL keys
+ * (down/d/enter, e, return) against a rejecting orchestrator mock, then
  * asserts the error toast painted on the frame — the "✕" glyph the toast
- * overlay draws, which no pre-fix rendering produced.
+ * overlay draws, which neither silent rendering produces.
  */
 import { expect, test } from "bun:test"
 import { createStateCell } from "../../src/lib/external-store"
@@ -36,7 +35,7 @@ async function coloredSpans(spans: () => Promise<import("@opentui/core").Capture
 /**
  * The failure is a TOAST, not the page's muted notice line: some span must
  * carry the "✕" toast glyph, and the span carrying `message` must not paint
- * with the same color as `mutedNeedle`'s span (the pre-fix `textMuted` look).
+ * with the same color as `mutedNeedle`'s span (the muted-notice look).
  */
 async function expectErrorToast(
   frame: string,
@@ -140,7 +139,7 @@ const AUTOMATION = {
   updatedAt: "2026-07-01T00:00:00Z",
 }
 
-/** The page no longer reads the connection signal, but the fake orchestrator
+/** The page does not read the connection signal, but the fake orchestrator
  *  still answers it so a re-added reader can't silently crash this test.
  *  Hoisted so `useSyncExternalStore` sees one stable store identity. */
 const ONLINE = createStateCell("online")

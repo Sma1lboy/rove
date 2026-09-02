@@ -3,16 +3,16 @@
  * Change-engine dialog — the tree menu's "Change engine" entry. The `v` chord
  * cycles blindly to the next available engine; a menu entry that did the same
  * would hide which engine the user is about to land on, so the menu offers a
- * pick instead (owner call 2026-09-01). Same shape as `status-picker-dialog`:
+ * pick instead. Same shape as `status-picker-dialog`:
  * a plain pick over a closed list, no free text — the list IS what
  * `availableEngineIds()` returned, and a name outside it cannot launch.
  *
  * Engines that DECLARE reasoning levels (`EngineRegistryEntry.effortLevels` —
  * codex today) get a second row under the list, so the level is settable on a
- * task that already exists; before this the only surface that could set one
- * was the web board's create-time picker, which left a codex task stuck on
- * whatever it launched with. Engines with no declared levels render no row at
- * all, matching the web picker's rule.
+ * task that already exists — otherwise the web board's create-time picker is
+ * the only surface that can set one, and a codex task is stuck on whatever it
+ * launched with. Engines with no declared levels render no row at all,
+ * matching the web picker's rule.
  *
  * Picking persists the task's vendor (and level) and nothing else; like `v`,
  * it takes effect on the task's next enter (`applyVendorChange` says so in

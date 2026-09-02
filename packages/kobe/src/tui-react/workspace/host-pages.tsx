@@ -234,8 +234,8 @@ export interface UseHostPagesRenderResult {
  *
  * `pageDeps`, the full-window/content-page render calls, the narrow-mode
  * surface decision, and the settings standalone page all serve one concern:
- * deciding which surface occupies the workspace. Keeping them together means
- * `host.tsx` no longer has to thread every dependency through `pageDeps`.
+ * deciding which surface occupies the workspace. Keeping them together is
+ * what spares `host.tsx` from threading every dependency through `pageDeps`.
  */
 export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {
   const {

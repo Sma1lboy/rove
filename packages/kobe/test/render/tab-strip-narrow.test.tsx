@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Narrow condensed tab strip (issue #14, M3): below the breakpoint the
+ * Narrow condensed tab strip: below the breakpoint the
  * strip shows only the ACTIVE tab plus a `2/3` position counter — narrow
  * overrides the mode gate, because the sidebar tree is not on screen beside
  * a narrow workspace, so the condensed strip is the only tab affordance
@@ -56,7 +56,7 @@ test("narrow strip shows the active tab truncated with a position counter", asyn
 })
 
 test("desktop renders the boxed strip when the mode is `always`", async () => {
-  // Explicit, because `never` is the default (2026-08-31): the sidebar tree
+  // Explicit, because `never` is the default: the sidebar tree
   // already lists these tabs. This pins what the strip DRAWS when asked for.
   process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-tab-strip-always-"))
   mkdirSync(join(process.env.KOBE_HOME_DIR, ".config", "rove"), { recursive: true })

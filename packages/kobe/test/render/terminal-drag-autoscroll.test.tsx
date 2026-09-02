@@ -135,7 +135,7 @@ test("dragging sideways along the top row does not scroll", async () => {
  * cannot move. Claude Code is exactly this case, so without it a drag-select
  * at the edge of an engine tab does nothing at all.
  *
- * And forwarding alone is not the fix (issue #54): the app scrolls, the
+ * And forwarding alone is not enough: the app scrolls, the
  * content shifts, but the snapshot row numbers stay put — so the SELECTION
  * must follow the measured content shift, not stay a screen-fixed rectangle.
  * The drag here is held at the edge while the scripted app scrolls itself;

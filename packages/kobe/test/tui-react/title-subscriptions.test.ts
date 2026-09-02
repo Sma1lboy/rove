@@ -1,11 +1,12 @@
 /**
- * Locks the O18 title-subscription store's two correctness properties that
- * the two hand-written copies had drifted on: (1) instance-compared reconcile
- * — a release + respawn at the SAME ptyKey drops the dead PTY's stale title
- * and re-subscribes to the fresh one (the old TerminalSplit `has(id)` check
- * froze here), and (2) subscription is keyed by the GLOBALLY-UNIQUE ptyKey, so
- * two keys that would collide as bare leaf ids stay isolated (the cross-tab
- * bleed). Drives a fake PTY set through the injectable `PtyLookup`.
+ * Locks the title-subscription store's two correctness properties, both of
+ * which a hand-written subscription pass tends to miss: (1) instance-compared
+ * reconcile — a release + respawn at the SAME ptyKey drops the dead PTY's
+ * stale title and re-subscribes to the fresh one, where a `has(id)` existence
+ * check freezes; and (2) subscription is keyed by the GLOBALLY-UNIQUE ptyKey,
+ * so two keys that would collide as bare leaf ids stay isolated instead of
+ * bleeding one tab's title into another. Drives a fake PTY set through the
+ * injectable `PtyLookup`.
  */
 
 import { describe, expect, it } from "vitest"
@@ -67,8 +68,8 @@ describe("createTitleSubscriptions", () => {
 
   // Identity now comes from the process tree (`live-engine.ts`), never from
   // the title, so with no live engine every title passes through RAW —
-  // including one that merely mentions an engine name. That collision
-  // ("✳ …codex…" in a claude session) was the old title-matching bug.
+  // including one that merely mentions an engine name — the collision
+  // ("✳ …codex…" in a claude session) that title-matching identity produces.
   it("passes titles through raw when no live engine claims the pty", () => {
     for (const raw of ["✳ Claude Code", "claude", "fixing the codex tab bug", "vim", "zsh"]) {
       const pty = fakePty(raw)
@@ -90,11 +91,10 @@ describe("createTitleSubscriptions", () => {
     expect(store.get("b")).toBe("codex") // untouched
   })
 
-  // Regression (owner report 2026-08-10): a PTY that has not reported a title
-  // YET must read as undefined, not "". The host records get()'s value onto
-  // the tab (`setTabLastTitle`), so an empty string overwrote the tab's real
-  // recorded name and the chattab fell back to "claude N" a beat after the
-  // correct title had rendered.
+  // A PTY that has not reported a title YET must read as undefined, not "".
+  // The host records get()'s value onto the tab (`setTabLastTitle`), so an
+  // empty string overwrites the tab's real recorded name and the chattab falls
+  // back to "claude N" a beat after the correct title rendered.
   it("a PTY with no title yet reads as undefined, never an empty string", () => {
     const pty = fakePty() // attached, nothing reported
     const store = createTitleSubscriptions(() => pty)

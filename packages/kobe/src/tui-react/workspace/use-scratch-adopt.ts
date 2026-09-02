@@ -1,12 +1,12 @@
 /**
- * Scratch-task adoption loop (issues #33/#40) — the React binding over the
+ * Scratch-task adoption loop — the React binding over the
  * pure `decideScratchAdopt`. Every poll tick it asks, for each scratch task
  * with an attached live shell: where has the shell settled (live cwd → repo
  * main root), and is a coding harness confirmed running in it (the
  * live-engine store's walk — same confidence bar as tab identity). Both
  * true → the pure decision picks one of two moves:
  *
- *   - `fold` (issue #40): the cwd already belongs to an existing task —
+ *   - `fold`: the cwd already belongs to an existing task —
  *     the shell (engine session and all) becomes that task's new terminal
  *     tab via `foldScratchShell`, and the emptied scratch row is deleted.
  *     No new task is minted, so the sidebar never grows a duplicate row

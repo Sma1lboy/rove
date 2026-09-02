@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Render coverage for the files-pane chrome (2026-08-29 redesign): a
- * rounded border whose color follows pane focus — `focusAccent` when the
- * files pane holds the focus, the (now brighter) `borderActive` when it
- * does not. The tree inside is FileTree's own contract (see
+ * Render coverage for the files-pane chrome: a rounded border whose color
+ * follows pane focus — `focusAccent` when the files pane holds the focus,
+ * `borderActive` when it does not. The tree inside is FileTree's own contract
+ * (see
  * `host-sidebar-filetree.test.tsx`); here it only proves the pane mounts
  * through its real git read so the border frames actual content.
  */

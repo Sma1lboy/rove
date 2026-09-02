@@ -62,11 +62,11 @@ export function KanbanCard(props: {
     success: theme.success,
   } as const
   // Transparent mode means transparent: the card drops its tinted surface and
-  // lets the host terminal through, like every other pane. It used to keep
+  // lets the host terminal through, like every other pane. Keeping
   // `backgroundElement` on the theory that a card is content rather than
-  // chrome — but a solid tile is the one thing on the board that cannot be
-  // seen through, so the exception read as the board ignoring the setting.
-  // Its border and the column's still separate it from the lane.
+  // chrome would make it the one thing on the board you cannot see through,
+  // which reads as the board ignoring the setting. Its border and the
+  // column's still separate it from the lane.
   // Horizontal padding only, plus a margin below. `padding={1}` was doing
   // three jobs at once — air inside the card, separation from the next card,
   // and a break between title and description — and paid two rows per card

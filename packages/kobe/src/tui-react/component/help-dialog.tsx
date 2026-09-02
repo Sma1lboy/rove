@@ -1,18 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Help dialog (React port of `src/tui/component/help-dialog.tsx`, issue
- * #15 G3) — kobe's global keybindings, grouped by category via the shared
- * framework-free `src/tui/lib/help-groups.ts`. Each row prints the
+ * Help dialog — kobe's global keybindings, grouped by category via the
+ * shared framework-free `src/tui/lib/help-groups.ts`. Each row prints the
  * canonical chord (macOS glyphs via `formatChord`) plus the description;
- * alternate chords in a lighter color. Pane-local bindings are
- * intentionally not listed — this is the global-bindings registry only.
- * Full rationale (what was dropped in v0.6, why esc isn't re-bound here)
- * lives in the Solid header.
+ * alternate chords in a lighter color. Pane-local bindings are intentionally
+ * not listed — this is the global-bindings registry only.
  *
- * React deltas: the keymap table is mutated in place on keybindings.yaml
- * reloads, invisible to React — `useKeymapVersion()` subscribes this
- * component and invalidates the grouped rows; `useT()` subscribes it to
- * language changes so the non-reactive `tKeys` lookups re-run.
+ * The keymap table is mutated in place on keybindings.yaml reloads, which is
+ * invisible to React — `useKeymapVersion()` subscribes this component and
+ * invalidates the grouped rows; `useT()` subscribes it to language changes so
+ * the non-reactive `tKeys` lookups re-run.
  */
 
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
@@ -167,7 +164,7 @@ export function HelpDialog(props: {
 
 /**
  * Convenience opener — pushes the help dialog onto the dialog stack.
- * Used by the global `?` binding. Static for parity with the Solid original.
+ * Used by the global `?` binding.
  */
 HelpDialog.show = (dialog: DialogContext, currentScope?: HelpSurface): void => {
   const reachability = currentBindingReachability()

@@ -32,9 +32,8 @@ export function visitResolvedEpisodes(
  * list could not be read at all (this process has never mounted that task's
  * TerminalTabs, so its KV snapshot is absent). Callers treat unavailable
  * episodes as garbage and DELETE them from the daemon, so answering "gone"
- * for "don't know" destroyed live episodes — the owner-reported "two tabs
- * are unread but the Inbox only lists one" (2026-08-10). Unknown keeps the
- * episode.
+ * for "don't know" destroys live episodes: two tabs read as unread while the
+ * Inbox lists one. Unknown keeps the episode.
  */
 export function isAttentionInboxItemAvailable(
   item: AttentionInboxItem,

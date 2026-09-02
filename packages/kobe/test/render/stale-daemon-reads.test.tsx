@@ -2,16 +2,14 @@
 /**
  * What the daemon-fed pages claim when a read fails.
  *
- * These outlived the daemon-disconnect banner they were written for. That
- * banner was removed — Rove keeps working with the daemon down and the socket
- * usually returns within a second, so a full-width red alert interrupted with
- * nothing to act on. What the banner was covering for is still real and still
- * needs guarding: a page must not turn a failed read into a confident green
- * claim, which is the failure this file exists to catch. The banner never fixed
- * that; it only sat on top of it.
+ * There is no daemon-disconnect banner to lean on: Rove keeps working with
+ * the daemon down and the socket usually returns within a second, so a
+ * full-width red alert would interrupt with nothing to act on. Each page has
+ * to hold the line itself — a page must not turn a failed read into a
+ * confident green claim, which is the failure this file catches.
  *
- * The remaining case in the removal's blast radius is the routines page's
- * daemon-hold chip — see the last test.
+ * The sharpest case is the routines page's daemon-hold chip — see the last
+ * test.
  */
 
 import { expect, test } from "bun:test"
@@ -116,16 +114,16 @@ test("the routines page keeps its rows when a poll fails", async () => {
   // The one place the removed banner was load-bearing: `keepsDaemonAlive`
   // comes off the last SUCCESSFUL read, so with the daemon gone the green
   // "keeping the daemon awake" chip is a claim about a process that is not
-  // answering. It used to be overridden by a red "daemon unreachable"; now it
-  // just goes stale. Deliberate — the row data beside it is equally stale, the
+  // answering. It simply goes stale rather than being overridden by a red
+  // "daemon unreachable". Deliberate — the row data beside it is equally stale, the
   // 5s poll heals both the moment the daemon answers, and `rove doctor`
   // already names a dead daemon. This pins the swallow-and-keep behavior so a
   // future refactor can't turn a failed poll into an empty list instead.
   const { orchestrator, connection, failReads } = fakeOrchestrator({ automations: [AUTOMATION] })
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator} focused={true} onClose={() => {}} />,
-    // notifications: the page reports failed MUTATIONS as toasts (#651), so
-    // it calls useNotifications() on every render.
+    // notifications: the page reports failed MUTATIONS as toasts, so it calls
+    // useNotifications() on every render.
     { width: 74, height: 20, providers: { dialog: true, notifications: true } },
   )
   await settle(150)

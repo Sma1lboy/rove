@@ -16,7 +16,7 @@ function Driver(props: { onMount: (dialog: ReturnType<typeof useDialog>) => void
   const dialog = useDialog()
   // Imperative stack mutations run once after mount — calling them during
   // render would setState the provider mid-render (React render loop).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once, matching the Solid setup semantics.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once setup.
   useEffect(() => props.onMount(dialog), [])
   return <text>base content</text>
 }
@@ -81,9 +81,9 @@ describe("DialogProvider", () => {
     expect(centeredRow).toBeGreaterThan(Math.floor(height / 5))
   })
 
-  // Regression (owner report 2026-07-09): the translucent full-screen
-  // backdrop erased wide glyphs from the pane behind a dialog while leaving
-  // adjacent ASCII visible. Keep mixed CJK/ASCII background text intact so
+  // A translucent full-screen backdrop erases wide glyphs from the pane
+  // behind a dialog while leaving adjacent ASCII visible. Keep mixed
+  // CJK/ASCII background text intact so
   // opening a modal only dims it; it must not punch character-shaped holes.
   it("keeps wide glyphs in background text while a dialog is open", async () => {
     const background = "设置 split horizon 和 vertical 深度限制"
@@ -157,11 +157,10 @@ describe("DialogProvider", () => {
     expect(dialogRef.current?.stack.length).toBe(0)
   })
 
-  // Regression (owner report 2026-07-08): a stale text selection — the
-  // terminal keeps the highlight after a copy until the next click — used
-  // to DISABLE the esc/ctrl+c binding entirely, leaving esc dead while a
-  // dialog was up. Contract now: first esc clears the selection (dialog
-  // stays), second esc closes.
+  // A stale text selection — the terminal keeps the highlight after a copy
+  // until the next click — must not DISABLE the esc/ctrl+c binding, which
+  // would leave esc dead while a dialog is up. Contract: first esc clears the
+  // selection (dialog stays), second esc closes.
   it("esc clears a stale selection first, then closes on the next press", async () => {
     const dialogRef: { current?: ReturnType<typeof useDialog> } = {}
     const { frame, mockInput, renderer } = await renderComponent(
@@ -196,7 +195,7 @@ describe("DialogProvider", () => {
     expect(dialogRef.current?.stack.length).toBe(0)
   })
 
-  // Structural modal guarantee (owner mandate 2026-07-08): while ANY
+  // Structural modal guarantee: while ANY
   // dialog is up, bindings registered by the UI behind it must be
   // unreachable — no per-pane `dialog.stack.length === 0` gate required.
   it("blocks background bindings while a dialog is open, restores them after", async () => {
@@ -244,11 +243,11 @@ describe("DialogProvider", () => {
     expect(background).toBe(2)
   })
 
-  // Regression (owner report 2026-07-16): if the workspace host rendered
-  // while a dialog was open, it cached dialogOpen=true into its pane-focus
-  // and shortcut gates. Escape removed the modal barrier, but the unchanged
-  // DialogContext value did not render consumers again; clicking a pane was
-  // the only thing that woke the shortcuts back up.
+  // A workspace host that renders while a dialog is open caches
+  // dialogOpen=true into its pane-focus and shortcut gates. Escape removes the
+  // modal barrier, but an unchanged DialogContext value would not render
+  // consumers again, leaving clicking a pane as the only way to wake the
+  // shortcuts back up.
   it("rerenders dialog consumers after escape so pane gates recover without a click", async () => {
     let background = 0
     let rerenderWhileOpen: (() => void) | undefined
@@ -345,11 +344,11 @@ describe("DialogProvider", () => {
     expect(dialogRef.current?.stack.length).toBe(0)
   })
 
-  // Regression (owner report 2026-08-10): Settings → Engines → "+ Add
-  // engine" chains three prompts, each closing (clear → deferred refocus of
-  // the pane behind) before the next opens. The pending timer landed ~1ms
-  // into the NEXT prompt and yanked native focus back to the pane, so every
-  // Enter looked like it lost focus. Opening a dialog must cancel it.
+  // Settings → Engines → "+ Add engine" chains three prompts, each closing
+  // (clear → deferred refocus of the pane behind) before the next opens. The
+  // pending timer lands ~1ms into the NEXT prompt and yanks native focus back
+  // to the pane, so every Enter reads as a lost focus. Opening a dialog must
+  // cancel it.
   it("a chained dialog keeps focus when the previous one's refocus is still pending", async () => {
     const dialogRef: { current?: ReturnType<typeof useDialog> } = {}
     let paneInput: Renderable | null = null

@@ -1,19 +1,19 @@
 /**
- * Framework-free KV core (issue #15, G3) — the data + persistence half of
- * the Solid `src/tui/context/kv.tsx` without the Solid store, consumed by
- * the React `KVProvider` and unit-testable under vitest (no @opentui).
+ * Framework-free KV core — the data + persistence half of the KV store,
+ * consumed by the React `KVProvider` and unit-testable under vitest
+ * (no @opentui).
  *
- * Semantics preserved from the Solid provider:
+ * Semantics:
  *   - Synchronous snapshot hydration from `state.json` at creation, so the
  *     first render already sees persisted values (no default flash).
  *     Snapshot-only reads — a key another process writes later is not
- *     picked up until restart (longstanding, accepted).
+ *     picked up until restart.
  *   - Writes are debounced (250ms) and DIRTY-KEY MERGED via
  *     `patchStateFile`: only keys THIS process changed since its last
  *     successful flush reach disk, so a concurrent kobe process's writes
  *     are never clobbered by a whole-snapshot write-back (the classic
- *     lost-update bug the Solid provider fixed). Dirty keys survive a
- *     failed flush and retry on the next one.
+ *     lost-update bug). Dirty keys survive a failed flush and retry on the
+ *     next one.
  *   - `clear()` is the one legitimate whole-file write
  *     (`replaceStateFile({})`): "reset UI state" means wipe EVERYTHING,
  *     including keys other processes wrote after we loaded.
@@ -94,10 +94,10 @@ export function createKvCore(): KvCore {
       // `undefined` DELETES: the key must leave the snapshot, not sit in it
       // as an enumerable `undefined` — `sweepOrphanTabsSnapshots` walks
       // `Object.keys` and re-deletes anything still present, and its effect
-      // re-runs on every kv identity change, so a spread-back key turned one
-      // sweep into an infinite setState loop (React #185, 2026-09-01). Disk
-      // already had delete semantics (patchStateFile drops explicit-undefined
-      // entries); this aligns the in-memory snapshot with it.
+      // re-runs on every kv identity change, so a spread-back key turns one
+      // sweep into an infinite setState loop (React #185). Disk already has
+      // delete semantics (patchStateFile drops explicit-undefined entries);
+      // this aligns the in-memory snapshot with it.
       store.update((s) => {
         if (value !== undefined) return { ...s, [key]: value }
         if (!(key in s)) return s // already absent — no snapshot churn

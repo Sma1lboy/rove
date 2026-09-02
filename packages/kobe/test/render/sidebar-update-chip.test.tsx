@@ -3,8 +3,8 @@
  * The brand-row update chip — the passive half of the update surface. The
  * daemon's npm poll lands in `updateSignal`; this pins that a `hasUpdate`
  * payload renders a right-aligned, clickable chip on the ROVE brand row and
- * that no chip renders otherwise (regression: the consumer was lost with the
- * tmux runtime in #313 and the poll went nowhere for months).
+ * that no chip renders otherwise — with no consumer, the poll runs and its
+ * result goes nowhere, silently.
  */
 
 import { expect, test } from "bun:test"

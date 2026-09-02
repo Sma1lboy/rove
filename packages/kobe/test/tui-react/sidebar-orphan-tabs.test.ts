@@ -4,10 +4,10 @@
  *
  *   - a task with NO snapshot at all (headless start before the CLI wrote
  *     snapshots) — the original hole-filling case;
- *   - a task WITH a snapshot that is missing the session's tab (issue #20:
- *     the canonical-spawn fallback ran a live engine for 1h44m while the
- *     sidebar rendered only the snapshot's tab-2 — a writable engine the UI
- *     never showed).
+ *   - a task WITH a snapshot that is missing the session's tab (a
+ *     canonical-spawn fallback can run a live engine for hours while the
+ *     sidebar renders only the snapshot's tab-2 — a writable engine the UI
+ *     never shows).
  *
  * The rule these pin: reconciliation is TAB-granular. A registered tab keeps
  * its snapshot projection (titles, ordinals, kinds); an unregistered live

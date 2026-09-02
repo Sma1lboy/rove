@@ -1,5 +1,5 @@
 /**
- * Locks the O19 reclamation contract: a DELETED task's `terminalTabs.*`
+ * Locks the snapshot-reclamation contract: a DELETED task's `terminalTabs.*`
  * snapshot is dropped, and the one-time orphan sweep drops only keys whose
  * task id is absent from the live set. Uses a fake kv mirroring kv-core's
  * explicit-undefined delete.

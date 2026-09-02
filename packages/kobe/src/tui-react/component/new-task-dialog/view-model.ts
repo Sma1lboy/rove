@@ -1,20 +1,15 @@
 /**
- * View-model hook for the React new-task dialog (issue #15, G3W2) — the
- * state half of `src/tui/component/new-task-dialog/dialog.tsx`, with the
- * JSX stripped out. Every pure helper (field cycling, filters, windowing)
+ * View-model hook for the new-task dialog — the dialog's state, with the JSX
+ * in `./dialog.tsx`. Every pure helper (field cycling, filters, windowing)
  * comes from the SHARED `src/tui/component/new-task-dialog/state.ts` /
- * `clone.ts` / `src/tui/lib/git-snapshot.ts` / `path-helpers.ts` modules —
- * this file only translates Solid signals/memos/effects into React hooks.
+ * `clone.ts` / `src/tui/lib/git-snapshot.ts` / `path-helpers.ts` modules.
  * The clone and adopt clusters live in `./use-clone-state.ts` /
- * `./use-adopt-state.ts`; this hook owns the shared selectors, the
- * existing tab, the key bindings, and the commit dispatch.
+ * `./use-adopt-state.ts`; this hook owns the shared selectors, the existing
+ * tab, the key bindings, and the commit dispatch.
  *
- * Reactivity translation notes (vs the Solid original):
- *   - Solid's "reset cursor when the filtered list changes" effects become
- *     resets inside the input handlers (same pattern as the chat history
- *     palette) — typing is the only thing that changes those lists.
- *   - Error strings resolved at submit time use the module-level `t` —
- *     same non-reactive semantics as the Solid event handlers.
+ * Cursor resets live inside the input handlers rather than in an effect on
+ * the filtered lists: typing is the only thing that changes those lists.
+ * Error strings resolved at submit time use the module-level `t`.
  */
 
 import { type VendorId, nextVendorWithin, prevVendorWithin } from "@/types/vendor"
@@ -53,7 +48,7 @@ import { useAdoptState } from "./use-adopt-state"
 import { useCloneState } from "./use-clone-state"
 import { useDerivedDir } from "./use-derived-dir"
 
-/** Same prop surface as the Solid `NewTaskDialogView` — see its docs. */
+/** Prop surface of the dialog view. */
 export type NewTaskDialogProps = {
   onSubmit: (v: NewTaskInput) => void
   onCancel: () => void
@@ -109,9 +104,8 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // Enter/click; typing resumes browsing.
   const [repoPicked, setRepoPicked] = useState(false)
   const [branchCursor, setBranchCursor] = useState(0)
-  // Existing-tab intent (issue #90). Defaults to "task" so the tab keeps
-  // doing what it always did; the choice only RENDERS when the picked repo
-  // already has a project checkout to open.
+  // Existing-tab intent. Defaults to "task"; the choice only RENDERS when the
+  // picked repo already has a project checkout to open.
   const [intent, setIntent] = useState<ExistingIntent>("task")
 
   // Validation error shown inline on submit; cleared on any input edit.
@@ -130,8 +124,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
   // `repo` holds exactly what the field shows — a NAME once one is chosen,
   // free text while it is being typed. It is never a display derived from a
   // different underlying value: an opentui `<input>` adopts its `value` prop
-  // as its edit buffer, so a field showing one string while state held another
-  // wrote the shown one back on the next keystroke and the two oscillated.
+  // as its edit buffer, so a field showing one string while state holds
+  // another writes the shown one back on the next keystroke and the two
+  // oscillate.
   // One representation, resolved to a path at the boundaries instead.
   const repoResolution = resolveRepoInput(repo, repoOptions)
   // The directory the chosen NAME resolves to — muted, at the row's right
@@ -201,8 +196,9 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
    * separately guarded on `canOpenProject` (derived from the CURRENT repo),
    * so this is about the row telling the truth, not about safety.
    *
-   * Three call sites used to write `setRepo` directly and skip it — typing
-   * reset the intent, picking the same repo from the dropdown did not.
+   * Every repo change routes through here — a call site writing `setRepo`
+   * directly would skip the reset and leave the row asserting the previous
+   * repo's intent.
    */
   function changeRepo(next: string): void {
     setRepo(next)
@@ -408,8 +404,7 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
       { key: "up", cmd: () => moveCursor(-1) },
       { key: "down", cmd: () => moveCursor(1) },
       // ←/→/Enter ONLY while a selector is focused — an always-on binding
-      // would preventDefault the keys away from focused text inputs (same
-      // registration-gating rationale as the Solid shell).
+      // would preventDefault the keys away from focused text inputs.
       ...(field === "tabs" || field === "engine" || field === "intent"
         ? [
             {

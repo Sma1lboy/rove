@@ -23,9 +23,9 @@ function fakeKv(seed?: unknown) {
   }
 }
 
-// Issue #22 (owner report 2026-08-12): the sidebar's unread lamp only knew
-// what THIS process had seen, so relaunching kobe re-lit every completion
-// the daemon still reported. The durable mark is what crosses the restart.
+// An unread lamp that only knows what THIS process has seen relights every
+// completion the daemon still reports on relaunch. The durable mark is what
+// crosses the restart.
 describe("durable completion-seen marks", () => {
   test("a mark covers its own completion and every older one", () => {
     const kv = fakeKv()
@@ -78,10 +78,9 @@ describe("durable completion-seen marks", () => {
   })
 })
 
-// Issue #23: the tab strip's chip used to sit on a process-local unread map,
-// so a completion you had read came back looking fresh after a restart while
-// the sidebar lamp (persisted since #22) disagreed. Both now fold the SAME
-// record.
+// A process-local unread map under the tab strip's chip would make a
+// completion you had read look fresh again after a restart, while the
+// persisted sidebar lamp disagreed. Both fold the SAME record.
 describe("seenCompletionTabs (tab strip's half of the mark)", () => {
   test("only tabs whose current completion the record covers come back seen", () => {
     const kv = fakeKv({

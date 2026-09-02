@@ -6,8 +6,8 @@
  * Its own module because the host renders the result in THREE places — the
  * settings page, a full-window page, and `WorkspaceFrame` all wrap it — while
  * the choice between the two banners is one question with one answer. The
- * WIRING is what has historically been wrong here (both banners were correct
- * components nobody mounted), so `host-version-skew-banner.test.tsx` drives
+ * WIRING is the fragile part — a correct banner component nobody mounts looks
+ * exactly like a working one — so `host-version-skew-banner.test.tsx` drives
  * these signals through the real `WorkspaceRoot` rather than through this hook.
  */
 
@@ -29,24 +29,22 @@ export interface HostBanner {
 }
 
 /**
- * The skew banner's problem, and its fix. `daemonStaleSignal()` has been
- * accurate since it was written and its ONLY reader was the mock workbench —
- * so the state it names was invisible in the product the whole time. That
- * state is not an edge case: Rove ships several times a day and the daemon is
- * a long-lived process that outlives an `npm i -g`, which makes "new binary,
- * old daemon" the ordinary result of updating.
+ * What `daemonStaleSignal()` names is not an edge case: Rove ships several
+ * times a day and the daemon is a long-lived process that outlives an
+ * `npm i -g`, which makes "new binary, stale daemon" the ordinary result of
+ * updating. It persists until someone restarts the daemon, which is why it
+ * gets a banner.
  *
- * Skew only. A daemon-disconnect banner used to sit in front of this one: a
- * full-width red alert on every socket drop. It was the wrong weight — the
- * reconnect loop recovers most drops in under a second, and Rove keeps working
- * through the ones it doesn't, so the alert interrupted to announce something
- * with nothing to act on. Skew is different: it persists until someone
- * restarts the daemon, which is why it kept its banner.
+ * Skew only — do NOT add a daemon-disconnect banner beside it. A full-width
+ * alert on every socket drop is the wrong weight: the reconnect loop recovers
+ * most drops in under a second, and Rove keeps working through the ones it
+ * doesn't, so the alert would interrupt to announce something with nothing to
+ * act on.
  *
  * The one condition that outranks skew: this process's install was deleted, so
- * it cannot start a daemon at all. It used to be invisible — the client just
- * looked like it was reconnecting, for two days (issue #96). Latched, never
- * cleared: only a reinstall fixes it.
+ * it cannot start a daemon at all. Without its own state that reads as an
+ * ordinary reconnect, indefinitely. Latched, never cleared: only a reinstall
+ * fixes it.
  */
 export function useHostBanner(orch: RemoteOrchestrator, width: number): HostBanner {
   const daemonStale = useAccessor(orch.daemonStaleSignal())

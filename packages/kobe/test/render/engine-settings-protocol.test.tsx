@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Engines writes a custom engine's PROTOCOL (issue #30).
+ * Settings → Engines writes a custom engine's PROTOCOL.
  *
  * A custom engine is a named preset, and `engineProtocol.<id>` is the field
  * that makes every later `--command <id>` dispatch deterministic instead of
@@ -74,13 +74,13 @@ function Driver(props: { onReady: (api: ReturnType<typeof useEngineSettings>, kv
 
 /**
  * Fresh $KOBE_HOME_DIR + a mounted hook, with `run` driven from OUTSIDE the
- * component and fully awaited before this resolves.
+ * component and fully awaited before the returned promise resolves.
  *
- * Deliberately not "fire it inside the mount effect and hope": that made the
- * flow depend on effect timing, and a `run` that started after the caller's
- * `script.restore()` would reach the REAL `RenameTaskDialog.show`, which
- * awaits a dialog nobody can answer — a hang that reproduces only on a slow
- * runner. Awaiting a ready-promise makes the order deterministic.
+ * Deliberately not "fire it inside the mount effect and hope": that makes the
+ * flow depend on effect timing, and a `run` starting after the caller's
+ * `script.restore()` reaches the REAL `RenameTaskDialog.show`, which awaits a
+ * dialog nobody can answer — a hang that shows up only on a slow runner.
+ * Awaiting a ready-promise makes the order deterministic.
  */
 async function withEngineSettings(
   run: (api: ReturnType<typeof useEngineSettings>) => void | Promise<void>,

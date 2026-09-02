@@ -1,15 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Per-ChatTab completion notifications (React port of the Solid
- * NotificationsProvider, issue #15 G3). Same three signals (audible cue,
- * transient toast, unread tab mark) and the same gating — the pure state
- * transforms + the "error toasts always show" invariant live in the
- * shared `src/tui/lib/notify-state.ts` consumed by both runtimes.
+ * Per-ChatTab completion notifications: three signals (audible cue,
+ * transient toast, unread tab mark) and their gating. The pure state
+ * transforms + the "error toasts always show" invariant live in the shared
+ * framework-free `src/tui/lib/notify-state.ts`.
  *
- * The React KV provider is now ported, so sound/toast toggles are read
- * from it when a KVProvider is present. Render tests and the mock dialogs
- * host intentionally run without KV, so we fall back to a one-time
- * `state.json` snapshot in that case.
+ * Sound/toast toggles are read from KV when a KVProvider is present. Render
+ * tests and the mock dialogs host intentionally run without KV, so they fall
+ * back to a one-time `state.json` snapshot.
  */
 
 import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
@@ -59,7 +57,7 @@ export function NotificationsProvider(props: { children?: ReactNode }) {
 
   // Toast auto-dismiss timers are provider-scoped: any still-pending timer
   // is cleared on unmount so `dismiss()` never fires against a torn-down
-  // tree (the Solid version's createManagedTimeouts, inlined).
+  // tree.
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
   useEffect(
     () => () => {

@@ -5,7 +5,7 @@
  * run under vitest directly. What's pinned here is the resolution ORDER
  * (plugin > editor tab > OS opener), the stale-continuation guard that keeps a
  * slow editor resolve from delivering into whatever task the user switched to,
- * and KOB-25's rule that a read-only diff must not steal focus.
+ * and the rule that a read-only diff must not steal focus.
  */
 
 import { beforeEach, describe, expect, test, vi } from "vitest"
@@ -117,7 +117,7 @@ describe("openDiff", () => {
     expect(openDiffTab).toHaveBeenCalledWith("src/deep/a.ts", "a.ts", "main")
   })
 
-  // KOB-25: a read-only open is a content swap, not a navigation.
+  // A read-only open is a content swap, not a navigation.
   test("does not pull focus", () => {
     const { actions, setFocused } = setup()
     actions.openDiff("a.ts")

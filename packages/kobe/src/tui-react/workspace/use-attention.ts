@@ -1,5 +1,5 @@
 /**
- * Cross-task attention wiring for the native workspace host (P0):
+ * Cross-task attention wiring for the native workspace host:
  *
  *  1. Rising-edge notify — diff the previous vs current daemon activity each
  *     render and fire `notify()` for any NON-selected task that just crossed
@@ -10,13 +10,13 @@
  *
  *     The diff runs over the PER-TAB map, not the task-level one. The task
  *     entry is a last-event-wins rollup across every tab, and an edge only
- *     fires on a value CHANGE — so two tabs of one task finishing in a row
- *     left the rollup sitting at `turn_complete` and the second one never
- *     announced itself. Two agents finished, you heard about one. The daemon
- *     already keys its Inbox episodes `(taskId, tabId)`, so F7 was right the
- *     whole time; only the toast was lossy. Tasks whose engine reports no tab
- *     identity at all (a `claude` typed into a plain shell — no KOBE_TAB_ID)
- *     have no per-tab entry, so they keep notifying off the rollup.
+ *     fires on a value CHANGE — so diffing the rollup would leave it sitting
+ *     at `turn_complete` when two tabs of one task finish in a row, and the
+ *     second one would never announce itself. The daemon keys its Inbox
+ *     episodes `(taskId, tabId)`, so the per-tab map is the matching grain.
+ *     Tasks whose engine reports no tab identity at all (a `claude` typed
+ *     into a plain shell — no KOBE_TAB_ID) have no per-tab entry, so they
+ *     keep notifying off the rollup.
  *  2. Jump-to-next — F7 walks available pending items in the daemon-owned
  *     durable Inbox. Opening or visiting the target resolves the item and
  *     removes it from the queue.
@@ -55,8 +55,8 @@ export type NotifyTarget = { readonly taskId: string; readonly tabId: string }
  * keeps its task-level rollup entry. Never both: the rollup mirrors whichever
  * tab moved last, so emitting it alongside the tabs double-counts.
  *
- * Pure, so the edge behaviour that actually broke — two tabs of one task
- * finishing in a row — is testable without mounting the host.
+ * Pure, so the load-bearing edge — two tabs of one task finishing in a row —
+ * is testable without mounting the host.
  */
 export function notifyTargetStates(
   engineState: ReadonlyMap<string, TaskEngineState>,
@@ -66,8 +66,8 @@ export function notifyTargetStates(
   const targets = new Map<string, NotifyTarget>()
   for (const [taskId, es] of engineState) {
     const tabs = engineTabState?.get(taskId)
-    // Idle entries are KNOWN-idle tombstones (issue #11 — the accumulator
-    // keeps them so the sidebar can tell idle from unknown). They carry no
+    // Idle entries are KNOWN-idle tombstones (the accumulator keeps them so
+    // the sidebar can tell idle from unknown). They carry no
     // attention and must not make a task look "tab-covered": a task whose
     // only tab entries are tombstones still notifies from its rollup (an
     // untagged external session reports task-level only).
@@ -124,9 +124,8 @@ export function useAttention(args: {
     prevStates.current = next
     if (kv.get(CROSS_TASK_KEY, true) === false) return
     const repos = [...new Set(tasks.map((t) => t.repo))]
-    // One O(n) index build instead of a per-edge `tasks.find` scan: with a
-    // few hundred tasks and one edge each, the loop used to re-scan the
-    // whole array for every notification.
+    // One O(n) index build instead of a per-edge `tasks.find` scan, which
+    // re-scans the whole array once per notification.
     const taskById = new Map<string, Task>(tasks.map((task) => [task.id, task]))
     for (const { key, kind } of edges) {
       const target = targets.get(key)
@@ -148,7 +147,7 @@ export function useAttention(args: {
     }
   }, [engineState, engineTabState, selectedId, tasks, kv, notif])
 
-  // Deferred-prompt toast (issue #78 B): a `prompt_deferred` episode is
+  // Deferred-prompt toast: a `prompt_deferred` episode is
   // inbox-ONLY — the engine reported no activity (the blocked prompt never
   // reached it), so the engine-state rising-edge above never fires for it.
   // Diff the inbox episodes on their (task, tab, at) identity instead. Unlike
@@ -194,7 +193,7 @@ export function useAttention(args: {
         taskId: selectedId,
         tabId: selectedId ? activeTabIdFor(selectedId) : null,
       },
-      // Tri-state — a binary check made F7 skip episodes whose task simply
+      // Tri-state — a binary check makes F7 skip episodes whose task simply
       // hasn't mounted here and toast "nothing needs you".
       (item) =>
         isAttentionInboxItemAvailable(

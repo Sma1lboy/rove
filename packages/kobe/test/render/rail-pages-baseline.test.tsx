@@ -1,11 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
  * Rail-page visual baseline: Kanban / Routines / Issues swap the SAME
- * content panel, so switching between them must not move the text. The
- * 2026-08-30 visual audit found the three pages each picked their own left
- * inset (padding 1 / 2 / 3, so the body jumped sideways on every switch)
- * and two of the three painted their static page titles with the accent
- * hue, which on the default claude palette IS the focus orange.
+ * content panel, so switching between them must not move the text. Left to
+ * themselves the three pages each pick their own inset (padding 1 / 2 / 3, so
+ * the body jumps sideways on every switch) and paint their static page titles
+ * with the accent hue, which on the default claude palette IS the focus
+ * orange.
  *
  * Contract pinned here, against the real render:
  *   - every rail page's content starts at exactly x=2 (the inset the other
@@ -103,9 +103,9 @@ const RAIL_PAGES: readonly RailPage[] = [
 for (const page of RAIL_PAGES) {
   test(`rail page ${page.title} starts its title at x=2`, async () => {
     const { line } = await renderPage(page.title, page.overrides)
-    // Exactly two leading cells before the title — the shared inset. The old
-    // per-page choices were 1 (Issues), 2 (Routines), 3 (Kanban), and the
-    // whole body jumped sideways on every page switch.
+    // Exactly two leading cells before the title — the shared inset. Per-page
+    // choices (1 / 2 / 3) make the whole body jump sideways on every page
+    // switch.
     expect(line.startsWith(`  ${page.title}`)).toBe(true)
   })
 
@@ -121,7 +121,7 @@ for (const page of RAIL_PAGES) {
   test(`rail page ${page.title} starts its BODY at x=2 too`, async () => {
     // The title row alone is not the contract — a page can pad its root to 2
     // and still inset its own body children (Kanban's project selector and
-    // board each carried their own paddingLeft). Pin every content region,
+    // board each easily carry their own paddingLeft). Pin every content region,
     // so a partial revert of the per-child insets fails here.
     const { text } = await renderPage(page.title, page.overrides)
     for (const anchor of page.body) {

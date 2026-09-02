@@ -1,14 +1,12 @@
 /** @jsxImportSource @opentui/react */
 /**
- * One-line tree rows (owner call 2026-08-01, round 3): every row inside the
- * tree is ONE cell tall — project header flush, worktrees one cell in, and
- * tab rows at the SAME column as their worktree (issue #41: the state-circle
- * glyph carries the hierarchy; extra indent wasted the narrow rail's width).
- * The two-line cards remain the FLAT
- * sidebar's grammar; the tree's density is its point (a dozen worktrees ×
- * tabs must fit the rail), so a worktree row compresses the card to
- * `twisty · state glyph · title` plus the card's own right-edge cluster
- * (pin / PR chip / ±stats / jump digit) — same vocabulary, one line.
+ * One-line tree rows: every row inside the tree is ONE cell tall — project
+ * header flush, worktrees one cell in, and tab rows at the SAME column as
+ * their worktree (the state-circle glyph carries the hierarchy, so extra
+ * indent only costs the narrow rail width). Density is the point (a dozen
+ * worktrees × tabs must fit the rail), so a worktree row is
+ * `twisty · state glyph · title` plus the right-edge cluster
+ * (pin / PR chip / ±stats / jump digit).
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -42,8 +40,8 @@ import {
   useSpinnerFrame,
 } from "./row-cards"
 
-/** Cells of indent per depth level — one (owner round: the rail is narrow,
- *  and the glyph column already separates the levels visually). */
+/** Cells of indent per depth level — one: the rail is narrow, and the glyph
+ *  column already separates the levels visually. */
 const INDENT_CELLS = 1
 
 export type TreeRowShared = {
@@ -57,9 +55,9 @@ export type TreeRowShared = {
    *  keys on THIS (selected task + the tab's own active bit) rather than on
    *  `activeRowId`: that id needs the live tab map, which is cold right
    *  after a restart — and a lamp that ignores the session you are sitting
-   *  in is exactly the bug. */
+   *  in is wrong. */
   readonly selectedTaskId: string | null
-  /** The row being dragged in move mode (issue #43) — wears the move chip.
+  /** The row being dragged in move mode — wears the move chip.
    *  Null outside move mode, and while a `main` row drags its whole project
    *  (the group HEADER wears the chip then — `movingProjectId`). */
   readonly movingRowId?: string | null
@@ -101,7 +99,7 @@ function clusterCells(text: string): number {
   return cells
 }
 
-/** The move-mode chip a dragged ROW wears (issue #43) — same vocabulary as
+/** The move-mode chip a dragged ROW wears — same vocabulary as
  *  the project header's chip, so all three levels read identically. */
 function MoveChip(props: { readonly rowId: string; readonly shared: TreeRowShared }) {
   const { theme } = useTheme()
@@ -143,9 +141,9 @@ function RowShell(props: {
       onMouseUp={(evt: { button: number; x: number; y: number; stopPropagation(): void }) => {
         // Don't bubble to the pane box's focus-grab (the workspace host's
         // sidebar shell): activating a row hands focus to the CONTENT pane,
-        // and a bubbled sidebar re-grab overwrote it — the user typed into
-        // what looked like the terminal while the sidebar's letter chords
-        // (d!) were live. Same guard the ZEN chip carries.
+        // a bubbled sidebar re-grab would overwrite it, leaving the sidebar's
+        // letter chords (d!) live over what looks like the terminal. Same
+        // guard the ZEN chip carries.
         evt.stopPropagation()
         // Right-click opens the row's menu instead of activating it — the
         // terminal only forwards button 2 while mouse reporting is on, which
@@ -169,20 +167,18 @@ function RowShell(props: {
 }
 
 /**
- * A worktree row carries NO ENGINE state glyph (owner call 2026-08-01, round
- * 6): the session state belongs to the chattab that runs it, so that glyph
- * lives on the tab row below. What stays here is worktree-level fact — branch,
- * pin, PR chip, ±change stats — and a worktree being MATERIALIZED is the most
- * worktree-level fact there is.
+ * A worktree row carries NO ENGINE state glyph: the session state belongs to
+ * the chat tab that runs it, so that glyph lives on the tab row below. What
+ * stays here is worktree-level fact — branch, pin, PR chip, ±change stats —
+ * and a worktree being MATERIALIZED is the most worktree-level fact there is.
  *
  * Why the job spinner has to live here rather than on the tab row: during
  * `git worktree add` a freshly created task has no engine activity (the engine
  * has not started) and no tab rows at all (a tab is only recorded once
- * delivery succeeds). The tab row that renders the job today is therefore the
- * one row that does not yet exist, which is why `rove api add --count 5` on a
- * big repo showed five frozen `(new task)` rows for the whole minutes-long
- * materialization while the daemon published `task.jobs {phase:"running"}` the
- * entire time.
+ * delivery succeeds). The tab row that would render the job is therefore the
+ * one row that does not yet exist — without this, `rove api add --count 5` on
+ * a big repo leaves frozen `(new task)` rows for the whole minutes-long
+ * materialization while the daemon publishes `task.jobs {phase:"running"}`.
  *
  * It reads `taskJobs` DIRECTLY and nothing else — deliberately not through
  * `buildSidebarRowView`, whose `loading` also folds in engine activity. Taking
@@ -210,8 +206,8 @@ export function WorktreeTreeRow(props: {
   // fact) so a scan reads intent then evidence; they never share a glyph.
   const status = statusChip(task)
   // A worktree row is named by its BRANCH; branchless rows fall back to
-  // their tail-truncated path (the one derivation rule — `worktreeRowLabel`,
-  // issue #42). Which rows have to LOOK UP that branch is
+  // their tail-truncated path (the one derivation rule —
+  // `worktreeRowLabel`). Which rows have to LOOK UP that branch is
   // `rowLiveBranchPath`: main checkouts and directory/scratch tasks store
   // none and move freely, so they poll their own HEAD.
   const livePath = rowLiveBranchPath(task)
@@ -227,8 +223,8 @@ export function WorktreeTreeRow(props: {
   const materializing = shared.taskJobs?.get(task.id) !== undefined
   const frame = useSpinnerFrame(materializing)
   const reserved =
-    // The spinner column exists only while a job runs, so a quiet row's label
-    // budget and layout are byte-identical to before.
+    // The spinner column exists only while a job runs, so a quiet row spends
+    // none of its label budget on it.
     (materializing ? 2 : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
@@ -273,10 +269,9 @@ export function WorktreeTreeRow(props: {
 /**
  * The tab row's `buildSidebarRowView`, memoized on the real inputs so the
  * ~10Hz spinner tick (a fresh `shared` object every render) doesn't
- * re-derive idle tab rows. Same shape as the flat cards' `useRowCardChrome`
- * (row-cards.tsx) — non-loading rows come back as the same object and never
- * subscribe to the tick. Extracted + exported so the memo contract has a
- * direct test; TabTreeRow is the only caller.
+ * re-derive idle tab rows: non-loading rows come back as the same object and
+ * never subscribe to the tick. Exported so the memo contract has a direct
+ * test; TabTreeRow is the only caller.
  */
 export function useTabRowBaseView(args: {
   readonly task: Task
@@ -315,7 +310,7 @@ export function TabTreeRow(props: {
   const t = useT()
   const shared = props.shared
   const isCursor = shared.cursorIndex === props.flatIndex
-  // Glyph rule (owner round 7): an AGENT tab always wears the state circle
+  // Glyph rule: an AGENT tab always wears the state circle
   // vocabulary — `○` at rest, live state glyph when the daemon reports
   // activity for its session (the ACTIVE engine tab; activity is
   // task-scoped). A non-agent tab (shell/command/content) is outside the
@@ -323,8 +318,8 @@ export function TabTreeRow(props: {
   const isAgent = props.tab.engine === true
   // Prefer THIS tab's own activity over the task rollup. The daemon reports
   // both levels, but the task entry is last-event-wins across every tab — so
-  // a task whose live work is in tab-2 reads as whatever tab-N reported most
-  // recently, and a genuinely running row sat at `○` until you opened it.
+  // a task whose live work is in tab-2 would read as whatever tab-N reported
+  // most recently, leaving a genuinely running row at `○` until you open it.
   // Tab-level is the precise answer; the rollup stays the fallback for
   // sessions kobe didn't spawn as a tab (a hand-typed `claude` in a shell
   // reports task-level only — see the `engine-state` channel contract).
@@ -338,8 +333,8 @@ export function TabTreeRow(props: {
         active: props.tab.active === true,
       })
     : undefined
-  // One predicate now: "does this row have activity of its own". It used to
-  // also count "is the active tab", which is what let the rollup leak in.
+  // One predicate: "does this row have activity of its own". Also counting
+  // "is the active tab" is what lets the task rollup leak in.
   const carriesState = activity !== undefined
   // The unread lamp (herdr ● on turn_complete) is for sessions you are NOT
   // looking at — sitting in the tab digests it to ✓ on the same render.
@@ -352,7 +347,7 @@ export function TabTreeRow(props: {
   // Per-TAB seen bit: sibling tab rows of the same task render in this very
   // pass and would otherwise share (and clear) one task-wide mark. The
   // durable half survives a kobe restart, which the daemon's activity entry
-  // does too — without it every read completion came back ● (issue #22).
+  // does too — without it every already-read completion comes back ●.
   const durableSeen = useDurableCompletionSeen(
     props.task.id,
     props.tab.id,
@@ -375,14 +370,13 @@ export function TabTreeRow(props: {
   // sticky badge / a KNOWN-idle tombstone) the row wears the shared state
   // vocabulary — buildSidebarRowView rests at `○` for known-idle. With NO
   // signal at all (fresh daemon before its first observer pass, dead daemon
-  // lineage — issue #11) it rests at the same dim dot a non-agent tab wears.
-  // That case used to have its own dotted `◌` for "the daemon doesn't know",
-  // distinct from `○ idle` — dropped 2026-08-15 as a distinction without a
-  // difference: both readings send you into the tab to find out, and U+25CC
-  // is missing from common terminal fonts, so it fell back oversized and ran
+  // lineage) it rests at the same dim dot a non-agent tab wears. A separate
+  // dotted `◌` for "the daemon doesn't know" would be a distinction without a
+  // difference — both readings send you into the tab to find out — and U+25CC
+  // is missing from common terminal fonts, so it falls back oversized and runs
   // into the label. See NO_STATE_GLYPH.
   const glyph = isAgent && carriesState ? rowView.stateGlyph : NO_STATE_GLYPH
-  // depth 1, not 2 (issue #41): a tab row starts at the same column as its
+  // depth 1, not 2: a tab row starts at the same column as its
   // worktree row — the circle status glyph carries the hierarchy, and the
   // extra indent cell wasted width the narrow rail doesn't have.
   return (
@@ -415,7 +409,7 @@ export function TabTreeRow(props: {
 }
 
 /**
- * A project's routine count row (issue #91) — the one fold in this tree.
+ * A project's routine count row — the one fold in this tree.
  *
  * Standing routine sessions rest behind it because a schedule's output is
  * background noise beside the tasks the user opened themselves. ⏎ (or a
@@ -448,7 +442,7 @@ export function RoutinesTreeRow(props: {
 }
 
 /**
- * Narrow mode's "↩ Recent: <task>" jump row (issue #14, 2A) — the first
+ * Narrow mode's "↩ Recent: <task>" jump row — the first
  * navigable row of the narrow sidebar. ⏎ re-enters the named task's
  * workspace; it answers to nothing else (no menu, no per-task verbs).
  */

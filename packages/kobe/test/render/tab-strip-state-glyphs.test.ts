@@ -7,8 +7,8 @@
  * Mutation target is the WIRE between the two vocabularies, not either table
  * alone: reverting `activityTurnState`'s `rate_limited → error` fold turns
  * this red, and so does reverting `TURN_GLYPHS`. Asserting only one of the
- * two would stay green through a revert of the other — and the bug was
- * precisely that the two halves disagreed.
+ * two would stay green through a revert of the other, and the failure mode is
+ * precisely the two halves disagreeing.
  */
 import { describe, expect, it } from "bun:test"
 import type { TaskActivityState } from "../../src/engine/hook-events"
@@ -36,7 +36,7 @@ describe("tab strip glyphs agree with the sidebar rail", () => {
 
   it("still raises an attention notification for all three", () => {
     // Splitting the chip vocabulary must not silently drop the toast that
-    // `rate_limited` used to get by riding on `error`.
+    // `rate_limited` gets by riding on `error`.
     for (const state of ["rate_limited", "error", "dead"] as const) {
       expect(chipAttentionKind(activityTurnState(state) ?? "")).toBe("error")
     }

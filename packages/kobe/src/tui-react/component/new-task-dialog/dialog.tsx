@@ -1,13 +1,11 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The React new-task dialog JSX shell (issue #15, G3W2) — the
- * `src/tui/component/new-task-dialog/dialog.tsx` counterpart. Three
- * sibling sub-tabs share one frame (Existing / New Repo / Adopt),
- * switched with Ctrl+[ / Ctrl+] or ←/→ on the mode selector; the engine
- * selector cycles with ctrl+e. All state, effects, commit paths and key
- * bindings live in `./view-model.ts` (shared pure helpers from the Solid
- * side's `state.ts`/`clone.ts`); the tab bodies live in `./tab-*.tsx`.
- * Every user-visible string resolves through `useT()`.
+ * The new-task dialog's JSX shell. Three sibling sub-tabs share one frame
+ * (Existing / New Repo / Adopt), switched with Ctrl+[ / Ctrl+] or ←/→ on the
+ * mode selector; the engine selector cycles with ctrl+e. All state, effects,
+ * commit paths and key bindings live in `./view-model.ts` (pure helpers in
+ * `state.ts`/`clone.ts`); the tab bodies live in `./tab-*.tsx`. Every
+ * user-visible string resolves through `useT()`.
  */
 
 import { TextAttributes } from "@opentui/core"

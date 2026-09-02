@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Workspace tab strip — React port of `tui/workspace/tab-strip.tsx` (issue
- * #16 React migration). The row of engine/command tabs above the embedded
+ * Workspace tab strip — the row of engine/command tabs above the embedded
  * terminal. Owns the per-tab turn chip and the turn-complete pulse: when a
  * tab's turn flips running→done, the chip and title flash emphasized for a
  * few frames before settling — a landing cue for work that finished while
@@ -41,8 +40,8 @@ export const TURN_GLYPHS: Record<ChatTabTurnState, string> = {
   error: "!",
   // Borrowed verbatim from the sidebar rail (row-view.ts) so the strip and
   // the rail never say different things about the same tab: `◷` a limit that
-  // clears itself, `†` an engine process that is gone. Both were `!` until
-  // 2026-08-30 — three states, one glyph, opposite required actions.
+  // clears itself, `†` an engine process that is gone. Distinct glyphs on
+  // purpose: they demand opposite actions, so one shared `!` would hide that.
   rate_limited: "◷",
   dead: "†",
   // Hook-only "blocked on the user" state — same ?/warning pairing as the
@@ -78,11 +77,10 @@ export function TabStrip(props: {
   turnVendors: ReadonlyMap<string, VendorId>
   /**
    * Tabs whose CURRENT completion the user has already looked at, from the
-   * durable `(task, tab) → seen-at` record the sidebar lamp reads (issue
-   * #23). Their `done` chip digests to the resting `○` — a finished turn
-   * you have read is simply over, the same "seen means consumed" rule the
-   * rail follows. Omitted (render tests, hosts without kv) = nothing seen,
-   * the pre-#23 behaviour.
+   * durable `(task, tab) → seen-at` record the sidebar lamp reads. Their
+   * `done` chip digests to the resting `○` — a finished turn you have read is
+   * simply over, the same "seen means consumed" rule the rail follows.
+   * Omitted (render tests, hosts without kv) = nothing seen.
    */
   seenTabs?: ReadonlySet<string>
 }) {
@@ -90,7 +88,7 @@ export function TabStrip(props: {
   const { theme } = themeCtx
   const kv = useKV()
   const dims = useTerminalDimensions()
-  // Off by default (owner call 2026-08-31): the sidebar tree already lists
+  // Off by default: the sidebar tree already lists
   // every worktree's tabs and marks the active one, so the strip is a second
   // copy of a list that is already on screen. Settings → General → Terminal
   // turns it back on.
@@ -99,7 +97,7 @@ export function TabStrip(props: {
     kv.get(TAB_STRIP_MODE_KEY, undefined),
     kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined),
   )
-  // Narrow (issue #14) overrides the mode: the sidebar tree is not on screen
+  // Narrow mode overrides the setting: the sidebar tree is not on screen
   // beside a narrow workspace, so the condensed strip is the only tab
   // affordance there.
   const narrow = isNarrowWidth(dims.width)
@@ -158,11 +156,10 @@ export function TabStrip(props: {
     const nativeStatusVisible = visibleNativeStatus(tab, props.vendor, props.turnVendors.get(tab.id), liveTitle)
     const chipShown = !nativeStatusVisible && turn !== "unknown" && props.turnStates.has(tab.id)
     // Cap a single tab at the pane it lives in. Without this a long shell
-    // name (`a-very-long-shell-name…`) drew past the strip: the box is
-    // `overflow: hidden`, so the frame's right edge was clipped away and the
-    // title ran to the last column with no ellipsis — nothing on screen said
-    // it had been cut. The narrow form has always truncated; this is the same
-    // rule for the wide one.
+    // name (`a-very-long-shell-name…`) draws past the strip: the box is
+    // `overflow: hidden`, so the frame's right edge is clipped away and the
+    // title runs to the last column with no ellipsis — nothing on screen says
+    // it was cut. Same rule the narrow form follows.
     //
     // Truncating HERE, before `cells`, is what keeps the scroll math honest:
     // the offset is computed from these widths, so measuring the untruncated
@@ -172,7 +169,7 @@ export function TabStrip(props: {
       Math.max(MIN_TAB_TITLE_CELLS, dims.width - TAB_CHROME_CELLS - (chipShown ? 2 : 0)),
       approxCharCells,
     )
-    // Every tab is a bordered box now (2 cells of frame + 2 of padding) —
+    // Every tab is a bordered box (2 cells of frame + 2 of padding) —
     // the scroll math must see the same width it draws.
     const active = tab.id === props.activeId
     return { tab, turn, chipShown, title, cells: 4 + (chipShown ? 2 : 0) + displayWidth(title) }
@@ -204,7 +201,7 @@ export function TabStrip(props: {
 
   if (hidden) return null
 
-  /* --------- narrow condensed form (issue #14) --------------------------
+  /* --------- narrow condensed form -------------------------------------
    * At phone-SSH widths a row of tabs cannot fit: show only the ACTIVE
    * tab — turn chip + title truncated to the pane — with a right-stuck
    * `2/3` position counter. Tab-switching chords are unchanged; the

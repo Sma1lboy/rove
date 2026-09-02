@@ -1,8 +1,7 @@
 /**
- * Copy-on-select, GRID-based selection for the embedded terminal pane —
- * React port of the selection half of `tui/panes/terminal/Terminal.tsx`
- * (tmux convention; see `terminal-selection.ts` for why opentui's text-flow
- * selection can't work over this pane). Its own hook because selection is
+ * Copy-on-select, GRID-based selection for the embedded terminal pane (see
+ * `terminal-selection.ts` for why opentui's text-flow selection can't work
+ * over this pane). Its own hook because selection is
  * self-contained mouse state that the rest of the pane never reads — and,
  * per the two notes below, it is the part with the most non-obvious
  * re-render rules, which are easier to hold correct in one file.
@@ -11,8 +10,8 @@
  * survives every frame refresh and scrollback move. A ZERO-WIDTH selection
  * (a plain click, before any drag) resolves to `null` — rendering no
  * highlight and, more importantly, keeping `selection` reference-stable
- * across a click so the snapshot content isn't re-pushed for nothing (the
- * whole-pane twitch-on-click the Solid original called out).
+ * across a click so the snapshot content isn't re-pushed for nothing — a
+ * re-push twitches the whole pane.
  *
  * `isDragging` is a plain ref, not state: it flips on every mouse-move
  * during a drag, and mirroring that into React state would re-render the
@@ -305,7 +304,7 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
       draggingRef.current,
     )
     // Line numbering was reset (a resize reflows history): the selection
-    // addresses content that no longer exists under those ids.
+    // addresses content that is gone from under those ids.
     if (!windowed) {
       clearSelectionState()
       return

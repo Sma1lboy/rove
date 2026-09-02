@@ -37,8 +37,8 @@ import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-sha
 const MAX_VISIBLE_CARDS = 6
 const CARD_ROWS_WITH_GAP = 3
 // Title + hints + up to two 1-line section headers + two "+N more" lines,
-// each with the list's gap row — headers no longer charge a card slot, so
-// the chrome estimate carries them instead.
+// each with the list's gap row: headers do not charge a card slot, so the
+// chrome estimate carries them instead.
 const DIALOG_CHROME_ROWS = 12
 const AGE_REFRESH_MS = 30_000
 /** Identity keeps at least this many cells before the badge drops its label. */
@@ -371,10 +371,9 @@ export function AttentionInboxPane(props: {
             const title = task?.title ?? item.taskId
             // A rate-limited task usually has an auto-resume armed
             // (`Task.quotaResume`, persisted by the daemon's quota probe).
-            // Until 2026-08-30 that clock was written to disk and read by
-            // nothing, so "rate limited" gave a user no way to tell "back at
-            // 3:14, already scheduled" from "stuck, go do something". This
-            // card is where that belongs: the rail's tree row is one cell
+            // Surfacing that clock is what lets a user tell "back at 3:14,
+            // already scheduled" from "stuck, go do something". This card is
+            // where it belongs: the rail's tree row is one cell
             // wide, and the Inbox's whole job is what-needs-me / when.
             const resumeNote = quotaResumeNote(item.state, task, t)
             const project = task ? sidebarProjectLabel(task.repo, repos) : ""

@@ -1,10 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Existing tab of the React new-task dialog (issue #15, G3W2) — pick an
- * existing local repo path + base branch. Direct port of the Solid
- * shell's existing-tab body: unified free-text repo input with the
- * saved/browse smart dropdown, branch picker that augments the input.
- * All behavior lives in the view-model; this file is JSX only.
+ * Existing tab of the new-task dialog — pick an existing local repo path +
+ * base branch: a unified free-text repo input with the saved/browse smart
+ * dropdown, and a branch picker that augments the input. All behavior lives
+ * in the view-model; this file is JSX only.
  */
 
 import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-task-dialog/state"
@@ -80,11 +79,11 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
               //
               // Holding a NAME, there is a directory beside it and the row has
               // to divide: the input takes a fixed column and the directory is
-              // what gives way. `flexGrow` here is what CAUSED the bug this
-              // replaces — the input grew to the row, the directory then
-              // compressed it below the name's length, and an input narrower
-              // than its content scrolls to the cursor, so `fixture-repo`
-              // rendered as `ture-repo` with nothing to admit the cut.
+              // what gives way. NOT `flexGrow` — the input would grow to the
+              // row, the directory would then compress it below the name's
+              // length, and an input narrower than its content scrolls to the
+              // cursor, so `fixture-repo` renders as `ture-repo` with nothing
+              // to admit the cut.
               //
               // Holding a PATH (typed by hand, or a name too ambiguous to show)
               // nothing sits beside it and it takes the whole row: a path needs
@@ -108,7 +107,7 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
       {vm.field === "repo" && vm.activeList.length > 0 && !vm.repoPicked ? (
         <PickerList window={vm.activeWindow} cursor={vm.repoCursor} rows={repoRows} onPick={vm.selectRepoAt} />
       ) : null}
-      {/* Only for a repo that HAS a project checkout (issue #90). Everywhere
+      {/* Only for a repo that HAS a project checkout. Everywhere
           else this row would be a control whose second option does nothing,
           so it stays absent rather than disabled. */}
       {vm.canOpenProject ? (

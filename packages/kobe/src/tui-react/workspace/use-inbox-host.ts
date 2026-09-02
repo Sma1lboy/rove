@@ -97,7 +97,7 @@ export function useInboxHost(args: {
   }, [unavailableSignature, orch])
 
   /**
-   * Release a `prompt_deferred` episode (issue #78 B exit path). The text is
+   * Release a `prompt_deferred` episode. The text is
    * fetched from the daemon store (the episode carries only its id), inserted
    * with a FRESH A/C gate, and — only on success — resolved. The gate still
    * blocking means the human is typing again; the message stays queued.
@@ -111,7 +111,7 @@ export function useInboxHost(args: {
       const record = await orch.getDeferredPrompt(deferredId)
       if (!record) {
         // The record was released or cleaned up after expiry — drop the stale
-        // episode so it doesn't point at a record that no longer exists.
+        // episode so it doesn't point at a record that is gone.
         notifyInboxRpcFailure(orch.dismissAttention(item.taskId, item.tabId, item.at), "dismiss", args.notifyError)
         return
       }

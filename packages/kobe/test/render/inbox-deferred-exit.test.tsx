@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The B-layer exit path (issue #78): opening a `prompt_deferred` inbox item
+ * The B-layer exit path: opening a `prompt_deferred` inbox item
  * jumps AND inserts the queued message, re-running the A/C gate. Render-track
  * proof of the wiring — the inbox half of accept-and-defer.
  *

@@ -4,9 +4,9 @@
  * wire into the framework-free `CreateTaskContext` — the dialog surfacing
  * trio, the post-delete selection move, the repo-scoped vendor preference
  * pair, and the {@link buildBaseCreateTaskContext} base both hosts spread
- * before adding their divergences. Before this module each host carried its
- * own verbatim copy; the flows' behavior is defined in `tui/lib/task-actions`
- * + `tui/lib/task-create-flow`, so these adapters are pure wiring.
+ * before adding their divergences — one copy, so the two hosts cannot drift.
+ * The flows' behavior is defined in `tui/lib/task-actions` +
+ * `tui/lib/task-create-flow`, so these adapters are pure wiring.
  */
 
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"

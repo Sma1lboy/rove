@@ -1,22 +1,15 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Shared per-row React hooks for the sidebar's rows.
- *
- * History: this file used to own the flat sidebar's two-line row cards
- * (`ProjectRowCard` / `TaskRowCard`). The flat sidebar is gone from the
- * product and those cards had zero callers — the hover-tooltip feed lived
- * in them, which is exactly what made the tooltip path unreachable — so
- * the cards were removed (2026-08-30). What survives is the seam the tree
- * sidebar's one-line rows import: the spinner-frame subscription, the
- * `+N −M` changes hook + chip, the unread-lamp "seen" bookkeeping, and the
- * (retired-print) jump-digit placeholder.
+ * Shared per-row React hooks for the sidebar's rows: the spinner-frame
+ * subscription, the `+N −M` changes hook + chip, the unread-lamp "seen"
+ * bookkeeping, and the jump-digit placeholder.
  *
  * Poller contract (async canon): the fire-and-forget `poll*` call lives in
  * an effect keyed on the Sidebar's `branchTick` (never in render), while
  * the cached `read` side (`worktreeChanges`) is a plain synchronous getter
  * read at render time. A finishing poll surfaces on the next tick
- * re-render (≤100ms via the spinner tick) instead of notifying — the Solid
- * signal's push is replaced by the tick's pull.
+ * re-render (≤100ms via the spinner tick) rather than notifying: the tick
+ * pulls, nothing pushes.
  */
 
 import type { TaskEngineState } from "@/client/remote-orchestrator"
@@ -35,8 +28,8 @@ const ZERO_FRAME = () => 0
 /**
  * Per-row spinner pulse — subscribes to the shared 10Hz frame store ONLY
  * while this row actually animates, so a frame tick re-renders the loading
- * rows and nothing else (the old component-level interval re-ran the whole
- * Sidebar per tick). Exported for the tree's one-line worktree rows.
+ * rows and nothing else — a component-level interval would re-run the whole
+ * Sidebar per tick. Exported for the tree's one-line worktree rows.
  */
 export function useSpinnerFrame(active: boolean): number {
   return useSyncExternalStore(
@@ -92,17 +85,17 @@ export function ChangeStats(props: { readonly changes: WorktreeChanges }) {
  * (selected while complete) — the herdr "seen" bit driving ● → ✓. Cleared the
  * moment that row's activity state moves off `turn_complete`.
  *
- * Process-scoped, and that used to be the whole record: the daemon's activity
- * registry outlives the TUI, so relaunching kobe re-lit every completion you
- * had already read (issue #22). The durable mark in `workspace/completion-seen`
- * is what survives the restart; this Set stays the same-render answer.
+ * Process-scoped, so it is only half the record: the daemon's activity
+ * registry outlives the TUI, and relaunching kobe would otherwise re-light
+ * every completion already read. The durable mark in
+ * `workspace/completion-seen` survives the restart; this Set is the
+ * same-render answer.
  *
  * Keyed per ROW (task, or task+tab in the tree), not per task: a task owns
  * several tab rows, and they render in the same pass. A sibling tab — which
- * legitimately passes `activityState: undefined` — took the clear branch and
- * wiped the bit the completed tab's row had just recorded. Symptom (owner
- * report 2026-08-10): open the tab, the lamp digests to ✓, and it flips back
- * to ● the moment you leave, forever.
+ * legitimately passes `activityState: undefined` — would take the clear
+ * branch and wipe the bit the completed tab's row just recorded, flipping the
+ * lamp ✓ → ● on every task switch.
  */
 const completionSeenIds = new Set<string>()
 
@@ -144,7 +137,7 @@ export function completionStampOf(activity: TaskEngineState | undefined): number
 }
 
 /**
- * Persisted half of the seen bit (issue #22): read the stored mark at render
+ * Persisted half of the seen bit: read the stored mark at render
  * time, and record this completion while you are looking at it.
  *
  * The write is an EFFECT on purpose — `kv.set` re-renders every KV consumer,
@@ -176,7 +169,7 @@ export function useDurableCompletionSeen(
  * nothing rather than a digit that jumps somewhere else. Keyed on the flat
  * index directly so the tree's rows (no SidebarRow wrapper) share it.
  */
-// ponytail: ctrl+<digit> jump chord still works, just no longer printed on the row.
+// ponytail: the ctrl+<digit> jump chord works; the digit is not printed on the row.
 export function JumpDigit(_props: { flatIndex: number; dim: boolean }) {
   return null
 }

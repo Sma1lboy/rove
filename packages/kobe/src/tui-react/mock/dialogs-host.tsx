@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React dialogs/notifications mock host (`bun run dev:mock-react-dialogs`,
- * issue #15 G3) — the live render proof for the small-shared-dialogs slice:
+ * Dialogs/notifications mock host (`bun run dev:mock-react-dialogs`) — the
+ * live render proof for the small-shared-dialogs slice:
  * NotificationsProvider wired through `bootPaneHost` (providers:
  * notifications), VersionSkewBanner, ToastOverlay, and HelpDialog all on
  * one screen.

@@ -71,7 +71,7 @@ export interface HostSidebarProps {
   readonly zenActive: boolean
   readonly onZenClick: () => void
   readonly onFocusRequest: () => void
-  /** Narrow mode's "↩ recent" jump row target (issue #14, 2A). */
+  /** Narrow mode's "↩ recent" jump row target. */
   readonly recentTask?: Task | null
   /** Global task sort mode driven by the `t` chord. */
   readonly sortMode?: TaskSortMode
@@ -90,7 +90,7 @@ export function HostSidebar(props: HostSidebarProps) {
   // where that fork lives; a failure surfaces as a toast rather than a silent
   // no-op. Closing the LAST tab is not a failure (it empties the list and the
   // row is revived on re-entry), so the only false left is a tab the tree
-  // still lists but the state no longer has — a stale row, not a refusal.
+  // still lists but the state does not have — a stale row, not a refusal.
   const closeTab = useCallback(
     (taskId: string, tabId: string): void => {
       if (!closeTaskTab(kv, taskId, tabId))
@@ -98,7 +98,7 @@ export function HostSidebar(props: HostSidebarProps) {
     },
     [kv, notif, t],
   )
-  // Tab reorder is tab close's sibling (move mode on a tab row, issue #43):
+  // Tab reorder is tab close's sibling (move mode on a tab row):
   // same mounted-vs-background fork, same "who owns this task's state"
   // question — `moveTaskTab` is where that fork lives. An edge-stop (first
   // tab up / last down) is a silent no-op, not an error.
@@ -108,8 +108,8 @@ export function HostSidebar(props: HostSidebarProps) {
     },
     [kv],
   )
-  // "New conversation" / "New shell" from a row's menu (owner ask
-  // 2026-08-18). Unlike close/move there is no background path: the picker is
+  // "New conversation" / "New shell" from a row's menu. Unlike close/move
+  // there is no background path: the picker is
   // a dialog and a shell tab needs its PTY where the tabs render, so this
   // ENTERS the task first and the request is claimed by its workspace — on
   // the spot when it is already mounted, on first mount otherwise.

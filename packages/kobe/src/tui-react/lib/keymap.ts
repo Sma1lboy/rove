@@ -1,25 +1,21 @@
 /**
- * React key-bindings layer (issue #15, G2) — the `src/tui/lib/keymap.tsx`
- * counterpart for React panes. The dispatcher core (LIFO stack walk, chord
- * matching, preventDefault-on-first-hit) is the shared framework-free
+ * React key-bindings layer. The dispatcher core (LIFO stack walk, chord matching,
+ * preventDefault-on-first-hit) is the shared framework-free
  * `src/tui/lib/keymap-dispatch.ts`; this file owns only registration.
  *
- * Contract parity with the Solid hook:
- *   - `config` is re-evaluated on EVERY keypress. The Solid version relies
- *     on closures over signals staying live; React closures go stale across
- *     renders, so the registered entry reads the LATEST config through a
- *     ref that every render refreshes.
+ * Contract:
+ *   - `config` is re-evaluated on EVERY keypress. React closures go stale
+ *     across renders, so the registered entry reads the LATEST config
+ *     through a ref that every render refreshes.
  *   - Bindings stack LIFO; only the topmost enabled match fires.
  *
- * Known ordering difference (documented, accepted for the migration): Solid
- * registers during component SETUP (parents before children → children end
- * up on top); React registers in mount EFFECTS (children before parents →
- * ancestors end up on top). Consequence: a parent and child sharing a chord
- * must resolve by GATING, not stack order — the parent's entry disables
- * itself when the child should win. Case today: TerminalTabs' ctrl+w/F2
- * (gate off while the active tab is split so TerminalSplit's leaf-level
- * close/rename fire). Modal barrier vs dialog body is NOT resolved by
- * order anymore — it's declared via `ModalScopeContext` + `modalOwner`
+ * Registration happens in mount EFFECTS, which run children before parents,
+ * so ANCESTORS end up on top of the stack. Consequence: a parent and child
+ * sharing a chord must resolve by GATING, not stack order — the parent's
+ * entry disables itself when the child should win. Live case: TerminalTabs'
+ * ctrl+w/F2 gate off while the active tab is split, so TerminalSplit's
+ * leaf-level close/rename fire. Modal barrier vs dialog body is not resolved
+ * by order at all — it is declared via `ModalScopeContext` + `modalOwner`
  * below and settled by `insertRegistration`.
  */
 
@@ -47,15 +43,15 @@ export { dispatchKeyEvent } from "../../tui/lib/keymap-dispatch"
  * every `useBindings` mounted inside is stamped as a MEMBER of that scope,
  * and the barrier declares OWNERSHIP via `useBindings`'s `modalOwner`
  * option. `insertRegistration` (keymap-dispatch.ts) then places the barrier
- * below its members no matter which effect committed first — the explicit
- * replacement for the old "sibling order is load-bearing" contract.
+ * below its members no matter which effect committed first, so sibling
+ * registration order is never load-bearing.
  */
 export const ModalScopeContext = createContext<symbol | null>(null)
 
 let nextId = 1
 const stack: RegisteredBinding[] = []
-// Same renderer-swap guard as the Solid layer: production runs one renderer
-// per process (no-op from the second call), but a test harness that creates
+// Renderer-swap guard: production runs one renderer per process (no-op from
+// the second call), but a test harness that creates
 // a fresh renderer per test in the same process must rebind the listener to
 // the new renderer's keyInput emitter.
 let installedRenderer: unknown = null
@@ -76,11 +72,11 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   if (supersededRenderers.has(renderer as object)) return
   if (installed && listener) installed.off("keypress", listener)
   if (installedRenderer) supersededRenderers.add(installedRenderer as object)
-  // New renderer → fresh stack. The old renderer's tree may be torn down
-  // without React cleanups (test harness destroy, hard renderer swap) —
+  // New renderer → fresh stack. The superseded renderer's tree may be torn
+  // down without React cleanups (test harness destroy, hard renderer swap) —
   // its entries would linger in the module-global stack forever. Harmless
   // once, but a lingering MODAL barrier (dialog open at teardown) would
-  // block every key of the next renderer. Late cleanups from the old tree
+  // block every key of the next renderer. Late cleanups from that tree
   // splice by id and no-op safely against the cleared array.
   stack.length = 0
   resetPrefixState()

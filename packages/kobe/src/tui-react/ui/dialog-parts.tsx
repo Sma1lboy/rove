@@ -3,15 +3,14 @@
  * The one dialog grammar, as components — see `docs/design/dialogs.md`.
  *
  * `ui/dialog.tsx` owns the CARD (size, placement, dimmer, esc barrier); this
- * file owns what goes inside it. Two grammars used to share that card: a
- * "form sheet" (New task, New routine, the pickers — lowercase labels, bare
- * inputs, `[ create ]` bottom-right) and a "story editor" (the kanban
- * drawer — caps labels, rounded field wells, chips, a key legend). Same
- * shell, two looks, and a dialog's appearance depended on which one its
- * author had open at the time.
+ * file owns what goes inside it. The card admits two looks — a "form sheet"
+ * (New task, New routine, the pickers — lowercase labels, bare inputs,
+ * `[ create ]` bottom-right) and a "story editor" (the kanban drawer — caps
+ * labels, rounded field wells, chips, a key legend) — and which one a dialog
+ * wears must not depend on what its author happened to have open.
  *
- * The pieces here are the story-editor half, extracted so a dialog gets the
- * grammar by composing rather than by remembering. In particular
+ * The pieces here are the story-editor half, so a dialog gets the grammar by
+ * composing rather than by remembering. In particular
  * {@link DialogField} spreads {@link FRAME}: a well is rounded because the
  * author used the shared component, not because they recalled that opentui
  * defaults `borderStyle` to square (`ui/frame.ts`).

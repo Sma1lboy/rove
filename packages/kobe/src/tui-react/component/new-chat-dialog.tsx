@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Unified new-conversation dialog (issue #7) — ONE entry for every "start a
- * new chat" shape. The default state is the old `chat.tab.chooseEngine`
- * (ctrl+e) picker verbatim: engine list (+ shell + plugin panes), ←/→
- * cycles, enter opens a fresh tab in this worktree. Two in-dialog toggles
+ * Unified new-conversation dialog — ONE entry for every "start a new chat"
+ * shape. The default state is the `chat.tab.chooseEngine` (ctrl+e) picker:
+ * engine list (+ shell + plugin panes), ←/→ cycles, enter opens a fresh tab
+ * in this worktree. Two in-dialog toggles
  * bend the outcome, with the footer always showing their live state:
  *
  *   - `tab`    — destination: new tab here ⇄ fork a child task worktree
@@ -29,8 +29,7 @@ import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "..
 import { ChoiceRow } from "./new-task-dialog/picker-list"
 
 /** What the picker can resolve to: an engine vendor, a plain shell tab, or
- *  a Scratch shell task (issue #33 — owner placement 2026-08-16: trailing
- *  choice, never a chord until frequency proves one out). With
+ *  a Scratch shell task (a trailing choice, never a chord). With
  *  `extraChoices`, an extra choice's `key` (e.g. a plugin pane) too. */
 export type EnginePick = VendorId | "shell" | "scratch" | (string & {})
 
@@ -50,10 +49,9 @@ export function NewChatDialogView(props: {
   defaultVendor: VendorId
   /** Offer a trailing "shell" choice (a plain terminal tab). */
   allowShell?: boolean
-  /** Offer the LAST-position "scratch" choice (a Scratch shell task — issue
-   *  #33). Tail placement is the owner's call (2026-08-16): the default
-   *  highlight and every existing choice's position stay untouched so
-   *  ctrl+e→enter muscle memory is preserved. */
+  /** Offer the LAST-position "scratch" choice (a Scratch shell task). Tail
+   *  placement keeps the default highlight and every other choice's position
+   *  where they are, so ctrl+e→enter muscle memory holds. */
   allowScratch?: boolean
   /** Trailing extra choices (plugin panes): `key` is returned, `label` shown. */
   extraChoices?: readonly { key: string; label: string }[]
@@ -80,7 +78,7 @@ export function NewChatDialogView(props: {
         ...vendors,
         ...(props.allowShell ? (["shell"] as const) : []),
         ...extras.map((e) => e.key),
-        // Scratch is LAST by owner placement — see allowScratch's doc.
+        // Scratch is LAST — see allowScratch's doc.
         ...(props.allowScratch ? (["scratch"] as const) : []),
       ]
     : vendors
@@ -141,8 +139,8 @@ export function NewChatDialogView(props: {
         <text
           fg={theme.textMuted}
           onMouseUp={() => {
-            // Cancel must also CLOSE — resolving the promise alone left the
-            // card on screen with its onClose already spent.
+            // Resolving the promise does not close the dialog; clear it
+            // explicitly.
             props.onCancel()
             dialog.clear()
           }}

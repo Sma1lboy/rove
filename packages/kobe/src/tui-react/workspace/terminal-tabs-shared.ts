@@ -25,10 +25,10 @@ import { type TabsSnapshotKv, forgetTaskTabsSnapshot, terminalTabsKey } from "./
  *
  *  WRITE THROUGH `setTaskTabs` / `deleteTaskTabs`, never `.set` / `.delete`
  *  directly: a plain Map mutation is invisible to React, and `ShowWorkspace`
- *  decides whether to mount `TerminalTabs` at all from this map. Closing a
- *  task's last tab wrote here and re-rendered nothing, so the component that
- *  owns the now-empty tab list stayed mounted and kept dereferencing an
- *  `active` tab that no longer existed. */
+ *  decides whether to mount `TerminalTabs` at all from this map. A raw
+ *  mutation when a task's last tab closes re-renders nothing, leaving the
+ *  component that owns the now-empty tab list mounted and dereferencing an
+ *  `active` tab that is gone. */
 export const tabsByTask = new Map<string, TabsState>()
 
 /** Bumped on every `tabsByTask` write — the subscribable half of the map, so
@@ -45,11 +45,10 @@ export function setTaskTabs(taskId: string, state: TabsState): void {
 /**
  * Revive a task whose last tab was closed, returning true when it did.
  *
- * Selecting the task is the affordance (owner call 2026-08-31): the sidebar
- * row IS the button, so entering an emptied task reopens the kind of tab that
- * was there rather than landing on a pane with nothing to press. A snapshot
- * from before `reopenAs` existed reopens the default engine tab — see
- * {@link reopenTabs}.
+ * Selecting the task is the affordance: the sidebar row IS the button, so
+ * entering an emptied task reopens the kind of tab that was there rather than
+ * landing on a pane with nothing to press. A snapshot carrying no `reopenAs`
+ * reopens the default engine tab — see {@link reopenTabs}.
  *
  * No-op for every other state: a task with tabs, and a task that has never
  * opened any (`null`, not empty — TerminalTabs mounts and mints its own).
@@ -101,12 +100,10 @@ export function knownTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
  *
  * The distinction is load-bearing because callers DELETE episodes that read
  * as unavailable. `knownTaskTab(...) !== undefined` collapses "don't know"
- * into "gone" and destroys live episodes — the owner-reported "two tabs are
- * unread but the Inbox only lists one" (40641c01). That fix converted the
- * host but left the dialog, its per-row badge, and the F7 jump on the binary
- * form, so the badge counted episodes the list hid and opening such a row
- * silently dismissed it instead of navigating. Route every availability
- * question through here.
+ * into "gone" and destroys live episodes: the list hides episodes the badge
+ * still counts, and opening such a row silently dismisses it instead of
+ * navigating. The host, the dialog, its per-row badge and the F7 jump must
+ * all route their availability question through here.
  */
 export function taskTabExists(kv: TabsSnapshotKv | null, taskId: string, tabId: string): boolean | undefined {
   const known = knownTaskTabs(kv, taskId)
@@ -183,7 +180,7 @@ export function requestTabOpen(
 
 /**
  * Cross-component "add a session to this task" request — the sidebar tree's
- * right-click "New conversation" / "New shell" (owner ask 2026-08-18).
+ * right-click "New conversation" / "New shell".
  *
  * Twin of {@link requestTabActivation}, not of {@link requestTabClose}: both
  * kinds need the task's OWN workspace (the picker is a dialog; a shell tab
@@ -289,8 +286,8 @@ export function takeUnclaimedTabAdopt(): { taskId: string; tabIds: readonly stri
 }
 
 /**
- * Cross-component "move this tab up/down" request (sidebar move mode, issue
- * #43) — same claim protocol as {@link requestTabClose}: the sidebar can name
+ * Cross-component "move this tab up/down" request (sidebar move mode) —
+ * same claim protocol as {@link requestTabClose}: the sidebar can name
  * a tab of a task whose TerminalTabs is not mounted, so an unclaimed request
  * is written in the background (`moveTaskTabRow`).
  */
@@ -377,7 +374,7 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
 }
 
 /**
- * Reclaim a DELETED task's in-process + persisted tab state (O19): drop its
+ * Reclaim a DELETED task's in-process + persisted tab state: drop its
  * `tabsByTask` entry (module-level, otherwise only-grows) and its
  * `terminalTabs.*` kv snapshot. Call from the task-DELETE flow only. Its PTYs
  * are released separately by the host's deleting-task sweep / the tab's own

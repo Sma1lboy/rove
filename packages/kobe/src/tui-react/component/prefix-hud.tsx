@@ -188,7 +188,7 @@ export function PrefixHud(props: { left: number; width: number }) {
     )
   }
 
-  // Narrow (issue #14): no sidebar column to sit over — go full width just
+  // Narrow mode: no sidebar column to sit over — go full width just
   // above the footer, where the bottom-most covered row is the workspace
   // frame's own border, not terminal content. NOT over the footer row
   // itself: the footer paints after the pane children, so an "overlay"

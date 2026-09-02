@@ -2,11 +2,10 @@
  * Durable "I already looked at this completion" record — the persisted half
  * of the sidebar's unread lamp (● turn done, not yet viewed).
  *
- * The lamp's seen bit used to live ONLY in a process-local Set, so quitting
- * kobe threw the fact away while the daemon kept publishing the very same
- * `turn_complete` (its activity registry is daemon-lived, not TUI-lived).
- * Every completion you had already read came back unread on the next launch
- * — owner report 2026-08-12, issue #22.
+ * A process-local Set alone is not enough: quitting kobe throws the fact away
+ * while the daemon keeps publishing the very same `turn_complete` (its
+ * activity registry is daemon-lived, not TUI-lived), so every completion you
+ * had already read comes back unread on the next launch.
  *
  * The mark is the completion's own timestamp: `turn_complete` is a STICKY
  * activity state, so its `at` is stamped once by the reporting event and
@@ -31,7 +30,7 @@ export type CompletionSeenKv = {
 }
 
 /** Row identity of a seen mark: a task's own rollup, or one of its tabs.
- *  Same NUL-joined shape the session Set has always used. */
+ *  Same NUL-joined shape the session Set uses. */
 export function completionSeenKey(taskId: string, tabId?: string): string {
   return tabId === undefined ? taskId : `${taskId}\0${tabId}`
 }
@@ -91,13 +90,13 @@ export function markCompletionSeen(kv: CompletionSeenKv, key: string, at: number
 
 /**
  * The subset of `stamps` whose completion the persisted record already
- * covers — the tab strip's half of the same bit (issue #23).
+ * covers — the tab strip's half of the same bit.
  *
- * The strip used to read a purely in-process unread map, so it lost the
- * fact on every relaunch: a tab that finished while you were away came
- * back looking read. Folding the SAME (task, tab) → seen-at record the
- * sidebar lamp uses keeps the two surfaces telling one story across
- * restarts. A tab with no stamp (`undefined` — the poll-only path, where
+ * A purely in-process unread map loses the fact on every relaunch, so a tab
+ * that finished while you were away comes back looking unread. Folding the
+ * SAME (task, tab) → seen-at record the sidebar lamp uses keeps the two
+ * surfaces telling one story across restarts. A tab with no stamp
+ * (`undefined` — the poll-only path, where
  * no hook ever reported a completion timestamp) is never "seen": there is
  * nothing to key a mark on.
  */

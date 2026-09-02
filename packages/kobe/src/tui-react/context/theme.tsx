@@ -1,19 +1,16 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Theme provider for kobe (React) — the `src/tui/context/theme.tsx`
- * counterpart for React panes (issue #15, G2). All theme SEMANTICS
- * (bundled registry, resolution, focus-accent + transparent overlay) come
- * from the shared framework-free `src/tui/context/theme-core.ts`; this file
- * owns only the React reactivity.
+ * Theme provider for kobe. All theme SEMANTICS (bundled registry,
+ * resolution, focus-accent + transparent overlay) come from the shared
+ * framework-free `src/tui/context/theme-core.ts`; this file owns only the
+ * React reactivity.
  *
- * Differences from the Solid provider, by design:
- *   - `useTheme().theme` is a PLAIN resolved object, not a Proxy. React
- *     components re-render via context when the theme changes, so
- *     per-property reactive reads have no equivalent — and a plain object
- *     keeps `theme.background` call sites source-compatible.
+ *   - `useTheme().theme` is a PLAIN resolved object, not a Proxy: React
+ *     components re-render via context when the theme changes, so there is
+ *     nothing for per-property reactive reads to do.
  *   - Module-level registry state lives in an external store (subscribed
- *     via useSyncExternalStore), matching the Solid module-store semantics:
- *     `addTheme`/`listThemes` work before or outside any provider.
+ *     via useSyncExternalStore), so `addTheme`/`listThemes` work before or
+ *     outside any provider.
  */
 
 import { RGBA } from "@opentui/core"
@@ -46,7 +43,7 @@ const store = createExternalStore<State>({
   themes: { ...BUNDLED_THEMES },
   active: DEFAULT_THEME,
   mode: "dark",
-  // Transparent by default (2026-07-12) — kobe sits on the terminal's own
+  // Transparent by default — kobe sits on the terminal's own
   // background unless the user explicitly turns transparency off.
   transparentBackground: true,
   focusAccent: "primary",
@@ -67,9 +64,8 @@ export function addTheme(name: string, theme: ThemeJson): boolean {
   return true
 }
 
-// Module-level accessors/setters, mirroring the Solid module's
-// store-outside-the-provider semantics. The React host-boot path (issue #15
-// G3) seeds persisted prefs through these BEFORE the first render (no
+// Module-level accessors/setters, usable outside the provider. The host-boot
+// path seeds persisted prefs through these BEFORE the first render (no
 // flash) and applies live daemon ui-prefs pushes without a hook scope; the
 // provider's context methods delegate to the same store.
 
@@ -141,10 +137,10 @@ function resolveActive(state: State): Theme {
 }
 
 export function ThemeProvider(props: { children?: ReactNode; mode?: "dark" | "light"; theme?: string }) {
-  // Seed once from props, mirroring the Solid provider's init block. Done
-  // during the first render (not an effect) so the very first paint already
-  // uses the requested theme; the store dedupes identical snapshots.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: seed-once semantics, matching Solid's init.
+  // Seed once from props, during the first render (not an effect) so the very
+  // first paint already uses the requested theme; the store dedupes identical
+  // snapshots.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: seed-once semantics.
   useMemo(() => {
     store.update((s) => ({
       ...s,

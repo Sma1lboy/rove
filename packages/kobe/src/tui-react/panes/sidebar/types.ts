@@ -1,10 +1,7 @@
 /**
- * React sidebar prop types (issue #15, G3). Ported from the Solid-era props
- * (removed 2026-07-07) with the idiomatic React translation: every
- * `Accessor<T>` prop became a plain `T` — the host re-renders the Sidebar
- * when the value changes, so per-read reactivity has no equivalent.
- * Callback props are unchanged. Shared data shapes (`WorktreeChanges`) are
- * the framework-free originals.
+ * React sidebar prop types. Values are plain `T`, never accessors — the host
+ * re-renders the Sidebar when one changes. Shared data shapes
+ * (`WorktreeChanges`) come from the framework-free modules.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -22,7 +19,7 @@ export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
-  /** Scope-aware reorder mode (issue #43): j/k move the cursor row's LEVEL
+  /** Scope-aware reorder mode: j/k move the cursor row's LEVEL
    *  — a tab within its task, a task within its repo group, a main row's
    *  whole project — instead of walking the cursor. */
   moveMode?: boolean
@@ -32,8 +29,8 @@ export type SidebarTaskCallbacks = {
   /**
    * Shift+P only. A bare `p` binds nothing — the registry row is an explicit
    * `shift+p` chord — so a mistyped press matches no binding and silently
-   * does nothing rather than churning the pin flag (same contract as the
-   * Solid era; see the sidebar.pin row in context/keybindings-sidebar.ts).
+   * does nothing rather than churning the pin flag (see the sidebar.pin row
+   * in context/keybindings-sidebar.ts).
    */
   onPinRequest?: (taskId: string) => void
   /**
@@ -56,7 +53,7 @@ export type SidebarTaskCallbacks = {
   /** Menu route of `b`: the branch picker/rename for the row's task. */
   onRenameBranchRequest?: (taskId: string) => void
   /** Menu route of `v`, as a picker over the available engines rather than
-   *  the chord's blind cycle (owner call 2026-09-01). */
+   *  the chord's blind cycle. */
   onChangeEngineRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
   onFieldNotesRequest?: (repo: string) => void
@@ -77,7 +74,7 @@ export type SidebarProps = SidebarTaskCallbacks & {
   /** Keep a task-bound pane visually pinned to its own task after jump-away. */
   pinnedSelection?: boolean
   focused?: boolean
-  /** Presence (non-undefined) turns on the sort toggle, like the Solid accessor. */
+  /** Presence (non-undefined) turns on the sort toggle. */
   sortMode?: TaskSortMode
   /** Presence (non-undefined, null = "all") makes the filter host-controlled. */
   projectFilter?: string | null

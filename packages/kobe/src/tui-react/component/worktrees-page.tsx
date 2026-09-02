@@ -1,14 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * WorktreesPage — React port of `src/tui/component/worktrees-page.tsx`
- * (issue #15/#23). Lists every git worktree across all locally-saved
- * projects (kobe-managed or not — see `worktree.list`'s handler), each row
- * flagging whether kobe manages it, its age, uncommitted-changes state, and
- * whether its branch has reached `origin`. Modeled on `tui-react/settings/
- * host.tsx` (standalone full-window surface, same close-key contract) and
- * the React new-task dialog's Adopt tab (cursor-navigable worktree list —
- * see `component/new-task-dialog/tab-adopt.tsx` for the row-grammar this
- * extends with badges).
+ * WorktreesPage — lists every git worktree across all locally-saved projects
+ * (kobe-managed or not — see `worktree.list`'s handler), each row flagging
+ * whether kobe manages it, its age, uncommitted-changes state, and whether
+ * its branch has reached `origin`. Modeled on `tui-react/settings/host.tsx`
+ * (standalone full-window surface, same close-key contract) and the new-task
+ * dialog's Adopt tab (cursor-navigable worktree list — see
+ * `component/new-task-dialog/tab-adopt.tsx` for the row grammar this extends
+ * with badges).
  *
  * Delete flow mirrors the daemon's own safety gate
  * (`GitWorktreeManager.remove`): a clean worktree deletes on a single
@@ -21,11 +20,10 @@
  * disappears the moment the user confirms and the daemon call runs in the
  * background. A failure (dirty refusal, or anything else) puts the row back.
  *
- * Solid→React deltas: the Solid `createResource` becomes THE ASYNC CANON
- * (`src/tui-react/history/host.tsx`) — `useState` + a `reloadTick`-keyed
- * `useEffect` whose stale completions are dropped by an effect-local
- * `disposed` flag; `refetch()` is just bumping `reloadTick`. `For`/`Show`
- * become plain `.map()`/ternaries.
+ * Loading follows THE ASYNC CANON (`src/tui-react/history/host.tsx`):
+ * `useState` + a `reloadTick`-keyed `useEffect` whose stale completions are
+ * dropped by an effect-local `disposed` flag; a refetch is just bumping
+ * `reloadTick`.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -87,7 +85,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   // (ls-remote + gh PR states, seconds when a remote is slow) swaps in when
   // it lands. `fullLanded` guards the rare inversion where the full pass
   // returns before the fast one — richer rows must not be overwritten.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the effect body doesn't read it) — matching the Solid refetch() re-run guard.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
     let fullLanded = false
@@ -117,8 +115,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
         setRemovingPaths((paths) => paths.filter((p) => live.has(p)))
       })
       .catch(() => {
-        // Same boundary as the Solid resource: a failed read leaves the
-        // fast-pass rows (or the loading placeholder) rather than crashing.
+        // Failure boundary: a failed read leaves the fast-pass rows (or the
+        // loading placeholder) rather than crashing.
       })
     return () => {
       disposed = true
@@ -135,7 +133,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   const flatRows = flattenRows(visibleProjects)
 
   const [cursor, setCursor] = useState(0)
-  // Re-clamp whenever the row count changes — the Solid `createEffect` on `flatRows().length`.
+  // Re-clamp whenever the row count changes.
   useEffect(() => {
     setCursor((c) => clampCursor(c, flatRows.length))
   }, [flatRows.length])

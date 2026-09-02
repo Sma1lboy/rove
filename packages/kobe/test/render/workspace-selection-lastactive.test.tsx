@@ -1,10 +1,10 @@
 /** @jsxImportSource @opentui/react */
 /**
  * selectTask must publish the active task even when the id is already the
- * local selection (issue #14 follow-up): a fresh home boots with a
- * fallback-selected task but a NULL active record, and the old early-return
- * meant the first Enter never called setActiveTask — so lastActive stayed
- * unwritten and narrow mode's "↩ recent" row never appeared.
+ * local selection: a fresh home boots with a fallback-selected task but a
+ * NULL active record, so an early return on "already selected" means the first
+ * Enter never calls setActiveTask — lastActive stays unwritten and narrow
+ * mode's "↩ recent" row never appears.
  */
 
 import { describe, expect, it } from "bun:test"
@@ -93,7 +93,7 @@ describe("selectTask on a fresh home", () => {
     expect(selectedId).toBe("alpha")
     expect(published).toEqual([])
 
-    // Entering that pre-selected task must publish it (the fix).
+    // Entering that pre-selected task must publish it.
     act(() => selectTask?.("alpha"))
     await settle()
     expect(published).toEqual(["alpha"])
