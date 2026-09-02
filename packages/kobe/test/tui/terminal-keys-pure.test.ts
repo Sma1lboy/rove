@@ -89,6 +89,25 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "\x03", raw: "\x03" } as never))).toBe("\x03")
   })
 
+  it("forwards a kitty IME text event (CSI 0 u with reportText) as the committed characters", () => {
+    // allKeysAsEscapes makes a terminal encode an input-method commit as
+    // codepoint 0 with the text in the third field. Without reportText that
+    // field is absent and the event carries nothing to type.
+    const committed = {
+      name: "中文",
+      sequence: "中文",
+      raw: "\x1b[0;1;20013:25991u",
+      source: "kitty",
+      ctrl: false,
+      meta: false,
+      shift: false,
+      option: false,
+    } as unknown as KeyEvent
+    expect(keyEventToShellBytes(committed)).toBe("中文")
+    const empty = { name: "", sequence: "\x1b[0u", raw: "\x1b[0u", source: "kitty" } as unknown as KeyEvent
+    expect(keyEventToShellBytes(empty)).toBeNull()
+  })
+
   it("re-encodes printable keys when kitty sends every key as CSI-u", () => {
     expect(keyEventToShellBytes(evt({ name: "a", sequence: "a", raw: "\x1b[97u" } as never))).toBe("a")
     expect(keyEventToShellBytes(evt({ name: "1", sequence: "1", raw: "\x1b[49u" } as never))).toBe("1")
