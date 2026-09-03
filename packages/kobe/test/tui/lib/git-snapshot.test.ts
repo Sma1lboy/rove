@@ -126,6 +126,19 @@ describe("getCurrentBranch", () => {
     expect(getCurrentBranch(notRepo)).toBeNull()
     expect(getCurrentBranch("")).toBeNull()
   })
+
+  // A detached HEAD is the one case where git EXITS ZERO and still has no
+  // branch name to give: `--abbrev-ref` prints the literal "HEAD". Prefilling
+  // baseRef with that string would send `git worktree add` at a ref that moves
+  // under it, so it has to read as null and fall back to DEFAULT_BASE_REF.
+  it('degrades to null on a detached HEAD, which git reports as the name "HEAD"', () => {
+    git(repo, "checkout", "--detach")
+    try {
+      expect(getCurrentBranch(repo)).toBeNull()
+    } finally {
+      git(repo, "checkout", "zeta")
+    }
+  })
 })
 
 describe("listLocalBranches", () => {
