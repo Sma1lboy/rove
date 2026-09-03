@@ -8,7 +8,15 @@
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv, makeScratchRepo, runRove } from "./harness.ts"
+import {
+  type BehaviorEnv,
+  DIST_ROVE_CLI,
+  closeTui,
+  loadNodePty,
+  makeBehaviorEnv,
+  makeScratchRepo,
+  runRove,
+} from "./harness.ts"
 
 // Shared loader: skips when node-pty is missing OR cannot spawn here (a
 // sandboxed shell denies posix_spawnp) — see harness.ts.
@@ -121,7 +129,7 @@ describe.skipIf(!nodePty)("Pure TUI open-worktree keys (behavior)", () => {
       expect(new Set(prefixed)).toEqual(new Set([repo]))
     } finally {
       data.dispose()
-      child.kill()
+      await closeTui(child)
     }
   }, 45_000)
 })
