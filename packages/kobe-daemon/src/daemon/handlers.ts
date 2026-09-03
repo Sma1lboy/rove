@@ -308,6 +308,11 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // a daemon staying alive for a schedule looks like a leak.
           automationHold: ctx.automations.hasEnabled(),
           taskCount: ctx.orch.listTasks().length,
+          // The state root this daemon serves — `hello` already reports it for
+          // the TUI's foreign-daemon guard; status carries it so `rove doctor`
+          // can name a daemon squatting the socket from a DIFFERENT home,
+          // which otherwise reads as "my tasks vanished".
+          homeDir: ctx.daemon.homeDir,
           socketPath: ctx.daemon.socketPath,
           webPort: ctx.daemon.webPort ?? null,
           webError: ctx.daemon.webError ?? null,

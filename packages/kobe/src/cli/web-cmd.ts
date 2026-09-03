@@ -46,7 +46,8 @@ Launch the Rove web UI through daemon web transport on http://localhost:<port>.
 Options:
   --port <n>        Daemon web transport port (default ${DEFAULT_DAEMON_WEB_PORT}).
   --routes-only     Routes only; Vite serves the SPA separately.
-  --no-takeover     Reserved for compatibility; daemon owns the web port.
+  --no-takeover     Leave an older PTY sidecar on <port+2> running instead of
+                    replacing it (the default takes the port over).
   -h, --help        Show this help.
 `
 

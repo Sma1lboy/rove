@@ -193,7 +193,7 @@ invalid types/patterns are install-time errors.
 
 The accepted platform tokens are exactly `macos`, `linux`, and `windows`.
 A top-level list applies to the whole plugin; `platforms` on an individual
-build, startup, action, event, or pane replaces that list for that item. With
+build, startup, shutdown, action, event, or pane replaces that list for that item. With
 no declaration, Rove assumes the command is portable and allows it everywhere.
 
 A plugin whose top-level `platforms` excludes the current machine stays in

@@ -36,8 +36,10 @@ The example throughout this page is the one in the screenshot: *every morning at
 ![The New routine composer: name, repo picker and prompt above five labelled cron cells, with the hour cell selected and the schedule restated underneath as "weekdays at 12:00 · in 2d · Mon 12:00"](assets/routines-composer.png)
 
 There is no in-page editing: recreate the routine, or use `rove api
-routine-update`. A precheck (below) is CLI-only; it is the one field that is
-genuinely optional.
+routine-update`. The composer carries name, repo, prompt, schedule and the
+confirm step; everything else is CLI-only — `--precheck` (below),
+`--precheck-timeout`, `--vendor`, `--base-branch`, `--grace`,
+`--persistent-session` and `--disabled`.
 
 The page end to end: walking the schedules, pausing one, then composing a
 routine whose next fire time is restated in plain words as the cron cells
@@ -94,11 +96,18 @@ deletes, `r` refreshes, `enter` opens the task from the latest run, `esc` or `q`
 closes the page.
 
 Deleting removes the routine and its run history. **Tasks it already created are
-untouched.** They are ordinary tasks and outlive the schedule that made them.
+untouched.** They outlive the schedule that made them — but they are not quite
+ordinary: each carries a `routine` marker of its own, and the sidebar folds
+marked tasks behind the `N routine sessions` row and skips them in the
+cold-start "which task to open" fallback. Deleting a `--persistent-session`
+routine therefore leaves its standing task folded behind an orphan row forever;
+delete the task too, or open it explicitly.
 
 To find them — a routine that has been firing for weeks has a task per run —
 read the ids off its history before deleting it, since deleting takes the
-history with it:
+history with it. History is capped at the **100 most recent runs** per routine
+(pruned on every write), so a `*/30 * * * *` routine loses task ids after about
+two days — collect them as you go rather than at deletion time:
 
 ```bash
 rove api routine-runs --id <id> | jq -r '.runs[].taskId | select(.)'
@@ -119,7 +128,7 @@ field):
 │ ┌─ hour (0-23)
 │ │ ┌─ day of month (1-31)
 │ │ │ ┌─ month (1-12)
-│ │ │ │ ┌─ day of week (0-6 or SUN-SAT)
+│ │ │ │ ┌─ day of week (0-7 or SUN-SAT; 0 and 7 are both Sunday)
 0 3 * * *
 ```
 
@@ -142,8 +151,9 @@ restricted they are OR'd, so `0 0 1 * MON` means the 1st **or** any Monday, not
 
 The command runs in the repo, through your login shell, **before** the engine
 starts. Exit 0 proceeds. Anything else skips the run *without creating a
-task*: a non-zero exit, a timeout (120s by default, `--precheck-timeout`), or
-a failure to spawn.
+task*: a non-zero exit, a timeout (120s by default, `--precheck-timeout`,
+silently clamped to the range 1-600s — `--precheck-timeout 900` runs as 600),
+or a failure to spawn.
 
 This is the cost control. The dominant waste in scheduled agent work is firing
 on time when nothing has changed: the engine still boots, still reads the repo,
@@ -168,8 +178,8 @@ needed:
 | `deferred` | Standing session only: the composer was busy, so the prompt is queued in your Inbox. **Not lost** — release it there |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
 | `skipped_missed` | The occurrence was older than the grace window |
-| `skipped_unavailable` | The repo or worktree could not be resolved |
-| `dispatch_failed` | Task created, but its engine did not start. **Needs you** |
+| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which |
+| `dispatch_failed` | The prompt did not reach an engine. Either the task's engine did not start, or a standing session's composer was busy and the deferral could not be filed (its Inbox slot is already taken). **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.

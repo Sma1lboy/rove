@@ -220,14 +220,16 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     session: delivered.session,
     started: delivered.started,
     engineReady: delivered.engineReady,
-    ...(delivered.deferred
-      ? {
-          deferred: delivered.deferred,
-          // The deferred outcome is a SUCCESS, not an error — say so explicitly
-          // so a scripted sender does not read `deferred` as a failure and retry.
-          delivered: false,
-        }
-      : {}),
+    // The measured delivery facts, spelled the same way `add` spells them
+    // (handlers-add.ts) — `send` used to compute them and throw them away, so
+    // a successful send omitted `delivered` entirely while a deferred one
+    // reported it as the only outcome field.
+    delivered: delivered.delivered,
+    ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
+    ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
+    // The deferred outcome is a SUCCESS, not an error — say so explicitly so a
+    // scripted sender does not read `deferred` as a failure and retry.
+    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
   }
 }
 

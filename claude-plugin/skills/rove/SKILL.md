@@ -3,7 +3,7 @@ name: rove
 description: Use when controlling Rove tasks, parallel coding attempts, hosted agent sessions, task lifecycle, or the daemon-owned issue tracker from a shell. Also the ONLY channel for messaging another agent session on this machine — `rove api send`, never a peer/MCP side channel.
 ---
 
-<!-- rove-skill-version: 41 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
+<!-- rove-skill-version: 42 — bump in lockstep with KOBE_SKILL_VERSION (src/lib/skill-install.ts). -->
 
 # Rove shell control
 
@@ -149,7 +149,7 @@ rove api get-task --task-id "$ROVE_TASK_ID"  # .task.worktreePath, .task.branch,
 
 `get-task` is the per-task read that answers "what is my worktree, my
 branch, and which sibling tabs exist" — `.tabs[]` carries each tab's `id`, `kind`,
-`vendor`, `lastTitle` and `alive`, which is exactly the target list for
+`vendor`, `liveVendor`, `lastTitle` and `alive`, which is exactly the target list for
 `send --tab`. A tab flagged `unregistered: true` is a live session the tab
 snapshot lost; it is addressable like any other.
 
@@ -271,7 +271,8 @@ rove api add --repo "$PWD" --agents claude:2,codex:1 --prompt "<prompt>"
 
 # Follow up. Use an explicit id for unattended work; the active task can drift.
 # From inside a Rove task this auto-prefixes [ROVE PEER] provenance
-# (sender + reply command); --plain sends verbatim.
+# (sender + reply command) — `add --prompt` wears it too, so a dispatched
+# task's opening brief carries its reply address; --plain sends verbatim.
 #
 # A prompt with backticks, $vars, or quotes goes through --prompt-file, NEVER
 # a double-quoted --prompt: in double quotes `rove api send …` is command
@@ -304,6 +305,14 @@ rove api collect --group <groupId> --pretty
 rove api list --pretty
 ```
 
+**A `deferred` send already landed — do NOT retry.** When the target composer
+holds half-typed text, `send` exits 0 with `"deferred"` in the JSON instead of
+pasting over it: the daemon has stored the message and queued a
+`prompt_deferred` Inbox episode for a human to release. That is a SUCCESS, not
+a failure to deliver. Retrying stacks a duplicate — and the second send fails
+`DEFERRED_PROMPT_PENDING` until the Inbox item is released, dismissed, or
+expires. Read the `delivered` / `deferred` keys, not just the exit code.
+
 `.running` means any hosted engine tab on the task is alive; a live shell,
 command, or content tab alone does not count. It is process truth, not
 progress: a task whose work is merged and whose worker has signed off still
@@ -333,8 +342,9 @@ separate command tab — the attached TUI performs it, so this is a no-op
 headless:
 
 ```bash
-# Split the focused tab; the pane runs the command via `sh -lc` and
-# closes when it exits. Omit --command for an interactive shell.
+# Split the focused tab; the pane runs the command through your login
+# shell's `-ilc` (so it sees the same rc-exported PATH the engine tab does)
+# and closes when it exits. Omit --command for an interactive shell.
 rove api pane-open --command "btop"
 rove api pane-open --direction down --command "watch -n1 git status -sb"
 rove api pane-open --placement tab --title logs --command "tail -f app.log"

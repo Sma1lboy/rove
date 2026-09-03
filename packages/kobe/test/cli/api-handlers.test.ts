@@ -209,6 +209,33 @@ describe("send handler", () => {
     )
   })
 
+  // docs/API.md documents `delivered`, `bytes` and `promptEcho` under `send`.
+  // The delivery layer measured all three for every path and `send` dropped
+  // them, so a successful send carried no `delivered` key at all while a
+  // deferred one reported it as the only outcome field — `add` had been
+  // emitting the same three the whole time.
+  it("reports the delivery facts it documents", async () => {
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
+    const { deliver } = recordingDelivery({ bytes: 42, promptEcho: "confirmed" })
+    const result = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(result).toMatchObject({ delivered: true, bytes: 42, promptEcho: "confirmed" })
+  })
+
+  it("reports a deferred prompt as delivered:false, not as an error", async () => {
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
+    const { deliver } = recordingDelivery({ delivered: false, deferred: { id: "d1", layer: "composer-not-empty" } })
+    const result = (await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { ok: boolean; delivered: boolean; deferred: unknown }
+    expect(result.ok).toBe(true)
+    expect(result.delivered).toBe(false)
+    expect(result.deferred).toBeDefined()
+  })
+
   it("requires an explicit or active target", async () => {
     await expectApiError(
       () => invokeVerb("send", ["--prompt", "hi"], { client: new FakeClient(), runtime: stubRuntime() }),

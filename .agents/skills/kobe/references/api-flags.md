@@ -24,10 +24,10 @@ These five carry almost all traffic. Nothing here should ever need `schema`.
 ```text
 add     --repo(REQ) --prompt|--prompt-file --title --command --count --agents
         --branch --base-branch --status --pin --activate
-send    --prompt|--prompt-file(REQ) --task-id --tab --command --plain
+send    --prompt|--prompt-file(REQ) --task-id --tab --command --plain --allow-empty
 get-task --task-id(REQ)
 list    (no flags)
-collect --task-ids <csv> | --repo
+collect --task-ids <csv> | --group | --repo
 ```
 
 Four flag names that have actually been guessed wrong here, and what they are:
@@ -50,10 +50,15 @@ Four flag names that have actually been guessed wrong here, and what they are:
 | `fan-out` | `add --count N` / `add --agents claude:2,codex:1` |
 | `task-list` | `list` |
 | `send-tab` | `send --tab tab-N` |
-| `$KOBE_TASK_ID` / `$KOBE_TAB_ID` | `$ROVE_TASK_ID` / `$ROVE_TAB_ID` |
+| `set-vendor` | `set-command` (an engine id from `engine-list`, or a full command line) |
 
 Seeing one of these in guidance means that guidance predates the rename —
 `rove api schema` is the tiebreak.
+
+`$KOBE_TASK_ID` / `$KOBE_TAB_ID` are NOT retired: they are still exported into
+every engine tab as aliases of `$ROVE_TASK_ID` / `$ROVE_TAB_ID`, and parts of
+the daemon still read the `KOBE_` spelling. Write the `ROVE_` names; expect to
+see both.
 
 ## read
 
@@ -264,11 +269,6 @@ never wins the cold-start "which task to open" fallback. If the engine process
 is gone when the next firing arrives (an overnight gap usually means it is),
 the daemon respawns it in the SAME worktree — files and branch carry over, the
 conversation does not — and records that run as `revived`, not `dispatched`.
-
-**Routines take `--prompt` only.** Unlike `send`/`add`/`dispatch` there is no
-`--prompt-file` here, so a prompt with backticks, `$vars` or quotes has no
-escape hatch — write it with single quotes and keep `$` out of it, or set it
-from the TUI.
 
 A bare `--enabled` means true, so pausing a routine is
 `routine-set-enabled --id <id> --enabled=false` (the same `=false` spelling
