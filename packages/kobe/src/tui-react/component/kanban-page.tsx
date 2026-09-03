@@ -12,17 +12,23 @@
  * Enter opens {@link IssueDetailDialog}, whose Start hands an
  * {@link IssueChatStart} to the host). Column math is framework-free
  * (`state/issue-board.ts`): done > parked > linked-task > backlog.
+ *
+ * This file owns the DATA and the ACTIONS — which boards exist, what is
+ * selected, and every dialog/mutation behind `enter` / `n` / `d`. How many
+ * lanes fit and how one is drawn is {@link KanbanBoard}'s job
+ * (`component/kanban-board.tsx`); the only thing crossing that seam is the
+ * measured board width.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { Issue, RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { errorMessage } from "../../lib/error-message"
-import { type BoardColumnKey, applyBoardAttention, buildIssueBoard, moveBoardSelection } from "../../state/issue-board"
+import { applyBoardAttention, buildIssueBoard, moveBoardSelection } from "../../state/issue-board"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
 import type { VendorId } from "../../types/task"
 import { useNotifications } from "../context/notifications"
@@ -30,21 +36,17 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
-import { FRAME } from "../ui/frame"
 import { quickForkDefaultVendor } from "../workspace/quick-fork"
 import type { IssueChatStart } from "../workspace/use-issue-chat"
 import { IssueDetailDialog } from "./issue-detail-dialog"
-import { KanbanCard } from "./kanban-card"
+import { KanbanBoard, needsSingleLane } from "./kanban-board"
 import { useKanbanBoards } from "./use-kanban-boards"
 
-const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
-  backlog: "kanban.column.backlog",
-  in_progress: "kanban.column.inProgress",
-  parked: "kanban.column.parked",
-  done: "kanban.column.done",
-}
+/** paddingLeft + paddingRight on the page root, whose width is what we measure. */
+const PAGE_PADDING_CELLS = 4
 
 export function KanbanPage(props: {
   orchestrator: RemoteOrchestrator | null
@@ -63,8 +65,7 @@ export function KanbanPage(props: {
    *  opens already pointing at the work the task belongs to. */
   focusTask?: { readonly id: string; readonly repo: string }
 }): ReactNode {
-  const { theme, transparentBackground } = useTheme()
-  const columnBorder = transparentBackground ? theme.border : theme.borderSubtle
+  const { theme } = useTheme()
   const t = useT()
   const dialog = useDialog()
   // Surface mutation failures as on-screen toasts: under an alternate screen
@@ -78,6 +79,13 @@ export function KanbanPage(props: {
   // Below the narrow breakpoint four side-by-side columns degrade to
   // one-word-per-line strips, so the board shows ONE full-width lane there.
   const narrow = isNarrowWidth(useTerminalDimensions().width)
+  // …and the terminal is not the board: the sidebar takes its share first.
+  // Measure the page root (which is mounted in BOTH layouts — measuring the
+  // four-lane box instead would unmount the thing being measured and
+  // oscillate). `onSizeChange` + a ref is the tab-strip's pattern.
+  const pageRef = useRef<BoxRenderable | null>(null)
+  const [pageCells, setPageCells] = useState<number | null>(null)
+  const singleLane = needsSingleLane(pageCells === null ? null : pageCells - PAGE_PADDING_CELLS) ?? narrow
 
   // Detected engines for the detail drawer's picker — one probe per page
   // open (account files on disk; cheap and refreshed enough).
@@ -121,6 +129,12 @@ export function KanbanPage(props: {
       : [],
     (taskId) => props.engineStates?.get(taskId)?.state,
   )
+
+  // Cards are variable height and each lane scrolls on its own, so the
+  // selection walks out of the viewport without this. One instance covers all
+  // four lanes: `scrollChildIntoView` resolves the card through the lane's own
+  // descendants and no-ops on the three that do not hold it.
+  const follow = useCursorFollow(selectedId)
 
   function cycleProject(delta: number): void {
     if (boardList.length === 0) return
@@ -300,32 +314,6 @@ export function KanbanPage(props: {
     ],
   }))
 
-  const columnAccent = {
-    backlog: theme.textMuted,
-    in_progress: theme.accent,
-    parked: theme.warning,
-    done: theme.success,
-  } satisfies Record<BoardColumnKey, unknown>
-
-  function card(issue: Issue, column: BoardColumnKey): ReactNode {
-    // Linked cards in the live lanes track their task's engine activity (the
-    // stay-on-the-board half of the background-start trigger); only In
-    // progress floats/counts the badge, Parked keeps it as passive signal.
-    const live = column === "in_progress" || column === "parked"
-    const activity = live && issue.taskId ? props.engineStates?.get(issue.taskId)?.state : undefined
-    return (
-      <KanbanCard
-        key={issue.id}
-        issue={issue}
-        column={column}
-        selected={issue.id === selectedId}
-        activity={activity}
-        onSelect={() => setSelectedId(issue.id)}
-        onOpen={() => openDetail(issue)}
-      />
-    )
-  }
-
   /** One-line rolling project selector — tab/←/→ (or click) cycles, no tab
    *  row. Label stays flush with the page's left edge. The full path is a
    *  wide-layout nicety; narrow keeps only the label that identifies. */
@@ -342,7 +330,7 @@ export function KanbanPage(props: {
               {activeIndex + 1}/{boardList.length}
             </text>
           ) : null}
-          {narrow ? null : (
+          {singleLane ? null : (
             <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
               {"  "}
               {active.repoRoot}
@@ -358,101 +346,6 @@ export function KanbanPage(props: {
     )
   }
 
-  function column(col: (typeof columns)[number], opts?: { header?: boolean }): ReactNode {
-    return (
-      <box
-        key={col.key}
-        flexGrow={1}
-        flexBasis={0}
-        // Rounded like every other framed surface — see ui/frame.ts for why
-        // this is spread rather than written out.
-        {...FRAME}
-        borderColor={columnBorder}
-        paddingLeft={1}
-        paddingRight={1}
-      >
-        {(opts?.header ?? true) ? (
-          <box flexDirection="row" justifyContent="space-between">
-            <text fg={columnAccent[col.key]} attributes={TextAttributes.BOLD} wrapMode="none">
-              {t(COLUMN_LABEL_KEY[col.key])} ({col.issues.length + col.hiddenCount})
-            </text>
-            {col.key === "in_progress" && attentionCount > 0 ? (
-              <text fg={theme.warning} attributes={TextAttributes.BOLD} wrapMode="none">
-                {t("kanban.attention", { count: String(attentionCount) })}
-              </text>
-            ) : null}
-          </box>
-        ) : null}
-        {/* paddingRight keeps a one-cell gutter under the scrollbar thumb —
-            without it the thumb paints over the cards' right borders. The
-            horizontal bar is hidden outright: a lane never scrolls sideways. */}
-        <scrollbox
-          flexGrow={1}
-          paddingTop={1}
-          paddingRight={1}
-          verticalScrollbarOptions={{ showArrows: false, trackOptions: { foregroundColor: "transparent" } }}
-          horizontalScrollbarOptions={{ visible: false }}
-        >
-          {col.issues.map((issue) => card(issue, col.key))}
-          {col.issues.length === 0 && col.hiddenCount === 0 ? (
-            <text fg={theme.textMuted} wrapMode="none">
-              {t("kanban.columnEmpty")}
-            </text>
-          ) : null}
-          {col.hiddenCount > 0 ? (
-            <text fg={theme.textMuted} wrapMode="none">
-              {t("kanban.more", { count: String(col.hiddenCount) })}
-            </text>
-          ) : null}
-        </scrollbox>
-      </box>
-    )
-  }
-
-  /** Narrow: one full-width lane (the selection's column) under a strip of
-   *  the other lanes' counts; ←/→ moves selection across lanes, and the
-   *  visible column follows it. Clicking a lane jumps to its first card. */
-  function narrowBoard(): ReactNode {
-    const active =
-      columns.find((col) => col.issues.some((issue) => issue.id === selectedId)) ??
-      columns.find((col) => col.issues.length > 0) ??
-      columns[0]
-    if (!active) return null
-    return (
-      <box flexDirection="column" flexGrow={1} paddingTop={1}>
-        <box flexDirection="row" gap={2}>
-          {columns.map((col) => (
-            <text
-              key={col.key}
-              fg={col.key === active.key ? columnAccent[col.key] : theme.textMuted}
-              attributes={col.key === active.key ? TextAttributes.BOLD : undefined}
-              wrapMode="none"
-              onMouseUp={() => {
-                const first = col.issues[0]
-                if (first) setSelectedId(first.id)
-              }}
-            >
-              {t(COLUMN_LABEL_KEY[col.key])} ({col.issues.length + col.hiddenCount})
-            </text>
-          ))}
-        </box>
-        {/* The strip above already names the active lane — the in-column
-            header would repeat it one row later. Blocked cards still read:
-            the attention float pins them to the top with warning borders. */}
-        {column(active, { header: false })}
-      </box>
-    )
-  }
-
-  function board(): ReactNode {
-    if (narrow) return narrowBoard()
-    return (
-      <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1}>
-        {columns.map((col) => column(col))}
-      </box>
-    )
-  }
-
   const loading = boards === null
 
   // One shared left baseline across rail pages: the root pads x=2 (the same
@@ -460,6 +353,10 @@ export function KanbanPage(props: {
   // project selector, and board all start at x=2 — no per-child inset.
   return (
     <box
+      ref={(r: BoxRenderable | null) => {
+        pageRef.current = r
+      }}
+      onSizeChange={() => setPageCells(pageRef.current?.width ?? null)}
       flexGrow={1}
       backgroundColor={theme.background}
       paddingTop={1}
@@ -484,7 +381,16 @@ export function KanbanPage(props: {
       ) : (
         <>
           {projectSelector(activeBoard)}
-          {board()}
+          <KanbanBoard
+            columns={columns}
+            attentionCount={attentionCount}
+            selectedId={selectedId}
+            singleLane={singleLane}
+            {...(props.engineStates ? { engineStates: props.engineStates } : {})}
+            follow={follow}
+            onSelect={setSelectedId}
+            onOpen={openDetail}
+          />
         </>
       )}
     </box>

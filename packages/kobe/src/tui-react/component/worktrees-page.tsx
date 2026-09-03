@@ -36,6 +36,7 @@ import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { landTaskAction } from "../workspace/land-task-action"
@@ -136,6 +137,9 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   useEffect(() => {
     setCursor((c) => clampCursor(c, flatRows.length))
   }, [flatRows.length])
+  // Rows are two lines each and the page scrolls, so a cursor a few screens
+  // down is otherwise off-frame with nothing following it.
+  const follow = useCursorFollow(cursor)
 
   const [busyPath, setBusyPath] = useState<string | null>(null)
 
@@ -231,7 +235,9 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     bindings: [
       ...pageCloseBindings(props.onClose),
       { key: "up", cmd: () => setCursor((c) => clampCursor(c - 1, flatRows.length)) },
+      { key: "k", cmd: () => setCursor((c) => clampCursor(c - 1, flatRows.length)) },
       { key: "down", cmd: () => setCursor((c) => clampCursor(c + 1, flatRows.length)) },
+      { key: "j", cmd: () => setCursor((c) => clampCursor(c + 1, flatRows.length)) },
       {
         key: "d",
         cmd: () => {
@@ -269,6 +275,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
 
   return (
     <scrollbox
+      ref={follow.scrollRef}
       flexGrow={1}
       backgroundColor={theme.background}
       paddingTop={1}
@@ -305,7 +312,12 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                   const absoluteIndex = base + i
                   const isCursor = absoluteIndex === cursor
                   return (
-                    <box key={row.path} gap={0} onMouseUp={() => setCursor(absoluteIndex)}>
+                    <box
+                      key={row.path}
+                      ref={follow.rowRef(absoluteIndex)}
+                      gap={0}
+                      onMouseUp={() => setCursor(absoluteIndex)}
+                    >
                       <box flexDirection="row">
                         <text
                           fg={isCursor ? theme.primary : theme.text}

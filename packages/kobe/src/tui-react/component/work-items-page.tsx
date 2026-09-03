@@ -26,6 +26,7 @@ import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 
 /** Repos the user has open, newest-activity first — the source picker. */
@@ -139,6 +140,16 @@ export function WorkItemsPage(props: {
   useEffect(() => {
     setCursor((c) => clampCursor(c, rows.length))
   }, [rows.length])
+  // Two lines per issue against a `limit: 30` fetch — the back half of the
+  // list is off-frame from the first keypress.
+  const follow = useCursorFollow(cursor)
+
+  // The notice names one action on one issue; a repo switch or a filter
+  // toggle makes it stale, and it has no other way to clear.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: repo/filter are TRIGGERS — the body clears state rather than reading them.
+  useEffect(() => {
+    setNotice(null)
+  }, [repo, assignedToMe])
 
   async function startSelected(): Promise<void> {
     const orch = props.orchestrator
@@ -209,7 +220,14 @@ export function WorkItemsPage(props: {
       ) : rows.length === 0 ? (
         <text fg={theme.textMuted}>{t("workItems.empty")}</text>
       ) : (
-        <box flexDirection="column" marginTop={1} flexGrow={1}>
+        <scrollbox
+          ref={follow.scrollRef}
+          flexGrow={1}
+          flexShrink={1}
+          flexBasis={0}
+          marginTop={1}
+          verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+        >
           {rows.map((item, index) => {
             // Sidebar row grammar: ▌ marker column, title line, muted detail
             // line. The number leads the title because that is how an issue is
@@ -219,6 +237,7 @@ export function WorkItemsPage(props: {
             return (
               <box
                 key={`${item.number}`}
+                ref={follow.rowRef(index)}
                 flexDirection="column"
                 flexShrink={0}
                 {...(chrome.backgroundColor ? { backgroundColor: chrome.backgroundColor } : {})}
@@ -262,10 +281,14 @@ export function WorkItemsPage(props: {
               </box>
             )
           })}
-        </box>
+        </scrollbox>
       )}
 
-      {notice ? <text fg={theme.textMuted}>{notice}</text> : null}
+      {notice ? (
+        <text fg={theme.textMuted} flexShrink={0}>
+          {notice}
+        </text>
+      ) : null}
     </box>
   )
 }

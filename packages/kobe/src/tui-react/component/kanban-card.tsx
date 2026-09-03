@@ -9,7 +9,7 @@
  * signal — it just never floats or counts toward "N need you").
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
 import type { TaskActivityState } from "../../engine/hook-events"
@@ -43,6 +43,9 @@ export function KanbanCard(props: {
    *  detail drawer (Enter's mouse twin). */
   onSelect: () => void
   onOpen: () => void
+  /** Registers the card with the board's cursor-follow so the selected card
+   *  can be scrolled into its lane's viewport. */
+  boxRef?: (r: BoxRenderable | null) => (() => void) | undefined
 }): ReactNode {
   const { theme, transparentBackground } = useTheme()
   const t = useT()
@@ -76,6 +79,7 @@ export function KanbanCard(props: {
   // top margin.
   return (
     <box
+      ref={props.boxRef}
       // Rounded to match the column that holds it — a square card inside a
       // rounded column reads as two different systems one cell apart.
       {...FRAME}
