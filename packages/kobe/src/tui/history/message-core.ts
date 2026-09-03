@@ -4,6 +4,7 @@
  * formatting contracts without loading @opentui.
  */
 
+import { relativeAge } from "@/lib/relative-time"
 import { truncateEnd } from "@/tui/lib/truncate"
 import type { ContentBlock } from "@/types/content"
 import type { Message } from "@/types/engine"
@@ -13,22 +14,11 @@ const SUMMARY_MAX = 120
 
 export type ToolResultBlock = Extract<ContentBlock, { type: "tool_result" }>
 
-/** Relative age of an epoch-ms timestamp ("3m", "2h", "4d"); negative deltas clamp to "0s". */
-export function relativeAgeMs(ms: number, nowMs = Date.now()): string {
-  const secs = Math.max(0, Math.floor((nowMs - ms) / 1000))
-  if (secs < 60) return `${secs}s`
-  const mins = Math.floor(secs / 60)
-  if (mins < 60) return `${mins}m`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h`
-  return `${Math.floor(hours / 24)}d`
-}
-
 /** Relative age of an ISO timestamp ("3m", "2h", "4d"), or "" when unparseable. */
 export function relativeTime(iso: string, nowMs: number = Date.now()): string {
   const ms = Date.parse(iso)
   if (Number.isNaN(ms)) return ""
-  return relativeAgeMs(ms, nowMs)
+  return relativeAge(ms, nowMs)
 }
 
 /**

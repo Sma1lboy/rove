@@ -73,6 +73,30 @@ function isBinaryMissing(out: { error?: Error & { code?: string } }): boolean {
 }
 
 /**
+ * The module's ONLY `spawnSync`, and the exact shape the whitelist entry in
+ * `test/tui/render-path-sync-guard.test.ts` is granted for: one shot, O(refs),
+ * a 2s cap, stderr discarded. `missing` splits "git isn't on PATH" out of a
+ * non-zero exit (ENOENT reports both); `spawned` is false when the spawn
+ * itself threw, which {@link hasNoCommits} must not read as git's own answer.
+ */
+function git(
+  repo: string,
+  args: readonly string[],
+): { status: number; stdout: string; missing: boolean; spawned: boolean } {
+  try {
+    const out = spawnSync("git", args, {
+      cwd: repo,
+      encoding: "utf-8",
+      timeout: 2000,
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+    return { status: out.status ?? 1, stdout: out.stdout ?? "", missing: isBinaryMissing(out), spawned: true }
+  } catch {
+    return { status: 1, stdout: "", missing: false, spawned: false }
+  }
+}
+
+/**
  * Friendly reason for a repo with an UNBORN HEAD — `git init` ran but nothing
  * was ever committed. `rev-parse --git-dir` succeeds here, so the repo check
  * above passes and the dialog happily prefills `DEFAULT_BASE_REF`; the failure
@@ -93,18 +117,8 @@ function noCommitsReason(path: string): string {
  * {@link validateRepoPath} is the only caller and it checks repo-ness first.
  */
 function hasNoCommits(repo: string): boolean {
-  try {
-    const out = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
-      cwd: repo,
-      encoding: "utf-8",
-      timeout: 2000,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-    if (isBinaryMissing(out)) return false
-    return out.status !== 0
-  } catch {
-    return false
-  }
+  const out = git(repo, ["rev-parse", "--verify", "HEAD"])
+  return out.spawned && !out.missing && out.status !== 0
 }
 
 export function validateRepoPath(repo: string): string | null {
@@ -118,18 +132,9 @@ export function validateRepoPath(repo: string): string | null {
     return `path does not exist: ${trimmed}`
   }
   if (!stat.isDirectory()) return `not a directory: ${trimmed}`
-  try {
-    const out = spawnSync("git", ["rev-parse", "--git-dir"], {
-      cwd: trimmed,
-      encoding: "utf-8",
-      timeout: 2000,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-    if (isBinaryMissing(out)) return gitMissingReason()
-    if (out.status !== 0) return notAGitRepoReason(trimmed)
-  } catch {
-    return notAGitRepoReason(trimmed)
-  }
+  const repoCheck = git(trimmed, ["rev-parse", "--git-dir"])
+  if (repoCheck.missing) return gitMissingReason()
+  if (repoCheck.status !== 0) return notAGitRepoReason(trimmed)
   // A repo with no commits passes every check above but has nothing for
   // `git worktree add <path> <baseRef>` to branch from.
   if (hasNoCommits(trimmed)) return noCommitsReason(trimmed)
@@ -146,20 +151,10 @@ export function validateRepoPath(repo: string): string | null {
  */
 export function getCurrentBranch(repo: string): string | null {
   if (!repo) return null
-  try {
-    const out = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
-      cwd: repo,
-      encoding: "utf-8",
-      timeout: 2000,
-      stdio: ["ignore", "pipe", "ignore"],
-    })
-    if (out.status !== 0) return null
-    const name = out.stdout.trim()
-    if (!name || name === "HEAD") return null
-    return name
-  } catch {
-    return null
-  }
+  const out = git(repo, ["rev-parse", "--abbrev-ref", "HEAD"])
+  if (out.status !== 0) return null
+  const name = out.stdout.trim()
+  return !name || name === "HEAD" ? null : name
 }
 
 /**
@@ -171,26 +166,18 @@ export function getCurrentBranch(repo: string): string | null {
  */
 export function listLocalBranches(repo: string): string[] {
   if (!repo) return []
-  try {
-    const out = spawnSync("git", ["for-each-ref", "--format=%(refname:short)", "refs/heads/"], {
-      cwd: repo,
-      encoding: "utf-8",
-      timeout: 2000,
+  const out = git(repo, ["for-each-ref", "--format=%(refname:short)", "refs/heads/"])
+  if (out.status !== 0) return []
+  return out.stdout
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .sort((a, b) => {
+      // Default branches first.
+      const score = (n: string) => (n === "main" ? 0 : n === "master" ? 1 : n === "develop" ? 2 : 3)
+      const sa = score(a)
+      const sb = score(b)
+      if (sa !== sb) return sa - sb
+      return a.localeCompare(b)
     })
-    if (out.status !== 0) return []
-    return out.stdout
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .sort((a, b) => {
-        // Default branches first.
-        const score = (n: string) => (n === "main" ? 0 : n === "master" ? 1 : n === "develop" ? 2 : 3)
-        const sa = score(a)
-        const sb = score(b)
-        if (sa !== sb) return sa - sb
-        return a.localeCompare(b)
-      })
-  } catch {
-    return []
-  }
 }

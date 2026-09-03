@@ -29,8 +29,8 @@
 import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { relativeAge } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
-import { relativeAgeMs } from "../../tui/history/message-core"
 import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -339,7 +339,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                         </text>
                         {row.createdAtMs > 0 ? (
                           <text fg={theme.textMuted} wrapMode="none">
-                            {t("worktrees.row.created", { age: relativeAgeMs(row.createdAtMs) })}
+                            {t("worktrees.row.created", { age: relativeAge(row.createdAtMs) })}
                           </text>
                         ) : null}
                       </box>

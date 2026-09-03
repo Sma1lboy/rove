@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import type { AttentionInboxItem, RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { DEFAULT_SPINNER_FRAMES } from "../../engine/spinner-frames"
 import { approxCharCells } from "../../lib/display-width"
-import { relativeAgeMs } from "../../tui/history/message-core"
+import { relativeAge } from "../../lib/relative-time"
 import { spinnerFrameSnapshot, subscribeSpinnerFrame } from "../../tui/lib/spinner-frame-store"
 import { truncateEndCells } from "../../tui/lib/truncate"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
@@ -359,7 +359,7 @@ export function AttentionInboxPane(props: {
                     theme,
                     t,
                   })}
-                  age={relativeAgeMs(row.at, now)}
+                  age={relativeAge(row.at, now)}
                   active={active}
                   onOpen={openRow}
                 />
@@ -392,7 +392,7 @@ export function AttentionInboxPane(props: {
                   label: t(itemStateKey(item.state)),
                   color: itemColor(item.state, theme),
                 }}
-                age={relativeAgeMs(item.at, now)}
+                age={relativeAge(item.at, now)}
                 active={active}
                 onOpen={openRow}
               />
