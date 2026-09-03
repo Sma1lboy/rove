@@ -41,6 +41,12 @@ export function pluginsRootDir(homeDir?: string): string {
   return join(stateRoot(homeDir), "plugins")
 }
 
+/** Where the plugin tree lived before the `.kobe` → `.rove` rename. */
+export function legacyPluginsRootDir(homeDir?: string): string {
+  const home = homeDir ?? readRoveEnv("HOME_DIR") ?? homedir()
+  return join(home, COMPAT_STATE_DIR_BASENAME, "plugins")
+}
+
 export function pluginDataDir(id: string, homeDir?: string): string {
   return join(pluginsRootDir(homeDir), id)
 }

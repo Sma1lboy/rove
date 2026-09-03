@@ -1,6 +1,6 @@
 /**
  * Framework-free view model for the Settings → Plugins section: turns a
- * `~/.kobe/plugins.json` entry plus its `rove-plugin.toml` and the tail of
+ * `~/.rove/plugins.json` entry plus its `rove-plugin.toml` and the tail of
  * its `log.jsonl` into one displayable row. Both canonical and legacy
  * manifest spellings are accepted. Pure except for
  * `readPluginRows`, the thin disk wrapper the React section calls.
