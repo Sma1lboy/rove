@@ -203,6 +203,9 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         // Menu-only, like `setStatus` above: no chord to mirror, so the
         // ROW's task is the only thing it could mean.
+        case "fixChecks":
+          actions.onFixChecksRequest?.(taskId)
+          break
         case "land":
           actions.onLandRequest?.(taskId)
           break

@@ -51,6 +51,7 @@ export type TreeMenuAction =
   | "openEditor"
   | "renameBranch"
   | "changeEngine"
+  | "fixChecks"
   | "land"
   | "delete"
 
@@ -114,6 +115,15 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor" })
   if (task.branch !== "") verbs.push({ action: "renameBranch", labelKey: "tasks.menu.renameBranch" })
   verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine" })
+  // Pull the failing CI job's log into this task's engine. Gated on the PR
+  // chip the row is ALREADY showing: with anything but `failing` there is no
+  // log to fetch, and an entry that can only end in "nothing to report" is
+  // worse than no entry (the same rule `copyBranch` follows above). Menu-only
+  // until the proposed `ctrl+a k` chord is signed off
+  // (docs/design/keybinding-decisions.md).
+  if (task.prStatus?.checkState === "failing") {
+    verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks" })
+  }
   // Menu-only, like `setStatus`: landing is the Worktrees page's `l`, and a
   // second chord for it is the owner's call
   // (docs/design/keybinding-decisions.md). Gated the same way `copyBranch`

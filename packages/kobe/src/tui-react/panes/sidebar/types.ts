@@ -58,6 +58,11 @@ export type SidebarTaskCallbacks = {
   /** Menu route of `v`, as a picker over the available engines rather than
    *  the chord's blind cycle. */
   onChangeEngineRequest?: (taskId: string) => void
+  /**
+   * Pull the row's failing CI job logs into its engine. Menu-only, and the
+   * entry only exists while the row's PR checks are red.
+   */
+  onFixChecksRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
   onFieldNotesRequest?: (repo: string) => void
 }

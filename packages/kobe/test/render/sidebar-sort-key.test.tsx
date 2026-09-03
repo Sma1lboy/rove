@@ -93,6 +93,7 @@ function SortHost() {
     enterMoveMode: () => {},
     createPR: () => {},
     createPRFor: () => {},
+    fixChecksFor: () => {},
     toggleSortMode: () => setSortMode((mode) => (mode === "default" ? "recent" : "default")),
   })
   return (

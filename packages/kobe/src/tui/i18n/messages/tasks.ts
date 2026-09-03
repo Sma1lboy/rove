@@ -48,6 +48,9 @@ export const en = {
     openEditor: "Open in editor",
     renameBranch: "Rename branch",
     changeEngine: "Change engine",
+    /** Only while the row's PR checks are red: paste the failing job's log
+     *  into this task's engine. */
+    fixChecks: "Fix failing checks",
     land: "Land into base branch",
     delete: "Delete",
   },
@@ -188,6 +191,7 @@ export const zh: typeof en = {
     openEditor: "在编辑器中打开",
     renameBranch: "重命名分支",
     changeEngine: "切换引擎",
+    fixChecks: "修复失败的检查",
     land: "合入基础分支",
     delete: "删除",
   },

@@ -132,7 +132,7 @@ export type PrViewResult =
 /** Runs `gh pr list --head` for a branch in a worktree. Injectable for tests. */
 export type PrViewRunner = (worktreePath: string, branch: string) => Promise<PrViewResult>
 
-interface GhSpawnResult {
+export interface GhSpawnResult {
   readonly status: number | null
   readonly stdout: string
   readonly stderr: string
@@ -157,7 +157,7 @@ export function decodeSpawnChunks(chunks: readonly (Buffer | string)[]): string 
 /** Spawn `gh` capturing stdout AND stderr (needed to classify the failure).
  * Never rejects: a spawn error or abort resolves with `status: null` so the
  * caller branches on the captured signals rather than a thrown error. */
-function spawnGh(args: readonly string[], cwd: string, signal: AbortSignal): Promise<GhSpawnResult> {
+export function spawnGh(args: readonly string[], cwd: string, signal: AbortSignal): Promise<GhSpawnResult> {
   return new Promise((resolve) => {
     const outChunks: (Buffer | string)[] = []
     const errChunks: (Buffer | string)[] = []

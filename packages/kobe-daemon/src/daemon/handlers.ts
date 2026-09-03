@@ -44,6 +44,7 @@ import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { DEFERRED_PROMPT_HANDLERS } from "./handlers-deferred.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
+import { PR_HANDLERS } from "./handlers-pr.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -316,6 +317,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...UI_HANDLERS,
     ...ISSUE_HANDLERS,
     ...DEFERRED_PROMPT_HANDLERS,
+    ...PR_HANDLERS,
     {
       // Production diagnostics (`kobe api inspect`): what the daemon's
       // transient state ACTUALLY holds right now. Bug reports about badges,

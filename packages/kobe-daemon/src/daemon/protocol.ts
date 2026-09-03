@@ -223,6 +223,10 @@ export type DaemonRequestName =
   // `session.deliver` channel event addressed to a task's live session.
   // The daemon only routes; the front-end hosting that session delivers.
   | "session.deliver"
+  // On-demand read of a PR's FAILING check logs (the sidebar's "Fix failing
+  // checks"). Never polled: it downloads whole job logs, so it runs once per
+  // human click and leaves the pr-status poller's cadence alone.
+  | "pr.failingChecks"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
   // Per-turn agent telemetry: the durable turn store's read side.

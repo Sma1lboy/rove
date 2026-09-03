@@ -53,6 +53,7 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onRenameBranchRequest: NOOP,
     onChangeEngineRequest: NOOP,
     onFieldNotesRequest: NOOP,
+    onFixChecksRequest: NOOP,
     onRunAgainRequest: NOOP,
     moveMode: false,
     onMoveRequest: NOOP,

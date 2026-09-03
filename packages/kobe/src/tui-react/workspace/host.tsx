@@ -30,7 +30,7 @@ import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
 import { useHostPagesRender, useHostPagesState } from "./host-pages"
-import { HostSidebar } from "./host-sidebar"
+import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
@@ -150,22 +150,10 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const {
-    createTask,
-    deleteTask,
-    renameTask,
-    renameBranch,
-    cycleVendor,
-    pickVendor,
-    setVendor,
-    togglePin,
-    moveTask,
-    setStatus,
-    copyTaskField,
-    showFieldNotes,
-    confirmRunAgain,
-    landTask,
-  } = useWorkspaceTaskActions({
+  // Kept as ONE bundle rather than destructured: the sidebar mount takes it
+  // whole, and naming each verb here only to re-name it there was where the
+  // sidebar's wiring started leaking into the host.
+  const taskActions = useWorkspaceTaskActions({
     orchestrator: orch,
     tasks: () => tasks,
     dialog,
@@ -181,7 +169,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
-  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError })
+  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError, activateTask })
 
   // Quick-fork (ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
@@ -268,19 +256,21 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     selectedId,
     cursorTaskId: () => cursorTaskIdRef.current(),
     openTaskWorktree,
-    createTask: () => void createTask(),
-    renameBranch: (id) => void renameBranch(id),
-    cycleVendor: (id) => void cycleVendor(id),
+    createTask: () => void taskActions.createTask(),
+    renameBranch: (id) => void taskActions.renameBranch(id),
+    cycleVendor: (id) => void taskActions.cycleVendor(id),
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
     createPR: () => void editor.onCreatePR(),
-    // The row under the sidebar cursor, which is not the mounted task: park
-    // the request, then enter the row so its workspace mounts and claims it.
+    // A row that is not the mounted task: park, then enter it so its
+    // workspace mounts and claims the request.
     createPRFor: (id) => {
       requestCreatePR(id)
       activateTask(id)
     },
+    // PROPOSED prefix+k: same aim as the row menu, so the same handler.
+    fixChecksFor: editor.onFixChecks,
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
     // then j/k reorders the cursor row's level (tab/task/project) and
@@ -325,83 +315,41 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           carries no border prop at all. The workspace frame's left edge is
           the only boundary; sidebar focus shows on the KOBE brand text. */}
       {pageRender.showSidebar ? (
-        <HostSidebar
-          width={pageRender.showContent ? sidebarWidthFor(dims.width) : dims.width}
-          nav={pages.nav}
-          onNavChange={pages.goToNav}
+        <HostSidebarMount
+          terminalWidth={dims.width}
+          showContent={pageRender.showContent}
+          recentTask={pageRender.recentTask}
           tasks={tasks}
           selectedId={selectedId}
           selectedTabId={selectedTabId}
-          // Picking a task means "show me that task" — so it returns the
-          // content pane to its terminal. Without this the rail page stayed
-          // up and selecting a row did nothing visible.
-          onSelect={(id) => {
-            selectTask(id)
-            pages.setNav("terminal")
+          selectTask={selectTask}
+          activateTask={activateTask}
+          daemon={{
+            sidebarEngineState,
+            engineTabState,
+            engineLifecycle,
+            taskJobs,
+            worktreeChanges,
+            transcriptActivity,
           }}
-          onActivate={(id) => {
-            pages.setNav("terminal")
-            void activateTask(id)
-          }}
-          // Picking a TAB is entering that session: focus moves to the
-          // terminal, same as activate — a click that leaves the sidebar's
-          // letter chords (d!) live under your typing is how a task gets
-          // deleted by accident. Re-clicking the tab you are ALREADY in flips
-          // focus back to the sidebar: the first click entered the session, so
-          // a second click on the same row means "give me the sidebar". Keyboard enter is exempt (sidebar already focused —
-          // enter always means enter the session), as is a click that brings
-          // the terminal back from a rail page.
-          onSelectTab={(taskId, tabId) => {
-            const reClick =
-              pages.nav === "terminal" &&
-              focus.focused !== "sidebar" &&
-              taskId === selectedId &&
-              tabId === selectedTabId
-            pages.setNav("terminal")
-            requestTabActivation(taskId, tabId)
-            focus.setFocused(reClick ? "sidebar" : "workspace")
-          }}
-          engineState={sidebarEngineState}
-          engineTabState={engineTabState}
-          engineLifecycle={engineLifecycle}
-          taskJobs={taskJobs}
-          worktreeChanges={worktreeChanges}
-          transcriptActivity={transcriptActivity}
-          focused={activePane === "sidebar"}
-          // Task lifecycle: the Sidebar's own d/r/p/m keys
-          // fire these; the flows are the shared lib/task-actions bodies.
-          onAddTask={() => void createTask()}
-          onDeleteRequest={(id) => void deleteTask(id)}
-          onLandRequest={(id) => void landTask(id)}
-          onRenameRequest={(id) => void renameTask(id)}
-          onPinRequest={(id) => void togglePin(id)}
-          onSetStatusRequest={(id) => void setStatus(id)}
-          onCopyRequest={(id, field) => copyTaskField(id, field)}
-          onOpenEditorRequest={openTaskWorktree}
-          onRenameBranchRequest={(id) => void renameBranch(id)}
-          onChangeEngineRequest={(id) => void pickVendor(id)}
-          onFieldNotesRequest={showFieldNotes}
-          // Confirm here, create in quick-fork: it owns the pending-prompt
-          // slot that delivers the brief on the NEW task's mount.
-          onRunAgainRequest={(id) => void confirmRunAgain(id).then((task) => task && quickFork.runAgain(task))}
+          actions={taskActions}
+          pages={pages}
+          focus={focus}
+          inbox={inbox}
+          update={banner.update}
+          onFixChecks={editor.onFixChecks}
+          runAgain={quickFork.runAgain}
+          activePane={activePane}
+          zen={zen}
+          toggleZen={toggleZen}
+          sortMode={sortMode}
           moveMode={moveMode}
-          onMoveRequest={(id, delta) => void moveTask(id, delta)}
-          onMoveModeExit={() => setMoveMode(false)}
+          exitMoveMode={() => setMoveMode(false)}
           onLocalMergeRequest={onLocalMergeRequest}
           onSearchActiveChange={setSearchActive}
-          sortMode={sortMode}
-          headerStatus={{
-            label: `${t("workspace.inbox.title")} ${inbox.counts.total}`,
-            emphasize: inbox.counts.total > 0,
-          }}
-          onHeaderStatusClick={inbox.show}
-          updateChip={banner.update?.hasUpdate ? { label: t("update.chip", { version: banner.update.latest }) } : null}
-          onUpdateChipClick={pages.openUpdate}
-          zenActive={zen}
-          onZenClick={toggleZen}
-          onFocusRequest={() => focus.setFocused("sidebar")}
-          recentTask={pageRender.recentTask}
           cursorTaskIdRef={cursorTaskIdRef}
+          openTaskWorktree={openTaskWorktree}
+          t={t}
         />
       ) : null}
 
@@ -432,7 +380,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
               onTabVisited={inbox.resolveVisited}
               onScratchExit={scratch.onScratchExit}
               onOpenScratch={scratch.openScratchShell}
-              onEngineChosen={setVendor}
+              onEngineChosen={taskActions.setVendor}
             />
           )}
         </box>
