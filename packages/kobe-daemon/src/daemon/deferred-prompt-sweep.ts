@@ -21,6 +21,7 @@
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DeferredPromptRecord, DeferredPromptsStore } from "./deferred-prompts-store.ts"
+import { startTicker } from "./ticker.ts"
 
 /** Once an hour is plenty for a 24h boundary, and a tick is one file read. */
 export const DEFAULT_DEFERRED_SWEEP_TICK_MS = 60 * 60 * 1000
@@ -91,21 +92,10 @@ export function startDeferredPromptSweep(
   deps: DeferredSweepDeps,
   tickMs: number = DEFAULT_DEFERRED_SWEEP_TICK_MS,
 ): () => void {
-  let sweeping = false
-  const sweep = async (): Promise<void> => {
-    if (sweeping) return
-    sweeping = true
-    try {
-      await sweepExpiredDeferredPrompts(deps)
-    } catch (err) {
-      logDaemonError("deferred-prompt-sweep", err)
-    } finally {
-      sweeping = false
-    }
-  }
-  void sweep()
-  if (tickMs <= 0) return () => {}
-  const timer = setInterval(() => void sweep(), tickMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  return startTicker({
+    name: "deferred-prompt-sweep",
+    tickMs,
+    immediate: true,
+    run: () => sweepExpiredDeferredPrompts(deps),
+  })
 }

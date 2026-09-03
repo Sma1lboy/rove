@@ -61,6 +61,7 @@ import { spawn } from "node:child_process"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 export interface GhPrView {
   readonly number?: number
@@ -412,27 +413,21 @@ export function startPrStatusPoller(
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
   hasWorkingAgent?: () => boolean,
 ): () => void {
-  if (intervalMs <= 0) return () => {}
   const schedule: PrPollSchedule = new Map()
-  let running = false
-  const tick = (): void => {
-    if (hasSubscribers && !hasSubscribers() && !hasWorkingAgent?.()) return
-    if (running) return
-    running = true
-    void runPrStatusPass(orch, {
-      runtime,
-      run,
-      now: Date.now(),
-      at: new Date().toISOString(),
-      schedule,
-      tickMs: intervalMs,
-    })
-      .catch((err) => logDaemonError("pr-status-poller", err))
-      .finally(() => {
-        running = false
-      })
-  }
-  const timer = setInterval(tick, intervalMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  return startTicker({
+    name: "pr-status-poller",
+    tickMs: intervalMs,
+    // Two-term gate: an unattended agent is the consumer that needs CI truth
+    // most, so a live engine opens it even with no pane attached.
+    ...(hasSubscribers ? { gate: () => hasSubscribers() || (hasWorkingAgent?.() ?? false) } : {}),
+    run: () =>
+      runPrStatusPass(orch, {
+        runtime,
+        run,
+        now: Date.now(),
+        at: new Date().toISOString(),
+        schedule,
+        tickMs: intervalMs,
+      }),
+  })
 }
