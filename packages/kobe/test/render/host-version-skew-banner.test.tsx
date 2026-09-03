@@ -82,6 +82,7 @@ function fakeOrchestrator() {
     transcriptActivitySignal: () => NULL_CELL,
     transcriptActivityStore: () => NULL_CELL,
     usageSnapshotSignal: () => NULL_CELL,
+    contextUsageSignal: () => NULL_CELL,
     uiPrefsSignal: () => NULL_CELL,
     keybindingsRevSignal: () => NULL_CELL,
     updateSignal: () => NULL_CELL,

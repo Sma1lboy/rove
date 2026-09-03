@@ -402,6 +402,24 @@ export interface UpdateInfo {
   readonly hasUpdate: boolean
 }
 
+/**
+ * The CONTEXT half of an engine's usage snapshot, for one live session.
+ *
+ * Structural mirror of the three context fields on kobe's
+ * `EngineUsageSnapshot` (`kobe/src/types/engine.ts`, the contract's source of
+ * truth), narrowed to what the footer meter renders. The daemon never
+ * COMPUTES these — the engine's own history reader does, because what counts
+ * as "context" is vendor arithmetic (CLAUDE.md, "Engine-owned UI data").
+ */
+export interface EngineContextUsage {
+  /** Tokens currently in the session's context window. */
+  readonly contextTokens: number
+  /** The model's context window, when the vendor reports one. */
+  readonly contextWindowTokens?: number
+  /** True when `contextTokens` is estimated rather than engine-reported. */
+  readonly approximate?: boolean
+}
+
 export interface WorktreeChanges {
   readonly added: number
   readonly deleted: number

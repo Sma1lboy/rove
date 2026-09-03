@@ -11,10 +11,22 @@ import { WorkspaceFrame } from "../../src/tui-react/workspace/host-footer"
 import type { EngineQuotaUsage } from "../../src/types/engine"
 import { renderComponent } from "./harness"
 
-/** Minimal stand-in: the footer only ever calls `usageSnapshotSignal()`. */
-function orchestratorWith(usage: ReadonlyMap<string, EngineQuotaUsage> | null): RemoteOrchestrator {
-  const cell = createStateCell(usage)
-  return { usageSnapshotSignal: () => cell } as unknown as RemoteOrchestrator
+/** Minimal stand-in: the footer reads the quota map and the per-session
+ *  context map, and nothing else. `context` defaults to empty so the existing
+ *  quota cases keep asserting the quota half alone. */
+function orchestratorWith(
+  usage: ReadonlyMap<string, EngineQuotaUsage> | null,
+  context: ReadonlyMap<
+    string,
+    { contextTokens: number; contextWindowTokens?: number; approximate?: boolean }
+  > | null = null,
+): RemoteOrchestrator {
+  const usageCell = createStateCell(usage)
+  const contextCell = createStateCell(context)
+  return {
+    usageSnapshotSignal: () => usageCell,
+    contextUsageSignal: () => contextCell,
+  } as unknown as RemoteOrchestrator
 }
 
 const IN_AN_HOUR = Date.now() + 60 * 60 * 1000
@@ -92,4 +104,37 @@ test("narrow footer collapses each vendor to its session-window percent", async 
   expect(footer).not.toContain("5h")
   expect(footer).not.toContain("12%")
   expect(footer).not.toContain("→")
+})
+
+test("the context meter renders the active tab's occupancy, and only that tab's", async () => {
+  const orch = orchestratorWith(
+    null,
+    new Map([
+      ["t1::tab-1", { contextTokens: 124_000, contextWindowTokens: 200_000 }],
+      ["t1::tab-2", { contextTokens: 8_000, contextWindowTokens: 200_000 }],
+    ]),
+  )
+  const { frame } = await renderComponent(
+    <WorkspaceFrame orchestrator={orch} activeTaskId="t1" activeTabId="tab-1">
+      <box />
+    </WorkspaceFrame>,
+    { width: 80, height: 6 },
+  )
+  const out = await frame()
+  expect(out).toContain("ctx 62%")
+  // tab-2's 4% belongs to a session the user is not looking at.
+  expect(out).not.toContain("4%")
+})
+
+test("no reading for the active tab renders no meter at all", async () => {
+  // A shell tab, a session that has not run a turn, or a vendor that does not
+  // report its context window — all three read as absence, never as 0%.
+  const orch = orchestratorWith(null, new Map([["t1::tab-1", { contextTokens: 124_000 }]]))
+  const { frame } = await renderComponent(
+    <WorkspaceFrame orchestrator={orch} activeTaskId="t1" activeTabId="tab-1">
+      <text>body</text>
+    </WorkspaceFrame>,
+    { width: 80, height: 6 },
+  )
+  expect(await frame()).not.toContain("ctx")
 })

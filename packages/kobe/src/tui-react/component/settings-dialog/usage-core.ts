@@ -182,6 +182,43 @@ export function buildFooterChips(opts: {
 }
 
 /**
+ * The context-window chip — `ctx 62%`, or `ctx 62%~` when the figure is the
+ * engine's own estimate rather than a number it reports.
+ *
+ * Answers a different question from the quota chips beside it: those say how
+ * much budget is left this week, this says how much room is left in THIS
+ * conversation. The moment it runs out the session compacts and the agent
+ * quietly loses the context you spent an hour building; the first symptom is
+ * a worse answer.
+ *
+ * `null` — render nothing — in three cases, and all three are the same honest
+ * refusal: no snapshot, no `contextWindowTokens` (only some vendors report the
+ * model's window, and a percentage of an unknown denominator is a made-up
+ * number), or a window of zero. The neutral layer must NOT guess the
+ * denominator from a model name: what a vendor counts toward its context is
+ * the ADAPTER's arithmetic (CLAUDE.md, "Engine-owned UI data").
+ *
+ * Same three tones as the quota chips, so one glance reads both halves of the
+ * footer the same way. Pure — unit-tested.
+ */
+export function contextChip(
+  usage: { contextTokens: number; contextWindowTokens?: number; approximate?: boolean } | null | undefined,
+): UsageChipView | null {
+  if (!usage) return null
+  const window = usage.contextWindowTokens
+  if (window === undefined || window <= 0) return null
+  // Clamp: a vendor that reports a prompt slightly over its own advertised
+  // window (tool definitions, system prompt) must read as full, not 103%.
+  const percent = Math.min(100, Math.max(0, Math.round((usage.contextTokens / window) * 100)))
+  return {
+    label: "ctx",
+    percentText: `${percent}%${usage.approximate ? "~" : ""}`,
+    resetText: "",
+    tone: toneOf(percent),
+  }
+}
+
+/**
  * One aligned meter row per quota window, in the vendor's own order (the
  * usage API lists session before weekly). Label column width tracks the
  * longest label (scoped windows carry model display names) with a hard cap

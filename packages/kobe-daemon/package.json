@@ -47,6 +47,7 @@
     "./daemon/notes-store": "./src/daemon/notes-store.ts",
     "./daemon/paths": "./src/daemon/paths.ts",
     "./daemon/platform-shell": "./src/daemon/platform-shell.js",
+    "./daemon/context-usage-collector": "./src/daemon/context-usage-collector.ts",
     "./daemon/pr-failing-checks": "./src/daemon/pr-failing-checks.ts",
     "./daemon/pr-status-collector": "./src/daemon/pr-status-collector.ts",
     "./daemon/prompt-broker": "./src/daemon/prompt-broker.ts",

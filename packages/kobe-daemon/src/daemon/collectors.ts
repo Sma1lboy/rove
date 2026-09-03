@@ -12,6 +12,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import {
@@ -50,6 +51,7 @@ export interface DaemonCollectorOptions {
   readonly keybindingsDebounceMs?: number
   readonly worktreeChangesTickMs?: number
   readonly transcriptActivityTickMs?: number
+  readonly contextUsageTickMs?: number
   readonly quotaResumeTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
@@ -217,6 +219,21 @@ export function startDaemonCollectors(
     hasSubscribers,
   )
 
+  // Context-window occupancy per live engine session (the footer's `ctx N%`).
+  // Gated on subscribers like the other display collectors: with no pane
+  // attached there is no footer to draw it in. Needs the activity registry —
+  // it is what knows which tabs have a live session.
+  const stopContextUsageCollector = activity
+    ? startContextUsageCollector(
+        activity,
+        orch,
+        bus,
+        runtime,
+        options.contextUsageTickMs ?? DEFAULT_CONTEXT_USAGE_TICK_MS,
+        hasSubscribers,
+      )
+    : () => {}
+
   // PR status is the only CI truth Rove holds, and an unattended agent is the
   // consumer that needs it most — so this collector's gate also opens on a
   // live engine, not just an attached pane (see startPrStatusPoller). With
@@ -289,5 +306,6 @@ export function startDaemonCollectors(
     stopKeybindingsWatcher()
     stopWorktreeChangesCollector()
     stopTranscriptActivityCollector()
+    stopContextUsageCollector()
   }
 }
