@@ -4,8 +4,8 @@
  * Split from `state.ts` because it answers a different question. `state.ts` is
  * the dialog's reducer layer — which field has focus, which list is open,
  * where the cursor sits. This file is the field's own vocabulary: the input
- * shows a repo NAME, everything downstream needs a PATH, and these three
- * functions are the whole translation between them.
+ * shows a repo NAME, everything downstream needs a PATH, and the translation
+ * between them — plus what Tab completes toward — lives here.
  *
  * The reason it is a translation and not a rendering: an opentui `<input>`
  * adopts its `value` prop as the text it edits, so a field displaying
@@ -13,10 +13,14 @@
  * on the next keystroke and the two oscillated. The field really does hold a
  * name; the conversion happens at the boundaries, here.
  *
- * Same rules as `state.ts`: framework-free, side-effect-free, no fs, no git.
+ * Same rules as `state.ts`: framework-free, side-effect-free, no fs of its
+ * own, no git. `joinDrill` is imported for its string arithmetic only — this
+ * file may lean on `path-helpers`, never the reverse, which is why the Tab
+ * completion (it needs `nameOrPath` too) lands here rather than beside it.
  */
 
-import { splitRepoRow } from "./state"
+import { joinDrill } from "../../lib/path-helpers"
+import { type PickerMode, splitRepoRow } from "./state"
 
 /**
  * How the repo INPUT should render a value: the repo's name, and the
@@ -92,4 +96,46 @@ export function nameOrPath(path: string, repoOptions: readonly string[]): string
   const name = splitRepoInput(path, true).name
   const back = resolveRepoInput(name, repoOptions)
   return back.kind === "path" && back.path === path ? name : path
+}
+
+/**
+ * What Tab should put in the field: the highlighted suggestion, completed
+ * IN PLACE, or `null` when there is nothing left to complete.
+ *
+ * `null` is the reason this returns an option rather than a string — it is
+ * what hands Tab back to its other job. One Tab completes; the next one,
+ * with nothing more to say, moves to the next field. That is the shell
+ * bargain: the key means "finish this for me", and finishing nothing means
+ * finishing the field.
+ *
+ * The two modes complete toward different things, because their rows are
+ * different kinds of answer:
+ *   - `browse` rows are subdirectories, so the completion is a step DOWN —
+ *     `joinDrill`'s trailing slash re-points the picker at the new
+ *     directory's children and the next Tab walks one level deeper. The
+ *     dropdown has to STAY open or the walk ends after one step.
+ *   - `saved` rows are whole repos: nothing lives under them, so the name is
+ *     the end of the road and the dropdown closes behind it.
+ *
+ * Pure — the caller passes the highlighted row and the directory it was read
+ * from (`baseExpanded`, what `splitPathForDirSuggest` gave the picker), so no
+ * fs work happens here.
+ */
+export type RepoCompletion = { value: string; collapse: boolean }
+
+export function completeRepoInput(args: {
+  value: string
+  mode: PickerMode
+  highlighted: string | undefined
+  baseExpanded: string
+  repoOptions: readonly string[]
+}): RepoCompletion | null {
+  const { value, mode, highlighted, baseExpanded, repoOptions } = args
+  if (!highlighted) return null
+  if (mode === "browse") {
+    const next = joinDrill(value, baseExpanded, highlighted)
+    return next === value ? null : { value: next, collapse: false }
+  }
+  const next = nameOrPath(highlighted, repoOptions)
+  return next === value.trim() ? null : { value: next, collapse: true }
 }

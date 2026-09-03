@@ -4,13 +4,18 @@
  *
  * These are the boundary the whole "show a name" change rests on: the field
  * holds a NAME and everything downstream needs a PATH, so every conversion
- * between the two happens in these three functions. The render tests drive the
+ * between the two happens in these functions. The render tests drive the
  * mounted dialog; these pin the rules that make it safe — above all that a
  * name shared by two saved repos is REFUSED rather than resolved to whichever
  * one sorts first.
  */
 
-import { nameOrPath, resolveRepoInput, splitRepoInput } from "@/tui/component/new-task-dialog/repo-field"
+import {
+  completeRepoInput,
+  nameOrPath,
+  resolveRepoInput,
+  splitRepoInput,
+} from "@/tui/component/new-task-dialog/repo-field"
 import { describe, expect, it } from "vitest"
 
 describe("splitRepoInput", () => {
@@ -76,5 +81,73 @@ describe("nameOrPath (what the field should hold)", () => {
     // Its basename resolves to itself, not back to the path, so the name would
     // name nothing the dialog can find.
     expect(nameOrPath("/tmp/scratch", repos)).toBe("/tmp/scratch")
+  })
+})
+
+describe("completeRepoInput", () => {
+  const repos = ["/Users/me/i/quokka", "/Users/me/i/kobe"]
+
+  it("walks browse mode one directory DOWN, dropdown still open", () => {
+    // The trailing slash is the whole mechanism: it re-points the picker at
+    // the new directory's children, which is what makes the next Tab a step
+    // rather than a repeat.
+    expect(
+      completeRepoInput({
+        value: "/Users/me/",
+        mode: "browse",
+        highlighted: "i",
+        baseExpanded: "/Users/me/",
+        repoOptions: repos,
+      }),
+    ).toEqual({ value: "/Users/me/i/", collapse: false })
+  })
+
+  it("completes a saved row to its NAME and closes behind it", () => {
+    // A saved row is a whole repo — nothing lives under it, so there is no
+    // second step to keep the dropdown open for.
+    expect(
+      completeRepoInput({
+        value: "quo",
+        mode: "saved",
+        highlighted: "/Users/me/i/quokka",
+        repoOptions: repos,
+        baseExpanded: "",
+      }),
+    ).toEqual({ value: "quokka", collapse: true })
+  })
+
+  it("keeps the PATH when the completed name would be ambiguous", () => {
+    // Same refusal as `nameOrPath`: two saved `app`s mean the name identifies
+    // neither, so completion hands back the path that does.
+    const dupes = ["/Users/me/a/app", "/Users/me/b/app"]
+    expect(
+      completeRepoInput({
+        value: "app",
+        mode: "saved",
+        highlighted: "/Users/me/a/app",
+        repoOptions: dupes,
+        baseExpanded: "",
+      }),
+    ).toEqual({ value: "/Users/me/a/app", collapse: true })
+  })
+
+  it("returns null with nothing highlighted — Tab keeps its other job", () => {
+    expect(
+      completeRepoInput({ value: "zzz", mode: "saved", highlighted: undefined, baseExpanded: "", repoOptions: repos }),
+    ).toBeNull()
+  })
+
+  it("returns null when the value ALREADY is the completion", () => {
+    // The second Tab on a finished name has nothing to say, and that silence
+    // is what advances the field.
+    expect(
+      completeRepoInput({
+        value: "quokka",
+        mode: "saved",
+        highlighted: "/Users/me/i/quokka",
+        repoOptions: repos,
+        baseExpanded: "",
+      }),
+    ).toBeNull()
   })
 })

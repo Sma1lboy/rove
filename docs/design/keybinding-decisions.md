@@ -8,6 +8,35 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Tab in the New task dialog's repo field
+
+**2026-09-03 — `tab` completes the highlighted suggestion in place; a second
+`tab`, with nothing left to complete, advances the field as before.** Owner
+call, made from the report that drove it: the dialog had no key that finished
+a suggestion and STAYED. `enter` picked-and-advanced, `tab` advanced, so a
+user who typed `a`, saw `academic-…` under it and pressed the key that
+finishes things in every shell they own landed on `from branch` with `a`
+still in the repo box — and had to click back to keep typing.
+
+Why `tab` rather than a new chord (the two alternatives the owner weighed
+were `→`-at-end-of-line, fish-style, and a dedicated chord): the shell
+bargain is already `tab`'s, and layering completion under advance costs no
+new key and no muscle memory — a key that means "finish this for me" ends by
+finishing the field when there is nothing else to finish. `→` was rejected as
+the more hidden of the two (it means cursor-right inside an input every other
+moment), and a dedicated chord as one more thing to remember for a dialog
+that should feel like a prompt.
+
+Scope: both of the dialog's path fields — the Existing tab's repo and the
+Clone tab's parent dir, which are the same drill-down picker; a key that
+walked one but not the other would mean two things inside one dialog. Only
+while the dropdown is on screen, though: the guard is the picker's own render
+condition, so `tab` keeps its plain meaning everywhere else. Browse rows complete one directory DOWN, with
+the trailing slash that re-points the picker at the children (the walk is the
+point); saved rows complete to the repo name and close the dropdown, because
+nothing lives under a repo. Both modes complete toward the row the cursor is
+ON, which is what `enter` and `↑`/`↓` already meant.
+
 ## New task from anywhere
 
 **2026-09-03 — `prefix+n` opens New task from anywhere; the sidebar keeps

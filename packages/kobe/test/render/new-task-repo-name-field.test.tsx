@@ -65,6 +65,16 @@ async function mount(defaultRepo: string, savedRepos: readonly string[] = [], wi
   return { ...handle, submitted }
 }
 
+/** Where a string sits in the frame — the anchor a click needs. */
+function locate(frameText: string, needle: string): { x: number; y: number } {
+  const lines = frameText.split("\n")
+  for (let y = 0; y < lines.length; y++) {
+    const x = lines[y]?.indexOf(needle) ?? -1
+    if (x >= 0) return { x, y }
+  }
+  throw new Error(`not on screen: ${needle}`)
+}
+
 /** Tab `times` stops along the field chain: tabs → engine → repo → baseRef. */
 async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: number) {
   for (let i = 0; i < times; i++) {
@@ -97,6 +107,7 @@ test("a resolved repo shows its NAME, not its path, and still submits the path",
   await settle()
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(dir)
+  act(() => h.destroy())
 })
 
 test("a basename shared by two saved repos keeps the PATH — it identifies nothing", async () => {
@@ -116,6 +127,7 @@ test("a basename shared by two saved repos keeps the PATH — it identifies noth
   await settle()
   expect(h.submitted[0]?.repo).toBe(a)
   expect(h.submitted[0]?.repo).not.toBe(b)
+  act(() => h.destroy())
 })
 
 test("typing an ambiguous name refuses to guess, and says so", async () => {
@@ -132,12 +144,21 @@ test("typing an ambiguous name refuses to guess, and says so", async () => {
   await settle()
   await act(async () => h.mockInput.typeText("app"))
   await settle()
-  await pressTab(h, TO_BASE_REF - TO_REPO)
+
+  // Leave the field by CLICKING the next one, because Tab no longer leaves an
+  // unfinished name behind — it completes the highlighted row to its full
+  // path first, which is a different (and answered) question. The guard is
+  // about text that reaches the commit still naming two repos, and this is
+  // the route that still gets it there.
+  const label = locate(await h.frame(), "FROM BRANCH")
+  await h.mockMouse.click(label.x + 1, label.y)
+  await settle()
   act(() => h.mockInput.pressEnter())
   await settle()
 
   expect(h.submitted).toHaveLength(0)
   expect(await h.frame()).toContain("more than one saved repo is named app")
+  act(() => h.destroy())
 })
 
 test("a path being typed renders VERBATIM — the field does not rewrite mid-keystroke", async () => {
@@ -159,13 +180,18 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
   // swallow the directory half mid-keystroke.
   expect(await h.frame()).toContain(partial.slice(0, 40))
 
-  // Completing it to the real repo submits that full path.
+  // Completing it to the real repo submits that full path. Two Tabs, not
+  // one: the first finishes the highlighted directory in place (that is the
+  // field's own completion), and only the second — with nothing left to
+  // finish — moves to the branch field. The trailing slash the walk leaves
+  // in the box does not travel with the value.
   await act(async () => h.mockInput.typeText("ped"))
   await settle()
-  await pressTab(h, 1)
+  await pressTab(h, 2)
   act(() => h.mockInput.pressEnter())
   await settle()
   expect(h.submitted[0]?.repo).toBe(dir)
+  act(() => h.destroy())
 })
 
 test("picker rows right-align their directory tails into one column", async () => {
@@ -191,6 +217,7 @@ test("picker rows right-align their directory tails into one column", async () =
   // right edge; equal across rows means one column, not a ragged trail.
   const ends = new Set(rows.map((l) => l.trimEnd().length))
   expect(ends.size).toBe(1)
+  act(() => h.destroy())
 })
 
 test("a long directory never eats into the name", async () => {
@@ -205,6 +232,7 @@ test("a long directory never eats into the name", async () => {
   const row = (await h.frame()).split("\n").find((l) => l.includes("ture-repo"))
   expect(row).toBeDefined()
   expect(row).toContain("fixture-repo")
+  act(() => h.destroy())
 })
 
 test("a full-width row keeps air between the name and the directory", async () => {
@@ -221,4 +249,5 @@ test("a full-width row keeps air between the name and the directory", async () =
   const row = (await h.frame()).split("\n").find((l) => l.includes("current dir"))
   expect(row).toBeDefined()
   expect(row).not.toContain("dir)/")
+  act(() => h.destroy())
 })
