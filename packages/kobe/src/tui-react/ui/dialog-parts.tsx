@@ -4,10 +4,11 @@
  *
  * `ui/dialog.tsx` owns the CARD (size, placement, dimmer, esc barrier); this
  * file owns what goes inside it. The card admits two looks — a "form sheet"
- * (New task, New routine, the pickers — lowercase labels, bare inputs,
- * `[ create ]` bottom-right) and a "story editor" (the kanban drawer — caps
- * labels, rounded field wells, chips, a key legend) — and which one a dialog
- * wears must not depend on what its author happened to have open.
+ * (the branch picker, run-again, field notes — lowercase labels, bare
+ * inputs) and a "story editor" (New task, New chat, the engine picker, the
+ * kanban drawer — caps labels, rounded field wells, chips, a key legend) — and
+ * which one a dialog wears must not depend on what its author happened to
+ * have open.
  *
  * The pieces here are the story-editor half, so a dialog gets the grammar by
  * composing rather than by remembering. In particular
@@ -198,6 +199,37 @@ export function ChipButton(props: {
       onMouseUp={props.onPress}
     >
       {label}
+    </box>
+  )
+}
+
+/**
+ * The choose-one control: every option as a {@link ChipButton}, side by
+ * side, wrapping by whole chips. This is the ONLY way a dialog renders a
+ * pick-one-value field (engine, mode, destination, effort…); a bespoke row
+ * of `<text>` choices is a grammar violation, not a variant.
+ */
+export function ChipRow<T extends string>(props: {
+  choices: readonly T[]
+  selected: T
+  onPick: (choice: T) => void
+  /** Display text for a choice (default: the choice itself). */
+  display?: (choice: T) => string
+  paddingBottom?: number
+}) {
+  // columnGap, not gap: Yoga's `gap` sets both gutters, and a wrapped second
+  // line would then sit a blank row below the first.
+  return (
+    <box flexDirection="row" flexWrap="wrap" columnGap={1}>
+      {props.choices.map((choice) => (
+        <ChipButton
+          key={choice}
+          label={props.display ? props.display(choice) : choice}
+          selected={choice === props.selected}
+          onPress={() => props.onPick(choice)}
+          {...(props.paddingBottom === undefined ? {} : { paddingBottom: props.paddingBottom })}
+        />
+      ))}
     </box>
   )
 }

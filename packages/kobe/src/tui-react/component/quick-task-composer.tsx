@@ -14,7 +14,6 @@
  * surface the quick chord wants.
  */
 
-import { TextAttributes } from "@opentui/core"
 import { usePaste } from "@opentui/react"
 import { useState } from "react"
 import { isBlankText, stripNewlines } from "../../tui/component/new-task-dialog/state"
@@ -25,7 +24,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import { ChoiceRow } from "./new-task-dialog/picker-list"
+import { ChipRow, DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
 import { quickTaskBindings } from "./quick-task-bindings"
 
 export interface QuickTaskComposerOptions {
@@ -142,72 +141,80 @@ function QuickTaskComposerView(
     }),
   }))
 
-  const fieldColor = (f: Field) => (field === f ? theme.accent : theme.textMuted)
-
   return (
-    <box paddingLeft={padX} paddingRight={padX} gap={1}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          {t("quickTask.title", { repoLabel: props.repoLabel })}
-        </text>
-        <text fg={theme.textMuted} onMouseUp={() => props.onCancel()}>
-          {t("quickTask.esc")}
-        </text>
-      </box>
-
-      <box gap={0}>
-        <text fg={fieldColor("prompt")}>{t("quickTask.promptLabel")}</text>
-        <input
-          value={prompt}
-          placeholder={t("quickTask.promptPlaceholder")}
+    <box paddingLeft={padX} paddingRight={padX} gap={0}>
+      <DialogHeader title={t("quickTask.title", { repoLabel: props.repoLabel })} onClose={() => props.onCancel()} />
+      <box gap={1} paddingTop={1}>
+        <DialogSection
+          label={t("quickTask.promptLabel")}
           focused={field === "prompt"}
-          onInput={(v: string) => setPrompt(stripNewlines(v))}
-          onSubmit={() => commit()}
-        />
-      </box>
+          onPress={() => setField("prompt")}
+        >
+          <DialogField focused={field === "prompt"}>
+            <input
+              value={prompt}
+              placeholder={t("quickTask.promptPlaceholder")}
+              focused={field === "prompt"}
+              onInput={(v: string) => setPrompt(stripNewlines(v))}
+              onSubmit={() => commit()}
+              onMouseUp={() => setField("prompt")}
+            />
+          </DialogField>
+        </DialogSection>
 
-      {attachments.length > 0 ? (
-        <box flexDirection="row" gap={2} flexWrap="wrap">
-          {attachments.map((path, i) => (
-            <text
-              key={path}
-              fg={theme.primary}
-              // Atomic chip: wrap the ROW, never the label (see ChoiceRow).
-              wrapMode="none"
-              flexShrink={0}
-              onMouseUp={() => setAttachments((prev) => prev.filter((p) => p !== path))}
-            >
-              {attachmentLabel(path, i)}
-            </text>
-          ))}
-        </box>
-      ) : null}
+        {attachments.length > 0 ? (
+          <box flexDirection="row" gap={2} flexWrap="wrap">
+            {attachments.map((path, i) => (
+              <text
+                key={path}
+                fg={theme.primary}
+                // Atomic chip: wrap the ROW, never the label.
+                wrapMode="none"
+                flexShrink={0}
+                onMouseUp={() => setAttachments((prev) => prev.filter((p) => p !== path))}
+              >
+                {attachmentLabel(path, i)}
+              </text>
+            ))}
+          </box>
+        ) : null}
 
-      <ChoiceRow
-        choices={props.engines}
-        selected={vendor}
-        label={<text fg={fieldColor("engine")}>{t("quickTask.engineLabel")}</text>}
-        arrow={false}
-        display={(v) => props.engineLabel(v)}
-        onPick={(v) => {
-          setVendor(v)
-          setField("engine")
-        }}
-      />
+        <DialogSection
+          label={t("quickTask.engineLabel")}
+          focused={field === "engine"}
+          hint="←/→"
+          onPress={() => setField("engine")}
+        >
+          <ChipRow
+            choices={props.engines}
+            selected={vendor}
+            display={(v) => props.engineLabel(v)}
+            onPick={(v) => {
+              setVendor(v)
+              setField("engine")
+            }}
+          />
+        </DialogSection>
 
-      <box gap={0}>
-        <text fg={fieldColor("branch")}>{t("quickTask.branchLabel")}</text>
-        <input
-          value={baseRef}
-          placeholder={props.defaultBaseRef}
+        <DialogSection
+          label={t("quickTask.branchLabel")}
           focused={field === "branch"}
-          onInput={(v: string) => setBaseRef(stripNewlines(v))}
-          onSubmit={() => commit()}
-        />
-      </box>
+          onPress={() => setField("branch")}
+        >
+          <DialogField focused={field === "branch"}>
+            <input
+              value={baseRef}
+              placeholder={props.defaultBaseRef}
+              focused={field === "branch"}
+              onInput={(v: string) => setBaseRef(stripNewlines(v))}
+              onSubmit={() => commit()}
+              onMouseUp={() => setField("branch")}
+            />
+          </DialogField>
+        </DialogSection>
 
-      {/* Bottom breathing room — the legend that used to fill this row is gone. */}
-      <box paddingBottom={1} />
+        <DialogFooter>{t("quickTask.legend")}</DialogFooter>
+      </box>
     </box>
   )
 }

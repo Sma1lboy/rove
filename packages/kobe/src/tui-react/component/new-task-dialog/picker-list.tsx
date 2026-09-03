@@ -5,10 +5,6 @@
  * "↑ N more / rows / ↓ N more" block through this one component — callers
  * supply the pre-windowed row bodies and pick handler, the list owns the
  * cursor arrow, bold, and overflow lines.
- *
- * Also home to {@link ChoiceRow}, the horizontal choose-one row shared by the
- * engine picker, the quick composer and the new-chat dialog. The new-task
- * dialog spends chips instead — docs/design/dialogs.md.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -105,57 +101,6 @@ export function PickerList(props: {
         </text>
       ) : null}
       {props.footer}
-    </box>
-  )
-}
-
-/**
- * Horizontal choose-one row — the engine/vendor selector pattern shared by
- * the new-task dialog, the engine-picker dialog and the quick-task
- * composer: choices side by side (`gap={2}`), the selected one primary +
- * bold (arrowed variants prefix `▸ ` / two spaces), click picks.
- *
- * Overflow: a choice label is ATOMIC. Without `wrapMode="none"` +
- * `flexShrink={0}` Yoga compresses the cells and each `<text>` wraps
- * INTERNALLY, so with enough engines installed a label like `lazygit (split)`
- * splits mid-word across two lines and the row reads as garbage. Unbreakable
- * labels make the ROW wrap instead, moving whole choices onto the next line.
- */
-export function ChoiceRow<T extends string>(props: {
-  choices: readonly T[]
-  selected: T
-  /** Leading cell (e.g. a field label) rendered before the choices. */
-  label?: ReactNode
-  onPick: (choice: T) => void
-  /** `▸ `/two-space prefix on each choice (default true). */
-  arrow?: boolean
-  /** Display text for a choice (default: the choice itself). */
-  display?: (choice: T) => string
-  /** Trailing content (spacer/hints) inside the same row. */
-  children?: ReactNode
-}) {
-  const { theme } = useTheme()
-  const arrow = props.arrow !== false
-  return (
-    <box flexDirection="row" flexWrap="wrap" gap={2}>
-      {props.label}
-      {props.choices.map((choice) => {
-        const selected = props.selected === choice
-        const prefix = arrow ? (selected ? "▸ " : "  ") : ""
-        return (
-          <text
-            key={choice}
-            fg={selected ? theme.primary : theme.textMuted}
-            attributes={selected ? TextAttributes.BOLD : undefined}
-            wrapMode="none"
-            flexShrink={0}
-            onMouseUp={() => props.onPick(choice)}
-          >
-            {prefix + (props.display ? props.display(choice) : choice)}
-          </text>
-        )
-      })}
-      {props.children}
     </box>
   )
 }

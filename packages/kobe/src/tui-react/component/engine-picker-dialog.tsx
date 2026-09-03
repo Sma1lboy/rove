@@ -30,7 +30,8 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import { ChoiceRow, PickerList } from "./new-task-dialog/picker-list"
+import { ChipRow, DialogSection } from "../ui/dialog-parts"
+import { PickerList } from "./new-task-dialog/picker-list"
 
 /** What the dialog resolves to: the engine, plus the level when one applies. */
 export type EnginePickResult = {
@@ -137,19 +138,14 @@ export function EnginePickerDialogView(props: {
         paddingBottom={effortChoices.length > 0 ? 0 : 1}
       />
       {effortChoices.length > 0 ? (
-        <box paddingLeft={2}>
-          <ChoiceRow
+        <DialogSection label={t("tasks.changeEngine.effortLabel")} focused={false} hint="←/→">
+          <ChipRow
             choices={effortChoices}
             selected={effort}
             display={(choice) => (choice === NO_EFFORT ? t("tasks.changeEngine.noEffort") : choice)}
             onPick={(choice) => setEffort(choice)}
-            label={
-              <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-                {t("tasks.changeEngine.effortLabel")}
-              </text>
-            }
           />
-        </box>
+        </DialogSection>
       ) : null}
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>

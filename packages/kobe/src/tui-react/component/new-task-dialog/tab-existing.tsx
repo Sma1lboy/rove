@@ -10,7 +10,7 @@ import { type ExistingIntent, splitRepoRow } from "../../../tui/component/new-ta
 import { DEFAULT_BASE_REF } from "../../../tui/lib/git-snapshot"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { ChipButton, DialogField, DialogSection } from "../../ui/dialog-parts"
+import { ChipRow, DialogField, DialogSection } from "../../ui/dialog-parts"
 import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
@@ -117,19 +117,15 @@ export function ExistingTab({ vm }: { vm: NewTaskVm }) {
           hint="←/→"
           onPress={() => vm.setField("intent")}
         >
-          <box flexDirection="row" gap={1}>
-            {intents.map((choice) => (
-              <ChipButton
-                key={choice}
-                label={intentLabel[choice]}
-                selected={vm.intent === choice}
-                onPress={() => {
-                  vm.setIntent(choice)
-                  vm.setField("intent")
-                }}
-              />
-            ))}
-          </box>
+          <ChipRow
+            choices={intents}
+            selected={vm.intent}
+            display={(choice) => intentLabel[choice]}
+            onPick={(choice) => {
+              vm.setIntent(choice)
+              vm.setField("intent")
+            }}
+          />
         </DialogSection>
       ) : null}
       {/* Opening the project has no branch to fork from — it enters the
