@@ -304,7 +304,7 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
 
   const settingsPage = pages.settingsOpen ? (
     <box flexGrow={1} backgroundColor="transparent" paddingTop={1}>
-      <SettingsDialog kv={kv} orchestrator={orchestrator} standalone={true} onClose={pages.closeSettings} />
+      <SettingsDialog kv={kv} orchestrator={orchestrator} onClose={pages.closeSettings} />
     </box>
   ) : null
 

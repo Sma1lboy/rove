@@ -18,7 +18,7 @@ const NOOP = (): void => {}
 
 function Driver() {
   const kv = useKV()
-  return <SettingsDialog kv={kv} standalone onClose={NOOP} />
+  return <SettingsDialog kv={kv} onClose={NOOP} />
 }
 
 test("the Keybindings page writes the starter YAML on enter", async () => {
