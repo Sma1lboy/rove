@@ -15,6 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest"
+import { humanizeSlug } from "../../src/engine/interactive-command.ts"
 import {
   SECTIONS,
   type SettingsRowsInput,
@@ -25,7 +26,6 @@ import {
   feedbackRows,
   focusAccentRowId,
   generalRows,
-  humanizeSlug,
   pluginRowId,
   pluginRows,
   pluginSettingRowId,

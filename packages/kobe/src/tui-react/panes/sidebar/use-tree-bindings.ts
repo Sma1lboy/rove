@@ -24,10 +24,14 @@ import type { createSidebarController } from "../../../tui/panes/sidebar/control
 import { RECENT_ROW_ID, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { bindByIds } from "../../context/keybindings"
 import { useBindings } from "../../lib/keymap"
+import type { SidebarTaskCallbacks } from "./types"
 import type { TreeMenu } from "./use-tree-menu"
 import type { TreeSearch } from "./use-tree-search"
 
-export interface TreeBindingsOpts {
+export interface TreeBindingsOpts
+  extends Readonly<
+    Pick<SidebarTaskCallbacks, "onDeleteRequest" | "onRenameRequest" | "onPinRequest" | "onLocalMergeRequest">
+  > {
   readonly focused: boolean
   readonly search: TreeSearch
   readonly menu: Pick<TreeMenu, "open" | "moveCursor" | "pickCurrent" | "close">
@@ -37,10 +41,6 @@ export interface TreeBindingsOpts {
   readonly flatIdsRef: React.MutableRefObject<readonly string[]>
   readonly cursorRef: React.MutableRefObject<number>
   readonly moveCursorRow: (delta: -1 | 1) => void
-  readonly onDeleteRequest?: (id: string) => void
-  readonly onRenameRequest?: (id: string) => void
-  readonly onPinRequest?: (id: string) => void
-  readonly onLocalMergeRequest?: (id: string) => void
   readonly markKeysUsed: () => void
 }
 

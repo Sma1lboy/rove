@@ -13,10 +13,14 @@
 import { useEffect, useState } from "react"
 import { installedEngineIds } from "../../../engine/account-detect"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
-import { defaultEngineCommand, engineCommandKey, engineNameKey } from "../../../engine/interactive-command"
+import {
+  defaultEngineCommand,
+  engineCommandKey,
+  engineNameKey,
+  humanizeSlug,
+} from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
 import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/vendor-prefs"
-import { humanizeSlug } from "../../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
 import { ALL_VENDORS, isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
