@@ -85,16 +85,23 @@ one.
 
 ### Workspace trust
 
-Claude, Codex, and Kimi each gate a first launch in a never-seen directory
-behind a trust dialog, and every task worktree is such a directory, so a
-hosted session can't answer it (Kimi's dialog even exits the process when a
-pasted first message lands on "Don't trust"). Before spawning an engine into
-a Rove-created worktree, Rove writes the vendor's own trust record for that
-path (`~/.claude.json` `projects[<path>].hasTrustDialogAccepted`,
-`~/.codex/config.toml` `[projects."<path>"] trust_level = "trusted"`, or
-`~/.kimi-code/workspace-trust/`), merging into existing entries, never
-clobbering. This only ever fires for worktrees Rove itself created from a
-repo you already work in; your own directories are untouched.
+All four builtin engines gate a first launch in a never-seen directory behind
+a trust dialog, and every task worktree is such a directory, so a hosted
+session can't answer it (Kimi's dialog even exits the process when a pasted
+first message lands on "Don't trust"; Copilot's cursor sits on a
+session-only "Yes", so it returns every launch). Before spawning an engine
+into a Rove-created worktree, Rove writes that vendor's own trust record for
+the path, merging into existing entries, never clobbering:
+
+| Engine | Trust record |
+| --- | --- |
+| Claude | `~/.claude.json` → `projects[<path>].hasTrustDialogAccepted` |
+| Codex | `~/.codex/config.toml` → `[projects."<path>"] trust_level = "trusted"` |
+| Copilot | `~/.copilot/config.json` → `trustedFolders` |
+| Kimi | `~/.kimi-code/workspace-trust/<record>` |
+
+This only ever fires for worktrees Rove itself created from a repo you already
+work in; your own directories are untouched.
 
 ### Custom launch commands
 

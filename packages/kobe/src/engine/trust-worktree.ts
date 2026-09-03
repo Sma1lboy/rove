@@ -3,7 +3,8 @@
  * a directory the engine has never seen, and every vendor gates that behind
  * a first-run trust dialog a hosted session cannot answer — kimi's dialog
  * even EXITS the process when the pasted first message's Enter lands on
- * "Don't trust"; claude/codex sit at the prompt forever. The vendor-specific
+ * "Don't trust"; claude/codex/copilot sit at the prompt forever. The
+ * vendor-specific
  * store writes live behind the registry's `trustWorktree` hook; THIS wrapper
  * owns the call policy every spawn path shares: best-effort, never blocks a
  * launch (a failed write just leaves the dialog in the user's way).
