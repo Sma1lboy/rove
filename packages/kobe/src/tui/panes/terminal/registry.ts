@@ -48,7 +48,7 @@ import { type ParkedScreen, type TaskPty, type TaskPtyOpts, createTaskPty } from
 export type AcquireOpts = Omit<TaskPtyOpts, "taskId" | "cwd">
 
 /** Hidden (no data subscriber) for this long → park the local handle. */
-export const PARK_AFTER_MS = 120_000
+const PARK_AFTER_MS = 120_000
 /** Cadence of the park sweep. */
 const PARK_SWEEP_MS = 30_000
 /** A session that produced output within this window is ACTIVE — never park

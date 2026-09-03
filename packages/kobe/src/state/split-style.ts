@@ -13,7 +13,7 @@ export const SPLIT_STYLE_KEY = "appearance.splitStyle"
 
 export type SplitStyle = "box" | "line"
 
-export const DEFAULT_SPLIT_STYLE: SplitStyle = "box"
+const DEFAULT_SPLIT_STYLE: SplitStyle = "box"
 
 export const SPLIT_STYLES: readonly SplitStyle[] = ["box", "line"]
 

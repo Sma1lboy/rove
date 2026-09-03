@@ -48,7 +48,7 @@ export function helpStep(verbName: string): Record<string, unknown> {
 
 // ── Declarative verb + flag specs (single source of truth) ───────────────────
 
-export type FlagType = "string" | "int" | "bool" | "enum" | "csv"
+type FlagType = "string" | "int" | "bool" | "enum" | "csv"
 
 export interface FlagSpec {
   readonly name: string
@@ -79,7 +79,7 @@ export interface VerbContext {
   readonly runtime: ApiRuntime
 }
 
-export type VerbHandler = (ctx: VerbContext) => Promise<unknown>
+type VerbHandler = (ctx: VerbContext) => Promise<unknown>
 
 /**
  * The taxonomy `rove api schema` exposes for LEVELED exploration. Closed on

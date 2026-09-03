@@ -1,7 +1,7 @@
 import type { KeyEvent } from "@opentui/core"
 
 /** Names OpenTUI assigns to kitty keyboard protocol modifier keycodes 57441-57454. */
-export const KITTY_MODIFIER_KEY_NAMES = [
+const KITTY_MODIFIER_KEY_NAMES = [
   "leftshift",
   "leftctrl",
   "leftalt",

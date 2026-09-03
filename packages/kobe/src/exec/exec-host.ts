@@ -132,7 +132,7 @@ export const shJoin = quoteShellArgv
 /** Single-quote a token only if it contains characters that aren't safe to
  *  leave bare in a POSIX shell word. Keeps flags / `user@host` readable while
  *  still protecting paths with spaces or metachars. */
-export function shToken(s: string): string {
+function shToken(s: string): string {
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : quoteShellArg(s)
 }
 

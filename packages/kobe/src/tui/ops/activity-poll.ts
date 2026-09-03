@@ -21,7 +21,7 @@ import type { ChatTabTurnState } from "@/engine/turn-detector"
 export const ACTIVITY_POLL_MIN_MS = 2500
 export const ACTIVITY_POLL_MAX_MS = 20000
 /** Unchanged reads before each step up; the interval doubles per step. */
-export const ACTIVITY_IDLE_RAMP_POLLS = 3
+const ACTIVITY_IDLE_RAMP_POLLS = 3
 
 /** Fast floor for the turn-status capture-pane poll (mid-turn / fallback fixed cadence). */
 export const TURN_STATUS_POLL_MS = 1500

@@ -79,7 +79,7 @@ export async function killHostedSessions(rpc: HostedSessionRpc, keys: readonly s
  * (a dead fallback there makes delivery silently spawn a duplicate
  * engine). Bare shell tabs (`[shell, "-il"]`) carry no engine word.
  */
-export function commandHasEngineWord(command: readonly string[], engineBin: string): boolean {
+function commandHasEngineWord(command: readonly string[], engineBin: string): boolean {
   for (const part of command) {
     for (const token of part.split(/\s+/)) {
       const bare = token.replace(/^['"]+|['"]+$/g, "")
@@ -385,8 +385,8 @@ export async function ensureHostedEngine(
 }
 
 /** Bounds for the first-message readiness wait (paste-delivery vendors). */
-export const FIRST_MESSAGE_ENGINE_TIMEOUT_MS = 20_000
-export const FIRST_MESSAGE_POLL_INTERVAL_MS = 500
+const FIRST_MESSAGE_ENGINE_TIMEOUT_MS = 20_000
+const FIRST_MESSAGE_POLL_INTERVAL_MS = 500
 /**
  * Post-detection grace, kept ONLY as the fallback for an engine that never
  * announces bracketed paste. The readiness wait (`awaitPasteReady`) is the
@@ -397,7 +397,7 @@ export const FIRST_MESSAGE_POLL_INTERVAL_MS = 500
  * Measured: kimi announces bracketed paste at ~1953ms, i.e. AFTER this
  * timer fired, which is why kimi was the vendor that lost 8.6KB prompts.
  */
-export const FIRST_MESSAGE_SETTLE_MS = 1_500
+const FIRST_MESSAGE_SETTLE_MS = 1_500
 
 export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
   readonly timeoutMs?: number

@@ -50,7 +50,7 @@ function binaryName(token: string): string {
 }
 
 /** Resolve the executable identity from launch argv, through known wrappers. */
-export function executableNameFromArgv(argv: readonly string[]): string | null {
+function executableNameFromArgv(argv: readonly string[]): string | null {
   for (const token of argv.slice(0, 8)) {
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue
     const name = binaryName(token)

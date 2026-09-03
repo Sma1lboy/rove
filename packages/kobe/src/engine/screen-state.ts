@@ -21,7 +21,7 @@
  */
 
 /** One classification rule. All present conditions must hold. */
-export interface ScreenRule {
+interface ScreenRule {
   /** State this rule claims when it matches. */
   readonly state: "working" | "blocked" | "idle"
   /** Trailing NON-EMPTY capture lines the rule looks at (default 12) —

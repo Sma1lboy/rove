@@ -16,7 +16,7 @@
 import type { VendorId } from "@/types/vendor"
 import type { PersistedSplit } from "./terminal-tab-split"
 
-export interface TabBase {
+interface TabBase {
   /** Stable id — registry key suffix. Never reused within a task. */
   readonly id: string
   /** User title; null = untitled (view shows the numbered default). */

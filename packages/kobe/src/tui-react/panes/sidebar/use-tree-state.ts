@@ -326,4 +326,3 @@ export function useTreeState(opts: TreeStateOpts): TreeState {
 
 /** Re-exported so the Sidebar can translate a cursor row id without also
  *  importing the core module directly. */
-export { parseRowId }

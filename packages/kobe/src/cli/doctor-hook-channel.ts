@@ -20,7 +20,7 @@
  */
 
 /** The one field of a `debug.inspect` tab entry this check reads. */
-export interface InspectTabEntry {
+interface InspectTabEntry {
   readonly source?: string
 }
 

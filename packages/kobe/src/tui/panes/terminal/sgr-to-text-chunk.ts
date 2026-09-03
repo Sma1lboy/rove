@@ -18,7 +18,7 @@ function toRGBA(rgb: RGB | undefined): RGBA | undefined {
   return RGBA.fromInts(rgb[0], rgb[1], rgb[2])
 }
 
-export function toTextChunk(c: Chunk): TextChunk {
+function toTextChunk(c: Chunk): TextChunk {
   return {
     __isChunk: true,
     text: c.text,

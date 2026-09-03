@@ -43,7 +43,7 @@ import { FRAME } from "./frame"
 const FRAMED_DIALOG_MIN_ROWS = 34
 
 /** Is the viewport too short to spend two rows per field on a border? */
-export function useDialogCompact(): boolean {
+function useDialogCompact(): boolean {
   return useTerminalDimensions().height < FRAMED_DIALOG_MIN_ROWS
 }
 
@@ -51,7 +51,7 @@ export function useDialogCompact(): boolean {
  * Fill for a field well. Transparent mode means transparent here too — the
  * dialog wells were the last solid tiles left on screen with the setting on.
  */
-export function useFieldFill(): RGBA | "transparent" {
+function useFieldFill(): RGBA | "transparent" {
   const { theme, transparentBackground } = useTheme()
   return transparentBackground ? "transparent" : theme.backgroundElement
 }

@@ -64,7 +64,7 @@ export const ENGINE_LIST_VERB: VerbSpec = {
   handler: async () => ({ engines: await listAllEnginePresets() }),
 }
 
-export async function setCommand(ctx: VerbContext): Promise<unknown> {
+async function setCommand(ctx: VerbContext): Promise<unknown> {
   const command = ctx.args.require("command")
   // The protocol is DERIVED, never declared: this is the same resolution
   // `add --command` runs, so a task's recorded protocol matches what the
@@ -105,7 +105,7 @@ function taskEngine(task: Pick<SerializedTask, "command" | "vendor">): VendorId 
   return coerceVendorId(task.vendor)
 }
 
-export async function setEffort(ctx: VerbContext): Promise<unknown> {
+async function setEffort(ctx: VerbContext): Promise<unknown> {
   const taskId = ctx.args.require("task-id")
   const level = ctx.args.require("level").trim()
   const daemon = daemonOf(ctx)

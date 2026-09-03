@@ -39,7 +39,7 @@ export type PrefixHudOption = {
   action: string
 }
 
-export type PrefixHudGuide =
+type PrefixHudGuide =
   | {
       readonly kind: "prefix"
       readonly armedAt: number

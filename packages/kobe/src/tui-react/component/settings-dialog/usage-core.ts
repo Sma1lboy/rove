@@ -13,7 +13,7 @@ import type { EngineQuotaUsage } from "../../../types/engine.ts"
 export const USAGE_BAR_WIDTH = 10
 
 /** Severity tone → theme color pick happens in the component. */
-export type UsageTone = "ok" | "warn" | "crit"
+type UsageTone = "ok" | "warn" | "crit"
 
 export interface UsageRowView {
   readonly label: string
@@ -57,7 +57,7 @@ export interface UsageChipView {
  * `5h 42% → 14:00`. Same tone thresholds, no padding — the footer packs
  * several vendors onto one row, so every cell has to earn its width.
  */
-export function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
+function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
   return usage.windows.map((w) => ({
     label: w.label,
     percentText: `${w.percent}%`,
@@ -85,13 +85,13 @@ export function narrowUsageChip(usage: EngineQuotaUsage, nowMs: number): UsageCh
 }
 
 /** One vendor's full chip block in the footer row (label + tone + reset). */
-export interface FooterVendorFull {
+interface FooterVendorFull {
   readonly vendor: string
   readonly chips: UsageChipView[]
 }
 
 /** Compact fallback: vendor name + tone percent only (the narrow form). */
-export interface FooterVendorCompact {
+interface FooterVendorCompact {
   readonly vendor: string
   readonly percentText: string
   readonly tone: UsageTone

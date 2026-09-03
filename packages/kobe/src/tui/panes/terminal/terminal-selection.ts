@@ -236,7 +236,7 @@ export const EMPTY_SHADOW: SelectionShadow = { above: [], below: [] }
 /** Rows banked per drag. ponytail: at the auto-scroll cap (~100 lines/s) this
  *  is ~20s of held drag; past it the anchor clamps instead of silently
  *  dropping middle rows. Raise if someone actually drags that long. */
-export const SHADOW_ROW_CAP = 2000
+const SHADOW_ROW_CAP = 2000
 
 /**
  * The vertical displacement of the content between two snapshots: positive

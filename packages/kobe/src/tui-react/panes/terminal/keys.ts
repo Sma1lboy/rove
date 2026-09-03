@@ -29,7 +29,6 @@ import { type Binding, modalActive, useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 
 // Re-export pure helpers so callers can import everything from one path.
-export { DEFAULT_PAGE_SIZE, TRAPPED_KEYS, keyEventToShellBytes }
 
 /** Argument bag for {@link useTerminalBindings} — plain values, not Accessors (React re-renders on prop change). */
 export type TerminalBindingsOpts = {

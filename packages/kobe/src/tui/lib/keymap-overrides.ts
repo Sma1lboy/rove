@@ -16,14 +16,12 @@
 import type { KeymapOverrideEntry } from "./keymap-overrides-parse"
 
 export {
-  type ChordResult,
-  type ExtractedKeybindingOverrides,
   type KeymapOverrideEntry,
   extractKeybindingOverrides,
   normalizeChord,
 } from "./keymap-overrides-parse"
 
-export type OverridableHint = {
+type OverridableHint = {
   keys: string
 }
 
@@ -70,7 +68,7 @@ export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
  * meaning of each position is a documented contract an override must
  * respect.
  */
-export type SlotContract = {
+type SlotContract = {
   /** Human-readable layout, used in warnings and the docs. */
   layout: string
   /** Null when `count` chords satisfy the layout; otherwise the problem. */
@@ -95,7 +93,7 @@ function pairContract(first: string, second: string): SlotContract {
  * {@link applyKeymapOverrides} (and re-runs on a live keybindings
  * reload, since the reload path resets and re-applies from scratch).
  */
-export const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
+const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
   "sidebar.goto": pairContract("top (double-tap)", "bottom"),
   "sidebar.nav": pairContract("down", "up"),
   "files.nav": pairContract("down", "up"),

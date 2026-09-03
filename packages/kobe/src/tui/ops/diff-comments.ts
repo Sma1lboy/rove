@@ -160,7 +160,7 @@ export function diffCommentsKey(taskId: string): string {
   return `diffComments.${taskId}`
 }
 
-export type NewDiffComment = Pick<DiffComment, "filePath" | "startLine" | "line" | "body">
+type NewDiffComment = Pick<DiffComment, "filePath" | "startLine" | "line" | "body">
 
 /** What the diff view needs to read/add/send review notes. */
 export interface DiffReviewApi {

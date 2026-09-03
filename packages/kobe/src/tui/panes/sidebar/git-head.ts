@@ -33,11 +33,11 @@ import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { createBackgroundPoller, spawnCapture } from "../../lib/background-poll"
 
 /** Kill a ref read that runs longer than this — O(1) commands, tight leash. */
-export const BRANCH_POLL_TIMEOUT_MS = 2_000
+const BRANCH_POLL_TIMEOUT_MS = 2_000
 /** After a timeout, leave the repo alone for this long before retrying. */
-export const BRANCH_SLOW_RETRY_MS = 30_000
+const BRANCH_SLOW_RETRY_MS = 30_000
 /** Floor between successful polls — matches the sidebar's ~2s tick. */
-export const BRANCH_MIN_POLL_INTERVAL_MS = 1_500
+const BRANCH_MIN_POLL_INTERVAL_MS = 1_500
 
 /**
  * Per-repo `.git/HEAD` fingerprint cache (waste audit). The branch NAME is

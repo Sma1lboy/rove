@@ -19,7 +19,6 @@ import type { PersistedSplit } from "./terminal-tab-split"
 // importers keep one entry point.
 export {
   type PersistedSplit,
-  SHELL_LEAF_NAME,
   collapseSplit,
   hasEngineLeaf,
   isTabSplit,
@@ -291,7 +290,7 @@ export function markTabSpawned(state: TabsState, id: string): TabsState {
 // off the transitions); shell-quoting in `./terminal-tab-spawn` (imports
 // nothing, pure string work). Both re-exported here so importers keep one
 // entry point.
-export { type TabExitAction, engineTabArgv, engineTabSpawnFor, tabExitAction } from "./terminal-tab-argv"
+export { engineTabArgv, engineTabSpawnFor, tabExitAction } from "./terminal-tab-argv"
 export { type TabSpawn, shellCommandLine, shellIdentityInput, shellSpawn } from "./terminal-tab-spawn"
 
 /** Cycle the active tab by ±1, wrapping at the ends. */

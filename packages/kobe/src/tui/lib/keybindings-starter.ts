@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { DEFAULT_PREFIX_CONFIGURATION } from "./keymap-dispatch"
 
-export const KEYBINDINGS_STARTER = `# Rove keybindings — every line below is an example, commented out.
+const KEYBINDINGS_STARTER = `# Rove keybindings — every line below is an example, commented out.
 # Uncomment what you want; changes reload live, no restart.
 # Press F1 in Rove for the live keymap with every binding id.
 #

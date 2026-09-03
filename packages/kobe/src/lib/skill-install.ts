@@ -73,7 +73,7 @@ export function skillInstallCommand(env: NodeJS.ProcessEnv = process.env): strin
  * The public repo slug. Only a FALLBACK now (and the documented route for
  * people who don't have Rove installed): resolving it means a large clone.
  */
-export const SKILL_SOURCE_SLUG = "Sma1lboy/rove"
+const SKILL_SOURCE_SLUG = "Sma1lboy/rove"
 
 /**
  * The skill directory shipped inside this install, or null in an environment
@@ -163,7 +163,7 @@ export function isNpxMissing(): boolean {
 }
 
 /** The "install Node" message shown wherever a missing `npx` blocks the install. */
-export function npxMissingMessage(): string {
+function npxMissingMessage(): string {
   return `${activeCliName()} skill install needs \`npx\` (part of Node.js), which isn't on your PATH.\nInstall Node.js (https://nodejs.org) and run it again — the Rove installer only installs Bun and Rove.`
 }
 

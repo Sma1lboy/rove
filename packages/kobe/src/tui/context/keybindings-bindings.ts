@@ -4,7 +4,7 @@ import type { Binding, PrefixAction } from "../lib/keymap-dispatch"
 import { findBinding } from "./keybindings"
 
 /** Resolve direct chords for one binding id. */
-export function chordsOf(id: string): readonly string[] {
+function chordsOf(id: string): readonly string[] {
   return findBinding(id)?.keys ?? []
 }
 

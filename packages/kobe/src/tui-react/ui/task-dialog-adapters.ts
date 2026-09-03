@@ -20,7 +20,7 @@ import type { DialogContext } from "./dialog"
 import { DialogConfirm } from "./dialog-confirm"
 
 /** The three dialog-surfacing callbacks of `TaskActionContext`/`CreateTaskContext`. */
-export function taskDialogAdapters(dialog: DialogContext): {
+function taskDialogAdapters(dialog: DialogContext): {
   confirm: (p: ConfirmPrompt) => Promise<boolean>
   promptText: (initial: string, opts?: TextPromptOpts) => Promise<string | undefined>
   promptNewTask: (
@@ -38,7 +38,7 @@ export function taskDialogAdapters(dialog: DialogContext): {
 }
 
 /** The repo-scoped vendor preference pair (state/vendor-prefs.ts). */
-export const vendorPrefAdapters = {
+const vendorPrefAdapters = {
   lastVendor: (repo: string): VendorId | undefined => resolvePreferredVendor(repo),
   rememberVendor: (repo: string, vendor: VendorId): void => setRepoLastActiveVendor(repo, vendor),
 } as const

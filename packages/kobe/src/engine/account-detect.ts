@@ -146,7 +146,7 @@ export function copilotConfigPath(env: (k: string) => string | undefined, home: 
 }
 
 /** Resolve kimi's OAuth credential file (`~/.kimi-code/credentials/kimi-code.json`). */
-export function kimiCredentialsPath(env: (k: string) => string | undefined, home: string): string {
+function kimiCredentialsPath(env: (k: string) => string | undefined, home: string): string {
   const override = env("KIMI_CODE_HOME")?.trim()
   const dir = override ?? path.join(home, ".kimi-code")
   return path.join(dir, "credentials", "kimi-code.json")

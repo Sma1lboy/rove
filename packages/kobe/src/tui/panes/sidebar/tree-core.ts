@@ -32,7 +32,7 @@ export { filterTreeRows } from "./tree-search"
 
 /** Separator between a task id and a tab id in a tab row's id. Matches the
  *  PTY registry's key format so one parse rule covers both. */
-export const TAB_ROW_SEPARATOR = "::"
+const TAB_ROW_SEPARATOR = "::"
 
 /** A worktree row's tab, as the sidebar needs it (the tab module owns the
  *  real shape; this is the projection the tree renders). */
@@ -103,7 +103,7 @@ export const SCRATCH_SECTION_ID = "~scratch"
  * "everything under a project is always visible" promise still holds for
  * everything the user made themselves.
  */
-export function routinesRowId(projectKey: string): string {
+function routinesRowId(projectKey: string): string {
   return `~routines:${projectKey}`
 }
 
@@ -113,7 +113,7 @@ export function projectKeyOfRoutinesRow(id: string): string | null {
 }
 
 /** True for a task the sidebar folds behind a routine count row. */
-export function isRoutineTask(task: Task): boolean {
+function isRoutineTask(task: Task): boolean {
   return task.routine !== undefined
 }
 
@@ -150,7 +150,7 @@ export function parseRowId(rowId: string): { taskId: string; tabId: string | nul
  *  default rail width minus row chrome. The row's flex still end-clips on
  *  narrower rails; pre-truncating from the START keeps the leaf visible at
  *  the default width, which is the half that disambiguates a path. */
-export const PATH_LABEL_MAX = 24
+const PATH_LABEL_MAX = 24
 
 /**
  * What a worktree row is CALLED — the one derivation rule:

@@ -28,12 +28,8 @@ import { PipeTaskPty } from "./pty-pipe"
 import { type TaskPtyLike, type TaskPtyOpts, resolveArgv } from "./pty-types"
 import { XtermTaskPty } from "./pty-xterm-base"
 
-export { MockTaskPty } from "./pty-mock"
-export { PipeTaskPty } from "./pty-pipe"
-export { HostedTaskPty } from "./pty-hosted"
 export type {
   CursorPos,
-  DataListener,
   ParkedScreen,
   TaskPtyLike,
   TaskPtyOpts,

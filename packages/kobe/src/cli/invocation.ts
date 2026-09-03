@@ -23,8 +23,10 @@ import { activeCliName } from "./rename-compat.ts"
  *
  * The `browser` export condition is required — opentui resolves a
  * browser-conditioned entry, and the build (`scripts/build.ts`) passes the
- * same. The React JSX pragmas (`@jsxImportSource @opentui/react`) are honoured
- * by Bun's default transpiler, so no preload is needed.
+ * same. The per-file JSX source pragmas are honoured by Bun's default
+ * transpiler, so no preload is needed. (Spelling the pragma out here would
+ * make knip read this comment as a real import and report the package as an
+ * unlisted dependency.)
  */
 export function roveCliInvocation(): string[] {
   const cliName = activeCliName()

@@ -58,7 +58,7 @@ export interface Chunk {
   readonly attributes?: number
 }
 
-export const EMPTY_STYLE: Style = Object.freeze({
+const EMPTY_STYLE: Style = Object.freeze({
   fg: undefined,
   bg: undefined,
   attributes: 0,

@@ -9,7 +9,7 @@ export { approxCellWidth }
 // right-click ContextMenu — same "a box of text lines pinned near the
 // pointer" problem.
 export const SIDEBAR_HOVER_TOOLTIP_Z_INDEX = 2750
-export const SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH = 72
+const SIDEBAR_HOVER_TOOLTIP_MAX_WIDTH = 72
 
 export type SidebarHoverTooltipLine = {
   readonly text: string

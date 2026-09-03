@@ -66,7 +66,7 @@ export interface QuickForkOrchestrator {
  * `createTaskFlow`/`quick-task/host.tsx` apply on submit: remember the
  * picked vendor as the repo's new default and auto-save the repo.
  */
-export async function createQuickForkTask(
+async function createQuickForkTask(
   orch: QuickForkOrchestrator,
   repo: string,
   baseRef: string,
@@ -85,7 +85,7 @@ export async function createQuickForkTask(
  * caller can hand its first-prompt delivery to the new task's TerminalTabs
  * mount (phase 2).
  */
-export async function runQuickFork(
+async function runQuickFork(
   orch: QuickForkOrchestrator,
   repo: string,
   result: { baseRef: string; vendor: VendorId },
@@ -150,7 +150,7 @@ export async function runAgainTask(
   return taskId
 }
 
-export interface PendingInitialPrompt {
+interface PendingInitialPrompt {
   readonly taskId: string
   readonly prompt: string
 }

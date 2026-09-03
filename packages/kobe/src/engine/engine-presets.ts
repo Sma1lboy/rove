@@ -87,7 +87,7 @@ export function getEngineProtocol(id: string): VendorId | undefined {
 }
 
 /** True when `id` names an engine kobe can launch by NAME alone. */
-export function isPresetId(id: string): boolean {
+function isPresetId(id: string): boolean {
   return isBuiltinVendor(id) || isContribEngine(id) || getCustomEngineIds().includes(id)
 }
 

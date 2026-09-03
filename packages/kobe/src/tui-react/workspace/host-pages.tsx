@@ -29,7 +29,7 @@ import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
 import type { DialogContext } from "../ui/dialog"
 
-export interface HostPageState {
+interface HostPageState {
   readonly worktreesOpen: boolean
   readonly automationsOpen: boolean
   readonly workItemsOpen: boolean

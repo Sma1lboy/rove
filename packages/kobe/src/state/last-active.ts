@@ -14,7 +14,7 @@
 
 import { loadStateFile, patchStateFile } from "./store.ts"
 
-export const LAST_ACTIVE_TASK_KEY = "lastActive.taskId"
+const LAST_ACTIVE_TASK_KEY = "lastActive.taskId"
 
 export function readLastActiveTaskId(): string | null {
   const value = loadStateFile()[LAST_ACTIVE_TASK_KEY]

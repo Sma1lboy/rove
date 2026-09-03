@@ -15,6 +15,9 @@ import { inputPassthroughReachable, prefixReachable, scanReachability } from "./
 import { isKittyModifierKeyName } from "./modifier-keys"
 import { type PrefixHudOption, prefixHudPush, prefixHudSetArmed } from "./prefix-hud"
 
+// Re-exported for `test/bench/hot-paths.bench.ts`, which benchmarks the
+// dispatch path through its public door rather than reaching into
+// `keymap-match` behind it.
 export { matchKey } from "./keymap-match"
 
 /** Mouse-safe command paired with a keyboard binding. */

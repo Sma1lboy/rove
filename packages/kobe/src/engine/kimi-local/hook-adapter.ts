@@ -156,7 +156,7 @@ export function mergeKimiHooks(
  * (re-auth, or a plan change), and the daemon deliberately does NOT arm a
  * resume timer for `billing`. A plain 429 IS `rate_limit` and does arm one.
  */
-export function kimiFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
+function kimiFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
   const type = typeof payload.error_type === "string" ? payload.error_type : ""
   const message = typeof payload.error_message === "string" ? payload.error_message : ""
   const note = type || undefined

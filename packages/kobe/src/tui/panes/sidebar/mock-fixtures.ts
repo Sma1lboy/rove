@@ -8,7 +8,7 @@
 import type { Task } from "@/types/task"
 import { toTaskId } from "@/types/task"
 
-export const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
+const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
 
 /** A representative task list: project row, running/pinned/backlog. */
 export function seedSidebarTasks(): readonly Task[] {

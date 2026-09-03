@@ -20,7 +20,7 @@ export type BoardColumnKey = "backlog" | "in_progress" | "parked" | "done"
 
 /** Parked sits between In progress and Done: it reads as a pipeline stage —
  *  work that LEFT the active lane but isn't finished. */
-export const BOARD_COLUMN_ORDER: readonly BoardColumnKey[] = ["backlog", "in_progress", "parked", "done"]
+const BOARD_COLUMN_ORDER: readonly BoardColumnKey[] = ["backlog", "in_progress", "parked", "done"]
 
 /** Done and Parked both accrete forever — only the newest slice renders, the
  *  rest becomes a "+N more" count (the web board's R1 done-growth policy). */
@@ -102,7 +102,7 @@ export function issueColumnKey(issue: Issue, taskExists?: (taskId: string) => bo
  *  floating every finished card would drown the actually-blocked ones.
  *  String-typed (like notify-state's `attentionKindFor`) so this module
  *  stays free of the engine import. */
-export const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error"]
+const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error"]
 
 export function isBoardAttentionState(state: string | undefined): boolean {
   return state !== undefined && BOARD_ATTENTION_STATES.includes(state)

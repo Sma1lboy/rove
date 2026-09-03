@@ -96,7 +96,7 @@ export interface EngineHistoryReader {
 }
 
 /** Any built-in engine's account shape (each union already has a `none` arm). */
-export type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
+type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
 export interface EngineRegistryEntry {
   readonly vendor: VendorId

@@ -59,7 +59,7 @@ function guideCategory(action: string): string {
 }
 
 /** Keep catalogue order while collapsing aliases such as p / shift+p. */
-export function groupPrefixGuideOptions(options: readonly { stroke: string; action: string }[]): GuideGroup[] {
+function groupPrefixGuideOptions(options: readonly { stroke: string; action: string }[]): GuideGroup[] {
   const order = new Map(KobeKeymap.map((binding, index) => [binding.id, index]))
   const byAction = new Map<string, GuideAction>()
   for (const option of options) {

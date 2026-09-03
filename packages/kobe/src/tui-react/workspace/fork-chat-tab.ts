@@ -114,11 +114,7 @@ export async function planWorktreeHandoff(
  * only source of truth for what conversation this tab is showing.
  * `listSessionIdsForWorktree` is oldest-first, so the fork source is last.
  */
-export async function forkSourceSessionId(
-  active: TerminalTab,
-  vendor: VendorId,
-  worktree: string,
-): Promise<string | null> {
+async function forkSourceSessionId(active: TerminalTab, vendor: VendorId, worktree: string): Promise<string | null> {
   if (active.kind !== "engine") return null
   if (active.sessionId) return active.sessionId
   const ids = await protocolEntry(vendor).history.listSessionIdsForWorktree(worktree)

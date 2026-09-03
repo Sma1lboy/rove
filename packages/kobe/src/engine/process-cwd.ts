@@ -23,7 +23,7 @@ export function parseLsofCwd(output: string): string | null {
 /** Injectable for tests — the real one shells out to lsof. */
 export type LsofCwd = (pid: number) => Promise<string>
 
-export const lsofCwd: LsofCwd = async (pid) => {
+const lsofCwd: LsofCwd = async (pid) => {
   const proc = Bun.spawn(["lsof", "-a", "-p", String(pid), "-d", "cwd", "-Fn"], {
     stdout: "pipe",
     stderr: "ignore",

@@ -117,7 +117,6 @@ export type {
   AttentionInboxItem,
   DaemonConnectionState,
   EngineLifecycleMap,
-  EngineLifecycleState,
   EngineTabStateMap,
   RecentTaskEvent,
   RemoteOrchestratorOptions,

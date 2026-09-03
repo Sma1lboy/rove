@@ -29,7 +29,7 @@ import { activeCliName } from "./rename-compat.ts"
 /** Point Rove at a specific Bun binary (skips every other candidate). */
 export const BUN_OVERRIDE_ENV = "ROVE_BUN"
 /** Set to `1` to make a missing Bun a hard error instead of an install offer. */
-export const NO_BOOTSTRAP_ENV = "ROVE_NO_BUN_BOOTSTRAP"
+const NO_BOOTSTRAP_ENV = "ROVE_NO_BUN_BOOTSTRAP"
 /** Set to `1` to run on a Bun below {@link MIN_BUN_VERSION} anyway (unsupported). */
 export const SKIP_VERSION_CHECK_ENV = "ROVE_SKIP_BUN_CHECK"
 
@@ -50,7 +50,7 @@ export const SKIP_VERSION_CHECK_ENV = "ROVE_SKIP_BUN_CHECK"
 export const MIN_BUN_VERSION: string = pkg.engines.bun.match(/\d+\.\d+\.\d+/)?.[0] ?? "0.0.0"
 
 /** A Bun that exists and runs, but predates {@link MIN_BUN_VERSION}. */
-export interface StaleBun {
+interface StaleBun {
   readonly path: string
   readonly version: string
 }

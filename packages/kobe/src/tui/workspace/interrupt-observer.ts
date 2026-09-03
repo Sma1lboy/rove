@@ -36,7 +36,7 @@ import type { VendorId } from "../../types/vendor"
  * machine — 2.5s covers a loaded one with margin, while keeping the ESC
  * flip inside the "immediately" a user perceives.
  */
-export const INTERRUPT_CONFIRM_MS = 2500
+const INTERRUPT_CONFIRM_MS = 2500
 
 /** One tab's inputs per observation pass. */
 export interface InterruptObservation {
