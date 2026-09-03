@@ -408,7 +408,10 @@ export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
   readonly sleep?: (ms: number) => Promise<void>
   /** When the launch includes a repo-init script, wait for this marker file
    *  before budgeting the engine-startup wait. Prevents a short paste-delivery
-   *  window from expiring while dependencies are still installing. */
+   *  window from expiring while dependencies are still installing. The launch
+   *  script writes it when init FINISHES, whatever the outcome — a
+   *  success-only marker made "init failed" indistinguishable from "init is
+   *  still running", and the loop below then sat out the whole budget. */
   readonly initMarkerPath?: string
   /** How long to wait for {@link initMarkerPath} to appear (ms). */
   readonly initTimeoutMs?: number
