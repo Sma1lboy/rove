@@ -45,8 +45,14 @@ const wrapperTab = (over: Partial<EngineTab> = {}): EngineTab => ({
 
 let claudeDir: string
 let prevConfigDir: string | undefined
+let prevHome: string | undefined
 
 beforeAll(() => {
+  // Every case here assumes `claudecpa` has NO declared protocol. The real
+  // state.json can say otherwise (the daemon writes `engineProtocol.<id>`
+  // back once it has walked the wrapper), so the kv store is isolated.
+  prevHome = process.env.KOBE_HOME_DIR
+  process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "rove-claudecpa-home-"))
   // A real claude transcript store, so the history read under test is the
   // real reader rather than a stub that could agree with a broken caller.
   claudeDir = mkdtempSync(join(tmpdir(), "rove-claudecpa-"))
@@ -61,6 +67,9 @@ afterAll(() => {
   // Empty restores the real store: the reader falls back on a blank value.
   process.env.CLAUDE_CONFIG_DIR = prevConfigDir ?? ""
   rmSync(claudeDir, { recursive: true, force: true })
+  rmSync(process.env.KOBE_HOME_DIR ?? "", { recursive: true, force: true })
+  if (prevHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
+  else process.env.KOBE_HOME_DIR = prevHome
 })
 
 describe("liveSourceProtocol", () => {
