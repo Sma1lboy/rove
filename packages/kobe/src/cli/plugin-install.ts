@@ -3,7 +3,7 @@
  *
  * Install accepts GitHub shorthand only (`owner/repo[/subdir...]`): clone,
  * parse + preview the manifest, confirm (unless --yes), run supported
- * [[build]] commands, then move the checkout under `~/.kobe/plugins/<id>/`
+ * [[build]] commands, then move the checkout under `~/.rove/plugins/<id>/`
  * and register it. Link registers a local working directory as-is and runs
  * no build — authors build their own tree. Both work with no daemon running;
  * the daemon file-watches the registry and picks changes up live.

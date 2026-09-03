@@ -109,7 +109,7 @@ export const en = {
   },
   plugins: {
     title: "Plugins",
-    hint: "Plugins registered in ~/.kobe/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
+    hint: "Plugins registered in ~/.rove/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
     empty:
       "No plugins registered. Install one with `rove plugin install <owner/repo>` — browse the `rove-plugin` topic on GitHub.",
     sourceLink: "linked {path}",
@@ -292,7 +292,7 @@ export const zh: typeof en = {
   },
   plugins: {
     title: "插件",
-    hint: "在 ~/.kobe/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
+    hint: "在 ~/.rove/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
     empty:
       "尚未注册任何插件。用 `rove plugin install <owner/repo>` 安装一个——可在 GitHub 的 `rove-plugin` 话题下浏览。",
     sourceLink: "本地链接 {path}",

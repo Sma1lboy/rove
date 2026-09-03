@@ -117,7 +117,7 @@ export type SettingsRowsInput = {
   focusAccentSlots: readonly FocusAccentSlot[]
   /** Built-ins + user-registered custom engines, in display order. */
   engineList: readonly VendorId[]
-  /** Registered plugins (`~/.kobe/plugins.json`), in registry order. */
+  /** Registered plugins (`~/.rove/plugins.json`), in registry order. */
   plugins: readonly PluginRowsEntry[]
   hasDaemon: boolean
   /** False while `keybindings.yaml` is absent — the section then offers to write it. */
