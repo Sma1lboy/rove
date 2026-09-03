@@ -20,13 +20,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   type DetectDeps,
   availableEngineIds,
-  claudeGlobalConfigPath,
-  codexAuthPath,
-  copilotConfigPath,
   detectClaudeAccount,
   detectCodexAccount,
   detectCopilotAccount,
 } from "../../src/engine/account-detect.ts"
+import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath } from "../../src/engine/vendor-home.ts"
 
 function deps(over: Partial<DetectDeps> = {}): DetectDeps {
   return {

@@ -42,6 +42,7 @@ import { homedir } from "node:os"
 import path from "node:path"
 import type { EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
+import { vendorConfigHome } from "../vendor-home"
 import { isObject, parseSessionRaw } from "./history-parse"
 
 // Parsing (JSONL → Message[], sorting, and the append-aware per-file cache)
@@ -58,18 +59,9 @@ export interface HistoryDeps {
   pathExists(p: string): Promise<boolean>
 }
 
-/**
- * The CLI's config dir: `$CLAUDE_CONFIG_DIR` when an isolated profile is
- * configured, else `~/.claude` — same contract account-detect and quota.ts
- * already honor. Read per call (never cached) so env changes apply live.
- */
-function claudeConfigDir(): string {
-  return process.env.CLAUDE_CONFIG_DIR?.trim() || path.join(homedir(), ".claude")
-}
-
 const defaultDeps: HistoryDeps = {
   projectsDir() {
-    return path.join(claudeConfigDir(), "projects")
+    return path.join(vendorConfigHome("claude"), "projects")
   },
   async readdir(p) {
     try {
@@ -137,7 +129,7 @@ export interface WorktreeSessionFile {
  */
 export async function listSessionFilesForWorktree(worktree: string): Promise<WorktreeSessionFile[]> {
   if (!worktree) return []
-  const dir = path.join(claudeConfigDir(), "projects", encodeCwd(worktree))
+  const dir = path.join(vendorConfigHome("claude"), "projects", encodeCwd(worktree))
   let entries: string[]
   try {
     entries = await readdir(dir)

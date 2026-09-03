@@ -31,6 +31,7 @@ import { homedir } from "node:os"
 import path from "node:path"
 import type { EngineHistory, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
+import { vendorConfigHome } from "../vendor-home"
 import { parseRolloutRaw } from "./history-parse"
 
 export { deriveCodexUsageMetrics, parseJsonl } from "./history-parse"
@@ -46,10 +47,7 @@ export interface HistoryDeps {
 
 export const defaultHistoryDeps: HistoryDeps = {
   sessionsDir() {
-    // `$CODEX_HOME` relocates the whole `~/.codex` dir (same contract
-    // account-detect's codexAuthPath honors); read per call, never cached.
-    const override = process.env.CODEX_HOME?.trim()
-    return path.join(override || path.join(homedir(), ".codex"), "sessions")
+    return path.join(vendorConfigHome("codex"), "sessions")
   },
   async readdir(p) {
     try {

@@ -20,6 +20,7 @@ import { homedir, userInfo } from "node:os"
 import path from "node:path"
 import { spawnCapture } from "../../lib/poll-scheduling.ts"
 import type { EngineQuotaUsage, EngineQuotaWindow } from "../../types/engine.ts"
+import { vendorConfigHome } from "../vendor-home.ts"
 
 const OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 const OAUTH_BETA_HEADER = "oauth-2025-04-20"
@@ -167,7 +168,7 @@ async function readAccessToken(): Promise<string | null> {
     const fromFile = await readFileCredentials(configDir)
     return fromFile && isFresh(fromFile) ? fromFile.accessToken : null
   }
-  const candidates = [await readKeychainCredentials(), await readFileCredentials(path.join(homedir(), ".claude"))]
+  const candidates = [await readKeychainCredentials(), await readFileCredentials(vendorConfigHome("claude"))]
   return candidates.find((c): c is OAuthCredentials => c != null && isFresh(c))?.accessToken ?? null
 }
 

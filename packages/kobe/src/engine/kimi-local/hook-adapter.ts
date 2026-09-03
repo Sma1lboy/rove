@@ -37,6 +37,7 @@ import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { GATED_TOOL_VERBS, type HookEventSpec } from "../json-hooks.ts"
+import { vendorConfigHome } from "../vendor-home.ts"
 
 /** Kimi hook event → normalized kobe verb. The ONE place Kimi event names live. */
 export const KIMI_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
@@ -69,11 +70,9 @@ const BLOCK_END = "# <<< rove hooks"
 /** Bound each hook spawn — `kobe hook` is sub-second; Kimi's default is 30s. */
 const HOOK_TIMEOUT_SECONDS = 10
 
-/** Where Kimi reads its config (the hooks live inline in config.toml).
- *  `KIMI_CODE_HOME` is the same override `kimi-local/history.ts` honors. */
+/** Where Kimi reads its config (the hooks live inline in config.toml). */
 export function kimiConfigPath(home: string = homedir()): string {
-  const override = process.env.KIMI_CODE_HOME?.trim()
-  return join(override && override.length > 0 ? override : join(home, ".kimi-code"), "config.toml")
+  return join(vendorConfigHome("kimi", { env: (k) => process.env[k], home: () => home }), "config.toml")
 }
 
 /** Render kobe's `[[hooks]]` block. `inv` is injectable for tests. */
