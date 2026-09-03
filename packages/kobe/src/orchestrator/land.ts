@@ -23,6 +23,7 @@ import type { Task, TaskId } from "../types/task.ts"
 import {
   EmptyBranchDirtyWorktreeError,
   EmptyBranchError,
+  GitCommandFailedError,
   LandConflictError,
   MainCheckoutDirtyError,
   MissingRefError,
@@ -274,13 +275,17 @@ async function git(
   dir: string,
   args: readonly string[],
   opts?: { readonly readOnly?: boolean },
-): Promise<{ stdout: string; exitCode: number }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   // Read-only probes (status/diff/rev-parse/rev-list) run lock-free per
   // READ_ONLY_GIT_ENV — land inspects worktrees an engine may be
   // committing in right now. Writes (merge/abort/reset/commit) never set
   // readOnly: they genuinely need `.git/index.lock`.
+  //
+  // `stderr` is carried, not dropped: when a write fails, git's own message is
+  // the only thing that says WHY (a hook, a signing key, an unset user.email),
+  // and guessing at it is what produced this file's two worst error reports.
   const r = await exec.run(["git", ...args], { cwd: dir, env: opts?.readOnly ? READ_ONLY_GIT_ENV : undefined })
-  return { stdout: r.stdout, exitCode: r.exitCode }
+  return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
 }
 
 /** `git status --porcelain` non-empty in `dir` (untracked counts). */
@@ -418,10 +423,27 @@ export async function landTask(
     }
     const commit = await git(exec, dir, ["commit", "--no-edit", "-m", `Land ${branch} (squash)`])
     if (commit.exitCode !== 0) {
-      // Nothing to commit = the branch was already fully in base. Reset the
-      // squash's staged index so the base checkout is untouched, and report it.
-      await git(exec, dir, ["reset", "--hard", "HEAD"]).catch(() => {})
-      throw new Error(`landTask: '${branch}' has nothing to land onto '${landedOn}' (already merged or empty)`)
+      // "Nothing to commit" is only ONE reason `git commit` exits non-zero,
+      // and after `assertBranchHasWork` proved the branch is ahead and the
+      // squash staged cleanly it is nearly never the reason — a hook, a
+      // broken signing key or an unset user.email is. Ask git which it was
+      // instead of assuming: `diff --cached --quiet` exits 0 only when
+      // genuinely nothing is staged.
+      const staged = await git(exec, dir, ["diff", "--cached", "--quiet"], { readOnly: true })
+      if (staged.exitCode === 0) {
+        // Genuinely empty. Reset the squash's staged index so the base
+        // checkout is untouched, and report it as before.
+        await git(exec, dir, ["reset", "--hard", "HEAD"]).catch(() => {})
+        throw new Error(`landTask: '${branch}' has nothing to land onto '${landedOn}' (already merged or empty)`)
+      }
+      // The squash IS staged and git refused to commit it. NO reset — that
+      // would throw away a merge that succeeded, over a problem the user can
+      // fix in one command.
+      throw new GitCommandFailedError(
+        `commit (squash-landing '${branch}' onto '${landedOn}')`,
+        commit.stderr,
+        "the squashed merge is left STAGED in the base checkout — fix the cause and `git commit` it, or `git reset --hard HEAD` to discard",
+      )
     }
   } else {
     const before = (await git(exec, dir, ["rev-parse", "HEAD"], { readOnly: true })).stdout.trim()
@@ -429,6 +451,19 @@ export async function landTask(
     if (merge.exitCode !== 0) {
       const files = await conflictedFiles(exec, dir)
       await git(exec, dir, ["merge", "--abort"]).catch(() => {})
+      // An EMPTY conflicted list with a failed merge is NOT a conflict — the
+      // trees merged and git refused at commit time (hook, signing key,
+      // unset user.email). That is exactly the phantom-LAND_CONFLICT shape
+      // `assertBranchHasWork`'s docstring exists to prevent; it just arrives
+      // through the commit door instead of the ref door. The abort above
+      // still ran, so the base checkout is clean either way.
+      if (files.length === 0) {
+        throw new GitCommandFailedError(
+          `merge --no-ff (landing '${branch}' onto '${landedOn}')`,
+          merge.stderr,
+          "the merge was aborted, so the base checkout is unchanged",
+        )
+      }
       throw new LandConflictError(task.id, branch, files)
     }
     // `git merge --no-ff` on an already-merged/empty branch exits 0 with

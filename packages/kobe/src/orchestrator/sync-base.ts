@@ -58,6 +58,18 @@ export function parseConflictedPaths(stdout: string): string[] {
 }
 
 /**
+ * Paths from `git status --porcelain=v1`, with the two-character XY status and
+ * its separating space stripped. Same shape as landing's `porcelainPaths`.
+ */
+export function parseDirtyPaths(stdout: string): string[] {
+  return stdout
+    .split("\n")
+    .filter((line) => line.length > 3)
+    .map((line) => line.slice(3).trim())
+    .filter((line) => line.length > 0)
+}
+
+/**
  * Merge `baseRef` into the worktree's current branch. Throws with a
  * `SYNC_CONFLICT: a, b, c` / `SYNC_WORKTREE_DIRTY` message on the two outcomes
  * a human can act on, and a plain message on anything else.
@@ -68,12 +80,20 @@ export async function syncWorktreeWithBase(
   signal: AbortSignal,
 ): Promise<SyncBaseResult> {
   // Refuse on a dirty worktree BEFORE touching anything: `git merge` would
-  // either refuse itself with a wall of text, or (for untracked files it can
-  // fast-forward over) silently overwrite them. Same guard shape as landing's
-  // dirty-base refusal.
-  const status = await git(worktreePath, ["status", "--porcelain=v1", "--untracked-files=no"], signal)
+  // either refuse itself with a wall of text, or (for untracked files the base
+  // also adds) refuse with a DIFFERENT wall of text that has no conflicted-file
+  // list to report. UNTRACKED COUNTS — the guard used to pass
+  // `--untracked-files=no`, which made it blind to exactly the case this
+  // comment names, and the untracked collision then fell through to the bare
+  // "git merge failed" the TUI cannot map. Same guard shape, and now the same
+  // flags, as landing's `isDirty`.
+  const status = await git(worktreePath, ["status", "--porcelain=v1"], signal)
   if (status.status !== 0) throw new Error("git status failed")
-  if (status.stdout.trim().length > 0) throw new Error(SYNC_DIRTY)
+  const dirty = parseDirtyPaths(status.stdout)
+  // Name them, the way SYNC_CONFLICT names its files: "commit or stash the
+  // worktree's changes" is not actionable when the change is one untracked
+  // file the user does not know is there.
+  if (dirty.length > 0) throw new Error(`${SYNC_DIRTY}: ${dirty.join(", ")}`)
 
   const before = await git(worktreePath, ["rev-parse", "HEAD"], signal)
   const merge = await git(worktreePath, ["merge", "--no-edit", baseRef], signal, true)
@@ -81,7 +101,11 @@ export async function syncWorktreeWithBase(
     const conflicted = await git(worktreePath, ["diff", "--name-only", "--diff-filter=U"], signal)
     const paths = parseConflictedPaths(conflicted.stdout)
     if (paths.length > 0) throw new Error(`${SYNC_CONFLICT}: ${paths.join(", ")}`)
-    throw new Error(`git merge ${baseRef} failed`)
+    // Anything else: say what git said. This branch is now the genuine
+    // residue (a hook, a signing key, a ref that moved under us), and a
+    // message with no reason in it sends the user to the daemon log.
+    const detail = merge.stderr?.trim()
+    throw new Error(detail ? `git merge ${baseRef} failed — ${detail}` : `git merge ${baseRef} failed`)
   }
   const after = await git(worktreePath, ["rev-parse", "HEAD"], signal)
   return { baseRef, alreadyCurrent: before.status === 0 && before.stdout.trim() === after.stdout.trim() }

@@ -17,7 +17,7 @@
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 
 const CONFLICT_RE = /SYNC_CONFLICT(?:: )?(.*)/
-const DIRTY_RE = /SYNC_WORKTREE_DIRTY/
+const DIRTY_RE = /SYNC_WORKTREE_DIRTY(?:: )?(.*)/
 
 export interface SyncBaseDeps {
   readonly orchestrator: Pick<RemoteOrchestrator, "syncBase">
@@ -48,8 +48,9 @@ export async function syncBaseAction(deps: SyncBaseDeps, taskId: string): Promis
     const conflict = CONFLICT_RE.exec(msg)
     // The merge is left IN PLACE on a conflict — the conflicted files are what
     // the user (or their engine) is about to resolve, so name them.
+    const dirty = DIRTY_RE.exec(msg)
     if (conflict) deps.notifyNeedsInput(t("tasks.sync.conflict", { files: conflict[1]?.trim() || "?" }))
-    else if (DIRTY_RE.test(msg)) deps.notifyNeedsInput(t("tasks.sync.dirty"))
+    else if (dirty) deps.notifyNeedsInput(t("tasks.sync.dirty", { files: dirty[1]?.trim() || "?" }))
     else deps.notifyError(t("tasks.sync.failed", { error: msg }))
     return false
   }
