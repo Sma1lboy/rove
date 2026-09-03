@@ -3,8 +3,8 @@
  * Unified new-conversation dialog — ONE entry for every "start a new chat"
  * shape. The default state is the `chat.tab.chooseEngine` (ctrl+e) picker:
  * engine list (+ shell + plugin panes), ←/→ cycles, enter opens a fresh tab
- * in this worktree. Two in-dialog toggles
- * bend the outcome, with the footer always showing their live state:
+ * in this worktree. Two in-dialog toggles bend the outcome, each its own
+ * chip row so the live state is the selected chip:
  *
  *   - `tab`    — destination: new tab here ⇄ fork a child task worktree
  *   - `ctrl+f` — context: fresh conversation ⇄ continue the current one
@@ -20,13 +20,11 @@
 
 import { DEFAULT_TASK_VENDOR } from "@/types/task"
 import { ALL_VENDORS, type VendorId } from "@/types/vendor"
-import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
-import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import { ChoiceRow } from "./new-task-dialog/picker-list"
+import { ChipRow, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
 
 /** What the picker can resolve to: an engine vendor, a plain shell tab, or
  *  a Scratch shell task (a trailing choice, never a chord). With
@@ -62,7 +60,6 @@ export function NewChatDialogView(props: {
   onCancel: () => void
 }) {
   const dialog = useDialog()
-  const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
   const vendors = props.availableVendors.length > 0 ? props.availableVendors : ALL_VENDORS
@@ -127,40 +124,44 @@ export function NewChatDialogView(props: {
     ],
   }))
 
-  const destValue = destination === "tab" ? t("terminal.tab.newChat.destTab") : t("terminal.tab.newChat.destFork")
-  const ctxValue = context === "fresh" ? t("terminal.tab.newChat.ctxFresh") : t("terminal.tab.newChat.ctxContinue")
-
   return (
-    <box paddingLeft={padX} paddingRight={padX} gap={1}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          {t("terminal.tab.newChat.title")}
-        </text>
-        <text
-          fg={theme.textMuted}
-          onMouseUp={() => {
-            // Resolving the promise does not close the dialog; clear it
-            // explicitly.
-            props.onCancel()
-            dialog.clear()
-          }}
-        >
-          esc
-        </text>
-      </box>
-      <ChoiceRow choices={choices} selected={pick} display={display} onPick={(v) => commit(v)} />
-      <box gap={0}>
-        <box flexDirection="row">
-          <text fg={theme.textMuted}>{t("terminal.tab.newChat.destLabel")}</text>
-          <text fg={theme.text}>{destValue}</text>
-        </box>
-        <box flexDirection="row">
-          <text fg={theme.textMuted}>{t("terminal.tab.newChat.ctxLabel")}</text>
-          <text fg={theme.text}>{ctxValue}</text>
-        </box>
-      </box>
-      <box paddingBottom={1}>
-        <text fg={theme.textMuted}>{t("terminal.tab.chooseEngineHint")}</text>
+    <box paddingLeft={padX} paddingRight={padX} gap={0}>
+      <DialogHeader
+        title={t("terminal.tab.newChat.title")}
+        onClose={() => {
+          // Resolving the promise does not close the dialog; clear it
+          // explicitly.
+          props.onCancel()
+          dialog.clear()
+        }}
+      />
+      <box gap={1} paddingTop={1}>
+        <DialogSection label={t("terminal.tab.newChat.engine")} focused={true} hint="←/→">
+          <ChipRow choices={choices} selected={pick} display={display} onPick={(v) => commit(v)} />
+        </DialogSection>
+        <DialogSection label={t("terminal.tab.newChat.destLabel")} focused={false} hint="tab">
+          <ChipRow
+            choices={["tab", "fork"] as const}
+            selected={destination}
+            display={(d) => t(d === "tab" ? "terminal.tab.newChat.destTab" : "terminal.tab.newChat.destFork")}
+            onPick={(d) => {
+              setDestination(d)
+              clampPick()
+            }}
+          />
+        </DialogSection>
+        <DialogSection label={t("terminal.tab.newChat.ctxLabel")} focused={false} hint="ctrl+f">
+          <ChipRow
+            choices={["fresh", "continue"] as const}
+            selected={context}
+            display={(c) => t(c === "fresh" ? "terminal.tab.newChat.ctxFresh" : "terminal.tab.newChat.ctxContinue")}
+            onPick={(c) => {
+              setContext(c)
+              clampPick()
+            }}
+          />
+        </DialogSection>
+        <DialogFooter>{t("terminal.tab.chooseEngineHint")}</DialogFooter>
       </box>
     </box>
   )

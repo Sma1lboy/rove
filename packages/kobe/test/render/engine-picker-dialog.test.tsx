@@ -92,7 +92,7 @@ describe("EnginePickerDialogView", () => {
     const p = mount("claude")
     const { frame } = await p
     const first = await frame()
-    expect(first).not.toContain("Effort")
+    expect(first).not.toContain("EFFORT")
     expect(first).toContain("↑↓ choose")
   })
 
@@ -100,7 +100,7 @@ describe("EnginePickerDialogView", () => {
     const p = mount("codex")
     const { frame } = await p
     const first = await frame()
-    expect(first).toContain("Effort")
+    expect(first).toContain("EFFORT")
     expect(first).toContain("engine default")
     for (const level of ["low", "medium", "high", "xhigh"]) expect(first).toContain(level)
     expect(first).toContain("←→ effort")

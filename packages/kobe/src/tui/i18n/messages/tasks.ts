@@ -75,7 +75,7 @@ export const en = {
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
     /** Leading label of the reasoning-level row (engines that declare levels). */
-    effortLabel: "Effort",
+    effortLabel: "EFFORT",
     /** The level choice meaning "don't pin one — use the engine's own default". */
     noEffort: "engine default",
     /** Footer for an engine that HAS levels: the row needs its own keys. */

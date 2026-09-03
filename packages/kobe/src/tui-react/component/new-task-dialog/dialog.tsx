@@ -12,7 +12,7 @@ import type { DialogTab } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useDialogPaddingX } from "../../ui/dialog"
-import { ChipButton, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
+import { ChipRow, DialogActions, DialogFooter, DialogHeader, DialogSection } from "../../ui/dialog-parts"
 import { AdoptTab } from "./tab-adopt"
 import { CloneTab } from "./tab-clone"
 import { ExistingTab } from "./tab-existing"
@@ -47,16 +47,12 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           hint={t("newTask.hint.modeCycle")}
           onPress={() => vm.setField("tabs")}
         >
-          <box flexDirection="row" flexWrap="wrap" gap={1}>
-            {TAB_ORDER.map((tabId) => (
-              <ChipButton
-                key={tabId}
-                label={tabLabel[tabId]}
-                selected={vm.tab === tabId}
-                onPress={() => vm.switchToTab(tabId)}
-              />
-            ))}
-          </box>
+          <ChipRow
+            choices={TAB_ORDER}
+            selected={vm.tab}
+            display={(tabId) => tabLabel[tabId]}
+            onPick={(tabId) => vm.switchToTab(tabId)}
+          />
         </DialogSection>
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
@@ -66,19 +62,14 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           hint={t("newTask.hint.engineCycle")}
           onPress={() => vm.setField("engine")}
         >
-          <box flexDirection="row" flexWrap="wrap" gap={1}>
-            {vm.vendors.map((vendor) => (
-              <ChipButton
-                key={vendor}
-                label={vendor}
-                selected={vendor === vm.vendor}
-                onPress={() => {
-                  vm.setVendor(vendor)
-                  vm.setField("engine")
-                }}
-              />
-            ))}
-          </box>
+          <ChipRow
+            choices={vm.vendors}
+            selected={vm.vendor}
+            onPick={(vendor) => {
+              vm.setVendor(vendor)
+              vm.setField("engine")
+            }}
+          />
         </DialogSection>
         {vm.tab === "existing" ? <ExistingTab vm={vm} /> : null}
         {vm.tab === "clone" ? <CloneTab vm={vm} /> : null}

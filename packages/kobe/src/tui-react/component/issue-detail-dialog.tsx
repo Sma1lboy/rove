@@ -35,7 +35,15 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
-import { ChipButton, DialogField, DialogFooter, DialogHeader, DialogLabel, DialogSection } from "../ui/dialog-parts"
+import {
+  ChipButton,
+  ChipRow,
+  DialogField,
+  DialogFooter,
+  DialogHeader,
+  DialogLabel,
+  DialogSection,
+} from "../ui/dialog-parts"
 import { IssueEventsSection } from "./issue-detail-parts"
 
 export interface IssueDetailOptions {
@@ -330,20 +338,16 @@ export function IssueDetailDialogView(
         <box gap={0}>
           {/* ENGINE — chip buttons; selected = active border + primary bold. */}
           <DialogSection label={t("kanban.detail.engine")} focused={field === "engine"} hint="←/→">
-            <box flexDirection="row" gap={1}>
-              {props.engines.map((engine) => (
-                <ChipButton
-                  key={engine}
-                  label={props.engineLabel(engine)}
-                  selected={engine === vendor}
-                  paddingBottom={1}
-                  onPress={() => {
-                    setField("engine")
-                    setVendor(engine)
-                  }}
-                />
-              ))}
-            </box>
+            <ChipRow
+              choices={props.engines}
+              selected={vendor}
+              display={props.engineLabel}
+              paddingBottom={1}
+              onPick={(engine) => {
+                setField("engine")
+                setVendor(engine)
+              }}
+            />
           </DialogSection>
 
           {/* WORKSPACE — the three placements as one grouped, bordered list. */}
@@ -377,19 +381,15 @@ export function IssueDetailDialogView(
           {/* AFTER START — follow the session or stay on the board;
               orthogonal to placement (all three support both). */}
           <DialogSection label={t("kanban.detail.jumpLabel")} focused={field === "jump"} hint="←/→" paddingBottom={1}>
-            <box flexDirection="row" gap={1}>
-              {([false, true] as const).map((option) => (
-                <ChipButton
-                  key={String(option)}
-                  label={t(option ? "kanban.detail.jump.follow" : "kanban.detail.jump.stay")}
-                  selected={option === jump}
-                  onPress={() => {
-                    setField("jump")
-                    setJump(option)
-                  }}
-                />
-              ))}
-            </box>
+            <ChipRow
+              choices={["stay", "follow"] as const}
+              selected={jump ? "follow" : "stay"}
+              display={(option) => t(option === "follow" ? "kanban.detail.jump.follow" : "kanban.detail.jump.stay")}
+              onPick={(option) => {
+                setField("jump")
+                setJump(option === "follow")
+              }}
+            />
           </DialogSection>
 
           <DialogFooter>{create ? t("kanban.detail.createLegend") : t("kanban.detail.startLegend")}</DialogFooter>

@@ -21,10 +21,11 @@ export const en = {
     // two footer toggles — tab flips the destination, ctrl+f the context.
     newChat: {
       title: "New conversation",
-      destLabel: "tab — destination: ",
+      engine: "ENGINE",
+      destLabel: "DESTINATION",
       destTab: "new tab in this worktree",
       destFork: "fork a child task (new worktree)",
-      ctxLabel: "ctrl+f — context: ",
+      ctxLabel: "CONTEXT",
       ctxFresh: "fresh conversation",
       ctxContinue: "continue this conversation",
       scratchChoice: "scratch shell",
@@ -66,10 +67,11 @@ export const zh: typeof en = {
     chooseEngineHint: "←/→ 或 h/l 选择，enter 确认，esc 取消",
     newChat: {
       title: "新建对话",
-      destLabel: "tab —— 落点：",
+      engine: "引擎",
+      destLabel: "落点",
       destTab: "本 worktree 新标签页",
       destFork: "fork 子任务（新 worktree）",
-      ctxLabel: "ctrl+f —— 上下文：",
+      ctxLabel: "上下文",
       ctxFresh: "全新对话",
       ctxContinue: "接着当前对话",
       scratchChoice: "临时 shell",
