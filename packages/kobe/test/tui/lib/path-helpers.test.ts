@@ -14,7 +14,14 @@
  */
 
 import * as os from "node:os"
-import { expandHome, filterSubdirs, joinDrill, joinPicked, splitPathForDirSuggest } from "@/tui/lib/path-helpers"
+import {
+  expandHome,
+  filterSubdirs,
+  joinDrill,
+  joinPicked,
+  splitPathForDirSuggest,
+  stripTrailingSlash,
+} from "@/tui/lib/path-helpers"
 import { describe, expect, it } from "vitest"
 
 describe("expandHome", () => {
@@ -111,5 +118,23 @@ describe("joinPicked (select, don't drill — no trailing slash)", () => {
   it("keeps absolute display when the user typed an absolute path", () => {
     const home = os.homedir()
     expect(joinPicked(`${home}/`, `${home}/`, "code")).toBe(`${home}/code`)
+  })
+})
+
+describe("stripTrailingSlash", () => {
+  it("drops the slash a directory walk leaves behind", () => {
+    // `/i/rove/` and `/i/rove` name the same repo, but a task is filed under
+    // the string it was created with — two spellings would file two repos.
+    expect(stripTrailingSlash("/i/rove/")).toBe("/i/rove")
+  })
+
+  it("leaves a path that has none alone", () => {
+    expect(stripTrailingSlash("/i/rove")).toBe("/i/rove")
+    expect(stripTrailingSlash("")).toBe("")
+  })
+
+  it("keeps root a root", () => {
+    // "/" is the one path whose trailing slash IS the path.
+    expect(stripTrailingSlash("/")).toBe("/")
   })
 })

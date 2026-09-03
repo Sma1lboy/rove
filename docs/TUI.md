@@ -245,13 +245,21 @@ that carry it.
 
 Focus the sidebar and press `n`. The New task dialog starts on a mode selector
 and an engine selector; `tab` walks every field and the bottom-right Create
-button, while `ctrl+e` cycles the detected engines from anywhere in the
-dialog. Use `ctrl+[` / `ctrl+]` to move between its three modes, or focus the
+button — except in the two path fields (the repo, and the Clone tab's parent
+directory), where it first completes the highlighted suggestion in place,
+exactly as a shell would, and only moves on once there is nothing left to
+complete. `ctrl+e` cycles the detected engines from anywhere in
+the dialog. Use `ctrl+[` / `ctrl+]` to move between its three modes, or focus the
 mode selector and use the left/right arrows.
 
 - **For Existing** picks a local repository and the ref to branch from. Rove
   creates a new task branch and worktree, then opens it ready for the first
   prompt. The current repository and its checked-out branch are the defaults.
+  Type a name to filter your saved repositories, or a path (`/` or `~/`) to
+  browse directories instead; `↑`/`↓` moves the highlight. `tab` completes the
+  highlighted row without leaving the field — a browsed directory keeps its
+  trailing slash, so the next `tab` walks one level deeper — while `enter`
+  takes the highlighted row and moves on to the branch field.
   For a repository Rove already tracks as a project, an extra **opens** row
   appears: leave it on "a new task worktree" for the behaviour above, or
   choose "the project itself" to open that repository's own checkout instead
@@ -260,7 +268,8 @@ mode selector and use the left/right arrows.
   because opening a checkout forks from nothing.
 - **For New Repo** clones a Git URL into a chosen parent directory, derives an
   available folder name, then creates a task from the requested base branch.
-  The parent directory is remembered for the next clone.
+  The parent-directory field browses the same way the repo field does, `tab`
+  included. The parent directory is remembered for the next clone.
 - **Adopt Worktree** imports existing git worktrees that are not already
   tasks. The path-glob field filters by absolute path or basename; `enter`
   toggles the highlighted row and `ctrl+a` selects or clears all filtered

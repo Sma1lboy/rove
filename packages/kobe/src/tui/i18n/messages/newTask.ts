@@ -5,7 +5,7 @@
 
 export const en = {
   title: "New task",
-  legend: "enter create · tab fields · ctrl+[ ] mode · ctrl+e engine · esc cancel",
+  legend: "enter create · tab complete/fields · ctrl+[ ] mode · ctrl+e engine · esc cancel",
 
   tabs: {
     existing: "For Existing",
@@ -98,7 +98,7 @@ export const en = {
 
 export const zh: typeof en = {
   title: "新建任务",
-  legend: "enter 创建 · tab 切字段 · ctrl+[ ] 切模式 · ctrl+e 引擎 · esc 取消",
+  legend: "enter 创建 · tab 补全/切字段 · ctrl+[ ] 切模式 · ctrl+e 引擎 · esc 取消",
 
   tabs: {
     existing: "已有仓库",

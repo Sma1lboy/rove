@@ -65,6 +65,16 @@ async function mount(defaultRepo: string, savedRepos: readonly string[] = [], wi
   return { ...handle, submitted }
 }
 
+/** Where a string sits in the frame — the anchor a click needs. */
+function locate(frameText: string, needle: string): { x: number; y: number } {
+  const lines = frameText.split("\n")
+  for (let y = 0; y < lines.length; y++) {
+    const x = lines[y]?.indexOf(needle) ?? -1
+    if (x >= 0) return { x, y }
+  }
+  throw new Error(`not on screen: ${needle}`)
+}
+
 /** Tab `times` stops along the field chain: tabs → engine → repo → baseRef. */
 async function pressTab(handle: { mockInput: { pressTab: () => void } }, times: number) {
   for (let i = 0; i < times; i++) {
@@ -132,7 +142,15 @@ test("typing an ambiguous name refuses to guess, and says so", async () => {
   await settle()
   await act(async () => h.mockInput.typeText("app"))
   await settle()
-  await pressTab(h, TO_BASE_REF - TO_REPO)
+
+  // Leave the field by CLICKING the next one, because Tab no longer leaves an
+  // unfinished name behind — it completes the highlighted row to its full
+  // path first, which is a different (and answered) question. The guard is
+  // about text that reaches the commit still naming two repos, and this is
+  // the route that still gets it there.
+  const label = locate(await h.frame(), "FROM BRANCH")
+  await h.mockMouse.click(label.x + 1, label.y)
+  await settle()
   act(() => h.mockInput.pressEnter())
   await settle()
 
@@ -159,10 +177,14 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
   // swallow the directory half mid-keystroke.
   expect(await h.frame()).toContain(partial.slice(0, 40))
 
-  // Completing it to the real repo submits that full path.
+  // Completing it to the real repo submits that full path. Two Tabs, not
+  // one: the first finishes the highlighted directory in place (that is the
+  // field's own completion), and only the second — with nothing left to
+  // finish — moves to the branch field. The trailing slash the walk leaves
+  // in the box does not travel with the value.
   await act(async () => h.mockInput.typeText("ped"))
   await settle()
-  await pressTab(h, 1)
+  await pressTab(h, 2)
   act(() => h.mockInput.pressEnter())
   await settle()
   expect(h.submitted[0]?.repo).toBe(dir)
