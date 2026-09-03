@@ -157,8 +157,8 @@ is active.
 Sidebar row verbs (`b`, `v`, `o`, `d`, `r`, `shift+p`, `shift+m`) act on the
 row under the cursor — the highlight `j`/`k` moves, which may differ from the
 active task until you press `enter`. Prefix chords (`ctrl+a o`, `ctrl+a p`)
-are global and act on the active task; only `ctrl+a o` follows the cursor
-while the sidebar has focus.
+are global and act on the active task, except while the sidebar has focus —
+both of them then follow the row under the cursor.
 
 In reorder mode, `j`/`k` moves the highlighted project and `enter` or `esc`
 finishes. Project headings themselves aren't cursor rows; the move routes
@@ -191,12 +191,15 @@ anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
 engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
 both enter the Task first, exactly as pressing the chord there would.
-Three entries have no chord. **Set status** opens a picker over the six Task
+Four entries have no chord. **Set status** opens a picker over the six Task
 statuses and writes the one you choose. **Copy branch name** and **Copy path**
 put the Task's branch or recorded worktree path on the system clipboard (local
 clipboard command plus OSC 52, so it also works over SSH); copying never
 creates the worktree, and a project-main or directory row, whose stored branch
-is empty, offers only Copy path. **Open in editor**, **Rename branch**, and
+is empty, offers only Copy path. **Land into base branch** runs the same land
+the Worktrees page's `l` does, and appears only on a managed Task row that has
+a branch — a project-main or directory row owns no Rove branch to land.
+**Open in editor**, **Rename branch**, and
 **Change engine** are the `o`, `b`, and `v` chords for the row you clicked;
 the engine entry opens a picker over your available engines instead of
 cycling, and Rename branch follows the same empty-branch rule as Copy branch

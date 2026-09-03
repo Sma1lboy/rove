@@ -80,6 +80,12 @@ export async function add(ctx: VerbContext): Promise<unknown> {
 async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
+  // Read (and validate) the prompt BEFORE anything is created. `promptText`
+  // is flag validation — mutual exclusion of --prompt/--prompt-file — plus a
+  // file read, and both of its throws used to fire after `task.create` had
+  // committed, leaving an orphan task behind an error carrying no taskId.
+  // `addParallel` has always read it first; this matches.
+  const prompt = args.promptText()
   // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
@@ -105,7 +111,6 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
-  const prompt = args.promptText()
   if (!prompt) return { taskId, task, started: false }
   // Same provenance prefix `send` carries: a task created from inside another
   // kobe session is agent-to-agent, and its opening brief is where the reply

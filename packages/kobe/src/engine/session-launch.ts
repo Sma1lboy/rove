@@ -3,6 +3,7 @@ import { worktreeInitMarkerPath } from "../env.ts"
 import { quoteShellArg, quoteShellArgv } from "../lib/shell-command.ts"
 import { readFieldNotes } from "../state/field-notes.ts"
 import { type PromptDeliveryIntent, resolveEngineLaunchInit } from "../state/repo-init.ts"
+import { isRemoteRepoKey } from "../state/repos.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { protocolEntry } from "./engine-presets.ts"
 import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protocol.ts"
@@ -155,8 +156,32 @@ export function engineSessionKey(taskId: string, tabId = "tab-1"): string {
   return `${taskId}::${tabId}`
 }
 
+/**
+ * A launch refused because the task lives on an SSH-backed remote project.
+ *
+ * The experimental remote-projects feature routes git through an exec host,
+ * but the PTY host spawns locally against a raw cwd — so a remote task's
+ * worktree path, which exists on the OTHER machine, gets an engine started
+ * here against a directory that is not there. `rove add --remote` and the
+ * Settings toggle both say SSH engine launch is unimplemented; this is the
+ * guard that makes the code agree with the copy instead of failing obscurely.
+ */
+export class RemoteEngineLaunchError extends Error {
+  readonly code = "REMOTE_ENGINE_LAUNCH_UNSUPPORTED"
+  constructor(readonly repo: string) {
+    super(`hosted engine launch over SSH is not implemented (remote project ${repo})`)
+    this.name = "RemoteEngineLaunchError"
+  }
+}
+
 /** Build one PTY Host spawn spec shared by interactive and headless entry. */
 export function buildEngineSessionLaunch(input: EngineSessionLaunchInput): EngineSessionLaunch {
+  // ONE guard, here, because this is the single spawn-spec builder every entry
+  // point funnels through — the Workspace host's tab open, `rove api send`,
+  // and a prompted `add` alike (docs/ARCHITECTURE.md names it the canonical
+  // launch builder). A per-caller check would leave whichever caller came next.
+  const remoteKey = [input.task.repo, input.worktreePath].find((key) => key && isRemoteRepoKey(key))
+  if (remoteKey) throw new RemoteEngineLaunchError(remoteKey)
   const protocolTaskId = input.task.kind === "main" ? undefined : input.task.id
   const dispatcherTaskId = input.task.kind === "main" ? input.task.id : undefined
   const gates = input.protocolGates

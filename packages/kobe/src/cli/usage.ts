@@ -37,7 +37,10 @@ export function topLevelUsage(cliName: ProductCliName = activeCliName()): string
     `  skill <verb>            Install the ${cliName} agent skill (install|status|command|print)`,
     "  plugin <verb>           Install and run plugins (install|link|list|action|…)",
     "  feedback                Send feedback to GitHub Discussions",
-    `  update [version|list]   Self-update ${cliName}, or browse versions with \`list\``,
+    // `channel` has shipped since `update` learned --channel/bare channel
+    // names; the subcommand lock-step test only compares the command LIST, so
+    // this description drifted past CI for several releases.
+    `  update [version|channel|list]   Self-update ${cliName}, switch channel, or list versions`,
     "",
     "Options:",
     "  -v, --version           Print version",

@@ -87,8 +87,10 @@ an unfamiliar one with `<cmd> --help` before dispatching. See
 [ENGINES.md](./ENGINES.md#engine-presets-and-protocols) for how the protocol
 Rove speaks to a command is derived from it.
 
-Two verbs were REMOVED (no aliases): `fan-out` → `add --count N`, and
-`set-vendor` → `set-command`. Calling either returns `UNKNOWN_VERB` with the
+Three verbs were REMOVED (no aliases): `fan-out` → `add --count N`,
+`set-vendor` → `set-command`, and `archive` → `delete` (there is no
+hide-without-delete any more; the branch survives unless you pass
+`--delete-branch`). Calling any of them returns `UNKNOWN_VERB` with the
 replacement in `nextCommandArgs`.
 
 ## discover
@@ -267,9 +269,9 @@ wrong reply address delivers to someone else; no address at least fails
 visibly), and the verb's JSON result carries an `identityWarning` field
 saying so.
 
-A new task's FIRST prompt (`add --prompt`, a parallel round, quick-fork) gets a
-short coda appended asking the agent to `set-branch` the auto-generated
-placeholder branch to a descriptive name. Prompts into existing sessions
+A new task's FIRST prompt (`add --prompt`, a parallel round, quick-fork) carries
+only facts about its own worktree; the standing worker instructions, naming its
+branch included, live in the Rove agent skill. Prompts into existing sessions
 (`send`, `send --tab new`, `dispatch`) are never modified.
 
 ## drive

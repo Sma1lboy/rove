@@ -206,3 +206,50 @@ describe("hosted engine session launch", () => {
     expect(seen).toEqual(["/repo"])
   })
 })
+
+describe("remote projects", () => {
+  // The experimental SSH-backed projects feature routes git through an exec
+  // host, but the PTY host spawns locally against a raw cwd — so a remote
+  // task used to start an engine on THIS machine in a worktree that lives on
+  // the other one. `rove add --remote` and the Settings toggle both say SSH
+  // engine launch is unimplemented; the guard makes the code say it too.
+  //
+  // Asserted here rather than per caller: every launch path — Workspace host
+  // tab open, `rove api send`, prompted `add` — funnels through this builder.
+  const remote = {
+    shell: "/bin/zsh",
+    argv: ["claude"],
+    promptIntent: { kind: "explicit" as const, prompt: "go" },
+    protocolGates: { status: () => false, notes: () => false, dispatcher: () => false },
+  }
+
+  test("refuses a launch whose project is an ssh:// key", () => {
+    expect(() =>
+      buildEngineSessionLaunch({
+        task: { id: "task-r", kind: "task", vendor: "claude", repo: "ssh://me@box/srv/app" },
+        worktreePath: "/srv/rove/task-r",
+        ...remote,
+      }),
+    ).toThrow(/hosted engine launch over SSH is not implemented/)
+  })
+
+  test("refuses one whose worktree is remote even when the repo key reads local", () => {
+    expect(() =>
+      buildEngineSessionLaunch({
+        task: { id: "task-r", kind: "task", vendor: "claude", repo: "/repo" },
+        worktreePath: "ssh://me@box/srv/rove/task-r",
+        ...remote,
+      }),
+    ).toThrow(/hosted engine launch over SSH is not implemented/)
+  })
+
+  test("a local project is untouched", () => {
+    expect(() =>
+      buildEngineSessionLaunch({
+        task: { id: "task-l", kind: "task", vendor: "claude", repo: "/repo" },
+        worktreePath: "/repo/.worktrees/task-l",
+        ...remote,
+      }),
+    ).not.toThrow()
+  })
+})

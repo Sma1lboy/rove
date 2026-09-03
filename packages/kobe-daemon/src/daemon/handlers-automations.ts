@@ -109,8 +109,22 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
       if (!automation) throw new Error(`automation not found: ${id}`)
       // `trigger: "manual"` deliberately skips the precheck — the user asking
       // for it IS the answer to "is this worth running".
+      //
+      // Same deps as the scheduled sweep (`collectors.ts`), and that parity is
+      // the point: without `deferred` + `inbox` the dispatch path has nowhere
+      // to put a prompt a busy composer refused, so Run now on a standing
+      // routine recorded `dispatch_failed` and DROPPED the prompt, where the
+      // identical firing on the schedule would have deferred it into the Inbox.
       const status = await runAutomationOnce(
-        { store: ctx.automations, orch: ctx.orch, runtime: ctx.runtime, link: ctx.selfLink },
+        {
+          store: ctx.automations,
+          orch: ctx.orch,
+          runtime: ctx.runtime,
+          link: ctx.selfLink,
+          ...(ctx.plugins ? { plugins: () => ctx.plugins ?? null } : {}),
+          ...(ctx.deferredPrompts ? { deferred: ctx.deferredPrompts } : {}),
+          inbox: ctx.inbox,
+        },
         automation,
         { scheduledFor: Date.now(), trigger: "manual" },
       )

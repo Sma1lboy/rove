@@ -15,6 +15,10 @@ export const en = {
     /** Every tab of this task was closed — the task and its worktree remain.
      *  Both chords are bound by `EmptyWorkspacePane`, which renders this. */
     noSessions: "No sessions here — press ⏎ or ctrl+e to start one",
+    /** Experimental remote (`ssh://`) project: the worktree is on the other
+     *  machine, and the PTY host only spawns locally. Said here rather than
+     *  letting the launch guard throw through the render path. */
+    remoteUnsupported: "Hosted engine launch over SSH is not implemented — this task's worktree is on {host}",
   },
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
@@ -84,6 +88,7 @@ export const zh: typeof en = {
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
     noSessions: "这里没有会话——按 ⏎ 或 ctrl+e 开一个",
+    remoteUnsupported: "尚未实现通过 SSH 启动托管引擎——该任务的 worktree 在 {host} 上",
   },
   welcome: {
     title: "欢迎使用 Rove",
