@@ -28,7 +28,12 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { displayWidth } from "../../lib/display-width"
 import { StatusKeyHintBar, useStatusKeyHintItems } from "../component/keyboard-hints"
-import { buildFooterChips, contextChip, usageChipsBudget } from "../component/settings-dialog/usage-core"
+import {
+  buildFooterChips,
+  contextChip,
+  tokenTotalChip,
+  usageChipsBudget,
+} from "../component/settings-dialog/usage-core"
 import { ShortcutRevealProvider } from "../component/shortcut-reveal"
 import { useTheme } from "../context/theme"
 import { isNarrowWidth } from "../lib/narrow-mode"
@@ -57,6 +62,28 @@ function ContextChip(props: { chip: ReturnType<typeof contextChip> }) {
       </text>
       <text fg={toneColor[chip.tone]} wrapMode="none">
         {chip.percentText}
+      </text>
+    </box>
+  )
+}
+
+/**
+ * The active session's token total, right of the context meter. Muted in both
+ * cells: unlike the meters beside it this is a record of what the session has
+ * spent, not a budget with a threshold to cross. A null chip renders nothing —
+ * an engine that does not report tokens says nothing rather than `0`.
+ */
+function TokenChip(props: { chip: ReturnType<typeof tokenTotalChip> }) {
+  const { theme } = useTheme()
+  const chip = props.chip
+  if (!chip) return null
+  return (
+    <box flexDirection="row" gap={1} flexShrink={0}>
+      <text fg={theme.textMuted} wrapMode="none">
+        {chip.label}
+      </text>
+      <text fg={theme.textMuted} wrapMode="none">
+        {chip.text}
       </text>
     </box>
   )
@@ -142,17 +169,18 @@ export function WorkspaceFrame(props: {
   const narrow = isNarrowWidth(dims.width)
   const usage = useAccessor(props.orchestrator.usageSnapshotSignal())
   const context = useAccessor(props.orchestrator.contextUsageSignal())
-  const ctxChip =
-    props.activeTaskId && props.activeTabId
-      ? contextChip(context?.get(`${props.activeTaskId}::${props.activeTabId}`))
-      : null
+  const usageEntry =
+    props.activeTaskId && props.activeTabId ? context?.get(`${props.activeTaskId}::${props.activeTabId}`) : undefined
+  const ctxChip = contextChip(usageEntry)
+  const tokChip = tokenTotalChip(usageEntry)
   // The same options the bar below renders with — the budget must measure
   // the bar that is actually on screen (compact drops the [settings] chip).
   const hintItems = useStatusKeyHintItems({
     onOpenSettings: narrow ? undefined : props.onOpenSettings,
     compact: narrow,
   })
-  const footerVisible = (usage != null && usage.size > 0) || ctxChip !== null || hintItems.length > 0
+  const footerVisible =
+    (usage != null && usage.size > 0) || ctxChip !== null || tokChip !== null || hintItems.length > 0
   const hintCells = hintItems.reduce((sum, item, index) => sum + displayWidth(item.text) + (index > 0 ? 3 : 0), 0)
   // The context chip shares the chips' half of the row, so its cells come out
   // of the quota budget — otherwise the two together overflow onto the hint
@@ -160,7 +188,17 @@ export function WorkspaceFrame(props: {
   // inter-box gap is 11; reserving the max keeps the reservation constant
   // instead of making the quota chips reflow as the percentage changes.
   const contextCells = 11
-  const chipsBudget = Math.max(0, usageChipsBudget({ terminalWidth: dims.width, hintCells }) - contextCells)
+  // Same rule as the context chip — reserve the WIDEST this chip gets
+  // (`Σ 999.9M` plus the inter-box gap) so the quota chips keep a constant
+  // budget instead of reflowing as the total climbs — but only while the chip
+  // is actually on screen. The context chip can afford its reservation
+  // unconditionally; a second standing 10 cells is what pushes a 46-column
+  // footer over, and a session with no token reading has nothing to protect.
+  const tokenCells = tokChip ? 10 : 0
+  const chipsBudget = Math.max(
+    0,
+    usageChipsBudget({ terminalWidth: dims.width, hintCells }) - contextCells - tokenCells,
+  )
   return (
     <ShortcutRevealProvider>
       <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
@@ -174,6 +212,7 @@ export function WorkspaceFrame(props: {
                 the budget-truncated view model the graceful one. */}
             <box flexGrow={1} flexShrink={1} flexDirection="row" gap={2} overflow="hidden">
               <ContextChip chip={ctxChip} />
+              <TokenChip chip={tokChip} />
               <UsageChips orchestrator={props.orchestrator} narrow={narrow} budget={chipsBudget} />
             </box>
             {/* Narrow drops the verbs and the [settings] chip: `⌃A · F1`. */}

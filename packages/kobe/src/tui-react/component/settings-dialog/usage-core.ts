@@ -219,6 +219,48 @@ export function contextChip(
 }
 
 /**
+ * The session token chip — `Σ 45k`, right of the context meter.
+ *
+ * Answers the third question the footer's other two do not: the quota chips
+ * say how much budget is left this week, `ctx` says how much room is left in
+ * this conversation, and this says what the conversation has COST so far.
+ * That number was already being read — the same `readUsageSnapshot` call the
+ * context collector makes every ten seconds parses it out of the transcript —
+ * and every layer between there and here dropped it.
+ *
+ * `Σ` is prompt + completion, the two counts that are billed as new work.
+ * Cache reads and cache writes ride the same wire (`cacheReadTokens` /
+ * `cacheCreationTokens`) and deliberately do NOT land in this figure: a cached
+ * prompt can be an order of magnitude larger than the turn that used it, so
+ * folding it in would make the chip read as effort where it is mostly reuse.
+ *
+ * `null` — render nothing — when the vendor reported neither count. Absence is
+ * the honest answer for an adapter that does not report tokens; a `0` there
+ * would claim a free session. One count present and the other missing renders
+ * the one that exists rather than treating the gap as zero.
+ *
+ * Muted tone throughout, unlike the chips beside it: a token total is a fact
+ * about the past, not a budget running out, so it has no threshold to colour.
+ * Pure — unit-tested.
+ */
+export function tokenTotalChip(
+  usage: { inputTokens?: number; outputTokens?: number } | null | undefined,
+): { label: string; text: string } | null {
+  if (!usage) return null
+  if (usage.inputTokens === undefined && usage.outputTokens === undefined) return null
+  return { label: "Σ", text: humanTokens((usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)) }
+}
+
+/** Token counts run to seven digits; the footer has cells for four. Truncate
+ *  rather than round up, so the chip never claims a milestone the session has
+ *  not reached (`999_999` reads `999k`, never `1.0M`). */
+function humanTokens(total: number): string {
+  if (total < 1_000) return String(total)
+  if (total < 1_000_000) return `${Math.floor(total / 1_000)}k`
+  return `${(Math.floor(total / 100_000) / 10).toFixed(1)}M`
+}
+
+/**
  * One aligned meter row per quota window, in the vendor's own order (the
  * usage API lists session before weekly). Label column width tracks the
  * longest label (scoped windows carry model display names) with a hard cap
