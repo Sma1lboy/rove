@@ -71,8 +71,8 @@ export function parseDirtyPaths(stdout: string): string[] {
 
 /**
  * Merge `baseRef` into the worktree's current branch. Throws with a
- * `SYNC_CONFLICT: a, b, c` / `SYNC_WORKTREE_DIRTY` message on the two outcomes
- * a human can act on, and a plain message on anything else.
+ * `SYNC_CONFLICT: a, b, c` / `SYNC_WORKTREE_DIRTY: a, b, c` message on the two
+ * outcomes a human can act on, and git's own stderr on anything else.
  */
 export async function syncWorktreeWithBase(
   worktreePath: string,
