@@ -64,7 +64,7 @@ function stagingPath(file: string): string {
  * a hash of the absolute path so two targets never share a lock and the name
  * stays filesystem-safe.
  */
-export function sharedConfigLockPath(file: string): string {
+function sharedConfigLockPath(file: string): string {
   return join(roveStateDir(), `shared-config-${createHash("sha256").update(file).digest("hex").slice(0, 16)}.lock`)
 }
 

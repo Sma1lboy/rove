@@ -15,7 +15,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join, resolve, sep } from "node:path"
 import { setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 
-export type HomePolicy = "redirect" | "keep"
+type HomePolicy = "redirect" | "keep"
 
 export type FixturePorts = {
   daemonWebPort: number
@@ -43,12 +43,12 @@ export type FixtureEnvConfig = {
   extra?: Record<string, string>
 }
 
-export type RepoCommit = {
+type RepoCommit = {
   message: string
   paths: readonly string[]
 }
 
-export type RepoFile = {
+type RepoFile = {
   path: string
   body: string
 }
@@ -60,7 +60,11 @@ export type TaskSeed = {
   command?: string
 }
 
-/** Canonical ports for a fixture that runs a web server + daemon + PTY sidecar. */
+/**
+ * Canonical ports for a fixture that runs a web server + daemon + PTY sidecar.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function fixturePortBase(base: number): FixturePorts {
   return { webPort: base, daemonWebPort: base + 1, ptyPort: base + 2 }
 }
@@ -78,7 +82,11 @@ export function fixtureRuntimePaths(home: string): Omit<FixturePaths, "root" | "
   }
 }
 
-/** Paths every isolated fixture derives from its scratch root. */
+/**
+ * Paths every isolated fixture derives from its scratch root.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function fixturePaths(root: string, repoName: string): FixturePaths {
   const { home, ...paths } = fixtureRuntimePaths(join(root, "home"))
   return { root, home, repo: join(root, repoName), ...paths }
@@ -91,6 +99,8 @@ export function fixturePaths(root: string, repoName: string): FixturePaths {
  * test, which then boots with "Transcript saving is off" and writes no session
  * file at all. The engine-owned history the chat pane renders comes from that
  * file, so the seeded workspace degrades to a raw terminal.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export const CLAUDE_MARKERS: readonly string[] = [
   "CLAUDECODE",
@@ -109,7 +119,7 @@ export const CLAUDE_MARKERS: readonly string[] = [
  * to the operator's session identity. Inherited values for these must be
  * dropped before stamping the fixture's own.
  */
-export const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
+const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
   "DAEMON_SOCKET_PATH",
   "DAEMON_PID_PATH",
   "PTY_SOCKET_PATH",
@@ -126,7 +136,7 @@ export const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
 ]
 
 /** Remove inherited markers and path/session overrides from a parent env. */
-export function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
+function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(parent)) {
     if (value === undefined) continue
@@ -203,7 +213,11 @@ export function assertFixtureIsolation(home: string, fixtureRoot: string): void 
   }
 }
 
-/** Run a command in the fixture environment and return trimmed stdout. */
+/**
+ * Run a command in the fixture environment and return trimmed stdout.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function runInFixture(
   command: string,
   args: readonly string[],
@@ -213,7 +227,11 @@ export function runInFixture(
   return execFileSync(command, [...args], { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
 }
 
-/** One `rove api` call through a given CLI path. */
+/**
+ * One `rove api` call through a given CLI path.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function runRoveApi(
   cliPath: string,
   args: readonly string[],
@@ -224,13 +242,14 @@ export function runRoveApi(
 }
 
 /** Seed a throwaway git repo with the given files and commit sequence. */
-export type RepoIdentity = {
+type RepoIdentity = {
   email: string
   name: string
 }
 
 const DEFAULT_REPO_IDENTITY: RepoIdentity = { email: "fixture@rove.local", name: "Rove Fixture" }
 
+/** @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export. */
 export async function seedGitRepo(
   repoDir: string,
   files: readonly RepoFile[],

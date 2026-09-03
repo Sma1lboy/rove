@@ -93,7 +93,7 @@ function hslToRgb(h: number, s: number, l: number): Rgb {
  * token keeps its identity; a token that already sat far from the floor is
  * returned unchanged, so dark-host terminals see zero shift.
  */
-export const MID_HOST_LUMINANCE = 0.5
+const MID_HOST_LUMINANCE = 0.5
 
 export function ensureContrast(fg: RGBA, bg: RGBA, minRatio: number = HOST_TEXT_MIN_CONTRAST): RGBA {
   const fgInts = fg.toInts()

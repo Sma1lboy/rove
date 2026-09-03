@@ -39,7 +39,7 @@ export function parsePositiveInt(raw: string): number | undefined {
  * and {@link VerbArgs.bool} (coercing it), so the two can never disagree about
  * what counts as a boolean.
  */
-export function parseBoolLiteral(raw: string): boolean | undefined {
+function parseBoolLiteral(raw: string): boolean | undefined {
   if (["true", "1", "yes"].includes(raw)) return true
   if (["false", "0", "no"].includes(raw)) return false
   return undefined

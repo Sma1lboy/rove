@@ -67,7 +67,7 @@ import { DialogProvider } from "../ui/dialog"
 const FALLBACK_THEME = DEFAULT_THEME
 
 /** Provider flags; see the header for the defaults. */
-export interface HostProviderFlags {
+interface HostProviderFlags {
   /** KVProvider (persisted UI state). Default false — see header. */
   readonly kv?: boolean
   /** FocusProvider, initial pane "sidebar". Default true. */
@@ -77,7 +77,7 @@ export interface HostProviderFlags {
 }
 
 /** What a host's `setup` hands back once its own pre-render work is done. */
-export interface HostScreen {
+interface HostScreen {
   /** The host's root view, rendered inside the provider stack. */
   readonly root: () => ReactNode
   /** Teardown on ACTUAL exit (renderer destroy), never at mount-resolve. */
@@ -182,7 +182,7 @@ function PaneCrashFallback() {
 
 /** Preserve the ordinary error stack, then add React ownership and the last
  *  bounded state transitions. State summaries contain shapes/counts only. */
-export function formatPaneCrashDiagnostic(error: unknown, info: ErrorInfo): string {
+function formatPaneCrashDiagnostic(error: unknown, info: ErrorInfo): string {
   const base = error instanceof Error ? (error.stack ?? error.message) : String(error)
   const componentStack = info.componentStack?.trim() || "(unavailable)"
   const stateChanges = recentStateChangesForDiagnostics()

@@ -36,7 +36,7 @@ import { getWorktreeBaseOverride } from "../../state/worktree-base.ts"
  * its enumeration to "kobe-managed only" without reaching into another
  * module's private constant.
  */
-export const KOBE_WORKTREE_ROOT_DIR = "worktrees"
+const KOBE_WORKTREE_ROOT_DIR = "worktrees"
 export const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
 export const REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
 export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
@@ -45,7 +45,7 @@ export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
  * Repo-local compatibility roots. Creation does not use these; recognition and
  * listing keep old task records working.
  */
-export const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
+const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
   REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
   LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
@@ -257,11 +257,11 @@ export function isUnderManagedWorktreesRoot(candidate: string): boolean {
  * (POSIX join: the remote is always POSIX). The main checkout the worktree is
  * added from is `basePath` itself.
  */
-export function remoteWorktreeRootFor(basePath: string): string {
+function remoteWorktreeRootFor(basePath: string): string {
   return `${stripTrailingSlash(basePath)}/.rove/worktrees`
 }
 
-export function remoteManagedWorktreeRootsFor(basePath: string): readonly string[] {
+function remoteManagedWorktreeRootsFor(basePath: string): readonly string[] {
   const base = stripTrailingSlash(basePath)
   return [`${base}/.rove/worktrees`, `${base}/.kobe/worktrees`]
 }

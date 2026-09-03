@@ -27,7 +27,7 @@
 
 import { getPersistedBool } from "./store.ts"
 
-export const COMPOSER_GATE_KEY = "delivery.composerGate"
+const COMPOSER_GATE_KEY = "delivery.composerGate"
 
 export interface ComposerGatePreferenceStore {
   get(key: string, fallback?: unknown): unknown

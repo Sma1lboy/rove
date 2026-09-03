@@ -39,8 +39,7 @@ import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-h
 import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
-export type { Binding, BindingsConfig, RegisteredBinding } from "../../tui/lib/keymap-dispatch"
-export { dispatchKeyEvent } from "../../tui/lib/keymap-dispatch"
+export type { Binding, BindingsConfig } from "../../tui/lib/keymap-dispatch"
 
 /**
  * Modal-scope context: a provider (the dialog overlay) sets a scope token;

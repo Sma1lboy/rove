@@ -14,7 +14,7 @@ import type { ComposerEmptyRule, EngineScreenManifest } from "./screen-state.ts"
 
 /** Fixed width for composer rendering. Claude's composer
  *  line is stable across 150–236 cols; 150 is enough and cheap. */
-export const COMPOSER_RENDER_COLS = 150
+const COMPOSER_RENDER_COLS = 150
 /**
  * Rows the throwaway terminal renders into.
  *
@@ -27,9 +27,9 @@ export const COMPOSER_RENDER_COLS = 150
  * 60 covers a full-screen engine with headroom. The cost is one throwaway
  * xterm per delivery gate, which is already the price of the render.
  */
-export const COMPOSER_RENDER_ROWS = 60
+const COMPOSER_RENDER_ROWS = 60
 /** Default trailing lines to inspect for the composer prompt. */
-export const COMPOSER_BOTTOM_LINES = 3
+const COMPOSER_BOTTOM_LINES = 3
 
 interface RenderedComposerLine {
   readonly text: string

@@ -72,7 +72,7 @@ async function sessionIndex(deps: KimiHistoryDeps): Promise<KimiSessionEntry[]> 
 /** The main agent's stream — the one a handoff points at. Sub-agent dirs
  *  (`agents/agent-N/`) are that session's internal fan-out, not its
  *  conversation. */
-export function wirePath(sessionDir: string): string {
+function wirePath(sessionDir: string): string {
   return path.join(sessionDir, "agents", "main", "wire.jsonl")
 }
 

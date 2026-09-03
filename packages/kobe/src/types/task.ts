@@ -58,7 +58,7 @@ export function isTaskStatus(value: unknown): value is TaskStatus {
   return typeof value === "string" && (TASK_STATUSES as readonly string[]).includes(value)
 }
 
-export type PRProviderId = "github" | "gitlab" | "bitbucket" | "unknown"
+type PRProviderId = "github" | "gitlab" | "bitbucket" | "unknown"
 export type PRCheckState = "none" | "pending" | "passing" | "failing" | "unknown"
 export type PRLifecycleState = "creating" | "open" | "ready_to_merge" | "merged" | "closed" | "unknown"
 

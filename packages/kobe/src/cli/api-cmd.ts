@@ -275,4 +275,4 @@ export {
   verbSchema,
   fullSchema,
 }
-export type { VerbSpec, FlagSpec, VerbContext, ApiRuntime, PromptDeliveryOps, PromptTarget, DeliveredPrompt }
+export type { ApiRuntime, PromptDeliveryOps, PromptTarget, DeliveredPrompt }

@@ -12,14 +12,10 @@ import { keymapVersion, subscribeKeymapVersion } from "../../tui/context/keybind
 
 export {
   KobeKeymap,
-  findBinding,
-  chordsOf,
   bindByIds,
-  resetKeymapToDefaults,
   bumpKeymapVersion,
   subscribeKeymapVersion,
 } from "../../tui/context/keybindings"
-export type { KobeBinding, KobeBindingScope, KobeBindingHint } from "../../tui/context/keybindings"
 
 /**
  * Subscribe the component to keymap reloads. Returns the current version

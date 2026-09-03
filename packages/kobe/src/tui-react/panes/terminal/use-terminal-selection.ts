@@ -64,8 +64,6 @@ import {
   pointerCell,
 } from "../../../tui/panes/terminal/terminal-selection"
 
-export type { CellPoint, SelectionRange } from "../../../tui/panes/terminal/terminal-selection"
-
 /** Auto-scroll cadence while a drag hangs past an edge, and its per-tick cap. */
 const AUTO_SCROLL_MS = 50
 const AUTO_SCROLL_MAX_LINES = 5

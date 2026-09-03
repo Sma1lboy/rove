@@ -12,7 +12,7 @@ export interface PRPromptState {
 
 const GIT_TIMEOUT_MS = 5_000
 
-export const DEFAULT_PR_PROMPT_TEMPLATE = `The user likes the current state of the code.
+const DEFAULT_PR_PROMPT_TEMPLATE = `The user likes the current state of the code.
 
 {{dirtyCountSentence}}
 The current branch is {{branch}}.

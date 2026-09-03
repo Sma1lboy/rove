@@ -86,7 +86,7 @@ export class TaskDeletingError extends Error {
  * `name` field doesn't survive the daemon wire, so a caller across the boundary
  * discriminates on the MESSAGE (`err.message.includes(MAIN_CHECKOUT_DIRTY_CODE)`).
  */
-export const MAIN_CHECKOUT_DIRTY_CODE = "MAIN_CHECKOUT_DIRTY"
+const MAIN_CHECKOUT_DIRTY_CODE = "MAIN_CHECKOUT_DIRTY"
 
 /**
  * Thrown by `landTask` when the base repo's checkout has uncommitted changes.
@@ -190,7 +190,7 @@ export class MissingRefError extends Error {
  * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}. The conflicted-file list
  * rides along in the message so a CLI/TUI caller can print it after matching.
  */
-export const LAND_CONFLICT_CODE = "LAND_CONFLICT"
+const LAND_CONFLICT_CODE = "LAND_CONFLICT"
 
 /**
  * Thrown by `landTask` when the merge hit conflicts. The merge is aborted

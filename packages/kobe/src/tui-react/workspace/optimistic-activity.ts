@@ -120,7 +120,7 @@ const tabKey = (taskId: string, tabId: string): string => `${taskId}::${tabId}`
  * Only call this when the tab actually shows `permission_needed` — an enter at
  * an idle tab is an ordinary prompt submit and must not suppress anything.
  */
-export function noteQuestionAnswered(taskId: string, tabId: string): void {
+function noteQuestionAnswered(taskId: string, tabId: string): void {
   const next = new Map(answered.get())
   next.set(tabKey(taskId, tabId), Date.now())
   answered.set(next)

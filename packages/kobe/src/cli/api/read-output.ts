@@ -65,25 +65,16 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 // Re-exported so `@/cli/api/read-output` stays the one import site.
 export {
   boundedTail,
-  buildHistoryPage,
   clipStrings,
-  decodeCursor,
   DEFAULT_PAGE_MESSAGES,
-  encodeCursor,
   MAX_PAGE_MESSAGES,
   STRING_CLIP_CHARS,
   TERMINAL_TAIL_BYTES,
   TERMINAL_TAIL_LINES,
 } from "./read-output-page.ts"
 export type {
-  Cursor,
-  FallbackReason,
-  HistoryPage,
   ReadOutputEnvelope,
-  ReadSource,
-  ReadSourceArg,
   TerminalPeekPage,
-  TerminalTail,
 } from "./read-output-page.ts"
 
 // ── The read itself (deps-injected, unit-testable) ───────────────────────────

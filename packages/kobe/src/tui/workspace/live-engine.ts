@@ -23,7 +23,7 @@ import type { TaskPtyLike } from "../panes/terminal/pty-types"
 import { getDefaultPtyRegistry } from "../panes/terminal/registry"
 
 /** Live PTYs to probe — injectable so tests drive a fake set. */
-export type PtyEntries = () => readonly (readonly [string, TaskPtyLike])[]
+type PtyEntries = () => readonly (readonly [string, TaskPtyLike])[]
 
 export interface LiveEngineStore {
   /** Live vendor for a ptyKey, or null when it runs no engine. */

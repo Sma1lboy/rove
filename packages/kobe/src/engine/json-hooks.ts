@@ -136,7 +136,7 @@ export function mergeActivityHooks(
  * already written into users' settings files.
  */
 const RETIRED_WATCH_EVENT = "PostToolUse"
-export const WORKTREE_WATCH_MARKER = "worktree-created"
+const WORKTREE_WATCH_MARKER = "worktree-created"
 
 /** True if a PostToolUse group is Rove's worktree-watch hook.
  *  Keys on the command substring, so both the quoted (`'hook'

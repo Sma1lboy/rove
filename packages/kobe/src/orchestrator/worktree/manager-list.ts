@@ -39,7 +39,7 @@ export interface ListDeps {
  * read fails (e.g. an unborn branch). Best-effort: returns 0 on total
  * failure so sorting still works. Used to order the adopt list.
  */
-export async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string): Promise<number> {
+async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string): Promise<number> {
   try {
     const stdout = await deps.runGitStdoutAt(ctx, worktreePath, ["log", "-1", "--format=%ct"])
     const secs = Number.parseInt(stdout.trim(), 10)

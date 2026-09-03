@@ -52,7 +52,7 @@ export function settingsCloseKeysEnabled(s: WorkspacePageState): boolean {
 }
 
 /** Focus cycle order: sidebar ← workspace → files. */
-export const PANE_CYCLE = ["sidebar", "workspace", "files"] as const
+const PANE_CYCLE = ["sidebar", "workspace", "files"] as const
 export type CyclePaneId = (typeof PANE_CYCLE)[number]
 
 /**

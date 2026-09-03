@@ -36,7 +36,7 @@ export type DialogPlacement = "center" | "upper-fifth"
 const DIALOG_CONTENT_OPACITY = 0.5
 const TRANSPARENT_DIALOG_CONTENT_OPACITY = 0.75
 
-export function Dialog(props: {
+function Dialog(props: {
   children?: ReactNode
   size?: DialogSize
   placement?: DialogPlacement

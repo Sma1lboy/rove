@@ -11,7 +11,7 @@ import type { KobeBinding, KobeBindingHint } from "./keybindings-table.ts"
 import { KobeKeymap } from "./keybindings-table.ts"
 
 export { KobeKeymap } from "./keybindings-table.ts"
-export type { KobeBinding, KobeBindingHint, KobeBindingScope } from "./keybindings-table.ts"
+export type { KobeBinding, KobeBindingScope } from "./keybindings-table.ts"
 
 /**
  * Pristine snapshot of every row's overridable fields (`keys` + `hint`),
@@ -112,4 +112,4 @@ export function findBinding(id: string): KobeBinding | undefined {
   return KEYMAP_BY_ID.get(id)
 }
 
-export { bindByIds, chordsOf } from "./keybindings-bindings.ts"
+export { bindByIds } from "./keybindings-bindings.ts"

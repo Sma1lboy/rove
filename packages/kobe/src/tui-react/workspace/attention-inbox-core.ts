@@ -84,7 +84,7 @@ export function sortAttentionInbox(
 }
 
 /** How many RECENT tasks trail the attention queue. */
-export const INBOX_RECENT_LIMIT = 5
+const INBOX_RECENT_LIMIT = 5
 
 export type InboxRow =
   | { readonly kind: "header"; readonly id: string; readonly section: "attention" | "recent" }

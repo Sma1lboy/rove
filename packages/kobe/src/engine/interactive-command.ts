@@ -35,7 +35,7 @@ import { BUILTIN_VENDORS, coerceVendorId } from "@/types/vendor"
  * built-in identity lives; this record stays exported for the settings
  * dialog's existing import.
  */
-export const VENDOR_LABEL: Record<VendorId, string> = Object.fromEntries(
+const VENDOR_LABEL: Record<VendorId, string> = Object.fromEntries(
   BUILTIN_VENDORS.map((v) => [v, engineEntry(v).displayName]),
 ) as Record<VendorId, string>
 

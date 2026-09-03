@@ -66,7 +66,7 @@ export const en = {
  */
 export type Messages = typeof en
 
-export const zh: Messages = {
+const zh: Messages = {
   settings: settingsZh,
   tasks: tasksZh,
   terminal: terminalZh,

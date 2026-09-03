@@ -21,12 +21,12 @@ import type { VerbContext, VerbSpec } from "./types.ts"
 /** Default look-back for a digest, in days. */
 const DEFAULT_SINCE_DAYS = 7
 
-export interface TaskDigest {
+interface TaskDigest {
   /** Tasks touched inside the window (by `updatedAt`). */
   readonly total: number
 }
 
-export interface RoutineDigest {
+interface RoutineDigest {
   readonly runs: number
   /** Per-status counts; only statuses actually seen appear. */
   readonly byStatus: Partial<Record<AutomationRunStatus, number>>
@@ -67,7 +67,7 @@ export function buildDigest(
   }
 }
 
-export async function digest(ctx: VerbContext): Promise<unknown> {
+async function digest(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args, runtime } = ctx
   const repo = await runtime.resolveRepoRoot(args.requirePath("repo"))

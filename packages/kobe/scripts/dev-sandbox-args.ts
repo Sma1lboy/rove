@@ -1,4 +1,4 @@
-export type SandboxMode = "run" | "reset" | "home" | "smoketest" | "seed"
+type SandboxMode = "run" | "reset" | "home" | "smoketest" | "seed"
 export type SandboxArgs = {
   readonly mode: SandboxMode
   /** Named sandbox instance (`--name x`): own home/daemon/registry/port. */

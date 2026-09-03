@@ -13,7 +13,7 @@ import { useLatest } from "../lib/use-latest"
 export type PaneId = "sidebar" | "workspace" | "files" | "terminal"
 
 /** Cycle order — used by `tab` / `shift+tab`. */
-export const PANE_ORDER = ["sidebar", "workspace", "files", "terminal"] as const satisfies readonly PaneId[]
+const PANE_ORDER = ["sidebar", "workspace", "files", "terminal"] as const satisfies readonly PaneId[]
 
 export type FocusContextValue = {
   /** The currently focused pane. */

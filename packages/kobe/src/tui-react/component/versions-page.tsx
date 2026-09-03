@@ -33,7 +33,7 @@ const RELEASE_LIMIT = 20
 
 type NotesCache = Record<string, ReleaseNotes | "loading" | "missing">
 
-export function VersionsPage(props: { onClose: () => void }) {
+function VersionsPage(props: { onClose: () => void }) {
   const { theme } = useTheme()
   const t = useT()
   const renderer = useRenderer()

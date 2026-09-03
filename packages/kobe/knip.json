@@ -1,13 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "src/cli/kobe.ts!",
-    "src/cli/rove.ts!",
-    "src/cli/launcher.ts!",
-    "scripts/build.ts",
-    "test/**/*.test.{ts,tsx}"
-  ],
+  "entry": ["src/cli/launcher.ts!", "test/**/*.{ts,tsx}"],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.ts"],
-  "ignoreBinaries": ["tmux", "claude", "codex", "copilot"],
+  "ignoreBinaries": ["tmux", "wslpath", "ps"],
   "ignoreDependencies": ["node-pty"]
 }

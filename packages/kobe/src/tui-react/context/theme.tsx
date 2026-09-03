@@ -28,7 +28,7 @@ import {
 } from "../../tui/context/theme-core"
 import { useAccessor } from "../lib/use-accessor"
 
-export { DEFAULT_THEME, FOCUS_ACCENT_SLOTS, resolveTheme } from "../../tui/context/theme-core"
+export { DEFAULT_THEME, FOCUS_ACCENT_SLOTS } from "../../tui/context/theme-core"
 export type { FocusAccentSlot, Theme, ThemeJson } from "../../tui/context/theme-core"
 
 type State = {
@@ -49,7 +49,7 @@ const store = createStateCell<State>({
   focusAccent: "primary",
 })
 
-export function listThemes(): string[] {
+function listThemes(): string[] {
   return Object.keys(store.get().themes)
 }
 

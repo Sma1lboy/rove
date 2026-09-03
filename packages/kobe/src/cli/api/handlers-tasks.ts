@@ -231,7 +231,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
   }
 }
 
-export async function dispatch(ctx: VerbContext): Promise<unknown> {
+async function dispatch(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
   const text = requirePromptText(ctx, "dispatch")

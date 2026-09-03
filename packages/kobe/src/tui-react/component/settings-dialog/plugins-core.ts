@@ -37,7 +37,7 @@ export interface PluginLastRun {
   readonly spawnError?: string
 }
 
-export interface PluginDeclares {
+interface PluginDeclares {
   readonly actions: number
   readonly events: number
   readonly panes: number

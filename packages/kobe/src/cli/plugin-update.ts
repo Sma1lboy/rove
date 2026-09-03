@@ -30,7 +30,7 @@ import {
 import { PluginCliError, installPlugin } from "./plugin-install.ts"
 import { activeCliName } from "./rename-compat.ts"
 
-export interface OutdatedRow {
+interface OutdatedRow {
   readonly id: string
   readonly spec: string
   readonly version: string
@@ -65,7 +65,7 @@ function checkEntry(entry: PluginRegistryEntry & { source: { kind: "github"; spe
 }
 
 /** Probe every GitHub-installed plugin; refreshes the Settings cache. */
-export function listOutdated(): OutdatedRow[] {
+function listOutdated(): OutdatedRow[] {
   const rows = loadPluginRegistry()
     .plugins.filter(
       (p): p is PluginRegistryEntry & { source: { kind: "github"; spec: string } } => p.source.kind === "github",

@@ -11,12 +11,12 @@ import { useCallback } from "react"
 import { currentLang, localeState, setLocaleLang, t, tKeys } from "../../tui/i18n"
 import { useAccessor } from "../lib/use-accessor"
 
-export { LOCALES, DEFAULT_LOCALE, isLocaleId } from "../../tui/i18n/catalog"
+export { DEFAULT_LOCALE, isLocaleId } from "../../tui/i18n/catalog"
 export type { LocaleId } from "../../tui/i18n/catalog"
 export { currentLang, setLocaleLang, t, tKeys }
 
 /** Subscribe the component to the active language. */
-export function useLang(): ReturnType<typeof currentLang> {
+function useLang(): ReturnType<typeof currentLang> {
   return useAccessor(localeState())
 }
 

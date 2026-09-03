@@ -61,7 +61,7 @@ export function reviveEmptiedTabs(kv: TabsSnapshotKv | null, taskId: string, she
 }
 
 /** Drop a task's tab state AND notify React readers. */
-export function deleteTaskTabs(taskId: string): void {
+function deleteTaskTabs(taskId: string): void {
   if (!tabsByTask.delete(taskId)) return
   tabsRevision.update((n) => n + 1)
 }
@@ -79,7 +79,7 @@ export function activeTabIdFor(taskId: string): string | null {
  *  mounted before the context exists) still sees the live tabs instead of
  *  crashing: the in-memory map is authoritative for anything running now,
  *  and the snapshot only adds tasks that have not mounted since restart. */
-export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
+function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
   const live = tabsByTask.get(taskId)
   if (live) return live
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined

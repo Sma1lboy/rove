@@ -38,7 +38,7 @@ export type DialogConfirmProps = {
 }
 
 export type DialogConfirmResult = boolean | undefined
-export type DialogConfirmOptions = {
+type DialogConfirmOptions = {
   danger?: boolean
   initialActive?: "confirm" | "cancel"
 }

@@ -103,7 +103,7 @@ export function splitLeafPtyKey(tabKey: string, leafId: string): string {
 /** Generic default name for a split-created shell leaf (a bare shell has no
  *  meaningful program name). Shared so the corner tag and a collapsed tab's
  *  label agree. */
-export const SHELL_LEAF_NAME = "shell"
+const SHELL_LEAF_NAME = "shell"
 
 export function splitLeafNames(
   leafList: readonly { id: string; title?: string | null; content: readonly string[] | null }[],

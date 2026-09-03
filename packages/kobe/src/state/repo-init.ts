@@ -33,9 +33,9 @@ export interface ResolvedRepoInit {
   readonly initPrompt?: string
 }
 
-export type FirstEngineMessageSource = "repo-init" | "explicit"
+type FirstEngineMessageSource = "repo-init" | "explicit"
 
-export interface FirstEngineMessage {
+interface FirstEngineMessage {
   /** Text to paste into the engine composer as the first submitted message. */
   readonly text: string
   /** Why this first message exists; keeps priority rules explicit. */

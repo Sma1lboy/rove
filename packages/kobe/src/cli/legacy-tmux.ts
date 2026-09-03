@@ -1,6 +1,6 @@
 /** Read-only diagnosis and reset-time cleanup for pre-v0.8 tmux sessions. */
 
-export const LEGACY_TMUX_SOCKET = "kobe"
+const LEGACY_TMUX_SOCKET = "kobe"
 
 interface CommandResult {
   code: number

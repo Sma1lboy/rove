@@ -15,8 +15,7 @@ import type { NewTaskDialogOptions, NewTaskInput } from "../../../tui/component/
 import { type DialogContext, showDialog } from "../../ui/dialog"
 import { NewTaskDialogView } from "./dialog"
 
-export type { NewTaskDialogOptions, NewTaskInput } from "../../../tui/component/new-task-dialog/state"
-export { isBlankText, stripNewlines } from "../../../tui/component/new-task-dialog/state"
+export type { NewTaskDialogOptions } from "../../../tui/component/new-task-dialog/state"
 
 /**
  * Open the new-task dialog and resolve with the user's selection —

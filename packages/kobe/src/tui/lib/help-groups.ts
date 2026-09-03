@@ -33,7 +33,7 @@ export function groupBindings<T extends { readonly category: string }>(
  * present (it's refreshed in place on an override — keymap-overrides.ts),
  * else the canonical first chord; `undefined` when the row has neither.
  */
-export function capOf(row: Pick<KobeBinding, "keys" | "hint">): string | undefined {
+function capOf(row: Pick<KobeBinding, "keys" | "hint">): string | undefined {
   return row.hint?.keys ?? row.keys[0]
 }
 
@@ -64,8 +64,8 @@ export function legendRowCap(ids: readonly string[]): string | null {
 }
 
 export type HelpSurface = Exclude<KobeBindingScope, "global" | "inbox">
-export type HelpGrammarKind = "here" | "direct" | "prefix" | "other"
-export type HelpGrammarRow = {
+type HelpGrammarKind = "here" | "direct" | "prefix" | "other"
+type HelpGrammarRow = {
   binding: KobeBinding
   primary: string
   aliases: readonly string[]

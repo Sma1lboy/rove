@@ -43,7 +43,7 @@ export async function branchExists(deps: BranchDeps, ctx: ExecCtx, branch: strin
  * checked out elsewhere, unmerged (without force), or already gone just
  * returns; the caller (task delete / land cleanup) treats it as non-fatal.
  */
-export async function deleteBranchIn(
+async function deleteBranchIn(
   deps: BranchDeps,
   exec: ExecHost,
   repo: string,

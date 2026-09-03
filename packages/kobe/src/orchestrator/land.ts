@@ -33,7 +33,7 @@ import { GitWorktreeManager } from "./worktree/manager.ts"
 import { canonicalize } from "./worktree/paths.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
-export type LandStrategy = "merge" | "squash"
+type LandStrategy = "merge" | "squash"
 
 export interface LandTaskInput {
   readonly strategy?: LandStrategy
@@ -74,7 +74,7 @@ export interface LandDeps {
  * thrown. `reason` is not failure-only: it also accompanies `removed: true`
  * when the directory went but clearing the task's worktree path did not.
  */
-export interface LandWorktreeCleanup {
+interface LandWorktreeCleanup {
   /** Whether git's registration of the worktree is gone. TRUE even when the
    *  directory survived — see {@link residue}. */
   readonly removed: boolean
