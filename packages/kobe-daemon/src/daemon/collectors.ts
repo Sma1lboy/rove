@@ -14,6 +14,11 @@ import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-
 import type { AutomationsStore } from "./automations-store.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import {
+  DEFAULT_DEFERRED_SWEEP_TICK_MS,
+  type DeferredSweepDeps,
+  startDeferredPromptSweep,
+} from "./deferred-prompt-sweep.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
   DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -48,6 +53,7 @@ export interface DaemonCollectorOptions {
   readonly quotaResumeTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
+  readonly deferredSweepTickMs?: number
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -146,6 +152,10 @@ export function startDaemonCollectors(
    *  Optional so handler-level tests that build collectors without one keep
    *  working; the real server always passes it. */
   activity?: DaemonActivityRegistry,
+  /** Deferred-prompt expiry sweep. Separate from `automations` on purpose:
+   *  the TTL must be enforced on every daemon, including one with no
+   *  routines configured. */
+  deferredSweep?: DeferredSweepDeps,
 ): () => void {
   // Activity observer: first tick immediately (restart seeding), then the
   // slow poll; gated per-tick on subscribers like every collector here. Its
@@ -247,6 +257,14 @@ export function startDaemonCollectors(
       )
     : () => {}
 
+  // Deferred-prompt TTL: ungated for the same reason as the two above —
+  // expiring a record nobody is watching is the point — and with an
+  // immediate first pass, so a restart clears what went stale while the
+  // daemon was down.
+  const stopDeferredPromptSweep = deferredSweep
+    ? startDeferredPromptSweep(deferredSweep, options.deferredSweepTickMs ?? DEFAULT_DEFERRED_SWEEP_TICK_MS)
+    : () => {}
+
   // Usage poller (Settings dashboard + workspace footer): gated on
   // subscribers — the resume scheduler does its own on-demand cache reads.
   // Every vendor WITH A PROBE is polled, not just the ones some task
@@ -265,6 +283,7 @@ export function startDaemonCollectors(
     stopPrStatusPoller()
     stopQuotaResumeRunner()
     stopAutomationRunner()
+    stopDeferredPromptSweep()
     stopQuotaUsagePoller()
     stopUiPrefsWatcher()
     stopKeybindingsWatcher()

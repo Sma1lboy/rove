@@ -27,6 +27,7 @@ import { serializeTask } from "./protocol.ts"
 export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "worktree.discoverAdoptable",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
@@ -36,6 +37,7 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "worktree.adopt",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const task = await ctx.orch.adoptWorktree({
@@ -51,12 +53,14 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "worktree.list",
+    blocking: true,
     async handle(payload, ctx) {
       return { projects: await ctx.runtime.listWorktreeProjects(payload.network !== false) }
     },
   },
   {
     name: "worktree.remove",
+    blocking: true,
     async handle(payload, ctx) {
       const path = requireString(payload, "path")
       const force = payload.force === true

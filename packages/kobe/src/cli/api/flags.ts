@@ -33,6 +33,14 @@ export function parsePositiveInt(raw: string): number | undefined {
   return Number.isSafeInteger(n) && n > 0 ? n : undefined
 }
 
+/** Same shape as {@link parsePositiveInt}, admitting zero. The regex already
+ *  excludes a leading `-`, so this rejects negatives the same way. */
+function parseNonNegativeInt(raw: string): number | undefined {
+  if (!/^\d+$/.test(raw.trim())) return undefined
+  const n = Number.parseInt(raw, 10)
+  return Number.isSafeInteger(n) && n >= 0 ? n : undefined
+}
+
 /**
  * A boolean flag's value, or `undefined` when the string isn't one. Shared by
  * the parser (deciding whether `--pinned false` is a value or a presence flag)
@@ -202,6 +210,11 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
       if (raw !== undefined && parsePositiveInt(raw) === undefined)
         throw new ApiError(`--${f.name} must be a positive integer`, "BAD_FLAG")
     }
+    if (f.type === "uint") {
+      const raw = flags.get(f.name)
+      if (raw !== undefined && parseNonNegativeInt(raw) === undefined)
+        throw new ApiError(`--${f.name} must be a non-negative integer`, "BAD_FLAG")
+    }
   }
 }
 
@@ -341,6 +354,20 @@ export class VerbArgs {
     if (raw === undefined) return undefined
     const n = parsePositiveInt(raw)
     if (n === undefined) throw new ApiError(`--${name} must be a positive integer`, "BAD_FLAG")
+    return n
+  }
+
+  /** A `uint` flag: like {@link int}, but zero is a legal value rather than a
+   *  floor error. For a flag whose zero MEANS something — `--grace 0` is "no
+   *  slack beyond the tick that discovers the occurrence", not "unset".
+   *  Rejecting it would leave a setting the daemon honours but the CLI cannot
+   *  express. */
+  nonNegativeInt(name: string): number | undefined {
+    this.spec(name)
+    const raw = this.str(name)
+    if (raw === undefined) return undefined
+    const n = parseNonNegativeInt(raw)
+    if (n === undefined) throw new ApiError(`--${name} must be a non-negative integer`, "BAD_FLAG")
     return n
   }
 

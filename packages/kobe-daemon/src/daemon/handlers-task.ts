@@ -189,6 +189,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.land",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
@@ -303,6 +304,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.ensureMain",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
@@ -320,6 +322,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.ensureWorktree",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

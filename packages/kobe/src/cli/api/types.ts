@@ -48,7 +48,10 @@ export function helpStep(verbName: string): Record<string, unknown> {
 
 // ── Declarative verb + flag specs (single source of truth) ───────────────────
 
-type FlagType = "string" | "int" | "bool" | "enum" | "csv"
+/** `int` is a POSITIVE integer (the common case: counts, limits, ids).
+ *  `uint` also admits zero, for a flag whose zero means something rather
+ *  than "unset" — see `--grace` on the routine verbs. */
+type FlagType = "string" | "int" | "uint" | "bool" | "enum" | "csv"
 
 export interface FlagSpec {
   readonly name: string

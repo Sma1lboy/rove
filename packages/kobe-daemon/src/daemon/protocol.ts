@@ -319,6 +319,49 @@ export type DaemonRequestName =
   | "deferredPrompt.flush"
 
 /**
+ * Verbs whose CONTRACT is to block, so the client must not put a wedge
+ * deadline on them.
+ *
+ * The socket client gives every request a 20s deadline, and blowing it is not
+ * a plain failure: it rejects with `RpcTimeoutError("… daemon wedged?")`, then
+ * force-disconnects and emits a lifecycle `close`, dropping every channel
+ * subscription on the TUI's long-lived connection. That is the right move for
+ * a genuinely wedged daemon and the wrong one for a verb that is simply still
+ * working — a `task.land` on a large repo would put the whole workspace into
+ * the reconnect path while the daemon is perfectly healthy.
+ *
+ * Each name here either waits on a human (`ui.prompt`), shells out on a
+ * user-sized repo or through `gh`, or delivers serially into PTYs. For all of
+ * them the DAEMON owns settlement, so the client's timer buys nothing.
+ *
+ * This set lives in the wire contract, next to {@link DaemonRequestName},
+ * because both the client (which must not import the handler registry — that
+ * would drag every daemon module into the CLI) and the registry need it. The
+ * registry entry is where a verb DECLARES it (`blocking: true` beside
+ * `web: true`), and `test/daemon/rpc-deadline.test.ts` fails if the two drift.
+ */
+export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
+  // Blocks on a human answering the TUI dialog (default 120s, max 600s).
+  "ui.prompt",
+  // Merge/squash plus optional worktree removal, on a repo of any size.
+  "task.land",
+  // `gh` lookup (its own 20s subprocess budget) then task/worktree/engine setup.
+  "workitem.start",
+  // Precheck subprocess, then a full session start.
+  "automation.runNow",
+  // One PTY delivery per queued record, serially.
+  "deferredPrompt.flush",
+  "deferredPrompt.release",
+  // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
+  "task.ensureWorktree",
+  "task.ensureMain",
+  "worktree.discoverAdoptable",
+  "worktree.adopt",
+  "worktree.list",
+  "worktree.remove",
+])
+
+/**
  * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's
  * refcounted lazy-shutdown counts only real front-end attaches.
  *

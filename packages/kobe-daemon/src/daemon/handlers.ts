@@ -174,6 +174,15 @@ export interface DaemonRequestHandler {
    * kill switch (`daemon.stop`), and hook-ingest paths must stay unexposed.
    */
   readonly web?: boolean
+  /**
+   * Can this verb legitimately outlive the client's 20s wedge deadline?
+   * Declared HERE, beside `web`, so the question is in front of whoever
+   * writes the handler — the socket client cannot import this registry
+   * (that would pull every daemon module into the CLI), so it reads the
+   * mirror in `protocol.ts`. `test/daemon/rpc-deadline.test.ts` fails when
+   * the two drift.
+   */
+  readonly blocking?: boolean
   handle(payload: Record<string, unknown>, ctx: DaemonHandlerContext): Promise<unknown> | unknown
 }
 
@@ -183,6 +192,15 @@ export function webExposedRpcNames(
 ): ReadonlySet<DaemonRequestName> {
   const names = new Set<DaemonRequestName>()
   for (const entry of registry.values()) if (entry.web === true) names.add(entry.name)
+  return names
+}
+
+/** The registry-derived blocking set: every entry marked `blocking: true`. */
+export function blockingRpcNames(
+  registry: ReadonlyMap<DaemonRequestName, DaemonRequestHandler>,
+): ReadonlySet<DaemonRequestName> {
+  const names = new Set<DaemonRequestName>()
+  for (const entry of registry.values()) if (entry.blocking === true) names.add(entry.name)
   return names
 }
 
