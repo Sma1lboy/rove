@@ -16,7 +16,7 @@ import { activeCliName } from "./rename-compat.ts"
 /**
  * argv prefix that runs the active CLI. Append the subcommand + flags:
  *
- *   [...kobeCliInvocation(), "ops", "--worktree", wt]
+ *   [...roveCliInvocation(), "ops", "--worktree", wt]
  *
  * Packaged build → `[<active-name>]` (npm bin shim on PATH). Dev → `[<bun>,
  * "--conditions=browser", <cli entry>]`.
@@ -35,12 +35,9 @@ export function roveCliInvocation(): string[] {
   return [process.execPath, "--conditions=browser", entry]
 }
 
-/** @deprecated Internal compatibility alias; use {@link roveCliInvocation}. */
-export const kobeCliInvocation = roveCliInvocation
-
 /**
  * argv prefix for commands PERSISTED into global config (engine hook files in
- * `~/.claude` / `~/.codex`). Unlike {@link kobeCliInvocation}, a persisted
+ * `~/.claude` / `~/.codex`). Unlike {@link roveCliInvocation}, a persisted
  * command outlives this process — a dev-run absolute entry path (often inside
  * a task worktree) goes stale the moment that worktree is removed, and every
  * hook fire then fails with "Module not found". So prefer the packaged `kobe`

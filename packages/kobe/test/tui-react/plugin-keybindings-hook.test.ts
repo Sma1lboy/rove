@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }))
-vi.mock("../../src/cli/invocation", () => ({ kobeCliInvocation: mocks.invocation }))
+vi.mock("../../src/cli/invocation", () => ({ roveCliInvocation: mocks.invocation }))
 vi.mock("../../src/tui/context/keybindings-user", () => ({ pluginKeybindings: mocks.pluginBindings }))
 vi.mock("../../src/tui-react/lib/keymap", () => ({ useBindings: mocks.useBindings }))
 

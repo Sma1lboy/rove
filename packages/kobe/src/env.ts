@@ -65,9 +65,6 @@ export function roveStateDir(): string {
   return join(homeDir(), ROVE_STATE_DIR_BASENAME)
 }
 
-/** @deprecated Internal compatibility alias; use {@link roveStateDir}. */
-export const kobeStateDir = roveStateDir
-
 /** Compatibility root for data created before the Rove migration. */
 export function legacyKobeStateDir(): string {
   return join(homeDir(), LEGACY_KOBE_STATE_DIR_BASENAME)
@@ -102,9 +99,6 @@ export function legacyKobeKvStatePath(): string {
 export function roveSettingsDir(): string {
   return join(roveStateDir(), "settings")
 }
-
-/** @deprecated Internal compatibility alias; use {@link roveSettingsDir}. */
-export const kobeSettingsDir = roveSettingsDir
 
 /**
  * User keybinding overrides — `~/.rove/settings/keybindings.yaml`.

@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest"
 
 const mocks = vi.hoisted(() => ({
   findFileHandler: vi.fn(),
-  kobeCliInvocation: vi.fn(() => ["rove"]),
+  roveCliInvocation: vi.fn(() => ["rove"]),
   spawnDetached: vi.fn(() => true),
 }))
 
@@ -20,7 +20,7 @@ vi.mock("@sma1lboy/kobe-daemon/plugins/settings-env", () => ({
 }))
 
 vi.mock("../../src/cli/invocation", () => ({
-  kobeCliInvocation: mocks.kobeCliInvocation,
+  roveCliInvocation: mocks.roveCliInvocation,
 }))
 
 vi.mock("../../src/lib/spawn-detached", () => ({
@@ -31,7 +31,7 @@ const { tryPluginFileOpen } = await import("../../src/tui-react/workspace/plugin
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.kobeCliInvocation.mockReturnValue(["rove"])
+  mocks.roveCliInvocation.mockReturnValue(["rove"])
 })
 
 describe("tryPluginFileOpen", () => {

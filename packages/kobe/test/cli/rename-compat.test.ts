@@ -5,7 +5,7 @@ import {
   setRoveEnv,
 } from "@sma1lboy/kobe-daemon/compat-env"
 import { describe, expect, test } from "vitest"
-import { kobeCliInvocation, roveCliInvocation } from "../../src/cli/invocation.ts"
+import { roveCliInvocation } from "../../src/cli/invocation.ts"
 import {
   activeCliName,
   markKobeInvocation,
@@ -78,7 +78,7 @@ describe("rove environment compatibility", () => {
       ])
 
       markKobeInvocation()
-      expect(kobeCliInvocation()).toEqual([
+      expect(roveCliInvocation()).toEqual([
         process.execPath,
         "--conditions=browser",
         expect.stringMatching(/\/cli\/kobe\.ts$/),

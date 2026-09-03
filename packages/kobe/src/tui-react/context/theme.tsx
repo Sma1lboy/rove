@@ -16,7 +16,7 @@
 import { RGBA } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { type ReactNode, createContext, useContext, useEffect, useMemo, useState } from "react"
-import { createExternalStore } from "../../lib/external-store"
+import { createStateCell } from "../../lib/external-store"
 import {
   BUNDLED_THEMES,
   DEFAULT_THEME,
@@ -39,7 +39,7 @@ type State = {
   readonly focusAccent: FocusAccentSlot
 }
 
-const store = createExternalStore<State>({
+const store = createStateCell<State>({
   themes: { ...BUNDLED_THEMES },
   active: DEFAULT_THEME,
   mode: "dark",

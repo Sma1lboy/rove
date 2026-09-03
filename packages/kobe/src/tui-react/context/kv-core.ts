@@ -19,7 +19,7 @@
  *     including keys other processes wrote after we loaded.
  */
 
-import { createExternalStore } from "../../lib/external-store"
+import { createStateCell } from "../../lib/external-store"
 import { loadStateFile, patchStateFile, replaceStateFile } from "../../state/store.ts"
 
 const WRITE_DEBOUNCE_MS = 250
@@ -45,7 +45,7 @@ export interface KvCore {
 }
 
 export function createKvCore(): KvCore {
-  const store = createExternalStore<Record<string, unknown>>(loadStateFile(), "kv.snapshot")
+  const store = createStateCell<Record<string, unknown>>(loadStateFile(), "kv.snapshot")
 
   /** Keys this process has `set()` since the last successful flush. */
   const dirtyKeys = new Set<string>()

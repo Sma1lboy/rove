@@ -75,8 +75,6 @@ export function createStateCell<T>(initial: T, debugLabel?: string): StateCell<T
   return state
 }
 
-export const createExternalStore = createStateCell
-
 /** Read-only derived state with the source's notification granularity. */
 export function mapReadableState<T, U>(source: ReadableState<T>, map: (value: T) => U): ReadableState<U> {
   const get = () => map(source.get())
