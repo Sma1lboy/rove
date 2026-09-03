@@ -322,8 +322,15 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     }
     if (url.pathname === "/events") {
       return sseResponse((send) => {
+        // Nothing fallible above the acquire. `onSseOpen` bumps the gui
+        // refcount and hands back the ONLY way to undo it, so a throw between
+        // the two (assembling the snapshot reaches the orchestrator and the
+        // activity map) left a phantom gui that nothing could remove: the
+        // daemon never idle-exited and every collector polled forever for a
+        // browser that got a 500. Build the payload first, acquire last.
+        const hydration = link.snapshot()
         const closeGui = deps.onSseOpen?.() ?? (() => {})
-        send("snapshot", link.snapshot())
+        send("snapshot", hydration)
         sseSends.add(send)
         return () => {
           sseSends.delete(send)
