@@ -21,7 +21,6 @@ import {
   pluginRowView,
   setPluginEnabled,
 } from "../../src/tui-react/component/settings-dialog/plugins-core.ts"
-import { relativeAgeMs } from "../../src/tui/history/message-core"
 
 const NOW = Date.parse("2026-07-27T12:00:00.000Z")
 
@@ -218,18 +217,5 @@ describe("setPluginEnabled", () => {
     // …and re-enabling brings it back — both without a restart.
     setPluginEnabled("example.engine", true, home)
     expect(pluginEngineIds()).toEqual(["aider"])
-  })
-})
-
-describe("relativeAgeMs", () => {
-  it("steps through seconds, minutes, hours, and days", () => {
-    expect(relativeAgeMs(NOW - 3_000, NOW)).toBe("3s")
-    expect(relativeAgeMs(NOW - 5 * 60_000, NOW)).toBe("5m")
-    expect(relativeAgeMs(NOW - 3 * 3_600_000, NOW)).toBe("3h")
-    expect(relativeAgeMs(NOW - 2 * 86_400_000, NOW)).toBe("2d")
-  })
-
-  it("clamps a clock-skewed future stamp to 0s", () => {
-    expect(relativeAgeMs(NOW + 5000, NOW)).toBe("0s")
   })
 })

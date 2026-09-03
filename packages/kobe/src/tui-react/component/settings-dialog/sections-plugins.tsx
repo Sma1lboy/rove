@@ -8,7 +8,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
-import { relativeAgeMs } from "../../../tui/history/message-core"
+import { relativeAge } from "../../../lib/relative-time"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { type PluginSettingRowView, displaySettingValue, isBooleanOn } from "./plugin-settings-core"
@@ -164,7 +164,7 @@ export function PluginSettingsSection(
                               : plugin.lastRun.spawnError
                                 ? t("settings.plugins.runFailed")
                                 : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
-                            ago: relativeAgeMs(plugin.lastRun.at, now),
+                            ago: relativeAge(plugin.lastRun.at, now),
                           })
                         : // "never run" only means something when the plugin
                           // declares commands that could have run; a

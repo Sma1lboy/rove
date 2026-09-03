@@ -22,7 +22,10 @@ const AUTOMATION = {
   prompt: "audit",
   schedule: "0 9 * * MON-FRI",
   enabled: true,
-  nextRunAt: new Date(NOW + 3_600_000).toISOString(),
+  // 100 minutes, not a flat hour: the preview FLOORS, so a fixture sitting on
+  // the boundary reads `59m` the moment the render takes a millisecond. 100
+  // also separates the two rules — flooring says `in 1h`, rounding said `in 2h`.
+  nextRunAt: new Date(NOW + 100 * 60_000).toISOString(),
   missedRunGraceMinutes: 60,
   createdAt: "2026-07-01T00:00:00Z",
   updatedAt: "2026-07-01T00:00:00Z",

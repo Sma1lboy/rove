@@ -16,7 +16,7 @@ import { useT } from "../i18n"
 import { DialogLabel } from "../ui/dialog-parts"
 import { EVENT_FEED_LIMIT, type EventRow, eventRows } from "./issue-events-core"
 
-/** Width of the age column — "999d" is the widest {@link relativeAgeMs} yield. */
+/** Width of the age column — "999d" is the widest {@link relativeAge} yield. */
 const AGE_CELLS = 4
 
 export function IssueEventsSection(props: { taskId: string; orchestrator: RemoteOrchestrator | null }) {
