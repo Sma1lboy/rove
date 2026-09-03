@@ -38,14 +38,13 @@ import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { landTaskAction } from "../workspace/land-task-action"
 
 function flattenRows(projects: readonly WorktreeProject[]): readonly WorktreeAuditRow[] {
   return projects.flatMap((p) => p.worktrees)
 }
 
 const DIRTY_REFUSAL_RE = /refusing to remove dirty worktree/
-const LAND_CONFLICT_RE = /LAND_CONFLICT/
-const MAIN_DIRTY_RE = /MAIN_CHECKOUT_DIRTY/
 
 /** Match a worktree row's path to a tracked task id (loose realpath tolerance). */
 function taskIdForPath(orch: RemoteOrchestrator, wtPath: string): string | undefined {
@@ -196,49 +195,32 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       console.error("[rove worktrees] land refused: no tracked task for", row.path)
       return
     }
-    const ok = await DialogConfirm.show(
-      dialog,
-      t("worktrees.land.confirmTitle"),
-      t("worktrees.land.confirmBody", { branch: row.branch || row.path }),
-      t("common.cancel"),
-      t("worktrees.land.button"),
-    )
-    if (ok !== true) return
+    // The land itself is shared with the sidebar row menu
+    // (`workspace/land-task-action.ts`); the page adds only the busy row and
+    // the refetch that clears it, since landing removes the worktree.
     setBusyPath(row.path)
     try {
-      // Land removes the worktree by default — same as the CLI, so the row
-      // clears itself. `callerCwd` lets the daemon refuse the worktree this
-      // TUI is itself running from instead of deleting its own cwd.
-      const res = await orch.landTask(taskId, { callerCwd: process.cwd() })
-      notifyInfo(t("worktrees.land.done", { branch: res.branch, landedOn: res.landedOn, commit: res.commit }))
-      // Two cleanup outcomes carry information, and neither is ever thrown —
-      // surface them as attention toasts (yellow) so the user knows there is
-      // manual follow-up. A refused removal leaves the directory in place; a
-      // removal whose bookkeeping write failed takes the directory but leaves
-      // the task still pointing at it. They need different copy: `worktreeKept`
-      // would be actively wrong for the second.
-      const cleanup = res.worktree
-      if (cleanup && !cleanup.removed) {
-        notifyNeedsInput(t("worktrees.land.worktreeKept", { reason: cleanup.reason ?? "refused" }))
-      } else if (cleanup?.reason) {
-        notifyNeedsInput(t("worktrees.land.worktreePathStale", { reason: cleanup.reason }))
-      }
-      if (cleanup?.residue) {
-        notifyNeedsInput(
-          t("worktrees.land.worktreeResidue", { path: cleanup.residue.path, reason: cleanup.residue.reason }),
-        )
-      }
+      await landTaskAction(
+        {
+          orchestrator: orch,
+          confirm: (branch) =>
+            DialogConfirm.show(
+              dialog,
+              t("worktrees.land.confirmTitle"),
+              t("worktrees.land.confirmBody", { branch }),
+              t("common.cancel"),
+              t("worktrees.land.button"),
+            ).then((ok) => ok === true),
+          notifyInfo,
+          notifyNeedsInput,
+          notifyError,
+          t,
+          callerCwd: process.cwd(),
+        },
+        taskId,
+        row.branch || row.path,
+      )
       refetch()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (LAND_CONFLICT_RE.test(msg)) {
-        notifyNeedsInput(t("worktrees.land.conflict", { files: msg }))
-      } else if (MAIN_DIRTY_RE.test(msg)) {
-        notifyNeedsInput(t("worktrees.land.dirtyBase"))
-      } else {
-        notifyError(t("worktrees.land.failed", { error: msg }))
-      }
-      console.error("[rove worktrees] land failed:", err)
     } finally {
       setBusyPath(null)
     }

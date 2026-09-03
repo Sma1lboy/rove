@@ -81,6 +81,8 @@ function makeActions(tasks: readonly Task[]) {
     dialog: DIALOG,
     notifyError,
     notifyInfo: vi.fn(),
+    notifyNeedsInput: vi.fn(),
+    t: (key: string) => key,
     selectedId: () => null,
     setSelectedId: vi.fn(),
     selectedTask: () => undefined,

@@ -64,7 +64,7 @@ afterEach(() => {
   restoreEnv("KOBE_TAB_ID", savedTabId)
 })
 
-describe("verifiedSelfSession (issue #24: env identity is inheritable, so it must be proven)", () => {
+describe("verifiedSelfSession (env identity is inheritable, so it must be proven)", () => {
   it("accepts the env when the named tab is alive AND owns this process", async () => {
     expect(await verifiedSelfSession({ KOBE_TASK_ID: "d1", KOBE_TAB_ID: "tab-4" }, probeFor("d1::tab-4"))).toEqual({
       taskId: "d1",
@@ -173,7 +173,7 @@ describe("create records the dispatcher ($KOBE_TASK_ID/$KOBE_TAB_ID)", () => {
     expect(client.requests[0].payload).toEqual({ repo: "/repo/x" })
   })
 
-  it("add with an INHERITED env records no dispatcher at all (issue #24)", async () => {
+  it("add with an INHERITED env records no dispatcher at all", async () => {
     // Every field is real — boccha's task exists, its tab-1 is alive — but
     // this process was forked out of it days ago and detached. Recording
     // {boccha, tab-1} here is what sent finished workers' reports to a

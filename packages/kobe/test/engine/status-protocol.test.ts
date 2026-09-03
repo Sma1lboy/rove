@@ -61,7 +61,7 @@ describe("withWorktreeProtocol", () => {
     expect(withWorktreeProtocol(customFile, "claude", "t1", { status: on, notes: on })).toEqual(customFile)
   })
 
-  it("never double-injects over the attached --flag=value form either (issue #58)", () => {
+  it("never double-injects over the attached --flag=value form either", () => {
     const attached = ["claude", "--append-system-prompt=user's own"]
     expect(withWorktreeProtocol(attached, "claude", "t1", { status: on, notes: on })).toEqual(attached)
     const attachedFile = ["claude", "--append-system-prompt-file=/tmp/p.txt"]
@@ -159,7 +159,7 @@ describe("withDispatcherProtocol", () => {
     expect(withDispatcherProtocol(["claude"], "claude", undefined, on)).toEqual(["claude"])
   })
 
-  it("never double-injects over a custom command that sets the flag — either form (issue #58)", () => {
+  it("never double-injects over a custom command that sets the flag — either form", () => {
     const custom = ["claude", "--append-system-prompt", "user's own"]
     expect(withDispatcherProtocol(custom, "claude", "m1", on)).toEqual(custom)
     const attached = ["claude", "--append-system-prompt=user's own"]

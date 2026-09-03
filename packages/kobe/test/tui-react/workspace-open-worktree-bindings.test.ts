@@ -77,6 +77,7 @@ describe("workspace open-worktree bindings", () => {
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),
+      createPRFor: vi.fn(),
       toggleSortMode,
     })
 
@@ -155,6 +156,7 @@ describe("workspace open-worktree bindings", () => {
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),
+      createPRFor: vi.fn(),
       toggleSortMode: vi.fn(),
     })
 
@@ -208,6 +210,7 @@ describe("workspace open-worktree bindings", () => {
       openInbox: vi.fn(),
       enterMoveMode: vi.fn(),
       createPR: vi.fn(),
+      createPRFor: vi.fn(),
       toggleSortMode: vi.fn(),
       ...over,
     }

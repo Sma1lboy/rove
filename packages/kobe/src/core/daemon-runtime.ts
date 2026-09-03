@@ -2,10 +2,11 @@
 
 import type { DaemonRuntimeAdapter } from "@sma1lboy/kobe-daemon/daemon/runtime"
 import { availableEngineIds } from "../engine/account-detect.ts"
+import { engineProtocolKey } from "../engine/engine-presets.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "../engine/hook-events.ts"
 import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-command.ts"
-import { protocolUpgradeFromLiveSession } from "../engine/protocol-sniff.ts"
+import { protocolUpgradeFromLiveSession, protocolWriteBackFromLiveSession } from "../engine/protocol-sniff.ts"
 import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
 import { createEngineTurnDetector } from "../engine/turn-detector.ts"
 import { issueAssetsDir } from "../env.ts"
@@ -17,7 +18,7 @@ import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrSt
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
 import { composerGateEnabled } from "../state/composer-gate.ts"
-import { getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -43,6 +44,27 @@ import {
   removeWorktreeAdapter,
 } from "./daemon-worktree-adapter.ts"
 
+/**
+ * The observer's protocol hook, doing tier (b)'s two jobs in one pass: name
+ * THIS task's record (returned to the daemon, which writes it via
+ * `setCommand`) and — separately — learn the custom PRESET's protocol, so the
+ * next task launched on that preset starts named instead of re-sniffing.
+ *
+ * Both rules live in `protocol-sniff.ts`; the preset write is here because it
+ * is the only half that touches state.json, and it is a write rather than a
+ * return value because the daemon's `resolveProtocolUpgrade` contract is
+ * about one task's record. Idempotent — the key it writes is what makes the
+ * next call refuse — so no dedupe is needed around it.
+ */
+function resolveProtocolUpgradeAndLearnPreset(
+  task: { readonly vendor?: string; readonly command?: string },
+  evidence: { readonly walkVendor: VendorId | null; readonly title: string },
+): { command: string; vendor: VendorId } | null {
+  const preset = protocolWriteBackFromLiveSession(task, evidence, getCustomEngineIds())
+  if (preset) setPersistedString(engineProtocolKey(preset.id), preset.protocol)
+  return protocolUpgradeFromLiveSession(task, evidence)
+}
+
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
   defaultTaskVendor: DEFAULT_TASK_VENDOR,
@@ -63,8 +85,9 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   },
   titleTurnHint: engineTitleTurnHint,
   // Tier-(b) protocol sniff: the record upgrade for a generic
-  // task identified by its live session — rules live with the sniffer.
-  resolveProtocolUpgrade: protocolUpgradeFromLiveSession,
+  // task identified by its live session, plus the preset write-back —
+  // rules live with the sniffer.
+  resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
   // Per-turn telemetry — delegated straight to the vendor's own
   // adapter; an engine without a turn reader simply reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await engineEntry(vendor).readTurns?.(transcriptPath)) ?? [],

@@ -199,8 +199,10 @@ engine without submitting it, and `o` sends audio, video, or PDF files to the
 system application. Remote files cannot use a local system viewer.
 
 The pane watches local worktrees for changes and also supports `r` for an
-explicit refresh. See [Keybindings](KEYBINDINGS.md#sidebar-and-files) for the
-complete navigation table.
+explicit refresh. Set `KOBE_FILETREE_WATCH=0` to turn the watcher off and leave
+`r` as the only way to repopulate the list. See
+[Keybindings](KEYBINDINGS.md#sidebar-and-files) for the complete navigation
+table.
 
 ## Create a pull request with the active agent
 

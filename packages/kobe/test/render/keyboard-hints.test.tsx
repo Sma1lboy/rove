@@ -92,6 +92,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     openInbox: NOOP,
     enterMoveMode: NOOP,
     createPR: NOOP,
+    createPRFor: NOOP,
     toggleSortMode: NOOP,
   })
   return <>{props.children}</>

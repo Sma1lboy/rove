@@ -44,6 +44,7 @@ export interface HostSidebarProps {
   readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
   readonly onAddTask: () => void
   readonly onDeleteRequest: (taskId: string) => void
+  readonly onLandRequest?: (taskId: string) => void
   readonly onRenameRequest: (taskId: string) => void
   readonly onPinRequest: (taskId: string) => void
   /** Menu-only (no chord): open the board-status picker for the row's task. */
@@ -136,6 +137,7 @@ export function HostSidebar(props: HostSidebarProps) {
     transcriptActivity: props.transcriptActivity,
     focused: props.focused,
     onDeleteRequest: props.onDeleteRequest,
+    onLandRequest: props.onLandRequest,
     onRenameRequest: props.onRenameRequest,
     onPinRequest: props.onPinRequest,
     onSetStatusRequest: props.onSetStatusRequest,

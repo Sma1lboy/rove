@@ -90,7 +90,7 @@ describe("runAutomationPrecheck", () => {
     expect(result.exitCode).toBe(0)
   })
 
-  it("spawns the shell with -ilc, the same interactive login form engine tabs use (#26)", async () => {
+  it("spawns the shell with -ilc, the same interactive login form engine tabs use", async () => {
     // A spy shell records the exact argv it was invoked with, so this pins the
     // flag contract rather than just "a shell ran".
     const dir = mkdtempSync(join(tmpdir(), "kobe-precheck-spy-"))

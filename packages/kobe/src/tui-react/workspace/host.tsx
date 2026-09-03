@@ -37,6 +37,7 @@ import { useQuickFork } from "./quick-fork"
 import { ShowWorkspace } from "./show-workspace"
 import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
+import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
 import { useEditorHandles } from "./use-editor-handles"
 import { useInboxHost } from "./use-inbox-host"
@@ -163,12 +164,15 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     copyTaskField,
     showFieldNotes,
     confirmRunAgain,
+    landTask,
   } = useWorkspaceTaskActions({
     orchestrator: orch,
     tasks: () => tasks,
     dialog,
     notifyError,
     notifyInfo,
+    notifyNeedsInput: (message) => notif.notify({ kind: "needs_input", taskId: "", tabId: "", title: message }),
+    t,
     selectedId: () => selectedId,
     setSelectedId,
     selectedTask: () => selectedTask,
@@ -271,6 +275,12 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     jumpToNextAttention,
     openInbox: inbox.show,
     createPR: () => void editor.onCreatePR(),
+    // The row under the sidebar cursor, which is not the mounted task: park
+    // the request, then enter the row so its workspace mounts and claims it.
+    createPRFor: (id) => {
+      requestCreatePR(id)
+      activateTask(id)
+    },
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
     // then j/k reorders the cursor row's level (tab/task/project) and
@@ -362,6 +372,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           // fire these; the flows are the shared lib/task-actions bodies.
           onAddTask={() => void createTask()}
           onDeleteRequest={(id) => void deleteTask(id)}
+          onLandRequest={(id) => void landTask(id)}
           onRenameRequest={(id) => void renameTask(id)}
           onPinRequest={(id) => void togglePin(id)}
           onSetStatusRequest={(id) => void setStatus(id)}

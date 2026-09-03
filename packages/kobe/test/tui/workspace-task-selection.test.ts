@@ -194,7 +194,7 @@ describe("pure-TUI workspace task activation", () => {
     expect(firstSelectableTask([], null)).toBeUndefined()
   })
 
-  test("a routine's standing session never wins the recency fallback (issue #91)", () => {
+  test("a routine's standing session never wins the recency fallback", () => {
     const mine = { ...task("mine", "/worktrees/mine"), updatedAt: "2026-07-01T00:00:00.000Z" }
     // Fired at 03:00, so it is genuinely the most recently updated task in the
     // install — and the least likely thing the user meant to open. Its sidebar

@@ -55,7 +55,7 @@ function openWith(result: unknown): void {
   })
 }
 
-describe("HostedTaskPty first-message paste (issue #25)", () => {
+describe("HostedTaskPty first-message paste", () => {
   it("hands firstMessage to pastePromptWhenEngineUp on a fresh spawn", async () => {
     openWith({ alive: true, created: true, replay: "", pid: 42, offset: 0 })
     const pty = new HostedTaskPty({

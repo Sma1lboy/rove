@@ -55,7 +55,7 @@ describe("engineForkArgv", () => {
     expect(engineForkArgv(["claude"], "claude", "")).toBeNull()
   })
 
-  it("declines a claude base that already controls its own session — either flag form (issue #58)", () => {
+  it("declines a claude base that already controls its own session — either flag form", () => {
     // A second --resume makes claude refuse to launch; the user's override
     // wins and the caller opens an ordinary tab on the base command.
     expect(engineForkArgv(["claude", "--resume", "pinned"], "claude", "src", "new")).toBeNull()
@@ -214,7 +214,7 @@ describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
 // `firstMessage` for the hosted PTY's post-spawn paste
 // (`pastePromptWhenEngineUp`). This pins the composition half of that
 // contract; the delivery half lives in hosted-session.test.ts.
-describe("engineTabSpawnFor with a paste-delivery vendor (kimi — issue #25)", () => {
+describe("engineTabSpawnFor with a paste-delivery vendor (kimi)", () => {
   const opts = {
     live: false,
     shell: "/bin/zsh",

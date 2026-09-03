@@ -273,7 +273,7 @@ describe("joinTaskTabs", () => {
   const vendorSnap = (tabs: unknown[]): TabsState =>
     ({ tabs, activeId: "tab-1", nextOrdinal: tabs.length + 1 }) as unknown as TabsState
 
-  it("a live foreground-walk verdict overrides the recorded liveVendor (issue #33)", () => {
+  it("a live foreground-walk verdict overrides the recorded liveVendor", () => {
     const snap = vendorSnap([
       { kind: "command", id: "tab-1", title: null, ordinal: 1 }, // shell, user typed claude
       { kind: "engine", id: "tab-2", title: null, ordinal: 2, liveVendor: "codex" }, // ctrl+C'd
@@ -369,7 +369,7 @@ describe("joinTaskTabs", () => {
     expect(rows[0]).toMatchObject({ alive: false, exit })
   })
 
-  it("keeps clean exits quiet: code 0 reports exit null (issue #9 no-noise rule)", () => {
+  it("keeps clean exits quiet: code 0 reports exit null — the no-noise rule", () => {
     const exit = { code: 0, signal: null, at: "2026-08-11T00:00:00.000Z" }
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit }])
     expect(rows[0]?.exit).toBeNull()

@@ -108,7 +108,7 @@ const waitFor = async (cond: () => boolean, timeoutMs = 1500): Promise<void> => 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 describe("activity observer", () => {
-  it("re-seeds a busy session's dot on the first pass after a daemon restart (#16)", async () => {
+  it("re-seeds a busy session's dot on the first pass after a daemon restart", async () => {
     // Fresh registry (the restart wiped it); the engine is mid-turn: alive,
     // foreground claude, working title frame. No hook event will come until
     // the next turn boundary — the walk + title frame must light the row.
@@ -177,7 +177,7 @@ describe("activity observer", () => {
     expect(w.row("tab-2")?.state).toBe("running")
   })
 
-  it("a pty-host outage never resurrects an already-corrected idle as phantom running (#27)", async () => {
+  it("a pty-host outage never resurrects an already-corrected idle as phantom running", async () => {
     // Regression for 073deeaf: after an ESC correction the tab held
     // {hook: running@T0, observed: idle}. The host-unreachable retire path
     // calls observeTab with NO correction gate, so the Infinity default

@@ -13,15 +13,12 @@
  * genuinely outgrow it wants tagging and retrieval, not a bigger number.
  */
 
-import { execFile } from "node:child_process"
-import { readFile, realpath, stat } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
-import { isAbsolute, join, resolve } from "node:path"
-import { promisify } from "node:util"
+import { join, resolve } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import { writeJsonAtomic } from "./json-file.ts"
-
-const execFileAsync = promisify(execFile)
+import { gitCommonDir, gitMainWorktree } from "./repo-key.ts"
 
 /** Newest-N kept per repo. Older notes are dropped on write. */
 export const NOTES_RETENTION_CAP = 50
@@ -63,29 +60,13 @@ function normalizeNote(entry: unknown): FieldNote | null {
   }
 }
 
-async function gitCommonDir(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--git-common-dir"])
-  const dir = stdout.trim()
-  return realpath(isAbsolute(dir) ? dir : resolve(path, dir))
-}
-
-async function gitMainWorktree(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "worktree", "list", "--porcelain"])
-  const first = stdout
-    .split(/\r?\n/)
-    .find((line) => line.startsWith("worktree "))
-    ?.slice("worktree ".length)
-    .trim()
-  if (!first) throw new Error("repoRoot is not a git repository")
-  return realpath(first)
-}
-
 async function resolveRepo(raw: string): Promise<{ repoRoot: string; repoKey: string }> {
   const absolute = resolve(raw)
   const s = await stat(absolute).catch(() => null)
   if (!s?.isDirectory()) throw new Error("repoRoot does not exist")
-  const [repoRoot, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
-  return { repoRoot, repoKey }
+  const [main, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
+  if (!main) throw new Error("repoRoot is not a git repository")
+  return { repoRoot: main, repoKey }
 }
 
 async function readStore(path: string): Promise<NotesStoreFile> {

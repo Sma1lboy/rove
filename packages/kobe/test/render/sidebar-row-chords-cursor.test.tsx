@@ -87,6 +87,7 @@ function ChordHost({ spies }: { spies: Spies }) {
     openInbox: () => {},
     enterMoveMode: () => {},
     createPR: () => {},
+    createPRFor: () => {},
     toggleSortMode: () => {},
   })
   return (

@@ -240,6 +240,13 @@ The protocol is **derived** from the command, never declared beside it:
    deliberately conservative: ambiguous or absent evidence leaves the task
    generic, and a task whose protocol is already known is never flipped.
 
+   When that engine tab was launched from one of *your* registered presets
+   and the walk found a built-in's process in it, Rove also writes
+   `engineProtocol.<id>` for the preset itself, so the next task on it starts
+   named instead of sniffing again. Only the process walk mints that key — a
+   title glyph names one session, and this outlives every session on the
+   preset — and a protocol you declared is never overwritten.
+
 `rove api engine-list` prints every entry with its raw command and resolved
 protocol; copy one into `rove api add --command` verbatim, or edit a flag
 first. See [API.md](./API.md) for the dispatch verbs.

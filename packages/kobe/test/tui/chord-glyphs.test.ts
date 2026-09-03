@@ -21,7 +21,7 @@ describe("formatChord", () => {
     expect(formatChord("shift+tab")).toBe("⇧ tab")
   })
 
-  it("keeps function keys, and keeps BARE keys in their typed case (#14)", () => {
+  it("keeps function keys, and keeps BARE keys in their typed case", () => {
     expect(formatChord("F1")).toBe("F1")
     expect(formatChord("f2")).toBe("F2")
     expect(formatChord("n")).toBe("n") // bare plain-letter — the literal key to press

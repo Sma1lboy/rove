@@ -201,6 +201,11 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
         case "changeEngine":
           actions.onChangeEngineRequest?.(taskId)
           break
+        // Menu-only, like `setStatus` above: no chord to mirror, so the
+        // ROW's task is the only thing it could mean.
+        case "land":
+          actions.onLandRequest?.(taskId)
+          break
         case "delete":
           actions.onDeleteRequest?.(taskId)
           break

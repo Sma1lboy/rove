@@ -142,7 +142,7 @@ describe("add handler", () => {
     expect(client.requests).toContainEqual({ name: "task.setPrompt", payload: { taskId: "t1", prompt: "do it" } })
   })
 
-  it("reports a created task whose prompt never landed (issue #72/#73)", async () => {
+  it("reports a created task whose prompt never landed", async () => {
     const task = taskFixture({ kind: "task", vendor: "kimi" })
     const client = new FakeClient({
       "task.create": () => ({ taskId: "t1", task }),

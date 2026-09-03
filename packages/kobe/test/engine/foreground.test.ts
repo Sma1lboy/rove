@@ -150,7 +150,7 @@ describe("foregroundEngine", () => {
   })
 })
 
-describe("hasAncestor (issue #24: env inherits, a pid chain doesn't)", () => {
+describe("hasAncestor (env inherits, a pid chain doesn't)", () => {
   // A tab shell (10) → engine (11) → its tool shell (12) → this CLI (13),
   // plus a sibling (20) that detached out of the same shell days ago and
   // reparented to init — it still carries the tab's exported env.

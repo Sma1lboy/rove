@@ -92,6 +92,7 @@ function SortHost() {
     openInbox: () => {},
     enterMoveMode: () => {},
     createPR: () => {},
+    createPRFor: () => {},
     toggleSortMode: () => setSortMode((mode) => (mode === "default" ? "recent" : "default")),
   })
   return (

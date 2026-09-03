@@ -493,7 +493,7 @@ describe("worktree.changes pure helpers", () => {
   })
 })
 
-describe("framework-free store twins (React hosts, issue #15 G3)", () => {
+describe("framework-free store twins (React hosts)", () => {
   it("ui-prefs channel lands in uiPrefsStore and notifies subscribers", () => {
     const { client, emit } = fakeClient()
     const orch = new RemoteOrchestrator(client)

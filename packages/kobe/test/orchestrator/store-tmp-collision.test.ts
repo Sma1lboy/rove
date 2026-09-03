@@ -44,7 +44,7 @@ import { mkdir, mkdtemp, readFile, rm, unlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
-describe("TaskIndexStore staging-file isolation (issue #53)", () => {
+describe("TaskIndexStore staging-file isolation", () => {
   let home: string
 
   beforeEach(async () => {

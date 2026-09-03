@@ -3,7 +3,20 @@
  * imported from the kobe package) so no server code leaks into the client
  * bundle — these must stay in sync with
  * packages/kobe-daemon/src/daemon/protocol.ts (SerializedTask + ChannelPayloads).
+ *
+ * The issue types are the exception: the daemon publishes them structurally
+ * unchanged over `issue.snapshot`, so this re-exports the store's own
+ * declaration instead of mirroring it (`lib/issues.ts` is the other door to
+ * the same type).
  */
+
+import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+
+export type {
+  Issue,
+  IssueStatus,
+  RepoIssues,
+} from "@sma1lboy/kobe-daemon/daemon/issues-store"
 
 export type TaskKind = "main" | "task" | "dir"
 export type TaskStatus = string
@@ -51,31 +64,6 @@ export interface Task {
   }
   createdAt: string
   updatedAt: string
-}
-
-export type IssueStatus = "open" | "doing" | "hold" | "done"
-
-/** One daemon-owned issue (mirror of the daemon issue store record). The web
- *  Issues page reads/edits these via /api/issues; quick-start spawns a task
- *  and stamps `taskId`. */
-export interface Issue {
-  id: number
-  title: string
-  status: IssueStatus
-  created: string
-  body: string
-  /** Task this issue was quick-started into (link) — a LIVE task here hides
-   *  the issue from the unified board (the task card represents it). */
-  taskId?: string
-}
-
-/** One repo's full issue state — the unit the daemon publishes per
- *  `issue.snapshot` and the bridge returns from /api/issues. */
-export interface RepoIssues {
-  repoRoot: string
-  exists: boolean
-  nextId: number
-  issues: Issue[]
 }
 
 /** Transient engine activity (what the agent is doing right now). */

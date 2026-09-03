@@ -124,7 +124,7 @@ describe("defaultApiRuntime", () => {
     await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBe(true)
   })
 
-  it("isTaskRunning is true when only a LATER engine tab is alive (issue #5)", async () => {
+  it("isTaskRunning is true when only a LATER engine tab is alive", async () => {
     mocks.listSessions.mockResolvedValue([
       { key: "t1::tab-1", alive: false },
       { key: "t1::tab-2", alive: true },

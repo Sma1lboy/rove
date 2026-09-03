@@ -35,7 +35,9 @@ import { FieldNotesDialog } from "../component/field-notes-dialog"
 import { RunAgainDialog } from "../component/run-again-dialog"
 import { StatusPickerDialog } from "../component/status-picker-dialog"
 import type { DialogContext } from "../ui/dialog"
+import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
+import { landTaskAction } from "./land-task-action"
 
 export type WorkspaceTaskActionDeps = {
   orchestrator: RemoteOrchestrator
@@ -43,6 +45,11 @@ export type WorkspaceTaskActionDeps = {
   dialog: DialogContext
   notifyError: (message: string) => void
   notifyInfo: (message: string) => void
+  /** Attention tone (yellow): it worked, but something needs a human next. */
+  notifyNeedsInput: (message: string) => void
+  /** The host's live translator — passed in rather than pulled from `useT()`,
+   *  which would tie this hook to a React render its unit tests do not have. */
+  t: (key: string, params?: Record<string, string | number>) => string
   selectedId: () => string | null
   setSelectedId: (id: string | null) => void
   selectedTask: () => Task | undefined
@@ -78,11 +85,15 @@ export type WorkspaceTaskActions = {
    * the new task's mount; this half is the dialog and the lookup.
    */
   confirmRunAgain: (id: string) => Promise<Task | undefined>
+  /** Row menu "Land into base branch" — the Worktrees page's `l` reachable
+   *  from the row. No busy state: the row goes with its worktree. */
+  landTask: (id: string) => Promise<void>
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
   const { orchestrator, tasks, dialog, notifyError } = deps
   const renderer = useRenderer()
+  const t = deps.t
 
   const taskActions: CreateTaskContext = {
     ...buildBaseCreateTaskContext({
@@ -176,6 +187,34 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     await applyVendorChange(taskActions, id, pick.vendor, { effort: pick.effort })
   }
 
+  // Row menu "Land into base branch". The land itself is shared with the
+  // Worktrees page (`land-task-action.ts`); this is only the host's dialog,
+  // toasts and row lookup — the same division `pickVendor` follows.
+  async function landTask(id: string): Promise<void> {
+    const task = tasks().find((candidate) => String(candidate.id) === id)
+    if (!task) return
+    await landTaskAction(
+      {
+        orchestrator,
+        confirm: (branch) =>
+          DialogConfirm.show(
+            dialog,
+            t("worktrees.land.confirmTitle"),
+            t("worktrees.land.confirmBody", { branch }),
+            t("common.cancel"),
+            t("worktrees.land.button"),
+          ).then((ok: unknown) => ok === true),
+        notifyInfo: deps.notifyInfo,
+        notifyNeedsInput: deps.notifyNeedsInput,
+        notifyError,
+        t,
+        callerCwd: process.cwd(),
+      },
+      id,
+      task.branch || task.title,
+    )
+  }
+
   return {
     createTask: () => createTaskFlow(taskActions),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
@@ -196,5 +235,6 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     copyTaskField: (id, field) => copyTaskFieldFlow(taskActions, id, field),
     showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, load: () => orchestrator.listFieldNotes(repo) }),
     confirmRunAgain,
+    landTask,
   }
 }

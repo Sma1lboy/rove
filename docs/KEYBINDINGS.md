@@ -55,7 +55,7 @@ shows only actions that can run right now.
 | `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
-| `ctrl+a` `p` / `P` | Create a PR from the active task |
+| `ctrl+a` `p` / `P` | Create a PR from the active task, or from the sidebar row under the cursor |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a

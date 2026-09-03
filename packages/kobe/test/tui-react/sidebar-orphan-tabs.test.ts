@@ -30,7 +30,7 @@ describe("orphanTabsByTask", () => {
     expect(map.get("t1")?.[0]?.label).toBe("⚠ claude — building")
   })
 
-  it("surfaces a live session missing from its task's snapshot — the issue-#20 invisible engine", () => {
+  it("surfaces a live session missing from its task's snapshot — the invisible engine", () => {
     // Snapshot answered for tab-2 only; tab-1 is alive on the host.
     const map = orphanTabsByTask([session("t1::tab-1"), session("t1::tab-2")], new Set(["t1::tab-2"]))
     expect(map.get("t1")?.map((t) => t.id)).toEqual(["tab-1"])

@@ -22,7 +22,7 @@ import {
   setBoardQuery,
   setBoardRepo,
 } from "../src/lib/board-state.ts"
-import type { Issue, RepoIssues } from "../src/lib/types.ts"
+import type { Issue, RepoIssues } from "../src/lib/issues.ts"
 
 /**
  * Issues-only kanban column math. The load-bearing rules: the board renders

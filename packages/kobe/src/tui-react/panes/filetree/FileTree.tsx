@@ -232,12 +232,13 @@ export function FileTree(props: FileTreeProps) {
     return () => controller.abort()
   }, [scope, base, refetch])
 
-  // Realtime watch is opt-in (see watchWorktree) — the default path is
-  // explicit refresh (`r`) plus tab/worktree changes.
+  // Realtime watch is on by default; `KOBE_FILETREE_WATCH=0` opts out (see
+  // watchWorktree) and leaves explicit refresh (`r`) plus tab/worktree
+  // changes as the only paths that repopulate the pane.
   useEffect(() => {
     const path = props.worktreePath
     if (path == null) return
-    if (process.env.KOBE_FILETREE_WATCH !== "1") return
+    if (process.env.KOBE_FILETREE_WATCH === "0") return
     return watchWorktree(path, () => setRefreshTick((n) => n + 1))
   }, [props.worktreePath])
 

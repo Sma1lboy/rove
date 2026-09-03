@@ -1,10 +1,11 @@
 import { execFile } from "node:child_process"
-import { readFile, realpath, stat } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
-import { isAbsolute, join, resolve } from "node:path"
+import { join, resolve } from "node:path"
 import { promisify } from "node:util"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import { writeJsonAtomic } from "./json-file.ts"
+import { gitCommonDir, gitMainWorktree } from "./repo-key.ts"
 
 const execFileAsync = promisify(execFile)
 
@@ -91,25 +92,9 @@ function todayStamp(): string {
   return `${d.getFullYear()}-${mm}-${dd}`
 }
 
-async function gitCommonDir(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--git-common-dir"])
-  const dir = stdout.trim()
-  return realpath(isAbsolute(dir) ? dir : resolve(path, dir))
-}
-
 async function gitTopLevel(path: string): Promise<string> {
   const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--show-toplevel"])
   return stdout.trim()
-}
-
-async function gitMainWorktree(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "worktree", "list", "--porcelain"])
-  const first = stdout
-    .split(/\r?\n/)
-    .find((line) => line.startsWith("worktree "))
-    ?.slice("worktree ".length)
-    .trim()
-  return first ? realpath(first) : gitTopLevel(path)
 }
 
 async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: string }> {
@@ -118,8 +103,10 @@ async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: s
   const s = await stat(absolute).catch(() => null)
   if (!s?.isDirectory()) throw new Error("repoRoot does not exist")
   try {
-    const [repoRoot, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
-    return { repoRoot, repoKey }
+    const [main, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
+    // No worktree line at all still has a readable root: fall back to the
+    // toplevel rather than refuse the repo.
+    return { repoRoot: main ?? (await gitTopLevel(absolute)), repoKey }
   } catch (err) {
     if (isGitNotRepositoryError(err)) throw new Error("repoRoot is not a git repository")
     throw err

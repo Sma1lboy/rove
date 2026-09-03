@@ -118,7 +118,7 @@ describe("kobe api inspect (offline)", () => {
  * called out as `unregistered`, never silently dropped — that silence is how
  * a writable engine stayed invisible for 1h44m.
  */
-describe("inspect tabs section reconciliation (issue #20)", () => {
+describe("inspect tabs section reconciliation", () => {
   type TabsOut = Record<string, { activeId: string | null; tabs: { id: string }[]; unregistered?: string[] }>
 
   it("flags an alive session missing from the task's snapshot", () => {
