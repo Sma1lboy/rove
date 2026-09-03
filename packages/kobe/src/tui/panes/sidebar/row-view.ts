@@ -81,13 +81,21 @@ export const SPINNER_TICK_CYCLE = 600
  * stays clean. Pure — unit-tested.
  */
 export function prCheckChip(task: Task): { glyph: string; tone: SidebarTone } | null {
+  // A poll that could not reach the provider (`prStatus.lastError`) leaves the
+  // last GOOD value on the chip — clobbering a green tick over a transient
+  // `gh` blip would be worse. Muted is how the row says that value is no
+  // longer being refreshed: same glyph, because the fact itself has not
+  // changed; drained of colour, because nothing is confirming it any more. Not
+  // a second glyph — this cell shares a row with `statusChip`, and there is no
+  // glyph left in that shared vocabulary that means "old".
+  const stale = task.prStatus?.lastError !== undefined
   switch (task.prStatus?.checkState) {
     case "passing":
-      return { glyph: "✓", tone: "success" }
+      return { glyph: "✓", tone: stale ? "textMuted" : "success" }
     case "failing":
-      return { glyph: "✗", tone: "error" }
+      return { glyph: "✗", tone: stale ? "textMuted" : "error" }
     case "pending":
-      return { glyph: "•", tone: "warning" }
+      return { glyph: "•", tone: stale ? "textMuted" : "warning" }
     default:
       return null
   }

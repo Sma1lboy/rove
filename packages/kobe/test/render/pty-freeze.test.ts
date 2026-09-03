@@ -101,7 +101,7 @@ describe("kill()", () => {
     const dir = makeFreezeDir()
     const host = makeHost({ freeze: fileFreezeSink(dir) })
     const { frames, sink } = collector()
-    host.open("t1::tab1", { argv: ["/bin/cat"], cwd: process.cwd(), env: {} }, {}, sink)
+    host.open("t1::tab1", SPEC, {}, sink)
     host.write("t1::tab1", "written-before-close\n")
     await until(() => dataText(frames).includes("written-before-close"))
     expect(loadFrozenSessions(dir).length).toBe(1)

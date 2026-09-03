@@ -407,16 +407,29 @@ export function subtitleBudgetBlock(): string[] {
   return lines
 }
 
-/** The PR-check chip is a pure map from the daemon-written `checkState`. */
+/**
+ * The PR-check chip: a pure map from the daemon-written `checkState`, crossed
+ * with `lastError` — the field the poller sets when `gh` could not reach the
+ * provider. A stale chip keeps its GLYPH (the last good reading is still the
+ * best answer available) and loses its colour, so the pairs in this block read
+ * as the same fact twice: confirmed, and no longer being confirmed.
+ */
 export function prChipBlock(): string[] {
   const states = [undefined, "none", "unknown", "passing", "failing", "pending"] as const
-  return states.map((checkState) => {
-    const subject = task({
-      prStatus: checkState === undefined ? undefined : ({ checkState } as Task["prStatus"]),
-    })
-    const chip = prCheckChip(subject)
-    return `${pad(`checkState=${checkState ?? "<no prStatus>"}`, 28)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`
-  })
+  const lines: string[] = []
+  for (const checkState of states) {
+    for (const lastError of [undefined, "gh: could not resolve host"]) {
+      const subject = task({
+        prStatus:
+          checkState === undefined ? undefined : ({ checkState, ...(lastError ? { lastError } : {}) } as Task["prStatus"]),
+      })
+      const chip = prCheckChip(subject)
+      lines.push(
+        `${pad(`checkState=${checkState ?? "<no prStatus>"}`, 28)} ${pad(`stale=${lastError ? "1" : "0"}`, 8)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`,
+      )
+    }
+  }
+  return lines
 }
 
 /**

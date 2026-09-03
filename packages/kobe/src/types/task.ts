@@ -214,13 +214,6 @@ export interface Task {
   readonly command?: string
   readonly prStatus?: TaskPRStatus
   /**
-   * Manual ordering key within a status column on the WEB BOARD only —
-   * a sparse fractional number assigned by `task.reorder` drops. The TUI
-   * sidebar never reads it (tasks.json array order stays the TUI's
-   * `default` sort). Cards without one sort by creation time on the board.
-   */
-  readonly position?: number
-  /**
    * Reasoning/effort level for the task's engine, when the vendor supports
    * one (codex: `none`/`low`/`medium`/`high`/`xhigh`). Optional + additive:
    * missing records load unchanged, and a vendor with no effort levels

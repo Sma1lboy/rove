@@ -50,7 +50,6 @@ export interface Task {
   vendor?: Vendor
   prStatus?: TaskPRStatus
   /** Web-board ordering key (sparse fractional; absent until first drop). */
-  position?: number
   /** Selected reasoning/effort level for the task's engine (mirrors the
    *  daemon's SerializedTask.modelEffort) — surfaced in the issue detail
    *  drawer's engine+effort picker. The task does not reverse-reference its

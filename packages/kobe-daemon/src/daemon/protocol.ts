@@ -177,10 +177,6 @@ export type DaemonRequestName =
   // Deliberately NOT web-exposed: the browser has no reason to write another
   // task's brief, and the web allowlist is a security contract.
   | "task.setPrompt"
-  // Web-board ordering (docs/design/web-kanban.md M3): batch-assign sparse
-  // fractional `position` keys for per-status column order. ONE snapshot
-  // push per batch; the TUI never reads `position`.
-  | "task.reorder"
   | "task.ensureMain"
   // Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
   | "task.openDir"
@@ -367,8 +363,6 @@ export interface SerializedTask {
   /** Raw engine launch command as given to `add --command` / `set-command`. */
   readonly command?: DaemonTask["command"]
   readonly prStatus?: DaemonTask["prStatus"]
-  /** Web-board ordering key (sparse fractional; absent until first drop). */
-  readonly position?: number
   /** Engine reasoning/effort level, when the vendor supports one. */
   readonly modelEffort?: string
   /** Fan-out round marker shared by the siblings of one fan-out call. */
@@ -418,7 +412,6 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     vendor: task.vendor,
     command: task.command,
     prStatus: task.prStatus,
-    position: task.position,
     modelEffort: task.modelEffort,
     groupId: task.groupId,
     observedLanguage: task.observedLanguage,

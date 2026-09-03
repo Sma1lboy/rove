@@ -30,7 +30,6 @@ const EXPOSED: readonly DaemonRequestName[] = [
   "task.pin",
   "task.move",
   "task.status",
-  "task.reorder",
   "task.ensureMain",
   "task.openDir",
   "task.adoptScratchRepo",

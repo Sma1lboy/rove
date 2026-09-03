@@ -47,7 +47,6 @@ const FULL: DeepRequired<SerializedTask> = {
   vendor: "claude",
   command: "claude --continue",
   observedLanguage: "zh",
-  position: 3.5,
   modelEffort: "high",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
   prStatus: {
