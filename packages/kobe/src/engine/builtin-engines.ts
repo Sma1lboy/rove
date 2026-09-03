@@ -38,6 +38,7 @@ import { CODEX_SCREEN_MANIFEST } from "./codex-local/screen.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
+import { trustCopilotWorktree } from "./copilot-local/trust.ts"
 import {
   EMPTY_HISTORY,
   claudeHistoryReader,
@@ -167,6 +168,7 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     createHookAdapter: () => new NoopHookAdapter("copilot"),
     // Copilot persists no turn-completion marker kobe can read yet.
     createTurnDetector: () => new UnknownTurnDetector("copilot"),
+    trustWorktree: trustCopilotWorktree,
     screenManifest: COPILOT_SCREEN_MANIFEST,
   },
   kimi: {
