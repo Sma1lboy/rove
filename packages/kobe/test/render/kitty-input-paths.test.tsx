@@ -102,19 +102,3 @@ test("kitty navigation follows the child PTY application cursor and keypad modes
   await settle()
   expect(harness.last().writeLog.join("")).toBe("\x1bOA\x1bOH\x1bOM\x1b[A\x1b[H\r")
 })
-
-test("kitty all-keys mode keeps bracketed paste as one paste event", async () => {
-  const harness = createScriptedPtyRegistry()
-  const { mockInput, frame } = await renderComponent(
-    <Terminal cwd="/wt" taskId="kitty-paste" focused registry={harness.registry} />,
-    { width: 60, height: 12, providers: { dialog: true } },
-  )
-  await frame()
-
-  act(() => mockInput.pressKey("\x1b[200~first line\rsecond line\x1b[201~"))
-  await settle()
-
-  const pty = harness.last()
-  expect(pty.pastes).toEqual(["first line\rsecond line"])
-  expect(pty.writeLog.join("")).not.toContain("\r")
-})

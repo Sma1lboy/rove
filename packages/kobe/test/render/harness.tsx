@@ -75,10 +75,22 @@ export interface RenderHandle {
 }
 
 // Tracks the most recently created renderer so `afterEach` can destroy it even
-// if a test forgets to (or fails before its own destroy). `renderer.destroy()`
-// runs the React root's `unmount()` inside act(), so component effect cleanups
-// (e.g. the module-level `useBindings` stack) drain between tests — otherwise
-// stale key handlers leak across tests in the same file.
+// if a test forgets to (or fails before its own destroy).
+//
+// Destroying it does NOT reliably drain the module-global `useBindings` stack.
+// Measured on the full suite: 30 `renderComponent` calls across 9 files start
+// with a `modalOwner` barrier still registered from an earlier test, and in 7
+// of them the barrier is still there on the line after `destroy()` returned —
+// no throw, the effect cleanup just never ran. `liveRenderer` also only ever
+// holds the LAST renderer, so a test that calls `renderComponent` twice
+// abandons the first one entirely: never destroyed, tree still live, pending
+// timers in it still firing after the test ended.
+//
+// So: assume stale key registrations carry into the next test. The one thing
+// that clears them is `ensureInstalled` in src/tui-react/lib/keymap.ts, which
+// wipes the stack when the next test's first `useBindings` render installs a
+// new renderer — and which stops an abandoned tree from registering back into
+// the live stack afterwards (test/render/keymap-superseded-modal-leak).
 let liveRenderer: TestRenderer | null = null
 
 // opentui/core's process-wide TerminalConsoleCache singleton picks up one
