@@ -275,11 +275,10 @@ describe("terminal tabs state", () => {
   it("recycleTabs keeps the exited tab's title/autoTitle on the fresh tab", () => {
     let s = setTabAutoTitle(initialTabs(), "tab-1", "fix the resize race")
     s = renameActiveTab(s, "my name")
-    const fresh = recycleTabs(s.tabs[0])
+    const fresh = recycleTabs(s, s.tabs[0])
     expect(fresh.tabs).toHaveLength(1)
     expect(fresh.tabs[0]).toMatchObject({
       kind: "engine",
-      id: "tab-1",
       title: "my name",
       autoTitle: "fix the resize race",
     })
@@ -287,7 +286,40 @@ describe("terminal tabs state", () => {
     expect((fresh.tabs[0] as EngineTab).sessionId).toBeUndefined()
     expect((fresh.tabs[0] as EngineTab).spawned).toBeUndefined()
     // An untitled tab recycles untitled — nothing invented.
-    expect(recycleTabs(initialTabs().tabs[0]).tabs[0]).toMatchObject({ title: null })
+    const bare = initialTabs()
+    expect(recycleTabs(bare, bare.tabs[0]).tabs[0]).toMatchObject({ title: null })
+  })
+
+  // Why: the recycle used to hand back `initialTabs()` wholesale, which
+  // dropped the tab's PINNED engine — a tab the user pointed at Codex came
+  // back running the TASK's engine while still wearing the Codex
+  // conversation's title, so the swap was invisible. `reopenHintFor` already
+  // carries `vendor` for the sibling revive path; recycle must too.
+  it("recycleTabs carries the exited tab's pinned vendor and engineCommand", () => {
+    const s: TabsState = {
+      tabs: [{ kind: "engine", id: "tab-3", title: null, ordinal: 3, vendor: "codex", engineCommand: "codex --yolo" }],
+      activeId: "tab-3",
+      nextOrdinal: 4,
+    }
+    expect(recycleTabs(s, s.tabs[0]).tabs[0]).toMatchObject({ vendor: "codex", engineCommand: "codex --yolo" })
+  })
+
+  // Why: `TabBase.id` is "never reused within a task" — inbox episodes and
+  // the orphan-adoption suppression in terminal-tabs-close.ts are both keyed
+  // `(taskId, tabId)`. Resetting to `tab-1` handed the recycled tab a dead
+  // tab's episodes and its in-flight suppression. `reopenTabs` already
+  // consumes `nextOrdinal`; recycle must too.
+  it("recycleTabs mints a fresh id from nextOrdinal instead of reusing tab-1", () => {
+    let s = initialTabs()
+    s = addTab(s) // tab-2
+    s = addTab(s) // tab-3
+    const recycled = recycleTabs(s, s.tabs[2])
+    expect(recycled.tabs[0]?.id).toBe("tab-4")
+    expect(recycled.tabs[0]?.ordinal).toBe(4)
+    expect(recycled.activeId).toBe("tab-4")
+    expect(recycled.nextOrdinal).toBe(5)
+    // Never rewinds onto an id this task already handed out.
+    for (const used of s.tabs) expect(recycled.tabs[0]?.id).not.toBe(used.id)
   })
 
   // Why: closing the engine leaf (`leaf-1`) inside a split keeps `kind:

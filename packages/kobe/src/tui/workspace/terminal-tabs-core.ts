@@ -392,17 +392,43 @@ export function rehydrateTabs(
 }
 
 /**
- * Recycle-in-place state for the last tab's exit: a fresh engine tab
- * (new session, ordinal 1) that KEEPS the exited tab's name — user
- * `title` and `autoTitle` carry over, so the strip doesn't visibly
- * rename itself on every recycle. The carried autoTitle also blocks the
- * naming pass from deriving a new one (its `!title && !autoTitle`
- * self-limit), which was the "title changes every recycle" bug.
+ * Recycle-in-place state for the last tab's exit: a fresh engine tab (new
+ * session) that KEEPS the exited tab's name — user `title` and `autoTitle`
+ * carry over, so the strip doesn't visibly rename itself on every recycle.
+ * The carried autoTitle also blocks the naming pass from deriving a new one
+ * (its `!title && !autoTitle` self-limit), which was the "title changes
+ * every recycle" bug.
+ *
+ * The tab's PINNED engine carries over too (`vendor`/`engineCommand`), the
+ * same way {@link reopenHintFor} carries it for the revive path: a tab the
+ * user pointed at Codex must not come back as the task's engine while still
+ * wearing the Codex conversation's title.
+ *
+ * The id is minted from `state.nextOrdinal` rather than reset to `tab-1`,
+ * because `TabBase.id` is never reused within a task: inbox episodes and the
+ * orphan-adoption suppression in `terminal-tabs-close.ts` are both keyed
+ * `(taskId, tabId)`, so a recycled `tab-1` would inherit a dead tab's
+ * episodes and its in-flight suppression.
  */
-export function recycleTabs(prev: TerminalTab): TabsState {
-  const fresh = initialTabs()
-  const tabs = [{ ...fresh.tabs[0], title: prev.title, autoTitle: prev.autoTitle }]
-  return { ...fresh, tabs }
+export function recycleTabs(state: TabsState, prev: TerminalTab): TabsState {
+  const ordinal = state.nextOrdinal
+  const id = `tab-${ordinal}`
+  const pinned = prev.kind === "engine" ? prev : undefined
+  return {
+    tabs: [
+      {
+        kind: "engine",
+        id,
+        ordinal,
+        title: prev.title,
+        autoTitle: prev.autoTitle,
+        ...(pinned?.vendor ? { vendor: pinned.vendor } : {}),
+        ...(pinned?.engineCommand ? { engineCommand: pinned.engineCommand } : {}),
+      },
+    ],
+    activeId: id,
+    nextOrdinal: ordinal + 1,
+  }
 }
 
 /** Cycle the active tab by ±1, wrapping at the ends. */

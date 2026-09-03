@@ -422,6 +422,27 @@ answer `setStatus` and the two copies got: the capability exists now, and a
 chord can be added later if reaching for the mouse turns out to be the
 friction rather than the safety.
 
+## `<prefix> w` closes the tab when there is no split
+
+No chord was added or moved. `ctrl+w` and `<prefix> w` are one documented
+gesture — "close the active split, otherwise the tab" — split across two
+registry rows that are mutually gated so exactly one is live:
+`workspace.split.close` while the active tab is split, `chat.tab.close`
+otherwise.
+
+Only the split row declared `prefixKeys: ["w"]`. On an unsplit tab the second
+stroke therefore found no enabled prefix binding, and the dispatcher CONSUMES
+a prefix miss on purpose (so a deliberate sequence can never type into a
+terminal). The key was eaten, silently, while `KEYBINDINGS.md`, the row's own
+F1 help text and its i18n twin all promised it closed the tab.
+
+The fix gives `chat.tab.close` the same `prefixKeys: ["w"]` its twin already
+had, so whichever row the gate leaves live owns BOTH strokes. Nothing new is
+reachable that the direct chord did not already reach, and no other binding
+loses a key. Its handler is wrapped in `prefixAction` for the same reason the
+split row's is: the prefix HUD's clickable option resolves through `action`,
+not `cmd`.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and
