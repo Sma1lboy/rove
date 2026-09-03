@@ -163,9 +163,9 @@ export function useTabClose(deps: TabCloseDeps): TabClose {
     // not visibly rename the tab.
     getDefaultPtyRegistry().release(tabPtyKeyFor(taskId(), active))
     deps.resumeTriedRef.current.clear()
-    const fresh = deps.pinSession(recycleTabs(active), undefined)
-    deps.updateRef.current(fresh)
-    if (fresh.activeId === active.id) deps.bumpResetToken()
+    // The recycled tab gets a NEW id, so its `${taskId}::${tabId}` pty key
+    // differs and Terminal re-acquires on its own — no resetToken nudge.
+    deps.updateRef.current(deps.pinSession(recycleTabs(deps.stateRef.current, active), undefined))
   }
 
   return { closeActive, closeById, closeExited, handleActiveExit }

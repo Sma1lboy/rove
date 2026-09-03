@@ -116,8 +116,14 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
   {
     id: "chat.tab.close",
     scope: "workspace",
-    // Direct-only, same as chat.tab.new.
+    // ctrl+w AND prefix-w, mirroring workspace.split.close exactly. The two
+    // rows are mutually gated (see that row's comment), so whichever is live
+    // owns BOTH strokes: without the prefix half here, `<prefix> w` on an
+    // unsplit tab found no enabled prefix binding and was swallowed, while
+    // docs/KEYBINDINGS.md and the split row's own help text
+    // ("Close active split (tab when unsplit)") both promise it closes the tab.
     keys: ["ctrl+w"],
+    prefixKeys: ["w"],
     category: "Workspace",
     description: "Close chat tab",
     hint: { keys: "ctrl+w" },
@@ -224,12 +230,13 @@ export const CHAT_BINDINGS: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Same chord as chat.tab.close, contextual scope: while the tab is
-    // SPLIT, ctrl+w closes the active leaf (the innermost thing — VS
-    // Code/iTerm/Warp convention). Resolution is mutual
+    // Same chords as chat.tab.close (ctrl+w and prefix-w), contextual scope:
+    // while the tab is SPLIT they close the active leaf (the innermost thing
+    // — VS Code/iTerm/Warp convention). Resolution is mutual
     // gating (React stacks ancestors on top — see tui-react/lib/keymap.ts):
     // TerminalSplit enables this entry only when split, and TerminalTabs
-    // disables its close-tab entry while split, so exactly one is live.
+    // disables its close-tab entry while split, so exactly one is live — and
+    // whichever it is owns BOTH strokes.
     id: "workspace.split.close",
     scope: "workspace",
     keys: ["ctrl+w"],

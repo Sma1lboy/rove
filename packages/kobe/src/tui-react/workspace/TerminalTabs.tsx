@@ -59,7 +59,6 @@ import {
   initialShellTabs,
   initialTabs,
   isTabSplit,
-  recycleTabs,
   rehydrateTabs,
   renameActiveTab,
   selectTab,
@@ -425,7 +424,9 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
   useBindings(() => ({
     enabled: props.focused && !activeIsSplit,
     bindings: bindByIds({
-      "chat.tab.close": () => tabClose.closeActive(),
+      // prefixAction so the prefix HUD's clickable option resolves too —
+      // the mouse path needs `action`, not just `cmd`.
+      "chat.tab.close": prefixAction(() => tabClose.closeActive()),
       "chat.tab.rename": requestRename,
     }),
   }))

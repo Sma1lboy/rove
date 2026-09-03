@@ -169,3 +169,27 @@ export interface ContentTab extends TabBase {
  * tab, close-on-exit without a command) cannot be represented.
  */
 export type TerminalTab = EngineTab | CommandTab | ContentTab
+
+/**
+ * A task's whole tab list, as persisted. The SHAPE of the list lives beside
+ * the shape of a tab; who is allowed to produce one from what is
+ * `terminal-tabs-lifecycle.ts` (start / restart / revive / recycle) and
+ * `terminal-tabs-core.ts` (a user action on an existing list).
+ */
+export interface TabsState {
+  readonly tabs: readonly TerminalTab[]
+  readonly activeId: string
+  /** Next ordinal to hand out (monotonic — close does not recycle). */
+  readonly nextOrdinal: number
+  /**
+   * What the LAST tab was, recorded as it closed, so re-entering an emptied
+   * task reopens the same kind of session instead of always an engine
+   * ({@link reopenTabs}). Only set when `tabs` is empty — a task with tabs
+   * doesn't need it, and a stale value would outlive its meaning.
+   *
+   * An older snapshot simply lacks the field, so {@link reopenTabs} treats
+   * absence as "use the default" rather than as an error: upgrading in place
+   * has to stay silent.
+   */
+  readonly reopenAs?: { readonly kind: "engine"; readonly vendor?: VendorId } | { readonly kind: "command" }
+}
