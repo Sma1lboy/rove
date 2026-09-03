@@ -69,6 +69,25 @@ export function engineDisplayName(vendor: VendorId): string {
 }
 
 /**
+ * Turn a custom-engine slug into a presentable display name: split on
+ * `-`/`_` and title-case each word. `my-local-agent` → `My Local Agent`.
+ * Used so a custom engine added with no name still reads like the
+ * title-cased built-ins instead of its raw lowercase-hyphenated id.
+ *
+ * Deliberately a PURE string transform, unlike {@link engineDisplayName}: this
+ * is the fallback written INTO `engineName.<id>` when the user typed no name,
+ * so consulting the override here would overwrite a user-typed name with the
+ * title-cased slug on the next write.
+ */
+export function humanizeSlug(id: string): string {
+  return id
+    .split(/[-_]+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+}
+
+/**
  * Built-in default launch argv for a vendor (undefined → claude), read
  * from the engine registry. A custom engine id has no built-in default —
  * its command lives in the `engineCommand.<id>` override the user set when

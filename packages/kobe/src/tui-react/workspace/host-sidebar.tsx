@@ -3,9 +3,14 @@
  * The workspace host's left rail — which sidebar renders, and its wiring.
  *
  * Its own component because `host.tsx` should compose the workspace, not know
- * how one rail is wired. The ~30 props below are that wiring made explicit —
+ * how one rail is wired. The props below are that wiring made explicit —
  * having to pass them is the honest cost of the boundary, and it is why a new
  * sidebar concern lands here instead of accreting on the host.
+ *
+ * The fourteen task-lifecycle callbacks are NOT re-declared here: they come
+ * from {@link SidebarTaskCallbacks}, whose whole point is that the surfaces
+ * can't drift. They arrive here REQUIRED (the host supplies every one) except
+ * `onLandRequest`, which stays optional exactly as the shared type has it.
  */
 
 import type { TaskEngineState, TaskJobState } from "@/client/remote-orchestrator"
@@ -20,11 +25,14 @@ import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { SidebarTree } from "../panes/sidebar/SidebarTree"
+import type { SidebarTaskCallbacks } from "../panes/sidebar/types"
 import { closeTaskTab } from "./terminal-tabs-close"
 import { moveTaskTab } from "./terminal-tabs-move"
 import { requestNewTab } from "./terminal-tabs-shared"
 
-export interface HostSidebarProps {
+export interface HostSidebarProps
+  extends Readonly<Required<Omit<SidebarTaskCallbacks, "onLandRequest">>>,
+    Readonly<Pick<SidebarTaskCallbacks, "onLandRequest">> {
   readonly width: number
   readonly nav: SidebarNav
   readonly onNavChange: (nav: SidebarNav) => void
@@ -43,26 +51,6 @@ export interface HostSidebarProps {
   readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
   readonly transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
   readonly onAddTask: () => void
-  readonly onDeleteRequest: (taskId: string) => void
-  readonly onLandRequest?: (taskId: string) => void
-  readonly onRenameRequest: (taskId: string) => void
-  readonly onPinRequest: (taskId: string) => void
-  /** Menu-only (no chord): open the board-status picker for the row's task. */
-  readonly onSetStatusRequest: (taskId: string) => void
-  /** Menu-only (no chord): copy the row's branch name or worktree path. */
-  readonly onCopyRequest: (taskId: string, field: "branch" | "path") => void
-  /** Menu-only (no chord): re-fire the row's stored brief as a new task. */
-  readonly onRunAgainRequest: (taskId: string) => void
-  /** Menu routes of the `o` / `b` / `v` chords, landing on the ROW's task. */
-  readonly onOpenEditorRequest: (taskId: string) => void
-  readonly onRenameBranchRequest: (taskId: string) => void
-  readonly onChangeEngineRequest: (taskId: string) => void
-  /** Menu-only (no chord): open the repo's field-notes reader. */
-  readonly onFieldNotesRequest: (repo: string) => void
-  readonly moveMode: boolean
-  readonly onMoveRequest: (taskId: string, delta: -1 | 1) => void
-  readonly onMoveModeExit: () => void
-  readonly onLocalMergeRequest: (taskId: string) => void
   readonly onSearchActiveChange: (active: boolean) => void
   readonly headerStatus: { label: string; emphasize: boolean }
   readonly onHeaderStatusClick: () => void
@@ -81,6 +69,7 @@ export interface HostSidebarProps {
 }
 
 export function HostSidebar(props: HostSidebarProps) {
+  const { onFocusRequest: _rail, recentTask: _recent, ...treeProps } = props
   const { theme } = useTheme()
   const kv = useKV()
   const notif = useNotifications()
@@ -121,46 +110,6 @@ export function HostSidebar(props: HostSidebarProps) {
     },
     [props.onActivate],
   )
-  const common = {
-    width: props.width,
-    nav: props.nav,
-    onNavChange: props.onNavChange,
-    tasks: props.tasks,
-    selectedId: props.selectedId,
-    onSelect: props.onSelect,
-    onActivate: props.onActivate,
-    engineState: props.engineState,
-    engineTabState: props.engineTabState,
-    engineLifecycle: props.engineLifecycle,
-    taskJobs: props.taskJobs,
-    worktreeChanges: props.worktreeChanges,
-    transcriptActivity: props.transcriptActivity,
-    focused: props.focused,
-    onDeleteRequest: props.onDeleteRequest,
-    onLandRequest: props.onLandRequest,
-    onRenameRequest: props.onRenameRequest,
-    onPinRequest: props.onPinRequest,
-    onSetStatusRequest: props.onSetStatusRequest,
-    onCopyRequest: props.onCopyRequest,
-    onRunAgainRequest: props.onRunAgainRequest,
-    onOpenEditorRequest: props.onOpenEditorRequest,
-    onRenameBranchRequest: props.onRenameBranchRequest,
-    onChangeEngineRequest: props.onChangeEngineRequest,
-    onFieldNotesRequest: props.onFieldNotesRequest,
-    onLocalMergeRequest: props.onLocalMergeRequest,
-    moveMode: props.moveMode,
-    onMoveRequest: props.onMoveRequest,
-    onMoveModeExit: props.onMoveModeExit,
-    onSearchActiveChange: props.onSearchActiveChange,
-    onAddTask: props.onAddTask,
-    headerStatus: props.headerStatus,
-    onHeaderStatusClick: props.onHeaderStatusClick,
-    updateChip: props.updateChip,
-    onUpdateChipClick: props.onUpdateChipClick,
-    zenActive: props.zenActive,
-    onZenClick: props.onZenClick,
-    sortMode: props.sortMode,
-  }
   return (
     <box
       width={props.width}
@@ -169,15 +118,15 @@ export function HostSidebar(props: HostSidebarProps) {
       backgroundColor={theme.backgroundPanel}
       onMouseUp={props.onFocusRequest}
     >
+      {/* HostSidebarProps is SidebarTreeProps plus the rail's own two props,
+          so the tree takes the rest wholesale rather than a re-listing of
+          thirty names that can silently fall out of date. */}
       <SidebarTree
-        {...common}
-        selectedTabId={props.selectedTabId}
-        onSelectTab={props.onSelectTab}
+        {...treeProps}
         onCloseTab={closeTab}
         onNewTab={newTab}
         onMoveTabRequest={moveTab}
         recentTask={props.recentTask ?? null}
-        cursorTaskIdRef={props.cursorTaskIdRef}
       />
       {/* First-use key hint (component/keyboard-hints.tsx): renders until
           the sidebar's own keys have been used, then never again. */}

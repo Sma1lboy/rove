@@ -25,6 +25,11 @@ export type VendorId = "claude" | "codex" | "copilot" | "kimi" | (string & {})
 export const BUILTIN_VENDORS = ["claude", "codex", "copilot", "kimi"] as const
 export type BuiltinVendorId = (typeof BUILTIN_VENDORS)[number]
 
+/** The engine everything falls back to: a fresh install's default, and where
+ *  `defaultVendor`/`lastSelectedVendor` land when the custom engine they named
+ *  is deleted. Named so those call sites stop spelling the literal. */
+export const DEFAULT_VENDOR: BuiltinVendorId = BUILTIN_VENDORS[0]
+
 /**
  * Built-in vendors, in cycle order. NB: this is the BUILT-IN set only;
  * surfaces that should also offer user-added engines (the new-task selector,

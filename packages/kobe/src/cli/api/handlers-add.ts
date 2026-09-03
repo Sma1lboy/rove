@@ -20,7 +20,7 @@ import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import type { TaskStatus } from "../../types/task.ts"
-import type { VendorId } from "../../types/vendor.ts"
+import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
@@ -227,7 +227,7 @@ async function addParallel(
   const choice = await engineChoice(ctx, repo)
   const plan: VendorId[] = agentsSpec
     ? parseAgentsSpec(agentsSpec)
-    : buildCountPlan(count ?? 1, choice.vendor ?? "claude")
+    : buildCountPlan(count ?? 1, choice.vendor ?? DEFAULT_VENDOR)
   if (plan.length > FANOUT_CAP) {
     throw new ApiError(
       `a parallel round of ${plan.length} exceeds the cap of ${FANOUT_CAP} — spawn in batches`,
