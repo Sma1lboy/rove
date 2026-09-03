@@ -143,6 +143,19 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
+  // Delegated straight to the vendor's own history reader: what counts as
+  // "context" is vendor arithmetic, and the neutral layers only render it.
+  async readEngineContextUsage(vendor, sessionId) {
+    const read = engineEntry(vendor).history.readUsageSnapshot
+    if (!read) return null
+    const snapshot = await read(sessionId)
+    if (snapshot?.context_tokens === undefined) return null
+    return {
+      contextTokens: snapshot.context_tokens,
+      ...(snapshot.context_window_tokens === undefined ? {} : { contextWindowTokens: snapshot.context_window_tokens }),
+      ...(snapshot.context_tokens_approximate ? { approximate: true } : {}),
+    }
+  },
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,

@@ -179,6 +179,56 @@ export function sameWorktreeChangesMap(a: WorktreeChangesMap, b: WorktreeChanges
 export type UsageSnapshotMap = ReadonlyMap<string, EngineQuotaUsage>
 
 /**
+ * Context-window occupancy per live engine session, keyed `taskId::tabId`,
+ * from the `usage.context` channel. `null` means "no daemon-collected data
+ * yet" (older daemon, nothing live) — the footer then renders nothing.
+ */
+export interface ContextUsage {
+  readonly contextTokens: number
+  readonly contextWindowTokens?: number
+  readonly approximate?: boolean
+}
+export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
+
+/**
+ * Parse a `usage.context` wire payload. `null` for a malformed one (the event
+ * is ignored rather than clobbering a good map). Each entry is validated
+ * field-by-field: this is a trust boundary, and one bad row drops the payload.
+ */
+export function parseContextUsagePayload(payload: unknown): Map<string, ContextUsage> | null {
+  const context = (payload as { context?: unknown } | undefined)?.context
+  if (!context || typeof context !== "object" || Array.isArray(context)) return null
+  const map = new Map<string, ContextUsage>()
+  for (const [key, value] of Object.entries(context as Record<string, unknown>)) {
+    const v = value as { contextTokens?: unknown; contextWindowTokens?: unknown; approximate?: unknown } | undefined
+    if (typeof v?.contextTokens !== "number") return null
+    if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
+    map.set(key, {
+      contextTokens: v.contextTokens,
+      ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
+      ...(v.approximate === true ? { approximate: true } : {}),
+    })
+  }
+  return map
+}
+
+/** Value equality for two context maps (gate re-renders on real changes). */
+export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boolean {
+  if (a.size !== b.size) return false
+  for (const [key, value] of a) {
+    const other = b.get(key)
+    if (
+      !other ||
+      other.contextTokens !== value.contextTokens ||
+      other.contextWindowTokens !== value.contextWindowTokens ||
+      other.approximate !== value.approximate
+    )
+      return false
+  }
+  return true
+}
+
+/**
  * Folded `engine.lifecycle` state per task — the sidebar's subagent mark.
  * Compaction deliberately keeps NO client state: its end event can be
  * cancelled (esc during /compact), so a compacting flag has no reliable
@@ -352,6 +402,8 @@ export interface OrchestratorSignals {
   readonly setWorktreeChangesSig: (next: WorktreeChangesMap | null) => void
   readonly usageSnapshotAcc: ReadableState<UsageSnapshotMap | null>
   readonly setUsageSnapshotSig: (next: UsageSnapshotMap | null) => void
+  readonly contextUsageAcc: ReadableState<ContextUsageMap | null>
+  readonly setContextUsageSig: (next: ContextUsageMap | null) => void
   readonly transcriptActivityAcc: ReadableState<TranscriptActivityMap | null>
   readonly setTranscriptActivitySig: (next: TranscriptActivityMap | null) => void
   readonly setNoticeSig: (next: NoticeEventPayload | null) => void

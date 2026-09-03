@@ -36,6 +36,7 @@ import { performInit, runReconnectLoop } from "./remote-orchestrator-connect.ts"
 import { handleOrchestratorEvent } from "./remote-orchestrator-events.ts"
 import {
   type AttentionInboxItem,
+  type ContextUsageMap,
   type DaemonConnectionState,
   type EngineLifecycleMap,
   type EngineTabStateMap,
@@ -94,6 +95,7 @@ export class RemoteOrchestrator {
   private readonly taskJobsAcc = createStateCell<ReadonlyMap<string, TaskJobState>>(new Map())
   private readonly worktreeChangesAcc = createStateCell<WorktreeChangesMap | null>(null)
   private readonly usageSnapshotAcc = createStateCell<UsageSnapshotMap | null>(null)
+  private readonly contextUsageAcc = createStateCell<ContextUsageMap | null>(null)
   private readonly transcriptActivityAcc = createStateCell<TranscriptActivityMap | null>(null)
   private readonly noticeAcc = createStateCell<NoticeEventPayload | null>(null)
   private readonly tabOpenAcc = createStateCell<TabOpenPayload | null>(null)
@@ -144,6 +146,8 @@ export class RemoteOrchestrator {
       setWorktreeChangesSig: this.worktreeChangesAcc.set,
       usageSnapshotAcc: this.usageSnapshotAcc,
       setUsageSnapshotSig: this.usageSnapshotAcc.set,
+      contextUsageAcc: this.contextUsageAcc,
+      setContextUsageSig: this.contextUsageAcc.set,
       transcriptActivityAcc: this.transcriptActivityAcc,
       setTranscriptActivitySig: this.transcriptActivityAcc.set,
       setNoticeSig: this.noticeAcc.set,
@@ -168,6 +172,7 @@ export class RemoteOrchestrator {
       taskJobsAcc: this.taskJobsAcc,
       worktreeChangesAcc: this.worktreeChangesAcc,
       usageSnapshotAcc: this.usageSnapshotAcc,
+      contextUsageAcc: this.contextUsageAcc,
       transcriptActivityAcc: this.transcriptActivityAcc,
       transcriptActivityStoreInner: this.transcriptActivityAcc,
       noticeAcc: this.noticeAcc,
@@ -290,6 +295,8 @@ export class RemoteOrchestrator {
     reads.worktreeChangesSignalOp(this.reads)
 
   readonly usageSnapshotSignal = (): ReadableState<UsageSnapshotMap | null> => reads.usageSnapshotSignalOp(this.reads)
+  /** Per-session context occupancy (`usage.context`) — the footer's ctx meter. */
+  readonly contextUsageSignal = (): ReadableState<ContextUsageMap | null> => reads.contextUsageSignalOp(this.reads)
 
   readonly transcriptActivitySignal = (): ReadableState<TranscriptActivityMap | null> =>
     reads.transcriptActivitySignalOp(this.reads)

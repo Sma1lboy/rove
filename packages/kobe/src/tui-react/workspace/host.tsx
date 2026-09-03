@@ -309,7 +309,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     )
 
   return (
-    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings} banner={banner.element}>
+    <WorkspaceFrame
+      orchestrator={orch}
+      onOpenSettings={pages.openSettings}
+      banner={banner.element}
+      activeTaskId={selectedId}
+      activeTabId={selectedTabId}
+    >
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
           ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —

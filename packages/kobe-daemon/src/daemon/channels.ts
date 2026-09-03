@@ -10,6 +10,7 @@ import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
 import type {
   AttentionInboxItem,
   EngineActivityDetail,
+  EngineContextUsage,
   EngineQuotaUsage,
   TaskActivityState,
   UpdateInfo,
@@ -254,6 +255,20 @@ export interface ChannelPayloads {
    */
   "usage.snapshot": {
     usage: Record<string, EngineQuotaUsage>
+  }
+  /**
+   * Per-SESSION context-window occupancy, keyed `taskId::tabId` — the
+   * workspace footer's `ctx 62%` meter. The sibling of `usage.snapshot`, and
+   * deliberately a separate channel rather than a second field on it: the two
+   * have different producers and different cadences, and one last-value slot
+   * per channel means a co-tenant would clobber the other's replay.
+   *
+   * STATE channel, full-map-replace like `worktree.changes`. A session whose
+   * engine reports no usage simply never appears — the footer then renders
+   * nothing, which is the honest answer, not a zero.
+   */
+  "usage.context": {
+    context: Record<string, EngineContextUsage>
   }
   /**
    * One "ask the human for a line of text" request (`kobe api prompt` —

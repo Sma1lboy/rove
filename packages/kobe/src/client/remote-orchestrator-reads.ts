@@ -21,6 +21,7 @@ import type { Task, TaskId } from "../types/task.ts"
 import type { UpdateInfo } from "../version.ts"
 import type {
   AttentionInboxItem,
+  ContextUsageMap,
   DaemonConnectionState,
   EngineTabStateMap,
   TaskEngineState,
@@ -43,6 +44,7 @@ export interface ReadSignals {
   readonly taskJobsAcc: ReadableState<ReadonlyMap<string, TaskJobState>>
   readonly worktreeChangesAcc: ReadableState<WorktreeChangesMap | null>
   readonly usageSnapshotAcc: ReadableState<UsageSnapshotMap | null>
+  readonly contextUsageAcc: ReadableState<ContextUsageMap | null>
   readonly transcriptActivityAcc: ReadableState<TranscriptActivityMap | null>
   readonly transcriptActivityStoreInner: ExternalStore<TranscriptActivityMap | null>
   readonly noticeAcc: ReadableState<NoticeEventPayload | null>
@@ -157,6 +159,11 @@ export function worktreeChangesSignalOp(s: ReadSignals): ReadableState<WorktreeC
  */
 export function usageSnapshotSignalOp(s: ReadSignals): ReadableState<UsageSnapshotMap | null> {
   return s.usageSnapshotAcc
+}
+
+/** Per-session context occupancy (`usage.context`) — the footer's ctx meter. */
+export function contextUsageSignalOp(s: ReadSignals): ReadableState<ContextUsageMap | null> {
+  return s.contextUsageAcc
 }
 
 /**

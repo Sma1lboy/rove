@@ -30,9 +30,11 @@ import {
   decodeUiPrefsPayload,
   describePayload,
   deserializeTask,
+  parseContextUsagePayload,
   parseTranscriptActivityPayload,
   parseUsageSnapshotPayload,
   parseWorktreeChangesPayload,
+  sameContextUsageMap,
   sameTranscriptActivityMap,
   sameUsageSnapshotMap,
   sameWorktreeChangesMap,
@@ -270,6 +272,17 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     const current = signals.usageSnapshotAcc()
     if (current && sameUsageSnapshotMap(current, next)) return
     signals.setUsageSnapshotSig(next)
+    return
+  }
+  if (name === "usage.context") {
+    const next = parseContextUsagePayload(payload)
+    if (!next) {
+      logClientError("orch", `dropped usage.context event: malformed context payload (${describePayload(payload)})`)
+      return
+    }
+    const current = signals.contextUsageAcc()
+    if (current && sameContextUsageMap(current, next)) return
+    signals.setContextUsageSig(next)
     return
   }
   if (name === "worktree.changes") {

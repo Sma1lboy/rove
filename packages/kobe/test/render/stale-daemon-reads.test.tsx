@@ -96,6 +96,7 @@ test("WorkspaceFrame renders a banner above the pane row", async () => {
   const usage = createStateCell(null)
   const orch = {
     usageSnapshotSignal: () => usage,
+    contextUsageSignal: () => createStateCell(null),
   } as unknown as RemoteOrchestrator
   const { frame } = await renderComponent(
     <WorkspaceFrame orchestrator={orch} banner={<text>TOP STRIP</text>}>

@@ -58,7 +58,10 @@ const CLOSED_PAGES: HostPagesState = {
 /** Minimal orchestrator stand-in — the frame only reads the usage signal. */
 function fakeOrchestrator(): RemoteOrchestrator {
   const cell = createStateCell(null)
-  return { usageSnapshotSignal: () => cell } as unknown as RemoteOrchestrator
+  return {
+    usageSnapshotSignal: () => cell,
+    contextUsageSignal: () => createStateCell(null),
+  } as unknown as RemoteOrchestrator
 }
 
 /** Find a substring's cell coordinates in a captured char frame. */

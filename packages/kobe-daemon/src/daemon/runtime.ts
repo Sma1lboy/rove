@@ -4,6 +4,7 @@ import type {
   DaemonOrchestrator,
   DaemonTask,
   EngineActivityKind,
+  EngineContextUsage,
   EngineQuotaUsage,
   UpdateInfo,
   VendorId,
@@ -87,6 +88,14 @@ export interface DaemonRuntimeAdapter {
    *  falls back to its own resolution ladder when it is absent or stale, and
    *  omits `behind` when nothing resolves. */
   runWorktreeStatus(worktreePath: string, signal: AbortSignal, baseRef?: string): Promise<WorktreeChanges>
+  /**
+   * The engine's own context-window reading for one live session. Delegated
+   * straight to the vendor's history reader — the daemon never sums vendor
+   * fields itself. `null` when the engine reports none (custom engines, a
+   * session with no transcript yet, kimi's unverified wire), which is
+   * different from a reported zero.
+   */
+  readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
   /** Remove a worktree. Resolves with the leftover directory when git
