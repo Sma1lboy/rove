@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.107
+
+### Patch Changes
+
+- [#848](https://github.com/Sma1lboy/rove/pull/848) [`ca8cea2`](https://github.com/Sma1lboy/rove/commit/ca8cea28a262c64c6927c8f4be41aa251a0b4db5) Plugins installed before the `.kobe` → `.rove` rename load again. The layout migration moved every checkout under `~/.rove/plugins/` but the registry kept naming the old tree, so Settings › Plugins showed "manifest unreadable" for all of them and the daemon enabled none. A managed root recorded under `~/.kobe/plugins/` is re-anchored on read; user-facing copy names the new path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#847](https://github.com/Sma1lboy/rove/pull/847) [`714a762`](https://github.com/Sma1lboy/rove/commit/714a762dec6138760f2b3cc23cea6d893c036a33) `tab` in the New task dialog's repo field now COMPLETES the highlighted suggestion instead of leaving the field. Typing `a`, seeing `academic-…` under it and pressing the key that finishes things in every shell used to land you on `from branch` with `a` still in the repo box — the dropdown had no key that finished a suggestion and stayed, so continuing meant clicking back. A second `tab`, with nothing left to complete, advances as before. Browsed directories complete one level DOWN and keep their trailing slash, so repeated `tab` walks a path the way a shell does; saved repos complete to their name and close the dropdown. The Clone tab's parent-directory field walks the same way, since it is the same picker. The walking slash no longer travels with the value, so `/i/rove/` and `/i/rove` file one repo rather than two. — [@ZHallen122](https://github.com/ZHallen122)
+
 ## 0.9.106
 
 ### Patch Changes
