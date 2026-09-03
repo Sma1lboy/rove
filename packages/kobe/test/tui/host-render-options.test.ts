@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  holdExitFor,
   hostRenderOptions,
   installBracketedPasteMode,
   installPaneExitBackstop,
+  whenExitReady,
 } from "../../src/tui/lib/host-render-options"
 import { createHostImeOutput } from "../../src/tui/lib/ime-anchor-output"
 
@@ -69,14 +71,67 @@ describe("installPaneExitBackstop", () => {
     for (const { signal, fn } of added.splice(0)) process.removeListener(signal, fn)
   })
 
-  it("registers one delayed-exit listener per teardown signal", () => {
+  /**
+   * Install, then hand back a trigger that calls the registered listener
+   * DIRECTLY. `process.emit("SIGTERM")` would also run vitest's own handlers
+   * and take the runner down with it.
+   */
+  function install(opts: { ceilingMs?: number; exit?: (code: number) => void }): () => void {
+    installPaneExitBackstop(opts)
+    const fn = process.listeners("SIGTERM").at(-1) as NodeJS.SignalsListener
+    for (const signal of SIGNALS) added.push({ signal, fn })
+    return () => fn("SIGTERM")
+  }
+
+  it("registers one exit listener per teardown signal", () => {
     const before = new Map(SIGNALS.map((s) => [s, process.listeners(s).length]))
-    installPaneExitBackstop()
+    install({ exit: () => {} })
     for (const signal of SIGNALS) {
-      const listeners = process.listeners(signal)
-      expect(listeners.length).toBe((before.get(signal) ?? 0) + 1)
-      added.push({ signal, fn: listeners.at(-1) as NodeJS.SignalsListener })
+      expect(process.listeners(signal).length).toBe((before.get(signal) ?? 0) + 1)
     }
+  })
+
+  it("exits as soon as nothing is in flight, rather than waiting out the ceiling", async () => {
+    const exits: number[] = []
+    // A ceiling this far out means only the readiness signal can end it.
+    install({ ceilingMs: 60_000, exit: (code) => exits.push(code) })()
+    await vi.waitFor(() => expect(exits).toEqual([0]))
+  })
+
+  it("holds the exit open until registered work settles", async () => {
+    let finishWork!: () => void
+    holdExitFor(
+      new Promise<void>((resolve) => {
+        finishWork = resolve
+      }),
+    )
+    const exits: number[] = []
+    install({ ceilingMs: 60_000, exit: (code) => exits.push(code) })()
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(exits, "exited while a kill-own-session flow was still orchestrating").toEqual([])
+
+    finishWork()
+    await vi.waitFor(() => expect(exits).toEqual([0]))
+  })
+
+  it("gives up at the ceiling and says so, instead of hanging on stuck work", async () => {
+    let abandon!: () => void
+    holdExitFor(
+      new Promise<void>((resolve) => {
+        abandon = resolve
+      }),
+    )
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {})
+    const exits: number[] = []
+    install({ ceilingMs: 20, exit: (code) => exits.push(code) })()
+
+    await vi.waitFor(() => expect(exits).toEqual([0]))
+    expect(logged.mock.calls[0]?.[0]).toContain("still in flight after 20ms")
+
+    logged.mockRestore()
+    abandon() // drain the module-level set for the next test
+    await whenExitReady()
   })
 })
 

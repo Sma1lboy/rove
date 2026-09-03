@@ -111,6 +111,47 @@ export function installBracketedPasteMode(stdout: NodeJS.WriteStream = process.s
 }
 
 /**
+ * Work a signal-triggered exit must not truncate.
+ *
+ * The backstop below used to stand in for this set with a flat five-second
+ * sleep, because some flows kill the session their own pane lives in and
+ * then keep orchestrating. A constant cannot know when that finished: it is
+ * simultaneously too long (an idle host sat there for five seconds doing
+ * nothing, and anything reading its state file raced its exit-flush) and too
+ * short (a slower rebuild is truncated anyway). Register the actual work
+ * instead and the exit follows it.
+ *
+ * Synchronous exit-time work — the KV flush, the bracketed-paste restore —
+ * needs nothing here: it runs on `process.on("exit")`, inside `process.exit`
+ * itself. Nothing holds this set today: the two flows the delay was written
+ * for (`togglePreview`, `ensureSession`) left with the tmux host, so the five
+ * seconds had become pure latency. This is the seam they would use.
+ */
+const exitCriticalWork = new Set<Promise<unknown>>()
+
+/**
+ * Hold a signal-triggered exit open until `work` settles. Returns `work`
+ * unchanged, so it wraps a call in place: `await holdExitFor(rebuild())`.
+ */
+export function holdExitFor<T>(work: Promise<T>): Promise<T> {
+  exitCriticalWork.add(work)
+  const forget = (): void => {
+    exitCriticalWork.delete(work)
+  }
+  work.then(forget, forget)
+  return work
+}
+
+/**
+ * Resolves once nothing is in flight. Work registered WHILE waiting still
+ * counts — a rebuild that kicks off a follow-up must not be cut in half —
+ * hence the loop rather than a single `allSettled`.
+ */
+export async function whenExitReady(): Promise<void> {
+  while (exitCriticalWork.size > 0) await Promise.allSettled([...exitCriticalWork])
+}
+
+/**
  * Exit-signal backstop (orphaned-helper leak): opentui's own exit handler
  * for SIGHUP/SIGTERM only destroys the renderer — it never calls
  * process.exit — and installing that listener replaced the signals' default
@@ -120,19 +161,37 @@ export function installBracketedPasteMode(stdout: NodeJS.WriteStream = process.s
  * tty, reparented to launchd. Register AFTER render resolves so opentui's
  * handler (terminal restore + onDestroy) runs first.
  *
- * The exit is DELAYED, not immediate: some flows kill the session their own
- * pane lives in and then keep orchestrating (togglePreview's
- * kill→rebuild→switch, ensureSession's vendor-switch rebuild) — an instant
- * exit on the incoming SIGHUP would truncate them. Five seconds is enough
- * for any in-flight tmux sequence; the pane is already gone from the
- * screen, so the tail is invisible.
+ * The exit waits on `whenExitReady()`, not on the clock. `ceilingMs` is a
+ * watchdog for work that never settles, and it says so in the log — a silent
+ * cap is indistinguishable from the fixed delay it replaced.
  */
-export function installPaneExitBackstop(): void {
+export function installPaneExitBackstop(opts: { ceilingMs?: number; exit?: (code: number) => void } = {}): void {
+  const ceilingMs = opts.ceilingMs ?? 5000
+  const exit = opts.exit ?? ((code: number) => process.exit(code))
   let exitScheduled = false
+  let exited = false
+  /** The ceiling and the readiness signal both fire on a slow hang; whichever
+   *  wins, the other must not re-enter (process.exit never returns, so this
+   *  only shows up under test — where a double exit is a false signal). */
+  const exitOnce = (): void => {
+    if (exited) return
+    exited = true
+    exit(0)
+  }
   const scheduleExit = () => {
     if (exitScheduled) return
     exitScheduled = true
-    setTimeout(() => process.exit(0), 5000)
+    const ceiling = setTimeout(() => {
+      console.error(
+        `[rove] exit backstop: ${exitCriticalWork.size} task(s) still in flight after ${ceilingMs}ms — exiting anyway`,
+      )
+      exitOnce()
+    }, ceilingMs)
+    ceiling.unref?.()
+    void whenExitReady().then(() => {
+      clearTimeout(ceiling)
+      exitOnce()
+    })
   }
   for (const signal of ["SIGHUP", "SIGTERM", "SIGINT"] as const) {
     process.on(signal, scheduleExit)
