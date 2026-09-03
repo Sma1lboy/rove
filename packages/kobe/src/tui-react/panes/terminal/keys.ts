@@ -49,6 +49,19 @@ export type TerminalBindingsOpts = {
   pageSize?: number
   /** Tear down the current PTY and spawn a fresh shell at the same worktree (F5, confirm-gated). */
   reset: () => void
+  /**
+   * The scrollback search row is open. Every passthrough entry AND the raw
+   * catch-all below switch off while it is: the query is captured by a raw
+   * listener that runs after them, so anything still forwarding would eat the
+   * keystroke (and type it into the shell) before the query ever saw it.
+   */
+  searchActive: boolean
+  /** Open the scrollback search row (prefix `/`). */
+  openSearch: () => void
+  /** Walk to the next (+1) / previous (-1) hit. */
+  stepSearch: (delta: 1 | -1) => void
+  /** Close the search row and restore the viewport it opened on. */
+  closeSearch: () => void
 }
 
 /**
@@ -74,6 +87,7 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
         "terminal.scroll-up": () => optsRef.current.scroll(-pageSizeRef.current),
         "terminal.scroll-down": () => optsRef.current.scroll(pageSizeRef.current),
         "terminal.reset": () => optsRef.current.reset(),
+        "terminal.search": () => optsRef.current.openSearch(),
       }),
     )
     const forward = (evt: KeyEvent): void => {
@@ -85,8 +99,25 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
   }, [])
 
   useBindings(() => ({
-    enabled: optsRef.current.focused,
+    enabled: optsRef.current.focused && !optsRef.current.searchActive,
     bindings,
+  }))
+
+  // Registered separately so it survives the gate above: while the query row
+  // owns the pane these are the only chords it offers. `up`/`down` reach it
+  // because the passthrough that normally forwards them to the shell is off.
+  const searchBindings = useMemo(
+    () =>
+      bindByIds({
+        "terminal.search.older": () => optsRef.current.stepSearch(-1),
+        "terminal.search.newer": () => optsRef.current.stepSearch(1),
+        "terminal.search.cancel": () => optsRef.current.closeSearch(),
+      }),
+    [],
+  )
+  useBindings(() => ({
+    enabled: optsRef.current.focused && optsRef.current.searchActive,
+    bindings: searchBindings,
   }))
 
   // Catch-all input forwarder for IME/pinyin composition commits and any
@@ -102,7 +133,8 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
     // in the PTY instead. The useBindings entries above are already cut off
     // by the modal barrier; raw listeners must gate themselves.
     const forwardUnhandled = (evt: KeyEvent) => {
-      if (!optsRef.current.focused || evt.defaultPrevented || modalActive()) return
+      if (!optsRef.current.focused || optsRef.current.searchActive) return
+      if (evt.defaultPrevented || modalActive()) return
       const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes == null) return
       optsRef.current.write(bytes)

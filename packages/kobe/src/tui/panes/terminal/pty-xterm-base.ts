@@ -225,6 +225,16 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     }
   }
 
+  get onAlternateScreen(): boolean {
+    if (this._killed) return false
+    try {
+      return this.term.buffer.active.type === "alternate"
+    } catch {
+      /* buffer probe is best-effort */
+      return false
+    }
+  }
+
   onData(
     cb: (snapshot: readonly TerminalRow[], cursor: CursorPos | null, window: TerminalSnapshotWindow | null) => void,
   ): () => void {

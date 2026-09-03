@@ -219,6 +219,25 @@ engine or shell does not receive them.
 The mouse wheel uses the same scrollback. Buffer size is configured in
 Settings → General → Terminal and applies to newly opened terminals.
 
+### Searching it
+
+`ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
+and each new query parks on the newest occurrence — a scrollback is read
+backwards, so the hit you want is nearly always the last one.
+
+| Key | Action |
+|---|---|
+| `ctrl+a` `/` | Open the query row |
+| `return` or `up` | Walk to the older match (wraps at the top) |
+| `down` | Walk to the newer match |
+| `escape` | Close the row and return to the scroll position you opened it at |
+
+Every hit on screen is highlighted; the one you are parked on is painted in
+the accent colour. The search covers Rove's own scrollback only — while a
+full-screen app (an engine, `vim`, `less`) is on the alternate screen it owns
+its buffer, and the row says so instead of searching one screen of somebody
+else's redraw.
+
 ## Inbox
 
 `ctrl+a` `i` opens it. What the sections mean and how items clear:

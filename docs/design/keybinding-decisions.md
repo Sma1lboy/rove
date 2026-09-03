@@ -443,6 +443,28 @@ loses a key. Its handler is wrapped in `prefixAction` for the same reason the
 split row's is: the prefix HUD's clickable option resolves through `action`,
 not `cmd`.
 
+## `ctrl+a` `/` — search the terminal scrollback (PROPOSED, awaiting sign-off)
+
+Prefix-only, and it has to be. The terminal pane forwards a bare `/` to the
+shell and must keep doing so, while the prefix's first stroke never passes
+through — so `/` as the SECOND stroke costs the shell nothing. `TRAPPED_KEYS`
+is unchanged. The letter mirrors the sidebar's bare `/`: one search key across
+the app, chosen for that rather than for being free.
+
+What it may shadow: nothing today. `ctrl+a` `/` resolved to no binding before
+this row, and the dispatcher consumed the miss.
+
+The walk keys are `return`/`up` (older) and `down` (newer), registered only
+while the query row is open — at which point the pane's passthrough is off, so
+the arrows are not being taken from the shell.
+
+`shift+return` was specified for "previous" and had to be dropped: without the
+kitty keyboard protocol a terminal sends the same CR byte for enter and
+shift+enter, so `matchKey` sees a plain `return` and the chord is a silently
+dead key. Rove keeps kitty's `allKeysAsEscapes` off deliberately (it crashes
+iTerm2's Chinese input — see `host-render-options.ts`), so this is not a
+temporary limitation. A render test pins the direction of every walk key.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

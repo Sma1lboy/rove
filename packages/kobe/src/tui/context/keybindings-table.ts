@@ -385,6 +385,52 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "f5" },
     presentation: "onePress",
   },
+  {
+    // PROPOSED chord, pending owner sign-off (docs/design/keybinding-decisions.md).
+    // Prefix-only: the terminal forwards a bare `/` to the shell and must keep
+    // doing so, and the prefix's first stroke never passes through. `/` as the
+    // second stroke mirrors the sidebar's bare `/` — one search key across the
+    // app. Adds nothing to TRAPPED_KEYS.
+    id: "terminal.search",
+    scope: "terminal",
+    keys: [],
+    prefixKeys: ["/"],
+    category: "Terminal",
+    description: "Search the scrollback",
+  },
+  {
+    // Search-mode walk, registered only while the query row is open. Named by
+    // DIRECTION rather than next/previous because a new query parks on the
+    // newest hit, so the useful first press goes back through history — and
+    // `return` is the obvious repeat key for that after typing.
+    //
+    // NOT `shift+return`: without the kitty keyboard protocol (which Rove
+    // keeps off — see host-render-options.ts) a terminal sends the same CR
+    // for enter and shift+enter, so `matchKey` sees a plain `return` and the
+    // chord would be a silently dead key.
+    id: "terminal.search.older",
+    scope: "terminal",
+    keys: ["up", "return"],
+    category: "Terminal",
+    description: "Scrollback search: walk to the older match",
+  },
+  {
+    id: "terminal.search.newer",
+    scope: "terminal",
+    keys: ["down"],
+    category: "Terminal",
+    description: "Scrollback search: walk to the newer match",
+  },
+  {
+    // Search-mode cancel — closes the row and restores the prior viewport.
+    // Only registered while searching; outside it the terminal passes esc
+    // through to the shell (vim depends on that).
+    id: "terminal.search.cancel",
+    scope: "terminal",
+    keys: ["escape"],
+    category: "Terminal",
+    description: "Close scrollback search (restore prior scroll position)",
+  },
   // NOTE: The terminal pane's bare-key passthrough (every alphanumeric /
   // named key forwarded to the PTY) is intentionally NOT in this table.
   // Those aren't user-configurable shortcuts — they're terminal-pane
