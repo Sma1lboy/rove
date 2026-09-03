@@ -1,7 +1,7 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { DAEMON_WEB_HEALTH_PATH, requiresWebToken } from "../../../kobe-daemon/src/daemon/web-server.ts"
 import { ensureWebToken, presentedToken, tokensMatch } from "../../../kobe-daemon/src/daemon/web-token.ts"
 import { type DaemonHarness, bootDaemonHarness } from "./harness.ts"
@@ -100,6 +100,78 @@ describe("web transport auth — disabled", () => {
     } finally {
       await harness.close()
     }
+  })
+})
+
+describe("the served shell never mints a token", () => {
+  // The regression this pins: `/` is outside `requiresWebToken` (a browser
+  // cannot attach a bearer header to the subresources it fetches itself), and
+  // the daemon used to inject the token into that ungated page. A `curl` with
+  // no Origin and no credential read the value out of the body and then drove
+  // the whole /api/* surface — including task.setCommand, i.e. arbitrary
+  // command execution — defeating the 0600 mode on the token file.
+  const SHELL = "<html><head></head><body>ok</body></html>"
+  let dir: string
+  let harness: DaemonHarness
+
+  beforeEach(async () => {
+    dir = mkdtempSync(join(tmpdir(), "kobe-web-static-"))
+    writeFileSync(join(dir, "index.html"), SHELL, "utf8")
+    // `staticResponse` reads through `Bun.file`, and this suite runs under
+    // vitest/node where that global does not exist. A Blob is the closest
+    // faithful stand-in: `new Response(blob)` and `.text()` behave the same,
+    // so the real handler, the real route table and the real injection
+    // decision all still run — only the file primitive is substituted.
+    vi.stubGlobal("Bun", {
+      file: (path: string) => {
+        const blob = new Blob([readFileSync(path, "utf8")], { type: "text/html" })
+        return Object.assign(blob, { exists: async () => existsSync(path) })
+      },
+    })
+    harness = await bootDaemonHarness({ web: { webToken: TOKEN, staticDir: dir } })
+  })
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await harness.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  const body = async (path: string, init?: RequestInit): Promise<string> => {
+    const res = await harness.web!.fetch(path, init)
+    expect(res.status).toBe(200)
+    return await res.text()
+  }
+
+  it("serves the shell to an anonymous caller WITHOUT the token", async () => {
+    const html = await body("/")
+    expect(html).not.toContain("rove-web-token")
+    expect(html).not.toContain(TOKEN)
+    expect(html).toContain("<body>ok</body>")
+  })
+
+  it("does not leak it through a wrong token either", async () => {
+    const html = await body("/", { headers: { authorization: "Bearer not-the-token" } })
+    expect(html).not.toContain(TOKEN)
+  })
+
+  it("echoes it back to a caller that already presented it", async () => {
+    // The bootstrap `rove web` prints: a top-level navigation cannot set a
+    // header, so the query is the only channel the first page load has.
+    expect(await body(`/?token=${TOKEN}`)).toContain(`content="${TOKEN}"`)
+    expect(await body("/", { headers: { authorization: `Bearer ${TOKEN}` } })).toContain(`content="${TOKEN}"`)
+  })
+
+  it("leaves the stolen-token RPC path shut", async () => {
+    // The half that made the leak load-bearing rather than cosmetic.
+    const html = await body("/")
+    const scraped = /rove-web-token" content="([^"]*)"/.exec(html)?.[1]
+    expect(scraped).toBeUndefined()
+    const res = await harness.web!.fetch("/api/rpc", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "daemon.status" }),
+    })
+    expect(res.status).toBe(401)
   })
 })
 

@@ -249,21 +249,29 @@ async function quickPromptsPut(runtime: DaemonRuntimeAdapter, req: Request): Pro
 }
 
 /**
- * Hand the SPA its token by rewriting the served HTML.
+ * Echo the token back into the served HTML, for a caller that already proved
+ * it holds one.
  *
- * The alternative — a `/api/token` endpoint the SPA calls on boot — cannot
- * work: to be reachable before the SPA holds a token it would have to be
- * unauthenticated, which makes it a back door that hands the credential to
- * precisely the caller this whole mechanism exists to turn away. Shipping the
- * token WITH the page is safe for the same reason the page itself is: both
- * are already behind the Origin check and the loopback bind, and anything
- * able to fetch the page could equally read the token file.
+ * This is a CONVENIENCE, never a bootstrap: the SPA arrives at `/?token=…`
+ * (the URL `rove web` prints), and the meta tag is how the token crosses from
+ * the address bar into a place `fetch` can read on every later navigation.
+ *
+ * It must stay bound to an authenticated requester. `/` is deliberately
+ * outside {@link requiresWebToken} — a browser cannot attach a bearer header
+ * or the query token to the subresources it fetches on its own, so gating the
+ * shell 401s every script and stylesheet. Injecting unconditionally into that
+ * open page turned it into a credential dispenser: `curl` with no Origin and
+ * no token read the value out of the body and drove the whole `/api/*`
+ * surface, including `task.setCommand` (arbitrary command execution). The
+ * 0600 mode on the token file exists to stop exactly that caller.
  */
 function injectWebToken(html: string, token: string): string {
   const tag = `<meta name="rove-web-token" content="${token}">`
   return html.includes("</head>") ? html.replace("</head>", `  ${tag}\n  </head>`) : `${tag}${html}`
 }
 
+/** `token` is supplied ONLY when the request presented it — see
+ *  {@link injectWebToken}. An anonymous caller gets the shell verbatim. */
 async function staticResponse(pathname: string, staticDir: string, token?: string): Promise<Response> {
   const rel = pathname === "/" ? "/index.html" : pathname
   const resolved = normalize(join(staticDir, rel))
@@ -313,11 +321,11 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     // A `curl` sends no Origin and so sails past the check above; it is this
     // gate that stops it. Everything that reads or mutates daemon state goes
     // through here, so a route added later is authenticated by default.
-    if (
-      requiresWebToken(url, DAEMON_WEB_HEALTH_PATH) &&
-      deps.webToken &&
-      !tokensMatch(presentedToken(req, url), deps.webToken)
-    ) {
+    // Computed for EVERY path, not just the gated ones, because the static
+    // shell needs the same answer to decide whether it may echo the token
+    // back (see injectWebToken).
+    const authenticated = deps.webToken !== undefined && tokensMatch(presentedToken(req, url), deps.webToken)
+    if (requiresWebToken(url, DAEMON_WEB_HEALTH_PATH) && deps.webToken && !authenticated) {
       return unauthorizedResponse()
     }
     if (url.pathname === "/events") {
@@ -367,7 +375,7 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     if (worktrees) return worktrees
     const themes = runtime.handleThemesRequest(req, url)
     if (themes) return themes
-    if (staticDir) return staticResponse(url.pathname, staticDir, deps.webToken)
+    if (staticDir) return staticResponse(url.pathname, staticDir, authenticated ? deps.webToken : undefined)
     return new Response("not found", { status: 404 })
   }
 }
