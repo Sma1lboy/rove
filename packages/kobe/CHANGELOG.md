@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.9.100
+
+### Patch Changes
+
+- [#828](https://github.com/Sma1lboy/rove/pull/828) [`98aa72a`](https://github.com/Sma1lboy/rove/commit/98aa72a77581b473e80d18779bb2ce24ae9a291f) Diff review no longer marks notes sent when nothing was delivered.
+
+  `s` handed the batch to a send closure that returned nothing whether it pasted or not, so on a Task with no engine session — one `ctrl+w` away — every note was marked sent, the footer dropped to `0 unsent`, the warning paint cleared, and the notes were indistinguishable from delivered ones forever. The engine send and paste closures now report whether they reached a session; a refused send leaves the notes unsent and says why. The FileTree `a` mention went through the same closure and dropped writes the same silent way; it now reports too.
+
+  The diff tab also gains `r` to reload the file it is showing (the Files pane next door has had it all along, and the tab is meant to stay open while the engine changes the file), and `x` to drop the note the cursor sits inside. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#826](https://github.com/Sma1lboy/rove/pull/826) [`ecced69`](https://github.com/Sma1lboy/rove/commit/ecced69de3db50deef7f45f81f28b36e48bbb422) Rail-page cursors now stay on screen, and the Kanban board keeps its cards readable in a narrow window.
+
+  Worktrees, Routines, GitHub Issues and Kanban all moved a cursor with nothing following it, and Routines and Issues rendered their rows into a plain box with no scroll region at all — past the first screenful the selected row simply was not in the frame. All four now scroll the cursor row into view through one shared mechanism.
+
+  The board also decides its lane count from the width it actually has rather than the whole terminal's: at 100 columns four lanes left each card nine cells, less than the ten its date alone needs, so it now shows the single-lane view there. The wide layout is unchanged.
+
+  Routines: `enter` opens the latest run's task instead of the newest run that happened to create one — a healthy `skipped_precheck` used to open work from a different day. The "Ran X: dispatched" notice now clears when the cursor moves instead of sitting under the next routine as if it were its result; the GitHub Issues notice clears on a repo or filter switch for the same reason. Worktrees answers to `j`/`k` alongside the arrows, like every other list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#829](https://github.com/Sma1lboy/rove/pull/829) [`3f4704c`](https://github.com/Sma1lboy/rove/commit/3f4704cd3b7716b89a9dcd0f10cf4748a86a461d) Settings drops its dead overlay path, and `t` no longer flips transparency from every section.
+
+  `SettingsDialog` carried a second, overlay shape behind a `standalone` prop that production only ever passed `true`. `SettingsDialog.show` had no callers at all, and the overlay branches would not have worked anyway — cursor-follow reads a scrollbox ref only the page branch ever set. The page layout is now the only one.
+
+  `t` toggled transparency from the Plugins list, the Keybindings section and Dev — anywhere the surface had focus — while appearing in no keybinding table. It is gone; `enter` on the Transparency row in General does the same thing and always did. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.99
 
 ### Patch Changes
