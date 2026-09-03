@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.9.93
+
+### Patch Changes
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) `rove api`: `--flag false` now works, `--prompt-file -` no longer reads stdin twice, and a bad `add` leaves no task behind
+
+  Four fixes in the `api` flag layer:
+
+  - A declared bool flag takes the space form (`--pinned false`, `--remove-worktree false`). The parser turned every bool flag into a presence flag before looking at the next argument, so `--pinned=false` was the only way to say `false` and `--pinned false` died as `unexpected positional arg`. `--force` on its own still means `true`.
+  - `--prompt-file -` reads stdin once. `routine-update` guards the flag and then reads it, which drained the pipe on the guard and hit EOF on the read — every `--prompt-file -` update failed with `--prompt-file - is empty`.
+  - `routine-update --persistent-session false` turns a standing routine back into fresh-worktree-per-run. The explicit `false` was dropped from the patch, so the routine stayed standing with no CLI path back.
+  - `add` validates `--prompt` / `--prompt-file` before it creates the task, instead of after. Passing both (or naming a missing file) created the task, then failed with an error that carried no `taskId` to find it with. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) Routines: no more double run on the DST fall-back day, no more frozen composer, and Run now defers like the schedule does
+
+  - A daily routine scheduled in the hour the clock repeats ran **twice** every autumn — two worktrees, two branches, two billed turns — and one scheduled in the hour the clock skips every spring didn't run at all, with nothing in its history to say so. The occurrence search now walks the local calendar instead of stepping fixed epoch minutes, so each wall-clock minute is one firing; a skipped local time fires at the instant the clock jumped to.
+  - A valid-but-rare expression (`0 0 30 2 *`) no longer stalls the daemon or the TUI. The old minute-by-minute scan did 4.7M date allocations before giving up (~150ms), and the automation composer runs the schedule preview while you type — arrowing the day-of-month past 29 with the month on `2` froze the terminal once per keypress. The scan is day-at-a-time now and gives up in ~1ms.
+  - Run now on a standing routine whose composer is busy files the prompt in your Inbox, matching what the same firing does on the schedule. It used to record `dispatch_failed` and discard the text. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) Internal: removed the `task.reorder` slice. It was a complete vertical — protocol verb, daemon handler, orchestrator and store methods, a persisted `position` field, two serializers and a codec branch — with no producer and no consumer. It ordered cards on the web board's per-status columns, and the board no longer carries task cards; the sidebar's move mode uses `task.move`. A `tasks.json` written before this still loads: the codec ignores keys it does not know, so a leftover `position` is dropped on the next save. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) `rove --help` mentions channel switching, and an empty-success retry keeps its target
+
+  `update` has accepted `--channel latest` / a bare `nightly` for several releases, but the top-level help still read `update [version|list]` — the subcommand lock-step test only compares the command list, so the description drifted past CI.
+
+  `send`'s empty-success refusal hands back a `nextCommandArgs` you are told to run verbatim; it dropped the `--task-id` / `--tab` you addressed, so the retry re-resolved through the active-task fallback and could deliver into a different task. It now carries the target forward. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) **A task whose worktree sits inside its own repo is deletable again.** When `git worktree remove` deregistered the worktree but could not delete its directory, Rove classified the leftover by asking `rev-parse --git-common-dir` from inside the path — and git's discovery walks up parent directories, so for a worktree nested under its own checkout (every remote project, and legacy repo-local roots) it resolved the parent repo and reported a path git had already forgotten as still registered. The removal threw, every retry threw identically, and the task parked in `deletion.phase: "error"` forever. Registration is now asked of the owning repo via `git worktree list`, which is the only place that holds the answer. The leftover directory is still reported, never deleted — it sits inside the user's checkout.
+
+  Also: removing a worktree whose directory had already vanished never pruned the stale `.git/worktrees/<name>/` registration, because it probed the repo with `cwd` set to the missing path. It probes the parent now, so the path is re-addable instead of failing a later `git worktree add`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) **A PR chip that stopped updating now says so.** When `gh` could not reach GitHub, the poller logged the failure to the daemon log, backed off, and left the chip showing its last reading — with nothing on screen to say the reading was no longer being refreshed. A branch could sit under a green `✓` for hours while polling was broken. The failure is now recorded on the task (`prStatus.lastError`, a field that was declared, persisted and diff-excluded but never written), and the sidebar's PR chip keeps its glyph and drops its colour while it stands: the fact has not changed, but nothing is confirming it any more. The next poll that reaches the provider restores the colour. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) **Three PTY host lifecycle fixes.**
+
+  - **A closed tab stays closed.** `kill()` dropped the session's freeze record synchronously and then awaited the child's exit — and the exit handler force-wrote the same record straight back, with a fresh timestamp that outlived the 14-day prune. The next pty-host incarnation resurrected sessions the user had closed (or that a task deletion had killed), `rove doctor` listed them, and opening one replayed the closed session's old scrollback instead of spawning fresh. The freeze writer now honours the same "closed by request" flag the death record already did.
+  - **An engine death fires once.** The exit watcher tracked seen records by the session key while the store writes engine-layer records under `<key>#engine`, so its prune dropped each engine record on the sweep that created it and every later sweep re-fired the same death — duplicate `session.exited` plugin events, and an Attention Inbox episode the user had read popping back to unread whenever anything else touched `pty-exits.json`.
+  - **`rove doctor` reports parked tabs again.** A socket closing cleared the parked bookkeeping of every session in the host, not just the ones it was attached to — and the daemon's own liveness poll opens and closes such a socket every 15 seconds, so the parked count and parked screen bytes read `0` however many tabs were actually parked. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) A task on an experimental remote (`ssh://`) project now refuses the engine launch instead of spawning locally
+
+  `rove add --remote` and the Settings toggle both say hosted PTY engine launch over SSH is not implemented, but nothing enforced it: a remote task's worktree lives on the other machine, so opening its tab or sending it a prompt started an engine here against a directory that does not exist, and surfaced as a bare "failed to start hosted engine session". One guard at the launch builder — the single spawn-spec path the Workspace host, `rove api send`, and a prompted `add` all funnel through — now returns `hosted engine launch over SSH is not implemented`, naming the project.
+
+  In the TUI the workspace pane says it outright rather than mounting an engine tab: opening a remote task used to mint a `claude 1` tab and leave a blank pane while the PTY host retried a local spawn into a directory that is not there. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.92
 
 ### Patch Changes
