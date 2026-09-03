@@ -261,9 +261,12 @@ In the read-only diff tab, with the workspace focused:
 | `j` / `k` (or arrows) | Move the line cursor |
 | `v` | Anchor a range (`v` again cancels) |
 | `c` | Write a note |
+| `x` | Drop the note the cursor sits inside |
 | `s` | Send all unsent notes to the engine |
+| `r` | Reload the diff from disk |
 
-These four are fixed and can't be rebound. The workflow:
+These are fixed and can't be rebound. A send with no engine session in the
+Task leaves the notes unsent and says so. The workflow:
 [The TUI → Diff review](TUI.md#diff-review).
 
 ## Workspace pages

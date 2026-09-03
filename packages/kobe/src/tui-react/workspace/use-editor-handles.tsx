@@ -8,6 +8,7 @@
 import { useRef } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { FocusContextValue } from "../context/focus"
+import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
 import { takeCreatePR, useCreatePR } from "./use-create-pr"
 import { useFileOpenActions } from "./use-file-open-actions"
@@ -25,8 +26,8 @@ export interface UseEditorHandlesOpts {
 
 export interface UseEditorHandlesResult {
   onEditorTabReady: (open: (command: readonly string[], label: string) => void) => void
-  onEngineSendReady: (send: (text: string) => void) => void
-  onEnginePasteReady: (paste: (text: string) => void) => void
+  onEngineSendReady: (send: (text: string) => boolean) => void
+  onEnginePasteReady: (paste: (text: string) => boolean) => void
   onDiffTabReady: (open: (relPath: string, label: string, base?: string) => void) => void
   onOpenFile: (relPath: string) => void
   onOpenDiff: (relPath: string, base?: string) => void
@@ -49,28 +50,35 @@ export function mentionText(relPath: string): string {
 
 /** React-free core of the FileTree `a` action (sibling of `createPRAction`):
  *  paste `@<path>` into the engine's composer, never submit. Reads the ref at
- *  call time — TerminalTabs re-hands the paste closure on every mount, and a
- *  task with no live engine tab leaves it null (the key is then inert, which
- *  is the pre-existing "no engine, nothing to mention" state). */
-export function mentionAction(pasteToEngineFn: {
-  readonly current: ((text: string) => void) | null
-}): (relPath: string) => void {
+ *  call time — TerminalTabs re-hands the paste closure on every mount.
+ *
+ *  Two ways to have nowhere to paste, and both used to be a dead key: the ref
+ *  is null (no TerminalTabs mounted yet) or the paste closure answers false
+ *  (no engine tab in this task). `onRefused` is how the user hears about it. */
+export function mentionAction(
+  pasteToEngineFn: {
+    readonly current: ((text: string) => boolean) | null
+  },
+  onRefused: () => void,
+): (relPath: string) => void {
   return (relPath) => {
-    pasteToEngineFn.current?.(mentionText(relPath))
+    const paste = pasteToEngineFn.current
+    if (!paste || !paste(mentionText(relPath))) onRefused()
   }
 }
 
 export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesResult {
   const { orchestrator, worktree, selectedId, focus, notifyError, activateTask } = opts
+  const t = useT()
 
   // Imperative handle from the currently-mounted TerminalTabs: a ref, since
   // FileTree's "open" only READS it at click time and
   // TerminalTabs re-hands it on every mount (task/worktree switch).
   const openEditorTabFn = useRef<((command: readonly string[], label: string) => void) | null>(null)
-  const sendToEngineFn = useRef<((text: string) => void) | null>(null)
+  const sendToEngineFn = useRef<((text: string) => boolean) | null>(null)
   // Paste-only sibling of sendToEngineFn (no submit) — the FileTree `a` @path
   // mention, handed up through the same TerminalTabs mount-once contract.
-  const pasteToEngineFn = useRef<((text: string) => void) | null>(null)
+  const pasteToEngineFn = useRef<((text: string) => boolean) | null>(null)
   // Read-only diff tab opener — same ref pattern as the editor tab:
   // TerminalTabs re-hands it per mount, FileTree's `d` reads it at keypress.
   // Opening is a content swap; the host does NOT focus the workspace here — a
@@ -144,6 +152,6 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
       requestFixCI(taskId)
       activateTask(taskId)
     },
-    onMention: mentionAction(pasteToEngineFn),
+    onMention: mentionAction(pasteToEngineFn, () => notifyError(t("files.mentionNoEngine"))),
   }
 }

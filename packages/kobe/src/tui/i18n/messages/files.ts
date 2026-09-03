@@ -4,6 +4,8 @@
  */
 
 export const en = {
+  /** Error toast when `a` has no engine session to paste the mention into. */
+  mentionNoEngine: "No engine session in this task — nothing to mention into. Open one with ctrl+t.",
   tabs: {
     all: "All",
     changes: "Changes",
@@ -42,6 +44,8 @@ export const en = {
 }
 
 export const zh: typeof en = {
+  /** `a` 没有引擎会话可粘贴提及时的错误 toast。 */
+  mentionNoEngine: "这个任务没有引擎会话——没有地方可以提及。用 ctrl+t 开一个。",
   tabs: {
     all: "全部",
     changes: "改动",

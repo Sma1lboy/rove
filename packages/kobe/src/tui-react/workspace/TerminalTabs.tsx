@@ -121,9 +121,9 @@ export interface TerminalTabsProps {
   onEditorTabReady?: (open: (command: readonly string[], label: string) => void) => void
   /** Hands the parent an imperative "paste this into the active engine tab
    *  and submit" function, once per mount (see file header). */
-  onEngineSendReady?: (send: (text: string) => void) => void
+  onEngineSendReady?: (send: (text: string) => boolean) => void
   /** Paste-only sibling of `onEngineSendReady` (no submit) — the FileTree `a` @path mention. */
-  onEnginePasteReady?: (paste: (text: string) => void) => void
+  onEnginePasteReady?: (paste: (text: string) => boolean) => void
   /** Hands the parent an imperative "open this file's read-only diff in a
    *  content tab" function, once per mount — the FileTree `d` action.
    *  Opening is a content swap, not a focus grab. */

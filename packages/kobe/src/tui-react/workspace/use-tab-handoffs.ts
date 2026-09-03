@@ -30,8 +30,8 @@ export interface TabHandoffIO {
       readonly taskId: string
       readonly worktree: string
       readonly onEditorTabReady?: (open: (command: readonly string[], label: string) => void) => void
-      readonly onEngineSendReady?: (send: (text: string) => void) => void
-      readonly onEnginePasteReady?: (paste: (text: string) => void) => void
+      readonly onEngineSendReady?: (send: (text: string) => boolean) => void
+      readonly onEnginePasteReady?: (paste: (text: string) => boolean) => void
       readonly onDiffTabReady?: (open: (relPath: string, label: string, base?: string) => void) => void
     }
   }
@@ -68,25 +68,36 @@ function resolveEnginePty(io: EnginePtyIO): ReturnType<ReturnType<typeof getDefa
   return pty
 }
 
-/** Paste `text` into the task's engine tab PTY and submit. Exported for the
- *  send-vs-paste contract test — the mention must NOT submit. */
-export function buildEngineSend(io: EnginePtyIO): (text: string) => void {
+/**
+ * Paste `text` into the task's engine tab PTY and submit. Exported for the
+ * send-vs-paste contract test — the mention must NOT submit.
+ *
+ * Returns FALSE when there was nowhere to deliver — no engine tab at all
+ * (`ctrl+w` on the last tab leaves the task open with no session), or a dead
+ * PTY that would not respawn. This is the whole reason the closure answers at
+ * all: it used to swallow the write, and the diff review then marked its notes
+ * sent and the FileTree mention reported nothing, both indistinguishable from
+ * a delivered write. Every caller must treat `false` as a failure to surface.
+ */
+export function buildEngineSend(io: EnginePtyIO): (text: string) => boolean {
   return (text) => {
     const pty = resolveEnginePty(io)
-    if (!pty) return
+    if (!pty) return false
     pty.paste(text)
     pty.write("\r")
+    return true
   }
 }
 
 /** Paste `text` into the task's engine tab PTY WITHOUT submitting — the
  *  FileTree `a` mention leaves the `@path` in the engine's composer for the
  *  user to keep typing around (docs/TUI.md). */
-export function buildEnginePaste(io: EnginePtyIO): (text: string) => void {
+export function buildEnginePaste(io: EnginePtyIO): (text: string) => boolean {
   return (text) => {
     const pty = resolveEnginePty(io)
-    if (!pty) return
+    if (!pty) return false
     pty.paste(text)
+    return true
   }
 }
 
@@ -97,8 +108,8 @@ export function buildEnginePaste(io: EnginePtyIO): (text: string) => void {
  * review's send-notes action).
  */
 export function useTabHandoffs(io: TabHandoffIO): {
-  sendToEngine: (text: string) => void
-  pasteToEngine: (text: string) => void
+  sendToEngine: (text: string) => boolean
+  pasteToEngine: (text: string) => boolean
 } {
   const { stateRef, propsRef, update } = io
   const sendToEngine = buildEngineSend(io)

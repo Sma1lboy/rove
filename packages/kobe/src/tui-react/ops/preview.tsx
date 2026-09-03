@@ -4,8 +4,10 @@
  * `tui/ops/preview-core.ts` / `preview-syntax.ts`. Loading follows THE ASYNC
  * CANON (`src/tui-react/history/host.tsx`): `useState` + a dependency-keyed
  * `useEffect` whose stale completions are dropped by an effect-local
- * `disposed` flag. The read is one-shot (the preview window is immutable for
- * its lifetime), so there's no refresh tick.
+ * `disposed` flag. `r` bumps a reload tick: the standalone `rove ops
+ * --preview` window really is immutable for its lifetime, but the workspace
+ * diff tab is meant to stay open while the engine works (docs/TUI.md), so its
+ * hunks go stale under you with no way to ask for the current ones.
  */
 
 import type { DiffRenderable } from "@opentui/core"
@@ -50,7 +52,9 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   const filetype = filetypeOf(props.relPath)
 
   const [data, setData] = useState<PreviewData | null>(null)
+  const [reloadTick, setReloadTick] = useState(0)
   const base = props.base
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
     void loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
@@ -64,7 +68,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     return () => {
       disposed = true
     }
-  }, [props.worktree, props.relPath, base])
+  }, [props.worktree, props.relPath, base, reloadTick])
 
   // System-open (`o`) only makes sense for a LOCAL worktree — the file the
   // OS viewer would open doesn't exist on this machine for a remote one.
@@ -88,6 +92,9 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     // never shadows anything else the rest of the time.
     bindings: [
       ...pageCloseBindings(onClose),
+      // `r` matches the Files pane next door, which has refreshed its tree
+      // with the same key since it landed.
+      { key: "r", cmd: () => setReloadTick((tick) => tick + 1) },
       ...(canSystemOpen
         ? [
             {
