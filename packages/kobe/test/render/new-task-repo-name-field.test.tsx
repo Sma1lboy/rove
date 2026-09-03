@@ -107,6 +107,7 @@ test("a resolved repo shows its NAME, not its path, and still submits the path",
   await settle()
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(dir)
+  act(() => h.destroy())
 })
 
 test("a basename shared by two saved repos keeps the PATH — it identifies nothing", async () => {
@@ -126,6 +127,7 @@ test("a basename shared by two saved repos keeps the PATH — it identifies noth
   await settle()
   expect(h.submitted[0]?.repo).toBe(a)
   expect(h.submitted[0]?.repo).not.toBe(b)
+  act(() => h.destroy())
 })
 
 test("typing an ambiguous name refuses to guess, and says so", async () => {
@@ -156,6 +158,7 @@ test("typing an ambiguous name refuses to guess, and says so", async () => {
 
   expect(h.submitted).toHaveLength(0)
   expect(await h.frame()).toContain("more than one saved repo is named app")
+  act(() => h.destroy())
 })
 
 test("a path being typed renders VERBATIM — the field does not rewrite mid-keystroke", async () => {
@@ -188,6 +191,7 @@ test("a path being typed renders VERBATIM — the field does not rewrite mid-key
   act(() => h.mockInput.pressEnter())
   await settle()
   expect(h.submitted[0]?.repo).toBe(dir)
+  act(() => h.destroy())
 })
 
 test("picker rows right-align their directory tails into one column", async () => {
@@ -213,6 +217,7 @@ test("picker rows right-align their directory tails into one column", async () =
   // right edge; equal across rows means one column, not a ragged trail.
   const ends = new Set(rows.map((l) => l.trimEnd().length))
   expect(ends.size).toBe(1)
+  act(() => h.destroy())
 })
 
 test("a long directory never eats into the name", async () => {
@@ -227,6 +232,7 @@ test("a long directory never eats into the name", async () => {
   const row = (await h.frame()).split("\n").find((l) => l.includes("ture-repo"))
   expect(row).toBeDefined()
   expect(row).toContain("fixture-repo")
+  act(() => h.destroy())
 })
 
 test("a full-width row keeps air between the name and the directory", async () => {
@@ -243,4 +249,5 @@ test("a full-width row keeps air between the name and the directory", async () =
   const row = (await h.frame()).split("\n").find((l) => l.includes("current dir"))
   expect(row).toBeDefined()
   expect(row).not.toContain("dir)/")
+  act(() => h.destroy())
 })

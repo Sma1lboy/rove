@@ -94,6 +94,7 @@ test("browse mode: each Tab walks one directory deeper, in place", async () => {
   // Second Tab: another step, not a repeat.
   await pressTab(h)
   expect(await h.frame()).toContain("/level1/level2/")
+  act(() => h.destroy())
 })
 
 test("saved mode: Tab finishes the name, the NEXT Tab leaves the field", async () => {
@@ -119,6 +120,7 @@ test("saved mode: Tab finishes the name, the NEXT Tab leaves the field", async (
   await settle()
   expect(h.submitted).toHaveLength(1)
   expect(h.submitted[0]?.repo).toBe(zephyr)
+  act(() => h.destroy())
 })
 
 test("Tab still advances when the dropdown has nothing to offer", async () => {
@@ -139,6 +141,7 @@ test("Tab still advances when the dropdown has nothing to offer", async () => {
   // is refused there, on screen, instead of the key vanishing.
   expect(h.submitted).toHaveLength(0)
   expect(await h.frame()).toContain("no-such-repo-anywhere")
+  act(() => h.destroy())
 })
 
 test("the Clone tab's parent dir walks the same way — one key, both path fields", async () => {
@@ -164,4 +167,5 @@ test("the Clone tab's parent dir walks the same way — one key, both path field
   expect(await h.frame()).toContain("/level1/")
   await pressTab(h)
   expect(await h.frame()).toContain("/level1/level2/")
+  act(() => h.destroy())
 })
