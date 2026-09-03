@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.105
+
+### Patch Changes
+
+- [#845](https://github.com/Sma1lboy/rove/pull/845) [`fda326d`](https://github.com/Sma1lboy/rove/commit/fda326d87045e728238e2bcbb97593e3481f92e1) One relative-time clock, and it floors. The Routines page rounded while every other surface floored, so the same instant read two ways: a routine firing in 1h40m previewed as `in 2h` and fired twenty minutes early, and a run 100 seconds old showed `2m ago` on the Routines page while the Inbox called it `1m`. `relativeBuckets` in `lib/relative-time.ts` now floors and owns the label too — `relativeAgeMs` is gone from `tui/history/message-core.ts` and its six consumers read `relativeAge` from the one module. A sub-minute run also now reads `now` / `just now` instead of `1m ago`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.104
 
 ### Patch Changes
