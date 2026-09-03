@@ -10,6 +10,7 @@
 import type { ReactNode } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { engineLaunchArgv } from "../../engine/engine-presets.ts"
+import { isRemoteRepoKey } from "../../state/repos.ts"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task.ts"
 import type { QuickTaskResult } from "../component/quick-task-composer"
 import { useOptionalKV } from "../context/kv"
@@ -71,6 +72,19 @@ export function ShowWorkspace(props: {
     )
   }
   const path = props.worktree
+  // An experimental remote (`ssh://`) project: the worktree lives on the other
+  // machine and the PTY host only spawns locally, so `buildEngineSessionLaunch`
+  // refuses. Say so here instead of mounting TerminalTabs and letting that
+  // refusal throw through the render path — a thrown launch reaches the user as
+  // "This pane crashed", which tells them nothing about what is unimplemented.
+  const remoteKey = [props.task?.repo, path].find((key) => key && isRemoteRepoKey(key))
+  if (remoteKey) {
+    return (
+      <box flexGrow={1} alignItems="center" justifyContent="center">
+        <text fg={theme.textMuted}>{t("workspace.empty.remoteUnsupported", { host: remoteKey })}</text>
+      </box>
+    )
+  }
   // A task whose last tab you closed has KNOWN, empty tabs. Mounting
   // TerminalTabs over that list would immediately mint a replacement — its
   // `active` tab is non-null by construction and 17 call sites downstream rely
