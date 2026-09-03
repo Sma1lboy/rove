@@ -255,6 +255,29 @@ export class UnknownTurnDetector extends EngineTurnDetector {
   }
 }
 
+/**
+ * Assistant `stop_reason` values that END the turn. Claude Code appends one
+ * assistant record per STEP, and the overwhelming majority are
+ * `stop_reason: "tool_use"` — mid-turn, the exact opposite of a completion
+ * (measured over 8 real transcripts: 1965 of 2036 assistant records).
+ * Treating any assistant record as a completion made the daemon's lapse
+ * watchdog (`activity-registry.ts` → `stillWorking`) idle a working engine at
+ * the TTL, and made its heartbeat re-arm unreachable for Claude: the
+ * `completedAt >= at` branch always won.
+ *
+ * Allowlist, not a `!== "tool_use"` denylist, for the same reason
+ * {@link CODEX_ROLLOUT_DONE_EVENTS} is one: `pause_turn` (long-running server
+ * tools) is also mid-turn, and the next mid-turn value the API adds must
+ * default to "still working" rather than silently idling the badge again.
+ *
+ * A MISSING or null `stop_reason` is NOT a completion. Real transcripts always
+ * carry one on assistant records (0 absent in the 2036 above), so the only
+ * records this drops are malformed or synthetic ones — and for those,
+ * "the turn is still running" is the recoverable guess: the watchdog just
+ * re-arms, whereas a wrong completion idles a live engine for good.
+ */
+const CLAUDE_TURN_END_STOP_REASONS = new Set(["end_turn", "stop_sequence", "max_tokens", "refusal"])
+
 export function latestClaudeCompletionMarkerFromJsonl(
   raw: string,
   sourceId = "claude",
@@ -268,7 +291,8 @@ export function latestClaudeCompletionMarkerFromJsonl(
     if (!record) continue
     const inner = isObject(record.message) ? (record.message as Record<string, unknown>) : record
     if (inner.role !== "assistant") continue
-    if (!("content" in inner)) continue
+    if (typeof inner.stop_reason !== "string") continue
+    if (!CLAUDE_TURN_END_STOP_REASONS.has(inner.stop_reason)) continue
     const timestampMs = timestampFromRecord(record, fallbackMtimeMs)
     const marker = {
       id: `claude:${sourceId}:${timestampMs}:${lineNo}`,
