@@ -13,6 +13,11 @@ import { describe, expect, it } from "vitest"
 /** The repo this test runs in — a real checkout at a durable path. */
 const REPO_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "")
 
+/** Where Rove's own state lives for this run — see test/setup-env.ts. */
+function injectedHome(): string {
+  return process.env.KOBE_HOME_DIR ?? homedir()
+}
+
 describe("pathRejection", () => {
   it("rejects the four shapes that leaked into the real sidebar", () => {
     expect(pathRejection("/private/tmp/rove-fixture-probe/repo")).toBe("temporary")
@@ -20,7 +25,9 @@ describe("pathRejection", () => {
     expect(pathRejection("/Users/x/i/kobe/packages/kobe/.dev-sandbox/named/ex-gif/home/smoke-repo")).toBe(
       "insideSandbox",
     )
-    expect(pathRejection(join(homedir(), ".rove/worktrees/kobe-0aff/manatee/fixture"))).toBe("roveInternal")
+    // The home the run was given, not `homedir()`: `roveStateDir()` follows
+    // `KOBE_HOME_DIR`, which test/setup-env.ts points at an empty tmpdir.
+    expect(pathRejection(join(injectedHome(), ".rove/worktrees/kobe-0aff/manatee/fixture"))).toBe("roveInternal")
   })
 
   it("rejects a .scratch checkout wherever it sits", () => {
