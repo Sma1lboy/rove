@@ -25,16 +25,10 @@ export interface EngineTurnDetectorAdapter {
   supportsCompletionMarkers(): boolean
 }
 
-export interface PollCadenceConfig {
-  readonly timeoutMs: number
-  readonly slowRetryMs: number
-  readonly minIntervalMs: number
-}
-
-export interface PollScheduleState {
-  inFlight: boolean
-  nextAllowedAt: number
-}
+/** The cadence knobs + per-key state the scheduling core reads and writes.
+ *  Re-exported, not restated: this file used to carry its own copies of both
+ *  shapes alongside the ones in `poll-scheduling.ts`. */
+export type { PollCadenceConfig, PollScheduleState } from "./poll-scheduling.ts"
 
 export interface DaemonRuntimeAdapter {
   readonly currentVersion: string

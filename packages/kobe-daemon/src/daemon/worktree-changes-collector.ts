@@ -45,8 +45,10 @@ import { spawn } from "node:child_process"
 import type { DaemonTask as Task, WorktreeChanges } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { type PollCadenceConfig, type PollScheduleState, maybeStartScheduledRun } from "./poll-scheduling.ts"
 import type { WorktreeChangesPayload } from "./protocol.ts"
-import type { DaemonRuntimeAdapter, PollCadenceConfig, PollScheduleState } from "./runtime.ts"
+import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 function isRemoteRepoKey(value: string): boolean {
   return value.startsWith("ssh://")
@@ -54,33 +56,6 @@ function isRemoteRepoKey(value: string): boolean {
 
 function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
   return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
-}
-
-function maybeStartScheduledRun<T>(
-  state: PollScheduleState,
-  cfg: PollCadenceConfig,
-  run: (signal: AbortSignal) => Promise<T>,
-  onValue: (value: T) => void,
-): boolean {
-  const startedAt = Date.now()
-  if (state.inFlight || startedAt < state.nextAllowedAt) return false
-  state.inFlight = true
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), cfg.timeoutMs)
-  void run(controller.signal)
-    .then((value) => {
-      if (!controller.signal.aborted) onValue(value)
-    })
-    .catch(() => {})
-    .finally(() => {
-      clearTimeout(timer)
-      const finishedAt = Date.now()
-      state.nextAllowedAt = controller.signal.aborted
-        ? startedAt + cfg.slowRetryMs
-        : finishedAt + Math.max(cfg.minIntervalMs, (finishedAt - startedAt) * 5)
-      state.inFlight = false
-    })
-  return true
 }
 
 /** Tick cadence — matches the sidebar's ~2s `branchTick` the pane pollers rode. */
@@ -337,13 +312,14 @@ export function startWorktreeChangesCollector(
   tickMs: number = DEFAULT_WORKTREE_CHANGES_TICK_MS,
   hasSubscribers?: () => boolean,
 ): () => void {
-  if (tickMs <= 0) return () => {}
   const collector = new WorktreeChangesCollector(orch, bus, { hasSubscribers, run: runtime.runWorktreeStatus })
-  collector.tick()
-  const timer = setInterval(() => collector.tick(), tickMs)
-  timer.unref?.()
-  return () => {
-    clearInterval(timer)
-    collector.stop()
-  }
+  // No `gate` here: the subscriber check lives inside `collector.tick()`,
+  // which also owns its own per-key in-flight state.
+  return startTicker({
+    name: "worktree-changes-collector",
+    tickMs,
+    immediate: true,
+    run: () => collector.tick(),
+    onStop: () => collector.stop(),
+  })
 }

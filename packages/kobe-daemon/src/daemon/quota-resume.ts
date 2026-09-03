@@ -20,6 +20,7 @@ import type { DaemonOrchestrator, DaemonTask, EngineQuotaUsage } from "./contrac
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 /**
  * Engine-neutral continuation instruction typed into the resumed session,
@@ -139,23 +140,18 @@ export function startQuotaResumeRunner(
   now: () => number = Date.now,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
 ): () => void {
-  // `collectors.ts` reads the tick with `??`, which does NOT replace a 0, so
-  // without this the documented "0 disables it" gives setInterval(fn, 0) — a
-  // ~1000 Hz sweep of the whole task index. Every sibling collector guards it.
-  if (tickMs <= 0) return () => {}
-  let sweeping = false
-  const sweep = async (): Promise<void> => {
-    if (sweeping) return
-    sweeping = true
-    try {
+  // Ungated on purpose: resuming a rate-limited engine while nobody is
+  // attached is the entire job. `tickMs <= 0` disabling the sweep is
+  // `startTicker`'s job now — `collectors.ts` reads the tick with `??`, which
+  // does NOT replace a 0, so without that guard the documented "0 disables it"
+  // gives setInterval(fn, 0): a ~1000 Hz sweep of the whole task index.
+  return startTicker({
+    name: "quota-resume",
+    tickMs,
+    run: async () => {
       for (const task of dueQuotaResumes(orch.listTasks(), now())) {
         await resumeDueTask(orch, runtime, task, plugins).catch((err) => logDaemonError("quota-resume", err))
       }
-    } finally {
-      sweeping = false
-    }
-  }
-  const timer = setInterval(() => void sweep(), tickMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+    },
+  })
 }

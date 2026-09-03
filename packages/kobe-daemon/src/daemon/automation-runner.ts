@@ -33,6 +33,7 @@ import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { latestCronAtOrBefore } from "./cron.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 /** How often the sweep looks for due schedules. Cron's own resolution is one
  *  minute, so a faster tick would only re-ask the same question. */
@@ -279,18 +280,7 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
  * daemon with every collector zeroed, and this must honour that too.
  */
 export function startAutomationRunner(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): () => void {
-  if (tickMs <= 0) return () => {}
-  let sweeping = false
-  const tick = async (): Promise<void> => {
-    if (sweeping) return
-    sweeping = true
-    try {
-      await sweepAutomations(deps, tickMs)
-    } finally {
-      sweeping = false
-    }
-  }
-  const timer = setInterval(() => void tick().catch((err) => logDaemonError("automation-sweep", err)), tickMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  // Ungated for the same reason as quota-resume, only more so: a schedule
+  // that requires an audience is not a schedule.
+  return startTicker({ name: "automation-sweep", tickMs, run: () => sweepAutomations(deps, tickMs) })
 }
