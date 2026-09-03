@@ -160,6 +160,13 @@ jobs:
         working-directory: packages/kobe
         run: bun run test:fast
 
+      - name: Unit tests (kobe-web package)
+        # Not covered before: root `lint`/`typecheck`/`test` all skip
+        # kobe-web, and visual-ground-truth runs Playwright, not vitest — so
+        # its 74 vitest files (including test/pty-spec.test.ts, the only
+        # coverage of the sidecar's daemon spec fetch) never gated a PR. ~2s.
+        run: bun run --filter kobe-web test
+
       - name: Build (kobe package)
         run: bun run build
 

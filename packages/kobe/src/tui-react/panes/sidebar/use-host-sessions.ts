@@ -30,8 +30,12 @@ const EMPTY: readonly LiveSession[] = []
  * changes. Comparing the fields the tree actually reads keeps a quiet host
  * render-free; a title moving (the point of the projection) still gets
  * through.
+ *
+ * Exported for tests: the poll around it is off under every runner (see
+ * {@link pollingAllowed}), so this comparator would otherwise never execute
+ * in any track. It is pure, so a unit test is the whole of it.
  */
-function sameSessions(a: readonly LiveSession[], b: readonly LiveSession[]): boolean {
+export function sameSessions(a: readonly LiveSession[], b: readonly LiveSession[]): boolean {
   if (a.length !== b.length) return false
   return a.every((s, i) => {
     const other = b[i] as LiveSession

@@ -127,6 +127,33 @@ out. Ports come from `KOBE_VISUAL_PORT_BASE`, so pointing the shot at another
 harness instance (a throwaway home with a richer fixture, say) is just an env
 var — the ground-truth path is unchanged.
 
+### What the harness replaces, and therefore cannot prove
+
+The harness swaps out the daemon spec fetch. `KOBE_PTY_DEV_COMMAND` is set by
+`packages/kobe-web/playwright.config.ts`, `e2e/visual-serve.ts` and
+`e2e/hero-serve.ts`, and `createSpecFetcher` returns on that variable before it
+ever asks the daemon — so the whole visual track spawns a command the harness
+chose, not the one a task resolves to. **A green `bun run visual` says nothing
+about task-to-PTY resolution**: not the `engine` vs `shell` route choice, not
+the bearer token `/api/*` requires, not the error a failed lookup surfaces.
+That gap is how a web terminal broken from 0.9.60 to 0.9.102 passed ~40 CI runs.
+
+`packages/kobe-web/test/pty-spec.test.ts` is the track that does cover it: it
+drives the real branch with an injected `fetch` and a stub daemon, and fails
+if the `authorization` header is dropped. Run it with
+`cd packages/kobe-web && bun run test`.
+
+The remaining blind spot the harness cannot close is the live hop itself — a
+real sidecar talking to a real daemon over a real socket. Manual recipe when a
+change touches that path:
+
+```bash
+cd packages/kobe && bun run build
+rove daemon restart && rove web        # real daemon + real sidecar, no KOBE_PTY_DEV_COMMAND
+# open a task's terminal tab in the browser; a spec-fetch failure surfaces as
+# the tab dying immediately with the daemon's own message, before any output.
+```
+
 ### README and docs assets
 
 Marketing stills and the demo video ride that same `/harness` path, against a

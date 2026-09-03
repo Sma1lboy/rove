@@ -17,10 +17,11 @@ import { createServer } from "node:http"
 import { spawn } from "node-pty"
 import { WebSocketServer } from "ws"
 import { allowedHostForBindHost, originAllowed } from "./origin-policy.mjs"
-import { expectedPtyToken, ptyRequestAuthorized } from "./pty-auth.mjs"
+import { ptyRequestAuthorized } from "./pty-auth.mjs"
 import { ptyEnv } from "./pty-env.mjs"
 import { createScrollback } from "./pty-scrollback.mjs"
 import { createPtySessionManager } from "./pty-session-lifecycle.mjs"
+import { createSpecFetcher } from "./pty-spec.mjs"
 
 const PORT = Number.parseInt(process.env.KOBE_PTY_PORT ?? "5175", 10)
 const DAEMON_WEB_PORT = Number.parseInt(process.env.KOBE_DAEMON_WEB_PORT ?? "45174", 10)
@@ -30,28 +31,7 @@ const HEALTH_MARKER = "kobe-web"
 const HOST = process.env.KOBE_WEB_HOST?.trim() || "127.0.0.1"
 const ALLOWED_HOST = allowedHostForBindHost(HOST)
 
-async function fetchSpec(taskId, mode) {
-  // e2e/dev harness override: run an arbitrary TUI (dev:mock / dev:sandbox) in
-  // the PTY instead of resolving a task's engine via the daemon — so a Playwright
-  // test can drive the real TUI through the web terminal with no daemon or task.
-  if (process.env.KOBE_PTY_DEV_COMMAND) {
-    return {
-      cwd: process.env.KOBE_PTY_DEV_CWD ?? process.cwd(),
-      command: ["/bin/sh", "-lc", process.env.KOBE_PTY_DEV_COMMAND],
-    }
-  }
-  const path = mode === "shell" ? "/api/terminal-spec" : "/api/engine-spec"
-  // `/api/*` on the daemon requires the bearer token like every other caller
-  // does; without it a real tab dies at "unauthorized: this request carried no
-  // valid web token" before any PTY is spawned.
-  const token = expectedPtyToken()
-  const res = await fetch(`http://localhost:${DAEMON_WEB_PORT}${path}?taskId=${encodeURIComponent(taskId)}`, {
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-  })
-  const json = await res.json()
-  if (!res.ok || json.error) throw new Error(json.error ?? `engine-spec failed (${res.status})`)
-  return json // { cwd, command: string[], firstMessage?: string }
-}
+const fetchSpec = createSpecFetcher({ port: DAEMON_WEB_PORT })
 
 const ptySessions = createPtySessionManager({
   fetchSpec,
