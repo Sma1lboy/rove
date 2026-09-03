@@ -10,7 +10,7 @@
  * which is imported.
  */
 
-import { prCheckChip, prConflictChip, statusChip } from "@/tui/panes/sidebar/row-view"
+import { prCheckChip, prConflictChip, prReviewChip, statusChip } from "@/tui/panes/sidebar/row-chips"
 import { TASK_STATUSES, type Task } from "@/types/task"
 import { pad } from "./golden-file"
 import { task } from "./sidebar-state-matrix"
@@ -70,6 +70,39 @@ export function conflictChipBlock(): string[] {
   }
   // A row with no PR at all must not draw it either.
   lines.push(`${pad("<no prStatus>", 28)} ${pad("stale=0", 8)} chip=${prConflictChip(task({})) ? "?" : "<none>"}`)
+  return lines
+}
+
+/**
+ * The review-state chip: `prStatus.lifecycle`, the poller's normalised review
+ * verdict. Enumerated over the WHOLE union, so the four deliberate silences
+ * (`creating`, `open`, `closed`, `unknown` — a PR with no review verdict worth
+ * a cell) are pinned as behaviour rather than left to be re-decided. Crossed
+ * with `lastError`, like the two blocks above: a stale reading keeps its glyph
+ * and loses its colour, and a stale "approved" is the one this cell most has
+ * to stop painting confidently. `merged` is muted either way — it is history,
+ * not news.
+ *
+ * Read it against all three blocks around it: the four chips share one cell
+ * group, so no glyph may appear in two of these tables.
+ */
+export function reviewChipBlock(): string[] {
+  const states = [undefined, "creating", "open", "ready_to_merge", "merged", "closed", "unknown"] as const
+  const lines: string[] = []
+  for (const lifecycle of states) {
+    for (const lastError of [undefined, "gh: could not resolve host"]) {
+      const subject = task({
+        prStatus:
+          lifecycle === undefined
+            ? undefined
+            : ({ checkState: "passing", lifecycle, ...(lastError ? { lastError } : {}) } as Task["prStatus"]),
+      })
+      const chip = prReviewChip(subject)
+      lines.push(
+        `${pad(`lifecycle=${lifecycle ?? "<no prStatus>"}`, 28)} ${pad(`stale=${lastError ? "1" : "0"}`, 8)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`,
+      )
+    }
+  }
   return lines
 }
 

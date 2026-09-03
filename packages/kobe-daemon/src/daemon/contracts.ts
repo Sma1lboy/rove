@@ -405,11 +405,16 @@ export interface UpdateInfo {
 /**
  * The CONTEXT half of an engine's usage snapshot, for one live session.
  *
- * Structural mirror of the three context fields on kobe's
- * `EngineUsageSnapshot` (`kobe/src/types/engine.ts`, the contract's source of
- * truth), narrowed to what the footer meter renders. The daemon never
- * COMPUTES these — the engine's own history reader does, because what counts
- * as "context" is vendor arithmetic (CLAUDE.md, "Engine-owned UI data").
+ * Structural mirror of kobe's `EngineUsageSnapshot`
+ * (`kobe/src/types/engine.ts`, the contract's source of truth). The daemon
+ * never COMPUTES any of it — the engine's own history reader does, because
+ * what counts as "context" and what counts toward a token total are both
+ * vendor arithmetic (CLAUDE.md, "Engine-owned UI data").
+ *
+ * The four token counts are OPTIONAL throughout, and an adapter that does not
+ * report one leaves it absent rather than reporting `0`: the difference
+ * between "this session used no cache" and "this engine does not say" is the
+ * whole reason a reader can trust the number.
  */
 export interface EngineContextUsage {
   /** Tokens currently in the session's context window. */
@@ -418,6 +423,14 @@ export interface EngineContextUsage {
   readonly contextWindowTokens?: number
   /** True when `contextTokens` is estimated rather than engine-reported. */
   readonly approximate?: boolean
+  /** Prompt tokens billed across the whole session, when the vendor reports them. */
+  readonly inputTokens?: number
+  /** Completion tokens across the whole session, when the vendor reports them. */
+  readonly outputTokens?: number
+  /** Cache-read tokens across the whole session, when the vendor reports them. */
+  readonly cacheReadTokens?: number
+  /** Cache-write tokens across the whole session, when the vendor reports them. */
+  readonly cacheCreationTokens?: number
 }
 
 export interface WorktreeChanges {

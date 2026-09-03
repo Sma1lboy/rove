@@ -204,7 +204,12 @@ replacement in `nextCommandArgs`.
   has no session). A dead session's terminal page includes `terminal.exit`
   (`code`/`signal`/`at`) while the PTY host still runs.
 - `inspect [--task-id ID]` *(offline)*: diagnostics in one read, across four
-  sections: `daemon` (raw per-task/per-tab activity entries), `sessions`
+  sections: `daemon` (raw per-task/per-tab activity entries, plus
+  `contextUsage` — the collector's current reading per live engine session,
+  keyed `taskId::tabId`, carrying `contextTokens` and the session's
+  `inputTokens` / `outputTokens` / `cacheReadTokens` / `cacheCreationTokens`
+  where the engine reports them; this is the only read that shows those
+  totals), `sessions`
   (PTY inventory joined with a live process-tree walk; dead sessions carry
   `exit`), `sessionExits` (durable death records, newest first: exit
   `code`/`signal`/`at` plus a plain-text output `tail`, kept in
@@ -341,12 +346,21 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     never echo the text, so a positive proves delivery while a negative
     merely fails to.
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
-  task's live session via the daemon's `session.deliver` channel (the
-  dispatcher's messenger; see
-  [design/dispatcher.md](./design/dispatcher.md)). Broadcast-only: it does
-  not verify a session received the text — the result's `clients` count is
-  the reach signal (`0` = nothing attached performed the paste). `--tab
-  tab-N` delivers into exactly that tab instead of the canonical engine tab.
+  task's live session (the dispatcher's messenger; see
+  [design/dispatcher.md](./design/dispatcher.md)). Unlike `send` it never
+  starts an engine — it needs a session that is already hosted. `--tab tab-N`
+  delivers into exactly that tab instead of the canonical engine tab. The
+  result's `delivered` is the verdict:
+  - `true` — the daemon pasted the text into a live engine session, and
+    `tabId` names which tab took it.
+  - `false` with `reason: "busy"` — a human is mid-message in that composer,
+    so nothing was written (`layer` says which gate held it back). Retry when
+    the composer is clear, or use `send`, which files a deferral instead.
+  - `false` with `reason: "broadcast"` — no hosted session answered, so the
+    text went out on the `session.deliver` channel for a browser-hosted
+    session to pick up. Nothing can confirm that paste; `clients` is a raw
+    connection count (the calling CLI is one of them) and only its `0` proves
+    anything — the text reached nobody.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
   future worktree session on this repo starts with it in its system prompt;

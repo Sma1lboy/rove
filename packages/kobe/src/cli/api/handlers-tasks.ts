@@ -243,17 +243,21 @@ async function dispatch(ctx: VerbContext): Promise<unknown> {
     text,
     ...(tabId !== undefined ? { tabId } : {}),
     source: "dispatcher",
-  })) as { clients?: number } | undefined
-  // Surface the daemon's reach verdict. `session.deliver` is broadcast-only
-  // (an attached client performs the paste), so `clients: 0` means the text
-  // reached nobody — the caller must not read `ok` as "the engine saw it".
-  // An older daemon omits the field; absent stays absent rather than being
-  // guessed either way.
+  })) as { clients?: number; delivered?: boolean; reason?: string; layer?: string; tabId?: string } | undefined
+  // Surface the daemon's own verdict. `delivered: true` is OBSERVED — a paste
+  // landed in a live engine session. `false` is not: the daemon either
+  // refused (a busy composer) or fell back to the broadcast, where `clients`
+  // is a raw CONNECTION count (the calling CLI is one of them) and only its
+  // zero is proof — the text reached nobody. An older daemon omits `delivered`
+  // entirely; absent stays absent rather than being guessed either way.
   return {
     ok: true,
     taskId,
-    ...(tabId !== undefined ? { tabId } : {}),
+    ...(reply?.tabId !== undefined ? { tabId: reply.tabId } : tabId !== undefined ? { tabId } : {}),
     routed: "session.deliver",
+    ...(reply?.delivered !== undefined ? { delivered: reply.delivered } : {}),
+    ...(reply?.reason !== undefined ? { reason: reply.reason } : {}),
+    ...(reply?.layer !== undefined ? { layer: reply.layer } : {}),
     ...(reply?.clients !== undefined ? { clients: reply.clients } : {}),
   }
 }
@@ -265,7 +269,7 @@ export const DISPATCH_VERB: VerbSpec = {
   name: "dispatch",
   group: "drive",
   summary:
-    "Route text into a task's live session via the daemon's session.deliver channel. The dispatcher's messenger (docs/design/dispatcher.md); unlike `send`, it requires an already-hosted session.",
+    'Route text into a task\'s live session. The dispatcher\'s messenger (docs/design/dispatcher.md); unlike `send`, it never starts an engine — it requires an already-hosted session. The daemon pastes into it and reports `delivered`; `delivered:false` with `reason:"busy"` means a human is mid-message, and `reason:"broadcast"` means no hosted session answered and the text went out on the session.deliver channel for a browser to pick up (unconfirmable; `clients: 0` proves it reached nobody).',
   flags: [
     F.taskId(true),
     F.prompt(true, "Text delivered into the task's engine session."),

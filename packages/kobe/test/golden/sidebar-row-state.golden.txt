@@ -1548,6 +1548,22 @@ mergeable=conflicting        stale=0  chip=≠ (error)
 mergeable=conflicting        stale=1  chip=≠ (textMuted)
 <no prStatus>                stale=0  chip=<none>
 
+## PR review-state chip
+lifecycle=<no prStatus>      stale=0  chip=<none>
+lifecycle=<no prStatus>      stale=1  chip=<none>
+lifecycle=creating           stale=0  chip=<none>
+lifecycle=creating           stale=1  chip=<none>
+lifecycle=open               stale=0  chip=<none>
+lifecycle=open               stale=1  chip=<none>
+lifecycle=ready_to_merge     stale=0  chip=» (success)
+lifecycle=ready_to_merge     stale=1  chip=» (textMuted)
+lifecycle=merged             stale=0  chip=≡ (textMuted)
+lifecycle=merged             stale=1  chip=≡ (textMuted)
+lifecycle=closed             stale=0  chip=<none>
+lifecycle=closed             stale=1  chip=<none>
+lifecycle=unknown            stale=0  chip=<none>
+lifecycle=unknown            stale=1  chip=<none>
+
 ## board status chip
 status=backlog               chip=<none>
 status=in_progress           chip=<none>

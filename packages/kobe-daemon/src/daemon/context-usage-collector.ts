@@ -47,11 +47,18 @@ export interface ContextUsageTarget {
   readonly sessionId: string
 }
 
+/** Every field, or the publisher suppresses a change the reader can see: a
+ *  turn that only grew the token totals leaves `contextTokens` alone often
+ *  enough (a compacted session, a cached prompt) to matter. */
 export function sameContextUsage(a: EngineContextUsage, b: EngineContextUsage): boolean {
   return (
     a.contextTokens === b.contextTokens &&
     a.contextWindowTokens === b.contextWindowTokens &&
-    a.approximate === b.approximate
+    a.approximate === b.approximate &&
+    a.inputTokens === b.inputTokens &&
+    a.outputTokens === b.outputTokens &&
+    a.cacheReadTokens === b.cacheReadTokens &&
+    a.cacheCreationTokens === b.cacheCreationTokens
   )
 }
 

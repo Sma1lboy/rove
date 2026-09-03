@@ -362,6 +362,17 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // the badge never cleared" unreadable from every other field.
           // Non-zero is not proof of the converse: a calling CLI counts.
           connectedClients: ctx.daemon.clientCount(),
+          // The context collector's current reading per live engine session
+          // (`taskId::tabId`), token totals included. Same last-value the bus
+          // replays to a late subscriber, so this answers "is the footer's
+          // number stale, wrong, or absent" without opening a browser — and
+          // it is the only read that shows the token counts at all.
+          contextUsage:
+            (
+              ctx.bus.snapshot().find((event) => event.channel === "usage.context")?.payload as
+                | { context?: unknown }
+                | undefined
+            )?.context ?? null,
         }
       },
     },

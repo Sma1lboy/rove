@@ -29,7 +29,7 @@ import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, toTaskId } from "@/types/task"
 import { afterAll, beforeAll, expect, test } from "vitest"
 import { goldenDocument, goldenPath, matchGolden } from "./golden-file"
-import { conflictChipBlock, prChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
+import { conflictChipBlock, prChipBlock, reviewChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
 import {
   OMITTED_FIELDS,
   RECORDED_FIELDS,
@@ -71,6 +71,7 @@ test("sidebar row state matrix matches the committed golden", () => {
     },
     { title: "PR check chip", lines: prChipBlock() },
     { title: "PR merge-conflict chip", lines: conflictChipBlock() },
+    { title: "PR review-state chip", lines: reviewChipBlock() },
     { title: "board status chip", lines: statusChipBlock() },
     { title: "tabRowActivity — which entry a TAB row may read", lines: tabActivityBlock() },
   ])

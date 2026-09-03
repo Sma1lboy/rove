@@ -144,7 +144,15 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
   // Delegated straight to the vendor's own history reader: what counts as
-  // "context" is vendor arithmetic, and the neutral layers only render it.
+  // "context" and what counts toward a token total are both vendor
+  // arithmetic, and the neutral layers only carry and render the result. The
+  // same read already produced the four token counts — dropping them here was
+  // paying for the parse and throwing away most of what it returned.
+  //
+  // `context_tokens` stays the gate: no context reading, no entry, so the
+  // footer meter's behaviour is unchanged. Each token count is carried only
+  // when the adapter reported it; a missing field stays missing rather than
+  // becoming a fabricated `0`.
   async readEngineContextUsage(vendor, sessionId) {
     const read = engineEntry(vendor).history.readUsageSnapshot
     if (!read) return null
@@ -154,6 +162,12 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
       contextTokens: snapshot.context_tokens,
       ...(snapshot.context_window_tokens === undefined ? {} : { contextWindowTokens: snapshot.context_window_tokens }),
       ...(snapshot.context_tokens_approximate ? { approximate: true } : {}),
+      ...(snapshot.input_tokens === undefined ? {} : { inputTokens: snapshot.input_tokens }),
+      ...(snapshot.output_tokens === undefined ? {} : { outputTokens: snapshot.output_tokens }),
+      ...(snapshot.cache_read_input_tokens === undefined ? {} : { cacheReadTokens: snapshot.cache_read_input_tokens }),
+      ...(snapshot.cache_creation_input_tokens === undefined
+        ? {}
+        : { cacheCreationTokens: snapshot.cache_creation_input_tokens }),
     }
   },
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),

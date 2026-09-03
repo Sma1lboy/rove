@@ -187,6 +187,12 @@ export interface ContextUsage {
   readonly contextTokens: number
   readonly contextWindowTokens?: number
   readonly approximate?: boolean
+  /** Session token totals, when the vendor's history reader reports them.
+   *  Absent means "this engine does not say", never zero. */
+  readonly inputTokens?: number
+  readonly outputTokens?: number
+  readonly cacheReadTokens?: number
+  readonly cacheCreationTokens?: number
 }
 export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
 
@@ -195,18 +201,33 @@ export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
  * is ignored rather than clobbering a good map). Each entry is validated
  * field-by-field: this is a trust boundary, and one bad row drops the payload.
  */
+/** The optional token counts carried alongside the context reading. */
+const TOKEN_TOTAL_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheCreationTokens"] as const
+
 export function parseContextUsagePayload(payload: unknown): Map<string, ContextUsage> | null {
   const context = (payload as { context?: unknown } | undefined)?.context
   if (!context || typeof context !== "object" || Array.isArray(context)) return null
   const map = new Map<string, ContextUsage>()
   for (const [key, value] of Object.entries(context as Record<string, unknown>)) {
-    const v = value as { contextTokens?: unknown; contextWindowTokens?: unknown; approximate?: unknown } | undefined
+    const v = value as Record<string, unknown> | undefined
     if (typeof v?.contextTokens !== "number") return null
     if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
+    // Same trust-boundary rule as the two fields above: a token count that is
+    // present but not a number drops the whole payload rather than being
+    // silently coerced or skipped — one bad row means the sender is not the
+    // sender we think it is.
+    const totals: Record<string, number> = {}
+    for (const field of TOKEN_TOTAL_FIELDS) {
+      const raw = v[field]
+      if (raw === undefined) continue
+      if (typeof raw !== "number") return null
+      totals[field] = raw
+    }
     map.set(key, {
       contextTokens: v.contextTokens,
       ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
       ...(v.approximate === true ? { approximate: true } : {}),
+      ...totals,
     })
   }
   return map
@@ -221,7 +242,8 @@ export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boo
       !other ||
       other.contextTokens !== value.contextTokens ||
       other.contextWindowTokens !== value.contextWindowTokens ||
-      other.approximate !== value.approximate
+      other.approximate !== value.approximate ||
+      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field])
     )
       return false
   }

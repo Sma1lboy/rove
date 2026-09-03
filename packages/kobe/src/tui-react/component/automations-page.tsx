@@ -20,7 +20,6 @@ import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/con
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
-import { relativeBuckets } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -32,37 +31,11 @@ import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
+import { formatWhen } from "./automations-format"
+import { RunHistory } from "./automations-runs"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
 const POLL_MS = 5_000
-
-/** Run-status → how it should read at a glance. The four "didn't run" reasons
- *  are deliberately distinct: `skipped_precheck` is healthy (nothing to do),
- *  `dispatch_failed` wants a human. Collapsing them would hide that. */
-const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
-  dispatched: "success",
-  // Delivered, so not grey: `revived` reached a respawned session (the status
-  // text carries the lost-context caveat), `deferred` reached the Inbox and is
-  // warning rather than success because it is parked until a human releases it.
-  revived: "success",
-  deferred: "warning",
-  skipped_precheck: "muted",
-  skipped_missed: "warning",
-  skipped_unavailable: "warning",
-  dispatch_failed: "error",
-}
-
-function formatWhen(iso: string | undefined, now: number): string {
-  if (!iso) return "—"
-  const at = Date.parse(iso)
-  if (!Number.isFinite(at)) return "—"
-  const deltaMs = at - now
-  const { minutes, hours } = relativeBuckets(Math.abs(deltaMs))
-  if (minutes < 1) return deltaMs >= 0 ? "now" : "just now"
-  if (minutes < 60) return deltaMs >= 0 ? `in ${minutes}m` : `${minutes}m ago`
-  if (hours < 24) return deltaMs >= 0 ? `in ${hours}h` : `${hours}h ago`
-  return new Date(at).toLocaleDateString()
-}
 
 function repoLabel(repo: string): string {
   return repo.split("/").filter(Boolean).pop() ?? repo
@@ -407,29 +380,7 @@ export function AutomationsPage(props: {
             {selected.precheck ? (
               <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
             ) : null}
-            <text attributes={TextAttributes.BOLD} fg={theme.text}>
-              {t("automations.recentRuns")}
-            </text>
-            {runs.length === 0 ? (
-              <text fg={theme.textMuted}>{t("automations.noRuns")}</text>
-            ) : (
-              runs.slice(0, 5).map((run) => {
-                const tone = RUN_TONE[run.status] ?? "muted"
-                const color =
-                  tone === "success"
-                    ? theme.success
-                    : tone === "warning"
-                      ? theme.warning
-                      : tone === "error"
-                        ? theme.error
-                        : theme.textMuted
-                return (
-                  <text key={run.id} fg={color}>
-                    {`#${run.runNumber} ${run.status}${run.error ? ` — ${run.error}` : ""}  ${formatWhen(run.at, now)}`}
-                  </text>
-                )
-              })
-            )}
+            <RunHistory runs={runs} now={now} />
           </>
         ) : (
           <text fg={theme.textMuted}>{t("automations.noSelection")}</text>

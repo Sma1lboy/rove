@@ -19,8 +19,9 @@ flowchart LR
   RPC -- "session.deliver (source: note)" --> Bus((daemon bus))
   D["dispatcher\n(main session)"] -- "rove api dispatch" --> RPC2[session.deliver RPC]
   RPC2 -- "source: dispatcher" --> Bus
-  Bus -- SSE via daemon web transport --> SPA[web SPA]
-  SPA -- "ensureEngineTab + /pty/send" --> S[(target task's session)]
+  RPC2 -- "paste into the live hosted session" --> S[(target task's session)]
+  Bus -- "SSE fallback: no hosted session answered" --> SPA[web SPA]
+  SPA -- "ensureEngineTab + /pty/send" --> S
 ```
 
 ## The pieces
@@ -29,8 +30,9 @@ flowchart LR
 |---|---|---|
 | `rove api note --task-id <id> --text <line>` | `kobe/src/cli/api-cmd.ts` | A session files a discovery. |
 | `note.file` RPC | `kobe-daemon/src/daemon/handlers.ts` | Addressing only: find the author's repo's main task, forward over `session.deliver` with provenance (`[ROVE FIELD NOTE] from "<author>" (task <id>): …`). Accepted-but-unrouted when the repo has no main task or the author *is* the dispatcher. |
-| `session.deliver` channel | `kobe-daemon/src/daemon/protocol.ts` | "Paste this text into task X" — an address, not a delivery. EVENT semantics; consumers dedupe on `at`. |
-| `rove api dispatch --task-id <id> --prompt <text>` | api-cmd + `session.deliver` RPC | The dispatcher's relay. Daemon-routed on purpose: `rove api send` targets the task's canonical standalone Hosted PTY session, while browser-sidecar PTYs are a separate delivery surface; starting the canonical session beside a browser-owned one can create a duplicate engine. |
+| `session.deliver` RPC | `kobe-daemon/src/daemon/handlers-ui.ts` | Delivers. Pastes into the task's live hosted engine session through the same adapter `send` uses (never spawns, respects the composer gate) and reports `delivered`. Only a `no-session` miss falls through to the channel below — publishing after a successful paste would make a listening browser paste it twice. |
+| `session.deliver` channel | `kobe-daemon/src/daemon/protocol.ts` | The browser fallback: "paste this text into task X" — an address, not a delivery, because the SPA mints its own tab ids and its sessions are invisible to the PTY host. EVENT semantics; consumers dedupe on `at`. |
+| `rove api dispatch --task-id <id> --prompt <text>` | api-cmd + `session.deliver` RPC | The dispatcher's relay. Daemon-routed on purpose: it delivers only into an ALREADY-hosted session, where `rove api send` would start the task's canonical Hosted PTY session — and starting one beside a browser-owned session can create a duplicate engine. |
 | `noteFilingProtocol` + `worktreeProtocol` | `kobe/src/engine/interactive-command.ts` | Worktree (card) sessions get ONE composed `--append-system-prompt`: status self-report (gated by `experimental.autoStatus`) + note filing (gated by `experimental.dispatcher`). |
 | `dispatcherProtocol` | same | The main session's role prompt: relay verbatim with provenance, only to tasks whose work plausibly touches the same area, never back to the author, never twice, no conflict actions, no git outside its own cwd. |
 | Protocol CLI invocation | `kobeApiInvocation()` | Commands in protocols bake the environment-correct invocation (packaged → `rove api`, or the `kobe` alias when invoked that way; source checkout → the dev bun line), so a dev sandbox agent never drives a stale global install (BAD_VERB field bug). |

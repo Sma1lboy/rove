@@ -66,6 +66,10 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     orch: { listTasks: () => [], getTask: () => undefined, ...orch } as unknown as Orchestrator,
     bus: {
       publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
+      // `debug.inspect` reads the bus's last-value cache; the fake keeps the
+      // same shape so a handler that asks for it gets an empty replay rather
+      // than a TypeError.
+      snapshot: () => rec.published.map(({ channel, payload }) => ({ channel, payload })),
     } as unknown as DaemonEventBus,
     activity: {
       report: (taskId: string, kind: string, detail?: unknown) => rec.reported.push({ taskId, kind, detail }),
