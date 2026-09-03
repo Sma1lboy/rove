@@ -26,10 +26,17 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "session.deliver",
     async handle(payload, ctx) {
-      // Dispatcher messenger (docs/design/dispatcher.md): `kobe api
-      // dispatch` routes text to a task's live engine session. The daemon
-      // only validates + broadcasts; the front-end hosting that session
-      // (the SPA via /pty/send) owns the actual paste.
+      // Dispatcher messenger (docs/design/dispatcher.md): `kobe api dispatch`
+      // routes text to a task's live engine session.
+      //
+      // The daemon DELIVERS it, then falls back to the broadcast. It used to
+      // only broadcast, on the assumption that "the front-end hosting that
+      // session (the SPA via /pty/send) owns the actual paste" — true when the
+      // SPA was the product surface, and false since: an engine tab opened in
+      // the TUI lives in the shared PTY host, which the daemon reaches through
+      // the same adapter `send` uses. Nothing subscribed to the channel on the
+      // TUI side, so `dispatch` against a TUI-hosted task answered `ok: true`
+      // and pasted nowhere.
       const taskId = requireString(payload, "taskId")
       const text = requireString(payload, "text")
       const tabId = optionalString(payload, "tabId")
@@ -37,17 +44,41 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (source !== undefined && source !== "note" && source !== "dispatcher") {
         throw new Error('source must be "note" or "dispatcher"')
       }
-      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
-      ctx.bus.publish("session.deliver", {
-        taskId,
-        text,
-        ...(tabId !== undefined ? { tabId } : {}),
-        at: Date.now(),
-        source: source ?? "dispatcher",
-      })
-      // `clients` mirrors the RPC's own honesty note above: broadcast-only
-      // delivery can't be observed, so the event reports REACH (connection
-      // count; 0 = certainly nobody performed the paste), not a confirmation.
+      const task = ctx.orch.getTask(taskId)
+      if (!task) throw new Error(`task not found: ${taskId}`)
+      // Delivery is engine-owned: both adapters respect each engine's composer
+      // gate, and NEITHER spawns — they paste into an already-live hosted
+      // session or report `no-session`. `dispatch`'s own contract ("requires
+      // an already-hosted session") is exactly that, so a miss here is honest
+      // rather than a reason to start something.
+      const outcome = task.worktreePath
+        ? await (tabId === undefined
+            ? ctx.runtime.deliverPromptToLiveEngineDetailed(
+                { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+                text,
+              )
+            : ctx.runtime.deliverPromptToLiveEngineTabDetailed(
+                { id: task.id, tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+                text,
+              )
+          ).catch(() => ({ outcome: "no-session" }) as const)
+        : ({ outcome: "no-session" } as const)
+      // Broadcast ONLY when we did not deliver, and only for `no-session`. A
+      // browser-hosted session is invisible to the PTY host (the SPA mints its
+      // own tab ids), so the channel is still the only way to reach one — but
+      // publishing after a successful paste would make a listening browser
+      // paste the same text a second time, and publishing over `busy` would
+      // clobber a composer somebody is typing in right now.
+      const broadcast = outcome.outcome === "no-session"
+      if (broadcast) {
+        ctx.bus.publish("session.deliver", {
+          taskId,
+          text,
+          ...(tabId !== undefined ? { tabId } : {}),
+          at: Date.now(),
+          source: source ?? "dispatcher",
+        })
+      }
       ctx.plugins?.handleUiReport({
         kind: "message.delivered",
         taskId,
@@ -58,17 +89,27 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           clients: ctx.daemon.clientCount(),
         },
       })
-      // Report reach, don't just claim success. `session.deliver` is
-      // broadcast-only — an attached client performs the paste — so with
-      // nothing listening the text goes into the void while the caller still
-      // reads `ok: true`. That is how a dispatched answer goes missing and
-      // leaves a `permission_needed` badge stranded.
-      //
-      // `clients` counts CONNECTIONS, which is a weak proxy: the calling CLI
-      // is itself one, so 1 does not prove a session host is listening. It
-      // still distinguishes the unambiguous 0 case, and the caller can
-      // confirm a real host with `api pty-list`.
-      return { ok: true, clients: ctx.daemon.clientCount() }
+      // `delivered` is OBSERVED, not claimed: true only when a paste actually
+      // landed in a live engine session. `false` with `reason: "busy"` means a
+      // human is mid-message and the text was deliberately not written; false
+      // with `reason: "broadcast"` means no hosted session answered and the
+      // event went out for a browser to pick up, which nothing can confirm —
+      // `clients` (raw CONNECTION count, the calling CLI included) is the only
+      // reach signal there, and 0 proves the text reached nobody.
+      if (outcome.outcome === "delivered") {
+        return { ok: true, delivered: true, tabId: outcome.tabId, clients: ctx.daemon.clientCount() }
+      }
+      if (outcome.outcome === "busy") {
+        return {
+          ok: true,
+          delivered: false,
+          reason: "busy",
+          layer: outcome.layer,
+          tabId: outcome.tabId,
+          clients: ctx.daemon.clientCount(),
+        }
+      }
+      return { ok: true, delivered: false, reason: "broadcast", clients: ctx.daemon.clientCount() }
     },
   },
   {
