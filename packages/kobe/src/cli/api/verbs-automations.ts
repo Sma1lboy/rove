@@ -145,7 +145,14 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
         ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
-        ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
+        // `present` + `bool`, not a bare `bool` ternary: an explicit
+        // `--persistent-session false` is falsy, so the ternary dropped the key
+        // and left the routine standing — there was no CLI path back to
+        // fresh-worktree-per-run. (On `routine-create` above, absent and false
+        // mean the same thing, so the ternary is harmless there.)
+        ...(ctx.args.present("persistent-session")
+          ? { persistentSession: ctx.args.bool("persistent-session") ?? true }
+          : {}),
       }),
   },
   {

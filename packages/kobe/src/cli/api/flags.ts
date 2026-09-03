@@ -33,6 +33,18 @@ export function parsePositiveInt(raw: string): number | undefined {
   return Number.isSafeInteger(n) && n > 0 ? n : undefined
 }
 
+/**
+ * A boolean flag's value, or `undefined` when the string isn't one. Shared by
+ * the parser (deciding whether `--pinned false` is a value or a presence flag)
+ * and {@link VerbArgs.bool} (coercing it), so the two can never disagree about
+ * what counts as a boolean.
+ */
+export function parseBoolLiteral(raw: string): boolean | undefined {
+  if (["true", "1", "yes"].includes(raw)) return true
+  if (["false", "0", "no"].includes(raw)) return false
+  return undefined
+}
+
 /** Both parallel-plan parsers are only reachable from `add`, so their errors point at its help. */
 const FANOUT_STEP = helpStep("add")
 
@@ -134,9 +146,20 @@ export function parseFlags(argv: readonly string[], booleanFlags: ReadonlySet<st
       help = true
       continue
     }
-    // A boolean verb flag with no value is a presence flag (`--force`).
+    // A boolean verb flag takes the space form (`--pinned false`) only when the
+    // next argv element IS a boolean literal. Anything else — another flag, a
+    // string flag's value, end of argv — leaves it a presence flag (`--force`),
+    // so both halves of the contract work: `bool()` has always accepted
+    // `false`/`0`/`no`, and before this the parser made that value unreachable
+    // except through `--pinned=false`.
     if (booleanFlags.has(key)) {
-      flags.set(key, "true")
+      const next = argv[i + 1]
+      if (next !== undefined && parseBoolLiteral(next) !== undefined) {
+        flags.set(key, next)
+        i += 1
+      } else {
+        flags.set(key, "true")
+      }
       continue
     }
     const next = argv[i + 1]
@@ -224,8 +247,23 @@ export class VerbArgs {
    * The prompt text from `--prompt` or `--prompt-file` (`-` = stdin), never
    * both. `undefined` when neither was given — callers that need one wrap
    * this in their own MISSING_FLAG.
+   *
+   * Memoized, because it is the one accessor with a SIDE EFFECT: `-` drains
+   * stdin. Every sibling here is pure, so callers naturally write
+   * `promptText() !== undefined ? { prompt: promptText() } : {}` — which used
+   * to consume stdin on the guard and then read EOF on the branch, failing
+   * "--prompt-file - is empty" for a pipe that was never empty.
    */
   promptText(): string | undefined {
+    if (this.promptMemo !== undefined) return this.promptMemo.value
+    const value = this.readPromptText()
+    this.promptMemo = { value }
+    return value
+  }
+
+  private promptMemo: { value: string | undefined } | undefined
+
+  private readPromptText(): string | undefined {
     const inline = this.str("prompt")
     const file = this.str("prompt-file")
     if (inline !== undefined && file !== undefined) {
@@ -291,9 +329,9 @@ export class VerbArgs {
     this.spec(name)
     const raw = this.str(name)
     if (raw === undefined) return undefined
-    if (["true", "1", "yes"].includes(raw)) return true
-    if (["false", "0", "no"].includes(raw)) return false
-    throw new ApiError(`--${name} must be a boolean (true/false)`, "BAD_FLAG")
+    const value = parseBoolLiteral(raw)
+    if (value === undefined) throw new ApiError(`--${name} must be a boolean (true/false)`, "BAD_FLAG")
+    return value
   }
 
   /** Positive-integer flag; undefined when absent. */
