@@ -169,7 +169,8 @@ on a file to open its read-only diff, then:
 1. `j` / `k` move the line cursor.
 2. `v` anchors a range. Move to the other end with `j`/`k`; `v` again
    cancels. Skip this for a single-line note.
-3. `c` writes a note for the current line or range.
+3. `c` writes a note for the current line or range. `x` drops the note the
+   cursor sits inside — the way out of a typo that isn't sending it.
 4. `s` sends **all** unsent notes, across all files of the task, to the
    engine as one prompt, and submits it.
 
@@ -177,11 +178,16 @@ The prompt the engine receives is just file, line numbers, and your words,
 no code excerpt. The engine reads the worktree itself. Notes are stored per
 task and survive restarts; the footer counts `notes · unsent` so you always
 know what's pending. Sending doesn't switch tabs, so keep reviewing while the
-engine works.
+engine works, and `r` reloads the diff when the engine has changed the file
+under you.
+
+A Task with no engine session has nowhere to send to — `ctrl+w` on the last
+tab leaves one in exactly that state. `s` then leaves every note unsent and
+says so, rather than reporting a delivery that did not happen.
 
 Notes anchor to the file path and the line number displayed at the time you
-wrote them; they don't re-anchor when the diff changes underneath. These four
-keys are fixed and not rebindable.
+wrote them; they don't re-anchor when the diff changes underneath. These keys
+are fixed and not rebindable.
 
 ## Files pane
 

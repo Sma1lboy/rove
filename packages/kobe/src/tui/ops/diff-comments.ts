@@ -151,6 +151,26 @@ export function computeReviewPaint(
   return paint
 }
 
+/**
+ * The note the cursor row sits inside — what a delete chord aims at. Newest
+ * first, because overlapping notes on one line are read in the order they were
+ * written and the last one is the one just added.
+ */
+export function commentAtRow(
+  rows: readonly DiffRow[],
+  cursor: number,
+  comments: readonly DiffComment[],
+  filePath: string,
+): DiffComment | undefined {
+  const row = rows[cursor]
+  if (!row) return undefined
+  for (let i = comments.length - 1; i >= 0; i -= 1) {
+    const c = comments[i]
+    if (c && c.filePath === filePath && (c.startLine ?? c.line) <= row.line && row.line <= c.line) return c
+  }
+  return undefined
+}
+
 /* ------------------- per-task store (kv-backed) ------------------- */
 
 /** Kv key holding a task's `DiffComment[]` — same per-task keying as the
@@ -162,12 +182,22 @@ export function diffCommentsKey(taskId: string): string {
 
 type NewDiffComment = Pick<DiffComment, "filePath" | "startLine" | "line" | "body">
 
-/** What the diff view needs to read/add/send review notes. */
+/** What the diff view needs to read/add/remove/send review notes. */
 export interface DiffReviewApi {
   readonly comments: readonly DiffComment[]
   add(input: NewDiffComment): void
-  /** Send ALL of the task's unsent notes as one prompt, then mark them sent. */
-  send(): void
+  /** Drop one note by id — a typo'd note was otherwise only escapable by
+   *  sending it to the engine. */
+  remove(id: string): void
+  /**
+   * Send ALL of the task's unsent notes as one prompt, then mark them sent.
+   *
+   * FALSE means there were unsent notes and NOTHING was delivered (the task
+   * has no live engine session). The notes stay unsent in that case — marking
+   * them sent anyway is what made a dropped batch indistinguishable from a
+   * delivered one. Nothing to send is not a failure and answers true.
+   */
+  send(): boolean
 }
 
 /** Structural slice of the TUI's KV context. */
@@ -184,7 +214,8 @@ export type DiffCommentsKv = {
 export function buildDiffReview(
   kv: DiffCommentsKv,
   taskId: string,
-  sendToEngine: (text: string) => void,
+  /** Returns whether the text actually reached an engine session. */
+  sendToEngine: (text: string) => boolean,
 ): DiffReviewApi {
   const key = diffCommentsKey(taskId)
   const read = (): readonly DiffComment[] => (kv.get(key, []) as DiffComment[] | null) ?? []
@@ -193,12 +224,21 @@ export function buildDiffReview(
     add(input) {
       kv.set(key, [...read(), { ...input, id: randomUUID(), createdAt: Date.now() }])
     },
+    remove(id) {
+      kv.set(
+        key,
+        read().filter((c) => c.id !== id),
+      )
+    },
     send() {
       const all = read()
       const unsent = unsentComments(all)
-      if (unsent.length === 0) return
-      sendToEngine(formatDiffComments(unsent))
+      if (unsent.length === 0) return true
+      // Mark sent ONLY after a delivery that answered. The order matters: a
+      // refused send must leave kv untouched so the notes survive.
+      if (!sendToEngine(formatDiffComments(unsent))) return false
       kv.set(key, markAllSent(all, Date.now()))
+      return true
     },
   }
 }

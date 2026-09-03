@@ -23,7 +23,7 @@ const src = (rel: string): string => readFileSync(fileURLToPath(new URL(`../../s
 describe("FileTree `a` mention stays wired", () => {
   test("useEditorHandles returns the real mention action, not a stub", () => {
     const text = src("tui-react/workspace/use-editor-handles.tsx")
-    expect(text).toContain("onMention: mentionAction(pasteToEngineFn)")
+    expect(text).toContain("onMention: mentionAction(pasteToEngineFn,")
   })
 
   test("the workspace host passes both halves down to the panes", () => {
