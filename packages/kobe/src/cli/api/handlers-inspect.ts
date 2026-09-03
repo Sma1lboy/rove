@@ -100,8 +100,8 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
  *  true`); records without the field are PTY-layer. Newest first. */
 async function sessionExitsSection(taskId: string | undefined): Promise<unknown> {
   try {
-    const { readPtyExitRecords } = await import("@sma1lboy/kobe-daemon/daemon/pty-exit-store")
-    const records = Object.values(readPtyExitRecords()).sort((a, b) => (a.at < b.at ? 1 : -1))
+    const { compareByExitAtDesc, readPtyExitRecords } = await import("@sma1lboy/kobe-daemon/daemon/pty-exit-store")
+    const records = Object.values(readPtyExitRecords()).sort(compareByExitAtDesc)
     return taskId ? records.filter((r) => r.key.startsWith(`${taskId}::`)) : records
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) }
