@@ -60,6 +60,7 @@ import {
   type BinaryDiscoveryDeps as CopilotDeps,
   findCopilotBinary,
 } from "../../src/engine/copilot-local/binary.ts"
+import { findKimiBinary } from "../../src/engine/kimi-local/binary.ts"
 
 beforeEach(() => {
   files.clear()
@@ -133,6 +134,24 @@ describe("findCodexBinary — default deps", () => {
     const err = await findCodexBinary().catch((e: unknown) => e)
     expect(err).toBeInstanceOf(CodexBinaryNotFoundError)
     expect((err as CodexBinaryNotFoundError).checkedPaths).toContain("/opt/homebrew/bin/codex")
+  })
+})
+
+// Kimi's own `which` parser never unwrapped the alias line; the shared
+// `defaultBinaryDeps.which` does it for every vendor. Before, an aliased
+// `kimi` returned the literal "kimi: aliased to …" string, which then failed
+// the fileExists check and fell through to the install dirs for no reason.
+describe("findKimiBinary — default deps", () => {
+  it("resolves a macOS `which` alias line to its target when the target exists", async () => {
+    which = { status: 0, stdout: "kimi: aliased to /vhome/u/real-kimi\n" }
+    files.add("/vhome/u/real-kimi")
+    await expect(findKimiBinary()).resolves.toBe("/vhome/u/real-kimi")
+  })
+
+  it("discards an alias whose target is gone and falls through to ~/.kimi-code/bin", async () => {
+    which = { status: 0, stdout: "kimi: aliased to /vanished/kimi\n" }
+    files.add(path.join(HOME, ".kimi-code/bin", "kimi"))
+    await expect(findKimiBinary()).resolves.toBe(path.join(HOME, ".kimi-code/bin", "kimi"))
   })
 })
 

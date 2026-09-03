@@ -23,6 +23,7 @@ import { stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { readTextFileBounded } from "../file-bounds"
+import { vendorConfigHome } from "../vendor-home"
 
 export interface KimiHistoryDeps {
   kimiDir(): string
@@ -32,8 +33,7 @@ export interface KimiHistoryDeps {
 
 const defaultDeps: KimiHistoryDeps = {
   kimiDir() {
-    const override = process.env.KIMI_CODE_HOME?.trim()
-    return override || path.join(homedir(), ".kimi-code")
+    return vendorConfigHome("kimi")
   },
   async readFile(p) {
     // Size-bounded like the other readers: a corrupt index degrades to ""

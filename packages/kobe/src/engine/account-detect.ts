@@ -44,12 +44,14 @@ import path from "node:path"
 import { errorMessage } from "@/lib/error-message"
 import { getCustomEngineIds, getDisabledEngineIds } from "@/state/repos"
 import type { VendorId } from "@/types/vendor"
-import { ClaudeBinaryNotFoundError, findClaudeBinary } from "./claude-code-local/binary"
-import { CodexBinaryNotFoundError, findCodexBinary } from "./codex-local/binary"
+import { BinaryNotFoundError } from "./binary-discovery"
+import { findClaudeBinary } from "./claude-code-local/binary"
+import { findCodexBinary } from "./codex-local/binary"
 import { CONTRIB_ENGINES, CONTRIB_ENGINE_IDS, pluginEngineIds } from "./contrib-engines"
-import { CopilotBinaryNotFoundError, findCopilotBinary } from "./copilot-local/binary"
+import { findCopilotBinary } from "./copilot-local/binary"
 import { readTextFileSyncBounded } from "./file-bounds"
-import { KimiBinaryNotFoundError, findKimiBinary } from "./kimi-local/binary"
+import { findKimiBinary } from "./kimi-local/binary"
+import { claudeGlobalConfigPath, codexAuthPath, copilotConfigPath, kimiCredentialsPath } from "./vendor-home"
 
 export type ClaudeAccount =
   | {
@@ -125,33 +127,6 @@ const defaultDeps: DetectDeps = {
   },
 }
 
-/** Resolve the path to claude-code's global config (`~/.claude.json` by default). */
-export function claudeGlobalConfigPath(env: (k: string) => string | undefined, home: string): string {
-  const override = env("CLAUDE_CONFIG_DIR")?.trim()
-  if (override) return path.join(override, ".claude.json")
-  return path.join(home, ".claude.json")
-}
-
-/** Resolve the path to codex's auth file (`~/.codex/auth.json` by default). */
-export function codexAuthPath(env: (k: string) => string | undefined, home: string): string {
-  const override = env("CODEX_HOME")?.trim()
-  const dir = override ?? path.join(home, ".codex")
-  return path.join(dir, "auth.json")
-}
-
-export function copilotConfigPath(env: (k: string) => string | undefined, home: string): string {
-  const override = env("COPILOT_HOME")?.trim()
-  const dir = override ?? path.join(home, ".copilot")
-  return path.join(dir, "config.json")
-}
-
-/** Resolve kimi's OAuth credential file (`~/.kimi-code/credentials/kimi-code.json`). */
-function kimiCredentialsPath(env: (k: string) => string | undefined, home: string): string {
-  const override = env("KIMI_CODE_HOME")?.trim()
-  const dir = override ?? path.join(home, ".kimi-code")
-  return path.join(dir, "credentials", "kimi-code.json")
-}
-
 /**
  * Decode the payload of a JWT (header.payload.signature) without
  * verifying the signature. We're not authenticating the user — we're
@@ -180,14 +155,9 @@ async function probeBinary(probe: () => Promise<string>): Promise<BinaryStatus> 
     const p = await probe()
     return { found: true, path: p }
   } catch (err) {
-    if (
-      err instanceof ClaudeBinaryNotFoundError ||
-      err instanceof CodexBinaryNotFoundError ||
-      err instanceof CopilotBinaryNotFoundError ||
-      err instanceof KimiBinaryNotFoundError
-    ) {
-      return { found: false, error: "not found on PATH" }
-    }
+    // Every vendor's not-found error derives from this one, so "no binary
+    // anywhere we look" reads the same regardless of which CLI was probed.
+    if (err instanceof BinaryNotFoundError) return { found: false, error: "not found on PATH" }
     return { found: false, error: errorMessage(err) }
   }
 }
