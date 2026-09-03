@@ -483,10 +483,9 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
   })
   const server = Bun.serve({ port: opts.port, hostname, idleTimeout: 0, fetch: handle })
   // Subscribed only once there is something to unsubscribe FROM: above the
-  // bind, an `ensureWebToken` write error or a lost port race (EADDRINUSE)
-  // throws past every caller of the returned `close()`, and the bus keeps
-  // calling this orphaned closure for the daemon's whole lifetime — once per
-  // restart that loses the race.
+  // bind, an `ensureWebToken` write error or a lost port race throws past every
+  // caller of the returned `close()`, and the bus keeps calling this orphaned
+  // closure for the daemon's whole lifetime — once per restart that loses.
   const unsubscribe = opts.onEvent((event) => {
     for (const send of sseSends) send("channel", event)
   })

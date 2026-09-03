@@ -366,10 +366,10 @@ export class Orchestrator {
   async clearWorktreePath(id: TaskId | string): Promise<void> {
     const task = this.store.get(id)
     if (!task || !task.worktreePath) return
-    // Only a Rove-created worktree has a path worth forgetting. A `dir` task's
-    // worktreePath IS the user's own directory, so blanking it makes
-    // `ensureWorktree` hand back "" forever; a `main` task's is the checkout.
-    // `handlers-worktree.ts` matches by exact path, which matches those too.
+    // Only a Rove-created worktree is ours to forget: a `dir` task's path IS
+    // the user's directory (blanking it makes `ensureWorktree` return "" for
+    // good), a `main` task's is the checkout, and `handlers-worktree.ts`
+    // matches both by exact path.
     if (task.kind === "main" || task.kind === "dir") return
     await this.store.update(task.id, { worktreePath: "" })
     this.worktreeCoordinator.forget(task.id)
@@ -438,9 +438,8 @@ export class Orchestrator {
   /** Land a task's branch back into its base repo — executor + cleanup in `land.ts`. */
   async landTask(id: TaskId | string, opts?: LandTaskOpts): Promise<LandResult> {
     const task = this.requireTask(id)
-    // Same refusal every other worktree entry point makes (`setActiveTask`,
-    // `ensureWorktree`): without it a land races the daemon's deletion runner
-    // over the same directory.
+    // The refusal every other worktree entry point makes (`setActiveTask`,
+    // `ensureWorktree`): without it a land races the deletion runner.
     if (task.deletion) throw new TaskDeletingError(String(task.id))
     return landTaskWithCleanup(task, opts ?? {}, {
       worktrees: this.worktrees,

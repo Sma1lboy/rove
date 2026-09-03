@@ -306,14 +306,10 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     clients,
     async close() {
       lifetime.markStopping()
-      // The destructive half runs first and the releasing half runs in the
-      // `finally`, because a throw in between used to strand the process as a
-      // zombie: `stopping` is latched and the store subscription, collectors
-      // and web server are already gone, but the socket and pidfile are still
-      // on disk and still answering `hello`, so every client and
-      // `rove daemon status` report a healthy daemon whose panes never update
-      // again. `pluginHost.stop()` is the known thrower — its `run` spawns
-      // outside the inner promise, so an empty `command` array rejects it.
+      // Release in a `finally`: a throw between the halves used to strand a
+      // zombie — `stopping` latched and the internals gone, but the socket and
+      // pidfile still on disk answering `hello`. `pluginHost.stop()` throws
+      // (its `run` spawns outside the inner promise).
       try {
         unsubscribeStore()
         webServer?.close()
@@ -363,10 +359,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     try {
       await options.onStop?.()
     } catch (err) {
-      // The latch is already set, so nothing will re-arm the idle timer: if a
-      // failing stop hook also skipped the close below, the daemon would
-      // outlive every request to stop it — idle, socket takeover, and
-      // `rove daemon stop` (which reports success) all go through here.
+      // The latch is set, so nothing re-arms the idle timer: a stop hook that
+      // took the close below with it left the daemon outliving every request
+      // to stop it — idle, takeover and `rove daemon stop` all route here.
       logDaemonError("daemon-stop-hook", err)
     }
     setTimeout(() => {
