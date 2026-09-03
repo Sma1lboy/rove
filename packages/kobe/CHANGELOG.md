@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.96
+
+### Patch Changes
+
+- [#819](https://github.com/Sma1lboy/rove/pull/819) [`727f66a`](https://github.com/Sma1lboy/rove/commit/727f66aabe9580ce431313f14bf0abfa7f3d5957) Internal: narrow 146 module-private symbols from `export` to file scope and drop 50 barrel re-exports nobody imported, so `bun run knip` reports no unused exports or types. Genuinely dead code is detectable from now on instead of being buried in noise. `knip.json` now treats every test file as an entry point, which is what made the cross-file consumers visible — the previous `*.test.ts`-only pattern hid test helper modules and produced false "unused" reports. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#818](https://github.com/Sma1lboy/rove/pull/818) [`b937d39`](https://github.com/Sma1lboy/rove/commit/b937d39652ac3c18385a2a008ac0f0d918219833) Search the terminal scrollback. `ctrl+a` `/` opens a query row in the pane footer; typing filters live, `return`/`up` walk to older matches and `down` to newer ones, and `esc` closes the row and puts the viewport back where it was. Every hit on screen is highlighted, and the one you are parked on is painted in the accent colour. A new query parks on the newest occurrence, because a scrollback is read backwards.
+
+  The search covers Rove's own scrollback only: while a full-screen app is on the alternate screen it owns its buffer, and the row says so instead of walking one screen of somebody else's redraw. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.95
 
 ### Patch Changes
