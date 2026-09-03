@@ -5,7 +5,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv } from "./harness.ts"
+import { type BehaviorEnv, DIST_ROVE_CLI, closeTui, loadNodePty, makeBehaviorEnv } from "./harness.ts"
 
 // node-pty is a native addon; CI's linux runner has no prebuild for it, so a
 // top-level import fails the whole suite before skip logic can run. The
@@ -51,7 +51,7 @@ describe.skipIf(!nodePty)("Rove outer terminal title (behavior)", () => {
       })
       expect(raw).toContain(TITLE_SEQUENCE)
     } finally {
-      child.kill()
+      await closeTui(child)
     }
   }, 15_000)
 })

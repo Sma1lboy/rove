@@ -13,7 +13,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv, makeScratchRepo, runRove } from "./harness.ts"
+import {
+  type BehaviorEnv,
+  DIST_ROVE_CLI,
+  closeTui,
+  loadNodePty,
+  makeBehaviorEnv,
+  makeScratchRepo,
+  runRove,
+} from "./harness.ts"
 
 const nodePty = await loadNodePty()
 
@@ -96,7 +104,7 @@ describe.skipIf(!nodePty)("Pure TUI adopts unregistered live sessions (behavior)
       }
       expect(adopted?.tabs?.map((tab) => tab.id)).toContain("tab-1")
     } finally {
-      child.kill()
+      await closeTui(child)
     }
   }, 90_000)
 })

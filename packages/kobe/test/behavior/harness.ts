@@ -22,6 +22,11 @@ const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 export const DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")
 export const DIST_KOBE_CLI = join(PKG_ROOT, "dist/cli/kobe.js")
 
+/** Longer than the host's own exit ceiling, so SIGKILL means a real hang. */
+const CLOSE_TUI_TIMEOUT_MS = 8_000
+
+type OnExit = (listener: () => void) => { dispose(): void }
+
 export interface BehaviorEnv {
   readonly home: string
   readonly bin: string
@@ -161,6 +166,53 @@ export async function makeScratchRepo(env: BehaviorEnv): Promise<string> {
   git("add", "README.md")
   git("commit", "-q", "-m", "init")
   return repo
+}
+
+/**
+ * Terminate a TUI child and resolve only once the process is GONE.
+ *
+ * `child.kill()` is fire-and-forget, and a Rove host does not die on the
+ * signal: `installPaneExitBackstop` schedules the real exit once its
+ * exit-critical work drains. On the way out the KV provider's
+ * `process.on("exit")` flush dirty-key-merges that launch's own
+ * `terminalTabs` snapshot onto `state.json` — so a test that killed a launch
+ * and immediately rewrote that file had its write reverted by the corpse.
+ * (Same root cause as the orphaned-pane leak: opentui's own SIGHUP/SIGTERM
+ * handler destroys the renderer without ever exiting.)
+ *
+ * `onExit` is the process's own statement that it is gone and its exit
+ * handlers have run — not a sleep, and not a retry. SIGKILL is the last
+ * resort only: it skips those exit handlers, which is exactly the loss this
+ * helper exists to prevent, so it is reported rather than swallowed.
+ */
+export function closeTui(child: { pid: number; kill(signal?: string): void; onExit: OnExit }): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(hardTimer)
+      subscription?.dispose()
+      resolve()
+    }
+    const subscription = child.onExit(() => finish())
+    const hardTimer = setTimeout(() => {
+      console.warn(
+        `[behavior] TUI pid ${child.pid} ignored SIGTERM for ${CLOSE_TUI_TIMEOUT_MS}ms — escalating to SIGKILL`,
+      )
+      try {
+        child.kill("SIGKILL")
+      } catch {
+        // already reaped between the timeout and here
+      }
+      setTimeout(finish, 250)
+    }, CLOSE_TUI_TIMEOUT_MS)
+    try {
+      child.kill("SIGTERM")
+    } catch {
+      finish() // already gone; nothing to wait for
+    }
+  })
 }
 
 /**
