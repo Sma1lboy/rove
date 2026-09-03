@@ -19,7 +19,7 @@ import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import type { AgentTurnRecord } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
-import { writeJsonAtomic } from "./json-file.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 interface AgentTurnsFile {
   readonly version: 1
@@ -76,7 +76,6 @@ function sameRecord(a: AgentTurnRecord, b: AgentTurnRecord): boolean {
 
 export class AgentTurnsStore {
   private readonly turns = new Map<string, AgentTurnRecord>()
-  private tail: Promise<void> = Promise.resolve()
 
   constructor(private readonly path: string) {}
 
@@ -174,11 +173,6 @@ export class AgentTurnsStore {
   /** Serialize mutations so two concurrent hook ingests can't interleave a
    *  read-modify-write and lose turns. */
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(work, work)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, work)
   }
 }

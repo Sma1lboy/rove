@@ -22,7 +22,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import { logDaemonInfo } from "./crash-log.ts"
-import { writeJsonAtomic } from "./json-file.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 /** One deferred prompt per tab is kept until release or expiry. */
 export const DEFERRED_PROMPT_TTL_MS = 24 * 60 * 60 * 1000
@@ -128,8 +128,6 @@ async function writeStore(path: string, records: readonly DeferredPromptRecord[]
 const SUBSYSTEM = "deferred-prompts"
 
 export class DeferredPromptsStore {
-  private readonly tail: Promise<void> = Promise.resolve()
-  private queue: Promise<void> = this.tail
   private readonly claims = new Map<string, { claimId: string; done: Promise<void>; finish: () => void }>()
 
   constructor(
@@ -139,12 +137,7 @@ export class DeferredPromptsStore {
 
   /** Serialize read-modify-write on the shared file (same unit as the inbox store). */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(operation)
-    this.queue = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, operation)
   }
 
   /**
