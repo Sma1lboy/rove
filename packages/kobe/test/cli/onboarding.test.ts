@@ -84,7 +84,9 @@ function emptyEnv(): OnboardingEnvReport {
 
 function setProduct(name: "rove" | "kobe"): void {
   if (name === "rove") process.env.ROVE_INVOKED_AS = "rove"
-  else process.env.ROVE_INVOKED_AS = undefined
+  // Assigning `undefined` stores the literal string "undefined", which reads
+  // as legacy only by accident. Delete it so the legacy case is the real one.
+  else Reflect.deleteProperty(process.env, "ROVE_INVOKED_AS")
 }
 
 function stdoutLines(spy: MockInstance<typeof process.stdout.write>): string[] {
