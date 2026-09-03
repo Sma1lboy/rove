@@ -7,8 +7,10 @@ import {
   fixturePaths,
   fixturePortBase,
   runInFixture,
+  fixtureAuthHeaders,
   runRoveApi,
   seedGitRepo,
+  writeFixtureWebToken,
   type FixturePaths,
   type FixturePorts,
 } from "../../kobe/scripts/fixture-core.ts"
@@ -46,6 +48,10 @@ const VISUAL_TODAY = "2026-07-15"
  *  hosts reached. Deliberately absent from production and the interactive
  *  `dev:sandbox`, where a long-lived host is somebody's live environment. */
 const VISUAL_PTY_MAX_LIFETIME_MS = String(30 * 60 * 1000)
+
+/** Re-exported so the capture scripts reach the fixture's PTY sidecar (now
+ *  token-gated) through the same module that owns its ports. */
+export { fixtureAuthHeaders }
 
 export const VISUAL_ENV = buildFixtureEnv({
   root: VISUAL_ROOT,
@@ -192,7 +198,7 @@ export async function cleanupVisualFixture(): Promise<void> {
   // reset -- leaking a detached daemon whose home we are about to delete.
   await fetch(`http://127.0.0.1:${VISUAL_PTY_PORT}/pty/close`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...fixtureAuthHeaders() },
     body: JSON.stringify({ tab: `visual-${VISUAL_RUN_ID}` }),
   }).catch(() => {})
   await new Promise((resolve) => setTimeout(resolve, 500))
@@ -246,6 +252,8 @@ export default async function setupVisualFixture(): Promise<void> {
     ),
   )
   await chmod(XDG_RUNTIME_DIR, 0o700)
+  // Before the first command that can start the fixture daemon.
+  await writeFixtureWebToken(VISUAL_HOME)
   await seedStartupState()
 
   await seedGitRepo(

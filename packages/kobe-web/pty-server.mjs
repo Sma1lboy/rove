@@ -17,6 +17,7 @@ import { createServer } from "node:http"
 import { spawn } from "node-pty"
 import { WebSocketServer } from "ws"
 import { allowedHostForBindHost, originAllowed } from "./origin-policy.mjs"
+import { expectedPtyToken, ptyRequestAuthorized } from "./pty-auth.mjs"
 import { ptyEnv } from "./pty-env.mjs"
 import { createScrollback } from "./pty-scrollback.mjs"
 import { createPtySessionManager } from "./pty-session-lifecycle.mjs"
@@ -40,7 +41,13 @@ async function fetchSpec(taskId, mode) {
     }
   }
   const path = mode === "shell" ? "/api/terminal-spec" : "/api/engine-spec"
-  const res = await fetch(`http://localhost:${DAEMON_WEB_PORT}${path}?taskId=${encodeURIComponent(taskId)}`)
+  // `/api/*` on the daemon requires the bearer token like every other caller
+  // does; without it a real tab dies at "unauthorized: this request carried no
+  // valid web token" before any PTY is spawned.
+  const token = expectedPtyToken()
+  const res = await fetch(`http://localhost:${DAEMON_WEB_PORT}${path}?taskId=${encodeURIComponent(taskId)}`, {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  })
   const json = await res.json()
   if (!res.ok || json.error) throw new Error(json.error ?? `engine-spec failed (${res.status})`)
   return json // { cwd, command: string[], firstMessage?: string }
@@ -53,6 +60,17 @@ const ptySessions = createPtySessionManager({
   scrollbackCap: SCROLLBACK_CAP,
   env: ptyEnv,
 })
+
+/**
+ * The gate every PTY route shares. Origin says which page is asking, the token
+ * says whether the caller is entitled at all — and the token is the one that
+ * stops a non-browser process, which sends no Origin. Returns the status to
+ * refuse with, or null to proceed.
+ */
+function ptyRouteDenial(req, url) {
+  if (!originAllowed(req.headers.origin, { allowedHost: ALLOWED_HOST })) return 403
+  return ptyRequestAuthorized(req.headers, url) ? null : 401
+}
 
 const server = createServer((req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost")
@@ -71,11 +89,11 @@ const server = createServer((req, res) => {
     return
   }
   if (req.method === "POST" && url.pathname === "/pty/send") {
-    // Sending text DRIVES the engine like a keyboard, so unlike /pty/close
-    // (best-effort kill) this holds the same origin policy as the WS attach:
-    // localhost pages or non-browser clients only.
-    if (!originAllowed(req.headers.origin, { allowedHost: ALLOWED_HOST })) {
-      res.writeHead(403)
+    // Sending text DRIVES the engine like a keyboard, so this holds the same
+    // gate as the WS attach — the bearer token, plus the origin check.
+    const denial = ptyRouteDenial(req, url)
+    if (denial) {
+      res.writeHead(denial)
       res.end()
       return
     }
@@ -125,12 +143,12 @@ const server = createServer((req, res) => {
     return
   }
   if (req.method === "POST" && url.pathname === "/pty/close") {
-    // Killing a tab is a side effect a cross-origin local page could abuse to
-    // DoS the session (tab ids are client-generated/observable), so hold the
-    // same origin policy as /pty/send and the WS attach: localhost pages or
-    // non-browser clients (no Origin) only.
-    if (!originAllowed(req.headers.origin, { allowedHost: ALLOWED_HOST })) {
-      res.writeHead(403)
+    // Killing a tab is a side effect any caller that reached this port could
+    // abuse to DoS the session (tab ids are client-generated/observable), so
+    // hold the same gate as /pty/send and the WS attach.
+    const denial = ptyRouteDenial(req, url)
+    if (denial) {
+      res.writeHead(denial)
       res.end()
       return
     }
@@ -158,15 +176,18 @@ const server = createServer((req, res) => {
   res.end()
 })
 
-// A PTY WS is arbitrary command exec in the worktree, so reject cross-origin
-// upgrades: a browser sends an Origin header, and only loopback pages (or the
-// deliberately configured LAN host) may attach. This defends a malicious local
-// page / DNS-rebinding even on the loopback bind. Non-browser clients (no
-// Origin) are allowed — there's no browser to forge their request.
+// A PTY WS is arbitrary command exec in the worktree, so it takes both checks.
+// The origin check rejects cross-origin upgrades, which defends a malicious
+// local page / DNS-rebinding even on the loopback bind; it cannot defend
+// anything against a client that simply sends no Origin, which is why the
+// bearer token — the same one every REST and SSE caller presents — decides.
+// `ws` refuses a false verifyClient with HTTP 401.
 const wss = new WebSocketServer({
   server,
   path: "/pty",
-  verifyClient: ({ origin }) => originAllowed(origin, { allowedHost: ALLOWED_HOST }),
+  verifyClient: ({ origin, req }) =>
+    originAllowed(origin, { allowedHost: ALLOWED_HOST }) &&
+    ptyRequestAuthorized(req.headers, new URL(req.url ?? "/", "http://localhost")),
 })
 
 wss.on("connection", (ws, req) => {

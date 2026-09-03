@@ -149,6 +149,35 @@ function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
 }
 
 /**
+ * Bearer token for a fixture's daemon web transport and PTY sidecar.
+ *
+ * Every browser-facing route — REST, SSE, and now the PTY WebSocket that
+ * spawns the harness TUI — requires the web token. Fixtures pin it instead of
+ * letting the daemon mint one so the participants agree without ordering
+ * games: setup writes the file before the daemon starts (`ensureWebToken`
+ * reuses an existing one), Vite hands the same value to the browser through
+ * `VITE_ROVE_WEB_TOKEN` because Vite, not the daemon, serves the SPA in these
+ * stacks, and teardown can still reach `/pty/close` on a gated sidecar.
+ *
+ * Safe to hard-code: a fixture home is a throwaway under `.scratch/`,
+ * loopback-bound, and deleted at teardown. Production mints 32 random bytes.
+ */
+export const FIXTURE_WEB_TOKEN = "rove-fixture-web-token"
+
+/** `Authorization` for a fixture's own PTY-sidecar calls (teardown closes). */
+export function fixtureAuthHeaders(): Record<string, string> {
+  return { authorization: `Bearer ${FIXTURE_WEB_TOKEN}` }
+}
+
+/** Pin the fixture home's web token. Call before anything can start its
+ *  daemon — `ensureWebToken` only mints when the file is absent. */
+export async function writeFixtureWebToken(home: string): Promise<void> {
+  const dir = join(home, ".rove")
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, "web-token"), FIXTURE_WEB_TOKEN, { mode: 0o600 })
+}
+
+/**
  * Build a fixture child environment whose isolation invariants beat any
  * inherited production override. Both namespaces are stamped so a compatibility
  * alias can never outrank the fixture's own paths.
@@ -187,6 +216,10 @@ export function buildFixtureEnv(config: FixtureEnvConfig): Record<string, string
   setRoveEnv("PTY_SOCKET_PATH", join(runtime, "pty.sock"), env)
   setRoveEnv("DAEMON_PID_PATH", join(runtime, "daemon.pid"), env)
   setRoveEnv("PTY_PID_PATH", join(runtime, "pty.pid"), env)
+
+  // Vite serves the SPA in every fixture stack, so the daemon never injects its
+  // <meta> tag; this is the browser's only channel to the token.
+  env.VITE_ROVE_WEB_TOKEN = FIXTURE_WEB_TOKEN
 
   if (config.extra) Object.assign(env, config.extra)
   return env

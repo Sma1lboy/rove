@@ -15,7 +15,7 @@
 
 import { join, resolve } from "node:path"
 import { chromium } from "@playwright/test"
-import { HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
+import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 const ASSETS = join(REPO_ROOT, "docs", "assets")
@@ -209,7 +209,7 @@ try {
     const out = join(ASSETS, `${still.name}.png`)
     await page.screenshot({ path: out })
     await page.request
-      .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } })
+      .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() })
       .catch(() => {})
     await page.close()
     console.log(`${out}  — ${still.subject}`)

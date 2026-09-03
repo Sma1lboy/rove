@@ -20,7 +20,7 @@
 
 import { resolve } from "node:path"
 import { chromium } from "@playwright/test"
-import { VISUAL_PTY_PORT, VISUAL_WEB_PORT } from "./visual-fixture.ts"
+import { fixtureAuthHeaders, VISUAL_PTY_PORT, VISUAL_WEB_PORT } from "./visual-fixture.ts"
 
 const KEY_NAMES: Record<string, string> = {
   enter: "Enter",
@@ -137,7 +137,7 @@ try {
   await page.waitForTimeout(600)
   await page.screenshot({ path: out })
   await page.request
-    .post(`http://127.0.0.1:${VISUAL_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } })
+    .post(`http://127.0.0.1:${VISUAL_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() })
     .catch(() => {})
   console.log(out)
 } finally {

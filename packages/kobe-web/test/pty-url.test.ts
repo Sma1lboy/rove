@@ -42,6 +42,18 @@ describe("ptyUrl", () => {
     expect(q.get("rows")).toBe("30")
   })
 
+  // The sidecar refuses an upgrade that carries no token, and a WebSocket
+  // cannot set a request header — so the query is the only channel this URL
+  // has. `web-token.ts` memoizes on first read, hence the fresh registry.
+  it("carries the web token", async () => {
+    vi.resetModules()
+    vi.stubEnv("VITE_ROVE_WEB_TOKEN", "tok pty")
+    withLocation({ port: "5173" })
+    const { ptyUrl: fresh } = await import("../src/lib/terminal.ts")
+    expect(new URL(fresh("t", "k", "shell", 80, 24)).searchParams.get("token")).toBe("tok pty")
+    vi.unstubAllEnvs()
+  })
+
   it("falls back to 5175 when the port is unparseable", () => {
     withLocation({ port: "" })
     // empty port → defaults to 5173 → +2 = 5175
