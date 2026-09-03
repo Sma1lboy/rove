@@ -63,6 +63,11 @@ export type SidebarTaskCallbacks = {
    * entry only exists while the row's PR checks are red.
    */
   onFixChecksRequest?: (taskId: string) => void
+  /**
+   * Merge the row's base branch into its worktree — the action behind the
+   * `↓N` drift chip. Menu-only.
+   */
+  onSyncBaseRequest?: (taskId: string) => void
   /** Project row's "Field notes": read the repo's durable notes. Menu-only. */
   onFieldNotesRequest?: (repo: string) => void
 }

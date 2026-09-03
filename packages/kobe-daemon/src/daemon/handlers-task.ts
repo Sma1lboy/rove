@@ -212,6 +212,18 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "task.syncBase",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const task = ctx.orch.getTask(taskId)
+      if (!task?.worktreePath) throw new Error("task has no worktree to sync")
+      // Throws `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` for the two
+      // outcomes a human acts on — the caller matches the marker, exactly the
+      // way it already does for `LAND_CONFLICT`.
+      return { result: await ctx.runtime.syncWorktreeWithBase(task.worktreePath, task.baseRef) }
+    },
+  },
+  {
     name: "task.pin",
     web: true,
     async handle(payload, ctx) {

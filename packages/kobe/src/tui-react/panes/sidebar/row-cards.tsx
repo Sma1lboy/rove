@@ -60,10 +60,18 @@ export function useChanges(
 
 /** Right-edge git metrics stay one non-shrinking cluster while metadata takes
  * the flexible middle column. This keeps every row scannable at the same
- * visual anchor even when a branch/title is long. Shared with the tree rows. */
+ * visual anchor even when a branch/title is long. Shared with the tree rows.
+ *
+ * `+N −M` count UNCOMMITTED files; `↓K` counts COMMITS the base has that this
+ * worktree does not. It sits last and in the warning tone because it is the
+ * only one of the three that is not about work the row did: main moves several
+ * times a day, and an attempt that has been running for two hours is building
+ * against a base that no longer exists. Absent (not zero) when no base ref
+ * resolves, so a repo with no remote reads exactly as it always did. */
 export function ChangeStats(props: { readonly changes: WorktreeChanges }) {
   const { theme } = useTheme()
-  if (props.changes.added <= 0 && props.changes.deleted <= 0) return null
+  const behind = props.changes.behind ?? 0
+  if (props.changes.added <= 0 && props.changes.deleted <= 0 && behind <= 0) return null
   return (
     <box flexDirection="row" gap={1} flexShrink={0}>
       {props.changes.added > 0 ? (
@@ -74,6 +82,11 @@ export function ChangeStats(props: { readonly changes: WorktreeChanges }) {
       {props.changes.deleted > 0 ? (
         <text fg={theme.error} wrapMode="none" flexShrink={0}>
           −{props.changes.deleted}
+        </text>
+      ) : null}
+      {behind > 0 ? (
+        <text fg={theme.warning} wrapMode="none" flexShrink={0}>
+          ↓{behind}
         </text>
       ) : null}
     </box>

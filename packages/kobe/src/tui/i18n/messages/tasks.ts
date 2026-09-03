@@ -51,6 +51,8 @@ export const en = {
     /** Only while the row's PR checks are red: paste the failing job's log
      *  into this task's engine. */
     fixChecks: "Fix failing checks",
+    /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
+    syncBase: "Sync with base",
     land: "Land into base branch",
     delete: "Delete",
   },
@@ -71,6 +73,15 @@ export const en = {
     /** Marks the task's current value in the list. */
     current: "current",
     footer: "↑↓ choose · enter set · esc cancel",
+  },
+  /** "Sync with base" outcomes. The conflict and dirty cases are attention,
+   *  not error: nothing broke, a human is needed next. */
+  sync: {
+    done: "Merged {base} into this worktree",
+    alreadyCurrent: "Already up to date with {base}",
+    conflict: "Merge conflict — resolve then commit: {files}",
+    dirty: "Commit or stash the worktree's changes first, then sync",
+    failed: "Sync failed: {error}",
   },
   /** Change-engine picker dialog (the menu route of `v`). */
   changeEngine: {
@@ -192,6 +203,7 @@ export const zh: typeof en = {
     renameBranch: "重命名分支",
     changeEngine: "切换引擎",
     fixChecks: "修复失败的检查",
+    syncBase: "同步基础分支",
     land: "合入基础分支",
     delete: "删除",
   },
@@ -207,6 +219,13 @@ export const zh: typeof en = {
     title: "设置状态",
     current: "当前",
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
+  },
+  sync: {
+    done: "已把 {base} 合并进该工作树",
+    alreadyCurrent: "已经和 {base} 同步",
+    conflict: "合并冲突——解决后提交：{files}",
+    dirty: "请先提交或暂存工作树里的改动，再同步",
+    failed: "同步失败：{error}",
   },
   changeEngine: {
     title: "切换引擎",

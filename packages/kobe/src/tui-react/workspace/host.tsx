@@ -271,6 +271,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     },
     // PROPOSED prefix+k: same aim as the row menu, so the same handler.
     fixChecksFor: editor.onFixChecks,
+    // PROPOSED prefix+u: same aim, and the merge runs daemon-side.
+    syncBaseFor: (id) => void taskActions.syncBase(id),
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
     // then j/k reorders the cursor row's level (tab/task/project) and

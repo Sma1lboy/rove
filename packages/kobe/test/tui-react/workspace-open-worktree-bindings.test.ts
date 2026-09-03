@@ -79,6 +79,7 @@ describe("workspace open-worktree bindings", () => {
       createPR: vi.fn(),
       createPRFor: vi.fn(),
       fixChecksFor: vi.fn(),
+      syncBaseFor: vi.fn(),
       toggleSortMode,
     })
 
@@ -159,6 +160,7 @@ describe("workspace open-worktree bindings", () => {
       createPR: vi.fn(),
       createPRFor: vi.fn(),
       fixChecksFor: vi.fn(),
+      syncBaseFor: vi.fn(),
       toggleSortMode: vi.fn(),
     })
 
@@ -214,6 +216,7 @@ describe("workspace open-worktree bindings", () => {
       createPR: vi.fn(),
       createPRFor: vi.fn(),
       fixChecksFor: vi.fn(),
+      syncBaseFor: vi.fn(),
       toggleSortMode: vi.fn(),
       ...over,
     }

@@ -84,7 +84,26 @@ describe("trackedWorktreePaths", () => {
       task({ id: "main1", kind: "main", repo: "/repo", worktreePath: "/repo" }),
       task({ id: "main2", kind: "main", repo: "/repo", worktreePath: "/repo" }),
     ]
-    expect([...trackedWorktreePaths(tasks)].sort()).toEqual(["/repo", "/wt/a"])
+    expect([...trackedWorktreePaths(tasks).keys()].sort()).toEqual(["/repo", "/wt/a"])
+  })
+
+  test("carries each path's recorded base ref, and the first task that has one wins", () => {
+    // A `main` row records no base and shares the repo root with a based task;
+    // whichever order they list in, the based task's answer must survive — the
+    // behind count is measured against it.
+    const tasks = [
+      task({ id: "main", kind: "main", repo: "/repo", worktreePath: "/repo" }),
+      task({ id: "based", repo: "/repo", worktreePath: "/repo", baseRef: "release/2.x" }),
+      task({ id: "a", baseRef: "origin/main" }),
+      task({ id: "none" }),
+    ]
+    const tracked = trackedWorktreePaths(tasks)
+    expect(tracked.get("/repo")).toBe("release/2.x")
+    expect(tracked.get("/wt/a")).toBe("origin/main")
+    // A task with no recorded base is still tracked; the runner then falls
+    // back to its own resolution.
+    expect(tracked.has("/wt/none")).toBe(true)
+    expect(tracked.get("/wt/none")).toBeUndefined()
   })
 })
 
@@ -242,5 +261,64 @@ describe("WorktreeChangesCollector", () => {
       { cadence: FAST, run: async () => ({ added: 0, deleted: 0 }) },
     )
     expect(() => collector.tick()).not.toThrow()
+  })
+})
+
+describe("the behind-base count", () => {
+  test("hands the recorded base ref to the runner, and republishes when only it changed", async () => {
+    // `sameWorktreeChanges` gates every publish. A worktree whose file counts
+    // are unchanged but whose base has moved MUST still republish, or the
+    // drift chip never appears until the user edits a file.
+    const bus = new DaemonEventBus()
+    const published: WorktreeChangesPayload[] = []
+    bus.onPublish((event) => {
+      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
+    })
+    const seenBaseRefs: (string | undefined)[] = []
+    let behind = 0
+    const collector = new WorktreeChangesCollector(
+      { listTasks: () => [task({ id: "a", baseRef: "release/2.x" })] },
+      bus,
+      {
+        cadence: FAST,
+        run: async (_path, _signal, baseRef) => {
+          seenBaseRefs.push(baseRef)
+          return { added: 1, deleted: 0, behind }
+        },
+      },
+    )
+    collector.tick()
+    await settle()
+    expect(seenBaseRefs).toEqual(["release/2.x"])
+    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 1, deleted: 0, behind: 0 })
+
+    behind = 3
+    collector.tick()
+    await settle()
+    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 1, deleted: 0, behind: 3 })
+    expect(published).toHaveLength(2)
+
+    // Same everything → no third publish.
+    collector.tick()
+    await settle()
+    expect(published).toHaveLength(2)
+  })
+
+  test("a runner that reports no behind count publishes the counts without one", async () => {
+    // The honest degradation for a repo with no resolvable base: the field is
+    // absent, so the chip does not draw. Never a fabricated zero.
+    const bus = new DaemonEventBus()
+    const published: WorktreeChangesPayload[] = []
+    bus.onPublish((event) => {
+      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
+    })
+    const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
+      cadence: FAST,
+      run: async () => ({ added: 0, deleted: 2 }),
+    })
+    collector.tick()
+    await settle()
+    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 2 })
+    expect("behind" in (published.at(-1)?.changes["/wt/a"] ?? {})).toBe(false)
   })
 })

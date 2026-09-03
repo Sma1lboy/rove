@@ -65,8 +65,8 @@ describe("readBranchSignals", () => {
   it("yields nulls (never throws) outside a git repo or with no base", () => {
     const dir = mkdtempSync(join(tmpdir(), "kobe-branch-signals-plain-"))
     cleanups.push(dir)
-    expect(readBranchSignals(dir)).toEqual({ baseRef: null, ahead: null, diff: null })
-    expect(readBranchSignals("")).toEqual({ baseRef: null, ahead: null, diff: null })
+    expect(readBranchSignals(dir)).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
+    expect(readBranchSignals("")).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
     expect(resolveBaseRef(dir)).toBeNull()
   })
 })

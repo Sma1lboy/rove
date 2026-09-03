@@ -306,6 +306,22 @@ export async function removeWorktreeOp(
 }
 
 /**
+ * Merge a task's base branch INTO its worktree (`task.syncBase`) — the answer
+ * to the sidebar's `↓N` drift chip. Rejects with a `SYNC_CONFLICT: <files>` /
+ * `SYNC_WORKTREE_DIRTY` message the caller matches, the same shape
+ * `landTaskOp` already uses for `LAND_CONFLICT`.
+ */
+export async function syncBaseOp(
+  client: KobeDaemonClient,
+  taskId: string,
+): Promise<{ baseRef: string; alreadyCurrent: boolean }> {
+  const res = await client.request<{ result: { baseRef: string; alreadyCurrent: boolean } }>("task.syncBase", {
+    taskId,
+  })
+  return res.result
+}
+
+/**
  * A PR's FAILING checks with their log tails (`pr.failingChecks`) — the
  * sidebar's "Fix failing checks". On demand only; the daemon spawns `gh` per
  * call, so this must never be wired to a poll.

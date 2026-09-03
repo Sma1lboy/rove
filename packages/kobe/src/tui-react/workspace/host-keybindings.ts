@@ -67,6 +67,8 @@ export type WorkspaceKeybindingDeps = {
   createPRFor: (id: string) => void
   /** PROPOSED prefix+k — pull the failing PR checks into that task's engine. */
   fixChecksFor: (id: string) => void
+  /** PROPOSED prefix+u — merge that task's base branch into its worktree. */
+  syncBaseFor: (id: string) => void
   /** `t` — flip the sidebar task sort between default and recent. */
   toggleSortMode: () => void
 }
@@ -163,6 +165,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         "files.fixChecks": prefixAction(() => {
           const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
           if (id) deps.fixChecksFor(id)
+        }),
+        // Same aim rule again; the merge itself runs in the daemon, so unlike
+        // fix-checks it does not need the row's engine to be mounted.
+        "files.syncBase": prefixAction(() => {
+          const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
+          if (id) deps.syncBaseFor(id)
         }),
         // Global scope, so it acts on the active task — except while the
         // sidebar has focus, where the highlighted row is what the user means.

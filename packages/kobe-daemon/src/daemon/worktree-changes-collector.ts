@@ -53,7 +53,7 @@ function isRemoteRepoKey(value: string): boolean {
 }
 
 function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
 }
 
 function maybeStartScheduledRun<T>(
@@ -101,19 +101,26 @@ export interface TaskLister {
  * Injectable status runner (tests swap the real `git status` out). Throw /
  * reject to keep the entry's last value.
  */
-export type WorktreeStatusRunner = (worktreePath: string, signal: AbortSignal) => Promise<WorktreeChanges>
+export type WorktreeStatusRunner = (
+  worktreePath: string,
+  signal: AbortSignal,
+  /** The owning task's RECORDED base ref (`add --base-branch`), when it has
+   *  one. The runner falls back to its own resolution when this is absent or
+   *  no longer resolves — an honest guess beats a stale certainty. */
+  baseRef?: string,
+) => Promise<WorktreeChanges>
 
-/** The real runner: async `git status --porcelain=v1`, lock-free read. */
-export async function runGitStatus(worktreePath: string, signal: AbortSignal): Promise<WorktreeChanges> {
-  const output = await new Promise<{ status: number | null; stdout: string }>((resolve) => {
+/** One lock-free `git` read in a worktree; null stdout on any non-zero exit. */
+function runGit(worktreePath: string, args: readonly string[], signal: AbortSignal): Promise<string | null> {
+  return new Promise((resolve) => {
     let stdout = ""
     let settled = false
     const finish = (status: number | null) => {
       if (settled) return
       settled = true
-      resolve({ status, stdout })
+      resolve(status === 0 ? stdout : null)
     }
-    const child = spawn("git", ["status", "--porcelain=v1"], {
+    const child = spawn("git", args.slice(), {
       cwd: worktreePath,
       stdio: ["ignore", "pipe", "ignore"],
       env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
@@ -126,10 +133,31 @@ export async function runGitStatus(worktreePath: string, signal: AbortSignal): P
     child.on("error", () => finish(null))
     child.on("close", finish)
   })
-  if (output.status !== 0) throw new Error("git status failed")
+}
+
+/**
+ * How far the worktree is BEHIND `baseRef`. `null` when the ref does not
+ * resolve or the count is unreadable — the chip then does not draw, which is
+ * the honest answer for a repo with no base rather than a fabricated zero.
+ *
+ * The daemon does NOT own the `origin/HEAD → origin/main → main → master`
+ * fallback ladder: that lives in kobe's `cli/api/branch-signals.ts`, and the
+ * PRODUCTION runner is kobe's `runtime.runWorktreeStatus`, which resolves it
+ * before calling in. This default runner (tests, and any daemon wired without
+ * a runtime) only measures against a base it was handed.
+ */
+async function countBehind(worktreePath: string, baseRef: string, signal: AbortSignal): Promise<number | null> {
+  const out = await runGit(worktreePath, ["rev-list", "--count", `HEAD..${baseRef}`], signal)
+  if (out === null) return null
+  const n = Number.parseInt(out.trim(), 10)
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
+
+/** Aggregate `git status --porcelain=v1` output into `+N −M`. */
+export function countPorcelain(stdout: string): { added: number; deleted: number } {
   let added = 0
   let deleted = 0
-  for (const line of output.stdout.split("\n")) {
+  for (const line of stdout.split("\n")) {
     if (line.length < 3 || line.startsWith("##")) continue
     if (line[0] === "D" || line[1] === "D") deleted++
     else added++
@@ -137,19 +165,40 @@ export async function runGitStatus(worktreePath: string, signal: AbortSignal): P
   return { added, deleted }
 }
 
+/** The default runner: async `git status --porcelain=v1`, lock-free read,
+ *  plus the behind-count when a base ref was supplied. */
+export async function runGitStatus(
+  worktreePath: string,
+  signal: AbortSignal,
+  baseRef?: string,
+): Promise<WorktreeChanges> {
+  const stdout = await runGit(worktreePath, ["status", "--porcelain=v1"], signal)
+  if (stdout === null) throw new Error("git status failed")
+  const counts = countPorcelain(stdout)
+  if (!baseRef) return counts
+  const behind = await countBehind(worktreePath, baseRef, signal)
+  return behind === null ? counts : { ...counts, behind }
+}
+
 /**
  * The worktree paths the collector tracks: tasks with a
  * non-empty LOCAL worktree. Remote (`ssh://`) projects are excluded by
  * repo key — their worktrees live on another host. Pure — unit-tested.
- * Returns a Set, so tasks sharing a path (e.g. `main` rows whose
- * worktreePath is the repo root) collapse to one collection slot.
+ * Returns a Map of path → the owning task's recorded base ref, so tasks
+ * sharing a path (e.g. `main` rows whose worktreePath is the repo root)
+ * collapse to one collection slot.
  */
-export function trackedWorktreePaths(tasks: readonly Task[]): Set<string> {
-  const paths = new Set<string>()
+export function trackedWorktreePaths(tasks: readonly Task[]): Map<string, string | undefined> {
+  const paths = new Map<string, string | undefined>()
   for (const task of tasks) {
     if (!task.worktreePath) continue
     if (isRemoteRepoKey(task.repo) || isRemoteRepoKey(task.worktreePath)) continue
-    paths.add(task.worktreePath)
+    // Tasks sharing a path collapse to one slot, and the first one that
+    // RECORDS a base ref wins it: `get` returning undefined covers both
+    // "not seen yet" and "seen, but it had no base", so a `main` row (which
+    // records none) cannot erase a based task's answer whichever order they
+    // list in.
+    if (paths.get(task.worktreePath) === undefined) paths.set(task.worktreePath, task.baseRef)
   }
   return paths
 }
@@ -218,7 +267,7 @@ export class WorktreeChangesCollector {
         this.entries.delete(path)
       }
       if (pruned) this.publish()
-      for (const path of tracked) this.maybeCollect(path)
+      for (const [path, baseRef] of tracked) this.maybeCollect(path, baseRef)
     } catch (err) {
       logDaemonError("worktree-changes", err)
     }
@@ -229,7 +278,7 @@ export class WorktreeChangesCollector {
     this.stopped = true
   }
 
-  private maybeCollect(worktreePath: string): void {
+  private maybeCollect(worktreePath: string, baseRef?: string): void {
     let entry = this.entries.get(worktreePath)
     if (!entry) {
       entry = { inFlight: false, nextAllowedAt: 0 }
@@ -244,7 +293,7 @@ export class WorktreeChangesCollector {
     maybeStartScheduledRun(
       entry,
       cadence,
-      (signal) => run(worktreePath, signal),
+      (signal) => run(worktreePath, signal, baseRef),
       (value) => {
         if (this.stopped) return
         // The entry may have been pruned (task deleted) while the
