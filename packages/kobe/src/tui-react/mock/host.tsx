@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * `dev:mock-react` — THE general mock scene: one bench, everything in it.
+ * `dev:mock` — THE general mock scene: one bench, everything in it.
  * Composes the real app shape without a
  * daemon/orchestrator: the real Sidebar against the shared synthetic
  * fixtures (many projects + mixed-status tasks) next to real TerminalTabs
