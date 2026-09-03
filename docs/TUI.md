@@ -52,10 +52,16 @@ Task rows carry worktree-level facts:
 | `+N` / `−N` | Changed and deleted files in the worktree |
 | `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
 | `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
+| `≠` | The pull request conflicts with its base branch |
+| `»` / `≡` | The pull request is approved and clear to merge, or already merged |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
 
 The status mark is what a person said about the Task; the check mark next to it
-is what CI reports, so the two can disagree. `backlog` and `in_progress` show
+is what CI reports, so the two can disagree. `»` answers a third question the
+check mark cannot: green checks look identical on a PR that is approved, one
+still waiting on a reviewer, and one that merged an hour ago. All three marks
+drain to grey when the last PR poll failed — the reading stands, but nothing is
+confirming it any more. `backlog` and `in_progress` show
 nothing — those are the states Rove moves a Task through on its own, so a mark
 there would say only that the row is ordinary. Set the status from the row's
 right-click menu (**Set status**) or with `rove api set-status`; it is a label,

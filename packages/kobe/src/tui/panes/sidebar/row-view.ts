@@ -132,6 +132,48 @@ export function prConflictChip(task: Task): { glyph: string; tone: SidebarTone }
 }
 
 /**
+ * The review-state chip: where the PR stands with its REVIEWERS.
+ *
+ * `prStatus.lifecycle` is the poller's normalised review verdict \u2014 it folds
+ * `reviewDecision: APPROVED` on an open PR into `ready_to_merge` \u2014 and until
+ * now nothing rendered it. A green `\u2713` from {@link prCheckChip} means CI
+ * passed, which is also what it means on a PR nobody has looked at yet and on
+ * one that merged an hour ago. Picking the attempt to land is exactly the
+ * moment those three have to read differently.
+ *
+ * Glyphs, chosen by font coverage first like `\u2260` and `\u00d7` before them
+ * (`fc-list :charset=<hex>` over Fira Code, JetBrainsMono Nerd Font, Menlo and
+ * Monaco \u2014 all four carry both, at one cell):
+ *
+ *   - `\u00bb` (U+00BB) \u2014 approved and clear to advance.
+ *   - `\u2261` (U+2261) \u2014 merged: the branch and its base now say the same thing.
+ *
+ * Neither appears in `prCheckChip`, `prConflictChip` or {@link statusChip},
+ * which share the row: no glyph may mean two things in one cell group. The
+ * raw `reviewDecision` string never reaches the row \u2014 it is vendor text, and
+ * `lifecycle` is the normalised form of the same fact.
+ *
+ * Every other lifecycle draws nothing: an ordinary open PR, a closed one and
+ * `creating`/`unknown` all have no review verdict worth a cell.
+ *
+ * Pure \u2014 pinned by `test/golden/sidebar-row-state.golden.txt`.
+ */
+export function prReviewChip(task: Task): { glyph: string; tone: SidebarTone } | null {
+  // Muted for the same reason the two chips beside it mute: a poll that could
+  // not reach the provider leaves its last good value on the row, and a stale
+  // "approved" is the one this cell must not paint confidently.
+  const stale = task.prStatus?.lastError !== undefined
+  switch (task.prStatus?.lifecycle) {
+    case "ready_to_merge":
+      return { glyph: "\u00bb", tone: stale ? "textMuted" : "success" }
+    case "merged":
+      return { glyph: "\u2261", tone: "textMuted" }
+    default:
+      return null
+  }
+}
+
+/**
  * The dim dot every row wears when it has no state to report. Three cases
  * converge on it deliberately: a custom engine with no
  * transcript store the monitor can watch (`monitor/activity.ts`), a

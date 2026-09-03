@@ -22,6 +22,7 @@ import {
   buildSidebarRowView,
   prCheckChip,
   prConflictChip,
+  prReviewChip,
   statusChip,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
@@ -206,6 +207,11 @@ export function WorktreeTreeRow(props: {
   // Independent of `chip` — red checks and a conflicted merge are different
   // facts, and a row can wear both.
   const conflict = prConflictChip(task)
+  // Fourth chip, fourth question: `review` is where the PR stands with its
+  // REVIEWERS — approved-and-clear vs already merged vs neither. `chip` (CI)
+  // reads the same green tick in all three, which is the confusion this
+  // exists to end.
+  const review = prReviewChip(task)
   // Two chips, two different questions: `status` is what a HUMAN said about
   // the task, `chip` is what CI reports. Human first (left of the machine
   // fact) so a scan reads intent then evidence; they never share a glyph.
@@ -234,6 +240,7 @@ export function WorktreeTreeRow(props: {
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
     (conflict ? 2 : 0) +
+    (review ? 2 : 0) +
     (status ? 2 : 0) +
     (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
     (changes.deleted > 0 ? clusterCells(`−${changes.deleted}`) : 0) +
@@ -268,6 +275,11 @@ export function WorktreeTreeRow(props: {
         {conflict ? (
           <text fg={toneColor(theme, conflict.tone)} wrapMode="none" flexShrink={0}>
             {conflict.glyph}
+          </text>
+        ) : null}
+        {review ? (
+          <text fg={toneColor(theme, review.tone)} wrapMode="none" flexShrink={0}>
+            {review.glyph}
           </text>
         ) : null}
         <ChangeStats changes={changes} />
