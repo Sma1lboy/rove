@@ -39,10 +39,11 @@ story drawer commits with Enter from any selector field — it has no such stop,
 and a button nothing can focus would be a fourth thing to explain. It states
 the verb in its legend instead.
 
-**Tabs are not fields.** The new-task dialog's Existing / New Repo / Adopt
-strip navigates between three bodies. It stays a `▸ `-marked tab strip rather
-than becoming a chip row, because chips are how this grammar says "pick one
-value for this field".
+**The mode row is a chip row too.** The new-task dialog's Existing / New
+Repo / Adopt selector navigates between three bodies, but it reads and
+operates like every other choose-one in the card: `MODE` label, `ChipButton`
+per choice, ←/→ while focused. One selector shape per dialog (owner call,
+2026-09-03).
 
 ## The frames give way before the button does
 

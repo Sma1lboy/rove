@@ -142,16 +142,15 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "n" },
   },
   {
-    // Direct from every non-input UI surface. Unlike the old global
-    // ctrl+n, this yields when an engine composer or shell terminal owns
-    // input, preserving readline/emacs next-history inside the PTY.
+    // From anywhere via the prefix. Not a direct ctrl+n: readline/emacs
+    // next-history inside the embedded engine and shell terminals owns
+    // that chord, and the prefix's first stroke never passes through.
     id: "task.new.global",
     scope: "global",
-    keys: ["ctrl+n"],
+    keys: [],
+    prefixKeys: ["n"],
     category: "Global",
     description: "New task",
-    presentation: "onePress",
-    yieldToPassthrough: true,
   },
   {
     id: "task.openEditor",

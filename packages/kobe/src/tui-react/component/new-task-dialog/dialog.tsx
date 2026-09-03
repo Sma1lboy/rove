@@ -1,14 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
  * The new-task dialog's JSX shell. Three sibling sub-tabs share one frame
- * (Existing / New Repo / Adopt), switched with Ctrl+[ / Ctrl+] or ←/→ on the
- * mode selector; the engine selector cycles with ctrl+e. All state, effects,
+ * (Existing / New Repo / Adopt), a chip row switched with Ctrl+[ / Ctrl+] or
+ * ←/→ while focused; the engine selector cycles with ctrl+e. All state, effects,
  * commit paths and key bindings live in `./view-model.ts` (pure helpers in
  * `state.ts`/`clone.ts`); the tab bodies live in `./tab-*.tsx`. Every
  * user-visible string resolves through `useT()`.
  */
 
-import { TextAttributes } from "@opentui/core"
 import type { DialogTab } from "../../../tui/component/new-task-dialog/state"
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
@@ -34,35 +33,31 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
     clone: t("newTask.tabs.clone"),
     adopt: t("newTask.tabs.adopt"),
   }
-  const tabsFocused = vm.field === "tabs"
-  // Active selections keep ▸ + bold + primary; an underline marks them only
-  // while that selector holds keyboard focus.
-  const selectedAttrs = (selected: boolean, focused: boolean) =>
-    selected ? (focused ? TextAttributes.BOLD | TextAttributes.UNDERLINE : TextAttributes.BOLD) : undefined
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={0}>
       <DialogHeader title={t("newTask.title")} onClose={() => props.onCancel()} />
       <box gap={1} paddingTop={1}>
-        {/* Mode-tab selector — reachable by Tab; ←/→ switches while focused,
-            ctrl+[/] from anywhere, mouse click selects. Stays a tab strip
-            rather than a chip row: it navigates between three bodies, it is
-            not one of the card's fields (docs/design/dialogs.md). */}
-        <box flexDirection="row" gap={2}>
-          {TAB_ORDER.map((tabId) => {
-            const active = vm.tab === tabId
-            return (
-              <text
+        {/* Mode selector — Tab reaches it; ←/→ switches while focused,
+            ctrl+[/] from anywhere, click picks. Same chip row as every
+            other choose-one in this dialog. */}
+        <DialogSection
+          label={t("newTask.field.mode")}
+          focused={vm.field === "tabs"}
+          hint={t("newTask.hint.modeCycle")}
+          onPress={() => vm.setField("tabs")}
+        >
+          <box flexDirection="row" flexWrap="wrap" gap={1}>
+            {TAB_ORDER.map((tabId) => (
+              <ChipButton
                 key={tabId}
-                fg={active ? theme.primary : theme.textMuted}
-                attributes={selectedAttrs(active, tabsFocused)}
-                onMouseUp={() => vm.switchToTab(tabId)}
-              >
-                {active ? `▸ ${tabLabel[tabId]}` : `  ${tabLabel[tabId]}`}
-              </text>
-            )
-          })}
-        </box>
+                label={tabLabel[tabId]}
+                selected={vm.tab === tabId}
+                onPress={() => vm.switchToTab(tabId)}
+              />
+            ))}
+          </box>
+        </DialogSection>
         {/* Engine selector — Tab reaches it; ←/→ cycles while focused,
             ctrl+e from anywhere, click picks. Detected vendors only. */}
         <DialogSection
