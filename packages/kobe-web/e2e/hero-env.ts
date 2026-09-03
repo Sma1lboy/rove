@@ -20,11 +20,16 @@ import {
   assertFixtureIsolation,
   buildFixtureEnv,
   CLAUDE_MARKERS,
+  fixtureAuthHeaders,
   fixturePaths,
   fixturePortBase,
   type FixturePaths,
   type FixturePorts,
 } from "../../kobe/scripts/fixture-core.ts"
+
+/** Re-exported so the capture scripts reach the hero PTY sidecar (now
+ *  token-gated) through the same module that owns its ports. */
+export { fixtureAuthHeaders }
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 export const KOBE_DIR: string = join(REPO_ROOT, "packages", "kobe")

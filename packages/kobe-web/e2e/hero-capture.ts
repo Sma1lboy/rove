@@ -11,7 +11,7 @@
 import { mkdir, readdir, rename } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import { type Page, chromium } from "@playwright/test"
-import { HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
+import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
 
 export const REPO_ROOT: string = resolve(import.meta.dirname, "../../..")
 const BRANDING = join(REPO_ROOT, "packages", "branding")
@@ -191,7 +191,7 @@ export async function record(workDir: string, storyboard: (page: Page) => Promis
       clearInterval(guard)
     }
     if (breach) throw breach
-    await page.request.post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } }).catch(() => {})
+    await page.request.post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() }).catch(() => {})
   } finally {
     await context.close()
     await browser.close()

@@ -22,6 +22,8 @@ import { homedir } from "node:os"
 import { resolve } from "node:path"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { readRoveEnv, setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
+import { defaultWebTokenPath } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { ensureWebToken } from "@sma1lboy/kobe-daemon/daemon/web-token"
 
 const DAEMON_WEB_PORT = readRoveEnv("DAEMON_WEB_PORT") ?? "45174"
 const WEB_PORT = readRoveEnv("WEB_PORT") ?? "5173"
@@ -57,6 +59,14 @@ try {
   )
 }
 
+// The daemon-hosted transport requires a bearer token on /api, /events, and
+// (since the PTY sidecar adopted it) the terminal WebSocket. Vite serves the
+// SPA here, so the daemon never gets to inject its <meta> tag — `VITE_*` is
+// the channel the browser has in dev, and without it the whole dev dashboard
+// 401s. The daemon minted the file during ensureDaemonReachable above; this
+// only reads it back. The sidecar reads the same file itself.
+const webToken = ensureWebToken(defaultWebTokenPath())
+
 // node: PTY terminal server — node-pty only works under node, not bun.
 // Needs the daemon web port to fetch each tab's engine launch spec.
 const pty = Bun.spawn(["node", "pty-server.mjs"], {
@@ -67,7 +77,12 @@ const pty = Bun.spawn(["node", "pty-server.mjs"], {
 // node (via vite): the SPA, proxying /api + /events + /pty to the above.
 const vite = Bun.spawn(["bun", "run", "vite", "dev", "--port", WEB_PORT, "--strictPort"], {
   stdio: ["inherit", "inherit", "inherit"],
-  env: { ...childEnv, KOBE_DAEMON_WEB_PORT: DAEMON_WEB_PORT, KOBE_PTY_PORT: PTY_PORT },
+  env: {
+    ...childEnv,
+    KOBE_DAEMON_WEB_PORT: DAEMON_WEB_PORT,
+    KOBE_PTY_PORT: PTY_PORT,
+    VITE_ROVE_WEB_TOKEN: webToken,
+  },
 })
 
 const shutdown = (): void => {
