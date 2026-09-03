@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.99
+
+### Patch Changes
+
+- [#827](https://github.com/Sma1lboy/rove/pull/827) [`dfff021`](https://github.com/Sma1lboy/rove/commit/dfff021723e74bf618e27aef44d2d5fcdeadbdc7) Daemon collectors share one poll scheduler and one ticker. `maybeStartScheduledRun` lived three times (once in the CLI package, twice byte-identical in the daemon) because the daemon cannot import the CLI; it now lives in the daemon and the CLI re-exports it. Eight daemon loops that each hand-rolled the same `setInterval` skeleton (tick guard, reentrancy flag, subscriber gate, unref, clear) share `startTicker`, with the three real per-collector variations kept as explicit options. Behavior add: the quota-usage cache gains the `tickMs <= 0` disable guard every sibling already had. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.98
 
 ### Patch Changes
