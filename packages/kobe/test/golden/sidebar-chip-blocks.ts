@@ -10,7 +10,7 @@
  * which is imported.
  */
 
-import { prCheckChip, prConflictChip, prReviewChip, statusChip } from "@/tui/panes/sidebar/row-view"
+import { prCheckChip, prConflictChip, prReviewChip, statusChip } from "@/tui/panes/sidebar/row-chips"
 import { TASK_STATUSES, type Task } from "@/types/task"
 import { pad } from "./golden-file"
 import { task } from "./sidebar-state-matrix"

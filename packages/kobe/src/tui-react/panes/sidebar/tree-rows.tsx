@@ -16,14 +16,11 @@ import { type ReactNode, useEffect, useMemo } from "react"
 import { charWidth } from "../../../lib/display-width"
 import { truncateEndCells } from "../../../tui/lib/truncate"
 import { currentBranch, pollCurrentBranch } from "../../../tui/panes/sidebar/git-head"
+import { prCheckChip, prConflictChip, prReviewChip, statusChip } from "../../../tui/panes/sidebar/row-chips"
 import {
   IN_PROGRESS_SPINNER,
   NO_STATE_GLYPH,
   buildSidebarRowView,
-  prCheckChip,
-  prConflictChip,
-  prReviewChip,
-  statusChip,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
 import { type TreeTab, rowLiveBranchPath, tabRowActivity, worktreeRowLabel } from "../../../tui/panes/sidebar/tree-core"
