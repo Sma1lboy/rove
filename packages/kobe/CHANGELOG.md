@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.95
+
+### Patch Changes
+
+- [#816](https://github.com/Sma1lboy/rove/pull/816) [`990c58d`](https://github.com/Sma1lboy/rove/commit/990c58d28c3814d997c2b21f2d992636f98ab428) Housekeeping with no behaviour change: eight npm packages left behind when the board's drag-and-drop and the TanStack devtools panels were removed are gone from `kobe-web`, along with the unused `kobe-web` workspace devDependency and `lucide-react` in `kobe-docs`. The four `@deprecated` internal compatibility aliases (`kobeCliInvocation`, `kobeStateDir`, `kobeSettingsDir`, `createExternalStore`) are deleted and their ~90 call sites now name the survivors directly. The five per-pane React mock hosts and eight duplicate dev scripts — one of which pointed at a file that no longer existed — are removed; `dev:mock` and `src/tui-react/mock/host.tsx` stay. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.94
 
 ### Patch Changes
