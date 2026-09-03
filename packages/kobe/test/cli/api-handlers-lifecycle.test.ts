@@ -78,7 +78,7 @@ describe("collect handler", () => {
       }),
     })) as { tasks: Array<{ changes: unknown; base: unknown }> }
     expect(result.tasks[0].changes).toEqual({ added: 0, deleted: 0 })
-    expect(result.tasks[0].base).toEqual({ baseRef: null, ahead: null, diff: null })
+    expect(result.tasks[0].base).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
   })
 
   it("reports committed base signals and the task's groupId", async () => {
@@ -91,6 +91,7 @@ describe("collect handler", () => {
         readBranchSignals: async () => ({
           baseRef: "origin/main",
           ahead: 3,
+          behind: null,
           diff: { files: 4, insertions: 120, deletions: 8 },
         }),
       }),
@@ -99,6 +100,7 @@ describe("collect handler", () => {
     expect(result.tasks[0].base).toEqual({
       baseRef: "origin/main",
       ahead: 3,
+      behind: null,
       diff: { files: 4, insertions: 120, deletions: 8 },
     })
   })
@@ -185,7 +187,7 @@ describe("collect handler", () => {
       client,
       runtime: stubRuntime({
         taskTabs: async () => ({ tabs: [], running: true }),
-        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, diff: null }),
+        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, behind: null, diff: null }),
       }),
     })) as { tasks: Array<{ activity: unknown; running: boolean; base: { ahead: number | null } }> }
     expect(result.tasks[0].activity).toBeNull()

@@ -38,6 +38,7 @@ import type { DialogContext } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { buildBaseCreateTaskContext, selectNextAfterDelete } from "../ui/task-dialog-adapters"
 import { landTaskAction } from "./land-task-action"
+import { syncBaseAction } from "./sync-base-action"
 
 export type WorkspaceTaskActionDeps = {
   orchestrator: RemoteOrchestrator
@@ -88,6 +89,8 @@ export type WorkspaceTaskActions = {
   /** Row menu "Land into base branch" — the Worktrees page's `l` reachable
    *  from the row. No busy state: the row goes with its worktree. */
   landTask: (id: string) => Promise<void>
+  /** Row menu "Sync with base": merge the base branch into the worktree. */
+  syncBase: (id: string) => Promise<boolean>
 }
 
 export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): WorkspaceTaskActions {
@@ -215,7 +218,16 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     )
   }
 
+  // Row menu "Sync with base" — no dialog (a merge from the base is additive
+  // and `git merge --abort` undoes it), so this is only the notifier wiring.
+  const syncBase = (id: string): Promise<boolean> =>
+    syncBaseAction(
+      { orchestrator, notifyInfo: deps.notifyInfo, notifyNeedsInput: deps.notifyNeedsInput, notifyError, t },
+      id,
+    )
+
   return {
+    syncBase,
     createTask: () => createTaskFlow(taskActions),
     deleteTask: (id) => deleteTaskFlow(taskActions, id),
     renameTask: (id) => renameTaskFlow(taskActions, id),

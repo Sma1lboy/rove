@@ -102,6 +102,36 @@ export function prCheckChip(task: Task): { glyph: string; tone: SidebarTone } | 
 }
 
 /**
+ * The merge-conflict chip: the PR cannot be merged as it stands.
+ *
+ * `prStatus.mergeable` has been collected onto the task record since the PR
+ * poller landed and rendered NOWHERE — a PR whose branch conflicts with its
+ * base looked identical to a healthy one until you tried to land it, which is
+ * the moment it is most expensive to discover.
+ *
+ * `≠` (U+2260, Mathematical Operators) is the glyph, and it is chosen the same
+ * way `×` and `†` were — by font coverage first. `fc-list :charset=2260`:
+ * Fira Code, FiraCode/JetBrainsMono Nerd Font, Menlo AND Monaco, so it lands
+ * at exactly one cell everywhere the existing chips do. (The obvious pick, `⑂`
+ * U+2442 OCR FORK, is in NONE of them and renders as tofu.) It also says the
+ * right thing: the branch and its base do not reconcile.
+ *
+ * It reads next to, not instead of, {@link prCheckChip} — red checks and a
+ * conflicted merge are different facts and a row can carry both. GitHub
+ * reports `UNKNOWN` while it recomputes mergeability after a push, which is
+ * not the same as conflicting, so only the explicit `CONFLICTING` draws.
+ *
+ * Pure — pinned by `test/golden/sidebar-row-state.golden.txt`.
+ */
+export function prConflictChip(task: Task): { glyph: string; tone: SidebarTone } | null {
+  if ((task.prStatus?.mergeable ?? "").toUpperCase() !== "CONFLICTING") return null
+  // Muted for the same reason `prCheckChip` mutes: a poll that could not reach
+  // the provider leaves the last good value on the row, and nothing is
+  // confirming it any more.
+  return { glyph: "\u2260", tone: task.prStatus?.lastError === undefined ? "error" : "textMuted" }
+}
+
+/**
  * The dim dot every row wears when it has no state to report. Three cases
  * converge on it deliberately: a custom engine with no
  * transcript store the monitor can watch (`monitor/activity.ts`), a

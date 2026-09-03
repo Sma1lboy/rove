@@ -58,6 +58,7 @@ shows only actions that can run right now.
 | `ctrl+a` `,` | Open Settings |
 | `ctrl+a` `p` / `P` | Create a PR from the active task, or from the sidebar row under the cursor |
 | `ctrl+a` `k` | Pull the failing PR checks' logs into the task's engine (**proposed — awaiting owner sign-off**) |
+| `ctrl+a` `u` | Merge the base branch into the task's worktree (**proposed — awaiting owner sign-off**) |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a

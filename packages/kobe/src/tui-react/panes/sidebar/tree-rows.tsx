@@ -21,6 +21,7 @@ import {
   NO_STATE_GLYPH,
   buildSidebarRowView,
   prCheckChip,
+  prConflictChip,
   statusChip,
   withSpinnerFrame,
 } from "../../../tui/panes/sidebar/row-view"
@@ -201,6 +202,10 @@ export function WorktreeTreeRow(props: {
   const isCursor = shared.cursorIndex === props.flatIndex
   const changes = useChanges(shared, task)
   const chip = prCheckChip(task)
+  // Third chip, third question: `conflict` is whether the PR can merge at all.
+  // Independent of `chip` — red checks and a conflicted merge are different
+  // facts, and a row can wear both.
+  const conflict = prConflictChip(task)
   // Two chips, two different questions: `status` is what a HUMAN said about
   // the task, `chip` is what CI reports. Human first (left of the machine
   // fact) so a scan reads intent then evidence; they never share a glyph.
@@ -228,9 +233,11 @@ export function WorktreeTreeRow(props: {
     (materializing ? 2 : 0) +
     (task.pinned === true ? 2 : 0) +
     (chip ? 2 : 0) +
+    (conflict ? 2 : 0) +
     (status ? 2 : 0) +
     (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
     (changes.deleted > 0 ? clusterCells(`−${changes.deleted}`) : 0) +
+    ((changes.behind ?? 0) > 0 ? clusterCells(`↓${changes.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>
@@ -256,6 +263,11 @@ export function WorktreeTreeRow(props: {
         {chip ? (
           <text fg={toneColor(theme, chip.tone)} wrapMode="none" flexShrink={0}>
             {chip.glyph}
+          </text>
+        ) : null}
+        {conflict ? (
+          <text fg={toneColor(theme, conflict.tone)} wrapMode="none" flexShrink={0}>
+            {conflict.glyph}
           </text>
         ) : null}
         <ChangeStats changes={changes} />

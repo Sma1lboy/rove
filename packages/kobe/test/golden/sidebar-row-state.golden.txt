@@ -1535,6 +1535,19 @@ checkState=failing           stale=1  chip=✗ (textMuted)
 checkState=pending           stale=0  chip=• (warning)
 checkState=pending           stale=1  chip=• (textMuted)
 
+## PR merge-conflict chip
+mergeable=<absent>           stale=0  chip=<none>
+mergeable=<absent>           stale=1  chip=<none>
+mergeable=MERGEABLE          stale=0  chip=<none>
+mergeable=MERGEABLE          stale=1  chip=<none>
+mergeable=CONFLICTING        stale=0  chip=≠ (error)
+mergeable=CONFLICTING        stale=1  chip=≠ (textMuted)
+mergeable=UNKNOWN            stale=0  chip=<none>
+mergeable=UNKNOWN            stale=1  chip=<none>
+mergeable=conflicting        stale=0  chip=≠ (error)
+mergeable=conflicting        stale=1  chip=≠ (textMuted)
+<no prStatus>                stale=0  chip=<none>
+
 ## board status chip
 status=backlog               chip=<none>
 status=in_progress           chip=<none>

@@ -91,6 +91,7 @@ function Driver(props: {
     createPR: NOOP,
     createPRFor: NOOP,
     fixChecksFor: () => {},
+    syncBaseFor: () => {},
     toggleSortMode: NOOP,
   })
   if (props.terminalWrites) return <TerminalInput writes={props.terminalWrites} />
@@ -169,6 +170,7 @@ function SearchUnmountTransition() {
     createPR: NOOP,
     createPRFor: NOOP,
     fixChecksFor: () => {},
+    syncBaseFor: () => {},
     toggleSortMode: NOOP,
   })
   if (updateOpen) {

@@ -89,6 +89,7 @@ function ChordHost({ spies }: { spies: Spies }) {
     createPR: () => {},
     createPRFor: () => {},
     fixChecksFor: () => {},
+    syncBaseFor: () => {},
     toggleSortMode: () => {},
   })
   return (

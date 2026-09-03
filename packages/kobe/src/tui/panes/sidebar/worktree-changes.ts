@@ -42,6 +42,13 @@ export interface WorktreeChanges {
   readonly added: number
   /** Files deleted (in index or worktree). */
   readonly deleted: number
+  /**
+   * Commits this worktree is BEHIND its base (`git rev-list --count
+   * HEAD..<base>`), from the daemon's collector. Absent when no base ref
+   * resolves, or when the counts came from the local sync fallback — which
+   * only reads `git status` and therefore knows nothing about the base.
+   */
+  readonly behind?: number
 }
 
 const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
@@ -53,7 +60,7 @@ const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
  * (DESIGN §5.5) is one predicate everywhere.
  */
 export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
 }
 
 /**

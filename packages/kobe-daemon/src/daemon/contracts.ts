@@ -405,4 +405,11 @@ export interface UpdateInfo {
 export interface WorktreeChanges {
   readonly added: number
   readonly deleted: number
+  /**
+   * Commits the worktree is BEHIND its base (`git rev-list --count
+   * HEAD..<base>`). Absent when no base ref resolves — a repo with no remote
+   * and no `main`/`master` degrades to exactly the pre-behind behaviour
+   * rather than reporting a fabricated zero.
+   */
+  readonly behind?: number
 }

@@ -94,6 +94,7 @@ function SortHost() {
     createPR: () => {},
     createPRFor: () => {},
     fixChecksFor: () => {},
+    syncBaseFor: () => {},
     toggleSortMode: () => setSortMode((mode) => (mode === "default" ? "recent" : "default")),
   })
   return (

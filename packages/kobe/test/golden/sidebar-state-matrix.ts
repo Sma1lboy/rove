@@ -27,6 +27,7 @@ import type { SidebarRowView } from "@/tui/panes/sidebar/row-view"
 import {
   buildSidebarRowView,
   prCheckChip,
+  prConflictChip,
   rowIsLoading,
   statusChip,
   withSpinnerFrame,
@@ -431,6 +432,37 @@ export function prChipBlock(): string[] {
       )
     }
   }
+  return lines
+}
+
+/**
+ * The merge-conflict chip: `prStatus.mergeable`, which the poller has been
+ * collecting since it landed and nothing rendered. Enumerated over every value
+ * GitHub returns, so the two deliberate silences (`UNKNOWN` — GitHub is still
+ * recomputing after a push — and `MERGEABLE`) are pinned as behaviour rather
+ * than left to be re-decided. Crossed with `lastError` for the same reason
+ * `prChipBlock` is: a stale reading keeps its glyph and loses its colour.
+ */
+export function conflictChipBlock(): string[] {
+  const values = [undefined, "MERGEABLE", "CONFLICTING", "UNKNOWN", "conflicting"] as const
+  const lines: string[] = []
+  for (const mergeable of values) {
+    for (const lastError of [undefined, "gh: could not resolve host"]) {
+      const subject = task({
+        prStatus: {
+          checkState: "passing",
+          ...(mergeable ? { mergeable } : {}),
+          ...(lastError ? { lastError } : {}),
+        } as Task["prStatus"],
+      })
+      const chip = prConflictChip(subject)
+      lines.push(
+        `${pad(`mergeable=${mergeable ?? "<absent>"}`, 28)} ${pad(`stale=${lastError ? "1" : "0"}`, 8)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`,
+      )
+    }
+  }
+  // A row with no PR at all must not draw it either.
+  lines.push(`${pad("<no prStatus>", 28)} ${pad("stale=0", 8)} chip=${prConflictChip(task({})) ? "?" : "<none>"}`)
   return lines
 }
 

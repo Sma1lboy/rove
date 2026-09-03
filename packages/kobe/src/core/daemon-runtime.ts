@@ -17,6 +17,7 @@ import { deriveTitleFromSession } from "../monitor/auto-title.ts"
 import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrStatus } from "../monitor/pr-status.ts"
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
+import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
 import { composerGateEnabled } from "../state/composer-gate.ts"
 import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
@@ -27,6 +28,7 @@ import { handleDiffRequest } from "../web/diff.ts"
 import { handleHistoryRequest } from "../web/history.ts"
 import { handleNotesRequest } from "../web/notes.ts"
 import { handleThemesRequest } from "../web/themes.ts"
+import { resolveBaseRefCached } from "./base-ref-cache.ts"
 import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
@@ -95,18 +97,43 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   latestTranscriptMtime,
   deriveTitleFromSession,
   createEngineTurnDetector,
-  async runWorktreeStatus(worktreePath, signal) {
+  async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
       env: readOnlyGitProcessEnv(),
       signal,
     })
     if (result.status !== 0) throw new Error("git status failed")
-    return parsePorcelain(result.stdout)
+    const counts = parsePorcelain(result.stdout)
+    // The behind-base drift, on the SAME guarded run as the status walk so it
+    // inherits its in-flight dedupe, timeout and backoff. The base resolution
+    // ladder lives here rather than in the daemon: `resolveBaseRef` is kobe's,
+    // and kobe-daemon does not import kobe sources.
+    const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
+    if (!base) return counts
+    const behind = await spawnCapture("git", ["rev-list", "--count", `HEAD..${base}`], {
+      cwd: worktreePath,
+      env: readOnlyGitProcessEnv(),
+      signal,
+    })
+    if (behind.status !== 0) return counts
+    const n = Number.parseInt(behind.stdout.trim(), 10)
+    return Number.isInteger(n) && n >= 0 ? { ...counts, behind: n } : counts
   },
   maybeAutoStart: (orch, taskId) => maybeAutoStart(orch as Orchestrator, taskId),
   listWorktreeProjects: listWorktreeProjectsAdapter,
   removeWorktree: removeWorktreeAdapter,
+  async syncWorktreeWithBase(worktreePath, recordedBaseRef) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS)
+    try {
+      const baseRef = await resolveBaseRefCached(worktreePath, recordedBaseRef, controller.signal)
+      if (!baseRef) throw new Error("no base ref resolves for this worktree")
+      return await syncWorktreeWithBase(worktreePath, baseRef, controller.signal)
+    } finally {
+      clearTimeout(timer)
+    }
+  },
   availableEngineIds,
   engineDisplayName,
   kobeApiInvocation,
