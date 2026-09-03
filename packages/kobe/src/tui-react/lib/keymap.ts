@@ -207,6 +207,15 @@ export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: 
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once registration; scope/owner tokens are stable for the component's lifetime.
   useEffect(() => {
+    // Same guard `ensureInstalled` applies to the listener, applied to
+    // registration. A superseded renderer's tree keeps rendering after
+    // teardown, so a component it mounts LATE (a dialog opened by a pending
+    // timer) would insert into the live renderer's stack — past the
+    // `stack.length = 0` that was supposed to drop it. One stale `modalOwner`
+    // landing that way makes `modalActive()` true forever and silences every
+    // raw keyInput listener gated on it (the terminal pane's paste
+    // forwarder). No-op in production: one renderer, never superseded.
+    if (supersededRenderers.has(renderer as object)) return
     // Opening a Dialog Stack scope invalidates an in-flight prefix from the
     // surface behind it before any async/mouse transition can leak it back.
     if (opts?.modalOwner !== undefined) resetPrefixState()
