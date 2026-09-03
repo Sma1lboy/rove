@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.9.101
+
+### Patch Changes
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) The footer says what the session has cost. The context collector already parsed
+  prompt, completion and cache tokens out of the transcript every ten seconds and
+  dropped four of the seven fields at one line; they now ride the same
+  `usage.context` read to a `Σ 44k` chip beside `ctx`, and `rove api inspect`
+  gains a `daemon.contextUsage` section carrying all of them per live session —
+  the only read that shows the token counts at all. No new poll and no new
+  arithmetic in the neutral layers: every number is the engine adapter's own.
+  Cache tokens stay on the wire but out of the `Σ`, because a cached prompt is
+  reuse and folding it in would read as effort. `EngineUsageSnapshot` loses
+  `total_speed_tokens_per_second`, which nothing produced and nothing read. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#830](https://github.com/Sma1lboy/rove/pull/830) [`e598d70`](https://github.com/Sma1lboy/rove/commit/e598d707764dc212652f5bf1b0991210ae1d8b8b) Stop idling a working Claude engine mid-turn. The Claude turn detector treated
+  every assistant transcript record as a completed turn, but Claude Code appends
+  one per step and ~95% of them are `stop_reason: "tool_use"` — mid-turn. The
+  daemon's lapse watchdog read the newest of those as "this turn already ended"
+  and dropped the activity badge to idle at the 10-minute TTL while the engine was
+  still working, with its heartbeat re-arm unreachable. The marker now requires a
+  turn-ending `stop_reason` (`end_turn`, `stop_sequence`, `max_tokens`,
+  `refusal`); `tool_use`, `pause_turn` and a missing reason all read as still
+  running. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) `rove api dispatch` now delivers the text instead of hoping somebody else does.
+  The verb published on the daemon's `session.deliver` channel and returned
+  `{ ok: true, clients: N }`; the only subscribers were the browser SPA, so
+  dispatching into a TUI-hosted task exited 0 with the prompt going nowhere — an
+  agent answering a stranded permission prompt got a success and a task that
+  stayed stuck. The daemon now pastes into the task's live hosted engine session
+  through the same adapter `send` uses (never spawns, respects each engine's
+  composer gate) and reports what happened: `delivered: true` with the `tabId`
+  that took it, `delivered: false, reason: "busy"` when a human is mid-message and
+  nothing was written, or `delivered: false, reason: "broadcast"` when no hosted
+  session answered and the event went out for a browser to pick up. Only that last
+  case still broadcasts — publishing after a successful paste would make a
+  listening browser paste the same text twice. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#831](https://github.com/Sma1lboy/rove/pull/831) [`b6c3cc0`](https://github.com/Sma1lboy/rove/commit/b6c3cc0e9f8ec3f97bf9d7a3501674e4995c9ad5) Thirty-seven places where the docs, the agent skill, or a `--help` string described behavior the code does not have. The five that cost you something:
+
+  - `rove api send` now reports the delivery facts it was already measuring. `delivered`, `bytes` and `promptEcho` were computed on both delivery paths and then thrown away by `send`, so a successful send omitted `delivered` entirely while a deferred one reported it as the only outcome field — `add` had emitted all three the whole time. `docs/API.md` documented the fields under `send`; now they are there.
+  - The agent skill (v42) said `pane-open --command` runs through `sh -lc`. It runs your login shell with `-ilc`, which is why a pane sees the same rc-exported `PATH` as an engine tab. The skill also claimed routines take `--prompt` only (both routine verbs accept `--prompt-file`), listed `$KOBE_TASK_ID`/`$KOBE_TAB_ID` as retired (they are live aliases), omitted `set-vendor` → `set-command` from the retired table, dropped `collect --group` and `send --allow-empty` from the block headed "nothing here should ever need `schema`", and never mentioned that a `deferred` send is a success you must not retry.
+  - `rove doctor` printed `pty-host.log:` in front of a file that is written as `pty.log`, sending anyone who followed it looking for a filename that does not exist.
+  - `rove doctor` now names a daemon serving a different state root than the CLI is reading — the "my tasks vanished" symptom of a sandbox daemon that inherited the production socket path. `daemon.status` carries `homeDir` for it, the way `hello` already did.
+  - `rove config --help` stated the editor precedence backwards: an editor set in Settings → General → Editor wins, and `$VISUAL`/`$EDITOR` apply only when that is left on Auto. `rove web --help` called `--no-takeover` "reserved for compatibility" while takeover has been live (it SIGTERMs an older Rove PTY sidecar on `port + 2`), and `rove add --help` spelled `--key <path>` as though the path were required when omitting it uses ssh-agent.
+
+  The rest are doc corrections: the routine-run status union is 7 values, not 5 (`revived` and `deferred` reach plugins as `automation.dispatched` and a plugin branching on `=== "dispatched"` drops them); `skipped_unavailable` is the catch-all for any dispatch throw, and `dispatch_failed` also covers a busy composer whose deferral could not be filed; routine history is capped at 100 runs per routine, so "read the ids off its history before deleting it" quietly fails for a `*/30` schedule; `--precheck-timeout` is clamped to 1-600s; cron day-of-week accepts `7` as Sunday; the routine composer is missing five CLI-only fields, not one; a routine's tasks carry a marker that folds them in the sidebar; the last tab CAN be closed (a task may hold zero tabs — only a scratch task refuses, by tearing itself down); freeze/thaw drops records older than 14 days and keeps only the 64 newest; `[[shutdown]]` accepts `platforms`; `rove hook setup` is not a no-op (it removes the legacy `WorktreeCreate` hook); `rove reset` takes `-y`; `rove doctor` never reported duplicate runtimes or stale worktrees; CLI.md's doctor scope list was missing four checks and its `rove --help` block had been silently re-aligned; and `delivery.composerGate` and `hints.keyboard.prefixTapPresentation` had a Settings row but no documentation. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#832](https://github.com/Sma1lboy/rove/pull/832) [`8faa3b1`](https://github.com/Sma1lboy/rove/commit/8faa3b11194384472f248ae25bab830084c8febc) Internal: the engine adapters stop re-deriving two things they had each written out by hand.
+
+  CLI-binary discovery was four copies of the same probe — a `BinaryDiscoveryDeps` interface, a `defaultDeps` implementation, a not-found error class and a `tryPath` walk, in `claude-code-local`, `codex-local`, `kimi-local` and `copilot-local`. `engine/binary-discovery.ts` now owns _how_ to probe (the `which` call and its macOS alias unwrapping, the stat check, the ordered ledger of checked paths that ends up in the error message) and each vendor file owns only _where_ to look. Every search order, every checked-path list and its order, every error message and every `error.name` is byte-identical — 420 lines of duplication out, 112 back.
+
+  One deliberate behaviour change falls out of it: `kimi` now unwraps a macOS `which` alias line the way the other three already did. An aliased `kimi` used to resolve to the literal `"kimi: aliased to /path"` string, fail the file check, and fall through to the install dirs for no reason.
+
+  Vendor config-home resolution — `$CLAUDE_CONFIG_DIR`/`$CODEX_HOME`/`$COPILOT_HOME`/`$KIMI_CODE_HOME` and their default dotdirs — was written nine times across six files, and the copies had already drifted: three treated a blank override as a real path, so `CODEX_HOME="  "` resolved to `/auth.json` at the filesystem root. `engine/vendor-home.ts` is now the single derivation, blank means unset everywhere, and claude's genuine asymmetry (`~/.claude.json` sits at the home root when unset, inside the dir when set) is preserved and documented. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#834](https://github.com/Sma1lboy/rove/pull/834) [`93ab6d5`](https://github.com/Sma1lboy/rove/commit/93ab6d5e893cbfd74e3f4055f31f2ba9f1a797c7) Repo init: record the outcome in the marker, and restore its exports for every
+  session. A `.rove/init.sh` that failed or timed out wrote no marker at all, so
+  the paste-delivery spawner (kimi) could not tell "init failed" from "init still
+  running" and sat out its whole 120s budget before delivering a task's first
+  message; the marker now carries init's exit code, and a recorded failure still
+  re-runs init on the next launch. The env restore has also moved outside the
+  once-per-worktree marker guard and into a durable `0600` dump next to the
+  marker, so a second engine tab — and a restart of the first — gets the PATH,
+  venv and API-key exports init set, instead of only the very first session in
+  the worktree ever seeing them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) Sidebar rows now say where a PR stands with its reviewers. The poller has been
+  writing `reviewDecision` and folding an approved open PR into a `ready_to_merge`
+  lifecycle since it landed, and neither reached the screen: a green `✓` looked
+  identical on a PR that is approved and clear, one still waiting on a reviewer,
+  and one that merged an hour ago — which is exactly the distinction you need when
+  picking which parallel attempt to land. `»` marks approved and clear to advance,
+  `≡` marks already merged (muted; it is history, not news), and both drain to
+  grey when the last PR poll failed. Both glyphs are one cell in Fira Code,
+  JetBrainsMono Nerd Font, Menlo and Monaco. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) A skipped routine now says why it skipped. The runner has always captured the
+  precheck's stdout, stderr, exit code and duration and stored them on the run
+  record; the Routines page collapsed all four to `[#12](https://github.com/Sma1lboy/rove/issues/12) skipped_precheck — precheck
+exited 1`, leaving you to reconstruct the command by hand — the debugging step
+  Rove had already done and then discarded. The detail box now shows the exit code,
+  the duration and the last ten lines of each captured stream under the run list,
+  for the most recent run. Run rows also carry the trigger: `·` fired by cron,
+  `▸` run by hand, so a manual test and a scheduled firing stop looking alike. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.100
 
 ### Patch Changes
