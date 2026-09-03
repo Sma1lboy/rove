@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.91
+
+### Patch Changes
+
+- [#810](https://github.com/Sma1lboy/rove/pull/810) [`fd4640c`](https://github.com/Sma1lboy/rove/commit/fd4640c06d1bd4491138156cac3dd0e0d39ca1f3) New task moves from `ctrl+n` to the prefix: `ctrl+a` `n` opens it from anywhere, including inside an engine or shell terminal, and a bare `ctrl+n` always reaches the PTY. The sidebar keeps bare `n`. The dialog's Existing / New Repo / Adopt selector is now a `MODE` chip row like the engine picker. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.90
 
 ### Patch Changes
