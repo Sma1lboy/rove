@@ -21,7 +21,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
     group: "issues",
     summary: "List daemon-owned issues for a repo.",
     flags: [F.repo()],
-    handler: (ctx) => simpleRpc(ctx, "issue.list", { repoRoot: ctx.args.requirePath("repo") }),
+    handler: (ctx) => simpleRpc(ctx, "issue.list", { repoRoot: ctx.args.requireRepo("repo") }),
   },
   {
     name: "issue-create",
@@ -34,7 +34,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "issue.mutate", {
-        repoRoot: ctx.args.requirePath("repo"),
+        repoRoot: ctx.args.requireRepo("repo"),
         op: { type: "create", title: ctx.args.require("title"), body: ctx.args.str("body") },
       }),
   },
@@ -49,7 +49,7 @@ export const ISSUE_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "issue.mutate", {
-        repoRoot: ctx.args.requirePath("repo"),
+        repoRoot: ctx.args.requireRepo("repo"),
         op: { type: "setStatus", id: ctx.args.int("id"), status: ctx.args.requireEnum<IssueStatus>("status") },
       }),
   },

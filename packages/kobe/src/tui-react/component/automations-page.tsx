@@ -39,6 +39,11 @@ const POLL_MS = 5_000
  *  `dispatch_failed` wants a human. Collapsing them would hide that. */
 const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   dispatched: "success",
+  // Delivered, so not grey: `revived` reached a respawned session (the status
+  // text carries the lost-context caveat), `deferred` reached the Inbox and is
+  // warning rather than success because it is parked until a human releases it.
+  revived: "success",
+  deferred: "warning",
   skipped_precheck: "muted",
   skipped_missed: "warning",
   skipped_unavailable: "warning",

@@ -33,7 +33,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "workitem.list", {
-        repo: ctx.args.requirePath("repo"),
+        repo: ctx.args.requireRepo("repo"),
         ...(ctx.args.str("state") ? { state: ctx.args.str("state") } : {}),
         ...(ctx.args.int("limit") !== undefined ? { limit: ctx.args.int("limit") } : {}),
         ...(ctx.args.str("search") ? { search: ctx.args.str("search") } : {}),
@@ -54,7 +54,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "workitem.start", {
-        repo: ctx.args.requirePath("repo"),
+        repo: ctx.args.requireRepo("repo"),
         number: ctx.args.int("number"),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),

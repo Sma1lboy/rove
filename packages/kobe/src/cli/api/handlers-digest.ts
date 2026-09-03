@@ -70,7 +70,7 @@ export function buildDigest(
 async function digest(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requirePath("repo"))
+  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
   const sinceMs = Date.now() - (args.int("since-days") ?? DEFAULT_SINCE_DAYS) * 86_400_000
 
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")

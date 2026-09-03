@@ -447,10 +447,8 @@ export function createDirectWebLink(args: {
  * A skip degrades the daemon to socket-only; it never throws.
  */
 export async function probeWebPort(port: number, healthPath: string = DAEMON_WEB_HEALTH_PATH): Promise<boolean> {
-  let body: string
   try {
-    const res = await fetch(`http://localhost:${port}${healthPath}`, { signal: AbortSignal.timeout(800) })
-    body = (await res.text()).trim()
+    await fetch(`http://localhost:${port}${healthPath}`, { signal: AbortSignal.timeout(800) })
   } catch {
     // Nothing answered the health probe → assume the port is free to bind.
     // If something races onto it, Bun.serve's EADDRINUSE is caught upstream.
@@ -466,9 +464,6 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
     )
   }
   const sseSends = new Set<SseSend>()
-  const unsubscribe = opts.onEvent((event) => {
-    for (const send of sseSends) send("channel", event)
-  })
   const hostname = opts.hostname?.trim() || process.env.KOBE_WEB_HOST?.trim() || "127.0.0.1"
   const allowedHost = allowedHostForBindHost(hostname)
   // Minted here rather than defaulted inside the handler: `webToken` is
@@ -487,6 +482,14 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
     webToken,
   })
   const server = Bun.serve({ port: opts.port, hostname, idleTimeout: 0, fetch: handle })
+  // Subscribed only once there is something to unsubscribe FROM: above the
+  // bind, an `ensureWebToken` write error or a lost port race (EADDRINUSE)
+  // throws past every caller of the returned `close()`, and the bus keeps
+  // calling this orphaned closure for the daemon's whole lifetime — once per
+  // restart that loses the race.
+  const unsubscribe = opts.onEvent((event) => {
+    for (const send of sseSends) send("channel", event)
+  })
   return {
     port: server.port ?? opts.port,
     hostname,

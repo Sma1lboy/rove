@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { expandTilde } from "../../lib/path-home.ts"
-import { getCustomEngineIds } from "../../state/repos.ts"
+import { getCustomEngineIds, isRemoteRepoKey } from "../../state/repos.ts"
 import { ALL_VENDORS, type VendorId } from "../../types/vendor.ts"
 import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, helpStep } from "./types.ts"
 
@@ -353,6 +353,21 @@ export class VerbArgs {
   /** Required PATH flag resolved against $PWD (with a leading `~` expanded first). */
   requirePath(name: string): string {
     return resolve(process.cwd(), expandTilde(this.require(name)))
+  }
+
+  /**
+   * Required REPO flag: a local path, or a remote project's `ssh://…` key
+   * verbatim.
+   *
+   * Separate from {@link requirePath} because `resolve()` treats the key as a
+   * relative path and collapses it to `$PWD/ssh:/me@host` — a directory that
+   * does not exist, so `--repo ssh://…` failed with a path nobody typed.
+   * `savedRepos` stores that key as-is and `resolveRepoRoot` already passes it
+   * through, so the mangling was the only thing in the way.
+   */
+  requireRepo(name: string): string {
+    const raw = this.require(name)
+    return isRemoteRepoKey(raw) ? raw : resolve(process.cwd(), expandTilde(raw))
   }
 }
 

@@ -329,6 +329,10 @@ export class DeferredPromptsStore {
         )
         return false
       })
+      // Deliberately does NOT write the prune: `flushDeferredPrompts` claims
+      // each expired record so it can delete the record's Inbox pointer before
+      // completing the claim. Dropping them here instead would strand those
+      // pointers, which is why the log above says "cleanup requested".
       return { records: kept, expired }
     })
   }

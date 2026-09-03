@@ -184,9 +184,15 @@ async function closeHeadlessTerminalTab(
 
     const baseKey = closing ? tabPtyKeyFor(taskId, closing) : directKey
     const ownsBase = !(closing?.kind === "engine" && closing.ptyTask)
-    const keys = sessions
-      .filter((session) => (ownsBase && session.key === baseKey) || session.key.startsWith(`${baseKey}::`))
-      .map((session) => session.key)
+    // `ownsBase` gates the SPLIT LEAVES too. For a viewport tab `baseKey` is
+    // the REFERENCED task's key (`tabPtyKeyFor` resolves through `ptyTask`), so
+    // `<referenced>::tab-1::leaf-N` are that task's own splits — closing the
+    // borrowing tab must not kill them any more than it kills the base.
+    const keys = ownsBase
+      ? sessions
+          .filter((session) => session.key === baseKey || session.key.startsWith(`${baseKey}::`))
+          .map((session) => session.key)
+      : []
     const wasAlive = sessions.some((session) => keys.includes(session.key) && session.alive)
     if (host) await killTaskSessions(host.rpc, keys)
     return { kind: closing?.kind ?? "engine", wasAlive }

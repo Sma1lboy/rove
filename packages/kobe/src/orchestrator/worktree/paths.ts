@@ -243,9 +243,14 @@ export function isUnderManagedWorktreesRoot(candidate: string): boolean {
     if (!rootPath) continue
     const root = canonicalize(rootPath)
     const rel = path.relative(root, target)
-    // Non-empty (the root itself is not a worktree), no ".." prefix (outside),
-    // not absolute (different drive on Windows).
-    if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) return true
+    // No ".." prefix (outside), not absolute (different drive on Windows), and
+    // EXACTLY the `<repo-key>/<slug>` shape this module creates (see
+    // `worktreePathFor`). Accepting any depth meant a Settings worktree-location
+    // override pointed at `~` or `~/code` let every unrelated sibling project
+    // answer yes here — and this answer is what authorizes `rm -rf` in
+    // `manager-remove.ts`.
+    if (rel.startsWith("..") || path.isAbsolute(rel)) continue
+    if (rel.split(path.sep).filter(Boolean).length === 2) return true
   }
   return false
 }

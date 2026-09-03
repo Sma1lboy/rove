@@ -25,7 +25,7 @@ export const WORKTREE_VERBS: readonly VerbSpec[] = [
     group: "worktree",
     summary: "List existing git worktrees in a repo not yet tracked as Rove tasks. Returns { worktrees }.",
     flags: [F.repo()],
-    handler: (ctx) => simpleRpc(ctx, "worktree.discoverAdoptable", { repo: ctx.args.requirePath("repo") }),
+    handler: (ctx) => simpleRpc(ctx, "worktree.discoverAdoptable", { repo: ctx.args.requireRepo("repo") }),
   },
   {
     name: "adopt",
