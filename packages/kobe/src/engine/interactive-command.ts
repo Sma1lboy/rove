@@ -23,7 +23,7 @@
  * the built-in default.
  */
 
-import { kobeCliInvocation } from "@/cli/invocation"
+import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/task"
@@ -203,14 +203,14 @@ export { argvHasFlag } from "../cli/argv.ts"
  * Shell-ready `… api` command prefix for protocol prompts. Packaged builds
  * bake plain `kobe api`; a source checkout bakes the dev invocation
  * (`bun --preload … src/cli/kobe.ts api`) — the same {@link
- * kobeCliInvocation} every kobe-owned pane uses. Without this, a protocol
+ * roveCliInvocation} every kobe-owned pane uses. Without this, a protocol
  * agent in a dev sandbox resolves `kobe` to whatever STALE global install
  * is on PATH, and any verb newer than that install dies with BAD_VERB.
  */
 export function kobeApiInvocation(): string {
   const quote = (a: string): string => (/^[A-Za-z0-9_/.:=-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`)
   try {
-    return [...kobeCliInvocation(), "api"].map(quote).join(" ")
+    return [...roveCliInvocation(), "api"].map(quote).join(" ")
   } catch {
     // import.meta.resolve is unavailable in some hosts (vitest's SSR
     // transform) — bare `rove api` is the best-effort fallback there.

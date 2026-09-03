@@ -7,7 +7,7 @@
  */
 
 import { basename } from "node:path"
-import { kobeCliInvocation } from "@/cli/invocation"
+import { roveCliInvocation } from "@/cli/invocation"
 import { findFileHandler } from "@sma1lboy/kobe-daemon/plugins/settings-env"
 import { spawnDetached } from "../../lib/spawn-detached"
 
@@ -20,7 +20,7 @@ export function tryPluginFileOpen(absPath: string): boolean {
     return false
   }
   if (!handler) return false
-  const [cmd, ...rest] = [...kobeCliInvocation(), "plugin", "action", "invoke", handler.qualifiedAction, absPath]
+  const [cmd, ...rest] = [...roveCliInvocation(), "plugin", "action", "invoke", handler.qualifiedAction, absPath]
   return spawnDetached(cmd as string, rest, {
     onError: (err) => console.warn(`[rove/plugins] ${handler?.qualifiedAction}: ${String(err)}`),
   })

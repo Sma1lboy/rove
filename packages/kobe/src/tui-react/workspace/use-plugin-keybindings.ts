@@ -8,7 +8,7 @@
  * interactive belongs in a pane instead.
  */
 
-import { kobeCliInvocation } from "@/cli/invocation"
+import { roveCliInvocation } from "@/cli/invocation"
 import { spawnDetached } from "../../lib/spawn-detached"
 import { pluginKeybindings } from "../../tui/context/keybindings-user"
 import type { PluginKeyBinding } from "../../tui/lib/keymap-plugin-bindings"
@@ -19,7 +19,7 @@ function firePluginBinding(binding: PluginKeyBinding): void {
     binding.kind === "pane"
       ? ["plugin", "pane", "open", binding.target]
       : ["plugin", "action", "invoke", binding.target]
-  const [cmd, ...rest] = [...kobeCliInvocation(), ...verb]
+  const [cmd, ...rest] = [...roveCliInvocation(), ...verb]
   spawnDetached(cmd as string, rest, {
     onError: (err) => console.warn(`[rove/plugins] ${binding.target}: ${String(err)}`),
   })
