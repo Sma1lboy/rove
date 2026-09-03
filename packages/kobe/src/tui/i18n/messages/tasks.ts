@@ -80,7 +80,7 @@ export const en = {
     done: "Merged {base} into this worktree",
     alreadyCurrent: "Already up to date with {base}",
     conflict: "Merge conflict — resolve then commit: {files}",
-    dirty: "Commit or stash the worktree's changes first, then sync",
+    dirty: "Commit or stash the worktree's changes first, then sync: {files}",
     failed: "Sync failed: {error}",
   },
   /** Change-engine picker dialog (the menu route of `v`). */
@@ -224,7 +224,7 @@ export const zh: typeof en = {
     done: "已把 {base} 合并进该工作树",
     alreadyCurrent: "已经和 {base} 同步",
     conflict: "合并冲突——解决后提交：{files}",
-    dirty: "请先提交或暂存工作树里的改动，再同步",
+    dirty: "请先提交或暂存工作树里的改动，再同步：{files}",
     failed: "同步失败：{error}",
   },
   changeEngine: {

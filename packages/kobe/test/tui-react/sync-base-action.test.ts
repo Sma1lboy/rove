@@ -53,10 +53,21 @@ describe("syncBaseAction", () => {
 
   test("a dirty worktree is attention too — it is a precondition, not a failure", async () => {
     const h = deps(async () => {
+      throw new Error(`${SYNC_DIRTY}: new.txt, src/a.ts`)
+    })
+    expect(await syncBaseAction(h.deps, "t1")).toBe(false)
+    // The files ride along the same way the conflict marker's do: "commit or
+    // stash the worktree's changes" is not actionable without them.
+    expect(h.attention).toEqual(['tasks.sync.dirty {"files":"new.txt, src/a.ts"}'])
+    expect(h.errors).toEqual([])
+  })
+
+  test("a bare dirty marker (no file list) still reads as the dirty outcome", async () => {
+    const h = deps(async () => {
       throw new Error(SYNC_DIRTY)
     })
     expect(await syncBaseAction(h.deps, "t1")).toBe(false)
-    expect(h.attention).toEqual(["tasks.sync.dirty"])
+    expect(h.attention).toEqual(['tasks.sync.dirty {"files":"?"}'])
     expect(h.errors).toEqual([])
   })
 

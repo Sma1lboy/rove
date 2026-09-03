@@ -208,3 +208,37 @@ export class LandConflictError extends Error {
     this.name = "LandConflictError"
   }
 }
+
+/**
+ * Stable sentinel embedded in {@link GitCommandFailedError}'s message — same
+ * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
+ */
+export const GIT_COMMAND_FAILED_CODE = "GIT_COMMAND_FAILED"
+
+/**
+ * Thrown by `landTask` when a git command failed for a reason Rove has no
+ * policy for — a `pre-commit`/`commit-msg` hook, a broken `commit.gpgsign`
+ * key, an unset `user.email`.
+ *
+ * It exists because the alternative is a LIE. Both land strategies used to
+ * read a failed commit as the one benign cause they knew: squash reported
+ * "already merged or empty" about a branch that had staged cleanly (and then
+ * `reset --hard` threw the squash away), and merge threw the phantom
+ * {@link LandConflictError} with an empty file list that
+ * `assertBranchHasWork`'s docstring says it exists to prevent. Neither ever
+ * looked at git's stderr, which said exactly what was wrong.
+ *
+ * The `hint` names what the caller can still do — for squash, that the staged
+ * merge is deliberately left in place to be committed by hand.
+ */
+export class GitCommandFailedError extends Error {
+  constructor(
+    public readonly command: string,
+    public readonly stderr: string,
+    hint?: string,
+  ) {
+    const detail = stderr.trim() || "(git printed nothing on stderr)"
+    super(`${GIT_COMMAND_FAILED_CODE}: \`git ${command}\` failed — ${detail}${hint ? `; ${hint}` : ""}`)
+    this.name = "GitCommandFailedError"
+  }
+}

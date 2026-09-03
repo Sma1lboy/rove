@@ -135,6 +135,12 @@ export interface SpawnCaptureResult {
   /** Exit code, or null when the child errored / was killed (timeout). */
   readonly status: number | null
   readonly stdout: string
+  /**
+   * Captured stderr. Kept because on a non-zero status it is usually the ONLY
+   * thing that says why — `sync-base.ts` used to report a refused merge as a
+   * bare "git merge <ref> failed" because this was thrown away at the pipe.
+   */
+  readonly stderr: string
 }
 
 /**
@@ -151,7 +157,7 @@ export function decodeCapturedChunks(chunks: readonly (Buffer | string)[]): stri
 }
 
 /**
- * Async spawn that collects stdout and resolves on close. Never rejects —
+ * Async spawn that collects stdout AND stderr and resolves on close. Never rejects —
  * a spawn error (missing cwd, binary not on PATH) or an abort resolves
  * with `status: null` so callers branch on status, mirroring the
  * never-throw contract of the pane-side sync git helpers it replaces.
@@ -164,21 +170,25 @@ export function spawnCapture(
 ): Promise<SpawnCaptureResult> {
   return new Promise((resolve) => {
     const chunks: (Buffer | string)[] = []
+    const errChunks: (Buffer | string)[] = []
     let settled = false
     const finish = (status: number | null): void => {
       if (settled) return
       settled = true
-      resolve({ status, stdout: decodeCapturedChunks(chunks) })
+      resolve({ status, stdout: decodeCapturedChunks(chunks), stderr: decodeCapturedChunks(errChunks) })
     }
     const child = spawn(cmd, args.slice(), {
       cwd: opts.cwd,
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
       env: opts.env,
       signal: opts.signal,
       killSignal: "SIGKILL",
     })
     child.stdout?.on("data", (chunk: Buffer | string) => {
       chunks.push(chunk)
+    })
+    child.stderr?.on("data", (chunk: Buffer | string) => {
+      errChunks.push(chunk)
     })
     child.on("error", () => finish(null))
     child.on("close", (code) => finish(code))
