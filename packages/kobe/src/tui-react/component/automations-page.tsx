@@ -68,6 +68,77 @@ function repoLabel(repo: string): string {
   return repo.split("/").filter(Boolean).pop() ?? repo
 }
 
+/** `·` cron fired it, `▸` a human did. One cell, and it answers "did I run
+ *  this or did the schedule" without opening anything. Both glyphs are
+ *  already in the sidebar's vocabulary, so no new font coverage is at stake. */
+function triggerGlyph(trigger: AutomationRun["trigger"]): string {
+  return trigger === "manual" ? "▸" : "·"
+}
+
+/** The last ~10 lines of a captured stream, trimmed of trailing blanks.
+ *  Truncation happens HERE and not at capture time: the runner already stores
+ *  what it stores, and a detail view that shrank the record would make the
+ *  next reader's question unanswerable. */
+function outputTail(text: string, limit = 10): string[] {
+  const lines = text.replace(/\s+$/, "").split("\n")
+  return lines.length > limit ? lines.slice(-limit) : lines
+}
+
+/**
+ * Why the latest run did not run: the precheck's exit code, how long it took,
+ * and the output it actually produced.
+ *
+ * The runner has always captured `stdout`, `stderr`, `exitCode` and
+ * `durationMs` on a `skipped_precheck` run and stored them on the record; the
+ * page collapsed all four to `precheck exited 1`, which leaves reconstructing
+ * the command by hand as the only way to find out what it said — the exact
+ * debugging step Rove already did and then discarded.
+ *
+ * Scoped to the MOST RECENT run on purpose. That is the one that explains the
+ * state the page is showing; an older skip is history, and reading it here
+ * would answer a question about a routine that has since run fine. Showing it
+ * unconditionally is also what keeps this off the keymap: a per-run cursor
+ * needs a chord, and a chord needs the owner.
+ *
+ * An empty stream is omitted rather than printed as a blank label — a
+ * precheck that wrote nothing to stderr should not look like one whose stderr
+ * failed to load.
+ */
+function PrecheckDetail(props: { run: AutomationRun | undefined }): ReactNode {
+  const { theme } = useTheme()
+  const t = useT()
+  const result = props.run?.precheckResult
+  if (!result) return null
+  const exit = result.timedOut
+    ? t("automations.precheckTimedOut")
+    : t("automations.precheckExited", { code: String(result.exitCode ?? "?") })
+  const streams = [
+    { label: t("automations.precheckStdout"), text: result.stdout },
+    { label: t("automations.precheckStderr"), text: result.stderr },
+  ].filter((stream) => stream.text.trim().length > 0)
+  return (
+    <box flexDirection="column" marginTop={1} flexShrink={0}>
+      <text attributes={TextAttributes.BOLD} fg={theme.textMuted}>
+        {t("automations.precheckDetail", { exit, duration: String(result.durationMs) })}
+      </text>
+      {streams.length === 0 ? (
+        <text fg={theme.textMuted}>{t("automations.precheckNoOutput")}</text>
+      ) : (
+        streams.map((stream) => (
+          <box key={stream.label} flexDirection="row" gap={1}>
+            <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+              {`${stream.label}:`}
+            </text>
+            <text fg={theme.text} flexShrink={1}>
+              {outputTail(stream.text).join("\n")}
+            </text>
+          </box>
+        ))
+      )}
+    </box>
+  )
+}
+
 export function AutomationsPage(props: {
   orchestrator: RemoteOrchestrator | null
   onClose: () => void
@@ -425,11 +496,12 @@ export function AutomationsPage(props: {
                         : theme.textMuted
                 return (
                   <text key={run.id} fg={color}>
-                    {`#${run.runNumber} ${run.status}${run.error ? ` — ${run.error}` : ""}  ${formatWhen(run.at, now)}`}
+                    {`${triggerGlyph(run.trigger)} #${run.runNumber} ${run.status}${run.error ? ` — ${run.error}` : ""}  ${formatWhen(run.at, now)}`}
                   </text>
                 )
               })
             )}
+            <PrecheckDetail run={runs[0]} />
           </>
         ) : (
           <text fg={theme.textMuted}>{t("automations.noSelection")}</text>
