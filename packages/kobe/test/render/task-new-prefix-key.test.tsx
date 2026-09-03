@@ -52,6 +52,10 @@ function TerminalInput(props: { writes: string[] }) {
     paste: NOOP,
     scroll: NOOP,
     reset: NOOP,
+    searchActive: false,
+    openSearch: NOOP,
+    stepSearch: NOOP,
+    closeSearch: NOOP,
   })
   return <text>engine composer</text>
 }

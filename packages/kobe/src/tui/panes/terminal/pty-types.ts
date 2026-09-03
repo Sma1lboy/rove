@@ -191,6 +191,14 @@ export interface TaskPtyLike {
    * them (`PipeTaskPty`) omit it and the pane keeps the mouse.
    */
   readonly appOwnsMouse?: boolean
+  /**
+   * True while the child is on the ALTERNATE screen (vim, less, an engine
+   * TUI). That app owns its own scrollback, so Rove's local ring holds one
+   * screen and nothing more — the scrollback search refuses instead of
+   * walking a buffer the user can already see in full. Backends with no
+   * emulator behind them (`PipeTaskPty`, mocks) omit it and count as normal.
+   */
+  readonly onAlternateScreen?: boolean
   resize(cols: number, rows: number): void
   /** Current emulator geometry in cells — the last size pushed via
    *  `resize()` (the spawn size before any resize). Backends without a

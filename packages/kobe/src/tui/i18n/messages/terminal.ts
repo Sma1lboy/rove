@@ -42,6 +42,15 @@ export const en = {
     renameField: "SPLIT NAME",
   },
   scrolledBack: "↑ scrolled {lines}L (ctrl+pgdn to follow)",
+  search: {
+    placeholder: "search scrollback — enter/↑ older, ↓ newer, esc close",
+    position: "{index}/{total}",
+    noMatches: "no matches",
+    // The alternate screen belongs to the app: Rove's ring holds the one
+    // screen already on display, so there is nothing here a search could find
+    // that reading the pane would not.
+    unavailable: "this app owns its own scrollback — nothing local to search (esc)",
+  },
   unavailable: {
     shellMissing: "terminal unavailable — configured shell is not available",
     spawnFailed: "terminal unavailable — shell could not start",
@@ -86,6 +95,12 @@ export const zh: typeof en = {
     renameField: "分屏名称",
   },
   scrolledBack: "↑ 已回滚 {lines} 行（ctrl+pgdn 回到底部）",
+  search: {
+    placeholder: "搜索回滚缓冲区 —— enter/↑ 更早，↓ 更晚，esc 关闭",
+    position: "{index}/{total}",
+    noMatches: "没有匹配",
+    unavailable: "这个程序自己管理回滚缓冲区 —— 本地没有可搜索的内容（esc）",
+  },
   unavailable: {
     shellMissing: "终端不可用 —— 配置的 shell 不存在",
     spawnFailed: "终端不可用 —— shell 启动失败",

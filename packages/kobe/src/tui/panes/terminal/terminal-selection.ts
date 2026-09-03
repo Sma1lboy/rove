@@ -18,7 +18,7 @@
 
 import { charWidth } from "../../../lib/display-width"
 import type { TerminalSnapshotWindow } from "./pty-types"
-import { ATTR, type Chunk } from "./sgr"
+import { ATTR, type Chunk, type RGB } from "./sgr"
 
 export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
@@ -155,8 +155,25 @@ export function extractSelection(rows: readonly (readonly Chunk[])[], range: Sel
   return lines.join("\n")
 }
 
-/** Re-chunk one row so `[from, to)` renders inverse-video. */
-function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[] {
+/**
+ * How {@link overlaySelection} repaints the cells it covers.
+ *
+ * `"inverse"` XORs the inverse attribute — the pane's own selection, which
+ * has to read as "selected" over whatever colors the cell already carried.
+ * A flat `{fg,bg}` OVERRIDES those colors instead, which is what the
+ * scrollback search's current hit needs: it shares the screen with the other
+ * hits, and two inverse blocks would be indistinguishable.
+ */
+export type SpanPaint = "inverse" | { readonly fg: RGB; readonly bg: RGB }
+
+/** Apply `paint` to one chunk's worth of covered text. */
+function paintChunk(chunk: Chunk, text: string, paint: SpanPaint): Chunk {
+  if (paint === "inverse") return { ...chunk, text, attributes: (chunk.attributes ?? 0) ^ ATTR.INVERSE }
+  return { ...chunk, text, fg: paint.fg, bg: paint.bg }
+}
+
+/** Re-chunk one row so `[from, to)` renders in `paint`. */
+function overlayRowSpan(row: readonly Chunk[], from: number, to: number, paint: SpanPaint): Chunk[] {
   const out: Chunk[] = []
   let col = 0
   for (const chunk of row) {
@@ -169,7 +186,7 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[
     }
     const { before, selected, after } = sliceTextByCells(chunk.text, from - start, to - start)
     if (before) out.push({ ...chunk, text: before })
-    out.push({ ...chunk, text: selected, attributes: (chunk.attributes ?? 0) ^ ATTR.INVERSE })
+    out.push(paintChunk(chunk, selected, paint))
     if (after) out.push({ ...chunk, text: after })
   }
   // Selection reaching past the row's painted cells: show the highlight
@@ -182,7 +199,7 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[
   if (col < to) {
     const gap = from - col
     if (gap > 0) out.push({ text: " ".repeat(gap) })
-    out.push({ text: " ".repeat(to - Math.max(col, from)), attributes: ATTR.INVERSE })
+    out.push(paintChunk({ text: "" }, " ".repeat(to - Math.max(col, from)), paint))
   }
   return out
 }
@@ -382,11 +399,12 @@ export function overlaySelection(
   range: SelectionRange | null,
   firstRow: number,
   width: number,
+  paint: SpanPaint = "inverse",
 ): readonly (readonly Chunk[])[] {
   if (!range) return rows
   return rows.map((row, i) => {
     const span = rowSpan(range, firstRow + i, width)
-    return span ? overlayRowSpan(row, span[0], span[1]) : row
+    return span ? overlayRowSpan(row, span[0], span[1], paint) : row
   })
 }
 

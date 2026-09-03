@@ -34,6 +34,8 @@ export class MockTaskPty implements TaskPtyLike {
   readonly clicks: { kind: "down" | "up" | "drag"; button: number; col: number; row: number }[] = []
   /** Flip to make the mock claim the app owns the mouse (mouse tracking on). */
   appOwnsMouse = false
+  /** Flip to make the mock claim the child is on the alternate screen. */
+  onAlternateScreen = false
   private _cols: number
   private _rows: number
   private _cursor: CursorPos | null = null

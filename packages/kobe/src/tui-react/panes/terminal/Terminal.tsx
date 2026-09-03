@@ -17,23 +17,17 @@
  * reads. Body-box measurement and the resize-push / host-cursor-anchor
  * effects live in `use-terminal-geometry.ts` and `use-terminal-host-cursor.ts`
  * — they receive the PTY handle and the computed viewport cursor after
- * `useTerminalPty` has produced them.
+ * `useTerminalPty` has produced them. Turning the visible rows plus their
+ * overlays (selection, search hits, cursor) into the single rendered
+ * `StyledText` is `use-terminal-paint.ts`; this file only feeds it.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
-import { StyledText } from "@opentui/core"
-import { useEffect, useLayoutEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
-import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
-import {
-  isShellMissing,
-  overlayCursor,
-  resolveInverseAttributes,
-  sealRowEndAttributes,
-} from "../../../tui/panes/terminal/terminal-render"
-import { overlaySelection } from "../../../tui/panes/terminal/terminal-selection"
+import { isShellMissing } from "../../../tui/panes/terminal/terminal-render"
 import {
   FOLLOW_VIEWPORT,
   type ViewportScrollState,
@@ -48,11 +42,14 @@ import { useLatest } from "../../lib/use-latest"
 import { useDialog } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { useTerminalBindings } from "./keys"
+import { TerminalSearchBar } from "./search-bar"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
+import { useTerminalPaint } from "./use-terminal-paint"
 import { useTerminalPointerForward } from "./use-terminal-pointer-forward"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalReset } from "./use-terminal-reset"
+import { useTerminalSearch } from "./use-terminal-search"
 import { useTerminalSelection } from "./use-terminal-selection"
 
 /* --------------------------------------------------------------------- */
@@ -224,6 +221,18 @@ export function Terminal(props: TerminalProps) {
     appOwnsMouse: pty?.appOwnsMouse ?? false,
   })
 
+  /* --------- scrollback search ---------- */
+
+  const search = useTerminalSearch({
+    focused,
+    snapshot,
+    snapshotWindow,
+    bodyRows,
+    onAlternateScreen: pty?.onAlternateScreen ?? false,
+    scrollState,
+    setScrollState,
+  })
+
   const terminalColors = useMemo(() => {
     const foreground = theme.text.toInts()
     const background = theme.background.toInts()
@@ -233,51 +242,16 @@ export function Terminal(props: TerminalProps) {
     } as const
   }, [theme])
 
-  const cursorRows = useMemo(() => {
-    const withSelection = overlaySelection(
-      visibleRows,
-      selection.selection,
-      visibleRange.start,
-      bodyGeometry?.cols ?? 80,
-    )
-    // While a selection is active, the synthetic cursor cell is hidden
-    // (tmux copy-mode behavior): cursor and selection share the same
-    // inverse styling, so a cursor sitting just past the selection read
-    // as the highlight overrunning by one blinking cell.
-    const cursorWhileUnselected = focused && !selection.selection ? visibleCursor : null
-    return overlayCursor(withSelection, cursorWhileUnselected, terminalColors)
-  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor, terminalColors])
-
-  // Flatten every visible row into ONE `StyledText`. A single element (not
-  // per-row `<text>`s) is what makes the cursor positioning math work: the
-  // cursor is placed by offset into one text node.
-  //
-  // `sealRowEndAttributes` is a local workaround for an opentui renderer bug:
-  // attributes open at a row's last column leak into the rest of the frame,
-  // so a wrapped underlined URL underlines everything below it. Its doc
-  // comment has the full mechanism; drop this call once opentui resets per
-  // row.
-  const styledSnapshot = useMemo(() => {
-    const resolved = resolveInverseAttributes(cursorRows, terminalColors.foreground, terminalColors.background)
-    const sealed = sealRowEndAttributes(
-      resolved,
-      bodyGeometry?.cols ?? 80,
-      terminalColors.foreground,
-      terminalColors.background,
-    )
-    return new StyledText(rowsToStyledText(sealed))
-  }, [cursorRows, bodyGeometry, terminalColors])
-
-  // Imperative content push — opentui 0.4 won't accept StyledText as a
-  // JSX child or through the content prop (stringifies it).
-  const [snapshotTextEl, setSnapshotTextEl] = useState<TextRenderable | null>(null)
-  useEffect(() => {
-    // `isDestroyed` guard: when the pane flips pty→null (failed reset) the
-    // <text> unmounts, but its null ref lands a render AFTER this effect
-    // re-runs with the stale element — writing to it throws "TextBuffer is
-    // destroyed" into the error boundary.
-    if (snapshotTextEl && !snapshotTextEl.isDestroyed) snapshotTextEl.content = styledSnapshot
-  }, [snapshotTextEl, styledSnapshot])
+  const setSnapshotTextEl = useTerminalPaint({
+    visibleRows,
+    firstRow: visibleRange.start,
+    cols: bodyGeometry?.cols ?? 80,
+    selection: selection.selection,
+    paintMatches: search.paint,
+    cursor: visibleCursor,
+    focused,
+    colors: terminalColors,
+  })
 
   /* --------- reset (F5, confirm-gated) ---------- */
 
@@ -316,6 +290,10 @@ export function Terminal(props: TerminalProps) {
     },
     scroll: scrollBy,
     reset: requestReset,
+    searchActive: search.active,
+    openSearch: search.open,
+    stepSearch: search.step,
+    closeSearch: search.close,
   })
 
   /* --------- resize-push + host-cursor anchor ---------- */
@@ -398,7 +376,17 @@ export function Terminal(props: TerminalProps) {
           </text>
         </box>
       ) : null}
-      {scrollOffset > 0 ? (
+      {search.active ? (
+        <TerminalSearchBar
+          query={search.query}
+          index={search.index}
+          matchCount={search.matchCount}
+          unavailable={search.unavailable}
+        />
+      ) : null}
+      {/* The query row states where you are, so it replaces this hint rather
+          than stacking on it — both are bottom-anchored overlays. */}
+      {scrollOffset > 0 && !search.active ? (
         <box
           position="absolute"
           zIndex={10}
