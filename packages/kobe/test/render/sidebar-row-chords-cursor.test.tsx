@@ -88,6 +88,7 @@ function ChordHost({ spies }: { spies: Spies }) {
     enterMoveMode: () => {},
     createPR: () => {},
     createPRFor: () => {},
+    fixChecksFor: () => {},
     toggleSortMode: () => {},
   })
   return (

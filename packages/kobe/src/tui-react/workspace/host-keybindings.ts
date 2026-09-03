@@ -65,6 +65,8 @@ export type WorkspaceKeybindingDeps = {
   createPR: () => void
   /** Same action aimed at a sidebar ROW's task: enter it, then send there. */
   createPRFor: (id: string) => void
+  /** PROPOSED prefix+k — pull the failing PR checks into that task's engine. */
+  fixChecksFor: (id: string) => void
   /** `t` — flip the sidebar task sort between default and recent. */
   toggleSortMode: () => void
 }
@@ -155,6 +157,12 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
           const row = focus.focused === "sidebar" ? deps.cursorTaskId() : null
           if (row !== null && row !== deps.selectedId) deps.createPRFor(row)
           else deps.createPR()
+        }),
+        // Same aim rule as `files.createPR` above; the action itself parks
+        // the request when the row is not the active task.
+        "files.fixChecks": prefixAction(() => {
+          const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
+          if (id) deps.fixChecksFor(id)
         }),
         // Global scope, so it acts on the active task — except while the
         // sidebar has focus, where the highlighted row is what the user means.

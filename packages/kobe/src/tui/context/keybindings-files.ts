@@ -126,6 +126,21 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     category: "Files",
     description: "Ask the agent to create a PR from the current task",
   },
+  {
+    // PROPOSED CHORD — awaiting owner sign-off
+    // (docs/design/keybinding-decisions.md). The row menu's "Fix failing
+    // checks" is the settled route; this mirrors it for the keyboard. `k` is
+    // free behind the prefix (the bare `k` is the sidebar's cursor-up, which
+    // the prefix does not reach) and sits next to the `p`/`P` create-PR pair
+    // because they are the same shape of action: build a prompt about this
+    // branch's PR and hand it to the engine.
+    id: "files.fixChecks",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["k"],
+    category: "Files",
+    description: "Ask the agent to fix the failing PR checks",
+  },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
   // Plain letters, diff-tab-scoped raw bindings
   // (registered by preview-review.tsx like the preview's `o`), inert

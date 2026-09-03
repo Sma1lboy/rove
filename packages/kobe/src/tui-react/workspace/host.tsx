@@ -181,7 +181,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
-  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError })
+  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError, activateTask })
 
   // Quick-fork (ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
@@ -281,6 +281,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
       requestCreatePR(id)
       activateTask(id)
     },
+    // PROPOSED prefix+k (docs/design/keybinding-decisions.md) — the same aim
+    // as the row menu's entry, so it routes through the same handler.
+    fixChecksFor: editor.onFixChecks,
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
     // then j/k reorders the cursor row's level (tab/task/project) and
@@ -381,6 +384,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onRenameBranchRequest={(id) => void renameBranch(id)}
           onChangeEngineRequest={(id) => void pickVendor(id)}
           onFieldNotesRequest={showFieldNotes}
+          onFixChecksRequest={editor.onFixChecks}
           // Confirm here, create in quick-fork: it owns the pending-prompt
           // slot that delivers the brief on the NEW task's mount.
           onRunAgainRequest={(id) => void confirmRunAgain(id).then((task) => task && quickFork.runAgain(task))}

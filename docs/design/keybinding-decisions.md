@@ -464,6 +464,48 @@ shift+enter, so `matchKey` sees a plain `return` and the chord is a silently
 dead key. Rove keeps kitty's `allKeysAsEscapes` off deliberately (it crashes
 iTerm2's Chinese input — see `host-render-options.ts`), so this is not a
 temporary limitation. A render test pins the direction of every walk key.
+## PROPOSED (not decided): `ctrl+a k` — Fix failing checks
+
+Status: **proposed, awaiting owner sign-off.** Wired in the registry as
+`files.fixChecks` with `prefixKeys: ["k"]` so it can be tried, and listed here
+so the next agent does not read it as settled.
+
+What it does: builds a prompt out of the failing CI job's log tail and sends it
+into the task's engine — the same delivery `files.createPR` uses. The settled
+route is the sidebar row menu's "Fix failing checks", which needs no chord.
+
+Why `k`, behind the prefix:
+
+- It shadows nothing. `ctrl+a k` was unbound; the prefix table's letters in use
+  are `c f h i l m n o p P w z ,` plus the digits.
+- The bare `k` is the sidebar's cursor-up and the FileTree's, and the prefix
+  never reaches a bare key, so neither loses anything.
+- It sits next to `ctrl+a p` / `P` on purpose: both build a prompt about this
+  branch's pull request and hand it to the engine, so they should be neighbours
+  in muscle memory.
+- Nothing is added to the terminal pane's `TRAPPED_KEYS`, so the engine keeps
+  every key it has today.
+
+What the owner still has to decide: whether this deserves a chord at all (it is
+a rare action — a red PR, once), and whether `k` is the letter or whether it
+should live under a different one.
+
+## PROPOSED (not decided): `ctrl+a u` — Sync with base
+
+Status: **proposed, awaiting owner sign-off.** Same treatment as `ctrl+a k`.
+
+What it does: `git merge <base>` in the row's worktree, the settled route being
+the row menu's "Sync with base". Merge, not rebase, deliberately: the worktree
+may have a live engine holding files open, and a rebase interrupted mid-turn is
+not recoverable from a toast.
+
+Why `u`, behind the prefix: it shadows nothing (`u` was unbound in the prefix
+table), and it reads as "update this branch from its base". The bare `u` is not
+a sidebar or files chord, so nothing is lost there either.
+
+What the owner still has to decide: the letter, and whether an action that
+mutates the worktree belongs behind a two-stroke sequence at all rather than
+staying menu-only where it is harder to fire by accident.
 
 ## Adding or moving a chord
 

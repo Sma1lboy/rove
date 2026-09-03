@@ -92,6 +92,7 @@ function WorkspaceHelpDriver(props: { showDialogTarget?: boolean; showFocusTarge
     enterMoveMode: NOOP,
     createPR: NOOP,
     createPRFor: NOOP,
+    fixChecksFor: () => {},
     toggleSortMode: NOOP,
   })
   return (

@@ -84,6 +84,7 @@ import {
   dismissAttentionOp,
   ensureMainTaskOp,
   ensureWorktreeOp,
+  failingChecksOp,
   flushDeferredPromptsOp,
   forgetProjectOp,
   landTaskOp,
@@ -475,6 +476,8 @@ export class RemoteOrchestrator {
   deleteAutomation = (id: string) => deleteAutomationOp(this.client, id)
   listWorkItems = (a: Parameters<typeof listWorkItemsOp>[1]) => listWorkItemsOp(this.client, a)
   listFieldNotes = (repo: string) => listFieldNotesOp(this.client, repo)
+  /** A PR's failing checks + log tails (`pr.failingChecks`). On demand only. */
+  failingChecks = (taskId: string) => failingChecksOp(this.client, taskId)
   startWorkItem = (a: Parameters<typeof startWorkItemOp>[1]) => startWorkItemOp(this.client, a)
 
   /** Remove a worktree (`worktree.remove`); refuses a dirty one unless

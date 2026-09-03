@@ -247,3 +247,24 @@ describe("treeMenuItems", () => {
     expect(danger).toEqual(["delete"])
   })
 })
+
+describe("the Fix-failing-checks entry", () => {
+  // Gated on the PR chip the row already shows: with anything but `failing`
+  // there is no log to fetch, and the entry could only end in a toast.
+  test("is absent without a PR, and for passing / pending / unknown checks", () => {
+    expect(actions(worktreeRow())).not.toContain("fixChecks")
+    for (const checkState of ["none", "passing", "pending", "unknown"] as const) {
+      const row = worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState } })
+      expect(actions(row), checkState).not.toContain("fixChecks")
+    }
+  })
+
+  test("appears just before Land when the checks are red — on a tab row too", () => {
+    const failing = { provider: "github", lifecycle: "open", checkState: "failing" } as const
+    const rowActions = actions(worktreeRow({ prStatus: failing }))
+    expect(rowActions).toContain("fixChecks")
+    expect(rowActions.indexOf("fixChecks")).toBe(rowActions.indexOf("land") - 1)
+    const tabActions = treeMenuItems({ ...tabRow, task: task({ prStatus: failing }) }).map((item) => item.action)
+    expect(tabActions).toContain("fixChecks")
+  })
+})
