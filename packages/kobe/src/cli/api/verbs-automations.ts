@@ -44,7 +44,7 @@ const PRECHECK_FLAGS = [
 
 const GRACE_FLAG = {
   name: "grace",
-  type: "int",
+  type: "uint",
   placeholder: "MIN",
   default: "60",
   description:
@@ -112,7 +112,9 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
-        ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
+        ...(ctx.args.nonNegativeInt("grace") !== undefined
+          ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
+          : {}),
         ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
         ...(ctx.args.bool("disabled") ? { enabled: false } : {}),
       }),
@@ -144,7 +146,9 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
         // that empty value visible where `str` would fold it into "absent".
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
-        ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
+        ...(ctx.args.nonNegativeInt("grace") !== undefined
+          ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
+          : {}),
         // `present` + `bool`, not a bare `bool` ternary: an explicit
         // `--persistent-session false` is falsy, so the ternary dropped the key
         // and left the routine standing — there was no CLI path back to

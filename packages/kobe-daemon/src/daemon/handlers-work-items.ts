@@ -60,6 +60,7 @@ export const WORK_ITEM_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "workitem.start",
+    blocking: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
       const number = requireNumberField(payload, "number")

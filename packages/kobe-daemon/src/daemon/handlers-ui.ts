@@ -100,6 +100,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "ui.prompt",
+    blocking: true,
     async handle(payload, ctx) {
       // Host-provided input dialog (plugins → `kobe api prompt`): publish
       // the request to every attached TUI and block until one answers via

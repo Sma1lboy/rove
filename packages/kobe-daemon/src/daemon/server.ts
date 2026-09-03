@@ -50,6 +50,7 @@ import { WorkItemCache } from "./work-items.ts"
 // RPC handler registry + per-request dispatch seam — re-exported so consumers
 // (tests, kobe-web bridge) keep the existing `daemon/server` import path.
 export {
+  blockingRpcNames,
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
   shapeDaemonError,
@@ -254,6 +255,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       inbox,
     },
     activity,
+    deferredPrompts ? { store: deferredPrompts, inbox } : undefined,
   )
 
   // Plugin runtime: startup hooks + channel-derived event hooks (plugins/runtime.ts).

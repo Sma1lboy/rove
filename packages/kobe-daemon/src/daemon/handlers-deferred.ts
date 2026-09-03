@@ -7,6 +7,7 @@
  * delivery and clean up the Inbox pointer.
  */
 
+import { sweepExpiredDeferredPrompts } from "./deferred-prompt-sweep.ts"
 import {
   type DeferredPromptClaim,
   DeferredPromptPendingError,
@@ -238,32 +239,14 @@ async function flushDeferredPrompts(ctx: DaemonHandlerContext): Promise<{
     retained: [],
     cleanupPending: [],
   }
+  // Expiry is the timer's job too (deferred-prompt-sweep.ts), so it lives
+  // there and both callers share one implementation. `list()` reports the
+  // expired set and drops it from `records`, so the loop below sees only the
+  // live half either way.
+  const swept = await sweepExpiredDeferredPrompts({ store: ctx.deferredPrompts, inbox: ctx.inbox })
+  report.expired.push(...swept.expired)
+  report.cleanupPending.push(...swept.cleanupPending)
   const listed = await ctx.deferredPrompts.list()
-  for (const expired of listed.expired) {
-    const claimed = await ctx.deferredPrompts.claim(expired.id)
-    if (claimed.kind !== "claimed") {
-      report.cleanupPending.push({
-        id: expired.id,
-        taskId: expired.taskId,
-        tabId: expired.tabId,
-        error: claimed.kind,
-      })
-      continue
-    }
-    try {
-      await deleteDeferredInboxPointer(expired, ctx)
-      await ctx.deferredPrompts.completeClaim(claimed.claim)
-      report.expired.push(expired.id)
-    } catch (error) {
-      await ctx.deferredPrompts.releaseClaim(claimed.claim).catch(() => {})
-      report.cleanupPending.push({
-        id: expired.id,
-        taskId: expired.taskId,
-        tabId: expired.tabId,
-        error: errorText(error),
-      })
-    }
-  }
   for (const record of listed.records) {
     if (record.deliveredAt || record.deliveryStartedAt) {
       const claimed = await ctx.deferredPrompts.claim(record.id)
@@ -347,6 +330,7 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "deferredPrompt.release",
+    blocking: true,
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
@@ -375,6 +359,7 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "deferredPrompt.flush",
+    blocking: true,
     async handle(_payload, ctx) {
       return await flushDeferredPrompts(ctx)
     },

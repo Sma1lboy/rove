@@ -125,6 +125,49 @@ describe("resolveDueOccurrence", () => {
     expect(resolveDueOccurrence(fresh, NOW)).toBeNull()
   })
 
+  it("a zero grace still runs an occurrence discovered on the next tick", () => {
+    // The sweep is a poller: it can only ever see an occurrence AFTER it
+    // happened, so `now - scheduledFor` lands somewhere in 0..tickMs on a
+    // perfectly healthy run. Without a one-tick floor, grace 0 made `missed`
+    // true on every single firing — the automation recorded `skipped_missed`
+    // forever and never dispatched, while zero looks like a sane setting.
+    const zero = automation({
+      schedule: "*/5 * * * *",
+      missedRunGraceMinutes: 0,
+      createdAt: new Date(0).toISOString(),
+    })
+    const scheduled = new Date(2026, 6, 31, 10, 5, 0).getTime()
+    const out = resolveDueOccurrence(zero, scheduled + 30_000)
+    expect(out?.scheduledFor).toBe(scheduled)
+    expect(out?.missed).toBe(false)
+  })
+
+  it("still calls a genuinely late occurrence missed with a zero grace", () => {
+    // The floor is ONE tick, not an amnesty: 10 minutes after the fact is a
+    // real outage and must still be skipped rather than fired stale. A daily
+    // schedule, so 10 minutes late really is late — under `*/5` the resolver
+    // would just hand back the newer occurrence.
+    const zero = automation({ missedRunGraceMinutes: 0 })
+    const scheduled = new Date(2026, 6, 31, 9, 0, 0).getTime()
+    expect(resolveDueOccurrence(zero, scheduled + 10 * 60_000)?.missed).toBe(true)
+    // …while the tick that discovers it is still on time.
+    expect(resolveDueOccurrence(zero, scheduled + 30_000)?.missed).toBe(false)
+  })
+
+  it("scales the floor with the runner's own tick period", () => {
+    // A harness (or a future slower cadence) passes its real tickMs, so the
+    // floor tracks the poll it actually runs at rather than the default 60s.
+    const zero = automation({
+      schedule: "*/5 * * * *",
+      missedRunGraceMinutes: 0,
+      createdAt: new Date(0).toISOString(),
+    })
+    const scheduled = new Date(2026, 6, 31, 10, 5, 0).getTime()
+    const seenAt = scheduled + 90_000
+    expect(resolveDueOccurrence(zero, seenAt)?.missed).toBe(true)
+    expect(resolveDueOccurrence(zero, seenAt, 120_000)?.missed).toBe(false)
+  })
+
   it("returns the single most recent occurrence after a long outage", () => {
     // Daemon down for three days: the answer is yesterday's 09:00 (one run),
     // never a stampede of every missed day.
