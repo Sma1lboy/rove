@@ -9,13 +9,14 @@
  * (`withCursorTask` walks up from a tab to its worktree, because rename /
  * delete have no tab-level meaning).
  *
- * `setStatus`, `copyBranch` and `copyPath` are the documented exceptions, and
- * they are SEQUENCING ones rather than a change of rule: a chord is the
- * owner's call (AGENTS.md, "Keybindings"), and until one is agreed the menu is
- * the only place a human can set a status the injected agent protocol already
- * tells every engine to write (`engine/worktree-protocol.ts`), or copy the
- * row's branch / worktree path for another shell. When a chord lands, the
- * entry mirrors it like the rest.
+ * `setStatus`, `copyBranch`, `copyPath` and `land` are the documented
+ * exceptions, and they are SEQUENCING ones rather than a change of rule: a
+ * chord is the owner's call (AGENTS.md, "Keybindings"), and until one is
+ * agreed the menu is the only place a human can set a status the injected
+ * agent protocol already tells every engine to write
+ * (`engine/worktree-protocol.ts`), copy the row's branch / worktree path for
+ * another shell, or land the row's branch without walking to the Worktrees
+ * page. When a chord lands, the entry mirrors it like the rest.
  *
  * The new-conversation pair reads the same rule one pane over:
  * ctrl+e already opens the engine/shell picker for the task the
@@ -50,6 +51,7 @@ export type TreeMenuAction =
   | "openEditor"
   | "renameBranch"
   | "changeEngine"
+  | "land"
   | "delete"
 
 export interface TreeMenuItem {
@@ -112,6 +114,15 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   verbs.push({ action: "openEditor", labelKey: "tasks.menu.openEditor" })
   if (task.branch !== "") verbs.push({ action: "renameBranch", labelKey: "tasks.menu.renameBranch" })
   verbs.push({ action: "changeEngine", labelKey: "tasks.menu.changeEngine" })
+  // Menu-only, like `setStatus`: landing is the Worktrees page's `l`, and a
+  // second chord for it is the owner's call
+  // (docs/design/keybinding-decisions.md). Gated the same way `copyBranch`
+  // is, plus the kind: `landTask` throws outright for a `main` or `dir` task
+  // (neither owns a Rove-managed branch), and a task that never materialised
+  // has no branch to land.
+  if (task.kind === "task" && task.branch !== "") {
+    verbs.push({ action: "land", labelKey: "tasks.menu.land" })
+  }
   verbs.push({ action: "delete", labelKey: "tasks.menu.delete", danger: true })
   return verbs
 }

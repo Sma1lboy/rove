@@ -56,6 +56,7 @@ describe("treeMenuItems", () => {
       "openEditor",
       "renameBranch",
       "changeEngine",
+      "land",
       "delete",
     ])
   })
@@ -135,6 +136,22 @@ describe("treeMenuItems", () => {
     expect(actions(worktreeRow())).toContain("renameBranch")
   })
 
+  test("Land reaches only a materialised managed task — never main, dir, or a branchless row", () => {
+    // `landTask` throws outright for a main or dir task (neither owns a
+    // Rove-managed branch) and for a task that never materialised, so the
+    // entry could only end in the error toast — the same
+    // entry-that-does-nothing rule Rename branch follows.
+    for (const row of [
+      worktreeRow({ kind: "main", branch: "" }),
+      worktreeRow({ kind: "dir", branch: "" }),
+      worktreeRow({ branch: "" }),
+    ]) {
+      expect(actions(row)).not.toContain("land")
+    }
+    expect(actions(worktreeRow())).toContain("land")
+    expect(actions(projectRow)).not.toContain("land")
+  })
+
   test("the o/b/v trio never reaches a project header", () => {
     for (const verb of ["openEditor", "renameBranch", "changeEngine"]) expect(actions(projectRow)).not.toContain(verb)
   })
@@ -154,6 +171,7 @@ describe("treeMenuItems", () => {
       "openEditor",
       "renameBranch",
       "changeEngine",
+      "land",
       "delete",
     ])
   })
@@ -191,6 +209,7 @@ describe("treeMenuItems", () => {
       "openEditor",
       "renameBranch",
       "changeEngine",
+      "land",
       "delete",
     ])
   })

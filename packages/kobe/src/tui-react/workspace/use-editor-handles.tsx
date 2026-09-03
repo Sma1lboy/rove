@@ -9,7 +9,7 @@ import { useRef } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { FocusContextValue } from "../context/focus"
 import { useLatest } from "../lib/use-latest"
-import { useCreatePR } from "./use-create-pr"
+import { takeCreatePR, useCreatePR } from "./use-create-pr"
 import { useFileOpenActions } from "./use-file-open-actions"
 
 export interface UseEditorHandlesOpts {
@@ -96,6 +96,10 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     },
     onEngineSendReady: (send) => {
       sendToEngineFn.current = send
+      // A `prefix+p` aimed at a sidebar row that was not the active task
+      // activated it and parked the request; this mount is the first moment
+      // the prompt can actually be sent, so claim it here.
+      if (takeCreatePR(selectedId)) void createPR()
     },
     onEnginePasteReady: (paste) => {
       pasteToEngineFn.current = paste

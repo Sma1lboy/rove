@@ -63,6 +63,8 @@ export type WorkspaceKeybindingDeps = {
   enterMoveMode: () => void
   /** prefix+p / prefix+P — send the Create PR prompt into the engine pane. */
   createPR: () => void
+  /** Same action aimed at a sidebar ROW's task: enter it, then send there. */
+  createPRFor: (id: string) => void
   /** `t` — flip the sidebar task sort between default and recent. */
   toggleSortMode: () => void
 }
@@ -144,7 +146,16 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // row exists in the table (and docs); without a handler here the
         // chord is dead outside the sidebar.
         "settings.open": prefixAction(() => deps.pages.openSettings()),
-        "files.createPR": prefixAction(() => deps.createPR()),
+        // Global scope, so it acts on the active task — except while the
+        // sidebar has focus, where the highlighted row is what the user
+        // means (the same rule `task.openEditor` follows below). Aiming at
+        // another row has to enter it first: the send closure belongs to
+        // the mounted workspace, so there is no other task to send into.
+        "files.createPR": prefixAction(() => {
+          const row = focus.focused === "sidebar" ? deps.cursorTaskId() : null
+          if (row !== null && row !== deps.selectedId) deps.createPRFor(row)
+          else deps.createPR()
+        }),
         // Global scope, so it acts on the active task — except while the
         // sidebar has focus, where the highlighted row is what the user means.
         "task.openEditor": prefixAction(() => {

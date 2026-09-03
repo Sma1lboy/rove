@@ -398,6 +398,37 @@ gesture one pane over.
 not a second chord for one action; it is the existing chord staying
 answerable in the one state where its usual owner is unmounted.
 
+## `ctrl+a` `p` follows the sidebar cursor; landing stays menu-only
+
+Owner call, 2026-09-02.
+
+`files.createPR` was global-scope and always acted on the ACTIVE task, so
+the only way to open a PR for a task you were looking at in the sidebar was
+to enter it first. It now reads the highlighted row while the sidebar has
+focus — the same rule `task.openEditor` (`ctrl+a` `o`) already follows, so
+the two row-scoped prefix verbs behave alike rather than each having its own
+answer to "which task did you mean?".
+
+Aiming at another row has to ENTER it. The PR prompt is delivered through
+the send closure the mounted `TerminalTabs` hands up, so there is no engine
+to reach in a task whose workspace is not mounted. The chord therefore parks
+the request (`workspace/use-create-pr.ts`) and activates the row; the target
+task's next mount claims it. A task switch the user did not ask for is the
+cost, and it is the honest one: the alternative is a chord that silently
+does nothing on three quarters of the rows.
+
+`shift+p` still rides along as an alias of `p` — unchanged, and not part of
+this decision.
+
+**Landing got NO chord.** "Land into base branch" is a sidebar row-menu
+entry that calls the same `orch.landTask` and confirm dialog as the
+Worktrees page's `l`. Landing is rare, irreversible from the row's point of
+view (the worktree goes with it), and every letter near `p` is either taken
+or too easy to fat-finger into a merge. Menu-only is the same sequencing
+answer `setStatus` and the two copies got: the capability exists now, and a
+chord can be added later if reaching for the mouse turns out to be the
+friction rather than the safety.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

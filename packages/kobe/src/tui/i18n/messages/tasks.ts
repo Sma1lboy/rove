@@ -48,6 +48,7 @@ export const en = {
     openEditor: "Open in editor",
     renameBranch: "Rename branch",
     changeEngine: "Change engine",
+    land: "Land into base branch",
     delete: "Delete",
   },
   /** The six `TaskStatus` values, for the set-status picker and its row chip.
@@ -187,6 +188,7 @@ export const zh: typeof en = {
     openEditor: "在编辑器中打开",
     renameBranch: "重命名分支",
     changeEngine: "切换引擎",
+    land: "合入基础分支",
     delete: "删除",
   },
   status: {

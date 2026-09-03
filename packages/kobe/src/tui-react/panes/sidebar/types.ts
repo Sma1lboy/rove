@@ -17,6 +17,9 @@ import type { WorktreeChanges } from "../../../tui/panes/sidebar/worktree-change
  */
 export type SidebarTaskCallbacks = {
   onDeleteRequest?: (taskId: string) => void
+  /** Row menu only — merge this task's branch into its base repo's current
+   *  branch, the same flow as the Worktrees page's `l`. */
+  onLandRequest?: (taskId: string) => void
   /** Shift+M — lowercase `m` is captured but ignored (shift dropped on letters). */
   onLocalMergeRequest?: (taskId: string) => void
   /** Scope-aware reorder mode: j/k move the cursor row's LEVEL
