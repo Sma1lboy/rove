@@ -349,7 +349,6 @@ export class TaskIndexStore {
     return next
   }
 
-
   async remove(id: TaskId | string): Promise<void> {
     this.assertLoaded()
     const idx = this.cache.tasks.findIndex((t) => t.id === id)

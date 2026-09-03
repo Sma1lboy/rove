@@ -91,7 +91,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.setPrompt", { taskId: "t1" }, ctx)).rejects.toThrow("prompt is required")
     })
 
-
     it("task.delete durably prepares, clears activity, and enqueues background cleanup", async () => {
       const prepared: unknown[] = []
       const { ctx, rec } = fakeCtx({

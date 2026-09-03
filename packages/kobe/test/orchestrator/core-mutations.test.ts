@@ -277,7 +277,6 @@ describe("moveTask", () => {
   })
 })
 
-
 describe("deleteTask — safety ladder", () => {
   it("silently no-ops for an unknown id", async () => {
     await expect(orch.deleteTask("nope")).resolves.toBeUndefined()

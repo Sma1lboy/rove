@@ -374,3 +374,79 @@ describe("startPrStatusPoller consumer gate", () => {
     expect(runs()).toBeGreaterThan(0)
   })
 })
+
+describe("stale marker (prStatus.lastError)", () => {
+  const errorRunner: PrViewRunner = async () => ({ kind: "error", error: "missing-binary" })
+
+  test("a failed poll keeps the last chip value and records why it is stale", async () => {
+    const id = await makeTask()
+    const schedule: PrPollSchedule = new Map()
+    await runPrStatusPass(orch, { run: prRunner("OPEN", "SUCCESS"), now: 0, at: "T0", schedule, rand: noJitter })
+    expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
+
+    schedule.clear() // let the next pass run immediately instead of waiting out the backoff
+    const changed = await runPrStatusPass(orch, { run: errorRunner, now: 1, at: "T1", schedule, rand: noJitter })
+
+    const after = orch.getTask(id)?.prStatus
+    // Keeping the last GOOD value is the point — a transient `gh` blip must
+    // not clobber a green tick. The marker is what says it is no longer live.
+    expect(after?.checkState).toBe("passing")
+    expect(after?.lastError).toBe("missing-binary")
+    expect(changed).toContain(id)
+  })
+
+  test("a repeated failure does not re-persist — the outage must not churn a write per tick", async () => {
+    const id = await makeTask()
+    const schedule: PrPollSchedule = new Map()
+    await runPrStatusPass(orch, { run: prRunner("OPEN", "SUCCESS"), now: 0, at: "T0", schedule, rand: noJitter })
+    schedule.clear()
+    await runPrStatusPass(orch, { run: errorRunner, now: 1, at: "T1", schedule, rand: noJitter })
+    schedule.clear()
+    const changed = await runPrStatusPass(orch, { run: errorRunner, now: 2, at: "T2", schedule, rand: noJitter })
+    expect(changed).toEqual([])
+    expect(orch.getTask(id)?.prStatus?.lastError).toBe("missing-binary")
+  })
+
+  test("a poll that reaches the provider clears the marker, even when the PR is unchanged", async () => {
+    const id = await makeTask()
+    const schedule: PrPollSchedule = new Map()
+    await runPrStatusPass(orch, { run: prRunner("OPEN", "SUCCESS"), now: 0, at: "T0", schedule, rand: noJitter })
+    schedule.clear()
+    await runPrStatusPass(orch, { run: errorRunner, now: 1, at: "T1", schedule, rand: noJitter })
+    expect(orch.getTask(id)?.prStatus?.lastError).toBe("missing-binary")
+
+    schedule.clear()
+    // The SAME view as the first pass: `samePrStatus` ignores `lastError`, so
+    // without an explicit stale check the poller reads this as "nothing
+    // changed" and the chip stays muted for a PR it just polled cleanly.
+    const changed = await runPrStatusPass(orch, {
+      run: prRunner("OPEN", "SUCCESS"),
+      now: 2,
+      at: "T2",
+      schedule,
+      rand: noJitter,
+    })
+    expect(orch.getTask(id)?.prStatus?.lastError).toBeUndefined()
+    expect(changed).toContain(id)
+  })
+
+  test("`gh` answering 'no PR yet' clears the marker too — reaching the provider is what counts", async () => {
+    const id = await makeTask()
+    const schedule: PrPollSchedule = new Map()
+    await runPrStatusPass(orch, { run: prRunner("OPEN", "SUCCESS"), now: 0, at: "T0", schedule, rand: noJitter })
+    schedule.clear()
+    await runPrStatusPass(orch, { run: errorRunner, now: 1, at: "T1", schedule, rand: noJitter })
+    schedule.clear()
+    await runPrStatusPass(orch, { run: emptyRunner, now: 2, at: "T2", schedule, rand: noJitter })
+    expect(orch.getTask(id)?.prStatus?.lastError).toBeUndefined()
+    // `empty` keeps the last value; only the marker goes.
+    expect(orch.getTask(id)?.prStatus?.checkState).toBe("passing")
+  })
+
+  test("a task that never had a PR status gets no marker — nothing on screen to mark", async () => {
+    const id = await makeTask()
+    const schedule: PrPollSchedule = new Map()
+    await runPrStatusPass(orch, { run: errorRunner, now: 0, at: "T0", schedule, rand: noJitter })
+    expect(orch.getTask(id)?.prStatus).toBeUndefined()
+  })
+})

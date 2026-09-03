@@ -421,7 +421,9 @@ export function prChipBlock(): string[] {
     for (const lastError of [undefined, "gh: could not resolve host"]) {
       const subject = task({
         prStatus:
-          checkState === undefined ? undefined : ({ checkState, ...(lastError ? { lastError } : {}) } as Task["prStatus"]),
+          checkState === undefined
+            ? undefined
+            : ({ checkState, ...(lastError ? { lastError } : {}) } as Task["prStatus"]),
       })
       const chip = prCheckChip(subject)
       lines.push(
