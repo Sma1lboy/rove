@@ -14,10 +14,10 @@
  * (`state/issue-board.ts`): done > parked > linked-task > backlog.
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import type { Issue, RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { availableEngineIds } from "../../engine/account-detect"
 import { engineDisplayName } from "../../engine/interactive-command"
@@ -30,6 +30,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { isNarrowWidth } from "../lib/narrow-mode"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
@@ -45,6 +46,27 @@ const COLUMN_LABEL_KEY: Record<BoardColumnKey, string> = {
   parked: "kanban.column.parked",
   done: "kanban.column.done",
 }
+
+/**
+ * Board-local width floor for the four-lane layout — deliberately NOT in
+ * `lib/narrow-mode.ts`. That module's 70 columns is a WHOLE-TERMINAL
+ * predicate (does the three-pane desktop layout fit at all); this one asks a
+ * narrower question the sidebar's width also answers to: does a lane still
+ * hold a readable card. At 100 terminal columns the desktop layout is fine
+ * and the board still had 9 cells of card content.
+ *
+ * A card's own content needs 12: `issue.created` is `YYYY-MM-DD` at 10 cells
+ * and the activity badge shares that row. LANE_CHROME is what stands between
+ * the board's width and that content, per lane — lane border 2 + lane padding
+ * 2 + the scrollbar gutter 1 + card border 2 + card padding 2.
+ */
+const MIN_CARD_CELLS = 12
+const LANE_CHROME = 9
+const BOARD_LANES = 4
+/** 4 × (12 + 9) + 3 single-cell gaps = 87. */
+const MIN_BOARD_CELLS = BOARD_LANES * (MIN_CARD_CELLS + LANE_CHROME) + (BOARD_LANES - 1)
+/** paddingLeft + paddingRight on the page root, whose width is what we measure. */
+const PAGE_PADDING_CELLS = 4
 
 export function KanbanPage(props: {
   orchestrator: RemoteOrchestrator | null
@@ -78,6 +100,14 @@ export function KanbanPage(props: {
   // Below the narrow breakpoint four side-by-side columns degrade to
   // one-word-per-line strips, so the board shows ONE full-width lane there.
   const narrow = isNarrowWidth(useTerminalDimensions().width)
+  // …and the terminal is not the board: the sidebar takes its share first.
+  // Measure the page root (which is mounted in BOTH layouts — measuring the
+  // four-lane box instead would unmount the thing being measured and
+  // oscillate). `onSizeChange` + a ref is the tab-strip's pattern.
+  const pageRef = useRef<BoxRenderable | null>(null)
+  const [pageCells, setPageCells] = useState<number | null>(null)
+  const boardCells = pageCells === null ? null : pageCells - PAGE_PADDING_CELLS
+  const singleLane = boardCells === null ? narrow : boardCells < MIN_BOARD_CELLS
 
   // Detected engines for the detail drawer's picker — one probe per page
   // open (account files on disk; cheap and refreshed enough).
@@ -121,6 +151,12 @@ export function KanbanPage(props: {
       : [],
     (taskId) => props.engineStates?.get(taskId)?.state,
   )
+
+  // Cards are variable height and each lane scrolls on its own, so the
+  // selection walks out of the viewport without this. One instance covers all
+  // four lanes: `scrollChildIntoView` resolves the card through the lane's own
+  // descendants and no-ops on the three that do not hold it.
+  const follow = useCursorFollow(selectedId)
 
   function cycleProject(delta: number): void {
     if (boardList.length === 0) return
@@ -322,6 +358,7 @@ export function KanbanPage(props: {
         activity={activity}
         onSelect={() => setSelectedId(issue.id)}
         onOpen={() => openDetail(issue)}
+        boxRef={follow.rowRef(issue.id)}
       />
     )
   }
@@ -342,7 +379,7 @@ export function KanbanPage(props: {
               {activeIndex + 1}/{boardList.length}
             </text>
           ) : null}
-          {narrow ? null : (
+          {singleLane ? null : (
             <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
               {"  "}
               {active.repoRoot}
@@ -387,6 +424,7 @@ export function KanbanPage(props: {
             without it the thumb paints over the cards' right borders. The
             horizontal bar is hidden outright: a lane never scrolls sideways. */}
         <scrollbox
+          ref={follow.scrollRef}
           flexGrow={1}
           paddingTop={1}
           paddingRight={1}
@@ -445,7 +483,7 @@ export function KanbanPage(props: {
   }
 
   function board(): ReactNode {
-    if (narrow) return narrowBoard()
+    if (singleLane) return narrowBoard()
     return (
       <box flexDirection="row" gap={1} flexGrow={1} paddingTop={1}>
         {columns.map((col) => column(col))}
@@ -460,6 +498,10 @@ export function KanbanPage(props: {
   // project selector, and board all start at x=2 — no per-child inset.
   return (
     <box
+      ref={(r: BoxRenderable | null) => {
+        pageRef.current = r
+      }}
+      onSizeChange={() => setPageCells(pageRef.current?.width ?? null)}
       flexGrow={1}
       backgroundColor={theme.background}
       paddingTop={1}

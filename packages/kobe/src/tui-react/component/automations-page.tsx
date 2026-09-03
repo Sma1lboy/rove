@@ -6,11 +6,12 @@
  * shared close-key contract, `useState` + a `reloadTick`-keyed `useEffect`
  * whose stale completions are dropped by an effect-local `disposed` flag.
  *
- * Read-mostly by design. Creating an automation needs a repo, a prompt, a cron
- * expression, and optionally a precheck command — a form that belongs in a
- * composer, not a list row, so creation stays on `kobe api automation-create`.
- * What the page does own is the triage loop: see what is scheduled, see what
- * each run did, pause/resume, run one now, delete.
+ * The page owns the whole routine loop: `n` composes a new one through
+ * {@link AutomationComposer} (a repo, a prompt and a cron expression are a
+ * form, not a list row), and the cursor row is what `e` pauses/resumes, `s`
+ * runs now, `d` deletes and `enter` follows to the latest run's task. What
+ * stays on the CLI is the long tail — `rove api routine-update` owns
+ * prechecks, grace windows and standing-session mode.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -26,6 +27,7 @@ import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { dividerRule } from "../lib/rule-divider"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
@@ -140,6 +142,9 @@ export function AutomationsPage(props: {
   }, [rows.length])
 
   const selected = rows[cursor]
+  // Strips are three cells tall, so a dozen of them fill the viewport and
+  // every routine past that is unreachable without this.
+  const follow = useCursorFollow(cursor)
 
   // Run history follows the cursor: the list answers "what is scheduled", the
   // history answers "did it actually do anything", and the second question is
@@ -164,6 +169,15 @@ export function AutomationsPage(props: {
       disposed = true
     }
   }, [props.orchestrator, selected, reloadTick])
+
+  // A notice names ONE routine ("Ran <name>: dispatched"); left standing it
+  // reads as the next routine's result. Keyed on the selected ID, not on
+  // `selected` (a new object every poll) and not on `reloadTick` (which
+  // `runNow` bumps immediately after writing the notice).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the id is a TRIGGER — the body clears state rather than reading it.
+  useEffect(() => {
+    setNotice(null)
+  }, [selected?.id])
 
   async function toggleEnabled(): Promise<void> {
     const orch = props.orchestrator
@@ -264,10 +278,14 @@ export function AutomationsPage(props: {
       { key: "s", cmd: () => void runNow() },
       { key: "d", cmd: () => void requestDelete() },
       {
+        // `runsFor` is newest-first, so runs[0] IS the latest run. Falling
+        // through to an older run's task when the latest made none (a healthy
+        // `skipped_precheck`) opens a DIFFERENT run than the one on screen.
         key: "return",
         cmd: () => {
-          const taskId = runs.find((run) => run.taskId)?.taskId
+          const taskId = runs[0]?.taskId
           if (taskId) props.onOpenTask?.(taskId)
+          else if (runs.length > 0) setNotice(t("automations.latestRunNoTask"))
         },
       },
     ],
@@ -303,7 +321,14 @@ export function AutomationsPage(props: {
           <text fg={theme.text}>{t("automations.emptyHint")}</text>
         </box>
       ) : (
-        <box flexDirection="column" marginTop={1} flexGrow={1} gap={0}>
+        <scrollbox
+          ref={follow.scrollRef}
+          flexGrow={1}
+          flexShrink={1}
+          flexBasis={0}
+          marginTop={1}
+          verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+        >
           {rows.map((automation, index) => {
             // One boxed strip per automation, three cells tall: border, one
             // content line, border. Everything about a schedule fits on that
@@ -314,6 +339,7 @@ export function AutomationsPage(props: {
             return (
               <box
                 key={automation.id}
+                ref={follow.rowRef(index)}
                 flexDirection="row"
                 flexShrink={0}
                 {...FRAME}
@@ -352,7 +378,7 @@ export function AutomationsPage(props: {
               </box>
             )
           })}
-        </box>
+        </scrollbox>
       )}
 
       {/* The detail frame is always mounted, even with nothing selected: a

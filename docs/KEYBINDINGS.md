@@ -276,7 +276,7 @@ active only while the page has focus.
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
 | Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
-| Worktrees | arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
+| Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
 
 In the Kanban story drawer, `tab` / `shift+tab` walks fields and `ctrl+enter`
