@@ -133,6 +133,28 @@ describe("PtyHost", () => {
     expect(host.stats().parkRestoreFallbacks).toBe(1)
   })
 
+  test("an unrelated socket close leaves a parked session's bookkeeping alone", async () => {
+    // `ptyHostHasLiveSessions` connects, runs `pty.list` and closes on a 15s
+    // poll from the daemon's PtyLiveHold — a socket that was never a sink of
+    // anything. Its `detachClient` used to run `applyParkedOnDetach` over
+    // EVERY session, and the `sinks.size !== 0` guard passes for an
+    // already-parked one (a parked TUI is no longer a sink), so `rove doctor`
+    // reported 0 parked sessions and 0 parked screen bytes within 15s of
+    // parking a tab, however many tabs were actually parked.
+    const host = makeHost()
+    const tuiToken = {}
+    host.open("t1::tab1", SPEC, tuiToken, collector().sink)
+    host.write("t1::tab1", "parked\n")
+    await until(() => host.stats().ringBytes > 0)
+    host.detach("t1::tab1", tuiToken, true, 4096)
+    expect(host.stats()).toMatchObject({ parkedSessions: 1, parkedScreenBytes: 4096 })
+
+    host.detachClient({})
+
+    expect(host.stats()).toMatchObject({ parkedSessions: 1, parkedScreenBytes: 4096 })
+    expect(host.list()).toMatchObject([{ key: "t1::tab1", parked: true, parkedScreenBytes: 4096 }])
+  })
+
   test("peek reads the ring without attaching, spawning, or resizing", async () => {
     const host = makeHost()
     // Peeking a key that was never opened must not bring a session into being.

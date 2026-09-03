@@ -335,7 +335,12 @@ export class PtyHost {
   /** Detach one connection from EVERY session (socket closed). */
   detachClient(token: object): void {
     for (const session of this.sessions.values()) {
-      session.sinks.delete(token)
+      // Only sessions this token actually held. `applyParkedOnDetach` passes
+      // its `sinks.size !== 0` guard for any ALREADY-parked session (a parked
+      // TUI is no longer a sink), so running it unconditionally let one
+      // unrelated socket close — `ptyHostHasLiveSessions` polls every 15s —
+      // wipe the parked bookkeeping of every tab in the host.
+      if (!session.sinks.delete(token)) continue
       // A socket vanished without an explicit park detach, so no local
       // registry is guaranteed to retain a restorable screen.
       this.applyParkedOnDetach(session)
@@ -454,6 +459,14 @@ export class PtyHost {
   private maybeFreeze(session: PtySessionState, force = false): void {
     const freeze = this.opts.freeze
     if (!freeze || session.key.startsWith("::")) return
+    // A session someone CLOSED must not be written back. `kill()` drops the
+    // record synchronously and then awaits `endChild`, so the `onExit` freeze
+    // lands a tick LATER and recreates exactly the file the drop removed —
+    // with a fresh `updatedAt` that survives the TTL prune, so the next host
+    // incarnation resurrects a closed tab and replays its old scrollback. The
+    // guard belongs here rather than at the call site: every writer through
+    // this function owes the same promise.
+    if (session.closedByRequest) return
     const now = Date.now()
     if (!force && now - session.lastFreezeAtMs < FREEZE_INTERVAL_MS) return
     session.lastFreezeAtMs = now

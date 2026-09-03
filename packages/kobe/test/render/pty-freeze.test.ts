@@ -88,3 +88,26 @@ describe("PtyHost freeze/restore with real PTYs", () => {
     await until(() => dataText(second.frames).includes("after-restart"))
   })
 })
+
+describe("kill()", () => {
+  test("leaves no frozen record once the child has actually exited", async () => {
+    // `kill` drops the record synchronously and then awaits `endChild`, so the
+    // `onExit` freeze runs a tick LATER and re-creates exactly the file the
+    // drop removed — with a fresh `updatedAt` that outlives the TTL/cap prune.
+    // The next host incarnation then resurrects a tab the user closed and
+    // `pty.open` replays its old scrollback with `respawned: true`. Asserting
+    // right after `drop` (before the await) is green either way; the await is
+    // the whole test.
+    const dir = makeFreezeDir()
+    const host = makeHost({ freeze: fileFreezeSink(dir) })
+    const { frames, sink } = collector()
+    host.open("t1::tab1", { argv: ["/bin/cat"], cwd: process.cwd(), env: {} }, {}, sink)
+    host.write("t1::tab1", "written-before-close\n")
+    await until(() => dataText(frames).includes("written-before-close"))
+    expect(loadFrozenSessions(dir).length).toBe(1)
+
+    await host.kill("t1::tab1")
+
+    expect(loadFrozenSessions(dir)).toEqual([])
+  })
+})
