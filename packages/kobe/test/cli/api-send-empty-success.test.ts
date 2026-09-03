@@ -56,7 +56,7 @@ function clientWith(senderOverrides: Record<string, unknown> = {}): FakeClient {
 }
 
 /** The signal that makes the guard fire: a resolvable base, zero commits. */
-const emptyBranch = { readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, diff: null }) }
+const emptyBranch = { readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, behind: null, diff: null }) }
 
 beforeEach(async () => {
   resetVerifiedSelfSession()
@@ -148,8 +148,8 @@ describe("send refuses an empty-branch success report", () => {
           deliverPrompt: deliver,
           readBranchSignals: async (_worktree, recordedBaseRef) =>
             recordedBaseRef === "release/2.x"
-              ? { baseRef: "release/2.x", ahead: 0, diff: null }
-              : { baseRef: "origin/main", ahead: 2, diff: null },
+              ? { baseRef: "release/2.x", ahead: 0, behind: null, diff: null }
+              : { baseRef: "origin/main", ahead: 2, behind: null, diff: null },
         }),
       }),
     ).rejects.toMatchObject({ code: "EMPTY_SUCCESS_REPORT" })
@@ -186,7 +186,7 @@ describe("send delivers everything the guard has no business refusing", () => {
       client: clientWith(),
       runtime: stubRuntime({
         deliverPrompt: deliver,
-        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 3, diff: null }),
+        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 3, behind: null, diff: null }),
       }),
     })
     expect(calls).toHaveLength(1)
@@ -198,7 +198,7 @@ describe("send delivers everything the guard has no business refusing", () => {
       client: clientWith(),
       runtime: stubRuntime({
         deliverPrompt: deliver,
-        readBranchSignals: async () => ({ baseRef: null, ahead: null, diff: null }),
+        readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
       }),
     })
     expect(calls).toHaveLength(1)

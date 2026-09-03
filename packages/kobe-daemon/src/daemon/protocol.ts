@@ -168,6 +168,10 @@ export type DaemonRequestName =
   // of the worktree→engine→branch lifecycle that had no product path; refuses a
   // dirty base checkout and aborts on conflict, returning the conflicted files.
   | "task.land"
+  // Merge a task's base branch INTO its worktree — the answer to the sidebar's
+  // behind-base drift chip. Merge, never rebase: the worktree may have a live
+  // engine holding files open.
+  | "task.syncBase"
   | "task.pin"
   | "task.move"
   | "task.status"

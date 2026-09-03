@@ -83,13 +83,26 @@ export interface DaemonRuntimeAdapter {
   latestTranscriptMtime(vendor: VendorId, worktreePath: string): Promise<number>
   deriveTitleFromSession(worktreePath: string, vendor: VendorId): Promise<string>
   createEngineTurnDetector(vendor: VendorId): EngineTurnDetectorAdapter
-  runWorktreeStatus(worktreePath: string, signal: AbortSignal): Promise<WorktreeChanges>
+  /** `baseRef` is the owning task's RECORDED fork point; the implementation
+   *  falls back to its own resolution ladder when it is absent or stale, and
+   *  omits `behind` when nothing resolves. */
+  runWorktreeStatus(worktreePath: string, signal: AbortSignal, baseRef?: string): Promise<WorktreeChanges>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
   /** Remove a worktree. Resolves with the leftover directory when git
    *  deregistered the worktree but could not delete it (a partial removal that
    *  no retry can advance); resolves with null on a clean removal. */
   removeWorktree(path: string, force: boolean): Promise<{ path: string; reason: string } | null>
+  /**
+   * Merge a task's base branch INTO its worktree (the sidebar's "Sync with
+   * base"). Rejects with a `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY`
+   * message on the two outcomes a human acts on — the same typed-marker shape
+   * `landTask` uses for `LAND_CONFLICT`.
+   */
+  syncWorktreeWithBase(
+    worktreePath: string,
+    recordedBaseRef: string | undefined,
+  ): Promise<{ baseRef: string; alreadyCurrent: boolean }>
   availableEngineIds(): Promise<readonly VendorId[]>
   engineDisplayName(vendor: VendorId): string
   kobeApiInvocation(): string

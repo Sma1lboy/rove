@@ -56,6 +56,7 @@ describe("treeMenuItems", () => {
       "openEditor",
       "renameBranch",
       "changeEngine",
+      "syncBase",
       "land",
       "delete",
     ])
@@ -171,6 +172,7 @@ describe("treeMenuItems", () => {
       "openEditor",
       "renameBranch",
       "changeEngine",
+      "syncBase",
       "land",
       "delete",
     ])
@@ -209,6 +211,7 @@ describe("treeMenuItems", () => {
       "openEditor",
       "renameBranch",
       "changeEngine",
+      "syncBase",
       "land",
       "delete",
     ])
@@ -263,7 +266,8 @@ describe("the Fix-failing-checks entry", () => {
     const failing = { provider: "github", lifecycle: "open", checkState: "failing" } as const
     const rowActions = actions(worktreeRow({ prStatus: failing }))
     expect(rowActions).toContain("fixChecks")
-    expect(rowActions.indexOf("fixChecks")).toBe(rowActions.indexOf("land") - 1)
+    // Order: fixChecks → syncBase → land — CI, then drift, then the exit.
+    expect(rowActions.indexOf("fixChecks")).toBe(rowActions.indexOf("syncBase") - 1)
     const tabActions = treeMenuItems({ ...tabRow, task: task({ prStatus: failing }) }).map((item) => item.action)
     expect(tabActions).toContain("fixChecks")
   })

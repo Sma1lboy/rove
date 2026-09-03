@@ -52,6 +52,7 @@ export type TreeMenuAction =
   | "renameBranch"
   | "changeEngine"
   | "fixChecks"
+  | "syncBase"
   | "land"
   | "delete"
 
@@ -123,6 +124,14 @@ function taskVerbs(task: Task): TreeMenuItem[] {
   // (docs/design/keybinding-decisions.md).
   if (task.prStatus?.checkState === "failing") {
     verbs.push({ action: "fixChecks", labelKey: "tasks.menu.fixChecks" })
+  }
+  // Merge the base branch INTO this worktree — the action behind the `↓N`
+  // drift chip. Gated exactly like `land`: neither a `main`/`dir` row nor a
+  // task that never materialised has a branch of its own to merge into. Menu-
+  // only until the proposed `ctrl+a u` chord is signed off
+  // (docs/design/keybinding-decisions.md).
+  if (task.kind === "task" && task.branch !== "") {
+    verbs.push({ action: "syncBase", labelKey: "tasks.menu.syncBase" })
   }
   // Menu-only, like `setStatus`: landing is the Worktrees page's `l`, and a
   // second chord for it is the owner's call

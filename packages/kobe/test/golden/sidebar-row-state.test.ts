@@ -34,6 +34,7 @@ import {
   RECORDED_FIELDS,
   activityCrossProduct,
   completionGraceBlock,
+  conflictChipBlock,
   mainRowBlock,
   prChipBlock,
   spinnerBlock,
@@ -71,6 +72,7 @@ test("sidebar row state matrix matches the committed golden", () => {
       lines: statusVsActivityBlock(),
     },
     { title: "PR check chip", lines: prChipBlock() },
+    { title: "PR merge-conflict chip", lines: conflictChipBlock() },
     { title: "board status chip", lines: statusChipBlock() },
     { title: "tabRowActivity — which entry a TAB row may read", lines: tabActivityBlock() },
   ])
@@ -141,6 +143,11 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["▴", "U+25B4 — pinned marker"],
     ["✗", "U+2717 — PR checks failing; the sibling of ✓ both fonts carry"],
     ["•", "U+2022 General Punctuation — PR checks pending"],
+    // U+2260 Mathematical Operators — the PR cannot merge. `fc-list
+    // :charset=2260`: Fira Code, FiraCode/JetBrainsMono Nerd Font, Menlo AND
+    // Monaco — the widest coverage of any glyph in this table. The intuitive
+    // `⑂` (U+2442 OCR FORK) is in NONE of them and was rejected here.
+    ["≠", "U+2260 — PR merge conflict; in Fira Code / JetBrainsMono / Menlo / Monaco"],
     // U+25C6 joins its hollow twin U+25C7 (already here for the subagent
     // prefix) for the `done` status chip. `fc-list :charset=25c6`: Fira Code,
     // FiraCode/JetBrainsMono Nerd Font, Menlo AND Monaco — strictly wider
@@ -159,7 +166,7 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     const glyph = / glyph=(\S+)/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }
-  for (const line of [...prChipBlock(), ...statusChipBlock()]) {
+  for (const line of [...prChipBlock(), ...conflictChipBlock(), ...statusChipBlock()]) {
     const glyph = /chip=(\S+) \(/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }

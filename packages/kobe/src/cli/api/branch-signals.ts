@@ -3,7 +3,8 @@
  * from its base. `readWorktreeChanges` only counts UNCOMMITTED files, so a
  * task that commits its work reads `+0 −0` — exactly when the caller is
  * choosing a fan-out winner. These helpers add the committed side:
- * ahead-of-base commit count and a diffstat vs the merge-base.
+ * ahead-of-base and behind-base commit counts, and a diffstat vs the
+ * merge-base.
  *
  * The base ref comes from the TASK RECORD first: `add --base-branch` is
  * persisted on the task at create time, so a task cut from `release/2.x`
@@ -23,11 +24,18 @@ export interface BranchSignals {
   readonly baseRef: string | null
   /** `git rev-list --count <base>..HEAD`; null when base is unresolvable. */
   readonly ahead: number | null
+  /**
+   * `git rev-list --count HEAD..<base>` — how far the branch has DRIFTED
+   * behind the base since it forked. The sibling of `ahead`, and the one a
+   * long-running attempt needs: a task that has been working for two hours is
+   * building against a base that has moved. Null when base is unresolvable.
+   */
+  readonly behind: number | null
   /** Committed diff vs the merge-base (`git diff --shortstat <base>...HEAD`). */
   readonly diff: { files: number; insertions: number; deletions: number } | null
 }
 
-const NONE: BranchSignals = { baseRef: null, ahead: null, diff: null }
+const NONE: BranchSignals = { baseRef: null, ahead: null, behind: null, diff: null }
 
 function git(cwd: string, args: readonly string[]): string | null {
   try {
@@ -88,11 +96,17 @@ export function readBranchSignals(worktreePath: string, recordedBaseRef?: string
   if (!worktreePath) return NONE
   const baseRef = resolveMeasureBase(worktreePath, recordedBaseRef)
   if (!baseRef) return NONE
-  const aheadOut = git(worktreePath, ["rev-list", "--count", `${baseRef}..HEAD`])
-  const ahead = aheadOut === null ? null : Number.parseInt(aheadOut, 10)
+  const count = (range: string): number | null => {
+    const out = git(worktreePath, ["rev-list", "--count", range])
+    if (out === null) return null
+    const n = Number.parseInt(out, 10)
+    return Number.isNaN(n) ? null : n
+  }
+  const ahead = count(`${baseRef}..HEAD`)
+  const behind = count(`HEAD..${baseRef}`)
   // Three-dot: diff from the merge-base, so drift on the base branch since
   // the fork point doesn't pollute the task's own stats.
   const statOut = git(worktreePath, ["diff", "--shortstat", `${baseRef}...HEAD`])
   const diff = statOut === null ? null : parseShortstat(statOut)
-  return { baseRef, ahead: ahead !== null && Number.isNaN(ahead) ? null : ahead, diff }
+  return { baseRef, ahead, behind, diff }
 }

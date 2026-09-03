@@ -425,6 +425,8 @@ export class RemoteOrchestrator {
   listFieldNotes = (repo: string) => writes.listFieldNotesOp(this.client, repo)
   /** A PR's failing checks + log tails (`pr.failingChecks`). On demand only. */
   failingChecks = (taskId: string) => writes.failingChecksOp(this.client, taskId)
+  /** Merge a task's base branch into its worktree (`task.syncBase`). */
+  syncBase = (taskId: string) => writes.syncBaseOp(this.client, taskId)
   startWorkItem = (a: Parameters<typeof writes.startWorkItemOp>[1]) => writes.startWorkItemOp(this.client, a)
 
   /** Remove a worktree (`worktree.remove`); refuses a dirty one unless

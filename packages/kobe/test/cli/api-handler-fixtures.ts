@@ -74,7 +74,7 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
     resolveRepoRoot: async (path) => path,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
-    readBranchSignals: async () => ({ baseRef: null, ahead: null, diff: null }),
+    readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
     ...overrides,
   }

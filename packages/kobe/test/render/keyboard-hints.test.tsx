@@ -94,6 +94,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     createPR: NOOP,
     createPRFor: NOOP,
     fixChecksFor: () => {},
+    syncBaseFor: () => {},
     toggleSortMode: NOOP,
   })
   return <>{props.children}</>

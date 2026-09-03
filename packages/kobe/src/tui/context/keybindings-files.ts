@@ -141,6 +141,18 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     category: "Files",
     description: "Ask the agent to fix the failing PR checks",
   },
+  {
+    // PROPOSED CHORD — awaiting owner sign-off
+    // (docs/design/keybinding-decisions.md). The row menu's "Sync with base"
+    // is the settled route; this mirrors it for the keyboard. `u` is free
+    // behind the prefix and reads as "update this branch from its base".
+    id: "files.syncBase",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["u"],
+    category: "Files",
+    description: "Merge the base branch into this task's worktree",
+  },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
   // Plain letters, diff-tab-scoped raw bindings
   // (registered by preview-review.tsx like the preview's `o`), inert
