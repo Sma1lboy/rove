@@ -113,7 +113,19 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
       taskId: self.taskId,
       branch,
       hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
-      nextCommandArgs: ["api", "send", "--allow-empty", "--prompt", prompt],
+      // Carry the caller's own target forward. The hint tells the agent to run
+      // this verbatim, and without the flags the retry re-resolves through the
+      // active-task fallback — so an explicit `send --task-id X` could retry
+      // into a DIFFERENT task than the one it addressed.
+      nextCommandArgs: [
+        "api",
+        "send",
+        ...(ctx.args.str("task-id") ? ["--task-id", ctx.args.str("task-id") as string] : []),
+        ...(ctx.args.str("tab") ? ["--tab", ctx.args.str("tab") as string] : []),
+        "--allow-empty",
+        "--prompt",
+        prompt,
+      ],
     },
   )
 }

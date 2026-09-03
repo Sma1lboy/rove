@@ -16,14 +16,17 @@ you need git-level isolation and a separate branch.
 
 ## Which engines are supported
 
-| Engine | Id | Account detect | Activity badge | History | Model picker |
+| Engine | Id | Account detect | Activity badge | History | Effort levels |
 |---|---|---|---|---|---|
-| Claude Code | `claude` | ✓ | ✓ | ✓ | ✓ |
-| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | ✓ + effort levels |
+| Claude Code | `claude` | ✓ | ✓ | ✓ | — |
+| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh` |
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
 | Anything you register | custom | binary only | — | — | — |
+
+There is no in-app model picker for any engine — pick the model the way that
+engine does, on its own launch command.
 
 **Claude Code is the default** and the most complete: its quota probe drives
 rate-limit auto-resume and the Settings usage dashboard.

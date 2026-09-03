@@ -100,8 +100,7 @@ Commands:
   skill <verb>            Install the Rove agent skill (install|status|command|print)
   plugin <verb>           Install and run plugins (install|link|list|action|…)
   feedback                Send feedback to GitHub Discussions
-  update [version|channel|list]   Self-update Rove, switch channel, or browse
-                          versions with `list`
+  update [version|channel|list]   Self-update Rove, switch channel, or list versions
 
 Options:
   -v, --version           Print version

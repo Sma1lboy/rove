@@ -99,8 +99,18 @@ describe("send refuses an empty-branch success report", () => {
       const data = (error as { data?: Record<string, unknown> }).data ?? {}
       expect(data.branch).toBe("fix/thing")
       expect(String(data.hint)).toMatch(/commit your work/)
-      // The retry argv must be runnable verbatim, carrying the original text.
-      expect(data.nextCommandArgs).toEqual(["api", "send", "--allow-empty", "--prompt", "succeeded: done"])
+      // The retry argv must be runnable verbatim, carrying the original text
+      // AND the target it was addressed to: run without `--task-id`, the retry
+      // re-resolves through the active-task fallback and can land somewhere else.
+      expect(data.nextCommandArgs).toEqual([
+        "api",
+        "send",
+        "--task-id",
+        "coord-1",
+        "--allow-empty",
+        "--prompt",
+        "succeeded: done",
+      ])
     }
   })
 

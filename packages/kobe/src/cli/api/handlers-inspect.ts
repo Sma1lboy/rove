@@ -75,7 +75,10 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
   } finally {
     client.close()
   }
-  if (taskId) sessions = sessions.filter((s) => s.key.startsWith(taskId))
+  // `::` for the same reason the exits filter below uses it: a session key is
+  // `<taskId>::<tabId>[::leaf-N]`, so the separator is what makes this a task
+  // match rather than a prefix match.
+  if (taskId) sessions = sessions.filter((s) => s.key.startsWith(`${taskId}::`))
   // ONE ps snapshot serves every session — same economy as live-engine.ts.
   let rows: ReturnType<typeof parsePsSnapshot> | null = null
   try {

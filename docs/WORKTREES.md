@@ -20,9 +20,7 @@ never contain Rove branding. An explicit `--branch` on creation,
 `set-branch` afterwards, and `b` on a task row in the sidebar override this
 entirely. A branch still on its `new-task` placeholder is renamed once,
 automatically, when the task gets a real title (skipped if the branch
-already has an upstream); after that Rove never touches it again. A new
-worktree task started with a prompt also asks its agent to `set-branch` to a
-descriptive name once it understands the work.
+already has an upstream); after that Rove never touches it again.
 
 ## Where worktrees live
 

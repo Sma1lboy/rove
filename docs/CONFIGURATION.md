@@ -113,12 +113,12 @@ Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `terminal.scrollbackRows` | number | `1000` | History per embedded terminal. Clamped 100–100,000 |
-| `chat.tabStrip.mode` | `always` \| `multipleOnly` \| `never` | `always` | Horizontal chat tab strip |
+| `chat.tabStrip.mode` | `always` \| `multipleOnly` \| `never` | `never` | Horizontal chat tab strip |
 
-The tab strip is on by default: the sidebar tree lists every tab, but the
-strip is the affordance that says which tab the pane below is showing.
-`multipleOnly` hides it while a task has only one tab, `never` leaves the
-tree as the only tab list. (An older
+The tab strip is off by default: the sidebar tree already lists every tab and
+marks the active one, so the strip spends a row of the content pane saying
+what the tree says for free. `always` shows it, `multipleOnly` shows it only
+once a task has more than one tab. (An older
 `chat.tabStrip.hideSingle` boolean still works if you set it before
 `chat.tabStrip.mode` existed; writing the new key retires it.)
 
