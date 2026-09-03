@@ -20,7 +20,6 @@ import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/con
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
-import { relativeBuckets } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -32,111 +31,14 @@ import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
+import { formatWhen } from "./automations-format"
+import { RunHistory } from "./automations-runs"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
 const POLL_MS = 5_000
 
-/** Run-status → how it should read at a glance. The four "didn't run" reasons
- *  are deliberately distinct: `skipped_precheck` is healthy (nothing to do),
- *  `dispatch_failed` wants a human. Collapsing them would hide that. */
-const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
-  dispatched: "success",
-  // Delivered, so not grey: `revived` reached a respawned session (the status
-  // text carries the lost-context caveat), `deferred` reached the Inbox and is
-  // warning rather than success because it is parked until a human releases it.
-  revived: "success",
-  deferred: "warning",
-  skipped_precheck: "muted",
-  skipped_missed: "warning",
-  skipped_unavailable: "warning",
-  dispatch_failed: "error",
-}
-
-function formatWhen(iso: string | undefined, now: number): string {
-  if (!iso) return "—"
-  const at = Date.parse(iso)
-  if (!Number.isFinite(at)) return "—"
-  const deltaMs = at - now
-  const { minutes, hours } = relativeBuckets(Math.abs(deltaMs))
-  if (minutes < 1) return deltaMs >= 0 ? "now" : "just now"
-  if (minutes < 60) return deltaMs >= 0 ? `in ${minutes}m` : `${minutes}m ago`
-  if (hours < 24) return deltaMs >= 0 ? `in ${hours}h` : `${hours}h ago`
-  return new Date(at).toLocaleDateString()
-}
-
 function repoLabel(repo: string): string {
   return repo.split("/").filter(Boolean).pop() ?? repo
-}
-
-/** `·` cron fired it, `▸` a human did. One cell, and it answers "did I run
- *  this or did the schedule" without opening anything. Both glyphs are
- *  already in the sidebar's vocabulary, so no new font coverage is at stake. */
-function triggerGlyph(trigger: AutomationRun["trigger"]): string {
-  return trigger === "manual" ? "▸" : "·"
-}
-
-/** The last ~10 lines of a captured stream, trimmed of trailing blanks.
- *  Truncation happens HERE and not at capture time: the runner already stores
- *  what it stores, and a detail view that shrank the record would make the
- *  next reader's question unanswerable. */
-function outputTail(text: string, limit = 10): string[] {
-  const lines = text.replace(/\s+$/, "").split("\n")
-  return lines.length > limit ? lines.slice(-limit) : lines
-}
-
-/**
- * Why the latest run did not run: the precheck's exit code, how long it took,
- * and the output it actually produced.
- *
- * The runner has always captured `stdout`, `stderr`, `exitCode` and
- * `durationMs` on a `skipped_precheck` run and stored them on the record; the
- * page collapsed all four to `precheck exited 1`, which leaves reconstructing
- * the command by hand as the only way to find out what it said — the exact
- * debugging step Rove already did and then discarded.
- *
- * Scoped to the MOST RECENT run on purpose. That is the one that explains the
- * state the page is showing; an older skip is history, and reading it here
- * would answer a question about a routine that has since run fine. Showing it
- * unconditionally is also what keeps this off the keymap: a per-run cursor
- * needs a chord, and a chord needs the owner.
- *
- * An empty stream is omitted rather than printed as a blank label — a
- * precheck that wrote nothing to stderr should not look like one whose stderr
- * failed to load.
- */
-function PrecheckDetail(props: { run: AutomationRun | undefined }): ReactNode {
-  const { theme } = useTheme()
-  const t = useT()
-  const result = props.run?.precheckResult
-  if (!result) return null
-  const exit = result.timedOut
-    ? t("automations.precheckTimedOut")
-    : t("automations.precheckExited", { code: String(result.exitCode ?? "?") })
-  const streams = [
-    { label: t("automations.precheckStdout"), text: result.stdout },
-    { label: t("automations.precheckStderr"), text: result.stderr },
-  ].filter((stream) => stream.text.trim().length > 0)
-  return (
-    <box flexDirection="column" marginTop={1} flexShrink={0}>
-      <text attributes={TextAttributes.BOLD} fg={theme.textMuted}>
-        {t("automations.precheckDetail", { exit, duration: String(result.durationMs) })}
-      </text>
-      {streams.length === 0 ? (
-        <text fg={theme.textMuted}>{t("automations.precheckNoOutput")}</text>
-      ) : (
-        streams.map((stream) => (
-          <box key={stream.label} flexDirection="row" gap={1}>
-            <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
-              {`${stream.label}:`}
-            </text>
-            <text fg={theme.text} flexShrink={1}>
-              {outputTail(stream.text).join("\n")}
-            </text>
-          </box>
-        ))
-      )}
-    </box>
-  )
 }
 
 export function AutomationsPage(props: {
@@ -478,30 +380,7 @@ export function AutomationsPage(props: {
             {selected.precheck ? (
               <text fg={theme.textMuted}>{t("automations.precheck", { command: selected.precheck.command })}</text>
             ) : null}
-            <text attributes={TextAttributes.BOLD} fg={theme.text}>
-              {t("automations.recentRuns")}
-            </text>
-            {runs.length === 0 ? (
-              <text fg={theme.textMuted}>{t("automations.noRuns")}</text>
-            ) : (
-              runs.slice(0, 5).map((run) => {
-                const tone = RUN_TONE[run.status] ?? "muted"
-                const color =
-                  tone === "success"
-                    ? theme.success
-                    : tone === "warning"
-                      ? theme.warning
-                      : tone === "error"
-                        ? theme.error
-                        : theme.textMuted
-                return (
-                  <text key={run.id} fg={color}>
-                    {`${triggerGlyph(run.trigger)} #${run.runNumber} ${run.status}${run.error ? ` — ${run.error}` : ""}  ${formatWhen(run.at, now)}`}
-                  </text>
-                )
-              })
-            )}
-            <PrecheckDetail run={runs[0]} />
+            <RunHistory runs={runs} now={now} />
           </>
         ) : (
           <text fg={theme.textMuted}>{t("automations.noSelection")}</text>
