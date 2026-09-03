@@ -1,5 +1,96 @@
 # Changelog
 
+## 0.9.104
+
+### Patch Changes
+
+- [#838](https://github.com/Sma1lboy/rove/pull/838) [`4e384d5`](https://github.com/Sma1lboy/rove/commit/4e384d5d8318e0df1211732083b336218662363e) Pre-trust a Rove worktree for Copilot, so a copilot task reaches its prompt
+  instead of a dialog nobody can answer.
+
+  Claude, Codex and Kimi each got a `trustWorktree` hook; Copilot never did, and
+  nothing recorded whether that was a decision or an omission. It was an
+  omission. Copilot CLI gates a first launch in a never-seen directory behind
+  "Confirm folder trust", and a Rove-created worktree is always such a directory,
+  so a hosted copilot session sat at the dialog. Worse than the other three: its
+  cursor sits on "1. Yes", which grants trust for that session only — so even a
+  human answering it is asked again on every relaunch.
+
+  Rove now writes the path into `trustedFolders` in Copilot's own
+  `<COPILOT_HOME>/config.json`, the same list its "remember this folder" answer
+  writes, merging into existing entries and preserving the JSONC header Copilot
+  puts at the top of that file. Verified against Copilot CLI v1.0.82: the dialog
+  appears in a fresh worktree, and after the pre-trust write the same worktree
+  launches straight to the prompt.
+
+  A registry-level test now fails if any builtin engine ships without a
+  `trustWorktree` hook, so the next engine added cannot omit it in silence. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#840](https://github.com/Sma1lboy/rove/pull/840) [`3e13ab6`](https://github.com/Sma1lboy/rove/commit/3e13ab6b3988b4987394c8d0a663bd9eb040dd85) Stop `rove doctor` reporting a red ✗ for the healthiest possible machine.
+
+  The legacy-tmux row exists to find leftover pre-v0.8 sessions. It classifies a
+  failed `tmux list-sessions` as either "no server" (fine) or "inspection failed"
+  (a ✗), by matching tmux's message — and the phrasing tmux 3.5 uses when the
+  socket file does not exist at all, `error connecting to <path> (No such file or
+directory)`, was not in the list. So every install that never ran pre-v0.8 Rove
+  — which is every new install — was told something was wrong:
+
+  ```
+  legacy tmux: ✗ inspection failed — tmux list-sessions failed: error connecting to /private/tmp/tmux-501/kobe (No such file or directory)
+  ```
+
+  A missing socket is a missing server. That machine now gets the healthy line:
+
+  ```
+  legacy tmux: tmux 3.5a — no sessions on `kobe`
+  ```
+
+  The same wording covers a stale socket whose server has died, and a genuine
+  inspection failure still reports one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#841](https://github.com/Sma1lboy/rove/pull/841) [`dab3d63`](https://github.com/Sma1lboy/rove/commit/dab3d639d2c9b573d464aeb9a68d91acf1fa473c) A superseded renderer can no longer register key bindings into the live
+  renderer's stack. `ensureInstalled` already refused to let a torn-down
+  renderer's tree steal the `keyInput` listener back, but `useBindings`'s mount
+  effect inserted unconditionally — so a component that tree mounts LATE (a
+  dialog opened by a pending timer) landed in the stack _after_ the
+  `stack.length = 0` that was supposed to drop it. One stale `modalOwner`
+  arriving that way makes `modalActive()` true with nothing left to clear it, and
+  every raw `keyInput` listener gated on it goes silent — including the terminal
+  pane's paste forwarder, which then drops the paste before it reaches the PTY.
+  The mount effect now applies the same superseded-renderer guard as the
+  listener. Production runs one renderer per process and never supersedes it, so
+  this only fires where renderers are swapped in-process. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#837](https://github.com/Sma1lboy/rove/pull/837) [`df35270`](https://github.com/Sma1lboy/rove/commit/df352708db64c489d76daeebe02f54fddc87e850) Require the web bearer token on the PTY sidecar, and let the sidecar present
+  it to the daemon.
+
+  The PTY routes were the one part of the web surface the token never reached,
+  and they are the part that runs commands: `ws /pty` spawns the task's engine or
+  a shell in its worktree, `POST /pty/send` types into that process, and `POST
+/pty/close` kills it. Their only gate was the Origin check, which admits a
+  request with **no** `Origin` — every non-browser client — and admits **any**
+  loopback origin, so a page the user happened to have open on another localhost
+  port could attach as well. WebSocket upgrades get no CORS preflight, so nothing
+  else stood in the way. Against a running `rove web`, a tokenless upgrade
+  returned a live shell prompt and a tokenless `/pty/send` typed into it; a wrong
+  token worked just as well. Exposure was limited to whatever could reach the
+  sidecar's loopback port — on a shared machine, any other local user, which is
+  the boundary the token file's 0600 mode exists to hold — and not reachable from
+  a remote network unless the port had been bound off loopback.
+
+  All three routes now require the token that every REST and SSE caller already
+  sends: the browser puts it on the WebSocket URL the way the `/events` stream
+  does, and the sidecar refuses an upgrade without it (`401`). The Origin check
+  stays as defence in depth. The sidecar reads the same `0600` token file the
+  daemon mints rather than taking the secret from whoever spawned it, so a
+  launcher that forgot to forward it cannot silently reopen the gap; no readable
+  file means no request is served.
+
+  This also repairs the web terminal, dead since 0.9.60: the sidecar fetches each
+  tab's launch spec from the daemon's `/api/*`, that route began requiring the
+  token in 0.9.60, and the sidecar was never taught to send one — so every engine
+  and shell tab died with `failed to start shell: unauthorized: this request
+carried no valid web token` before any PTY was spawned. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.103
 
 ### Patch Changes
