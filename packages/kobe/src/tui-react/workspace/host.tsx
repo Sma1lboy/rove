@@ -25,7 +25,6 @@ import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
-import { DialogConfirm } from "../ui/dialog-confirm"
 import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
@@ -33,7 +32,6 @@ import { useWorkspaceKeybindings } from "./host-keybindings"
 import { useHostPagesRender, useHostPagesState } from "./host-pages"
 import { HostSidebar } from "./host-sidebar"
 import { useWorkspaceTaskActions } from "./host-task-actions"
-import { landTaskAction } from "./land-task-action"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
 import { ShowWorkspace } from "./show-workspace"
@@ -166,12 +164,15 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     copyTaskField,
     showFieldNotes,
     confirmRunAgain,
+    landTask,
   } = useWorkspaceTaskActions({
     orchestrator: orch,
     tasks: () => tasks,
     dialog,
     notifyError,
     notifyInfo,
+    notifyNeedsInput: (message) => notif.notify({ kind: "needs_input", taskId: "", tabId: "", title: message }),
+    t,
     selectedId: () => selectedId,
     setSelectedId,
     selectedTask: () => selectedTask,
@@ -254,35 +255,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // under the cursor (the menu's row IS the cursor row).
   const openTaskWorktree = (id: string): void =>
     openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError })
-
-  // Row menu's "Land into base branch" — the Worktrees page's `l` reachable
-  // from the row itself, sharing the confirm, the cleanup toasts and the two
-  // actionable failures (`workspace/land-task-action.ts`). No busy state to
-  // keep here: the row disappears with its worktree when the land succeeds.
-  const landRowTask = async (id: string): Promise<void> => {
-    const task = tasks.find((candidate) => String(candidate.id) === id)
-    if (!task) return
-    await landTaskAction(
-      {
-        orchestrator: orch,
-        confirm: (branch) =>
-          DialogConfirm.show(
-            dialog,
-            t("worktrees.land.confirmTitle"),
-            t("worktrees.land.confirmBody", { branch }),
-            t("common.cancel"),
-            t("worktrees.land.button"),
-          ).then((ok) => ok === true),
-        notifyInfo,
-        notifyNeedsInput: (message) => notif.notify({ kind: "needs_input", taskId: id, tabId: "", title: message }),
-        notifyError,
-        t,
-        callerCwd: process.cwd(),
-      },
-      id,
-      task.branch || task.title,
-    )
-  }
 
   // Filled by the mounted SidebarTree; null until it mounts (a rail page,
   // zen), which is fine — every reader is gated on sidebar focus.
@@ -400,7 +372,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           // fire these; the flows are the shared lib/task-actions bodies.
           onAddTask={() => void createTask()}
           onDeleteRequest={(id) => void deleteTask(id)}
-          onLandRequest={(id) => void landRowTask(id)}
+          onLandRequest={(id) => void landTask(id)}
           onRenameRequest={(id) => void renameTask(id)}
           onPinRequest={(id) => void togglePin(id)}
           onSetStatusRequest={(id) => void setStatus(id)}
