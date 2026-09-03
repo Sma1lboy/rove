@@ -49,70 +49,12 @@ import {
   type WorktreeChangesMap,
   shouldLogReconnectAttempt,
 } from "./remote-orchestrator-payloads.ts"
-import {
-  type ReadSignals,
-  activeTaskSignalOp,
-  attentionInboxSignalOp,
-  daemonStaleSignalOp,
-  daemonVersionSignalOp,
-  engineStateSignalOp,
-  engineTabStatesSignalOp,
-  getTaskOp,
-  keybindingsRevSignalOp,
-  keybindingsRevStoreOp,
-  listTasksOp,
-  subscribeTasksOp,
-  taskJobsSignalOp,
-  tasksSignalOp,
-  transcriptActivitySignalOp,
-  transcriptActivityStoreOp,
-  uiPrefsSignalOp,
-  uiPrefsStoreOp,
-  updateSignalOp,
-  usageSnapshotSignalOp,
-  worktreeChangesSignalOp,
-} from "./remote-orchestrator-reads.ts"
-import {
-  adoptScratchRepoOp,
-  adoptWorktreeOp,
-  automationRunsOp,
-  createAutomationOp,
-  createTaskOp,
-  deleteAutomationOp,
-  deleteTaskOp,
-  discoverAdoptableWorktreesOp,
-  dismissAttentionOp,
-  ensureMainTaskOp,
-  ensureWorktreeOp,
-  failingChecksOp,
-  flushDeferredPromptsOp,
-  forgetProjectOp,
-  landTaskOp,
-  listAutomationsOp,
-  listFieldNotesOp,
-  listIssuesOp,
-  listWorkItemsOp,
-  listWorktreesOp,
-  markAttentionReadOp,
-  moveTaskOp,
-  mutateIssueOp,
-  openDirectoryTaskOp,
-  releaseDeferredPromptOp,
-  removeWorktreeOp,
-  replyTabCloseOp,
-  reportEngineInterruptOp,
-  runAutomationNowOp,
-  setActiveTaskOp,
-  setAutomationEnabledOp,
-  setBranchOp,
-  setCommandOp,
-  setPinnedOp,
-  setPromptOp,
-  setStatusOp,
-  setTitleOp,
-  setVendorOp,
-  startWorkItemOp,
-} from "./remote-orchestrator-writes.ts"
+import type { ReadSignals } from "./remote-orchestrator-reads.ts"
+// Namespace imports, not named ones: every member below is a 1-line
+// delegate, and naming each twice (import list + call site) spent 60 lines
+// of this file on nothing but the second name.
+import * as reads from "./remote-orchestrator-reads.ts"
+import * as writes from "./remote-orchestrator-writes.ts"
 
 export type {
   AttentionInboxItem,
@@ -322,36 +264,38 @@ export class RemoteOrchestrator {
 
   // --- read --- (each a thin delegate; bodies + docs moved to remote-orchestrator-reads.ts)
 
-  readonly tasksSignal = (): ReadableState<Task[]> => tasksSignalOp(this.reads)
+  readonly tasksSignal = (): ReadableState<Task[]> => reads.tasksSignalOp(this.reads)
 
-  readonly activeTaskSignal = (): ReadableState<string | null> => activeTaskSignalOp(this.reads)
+  readonly activeTaskSignal = (): ReadableState<string | null> => reads.activeTaskSignalOp(this.reads)
 
-  readonly updateSignal = (): ReadableState<UpdateInfo | null> => updateSignalOp(this.reads)
+  readonly updateSignal = (): ReadableState<UpdateInfo | null> => reads.updateSignalOp(this.reads)
 
-  readonly daemonVersionSignal = (): ReadableState<string | null> => daemonVersionSignalOp(this.reads)
+  readonly daemonVersionSignal = (): ReadableState<string | null> => reads.daemonVersionSignalOp(this.reads)
 
-  readonly daemonStaleSignal = (): ReadableState<boolean> => daemonStaleSignalOp(this.reads)
+  readonly daemonStaleSignal = (): ReadableState<boolean> => reads.daemonStaleSignalOp(this.reads)
 
   readonly engineStateSignal = (): ReadableState<ReadonlyMap<string, TaskEngineState>> =>
-    engineStateSignalOp(this.reads)
+    reads.engineStateSignalOp(this.reads)
 
   /** Per-TAB engine activity (taskId → tabId → state) — the F7 attention
    *  jump's tab-precise read. Sparse; see {@link EngineTabStateMap}. */
-  readonly engineTabStatesSignal = (): ReadableState<EngineTabStateMap> => engineTabStatesSignalOp(this.reads)
+  readonly engineTabStatesSignal = (): ReadableState<EngineTabStateMap> => reads.engineTabStatesSignalOp(this.reads)
 
-  readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> => attentionInboxSignalOp(this.reads)
+  readonly attentionInboxSignal = (): ReadableState<readonly AttentionInboxItem[]> =>
+    reads.attentionInboxSignalOp(this.reads)
 
-  readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => taskJobsSignalOp(this.reads)
+  readonly taskJobsSignal = (): ReadableState<ReadonlyMap<string, TaskJobState>> => reads.taskJobsSignalOp(this.reads)
 
-  readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> => worktreeChangesSignalOp(this.reads)
+  readonly worktreeChangesSignal = (): ReadableState<WorktreeChangesMap | null> =>
+    reads.worktreeChangesSignalOp(this.reads)
 
-  readonly usageSnapshotSignal = (): ReadableState<UsageSnapshotMap | null> => usageSnapshotSignalOp(this.reads)
+  readonly usageSnapshotSignal = (): ReadableState<UsageSnapshotMap | null> => reads.usageSnapshotSignalOp(this.reads)
 
   readonly transcriptActivitySignal = (): ReadableState<TranscriptActivityMap | null> =>
-    transcriptActivitySignalOp(this.reads)
+    reads.transcriptActivitySignalOp(this.reads)
 
   readonly transcriptActivityStore = (): ExternalStore<TranscriptActivityMap | null> =>
-    transcriptActivityStoreOp(this.reads)
+    reads.transcriptActivityStoreOp(this.reads)
 
   /** Latest daemon-broadcast notice (`notice.event`) — consumers dedupe on `at`. */
   readonly noticeStore = (): ExternalStore<NoticeEventPayload | null> => this.noticeAcc
@@ -362,7 +306,8 @@ export class RemoteOrchestrator {
   /** Latest `tab.close` request (pane or exact Terminal Tab) — consumers dedupe on `at`. */
   readonly tabCloseStore = (): ExternalStore<TabClosePayload | null> => this.tabCloseAcc
 
-  replyTerminalTabClose = (requestId: string, closed: boolean): void => replyTabCloseOp(this.client, requestId, closed)
+  replyTerminalTabClose = (requestId: string, closed: boolean): void =>
+    writes.replyTabCloseOp(this.client, requestId, closed)
 
   /** Latest `ui.prompt` request (host input dialog) — consumers dedupe on `at`. */
   readonly uiPromptStore = (): ExternalStore<UiPromptPayload | null> => this.uiPromptAcc
@@ -388,103 +333,105 @@ export class RemoteOrchestrator {
   /** Confirmed ESC interrupt on a hook-running tab — see
    *  {@link reportEngineInterruptOp}. */
   readonly reportEngineInterrupt = (taskId: TaskId | string, tabId: string): void =>
-    reportEngineInterruptOp(this.client, String(taskId), tabId)
+    writes.reportEngineInterruptOp(this.client, String(taskId), tabId)
 
-  readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => uiPrefsSignalOp(this.reads)
+  readonly uiPrefsSignal = (): ReadableState<UiPrefsPayload | null> => reads.uiPrefsSignalOp(this.reads)
 
-  readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => uiPrefsStoreOp(this.reads)
+  readonly uiPrefsStore = (): ExternalStore<UiPrefsPayload | null> => reads.uiPrefsStoreOp(this.reads)
 
-  readonly keybindingsRevSignal = (): ReadableState<number | null> => keybindingsRevSignalOp(this.reads)
+  readonly keybindingsRevSignal = (): ReadableState<number | null> => reads.keybindingsRevSignalOp(this.reads)
 
-  readonly keybindingsRevStore = (): ExternalStore<number | null> => keybindingsRevStoreOp(this.reads)
+  readonly keybindingsRevStore = (): ExternalStore<number | null> => reads.keybindingsRevStoreOp(this.reads)
 
-  readonly listTasks = (): Task[] => listTasksOp(this.reads)
+  readonly listTasks = (): Task[] => reads.listTasksOp(this.reads)
 
-  readonly getTask = (id: TaskId | string): Task | undefined => getTaskOp(this.reads, id)
+  readonly getTask = (id: TaskId | string): Task | undefined => reads.getTaskOp(this.reads, id)
 
   subscribeTasks(listener: (snapshot: readonly Task[]) => void): Unsubscribe {
-    return subscribeTasksOp(this.reads, listener)
+    return reads.subscribeTasksOp(this.reads, listener)
   }
 
   // --- write --- thin delegates (bodies in remote-orchestrator-writes.ts); terse because this file is at the cap.
 
-  createTask = (input: Parameters<typeof createTaskOp>[1]): Promise<Task> => createTaskOp(this.client, input)
-  ensureMainTask = (repo: string): Promise<Task> => ensureMainTaskOp(this.client, repo)
+  createTask = (input: Parameters<typeof writes.createTaskOp>[1]): Promise<Task> =>
+    writes.createTaskOp(this.client, input)
+  ensureMainTask = (repo: string): Promise<Task> => writes.ensureMainTaskOp(this.client, repo)
   openDirectoryTask = (input: { dir: string; scratch?: boolean }): Promise<Task> =>
-    openDirectoryTaskOp(this.client, input)
-  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> => adoptScratchRepoOp(this.client, id, repo)
-  ensureWorktree = (id: TaskId | string): Promise<string> => ensureWorktreeOp(this.client, id)
-  forgetProject = (repo: string): Promise<void> => forgetProjectOp(this.client, repo)
-  setTitle = (id: TaskId | string, title: string): Promise<void> => setTitleOp(this.client, id, title)
-  setBranch = (id: TaskId | string, branch: string): Promise<void> => setBranchOp(this.client, id, branch)
+    writes.openDirectoryTaskOp(this.client, input)
+  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
+    writes.adoptScratchRepoOp(this.client, id, repo)
+  ensureWorktree = (id: TaskId | string): Promise<string> => writes.ensureWorktreeOp(this.client, id)
+  forgetProject = (repo: string): Promise<void> => writes.forgetProjectOp(this.client, repo)
+  setTitle = (id: TaskId | string, title: string): Promise<void> => writes.setTitleOp(this.client, id, title)
+  setBranch = (id: TaskId | string, branch: string): Promise<void> => writes.setBranchOp(this.client, id, branch)
   setVendor = (id: TaskId | string, vendor: VendorId, effort?: string): Promise<void> =>
-    setVendorOp(this.client, id, vendor, effort)
+    writes.setVendorOp(this.client, id, vendor, effort)
   setCommand = (id: TaskId | string, command: string, vendor?: VendorId): Promise<void> =>
-    setCommandOp(this.client, id, command, vendor)
-  setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => setPinnedOp(this.client, id, pinned)
-  moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => moveTaskOp(this.client, id, delta)
-  setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => setStatusOp(this.client, id, status)
-  setPrompt = (id: TaskId | string, prompt: string): Promise<void> => setPromptOp(this.client, id, prompt)
+    writes.setCommandOp(this.client, id, command, vendor)
+  setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => writes.setPinnedOp(this.client, id, pinned)
+  moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => writes.moveTaskOp(this.client, id, delta)
+  setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => writes.setStatusOp(this.client, id, status)
+  setPrompt = (id: TaskId | string, prompt: string): Promise<void> => writes.setPromptOp(this.client, id, prompt)
   deleteTask = (id: TaskId | string, opts?: { force?: boolean; deleteBranch?: boolean }): Promise<void> =>
-    deleteTaskOp(this.client, id, opts)
+    writes.deleteTaskOp(this.client, id, opts)
   dismissAttention = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
-    dismissAttentionOp(this.client, taskId, tabId, at)
+    writes.dismissAttentionOp(this.client, taskId, tabId, at)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
-    markAttentionReadOp(this.client, taskId, tabId, at)
-  releaseDeferredPrompt = (id: string) => releaseDeferredPromptOp(this.client, id)
-  flushDeferredPrompts = () => flushDeferredPromptsOp(this.client)
+    writes.markAttentionReadOp(this.client, taskId, tabId, at)
+  releaseDeferredPrompt = (id: string) => writes.releaseDeferredPromptOp(this.client, id)
+  flushDeferredPrompts = () => writes.flushDeferredPromptsOp(this.client)
 
   /** Land a task's branch back into its base repo (`task.land`). Throws with a
    *  `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the message on the
    *  guarded failures so callers can print the conflicted files / re-prompt. */
-  landTask(id: TaskId | string, opts?: Parameters<typeof landTaskOp>[2]): ReturnType<typeof landTaskOp> {
-    return landTaskOp(this.client, id, opts)
+  landTask(id: TaskId | string, opts?: Parameters<typeof writes.landTaskOp>[2]): ReturnType<typeof writes.landTaskOp> {
+    return writes.landTaskOp(this.client, id, opts)
   }
 
   discoverAdoptableWorktrees(repo: string): Promise<readonly AdoptableWorktree[]> {
-    return discoverAdoptableWorktreesOp(this.client, repo)
+    return writes.discoverAdoptableWorktreesOp(this.client, repo)
   }
 
-  adoptWorktree(input: Parameters<typeof adoptWorktreeOp>[1]): Promise<Task> {
-    return adoptWorktreeOp(this.client, input)
+  adoptWorktree(input: Parameters<typeof writes.adoptWorktreeOp>[1]): Promise<Task> {
+    return writes.adoptWorktreeOp(this.client, input)
   }
 
   /** Every worktree of every local saved project — the standalone
    *  worktree-management TUI page (`worktree.list`). `network: false` =
    *  local-signals-only fast pass. */
   listWorktrees(opts?: { network?: boolean }): Promise<readonly WorktreeProject[]> {
-    return listWorktreesOp(this.client, opts)
+    return writes.listWorktreesOp(this.client, opts)
   }
 
   /** A repo's daemon-owned issues (`issue.list`) — the kanban page's read. */
   listIssues(repoRoot: string): Promise<RepoIssues> {
-    return listIssuesOp(this.client, repoRoot)
+    return writes.listIssuesOp(this.client, repoRoot)
   }
 
   /** One issue-store mutation (`issue.mutate`) — the kanban detail drawer's
    *  write path (link on start, setStatus for the project placement). */
   mutateIssue(repoRoot: string, op: unknown): Promise<RepoIssues> {
-    return mutateIssueOp(this.client, repoRoot, op)
+    return writes.mutateIssueOp(this.client, repoRoot, op)
   }
 
   // Automations, work items, field notes — terse forwarding; this file is at the cap.
-  listAutomations = () => listAutomationsOp(this.client)
-  createAutomation = (i: Parameters<typeof createAutomationOp>[1]) => createAutomationOp(this.client, i)
-  automationRuns = (id: string) => automationRunsOp(this.client, id)
-  setAutomationEnabled = (id: string, on: boolean) => setAutomationEnabledOp(this.client, id, on)
-  runAutomationNow = (id: string) => runAutomationNowOp(this.client, id)
-  deleteAutomation = (id: string) => deleteAutomationOp(this.client, id)
-  listWorkItems = (a: Parameters<typeof listWorkItemsOp>[1]) => listWorkItemsOp(this.client, a)
-  listFieldNotes = (repo: string) => listFieldNotesOp(this.client, repo)
+  listAutomations = () => writes.listAutomationsOp(this.client)
+  createAutomation = (i: Parameters<typeof writes.createAutomationOp>[1]) => writes.createAutomationOp(this.client, i)
+  automationRuns = (id: string) => writes.automationRunsOp(this.client, id)
+  setAutomationEnabled = (id: string, on: boolean) => writes.setAutomationEnabledOp(this.client, id, on)
+  runAutomationNow = (id: string) => writes.runAutomationNowOp(this.client, id)
+  deleteAutomation = (id: string) => writes.deleteAutomationOp(this.client, id)
+  listWorkItems = (a: Parameters<typeof writes.listWorkItemsOp>[1]) => writes.listWorkItemsOp(this.client, a)
+  listFieldNotes = (repo: string) => writes.listFieldNotesOp(this.client, repo)
   /** A PR's failing checks + log tails (`pr.failingChecks`). On demand only. */
-  failingChecks = (taskId: string) => failingChecksOp(this.client, taskId)
-  startWorkItem = (a: Parameters<typeof startWorkItemOp>[1]) => startWorkItemOp(this.client, a)
+  failingChecks = (taskId: string) => writes.failingChecksOp(this.client, taskId)
+  startWorkItem = (a: Parameters<typeof writes.startWorkItemOp>[1]) => writes.startWorkItemOp(this.client, a)
 
   /** Remove a worktree (`worktree.remove`); refuses a dirty one unless
    *  `force` is true — same safety property `GitWorktreeManager.remove`
    *  always had. */
   removeWorktree(path: string, force?: boolean): Promise<WorktreeResidue | null> {
-    return removeWorktreeOp(this.client, path, force)
+    return writes.removeWorktreeOp(this.client, path, force)
   }
 
   /**
@@ -493,7 +440,7 @@ export class RemoteOrchestrator {
    * pane + the outer monitor highlight the same task.
    */
   setActiveTask(id: TaskId | string | null): Promise<void> {
-    return setActiveTaskOp(this.client, id)
+    return writes.setActiveTaskOp(this.client, id)
   }
 
   // --- internals ---
