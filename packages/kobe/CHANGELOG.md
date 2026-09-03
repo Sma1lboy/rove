@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.94
+
+### Patch Changes
+
+- [#815](https://github.com/Sma1lboy/rove/pull/815) [`7bdb94e`](https://github.com/Sma1lboy/rove/commit/7bdb94eab0bf51b7fb07e4b620b4515d10cd14f4) Engine display names now come from one place. `humanizeSlug` was implemented twice (settings model and the daemon settings adapter) and `engineLabel` was a third derivation of the same answer; the registry-backed `engineDisplayName` in `engine/interactive-command.ts` owns it now, and the hard-coded `"claude"` fallbacks in the adapter and `add` handler read a named `DEFAULT_VENDOR`. No user-visible change — the daemon settings snapshot is byte-identical. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#812](https://github.com/Sma1lboy/rove/pull/812) [`18e6f81`](https://github.com/Sma1lboy/rove/commit/18e6f81215661c6852069ed9eb19d45a2c1da204) A tab that exits as the task's last one now comes back as the engine it was pinned to. Recycling used to hand back a bare first tab, so a tab you pointed at Codex respawned as the task's engine while still wearing the Codex conversation's title. It also reused `tab-1`, which let a recycled tab inherit a dead tab's Inbox episodes and its in-flight orphan suppression — ids are minted from the task's ordinal counter now, and are never reused. Separately, `ctrl+a` `w` closes the tab when there is no split, instead of being swallowed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.93
 
 ### Patch Changes
