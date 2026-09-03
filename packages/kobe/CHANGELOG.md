@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.92
+
+### Patch Changes
+
+- [#811](https://github.com/Sma1lboy/rove/pull/811) [`9007b59`](https://github.com/Sma1lboy/rove/commit/9007b593379d65888e80878a40766ee153d95e60) Every choose-one field in a dialog now renders through one shared chip row: New conversation's engine / destination / context, the engine picker's effort levels, the quick-task composer's engine, and the story drawer's engine and after-start rows join New task's mode and engine pickers. The three bespoke `▸`-marked text selectors are gone, and an architecture test rejects a new one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.91
 
 ### Patch Changes
