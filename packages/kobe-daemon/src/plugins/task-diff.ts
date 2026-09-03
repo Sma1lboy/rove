@@ -18,9 +18,9 @@
 
 import type { SerializedTask } from "../daemon/protocol.ts"
 
-/** Fields worth an event. Excluded on purpose: `position` (drag ordering
- *  noise), `updatedAt`/`createdAt` (ride every change), `quotaResume`
- *  (the quota.* events cover it), `deletion` (task.deleted covers it). */
+/** Fields worth an event. Excluded on purpose: `updatedAt`/`createdAt` (they
+ *  ride every change), `quotaResume` (the quota.* events cover it),
+ *  `deletion` (task.deleted covers it). */
 const WATCHED_FIELDS = [
   "title",
   "branch",

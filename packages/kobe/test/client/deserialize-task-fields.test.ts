@@ -9,9 +9,8 @@
  * passes through, so a field dropped here is invisible in the product even
  * though it persisted correctly AND arrived on the wire correctly.
  *
- * Seven fields were being dropped when this was written: `command`,
- * `position`, `observedLanguage`, `quotaResume`, `linkedWorkItem`, `prompt`,
- * `baseRef`. `command` was the load-bearing one — a task launched with
+ * Six fields were being dropped when this was written: `command`,
+ * `observedLanguage`, `quotaResume`, `linkedWorkItem`, `prompt`, `baseRef`. `command` was the load-bearing one — a task launched with
  * `add --command 'claude --dangerously-skip-permissions'` reached
  * `engineLaunchArgv` (`src/engine/engine-presets.ts`) with `command`
  * undefined, fell through its `if (!command)` guard, and launched the vendor
@@ -48,7 +47,6 @@ const FULL: DeepRequired<SerializedTask> = {
   vendor: "claude",
   command: "claude --dangerously-skip-permissions",
   observedLanguage: "zh",
-  position: 3.5,
   modelEffort: "high",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
   prStatus: {

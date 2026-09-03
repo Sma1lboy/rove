@@ -19,8 +19,8 @@ function task(extra: Partial<SerializedTask> = {}): SerializedTask {
 }
 
 describe("diffTask", () => {
-  it("returns null when nothing watched changed (updatedAt/position excluded)", () => {
-    expect(diffTask(task(), task({ updatedAt: "y", position: 3 }))).toBeNull()
+  it("returns null when nothing watched changed (updatedAt excluded)", () => {
+    expect(diffTask(task(), task({ updatedAt: "y" }))).toBeNull()
   })
 
   it("collects changed fields with from/to", () => {

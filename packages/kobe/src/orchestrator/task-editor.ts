@@ -210,24 +210,6 @@ export class TaskEditor {
   }
 
   /**
-   * Batch-assign web-board positions (docs/design/web-kanban.md M3).
-   * Positions are fractional ordering keys consumed ONLY by the web
-   * board's per-status columns; the TUI sidebar never reads them. Main
-   * rows are never board cards, so they're refused like moveTask.
-   * Validation is all-or-nothing: one bad entry fails the whole batch
-   * before anything persists.
-   */
-  async reorderTasks(moves: ReadonlyArray<{ readonly taskId: string; readonly position: number }>): Promise<void> {
-    if (moves.length === 0) return
-    for (const move of moves) {
-      const task = this.requireTask(move.taskId)
-      if (task.kind === "main") throw new Error(`cannot reorder a main task: ${move.taskId}`)
-      if (!Number.isFinite(move.position)) throw new Error(`position must be a finite number: ${move.taskId}`)
-    }
-    await this.store.reorder(moves.map((move) => ({ id: move.taskId, position: move.position })))
-  }
-
-  /**
    * Move a task between status states. The transitions are not
    * machine-enforced in v0.6 (the user does it from the sidebar) but
    * we still refuse `done` ↔ `error` flip-flops to surface bad code.
@@ -248,10 +230,18 @@ export class TaskEditor {
    * and it survives a daemon restart. No-op when nothing the UI renders
    * changed (the collector also pre-diffs, but guard here too so a redundant
    * call never churns a write + broadcast).
+   *
+   * `lastError` is checked separately because `samePrStatus` deliberately
+   * omits it — the collector needs that omission so a healthy PR does not
+   * churn a write every tick. But the sidebar chip renders the field (it
+   * mutes while a poll cannot reach the provider), so leaving it out of THIS
+   * guard makes the marker unwritable: every attempt to set or clear it looks
+   * like a redundant call and is dropped.
    */
   async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> {
     const task = this.requireTask(id)
-    if (samePrStatus(task.prStatus, prStatus ?? undefined)) return
+    const sameError = (task.prStatus?.lastError ?? null) === (prStatus?.lastError ?? null)
+    if (sameError && samePrStatus(task.prStatus, prStatus ?? undefined)) return
     await this.store.update(task.id, { prStatus: prStatus ?? undefined })
   }
 

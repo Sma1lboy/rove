@@ -349,53 +349,6 @@ export class TaskIndexStore {
     return next
   }
 
-  /**
-   * Batch-assign web-board `position` keys. Deliberately does NOT bump
-   * `updatedAt`: a board reorder is cosmetic placement, not task activity —
-   * bumping would shuffle the TUI's `recent` sort from a web-only move.
-   * One save + one listener notification for the whole batch, so N moves
-   * publish ONE task.snapshot.
-   */
-  async reorder(moves: ReadonlyArray<{ readonly id: TaskId | string; readonly position: number }>): Promise<void> {
-    this.assertLoaded()
-    // Resolve the whole batch BEFORE mutating: a missing id must fail with
-    // the cache untouched, not half-applied (the save below is all-or-none).
-    const resolved = moves.map((move) => {
-      const idx = this.cache.tasks.findIndex((t) => t.id === move.id)
-      const existing = idx >= 0 ? this.cache.tasks[idx] : undefined
-      if (!existing) throw new Error(`task not found: ${move.id}`)
-      return { idx, position: move.position }
-    })
-    let dirty = false
-    const before = new Map<number, Task>()
-    // Ids this call newly marked dirty (skip ones already pending), so a
-    // rollback removes exactly its own protection and nothing else.
-    const markedDirty: string[] = []
-    for (const { idx, position } of resolved) {
-      const existing = this.cache.tasks[idx]
-      if (!existing || existing.position === position) continue
-      if (!before.has(idx)) before.set(idx, existing)
-      this.cache.tasks[idx] = { ...existing, position }
-      if (!this.dirtyIds.has(existing.id)) {
-        this.dirtyIds.add(existing.id)
-        markedDirty.push(existing.id)
-      }
-      dirty = true
-    }
-    if (!dirty) return
-    try {
-      await this.save()
-    } catch (err) {
-      // A failed write must not leave the cache ahead of disk — the caller's
-      // rejection rolls the UI back, so a later unrelated save would silently
-      // resurrect the positions. Restore and rethrow.
-      for (const [idx, task] of before) this.cache.tasks[idx] = task
-      for (const id of markedDirty) this.dirtyIds.delete(id)
-      throw err
-    }
-    this.notifyListeners()
-  }
-
   async remove(id: TaskId | string): Promise<void> {
     this.assertLoaded()
     const idx = this.cache.tasks.findIndex((t) => t.id === id)

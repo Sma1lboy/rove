@@ -371,7 +371,7 @@ export class Orchestrator {
   }
 
   // In-place task-field edits (title / branch / engine / pinned / status /
-  // PR-status / move / reorder) live in the TaskEditor collaborator.
+  // PR-status / move) live in the TaskEditor collaborator.
   // Terse one-liners below on purpose: they are PURE forwarding, so anything
   // written here would be a second copy of a rule that lives on TaskEditor's
   // own methods — read them there. Same shape `remote-orchestrator.ts` uses
@@ -387,8 +387,6 @@ export class Orchestrator {
     this.editor.setCommand(id, command, vendor)
   setPinned = (id: TaskId | string, pinned?: boolean): Promise<void> => this.editor.setPinned(id, pinned)
   moveTask = (id: TaskId | string, delta: -1 | 1): Promise<void> => this.editor.moveTask(id, delta)
-  reorderTasks = (moves: ReadonlyArray<{ readonly taskId: string; readonly position: number }>): Promise<void> =>
-    this.editor.reorderTasks(moves)
   setStatus = (id: TaskId | string, status: TaskStatus): Promise<void> => this.editor.setStatus(id, status)
   setPRStatus = (id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> =>
     this.editor.setPRStatus(id, prStatus)

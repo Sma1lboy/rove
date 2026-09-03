@@ -2,7 +2,7 @@
  * Orchestrator mutation methods not exercised by the flow-specific suites
  * (adopt / ensure-worktree / branch-follow / main-task / active-task):
  * setVendor, setPinned, setStatus (incl. the done↔error refusal),
- * setPRStatus (incl. the no-op diff guard), moveTask, reorderTasks, and
+ * setPRStatus (incl. the no-op diff guard), moveTask, and
  * deleteTask's safety ladder (main-row refusal, dirty-worktree guard, force
  * override, remove-failure keeping the index entry).
  *
@@ -274,35 +274,6 @@ describe("moveTask", () => {
     const pinnedTop = orch.listTasks().map((t) => t.id)
     await orch.moveTask(mainB.id, -1)
     expect(orch.listTasks().map((t) => t.id)).toEqual(pinnedTop)
-  })
-})
-
-describe("reorderTasks", () => {
-  it("assigns board positions in one batch", async () => {
-    const a = await makeTask({ title: "a" })
-    const b = await makeTask({ title: "b" })
-    await orch.reorderTasks([
-      { taskId: String(a.id), position: 2 },
-      { taskId: String(b.id), position: 1 },
-    ])
-    expect(orch.getTask(a.id)?.position).toBe(2)
-    expect(orch.getTask(b.id)?.position).toBe(1)
-  })
-
-  it("is all-or-nothing: one bad entry fails the batch before anything persists", async () => {
-    const a = await makeTask({ title: "a" })
-    await expect(
-      orch.reorderTasks([
-        { taskId: String(a.id), position: 1 },
-        { taskId: String(a.id), position: Number.NaN },
-      ]),
-    ).rejects.toThrow(/finite/)
-    expect(orch.getTask(a.id)?.position).toBeUndefined()
-
-    const main = await makeMainTask()
-    await expect(orch.reorderTasks([{ taskId: String(main.id), position: 1 }])).rejects.toThrow(/main/)
-
-    await expect(orch.reorderTasks([])).resolves.toBeUndefined() // empty batch no-ops
   })
 })
 

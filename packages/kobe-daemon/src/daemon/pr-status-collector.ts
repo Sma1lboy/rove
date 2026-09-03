@@ -268,6 +268,28 @@ export interface PrStatusPassOptions {
 }
 
 /**
+ * Write (or clear) the reason the last poll failed on the task's LAST GOOD
+ * status. The chip keeps its value — a transient `gh` blip must not clobber a
+ * good reading — and gains a marker saying the value is no longer being
+ * refreshed. Returns whether anything was persisted.
+ *
+ * Nothing to mark when the task has no PR status: a staleness marker on a chip
+ * that is not drawn tells nobody anything.
+ *
+ * `samePrStatus` deliberately ignores `lastError`, so the poller's own diff can
+ * neither carry this write nor suppress it — the change check lives here, and
+ * it is what keeps a long outage from re-persisting and re-broadcasting on
+ * every backoff tick.
+ */
+async function setPrStaleMarker(orch: DaemonOrchestrator, taskId: string, error: string | undefined): Promise<boolean> {
+  const prev = orch.getTask(taskId)?.prStatus
+  if (!prev || prev.lastError === error) return false
+  const { lastError: _cleared, ...rest } = prev
+  await orch.setPRStatus(taskId, error === undefined ? rest : { ...rest, lastError: error })
+  return true
+}
+
+/**
  * Run one polling pass over every eligible task whose backoff has elapsed.
  * Returns the ids whose persisted status actually changed (for tests). Pure
  * orchestrator work — no timers, no `Date.now()`.
@@ -304,6 +326,8 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
           "pr-status-poller",
           `gh pr list failed (${result.error}) for task ${task.id} [${task.branch}] — keeping last PR status, backing off`,
         )
+        // The log alone left the chip claiming a fact nobody was refreshing.
+        if (await setPrStaleMarker(orch, task.id, result.error)) changed.push(task.id)
         opts.schedule.set(
           task.id,
           opts.runtime.prStatus.nextPoll({ kind: "error", error: result.error }, prevFailures, opts.now, cfg, rand),
@@ -312,7 +336,9 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       }
       if (result.kind === "empty") {
         // gh ran and there is genuinely no PR yet. Keep the last value; back off
-        // (a branch rarely sprouts a PR between ticks).
+        // (a branch rarely sprouts a PR between ticks). `gh` reaching the
+        // provider is what clears the stale marker, not the answer it gave.
+        if (await setPrStaleMarker(orch, task.id, undefined)) changed.push(task.id)
         opts.schedule.set(task.id, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
         continue
       }
@@ -324,7 +350,11 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
         opts.schedule.delete(task.id)
         continue
       }
-      if (!opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
+      // `sameStatus` ignores `lastError`, so an otherwise-identical status
+      // would leave a stale marker on a chip that just polled cleanly. `next`
+      // never carries one, so writing it IS the clear.
+      const wasStale = current.prStatus?.lastError !== undefined
+      if (wasStale || !opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
         await orch.setPRStatus(task.id, next)
         changed.push(task.id)
       }
@@ -338,6 +368,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       // The injected runner threw (the real one never does). Treat as a
       // transient error so it backs off rather than hammering.
       logDaemonError("pr-status-poller", err)
+      if (await setPrStaleMarker(orch, task.id, "network").catch(() => false)) changed.push(task.id)
       opts.schedule.set(
         task.id,
         opts.runtime.prStatus.nextPoll({ kind: "error", error: "network" }, prevFailures, opts.now, cfg, rand),

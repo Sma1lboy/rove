@@ -28,11 +28,13 @@
  * kind of thing that holds something the user still wants.
  */
 
+import path from "node:path"
 import type { ExecHost } from "../../exec/exec-host.ts"
 import { GitCommandError, type GitRunOpts, type GitRunResult } from "./git.ts"
 import { type BranchDeps, deleteBranchAnchored } from "./manager-branch.ts"
-import { isUnderManagedWorktreesRoot, requireAbsolute } from "./paths.ts"
+import { canonicalize, isUnderManagedWorktreesRoot, requireAbsolute } from "./paths.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
+import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
 /**
  * A directory a removal left behind after git had already deregistered the
@@ -73,6 +75,38 @@ export interface RemoveDeps {
   isDirty(worktreePath: string): Promise<boolean>
   /** Deps for the opt-in post-removal branch delete. */
   branchDeps(): BranchDeps
+}
+
+/**
+ * Whether `repo` still has a worktree registered at `worktreePath`.
+ *
+ * `rev-parse --git-common-dir` run from inside the path CANNOT answer this:
+ * git's discovery walks up parent directories, so a worktree nested inside its
+ * own repo resolves to that repo whether or not git still knows the worktree.
+ * Rove creates exactly that layout — every remote project
+ * (`<checkout>/.rove/worktrees/<slug>`) and every legacy repo-local root — so
+ * a deregistered nested worktree reads as "still registered" and every removal
+ * of it throws forever. `worktree list` asked of the OWNING repo is the direct
+ * answer, and the repo is the only place that holds it.
+ *
+ * git reports the canonical path (`/private/var/...` on macOS) while callers
+ * pass the form they were given, so both sides are canonicalized — locally
+ * only, since `realpath` on this host says nothing about a remote one.
+ */
+async function isRegisteredWorktree(
+  deps: RemoveDeps,
+  exec: ExecHost,
+  repo: string,
+  worktreePath: string,
+): Promise<boolean> {
+  const out = await deps.runGit(exec, ["worktree", "list", "--porcelain"], {
+    cwd: repo,
+    allowFail: true,
+    readOnly: true,
+  })
+  if (out.exitCode !== 0) return false
+  const same = (a: string, b: string) => (exec.isRemote ? a === b : canonicalize(a) === canonicalize(b))
+  return parseWorktreeListPorcelain(out.stdout).some((e) => e.path !== undefined && same(e.path, worktreePath))
 }
 
 /**
@@ -143,16 +177,24 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // Best-effort metadata prune — the directory may be gone but a stale
     // entry can survive in `.git/worktrees/`. `git worktree remove` will
     // refuse, so we use prune.
-    const goneRepo = await deps.findRepoFor(exec, worktreePath)
+    //
+    // Probed from the PARENT: git runs with `cwd` set to the path, and a
+    // spawn into a directory this branch just proved is missing returns
+    // exit -1 (`exec-host.ts`), so probing the path itself always answered
+    // null and this prune never ran.
+    const goneRepo = await deps.findRepoFor(exec, path.dirname(worktreePath))
     if (goneRepo) await deps.runGit(exec, ["worktree", "prune"], { cwd: goneRepo, allowFail: true })
     return
   }
 
   // Resolve the owning repo via `rev-parse --git-common-dir` from inside the
-  // worktree itself. This is the only reliable way to get back to the main
-  // repo when the caller hands us only the path.
+  // worktree itself — the only way back to the main repo when the caller hands
+  // us only a path. It answers WHICH repo, never whether this is a worktree of
+  // it: discovery walks up parents, so for a nested layout it answers about an
+  // ancestor.
   const repo = await deps.findRepoFor(exec, worktreePath)
-  if (!repo) {
+  // Ownership is REGISTRATION, not reachability — see {@link isRegisteredWorktree}.
+  if (repo === null || !(await isRegisteredWorktree(deps, exec, repo, worktreePath))) {
     // Checked BEFORE the orphan handling below, which shares this branch: a
     // deregistered worktree also has no reachable repo, but its own repo is
     // alive and the correct answer is to converge without touching a directory
@@ -165,6 +207,17 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // survives (macOS) that is answered here; where it does not (Linux) the
     // post-`rm -rf` check below answers it.
     if (await deregisteredWorktreeResidue(exec, worktreePath)) {
+      opts?.onResidue?.({ path: worktreePath, reason: "a previous removal deregistered the worktree" })
+      return
+    }
+    // A repo is reachable but has no worktree registered here. For a nested
+    // worktree that IS the deregistered shape on the platforms whose git
+    // unlinks the `.git` pointer before failing (Linux — where remote
+    // projects live), so the fingerprint above never matches and this is the
+    // only place the retry can converge. Reported, never deleted: the
+    // directory sits inside the user's own checkout, so the orphan branch's
+    // `rm -rf` must not reach it.
+    if (repo) {
       opts?.onResidue?.({ path: worktreePath, reason: "a previous removal deregistered the worktree" })
       return
     }
@@ -237,7 +290,7 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // code we already have. Still registered → nothing happened, throw the
     // error the caller has always seen. Gone → the deregistration landed and
     // only the directory is left.
-    if (await deps.findRepoFor(exec, worktreePath)) {
+    if (await isRegisteredWorktree(deps, exec, repo, worktreePath)) {
       throw new GitCommandError(args, repo, result)
     }
     opts?.onResidue?.({ path: worktreePath, reason: result.stderr.trim() || result.stdout.trim() || "unknown" })

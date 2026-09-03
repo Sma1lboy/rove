@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { DaemonActivityRegistry, type EngineStatePayload } from "@sma1lboy/kobe-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
-import { recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
+import { recordEngineExit, recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
 import { startPtyExitWatch } from "@sma1lboy/kobe-daemon/daemon/pty-exit-watch"
 import { afterEach, describe, expect, it } from "vitest"
 
@@ -166,5 +166,36 @@ describe("server wiring", () => {
     expect(call, "startPtyExitWatch call not found in server.ts").toBeDefined()
     expect(call).toMatch(/^\s*activity,\s*$/m)
     expect(call).toMatch(/^\s*inbox,\s*$/m)
+  })
+})
+
+describe("startPtyExitWatch with engine-layer records", () => {
+  it("fires an engine death exactly once, however many sweeps follow", async () => {
+    // `recordEngineExit` writes under `<key>#engine` while the record inside
+    // keeps the bare session key. Keying `seen` by `record.key` meant the
+    // prune test (`key in records`) missed — deleting the entry on the same
+    // sweep that created it — so every later sweep re-fired the same death:
+    // duplicate `session.exited` plugin events, and an Attention Inbox episode
+    // the user had already read popping back to unread.
+    const path = join(tmp(), "pty-exits.json")
+    const reports: { detail?: Record<string, unknown> }[] = []
+    const stop = startPtyExitWatch({ path, plugins: () => ({ handleUiReport: (r) => reports.push(r) }) })
+    try {
+      recordEngineExit(
+        { key: "task-1::tab-1", pid: 7, at: "2026-02-01T00:00:00.000Z", tail: "quota exhausted\n", vendor: "claude" },
+        path,
+      )
+      await waitFor(() => reports.length > 0)
+      expect(reports).toHaveLength(1)
+
+      // Any other write re-sweeps the whole file. The engine record is not new.
+      recordPtyExit(exitInfo("task-2::tab-9", "2026-02-01T00:01:00.000Z"), path)
+      await waitFor(() => reports.length > 1)
+      await new Promise((r) => setTimeout(r, 400))
+
+      expect(reports.filter((r) => r.detail?.key === "task-1::tab-1")).toHaveLength(1)
+    } finally {
+      stop()
+    }
   })
 })

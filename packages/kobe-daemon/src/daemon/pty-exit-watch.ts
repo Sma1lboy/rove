@@ -51,9 +51,16 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     // but cheap insurance against a future caller.)
     if (!host) return
     const records = readPtyExitRecords(path)
-    for (const record of Object.values(records)) {
-      if (seen.get(record.key) === record.at) continue
-      seen.set(record.key, record.at)
+    // Keyed by the STORE key, not `record.key`. The engine layer writes under
+    // `<session key>#engine` while the record inside still carries the bare
+    // session key, so keying by the latter both collides the pty and engine
+    // records for one tab and fails the prune test below — deleting the entry
+    // on the same sweep that created it, and re-firing the same death on every
+    // sweep forever (duplicate plugin events, an Attention Inbox episode that
+    // goes unread again each time anything else writes the file).
+    for (const [storeKey, record] of Object.entries(records)) {
+      if (seen.get(storeKey) === record.at) continue
+      seen.set(storeKey, record.at)
       host.handleUiReport({ kind: "session.exited", ...exitReport(record) })
       publishDeath(record)
     }
@@ -97,7 +104,7 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     onError: (err) => opts.log?.(`pty-exit watch: ${String(err)}`),
   })
   // Baseline: everything already on disk predates this daemon.
-  for (const record of Object.values(readPtyExitRecords(path))) seen.set(record.key, record.at)
+  for (const [storeKey, record] of Object.entries(readPtyExitRecords(path))) seen.set(storeKey, record.at)
   return stop
 }
 

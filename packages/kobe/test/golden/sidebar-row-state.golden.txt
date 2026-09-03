@@ -1522,12 +1522,18 @@ status=error         act=error              | main=0 title=fix the sidebar  glyp
 status=error         act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
 
 ## PR check chip
-checkState=<no prStatus>     chip=<none>
-checkState=none              chip=<none>
-checkState=unknown           chip=<none>
-checkState=passing           chip=✓ (success)
-checkState=failing           chip=✗ (error)
-checkState=pending           chip=• (warning)
+checkState=<no prStatus>     stale=0  chip=<none>
+checkState=<no prStatus>     stale=1  chip=<none>
+checkState=none              stale=0  chip=<none>
+checkState=none              stale=1  chip=<none>
+checkState=unknown           stale=0  chip=<none>
+checkState=unknown           stale=1  chip=<none>
+checkState=passing           stale=0  chip=✓ (success)
+checkState=passing           stale=1  chip=✓ (textMuted)
+checkState=failing           stale=0  chip=✗ (error)
+checkState=failing           stale=1  chip=✗ (textMuted)
+checkState=pending           stale=0  chip=• (warning)
+checkState=pending           stale=1  chip=• (textMuted)
 
 ## board status chip
 status=backlog               chip=<none>

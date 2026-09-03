@@ -352,9 +352,6 @@ function coerceTask(value: unknown): Task | null {
     // every daemon restart, silently dropping the user's own command line.
     ...(typeof v.command === "string" && v.command.trim().length > 0 ? { command: v.command } : {}),
     prStatus: coercePRStatus(v.prStatus),
-    // Web-board ordering key — must survive the load coercion or every
-    // daemon restart silently forgets the user's column order.
-    ...(typeof v.position === "number" && Number.isFinite(v.position) ? { position: v.position } : {}),
     // Engine reasoning/effort level — must survive the load coercion or the
     // task forgets its effort on every daemon restart.
     ...(typeof v.modelEffort === "string" && v.modelEffort.length > 0 ? { modelEffort: v.modelEffort } : {}),

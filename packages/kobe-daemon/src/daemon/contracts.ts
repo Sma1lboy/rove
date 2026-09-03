@@ -116,7 +116,6 @@ export interface DaemonTask {
    *  (`prompts/observed-language.ts`). Absent means English. */
   readonly observedLanguage?: ObservedLanguage
   readonly prStatus?: TaskPRStatus
-  readonly position?: number
   readonly modelEffort?: string
   readonly groupId?: string
   readonly deletion?: TaskDeletionState
@@ -221,7 +220,6 @@ export interface DaemonOrchestrator {
   setQuotaResume(id: string, state: TaskQuotaResumeState | null): Promise<void>
   /** Record the task brief (the delivered `add --prompt` text) on the task. */
   setPrompt(id: string, prompt: string): Promise<void>
-  reorderTasks(moves: ReadonlyArray<{ taskId: string; position: number }>): Promise<void>
   deleteTask(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<void>
   prepareTaskDeletion(id: string, options?: { force?: boolean; deleteBranch?: boolean }): Promise<boolean>
   beginTaskDeletion(id: string): Promise<boolean>
