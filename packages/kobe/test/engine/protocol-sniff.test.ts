@@ -16,6 +16,7 @@ import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
   protocolUpgradeFromLiveSession,
+  protocolWriteBackFromLiveSession,
   sniffProtocolFromSessions,
   sniffProtocolFromTitle,
 } from "../../src/engine/protocol-sniff.ts"
@@ -156,5 +157,76 @@ describe("protocolUpgradeFromLiveSession", () => {
     expect(protocolUpgradeFromLiveSession(generic, { walkVendor: null, title: "" })).toBeNull()
     // A walk verdict that is not a built-in identifies no protocol either.
     expect(protocolUpgradeFromLiveSession(generic, { walkVendor: "mystery-engine", title: "bash" })).toBeNull()
+  })
+})
+
+describe("protocolWriteBackFromLiveSession", () => {
+  // Same sandboxed state home as the record upgrade: the eligibility rule
+  // reads `engineProtocol.<id>` and the custom-engine registry, so the
+  // user's real presets must not decide the answer.
+  let home: string
+  let originalHome: string | undefined
+
+  function writeState(state: Record<string, unknown>): void {
+    const dir = join(home, ".config", "rove")
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, "state.json"), JSON.stringify(state), "utf8")
+  }
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), "kobe-protocol-writeback-"))
+    originalHome = process.env.KOBE_HOME_DIR
+    process.env.KOBE_HOME_DIR = home
+    writeState({})
+  })
+
+  afterEach(() => {
+    if (originalHome === undefined) {
+      // biome-ignore lint/performance/noDelete: the var must be truly unset when it started unset.
+      delete process.env.KOBE_HOME_DIR
+    } else process.env.KOBE_HOME_DIR = originalHome
+    rmSync(home, { recursive: true, force: true })
+  })
+
+  const registered = ["wrap"]
+
+  it("names a registered wrapper preset from the built-in the walk found", () => {
+    // No pinned `command` — the shape a preset-launched task actually has,
+    // and the one the record upgrade refuses.
+    expect(protocolWriteBackFromLiveSession({ vendor: "wrap" }, { walkVendor: "claude", title: "zsh" }, registered)) //
+      .toEqual({ id: "wrap", protocol: "claude" })
+  })
+
+  it("refuses a preset that already declares its protocol", () => {
+    writeState({ customEngineIds: registered, "engineProtocol.wrap": "codex" })
+    expect(
+      protocolWriteBackFromLiveSession({ vendor: "wrap" }, { walkVendor: "claude", title: "✳ x" }, registered),
+    ).toBeNull()
+  })
+
+  it("refuses a built-in, which IS its own protocol", () => {
+    expect(
+      protocolWriteBackFromLiveSession({ vendor: "claude" }, { walkVendor: "codex", title: "⠹ x" }, registered),
+    ).toBeNull()
+  })
+
+  it("refuses an id that is not a registered preset — the durability bar", () => {
+    // A one-off `--command` string must never mint a persistent
+    // `engineProtocol.<id>` key.
+    expect(
+      protocolWriteBackFromLiveSession({ vendor: "one-off" }, { walkVendor: "claude", title: "✳ x" }, registered),
+    ).toBeNull()
+  })
+
+  it("refuses a title glyph — this key outlives the session, so only the walk counts", () => {
+    expect(
+      protocolWriteBackFromLiveSession({ vendor: "wrap" }, { walkVendor: null, title: "✳ refactoring" }, registered),
+    ).toBeNull()
+  })
+
+  it("refuses a walk verdict that is not a built-in", () => {
+    expect(
+      protocolWriteBackFromLiveSession({ vendor: "wrap" }, { walkVendor: "mystery-engine", title: "zsh" }, registered),
+    ).toBeNull()
   })
 })
