@@ -1,11 +1,17 @@
 /**
  * The web transport's bearer token, as the browser sees it.
  *
- * The daemon serves index.html and rewrites a `<meta name="rove-web-token">`
- * into the head on the way out, so the token arrives with the page rather
- * than over a separate fetch. There is no endpoint to ask for it: an endpoint
- * reachable before the SPA holds a token would have to be unauthenticated,
- * which is the exact hole the token exists to close.
+ * The daemon rewrites a `<meta name="rove-web-token">` into index.html for a
+ * request that ALREADY presented the token — the `?token=` on the URL `rove
+ * web` prints. It will not mint one for an anonymous caller, because `/` is
+ * ungated (a browser cannot attach a header to the subresources it fetches
+ * itself) and injecting there handed the credential to any `curl`.
+ *
+ * So the meta tag only appears on the entry navigation. `sessionStorage`
+ * carries it from there: an in-app route change drops the query, and a reload
+ * of `/board` would otherwise arrive with neither channel. Per-tab and
+ * per-origin, so it is scoped to this browser profile — the local user who
+ * cannot read the 0600 token file cannot read this either.
  *
  * Read once, but LAZILY on first use rather than at import: this module is
  * pulled in by `api-client.ts`, which unit tests import under node with no
@@ -18,12 +24,37 @@
  * nothing injects the tag. `VITE_ROVE_WEB_TOKEN` covers that case; without
  * either, requests go out bare and the daemon answers 401 with a hint.
  */
+const STORAGE_KEY = "rove-web-token"
+
+/** Storage throws outright in a few configurations (Safari private mode,
+ *  third-party-cookie blocking), and a dead dashboard is a worse outcome than
+ *  re-opening the printed URL — so every access is best-effort. */
+function remembered(): string {
+  try {
+    return sessionStorage.getItem(STORAGE_KEY)?.trim() ?? ""
+  } catch {
+    return ""
+  }
+}
+
+function remember(token: string): void {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, token)
+  } catch {
+    /* storage unavailable — the token still works for this page load */
+  }
+}
+
 function readToken(): string {
-  const injected =
-    typeof document === "undefined"
-      ? undefined
-      : document.querySelector('meta[name="rove-web-token"]')?.getAttribute("content")?.trim()
-  if (injected) return injected
+  if (typeof document !== "undefined") {
+    const injected = document.querySelector('meta[name="rove-web-token"]')?.getAttribute("content")?.trim()
+    if (injected) {
+      remember(injected)
+      return injected
+    }
+    const saved = remembered()
+    if (saved) return saved
+  }
   return (import.meta.env?.VITE_ROVE_WEB_TOKEN as string | undefined)?.trim() ?? ""
 }
 

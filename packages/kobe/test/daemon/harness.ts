@@ -108,7 +108,9 @@ export interface DaemonHarnessOptions {
   /** Env vars to set for the daemon's lifetime; restored on `close()`. */
   env?: Record<string, string>
   /** Also build the web request handler (see module doc). */
-  web?: boolean | { allowedHost?: string; webToken?: string; snapshot?: () => DaemonWebSnapshotState }
+  web?:
+    | boolean
+    | { allowedHost?: string; webToken?: string; staticDir?: string; snapshot?: () => DaemonWebSnapshotState }
 }
 
 export interface DaemonHarness {
@@ -195,6 +197,7 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
       sseSends,
       allowedHost: webOpts.allowedHost,
       webToken: webOpts.webToken,
+      staticDir: webOpts.staticDir,
       // Injected recorder instead of the real tearDownTaskSession: the real
       // one reaches for PTY-sidecar state this fixture never creates.
       tearDownSession: (taskId) => tornDownSessions.push(taskId),
