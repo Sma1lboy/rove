@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.106
+
+### Patch Changes
+
+- [#846](https://github.com/Sma1lboy/rove/pull/846) [`5385bd0`](https://github.com/Sma1lboy/rove/commit/5385bd08375a6ea4324dc77c9ac5c4d2a6103934) The wrapper-preset continuation tests isolate the kv store, so a machine whose daemon has already learned `engineProtocol.claudecpa` no longer fails them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.105
 
 ### Patch Changes
