@@ -70,7 +70,7 @@ async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: Ver
 
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requirePath("repo"))
+  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   if (count !== undefined || agentsSpec) return addParallel(ctx, repo, count, agentsSpec)

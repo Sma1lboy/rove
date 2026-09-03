@@ -14,7 +14,7 @@
  */
 
 import { execFile } from "node:child_process"
-import { realpath } from "node:fs/promises"
+import { realpath, stat } from "node:fs/promises"
 import { isAbsolute, resolve } from "node:path"
 import { promisify } from "node:util"
 
@@ -39,4 +39,25 @@ export async function gitMainWorktree(path: string): Promise<string | null> {
     ?.slice("worktree ".length)
     .trim()
   return first ? await realpath(first) : null
+}
+
+/** The working tree's top level — the fallback root when no worktree line exists. */
+export async function gitTopLevel(path: string): Promise<string> {
+  const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--show-toplevel"])
+  return stdout.trim()
+}
+
+/**
+ * The shared half of both repo-keyed stores' `resolveRepo`: validate the path
+ * is a directory, then derive both identities in one round trip. `repoRoot` is
+ * null exactly when `git worktree list` printed no worktree line — the stores
+ * disagree on what that means (issues falls back to {@link gitTopLevel}, notes
+ * refuses), so the policy stays with them.
+ */
+export async function resolveRepoRoot(raw: string): Promise<{ repoRoot: string | null; repoKey: string }> {
+  const absolute = resolve(raw)
+  const s = await stat(absolute).catch(() => null)
+  if (!s?.isDirectory()) throw new Error("repoRoot does not exist")
+  const [repoRoot, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
+  return { repoRoot, repoKey }
 }

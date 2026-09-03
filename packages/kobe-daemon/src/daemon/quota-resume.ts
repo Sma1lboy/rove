@@ -139,6 +139,10 @@ export function startQuotaResumeRunner(
   now: () => number = Date.now,
   plugins?: () => Pick<PluginHost, "handleUiReport"> | null,
 ): () => void {
+  // `collectors.ts` reads the tick with `??`, which does NOT replace a 0, so
+  // without this the documented "0 disables it" gives setInterval(fn, 0) — a
+  // ~1000 Hz sweep of the whole task index. Every sibling collector guards it.
+  if (tickMs <= 0) return () => {}
   let sweeping = false
   const sweep = async (): Promise<void> => {
     if (sweeping) return

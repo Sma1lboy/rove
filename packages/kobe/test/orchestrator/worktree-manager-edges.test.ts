@@ -37,7 +37,10 @@ beforeAll(() => {
   // of the developer's own `~/.rove`.
   previousHome = process.env.KOBE_HOME_DIR
   process.env.KOBE_HOME_DIR = root
-  managedRoot = join(root, ".rove", "worktrees")
+  // `<worktrees-root>/<repo-key>/<slug>` — the shape `worktreePathFor`
+  // actually creates, and the only one `isUnderManagedWorktreesRoot`
+  // accepts as authorization to delete outright.
+  managedRoot = join(root, ".rove", "worktrees", "repo-0123456789ab")
   mkdirSync(managedRoot, { recursive: true })
   repo = join(root, "repo")
   mkdirSync(repo)
@@ -108,6 +111,21 @@ describe("remove() / currentBranch() edges", () => {
 
     await expect(manager.remove(wt)).rejects.toThrow(/is not a git worktree/)
     expect(existsSync(wt)).toBe(true)
+  })
+
+  it("remove({force}) refuses a sibling project sitting directly under the worktrees root", async () => {
+    // A user who points Settings → Worktree location at `~` or `~/code` makes
+    // the root an ancestor of every project they own. Depth is what separates
+    // "Rove made this" from "the user's checkout happens to live below the
+    // root": Rove only ever creates `<root>/<repo-key>/<slug>`, so a directory
+    // one level down is somebody else's, and force is not permission to
+    // `rm -rf` it.
+    const sibling = join(root, ".rove", "worktrees", "my-other-project")
+    mkdirSync(sibling, { recursive: true })
+    writeFileSync(join(sibling, "important.txt"), "not rove's")
+
+    await expect(manager.remove(sibling, { force: true })).rejects.toThrow(/not under a Rove worktrees root/)
+    expect(existsSync(join(sibling, "important.txt"))).toBe(true)
   })
 
   it("remove({force}) refuses an orphaned directory outside the managed roots", async () => {

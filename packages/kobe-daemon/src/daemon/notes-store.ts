@@ -17,8 +17,8 @@ import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
-import { writeJsonAtomic } from "./json-file.ts"
-import { gitCommonDir, gitMainWorktree } from "./repo-key.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
+import { resolveRepoRoot } from "./repo-key.ts"
 
 /** Newest-N kept per repo. Older notes are dropped on write. */
 export const NOTES_RETENTION_CAP = 50
@@ -61,12 +61,9 @@ function normalizeNote(entry: unknown): FieldNote | null {
 }
 
 async function resolveRepo(raw: string): Promise<{ repoRoot: string; repoKey: string }> {
-  const absolute = resolve(raw)
-  const s = await stat(absolute).catch(() => null)
-  if (!s?.isDirectory()) throw new Error("repoRoot does not exist")
-  const [main, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
-  if (!main) throw new Error("repoRoot is not a git repository")
-  return { repoRoot: main, repoKey }
+  const { repoRoot, repoKey } = await resolveRepoRoot(raw)
+  if (!repoRoot) throw new Error("repoRoot is not a git repository")
+  return { repoRoot, repoKey }
 }
 
 async function readStore(path: string): Promise<NotesStoreFile> {
@@ -92,37 +89,19 @@ async function readStore(path: string): Promise<NotesStoreFile> {
   }
 }
 
-const locks = new Map<string, Promise<unknown>>()
-
-/** Serialize read-modify-write on the shared file — same rationale (and the
- *  same whole-file contention unit) as the issue store's lock. */
-async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const tail = locks.get(key) ?? Promise.resolve()
-  const run = tail.then(fn)
-  const settled = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  locks.set(key, settled)
-  void settled.then(() => {
-    if (locks.get(key) === settled) locks.delete(key)
-  })
-  return run
-}
-
 export class NotesStore {
   constructor(private readonly path = defaultNotesStorePath()) {}
 
   /** Newest-first notes for a repo; empty for a repo that never filed one. */
   async list(repo: string): Promise<readonly FieldNote[]> {
     const { repoKey } = await resolveRepo(repo)
-    return withLock(this.path, async () => (await readStore(this.path)).repos[repoKey]?.notes ?? [])
+    return serialized(this.path, async () => (await readStore(this.path)).repos[repoKey]?.notes ?? [])
   }
 
   /** Append one note, newest-first, evicting past {@link NOTES_RETENTION_CAP}. */
   async append(repo: string, note: FieldNote): Promise<void> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
-    await withLock(this.path, async () => {
+    await serialized(this.path, async () => {
       const store = await readStore(this.path)
       const record = store.repos[repoKey] ?? { repoRoot, notes: [] }
       record.repoRoot = repoRoot

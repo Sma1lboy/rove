@@ -105,7 +105,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "automation.create", {
-        repo: ctx.args.requirePath("repo"),
+        repo: ctx.args.requireRepo("repo"),
         name: ctx.args.require("name"),
         prompt: requirePromptText(ctx, "routine-create"),
         schedule: ctx.args.require("schedule"),

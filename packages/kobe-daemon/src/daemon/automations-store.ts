@@ -21,7 +21,7 @@ import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
-import { writeJsonAtomic } from "./json-file.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 /** Per-automation run history cap. The whole document is re-serialized on every
  *  write, so an unbounded log makes each save permanently slower. */
@@ -177,7 +177,6 @@ export function pruneRuns(
 export class AutomationsStore {
   private automations: Automation[] = []
   private runs: AutomationRun[] = []
-  private tail: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly path: string,
@@ -343,11 +342,6 @@ export class AutomationsStore {
 
   /** Serialize mutations so concurrent RPC/sweep writes cannot clobber the file. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(operation)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, operation)
   }
 }

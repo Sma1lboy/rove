@@ -1,0 +1,5 @@
+---
+"@sma1lboy/rove": patch
+---
+
+Internal: four daemon-side leaks and one missing plugin event. `quotaResumeTickMs: 0` now disables the quota-resume sweep like it does for every sibling collector — `collectors.ts` merges with `??`, which does not replace a `0`, so the documented "off" value gave `setInterval(fn, 0)`, a ~1000 Hz sweep of the whole task index. The PR-status poller's per-task backoff map only ever dropped entries for tasks still in `listTasks()`, so a deleted task's entry had no exit at all. The web server registered its event-bus sink above the token write and the `Bun.serve` bind, so a lost port race left an orphaned closure the bus kept calling for the daemon's whole lifetime — once per restart that lost the race; it subscribes after the bind now. `probeWebPort`'s response body has been unused since the marker comparison was removed. And a background-appended engine tab now reports `tab.opened`, so a plugin tracking open panes no longer sees the eventual `tab.closed` as the first news of it.

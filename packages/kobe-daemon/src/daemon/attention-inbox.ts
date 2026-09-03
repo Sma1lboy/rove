@@ -23,7 +23,7 @@ import {
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
-import { writeJsonAtomic } from "./json-file.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 interface AttentionInboxFile {
   readonly version: 1
@@ -92,7 +92,6 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
-  private tail: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly path: string,
@@ -270,13 +269,9 @@ export class AttentionInboxStore {
     await this.deleteTask(taskId).catch((err) => logDaemonError("attention-inbox-task-delete", err))
   }
 
+  /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(operation)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, operation)
   }
 
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */

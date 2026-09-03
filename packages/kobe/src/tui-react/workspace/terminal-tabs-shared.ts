@@ -383,5 +383,9 @@ export function appendBackgroundEngineTab(
   }
   setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
+  // A real open, not a mount-time restore: without this the tab's eventual
+  // `tab.closed` (terminal-tabs-close.ts) is the first a plugin ever hears of
+  // it, and anything counting open panes underflows.
+  reportTabsDelta(taskId, state.tabs, next.tabs)
   return { state: next, tab }
 }

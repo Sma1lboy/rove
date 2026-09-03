@@ -307,7 +307,15 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     jitterRatio: PR_POLL_JITTER_RATIO,
   }
   const changed: string[] = []
-  for (const task of orch.listTasks()) {
+  const tasks = orch.listTasks()
+  // Drop entries for tasks that are GONE, not merely ineligible. The delete
+  // below only fires for ids still in `listTasks()`, so a deleted task's entry
+  // had no exit at all — unbounded over a long-lived daemon.
+  const live = new Set(tasks.map((task) => task.id))
+  for (const id of opts.schedule.keys()) {
+    if (!live.has(id)) opts.schedule.delete(id)
+  }
+  for (const task of tasks) {
     if (!isPrPollable(task)) {
       opts.schedule.delete(task.id) // forget backoff for now-ineligible tasks
       continue

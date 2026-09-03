@@ -306,30 +306,39 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     clients,
     async close() {
       lifetime.markStopping()
-      unsubscribeStore()
-      webServer?.close()
-      webServer = null
-      stopCollectors()
-      ptyHold.stop()
-      stopPtyExitWatch()
-      // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
-      await pluginHost?.stop()
-      prompts.clear()
-      tabCloses.clear()
-      activity.close()
-      // Hosted PTYs are deliberately NOT touched here: they live in the
-      // standalone `kobe pty-host` process, so `kobe daemon restart` never
-      // ends a running engine session — only `kobe reset` does.
-      // Task sessions are intentionally untouched here: closing the daemon
-      // never tears them down. Session teardown lives ONLY in `kobe reset` /
-      // `kobe kill-sessions`. Keep it that way.
-      broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
-      for (const client of Array.from(clients)) {
-        client.socket.destroy()
+      // Release in a `finally`: a throw between the halves used to strand a
+      // zombie — `stopping` latched and the internals gone, but the socket and
+      // pidfile still on disk answering `hello`. `pluginHost.stop()` throws
+      // (its `run` spawns outside the inner promise).
+      try {
+        unsubscribeStore()
+        webServer?.close()
+        webServer = null
+        stopCollectors()
+        ptyHold.stop()
+        stopPtyExitWatch()
+        // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
+        await pluginHost?.stop()
+        prompts.clear()
+        tabCloses.clear()
+        activity.close()
+      } catch (err) {
+        logDaemonError("daemon-shutdown", err)
+      } finally {
+        // Hosted PTYs are deliberately NOT touched here: they live in the
+        // standalone `kobe pty-host` process, so `kobe daemon restart` never
+        // ends a running engine session — only `kobe reset` does.
+        // Task sessions are intentionally untouched here: closing the daemon
+        // never tears them down. Session teardown lives ONLY in `kobe reset` /
+        // `kobe kill-sessions`. Keep it that way.
+        broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
+        for (const client of Array.from(clients)) {
+          client.socket.destroy()
+        }
+        // Ownership-aware teardown: a superseded daemon must neither close the
+        // listener nor unlink files another daemon owns — see socket-guard.ts.
+        await sockGuard.release(server)
       }
-      // Ownership-aware teardown: a superseded daemon must neither close the
-      // listener nor unlink files another daemon owns — see socket-guard.ts.
-      await sockGuard.release(server)
     },
   }
 
@@ -347,7 +356,14 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   async function stopSoon(): Promise<void> {
     if (lifetime.isStopping()) return
     lifetime.markStopping()
-    await options.onStop?.()
+    try {
+      await options.onStop?.()
+    } catch (err) {
+      // The latch is set, so nothing re-arms the idle timer: a stop hook that
+      // took the close below with it left the daemon outliving every request
+      // to stop it — idle, takeover and `rove daemon stop` all route here.
+      logDaemonError("daemon-stop-hook", err)
+    }
     setTimeout(() => {
       serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))
     }, 0).unref()

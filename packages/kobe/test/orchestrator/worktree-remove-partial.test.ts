@@ -68,7 +68,10 @@ beforeAll(() => {
   // managed root — the one place the orphan branch would delete it.
   previousHome = process.env.KOBE_HOME_DIR
   process.env.KOBE_HOME_DIR = root
-  managedRoot = join(root, ".rove", "worktrees")
+  // `<worktrees-root>/<repo-key>/<slug>` — the shape `worktreePathFor`
+  // actually creates, and the only one `isUnderManagedWorktreesRoot`
+  // accepts as authorization to delete outright.
+  managedRoot = join(root, ".rove", "worktrees", "repo-0123456789ab")
   mkdirSync(managedRoot, { recursive: true })
   repo = join(root, "repo")
   mkdirSync(repo)

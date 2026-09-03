@@ -31,7 +31,7 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   if (title === undefined && body === undefined && task === undefined) {
     throw new ApiError("issue-update requires --title, --body, and/or --task", "MISSING_FLAG")
   }
-  const repoRoot = ctx.args.requirePath("repo")
+  const repoRoot = ctx.args.requireRepo("repo")
   const id = ctx.args.int("id")
   let result: unknown
   if (title !== undefined || body !== undefined) {
@@ -429,7 +429,7 @@ export async function adopt(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
   const input: Record<string, string> = {
-    repo: args.requirePath("repo"),
+    repo: args.requireRepo("repo"),
     worktreePath: args.requirePath("worktree"),
   }
   const branch = args.str("branch")

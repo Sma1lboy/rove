@@ -76,7 +76,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     group: "drive",
     summary: "Read a repo's accumulated field notes, newest first. Returns { notes }.",
     flags: [F.repo(true)],
-    handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requirePath("repo") }),
+    handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requireRepo("repo") }),
   },
   PANE_VERB,
   PANE_CLOSE_VERB,
