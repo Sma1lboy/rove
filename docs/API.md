@@ -470,7 +470,7 @@ attached. Walkthrough: [Routines](ROUTINES.md). Mechanics:
 [design/automations.md](./design/automations.md).
 
 - `routine-list`: every routine with its next run time.
-- `routine-create --repo PATH --name N --prompt TEXT --schedule CRON
+- `routine-create --repo PATH --name N (--prompt TEXT | --prompt-file PATH) --schedule CRON
   [--vendor V] [--base-branch B] [--precheck CMD] [--precheck-timeout SEC]
   [--grace MIN] [--persistent-session] [--disabled]`: schedule a prompt. `--schedule` is five-field
   cron in the daemon host's local time (`"0 9 * * MON-FRI"`).

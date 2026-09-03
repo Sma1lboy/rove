@@ -64,6 +64,7 @@ retired worktree-sync hook was once installed so the next launch (or
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
+| `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | What one tap of the prefix key shows: `local` a hint beside the focused pane, `guide` the full keyboard guide |
 
 Turning keyboard hints back on relights the first-use pane hints you'd
 already dismissed.
@@ -179,6 +180,12 @@ between that persisted order and most-recently-touched; the choice is saved
 as `activeSortMode` and read back on startup. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
+
+### Delivery
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `delivery.composerGate` | boolean | `true` | The screen-based check that runs before a peer or `rove api` prompt is written into an engine: a composer holding half-typed text defers the prompt to your Inbox instead of pasting over it. Turning this **off removes that safety check** — deliveries land unconditionally, and a message you were mid-way through typing can be interleaved with one |
 
 ### Experimental
 

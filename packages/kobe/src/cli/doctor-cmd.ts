@@ -13,6 +13,7 @@ import {
   defaultPtyHostPidPath,
   defaultPtyHostSocketPath,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { isForeignDaemonHome } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
@@ -221,6 +222,15 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
       out.push(`         → run \`${CLI_NAME} daemon restart\`, then relaunch Rove`)
       fixes.push(daemonRestartFix(CLI_NAME, "daemonStale"))
     } else if (version) out.push(`         build: v${version}`)
+    // A daemon serving a DIFFERENT state root than this CLI reads is the
+    // "my tasks vanished" symptom: a sandbox/dev daemon that inherited the
+    // production socket path answers with an empty index, and every read
+    // below it is honest about the wrong home. The TUI already rejects this
+    // (protocol.isForeignDaemonHome); doctor is where a user finds out why.
+    if (isForeignDaemonHome(typeof daemon.homeDir === "string" ? daemon.homeDir : undefined, homeDir())) {
+      out.push(`         ⚠ foreign home: daemon serves ${String(daemon.homeDir)}, you are reading ${homeDir()}`)
+      out.push(`         → clear ROVE_HOME_DIR/KOBE_HOME_DIR, then \`${CLI_NAME} daemon restart\``)
+    }
     // Hook channel: hooks are the only sub-second path to the badge, and
     // they fail SILENTLY (`kobe hook` swallows everything by contract), so
     // a dead channel reads as a merely sluggish UI. Read-only — the verdict
@@ -324,7 +334,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   out.push(`tasks.json: ${describeFile(tasksPath)}${count === null ? "" : ` — ${count} task(s)`}`)
   out.push(`state.json: ${describeFile(statePath)}`)
   out.push(`daemon.log: ${describeFile(daemonLog)}`)
-  out.push(`pty-host.log: ${describeFile(ptyLog)}`)
+  out.push(`pty.log: ${describeFile(ptyLog)}`)
   return { lines: out, fixes }
 }
 

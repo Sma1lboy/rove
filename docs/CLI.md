@@ -94,13 +94,13 @@ Commands:
   api <verb>              Scriptable RPC surface for agents (see `rove api --help`)
   daemon <verb>           Manage the daemon (start|stop|status|restart)
   doctor [--report|--fix] Diagnose daemon/PTY/engines/git; --fix walks the remedies
-  config [--path]         Open Rove's config file (state.json) in your editor
+  config [--path]         Open rove's config file (state.json) in your editor
   reset [--hard]          Stop runtimes; optionally wipe task/UI state
   theme <verb>            Manage user themes (list|add|remove)
-  skill <verb>            Install the Rove agent skill (install|status|command|print)
+  skill <verb>            Install the rove agent skill (install|status|command|print)
   plugin <verb>           Install and run plugins (install|link|list|action|…)
   feedback                Send feedback to GitHub Discussions
-  update [version|channel|list]   Self-update Rove, switch channel, or list versions
+  update [version|channel|list]   Self-update rove, switch channel, or list versions
 
 Options:
   -v, --version           Print version
@@ -301,9 +301,10 @@ Changes apply to a running daemon without a restart. Writing one:
 rove doctor [--report] [--fix]
 ```
 
-Read-only check of your build, terminal, git, engine CLIs and logins, daemon,
-running sessions, node-pty's macOS `spawn-helper` exec bit, agent skill, and
-state files. The terminal section names
+Read-only check of your build (including install integrity and a stale bundled
+Bun), terminal, git, engine CLIs and logins, the engine hook channel, daemon,
+running sessions, leftover pre-v0.8 tmux sessions, node-pty's macOS
+`spawn-helper` exec bit, agent skill, and state files. The terminal section names
 `TERM`/`TERM_PROGRAM`/`COLORTERM`, whether you are inside a multiplexer (tmux,
 zellij, screen — all three rewrite keys on the way in), and asks the terminal
 live whether it speaks the kitty keyboard protocol. That last answer settles
@@ -340,7 +341,7 @@ rove reset [--hard] [--yes]
 Recovers a wedged install: stops the daemon and the PTY host (ending all
 background sessions), and also stops any pre-v0.8 tmux sessions the retired
 runtime left behind. **Never touches git worktrees.** `--hard` also deletes
-your task index and UI state. Asks for confirmation unless `--yes`.
+your task index and UI state. Asks for confirmation unless `--yes` (`-y`).
 
 ## daemon
 
@@ -381,8 +382,9 @@ Not in `--help`, listed so they aren't a mystery if you see them:
   settings-managed hooks from `~/.claude/settings.json` after the Claude Code
   plugin takes over (see
   [Configuration → Claude Code plugin](CONFIGURATION.md#claude-code-plugin)),
-  and **`rove hook setup`** is a deprecated no-op kept so old instructions
-  fail loud instead of silently.
+  and **`rove hook setup`** is deprecated and now performs cleanup only: it
+  removes the legacy `WorktreeCreate` sync hook, sets `externalWorktreeSync`
+  to `off`, prints what it did, and exits 0.
 
 ## Exit codes
 

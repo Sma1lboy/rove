@@ -148,7 +148,7 @@ torn down and the Inbox/activity state cleared, but the worktree directory and
 the task entry remain, and the task is left in `deletion.phase === "error"`
 (the sidebar row shows it). Delete it again once you have fixed whatever the
 reason names — a common one is a worktree directory that is no longer a git
-worktree, which `rove doctor` also reports.
+worktree, which `git -C <path> rev-parse --is-inside-work-tree` confirms.
 
 (Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
 directory; runtime files now live under `~/.rove`, with legacy paths honoured
@@ -387,7 +387,7 @@ an old Homebrew bin) is still being launched somewhere.
 
 ```bash
 rove --version        # every entry point should report the same version
-rove doctor           # reports version mismatches and duplicate runtimes
+rove doctor           # reports version mismatches between the CLI and the daemon
 rove daemon restart   # rebinds on the canonical ~/.rove paths
 ```
 
