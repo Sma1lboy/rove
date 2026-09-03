@@ -2,7 +2,7 @@
 
 const LEGACY_TMUX_SOCKET = "kobe"
 
-interface CommandResult {
+export interface CommandResult {
   code: number
   stdout: string
   stderr: string
@@ -60,8 +60,32 @@ function commandFailure(label: string, result: CommandResult): string {
   return `${label} failed: ${result.stderr.trim() || `exit ${result.code}`}`
 }
 
-function isMissingServer(result: CommandResult): boolean {
-  return /no server running|failed to connect to server|no sessions/i.test(`${result.stdout}\n${result.stderr}`)
+/**
+ * Whether a failed `tmux list-sessions` means "there is no legacy server" —
+ * the healthy answer on every machine that never ran pre-v0.8 Rove — rather
+ * than "the inspection itself broke", which `rove doctor` renders as a red ✗.
+ *
+ * tmux exits 1 for both, and offers no machine-readable distinction, so this
+ * matches on its message. The four phrasings below are the ways it says the
+ * server is not there:
+ *
+ *   no server running on <path>            server never started (socket present)
+ *   error connecting to <path> (…)         socket ABSENT (ENOENT) or stale
+ *                                          (ECONNREFUSED) — tmux 3.5's wording
+ *                                          for a machine that never ran Rove
+ *   failed to connect to server            older tmux
+ *   no sessions                            server up, nothing in it
+ *
+ * `error connecting to` was the missing one, so a brand-new install — the
+ * healthiest possible machine — reported a ✗ every time. Adding a phrasing is
+ * the whole mechanism tmux gives us; deriving the socket path ourselves and
+ * stat-ing it would trade this false ✗ for a worse failure, since a wrong
+ * guess would report "no sessions" while real ones were running.
+ */
+export function isMissingServer(result: CommandResult): boolean {
+  return /no server running|error connecting to|failed to connect to server|no sessions/i.test(
+    `${result.stdout}\n${result.stderr}`,
+  )
 }
 
 function parsePositiveInts(output: string): number[] {
