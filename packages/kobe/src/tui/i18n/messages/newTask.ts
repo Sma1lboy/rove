@@ -14,6 +14,7 @@ export const en = {
   },
 
   field: {
+    mode: "MODE",
     engine: "ENGINE",
     repo: "REPO",
     fromBranch: "FROM BRANCH",
@@ -38,6 +39,7 @@ export const en = {
   },
 
   hint: {
+    modeCycle: "ctrl+[ ]",
     engineCycle: "ctrl+e",
     remembered: "(remembered — next clone defaults to this dir)",
     currentDir: "(current dir)",
@@ -105,6 +107,7 @@ export const zh: typeof en = {
   },
 
   field: {
+    mode: "模式",
     engine: "引擎",
     repo: "仓库",
     fromBranch: "基准分支",
@@ -129,6 +132,7 @@ export const zh: typeof en = {
   },
 
   hint: {
+    modeCycle: "ctrl+[ ]",
     engineCycle: "ctrl+e",
     remembered: "（已记住 — 下次克隆默认使用此目录）",
     currentDir: "（当前目录）",

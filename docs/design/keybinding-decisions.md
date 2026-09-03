@@ -8,23 +8,16 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
-## New task from non-input panes
+## New task from anywhere
 
-**2026-09-02 — `ctrl+n` opens New task from non-input UI surfaces; the
-sidebar keeps bare `n`, and engine composers and embedded terminals keep
-`ctrl+n` as input.** The owner wanted task creation directly reachable from
-the content side without first returning to the sidebar. Restoring the old
-unconditional global binding would also restore the reason it was removed:
-readline and emacs-style inputs use `ctrl+n` for next-history, including inside
-the embedded engine and shell terminals.
-
-The binding is therefore global across non-input Rove UI surfaces. It is
-reachable from the sidebar, Files, read-only content tabs, Worktrees, Update,
-Kanban, Routines, and Issues. Sidebar search, Settings, and dialogs retain
-input or modal ownership. When the focused surface forwards input to a PTY,
-dispatch and shortcut discovery both exclude the Rove action, so the engine
-receives the byte and F1 or the direct-shortcut guide does not advertise a
-command that cannot run there.
+**2026-09-03 — `prefix+n` opens New task from anywhere; the sidebar keeps
+bare `n`; there is no direct `ctrl+n`.** The 2026-09-02 direct `ctrl+n` was
+gated to non-input surfaces so the embedded terminals kept readline/emacs
+next-history, which made it unreachable from exactly the place the owner is
+usually looking — the engine pane. The owner's call: move it behind the
+prefix. The prefix's first stroke never passes through, so `ctrl+a` `n` works
+inside the terminal too, and `ctrl+n` reaches the PTY unconditionally. The
+`yieldToPassthrough` mechanism stays for future direct chords.
 
 ## Prefix tap presentation
 

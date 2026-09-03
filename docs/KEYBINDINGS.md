@@ -51,6 +51,7 @@ shows only actions that can run right now.
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
+| `ctrl+a` `n` | New task |
 | `ctrl+a` `w` | Close the active split |
 | `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
@@ -93,7 +94,6 @@ for terminal support.
 | Key | Action |
 |---|---|
 | `F1` | The live keymap; works from every pane, including inside the terminal (not while a dialog or a full-page view — Settings / Worktrees / Update — is open) |
-| `ctrl+n` | New task from any non-input UI surface; inside an engine composer or embedded shell terminal it keeps its readline/emacs meaning and passes through |
 | `ctrl+q` | Focus the sidebar; pressed again there, quit immediately (`q` in the sidebar quits with a confirm) |
 | `ctrl+t` | New engine tab |
 | `ctrl+e` | New-conversation dialog with the engine/shell picker; inside it, `←`/`→` (or `h`/`l`) pick the engine and `enter` confirms, `tab` switches the destination (new tab here ⇄ fork a child task) and `ctrl+f` the context (fresh ⇄ continue this chat). The trailing "scratch shell" choice opens a Scratch shell task |
@@ -114,11 +114,9 @@ is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
 by the "no sessions here" pane, which has no input and no tab of its own —
 everywhere else in the workspace it reaches the terminal as usual.
 
-`ctrl+n` has the same input boundary as an ordinary typed key. It opens New
-task from the sidebar, Files, read-only content tabs, Worktrees, Update, and
-the Kanban, Routines, and Issues pages. Sidebar search, Settings, dialogs, and
-engine or shell terminals keep input ownership; a focused PTY receives its
-`ctrl+n` byte unchanged.
+New task is `ctrl+a` `n` from anywhere (the sidebar also answers to bare
+`n`). It is a prefix sequence, not a direct `ctrl+n`, so the embedded engine
+and shell terminals keep `ctrl+n` for readline/emacs next-history.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);

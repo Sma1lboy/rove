@@ -196,28 +196,48 @@ describe("prefix passthrough boundary", () => {
   })
 })
 
-describe("content-only direct chords", () => {
-  test("ctrl+n opens New task on a UI surface", () => {
-    let opened = false
-    const ui: RegisteredBinding = {
-      id: 1,
-      config: () => ({
-        bindings: bindByIds({
-          "task.new.global": () => {
-            opened = true
-          },
+describe("prefix+n New task", () => {
+  test("opens New task on a UI surface and inside terminal passthrough", () => {
+    for (const passthrough of [false, true]) {
+      resetPrefixState()
+      let opened = false
+      let forwarded = false
+      const terminal: RegisteredBinding = {
+        id: 1,
+        config: () => ({
+          bindings: [
+            {
+              key: "ctrl+n",
+              passthrough: true,
+              cmd: () => {
+                forwarded = true
+              },
+            },
+          ],
         }),
-      }),
-    }
+      }
+      const host: RegisteredBinding = {
+        id: 2,
+        config: () => ({
+          bindings: bindByIds({
+            "task.new.global": () => {
+              opened = true
+            },
+          }),
+        }),
+      }
+      const stack = passthrough ? [terminal, host] : [host]
+      expect(bindingReachability(stack).prefix).toContain("task.new.global")
+      expect(bindingReachability(stack).direct).not.toContain("task.new.global")
 
-    const evt = makeEvt("n", { ctrl: true })
-    expect(dispatchKeyEvent([ui], evt, 100)).toBe(true)
-    expect(opened).toBe(true)
-    expect(evt.defaultPrevented).toBe(true)
-    expect(bindingReachability([ui]).direct).toContain("task.new.global")
+      expect(dispatchKeyEvent(stack, makeEvt("a", { ctrl: true }), 100)).toBe(true)
+      expect(dispatchKeyEvent(stack, makeEvt("n"), 200)).toBe(true)
+      expect(opened).toBe(true)
+      expect(forwarded).toBe(false)
+    }
   })
 
-  test("ctrl+n yields to engine and shell input even when the host binding is above it", () => {
+  test("a bare ctrl+n reaches the terminal, never New task", () => {
     let opened = false
     let forwarded = false
     const terminal: RegisteredBinding = {
@@ -234,9 +254,6 @@ describe("content-only direct chords", () => {
         ],
       }),
     }
-    // React registers ancestor effects after child effects, so the host is
-    // above the terminal in production. The content-only policy, not stack
-    // order, must still leave readline/emacs ctrl+n with the PTY.
     const host: RegisteredBinding = {
       id: 2,
       config: () => ({
@@ -247,13 +264,8 @@ describe("content-only direct chords", () => {
         }),
       }),
     }
-
-    const evt = makeEvt("n", { ctrl: true })
-    expect(dispatchKeyEvent([terminal, host], evt, 100)).toBe(true)
+    expect(dispatchKeyEvent([terminal, host], makeEvt("n", { ctrl: true }), 100)).toBe(true)
     expect(opened).toBe(false)
     expect(forwarded).toBe(true)
-    expect(evt.defaultPrevented).toBe(true)
-    expect(bindingReachability([terminal, host]).direct).not.toContain("task.new.global")
-    expect(bindingReachability([terminal, host]).inputPassthrough).toBe(true)
   })
 })
