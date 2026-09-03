@@ -29,16 +29,14 @@ import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, toTaskId } from "@/types/task"
 import { afterAll, beforeAll, expect, test } from "vitest"
 import { goldenDocument, goldenPath, matchGolden } from "./golden-file"
+import { conflictChipBlock, prChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
 import {
   OMITTED_FIELDS,
   RECORDED_FIELDS,
   activityCrossProduct,
   completionGraceBlock,
-  conflictChipBlock,
   mainRowBlock,
-  prChipBlock,
   spinnerBlock,
-  statusChipBlock,
   statusVsActivityBlock,
   subagentBlock,
   subtitleBudgetBlock,
