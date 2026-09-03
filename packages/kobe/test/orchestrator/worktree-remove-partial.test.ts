@@ -211,3 +211,84 @@ describe("remove() when git deregisters but cannot delete", () => {
     expect(existsSync(wt)).toBe(false)
   })
 })
+
+/**
+ * The layout Rove actually creates on a remote project — the worktree lives
+ * INSIDE its own repo (`<checkout>/.rove/worktrees/<slug>`, `paths.ts`), and
+ * legacy repo-local roots put it there locally too.
+ *
+ * `rev-parse --git-common-dir` run from inside such a path walks up to the
+ * parent repo and answers "yes, a repo" for a worktree git has already
+ * forgotten, so the residue classification inverts and every removal throws.
+ * The cases above all sit OUTSIDE the repo, which is why they never saw it.
+ */
+describe("remove() when the worktree is nested inside its own repo", () => {
+  /** `<repo>/.rove/worktrees/<name>`, undeletable the same way. */
+  function nestedUndeletableWorktree(name: string, branch: string): string {
+    const wt = join(repo, ".rove", "worktrees", name)
+    mkdirSync(join(repo, ".rove", "worktrees"), { recursive: true })
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b ${branch}`, { cwd: repo, env: gitEnv })
+    const fixture = join(wt, "fixture")
+    mkdirSync(fixture, { recursive: true })
+    writeFileSync(join(fixture, "keep.txt"), "x")
+    chmodSync(fixture, 0o555)
+    locked.push(fixture)
+    return wt
+  }
+
+  it("reports the leftover directory instead of throwing", async () => {
+    const wt = nestedUndeletableWorktree("wt-nested", "kobe/nested")
+    const seen: WorktreeResidue[] = []
+
+    // Red before the fix wherever git unlinks the `.git` pointer before
+    // failing (Linux, i.e. every remote project): the post-failure probe then
+    // resolves the PARENT repo, so the "still registered → nothing happened"
+    // branch throws a GitCommandError for a removal git has already
+    // half-applied, and the task is undeletable by any supported command.
+    // macOS leaves the pointer dangling, which answers the probe by accident —
+    // the retry case below is the platform-independent proof.
+    await expect(manager.remove(wt, { force: true, onResidue: (r) => seen.push(r) })).resolves.toBeUndefined()
+
+    expect(seen).toHaveLength(1)
+    expect(seen[0].path).toBe(wt)
+    expect(registered(wt)).toBe(false)
+    expect(existsSync(wt)).toBe(true)
+  })
+
+  it("a second call converges even where git unlinked the `.git` pointer", async () => {
+    const wt = nestedUndeletableWorktree("wt-nested-retry", "kobe/nested-retry")
+    await manager.remove(wt, { force: true, onResidue: () => {} })
+    // The Linux shape, reproduced on any platform: no pointer file left, so
+    // the fingerprint fast path cannot fire and only the registration probe
+    // can tell this from a live worktree.
+    rmSync(join(wt, ".git"), { force: true })
+
+    const second: WorktreeResidue[] = []
+    await expect(manager.remove(wt, { force: true, onResidue: (r) => second.push(r) })).resolves.toBeUndefined()
+    expect(second).toHaveLength(1)
+    // Never swept into the orphan `rm -rf`: this directory is inside the
+    // user's own checkout.
+    expect(existsSync(join(wt, "fixture", "keep.txt"))).toBe(true)
+  })
+
+  it("prunes stale metadata when the directory itself is gone", async () => {
+    // The vanished-directory branch probed the repo with `cwd` set to the
+    // missing path, which cannot spawn, so `git worktree prune` never ran and
+    // the stale `.git/worktrees/<name>/` registration survived — enough to
+    // make a later `git worktree add` on that path fail.
+    const wt = join(repo, ".rove", "worktrees", "wt-vanished")
+    mkdirSync(join(repo, ".rove", "worktrees"), { recursive: true })
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b kobe/vanished`, { cwd: repo, env: gitEnv })
+    const adminDir = join(repo, ".git", "worktrees", "wt-vanished")
+    expect(existsSync(adminDir)).toBe(true)
+
+    rmSync(wt, { recursive: true, force: true })
+    await manager.remove(wt)
+
+    // The observable effect of the prune, not a spy on the argv: git dropped
+    // the registration, so the path is re-addable.
+    expect(existsSync(adminDir)).toBe(false)
+    execSync(`git worktree add -q ${JSON.stringify(wt)} kobe/vanished`, { cwd: repo, env: gitEnv })
+    expect(existsSync(wt)).toBe(true)
+  })
+})
