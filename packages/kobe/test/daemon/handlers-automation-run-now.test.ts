@@ -72,10 +72,9 @@ describe("automation.runNow on a standing routine with a busy composer", () => {
   it("defers the prompt into the Inbox instead of dropping it", async () => {
     const harness = await bootDaemonHarness({
       orchestrator: orchestratorWithStandingTask(),
-      server: {
-        automationTickMs: 0,
-        runtime: { ...(await import("../../src/core/daemon-runtime.ts")).daemonRuntime, ...busyRuntime },
-      },
+      // The scheduled sweep can't interfere: the routine's next run is 09:00
+      // tomorrow, so every firing in this test is a manual one.
+      server: { runtime: { ...(await import("../../src/core/daemon-runtime.ts")).daemonRuntime, ...busyRuntime } },
     })
     try {
       const client = harness.client()
