@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.9.98
+
+### Patch Changes
+
+- [#824](https://github.com/Sma1lboy/rove/pull/824) [`6865044`](https://github.com/Sma1lboy/rove/commit/686504467921b3424c6f1369bc40f4551f496a30) Sidebar rows now say when a worktree has fallen behind its base. `↓N` joins `+N −N` in the warning tone, counting the commits the base has that the worktree does not, and `≠` marks a PR GitHub reports as `CONFLICTING` — a field the poller has been collecting since it landed and nothing rendered. Both come from the daemon's existing per-worktree read, so no new polling. The row menu gains **Sync with base**, which merges the base in (never rebases — the worktree may have a live engine holding files open) and reports a conflict the way landing already does. `rove api collect` gains `base.behind` beside `base.ahead`. A proposed `ctrl+a u` chord mirrors the menu entry; it shadows nothing and is awaiting owner sign-off. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#825](https://github.com/Sma1lboy/rove/pull/825) [`3448871`](https://github.com/Sma1lboy/rove/commit/34488715fc31f96f5361cdfa66e39a0bef58fa3d) Stop killing long-running daemon calls at 20 seconds.
+
+  Every RPC except six worktree verbs got a 20s client deadline, and blowing it
+  did more than fail the call: it rejected with "daemon wedged?", force-closed
+  the socket and dropped every channel subscription. So `rove api prompt`
+  returned an RPC error at 20s no matter what `--timeout` said, and a `task.land`
+  on a large repo put the whole workspace into the reconnect path while the
+  daemon was healthy.
+
+  A verb whose contract is to block now says so on its own registry entry
+  (`blocking: true`, beside `web: true`), and the client reads that set instead
+  of a hand-kept list far from where verbs are defined. Covers `ui.prompt`,
+  `task.land`, `workitem.start`, `automation.runNow`, and both deferred-prompt
+  release paths alongside the worktree verbs. The wedge detector still guards
+  everything that answers in milliseconds. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#825](https://github.com/Sma1lboy/rove/pull/825) [`3448871`](https://github.com/Sma1lboy/rove/commit/34488715fc31f96f5361cdfa66e39a0bef58fa3d) Expire deferred prompts and their Inbox rows after 24 hours, as the policy
+  always said.
+
+  The store documented a 24h TTL, but nothing ever swept: expiry was only
+  computed inside `deferredPrompt.flush`, which a human reaches by opening
+  Settings and toggling the composer gate. A prompt the delivery gate parked
+  because a composer was busy therefore sat on disk forever, and its
+  `prompt_deferred` Inbox row outlived every later turn on that tab — the
+  deferred episode has its own lane, so nothing else cleared it.
+
+  The daemon now runs the same coordinated record + Inbox cleanup on boot and
+  hourly, ungated on attached UIs. It expires only: re-delivering a live record
+  stays a deliberate human action, so a parked prompt is never pasted by a timer. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#823](https://github.com/Sma1lboy/rove/pull/823) [`886c66b`](https://github.com/Sma1lboy/rove/commit/886c66bab3e35a79783881c2e0eceaa0dfee8eca) The workspace footer now shows how full the active session's context window is — `ctx 62%`, in the same ok/warn/crit tones as the quota chips beside it, suffixed `~` when the figure is the engine's own estimate rather than a number it reports. It answers a different question from the quota chips: not how much budget is left this week, but how much room is left in this conversation, which is the thing that quietly compacts your session away. The number was already engine-computed and already rendered in the browser; the TUI was discarding it. Nothing is summed or guessed in a neutral layer — a vendor that does not report its context window renders nothing rather than a percentage of an invented denominator. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#822](https://github.com/Sma1lboy/rove/pull/822) [`a52a9f3`](https://github.com/Sma1lboy/rove/commit/a52a9f3a513060ab03e95aca00adaf8d32b6b4ca) Stop serving the web-transport bearer token to unauthenticated callers.
+
+  The daemon injected `<meta name="rove-web-token">` into every `GET /`, and
+  that route is deliberately ungated (a browser cannot attach a bearer header to
+  the subresources it fetches itself). So any caller that could open the
+  loopback port — `curl` sends no `Origin`, which the CSRF check permits — read
+  the credential out of the page body and then drove the whole `/api/*` surface,
+  including `task.setCommand`, which sets an engine's launch argv. On a shared
+  machine that reached any other local user, which is exactly the boundary the
+  token file's 0600 mode exists to hold. Exposure was limited to callers who
+  could reach the daemon's web port; it was not reachable from a remote network
+  unless the port had been bound off loopback.
+
+  The shell is still served to anyone — it is public build output — but the
+  token is now echoed back only to a request that already presented it. `rove
+web` prints a URL carrying `?token=…` so the first navigation bootstraps, and
+  the dashboard remembers it for the rest of the browser session, so in-app
+  navigation and reloads keep working. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#825](https://github.com/Sma1lboy/rove/pull/825) [`3448871`](https://github.com/Sma1lboy/rove/commit/34488715fc31f96f5361cdfa66e39a0bef58fa3d) A routine with a zero missed-run grace now runs instead of skipping forever.
+
+  The sweep is a poller, so it can only ever see an occurrence after it happened
+  — `now - scheduledFor` lands somewhere in 0..60s on a perfectly healthy run.
+  The grace window was compared strictly against that gap, so
+  `missedRunGraceMinutes: 0` made every single firing "missed": the routine
+  recorded `skipped_missed`, advanced its schedule, and never dispatched, while
+  its run history filled with skips.
+
+  The window now has a floor of one tick — a grace of N means "up to N minutes
+  late, plus the tick that discovered it" — and a genuinely late occurrence is
+  still skipped. Negative values, which used to be accepted and then silently
+  rewritten to 60 on the next daemon restart, are refused at the RPC boundary,
+  as is a non-positive `precheck.timeoutSeconds`. `--grace 0` is now expressible
+  from the CLI, where it previously failed the positive-integer check. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.97
 
 ### Patch Changes
