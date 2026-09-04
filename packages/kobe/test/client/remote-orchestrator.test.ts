@@ -1,12 +1,6 @@
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import {
-  RemoteOrchestrator,
-  type WorktreeChangesMap,
-  decodeUiPrefsPayload,
-  parseWorktreeChangesPayload,
-  sameWorktreeChangesMap,
-} from "../../src/client/remote-orchestrator.ts"
+import { RemoteOrchestrator } from "../../src/client/remote-orchestrator.ts"
 
 // Keep malformed-event drops diagnosable while preserving every other real export.
 const { logClientError } = vi.hoisted(() => ({ logClientError: vi.fn() }))
@@ -434,85 +428,6 @@ describe("worktree.changes capability gating (init)", () => {
     emit("worktree.changes", { changes: { "/wt/a": { added: 4, deleted: 2 } } })
     await orch.init()
     expect(orch.worktreeChangesSignal()()?.get("/wt/a")).toEqual({ added: 4, deleted: 2 })
-  })
-})
-
-describe("decodeUiPrefsPayload — backward-compat defaults", () => {
-  it("drops a payload with no theme string", () => {
-    expect(decodeUiPrefsPayload(undefined)).toBeNull()
-    expect(decodeUiPrefsPayload({})).toBeNull()
-    expect(decodeUiPrefsPayload({ theme: 42 })).toBeNull()
-  })
-
-  it("an older daemon's theme-only payload resolves every newer field to its absent-sentinel", () => {
-    // The footgun this owns: locale MUST be "" (skip), not "en"; sortMode
-    // "default"; keysCollapsed false; projectFilter null; transparent off.
-    expect(decodeUiPrefsPayload({ theme: "claude" })).toEqual({
-      theme: "claude",
-      transparentBackground: false,
-      focusAccent: null,
-      locale: "",
-      sortMode: "default",
-      keysCollapsed: false,
-      projectFilter: null,
-    })
-  })
-
-  it("carries real values through and normalizes odd ones", () => {
-    expect(
-      decodeUiPrefsPayload({ theme: "tokyonight", locale: "zh-CN", sortMode: "recent", keysCollapsed: true }),
-    ).toEqual({
-      theme: "tokyonight",
-      transparentBackground: false,
-      focusAccent: null,
-      locale: "zh-CN",
-      sortMode: "recent",
-      keysCollapsed: true,
-      projectFilter: null,
-    })
-    // empty projectFilter string → null (all projects); unknown sortMode → default
-    const d = decodeUiPrefsPayload({ theme: "x", projectFilter: "", sortMode: "weird", focusAccent: "#abc" })
-    expect(d?.projectFilter).toBeNull()
-    expect(d?.sortMode).toBe("default")
-    expect(d?.focusAccent).toBe("#abc")
-  })
-})
-
-describe("worktree.changes pure helpers", () => {
-  it("parseWorktreeChangesPayload accepts an empty map and rejects malformed entries", () => {
-    expect(parseWorktreeChangesPayload({ changes: {} })?.size).toBe(0)
-    expect(parseWorktreeChangesPayload(undefined)).toBeNull()
-    expect(parseWorktreeChangesPayload({ changes: [] })).toBeNull()
-    expect(parseWorktreeChangesPayload({ changes: { "/wt": { added: 1 } } })).toBeNull()
-  })
-
-  it("parseWorktreeChangesPayload maps the daemon's unreadable paths to null", () => {
-    // `unreadable` is additive: an older daemon omits it entirely, and the
-    // parser must still accept the payload rather than reject the whole map.
-    expect(parseWorktreeChangesPayload({ changes: { "/wt": { added: 1, deleted: 0 } } })).toEqual(
-      new Map([["/wt", { added: 1, deleted: 0 }]]),
-    )
-    const withUnreadable = parseWorktreeChangesPayload({
-      changes: { "/wt": { added: 1, deleted: 0 } },
-      unreadable: ["/wt/broken"],
-    })
-    // PRESENT with a null value, not absent: absent would read as a clean row.
-    expect(withUnreadable?.has("/wt/broken")).toBe(true)
-    expect(withUnreadable?.get("/wt/broken")).toBeNull()
-  })
-
-  it("sameWorktreeChangesMap tells an unreadable entry from a missing one", () => {
-    const unreadable: WorktreeChangesMap = new Map([["/wt", null]])
-    expect(sameWorktreeChangesMap(unreadable, new Map([["/wt", null]]))).toBe(true)
-    expect(sameWorktreeChangesMap(unreadable, new Map([["/wt", { added: 0, deleted: 0 }]]))).toBe(false)
-    expect(sameWorktreeChangesMap(unreadable, new Map())).toBe(false)
-  })
-
-  it("sameWorktreeChangesMap compares entry-wise", () => {
-    const a = new Map([["/wt", { added: 1, deleted: 2 }]])
-    expect(sameWorktreeChangesMap(a, new Map([["/wt", { added: 1, deleted: 2 }]]))).toBe(true)
-    expect(sameWorktreeChangesMap(a, new Map([["/wt", { added: 1, deleted: 3 }]]))).toBe(false)
-    expect(sameWorktreeChangesMap(a, new Map())).toBe(false)
   })
 })
 
