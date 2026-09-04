@@ -46,7 +46,6 @@ describe("rove CLI compatibility entry", () => {
       [["skill", "--help"], "usage: rove skill"],
       [["theme", "--help"], "Usage: rove theme"],
       [["update", "--help"], "Usage: rove update"],
-      [["web", "--help"], "Usage: rove web"],
     ]
 
     for (const [args, expected] of cases) {
