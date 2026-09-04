@@ -107,6 +107,9 @@ export interface DaemonHarnessOptions {
   server?: Partial<DaemonServerOptions>
   /** Env vars to set for the daemon's lifetime; restored on `close()`. */
   env?: Record<string, string>
+  /** Write into the temp home BEFORE the daemon boots — for state the daemon
+   *  only reads at start (the plugin registry, for one). */
+  seedHome?: (dir: string) => void
   /** Also build the web request handler (see module doc). */
   web?:
     | boolean
@@ -156,6 +159,7 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
   }
   setEnv("KOBE_HOME_DIR", dir)
   for (const [key, value] of Object.entries(opts.env ?? {})) setEnv(key, value)
+  opts.seedHome?.(dir)
 
   const server = await startDaemonServer(opts.orchestrator ?? fakeOrchestrator(), {
     runtime: daemonRuntime,

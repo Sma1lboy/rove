@@ -56,20 +56,31 @@ const REGISTRY_POLL_MS = 200
 /** How long a [[shutdown]] hook may run before the host kills it. */
 const SHUTDOWN_GRACE_MS = 3_000
 
-/** Compose a host onto the daemon's bus: subscribe first, then start. */
-export function startPluginHost(
-  bus: { onPublish(sink: (event: ChannelEvent) => void): () => void },
-  opts: PluginHostOptions,
-): PluginHost {
+/** The bus surface a host needs: live fan-out plus the last-value cache. */
+interface PluginHostBus {
+  onPublish(sink: (event: ChannelEvent) => void): () => void
+  snapshot(): ChannelEvent[]
+}
+
+/** Compose a host onto the daemon's bus: subscribe, seed, then start. */
+export function startPluginHost(bus: PluginHostBus, opts: PluginHostOptions): PluginHost {
   const host = new PluginHost(opts)
   bus.onPublish((event) => host.handleChannel(event))
+  // Seed the reducer from the bus's last-value cache. The daemon publishes
+  // the baseline `task.snapshot` while wiring the orchestrator, well before
+  // this host exists, so without the replay the first snapshot the reducer
+  // sees is the first MUTATION — and its "first snapshot after daemon start
+  // is baseline" rule swallows it, losing the first task.created /
+  // worktree.created / task.changed of every daemon lifetime. The replay
+  // itself emits nothing: it IS the reducer's baseline.
+  for (const event of bus.snapshot()) host.handleChannel(event)
   host.start()
   return host
 }
 
 /** The server's one-liner: start a host iff `options.plugins` is set. */
 export function maybeStartPluginHost(
-  bus: { onPublish(sink: (event: ChannelEvent) => void): () => void },
+  bus: PluginHostBus,
   options: { readonly homeDir?: string; readonly plugins?: { readonly binPath: string } },
   socketPath: string,
   log: (line: string) => void,
