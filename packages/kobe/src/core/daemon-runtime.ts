@@ -29,6 +29,7 @@ import { handleHistoryRequest } from "../web/history.ts"
 import { handleNotesRequest } from "../web/notes.ts"
 import { handleThemesRequest } from "../web/themes.ts"
 import { resolveBaseRefCached } from "./base-ref-cache.ts"
+import { behindCountCached } from "./behind-cache.ts"
 import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
@@ -111,14 +112,20 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     // and kobe-daemon does not import kobe sources.
     const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
     if (!base) return counts
-    const behind = await spawnCapture("git", ["rev-list", "--count", `HEAD..${base}`], {
-      cwd: worktreePath,
-      env: readOnlyGitProcessEnv(),
-      signal,
+    // Memoised on the HEAD/base shas read from the ref files: the count can
+    // only move when one of them does, and re-deriving it every tick was half
+    // the collector's spawns.
+    const n = await behindCountCached(worktreePath, base, async () => {
+      const behind = await spawnCapture("git", ["rev-list", "--count", `HEAD..${base}`], {
+        cwd: worktreePath,
+        env: readOnlyGitProcessEnv(),
+        signal,
+      })
+      if (behind.status !== 0) return null
+      const parsed = Number.parseInt(behind.stdout.trim(), 10)
+      return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
     })
-    if (behind.status !== 0) return counts
-    const n = Number.parseInt(behind.stdout.trim(), 10)
-    return Number.isInteger(n) && n >= 0 ? { ...counts, behind: n } : counts
+    return n === null ? counts : { ...counts, behind: n }
   },
   maybeAutoStart: (orch, taskId) => maybeAutoStart(orch as Orchestrator, taskId),
   listWorktreeProjects: listWorktreeProjectsAdapter,
