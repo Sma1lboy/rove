@@ -38,6 +38,29 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A daemon refusal's machine code, as the orchestrator writes it: every
+ * sentinel in `orchestrator/errors.ts` (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
+ * `MISSING_REF`, …) rides the MESSAGE as a `CODE: ` prefix, because an
+ * error's `name` does not survive the RPC wire.
+ */
+const DAEMON_CODE_PREFIX = /^([A-Z][A-Z0-9_]{2,}): /
+
+/**
+ * Split `CODE: rest` into its parts, or report `null` for an uncoded message.
+ *
+ * One reader for the prefix, shared by the generic boundary (`toApiError`,
+ * which lifts the code for EVERY daemon error) and the handful of verbs that
+ * additionally attach an executable recovery to a code they know. Both drop
+ * the prefix from the message they emit: it is the `code` field now, and
+ * printing it twice invites a caller to keep parsing prose.
+ */
+export function splitDaemonCode(message: string): { code: string; rest: string } | null {
+  const match = DAEMON_CODE_PREFIX.exec(message)
+  if (!match?.[1]) return null
+  return { code: match[1], rest: message.slice(match[0].length) }
+}
+
 /** The `hint` + `nextCommandArgs` pair pointing an agent at a verb's own `--help`. */
 export function helpStep(verbName: string): Record<string, unknown> {
   return {
@@ -209,8 +232,17 @@ export interface DeliveredPrompt {
    * deferred send: the tab's deferred slot stays occupied until release or
    * expiry, and a later send fails with `DEFERRED_PROMPT_PENDING`. Absent on
    * direct delivery and on genuine failure.
+   *
+   * `expiresAt` is when the daemon's sweep drops the text (ISO 8601). Held
+   * text is not delivered text: a caller with no human to open the Inbox
+   * releases it itself with `deferred-release --id`, or drops it with
+   * `deferred-dismiss --id`. Absent when an older daemon did not report it.
    */
-  readonly deferred?: { readonly id: string; readonly layer: "recent-human-write" | "composer-not-empty" }
+  readonly deferred?: {
+    readonly id: string
+    readonly layer: "recent-human-write" | "composer-not-empty"
+    readonly expiresAt?: string
+  }
 }
 
 /** What the delivery layer calls to hand a blocked prompt to daemon ownership. */
@@ -224,7 +256,12 @@ export interface PromptDeferralSink {
     readonly tabId: string
     readonly prompt: string
     readonly layer: "recent-human-write" | "composer-not-empty"
-  }): Promise<{ readonly kind: "filed"; readonly id: string } | { readonly kind: "occupied"; readonly id: string }>
+  }): Promise<{
+    readonly kind: "filed" | "occupied"
+    readonly id: string
+    /** When the daemon's TTL sweep drops the text (ISO 8601); older daemons omit it. */
+    readonly expiresAt?: string
+  }>
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */

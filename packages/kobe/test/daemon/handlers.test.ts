@@ -93,8 +93,10 @@ describe("daemon handler registry", () => {
       "deferredPrompt.file",
       "deferredPrompt.fileIfVacant",
       "deferredPrompt.get",
+      "deferredPrompt.list",
       "deferredPrompt.resolve",
       "deferredPrompt.release",
+      "deferredPrompt.dismiss",
       "deferredPrompt.discardTab",
       "deferredPrompt.flush",
     ]

@@ -302,13 +302,22 @@ describe("task lifecycle handlers", () => {
         )
       },
     })
-    // No hint/nextCommandArgs mapping — toApiError falls through to RPC_ERROR,
-    // and the EMPTY_BRANCH code still rides the message for matching.
-    await expectApiError(
-      () => invokeVerb("land", ["--task-id", "t1"], { client, runtime: stubRuntime() }),
-      "RPC_ERROR",
-      /EMPTY_BRANCH/,
-    )
+    // The code is lifted out of the message like every other daemon refusal,
+    // but this one gets NO recovery path: "the worker reported success and
+    // delivered nothing" is for a human to look at, not to auto-retry.
+    try {
+      await invokeVerb("land", ["--task-id", "t1"], { client, runtime: stubRuntime() })
+      expect.unreachable("should have thrown")
+    } catch (err) {
+      expect(err).toBeInstanceOf(ApiError)
+      const apiErr = err as ApiError
+      expect(apiErr.code).toBe("EMPTY_BRANCH")
+      expect(apiErr.message).toMatch(/no commits ahead of 'main'/)
+      // The prefix is gone from the message — it IS the `code` field now.
+      expect(apiErr.message).not.toMatch(/^EMPTY_BRANCH:/)
+      expect(apiErr.data?.hint).toBeUndefined()
+      expect(apiErr.data?.nextCommandArgs).toBeUndefined()
+    }
   })
 
   it("sets and clears active task", async () => {

@@ -60,7 +60,7 @@ import { takeIdentityWarning } from "./api/dispatcher.ts"
 import { VerbArgs, buildCountPlan, parseAgentsSpec, parseFlags, validateAgainstSpec } from "./api/flags.ts"
 import { defaultApiRuntime, deliverPrompt } from "./api/runtime.ts"
 import { API_SCHEMA_VERSION, apiUsage, fullSchema, schemaIndex, verbHelp, verbSchema } from "./api/schema.ts"
-import { ApiError } from "./api/types.ts"
+import { ApiError, splitDaemonCode } from "./api/types.ts"
 import type {
   ApiRuntime,
   DeliveredPrompt,
@@ -132,6 +132,14 @@ function unknownVerbError(verbName: string): ApiError {
  * unknown task id as a prose `task not found: <id>` RPC error — map it to a
  * typed `TASK_NOT_FOUND` with the recovery command, since a stale task id is
  * the single most common scripted-caller failure.
+ *
+ * Everything else that arrives already CODED gets that code lifted into the
+ * envelope rather than flattened to `RPC_ERROR`. The alternative — a
+ * pattern-per-code allowlist — is what let `delete`'s `DIRTY_WORKTREE`
+ * refusal, the one an unattended cleanup loop hits most, reach a caller as an
+ * untyped `RPC_ERROR` whose only discriminator was the prose. The prefix is
+ * stripped because the code now IS the `code` field; a caller that still
+ * string-matches reads `code`, which is the point.
  */
 export function toApiError(err: unknown): ApiError {
   if (err instanceof ApiError) return err
@@ -143,6 +151,8 @@ export function toApiError(err: unknown): ApiError {
     })
   }
   if (/unknown daemon request:/i.test(message)) return versionSkewError(message)
+  const coded = splitDaemonCode(message)
+  if (coded) return new ApiError(coded.rest, coded.code)
   return new ApiError(message, "RPC_ERROR")
 }
 

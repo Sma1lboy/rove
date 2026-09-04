@@ -241,7 +241,10 @@ export async function deliverPrompt(
       if ((kind !== "filed" && kind !== "occupied") || typeof id !== "string" || id.length === 0) {
         throw new Error("invalid deferredPrompt.fileIfVacant response")
       }
-      return { kind, id }
+      // `expiresAt` is additive — a daemon predating it just omits the field,
+      // and the deferral is still a valid handoff without it.
+      const expiresAt = "expiresAt" in result ? result.expiresAt : undefined
+      return { kind, id, ...(typeof expiresAt === "string" ? { expiresAt } : {}) }
     },
   }
   const hosted = await ops.deliverHosted(target, worktree, prompt, defer)

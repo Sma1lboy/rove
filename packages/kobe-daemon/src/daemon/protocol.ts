@@ -238,11 +238,16 @@ export type DaemonRequestName =
   // `fileIfVacant`, whose distinct name makes old replace-on-file daemons fail
   // loud. `release` and `flush` claim records before exact-tab delivery;
   // `get`/`resolve` remain only for loud legacy skew and pre-restart cleanup.
+  // `list`/`dismiss` are the read + drop half the TUI Inbox performs on a
+  // screen, so a headless caller can act on its own deferred prompt instead
+  // of waiting out the 24h TTL (`rove api deferred-list|-release|-dismiss`).
   | "deferredPrompt.file"
   | "deferredPrompt.fileIfVacant"
   | "deferredPrompt.get"
+  | "deferredPrompt.list"
   | "deferredPrompt.resolve"
   | "deferredPrompt.release"
+  | "deferredPrompt.dismiss"
   | "deferredPrompt.discardTab"
   | "deferredPrompt.flush"
 

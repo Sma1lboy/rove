@@ -98,20 +98,34 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send           --task-id --prompt|--prompt-file(REQ) --tab --command --plain --allow-empty
-dispatch       --task-id(REQ) --prompt|--prompt-file(REQ) --tab
-note           --task-id(REQ) --text(REQ)
-note-list      --repo(REQ)
-pane-open      --task-id --tab --command --direction{right|down}(right)
-               --placement{split|tab}(split) --title
-pane-close     --task-id --title(REQ) --tab
-tab-close      --task-id(REQ) --tab(REQ)
-notify         --title(REQ) --body --kind(done) --task-id --source
-prompt         --title(REQ) --placeholder --initial --timeout
-engine-report  --task-id --kind(REQ) --engine --tab --detail
-set-active     --task-id --none
+send              --task-id --prompt|--prompt-file(REQ) --tab --command --plain
+                  --allow-empty
+dispatch          --task-id(REQ) --prompt|--prompt-file(REQ) --tab
+deferred-list     --task-id
+deferred-release  --id(REQ)
+deferred-dismiss  --id(REQ)
+note              --task-id(REQ) --text(REQ)
+note-list         --repo(REQ)
+pane-open         --task-id --tab --command --direction{right|down}(right)
+                  --placement{split|tab}(split) --title
+pane-close        --task-id --title(REQ) --tab
+tab-close         --task-id(REQ) --tab(REQ)
+notify            --title(REQ) --body --kind(done) --task-id --source
+prompt            --title(REQ) --placeholder --initial --timeout
+engine-report     --task-id --kind(REQ) --engine --tab --detail
+set-active        --task-id --none
 ```
 <!-- generated:end -->
+
+**The `deferred-*` trio is the Inbox, for a caller with no screen.** A `send`
+into a busy composer exits 0 with `deferred` in its JSON: the daemon owns the
+text now, and the TUI Inbox is where a human releases it. Headless there is no
+human, so the record sits until `deferred.expiresAt` (24h after filing) and is
+then swept UNDELIVERED — and every `send` to that tab fails
+`DEFERRED_PROMPT_PENDING` meanwhile. `deferred-list` shows what is held and
+until when, `deferred-release --id` delivers it (re-running the gate, so a
+still-busy composer answers `delivered:false` with a `reason` — retry, do not
+re-send), and `deferred-dismiss --id` drops it and frees the tab's slot.
 
 **`note` is the repo's durable field-note store.** One line, a verified
 conclusion another session could act on — it is appended to the repo's notes
@@ -312,9 +326,17 @@ Errors go to stderr as `{"error":{"message","code",...}}`. Most carry `hint`
 |---|---|---|
 | `BAD_FLAG` | flag not on that verb | check the table above, then `schema --verb <v>` |
 | `TASK_NOT_FOUND` | id deleted or mistyped | `rove api list` |
+| `DIRTY_WORKTREE` | `delete` on a worktree with uncommitted files | send the worker back to commit, or `delete --force` to discard |
+| `DEFERRED_PROMPT_PENDING` | that tab already holds a deferred prompt | `deferred-release --id` (or `deferred-dismiss --id`), then re-send |
+| `DEFERRED_PROMPT_NOT_FOUND` | released, dismissed, or swept already | `rove api deferred-list` |
+| `ISSUE_NOT_FOUND` | no issue with that number in this repo | `rove api issue-list --repo <path>` |
 | `NO_ENGINE_TAB` | live tabs exist, none is an engine | `--tab tab-N` from `pty-list`, or `--tab new` |
 | `TAB_NOT_FOUND` | `--tab` names a closed/unknown tab | `get-task` for the live `.tabs[]` |
 | `DISPATCHER_UNREACHABLE` | bare `send` reply, dispatcher gone | nothing alive to reply to — never silently spawns |
 | `EMPTY_SUCCESS_REPORT` | `succeeded:` from a branch with 0 commits | commit first, or say so with `--allow-empty` |
 | `SOURCE_CHANGED` | `read-output` cursor's target moved | re-read without the cursor |
 | `EMPTY_BRANCH` | `land` on zero commits ahead | the worker committed nothing |
+
+Daemon-side refusals carry their OWN code (`DIRTY_WORKTREE`, `LAND_CONFLICT`,
+`MISSING_REF`, `GIT_COMMAND_FAILED`, …), not `RPC_ERROR`. Match on `code`; the
+`message` is prose for a human and does not repeat the code.

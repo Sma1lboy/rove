@@ -9,7 +9,7 @@ import { errorMessage } from "@/lib/error-message"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { kobeApiInvocation } from "../../engine/interactive-command.ts"
-import { EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
+import { DIRTY_WORKTREE_CODE, EMPTY_BRANCH_DIRTY_WORKTREE_CODE } from "../../orchestrator/errors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerProvenance } from "./dispatcher.ts"
@@ -17,7 +17,7 @@ import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
-import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
+import { ApiError, type VerbContext, type VerbSpec, helpStep, splitDaemonCode } from "./types.ts"
 
 /** How long `delete --wait` follows a deletion before reporting `pending`.
  *  A worktree teardown is filesystem-bound; this is generous headroom, not a
@@ -327,12 +327,17 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   // identity `send`/`add` use, never the bare env: unverifiable
   // stays unattributed rather than blaming a stranger's session.
   const self = await verifiedSelfSession()
-  const res = (await daemon.request("task.delete", {
-    taskId,
-    force,
-    deleteBranch,
-    ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
-  })) as { taskId: string; queued: boolean }
+  let res: { taskId: string; queued: boolean }
+  try {
+    res = (await daemon.request("task.delete", {
+      taskId,
+      force,
+      deleteBranch,
+      ...(self ? { requestedByTaskId: self.taskId, requestedByTabId: self.tabId } : {}),
+    })) as { taskId: string; queued: boolean }
+  } catch (err) {
+    throw deleteRecoveryError(err, taskId)
+  }
   // The daemon's task.delete removes the worktree + index entry but never the
   // hosted session. Without this, a scripted delete
   // orphans the `kobe-<id>` session + its engine — invisible to every kobe UI
@@ -429,7 +434,7 @@ function landRecoveryError(err: unknown, taskId: string): unknown {
   const message = errorMessage(err)
   if (!message.includes(EMPTY_BRANCH_DIRTY_WORKTREE_CODE)) return err
   const branch = /EMPTY_BRANCH_DIRTY_WORKTREE: '([^']+)'/.exec(message)?.[1] ?? "your task branch"
-  return new ApiError(message, EMPTY_BRANCH_DIRTY_WORKTREE_CODE, {
+  return new ApiError(splitDaemonCode(message)?.rest ?? message, EMPTY_BRANCH_DIRTY_WORKTREE_CODE, {
     hint: "the worker wrote files but never committed them — send it back to commit its own work, then land again",
     nextCommandArgs: [
       "api",
@@ -438,6 +443,36 @@ function landRecoveryError(err: unknown, taskId: string): unknown {
       taskId,
       "--prompt",
       `your work is uncommitted on ${branch} — commit it yourself with a proper message, then report back`,
+    ],
+  })
+}
+
+/**
+ * Give `delete`'s dirty-worktree refusal the same executable recovery `land`
+ * gets. This is the refusal an unattended cleanup loop hits most, and the
+ * recovery is deliberately NOT `--force`: uncommitted files in a task
+ * worktree are somebody's unlanded work, so the first move is to send the
+ * worker back to commit it, exactly as EMPTY_BRANCH_DIRTY_WORKTREE does.
+ * Discarding the work stays a decision a caller has to make in words.
+ *
+ * The generic boundary ({@link splitDaemonCode} in `toApiError`) already
+ * lifts `DIRTY_WORKTREE` into `code` on its own; this adds only the two
+ * self-healing fields, which need the task id the boundary does not have.
+ */
+function deleteRecoveryError(err: unknown, taskId: string): unknown {
+  const message = errorMessage(err)
+  const coded = splitDaemonCode(message)
+  if (coded?.code !== DIRTY_WORKTREE_CODE) return err
+  return new ApiError(coded.rest, DIRTY_WORKTREE_CODE, {
+    taskId,
+    hint: "the worktree still holds uncommitted or untracked files — send the worker back to commit them, or pass --force to delete the task AND discard that work",
+    nextCommandArgs: [
+      "api",
+      "send",
+      "--task-id",
+      taskId,
+      "--prompt",
+      "your worktree has uncommitted changes and this task is being cleaned up — commit them yourself with a proper message, then report back",
     ],
   })
 }
