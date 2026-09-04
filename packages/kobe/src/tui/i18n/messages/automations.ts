@@ -57,13 +57,15 @@ export const en = {
   deleteBody: "{name} and its run history will be removed. Tasks it already created are untouched.",
   deleteButton: "Delete",
   /** Error toasts for a failed create/delete/toggle/run. Each names the action
-   *  that failed AND what is still true afterwards, so the user knows whether
-   *  to retry or to leave it alone. `{error}` = the daemon's own message. */
+   *  that failed, then carries the daemon's own `{error}`. Kept short on
+   *  purpose: the toast is ONE truncated line — about 38 cells at 90 columns —
+   *  so a longer clause buys nothing and costs the cause. The toggle pair
+   *  states the surviving state because that is what separates the two. */
   createFailed: "Couldn't create the routine: {error}",
-  deleteFailed: 'Couldn\'t delete "{name}" — it stays scheduled: {error}',
-  enableFailed: '"{name}" stays paused and will not fire: {error}',
-  disableFailed: '"{name}" stays enabled and will keep firing on schedule: {error}',
-  runFailed: 'Couldn\'t run "{name}" now — its schedule is unchanged: {error}',
+  deleteFailed: 'Couldn\'t delete "{name}": {error}',
+  enableFailed: '"{name}" stays paused: {error}',
+  disableFailed: '"{name}" stays enabled: {error}',
+  runFailed: 'Couldn\'t run "{name}" now — schedule unchanged: {error}',
 }
 
 export const zh: typeof en = {
@@ -120,8 +122,8 @@ export const zh: typeof en = {
   deleteButton: "删除",
   /** 创建/删除/开关/立即运行失败时的错误 toast。`{error}` = daemon 返回的信息。 */
   createFailed: "创建例行任务失败：{error}",
-  deleteFailed: "删除“{name}”失败，它仍在排程中：{error}",
-  enableFailed: "“{name}”仍处于暂停状态，不会触发：{error}",
-  disableFailed: "“{name}”仍处于启用状态，会继续按排程触发：{error}",
-  runFailed: "无法立即运行“{name}”——它的排程未受影响：{error}",
+  deleteFailed: "删除“{name}”失败：{error}",
+  enableFailed: "“{name}”仍处于暂停状态：{error}",
+  disableFailed: "“{name}”仍处于启用状态：{error}",
+  runFailed: "无法立即运行“{name}”——排程未受影响：{error}",
 }
