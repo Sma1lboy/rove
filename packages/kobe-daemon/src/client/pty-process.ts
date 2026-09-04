@@ -6,12 +6,14 @@
  * shape against the pty host's own socket.
  */
 
+import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { rename, rm } from "node:fs/promises"
 import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { stopDaemonProcess } from "../daemon/lifecycle.ts"
+import { isProcessAlive, stopDaemonProcess } from "../daemon/lifecycle.ts"
 import { defaultPtyHostLogPath, defaultPtyHostPidPath, defaultPtyHostSocketPath } from "../daemon/paths.ts"
+import { readPidFile } from "../daemon/socket-guard.ts"
 import { resolveKobeSpawn, spawnDetachedDaemon, testDaemonResponds } from "./daemon-process.ts"
 import { KobeDaemonClient } from "./index.ts"
 
@@ -158,14 +160,74 @@ export async function resolveNodePtyHostSpawn(deps: NodePtyHostResolution = {}):
 }
 
 /**
+ * How long a pty host whose PROCESS is alive gets to answer `hello` before it
+ * counts as wedged. The twin of `daemon-process.ts`'s `BUSY_DAEMON_GRACE_MS`,
+ * and for the same reason: one 3s probe decides "is this host quick", and
+ * only a sustained silence may license a kill. The pty host had no such
+ * window, so a host merely busy for three seconds was reaped — along with
+ * every engine it hosted.
+ */
+const BUSY_PTY_HOST_GRACE_MS = 15_000
+
+/** Live child processes of `pid` — the pty host's sessions, each a shell
+ *  leader. One `ps`; unreadable output counts as zero, which only ever
+ *  makes the reap below MORE permissive, never less. */
+async function liveChildCount(pid: number): Promise<number> {
+  try {
+    const proc = spawn("/bin/ps", ["-A", "-o", "ppid="], { stdio: ["ignore", "pipe", "ignore"] })
+    const text = await new Promise<string>((done) => {
+      let out = ""
+      proc.stdout.on("data", (chunk) => {
+        out += String(chunk)
+      })
+      proc.on("close", () => done(out))
+      proc.on("error", () => done(""))
+    })
+    return text.split("\n").filter((row) => Number(row.trim()) === pid).length
+  } catch {
+    return 0
+  }
+}
+
+/**
  * If the pty host socket already answers `hello`, do nothing. Otherwise
  * clear any wedged process and spawn a detached `kobe pty-host`, polling
  * until reachable. Returns the socket path. The terminal pane is the
  * product — it may resurrect an idle-exited host.
+ *
+ * "Idle-exited" is the whole licence. A host that EXITED owns nothing, so
+ * clearing its stale socket and pidfile is free. A host that is ALIVE and
+ * merely slow is a different thing entirely: killing it kills every hosted
+ * engine with it, and `send` used to do exactly that off ONE 3s probe and
+ * then report a bare `ok: true` — a caller asked to deliver one prompt got
+ * its whole fleet reaped and was told nothing. So a live host gets the grace
+ * window first, and a live host still holding sessions after it is refused
+ * out loud rather than reaped silently: N engines with running work must not
+ * be spent to deliver one message.
  */
 export async function ensurePtyHostReachable(): Promise<string> {
   const socketPath = defaultPtyHostSocketPath()
   if (await testDaemonResponds(socketPath)) return socketPath
+
+  const hostPid = await readPidFile(defaultPtyHostPidPath())
+  if (hostPid !== null && hostPid !== process.pid && isProcessAlive(hostPid)) {
+    const deadline = Date.now() + BUSY_PTY_HOST_GRACE_MS
+    while (Date.now() < deadline) {
+      await new Promise((resolveTimer) => setTimeout(resolveTimer, 250))
+      if (await testDaemonResponds(socketPath)) return socketPath
+      // It died on its own while we waited: the pid is gone, so the
+      // stop+spawn below is now the free idle-exit path.
+      if (!isProcessAlive(hostPid)) break
+    }
+    if (isProcessAlive(hostPid)) {
+      const sessions = await liveChildCount(hostPid)
+      if (sessions > 0) {
+        throw new Error(
+          `rove: the pty host (pid ${hostPid}) is not answering but still holds ${sessions} live session(s) — refusing to restart it, which would kill every engine running in them. Inspect it with \`rove api pty-list\`, or kill ${hostPid} yourself once you have accepted losing those sessions.`,
+        )
+      }
+    }
+  }
 
   await stopDaemonProcess(socketPath, defaultPtyHostPidPath()).catch(() => {})
 
