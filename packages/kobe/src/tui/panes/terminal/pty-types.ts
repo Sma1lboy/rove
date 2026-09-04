@@ -4,6 +4,7 @@ import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
 import type { TerminalInputModes } from "./keys-pure"
 import type { Chunk } from "./sgr"
+import type { RowWrapFlags } from "./terminal-wrap"
 
 /** One rendered row: a list of opentui-ready style runs. */
 export type TerminalRow = readonly Chunk[]
@@ -111,6 +112,11 @@ export type DataListener = (
   rows: readonly TerminalRow[],
   cursor: CursorPos | null,
   window: TerminalSnapshotWindow | null,
+  /** Parallel to `rows`: row i is a soft-wrap CONTINUATION of row i-1 — one
+   *  logical line the emulator broke because it ran out of columns. Omitted
+   *  by backends with no emulator behind them (`PipeTaskPty`, mocks), where
+   *  every row counts as its own line. */
+  wrapped?: RowWrapFlags,
 ) => void
 
 /** Cursor position within the rendered pane, 0-based. */
@@ -209,6 +215,8 @@ export interface TaskPtyLike {
   captureCursor(): CursorPos | null
   /** Address paired with `capture()`; null for backends without stable line ids. */
   captureWindow(): TerminalSnapshotWindow | null
+  /** Soft-wrap flags paired with `capture()`; see {@link DataListener}. */
+  captureWrapped?(): RowWrapFlags
   kill(): void
   /**
    * Drop this handle WITHOUT ending the session, when the backend can

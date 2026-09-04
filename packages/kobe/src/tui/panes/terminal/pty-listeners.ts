@@ -7,6 +7,7 @@
  */
 
 import type { CursorPos, DataListener, TerminalRow, TerminalSnapshotWindow } from "./pty-types"
+import type { RowWrapFlags } from "./terminal-wrap"
 
 type TitleListener = (title: string) => void
 type ExitListener = () => void
@@ -35,10 +36,15 @@ export class PtyListeners {
     return () => this.titles.delete(listener)
   }
 
-  publishData(snapshot: readonly TerminalRow[], cursor: CursorPos | null, window: TerminalSnapshotWindow | null): void {
+  publishData(
+    snapshot: readonly TerminalRow[],
+    cursor: CursorPos | null,
+    window: TerminalSnapshotWindow | null,
+    wrapped?: RowWrapFlags,
+  ): void {
     for (const listener of this.data) {
       try {
-        listener(snapshot, cursor, window)
+        listener(snapshot, cursor, window, wrapped)
       } catch {
         /* one listener must not break the others */
       }

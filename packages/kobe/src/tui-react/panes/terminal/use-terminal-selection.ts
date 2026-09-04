@@ -63,6 +63,9 @@ import {
   followWindowShift,
   pointerCell,
 } from "../../../tui/panes/terminal/terminal-selection"
+import type { RowWrapFlags } from "../../../tui/panes/terminal/terminal-wrap"
+import { useOptionalNotifications } from "../../context/notifications"
+import { useT } from "../../i18n"
 
 /** Auto-scroll cadence while a drag hangs past an edge, and its per-tick cap. */
 const AUTO_SCROLL_MS = 50
@@ -81,6 +84,9 @@ export interface UseTerminalSelectionOpts {
    * from the front, so this is what keeps the selection on its content.
    */
   snapshotWindow: TerminalSnapshotWindow | null
+  /** Soft-wrap flags parallel to `snapshot`: a copied logical line must not
+   *  grow the newlines the emulator's column limit put on screen. */
+  wrapped: RowWrapFlags
   /**
    * Scroll for a drag hanging past an edge: negative goes up into history,
    * positive toward live. The pointer's absolute coords come along because the
@@ -123,6 +129,8 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
   const draggingRef = useRef(false)
   const anchorRef = useRef<CellPoint | null>(null)
   const renderer = useRenderer()
+  const notifications = useOptionalNotifications()
+  const t = useT()
 
   const selection = useMemo<SelectionRange | null>(() => {
     if (!selAnchor || !selHead) return null
@@ -340,10 +348,30 @@ export function useTerminalSelection(opts: UseTerminalSelectionOpts): UseTermina
     [],
   )
 
+  /**
+   * Copy-on-release. Success stays SILENT — a toast on every drag would be
+   * noise on the pane's most frequent gesture — but a failure has to speak,
+   * or the highlight is the only thing that ever acknowledged the drag and it
+   * acknowledged something that did not happen.
+   *
+   * A selection with nothing but whitespace in it is skipped rather than
+   * failed: a stray click is a zero-width selection, and clobbering the
+   * clipboard with a run of spaces every time the pointer twitches is worse
+   * than doing nothing. There is nothing to report because nothing was tried.
+   *
+   * ponytail: on a box where NEITHER channel exists this fires once per drag.
+   * That is a machine-wide configuration the user fixes once, not a transient
+   * error, so it is left un-deduped rather than growing a suppression cache.
+   */
   const copySelection = (): void => {
     if (!selection) return
-    const text = extractShadowedSelection(opts.snapshot, shadowRef.current, selection)
-    if (text.trim().length > 0) copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload))
+    const text = extractShadowedSelection(opts.snapshot, shadowRef.current, selection, opts.wrapped)
+    if (text.trim().length === 0) return
+    void copyTextToSystemClipboard(text, (payload) => renderer?.copyToClipboardOSC52(payload)).then((copied) => {
+      // Empty task/tab ids: the toast queue is what this needs, not the tab's
+      // unread badge — same pattern as the standalone pages' `notifyError`.
+      if (!copied) notifications?.notify({ kind: "error", taskId: "", tabId: "", title: t("tasks.toast.copyFailed") })
+    })
   }
 
   return {

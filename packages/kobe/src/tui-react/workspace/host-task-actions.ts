@@ -247,7 +247,9 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     togglePin,
     moveTask,
     setStatus: (id) => setStatusFlow(taskActions, id),
-    copyTaskField: (id, field) => copyTaskFieldFlow(taskActions, id, field),
+    copyTaskField: (id, field) => {
+      void copyTaskFieldFlow(taskActions, id, field)
+    },
     showFieldNotes: (repo) => FieldNotesDialog.show(dialog, { repo, load: () => orchestrator.listFieldNotes(repo) }),
     confirmRunAgain,
     landTask,

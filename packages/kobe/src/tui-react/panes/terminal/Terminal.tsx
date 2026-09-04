@@ -149,7 +149,7 @@ export function Terminal(props: TerminalProps) {
     [props.terminalPresentation, defaultColors],
   )
 
-  const { pty, snapshot, snapshotWindow, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
+  const { pty, snapshot, snapshotWindow, wrapped, cursor, exited, acquireError, forceReacquire } = useTerminalPty({
     cwd: props.cwd,
     taskId: props.taskId,
     command: props.command,
@@ -214,6 +214,7 @@ export function Terminal(props: TerminalProps) {
     visibleRangeStart: visibleRange.start,
     snapshot,
     snapshotWindow,
+    wrapped,
     scrollBy: scrollFromPointer,
     // Same `mouseTrackingMode` the forwarded press is gated on, read rather
     // than clicked — the pane has to notice the app taking the mouse under a
@@ -227,6 +228,7 @@ export function Terminal(props: TerminalProps) {
     focused,
     snapshot,
     snapshotWindow,
+    wrapped,
     bodyRows,
     onAlternateScreen: pty?.onAlternateScreen ?? false,
     scrollState,

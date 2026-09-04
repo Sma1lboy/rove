@@ -192,6 +192,9 @@ export const en = {
       "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
     copiedBranch: "Copied branch {text}",
     copiedPath: "Copied path {text}",
+    // Both clipboard channels refused: no platform clipboard command on PATH
+    // (a headless box), and a terminal that answers "no" to OSC 52.
+    copyFailed: "Couldn't reach a clipboard — no clipboard command on PATH, and this terminal refused OSC 52.",
 
     /** Action failures. Each names the state that SURVIVED the failure —
      *  the `kanban.*` block's shape, and the thing a user needs in order to
@@ -355,6 +358,7 @@ export const zh: typeof en = {
     worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
     copiedBranch: "已复制分支 {text}",
     copiedPath: "已复制路径 {text}",
+    copyFailed: "无法访问剪贴板——PATH 上没有剪贴板命令，这个终端也拒绝了 OSC 52。",
 
     forgetProjectFailed: "移除项目失败——它仍在项目列表里：{error}",
     deleteFailed: "删除「{title}」失败——任务和它的 worktree 都没有被改动：{error}",
