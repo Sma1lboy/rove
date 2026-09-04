@@ -68,7 +68,7 @@ export interface AutomationCollectorDeps {
   /** Where a standing session's blocked report goes instead of
    *  being dropped. Optional so tests that don't exercise it keep working. */
   readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
-  readonly inbox?: import("./automation-dispatch.ts").DispatchInbox
+  readonly inbox?: import("./automation-runner.ts").RunnerInbox
 }
 
 /**

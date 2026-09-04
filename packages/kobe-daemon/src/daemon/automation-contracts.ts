@@ -110,6 +110,20 @@ export type AutomationRunStatus =
   | "skipped_unavailable"
   | "dispatch_failed"
 
+/**
+ * Run outcomes that mean a human has to do something.
+ *
+ * The whole point of splitting the "didn't run" reasons was so this line could
+ * be drawn: `skipped_precheck` is a healthy routine finding nothing to do and
+ * must never raise an alarm, while an engine that would not start and a repo
+ * that is no longer there will repeat every firing until someone intervenes.
+ * One definition, because the Inbox and the Routines list have to agree about
+ * which routines are broken — two thresholds would be two answers.
+ */
+export function automationRunNeedsAttention(status: AutomationRunStatus): boolean {
+  return status === "dispatch_failed" || status === "skipped_unavailable"
+}
+
 export interface AutomationPrecheckResult {
   readonly exitCode: number | null
   readonly timedOut: boolean

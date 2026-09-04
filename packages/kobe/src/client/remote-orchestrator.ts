@@ -397,6 +397,8 @@ export class RemoteOrchestrator {
     writes.deleteTaskOp(this.client, id, opts)
   dismissAttention = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     writes.dismissAttentionOp(this.client, taskId, tabId, at)
+  dismissRoutineAttention = (automationId: string): Promise<boolean> =>
+    writes.dismissRoutineAttentionOp(this.client, automationId)
   markAttentionRead = (taskId: TaskId | string, tabId: string | null, at: number): Promise<boolean> =>
     writes.markAttentionReadOp(this.client, taskId, tabId, at)
   releaseDeferredPrompt = (id: string) => writes.releaseDeferredPromptOp(this.client, id)

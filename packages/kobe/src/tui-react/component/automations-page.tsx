@@ -16,7 +16,12 @@
 
 import { TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
-import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import {
+  type Automation,
+  type AutomationRun,
+  type AutomationRunStatus,
+  automationRunNeedsAttention,
+} from "@sma1lboy/kobe-daemon/daemon/contracts"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
@@ -33,7 +38,7 @@ import { DialogConfirm } from "../ui/dialog-confirm"
 import { FRAME } from "../ui/frame"
 import { AutomationComposer } from "./automation-composer-dialog"
 import { formatWhen } from "./automations-format"
-import { RunHistory } from "./automations-runs"
+import { RunHistory, runGlyph, runToneColor } from "./automations-runs"
 
 /** Agent-driven edits land within a poll; `automation.list` is a local read. */
 const POLL_MS = 5_000
@@ -70,6 +75,8 @@ export function AutomationsPage(props: {
 
   const [automations, setAutomations] = useState<readonly Automation[] | null>(null)
   const [keepsDaemonAlive, setKeepsDaemonAlive] = useState(false)
+  /** Latest run status per routine id — the list's health column. */
+  const [lastRunStatus, setLastRunStatus] = useState<Record<string, AutomationRunStatus>>({})
   const [runs, setRuns] = useState<readonly AutomationRun[]>([])
   const [reloadTick, setReloadTick] = useState(0)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -91,6 +98,9 @@ export function AutomationsPage(props: {
           if (disposed) return
           setAutomations(result.automations)
           setKeepsDaemonAlive(result.keepsDaemonAlive)
+          // Absent from a daemon older than this field; an empty map renders
+          // every row as "never run", which is the honest reading.
+          setLastRunStatus(result.lastRunStatus ?? {})
         })
         .catch(() => {
           // A failed read leaves the previous rows rather than crashing the
@@ -110,6 +120,10 @@ export function AutomationsPage(props: {
   }, [props.orchestrator, reloadTick])
 
   const rows = automations ?? []
+  const needAttention = rows.filter((a) => {
+    const status = lastRunStatus[a.id]
+    return status !== undefined && automationRunNeedsAttention(status)
+  }).length
   const [cursor, setCursor] = useState(0)
   useEffect(() => {
     setCursor((c) => clampCursor(c, rows.length))
@@ -283,6 +297,14 @@ export function AutomationsPage(props: {
         <text fg={theme.borderSubtle} wrapMode="none" flexBasis={0} flexGrow={1} flexShrink={1}>
           {dividerRule(dims.width)}
         </text>
+        {/* How many routines are broken, before the daemon-hold state: the
+            page's own claim is that these run unattended, so the count of the
+            ones that cannot is the first thing worth reading here. */}
+        {needAttention > 0 ? (
+          <text fg={theme.error} wrapMode="none" flexShrink={0}>
+            {t("automations.needAttention", { count: String(needAttention), total: String(rows.length) })}
+          </text>
+        ) : null}
         <text fg={keepsDaemonAlive ? theme.success : theme.textMuted} wrapMode="none" flexShrink={0}>
           {keepsDaemonAlive ? t("automations.holdingDaemon") : t("automations.notHolding")}
         </text>
@@ -315,6 +337,7 @@ export function AutomationsPage(props: {
             // line would be padding, and the frame is what separates rows
             // instead of a marker column.
             const isCursor = index === cursor
+            const lastRun = lastRunStatus[automation.id]
             return (
               <box
                 key={automation.id}
@@ -353,6 +376,20 @@ export function AutomationsPage(props: {
                 )}
                 <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
                   {formatWhen(automation.nextRunAt, now)}
+                </text>
+                {/* How the last run went. One cell, right of the next-run
+                    time: without it a routine that has failed every firing
+                    for an hour is pixel-identical to one that has succeeded
+                    every firing, and finding the broken one means arrowing
+                    through every row to read the detail box. A routine that
+                    has never run gets a blank cell, not a verdict. */}
+                <text
+                  fg={lastRun ? runToneColor(lastRun, theme) : theme.textMuted}
+                  wrapMode="none"
+                  flexShrink={0}
+                  width={1}
+                >
+                  {lastRun ? runGlyph(lastRun) : " "}
                 </text>
               </box>
             )

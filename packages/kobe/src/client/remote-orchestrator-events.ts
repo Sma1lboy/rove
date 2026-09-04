@@ -216,8 +216,12 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
     const valid = items.every((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return false
       const p = item as Partial<AttentionInboxItem>
+      // `taskId: null` is legal for a routine episode only. One bad item drops
+      // the WHOLE event, so a too-strict check here does not degrade the
+      // routine row — it silently blanks the entire Inbox.
+      const taskIdOk = p.state === "routine_failed" ? p.taskId === null : typeof p.taskId === "string"
       return (
-        typeof p.taskId === "string" &&
+        taskIdOk &&
         (p.tabId === null || typeof p.tabId === "string") &&
         isAttentionInboxState(p.state) &&
         (p.unread === undefined || typeof p.unread === "boolean") &&

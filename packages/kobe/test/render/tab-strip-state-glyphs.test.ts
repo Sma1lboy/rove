@@ -57,6 +57,10 @@ describe("Inbox pane wiring", () => {
     const src = await Bun.file(new URL("../../src/tui-react/workspace/AttentionInboxPane.tsx", import.meta.url)).text()
     expect(src).toContain("quotaResumeNote(item.state, task, t)")
     // Present in the rendered subtitle, not just assigned to a dead local.
-    expect(src).toMatch(/subtitle=\{resumeNote \?/)
+    // Matched loosely inside the `subtitle=` expression rather than pinned to
+    // one shape: the subtitle now also carries a routine episode's reason, and
+    // this check is about the note REACHING the render, not about the branch
+    // order it reaches it through.
+    expect(src).toMatch(/subtitle=\{[\s\S]{0,120}?resumeNote/)
   })
 })

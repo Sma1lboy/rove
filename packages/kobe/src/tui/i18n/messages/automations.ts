@@ -7,6 +7,8 @@ export const en = {
   title: "ROUTINES",
   holdingDaemon: "keeping the daemon awake",
   notHolding: "none active",
+  /** Header count of routines whose latest run needs a human. `{count}` of `{total}`. */
+  needAttention: "{count} of {total} need you ·",
   paused: "paused",
   newTitle: "New routine",
   composerLegend: "enter create · tab fields · ←→ ↑↓ edit the focused field · esc cancel",
@@ -62,6 +64,7 @@ export const zh: typeof en = {
   title: "例行任务",
   holdingDaemon: "正在保持守护进程常驻",
   notHolding: "无启用项",
+  needAttention: "{total} 个中有 {count} 个需要处理 ·",
   paused: "已暂停",
   newTitle: "新建例行任务",
   composerLegend: "enter 创建 · tab 切字段 · ←→ ↑↓ 编辑当前字段 · esc 取消",

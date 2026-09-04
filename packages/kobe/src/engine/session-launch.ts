@@ -10,6 +10,16 @@ import { withDispatcherProtocol, withWorktreeProtocol } from "./worktree-protoco
 
 export const SIGINT_GUARD = "trap ':' INT; "
 
+/**
+ * The {@link keepAlive} banner, as a matcher.
+ *
+ * Lives beside the `printf` that emits it so the two cannot drift: this is
+ * how a caller OUTSIDE the PTY — the automation runner, which has to explain
+ * a dispatch that produced no engine — reads the exit code back out of the
+ * session's own output. Capture group 1 is that code.
+ */
+export const ENGINE_EXIT_BANNER = /Engine exited \(code (\d+)\)/
+
 /** Keep a hosted terminal useful after its engine exits. */
 export function keepAlive(command: string): string {
   const banner = "\\n  ⚠ Engine exited (code %s). Check Settings → Engines and fix the launch command.\\n\\n"

@@ -138,8 +138,10 @@ async function spawnWithPrompt(
   taskId: string,
   status: AutomationRunStatus,
 ): Promise<DispatchOutcome> {
-  const started = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, automation.prompt)
-  if (!started) return { status: "dispatch_failed", taskId, error: "engine session did not start" }
+  const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link(), taskId, automation.prompt)
+  if (!outcome.started) {
+    return { status: "dispatch_failed", taskId, error: outcome.error ?? "engine session did not start" }
+  }
   return { status, taskId }
 }
 

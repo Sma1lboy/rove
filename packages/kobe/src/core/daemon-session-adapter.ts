@@ -4,10 +4,12 @@ import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { engineLaunchArgv } from "../engine/engine-presets.ts"
 import {
   ComposerBusyError,
+  awaitEngineProcess,
   deliverToHostedKey,
   ensureHostedEngine,
   ensureHostedSessionHost,
   findHostedEngineKey,
+  hostedSessionFailureLine,
   hostedTaskKeys,
   killHostedSessions,
   listHostedSessions,
@@ -74,12 +76,23 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
  * text to the engine's OWN argv, so the prompt is part of the spawn rather
  * than a paste racing a cold TUI — the difference matters when no human is
  * watching to retype it.
+ *
+ * ## What `started` means here
+ *
+ * The ENGINE process was observed running, not "the login shell opened".
+ * `ensureHostedEngine` answers the second question, and it answers `true` for
+ * an `engineCommand` pointing at a binary that does not exist: the shell
+ * prints `command not found`, keepAlive keeps the session, and the PTY is
+ * alive with nothing in it. Reporting that as a start is what let a routine
+ * record `dispatched` forever while every firing left a dead task behind — so
+ * both delivery shapes wait for the engine itself before saying yes, and a
+ * failure carries the session's last line so the caller can say WHY.
  */
 export async function startTaskSessionWithPromptAdapter(
   link: DaemonRpcClient,
   taskId: string,
   prompt: string,
-): Promise<boolean> {
+): Promise<{ started: boolean; error?: string }> {
   const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
   // Learn the user's language from their own first prompt, so the text Rove
   // injects LATER — when no user message is in hand (a quota resume fired by
@@ -97,26 +110,36 @@ export async function startTaskSessionWithPromptAdapter(
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
-    if (!opened.alive) return false
+    if (!opened.alive) return { started: false, error: "hosted session did not open" }
+    const engineBin = engineLaunchArgv({
+      command: task.command,
+      vendor: task.vendor,
+      effort: task.modelEffort,
+    })[0]
+    const wait = { initMarkerPath: launch.initMarkerPath, initTimeoutMs: launch.initTimeoutMs }
     // Paste-delivery vendor (kimi): the prompt rides OUTSIDE the
     // argv; deliver it once the engine process is up. A paste that never
     // lands means the prompt was not delivered — report false.
     if (launch.firstMessage) {
-      const engineBin = engineLaunchArgv({
-        command: task.command,
-        vendor: task.vendor,
-        effort: task.modelEffort,
-      })[0]
-      const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
-        initMarkerPath: launch.initMarkerPath,
-        initTimeoutMs: launch.initTimeoutMs,
-      })
-      return outcome !== null
+      const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, wait)
+      if (outcome !== null) return { started: true }
+      return { started: false, error: await startFailureReason(host.rpc, launch.key) }
     }
-    return true
+    // Argv-delivery vendor (claude, codex, copilot): the prompt is already on
+    // the engine's command line, so there is nothing left to deliver — but
+    // nothing has confirmed the engine READ that command line either.
+    if ((await awaitEngineProcess(host.rpc, launch.key, engineBin, wait)) !== null) return { started: true }
+    return { started: false, error: await startFailureReason(host.rpc, launch.key) }
   } finally {
     host.close()
   }
+}
+
+/** Why a spawn did not produce an engine, in the session's own words. */
+async function startFailureReason(rpc: Parameters<typeof hostedSessionFailureLine>[0], key: string): Promise<string> {
+  const tail = await hostedSessionFailureLine(rpc, key)
+  const base = "engine process never started"
+  return tail ? `${base}; last session output: ${tail}` : base
 }
 
 function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptIntent: PromptDeliveryIntent) {

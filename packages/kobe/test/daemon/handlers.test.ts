@@ -66,6 +66,7 @@ describe("daemon handler registry", () => {
       "worktree.remove",
       "engine.reportEvent",
       "attention.dismiss",
+      "attention.dismissRoutine",
       "attention.read",
       "automation.list",
       "automation.create",

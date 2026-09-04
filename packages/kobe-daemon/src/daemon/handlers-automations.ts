@@ -2,7 +2,7 @@
 
 import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
 import { runAutomationOnce } from "./automation-runner.ts"
-import type { AutomationPatch, AutomationPrecheck } from "./contracts.ts"
+import type { AutomationPatch, AutomationPrecheck, AutomationRunStatus } from "./contracts.ts"
 import { isValidCron } from "./cron.ts"
 import { optionalBoolean, optionalNumber, optionalString, optionalVendor, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
@@ -52,8 +52,20 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.list",
     async handle(_payload, ctx) {
       const automations = ctx.automations.list()
+      // The latest run's STATUS per routine, so a list can show which ones are
+      // broken. Without it every row renders identically and finding the
+      // failing routine means opening each one in turn — which is exactly the
+      // work an unattended schedule is supposed to save. Status only: the
+      // error text, the task and the precheck output stay behind
+      // `automation.runs`, which the detail view already fetches.
+      const lastRunStatus: Record<string, AutomationRunStatus> = {}
+      for (const automation of automations) {
+        const latest = ctx.automations.runsFor(automation.id, 1)[0]
+        if (latest) lastRunStatus[automation.id] = latest.status
+      }
       return {
         automations,
+        lastRunStatus,
         // The keep-alive reason, surfaced so `automation-list` explains why the
         // daemon is staying up without a second round-trip.
         keepsDaemonAlive: ctx.automations.hasEnabled(),
@@ -123,7 +135,13 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       const deleted = await ctx.automations.delete(id)
-      if (deleted) ctx.daemon.reevaluateIdle()
+      if (deleted) {
+        // The routine's Inbox episode outlives the routine otherwise: nothing
+        // else ever clears it, and the queue is meant to describe things that
+        // still exist.
+        await ctx.inbox.deleteRoutineEpisode(id).catch(() => {})
+        ctx.daemon.reevaluateIdle()
+      }
       return { deleted }
     },
   },

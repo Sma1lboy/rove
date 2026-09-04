@@ -117,6 +117,7 @@ function InboxProbe(props: { orch: RemoteOrchestrator; items: AttentionInboxItem
     dialog: stubDialog(),
     selectedId: null,
     selectTask: () => {},
+    openAutomations: () => {},
     focusWorkspace: () => {},
     notifyError: () => {},
     notifyInfo: (message: string) => {

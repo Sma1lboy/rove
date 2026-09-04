@@ -97,7 +97,7 @@ describe("startWorkItem", () => {
         runtime: {
           startTaskSessionWithPrompt: async (_l: DaemonRpcClient, _id: string, prompt: string) => {
             prompts.push(prompt)
-            return overrides.start ? await overrides.start() : true
+            return { started: overrides.start ? await overrides.start() : true }
           },
         },
         link: {} as DaemonRpcClient,

@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   killSessions: vi.fn(async () => {}),
   deliver: vi.fn(async () => ({ bytes: 1 })),
   sessionHasEngine: vi.fn(async () => true),
+  awaitEngineProcess: vi.fn(async (): Promise<number | null> => 4242),
+  failureLine: vi.fn(async () => "⚠ Engine exited (code 127)."),
   buildLaunch: vi.fn((input: { task: { id: string } }): { key: string; command: string[]; firstMessage?: string } => ({
     key: `${input.task.id}::tab-1`,
     command: ["/bin/zsh", "-ilc", "claude 'repo prompt'"],
@@ -35,6 +37,8 @@ vi.mock("../../src/engine/hosted-session.ts", () => ({
   hostedTaskKeys: mocks.taskKeys,
   killHostedSessions: mocks.killSessions,
   deliverToHostedKey: mocks.deliver,
+  awaitEngineProcess: mocks.awaitEngineProcess,
+  hostedSessionFailureLine: mocks.failureLine,
 }))
 vi.mock("../../src/engine/session-launch.ts", () => ({ buildEngineSessionLaunch: mocks.buildLaunch }))
 vi.mock("../../src/engine/session-engine-presence.ts", () => ({ sessionHasEngine: mocks.sessionHasEngine }))
@@ -95,10 +99,26 @@ describe("daemon session adapter", () => {
   it("launches an explicit first prompt as a new-task intent (branch-rename coda)", async () => {
     // Both callers (automation runner, work-item start) create the task
     // immediately ahead of this call, so the first prompt is a new-worktree entry.
-    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toBe(true)
+    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({
+      started: true,
+    })
     expect(mocks.buildLaunch).toHaveBeenCalledWith(
       expect.objectContaining({ promptIntent: { kind: "new-task", prompt: "do the thing" } }),
     )
+  })
+
+  // An argv-delivery vendor has nothing left to deliver after the spawn, which
+  // is exactly why nothing used to check that the spawn produced an ENGINE:
+  // `pty.open` reports the LOGIN SHELL alive, and keepAlive keeps that shell
+  // alive when the engine binary does not exist. A routine then recorded
+  // `dispatched` forever with a dead task behind every firing.
+  it("reports a start only once the engine process is seen, and says why when it isn't", async () => {
+    mocks.awaitEngineProcess.mockResolvedValueOnce(null)
+    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({
+      started: false,
+      error: "engine process never started; last session output: ⚠ Engine exited (code 127).",
+    })
+    expect(mocks.awaitEngineProcess).toHaveBeenCalled()
   })
 
   it("builds engine and terminal specs without duplicating the first prompt", async () => {

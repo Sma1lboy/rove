@@ -36,6 +36,8 @@ export function itemGlyph(state: AttentionInboxItem["state"]): string {
   if (state === "dead") return "†"
   // `≡` (no Emoji property) for a queued message — a stack, not a failure.
   if (state === "prompt_deferred") return "≡"
+  // A schedule that could not do its work — `↻`, a cycle that keeps failing.
+  if (state === "routine_failed") return "↻"
   return "!"
 }
 
@@ -46,6 +48,7 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
   if (state === "rate_limited") return "workspace.inbox.state.rateLimited"
   if (state === "dead") return "workspace.inbox.state.dead"
   if (state === "prompt_deferred") return "workspace.inbox.state.promptDeferred"
+  if (state === "routine_failed") return "workspace.inbox.state.routineFailed"
   return "workspace.inbox.state.error"
 }
 
