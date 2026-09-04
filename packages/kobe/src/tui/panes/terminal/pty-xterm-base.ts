@@ -19,6 +19,25 @@ import {
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
+/**
+ * How long a burst of PTY output is coalesced before one snapshot is built.
+ *
+ * This is the renderer's frame period, not a guess. `createCliRenderer` runs
+ * at `targetFps` 30 (src/tui/lib/host-render-options.ts sets no override, and
+ * `snapshot-coalesce.test.tsx` reads 30 off a live renderer), so a snapshot
+ * produced more often than every 33ms is built, published, committed through
+ * React and laid out by opentui for a frame that is then never drawn.
+ *
+ * It used to be 16ms — 62.5Hz against a 30Hz renderer. Measured on a pane
+ * streaming 200 lines/s at 200x50: 49 refreshes/s where the renderer drew 30,
+ * so ~40% of the whole snapshot→paint pass was discarded work.
+ *
+ * Raising it costs no visible latency: the extra snapshots were never on
+ * screen. It must not exceed the frame period either, or output visibly lags
+ * the renderer — hence the test that pins it to the live `targetFps`.
+ */
+export const SNAPSHOT_COALESCE_MS = 33
+
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
   readonly cwd: string
@@ -370,7 +389,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     setTimeout(() => {
       this.refreshQueued = false
       this.refreshSnapshot()
-    }, 16)
+    }, SNAPSHOT_COALESCE_MS)
   }
 
   private refreshSnapshot(): void {
