@@ -209,12 +209,19 @@ replacement in `nextCommandArgs`.
     carries `.exit` with `code`/`signal`/`at`/`layer` **and** `tail`, the last
     lines the session printed, so a crash comes back with its cause attached.
     The tail rides along only when the durable record describes that same
-    death. `layer` says WHICH process the record describes (`"pty"` — the
-    tab's own session child), without which `code` and `signal` cannot be
-    read together: a signalled session has no wait-status code, so `code`
-    then comes from the wrapper's own `Engine exited (code N)` banner and
-    belongs to the ENGINE, while `signal` belongs to the session that
-    outlived it.
+    death. `layer` says WHICH process the record describes, without which
+    `code` and `signal` cannot be read together. `"pty"` is the tab's own
+    session child, on a dead tab: a signalled session has no wait-status
+    code, so `code` then comes from the wrapper's own `Engine exited (code
+    N)` banner and belongs to the ENGINE, while `signal` belongs to the
+    session that outlived it. `"engine"` is the AI process gone from a tab
+    whose SESSION IS STILL ALIVE (`alive: true, engineAlive: false` — the
+    login shell the tab keeps in its place); it is reported for a clean
+    engine exit too, because `code: 0` ("the human quit their agent") and
+    `code: 143` ("it was SIGTERMed and there is unfinished work") are exactly
+    what a fleet reader is trying to tell apart. `atApproximate: true` on
+    such a row means `at` is when the daemon DISCOVERED the death, not when
+    it happened — see the `inspect` `sessionExits` note below.
   - `.changes` — uncommitted files (`added`/`deleted`). Non-zero means the
     task cannot land as-is, however it reported itself.
   - `.base` — committed work: `ahead` (commits vs the base branch) and a
@@ -268,8 +275,13 @@ replacement in `nextCommandArgs`.
   `code`/`signal`/`at` plus a plain-text output `tail`, kept in
   `pty-exits.json` so they survive the PTY host's idle-exit. `layer: "pty"`
   is the terminal process, abnormal exits only; `layer: "engine"` is the AI
-  process gone from a still-running terminal, and adds `vendor` and
-  `parentAlive`), and `tabs` (the
+  process gone from a still-running terminal, and adds `parentAlive` plus
+  `vendor` where a walk named the engine. An engine that died while no daemon
+  was watching — the daemon idle-exits on its last GUI — is reconciled at the
+  next daemon start from the wrapper's `Engine exited (code N)` banner still
+  in the session's ring; those records carry `atApproximate: true`, meaning
+  `at` is discovery time and no vendor, because nothing on disk records
+  either), and `tabs` (the
   snapshots the sidebar names its rows from, reconciled against the live
   session inventory: a task whose snapshot is missing an alive
   `<taskId>::tab-N` session reports those tab ids under `unregistered`,

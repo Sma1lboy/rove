@@ -7,7 +7,8 @@
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
-import { createActivityObserverIo, startActivityObserver } from "./activity-observer.ts"
+import { createActivityObserverIo } from "./activity-observer-io.ts"
+import { startActivityObserver } from "./activity-observer.ts"
 import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
@@ -171,7 +172,7 @@ export function startDaemonCollectors(
     ? startActivityObserver(
         activity,
         {
-          ...createActivityObserverIo(options.homeDir, runtime),
+          ...createActivityObserverIo(options.homeDir, runtime, activity),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
         },
         () => hasSubscribersFor("engine-state"),

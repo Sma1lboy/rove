@@ -21,7 +21,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import { startFileWatchTrigger } from "./file-watch-trigger.ts"
 import { defaultPtyExitsPath } from "./paths.ts"
-import { type PtyExitRecord, readPtyExitStore } from "./pty-exit-store.ts"
+import { ENGINE_EXIT_BANNER, type PtyExitRecord, readPtyExitStore } from "./pty-exit-store.ts"
 
 const DEBOUNCE_MS = 250
 /** Session key shape: `taskId::tabId` (pty registry convention). */
@@ -85,24 +85,13 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     for (const key of seen.keys()) if (!(key in records)) seen.delete(key)
   }
 
-  /**
-   * Turn a death record into the tab's `dead` activity state. Skipped when the
-   * key names no tab (task-level records have nothing to badge) and when the
-   * timestamp is unparseable — a death with no clock can't be arbitrated
-   * against a hook claim, and guessing `now` would let an OLD record bury a
-   * live engine on the next daemon start.
-   */
+  /** Turn a death record into the tab's `dead` activity state + Inbox item. */
   const publishDeath = (record: PtyExitRecord): void => {
     const registry = opts.activity
     if (!registry && !opts.inbox) return
-    const match = KEY_RE.exec(record.key)
-    const taskId = match?.[1]
-    const tabId = match?.[2]
-    if (!taskId || !tabId) return
-    const at = Date.parse(record.at)
-    if (!Number.isFinite(at)) return
-    const lastLine = lastErrorLine(record.tail)
-    const exit = { code: record.code, signal: record.signal, ...(lastLine ? { lastLine } : {}) }
+    const death = engineDeathOf(record)
+    if (!death) return
+    const { taskId, tabId, exit, at } = death
     registry?.recordEngineDeath(taskId, tabId, exit, at)
     opts.inbox
       ?.recordEngineDeath(taskId, tabId, { exit }, at)
@@ -131,13 +120,55 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
   return stop
 }
 
-/** Last non-blank line of a recorded tail — the 403 / auth / quota text. */
+/**
+ * One death record as the tab + exit the activity badge and the Attention
+ * Inbox speak. Null when the key names no tab (task-level records have
+ * nothing to badge) or the timestamp is unparseable — a death with no clock
+ * can't be arbitrated against a hook claim, and guessing `now` would let an
+ * OLD record bury a live engine.
+ *
+ * Shared with the observer's boot reconciler, which re-publishes a badge this
+ * daemon's in-memory registry never saw: both must caption the same death the
+ * same way.
+ */
+export function engineDeathOf(record: PtyExitRecord): {
+  taskId: string
+  tabId: string
+  exit: { code: number | null; signal: string | null; lastLine?: string }
+  at: number
+} | null {
+  const match = KEY_RE.exec(record.key)
+  const taskId = match?.[1]
+  const tabId = match?.[2]
+  if (!taskId || !tabId) return null
+  const at = Date.parse(record.at)
+  if (!Number.isFinite(at)) return null
+  const lastLine = lastErrorLine(record.tail)
+  return { taskId, tabId, exit: { code: record.code, signal: record.signal, ...(lastLine ? { lastLine } : {}) }, at }
+}
+
+/**
+ * The one line that explains a death.
+ *
+ * The last non-blank line is right for a PTY-layer record, where the dying
+ * process really did write last — the 403 / auth / quota text. It is wrong
+ * for an ENGINE-layer one: keepAlive `exec`s a login shell AFTER printing its
+ * banner, so the tail ends in that shell's prompt, and "your agent died" got
+ * captioned with a fragment of someone's zsh theme (broken Nerd Font
+ * surrogate pairs included) while the cause sat two lines above. The banner
+ * is a string Rove itself printed, so it can be matched exactly rather than
+ * trying to recognise "a prompt" generically — prefer it wherever the tail
+ * has one.
+ */
 export function lastErrorLine(tail: readonly string[]): string | undefined {
+  let last: string | undefined
   for (let i = tail.length - 1; i >= 0; i--) {
     const line = (tail[i] ?? "").trim()
-    if (line.length > 0) return line
+    if (line.length === 0) continue
+    if (ENGINE_EXIT_BANNER.test(line)) return line
+    last ??= line
   }
-  return undefined
+  return last
 }
 
 function exitReport(record: PtyExitRecord): { taskId?: string; detail: Record<string, unknown> } {

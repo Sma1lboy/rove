@@ -87,9 +87,18 @@ describe("engine death records", () => {
   })
 })
 
+interface WalkFires {
+  /** The vendor→no-engine EDGE — a death this observer watched happen. */
+  readonly exits: Array<Record<string, unknown>>
+  /** The BOOT case — a live session with no engine on the first walk, so
+   *  there is no previous vendor and never will be one. */
+  readonly absent: Array<Record<string, unknown>>
+}
+
 /** Drive the observer's walk with a steerable per-walk vendor table. */
-function observeWalk(steps: readonly (string | null)[]): Promise<Array<Record<string, unknown>>> {
+function observeWalk(steps: readonly (string | null)[]): Promise<WalkFires> {
   const fired: Array<Record<string, unknown>> = []
+  const absent: Array<Record<string, unknown>> = []
   let walk = 0
   const stop = startActivityObserver(
     { observeTab: () => "noop", close: () => {} } as never,
@@ -104,6 +113,7 @@ function observeWalk(steps: readonly (string | null)[]): Promise<Array<Record<st
       },
       titleTurnHint: () => null,
       onEngineExit: (info) => fired.push({ ...info }),
+      onEngineAbsentAtStart: (info) => absent.push({ ...info }),
     },
     () => true,
     { pollMs: 5, walkEveryTicks: 1, log: () => {} },
@@ -112,7 +122,7 @@ function observeWalk(steps: readonly (string | null)[]): Promise<Array<Record<st
     setTimeout(
       () => {
         stop()
-        resolve(fired)
+        resolve({ exits: fired, absent })
       },
       5 * steps.length + 80,
     )
@@ -121,16 +131,44 @@ function observeWalk(steps: readonly (string | null)[]): Promise<Array<Record<st
 
 describe("observer engine-death edge", () => {
   it("fires once on vendor → no-engine, and not again while it stays gone", async () => {
-    const fired = await observeWalk(["kimi", "kimi", null, null, null])
-    expect(fired).toEqual([{ taskId: "t1", tabId: "tab-1", vendor: "kimi", pid: 9001 }])
+    const { exits } = await observeWalk(["kimi", "kimi", null, null, null])
+    expect(exits).toEqual([{ taskId: "t1", tabId: "tab-1", vendor: "kimi", pid: 9001 }])
   })
 
   it("stays silent for a session that never had an engine", async () => {
-    expect(await observeWalk([null, null, null])).toEqual([])
+    expect((await observeWalk([null, null, null])).exits).toEqual([])
   })
 
   it("fires again when an engine is restarted and dies a second time", async () => {
-    const fired = await observeWalk(["kimi", null, "kimi", null, null])
-    expect(fired).toHaveLength(2)
+    expect((await observeWalk(["kimi", null, "kimi", null, null])).exits).toHaveLength(2)
+  })
+})
+
+/**
+ * The boot case. Every track starts at `vendor: undefined`, so the edge above
+ * can only report a death this daemon watched happen — and the registry is
+ * in-memory by contract. A `rove daemon restart` therefore turned a dead
+ * engine's tab back into `idle`, and an engine that died while the daemon was
+ * DOWN was never recorded at all. Both need a fact only the first walk has:
+ * this session was already live and there is no engine in it.
+ */
+describe("observer boot reconciliation", () => {
+  it("reports a live, engine-free session on the first walk", async () => {
+    const { absent, exits } = await observeWalk([null, null, null])
+    expect(absent).toEqual([{ taskId: "t1", tabId: "tab-1" }])
+    // It is NOT an observed death — nothing was watched dying.
+    expect(exits).toEqual([])
+  })
+
+  it("reports it once, not on every later walk that also finds nothing", async () => {
+    expect((await observeWalk([null, null, null, null, null])).absent).toHaveLength(1)
+  })
+
+  it("stays silent when the first walk finds an engine — including after it later dies", async () => {
+    // A session that WAS walked with an engine has a real edge; routing it
+    // through the boot path too would double-report the same death.
+    const { absent, exits } = await observeWalk(["kimi", "kimi", null, null])
+    expect(absent).toEqual([])
+    expect(exits).toHaveLength(1)
   })
 })

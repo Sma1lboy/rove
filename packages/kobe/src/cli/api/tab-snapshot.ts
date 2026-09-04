@@ -34,6 +34,16 @@ import type { VendorId } from "../../types/vendor.ts"
  * the tab's OWN hosted session (`<taskId>::<tabId>`) is alive right now — the
  * discovery read an agent needs to pick a `send --tab tab-N` target.
  */
+/** A death as `pty-exits.json` records it, joined onto a tab row. */
+export type TabExit = PtySessionExit & {
+  readonly tail?: readonly string[]
+  readonly layer?: "pty" | "engine"
+  /** `at` is when the daemon DISCOVERED this death, not when it happened —
+   *  set on engine deaths reconciled at daemon boot, where the wrapper's
+   *  banner proves the death but nothing on disk carries its clock. */
+  readonly atApproximate?: true
+}
+
 export interface TaskTabRow {
   readonly id: string
   readonly kind: TerminalTab["kind"]
@@ -53,17 +63,25 @@ export interface TaskTabRow {
    *  zsh prompt. `null` means nothing walked it (a `ps` that failed), never
    *  "no engine": a reader must not turn "couldn't look" into a verdict. */
   readonly engineAlive: boolean | null
-  /** How the tab's session died — ABNORMAL exits only (clean exit 0 stays
-   *  null, by the no-noise rule); null while alive/unknown. Joined
-   *  from the live host when present, else the durable exit records —
-   *  `tail` (the exit-time output lines the durable record keeps) rides
-   *  along whenever the record describes the same death.
+  /** How this tab's engine or session died; null while it is healthy, or
+   *  while nothing could be established. Joined from the live host when
+   *  present, else the durable exit records — `tail` (the exit-time output
+   *  lines the durable record keeps) rides along whenever the record
+   *  describes the same death.
    *
-   *  `layer` names WHICH process this describes: `"pty"` is the tab's own
-   *  session child. Without it `code`/`signal` cannot be read — a `code`
-   *  recovered from the wrapper's `Engine exited (code N)` banner belongs
-   *  to the engine, while `signal` belongs to the session that outlived it. */
-  readonly exit: (PtySessionExit & { tail?: readonly string[]; layer?: "pty" | "engine" }) | null
+   *  `layer` names WHICH process this describes, without which `code` and
+   *  `signal` cannot be read together:
+   *  - `"pty"` — the tab's own session child, on a DEAD tab. Abnormal exits
+   *    only (a clean exit 0 stays null, by the no-noise rule). A `code`
+   *    recovered from the wrapper's `Engine exited (code N)` banner belongs
+   *    to the engine, while `signal` belongs to the session that outlived it.
+   *  - `"engine"` — the AI process gone from a tab whose SESSION IS STILL
+   *    ALIVE (`alive: true, engineAlive: false`), which is what keepAlive's
+   *    login shell leaves behind. Reported for a clean engine exit too: `code
+   *    0` is "the human quit their agent" and `code 143` is "it was
+   *    SIGTERMed", and telling those apart is the whole reason a fleet reader
+   *    asks. */
+  readonly exit: TabExit | null
   /** Present (true) only on rows derived from a LIVE pty session the
    *  persisted snapshot does not list — an otherwise invisible engine. The
    *  snapshot is a record of intent; the pty host holds the truth, and a
@@ -177,9 +195,7 @@ export function joinTaskTabs(
   /** `null` = the pty host could not be asked; every liveness field on every
    *  row then reports `null` rather than a verdict nobody checked. */
   sessions: readonly TaskSessionRow[] | null,
-  persistedExits: Readonly<
-    Record<string, PtySessionExit & { tail?: readonly string[]; layer?: "pty" | "engine" }>
-  > = {},
+  persistedExits: Readonly<Record<string, TabExit>> = {},
   liveVendors?: ReadonlyMap<string, string | null>,
   engineAlive?: ReadonlyMap<string, boolean>,
 ): TaskTabRow[] {
@@ -209,10 +225,37 @@ export function joinTaskTabs(
     const layer = record?.layer ?? "pty"
     return { code, signal: ex.signal, at: ex.at, layer, ...(tail && tail.length > 0 ? { tail } : {}) }
   }
+  // The ENGINE-layer death of a tab whose SESSION IS STILL ALIVE — the case
+  // `deadExit` cannot describe twice over: it only ran for `alive === false`,
+  // and it looks records up under the bare session key while engine records
+  // live under `<key>#engine`. So `layer: "engine"` — which `TaskTabRow.exit`
+  // is typed for and `docs/API.md` documents — could never appear on a row
+  // from `get-task` or `collect`, and an agent polling a fleet read "no
+  // engine, no reason" while `inspect` printed the code and the tail. No
+  // abnormal-exit filter: the store already decided every engine
+  // disappearance is worth recording, and code 0 is the "quit on purpose"
+  // answer the caller came for.
+  const engineExit = (key: string): TaskTabRow["exit"] => {
+    const record = persistedExits[`${key}#engine`]
+    if (!record) return null
+    const { code, signal, at, tail, atApproximate } = record
+    return {
+      code,
+      signal,
+      at,
+      layer: "engine",
+      ...(atApproximate ? { atApproximate } : {}),
+      ...(tail && tail.length > 0 ? { tail } : {}),
+    }
+  }
   const rows: TaskTabRow[] = (snapshot?.tabs ?? []).map((t) => {
     const key = `${taskId}::${t.id}`
     const isAlive = unknown ? null : alive.has(key)
     const walked = isAlive === true && liveVendors?.has(key) === true ? (liveVendors.get(key) ?? null) : undefined
+    // Gated on the WALK, not on the record's existence: a tab that has since
+    // started a new engine still holds its old death record, and captioning a
+    // live engine with it would be the same lie in the other direction.
+    const engineIsAlive = engineAliveOf(key, isAlive, engineAlive)
     return {
       id: t.id,
       kind: t.kind,
@@ -222,8 +265,10 @@ export function joinTaskTabs(
       lastTitle: t.lastTitle ?? null,
       autoTitle: t.autoTitle ?? null,
       alive: isAlive,
-      engineAlive: engineAliveOf(key, isAlive, engineAlive),
-      exit: isAlive === false ? deadExit(key) : null,
+      engineAlive: engineIsAlive,
+      // A pty-layer death of the session itself wins: it is the later and
+      // larger event, and it took the engine's tab with it.
+      exit: isAlive === false ? deadExit(key) : engineIsAlive === false ? engineExit(key) : null,
     }
   })
   // Live sessions the snapshot doesn't know still get a row — the discovery

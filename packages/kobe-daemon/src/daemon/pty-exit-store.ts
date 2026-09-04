@@ -62,6 +62,13 @@ export interface PtyExitRecord {
   /** Engine layer only: always true — the PTY outlived its engine, which is
    *  exactly what makes this record's existence meaningful. */
   readonly parentAlive?: boolean
+  /** `at` is when the daemon DISCOVERED this death, not when it happened.
+   *  Set on records the boot reconciler writes for an engine that died while
+   *  no daemon was watching (see `activity-observer-io.ts`'s
+   *  `onEngineAbsentAtStart`): the wrapper's banner proves the death but
+   *  carries no clock, and stamping discovery time silently would make an
+   *  hours-old corpse read as fresh. */
+  readonly atApproximate?: true
 }
 
 const MAX_RECORDS = 50
@@ -88,11 +95,23 @@ export function plainTail(raw: string): string[] {
  */
 export function engineExitCodeFromTail(tail: readonly string[]): number | null {
   for (let i = tail.length - 1; i >= 0; i--) {
-    const m = /Engine exited \(code (\d+)\)/.exec(tail[i] ?? "")
+    const m = ENGINE_EXIT_BANNER.exec(tail[i] ?? "")
     if (m?.[1]) return Number.parseInt(m[1], 10)
   }
   return null
 }
+
+/**
+ * The keepAlive wrapper's own banner, as a matcher — the twin of kobe's
+ * `session-launch.ts` `ENGINE_EXIT_BANNER` (this package cannot import that
+ * one). Deliberately non-global: `.test`/`.exec` on a global regex carries
+ * `lastIndex` between calls.
+ *
+ * Its presence in a tail is POSITIVE proof an engine ran here and exited
+ * nonzero — a string Rove itself printed, not an inference. Capture group 1
+ * is the code.
+ */
+export const ENGINE_EXIT_BANNER = /Engine exited \(code (\d+)\)/
 
 export interface PtyExitStoreRead {
   readonly records: Record<string, PtyExitRecord>
@@ -182,13 +201,18 @@ export function recordPtyExit(info: PtySessionEndInfo, path = defaultPtyExitsPat
 export interface EngineExitInfo {
   /** Session key (`taskId::tabId`) of the PTY that OUTLIVED this engine. */
   readonly key: string
-  readonly vendor: string
+  /** Which engine died, per the walk that last saw it. Absent on the boot
+   *  reconciler's records: it never walked this session with an engine in it
+   *  — the banner proves one died, and nothing on disk names it. */
+  readonly vendor?: string
   /** The ENGINE's own pid, from the last walk that still saw it alive; null
    *  when no walk ever resolved one. Never the surviving session's pid. */
   readonly pid: number | null
   readonly at: string
   /** Raw PTY tail at detection time (ANSI included; stripped here). */
   readonly tail: string
+  /** See {@link PtyExitRecord.atApproximate} — `at` is discovery time. */
+  readonly atApproximate?: true
 }
 
 /**
@@ -212,7 +236,8 @@ export function recordEngineExit(info: EngineExitInfo, path = defaultPtyExitsPat
       at: info.at,
       tail,
       layer: "engine",
-      vendor: info.vendor,
+      ...(info.vendor ? { vendor: info.vendor } : {}),
+      ...(info.atApproximate ? { atApproximate: true as const } : {}),
       parentAlive: true,
     },
     path,
