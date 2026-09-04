@@ -40,7 +40,7 @@ const childEnv = { ...process.env }
 
 const sandboxed = homeDir !== null
 console.log(
-  `\x1b[1m[rove web dev]\x1b[0m ${sandboxed ? "\x1b[33msandbox\x1b[0m" : "\x1b[31mPRODUCTION\x1b[0m"} · home: ${homeDir ?? `${homedir()}/.rove (production)`}`,
+  `\x1b[1m[rove harness dev]\x1b[0m ${sandboxed ? "\x1b[33msandbox\x1b[0m" : "\x1b[31mPRODUCTION\x1b[0m"} · home: ${homeDir ?? `${homedir()}/.rove (production)`}`,
 )
 console.log(`  web :${WEB_PORT}  pty :${PTY_PORT}`)
 

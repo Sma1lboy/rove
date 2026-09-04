@@ -12,8 +12,7 @@
  * The expected value is the same 0600 file the daemon mints
  * (`kobe-daemon/daemon/web-token.ts` + `defaultWebTokenPath`), read here
  * directly rather than passed down from whoever spawned this process: the
- * sidecar is started from four places (`rove web`, `dev.ts`, Playwright, by
- * hand), and a launcher that forgot to forward the secret would silently
+ * sidecar is started from three places (`dev.ts`, Playwright, by hand), and a launcher that forgot to forward the secret would silently
  * reopen the hole. The path logic is duplicated instead of imported because
  * this file runs under node — node-pty does not work under bun — and the
  * daemon's path module is TypeScript.

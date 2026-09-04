@@ -1,15 +1,16 @@
 /**
  * ChatTerminal — a live xterm.js attached (over the PTY WebSocket) to one
- * PTY-backed workspace tab. Vendor tabs run the selected engine; terminal
- * tabs run the user's shell. Keyed by tab id in the parent so switching tabs
- * swaps terminals while the PTY persists server-side across reconnects.
+ * PTY-backed tab. Keyed by tab id in the parent so switching tabs swaps
+ * terminals while the PTY persists server-side across reconnects.
  *
- * Engine tabs get a prompt composer under the terminal: a textarea whose
- * submit pastes into the engine via bracketed paste + Enter (the same
- * delivery contract as kobe's tmux `pasteAndSubmit`), so driving a session
- * doesn't require terminal typing ergonomics. A dropped socket shows a
- * Reattach affordance — the PTY survives server-side and replays its
- * scrollback ring on re-attach, so reattaching is loss-free.
+ * `mode` still selects engine vs shell on the wire, but `/harness` — the only
+ * route that mounts this — hardcodes `mode="shell"`, so engine tabs are not
+ * reachable from the product today. The prompt composer that used to sit
+ * under an engine terminal went with the browser dashboard in #855.
+ *
+ * A dropped socket shows a Reattach affordance — the PTY survives
+ * server-side and replays its scrollback ring on re-attach, so reattaching
+ * is loss-free.
  */
 
 import { ClipboardAddon } from "@xterm/addon-clipboard"

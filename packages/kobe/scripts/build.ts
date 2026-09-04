@@ -23,9 +23,8 @@
  * agent detection, target dirs, and symlinking — kobe never reimplements
  * that registry.
  *
- * The published artifact carries the browser dashboard alongside the TUI.
- * `kobe web` serves the built SPA from dist/web-ui through the daemon-owned
- * web transport.
+ * The published artifact carries the `kobe-harness` capture page alongside
+ * the TUI, in dist/web-ui, together with the PTY sidecar modules it needs.
  */
 
 import { existsSync } from "node:fs"
@@ -69,7 +68,7 @@ async function copyWebUi(): Promise<void> {
   await cp(WEB_DIST_DIR, WEB_OUT_DIR, { recursive: true, force: true })
   // The PTY server runs unbundled under Node, so every sibling module it
   // imports must ship next to it (missing one = ERR_MODULE_NOT_FOUND at
-  // `kobe web` startup in the packaged build).
+  // sidecar startup in the packaged build).
   for (const file of WEB_PTY_SIDE_CAR_FILES) {
     await cp(`${WEB_PACKAGE_DIR}/${file}`, `${WEB_OUT_DIR}/${file}`, { force: true })
   }

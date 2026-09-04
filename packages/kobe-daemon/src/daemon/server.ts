@@ -414,7 +414,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // In-process RPC client over the daemon's OWN handler registry — no socket
   // round-trip. Built unconditionally: the automation runner needs it to launch
   // engine sessions whether or not anyone is attached.
-  const selfLink = createDirectLink({ orch, bus, activity, ctx: handlerContext })
+  const selfLink = createDirectLink({ ctx: handlerContext })
 
   async function dispatch(req: Extract<DaemonFrame, { type: "request" }>, client: ClientState): Promise<unknown> {
     if (req.name === "subscribe") {

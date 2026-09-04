@@ -240,9 +240,9 @@ describe("createPtySessionManager", () => {
   })
 
   // Issue #25: a paste-delivery vendor's (kimi) launch keeps the first
-  // message OUT of its argv; the daemon's engine-spec carries it as
-  // `firstMessage` and the sidecar owes the FRESH spawn a paste. A re-attach
-  // must never redeliver it.
+  // message OUT of its argv; the launch spec carries it as `firstMessage`
+  // and the sidecar owes the FRESH spawn a paste. A re-attach must never
+  // redeliver it.
   it("pastes a spec-carried first message into a fresh spawn only", async () => {
     vi.useFakeTimers()
     const { manager, ptys } = setup({

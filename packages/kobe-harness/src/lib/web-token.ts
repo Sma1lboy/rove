@@ -14,9 +14,8 @@
  * cannot read the 0600 token file cannot read this either.
  *
  * Read once, but LAZILY on first use rather than at import: this module is
- * pulled in by `api-client.ts`, which unit tests import under node with no
- * DOM, and a module-load `document` read would throw there before any test
- * body runs. Cached after the first call — the served page carries one token
+ * pulled in by modules that unit tests import under node with no DOM, and a
+ * module-load `document` read would throw there before any test body runs. Cached after the first call — the served page carries one token
  * for its whole life, and rotating it means restarting the daemon, which
  * means reloading anyway.
  *

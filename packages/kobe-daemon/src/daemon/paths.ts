@@ -104,15 +104,6 @@ function runtimeDataPath(homeDir: string, name: string): string {
 const SOCKET_PATH_SAFETY_LIMIT = 100
 
 /**
- * Default port for the daemon-hosted web transport. Deliberately far from
- * the 3000–9999 dev-server neighbourhood: a port next to Vite's 5173 gets
- * routinely squatted by a stray `vite` from an unrelated project, which
- * silently downgrades every daemon start to socket-only. Overridable via
- * `KOBE_DAEMON_WEB_PORT`.
- */
-export const DEFAULT_DAEMON_WEB_PORT = 45174
-
-/**
  * Stable per-home short tag used as a fallback socket-name prefix when
  * the natural path overruns the kernel's `sun_path` size. Different
  * `KOBE_HOME_DIR`s map to different tags, so multiple sandbox daemons
