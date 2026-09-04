@@ -1,28 +1,29 @@
 /**
  * The PTY sidecar's bearer token, as the browser sees it.
  *
- * The daemon rewrites a `<meta name="rove-web-token">` into index.html for a
- * request that ALREADY presented the token. It will not mint one for an
- * anonymous caller, because `/` is ungated (a browser cannot attach a header
- * to the subresources it fetches itself) and injecting there handed the
- * credential to any `curl`.
+ * `VITE_ROVE_WEB_TOKEN` is the live channel, and currently the only one: Vite
+ * serves the harness HTML, `dev.ts` mints the token and passes it in as that
+ * env var, and `withWebTokenQuery` puts it on the WebSocket URL. Without it the
+ * sidecar refuses the upgrade.
  *
- * So the meta tag only appears on the entry navigation. `sessionStorage`
- * carries it from there: a reload that arrives without the query would
- * otherwise have neither channel. Per-tab and per-origin, so it is scoped to
- * this browser profile — the local user who cannot read the 0600 token file
- * cannot read this either.
+ * The `<meta name="rove-web-token">` and `sessionStorage` branches below are
+ * HISTORICAL. They read a tag the daemon-hosted web transport used to rewrite
+ * into index.html for a request that had already presented the token — #855
+ * deleted that transport, and nothing injects the tag any more (grep
+ * `rove-web-token`: only this file and its tests). The `sessionStorage` pair
+ * existed to carry that tag across a reload arriving without the query. Both
+ * are unreachable in production; they are still exercised by
+ * `test/web-token.test.ts` against a synthetic DOM. Removing them is a
+ * deliberate deletion, not a cleanup to fold into an unrelated change — so
+ * they stay until someone decides that, and a reader debugging a missing token
+ * should look at `VITE_ROVE_WEB_TOKEN`, not for an injector.
  *
  * Read once, but LAZILY on first use rather than at import: this module is
  * pulled in by modules that unit tests import under node with no DOM, and a
  * module-load `document` read would throw there before any test body runs.
  * Cached after the first call — the served page carries one token for its
- * whole life, and rotating it means restarting the daemon, which means
+ * whole life, and rotating it means restarting the harness, which means
  * reloading anyway.
- *
- * Absent in `vite dev`, where Vite (not the daemon) serves the HTML and so
- * nothing injects the tag. `VITE_ROVE_WEB_TOKEN` covers that case; without
- * either, the sidecar refuses the WebSocket upgrade.
  */
 const STORAGE_KEY = "rove-web-token"
 

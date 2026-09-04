@@ -16,9 +16,14 @@
  * this file runs under node — node-pty does not work under bun — and the
  * daemon's path module is TypeScript.
  *
- * Fail closed: no readable token file means no request is served. That cannot
- * strand a working install, because the daemon mints the file before the
- * sidecar has anything to talk to.
+ * Fail closed: no readable token file means no request is served. The minter
+ * is `kobe-harness/dev.ts`, which calls `ensureWebToken` before it spawns this
+ * sidecar — NOT the daemon. Nothing under `kobe-daemon/` calls `ensureWebToken`
+ * at all (the daemon-hosted web transport that used to went away with #855), so
+ * a launcher that starts the sidecar without minting first gets a gate that
+ * refuses every request. That is the correct failure, but it looks like a bug:
+ * if you are adding a launcher, mint the token in it, and do not "fix" the
+ * fail-closed branch below for looking unreachable.
  */
 
 import { timingSafeEqual } from "node:crypto"
