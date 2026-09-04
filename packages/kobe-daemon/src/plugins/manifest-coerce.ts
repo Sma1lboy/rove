@@ -36,6 +36,21 @@ export function asSettingDefault(value: unknown, field: string): string | undefi
   return asString(value, field)
 }
 
+/** Bounds for a hook's `timeout_ms`. The floor keeps a typo like `timeout_ms
+ *  = 5` from killing every run before it can exec; the ceiling keeps a hook
+ *  from pinning a process for an hour. */
+export const TIMEOUT_MIN_MS = 100
+export const TIMEOUT_MAX_MS = 600_000
+
+/** A hook's deadline override in milliseconds, or undefined when absent. */
+export function asTimeoutMs(value: unknown, field: string): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== "number" || !Number.isInteger(value) || value < TIMEOUT_MIN_MS || value > TIMEOUT_MAX_MS) {
+    fail(`\`${field}\` must be a whole number of milliseconds between ${TIMEOUT_MIN_MS} and ${TIMEOUT_MAX_MS}`)
+  }
+  return value
+}
+
 export function asCommand(value: unknown, field: string): string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((v) => typeof v === "string" && v.length > 0)) {
     fail(`\`${field}\` must be a non-empty array of strings (argv form)`)

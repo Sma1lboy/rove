@@ -32,6 +32,11 @@ rove plugin link .            # register your working directory (dev loop)
 rove plugin log you.hello     # inspect hook runs (exit codes, output, timing)
 ```
 
+`link` is a one-time registration. After it, a running daemon picks up edits to
+your `rove-plugin.toml` within about half a second — add an `[[events]]` hook,
+fire the event, and `rove plugin log` shows the run. Re-run `link` only when
+you move the plugin, or when its id or version changes.
+
 ## Optional SDK (TypeScript)
 
 The contract above is the API: any language, no SDK required. For
@@ -128,6 +133,10 @@ command = ["npm", "install"]     # self-provision deps INTO the plugin dir; `lin
 
 [[startup]]                      # once per daemon start; the socket may not accept connections yet — retry your connect. One-shot, not a daemon
 command = ["node", "restore.js"]
+timeout_ms = 30000               # optional, 100…600000; the host SIGKILLs the
+                                 # hook's process group at the deadline.
+                                 # Default 30s for [[startup]]/[[events]], 3s
+                                 # for [[shutdown]] (it delays daemon stop)
 
 [[shutdown]]                     # at daemon stop; bounded (~3s), the host kills a hook that lingers
 command = ["node", "flush.js"]
@@ -156,9 +165,12 @@ key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
 label = "Mode"
 type = "enum"                    # string | number | boolean | enum | secret
 options = ["fast", "fancy"]
-default = "fast"                 # stored as a string; TOML `true` / `false` /
-                                 # numbers are accepted and become "1" /
-                                 # no default / their decimal spelling
+default = "fast"                 # what the Settings editor pre-fills, NOT a
+                                 # stored value: nothing reaches the config
+                                 # .env until the user saves, so read it as
+                                 # `setting(dir, key, "fast")`. TOML `true` /
+                                 # `false` / numbers are accepted and become
+                                 # "1" / no default / their decimal spelling
 
 [[settings]]                     # `secret` masks the value everywhere it is
 key = "YOU_EXAMPLE_TOKEN"        # shown, for keys the user pastes in
@@ -235,7 +247,7 @@ This table is the one-line index. **Per-event trigger semantics, exact
 | `automation.dispatched` / `automation.skipped` / `automation.failed` | one scheduled-automation run finished with that outcome | `automationId`, `name`, `repo`, `status`, `trigger`, `scheduledFor`, `error` |
 | `quota.exhausted` / `quota.resumed` | rate-limit auto-resume armed / delivered its continue prompt | `vendor`, `resumeAt` / `delivered` |
 | `session.exited` | a hosted PTY child died abnormally (the crash signal; the engine's own `session.end` hook never fires on a crash) | `tabId`, `pid`, `code`, `signal`, `exitedAt`, `tail` |
-| `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin) | `pluginId` |
+| `plugin.enabled` / `plugin.disabled` | YOUR plugin was enabled/disabled in the registry (delivered only to the affected plugin). Registry membership only — a manifest that stops parsing does not fire teardown | `pluginId` |
 | `task.opened` / `project.opened` | the user selects/enters a task / project row | |
 | `file.will-open` / `file.opened` / `file.closed` | Files-pane open, before/after; editor tab closed | `path`, `via: plugin\|editor\|external` |
 | `tab.opened` / `tab.closed` | a workspace tab appeared/went away (restores don't fire) | `tabId`, `kind`, `title`, `vendor`, `purpose` |
@@ -365,6 +377,12 @@ the CLI unless you need push channels.
 - **Hooks must be fast and silent.** Event hooks run on real product
   moments; do your slow work detached. Exit non-zero only for real failures;
   output is capped at 8 KB per run in `log.jsonl`.
+- **Every hook has a deadline.** 30s for `[[startup]]` and `[[events]]`, 3s
+  for `[[shutdown]]`, or whatever `timeout_ms` you declare. At the deadline
+  the host SIGKILLs the hook's whole process group, so a `curl` with no
+  `--max-time` on a `tool.post` hook stops one process short of leaking one
+  per tool call. A hook still running after ~2s gets a `phase: "running"`
+  record in `log.jsonl`, ahead of the record its exit will write.
 - **Never block.** Events are observers; there is no veto surface. Blocking
   tweaks (deny a tool call) belong in engine-native hooks the user installs
   directly.

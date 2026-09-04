@@ -5,29 +5,34 @@
  *
  * Plugins are ordinary argv commands — no shell, cwd = plugin root, env
  * carries the ROVE_PLUGIN_* contract plus Kobe compatibility aliases. The host
- * stat-polls `plugins.json` so a CLI install/link/enable applies to the
+ * stat-polls `plugins.json` AND each enabled plugin's `rove-plugin.toml`, so
+ * both a CLI install/link/enable and an author's manifest edit apply to the
  * running daemon without a restart — polling, not `fs.watch`: on macOS the
  * FSEvents stream behind `fs.watch` starts asynchronously, and a write landing
  * before it is live is dropped forever, with no signal. Startup
  * hooks run only at daemon start (herdr semantics): a reload swaps hook
  * registrations, nothing more.
+ *
+ * Registry membership, not load success, drives `plugin.enabled` /
+ * `plugin.disabled`: a manifest that stops parsing is a health problem, and
+ * firing teardown on a TOML typo makes a plugin unregister its webhook because
+ * the author fat-fingered a bracket.
  */
 
-import { spawn } from "node:child_process"
-import { appendFileSync, mkdirSync, statSync } from "node:fs"
+import { statSync } from "node:fs"
 import type { ChannelEvent } from "../daemon/event-bus.ts"
-import { rotateLogIfNeeded } from "../daemon/log-rotate.ts"
-import { buildPluginEnv } from "./env.ts"
 import { type PluginEvent, PluginEventReducer, lifecycleEventFor } from "./events.ts"
+import { type HookKillSet, type HookKind, runPluginHook } from "./hook-run.ts"
 import {
   type PluginCommandSpec,
   type PluginEventName,
   type PluginManifest,
   currentPluginPlatform,
+  pluginManifestPath,
   readPluginManifest,
   supportsPlatform,
 } from "./manifest.ts"
-import { pluginConfigDir, pluginLogPath, pluginRegistryPath, pluginStateDir } from "./plugin-paths.ts"
+import { pluginRegistryPath } from "./plugin-paths.ts"
 import { loadPluginRegistry } from "./registry.ts"
 
 export interface PluginHostOptions {
@@ -43,18 +48,21 @@ interface LoadedPlugin {
   readonly root: string
 }
 
-const OUTPUT_CAP = 8 * 1024
-
-/** Cap for a single plugin's log.jsonl. Smaller than daemon.log's 10MB
- *  because this is per plugin and every enabled one keeps its own: a plugin
- *  hooked to `tool.pre`/`tool.post` appends a record per tool call, forever.
- *  One `.old` generation is kept. */
-const PLUGIN_LOG_CAP_BYTES = 4 * 1024 * 1024
 const RELOAD_DEBOUNCE_MS = 150
-/** Registry stat-poll cadence; reload latency is this + the debounce. */
+/** Registry/manifest stat-poll cadence; reload latency is this + the debounce. */
 const REGISTRY_POLL_MS = 200
-/** How long a [[shutdown]] hook may run before the host kills it. */
-const SHUTDOWN_GRACE_MS = 3_000
+
+/** mtime(ns) + size + inode of a file, or "absent" — the change detector for
+ *  both the registry and the manifests. */
+function fileStamp(path: string | null): string {
+  if (!path) return "absent"
+  try {
+    const s = statSync(path, { bigint: true })
+    return `${s.mtimeNs}:${s.size}:${s.ino}`
+  } catch {
+    return "absent"
+  }
+}
 
 /** The bus surface a host needs: live fan-out plus the last-value cache. */
 interface PluginHostBus {
@@ -93,9 +101,16 @@ export class PluginHost {
   private readonly opts: PluginHostOptions
   private readonly reducer = new PluginEventReducer()
   private plugins: LoadedPlugin[] = []
+  /** Ids the registry lists as enabled, whether or not their manifest parsed.
+   *  This — not `plugins` — is what lifecycle events diff against. */
+  private enabledIds = new Set<string>()
+  /** Plugin root → stamp of its manifest at load, so an author's TOML edit
+   *  triggers the same reload a registry write does. */
+  private manifestStamps = new Map<string, string>()
   private pollTimer: ReturnType<typeof setInterval> | undefined
   private registryStamp = ""
   private reloadTimer: ReturnType<typeof setTimeout> | undefined
+  private readonly inFlight: HookKillSet = new Set()
   private stopped = false
 
   constructor(opts: PluginHostOptions) {
@@ -131,13 +146,16 @@ export class PluginHost {
     this.stopped = true
     if (this.reloadTimer) clearTimeout(this.reloadTimer)
     if (this.pollTimer) clearInterval(this.pollTimer)
+    // Reap event/startup hooks that are still running FIRST. They hold this
+    // process's stdout/stderr pipes, so leaving them to time out on their own
+    // keeps the daemon alive past `rove daemon stop` — and a hook wedged on a
+    // 30s deadline would make every stop take 30s.
+    for (const kill of [...this.inFlight]) kill()
     const runs: Promise<void>[] = []
     for (const plugin of this.plugins) {
       for (const [i, hook] of plugin.manifest.shutdown.entries()) {
         if (!supportsPlatform(hook, plugin.manifest, currentPluginPlatform())) continue
-        runs.push(
-          this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`, SHUTDOWN_GRACE_MS),
-        )
+        runs.push(this.run(plugin, hook, "shutdown", { ROVE_PLUGIN_EVENT: "shutdown" }, `shutdown[${i}]`))
       }
     }
     await Promise.all(runs)
@@ -259,8 +277,14 @@ export class PluginHost {
     const registry = loadPluginRegistry(this.opts.homeDir)
     const platform = currentPluginPlatform()
     const out: LoadedPlugin[] = []
+    const enabled = new Set<string>()
+    const stamps = new Map<string, string>()
     for (const entry of registry.plugins) {
       if (!entry.enabled) continue
+      enabled.add(entry.id)
+      // Stamped even when it fails to parse below: an author FIXING a typo
+      // has to trigger the same reload as an author adding a hook.
+      stamps.set(entry.root, fileStamp(pluginManifestPath(entry.root)))
       let manifest: PluginManifest
       try {
         manifest = readPluginManifest(entry.root).manifest
@@ -271,44 +295,51 @@ export class PluginHost {
       if (!supportsPlatform({}, manifest, platform)) continue
       out.push({ manifest, root: entry.root })
     }
+    this.enabledIds = enabled
+    this.manifestStamps = stamps
     return out
   }
 
-  /** mtime(ns) + size + inode of the registry file, or "absent". */
-  private registryStampNow(): string {
-    try {
-      const s = statSync(pluginRegistryPath(this.opts.homeDir), { bigint: true })
-      return `${s.mtimeNs}:${s.size}:${s.ino}`
-    } catch {
-      return "absent"
+  /** True once any watched file changed. The registry stamp is consumed here
+   *  (it is the authoritative one); manifest stamps are rebuilt by the reload
+   *  itself, so a manifest still mid-write keeps re-arming the debounce. */
+  private sourcesChanged(): boolean {
+    const stamp = fileStamp(pluginRegistryPath(this.opts.homeDir))
+    if (stamp !== this.registryStamp) {
+      this.registryStamp = stamp
+      return true
     }
+    for (const [root, was] of this.manifestStamps) {
+      if (fileStamp(pluginManifestPath(root)) !== was) return true
+    }
+    return false
   }
 
   private watchRegistry(): void {
-    this.registryStamp = this.registryStampNow()
+    this.registryStamp = fileStamp(pluginRegistryPath(this.opts.homeDir))
     this.pollTimer = setInterval(() => {
-      const stamp = this.registryStampNow()
-      if (stamp === this.registryStamp) return
-      this.registryStamp = stamp
+      if (!this.sourcesChanged()) return
       // Debounce past the poll: a burst of CLI mutations (or a write still in
       // flight) collapses into one reload after the file settles.
       if (this.reloadTimer) clearTimeout(this.reloadTimer)
       this.reloadTimer = setTimeout(() => {
         if (this.stopped) return
-        const before = new Map(this.plugins.map((p) => [p.manifest.id, p]))
+        const loadedBefore = new Map(this.plugins.map((p) => [p.manifest.id, p]))
+        const enabledBefore = this.enabledIds
         this.plugins = this.loadPlugins()
         this.opts.log?.(`plugin registry reloaded (${this.plugins.length} enabled)`)
-        // Registry transitions, delivered ONLY to the affected plugin: an
-        // enabled hook fires on the new load, a disabled hook on the last
-        // registration we still hold for it.
+        // Registry transitions, delivered ONLY to the affected plugin, and
+        // diffed against REGISTRY membership: a manifest that started or
+        // stopped parsing has not been enabled or disabled by anyone, and
+        // teardown must not fire on a syntax error.
         const at = Date.now()
         for (const plugin of this.plugins) {
-          if (!before.has(plugin.manifest.id)) {
+          if (!enabledBefore.has(plugin.manifest.id)) {
             this.dispatchTo(plugin, { event: "plugin.enabled", detail: { pluginId: plugin.manifest.id }, at })
           }
         }
-        for (const [id, plugin] of before) {
-          if (!this.plugins.some((p) => p.manifest.id === id)) {
+        for (const [id, plugin] of loadedBefore) {
+          if (!this.enabledIds.has(id)) {
             this.dispatchTo(plugin, { event: "plugin.disabled", detail: { pluginId: id }, at })
           }
         }
@@ -317,81 +348,26 @@ export class PluginHost {
     this.pollTimer.unref?.()
   }
 
-  private async run(
+  /** Fire one hook. Bounded and logged by `hook-run.ts`; never rejects. */
+  private run(
     plugin: LoadedPlugin,
     spec: PluginCommandSpec,
-    kind: "startup" | "event" | "shutdown",
+    kind: HookKind,
     extraEnv: Record<string, string>,
     label: string,
-    killAfterMs?: number,
   ): Promise<void> {
-    const id = plugin.manifest.id
-    const startedAt = Date.now()
-    // 0700: config holds the settings .env (documented home for API keys) and
-    // state is plugin-owned durable data; neither is anyone else's business.
-    mkdirSync(pluginConfigDir(id, this.opts.homeDir), { recursive: true, mode: 0o700 })
-    mkdirSync(pluginStateDir(id, this.opts.homeDir), { recursive: true, mode: 0o700 })
-    let exitCode: number | null = null
-    let stdout = ""
-    let stderr = ""
-    let spawnError: string | undefined
-    await new Promise<void>((resolve) => {
-      const [cmd, ...args] = spec.command
-      const child = spawn(cmd as string, args, {
-        cwd: plugin.root,
-        env: buildPluginEnv({
-          homeDir: this.opts.homeDir,
-          socketPath: this.opts.socketPath,
-          binPath: this.opts.binPath,
-          pluginId: plugin.manifest.id,
-          pluginRoot: plugin.root,
-          extra: extraEnv,
-        }),
-        stdio: ["ignore", "pipe", "pipe"],
-      })
-      child.stdout.on("data", (chunk: Buffer) => {
-        if (stdout.length < OUTPUT_CAP) stdout += chunk.toString().slice(0, OUTPUT_CAP - stdout.length)
-      })
-      child.stderr.on("data", (chunk: Buffer) => {
-        if (stderr.length < OUTPUT_CAP) stderr += chunk.toString().slice(0, OUTPUT_CAP - stderr.length)
-      })
-      child.on("error", (err) => {
-        spawnError = String(err)
-        resolve()
-      })
-      child.on("close", (code) => {
-        exitCode = code
-        resolve()
-      })
-      if (killAfterMs !== undefined) {
-        const killer = setTimeout(() => child.kill("SIGKILL"), killAfterMs)
-        killer.unref?.()
-        child.on("close", () => clearTimeout(killer))
-      }
-    })
-    const record = {
-      at: startedAt,
+    return runPluginHook({
+      pluginId: plugin.manifest.id,
+      pluginRoot: plugin.root,
+      spec,
       kind,
       label,
-      command: spec.command,
-      exitCode,
-      durationMs: Date.now() - startedAt,
-      ...(stdout ? { stdout } : {}),
-      ...(stderr ? { stderr } : {}),
-      ...(spawnError ? { spawnError } : {}),
-    }
-    try {
-      const logPath = pluginLogPath(id, this.opts.homeDir)
-      // The record carries the plugin's captured stdout/stderr, so a plugin
-      // that prints its own token on failure writes it here — 0600, and
-      // capped like daemon.log so a per-tool-call hook can't fill the disk.
-      rotateLogIfNeeded(logPath, PLUGIN_LOG_CAP_BYTES)
-      appendFileSync(logPath, `${JSON.stringify(record)}\n`, { mode: 0o600 })
-    } catch {
-      // Log write failure must never take the daemon down.
-    }
-    if (spawnError || (exitCode !== null && exitCode !== 0)) {
-      this.opts.log?.(`plugin ${id} ${label}: ${spawnError ?? `exit ${exitCode}`}`)
-    }
+      extraEnv,
+      homeDir: this.opts.homeDir,
+      socketPath: this.opts.socketPath,
+      binPath: this.opts.binPath,
+      log: this.opts.log,
+      inFlight: this.inFlight,
+    })
   }
 }
