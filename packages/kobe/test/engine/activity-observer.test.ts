@@ -16,6 +16,7 @@ import type {
   OrchestratorSignals,
   TaskEngineState,
 } from "../../src/client/remote-orchestrator-payloads"
+import { foregroundEngineIn, parsePsSnapshot } from "../../src/engine/foreground"
 import { engineTitleTurnHint } from "../../src/engine/registry"
 import { createStateCell } from "../../src/lib/external-store"
 import { tabRowActivity } from "../../src/tui/panes/sidebar/tree-core"
@@ -31,7 +32,7 @@ interface FakeSession {
   totalBytes: number
 }
 
-function world(opts: { silenceMs?: number; correctAfterMs?: number } = {}) {
+function world(opts: { silenceMs?: number; correctAfterMs?: number; walk?: (pid: number) => string | null } = {}) {
   const bus = new DaemonEventBus()
   const registry = new DaemonActivityRegistry(bus)
   const engineState = createStateCell<ReadonlyMap<string, TaskEngineState>>(new Map())
@@ -61,7 +62,7 @@ function world(opts: { silenceMs?: number; correctAfterMs?: number } = {}) {
       foregroundEngines: (pids) => {
         const out = new Map<number, { vendor: string; pid: number } | null>()
         for (const pid of pids) {
-          const vendor = state.engines.get(pid)
+          const vendor = opts.walk ? opts.walk(pid) : state.engines.get(pid)
           out.set(pid, vendor ? { vendor, pid: pid + 1 } : null)
         }
         return Promise.resolve(out)
@@ -238,6 +239,31 @@ describe("activity observer", () => {
     const replay = w.registry.currentNonIdle()
     expect(replay.some((p) => p.tabId === "tab-1" && p.state === "idle")).toBe(true)
     expect(replay.some((p) => p.tabId === "tab-9")).toBe(false)
+  })
+
+  /**
+   * The walk is the observer's ONLY engine-presence evidence, and `null`
+   * from it is a positive claim: `applyRest(track, "no engine in
+   * foreground")`. Its id set was built-ins only, so a working OpenCode
+   * got a `rest` observation written over it every walk tick — a WRONG
+   * signal, not a missing one. Driven through the real walk over a
+   * synthetic `ps`, because a hand-stubbed vendor cannot show the bug.
+   */
+  it("does not claim REST over a working contrib engine (real walk)", async () => {
+    const rows = parsePsSnapshot(`
+42 1 /bin/zsh -l
+43 42 /usr/local/bin/opencode
+`)
+    const w = world({ silenceMs: 90, walk: (pid) => foregroundEngineIn(rows, pid)?.vendor ?? null })
+    const session: FakeSession = { key: KEY, alive: true, pid: 42, title: "opencode", totalBytes: 100 }
+    w.state.sessions = [session]
+    // Output moving = the engine is working. Before the fix the walk said
+    // "no engine" and forced idle regardless of the bytes.
+    await wait(40)
+    session.totalBytes += 50
+    await waitFor(() => w.row("tab-1")?.state === "running")
+    // And the honest rest still lands once it goes quiet.
+    await waitFor(() => w.row("tab-1")?.state === "idle")
   })
 
   it("a tab-scoped idle never clears a rollup another tab owns", async () => {

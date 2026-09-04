@@ -18,8 +18,8 @@
  */
 
 import { basename } from "node:path"
-import { BUILTIN_VENDORS, type VendorId } from "../types/vendor"
-import { engineEntry } from "./registry"
+import type { VendorId } from "../types/vendor"
+import { engineEntry, identifiableEngineIds } from "./registry"
 
 /** One line of `ps -A -o pid=,ppid=,args=`. */
 export type ProcRow = {
@@ -65,6 +65,12 @@ function executableNameFromArgv(argv: readonly string[]): string | null {
  * counts — scanning arguments is what made the title heuristic wrong
  * (`cc-switch start claude …` is cc-switch, not claude; its claude CHILD
  * is what identifies, and the tree walk finds that one).
+ *
+ * Asks about every id the registry can name state-free
+ * ({@link identifiableEngineIds}), not just the built-ins: a running
+ * OpenCode answering `null` here is not "no engine", it is this function
+ * not having been asked about OpenCode — and every consumer of the walk
+ * reads that `null` as a POSITIVE no-engine verdict.
  */
 export function vendorFromArgv(commandLine: string): VendorId | null {
   const name = executableNameFromArgv(commandLine.trim().split(/\s+/))
@@ -72,7 +78,7 @@ export function vendorFromArgv(commandLine: string): VendorId | null {
   // defaultCommand[0] is the launch binary; processNames covers engines
   // that rewrite their process title post-launch (kimi → `kimi-co`).
   return (
-    BUILTIN_VENDORS.find((v) => {
+    identifiableEngineIds().find((v) => {
       const entry = engineEntry(v)
       return entry.defaultCommand[0] === name || entry.processNames?.includes(name) === true
     }) ?? null
