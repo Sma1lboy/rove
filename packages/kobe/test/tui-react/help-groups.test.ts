@@ -44,12 +44,17 @@ describe("grammarHelpSections", () => {
     { id: "modified-local", scope: "sidebar", keys: ["ctrl+p"], category: "Sidebar", description: "Filter" },
     { id: "more", scope: "global", keys: [], prefixKeys: ["f"], category: "Global", description: "Fork" },
     { id: "file", scope: "files", keys: ["o"], category: "Files", description: "Open" },
+    // Doc-only: no `keys`, no `prefixKeys`, advertised through `hint` alone.
+    // The owning component registers the raw chord and tags it with this id.
+    { id: "doc-only", scope: "sidebar", keys: [], category: "Sidebar", description: "Review", hint: { keys: "v" } },
   ]
 
   it("teaches focused, one-press, and prefix gestures before other panes", () => {
     const sections = grammarHelpSections(rows, "sidebar", "ctrl+a")
     expect(sections.map((section) => section.kind)).toEqual(["here", "direct", "prefix", "other"])
-    expect(sections[0]?.rows.map((row) => row.binding.id)).toEqual(["local", "modified-local"])
+    // No reachability snapshot (the standalone help page): every row that
+    // statically matches the surface is listed, doc-only rows included.
+    expect(sections[0]?.rows.map((row) => row.binding.id)).toEqual(["local", "modified-local", "doc-only"])
     expect(sections[1]?.rows.map((row) => row.binding.id)).toEqual(["help"])
     expect(sections[2]?.rows[0]?.primary).toBe("ctrl+a + f")
     expect(sections[3]?.scope).toBe("files")
@@ -71,5 +76,29 @@ describe("grammarHelpSections", () => {
     expect(sections.find((section) => section.kind === "prefix")?.rows.map((row) => row.binding.id)).toEqual(["more"])
     expect(sections.flatMap((section) => section.rows).some((row) => row.binding.id === "modified-local")).toBe(false)
     expect(sections.some((section) => section.kind === "other" && section.scope === "sidebar")).toBe(false)
+  })
+
+  /**
+   * A doc-only row used to bypass the reachability test entirely (`||
+   * docOnlyHere`), so a matching `scope` alone put it in HERE. That advertised
+   * four diff-review keys in every workspace and terminal pane with no diff on
+   * screen — pressing `j` typed a `j` into the engine instead.
+   */
+  it("keeps an unreachable doc-only row out of HERE and lists it once its owner registers", () => {
+    const hidden = grammarHelpSections(rows, "sidebar", "ctrl+a", {
+      direct: new Set(["help", "local"]),
+      prefix: new Set(),
+      inputPassthrough: false,
+    })
+    expect(hidden.flatMap((section) => section.rows).some((row) => row.binding.id === "doc-only")).toBe(false)
+
+    const shown = grammarHelpSections(rows, "sidebar", "ctrl+a", {
+      direct: new Set(["help", "local", "doc-only"]),
+      prefix: new Set(),
+      inputPassthrough: false,
+    })
+    const here = shown.find((section) => section.kind === "here")
+    expect(here?.rows.map((row) => row.binding.id)).toEqual(["local", "doc-only"])
+    expect(here?.rows.find((row) => row.binding.id === "doc-only")?.primary).toBe("v")
   })
 })

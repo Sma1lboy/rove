@@ -7,6 +7,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { findBinding } from "../../../tui/context/keybindings"
 import { formatChord } from "../../../tui/lib/chord-glyphs"
 import { currentPrefixConfiguration } from "../../../tui/lib/keymap-dispatch"
 import type { GitScope } from "../../../tui/panes/filetree/git"
@@ -42,6 +43,11 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
   // disabled: the chip stays clickable, just without a chord label.
   const prefixKey = currentPrefixConfiguration().key
   const createPRChord = prefixKey ? `[${formatChord(prefixKey)} P]` : null
+  // Zen is prefix-only too, so its cap comes from the same live pair. It used
+  // to be the string literal `[~]`, and `~` is bound to nothing anywhere in
+  // Rove — the chip taught a dead key while `prefix+z` was the real one.
+  const zenStroke = findBinding("workspace.zenToggle")?.prefixKeys?.[0]
+  const zenChord = prefixKey && zenStroke ? `[${formatChord(prefixKey)} ${zenStroke.toUpperCase()}]` : null
   return (
     <>
       {/* Action row — sits above the All / Changes tabs so it's reachable
@@ -84,9 +90,11 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
                 props.onZenToggle?.()
               }}
             >
-              <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
-                [~]
-              </text>
+              {zenChord ? (
+                <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
+                  {zenChord}
+                </text>
+              ) : null}
               <text fg={theme.text} wrapMode="none">
                 {t("files.actions.zen")}
               </text>

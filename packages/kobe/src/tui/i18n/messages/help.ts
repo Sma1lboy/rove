@@ -8,6 +8,10 @@ export const en = {
   title: "Rove — keybindings",
   /** Close / cancel hint */
   esc: "esc",
+  /** Corner hint next to `esc`. The list is a scrollbox and routinely runs
+   *  two thirds below the fold behind a one-cell scrollbar thumb, with
+   *  nothing on screen naming the keys that move it. */
+  scrollKeys: "↑↓ ⇞⇟ scroll",
   commandLayer: "{prefix} — more Rove commands",
   escCancel: "esc cancel",
   directLayer: "Hold ctrl — Rove shortcuts",
@@ -27,6 +31,7 @@ export const en = {
 export const zh: typeof en = {
   title: "Rove — 快捷键",
   esc: "esc",
+  scrollKeys: "↑↓ ⇞⇟ 滚动",
   commandLayer: "{prefix} — 更多 Rove 命令",
   escCancel: "esc 取消",
   directLayer: "按住 ctrl — Rove 快捷键",

@@ -329,18 +329,6 @@ export const KobeKeymap: readonly KobeBinding[] = [
     category: "Navigation",
     description: "Toggle zen mode (hide the files column)",
   },
-  {
-    // Doc-only: the chord is registered inline in Chat.tsx (gated on
-    // focused + streaming + no dialog). ESC does NOT "detach" focus back to
-    // the sidebar — that would pull focus out from under the user mid-edit.
-    // Use `ctrl+q` (`focus.sidebar`) for the explicit detach;
-    // ESC in chat is reserved for interrupting the current turn.
-    id: "chat.interrupt",
-    scope: "workspace",
-    keys: [],
-    category: "Workspace",
-    description: "Interrupt current turn (esc while streaming)",
-  },
   // ─── Sidebar + Tasks pane ─────────────────────────────────────────────
   // The rows below this header live in keybindings-sidebar.ts — a long
   // literal cut at its scope headers, not a responsibility boundary. Order
@@ -436,30 +424,12 @@ export const KobeKeymap: readonly KobeBinding[] = [
   // Those aren't user-configurable shortcuts — they're terminal-pane
   // behavior that has to forward whatever the user types to the shell.
 
-  // ─── Dialog (informational) ───────────────────────────────────────────
-  {
-    // Dialogs (DialogProvider, DialogConfirm, etc.) own their own escape
-    // binding higher on the binding stack. We list this here for the
-    // help dialog only — there's no global ESC handler anymore: ESC is
-    // owned by DialogProvider (when a dialog is open) and Chat.tsx (when
-    // chat is focused + streaming). Idle ESC is a no-op.
-    id: "dialog.cancel",
-    scope: "global",
-    keys: [],
-    category: "Dialog",
-    description: "Close the top dialog (esc)",
-  },
-  {
-    // New-task dialog sub-tab cycling. Chord is registered inside the
-    // dialog's own useBindings (so it wins over the workspace
-    // `chat.tab.cycle-*` bindings, which are gated off while a dialog
-    // is on the stack). This entry is doc-only — help dialog and any
-    // future settings UI render it from here.
-    id: "dialog.newtask.tab.cycle",
-    scope: "global",
-    keys: [],
-    category: "Dialog",
-    description: "Switch New Task tab (Existing / New Repo)",
-    hint: { keys: "ctrl+[/]" },
-  },
+  // ─── Dialog ───────────────────────────────────────────────────────────
+  // No rows. Every dialog owns its own chrome and prints its own chords —
+  // `esc` in the corner, `MODE  ctrl+[ ]` above the new-task chips — and
+  // dialogs are modal, so F1 cannot open over one anyway. The two rows that
+  // used to live here (`dialog.cancel`, `dialog.newtask.tab.cycle`) could
+  // only ever render where they were false: `dialog.cancel` had no `hint`
+  // and rendered nowhere at all, and the new-task chord showed in the
+  // sidebar, workspace and terminal — i.e. whenever the dialog was closed.
 ] as const

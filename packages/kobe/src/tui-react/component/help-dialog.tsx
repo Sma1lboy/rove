@@ -114,9 +114,19 @@ export function HelpDialog(props: {
             })}
           </text>
         </box>
-        <text fg={theme.textMuted} onMouseUp={close}>
-          {t("help.esc")}
-        </text>
+        {/* Corner, not a fourth header line: the fold this hint is about is
+            exactly what another header row would eat into. Always shown —
+            the keys work whether or not this particular list overflows, and
+            measuring the scrollbox needs post-layout state for a hint that
+            costs nothing when the content fits. */}
+        <box flexDirection="row" gap={2} flexShrink={0}>
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM}>
+            {t("help.scrollKeys")}
+          </text>
+          <text fg={theme.textMuted} onMouseUp={close}>
+            {t("help.esc")}
+          </text>
+        </box>
       </box>
       {/* Long-content dialogs handle their own overflow: flexShrink={1}
           fits the dialog's maxHeight, the scrollbox owns the scrolling. */}
