@@ -26,6 +26,8 @@
 
 import { readFile, stat, unlink } from "node:fs/promises"
 import type { Server } from "node:net"
+import { OWNER_ONLY_FILE_MODE, tightenFilePermissions } from "./owner-only.ts"
+import { isWindowsPipePath } from "./paths.ts"
 
 /** How often a running daemon re-checks that it still owns its socket path. */
 export const DEFAULT_SOCKET_WATCH_MS = 5000
@@ -35,10 +37,22 @@ type EventedServer = Server & {
   removeListener(event: "error", listener: (err: Error) => void): void
 }
 
-/** Bind `server` to `socketPath`; resolves once listening, rejects on the
- *  first bind error (EADDRINUSE, path too long, …). */
-export function listenOnUnixSocket(server: Server, socketPath: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
+/**
+ * Bind `server` to `socketPath`; resolves once listening, rejects on the
+ * first bind error (EADDRINUSE, path too long, …).
+ *
+ * The socket is chmod'd to 0600 after the bind, not before: `listen()` applies
+ * the process umask, so under the default 022 the node lands `srwxr-xr-x` and
+ * any local user can connect. The containing directory being 0700
+ * (`ensureOwnerOnlyDir`) already closes that, but the socket is the thing the
+ * whole no-peer-credential design leans on, so it says owner-only itself
+ * rather than borrowing the statement from its parent.
+ *
+ * A Windows named pipe has no filesystem node to chmod; its ACL comes from the
+ * pipe namespace instead.
+ */
+export async function listenOnUnixSocket(server: Server, socketPath: string): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
     const evented = server as EventedServer
     evented.once("error", reject)
     server.listen(socketPath, () => {
@@ -46,7 +60,12 @@ export function listenOnUnixSocket(server: Server, socketPath: string): Promise<
       resolve()
     })
   })
+  if (!isWindowsPipePath(socketPath)) await tightenFilePermissions(socketPath)
 }
+
+/** The mode a bound socket is left at — exported so a test can assert the
+ *  intent rather than restate the octal. */
+export const SOCKET_MODE = OWNER_ONLY_FILE_MODE
 
 export async function readPidFile(pidPath: string): Promise<number | null> {
   try {
