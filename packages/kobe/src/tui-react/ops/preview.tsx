@@ -122,7 +122,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
       ...pageCloseBindings(onClose),
       // `r` matches the Files pane next door, which has refreshed its tree
       // with the same key since it landed.
-      { key: "r", cmd: () => setReloadTick((tick) => tick + 1) },
+      { key: "r", id: "diff.review.reload", cmd: () => setReloadTick((tick) => tick + 1) },
       ...(canSystemOpen
         ? [
             {

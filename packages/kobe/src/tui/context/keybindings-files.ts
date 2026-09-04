@@ -206,4 +206,26 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     description: "Send all unsent review notes to the engine",
     hint: { keys: "s" },
   },
+  {
+    // The diff footer has always named six keys; the table carried four, so
+    // F1 listed four. These two close that gap rather than adding a chord:
+    // both have been registered and reachable since they landed
+    // (`x` in preview-review.tsx, `r` in preview.tsx).
+    id: "diff.review.drop",
+    scope: "workspace",
+    keys: [],
+    category: "Diff review",
+    description: "Drop the review note the cursor sits inside",
+    hint: { keys: "x" },
+  },
+  {
+    // Registered by the preview itself, not the review layer, so it is live
+    // on an image or binary preview too — hence "file", not "diff".
+    id: "diff.review.reload",
+    scope: "workspace",
+    keys: [],
+    category: "Diff review",
+    description: "Reload the previewed file from disk",
+    hint: { keys: "r" },
+  },
 ]
