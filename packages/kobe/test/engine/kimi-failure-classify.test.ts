@@ -1,11 +1,11 @@
 /**
  * Kimi StopFailure → the neutral failure class.
  *
- * Kimi was firing StopFailure all along, but its adapter returned no detail
- * for `turn-failed`, so `reduceActivity` saw `failure: undefined` and every
- * Kimi failure — including the 5-hour quota wall on 2026-08-30 — reduced to a
- * generic `error`. That meant Kimi could never reach `rate_limited`, and so
- * never armed the auto-resume that state triggers.
+ * Kimi fires StopFailure, but an adapter returning no detail for
+ * `turn-failed` leaves `reduceActivity` with `failure: undefined`, so every
+ * Kimi failure — the 5-hour quota wall included — reduces to a generic
+ * `error`. Kimi could then never reach `rate_limited`, and so never arm the
+ * auto-resume that state triggers.
  *
  * The payload shapes below are Kimi's own (verified against the installed
  * 0.37.2 binary): `error_type` is a JS CLASS name, not a category, and the
@@ -39,7 +39,7 @@ describe("kimi turn-failed classification", () => {
   })
 
   it("treats the 5-hour usage wall (a 403 auth error) as needing a human, not a timer", () => {
-    // The literal 2026-08-30 message. Kimi files it under auth; it is a quota
+    // The literal wall message. Kimi files it under auth; it is a quota
     // wall, so it is `billing` — attention, but deliberately NOT auto-resumed.
     const detail = adapter.activityDetailFromPayload("turn-failed", {
       error_type: "APIStatusError",

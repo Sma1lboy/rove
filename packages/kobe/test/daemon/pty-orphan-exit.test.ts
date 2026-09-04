@@ -2,18 +2,18 @@
  * A harness PTY host must not outlive the run that created it — and an
  * ATTACHED one must survive regardless of age.
  *
- * The leak this pins: 25 hosts stranded on the owner's machine for up to two
- * days, each holding idle shells for a fixture home that was already deleted.
- * A harness run tore down between `stopDaemonProcess` and its `rm -rf`, the
- * socket and pidfile went with the home, and the live sessions kept both the
- * host's idle-exit and the daemon's `PtyLiveHold` armed forever. Nothing could
- * address the host afterwards, because its address was the thing deleted.
+ * The leak this pins: hosts stranded for days, each holding idle shells for a
+ * fixture home that is already deleted. A harness run tearing down between
+ * `stopDaemonProcess` and its `rm -rf` takes the socket and pidfile with the
+ * home, while the live sessions keep both the host's idle-exit and the
+ * daemon's `PtyLiveHold` armed forever — and nothing can address the host
+ * afterwards, because its address was the thing deleted.
  *
  * Both halves have to hold, and only together: a host that exits when its
  * owner is gone but ALSO exits while someone is watching would kill the
  * owner's interactive `dev:sandbox`. The signal is possession of its own
- * pidfile, never age and never the process table (see the pty-sweep incident,
- * where a name-matching sweep killed live engines).
+ * pidfile, never age and never the process table — a name-matching sweep
+ * kills live engines.
  */
 
 import { spawn } from "node:child_process"

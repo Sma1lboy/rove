@@ -24,7 +24,7 @@ import { readFile, stat } from "node:fs/promises"
  * read + `JSON.parse` can't exhaust memory. Above this we degrade rather than
  * load — a file this large is corrupt or adversarial, not a real session.
  */
-export const MAX_ENGINE_FILE_BYTES = 100 * 1024 * 1024
+const MAX_ENGINE_FILE_BYTES = 100 * 1024 * 1024
 
 /**
  * Hard ceiling (chars) on a single JSONL line we'll attempt to `JSON.parse`.

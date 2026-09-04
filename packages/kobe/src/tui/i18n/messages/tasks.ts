@@ -6,15 +6,12 @@
 export const en = {
   /** Top-level navigation rail — one row per destination */
   nav: {
-    workspace: "Workspace",
     kanban: "Kanban",
     automations: "Routines",
     issues: "Issues",
   },
   /** Section headers */
   header: {
-    projects: "PROJECTS",
-    tasks: "TASKS",
     scratch: "SCRATCH",
   },
   /** Search bar */
@@ -33,17 +30,93 @@ export const en = {
     newTask: "New task",
     /** Project row: un-save the repo + drop its row. Mirrors `d` on that row. */
     forgetProject: "Remove project",
+    /** Project row: read the repo's durable field notes (`rove api note`). */
+    fieldNotes: "Field notes",
     rename: "Rename",
     pin: "Pin",
     unpin: "Unpin",
     reorder: "Reorder row",
+    /** Re-fire the task's stored brief as a new task. Menu-only. */
+    runAgain: "Run again",
+    /** The one entry with no chord behind it — status has no key yet, so the
+     *  menu is its only route. */
+    setStatus: "Set status",
+    /** Also chord-less: put the row's branch / worktree path on the clipboard. */
+    copyBranch: "Copy branch name",
+    copyPath: "Copy path",
+    /** The `o` / `b` / `v` chords' menu routes. */
+    openEditor: "Open in editor",
+    renameBranch: "Rename branch",
+    changeEngine: "Change engine",
+    /** Only while the row's PR checks are red: paste the failing job's log
+     *  into this task's engine. */
+    fixChecks: "Fix failing checks",
+    /** Merge the base INTO this worktree — the `↓N` drift chip's action. */
+    syncBase: "Sync with base",
+    land: "Land into base branch",
     delete: "Delete",
+  },
+  /** The six `TaskStatus` values, for the set-status picker and its row chip.
+   *  A LABEL on the board — nothing here stops a session or removes a
+   *  worktree, so the words must not read like teardown verbs. */
+  status: {
+    backlog: "Backlog",
+    inProgress: "In progress",
+    inReview: "In review",
+    done: "Done",
+    canceled: "Canceled",
+    error: "Error",
+  },
+  /** Set-status picker dialog. */
+  setStatus: {
+    title: "Set status",
+    /** Marks the task's current value in the list. */
+    current: "current",
+    footer: "↑↓ choose · enter set · esc cancel",
+  },
+  /** "Sync with base" outcomes. The conflict and dirty cases are attention,
+   *  not error: nothing broke, a human is needed next. */
+  sync: {
+    done: "Merged {base} into this worktree",
+    alreadyCurrent: "Already up to date with {base}",
+    conflict: "Merge conflict — resolve then commit: {files}",
+    dirty: "Commit or stash the worktree's changes first, then sync: {files}",
+    failed: "Sync failed: {error}",
+  },
+  /** Change-engine picker dialog (the menu route of `v`). */
+  changeEngine: {
+    title: "Change engine",
+    current: "current",
+    footer: "↑↓ choose · enter set · esc cancel",
+    /** Leading label of the reasoning-level row (engines that declare levels). */
+    effortLabel: "EFFORT",
+    /** The level choice meaning "don't pin one — use the engine's own default". */
+    noEffort: "engine default",
+    /** Footer for an engine that HAS levels: the row needs its own keys. */
+    footerEffort: "↑↓ engine · ←→ effort · enter set · esc cancel",
+  },
+  /** Run-again confirm dialog: the stored brief, verbatim and scrollable,
+   *  before it is re-fired into a fresh task. */
+  runAgain: {
+    title: "Run again",
+    source: "Brief from \u201C{title}\u201D",
+    /** Says what confirming actually does — a new worktree, not a restart. */
+    hint: "Runs this brief again in a new task, on its own branch and worktree.",
+    confirm: "Run again",
+    footer: "\u2191\u2193 scroll \u00B7 \u2190\u2192 choose \u00B7 enter run \u00B7 esc cancel",
+  },
+  /** Field-notes reader dialog (project row menu). */
+  fieldNotes: {
+    title: "Field notes",
+    empty: "No field notes for this repo yet — agents file one with `rove api note`.",
+    loading: "Loading…",
+    footer: "↑↓ scroll · esc close",
   },
   /** Inline chip while move/reorder mode is active */
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
   recentJump: "Recent: {title}",
-  /** The fold row standing in for a project's routine sessions (issue #91) */
+  /** The fold row standing in for a project's routine sessions */
   routinesRow: "{count} routine sessions",
   /** Empty-state messages */
   empty: {
@@ -53,6 +126,8 @@ export const en = {
   },
   /** Row-view engine activity labels (shown in subtitle, override branch) */
   activity: {
+    /** A turn is in flight — the engine is producing output right now. */
+    working: "working",
     rateLimited: "rate limited",
     permissionNeeded: "needs permission",
     error: "error",
@@ -65,25 +140,6 @@ export const en = {
     materializing: "materializing",
     deleting: "deleting",
     deleteFailed: "delete failed",
-  },
-  /** ShortcutHints legend */
-  hints: {
-    /** Collapsible legend header (folded / unfolded) */
-    headerFolded: "── keys ?▸ ──",
-    headerUnfolded: "── keys ?▾ ──",
-    /** In-pane action labels */
-    fullHelp: "full help",
-    newTask: "new task",
-    settings: "settings",
-    open: "open",
-    focusEngine: "focus engine",
-    openWorktree: "open wt",
-    delete: "delete",
-    views: "views",
-    project: "project",
-    /** Move/reorder mode labels */
-    reorder: "reorder",
-    done: "done",
   },
   /** Set-branch (re-branch) dialog — lists the repo's local branches with
       filter-as-you-type; typing a new name renames the task's branch. */
@@ -109,19 +165,18 @@ export const en = {
     worktreeGoneTitle: 'Worktree for "{title}" is gone',
     worktreeGoneBody:
       "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
+    copiedBranch: "Copied branch {text}",
+    copiedPath: "Copied path {text}",
   },
 }
 
 export const zh: typeof en = {
   nav: {
-    workspace: "工作区",
     kanban: "看板",
     automations: "例行任务",
     issues: "议题",
   },
   header: {
-    projects: "项目",
-    tasks: "任务",
     scratch: "临时",
   },
   search: {
@@ -135,11 +190,63 @@ export const zh: typeof en = {
     newShell: "新建终端",
     newTask: "新建任务",
     forgetProject: "移除项目",
+    fieldNotes: "现场笔记",
     rename: "重命名",
     pin: "置顶",
     unpin: "取消置顶",
     reorder: "重新排序",
+    runAgain: "重新运行",
+    setStatus: "设置状态",
+    copyBranch: "复制分支名",
+    copyPath: "复制路径",
+    openEditor: "在编辑器中打开",
+    renameBranch: "重命名分支",
+    changeEngine: "切换引擎",
+    fixChecks: "修复失败的检查",
+    syncBase: "同步基础分支",
+    land: "合入基础分支",
     delete: "删除",
+  },
+  status: {
+    backlog: "待办",
+    inProgress: "进行中",
+    inReview: "待评审",
+    done: "已完成",
+    canceled: "已取消",
+    error: "出错",
+  },
+  setStatus: {
+    title: "设置状态",
+    current: "当前",
+    footer: "↑↓ 选择 · enter 设置 · esc 取消",
+  },
+  sync: {
+    done: "已把 {base} 合并进该工作树",
+    alreadyCurrent: "已经和 {base} 同步",
+    conflict: "合并冲突——解决后提交：{files}",
+    dirty: "请先提交或暂存工作树里的改动，再同步：{files}",
+    failed: "同步失败：{error}",
+  },
+  changeEngine: {
+    title: "切换引擎",
+    current: "当前",
+    footer: "↑↓ 选择 · enter 设置 · esc 取消",
+    effortLabel: "推理强度",
+    noEffort: "引擎默认",
+    footerEffort: "↑↓ 引擎 · ←→ 强度 · enter 设置 · esc 取消",
+  },
+  runAgain: {
+    title: "重新运行",
+    source: "来自任务「{title}」的指令",
+    hint: "在新任务里重新执行这段指令，新任务有自己的分支和工作树。",
+    confirm: "重新运行",
+    footer: "\u2191\u2193 滚动 \u00B7 \u2190\u2192 选择 \u00B7 enter 运行 \u00B7 esc 取消",
+  },
+  fieldNotes: {
+    title: "现场笔记",
+    empty: "该仓库暂无现场笔记——agent 可用 `rove api note` 记录。",
+    loading: "加载中…",
+    footer: "↑↓ 滚动 · esc 关闭",
   },
   moveChip: " 移动",
   recentJump: "最近:{title}",
@@ -150,6 +257,7 @@ export const zh: typeof en = {
     noActive: "暂无活跃任务——在上方新建。",
   },
   activity: {
+    working: "运行中",
     rateLimited: "请求受限",
     permissionNeeded: "等待授权",
     error: "错误",
@@ -160,21 +268,6 @@ export const zh: typeof en = {
     materializing: "正在创建 worktree",
     deleting: "正在删除",
     deleteFailed: "删除失败",
-  },
-  hints: {
-    headerFolded: "── 快捷键 ?▸ ──",
-    headerUnfolded: "── 快捷键 ?▾ ──",
-    fullHelp: "完整帮助",
-    newTask: "新建任务",
-    settings: "设置",
-    open: "打开",
-    focusEngine: "聚焦引擎",
-    openWorktree: "打开 worktree",
-    delete: "删除",
-    views: "视图",
-    project: "项目",
-    reorder: "重新排序",
-    done: "完成",
   },
   reBranch: {
     title: "设置分支",
@@ -196,5 +289,7 @@ export const zh: typeof en = {
     scratchCloseFailed: "无法关闭临时任务:{message}",
     worktreeGoneTitle: '"{title}" 的 worktree 已消失',
     worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
+    copiedBranch: "已复制分支 {text}",
+    copiedPath: "已复制路径 {text}",
   },
 }

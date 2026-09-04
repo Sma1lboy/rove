@@ -2,10 +2,8 @@
  * Tab-strip visibility: the default, the legacy-boolean migration, and how a
  * mode turns into "does it render".
  *
- * The default is the load-bearing part. It has been flipped twice (off
- * 2026-08-01, on 2026-08-29, off again 2026-08-31) and nothing pinned it, so
- * a flip could ride along in an unrelated change and only be noticed on
- * screen.
+ * The default is the load-bearing part: with nothing pinning it, a flip
+ * rides along in an unrelated change and is only noticed on screen.
  */
 
 import { DEFAULT_TAB_STRIP_MODE, TAB_STRIP_MODES, resolveTabStripMode, tabStripVisible } from "@/state/tab-strip"
@@ -44,7 +42,7 @@ describe("resolveTabStripMode", () => {
   })
 
   it("lets the new key win once it exists", () => {
-    // Someone who set the old toggle and then touched the new setting keeps
+    // Someone who set the legacy toggle and then touched the new setting keeps
     // the new one — otherwise the legacy value would silently outrank it.
     expect(resolveTabStripMode("never", false)).toBe("never")
     expect(resolveTabStripMode("always", true)).toBe("always")

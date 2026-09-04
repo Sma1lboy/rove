@@ -23,7 +23,7 @@
  * the built-in default.
  */
 
-import { kobeCliInvocation } from "@/cli/invocation"
+import { roveCliInvocation } from "@/cli/invocation"
 import { engineEntry } from "@/engine/registry"
 import { getPersistedString } from "@/state/repos"
 import type { VendorId } from "@/types/task"
@@ -35,7 +35,7 @@ import { BUILTIN_VENDORS, coerceVendorId } from "@/types/vendor"
  * built-in identity lives; this record stays exported for the settings
  * dialog's existing import.
  */
-export const VENDOR_LABEL: Record<VendorId, string> = Object.fromEntries(
+const VENDOR_LABEL: Record<VendorId, string> = Object.fromEntries(
   BUILTIN_VENDORS.map((v) => [v, engineEntry(v).displayName]),
 ) as Record<VendorId, string>
 
@@ -66,6 +66,25 @@ export function engineDisplayName(vendor: VendorId): string {
   // engineEntry answers every id: built-in labels, contrib catalog names
   // ("Gemini CLI"), and the id itself for a plain custom engine.
   return override || engineEntry(vendor).displayName
+}
+
+/**
+ * Turn a custom-engine slug into a presentable display name: split on
+ * `-`/`_` and title-case each word. `my-local-agent` → `My Local Agent`.
+ * Used so a custom engine added with no name still reads like the
+ * title-cased built-ins instead of its raw lowercase-hyphenated id.
+ *
+ * Deliberately a PURE string transform, unlike {@link engineDisplayName}: this
+ * is the fallback written INTO `engineName.<id>` when the user typed no name,
+ * so consulting the override here would overwrite a user-typed name with the
+ * title-cased slug on the next write.
+ */
+export function humanizeSlug(id: string): string {
+  return id
+    .split(/[-_]+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
 }
 
 /**
@@ -154,12 +173,11 @@ export function withEngineTerminalTitle(argv: readonly string[], vendor: VendorI
  * dropped rather than passed through — a bogus value makes the engine refuse
  * to launch.
  *
- * The argv used to be a `v === "codex"` branch under a data-driven level
- * gate, so an engine that declared `effortLevels` had its level accepted by
- * the gate, shown in the TUI and web pickers, threaded through
- * `/api/engines`, and then silently dropped at launch — the user picked
- * "high" and got the default with no error. Same shape as the
- * `withClaudeSessionId` tombstone below.
+ * Keying the argv off a literal vendor id instead would let an engine that
+ * declares `effortLevels` have its level accepted by the gate, shown in the
+ * TUI and web pickers, threaded through `/api/engines`, and then silently
+ * dropped at launch — the user picks "high" and gets the default, with no
+ * error.
  *
  * `vendor` must already be PROTOCOL-RESOLVED by the caller (both call sites
  * do): a preset `mycodex` declaring the codex protocol is a codex launch and
@@ -177,57 +195,22 @@ export function withEngineEffort(
   return entry.effortArgv?.(argv, trimmed) ?? argv
 }
 
-/**
- * True when `argv` carries `flag` — in EITHER the separated form
- * (`--flag value`, the flag its own token) or the attached form
- * (`--flag=value`, one token). {@link parseEngineCommand} deliberately keeps
- * the attached form as a single token ("the common CLI idiom"), so a bare
- * `argv.includes(flag)` silently misses `--resume=<id>` /
- * `--append-system-prompt="…"` — the root cause behind double session
- * control and double prompt injection. Every "the command already sets this
- * flag, don't add our own" guard must go through this helper; an
- * architecture test (`test/architecture/argv-flag-guards.test.ts`) rejects
- * new `argv.includes("--…")` guards. Prefix-safe: `--resume-x` ≠ `--resume`.
- */
-export function argvHasFlag(argv: readonly string[], flag: string): boolean {
-  return argv.some((a) => a === flag || a.startsWith(`${flag}=`))
-}
-
-/**
- * `withClaudeSessionId` lived here (removed 2026-08-29). Its first line was
- * `coerceVendorId(vendor) !== "claude"`, so only an engine literally NAMED
- * claude ever got a session id — kimi tabs and custom wrappers (`claudecpa`)
- * silently got none and lost their conversation on every restart. The pin
- * flag, the "already controls its own session" flags, and the resume verb
- * are now DECLARED by each engine (`engine/session-identity.ts`) and read
- * through `withPinnedSessionId` / `engineResumeArgv` in `registry.ts`.
- */
-
-/**
- * `canForkSession` / `forkSessionArgv` lived here (removed 2026-08-30).
- * Both were vendor ladders — a hardcoded `v === "claude" || v === "codex"`
- * and an inline if-chain of argv shapes — so an engine that ships a fork
- * verb silently could not fork until someone edited this file, and a custom
- * preset declaring a built-in protocol was refused despite launching that
- * exact binary. The verb is now DECLARED by each engine
- * (`EngineSessionIdentity.forkArgv`) and read through `engineCanFork` /
- * `engineForkArgv` in `engine-presets.ts`, which resolve the preset's
- * protocol first — the same fix `withClaudeSessionId` got.
- */
+// `argvHasFlag` lives in `../cli/argv.ts` (neutral, no engine import) so the
+// CLI value-flag parsers share it; re-exported here for the engine callers.
+export { argvHasFlag } from "../cli/argv.ts"
 
 /**
  * Shell-ready `… api` command prefix for protocol prompts. Packaged builds
  * bake plain `kobe api`; a source checkout bakes the dev invocation
  * (`bun --preload … src/cli/kobe.ts api`) — the same {@link
- * kobeCliInvocation} every kobe-owned pane uses. Without this, a protocol
+ * roveCliInvocation} every kobe-owned pane uses. Without this, a protocol
  * agent in a dev sandbox resolves `kobe` to whatever STALE global install
- * is on PATH, and any verb newer than that install dies with BAD_VERB
- * (field bug: the dispatcher's `dispatch` verb on kobe@0.7.24).
+ * is on PATH, and any verb newer than that install dies with BAD_VERB.
  */
 export function kobeApiInvocation(): string {
   const quote = (a: string): string => (/^[A-Za-z0-9_/.:=-]+$/.test(a) ? a : `'${a.replace(/'/g, "'\\''")}'`)
   try {
-    return [...kobeCliInvocation(), "api"].map(quote).join(" ")
+    return [...roveCliInvocation(), "api"].map(quote).join(" ")
   } catch {
     // import.meta.resolve is unavailable in some hosts (vitest's SSR
     // transform) — bare `rove api` is the best-effort fallback there.
@@ -238,16 +221,11 @@ export function kobeApiInvocation(): string {
 /**
  * The system-prompt PROTOCOLS (`statusReportProtocol` / `noteFilingProtocol` /
  * `noteRecallProtocol` / `worktreeProtocol` / `dispatcherProtocol` and their
- * `with*` injectors) moved to `./worktree-protocol.ts` (2026-08-30).
- *
- * Two reasons, one move. Both injectors opened with
- * `coerceVendorId(vendor) !== "claude"` — the third and fourth copies of the
- * ladder the `withClaudeSessionId` tombstone above describes, so a wrapper
- * preset (`claudecpa`) got no status protocol and no field notes, silently.
- * The fix is `sessionProtocol()`, which lives in `engine-presets.ts` — and
+ * `with*` injectors) live in `./worktree-protocol.ts`, not here. They resolve
+ * a launch's protocol through `sessionProtocol()` in `engine-presets.ts`, and
  * that module imports THIS one, so resolving a protocol here would close an
- * import cycle. Moving the block one file over breaks the cycle and keeps
- * both files under the size cap.
+ * import cycle. Keeping the block one file over also keeps both files under
+ * the size cap.
  *
  * Anything that gates on "is this launch a claude launch" belongs behind
  * `sessionProtocol()`, never a literal id compare.

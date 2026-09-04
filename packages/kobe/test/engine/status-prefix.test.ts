@@ -2,7 +2,7 @@
  * `stripEngineStatusPrefix` — an engine that owns its OSC title writes its
  * turn state into it, and kobe draws that same state in its own glyph
  * column. Rendering both says the fact twice, and the ANIMATED variants make
- * a resting tab look busy (owner 2026-08-10). The glyph vocabulary is
+ * a resting tab look busy. The glyph vocabulary is
  * declared per engine, so no neutral layer hard-codes a vendor's characters.
  */
 
@@ -36,9 +36,9 @@ describe("stripEngineStatusPrefix", () => {
   })
 
   // `vendor` narrows the vocabulary; it never gates the strip. The probe is a
-  // ~2s ps walk, so gating on it let a raw `✳ …` through on every tick it
-  // could not answer — and that title is what gets RECORDED, which is why the
-  // prefix kept coming back (owner report 2026-08-10).
+  // ~2s ps walk, so gating on it lets a raw `✳ …` through on every tick it
+  // cannot answer — and that title is what gets RECORDED, so the prefix keeps
+  // coming back.
   it("strips without a vendor too — an unanswered probe must not leak the prefix", () => {
     expect(stripEngineStatusPrefix("✳ 运行本地Codex处理图片", null)).toBe("运行本地Codex处理图片")
     expect(stripEngineStatusPrefix("✳ whatever", undefined)).toBe("whatever")

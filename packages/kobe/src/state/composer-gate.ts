@@ -6,11 +6,11 @@
  * message never lands in the middle of what someone is typing. That check
  * reads the engine's CURRENT layout through an `EngineScreenManifest`, which
  * is a rule about pixels an upstream vendor is free to change without telling
- * anyone. When Claude moved its composer behind three rows of status
- * furniture, the rule stopped matching and every delivery to every Claude task
- * was held (2026-09-01).
+ * anyone. A vendor moving its composer (Claude behind three rows of status
+ * furniture, say) stops the rule matching, and every delivery to every task
+ * on that engine is held.
  *
- * The detector is now conservative in the right direction — an unmatched
+ * The detector is conservative in the right direction — an unmatched
  * anchor answers "I can't see it" rather than "there is text" — but the
  * failure mode this switch exists for is the one that comes back: a vendor
  * moves, the gate is confidently wrong, and the user watches messages queue up
@@ -27,7 +27,34 @@
 
 import { getPersistedBool } from "./store.ts"
 
-export const COMPOSER_GATE_KEY = "delivery.composerGate"
+const COMPOSER_GATE_KEY = "delivery.composerGate"
+
+export interface ComposerGatePreferenceStore {
+  get(key: string, fallback?: unknown): unknown
+  set(key: string, value: unknown): void
+  flush(): boolean
+}
+
+export function composerGatePreferenceOn(store: ComposerGatePreferenceStore): boolean {
+  return store.get(COMPOSER_GATE_KEY, true) !== false
+}
+
+/** Toggle the persisted gate and notify only after an on-to-off edge is durable. */
+export function toggleComposerGatePreference(
+  store: ComposerGatePreferenceStore,
+  onDisabled?: () => void,
+): "enabled" | "disabled" | "persist-failed" {
+  const next = !composerGatePreferenceOn(store)
+  store.set(COMPOSER_GATE_KEY, next)
+  // BOTH edges are synchronous: an in-progress daemon flush reads this value
+  // between records, so ON is its cancellation signal just as OFF starts it.
+  if (!store.flush()) {
+    store.set(COMPOSER_GATE_KEY, !next)
+    return "persist-failed"
+  }
+  if (!next) onDisabled?.()
+  return next ? "enabled" : "disabled"
+}
 
 /** Whether the screen-based composer check runs. Default true. */
 export function composerGateEnabled(): boolean {

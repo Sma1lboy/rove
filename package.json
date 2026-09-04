@@ -16,7 +16,7 @@
     "daemon:restart": "cd packages/kobe && bun run src/cli/rove.ts daemon restart",
     "daemon:status": "cd packages/kobe && bun run src/cli/rove.ts daemon status",
     "daemon:kobe": "cd packages/kobe && bun run src/cli/kobe.ts daemon start",
-    "postinstall": "bun --filter @sma1lboy/rove-plugin-sdk build",
+    "postinstall": "bun scripts/fix-node-pty-exec-bit.mjs && bun --filter @sma1lboy/rove-plugin-sdk build",
     "build": "bun --filter @sma1lboy/rove-plugin-sdk build && bun --filter @sma1lboy/rove build",
     "typecheck": "bun --filter @sma1lboy/rove-plugin-sdk build && bun --filter @sma1lboy/kobe-daemon typecheck && bun --filter @sma1lboy/rove typecheck && bun --filter @sma1lboy/rove-plugin-sdk typecheck",
     "test": "bun --filter @sma1lboy/rove-plugin-sdk build && bun --filter @sma1lboy/rove test && bun --filter @sma1lboy/rove-plugin-sdk test",

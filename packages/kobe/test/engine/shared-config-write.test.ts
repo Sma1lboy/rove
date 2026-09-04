@@ -141,8 +141,8 @@ describe("staging path", () => {
   // writers from overlapping, so this is unreachable in a healthy run — but the
   // lock has takeover paths (stale steal, forceTakeover) where mutual exclusion
   // breaks, and that is exactly when a shared `<file>.tmp` lets writer B clobber
-  // writer A's staging file and fail A's rename with ENOENT (issue #53, already
-  // paid for once in orchestrator/index/store.ts). Asserted directly because a
+  // writer A's staging file and fail A's rename with ENOENT (the same reason
+  // orchestrator/index/store.ts stages per call). Asserted directly because a
   // race test would pass on a pid-only path.
   it("differs between two calls in the same process", () => {
     const home = tempHome()

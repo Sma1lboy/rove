@@ -9,8 +9,8 @@
  * it can move, so the ruler ships before anything that claims to learn.
  *
  * Task OUTCOMES are deliberately absent: completion flows back to the
- * spawning agent's chat tab (`send`), not into Rove state — the stored
- * `workerReport` channel was removed because nothing read it.
+ * spawning agent's chat tab (`send`), not into Rove state. There is
+ * deliberately no stored `workerReport` channel: nothing would read it.
  */
 
 import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -21,12 +21,12 @@ import type { VerbContext, VerbSpec } from "./types.ts"
 /** Default look-back for a digest, in days. */
 const DEFAULT_SINCE_DAYS = 7
 
-export interface TaskDigest {
+interface TaskDigest {
   /** Tasks touched inside the window (by `updatedAt`). */
   readonly total: number
 }
 
-export interface RoutineDigest {
+interface RoutineDigest {
   readonly runs: number
   /** Per-status counts; only statuses actually seen appear. */
   readonly byStatus: Partial<Record<AutomationRunStatus, number>>
@@ -67,10 +67,10 @@ export function buildDigest(
   }
 }
 
-export async function digest(ctx: VerbContext): Promise<unknown> {
+async function digest(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requirePath("repo"))
+  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
   const sinceMs = Date.now() - (args.int("since-days") ?? DEFAULT_SINCE_DAYS) * 86_400_000
 
   const { tasks: allTasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")

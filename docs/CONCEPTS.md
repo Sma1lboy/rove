@@ -39,7 +39,14 @@ worktree), the shell folds into that Task as a new terminal tab, running
 session and all, instead of becoming a duplicate row.
 
 Each Task has a `status` you set yourself (`backlog`, `in_progress`,
-`in_review`, `done`, `canceled`, `error`).
+`in_review`, `done`, `canceled`, `error`) — from the sidebar row's right-click
+menu (**Set status**) or with `rove api set-status`. It is a label and nothing
+more: `canceled` does not stop a session or remove a worktree, and `done` does
+not close anything. Rove moves a Task from `backlog` to `in_progress` by itself
+when its engine starts a turn, and the system prompt asks the agent to set
+`in_review` when it finishes; everything past that is yours. The sidebar row
+shows the status as a mark once it leaves `backlog`/`in_progress`
+(see [TUI](./TUI.md#status-glyphs-in-the-sidebar)).
 
 **Delete is explicit and kind-aware.** A project-main Task cannot go through
 Task deletion; pressing `d` on its row instead forgets the saved project and
@@ -82,6 +89,16 @@ Tabs let you ask a side question or open a shell without changing directories.
 Close a tab when you're done; the Task's directory stays. Exiting the engine
 CLI itself returns an engine tab to its shell prompt. The hosted session ends
 only when that wrapping shell exits or Rove explicitly closes it.
+
+**Closing the last tab is "done for now", not "forget".** Close every tab of a
+managed Task and its row stays in the sidebar; entering it again opens a fresh
+tab in the same worktree. Close every tab of a project whose only row is its
+main checkout (or of a directory Task) and the whole project leaves the
+sidebar, header and row together. Nothing is deleted: the main Task record and
+the saved repository both stay on disk. To bring it back, open New task
+(`n`), pick the same repository, and choose "the project itself" instead of a
+new task worktree (see [TUI](./TUI.md#creating-a-task)). Forgetting a project
+(`d` on its row) is the separate, un-saving gesture.
 
 Each engine tab may pin its own engine; otherwise it inherits the Task's engine,
 so tabs in one Task can use different vendors. A Task-level reasoning-effort

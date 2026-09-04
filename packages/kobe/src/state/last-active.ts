@@ -1,6 +1,6 @@
 /**
- * `lastActive` — THE unified word for "what was focused last" (owner
- * naming, 2026-07-08). One global record of the last active task id,
+ * `lastActive` — THE unified word for "what was focused last".
+ * One global record of the last active task id,
  * persisted through `state/store.ts`'s read-merge-write transaction:
  * whichever process writes last wins, deliberately WITHOUT multi-TUI
  * coordination — opening kobe lands on whatever was focused most
@@ -14,14 +14,14 @@
 
 import { loadStateFile, patchStateFile } from "./store.ts"
 
-export const LAST_ACTIVE_TASK_KEY = "lastActive.taskId"
+const LAST_ACTIVE_TASK_KEY = "lastActive.taskId"
 
 export function readLastActiveTaskId(): string | null {
   const value = loadStateFile()[LAST_ACTIVE_TASK_KEY]
   return typeof value === "string" && value ? value : null
 }
 
-/** Persist the new focus. Clearing focus (null) keeps the old record —
+/** Persist the new focus. Clearing focus (null) keeps the existing record —
  *  "last active" means the last REAL focus, not the absence of one. */
 export function writeLastActiveTaskId(id: string): void {
   patchStateFile({ [LAST_ACTIVE_TASK_KEY]: id })

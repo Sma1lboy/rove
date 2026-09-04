@@ -14,8 +14,8 @@ const TTL = 1_000
  * Liveness watchdog (KOB-bug: a still-running task flips to idle after ~10min).
  *
  * A long single agent turn emits only `turn-start` … `Stop` over many minutes
- * with NO hook events in between, so the fixed lapse timer used to fire
- * mid-turn and wrongly idle a working agent. The fix probes the engine's
+ * with NO hook events in between, so a fixed lapse timer fires mid-turn and
+ * wrongly idles a working agent. The watchdog probes the engine's
  * transcript mtime when the timer fires: a write within the trailing staleness
  * window means the turn is alive (re-arm instead of idling); a genuinely
  * silent engine (missed Stop / hung process) still lapses to idle. These tests

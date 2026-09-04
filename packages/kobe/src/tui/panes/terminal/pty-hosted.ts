@@ -150,7 +150,7 @@ export class HostedTaskPty extends XtermTaskPty {
       // any keystrokes the user queued while the socket opened.
       const fresh = HostedTaskPty.createdFresh(res)
       if (opts.initialInput && fresh) this.sendInput(opts.initialInput)
-      // Paste-delivery vendor (kimi — issue #25): the launch kept the first
+      // Paste-delivery vendor (kimi): the launch keeps the first
       // message OUT of its argv (the positional slot is a subcommand), so we
       // owe the session a paste once its engine process is up. Only on a
       // fresh spawn — a reattach already received (or never had) it.
@@ -190,7 +190,7 @@ export class HostedTaskPty extends XtermTaskPty {
         // WINCH at all (a plain shell). The data-wait alone is defeated by
         // an ACTIVELY-STREAMING child — its ordinary output frame lands ms
         // after the shrink and races the restore back into the coalescing
-        // ("input box gone", 2026-07-27) — so a floor keeps a real gap
+        // ("input box gone") — so a floor keeps a real gap
         // between the two TIOCSWINSZ (see WIGGLE_MIN_GAP_MS).
         await Promise.all([this.nextDataOrTimeout(500), new Promise((r) => setTimeout(r, WIGGLE_MIN_GAP_MS))])
         if (!this.killed) this.sendResize(this.cols, this.rows)
@@ -247,7 +247,7 @@ export class HostedTaskPty extends XtermTaskPty {
    * point of the backend. Called by `registry.detachAll()` on app exit.
    */
   /**
-   * Snapshot this handle's screen for a lossless wake (issue #29): the
+   * Snapshot this handle's screen for a lossless wake: the
    * SerializeAddon VT stream (~100-200KB) replaces the multi-MB emulator
    * while the tab is hidden. Null when we can't restore exactly — never
    * attached (no offset), already dead — so the park sweep still detaches
@@ -376,10 +376,9 @@ export class HostedTaskPty extends XtermTaskPty {
   /**
    * The shared dispatcher's `pty.exit` route. Applied only when the exit
    * belongs to OUR child: a kill()→reopen under the same key sends the
-   * old incarnation's exit frame ahead of our open response (socket
-   * FIFO), and blindly dying here closed the freshly-opened tab (the
-   * "editor tab twitches then exits" bug). Pre-pid hosts (no `pid` in
-   * the frame) keep the old die-on-any-exit behavior.
+   * previous incarnation's exit frame ahead of our open response (socket
+   * FIFO), and blindly dying here would close the freshly-opened tab.
+   * Pre-pid hosts (no `pid` in the frame) die on any exit.
    */
   remoteExited(pid: number | null | undefined): void {
     if (this.killed) return

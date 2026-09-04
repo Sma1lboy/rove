@@ -52,7 +52,7 @@ const defaultDeps: KeychainDeps = {
 }
 
 /** The keychain service name kobe stores remote passwords under. */
-export const KOBE_KEYCHAIN_SERVICE = "kobe-remote-ssh"
+const KOBE_KEYCHAIN_SERVICE = "kobe-remote-ssh"
 
 /** Build the canonical ref for a remote project (`user@host:port`). */
 export function remoteKeychainRef(host: string, user: string, port?: number): KeychainRef {

@@ -2,9 +2,9 @@
 /**
  * The Inbox window and its cell budgets, read off real frames:
  *
- *  - clipped cards are SAID ("+N more"), not silently cut — the old window
- *    charged section headers a full card slot, so a trailing RECENT header
- *    dangled with every row under it hidden and nothing saying so;
+ *  - clipped cards are SAID ("+N more"), not silently cut — charging section
+ *    headers a full card slot leaves a trailing RECENT header dangling with
+ *    every row under it hidden and nothing saying so;
  *  - clipped labels end in `…` (the sidebar's round-one truncation rule) —
  *    Yoga's bare hard cut reads as the full name;
  *  - when the identity line gets too tight, the state badge drops its label

@@ -20,7 +20,9 @@ export const en = {
       noteSubmitLabel: "add note",
       notePlaceholder: "what should the agent change here?",
       count: "{total} notes · {unsent} unsent",
-      keysHint: "j/k line · v range · c note · s send",
+      keysHint: "j/k line · v range · c note · x drop · s send · r reload",
+      /** Error toast when `s` had notes to send and no session to send them to. */
+      sendNoEngine: "No engine session in this task — the notes are still unsent. Open one with ctrl+t.",
     },
   },
 }
@@ -42,7 +44,9 @@ export const zh: typeof en = {
       noteSubmitLabel: "添加备注",
       notePlaceholder: "希望 agent 在这里改什么？",
       count: "{total} 条备注 · {unsent} 条未发送",
-      keysHint: "j/k 行 · v 范围 · c 备注 · s 发送",
+      keysHint: "j/k 行 · v 范围 · c 备注 · x 删除 · s 发送 · r 重载",
+      /** `s` 有备注要发但这个任务没有会话时的错误 toast。 */
+      sendNoEngine: "这个任务没有引擎会话——备注仍未发送。用 ctrl+t 开一个。",
     },
   },
 }

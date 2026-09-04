@@ -2,10 +2,10 @@
  * Freeze/restore persistence for hosted PTY sessions.
  *
  * The host keeps every session's scrollback ring in memory, so the host
- * process ending (crash, machine reboot, SIGTERM) used to take the whole
- * work scene with it: dead children are expected, but the session table
- * and every byte of scrollback evaporated too, and the next host came up
- * knowing nothing. This store is the freeze half of the fix: one small
+ * process ending (crash, machine reboot, SIGTERM) would otherwise take the
+ * whole work scene with it: dead children are expected, but the session
+ * table and every byte of scrollback would go too, leaving the next host to
+ * come up knowing nothing. This store is the freeze half: one small
  * JSON file per session under `<home>/.kobe/pty-sessions/`, holding
  * everything a LATER host incarnation needs to put the session back —
  * metadata (key, cwd, launch command, size, title, byte offsets) plus the
@@ -245,12 +245,11 @@ const FILE_MODE = 0o600
  *
  * The `mode` options on `mkdirSync` / `writeFileSync` apply ONLY when the
  * path is created — for a path that already exists they are a silent no-op.
- * So an install that had been freezing sessions before those options landed
- * keeps its 0755 directory and its 0644 records forever: the directory stays
- * traversable by every local user, and any session not re-frozen since the
- * upgrade keeps world-readable scrollback. A one-time remediation is what
- * actually closes that, and it has to run for the already-affected install,
- * not only for files created from here on.
+ * So an install whose freeze directory was created with a laxer umask keeps
+ * its 0755 directory and its 0644 records forever: the directory stays
+ * traversable by every local user, and any session not re-frozen since keeps
+ * world-readable scrollback. Closing that takes a remediation pass over the
+ * existing paths, not just correct modes on files created from here on.
  *
  * Best-effort and idempotent, like every other write in this module: a
  * chmod that fails (foreign owner, read-only mount) must never take the

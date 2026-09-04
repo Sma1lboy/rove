@@ -39,7 +39,7 @@ function dispatch(event: unknown): void {
 export function subscribeGlobalMouseDown(host: MouseDownHost, handler: (event: unknown) => void): () => void {
   subscribers.add(handler)
   // Re-point on a host swap (a test harness builds a fresh renderer per test):
-  // the old root is torn down, and its listener would never fire again.
+  // the previous root is torn down, and its listener would never fire again.
   if (installedHost !== host) {
     if (installedHost) installedHost.onMouseDown = undefined
     installedHost = host

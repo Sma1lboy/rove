@@ -12,8 +12,8 @@
  * saved repos instead") while `rove remove` refuses a repo that was never in
  * `savedRepos`, which is precisely the set these rows belong to.
  *
- * `addSavedRepo` used to say validation was the caller's job. Eight callers,
- * one of which validated. So the rule lives here and the mutators apply it
+ * Validation is NOT the caller's job: of the eight call sites, exactly one
+ * would remember. So the rule lives here and the mutators apply it
  * themselves — a caller cannot forget a check it does not perform.
  *
  * Deliberately NOT a taste filter: "I'm not working on codefox right now" is

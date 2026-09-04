@@ -9,7 +9,7 @@
  */
 
 import type { RecentTaskEvent } from "../../client/remote-orchestrator"
-import { relativeAgeMs } from "../../tui/history/message-core"
+import { relativeAge } from "../../lib/relative-time"
 import { truncateEnd } from "../../tui/lib/truncate"
 
 /** Rows the drawer shows — the tail of the ring, not the whole 100. */
@@ -63,7 +63,7 @@ export function eventRows(
       const tail = [detailFragment(event), str(event.vendor)].filter((part) => part.length > 0)
       return {
         key: `${event.at}:${index}`,
-        age: relativeAgeMs(event.at, nowMs),
+        age: relativeAge(event.at, nowMs),
         kind: event.kind,
         tail: tail.join(" · "),
       }

@@ -21,6 +21,7 @@
 import type { EngineQuotaUsage, VendorId } from "./contracts.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 /** Refresh interval while a snapshot exists (usage moves slowly for display). */
 export const FRESH_POLL_MS = 15 * 60 * 1000
@@ -133,12 +134,13 @@ export function startQuotaUsagePoller(
   hasSubscribers: () => boolean,
   tickMs: number = MIN_FETCH_INTERVAL_MS,
 ): () => void {
-  const tick = (): void => {
-    if (!hasSubscribers()) return
-    for (const vendor of new Set(listVendors())) void cache.refreshIfDue(vendor)
-  }
-  tick()
-  const timer = setInterval(tick, tickMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  return startTicker({
+    name: "quota-usage-poller",
+    tickMs,
+    gate: hasSubscribers,
+    immediate: true,
+    run: () => {
+      for (const vendor of new Set(listVendors())) void cache.refreshIfDue(vendor)
+    },
+  })
 }

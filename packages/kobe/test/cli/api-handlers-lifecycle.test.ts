@@ -78,7 +78,7 @@ describe("collect handler", () => {
       }),
     })) as { tasks: Array<{ changes: unknown; base: unknown }> }
     expect(result.tasks[0].changes).toEqual({ added: 0, deleted: 0 })
-    expect(result.tasks[0].base).toEqual({ baseRef: null, ahead: null, diff: null })
+    expect(result.tasks[0].base).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
   })
 
   it("reports committed base signals and the task's groupId", async () => {
@@ -91,6 +91,7 @@ describe("collect handler", () => {
         readBranchSignals: async () => ({
           baseRef: "origin/main",
           ahead: 3,
+          behind: null,
           diff: { files: 4, insertions: 120, deletions: 8 },
         }),
       }),
@@ -99,6 +100,7 @@ describe("collect handler", () => {
     expect(result.tasks[0].base).toEqual({
       baseRef: "origin/main",
       ahead: 3,
+      behind: null,
       diff: { files: 4, insertions: 120, deletions: 8 },
     })
   })
@@ -185,7 +187,7 @@ describe("collect handler", () => {
       client,
       runtime: stubRuntime({
         taskTabs: async () => ({ tabs: [], running: true }),
-        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, diff: null }),
+        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, behind: null, diff: null }),
       }),
     })) as { tasks: Array<{ activity: unknown; running: boolean; base: { ahead: number | null } }> }
     expect(result.tasks[0].activity).toBeNull()
@@ -233,11 +235,11 @@ describe("task lifecycle handlers", () => {
   })
 
   it("plain land leaves removeWorktree undefined (daemon default: remove) and always sends callerCwd", async () => {
-    // Removal is the default path now, so the "refusing to remove the caller's
+    // Removal is the default path, so the "refusing to remove the caller's
     // own worktree" guard must be armed on EVERY land — sending callerCwd only
     // for the explicit flag would leave an agent free to delete its own cwd.
     // `removeWorktree` stays undefined so the orchestrator default applies;
-    // coercing it to false here would silently pin the old opt-in behaviour.
+    // coercing it to false here would silently pin an opt-in it does not have.
     const client = new FakeClient({
       "task.land": () => ({ result: { branch: "b", strategy: "merge", landedOn: "main", commit: "abc" } }),
     })
@@ -399,5 +401,33 @@ describe("deliverPrompt", () => {
       },
     })
     await expectApiError(() => deliverPrompt(new FakeClient(), target, "hello", ops), "SESSION_FAILED")
+  })
+
+  it("never calls a legacy deferral verb that can replace an accepted prompt", async () => {
+    let legacyReplacements = 0
+    const client = new FakeClient({
+      "deferredPrompt.fileIfVacant": () => {
+        throw new Error("unknown daemon request: deferredPrompt.fileIfVacant")
+      },
+      "deferredPrompt.file": () => {
+        legacyReplacements++
+        return { id: "legacy-replacement" }
+      },
+    })
+    const { ops } = fakeOps({
+      deliverHosted: async (blockedTarget, _worktree, prompt, defer) => {
+        await defer?.defer({
+          taskId: blockedTarget.id,
+          tabId: "tab-1",
+          prompt,
+          layer: "composer-not-empty",
+        })
+        throw new Error("unreachable: an old daemon must reject the new verb")
+      },
+    })
+
+    await expect(deliverPrompt(client, target, "second", ops)).rejects.toThrow(/unknown daemon request/)
+    expect(client.requestNames).toEqual(["deferredPrompt.fileIfVacant"])
+    expect(legacyReplacements).toBe(0)
   })
 })

@@ -1,6 +1,7 @@
 import { type Socket, connect } from "node:net"
 import { StringDecoder } from "node:string_decoder"
 import {
+  BLOCKING_RPCS,
   type ChannelName,
   type ChannelPayloads,
   type DaemonEventName,
@@ -44,21 +45,6 @@ function rpcTimeoutMs(): number {
   }
   return 20_000
 }
-
-/**
- * RPCs that do git worktree work and/or forge lookups (ls-remote, gh PR
- * states) — legitimately minute-scale, so the deadline is disabled for them.
- * Everything else (task.create/status/delete/rename/… — the write surface the
- * TUI drives interactively) gets the default deadline.
- */
-const RPC_TIMEOUT_EXEMPT: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
-  "task.ensureWorktree",
-  "task.ensureMain",
-  "worktree.discoverAdoptable",
-  "worktree.adopt",
-  "worktree.list",
-  "worktree.remove",
-])
 
 /**
  * Single connection-lifecycle hook — fires when the socket transitions from
@@ -245,7 +231,7 @@ export class KobeDaemonClient implements DaemonRpcClient {
       // RpcTimeoutError and force-disconnect, routing the wedge into the same
       // close→disconnected→reconnect recovery path a crashed daemon takes.
       const timeoutMs = rpcTimeoutMs()
-      if (timeoutMs > 0 && !RPC_TIMEOUT_EXEMPT.has(name)) {
+      if (timeoutMs > 0 && !BLOCKING_RPCS.has(name)) {
         entry.timer = setTimeout(() => this.onRequestTimeout(id, name, timeoutMs), timeoutMs)
       }
       this.pending.set(id, entry)

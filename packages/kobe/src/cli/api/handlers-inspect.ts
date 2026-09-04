@@ -75,7 +75,10 @@ async function sessionsSection(taskId: string | undefined): Promise<unknown> {
   } finally {
     client.close()
   }
-  if (taskId) sessions = sessions.filter((s) => s.key.startsWith(taskId))
+  // `::` for the same reason the exits filter below uses it: a session key is
+  // `<taskId>::<tabId>[::leaf-N]`, so the separator is what makes this a task
+  // match rather than a prefix match.
+  if (taskId) sessions = sessions.filter((s) => s.key.startsWith(`${taskId}::`))
   // ONE ps snapshot serves every session — same economy as live-engine.ts.
   let rows: ReturnType<typeof parsePsSnapshot> | null = null
   try {
@@ -119,7 +122,7 @@ async function sessionExitsSection(taskId: string | undefined): Promise<unknown>
 
 /**
  * Persisted tab snapshots (what the sidebar tree names its rows from),
- * RECONCILED against the live session inventory (issue #20): each task also
+ * RECONCILED against the live session inventory: each task also
  * reports `unregistered` — alive `<taskId>::tab-N` sessions its snapshot
  * does not list — and a task with live sessions but no snapshot at all still
  * gets an entry. A live engine must never be invisible in this read.

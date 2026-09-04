@@ -1,12 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React rename dialog (issue #15, G3W2) — the
- * `src/tui/component/rename-task-dialog/` counterpart, view + `show`
- * entry in one file (the Solid split exists only for its folder
- * convention). Same contract: single pre-filled input, Enter commits,
- * esc cancels via the dialog stack; `dialogTitle` / `fieldLabel` /
- * `submitLabel` overrides let it double for chat-tab renames, branch
- * names, launch commands, etc.
+ * Rename dialog — view + `show` entry in one file. Single pre-filled input,
+ * Enter commits, esc cancels via the dialog stack; `dialogTitle` /
+ * `fieldLabel` / `submitLabel` overrides let it double for chat-tab renames,
+ * branch names, launch commands, etc.
  *
  * `stripNewlines` / `isBlankText` come from the shared framework-free
  * `state.ts` — same sanitiser as the new-task dialog (opentui `<input>`
@@ -14,12 +11,11 @@
  * space-only titles that `.trim()` misses).
  */
 
-import { TextAttributes } from "@opentui/core"
 import { useState } from "react"
 import { isBlankText, stripNewlines } from "../../tui/component/new-task-dialog/state"
-import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { type DialogContext, showDialog, useDialog, useDialogPaddingX } from "../ui/dialog"
+import { DialogField, DialogFooter, DialogHeader, DialogSection } from "../ui/dialog-parts"
 
 export function RenameTaskDialogView(props: {
   currentTitle: string
@@ -36,7 +32,6 @@ export function RenameTaskDialogView(props: {
   onCancel: () => void
 }) {
   const dialog = useDialog()
-  const { theme } = useTheme()
   const t = useT()
   const padX = useDialogPaddingX()
   const [value, setValue] = useState(props.currentTitle)
@@ -52,29 +47,21 @@ export function RenameTaskDialogView(props: {
 
   return (
     <box paddingLeft={padX} paddingRight={padX} gap={1}>
-      <box flexDirection="row" justifyContent="space-between">
-        <text attributes={TextAttributes.BOLD} fg={theme.text}>
-          {props.dialogTitle ?? t("common.rename.defaultTitle")}
-        </text>
-        <text fg={theme.textMuted} onMouseUp={() => props.onCancel()}>
-          esc
-        </text>
-      </box>
-      <box gap={0}>
-        <text fg={theme.accent}>{props.fieldLabel ?? t("common.rename.defaultFieldLabel")}</text>
-        <input
-          value={value}
-          placeholder={props.placeholder ?? props.currentTitle}
-          focused={true}
-          onInput={(v: string) => setValue(stripNewlines(v))}
-          onSubmit={() => commit()}
-        />
-      </box>
-      <box paddingBottom={1}>
-        <text fg={theme.textMuted}>
-          {t("common.rename.footerHint", { submitLabel: props.submitLabel ?? t("common.rename.defaultSubmitLabel") })}
-        </text>
-      </box>
+      <DialogHeader title={props.dialogTitle ?? t("common.rename.defaultTitle")} onClose={() => props.onCancel()} />
+      <DialogSection label={props.fieldLabel ?? t("common.rename.defaultFieldLabel")} focused={true}>
+        <DialogField focused={true}>
+          <input
+            value={value}
+            placeholder={props.placeholder ?? props.currentTitle}
+            focused={true}
+            onInput={(v: string) => setValue(stripNewlines(v))}
+            onSubmit={() => commit()}
+          />
+        </DialogField>
+      </DialogSection>
+      <DialogFooter>
+        {t("common.rename.footerHint", { submitLabel: props.submitLabel ?? t("common.rename.defaultSubmitLabel") })}
+      </DialogFooter>
     </box>
   )
 }

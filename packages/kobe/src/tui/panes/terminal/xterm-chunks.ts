@@ -238,9 +238,9 @@ export function xtermLineToChunks(
     }
     const chars = cell.getChars() || " "
     // Solid-block glyphs whose fg equals bg render as bg-only spaces: same
-    // pixels, but the HOST terminal's minimum-contrast feature (iTerm) can
-    // no longer darken the "glyph" half — the zebra-stripe fix for
-    // half-block renderers (carbonyl, the video plugin). Issue #1. The
+    // pixels, but the HOST terminal's minimum-contrast feature (iTerm)
+    // cannot darken the "glyph" half — the zebra-stripe fix for
+    // half-block renderers (carbonyl, the video plugin). The
     // decision lives in `paintsSamePixel`, shared with the comparator.
     buf += isSolidBlock(chars) && activeIsFill ? " " : chars
   }

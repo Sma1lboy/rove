@@ -200,11 +200,10 @@ export class DaemonActivityRegistry {
    * Is the engine still mid-turn? THE single definition behind both lapse
    * watchdogs (task + tab), deliberately shared so the two cannot drift.
    *
-   * A fresh transcript write means "the engine is alive", which used to be
-   * read as "the turn is still running". Those are different claims: an
-   * engine parked at its prompt waiting for the user keeps touching its
-   * transcript, so with a missed Stop every lapse re-armed and the spinner
-   * span forever (the "kobe shows running long after it stopped" report).
+   * A fresh transcript write means "the engine is alive", which is NOT "the
+   * turn is still running". An engine parked at its prompt waiting for the
+   * user keeps touching its transcript, so reading the two as one claim makes
+   * every lapse re-arm after a missed Stop and the spinner spin forever.
    *
    * A completion marker at/after the turn started settles it — the last
    * thing that happened WAS this turn ending, so stop re-arming regardless
@@ -289,15 +288,14 @@ export class DaemonActivityRegistry {
   }
 
   /**
-   * Fold one OBSERVED per-session fact (issue #11/#16 — the activity
-   * observer's PTY output heartbeat + foreground-walk reconciler) into the
-   * per-tab record's OBSERVED slot. What subscribers see follows
-   * {@link recomputeTabActivity}'s priority — hook claims outrank
-   * observation except the one documented correction (a stale hook `running`
-   * vs a fresher observed rest), and a hook slot that loses THAT correction
-   * is retired here (see below) so it cannot come back. Sticky attention
-   * states are NEVER touched: they mean "a human is needed" and carry no
-   * output by nature.
+   * Fold one OBSERVED per-session fact (the activity observer's PTY output
+   * heartbeat + foreground-walk reconciler) into the per-tab record's
+   * OBSERVED slot. What subscribers see follows {@link recomputeTabActivity}'s
+   * priority — hook claims outrank observation except the one documented
+   * correction (a stale hook `running` vs a fresher observed rest), and a hook
+   * slot that loses THAT correction is dropped here (see below) so it cannot
+   * come back. Sticky attention states are NEVER touched: they mean "a human
+   * is needed" and carry no output by nature.
    *
    * Observed entries (including idle ones) are STORED so the subscribe-time
    * replay hands late clients the same known-idle facts; they carry no
@@ -327,12 +325,12 @@ export class DaemonActivityRegistry {
 
     // A hook `running` that observation just DISPROVED is dead — retire the
     // slot (and its watchdog) instead of leaving it to win the next
-    // arbitration. Keeping it resurrected the corrected tab as a phantom
+    // arbitration. Keeping it resurrects the corrected tab as a phantom
     // `running` on the very next ungated pass (the host-unreachable retire
     // path passes no correction gate, so the Infinity default re-elects the
-    // stale claim at its original `at`), and its lapse watchdog kept
-    // re-arming that claim for the whole outage — issue #27. A genuinely new
-    // turn arrives as a fresh hook event, which writes the slot again.
+    // stale claim at its original `at`), and its lapse watchdog then re-arms
+    // that claim for the whole outage. A genuinely new turn arrives as a
+    // fresh hook event, which writes the slot again.
     const hook = effective.source === "observed" ? undefined : entry?.hook
 
     // Same state from the same source ⇒ a quiet refresh of the observed

@@ -2,6 +2,13 @@
  * "Can Rove launch this engine here, and is it logged in?" — for ANY engine
  * id, not just the four with a dedicated account detector.
  *
+ * WHICH detector runs is the registry's call, not this file's: an engine's
+ * entry either carries a `detectAccount` or it doesn't, so adding a built-in
+ * is one edit there. A vendor→detector table here would be a second list to
+ * keep in sync, and the one that silently loses is this one — an engine
+ * missing from it reads as "login not detectable" even with a working
+ * detector wired in its entry.
+ *
  * `account-detect.ts` answers both questions for the built-ins (claude /
  * codex / copilot / kimi), each against its own credential file. Everything
  * else Rove can launch — the shipped contrib catalog, plugin-registered
@@ -21,20 +28,16 @@ import { spawnSync } from "node:child_process"
 import { statSync } from "node:fs"
 import path from "node:path"
 import type { VendorId } from "@/types/vendor"
-import {
-  type BinaryStatus,
-  type ClaudeAccount,
-  type CodexAccount,
-  type CopilotAccount,
-  type DetectDeps,
-  type EngineAccountStatus,
-  type KimiAccount,
-  detectClaudeAccount,
-  detectCodexAccount,
-  detectCopilotAccount,
-  detectKimiAccount,
+import type {
+  BinaryStatus,
+  ClaudeAccount,
+  CodexAccount,
+  CopilotAccount,
+  DetectDeps,
+  KimiAccount,
 } from "./account-detect"
 import { interactiveEngineCommand } from "./interactive-command"
+import { engineEntry } from "./registry"
 
 /** Any built-in engine's account shape (the union the Accounts view renders). */
 export type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
@@ -45,13 +48,6 @@ export interface EngineStatus {
   /** `null` = no account detector for this engine (contrib / plugin / custom). */
   readonly account: EngineAccount | null
   readonly accountError?: string
-}
-
-const BUILTIN_DETECTORS: Record<string, (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>> = {
-  claude: detectClaudeAccount,
-  codex: detectCodexAccount,
-  copilot: detectCopilotAccount,
-  kimi: detectKimiAccount,
 }
 
 export interface EngineStatusDeps {
@@ -107,7 +103,7 @@ export async function detectEngineStatus(
   over: Partial<EngineStatusDeps> = {},
 ): Promise<EngineStatus> {
   const deps = { ...defaultDeps, ...over }
-  const detector = BUILTIN_DETECTORS[vendor]
+  const detector = engineEntry(vendor).detectAccount
   if (!detector) {
     return { vendor, binary: probeLaunchBinary(deps.command(vendor), deps.which), account: null }
   }

@@ -18,7 +18,7 @@ const NOOP = (): void => {}
 
 function Driver() {
   const kv = useKV()
-  return <SettingsDialog kv={kv} standalone onClose={NOOP} />
+  return <SettingsDialog kv={kv} onClose={NOOP} />
 }
 
 test("the nav hint stays visible on a short standalone page", async () => {

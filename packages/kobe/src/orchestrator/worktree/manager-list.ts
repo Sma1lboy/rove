@@ -39,7 +39,7 @@ export interface ListDeps {
  * read fails (e.g. an unborn branch). Best-effort: returns 0 on total
  * failure so sorting still works. Used to order the adopt list.
  */
-export async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string): Promise<number> {
+async function lastActivityMs(deps: ListDeps, ctx: ExecCtx, worktreePath: string): Promise<number> {
   try {
     const stdout = await deps.runGitStdoutAt(ctx, worktreePath, ["log", "-1", "--format=%ct"])
     const secs = Number.parseInt(stdout.trim(), 10)
@@ -130,7 +130,10 @@ export async function listManaged(deps: ListDeps, repo: string): Promise<readonl
     path: e.callerPath,
     branch: e.branch,
     head: e.head,
-    dirty: await deps.isDirty(e.probePath),
+    // A worktree can vanish between the porcelain snapshot and this probe, and
+    // an unguarded throw here fails the WHOLE list — the entire sidebar goes
+    // dark over one stale row. Unknown reads as clean, like the sibling probe.
+    dirty: await deps.isDirty(e.probePath).catch(() => false),
   }))
 }
 
@@ -141,7 +144,10 @@ export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<re
   // Probe dirty + last-activity for every survivor concurrently (bounded) — two
   // git spawns / ssh round-trips each, the slow part of this call.
   const infos = await mapWithLimit(adoptable, PROBE_CONCURRENCY, async (entry) => {
-    const [dirty, activityMs] = await Promise.all([deps.isDirty(entry.path), lastActivityMs(deps, ctx, entry.path)])
+    const [dirty, activityMs] = await Promise.all([
+      deps.isDirty(entry.path).catch(() => false),
+      lastActivityMs(deps, ctx, entry.path),
+    ])
     return {
       path: entry.path,
       branch: entry.branch,

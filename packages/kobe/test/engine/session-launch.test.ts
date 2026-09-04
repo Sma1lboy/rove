@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
@@ -60,7 +61,7 @@ describe("hosted engine session launch", () => {
     expect(launch.command[2]).not.toContain("set-branch")
   })
 
-  test("keeps a paste vendor's first message OUT of the argv and hands it to the spawner (issue #25)", () => {
+  test("keeps a paste vendor's first message OUT of the argv and hands it to the spawner", () => {
     const launch = buildEngineSessionLaunch({
       task: { id: "task-1", kind: "task", vendor: "kimi", repo: "/repo" },
       worktreePath: "/repo/.worktrees/task-1",
@@ -149,6 +150,110 @@ describe("hosted engine session launch", () => {
     expect(script).toContain("mkdir -p '/repo/.kobe/worktree-init'")
   })
 
+  // These run the GENERATED script for real. The bugs here are both about
+  // what an outside observer (the paste spawner; the next tab's shell) can
+  // see afterwards, which a substring assertion on the script text cannot
+  // settle — only executing it and looking at the filesystem can.
+  describe("running the generated init script", () => {
+    function launchScript(initScript: string, markerPath: string): string {
+      return engineLaunchLine("printenv ROVE_INIT_PROBE || echo UNSET", {
+        initScript,
+        markerPath,
+        timeoutSeconds: 10,
+        platform: "linux",
+      })
+    }
+
+    let runSeq = 0
+    // The launch script leaves its `sleep <timeout>` watchdog child running
+    // after init returns. Handed our stdout PIPE it keeps that pipe open, and
+    // execFileSync then blocks for the WHOLE init budget after the shell
+    // itself is long gone — so route the script's output to a file and wait
+    // on the shell only.
+    function runLaunch(cwd: string, script: string, env?: NodeJS.ProcessEnv): string {
+      runSeq += 1
+      const out = path.join(cwd, `run-${runSeq}.log`)
+      execFileSync("/bin/sh", ["-c", `{ ${script}\n} > ${JSON.stringify(out)} 2>&1`], {
+        cwd,
+        stdio: "ignore",
+        ...(env ? { env } : {}),
+      })
+      return fs.readFileSync(out, "utf8")
+    }
+
+    function scratch(): { dir: string; marker: string } {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-init-run-"))
+      tempDirs.push(dir)
+      return { dir, marker: path.join(dir, "state", "worktree-init", "abc123") }
+    }
+
+    // B1: while the marker only appeared on a zero exit, a repo whose init
+    // script fails left the paste-delivery spawner polling a file that would
+    // never exist — two minutes of empty composer per fresh task.
+    test("records the init outcome in the marker on BOTH the success and failure branches", () => {
+      for (const [initScript, expected] of [
+        ["echo ok", "0"],
+        ["echo nope; exit 3", "3"],
+      ] as const) {
+        const { dir, marker } = scratch()
+        runLaunch(dir, launchScript(initScript, marker))
+        expect(fs.existsSync(marker)).toBe(true)
+        expect(fs.readFileSync(marker, "utf8")).toBe(expected)
+      }
+    })
+
+    // A recorded failure must still retry on the next launch, which is what
+    // an absent marker used to mean.
+    test("re-runs init after a recorded failure, and stops re-running after a success", () => {
+      const { dir, marker } = scratch()
+      const counter = path.join(dir, "runs")
+      const bump = `printf x >> ${JSON.stringify(counter)}`
+      const runs = () => (fs.existsSync(counter) ? fs.readFileSync(counter, "utf8").length : 0)
+
+      runLaunch(dir, launchScript(`${bump}; exit 1`, marker))
+      expect(runs()).toBe(1)
+      runLaunch(dir, launchScript(`${bump}; exit 1`, marker)) // failure recorded → retry
+      expect(runs()).toBe(2)
+      runLaunch(dir, launchScript(bump, marker)) // succeeds this time
+      expect(runs()).toBe(3)
+      runLaunch(dir, launchScript(bump, marker)) // success recorded → skipped
+      expect(runs()).toBe(3)
+    })
+
+    // B2: the marker is per-WORKTREE, so restoring the env inside its guard
+    // meant only the first session in a worktree ever saw what init exported.
+    test("restores the init script's exports for EVERY session, not just the first", () => {
+      const { dir, marker } = scratch()
+      const script = launchScript("export ROVE_INIT_PROBE=1", marker)
+      expect(runLaunch(dir, script).trim()).toBe("1")
+      expect(runLaunch(dir, script).trim()).toBe("1")
+      expect(runLaunch(dir, script).trim()).toBe("1")
+    })
+
+    test("keeps the env dump 0600 — an init script's exports are where a key would be", () => {
+      const { dir, marker } = scratch()
+      runLaunch(dir, launchScript("export ROVE_INIT_PROBE=1", marker))
+      expect(fs.statSync(`${marker}.env`).mode & 0o777).toBe(0o600)
+    })
+
+    // The dump is the DELTA of `export -p`, not the whole environment: it is
+    // sourced by every later tab, and a whole dump would re-export tab-1's
+    // ROVE_TAB_ID over each of them (hooks would misattribute every event).
+    test("carries only what init exported — never the first session's own identity", () => {
+      const { dir, marker } = scratch()
+      runLaunch(dir, launchScript("export ROVE_INIT_PROBE=1", marker), { ...process.env, ROVE_TAB_ID: "tab-1" })
+      const dump = fs.readFileSync(`${marker}.env`, "utf8")
+      expect(dump).toContain("ROVE_INIT_PROBE")
+      expect(dump).not.toContain("ROVE_TAB_ID")
+    })
+
+    test("a failed init leaves no env dump behind", () => {
+      const { dir, marker } = scratch()
+      runLaunch(dir, launchScript("export ROVE_INIT_PROBE=1; exit 1", marker))
+      expect(fs.existsSync(`${marker}.env`)).toBe(false)
+    })
+  })
+
   test("injects the worktree protocol only for regular tasks", () => {
     const regular = buildEngineSessionLaunch({
       task: { id: "task-1", kind: "task", vendor: "claude" },
@@ -204,5 +309,52 @@ describe("hosted engine session launch", () => {
     expect(main.command[2]).not.toContain("build needs --no-sandbox")
     // Read once, for the card only — keyed by the task's source repo.
     expect(seen).toEqual(["/repo"])
+  })
+})
+
+describe("remote projects", () => {
+  // The experimental SSH-backed projects feature routes git through an exec
+  // host, but the PTY host spawns locally against a raw cwd — so a remote
+  // task used to start an engine on THIS machine in a worktree that lives on
+  // the other one. `rove add --remote` and the Settings toggle both say SSH
+  // engine launch is unimplemented; the guard makes the code say it too.
+  //
+  // Asserted here rather than per caller: every launch path — Workspace host
+  // tab open, `rove api send`, prompted `add` — funnels through this builder.
+  const remote = {
+    shell: "/bin/zsh",
+    argv: ["claude"],
+    promptIntent: { kind: "explicit" as const, prompt: "go" },
+    protocolGates: { status: () => false, notes: () => false, dispatcher: () => false },
+  }
+
+  test("refuses a launch whose project is an ssh:// key", () => {
+    expect(() =>
+      buildEngineSessionLaunch({
+        task: { id: "task-r", kind: "task", vendor: "claude", repo: "ssh://me@box/srv/app" },
+        worktreePath: "/srv/rove/task-r",
+        ...remote,
+      }),
+    ).toThrow(/hosted engine launch over SSH is not implemented/)
+  })
+
+  test("refuses one whose worktree is remote even when the repo key reads local", () => {
+    expect(() =>
+      buildEngineSessionLaunch({
+        task: { id: "task-r", kind: "task", vendor: "claude", repo: "/repo" },
+        worktreePath: "ssh://me@box/srv/rove/task-r",
+        ...remote,
+      }),
+    ).toThrow(/hosted engine launch over SSH is not implemented/)
+  })
+
+  test("a local project is untouched", () => {
+    expect(() =>
+      buildEngineSessionLaunch({
+        task: { id: "task-l", kind: "task", vendor: "claude", repo: "/repo" },
+        worktreePath: "/repo/.worktrees/task-l",
+        ...remote,
+      }),
+    ).not.toThrow()
   })
 })

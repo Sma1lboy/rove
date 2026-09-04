@@ -1,5 +1,5 @@
 /**
- * Durable death records (issue #9): a crashed engine's exit code, signal,
+ * Durable death records: a crashed engine's exit code, signal,
  * time, and last output must survive the PTY host's idle-exit. The store is
  * the persistence half; the host's onSessionExit hook is wired to it in
  * pty-server.ts. Noise rules matter as much as retention — clean exits and

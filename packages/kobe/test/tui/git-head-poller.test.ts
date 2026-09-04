@@ -81,7 +81,7 @@ describe("resolveBranchHead fingerprint gate", () => {
     expect(afterFirst).toBeGreaterThanOrEqual(1)
 
     // No fingerprint → nothing was cached → the next call resolves again
-    // (the old always-spawn behavior is preserved verbatim for this path).
+    // (this path always spawns).
     expect(await resolveBranchHead(missing, signal, spawn)).toBe("")
     expect(count()).toBeGreaterThan(afterFirst)
   })

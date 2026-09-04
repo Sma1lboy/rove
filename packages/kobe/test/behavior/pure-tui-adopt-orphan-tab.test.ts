@@ -1,20 +1,27 @@
 /**
- * Regression pin (2026-08-12, follow-up to issue #20): a live pty session the
- * persisted tab snapshot doesn't list must be ADOPTED into that snapshot, not
- * only reported.
+ * Regression pin: a live pty session the persisted tab snapshot doesn't list
+ * must be ADOPTED into that snapshot, not only reported.
  *
- * Reported-only was the state the owner hit on 0.8.77: three tasks had live
- * `claude` sessions the sidebar drew as `⚠` rows, and a row that is in no tab
- * state can't be opened, focused or closed — engines he could neither read
- * nor end. The pin drives the real TUI against a divergence built the way the
- * field one arose (the session outlives its snapshot entry) and asserts the
+ * Reporting without adopting leaves the sidebar drawing `⚠` rows, and a row
+ * that is in no tab state can't be opened, focused or closed — an engine the
+ * user can neither read nor end. The pin drives the real TUI against a
+ * divergence built the way the field one arises (the session outlives its
+ * snapshot entry) and asserts the
  * snapshot names the live tab again.
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv, makeScratchRepo, runRove } from "./harness.ts"
+import {
+  type BehaviorEnv,
+  DIST_ROVE_CLI,
+  closeTui,
+  loadNodePty,
+  makeBehaviorEnv,
+  makeScratchRepo,
+  runRove,
+} from "./harness.ts"
 
 const nodePty = await loadNodePty()
 
@@ -97,7 +104,7 @@ describe.skipIf(!nodePty)("Pure TUI adopts unregistered live sessions (behavior)
       }
       expect(adopted?.tabs?.map((tab) => tab.id)).toContain("tab-1")
     } finally {
-      child.kill()
+      await closeTui(child)
     }
   }, 90_000)
 })

@@ -1,17 +1,15 @@
 /**
- * Terminal pane key bindings — React hook layer, the
- * `tui/panes/terminal/keys.ts` counterpart (issue #16 React migration).
+ * Terminal pane key bindings — the React hook layer.
  *
- * Same passthrough contract as the Solid hook: when focused, every
- * keystroke the shell would expect (ctrl+c, ctrl+d, arrows, …) is
- * forwarded verbatim. The dynamically configured command prefix,
- * `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown scrollback chords stay
- * kobe-owned — see `keys-pure.ts` for the full rationale.
+ * Passthrough contract: when focused, every keystroke the shell would expect
+ * (ctrl+c, ctrl+d, arrows, …) is forwarded verbatim. The dynamically
+ * configured command prefix, `RESERVED_GLOBAL_CHORDS`, and ctrl+pgup/pgdown
+ * scrollback chords stay kobe-owned — see `keys-pure.ts` for the full
+ * rationale.
  *
- * Pure/runtime split preserved: `keys-pure.ts` (constants + the
- * side-effect-free byte encoder) is imported straight from the Solid
- * cluster; this file owns only the React registration (`useBindings` +
- * the raw keypress/paste listeners on the renderer).
+ * Pure/runtime split: `keys-pure.ts` holds the constants + the
+ * side-effect-free byte encoder; this file owns only the React registration
+ * (`useBindings` + the raw keypress/paste listeners on the renderer).
  */
 
 import { type KeyEvent, decodePasteBytes } from "@opentui/core"
@@ -20,16 +18,17 @@ import { useEffect, useMemo, useRef } from "react"
 import { asAttachmentPaths } from "../../../tui/lib/attachments"
 import {
   DEFAULT_PAGE_SIZE,
+  NORMAL_TERMINAL_INPUT_MODES,
   PASSTHROUGH_CHORDS,
   TRAPPED_KEYS,
   keyEventToShellBytes,
 } from "../../../tui/panes/terminal/keys-pure"
+import type { TerminalInputModes } from "../../../tui/panes/terminal/keys-pure"
 import { bindByIds } from "../../context/keybindings"
 import { type Binding, modalActive, useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 
 // Re-export pure helpers so callers can import everything from one path.
-export { DEFAULT_PAGE_SIZE, TRAPPED_KEYS, keyEventToShellBytes }
 
 /** Argument bag for {@link useTerminalBindings} — plain values, not Accessors (React re-renders on prop change). */
 export type TerminalBindingsOpts = {
@@ -39,6 +38,8 @@ export type TerminalBindingsOpts = {
   unfocusedAttachmentTarget: boolean
   /** Forward a byte sequence to the underlying PTY. */
   write: (data: string) => void
+  /** Read the child PTY's current cursor/keypad application modes. */
+  inputModes?: () => TerminalInputModes
   /** Deliver pasted text (backend applies bracketed-paste wrapping). */
   paste: (text: string) => void
   /** Scroll the local scrollback view by N lines (negative = up). */
@@ -47,6 +48,19 @@ export type TerminalBindingsOpts = {
   pageSize?: number
   /** Tear down the current PTY and spawn a fresh shell at the same worktree (F5, confirm-gated). */
   reset: () => void
+  /**
+   * The scrollback search row is open. Every passthrough entry AND the raw
+   * catch-all below switch off while it is: the query is captured by a raw
+   * listener that runs after them, so anything still forwarding would eat the
+   * keystroke (and type it into the shell) before the query ever saw it.
+   */
+  searchActive: boolean
+  /** Open the scrollback search row (prefix `/`). */
+  openSearch: () => void
+  /** Walk to the next (+1) / previous (-1) hit. */
+  stepSearch: (delta: 1 | -1) => void
+  /** Close the search row and restore the viewport it opened on. */
+  closeSearch: () => void
 }
 
 /**
@@ -72,10 +86,11 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
         "terminal.scroll-up": () => optsRef.current.scroll(-pageSizeRef.current),
         "terminal.scroll-down": () => optsRef.current.scroll(pageSizeRef.current),
         "terminal.reset": () => optsRef.current.reset(),
+        "terminal.search": () => optsRef.current.openSearch(),
       }),
     )
     const forward = (evt: KeyEvent): void => {
-      const bytes = keyEventToShellBytes(evt)
+      const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes != null) optsRef.current.write(bytes)
     }
     for (const chord of PASSTHROUGH_CHORDS) table.push({ key: chord, cmd: forward, passthrough: true })
@@ -83,15 +98,31 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
   }, [])
 
   useBindings(() => ({
-    enabled: optsRef.current.focused,
+    enabled: optsRef.current.focused && !optsRef.current.searchActive,
     bindings,
   }))
 
+  // Registered separately so it survives the gate above: while the query row
+  // owns the pane these are the only chords it offers. `up`/`down` reach it
+  // because the passthrough that normally forwards them to the shell is off.
+  const searchBindings = useMemo(
+    () =>
+      bindByIds({
+        "terminal.search.older": () => optsRef.current.stepSearch(-1),
+        "terminal.search.newer": () => optsRef.current.stepSearch(1),
+        "terminal.search.cancel": () => optsRef.current.closeSearch(),
+      }),
+    [],
+  )
+  useBindings(() => ({
+    enabled: optsRef.current.focused && optsRef.current.searchActive,
+    bindings: searchBindings,
+  }))
+
   // Catch-all input forwarder for IME/pinyin composition commits and any
-  // input whose `name` isn't in `PASSTHROUGH_NAMES` — see the Solid
-  // original for the full defaultPrevented rationale. Registered ONCE
-  // (empty deps) and reads the latest `opts` through a render-refreshed
-  // ref, so it doesn't re-subscribe to the renderer's emitter every render.
+  // input whose `name` isn't in `PASSTHROUGH_NAMES`. Registered ONCE (empty
+  // deps) and reads the latest `opts` through a render-refreshed ref, so it
+  // doesn't re-subscribe to the renderer's emitter every render.
   const renderer = useRenderer()
   useEffect(() => {
     if (!renderer) return
@@ -101,8 +132,9 @@ export function useTerminalBindings(opts: TerminalBindingsOpts): void {
     // in the PTY instead. The useBindings entries above are already cut off
     // by the modal barrier; raw listeners must gate themselves.
     const forwardUnhandled = (evt: KeyEvent) => {
-      if (!optsRef.current.focused || evt.defaultPrevented || modalActive()) return
-      const bytes = keyEventToShellBytes(evt)
+      if (!optsRef.current.focused || optsRef.current.searchActive) return
+      if (evt.defaultPrevented || modalActive()) return
+      const bytes = keyEventToShellBytes(evt, optsRef.current.inputModes?.() ?? NORMAL_TERMINAL_INPUT_MODES)
       if (bytes == null) return
       optsRef.current.write(bytes)
       evt.preventDefault()

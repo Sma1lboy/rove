@@ -1,7 +1,7 @@
 /**
- * Regression (2026-07-10): opening files from the pure-TUI FileTree uses
- * one reusable File tab. The old transition appended one command tab for
- * every file, so browsing a few files permanently grew the tab strip.
+ * Opening files from the pure-TUI FileTree uses ONE reusable File tab.
+ * Appending a command tab per file makes browsing a few files permanently
+ * grow the tab strip.
  */
 
 import { describe, expect, test } from "vitest"

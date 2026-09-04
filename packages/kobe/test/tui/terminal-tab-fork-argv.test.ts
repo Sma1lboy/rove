@@ -55,7 +55,7 @@ describe("engineForkArgv", () => {
     expect(engineForkArgv(["claude"], "claude", "")).toBeNull()
   })
 
-  it("declines a claude base that already controls its own session — either flag form (issue #58)", () => {
+  it("declines a claude base that already controls its own session — either flag form", () => {
     // A second --resume makes claude refuse to launch; the user's override
     // wins and the caller opens an ordinary tab on the base command.
     expect(engineForkArgv(["claude", "--resume", "pinned"], "claude", "src", "new")).toBeNull()
@@ -170,7 +170,7 @@ describe("buildHandoffPrompt", () => {
 
 // Why: a handoff opens a LATER tab, so it can't ride the task-level prompt
 // (first-engine-tab only). It must fire exactly once — a replay on restart
-// would make the new engine re-read and re-announce the old session forever.
+// would make the new engine re-read and re-announce that session forever.
 describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
   const opts = {
     live: false,
@@ -193,7 +193,7 @@ describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
     const script = engineTabSpawnFor(state, handoff, ["codex"], opts).command[2]
     expect(script).toContain("read /r.jsonl")
     // A handoff opens on an EXISTING worktree — never a new-task first
-    // prompt, so the branch-rename coda must not ride along (issue #8).
+    // prompt, so the branch-rename coda must not ride along.
     expect(script).not.toContain("set-branch")
   })
 
@@ -207,14 +207,14 @@ describe("engineTabSpawnFor with a tab-owned handoff prompt", () => {
   })
 })
 
-// Why (issue #25): kimi's positional CLI slot is a SUBCOMMAND — a prompt in
+// Why: kimi's positional CLI slot is a SUBCOMMAND — a prompt in
 // the argv exits the engine `Unknown command` before it does any work. The
 // registry declares `firstMessageDelivery: "paste"` for kimi, so the TUI
 // spawn must keep the prompt OUT of the launch line and surface it as
 // `firstMessage` for the hosted PTY's post-spawn paste
 // (`pastePromptWhenEngineUp`). This pins the composition half of that
 // contract; the delivery half lives in hosted-session.test.ts.
-describe("engineTabSpawnFor with a paste-delivery vendor (kimi — issue #25)", () => {
+describe("engineTabSpawnFor with a paste-delivery vendor (kimi)", () => {
   const opts = {
     live: false,
     shell: "/bin/zsh",

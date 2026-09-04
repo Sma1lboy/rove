@@ -5,6 +5,7 @@
 
 export const en = {
   title: "New task",
+  legend: "enter create · tab complete/fields · ctrl+[ ] mode · ctrl+e engine · esc cancel",
 
   tabs: {
     existing: "For Existing",
@@ -13,19 +14,20 @@ export const en = {
   },
 
   field: {
-    engine: "engine",
-    repo: "repo",
-    fromBranch: "from branch",
-    gitUrl: "git url",
-    parentDir: "parent dir",
-    folderName: "folder name",
-    baseBranch: "base branch",
-    adoptFilter: "filter (path glob)",
-    /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
-    opens: "opens",
+    mode: "MODE",
+    engine: "ENGINE",
+    repo: "REPO",
+    fromBranch: "FROM BRANCH",
+    gitUrl: "GIT URL",
+    parentDir: "PARENT DIR",
+    folderName: "FOLDER NAME",
+    baseBranch: "BASE BRANCH",
+    adoptFilter: "FILTER (PATH GLOB)",
+    /** Existing tab: task vs project — only for a repo with a main row. */
+    opens: "OPENS",
   },
 
-  /** Existing-tab intent labels (issue #90). */
+  /** Existing-tab intent labels. */
   intent: {
     task: "a new task worktree",
     project: "the project itself",
@@ -37,6 +39,7 @@ export const en = {
   },
 
   hint: {
+    modeCycle: "ctrl+[ ]",
     engineCycle: "ctrl+e",
     remembered: "(remembered — next clone defaults to this dir)",
     currentDir: "(current dir)",
@@ -50,7 +53,7 @@ export const en = {
     moreBelow: "↓ {count} more",
   },
 
-  /** "Open the project" failures (issue #90). {error} is the daemon's message. */
+  /** "Open the project" failures. {error} is the daemon's message. */
   open: {
     failed: "Couldn't open the project: {error}",
   },
@@ -73,9 +76,8 @@ export const en = {
   },
 
   button: {
-    create: "[ Create ]",
-    createFocused: "▸ [ Create ]",
-    cloning: "[ Cloning… ]",
+    create: "Create",
+    cloning: "Cloning…",
   },
 
   error: {
@@ -96,6 +98,7 @@ export const en = {
 
 export const zh: typeof en = {
   title: "新建任务",
+  legend: "enter 创建 · tab 补全/切字段 · ctrl+[ ] 切模式 · ctrl+e 引擎 · esc 取消",
 
   tabs: {
     existing: "已有仓库",
@@ -104,6 +107,7 @@ export const zh: typeof en = {
   },
 
   field: {
+    mode: "模式",
     engine: "引擎",
     repo: "仓库",
     fromBranch: "基准分支",
@@ -112,11 +116,11 @@ export const zh: typeof en = {
     folderName: "文件夹名",
     baseBranch: "基准分支",
     adoptFilter: "过滤（路径 glob）",
-    /** Existing tab: task vs project (issue #90) — only for a repo with a main row. */
+    /** Existing tab: task vs project — only for a repo with a main row. */
     opens: "打开",
   },
 
-  /** Existing-tab intent labels (issue #90). */
+  /** Existing-tab intent labels. */
   intent: {
     task: "新建任务 worktree",
     project: "项目本身",
@@ -128,6 +132,7 @@ export const zh: typeof en = {
   },
 
   hint: {
+    modeCycle: "ctrl+[ ]",
     engineCycle: "ctrl+e",
     remembered: "（已记住 — 下次克隆默认使用此目录）",
     currentDir: "（当前目录）",
@@ -141,7 +146,7 @@ export const zh: typeof en = {
     moreBelow: "↓ 还有 {count} 项",
   },
 
-  /** "Open the project" failures (issue #90). {error} is the daemon's message. */
+  /** "Open the project" failures. {error} is the daemon's message. */
   open: {
     failed: "无法打开项目：{error}",
   },
@@ -164,9 +169,8 @@ export const zh: typeof en = {
   },
 
   button: {
-    create: "[ 创建 ]",
-    createFocused: "▸ [ 创建 ]",
-    cloning: "[ 克隆中… ]",
+    create: "创建",
+    cloning: "克隆中…",
   },
 
   error: {

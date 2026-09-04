@@ -1,11 +1,11 @@
 /**
- * Kimi Code workspace trust (issue #28 / #25 follow-up). Kimi shows a
+ * Kimi Code workspace trust. Kimi shows a
  * "Trust this folder?" dialog on first launch in a directory — and its
  * default cursor sits on "Don't trust", so a pasted first message's submit
  * Enter EXITS the engine ("Bye!"). The store is one file per workspace:
  * `~/.kimi-code/workspace-trust/wd_<dirname>_<sha256(abspath)[:12]>`
- * containing {"root": <abspath>, "trustedAt": <ms epoch>} (naming verified
- * against live installs 2026-08-15). Pre-trusting a Rove-created worktree
+ * containing {"root": <abspath>, "trustedAt": <ms epoch>}. Pre-trusting a
+ * Rove-created worktree
  * is the same trust domain as the repo the user already runs sessions in.
  */
 

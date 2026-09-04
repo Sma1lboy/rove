@@ -1,9 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * TERMINAL adapter over the content-agnostic split tree (`tui/workspace/
- * split-core.ts`, reused unchanged) — React port of `tui/workspace/
- * TerminalSplit.tsx` (issue #16 React migration). The body of one
- * workspace terminal tab. Leaf content is `readonly string[] | null`: null
+ * TERMINAL adapter over the content-agnostic split tree
+ * (`tui/workspace/split-core.ts`). The body of one workspace terminal tab.
+ * Leaf content is `readonly string[] | null`: null
  * means "the tab's own command" (only ever `leaf-1`, whose PTY key IS the
  * tab key — `splitLeafPtyKey`), an argv means a split-created shell.
  *
@@ -17,22 +16,19 @@
  * `TerminalTabs.tsx` and persisted to state.json), passed down as the
  * `splitTree` prop and mutated back through `onSplitChange`.
  *
- * Solid→React deltas: `splitTree`/`cwd`/`focused`/`resetToken`/`engineTitle`
- * are plain values, not Accessors — the parent re-renders on change.
- * `activeLeaf` (local ephemeral focus, kept OUT of the persisted tree —
- * see the Solid header) is `useState`, re-seeded via a `useEffect` keyed on
- * `props.splitTree` identity (the Solid `createEffect(on(...))` twin). The
- * corner name-tag's live-title tracking is the shared framework-free
- * `useTitleSubscriptions` store (O18) — keyed on each leaf's globally-unique
- * `splitLeafPtyKey`, so an instance shared across tabs (this component mounts
- * without a key) can't bleed one tab's `leaf-1` title onto the next, and a
- * respawned leaf re-subscribes instead of freezing on the dead PTY's title.
- * `dividerProps` takes a resolved color value instead of a lazy accessor —
- * React re-evaluates the whole render on any prop/state change, so there is
- * no separate reactive-attribute path to preserve. The opentui borderColor
- * structural-absence trick (divider-less boxes must omit `borderColor`
- * entirely, not pass `undefined` — opentui's Box coerces `border: false` to
- * a full frame whenever any border styling lands) is preserved verbatim.
+ * `activeLeaf` (local ephemeral focus) is `useState`, kept OUT of the
+ * persisted tree so moving focus never reflows it, and re-seeded via a
+ * `useEffect` keyed on `props.splitTree` identity. The corner name-tag's
+ * live-title tracking is the shared framework-free `useTitleSubscriptions`
+ * store — keyed on each leaf's globally-unique `splitLeafPtyKey`, so an
+ * instance shared across tabs (this component mounts without a key) can't
+ * bleed one tab's `leaf-1` title onto the next, and a respawned leaf
+ * re-subscribes instead of freezing on the dead PTY's title.
+ *
+ * The opentui borderColor structural-absence rule holds throughout:
+ * divider-less boxes must omit `borderColor` ENTIRELY, not pass `undefined` —
+ * opentui's Box coerces `border: false` to a full frame whenever any border
+ * styling lands.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
@@ -101,7 +97,7 @@ export function TerminalSplit(props: {
    *  (`TaskPtyOpts.initialInput`). Split-created shell leaves never get it. */
   initialInput?: string
   /** Paste-delivery vendor's first message for leaf-1's fresh spawn
-   *  (`TaskPtyOpts.firstMessage`, issue #25). Split leaves never get it. */
+   *  (`TaskPtyOpts.firstMessage`). Split leaves never get it. */
   firstMessage?: string
   /** Engine binary name for the first-message engine-up probe. */
   engineBin?: string
@@ -135,8 +131,8 @@ export function TerminalSplit(props: {
   const state = props.splitTree ?? UNSPLIT
 
   // FOCUS (local, ephemeral): which leaf has focus. Kept OUT of the
-  // persisted tree on purpose (see the Solid header's no-whole-tree-
-  // reflow rationale). Seeded from the persisted `activeLeafId` and
+  // persisted tree on purpose — moving focus must not reflow the whole
+  // tree. Seeded from the persisted `activeLeafId` and
   // re-seeded whenever the persisted tree changes identity (tab switch
   // or a structural edit).
   const [activeLeaf, setActiveLeaf] = useState<string>(state.activeLeafId)
@@ -257,8 +253,8 @@ export function TerminalSplit(props: {
   }, [props.tabKey, state])
   const liveTitles = useTitleSubscriptions(leafPtyKeys)
 
-  /** id → display name. Owner correction 2026-07-06: the TAB is the
-   *  "group" (its default title says so) — each leaf carries its OWN
+  /** id → display name. The TAB is the "group" (its default title says
+   *  so) — each leaf carries its OWN
    *  name: F2 rename wins, default = basename of what it runs
    *  ("claude", "zsh", "zsh 2"…). Derivation is pure (`splitLeafNames`). */
   const leafNames = splitLeafNames(leaves(state.root), props.command, props.engineTitle, liveTitles)
@@ -273,8 +269,8 @@ export function TerminalSplit(props: {
   // frame) whenever any border styling lands, both in the constructor
   // and in the `borderColor` setter, and the setter fires even for
   // undefined because parseColor mints a fresh RGBA every call. Hence the
-  // conditional spread. This coercion is what drew the phantom frames
-  // around the first leaf and the group.
+  // conditional spread — without it, phantom frames appear around the first
+  // leaf and the group.
   const dividerProps = (divider: "left" | "top" | undefined, color: RGBA) =>
     divider ? { border: [divider] as ("left" | "top")[], borderColor: color } : { border: false as const }
 
@@ -303,8 +299,8 @@ export function TerminalSplit(props: {
           }}
         />
         {/* Corner name tag — ONLY while there's more than one leaf to tell
-            apart (see the Solid header: a solo survivor already shows this
-            name on the tab strip). */}
+            apart: a solo survivor already shows this name on the tab
+            strip. */}
         {isSplit ? (
           <box position="absolute" right={0} top={0} zIndex={10} backgroundColor={theme.backgroundElement}>
             <text

@@ -19,7 +19,10 @@ import { fileURLToPath } from "node:url"
 import { errorMessage } from "@/lib/error-message"
 import { ensureDaemonReachable } from "@sma1lboy/kobe-daemon/client/daemon-process"
 import { readRoveEnv, setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
-import { DEFAULT_DAEMON_WEB_PORT } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { DEFAULT_DAEMON_WEB_PORT, defaultWebTokenPath } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { ensureWebToken } from "@sma1lboy/kobe-daemon/daemon/web-token"
+import { parsePositiveInt } from "./api/flags.ts"
+import { argvHasFlag, flagValue } from "./argv.ts"
 import { activeCliName } from "./rename-compat.ts"
 
 const CLI_NAME = activeCliName()
@@ -43,7 +46,8 @@ Launch the Rove web UI through daemon web transport on http://localhost:<port>.
 Options:
   --port <n>        Daemon web transport port (default ${DEFAULT_DAEMON_WEB_PORT}).
   --routes-only     Routes only; Vite serves the SPA separately.
-  --no-takeover     Reserved for compatibility; daemon owns the web port.
+  --no-takeover     Leave an older PTY sidecar on <port+2> running instead of
+                    replacing it (the default takes the port over).
   -h, --help        Show this help.
 `
 
@@ -140,6 +144,22 @@ async function startPtyServer(opts: {
   })
 }
 
+/**
+ * The URL to open, carrying the bearer token as a query param.
+ *
+ * A top-level navigation cannot set an `Authorization` header, so the query
+ * is the only channel a first page load has — and the daemon refuses to hand
+ * the token to a caller that did not present one, precisely so `curl` cannot
+ * read it out of the served HTML. Whoever runs this command already owns the
+ * 0600 token file, so putting it in the URL grants nothing they did not have.
+ * The SPA remembers it for the rest of the browser session, so in-app
+ * navigations and reloads no longer need the query.
+ */
+function dashboardUrl(port: number): string {
+  const token = ensureWebToken(defaultWebTokenPath())
+  return `http://localhost:${port}/?token=${encodeURIComponent(token)}`
+}
+
 async function ensureDaemonWeb(port: number, staticDir?: string): Promise<void> {
   setRoveEnv("DAEMON_WEB_PORT", String(port))
   if (staticDir) setRoveEnv("DAEMON_WEB_STATIC_DIR", staticDir)
@@ -181,10 +201,11 @@ export async function runWebSubcommand(args: readonly string[]): Promise<void> {
   enforceResetGate()
 
   let port = DEFAULT_DAEMON_WEB_PORT
-  const portIdx = args.indexOf("--port")
-  if (portIdx !== -1) {
-    const value = Number.parseInt(args[portIdx + 1] ?? "", 10)
-    if (!Number.isFinite(value)) {
+  if (argvHasFlag(args, "--port")) {
+    // `--port 5399` and `--port=5399` alike; a whole-value integer check so
+    // `--port 51abc` fails loudly instead of binding 51.
+    const value = parsePositiveInt(flagValue(args, "--port") ?? "")
+    if (value === undefined) {
       process.stderr.write(`${CLI_NAME} web: --port needs a number\n`)
       process.exit(2)
     }
@@ -216,7 +237,7 @@ export async function runWebSubcommand(args: readonly string[]): Promise<void> {
       process.stdout.write(`  home: ${homeLabel()}\n`)
     } else {
       pty = await startPtyServer({ webPort: port, takeover })
-      process.stdout.write(`${CLI_NAME} web → http://localhost:${port}\n`)
+      process.stdout.write(`${CLI_NAME} web → ${dashboardUrl(port)}\n`)
       process.stdout.write(`  home: ${homeLabel()}\n`)
       if (!pty) {
         process.stderr.write(`${CLI_NAME} web: PTY server not found; terminal tabs will be unavailable\n`)

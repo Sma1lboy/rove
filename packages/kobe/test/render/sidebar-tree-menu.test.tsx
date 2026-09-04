@@ -130,8 +130,10 @@ test("right-click on a project header offers the project's own actions", async (
   const after = await frame()
   expect(after).toContain("New task")
   // Forget mirrors `d` on the project's row (task-actions.ts sends a main row
-  // to `forgetProject` behind a confirm) — the menu was missing it.
+  // to `forgetProject` behind a confirm).
   expect(after).toContain("Remove project")
+  // This entry is the only in-product reader of the repo's durable notes.
+  expect(after).toContain("Field notes")
   // A project is not a checkout — no per-task verbs on its header.
   expect(after).not.toContain("Rename")
   expect(after).not.toContain("Delete")
@@ -228,7 +230,7 @@ test("a tab row's menu opens a new shell in its worktree", async () => {
   expect(asked).toEqual([["a", "shell"]])
 })
 
-test("a worktree's LAST tab DOES offer a close (owner call 2026-08-31)", async () => {
+test("a worktree's LAST tab DOES offer a close", async () => {
   // Closing it leaves the task with no sessions — the row stays and re-opens
   // on ⏎ / ctrl+e — so there is nothing for the menu to withhold.
   tabsByTask.clear()
@@ -286,4 +288,33 @@ test("a press ON the menu still picks its entry", async () => {
 
   expect(renamed).toEqual(["a"])
   expect(await frame()).not.toContain("Delete")
+})
+
+/**
+ * "Set status" is the one entry with no chord behind it, which makes this the
+ * ONLY route a human has to the board status the injected agent protocol
+ * already tells every engine to write. A menu row that renders but dispatches
+ * nowhere looks identical to one that works, so the assertion is the callback
+ * firing with the row's task id — not the label being on screen.
+ */
+test("Set status fires the row's callback with that row's task", async () => {
+  tabsByTask.clear()
+  const asked: string[] = []
+  const { frame, mockMouse, mockInput } = await renderComponent(tree({ onSetStatusRequest: (id) => asked.push(id) }), {
+    width: 40,
+    height: 24,
+  })
+  await settle()
+  await mockMouse.click(2, lineOf(await frame(), "feat/b"), RIGHT)
+  await settle()
+  expect(await frame()).toContain("Set status")
+
+  // open, newChat, newShell, rename, pin, reorder, setStatus — six steps from
+  // the highlight's start on "Open".
+  mockInput.typeText("jjjjjj")
+  await settle()
+  mockInput.pressEnter()
+  await settle()
+
+  expect(asked).toEqual(["b"])
 })

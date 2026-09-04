@@ -1,11 +1,9 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Tiny presentational helpers shared by the React settings sections
- * (issue #15 G3). The Solid `sections.tsx` repeats the same row/box
- * markup per setting; the React port factors the repetition into `Row`
- * (one navigable/clickable line) and `SubSection` (BOLD title + muted
- * hint + rows) so each section file stays well under the size cap while
- * rendering the exact same boxes.
+ * Tiny presentational helpers shared by the settings sections: `Row` (one
+ * navigable/clickable line) and `SubSection` (BOLD title + muted hint +
+ * rows), so each section file stays well under the size cap instead of
+ * repeating the same row/box markup per setting.
  */
 
 import { type BoxRenderable, type RGBA, TextAttributes } from "@opentui/core"

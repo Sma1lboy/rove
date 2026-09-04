@@ -1,23 +1,18 @@
 /**
  * Daemon RPC handler registry.
  *
- * `server.ts`'s `dispatch` used to be one ~275-line switch over
- * {@link DaemonRequestName}: every case inlined payload extraction, error
- * wording, and the Orchestrator call, and the dispatch layer had zero tests.
- * This module breaks the switch into self-contained entries —
+ * Every {@link DaemonRequestName} is a self-contained entry —
  * `{ name, handle(payload, ctx) }` — keyed in a registry map, so the dispatch
- * seam is: look up entry → validate (the same `requireString`-family helpers,
- * now shared here) → handle → uniform error shaping
+ * seam is: look up entry → validate (the shared `requireString`-family
+ * helpers) → handle → uniform error shaping
  * ({@link shapeDaemonError}, the ONE place a thrown error becomes a
  * {@link DaemonError}).
  *
- * Hard constraint: WIRE COMPATIBILITY. Every entry must produce
- * byte-equivalent success and error payloads to the pre-registry switch for
- * the same inputs — socket clients and the daemon web transport parse these
- * shapes. Success payload KEY ORDER is
- * load-bearing for byte equality (`JSON.stringify` preserves insertion
- * order), so handlers keep the exact literal shapes the switch returned,
- * `{}` returns included. Error message wording is part of the contract too
+ * Hard constraint: WIRE COMPATIBILITY. Socket clients and the daemon web
+ * transport parse these payload shapes, so an entry may never reshape one.
+ * Success payload KEY ORDER is load-bearing for byte equality
+ * (`JSON.stringify` preserves insertion order), so handlers return exact
+ * literal shapes, `{}` returns included. Error message wording is part of the contract too
  * (`"${key} is required"`, `"unknown daemon request: …"`).
  *
  * One request is deliberately NOT here: `subscribe`. It is connection
@@ -49,6 +44,7 @@ import { AUTOMATION_HANDLERS } from "./handlers-automations.ts"
 import { DEFERRED_PROMPT_HANDLERS } from "./handlers-deferred.ts"
 import { ENGINE_REPORT_HANDLER } from "./handlers-engine-report.ts"
 import { ISSUE_HANDLERS } from "./handlers-issues.ts"
+import { PR_HANDLERS } from "./handlers-pr.ts"
 import { TASK_HANDLERS } from "./handlers-task.ts"
 import { UI_HANDLERS } from "./handlers-ui.ts"
 import { WORK_ITEM_HANDLERS } from "./handlers-work-items.ts"
@@ -66,6 +62,7 @@ import {
 } from "./protocol.ts"
 import type { QuotaUsageCache } from "./quota-usage-cache.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import type { TabCloseBroker } from "./tab-close-broker.ts"
 import type { TaskDeletionScheduler } from "./task-deletion-runner.ts"
 import type { WorkItemCache } from "./work-items.ts"
 
@@ -104,7 +101,7 @@ export interface DaemonHandlerContext {
   readonly issues: IssuesStore
   /** Durable field notes, same key convention (absent in older tests). */
   readonly notes?: NotesStore
-  /** Deferred prompts accepted by the delivery gate (issue #78; absent in older tests). */
+  /** Deferred prompts accepted by the delivery gate (absent in older tests). */
   readonly deferredPrompts?: DeferredPromptsStore
   /** Short-TTL cache over external tracker items (read-only view). */
   readonly workItems: WorkItemCache
@@ -115,12 +112,14 @@ export interface DaemonHandlerContext {
   readonly selfLink: DaemonRpcClient
   /** Rate-limited cache in front of the engine quota probes. */
   readonly quotaUsage: QuotaUsageCache
-  /** Durable per-turn telemetry (issue #32; absent in older tests). */
+  /** Durable per-turn telemetry (absent in older tests). */
   readonly agentTurns?: AgentTurnsStore
   /** Per-task recent engine events (`task.recentEvents`; absent in older tests). */
   readonly engineEvents?: import("./engine-events-log.ts").EngineEventLog
   /** Pending host-dialog prompts (`ui.prompt` / `ui.promptReply`). */
   readonly prompts?: import("./prompt-broker.ts").PromptBroker
+  /** Pending exact Terminal Tab closes awaiting a TUI acknowledgement. */
+  readonly tabCloses?: TabCloseBroker
   /** Plugin sink for agent-lifecycle events — a direct feed, deliberately NOT a bus channel. */
   readonly plugins?: Pick<import("../plugins/runtime.ts").PluginHost, "handleEngineReport" | "handleUiReport">
   /** Daemon-process facts + lifecycle controls handlers surface or drive. */
@@ -130,8 +129,8 @@ export interface DaemonHandlerContext {
     /** The state root this daemon serves (`<homeDir>/.kobe`). Reported by
      *  `hello` so a client can detect a daemon from a DIFFERENT home sitting
      *  on its socket — a sandbox/dev daemon that inherited the production
-     *  socket path serves an EMPTY task index, which used to reach the TUI as
-     *  a legitimate "you have no tasks" (prod 2026-08-13). */
+     *  socket path serves an EMPTY task index, which the TUI would otherwise
+     *  render as a legitimate "you have no tasks". */
     readonly homeDir?: string
     /** Loopback web transport port, when this daemon is exposing browser routes. */
     readonly webPort?: number
@@ -175,6 +174,15 @@ export interface DaemonRequestHandler {
    * kill switch (`daemon.stop`), and hook-ingest paths must stay unexposed.
    */
   readonly web?: boolean
+  /**
+   * Can this verb legitimately outlive the client's 20s wedge deadline?
+   * Declared HERE, beside `web`, so the question is in front of whoever
+   * writes the handler — the socket client cannot import this registry
+   * (that would pull every daemon module into the CLI), so it reads the
+   * mirror in `protocol.ts`. `test/daemon/rpc-deadline.test.ts` fails when
+   * the two drift.
+   */
+  readonly blocking?: boolean
   handle(payload: Record<string, unknown>, ctx: DaemonHandlerContext): Promise<unknown> | unknown
 }
 
@@ -184,6 +192,15 @@ export function webExposedRpcNames(
 ): ReadonlySet<DaemonRequestName> {
   const names = new Set<DaemonRequestName>()
   for (const entry of registry.values()) if (entry.web === true) names.add(entry.name)
+  return names
+}
+
+/** The registry-derived blocking set: every entry marked `blocking: true`. */
+export function blockingRpcNames(
+  registry: ReadonlyMap<DaemonRequestName, DaemonRequestHandler>,
+): ReadonlySet<DaemonRequestName> {
+  const names = new Set<DaemonRequestName>()
+  for (const entry of registry.values()) if (entry.blocking === true) names.add(entry.name)
   return names
 }
 
@@ -255,8 +272,9 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           minProtocolVersion: MIN_COMPATIBLE_PROTOCOL_VERSION,
           // The daemon's BUILD version (package.json). The protocol range above
           // only catches a breaking wire change; this lets the client detect a
-          // stale-build daemon after a patch upgrade (same protocol, old code in
-          // memory) and surface a non-fatal "restart the daemon" banner (KOB).
+          // stale-build daemon after a patch upgrade (same protocol, still
+          // running the code it booted with) and surface a non-fatal "restart
+          // the daemon" banner (KOB).
           kobeVersion: ctx.runtime.currentVersion,
           capabilities: [...CHANNEL_NAMES],
           daemonPid: ctx.daemon.pid,
@@ -290,6 +308,11 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // a daemon staying alive for a schedule looks like a leak.
           automationHold: ctx.automations.hasEnabled(),
           taskCount: ctx.orch.listTasks().length,
+          // The state root this daemon serves — `hello` already reports it for
+          // the TUI's foreign-daemon guard; status carries it so `rove doctor`
+          // can name a daemon squatting the socket from a DIFFERENT home,
+          // which otherwise reads as "my tasks vanished".
+          homeDir: ctx.daemon.homeDir,
           socketPath: ctx.daemon.socketPath,
           webPort: ctx.daemon.webPort ?? null,
           webError: ctx.daemon.webError ?? null,
@@ -317,6 +340,7 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
     ...UI_HANDLERS,
     ...ISSUE_HANDLERS,
     ...DEFERRED_PROMPT_HANDLERS,
+    ...PR_HANDLERS,
     {
       // Production diagnostics (`kobe api inspect`): what the daemon's
       // transient state ACTUALLY holds right now. Bug reports about badges,
@@ -338,6 +362,17 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // the badge never cleared" unreadable from every other field.
           // Non-zero is not proof of the converse: a calling CLI counts.
           connectedClients: ctx.daemon.clientCount(),
+          // The context collector's current reading per live engine session
+          // (`taskId::tabId`), token totals included. Same last-value the bus
+          // replays to a late subscriber, so this answers "is the footer's
+          // number stale, wrong, or absent" without opening a browser — and
+          // it is the only read that shows the token counts at all.
+          contextUsage:
+            (
+              ctx.bus.snapshot().find((event) => event.channel === "usage.context")?.payload as
+                | { context?: unknown }
+                | undefined
+            )?.context ?? null,
         }
       },
     },

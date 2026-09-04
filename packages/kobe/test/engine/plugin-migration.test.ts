@@ -1,6 +1,6 @@
 /**
  * Claude Code plugin takeover detection (`engine/claude-code-local/
- * plugin-migration.ts`) — the read-only side of the issue #37 migration
+ * plugin-migration.ts`) — the read-only side of the migration
  * hard-gate. Everything here operates on temp files passed in explicitly;
  * nothing may touch the real ~/.claude (the gate's whole contract is that
  * detection never writes).

@@ -49,7 +49,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      // Dispatcher provenance (issue #21): the CLI reads its own
+      // Dispatcher provenance: the CLI reads its own
       // $KOBE_TASK_ID/$KOBE_TAB_ID and sends both flat — the daemon process
       // has no caller env of its own. Recorded only when the task id is
       // present; the tab floor is tab-1, the canonical first engine tab.
@@ -114,7 +114,11 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = requireString(payload, "taskId")
       const vendor = optionalVendor(payload, "vendor")
       if (!vendor) throw new Error("task.setVendor: vendor is required")
-      await ctx.orch.setVendor(taskId, vendor)
+      // Not `optionalString`: that maps `""` to undefined, and `""` is the
+      // wire spelling of "clear the level". Absent stays absent.
+      const rawEffort = payload.effort
+      if (rawEffort !== undefined && typeof rawEffort !== "string") throw new Error("effort must be a string")
+      await ctx.orch.setVendor(taskId, vendor, rawEffort)
       return {}
     },
   },
@@ -160,18 +164,32 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       // A hard task delete is an explicit user deletion, so it is the one
       // lifecycle action allowed to cascade its durable Inbox episodes.
       await ctx.inbox.deleteTaskBestEffort(taskId)
+      // Drop the issue link too, for the same reason: the issue owns the link
+      // (`Issue.taskId`), so nothing else would ever clear it, and a card whose
+      // task is gone would render In progress forever. Best-effort like the
+      // done-mirror above — the deletion already committed, so a missing repo
+      // or a raced issue write is logged, never surfaced as a failed delete.
+      if (task) {
+        try {
+          const next = await ctx.issues.unlinkTask(task.repo, taskId)
+          if (next) ctx.bus.publish("issue.snapshot", next)
+        } catch (err) {
+          logDaemonError("issue-delete-unlink", err)
+        }
+      }
       if (accepted) ctx.deletions.enqueue(taskId)
       // `accepted` is the whole point of the reply. Removal itself runs in the
       // background (a worktree teardown can take tens of seconds), so this can
-      // only ever report that the request was TAKEN, never that it finished —
-      // and a refusal used to be indistinguishable from a success because both
-      // returned `{}`. `queued: false` means nothing was scheduled: the task id
-      // does not exist, so no deletion will ever run for it.
+      // only ever report that the request was TAKEN, never that it finished.
+      // A bare `{}` would make a refusal indistinguishable from a success:
+      // `queued: false` means nothing was scheduled, because the task id does
+      // not exist and no deletion will ever run for it.
       return { taskId, queued: accepted }
     },
   },
   {
     name: "task.land",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
@@ -192,6 +210,18 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
         detail: { strategy: result.strategy, landedOn: result.landedOn, commit: result.commit },
       })
       return { result }
+    },
+  },
+  {
+    name: "task.syncBase",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const task = ctx.orch.getTask(taskId)
+      if (!task?.worktreePath) throw new Error("task has no worktree to sync")
+      // Throws `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY` for the two
+      // outcomes a human acts on — the caller matches the marker, exactly the
+      // way it already does for `LAND_CONFLICT`.
+      return { result: await ctx.runtime.syncWorktreeWithBase(task.worktreePath, task.baseRef) }
     },
   },
   {
@@ -249,27 +279,6 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    name: "task.reorder",
-    web: true,
-    async handle(payload, ctx) {
-      const moves = payload.moves
-      if (!Array.isArray(moves) || moves.length === 0) throw new Error("moves must be a non-empty array")
-      if (moves.length > 500) throw new Error("too many moves in one task.reorder batch (max 500)")
-      const parsed = moves.map((move) => {
-        if (typeof move !== "object" || move === null) throw new Error("each move needs taskId and position")
-        const entry = move as Record<string, unknown>
-        const taskId = requireString(entry, "taskId")
-        const position = entry.position
-        if (typeof position !== "number" || !Number.isFinite(position)) {
-          throw new Error("position must be a finite number")
-        }
-        return { taskId, position }
-      })
-      await ctx.orch.reorderTasks(parsed)
-      return {}
-    },
-  },
-  {
     name: "task.openDir",
     web: true,
     async handle(payload, ctx) {
@@ -283,7 +292,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // Scratch → project migration (issue #33): repoint a scratch task at the
+    // Scratch → project migration: repoint a scratch task at the
     // repo its shell settled in and clear the flag. No-op on non-scratch rows.
     name: "task.adoptScratchRepo",
     web: true,
@@ -295,6 +304,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.ensureMain",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
@@ -312,10 +322,11 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "task.ensureWorktree",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")
-      // Long-operation feedback (issue #5): `git worktree add` is
+      // Long-operation feedback: `git worktree add` is
       // minute-class on a huge repo, and the RPC stays BLOCKING (callers
       // need the path before the engine session can start) — so publish lifecycle
       // progress on the `task.jobs` channel around the call. Every
@@ -345,11 +356,12 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
-    // NOT web-exposed: the only writer is the CLI `add` path, which records
-    // the brief AFTER the prompt is confirmed delivered into the engine. The
-    // field then means exactly "this is the prompt the engine was given" —
-    // an agent reading `get-task` can assert on it without wondering whether
-    // delivery happened.
+    // NOT web-exposed. Two writers, both on a path where the prompt is already
+    // on its way to an engine: the CLI `add` path records the brief AFTER
+    // delivery confirms, and the TUI's "Run again" copies a task's existing
+    // brief onto the fork it just created for it. The field means "this is the
+    // prompt the engine was given" in both cases — an agent reading `get-task`
+    // never sees a brief that was merely composed.
     name: "task.setPrompt",
     async handle(payload, ctx) {
       const taskId = requireString(payload, "taskId")

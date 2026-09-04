@@ -1,5 +1,5 @@
 /**
- * `terminal.*` messages — the embedded terminal pane (issue #16): the
+ * `terminal.*` messages — the embedded terminal pane: the
  * in-process PTY running the task's engine CLI (or a plain worktree
  * shell). English is the source of truth; `zh: typeof en` locks shapes.
  */
@@ -14,17 +14,18 @@ export const en = {
     // "shell 5"), not translated. Only the SPLIT label lives here.
     groupTitle: "group {n}",
     renameTitle: "Rename tab",
-    renameField: "tab title",
+    renameField: "TAB TITLE",
     renameSubmit: "rename",
     chooseEngineHint: "←/→ or h/l choose, enter confirm, esc cancel",
-    // Unified new-conversation dialog (issue #7): the ctrl+e picker plus
+    // Unified new-conversation dialog: the ctrl+e picker plus
     // two footer toggles — tab flips the destination, ctrl+f the context.
     newChat: {
       title: "New conversation",
-      destLabel: "tab — destination: ",
+      engine: "ENGINE",
+      destLabel: "DESTINATION",
       destTab: "new tab in this worktree",
       destFork: "fork a child task (new worktree)",
-      ctxLabel: "ctrl+f — context: ",
+      ctxLabel: "CONTEXT",
       ctxFresh: "fresh conversation",
       ctxContinue: "continue this conversation",
       scratchChoice: "scratch shell",
@@ -38,9 +39,18 @@ export const en = {
     // F2-while-split rename dialog (each leaf's own name — the corner
     // tag defaults to the basename of what the leaf runs).
     renameTitle: "Rename split",
-    renameField: "split name",
+    renameField: "SPLIT NAME",
   },
   scrolledBack: "↑ scrolled {lines}L (ctrl+pgdn to follow)",
+  search: {
+    placeholder: "search scrollback — enter/↑ older, ↓ newer, esc close",
+    position: "{index}/{total}",
+    noMatches: "no matches",
+    // The alternate screen belongs to the app: Rove's ring holds the one
+    // screen already on display, so there is nothing here a search could find
+    // that reading the pane would not.
+    unavailable: "this app owns its own scrollback — nothing local to search (esc)",
+  },
   unavailable: {
     shellMissing: "terminal unavailable — configured shell is not available",
     spawnFailed: "terminal unavailable — shell could not start",
@@ -66,10 +76,11 @@ export const zh: typeof en = {
     chooseEngineHint: "←/→ 或 h/l 选择，enter 确认，esc 取消",
     newChat: {
       title: "新建对话",
-      destLabel: "tab —— 落点：",
+      engine: "引擎",
+      destLabel: "落点",
       destTab: "本 worktree 新标签页",
       destFork: "fork 子任务（新 worktree）",
-      ctxLabel: "ctrl+f —— 上下文：",
+      ctxLabel: "上下文",
       ctxFresh: "全新对话",
       ctxContinue: "接着当前对话",
       scratchChoice: "临时 shell",
@@ -84,6 +95,12 @@ export const zh: typeof en = {
     renameField: "分屏名称",
   },
   scrolledBack: "↑ 已回滚 {lines} 行（ctrl+pgdn 回到底部）",
+  search: {
+    placeholder: "搜索回滚缓冲区 —— enter/↑ 更早，↓ 更晚，esc 关闭",
+    position: "{index}/{total}",
+    noMatches: "没有匹配",
+    unavailable: "这个程序自己管理回滚缓冲区 —— 本地没有可搜索的内容（esc）",
+  },
   unavailable: {
     shellMissing: "终端不可用 —— 配置的 shell 不存在",
     spawnFailed: "终端不可用 —— shell 启动失败",

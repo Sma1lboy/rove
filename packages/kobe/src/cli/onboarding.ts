@@ -71,16 +71,16 @@ export function installCompletions(shell: ShellKind, home: string = homedir(), c
   return rc
 }
 
-export function isOnboarded(): boolean {
+function isOnboarded(): boolean {
   return getPersistedBool(ONBOARDED_KEY, false)
 }
 
-export function markOnboarded(): void {
+function markOnboarded(): void {
   setPersistedBool(ONBOARDED_KEY, true)
 }
 
 /** The "Keyboard basics" page (and primer-mode re-run) was delivered. */
-export function isPrimerDone(): boolean {
+function isPrimerDone(): boolean {
   return getPersistedBool(PRIMER_KEY, false)
 }
 
@@ -182,11 +182,11 @@ export function applyOnboardingChoices(
  * That launch re-runs in "primer" mode: no questions (a killed wizard must
  * never re-ask), just the environment page and the keyboard page.
  *
- * The primer flag is NEW, so an absent one cannot mean "killed wizard" — every
- * user who onboarded before this build, and every fixture that seeds
- * `onboarded: true` to skip the wizard, would otherwise be handed a surprise
- * primer on upgrade (and no TUI that launch, since a true return means the
- * caller exits). {@link backfillPrimerForExistingUsers} settles them as done.
+ * An ABSENT primer flag cannot mean "killed wizard": an already-onboarded user
+ * predating the flag, and every fixture that seeds `onboarded: true` to skip
+ * the wizard, would otherwise be handed a surprise primer on upgrade (and no
+ * TUI that launch, since a true return means the caller exits).
+ * {@link backfillPrimerForExistingUsers} settles them as done.
  */
 export async function maybeRunOnboarding(): Promise<boolean> {
   if (!process.stdout.isTTY || !process.stdin.isTTY) return false

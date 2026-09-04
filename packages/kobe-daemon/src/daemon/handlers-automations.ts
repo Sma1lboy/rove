@@ -21,8 +21,29 @@ function readPrecheck(payload: Record<string, unknown>): AutomationPrecheck | nu
   if (raw === null) return null
   if (!raw || typeof raw !== "object") throw new Error("precheck must be an object or null")
   const command = requireString(raw as Record<string, unknown>, "command")
+  // Same silent-rewrite trap as the grace window: `automations-store.ts` only
+  // keeps a timeout `> 0`, so a 0 or negative one survives in memory and turns
+  // into 120 on the next boot.
   const timeoutSeconds = optionalNumber(raw as Record<string, unknown>, "timeoutSeconds") ?? 120
+  if (timeoutSeconds <= 0) throw new Error("precheck.timeoutSeconds must be greater than zero")
   return { command, timeoutSeconds }
+}
+
+/**
+ * Read a grace window, refusing a negative one at the boundary.
+ *
+ * `optionalNumber` only rejects non-finite values, so `-1` used to pass and
+ * make every firing `missed`, until `normalizeAutomation` silently rewrote it
+ * to 60 on the next daemon boot — "it started working after I restarted the
+ * daemon" is the resulting bug report. Zero is legal and means "no slack
+ * beyond the tick that discovers the occurrence" (see `resolveDueOccurrence`).
+ */
+function readGraceMinutes(payload: Record<string, unknown>): number | undefined {
+  const value = optionalNumber(payload, "missedRunGraceMinutes")
+  if (value !== undefined && value < 0) {
+    throw new Error("missedRunGraceMinutes must be zero or more minutes")
+  }
+  return value
 }
 
 export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
@@ -47,7 +68,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         repo: requireString(payload, "repo"),
         prompt: requireString(payload, "prompt"),
         schedule: requireSchedule(payload, "schedule"),
-        missedRunGraceMinutes: optionalNumber(payload, "missedRunGraceMinutes") ?? 60,
+        missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
         ...(precheck ? { precheck } : {}),
         ...(optionalString(payload, "baseRef") ? { baseRef: optionalString(payload, "baseRef") } : {}),
@@ -71,9 +92,7 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(readPrecheck(payload) !== undefined ? { precheck: readPrecheck(payload) } : {}),
         ...("baseRef" in payload ? { baseRef: optionalString(payload, "baseRef") ?? null } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
-        ...(optionalNumber(payload, "missedRunGraceMinutes") !== undefined
-          ? { missedRunGraceMinutes: optionalNumber(payload, "missedRunGraceMinutes") }
-          : {}),
+        ...(readGraceMinutes(payload) !== undefined ? { missedRunGraceMinutes: readGraceMinutes(payload) } : {}),
         ...(optionalBoolean(payload, "persistentSession") !== undefined
           ? { persistentSession: optionalBoolean(payload, "persistentSession") }
           : {}),
@@ -103,14 +122,29 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "automation.runNow",
+    blocking: true,
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
       const automation = ctx.automations.get(id)
       if (!automation) throw new Error(`automation not found: ${id}`)
       // `trigger: "manual"` deliberately skips the precheck — the user asking
       // for it IS the answer to "is this worth running".
+      //
+      // Same deps as the scheduled sweep (`collectors.ts`), and that parity is
+      // the point: without `deferred` + `inbox` the dispatch path has nowhere
+      // to put a prompt a busy composer refused, so Run now on a standing
+      // routine recorded `dispatch_failed` and DROPPED the prompt, where the
+      // identical firing on the schedule would have deferred it into the Inbox.
       const status = await runAutomationOnce(
-        { store: ctx.automations, orch: ctx.orch, runtime: ctx.runtime, link: ctx.selfLink },
+        {
+          store: ctx.automations,
+          orch: ctx.orch,
+          runtime: ctx.runtime,
+          link: ctx.selfLink,
+          ...(ctx.plugins ? { plugins: () => ctx.plugins ?? null } : {}),
+          ...(ctx.deferredPrompts ? { deferred: ctx.deferredPrompts } : {}),
+          inbox: ctx.inbox,
+        },
         automation,
         { scheduledFor: Date.now(), trigger: "manual" },
       )

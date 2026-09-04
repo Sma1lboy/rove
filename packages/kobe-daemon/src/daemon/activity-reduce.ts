@@ -49,13 +49,13 @@ export function reduceActivity(
       // flight: running, or blocked on the user mid-turn (an approved
       // permission continues WITHOUT a new turn-start). Engines fire Stop
       // for automated wakes too — a background monitor stream ending
-      // "completes" a turn the user never started, and the ● lamp lit for
-      // it (owner bug 2026-08-02). That wake signature is a Stop landing on
-      // a KNOWN untracked state (an explicit idle/sticky entry) — keep it.
+      // "completes" a turn the user never started, and lighting the ● lamp
+      // for it is wrong. That wake signature is a Stop landing on a KNOWN
+      // untracked state (an explicit idle/sticky entry) — keep it.
       // `undefined` is different: the reducer knows NOTHING (fresh daemon,
       // registry wiped by a restart), and the one real way a first event is
-      // a Stop is a turn that started before the wipe — swallowing it cost
-      // the ● lamp for every turn that outlived a daemon restart.
+      // a Stop is a turn that started before the wipe — swallowing it would
+      // cost the ● lamp for every turn that outlives a daemon restart.
       return previous === "running" || previous === "permission_needed" || previous === undefined
         ? "turn_complete"
         : previous
@@ -84,9 +84,10 @@ export const DEFAULT_ENGINE_STATE_TTL_MS = 10 * 60 * 1000
  *   - `permission_needed` / `error` / `rate_limited` are exactly the states a
  *     user leaves the session to attend to. The liveness probe is the transcript
  *     mtime, and an engine BLOCKED on a permission prompt / rate limit / error
- *     writes nothing — so the probe always reads "stale" and the old watchdog
- *     idled precisely the tasks that needed a human, hiding the ? badge after
- *     ~10min. They clear naturally: an approved turn emits Stop → turn_complete,
+ *     writes nothing — so the probe always reads "stale", and a watchdog over
+ *     these would idle precisely the tasks that need a human, hiding the ?
+ *     badge after ~10min. They clear naturally: an approved turn emits Stop →
+ *     turn_complete,
  *     an exit emits SessionEnd → idle, and clearTask() / task deletion wipe them.
  */
 export const STICKY_STATES: ReadonlySet<TaskActivityState> = new Set([

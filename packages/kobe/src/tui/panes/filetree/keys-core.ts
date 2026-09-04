@@ -1,10 +1,9 @@
 /**
  * Framework-free core of the file tree pane's key bindings — the tab
- * vocabulary plus the id → controller-action map that both the Solid hook
- * (`keys.ts`) and the React pane (`src/tui-react/panes/filetree/`) register
- * through their respective `useBindings` layers. Extracted from `keys.ts`
- * (issue #15, G3) so the slot-multiplexed dispatch — the property that makes
- * these chords user-rebindable — is single-sourced across both runtimes.
+ * vocabulary plus the id → controller-action map that the pane
+ * (`src/tui-react/panes/filetree/`) registers through its `useBindings`
+ * layer. Kept out of the component so the slot-multiplexed dispatch — the
+ * property that makes these chords user-rebindable — is single-sourced.
  *
  * `bindByIds` itself is framework-free (the React keybindings context
  * re-exports it from the same module), so the full `Binding[]` construction
@@ -33,7 +32,7 @@ export function tabLabelKey(tab: FileTreeTab): string {
 }
 
 /**
- * The controller surface the bindings drive. Plain thunks — a Solid
+ * The controller surface the bindings drive. Plain thunks — a
  * `Accessor` satisfies `currentTab` structurally, React passes closures
  * over the latest render (its `useBindings` re-reads config per keypress).
  */
@@ -64,7 +63,7 @@ export type FileTreeController = {
    *  scope. No-op on the All tab. */
   toggleScope?: () => void
   /** `d` — open the current file's read-only diff in a workspace content tab
-   *  (content swap, does not steal focus per KOB-25). */
+   *  (content swap, does not steal focus). */
   openDiff?: () => void
 }
 

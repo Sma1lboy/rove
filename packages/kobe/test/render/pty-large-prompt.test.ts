@@ -20,8 +20,8 @@
  * announce bracketed paste, drain stdin to a file) so the test owns timing
  * a real engine only offers by luck. Real-engine measurements behind the
  * numbers: claude announces DECSET 2004 at ~258ms, codex ~321ms, kimi
- * ~1953ms — kimi lands AFTER the old hardcoded 1500ms settle, which is
- * exactly why kimi was the vendor that lost prompts.
+ * ~1953ms — kimi lands AFTER a hardcoded 1500ms settle would expire, which is
+ * exactly why a fixed window loses kimi's prompts.
  */
 
 import { afterEach, describe, expect, test } from "bun:test"
@@ -99,7 +99,7 @@ describe("large prompt delivery into a cold engine", () => {
     const host = new PtyHost({})
     hosts.push(host)
     const sink = join(scratch(), "got.txt")
-    // Cold for 1.6s: past the old hardcoded 1500ms settle, like kimi.
+    // Cold for 1.6s: past a 1500ms fixed settle, like kimi.
     spawnFakeEngine(host, "t1::tab-1", sink, 1_600)
 
     const bytes = await writeHostedPrompt(deliveryRpc(host), "t1::tab-1", BIG_PROMPT)
@@ -123,7 +123,7 @@ describe("large prompt delivery into a cold engine", () => {
     const waited = Date.now() - start
 
     expect(ready).toBe(true)
-    // The old code wrote at ~1500ms and lost the prompt; this must not.
+    // A fixed ~1500ms write loses the prompt; this must not.
     expect(waited).toBeGreaterThan(1_500)
   }, 30_000)
 
@@ -133,8 +133,9 @@ describe("large prompt delivery into a cold engine", () => {
     const sink = join(scratch(), "lost.txt")
     spawnFakeEngine(host, "t3::tab-1", sink, 1_600)
 
-    // Reproduce the OLD behaviour exactly: write immediately, no readiness
-    // wait. The control that proves the fix is what does the work.
+    // The control: write immediately, no readiness wait. This is the shape
+    // that loses the prompt, and it is what makes the test above mean
+    // something.
     await settle(200)
     host.write("t3::tab-1", `\x1b[200~${BIG_PROMPT}\x1b[201~`)
     await settle(2_500)

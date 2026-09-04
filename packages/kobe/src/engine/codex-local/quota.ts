@@ -40,7 +40,7 @@ function toWindow(kind: string, raw: CodexRateWindow | null | undefined, nowMs: 
   if (!raw || typeof raw.used_percent !== "number" || typeof raw.window_minutes !== "number") return null
   // resets_at is epoch SECONDS. A window that already reset is a stale
   // reading, not a live one — the percent it carries belongs to a window
-  // that no longer exists.
+  // that has already closed.
   const resetsAt = typeof raw.resets_at === "number" && raw.resets_at > 0 ? raw.resets_at * 1000 : null
   if (resetsAt == null || resetsAt <= nowMs) return null
   return {

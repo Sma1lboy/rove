@@ -11,7 +11,7 @@
  * wedged daemon (stuck in its own shutdown, or not servicing the socket)
  * would otherwise outlive the caller. A fresh daemon spawned onto the same
  * socket then races EADDRINUSE (or worse, two daemons end up writing one
- * `tasks.json`). So we poll the old pid with `kill -0` and escalate
+ * `tasks.json`). So we poll the target pid with `kill -0` and escalate
  * graceful → SIGTERM → SIGKILL until it's confirmed gone.
  */
 
@@ -80,7 +80,7 @@ export async function stopDaemonProcess(socketPath: string, pidPath: string): Pr
   await Promise.race([stopRequest, stopTimeout])
   client.close()
 
-  // Poll the old daemon's pid until it's actually gone. `kill -0 pid`
+  // Poll the outgoing daemon's pid until it's actually gone. `kill -0 pid`
   // throws ESRCH once the process exits — that's our signal to proceed.
   if (wasAlive && targetPid !== null) {
     const deadline = Date.now() + 5000

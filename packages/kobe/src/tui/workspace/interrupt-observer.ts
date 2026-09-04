@@ -1,9 +1,10 @@
 /**
- * ESC-interrupt observer (issue #15) — framework-free.
+ * ESC-interrupt observer — framework-free.
  *
  * An ESC interrupt ends a turn without ANY hook: claude-code's abort path
- * returns before its stop hooks run, so the daemon's hook-driven `running`
- * badge sat lit until the ~10min lapse watchdog caught it. The one
+ * returns before its stop hooks run, so without this the daemon's
+ * hook-driven `running` badge stays lit until the ~10min lapse watchdog
+ * catches it. The one
  * event-grade signal an interrupt does produce is the engine's own OSC
  * title rewrite — the animated working frame (`⠂`/`⠐`, codex's braille)
  * flips back to the resting form the instant the turn stops
@@ -35,7 +36,7 @@ import type { VendorId } from "../../types/vendor"
  * machine — 2.5s covers a loaded one with margin, while keeping the ESC
  * flip inside the "immediately" a user perceives.
  */
-export const INTERRUPT_CONFIRM_MS = 2500
+const INTERRUPT_CONFIRM_MS = 2500
 
 /** One tab's inputs per observation pass. */
 export interface InterruptObservation {

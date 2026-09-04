@@ -30,14 +30,11 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
       try {
         const { manifest } = readPluginManifest(entry.root)
         for (const engine of manifest.engines) {
-          // Identity falls back per-field to the engine's display name — a
-          // plugin declaring nothing still gets sensible composer copy.
+          // shortName falls back to the engine's display name — a plugin
+          // declaring nothing still gets a sensible label.
           const identity = {
             vendorId: engine.id,
-            productName: engine.identity?.productName ?? engine.name,
             shortName: engine.identity?.shortName ?? engine.name,
-            assistantName: engine.identity?.assistantName ?? engine.name,
-            inputPlaceholder: engine.identity?.inputPlaceholder ?? `Ask ${engine.identity?.shortName ?? engine.name}…`,
           }
           const ok = registerPluginEngine(engine.id, {
             displayName: engine.name,

@@ -46,6 +46,11 @@ export const en = {
     /** Agent skill older than this build expects */
     skillStale: "update the Rove agent skill to the version this build expects",
 
+    /** macOS: node-pty's spawn-helper prebuild lacks the exec bit */
+    spawnHelper: "restore the exec bit on node-pty's spawn-helper — every node-pty PTY spawn fails without it",
+    /** Why the chmod fix is safe */
+    spawnHelperWhy: "safe to run: chmod on two prebuilt binaries; idempotent, and `bun install` does the same",
+
     /** Why every `reset` fix is print-only */
     resetWhy: "stops the daemon, the PTY host, and every live session — not undoable, so doctor only prints it",
     /** Daemon process alive but its socket unreachable */
@@ -83,6 +88,11 @@ export const en = {
     windowsNode: "Node.js is missing — the Windows PTY host cannot start",
     /** The manual action for {@link windowsNode} */
     windowsNodeAction: "install Node.js from https://nodejs.org",
+    /** Running under a Bun older than package.json#engines.bun */
+    staleBun: "the Bun running Rove is older than this build supports — terminals will not paint",
+    /** The manual action for {@link staleBun} */
+    staleBunAction:
+      "upgrade Bun (`bun upgrade`, `brew upgrade bun`, or `npm install -g bun@latest`), then relaunch Rove",
   },
 }
 
@@ -109,6 +119,9 @@ export const zh: typeof en = {
     skillMissing: "安装 Rove agent skill",
     skillStale: "把 Rove agent skill 更新到当前构建期望的版本",
 
+    spawnHelper: "恢复 node-pty spawn-helper 的可执行位 — 缺了它 node-pty 的每次 PTY 启动都会失败",
+    spawnHelperWhy: "可安全执行: 只对两个预编译二进制做 chmod; 幂等, `bun install` 也会做同样的事",
+
     resetWhy: "会停掉 daemon、PTY host 和所有活动会话 — 不可撤销, 所以 doctor 只打印",
     resetDaemonWedged: "daemon 进程存活但无法连接 (卡死)",
     resetPty: "PTY host 无法连接或没有在运行",
@@ -129,5 +142,7 @@ export const zh: typeof en = {
     noEngineAction: "安装任一引擎 CLI（claude、codex、copilot 或 kimi）并登录",
     windowsNode: "缺少 Node.js — Windows PTY host 无法启动",
     windowsNodeAction: "从 https://nodejs.org 安装 Node.js",
+    staleBun: "运行 Rove 的 Bun 版本低于本构建的要求 — 终端不会有任何输出",
+    staleBunAction: "升级 Bun (`bun upgrade` / `brew upgrade bun` / `npm install -g bun@latest`), 然后重新启动 Rove",
   },
 }

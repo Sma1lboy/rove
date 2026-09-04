@@ -9,9 +9,10 @@
  * DiffRenderable.
  *
  * PROPOSED chords (owner sign-off pending, see docs/KEYBINDINGS.md rules):
- * j/k/down/up line cursor · v range anchor · c note · s send-all. Plain
- * letters, active only while the diff content tab has workspace focus —
- * same raw-binding precedent as this screen's existing `o` (system open).
+ * j/k/down/up line cursor · v range anchor · c note · s send-all · x drop the
+ * note under the cursor. Plain letters, active only while the diff content tab
+ * has workspace focus — same raw-binding precedent as this screen's existing
+ * `o` (system open). `x` is the NEW one in this set.
  */
 
 import type { DiffRenderable, RGBA } from "@opentui/core"
@@ -21,6 +22,7 @@ import {
   type DiffReviewApi,
   type DiffRow,
   type ReviewPaintKind,
+  commentAtRow,
   commentRange,
   computeReviewPaint,
   unifiedDiffRows,
@@ -28,6 +30,7 @@ import {
 } from "../../tui/ops/diff-comments"
 import { followScrollTop } from "../../tui/panes/filetree/pane-core"
 import { RenameTaskDialog } from "../component/rename-task-dialog"
+import { useNotifications } from "../context/notifications"
 import { type Theme, useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { useBindings } from "../lib/keymap"
@@ -84,6 +87,11 @@ export function useDiffReview(args: {
   const dialog = useDialog()
   const { theme } = useTheme()
   const t = useT()
+  // A refused send has to say so out loud: under an alternate screen there is
+  // no console to read, and the footer count staying put is exactly what the
+  // silent-drop bug looked like. Same empty taskId/tabId pattern as the rail
+  // pages — only the toast queue is consumed here.
+  const notif = useNotifications()
 
   const rows = useMemo(() => (args.diffText ? unifiedDiffRows(args.diffText) : []), [args.diffText])
   const enabled = args.review != null && rows.length > 0
@@ -148,6 +156,19 @@ export function useDiffReview(args: {
     if (rows.length === 0) return
     setCursor((c) => Math.max(0, Math.min(c + delta, rows.length - 1)))
   }
+  function sendAll(): void {
+    const review = args.review
+    if (!review) return
+    if (review.send()) return
+    notif.notify({ kind: "error", taskId: "", tabId: "", title: t("ops.preview.review.sendNoEngine") })
+  }
+
+  /** `x` — drop the note the cursor sits inside. PROPOSED chord. */
+  function dropNoteAtCursor(): void {
+    const note = commentAtRow(rows, cursor, comments, args.relPath)
+    if (note) args.review?.remove(note.id)
+  }
+
   useBindings(() => ({
     enabled: enabled && args.focused,
     bindings: [
@@ -157,7 +178,8 @@ export function useDiffReview(args: {
       { key: "up", cmd: () => moveCursor(-1) },
       { key: "v", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
       { key: "c", cmd: () => void promptNote() },
-      { key: "s", cmd: () => args.review?.send() },
+      { key: "x", cmd: () => dropNoteAtCursor() },
+      { key: "s", cmd: () => sendAll() },
     ],
   }))
 

@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import { embeddedTerminalEnv } from "@sma1lboy/kobe-daemon/daemon/pty-env"
+import type { TerminalInputModes } from "./keys-pure"
 import {
   type CursorPos,
   DEFAULT_COLS,
@@ -82,6 +83,10 @@ export class PipeTaskPty implements TaskPtyLike {
     } catch {
       this.markDead(false)
     }
+  }
+
+  inputModes(): TerminalInputModes {
+    return { applicationCursorKeys: false, applicationKeypad: false }
   }
 
   onData(cb: DataListener): () => void {
@@ -183,6 +188,10 @@ export class PipeTaskPty implements TaskPtyLike {
 
   wheel(): boolean {
     // No emulator state behind a pipe — the pane owns wheel scrolling.
+    return false
+  }
+
+  click(): boolean {
     return false
   }
 

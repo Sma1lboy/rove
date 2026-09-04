@@ -6,9 +6,9 @@
  *   - claude's pin + resume shapes must not drift (they were the only ones
  *     that ever worked, and the whole feature is worthless if it breaks them);
  *   - `withPinnedSessionId` must answer for a CUSTOM engine by the protocol
- *     it declares, not by whether its id spells "claude" — the literal-name
- *     check in the old `withClaudeSessionId` is exactly why `claudecpa` and
- *     every kimi tab lost their conversation on restart.
+ *     it declares, not by whether its id spells "claude" — a literal-name
+ *     check is exactly how `claudecpa` and every kimi tab lose their
+ *     conversation on restart.
  */
 
 import { engineResumeArgv, withPinnedSessionId } from "@/engine/engine-presets"

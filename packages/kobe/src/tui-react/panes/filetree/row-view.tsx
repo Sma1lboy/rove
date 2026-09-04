@@ -1,9 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React view for a single file tree row — the `src/tui/panes/filetree/
- * row-view.tsx` counterpart (issue #15, G3). Pure render: all row math
- * (stat widths, path budget, status→token mapping) comes from the shared
- * framework-free `pane-core.ts`, so the two runtimes render identically.
+ * View for a single file tree row. Pure render: all row math (stat widths,
+ * path budget, status→token mapping) comes from the shared framework-free
+ * `pane-core.ts`.
  *
  * Cursor row treatment — shares the Sidebar's neutral left marker +
  * `backgroundElement` tint, NOT the pane-level focus accent or a solid

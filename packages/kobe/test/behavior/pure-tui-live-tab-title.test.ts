@@ -1,5 +1,5 @@
 /**
- * Regression pin (owner report 2026-08-15): a sidebar tab row's TITLE must
+ * Regression pin: a sidebar tab row's TITLE must
  * track the live session, like the state glyph beside it already does — not
  * wait for you to click into that task.
  *
@@ -21,7 +21,15 @@ import { join } from "node:path"
 import { Terminal } from "@xterm/headless"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { SIDEBAR_WIDTH } from "../../src/tui/panes/sidebar/view-core.ts"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv, makeScratchRepo, runRove } from "./harness.ts"
+import {
+  type BehaviorEnv,
+  DIST_ROVE_CLI,
+  closeTui,
+  loadNodePty,
+  makeBehaviorEnv,
+  makeScratchRepo,
+  runRove,
+} from "./harness.ts"
 
 const nodePty = await loadNodePty()
 
@@ -164,7 +172,7 @@ describe.skipIf(!nodePty)("Pure TUI sidebar shows an unselected task's live tab 
       ).toBe(STALE)
     } finally {
       data.dispose()
-      child.kill()
+      await closeTui(child)
     }
   }, 120_000)
 })

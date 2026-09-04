@@ -67,13 +67,14 @@ export function stubRuntime(overrides: Partial<ApiRuntime> = {}): ApiRuntime {
   return {
     isTaskRunning: async () => false,
     taskTabs: async () => ({ tabs: [], running: false }),
+    closeTerminalTab: async () => ({ kind: "engine", wasAlive: false }),
     deliverPrompt: async () => {
       throw new Error("deliverPrompt should not run in this test")
     },
     resolveRepoRoot: async (path) => path,
     defaultVendor: async () => undefined,
     readWorktreeChanges: async () => ({ added: 0, deleted: 0 }),
-    readBranchSignals: async () => ({ baseRef: null, ahead: null, diff: null }),
+    readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
     tearDownSession: async () => {},
     ...overrides,
   }

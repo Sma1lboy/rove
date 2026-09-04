@@ -33,23 +33,23 @@ import { readOnlyGitProcessEnv } from "@/lib/git-env"
 import { createBackgroundPoller, spawnCapture } from "../../lib/background-poll"
 
 /** Kill a ref read that runs longer than this — O(1) commands, tight leash. */
-export const BRANCH_POLL_TIMEOUT_MS = 2_000
+const BRANCH_POLL_TIMEOUT_MS = 2_000
 /** After a timeout, leave the repo alone for this long before retrying. */
-export const BRANCH_SLOW_RETRY_MS = 30_000
+const BRANCH_SLOW_RETRY_MS = 30_000
 /** Floor between successful polls — matches the sidebar's ~2s tick. */
-export const BRANCH_MIN_POLL_INTERVAL_MS = 1_500
+const BRANCH_MIN_POLL_INTERVAL_MS = 1_500
 
 /**
  * Per-repo `.git/HEAD` fingerprint cache (waste audit). The branch NAME is
  * a pure function of HEAD's content — a checkout rewrites the file, a
  * commit on a branch does not — so when HEAD's mtime+size haven't moved
  * since the last successful resolve, the cached name is returned without
- * spawning git at all. Before this gate, every visible project row cost
+ * spawning git at all. Without the gate every visible project row costs
  * one `git symbolic-ref` spawn per ~2s tick forever (5 projects ≈ 150
- * spawns/min steady-state, daemon-connected or not); now the steady state
- * is one ~µs `stat` per row per tick, with a spawn only on an actual HEAD
- * change. Repos where `.git/HEAD` isn't statable (a linked-worktree `.git`
- * FILE, permissions) skip the gate and keep the old always-spawn path.
+ * spawns/min steady-state, daemon-connected or not); with it the steady
+ * state is one ~µs `stat` per row per tick, with a spawn only on an actual
+ * HEAD change. Repos where `.git/HEAD` isn't statable (a linked-worktree
+ * `.git` FILE, permissions) skip the gate and always spawn.
  */
 const headCache = new Map<string, { fingerprint: string; value: string }>()
 

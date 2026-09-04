@@ -5,19 +5,20 @@
 
 export const en = {
   cancel: "Cancel",
+  /** Placeholder text a page shows while its data is still null. */
+  loading: "Loading…",
   /** Footer verb for a step that leads to another prompt. */
-  next: "next",
   create: "create",
   confirm: "Confirm",
-  /** Fallback shown when a pane's render tree throws, replacing the raw
-   *  shell the process used to drop to. */
+  /** Fallback shown when a pane's render tree throws, instead of dropping
+   *  the process to a raw shell. */
   paneCrash: {
     title: "This pane crashed",
     hint: "Reload it from the Tasks pane (the error was logged to client.log).",
   },
   rename: {
     defaultTitle: "Rename task",
-    defaultFieldLabel: "title",
+    defaultFieldLabel: "TITLE",
     /** Footer hint shown at the bottom of the rename dialog.
      *  `{submitLabel}` is interpolated with the verb (e.g. "rename"). */
     footerHint: "enter {submitLabel} · esc cancel",
@@ -32,7 +33,7 @@ export const en = {
 
 export const zh: typeof en = {
   cancel: "取消",
-  next: "下一步",
+  loading: "加载中…",
   create: "创建",
   confirm: "确认",
   paneCrash: {

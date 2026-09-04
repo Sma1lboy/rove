@@ -7,8 +7,8 @@ import { expect } from "vitest"
  * things: that the watcher reacts, AND that it happened to be ready at the
  * instant of that single write. The second one is a race — chokidar's
  * initial scan, debounce coalescing, and fs-event delivery all stretch
- * under parallel-suite load, which is why these tests passed standalone
- * and flaked in full runs (issue #3).
+ * under parallel-suite load, so such a test passes standalone and flakes in
+ * full runs.
  *
  * Repeating the write removes the timing dependency entirely: keep poking
  * until the condition holds. Assertions must therefore be MONOTONIC

@@ -43,8 +43,8 @@ describe("shouldLogReconnectAttempt", () => {
 
 /**
  * Auto-reconnect is the permanent fix for the Tasks-pane create/delete sync
- * drift: a pane that subscribed at boot used to FREEZE its task list when the
- * daemon later idle-stopped / restarted (socket close, no reconnect, no
+ * drift. Without it a pane that subscribed at boot FREEZES its task list when
+ * the daemon later idle-stops / restarts (socket close, no reconnect, no
  * fallback). The contract these lock:
  *   - role "pane"  → on socket close, RETRY a plain reconnect (re-`init`) so
  *     the bus replays the current snapshot and the pane re-syncs.
@@ -183,15 +183,14 @@ describe("RemoteOrchestrator auto-reconnect", () => {
 })
 
 /**
- * Issue #96. A GUI whose own install has been deleted cannot ever bring a
- * daemon up: `ensureReachable` fails identically on every attempt. The loop
- * used to retry it forever — the owner had a GUI two days into that, logging
- * the same resolution failure and looking, from the UI, exactly like a client
- * that was about to reconnect.
+ * A GUI whose own install has been deleted cannot ever bring a daemon up:
+ * `ensureReachable` fails identically on every attempt. Retrying forever logs
+ * the same resolution failure for days and looks, from the UI, exactly like a
+ * client that is about to reconnect.
  *
- * Stopping is also the SAFE direction. PR #733 established that a client
- * which cannot spawn must not keep pressure on a healthy daemon; a client
- * that can NEVER spawn is the extreme of that case.
+ * Stopping is also the SAFE direction: a client which cannot spawn must not
+ * keep pressure on a healthy daemon, and a client that can NEVER spawn is the
+ * extreme of that case.
  */
 describe("RemoteOrchestrator on a stale install", () => {
   // Same isolation as the suite above: the loop's error logging writes to

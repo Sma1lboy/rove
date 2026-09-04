@@ -1,5 +1,5 @@
 /**
- * Live cwd of a process — the scratch-task adoption read (issue #33): a
+ * Live cwd of a process — the scratch-task adoption read: a
  * scratch shell "settles" wherever the user cd'd, and that directory (plus
  * a detected harness) decides which project group the row migrates into.
  *
@@ -23,7 +23,7 @@ export function parseLsofCwd(output: string): string | null {
 /** Injectable for tests — the real one shells out to lsof. */
 export type LsofCwd = (pid: number) => Promise<string>
 
-export const lsofCwd: LsofCwd = async (pid) => {
+const lsofCwd: LsofCwd = async (pid) => {
   const proc = Bun.spawn(["lsof", "-a", "-p", String(pid), "-d", "cwd", "-Fn"], {
     stdout: "pipe",
     stderr: "ignore",

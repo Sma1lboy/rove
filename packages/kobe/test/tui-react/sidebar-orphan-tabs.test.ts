@@ -4,10 +4,10 @@
  *
  *   - a task with NO snapshot at all (headless start before the CLI wrote
  *     snapshots) — the original hole-filling case;
- *   - a task WITH a snapshot that is missing the session's tab (issue #20:
- *     the canonical-spawn fallback ran a live engine for 1h44m while the
- *     sidebar rendered only the snapshot's tab-2 — a writable engine the UI
- *     never showed).
+ *   - a task WITH a snapshot that is missing the session's tab (a
+ *     canonical-spawn fallback can run a live engine for hours while the
+ *     sidebar renders only the snapshot's tab-2 — a writable engine the UI
+ *     never shows).
  *
  * The rule these pin: reconciliation is TAB-granular. A registered tab keeps
  * its snapshot projection (titles, ordinals, kinds); an unregistered live
@@ -30,7 +30,7 @@ describe("orphanTabsByTask", () => {
     expect(map.get("t1")?.[0]?.label).toBe("⚠ claude — building")
   })
 
-  it("surfaces a live session missing from its task's snapshot — the issue-#20 invisible engine", () => {
+  it("surfaces a live session missing from its task's snapshot — the invisible engine", () => {
     // Snapshot answered for tab-2 only; tab-1 is alive on the host.
     const map = orphanTabsByTask([session("t1::tab-1"), session("t1::tab-2")], new Set(["t1::tab-2"]))
     expect(map.get("t1")?.map((t) => t.id)).toEqual(["tab-1"])

@@ -36,7 +36,7 @@ import { getWorktreeBaseOverride } from "../../state/worktree-base.ts"
  * its enumeration to "kobe-managed only" without reaching into another
  * module's private constant.
  */
-export const KOBE_WORKTREE_ROOT_DIR = "worktrees"
+const KOBE_WORKTREE_ROOT_DIR = "worktrees"
 export const REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH = ".rove/worktrees"
 export const REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH = ".kobe/worktrees"
 export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
@@ -45,7 +45,7 @@ export const LEGACY_KOBE_WORKTREE_ROOT_SUBPATH = ".claude/worktrees"
  * Repo-local compatibility roots. Creation does not use these; recognition and
  * listing keep old task records working.
  */
-export const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
+const REPO_LOCAL_KOBE_MANAGED_WORKTREE_ROOT_SUBPATHS = [
   REPO_LOCAL_ROVE_WORKTREE_ROOT_SUBPATH,
   REPO_LOCAL_KOBE_WORKTREE_ROOT_SUBPATH,
   LEGACY_KOBE_WORKTREE_ROOT_SUBPATH,
@@ -102,8 +102,8 @@ export function worktreeRootFor(repo: string): string {
  * the worktrees under A fall out of managed listing + slug allocation.
  * Those tasks are NOT lost — each task record pins its own absolute
  * `worktreePath`, so opening/removing them keeps working; they just stop
- * appearing in "list kobe-managed worktrees" and their slugs no longer
- * block reuse. Recording every base ever used would close the gap but is
+ * appearing in "list kobe-managed worktrees" and their slugs stop blocking
+ * reuse. Recording every base ever used would close the gap but is
  * deliberately out of scope here.
  */
 export function managedWorktreeRootsFor(repo: string): readonly string[] {
@@ -218,7 +218,7 @@ export function isKobeManagedPath(repo: string, candidate: string): boolean {
  * needing to know which repo owns it.
  *
  * `isKobeManagedPath` answers the same question but takes a repo, and the one
- * caller that needs this is the case where the repo can no longer be resolved:
+ * caller that needs this is the case where the repo cannot be resolved at all:
  * a worktree whose upstream `.git` was destroyed (macOS pruning `/tmp`, a
  * deleted checkout) has no discoverable owner, so `remove()` cannot use the
  * repo-keyed form to decide whether the directory is its own to delete.
@@ -243,9 +243,14 @@ export function isUnderManagedWorktreesRoot(candidate: string): boolean {
     if (!rootPath) continue
     const root = canonicalize(rootPath)
     const rel = path.relative(root, target)
-    // Non-empty (the root itself is not a worktree), no ".." prefix (outside),
-    // not absolute (different drive on Windows).
-    if (rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel)) return true
+    // No ".." prefix (outside), not absolute (different drive on Windows), and
+    // EXACTLY the `<repo-key>/<slug>` shape this module creates (see
+    // `worktreePathFor`). Accepting any depth meant a Settings worktree-location
+    // override pointed at `~` or `~/code` let every unrelated sibling project
+    // answer yes here — and this answer is what authorizes `rm -rf` in
+    // `manager-remove.ts`.
+    if (rel.startsWith("..") || path.isAbsolute(rel)) continue
+    if (rel.split(path.sep).filter(Boolean).length === 2) return true
   }
   return false
 }
@@ -257,11 +262,11 @@ export function isUnderManagedWorktreesRoot(candidate: string): boolean {
  * (POSIX join: the remote is always POSIX). The main checkout the worktree is
  * added from is `basePath` itself.
  */
-export function remoteWorktreeRootFor(basePath: string): string {
+function remoteWorktreeRootFor(basePath: string): string {
   return `${stripTrailingSlash(basePath)}/.rove/worktrees`
 }
 
-export function remoteManagedWorktreeRootsFor(basePath: string): readonly string[] {
+function remoteManagedWorktreeRootsFor(basePath: string): readonly string[] {
   const base = stripTrailingSlash(basePath)
   return [`${base}/.rove/worktrees`, `${base}/.kobe/worktrees`]
 }

@@ -91,7 +91,7 @@ describe("load() recovery", () => {
   it("corrupt JSON recovers empty with a warning, backing the original bytes up first", async () => {
     // Why the backup matters: the next save read-merge-writes from the empty
     // recovery base and REPLACES the corrupt file — without the copy, the
-    // tasks its bytes still held are gone for good (ported from PR #276).
+    // tasks its bytes still held are gone for good.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
     await primeDir()
     await writeManifest("{ not json !!!")

@@ -1,8 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Two-column Settings dialog. The pure row registry owns order and payloads;
+ * Two-column Settings PAGE — one full-window surface, mounted once from
+ * `workspace/host-pages.tsx`. The pure row registry owns order and payloads;
  * preference hooks own KV reads/writes. j/k navigate, h/l switch levels,
  * Enter activates, and the surrounding dialog stack owns Escape.
+ *
+ * It used to carry a second, overlay shape behind a `standalone` prop that was
+ * only ever passed `true`. The overlay branches were unreachable and would not
+ * have worked: `reportCursorEl` reads a scrollbox ref that only the page branch
+ * ever set, so overlay mode had no cursor-follow at all.
  */
 
 import { errorMessage } from "@/lib/error-message"
@@ -32,6 +38,7 @@ import { useBindings } from "../../lib/keymap"
 import { useAccessor } from "../../lib/use-accessor"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../../ui/dialog"
 import { confirmResetState, confirmRestartDaemon, hasRestartableDaemon } from "./actions"
+import { flushDeferredPromptsWithFeedback } from "./deferred-flush-feedback"
 import { SettingsCursorElContext } from "./rows"
 import { EngineSettingsSection } from "./sections-engines"
 import { GeneralSettingsSection, SettingsSectionSidebar } from "./sections-general"
@@ -45,10 +52,7 @@ export type SettingsDialogProps = {
   kv: KVContext
   /** Enables daemon-only Settings actions when present. */
   orchestrator?: KobeOrchestrator
-  onVisualPrefsChange?: () => void
   onClose: () => void
-  /** Standalone page mode; suspends navigation while a child dialog edits text. */
-  standalone?: boolean
 }
 
 /** Stable empty cell for hosts without a daemon connection (hook-order safety). */
@@ -70,14 +74,12 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const [feedbackStatus, setFeedbackStatus] = useState("")
   const themeNames = useMemo<readonly string[]>(() => themeCtx.all().slice().sort(), [themeCtx])
   const hasDaemon = hasRestartableDaemon(props.orchestrator)
-
-  const prefs = useSettingsPrefs(props.kv, dialog)
-  const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
-
-  // Daemon-pushed per-vendor quota snapshots (General's top-right dashboard).
-  // Only the RemoteOrchestrator has the channel; a local orchestrator (tests,
-  // direct mode) reads the empty fallback cell and the dashboard stays hidden.
   const remote = props.orchestrator instanceof RemoteOrchestrator ? props.orchestrator : null
+  const prefs = useSettingsPrefs(props.kv, dialog, () => {
+    if (remote) void flushDeferredPromptsWithFeedback(remote, dialog)
+  })
+  const engines = useEngineSettings(props.kv, dialog, (max) => setBodyRow((r) => Math.max(0, Math.min(r, max))))
+  // A local orchestrator has no daemon quota channel and uses the empty cell.
   const usage = useAccessor(remote ? remote.usageSnapshotSignal() : EMPTY_USAGE_SIGNAL)
 
   // Lazily-probed section data (accounts / plugins) — see ./use-section-data.
@@ -121,7 +123,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
     if (themeCtx.selected === name) return
     if (!themeCtx.set(name)) return
     props.kv.set("activeTheme", name)
-    props.onVisualPrefsChange?.()
   }
 
   // UI language. Live within this process (setLocaleLang updates the module
@@ -131,21 +132,18 @@ export function SettingsDialog(props: SettingsDialogProps) {
     if (currentLang() === locale) return
     setLocaleLang(locale)
     props.kv.set(LOCALE_KEY, locale)
-    props.onVisualPrefsChange?.()
   }
 
   function toggleTransparent(): void {
     const next = !themeCtx.transparentBackground
     themeCtx.setTransparentBackground(next)
     props.kv.set("transparentBackground", next)
-    props.onVisualPrefsChange?.()
   }
 
   function selectFocusAccent(slot: FocusAccentSlot): void {
     if (themeCtx.focusAccent === slot) return
     themeCtx.setFocusAccent(slot)
     props.kv.set("focusAccent", slot)
-    props.onVisualPrefsChange?.()
   }
 
   /** The engine row under the body cursor, or null on the "+ Add engine" row / off-section. */
@@ -258,10 +256,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
 
   useBindings(() => ({
-    // On the standalone page, suspend our navigation keys while a
-    // sub-dialog (the engine-command / custom-editor text input) is open
-    // so `l`/`t`/`j`/`k`/`h` reach the input instead of being eaten here.
-    enabled: (!props.standalone || dialog.stack.length === 0) && !editingFeedback,
+    // Suspend our navigation keys while a sub-dialog (the engine-command /
+    // custom-editor text input) is open so `l`/`j`/`k`/`h` reach the input
+    // instead of being eaten here.
+    enabled: dialog.stack.length === 0 && !editingFeedback,
     bindings: [
       { key: "down", cmd: () => moveCursor(1) },
       { key: "up", cmd: () => moveCursor(-1) },
@@ -282,7 +280,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
           activateBodyRow()
         },
       },
-      { key: "t", cmd: toggleTransparent },
       {
         // Engines section only: `r` renames the focused engine's display
         // label, `x` resets a built-in (or removes a custom) engine.
@@ -333,7 +330,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     bindings: [{ key: "return", cmd: () => void sendFeedback() }],
   }))
 
-  // Cursor-follow (standalone page): the page scrollbox lives here, and the
+  // Cursor-follow: the page scrollbox lives here, and the
   // cursor Row reports its renderable through context so keyboard navigation
   // never lands on a clipped row in a short terminal.
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
@@ -432,14 +429,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
           ) : null}
         </box>
       </box>
-      {/* Overlay dialog: the box is content-sized, so the hint is simply its
-          last row. The standalone page pulls it out as a footer instead. */}
-      {props.standalone ? null : navHint}
     </box>
   )
 
-  if (!props.standalone)
-    return <SettingsCursorElContext.Provider value={reportCursorEl}>{body}</SettingsCursorElContext.Provider>
   return (
     <SettingsCursorElContext.Provider value={reportCursorEl}>
       <box flexDirection="column" flexGrow={1}>
@@ -463,33 +455,4 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </box>
     </SettingsCursorElContext.Provider>
   )
-}
-
-/**
- * Overlay (`taskpanel`) surface — push the dialog onto the stack and resolve
- * once it closes, reporting whether any visual pref changed so the caller can
- * refresh workspace panes. The in-pane Tasks/Settings surfaces are its
- * callers.
- */
-SettingsDialog.show = (
-  dialog: DialogContext,
-  kv: KVContext,
-  orchestrator?: KobeOrchestrator,
-): Promise<{ visualPrefsChanged: boolean }> => {
-  let visualPrefsChanged = false
-  return new Promise<{ visualPrefsChanged: boolean }>((resolve) => {
-    dialog.replace(
-      () => (
-        <SettingsDialog
-          kv={kv}
-          orchestrator={orchestrator}
-          onVisualPrefsChange={() => {
-            visualPrefsChanged = true
-          }}
-          onClose={() => resolve({ visualPrefsChanged })}
-        />
-      ),
-      () => resolve({ visualPrefsChanged }),
-    )
-  })
 }

@@ -31,6 +31,7 @@ import { homedir } from "node:os"
 import path from "node:path"
 import type { EngineHistory, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
+import { vendorConfigHome } from "../vendor-home"
 import { parseRolloutRaw } from "./history-parse"
 
 export { deriveCodexUsageMetrics, parseJsonl } from "./history-parse"
@@ -46,10 +47,7 @@ export interface HistoryDeps {
 
 export const defaultHistoryDeps: HistoryDeps = {
   sessionsDir() {
-    // `$CODEX_HOME` relocates the whole `~/.codex` dir (same contract
-    // account-detect's codexAuthPath honors); read per call, never cached.
-    const override = process.env.CODEX_HOME?.trim()
-    return path.join(override || path.join(homedir(), ".codex"), "sessions")
+    return path.join(vendorConfigHome("codex"), "sessions")
   },
   async readdir(p) {
     try {
@@ -168,7 +166,7 @@ export function rolloutCwd(raw: string): string {
  * rollout filenames embed a UUID + ISO timestamp so a path is never
  * reused — a successfully parsed, non-empty cwd is immutable and can be
  * cached forever. The polling callers (the Ops pane's 2.5s activity poll
- * and 1.5s turn poll, the daemon's 4s auto-title tick) previously
+ * and 1.5s turn poll, the daemon's 4s auto-title tick) would otherwise
  * re-READ up to 12–200 whole rollout JSONLs per tick just to re-derive
  * the same first-line cwd.
  *

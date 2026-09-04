@@ -1,8 +1,8 @@
 /**
- * Fold a scratch shell into the task that already owns its cwd (issue #40)
- * — the execution half of `decideScratchAdopt`'s `fold` verdict. Instead of
- * repointing the scratch row at the repo (which minted a duplicate sidebar
- * row for a directory some task already names), the shell's HOSTED sessions
+ * Fold a scratch shell into the task that already owns its cwd — the
+ * execution half of `decideScratchAdopt`'s `fold` verdict. Repointing the
+ * scratch row at the repo instead would mint a duplicate sidebar row for a
+ * directory some task already names, so the shell's HOSTED sessions
  * are re-keyed under the owning task's next free tab ids (`pty.rename` — the
  * child keeps running, engine and all) and the tab records are adopted
  * through the ordinary orphan-adoption write (`adoptTaskTabs`), which never
@@ -75,8 +75,8 @@ export async function foldScratchShell(
     next++
     // The local handle still keyed to `from` is NOT released here: the
     // scratch row's deletion (the caller's next step) runs the ordinary
-    // task-PTY sweep, whose `pty.kill` on the old key is a host-side no-op
-    // after the rename — the moved session survives, the handle dies.
+    // task-PTY sweep, whose `pty.kill` on the pre-rename key is a host-side
+    // no-op — the moved session survives, the handle dies.
   }
   if (folded.length === 0) return null
   adoptTaskTabs(io.kv, targetTaskId, folded)

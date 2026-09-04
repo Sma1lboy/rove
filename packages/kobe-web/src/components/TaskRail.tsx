@@ -56,8 +56,8 @@ export function TaskRail({
     perRowEngineLabel(engines, task, mixedEngines)
 
   // Module store, not useState — the `/` → /task/$taskId nav remounts AppShell
-  // (different route trees), which used to wipe these on the first task open
-  // (issue #7). In-memory only: survives route nav, resets on full reload.
+  // (different route trees), which would wipe local useState on the first
+  // task open. In-memory only: survives route nav, resets on full reload.
   const { query, statusFilter, sortMode } = useRailState()
   const listRef = useRef<HTMLDivElement>(null)
   const filterRef = useRef<HTMLInputElement>(null)
@@ -75,7 +75,7 @@ export function TaskRail({
   // kobe session re-sorts this rail too. The local toggle still works between
   // pref pushes — there's no prefs.set RPC yet, so web-side toggles are local.
   // applyPrefSort is rising-edge (store-tracked), so a remount replaying the
-  // same pref no longer stomps a local toggle.
+  // same pref does not stomp a local toggle.
   const prefSort = uiPrefs?.sortMode
   useEffect(() => {
     applyPrefSort(prefSort)
@@ -263,7 +263,7 @@ export function TaskRail({
               // low-frequency clutter. All (see everything) + Needs (the
               // attention spine wired to the tab badge + `n` nav) carry the
               // value. The "working"/"changes" buckets still exist in triage for
-              // the Board; the rail just no longer offers them as quick filters.
+              // the Board; the rail just does not offer them as quick filters.
             ] as Array<{ key: Bucket | "all"; label: string; title: string }>
           ).map((c) => (
             <button

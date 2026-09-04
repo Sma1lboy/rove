@@ -8,9 +8,11 @@
 import { useRef } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import type { FocusContextValue } from "../context/focus"
+import { useT } from "../i18n"
 import { useLatest } from "../lib/use-latest"
-import { useCreatePR } from "./use-create-pr"
+import { takeCreatePR, useCreatePR } from "./use-create-pr"
 import { useFileOpenActions } from "./use-file-open-actions"
+import { requestFixCI, takeFixCI, useFixCI } from "./use-fix-ci"
 
 export interface UseEditorHandlesOpts {
   orchestrator: RemoteOrchestrator
@@ -18,16 +20,22 @@ export interface UseEditorHandlesOpts {
   selectedId: string | null
   focus: FocusContextValue
   notifyError: (msg: string) => void
+  /** Enter a task — the row-aimed actions below need its engine mounted. */
+  activateTask: (taskId: string) => void
 }
 
 export interface UseEditorHandlesResult {
   onEditorTabReady: (open: (command: readonly string[], label: string) => void) => void
-  onEngineSendReady: (send: (text: string) => void) => void
-  onEnginePasteReady: (paste: (text: string) => void) => void
+  onEngineSendReady: (send: (text: string) => boolean) => void
+  onEnginePasteReady: (paste: (text: string) => boolean) => void
   onDiffTabReady: (open: (relPath: string, label: string, base?: string) => void) => void
   onOpenFile: (relPath: string) => void
   onOpenDiff: (relPath: string, base?: string) => void
   onCreatePR: () => void
+  /** Sidebar row menu "Fix failing checks" (and the proposed prefix+k) —
+   *  enters the row when it is not already active, then pastes the failing
+   *  job's log into its engine. */
+  onFixChecks: (taskId: string) => void
   /** FileTree `a` — paste `@<path>` into the engine's composer WITHOUT
    *  submitting (docs/TUI.md); the user keeps typing around it. */
   onMention: (relPath: string) => void
@@ -42,32 +50,39 @@ export function mentionText(relPath: string): string {
 
 /** React-free core of the FileTree `a` action (sibling of `createPRAction`):
  *  paste `@<path>` into the engine's composer, never submit. Reads the ref at
- *  call time — TerminalTabs re-hands the paste closure on every mount, and a
- *  task with no live engine tab leaves it null (the key is then inert, which
- *  is the pre-existing "no engine, nothing to mention" state). */
-export function mentionAction(pasteToEngineFn: {
-  readonly current: ((text: string) => void) | null
-}): (relPath: string) => void {
+ *  call time — TerminalTabs re-hands the paste closure on every mount.
+ *
+ *  Two ways to have nowhere to paste, and both used to be a dead key: the ref
+ *  is null (no TerminalTabs mounted yet) or the paste closure answers false
+ *  (no engine tab in this task). `onRefused` is how the user hears about it. */
+export function mentionAction(
+  pasteToEngineFn: {
+    readonly current: ((text: string) => boolean) | null
+  },
+  onRefused: () => void,
+): (relPath: string) => void {
   return (relPath) => {
-    pasteToEngineFn.current?.(mentionText(relPath))
+    const paste = pasteToEngineFn.current
+    if (!paste || !paste(mentionText(relPath))) onRefused()
   }
 }
 
 export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesResult {
-  const { orchestrator, worktree, selectedId, focus, notifyError } = opts
+  const { orchestrator, worktree, selectedId, focus, notifyError, activateTask } = opts
+  const t = useT()
 
-  // Imperative handle from the currently-mounted TerminalTabs (issue #16):
-  // a ref, since FileTree's "open" only READS it at click time and
+  // Imperative handle from the currently-mounted TerminalTabs: a ref, since
+  // FileTree's "open" only READS it at click time and
   // TerminalTabs re-hands it on every mount (task/worktree switch).
   const openEditorTabFn = useRef<((command: readonly string[], label: string) => void) | null>(null)
-  const sendToEngineFn = useRef<((text: string) => void) | null>(null)
+  const sendToEngineFn = useRef<((text: string) => boolean) | null>(null)
   // Paste-only sibling of sendToEngineFn (no submit) — the FileTree `a` @path
   // mention, handed up through the same TerminalTabs mount-once contract.
-  const pasteToEngineFn = useRef<((text: string) => void) | null>(null)
-  // Read-only diff tab opener (issue #21) — same ref pattern as the editor
-  // tab: TerminalTabs re-hands it per mount, FileTree's `d` reads it at
-  // keypress. Opening is a content swap; the host does NOT focus the
-  // workspace here (KOB-25 — a read-only open must not pull focus).
+  const pasteToEngineFn = useRef<((text: string) => boolean) | null>(null)
+  // Read-only diff tab opener — same ref pattern as the editor tab:
+  // TerminalTabs re-hands it per mount, FileTree's `d` reads it at keypress.
+  // Opening is a content swap; the host does NOT focus the workspace here — a
+  // read-only open must not pull focus.
   const openDiffTabFn = useRef<((relPath: string, label: string, base?: string) => void) | null>(null)
 
   // Identity guard for the async actions below: after an await, the selected
@@ -78,6 +93,23 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
   // FileTree `pr` chip + prefix+p — own module for the guard above, which its
   // awaits also need.
   const createPR = useCreatePR({ worktree, sendToEngineFn, selectedWorktreeRef, notifyError })
+
+  // Sidebar row menu "Fix failing checks" — same module shape and same park
+  // slot as create-PR, because it has the same two hazards (a long await, and
+  // a row that may not be the active task).
+  const fixCI = useFixCI({
+    worktree,
+    sendToEngineFn,
+    selectedWorktreeRef,
+    notifyError,
+    getTask: (taskId) => {
+      const task = orchestrator.getTask(taskId)
+      return task
+        ? { branch: task.branch, ...(task.prStatus?.number === undefined ? {} : { prNumber: task.prStatus.number }) }
+        : null
+    },
+    fetchChecks: (taskId) => orchestrator.failingChecks(taskId),
+  })
 
   // FileTree's Enter (editor/plugin/OS) and `d` (read-only diff tab).
   const { openFileInEditor, openDiff } = useFileOpenActions({
@@ -96,6 +128,12 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     },
     onEngineSendReady: (send) => {
       sendToEngineFn.current = send
+      // A `prefix+p` aimed at a sidebar row that was not the active task
+      // activated it and parked the request; this mount is the first moment
+      // the prompt can actually be sent, so claim it here.
+      if (takeCreatePR(selectedId)) void createPR()
+      const parked = takeFixCI(selectedId)
+      if (parked) void fixCI(parked)
     },
     onEnginePasteReady: (paste) => {
       pasteToEngineFn.current = paste
@@ -106,6 +144,14 @@ export function useEditorHandles(opts: UseEditorHandlesOpts): UseEditorHandlesRe
     onOpenFile: openFileInEditor,
     onOpenDiff: openDiff,
     onCreatePR: () => void createPR(),
-    onMention: mentionAction(pasteToEngineFn),
+    onFixChecks: (taskId) => {
+      // Already the active task → the send closure is live, run it now.
+      // Otherwise park it and enter the row: `onEngineSendReady` claims the
+      // parked request once that task's TerminalTabs has mounted.
+      if (taskId === selectedId) return void fixCI(taskId)
+      requestFixCI(taskId)
+      activateTask(taskId)
+    },
+    onMention: mentionAction(pasteToEngineFn, () => notifyError(t("files.mentionNoEngine"))),
   }
 }

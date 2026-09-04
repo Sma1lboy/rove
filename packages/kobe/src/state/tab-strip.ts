@@ -22,7 +22,7 @@ export type TabStripMode = "always" | "multipleOnly" | "never"
 export const TAB_STRIP_MODES: readonly TabStripMode[] = ["always", "multipleOnly", "never"]
 
 /**
- * Off by default (owner call 2026-08-31, reverting the 2026-08-29 "always").
+ * Off by default.
  *
  * The sidebar tree already lists every worktree's tabs as rows, and the
  * active one is marked there — so the strip is a second copy of a list that
@@ -39,7 +39,7 @@ export const TAB_STRIP_HIDE_SINGLE_KEY = "chat.tabStrip.hideSingle"
  * Resolve the effective mode from stored values, honouring the legacy
  * boolean when the new key was never written.
  *
- * Migration reads rather than rewrites: a user who set the old toggle keeps
+ * Migration reads rather than rewrites: a user who set the legacy toggle keeps
  * their strip behaviour, and the moment they touch the new setting the new
  * key wins for good. Rewriting on read would need a kv write from a render
  * path, and there is nothing to gain from it.

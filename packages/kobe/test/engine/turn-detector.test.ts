@@ -50,22 +50,71 @@ describe("latestCodexCompletionMarkerFromJsonl", () => {
 })
 
 describe("latestClaudeCompletionMarkerFromJsonl", () => {
-  test("uses assistant transcript records as completion markers", () => {
+  const assistant = (ts: string, stopReason?: string) =>
+    JSON.stringify({
+      type: "assistant",
+      timestamp: ts,
+      message: {
+        role: "assistant",
+        ...(stopReason ? { stop_reason: stopReason } : {}),
+        content: [{ type: "text", text: "done" }],
+      },
+    })
+  const toolUse = (ts: string) =>
+    JSON.stringify({
+      type: "assistant",
+      timestamp: ts,
+      message: {
+        role: "assistant",
+        stop_reason: "tool_use",
+        content: [{ type: "tool_use", id: "tu_1", name: "Bash", input: {} }],
+      },
+    })
+
+  test("uses a turn-ending assistant record as the completion marker", () => {
     const raw = [
       JSON.stringify({
         type: "user",
         timestamp: "2026-05-29T01:00:00.000Z",
         message: { role: "user", content: "hi" },
       }),
-      JSON.stringify({
-        type: "assistant",
-        timestamp: "2026-05-29T01:00:04.000Z",
-        message: { role: "assistant", content: [{ type: "text", text: "done" }] },
-      }),
+      assistant("2026-05-29T01:00:04.000Z", "end_turn"),
     ].join("\n")
     const marker = latestClaudeCompletionMarkerFromJsonl(raw, "session")
     expect(marker?.source).toBe("claude")
     expect(marker?.timestampMs).toBe(Date.parse("2026-05-29T01:00:04.000Z"))
+  })
+
+  // The bug: Claude Code appends one assistant record per STEP, and ~95% of
+  // them are `stop_reason: "tool_use"` — mid-turn. Minting a completion for
+  // those made the daemon's lapse watchdog idle a working engine at the TTL.
+  test("a mid-turn tool_use record is NOT a completion", () => {
+    expect(latestClaudeCompletionMarkerFromJsonl(toolUse("2026-05-29T01:00:05.000Z"), "session")).toBeNull()
+  })
+
+  test("a multi-tool-use turn yields exactly one marker, at the turn end", () => {
+    const raw = [
+      JSON.stringify({ type: "user", timestamp: "2026-05-29T01:00:00.000Z", message: { role: "user", content: "go" } }),
+      toolUse("2026-05-29T01:00:01.000Z"),
+      toolUse("2026-05-29T01:00:02.000Z"),
+      assistant("2026-05-29T01:00:09.000Z", "end_turn"),
+    ].join("\n")
+    const marker = latestClaudeCompletionMarkerFromJsonl(raw, "session")
+    expect(marker?.timestampMs).toBe(Date.parse("2026-05-29T01:00:09.000Z"))
+  })
+
+  test("accepts the other turn-ending stop reasons", () => {
+    for (const reason of ["stop_sequence", "max_tokens", "refusal"]) {
+      const marker = latestClaudeCompletionMarkerFromJsonl(assistant("2026-05-29T01:00:06.000Z", reason))
+      expect(marker?.timestampMs).toBe(Date.parse("2026-05-29T01:00:06.000Z"))
+    }
+  })
+
+  // Allowlist, not `!== "tool_use"`: pause_turn is mid-turn too, and so is
+  // whatever mid-turn value the API adds next.
+  test("pause_turn and a missing stop_reason are both mid-turn", () => {
+    expect(latestClaudeCompletionMarkerFromJsonl(assistant("2026-05-29T01:00:07.000Z", "pause_turn"))).toBeNull()
+    expect(latestClaudeCompletionMarkerFromJsonl(assistant("2026-05-29T01:00:08.000Z"))).toBeNull()
   })
 })
 
@@ -83,7 +132,11 @@ describe("createEngineTurnDetector", () => {
 // invisible (same markers as a fresh parse) and keyed strictly on mtime.
 describe("ClaudeTurnDetector mtime gating", () => {
   const record = (ts: string) =>
-    JSON.stringify({ type: "assistant", timestamp: ts, message: { role: "assistant", content: [] } })
+    JSON.stringify({
+      type: "assistant",
+      timestamp: ts,
+      message: { role: "assistant", stop_reason: "end_turn", content: [] },
+    })
 
   test("skips re-reading transcripts whose mtime is unchanged, and returns the identical marker", async () => {
     const reads: string[] = []
@@ -123,7 +176,11 @@ describe("ClaudeTurnDetector mtime gating", () => {
 
 describe("ClaudeTurnDetector latestActivityInFile", () => {
   const record = (ts: string) =>
-    JSON.stringify({ type: "assistant", timestamp: ts, message: { role: "assistant", content: [] } })
+    JSON.stringify({
+      type: "assistant",
+      timestamp: ts,
+      message: { role: "assistant", stop_reason: "end_turn", content: [] },
+    })
 
   test("reads ONLY the given transcript — never the worktree listing", async () => {
     const detector = new ClaudeTurnDetector({

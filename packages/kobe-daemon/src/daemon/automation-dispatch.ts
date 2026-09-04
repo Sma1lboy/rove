@@ -1,5 +1,5 @@
 /**
- * How ONE automation firing reaches an engine (issue #91).
+ * How ONE automation firing reaches an engine.
  *
  * Its own module along a real seam: the runner owns WHEN a schedule fires,
  * this owns WHERE the prompt lands. That is also what makes the four delivery
@@ -8,8 +8,8 @@
  *
  * Two shapes, chosen per routine by `Automation.persistentSession`:
  *
- *  - **Fresh** (default, and what every routine did before this): create a
- *    task, spawn its engine with the prompt on the argv. One worktree and one
+ *  - **Fresh** (default): create a task, spawn its engine with the prompt on
+ *    the argv. One worktree and one
  *    branch per firing — what a routine that EDITS code needs, since a week of
  *    runs piled onto one branch is a branch nobody can land.
  *
@@ -38,14 +38,18 @@
  * `quota-resume` drops a blocked prompt on purpose — it is a nudge, and the
  * next rate-limit arms a new one. A routine's report has no such second
  * chance: dropped, it is indistinguishable from a routine that never ran. So
- * a busy composer files a deferral and an Inbox episode, and the run is
- * recorded as `deferred` — the same accepted-but-deferred contract
- * `rove api send` already gives agents.
+ * a busy composer tries to file a deferral and Inbox episode. Acceptance is
+ * recorded as `deferred`; an occupied slot preserves its earlier prompt and
+ * records this run as `dispatch_failed`.
  */
 
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
-import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
+import {
+  DeferredPromptPendingError,
+  type DeferredPromptRecord,
+  type DeferredPromptsStore,
+} from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 
 /** The orchestrator slice a firing needs. */
@@ -154,14 +158,32 @@ async function deferBlockedPrompt(
   if (!deps.deferred || !deps.inbox) {
     return { status: "dispatch_failed", taskId, error: `composer busy (${layer}) and no deferred-prompt store` }
   }
-  const record = await deps.deferred.file({
-    taskId,
-    tabId,
-    prompt: automation.prompt,
-    layer,
-    senderLabel: `routine: ${automation.name}`,
-    at: (deps.now ?? Date.now)(),
-  })
+  let record: DeferredPromptRecord
+  try {
+    record = await deps.deferred.file({
+      taskId,
+      tabId,
+      prompt: automation.prompt,
+      layer,
+      senderLabel: `routine: ${automation.name}`,
+      at: (deps.now ?? Date.now)(),
+    })
+  } catch (error) {
+    if (!(error instanceof DeferredPromptPendingError)) throw error
+    // A previous firing may have committed the record and crashed before its
+    // Inbox pointer. Recreate that pointer before reporting the occupied slot.
+    await deps.inbox.recordPromptDeferred(
+      error.existing.taskId,
+      error.existing.tabId,
+      error.existing.id,
+      error.existing.layer,
+    )
+    return {
+      status: "dispatch_failed",
+      taskId,
+      error: `tab ${tabId} already has a deferred prompt (${error.existing.id})`,
+    }
+  }
   await deps.inbox.recordPromptDeferred(taskId, tabId, record.id, layer)
   logDaemonInfo("automation", `deferred ${automation.name} task=${taskId} tab=${tabId} layer=${layer}`)
   return { status: "deferred", taskId }

@@ -128,6 +128,7 @@ export const DAEMON_CHANNELS = [
   "engine.lifecycle",
   "notice.event",
   "usage.snapshot",
+  "usage.context",
   "ui.prompt",
 ] as const
 

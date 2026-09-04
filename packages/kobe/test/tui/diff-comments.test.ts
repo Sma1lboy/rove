@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import {
   type DiffComment,
   buildDiffReview,
+  commentAtRow,
   commentRange,
   computeReviewPaint,
   diffCommentsKey,
@@ -144,6 +145,36 @@ describe("sent bookkeeping", () => {
   })
 })
 
+describe("commentAtRow", () => {
+  const rows = unifiedDiffRows(["@@ -1,2 +1,3 @@", " a", "+b", "+c"].join("\n"))
+  const notes: DiffComment[] = [
+    { id: "n1", filePath: "a.ts", line: 3, startLine: 2, body: "range", createdAt: 1 },
+    { id: "n2", filePath: "b.ts", line: 2, body: "other file", createdAt: 2 },
+  ]
+
+  it("finds the note whose range covers the cursor row's display line", () => {
+    expect(commentAtRow(rows, 1, notes, "a.ts")?.id).toBe("n1")
+    expect(commentAtRow(rows, 2, notes, "a.ts")?.id).toBe("n1")
+  })
+
+  it("ignores notes on another file and rows outside every range", () => {
+    // n2 sits on b.ts at the same display line, so this is the assertion that
+    // the file path is part of the match rather than incidental.
+    expect(commentAtRow(rows, 1, notes, "c.ts")).toBeUndefined()
+    expect(commentAtRow(rows, 1, notes, "b.ts")?.id).toBe("n2")
+    expect(commentAtRow(rows, 0, notes, "a.ts")).toBeUndefined()
+    expect(commentAtRow(rows, 99, notes, "a.ts")).toBeUndefined()
+  })
+
+  it("prefers the newest note when two cover the same line", () => {
+    const overlapping: DiffComment[] = [
+      ...notes,
+      { id: "n3", filePath: "a.ts", line: 3, startLine: 2, body: "newer", createdAt: 3 },
+    ]
+    expect(commentAtRow(rows, 1, overlapping, "a.ts")?.id).toBe("n3")
+  })
+})
+
 describe("buildDiffReview", () => {
   function fakeKv(): {
     store: Map<string, unknown>
@@ -160,7 +191,7 @@ describe("buildDiffReview", () => {
 
   it("adds notes with generated id/createdAt under the task key", () => {
     const kv = fakeKv()
-    const review = buildDiffReview(kv, "t1", () => {})
+    const review = buildDiffReview(kv, "t1", () => true)
     review.add({ filePath: "a.ts", line: 3, body: "note one" })
     review.add({ filePath: "a.ts", line: 5, startLine: 4, body: "note two" })
     const stored = kv.store.get(diffCommentsKey("t1")) as DiffComment[]
@@ -173,7 +204,10 @@ describe("buildDiffReview", () => {
   it("send() batches ALL unsent notes into one prompt and marks them sent", () => {
     const kv = fakeKv()
     const sends: string[] = []
-    const review = buildDiffReview(kv, "t1", (text) => sends.push(text))
+    const review = buildDiffReview(kv, "t1", (text) => {
+      sends.push(text)
+      return true
+    })
     review.add({ filePath: "a.ts", line: 3, body: "first" })
     review.add({ filePath: "b.ts", line: 7, body: "second" })
     review.send()
@@ -186,5 +220,41 @@ describe("buildDiffReview", () => {
     // A second send with nothing unsent is a no-op.
     review.send()
     expect(sends).toHaveLength(1)
+  })
+
+  it("keeps the notes unsent when the engine send is refused", () => {
+    // The whole point of the guard: `s` on a task with no engine session used
+    // to mark everything sent, so the footer read `0 unsent` and the batch was
+    // indistinguishable from a delivered one — forever.
+    const kv = fakeKv()
+    const review = buildDiffReview(kv, "t1", () => false)
+    review.add({ filePath: "a.ts", line: 3, body: "keep me" })
+    expect(review.send()).toBe(false)
+    const stored = kv.store.get(diffCommentsKey("t1")) as DiffComment[]
+    expect(unsentComments(stored)).toHaveLength(1)
+    // And a later send that DOES reach an engine still delivers it.
+    const sends: string[] = []
+    const live = buildDiffReview(kv, "t1", (text) => {
+      sends.push(text)
+      return true
+    })
+    expect(live.send()).toBe(true)
+    expect(sends[0]).toContain('User comment: "keep me"')
+  })
+
+  it("nothing to send is not a failure", () => {
+    const kv = fakeKv()
+    expect(buildDiffReview(kv, "t1", () => false).send()).toBe(true)
+  })
+
+  it("remove() drops one note and leaves the rest", () => {
+    const kv = fakeKv()
+    const review = buildDiffReview(kv, "t1", () => true)
+    review.add({ filePath: "a.ts", line: 3, body: "typo" })
+    review.add({ filePath: "a.ts", line: 9, body: "keep" })
+    const stored = kv.store.get(diffCommentsKey("t1")) as DiffComment[]
+    buildDiffReview(kv, "t1", () => true).remove(stored[0]?.id ?? "")
+    const after = kv.store.get(diffCommentsKey("t1")) as DiffComment[]
+    expect(after.map((c) => c.body)).toEqual(["keep"])
   })
 })

@@ -96,7 +96,7 @@ export interface EngineHistoryReader {
 }
 
 /** Any built-in engine's account shape (each union already has a `none` arm). */
-export type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
+type EngineAccount = ClaudeAccount | CodexAccount | CopilotAccount | KimiAccount
 
 export interface EngineRegistryEntry {
   readonly vendor: VendorId
@@ -139,8 +139,14 @@ export interface EngineRegistryEntry {
   /**
    * Read-only binary + login probe (Settings → Accounts). `deps` is the
    * injectable fs/env surface from `account-detect.ts`; omit for production.
+   *
+   * Absent = Rove has no login detector for this engine (contrib, plugin,
+   * user-registered), which `engine-status.ts` reports as `account: null` —
+   * "not detectable", NOT "not logged in". Writing an explicit stub that
+   * answers `{ kind: "none" }` instead would mark every such engine
+   * unusable, because that kind means "detector ran, found no login".
    */
-  readonly detectAccount: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
+  readonly detectAccount?: (deps?: DetectDeps) => Promise<EngineAccountStatus<EngineAccount>>
   /** Activity-hook adapter — a no-op adapter for engines without wired hooks. */
   readonly createHookAdapter: () => EngineHookAdapter
   /**
@@ -151,8 +157,8 @@ export interface EngineRegistryEntry {
    */
   readonly createTurnDetector: () => EngineTurnDetector
   /**
-   * Model catalog + permission modes + identity (settings, pickers).
-   * Undefined for engines without a kobe-known catalog (copilot, custom).
+   * Vendor-owned terminal-presentation policy. Undefined for engines that
+   * declare none (copilot, custom).
    */
   readonly capabilities?: EngineCapabilities
   /** Product identity (composer placeholder etc.). Paired with capabilities. */
@@ -187,7 +193,7 @@ export interface EngineRegistryEntry {
    *   - "argv" (default): appended to the launch argv as a positional arg —
    *     claude/codex accept an initial prompt there.
    *   - "paste": the CLI's positional slot is a SUBCOMMAND, not a prompt
-   *     (kimi exits `Unknown command` on one — issue #25), so the launch
+   *     (kimi exits `Unknown command` on one), so the launch
    *     spawns bare and the spawner pastes the message once the engine
    *     process is up (`pastePromptWhenEngineUp` in `hosted-session.ts`).
    * Custom engines keep "argv" — their launch-command contract is the
@@ -198,7 +204,7 @@ export interface EngineRegistryEntry {
    * Extra executable basenames this engine's LIVE process may show as in
    * `ps`, beyond `defaultCommand[0]` — for binaries that rewrite their
    * process title post-launch (kimi's Mach-O launcher rewrites argv[0] to
-   * `kimi-co`, verified on two live sessions 2026-08-15). The foreground
+   * `kimi-co`). The foreground
    * walk (`engine/foreground.ts`) matches these the same way it matches
    * the launch binary; without them a running engine reads as a plain
    * shell and prompt delivery refuses with ENGINE_NOT_RUNNING.
@@ -206,7 +212,7 @@ export interface EngineRegistryEntry {
   readonly processNames?: readonly string[]
   /**
    * Pre-trust a Rove-created worktree in the vendor's first-run trust
-   * store (issue #28). Every vendor gates a never-seen directory behind a
+   * store. Every vendor gates a never-seen directory behind a
    * modal trust dialog; hosted sessions can't answer one (kimi's even
    * EXITS when the pasted first message's Enter lands on "Don't trust").
    * Called before a hosted spawn; must be idempotent and merge-preserving.
@@ -214,7 +220,7 @@ export interface EngineRegistryEntry {
    */
   readonly trustWorktree?: (worktreePath: string) => void
   /**
-   * Per-turn telemetry reader (issue #32): completed {@link AgentTurn}s
+   * Per-turn telemetry reader: completed {@link AgentTurn}s
    * lifted from ONE of this engine's session transcripts. Engine-owned by
    * construction — only the adapter knows where its vendor records the
    * model, timings, and token usage of a turn. Absent = this engine has no
@@ -246,10 +252,8 @@ function customEngineEntry(vendor: VendorId): EngineRegistryEntry {
     displayName: vendor,
     defaultCommand: [vendor],
     history: EMPTY_HISTORY,
-    detectAccount: async () => ({
-      binary: { found: false, error: "custom engine: Rove has no account detector for it" },
-      account: { kind: "none" },
-    }),
+    // No `detectAccount`: see the field's doc — absent is how "no detector"
+    // is spelled, and `contribEngineEntry` inherits it by spreading this.
     createHookAdapter: () => new NoopHookAdapter(vendor),
     createTurnDetector: () => new UnknownTurnDetector(vendor),
   }
@@ -284,15 +288,6 @@ export function supportsStructuredHistory(vendor: VendorId): boolean {
   return engineEntry(vendor).history.readHistory !== EMPTY_HISTORY.readHistory
 }
 
-/*
- * `vendorFromTerminalTitle` lived here (removed 2026-07-27). It matched a
- * live OSC title against each engine's product name / binary by substring,
- * which is how a shell tab where the user typed `claude` joined turn-status
- * management — and also how a claude session whose activity summary said
- * "codex" became a codex tab. Identity now comes from the process tree:
- * `engine/foreground.ts` + `tui/workspace/live-engine.ts`.
- */
-
 /**
  * Every status glyph any built-in engine declares. The fallback vocabulary
  * for a vendor that declares none of its own — see
@@ -322,9 +317,9 @@ export function engineStatusPrefixes(vendor: VendorId): readonly string[] {
  * running the real claude), or simply a process-tree probe that has not
  * answered yet — falls back to the union of every built-in's glyphs. This is
  * the common case, not an edge: the probe is a ~2s `ps` walk, so gating on it
- * let a raw `✳ …` through on every tick it could not answer, and that title
- * is what gets RECORDED (owner report 2026-08-10: the prefix kept coming
- * back). The union is safe precisely because these glyphs are decoration in
+ * lets a raw `✳ …` through on every tick it cannot answer, and that title
+ * is what gets RECORDED. The union is safe precisely because these glyphs
+ * are decoration in
  * any vendor's title — nothing writes a leading `⠹` it wants kept.
  */
 export function stripEngineStatusPrefix(title: string, vendor: VendorId | null | undefined): string {
@@ -365,9 +360,9 @@ export function isEnginePlaceholderTitle(title: string, vendor: VendorId): boole
 
 /**
  * Capabilities for a vendor, or `undefined` when the engine has none (copilot,
- * custom). Consumed by the native chat composer's model picker +
- * permission-mode cycle; callers must handle the missing case rather than
- * borrow another vendor's catalog + permission modes.
+ * custom). Consumed by the workspace terminal for the engine's
+ * `terminalPresentation`; callers must handle the missing case rather than
+ * borrow another vendor's policy.
  */
 export function getCapabilities(vendor: VendorId): EngineCapabilities | undefined {
   return engineEntry(vendor).capabilities
@@ -385,20 +380,4 @@ export function vendorsWithQuotaProbe(): readonly VendorId[] {
   return Object.values(BUILTIN_ENGINES)
     .filter((entry) => entry.quotaUsage)
     .map((entry) => entry.vendor)
-}
-
-/** Flat de-duped list of every model surfaced by every registered vendor. */
-export function allModels(): readonly EngineCapabilities["models"][number][] {
-  const seen = new Set<string>()
-  const out: EngineCapabilities["models"][number][] = []
-  for (const entry of Object.values(BUILTIN_ENGINES)) {
-    if (!entry.capabilities) continue
-    for (const m of entry.capabilities.models) {
-      const key = `${m.vendor}:${m.id}:${m.effort ?? ""}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(m)
-    }
-  }
-  return out
 }

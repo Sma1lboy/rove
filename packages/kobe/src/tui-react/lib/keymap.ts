@@ -1,66 +1,67 @@
 /**
- * React key-bindings layer (issue #15, G2) — the `src/tui/lib/keymap.tsx`
- * counterpart for React panes. The dispatcher core (LIFO stack walk, chord
- * matching, preventDefault-on-first-hit) is the shared framework-free
+ * React key-bindings layer. The dispatcher core (LIFO stack walk, chord matching,
+ * preventDefault-on-first-hit) is the shared framework-free
  * `src/tui/lib/keymap-dispatch.ts`; this file owns only registration.
  *
- * Contract parity with the Solid hook:
- *   - `config` is re-evaluated on EVERY keypress. The Solid version relies
- *     on closures over signals staying live; React closures go stale across
- *     renders, so the registered entry reads the LATEST config through a
- *     ref that every render refreshes.
+ * Contract:
+ *   - `config` is re-evaluated on EVERY keypress. React closures go stale
+ *     across renders, so the registered entry reads the LATEST config
+ *     through a ref that every render refreshes.
  *   - Bindings stack LIFO; only the topmost enabled match fires.
  *
- * Known ordering difference (documented, accepted for the migration): Solid
- * registers during component SETUP (parents before children → children end
- * up on top); React registers in mount EFFECTS (children before parents →
- * ancestors end up on top). Consequence: a parent and child sharing a chord
- * must resolve by GATING, not stack order — the parent's entry disables
- * itself when the child should win. Case today: TerminalTabs' ctrl+w/F2
- * (gate off while the active tab is split so TerminalSplit's leaf-level
- * close/rename fire). Modal barrier vs dialog body is NOT resolved by
- * order anymore — it's declared via `ModalScopeContext` + `modalOwner`
+ * Registration happens in mount EFFECTS, which run children before parents,
+ * so ANCESTORS end up on top of the stack. Consequence: a parent and child
+ * sharing a chord must resolve by GATING, not stack order — the parent's
+ * entry disables itself when the child should win. Live case: TerminalTabs'
+ * ctrl+w/F2 gate off while the active tab is split, so TerminalSplit's
+ * leaf-level close/rename fire. Modal barrier vs dialog body is not resolved
+ * by order at all — it is declared via `ModalScopeContext` + `modalOwner`
  * below and settled by `insertRegistration`.
  */
 
 import type { KeyEvent, KeyHandler } from "@opentui/core"
 import { flushSync, useRenderer } from "@opentui/react"
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from "react"
+import { type CtrlHoldDetector, createCtrlHoldDetector } from "../../tui/lib/ctrl-hold"
 import {
   type Binding,
   type BindingsConfig,
   type RegisteredBinding,
   armPrefixNow,
+  currentPrefixConfiguration,
   dispatchKeyEvent,
   insertRegistration,
   invokeArmedPrefixAction,
   resetPrefixState,
 } from "../../tui/lib/keymap-dispatch"
 import { type BindingReachability, bindingReachability } from "../../tui/lib/keymap-reachability"
+import { prefixHudHideDirect, prefixHudShowDirect } from "../../tui/lib/prefix-hud"
+import { directGuideOptions } from "../../tui/lib/shortcut-reveal"
 import { useLatest } from "../lib/use-latest"
 
-export type { Binding, BindingsConfig, RegisteredBinding } from "../../tui/lib/keymap-dispatch"
-export { dispatchKeyEvent } from "../../tui/lib/keymap-dispatch"
+export type { Binding, BindingsConfig } from "../../tui/lib/keymap-dispatch"
 
 /**
  * Modal-scope context: a provider (the dialog overlay) sets a scope token;
  * every `useBindings` mounted inside is stamped as a MEMBER of that scope,
  * and the barrier declares OWNERSHIP via `useBindings`'s `modalOwner`
  * option. `insertRegistration` (keymap-dispatch.ts) then places the barrier
- * below its members no matter which effect committed first — the explicit
- * replacement for the old "sibling order is load-bearing" contract.
+ * below its members no matter which effect committed first, so sibling
+ * registration order is never load-bearing.
  */
 export const ModalScopeContext = createContext<symbol | null>(null)
 
 let nextId = 1
 const stack: RegisteredBinding[] = []
-// Same renderer-swap guard as the Solid layer: production runs one renderer
-// per process (no-op from the second call), but a test harness that creates
+// Renderer-swap guard: production runs one renderer per process (no-op from
+// the second call), but a test harness that creates
 // a fresh renderer per test in the same process must rebind the listener to
 // the new renderer's keyInput emitter.
 let installedRenderer: unknown = null
 let installed: KeyHandler | null = null
 let listener: ((evt: KeyEvent) => void) | null = null
+let releaseListener: ((evt: KeyEvent) => void) | null = null
+let ctrlHoldDetector: CtrlHoldDetector | null = null
 /** Renderers this process has already moved past. A superseded renderer's
  *  tree can keep re-rendering after teardown (pending timers — the test
  *  harness destroys the renderer without unmounting React), and its
@@ -75,18 +76,29 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
   if (installedRenderer === renderer) return
   if (supersededRenderers.has(renderer as object)) return
   if (installed && listener) installed.off("keypress", listener)
+  if (installed && releaseListener) installed.off("keyrelease", releaseListener)
+  ctrlHoldDetector?.cancel()
   if (installedRenderer) supersededRenderers.add(installedRenderer as object)
-  // New renderer → fresh stack. The old renderer's tree may be torn down
-  // without React cleanups (test harness destroy, hard renderer swap) —
+  // New renderer → fresh stack. The superseded renderer's tree may be torn
+  // down without React cleanups (test harness destroy, hard renderer swap) —
   // its entries would linger in the module-global stack forever. Harmless
   // once, but a lingering MODAL barrier (dialog open at teardown) would
-  // block every key of the next renderer. Late cleanups from the old tree
+  // block every key of the next renderer. Late cleanups from that tree
   // splice by id and no-op safely against the cleared array.
   stack.length = 0
   resetPrefixState()
   installedRenderer = renderer
   installed = renderer.keyInput
+  ctrlHoldDetector = createCtrlHoldDetector({
+    onReveal: () => {
+      resetPrefixState()
+      const options = directGuideOptions(bindingReachability(stack), currentPrefixConfiguration().key)
+      if (options.length > 0) prefixHudShowDirect(options)
+    },
+    onHide: prefixHudHideDirect,
+  })
   listener = (evt: KeyEvent) => {
+    ctrlHoldDetector?.keypress(evt)
     dispatchKeyEvent(stack, evt, Date.now(), {
       // OpenTUI's renderer renders synchronously on input. React state updates
       // scheduled from a non-React event listener (the keyInput emitter) are
@@ -97,7 +109,9 @@ function ensureInstalled(renderer: ReturnType<typeof useRenderer>): void {
       flushSync,
     })
   }
+  releaseListener = (evt: KeyEvent) => ctrlHoldDetector?.keyrelease(evt)
   installed.on("keypress", listener)
+  installed.on("keyrelease", releaseListener)
 }
 
 /**
@@ -128,19 +142,33 @@ export function invokeArmedPrefixActionFromCurrentStack(actionId: string, stroke
   return invokeArmedPrefixAction(stack, actionId, stroke)
 }
 
-// Registration-change signal. Registrations land in mount EFFECTS (after the
-// tree rendered), so anything that derives render output from the stack —
-// the status-bar key hint reads `currentBindingReachability()` — would
-// otherwise compute against an empty/stale stack on its first pass and never
-// find out. Bumped on every insert/remove; consumers subscribe below.
+// Reachability-change signal. Registrations land in mount EFFECTS (after the
+// tree rendered), and enabled gates can change with focus/page state, so
+// anything deriving render output from the stack must subscribe below. Each
+// bump also closes an in-flight direct guide before it can show stale commands.
 let stackVersion = 0
 const stackListeners = new Set<() => void>()
 function bumpStackVersion(): void {
+  prefixHudHideDirect()
   stackVersion++
   for (const listener of stackListeners) listener()
 }
 
-/** Re-render the caller whenever bindings register or unregister. */
+function bindingReachabilitySignature(config: BindingsConfig): string {
+  const bindings = config.bindings
+    .map((binding) =>
+      [
+        binding.id ?? "",
+        binding.key,
+        binding.prefix === true ? "p" : "d",
+        binding.passthrough === true ? "i" : "u",
+      ].join(":"),
+    )
+    .join("|")
+  return `${config.enabled === false ? "off" : "on"};${config.modal === true ? "modal" : "plain"};${bindings}`
+}
+
+/** Re-render when registrations or their current reachability change. */
 export function useBindingStackVersion(): number {
   return useSyncExternalStore(
     (onChange) => {
@@ -168,9 +196,26 @@ export function useBindings(config: () => BindingsConfig, opts?: { modalOwner?: 
 
   const configRef = useLatest(config)
   const scope = useContext(ModalScopeContext)
+  const reachabilitySignature = bindingReachabilitySignature(config())
+  const previousReachabilitySignature = useRef(reachabilitySignature)
+
+  useEffect(() => {
+    if (previousReachabilitySignature.current === reachabilitySignature) return
+    previousReachabilitySignature.current = reachabilitySignature
+    bumpStackVersion()
+  }, [reachabilitySignature])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once registration; scope/owner tokens are stable for the component's lifetime.
   useEffect(() => {
+    // Same guard `ensureInstalled` applies to the listener, applied to
+    // registration. A superseded renderer's tree keeps rendering after
+    // teardown, so a component it mounts LATE (a dialog opened by a pending
+    // timer) would insert into the live renderer's stack — past the
+    // `stack.length = 0` that was supposed to drop it. One stale `modalOwner`
+    // landing that way makes `modalActive()` true forever and silences every
+    // raw keyInput listener gated on it (the terminal pane's paste
+    // forwarder). No-op in production: one renderer, never superseded.
+    if (supersededRenderers.has(renderer as object)) return
     // Opening a Dialog Stack scope invalidates an in-flight prefix from the
     // surface behind it before any async/mouse transition can leak it back.
     if (opts?.modalOwner !== undefined) resetPrefixState()

@@ -122,8 +122,8 @@ describe("OSC 8 hyperlinks", () => {
   const URL = "https://example.com/s/quill-landing"
 
   // @xterm/headless underlines linked cells, so the production cell→chunk path
-  // reports ATTR.UNDERLINE for a link. This fallback parser used to DROP the
-  // OSC entirely, which made the mock pane render links unlike the real pane.
+  // reports ATTR.UNDERLINE for a link. A fallback parser that DROPS the
+  // OSC entirely makes the mock pane render links unlike the real pane.
   test("underlines the linked run and stops at the close (BEL-terminated)", () => {
     const { chunks } = parseAnsiLine(`pre \x1b]8;;${URL}\x07${URL}\x1b]8;;\x07 (round 2)`)
     expect(chunks.map((c) => c.text)).toEqual(["pre ", URL, " (round 2)"])

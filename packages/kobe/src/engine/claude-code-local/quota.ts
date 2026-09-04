@@ -20,6 +20,7 @@ import { homedir, userInfo } from "node:os"
 import path from "node:path"
 import { spawnCapture } from "../../lib/poll-scheduling.ts"
 import type { EngineQuotaUsage, EngineQuotaWindow } from "../../types/engine.ts"
+import { vendorConfigHome } from "../vendor-home.ts"
 
 const OAUTH_USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 const OAUTH_BETA_HEADER = "oauth-2025-04-20"
@@ -138,9 +139,9 @@ async function readKeychainCredentials(): Promise<OAuthCredentials | null> {
     // `-a` is load-bearing, not decoration: a machine can carry SEVERAL
     // items under this one service name (a stale `acct=unknown` row from an
     // older CLI alongside today's login). Querying by service alone returns
-    // whichever `security` scans first — for the owner that was a token
-    // expired two weeks earlier, so the usage dashboard stayed empty through
-    // repeated re-logins. The CLI itself always pairs `-a $USER` with `-s`
+    // whichever `security` scans first, which can be a long-expired token —
+    // the usage dashboard then stays empty through repeated re-logins. The
+    // CLI itself always pairs `-a $USER` with `-s`
     // (refs/claude-code `macOsKeychainStorage.ts`); mirror it exactly.
     const result = await spawnCapture(
       "security",
@@ -167,7 +168,7 @@ async function readAccessToken(): Promise<string | null> {
     const fromFile = await readFileCredentials(configDir)
     return fromFile && isFresh(fromFile) ? fromFile.accessToken : null
   }
-  const candidates = [await readKeychainCredentials(), await readFileCredentials(path.join(homedir(), ".claude"))]
+  const candidates = [await readKeychainCredentials(), await readFileCredentials(vendorConfigHome("claude"))]
   return candidates.find((c): c is OAuthCredentials => c != null && isFresh(c))?.accessToken ?? null
 }
 

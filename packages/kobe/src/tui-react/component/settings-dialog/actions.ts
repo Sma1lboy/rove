@@ -1,7 +1,6 @@
 /**
- * Dev-section actions (React, issue #15 G3) — same flows as the Solid
- * `src/tui/component/settings-dialog/actions.ts`, sharing the framework-free
- * pieces (`actions-core.ts`); only the confirm-dialog wiring is React's.
+ * Dev-section actions. The flows themselves are framework-free
+ * (`actions-core.ts`); only the confirm-dialog wiring lives here.
  */
 
 import type { KobeOrchestrator } from "../../../client/remote-orchestrator"

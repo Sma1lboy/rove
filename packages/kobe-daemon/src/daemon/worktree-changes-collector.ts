@@ -1,5 +1,5 @@
 /**
- * Daemon-side worktree-changes collector (issue #6).
+ * Daemon-side worktree-changes collector.
  *
  * Before this, EVERY pane process polled `git status` itself for the
  * sidebar's per-row `+N −M` chips (`tui/panes/sidebar/worktree-changes-poller.ts`
@@ -45,42 +45,17 @@ import { spawn } from "node:child_process"
 import type { DaemonTask as Task, WorktreeChanges } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { type PollCadenceConfig, type PollScheduleState, maybeStartScheduledRun } from "./poll-scheduling.ts"
 import type { WorktreeChangesPayload } from "./protocol.ts"
-import type { DaemonRuntimeAdapter, PollCadenceConfig, PollScheduleState } from "./runtime.ts"
+import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 function isRemoteRepoKey(value: string): boolean {
   return value.startsWith("ssh://")
 }
 
 function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted
-}
-
-function maybeStartScheduledRun<T>(
-  state: PollScheduleState,
-  cfg: PollCadenceConfig,
-  run: (signal: AbortSignal) => Promise<T>,
-  onValue: (value: T) => void,
-): boolean {
-  const startedAt = Date.now()
-  if (state.inFlight || startedAt < state.nextAllowedAt) return false
-  state.inFlight = true
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), cfg.timeoutMs)
-  void run(controller.signal)
-    .then((value) => {
-      if (!controller.signal.aborted) onValue(value)
-    })
-    .catch(() => {})
-    .finally(() => {
-      clearTimeout(timer)
-      const finishedAt = Date.now()
-      state.nextAllowedAt = controller.signal.aborted
-        ? startedAt + cfg.slowRetryMs
-        : finishedAt + Math.max(cfg.minIntervalMs, (finishedAt - startedAt) * 5)
-      state.inFlight = false
-    })
-  return true
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
 }
 
 /** Tick cadence — matches the sidebar's ~2s `branchTick` the pane pollers rode. */
@@ -101,19 +76,26 @@ export interface TaskLister {
  * Injectable status runner (tests swap the real `git status` out). Throw /
  * reject to keep the entry's last value.
  */
-export type WorktreeStatusRunner = (worktreePath: string, signal: AbortSignal) => Promise<WorktreeChanges>
+export type WorktreeStatusRunner = (
+  worktreePath: string,
+  signal: AbortSignal,
+  /** The owning task's RECORDED base ref (`add --base-branch`), when it has
+   *  one. The runner falls back to its own resolution when this is absent or
+   *  no longer resolves — an honest guess beats a stale certainty. */
+  baseRef?: string,
+) => Promise<WorktreeChanges>
 
-/** The real runner: async `git status --porcelain=v1`, lock-free read. */
-export async function runGitStatus(worktreePath: string, signal: AbortSignal): Promise<WorktreeChanges> {
-  const output = await new Promise<{ status: number | null; stdout: string }>((resolve) => {
+/** One lock-free `git` read in a worktree; null stdout on any non-zero exit. */
+function runGit(worktreePath: string, args: readonly string[], signal: AbortSignal): Promise<string | null> {
+  return new Promise((resolve) => {
     let stdout = ""
     let settled = false
     const finish = (status: number | null) => {
       if (settled) return
       settled = true
-      resolve({ status, stdout })
+      resolve(status === 0 ? stdout : null)
     }
-    const child = spawn("git", ["status", "--porcelain=v1"], {
+    const child = spawn("git", args.slice(), {
       cwd: worktreePath,
       stdio: ["ignore", "pipe", "ignore"],
       env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
@@ -126,10 +108,31 @@ export async function runGitStatus(worktreePath: string, signal: AbortSignal): P
     child.on("error", () => finish(null))
     child.on("close", finish)
   })
-  if (output.status !== 0) throw new Error("git status failed")
+}
+
+/**
+ * How far the worktree is BEHIND `baseRef`. `null` when the ref does not
+ * resolve or the count is unreadable — the chip then does not draw, which is
+ * the honest answer for a repo with no base rather than a fabricated zero.
+ *
+ * The daemon does NOT own the `origin/HEAD → origin/main → main → master`
+ * fallback ladder: that lives in kobe's `cli/api/branch-signals.ts`, and the
+ * PRODUCTION runner is kobe's `runtime.runWorktreeStatus`, which resolves it
+ * before calling in. This default runner (tests, and any daemon wired without
+ * a runtime) only measures against a base it was handed.
+ */
+async function countBehind(worktreePath: string, baseRef: string, signal: AbortSignal): Promise<number | null> {
+  const out = await runGit(worktreePath, ["rev-list", "--count", `HEAD..${baseRef}`], signal)
+  if (out === null) return null
+  const n = Number.parseInt(out.trim(), 10)
+  return Number.isInteger(n) && n >= 0 ? n : null
+}
+
+/** Aggregate `git status --porcelain=v1` output into `+N −M`. */
+export function countPorcelain(stdout: string): { added: number; deleted: number } {
   let added = 0
   let deleted = 0
-  for (const line of output.stdout.split("\n")) {
+  for (const line of stdout.split("\n")) {
     if (line.length < 3 || line.startsWith("##")) continue
     if (line[0] === "D" || line[1] === "D") deleted++
     else added++
@@ -137,19 +140,40 @@ export async function runGitStatus(worktreePath: string, signal: AbortSignal): P
   return { added, deleted }
 }
 
+/** The default runner: async `git status --porcelain=v1`, lock-free read,
+ *  plus the behind-count when a base ref was supplied. */
+export async function runGitStatus(
+  worktreePath: string,
+  signal: AbortSignal,
+  baseRef?: string,
+): Promise<WorktreeChanges> {
+  const stdout = await runGit(worktreePath, ["status", "--porcelain=v1"], signal)
+  if (stdout === null) throw new Error("git status failed")
+  const counts = countPorcelain(stdout)
+  if (!baseRef) return counts
+  const behind = await countBehind(worktreePath, baseRef, signal)
+  return behind === null ? counts : { ...counts, behind }
+}
+
 /**
  * The worktree paths the collector tracks: tasks with a
  * non-empty LOCAL worktree. Remote (`ssh://`) projects are excluded by
  * repo key — their worktrees live on another host. Pure — unit-tested.
- * Returns a Set, so tasks sharing a path (e.g. `main` rows whose
- * worktreePath is the repo root) collapse to one collection slot.
+ * Returns a Map of path → the owning task's recorded base ref, so tasks
+ * sharing a path (e.g. `main` rows whose worktreePath is the repo root)
+ * collapse to one collection slot.
  */
-export function trackedWorktreePaths(tasks: readonly Task[]): Set<string> {
-  const paths = new Set<string>()
+export function trackedWorktreePaths(tasks: readonly Task[]): Map<string, string | undefined> {
+  const paths = new Map<string, string | undefined>()
   for (const task of tasks) {
     if (!task.worktreePath) continue
     if (isRemoteRepoKey(task.repo) || isRemoteRepoKey(task.worktreePath)) continue
-    paths.add(task.worktreePath)
+    // Tasks sharing a path collapse to one slot, and the first one that
+    // RECORDS a base ref wins it: `get` returning undefined covers both
+    // "not seen yet" and "seen, but it had no base", so a `main` row (which
+    // records none) cannot erase a based task's answer whichever order they
+    // list in.
+    if (paths.get(task.worktreePath) === undefined) paths.set(task.worktreePath, task.baseRef)
   }
   return paths
 }
@@ -171,16 +195,15 @@ export interface WorktreeChangesCollectorOptions {
    * for nobody. The timer keeps ticking, so the FIRST tick after a pane
    * subscribes repopulates, and the bus's last-value replay hands that late
    * subscriber the current map. Omit (or return `true`) to collect every
-   * tick — the historical behavior, used by tests that drive `tick()`
-   * directly.
+   * tick — what tests that drive `tick()` directly use.
    */
   readonly hasSubscribers?: () => boolean
 }
 
 /**
  * Tick-driven collector. `tick()` is synchronous and never throws: it
- * prunes entries for worktrees no longer tracked (deleted/now-
- * remote tasks), starts guarded status runs for due worktrees, and
+ * prunes entries for worktrees the daemon stopped tracking (deleted/remote
+ * tasks), starts guarded status runs for due worktrees, and
  * publishes the full map when — and only when — membership or a value
  * changed. Run completions publish as they land (each is a real change
  * by construction). Exposed as a class so tests drive `tick()` directly
@@ -219,7 +242,7 @@ export class WorktreeChangesCollector {
         this.entries.delete(path)
       }
       if (pruned) this.publish()
-      for (const path of tracked) this.maybeCollect(path)
+      for (const [path, baseRef] of tracked) this.maybeCollect(path, baseRef)
     } catch (err) {
       logDaemonError("worktree-changes", err)
     }
@@ -230,7 +253,7 @@ export class WorktreeChangesCollector {
     this.stopped = true
   }
 
-  private maybeCollect(worktreePath: string): void {
+  private maybeCollect(worktreePath: string, baseRef?: string): void {
     let entry = this.entries.get(worktreePath)
     if (!entry) {
       entry = { inFlight: false, nextAllowedAt: 0 }
@@ -245,7 +268,7 @@ export class WorktreeChangesCollector {
     maybeStartScheduledRun(
       entry,
       cadence,
-      (signal) => run(worktreePath, signal),
+      (signal) => run(worktreePath, signal, baseRef),
       (value) => {
         if (this.stopped) return
         // The entry may have been pruned (task deleted) while the
@@ -289,13 +312,14 @@ export function startWorktreeChangesCollector(
   tickMs: number = DEFAULT_WORKTREE_CHANGES_TICK_MS,
   hasSubscribers?: () => boolean,
 ): () => void {
-  if (tickMs <= 0) return () => {}
   const collector = new WorktreeChangesCollector(orch, bus, { hasSubscribers, run: runtime.runWorktreeStatus })
-  collector.tick()
-  const timer = setInterval(() => collector.tick(), tickMs)
-  timer.unref?.()
-  return () => {
-    clearInterval(timer)
-    collector.stop()
-  }
+  // No `gate` here: the subscriber check lives inside `collector.tick()`,
+  // which also owns its own per-key in-flight state.
+  return startTicker({
+    name: "worktree-changes-collector",
+    tickMs,
+    immediate: true,
+    run: () => collector.tick(),
+    onStop: () => collector.stop(),
+  })
 }

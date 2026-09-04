@@ -19,6 +19,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import {
+  closeTabsSnapshot,
   hasLiveEngineTab,
   joinTaskTabs,
   markCliTabSession,
@@ -166,6 +167,30 @@ describe("readTabsSnapshot", () => {
   })
 })
 
+describe("closeTabsSnapshot", () => {
+  it("uses ctrl+w semantics, including closing the last tab", () => {
+    writeState({
+      "terminalTabs.t1": {
+        tabs: [{ kind: "command", id: "tab-4", title: "shell", ordinal: 4, command: ["/bin/zsh"] }],
+        activeId: "tab-4",
+        nextOrdinal: 5,
+      },
+      unrelated: "keep",
+    })
+    expect(closeTabsSnapshot("t1", "tab-4")).toMatchObject({ id: "tab-4", kind: "command" })
+    const state = readState()
+    expect((state["terminalTabs.t1"] as TabsState).tabs).toEqual([])
+    expect(state.unrelated).toBe("keep")
+  })
+
+  it("does not write when the tab is absent", () => {
+    const snapshot = { tabs: [], activeId: "tab-1", nextOrdinal: 2 }
+    writeState({ "terminalTabs.t1": snapshot })
+    expect(closeTabsSnapshot("t1", "tab-9")).toBeUndefined()
+    expect(readState()["terminalTabs.t1"]).toEqual(snapshot)
+  })
+})
+
 describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
   const snapshot = (tabs: unknown[]): TabsState =>
     ({ tabs, activeId: "tab-1", nextOrdinal: tabs.length + 1 }) as unknown as TabsState
@@ -248,7 +273,7 @@ describe("joinTaskTabs", () => {
   const vendorSnap = (tabs: unknown[]): TabsState =>
     ({ tabs, activeId: "tab-1", nextOrdinal: tabs.length + 1 }) as unknown as TabsState
 
-  it("a live foreground-walk verdict overrides the recorded liveVendor (issue #33)", () => {
+  it("a live foreground-walk verdict overrides the recorded liveVendor", () => {
     const snap = vendorSnap([
       { kind: "command", id: "tab-1", title: null, ordinal: 1 }, // shell, user typed claude
       { kind: "engine", id: "tab-2", title: null, ordinal: 2, liveVendor: "codex" }, // ctrl+C'd
@@ -279,7 +304,7 @@ describe("joinTaskTabs", () => {
   })
 
   it("a task with no snapshot still lists its live sessions as unregistered rows", () => {
-    // Before issue #20 this returned [] — an alive engine invisible to the
+    // Returning [] here would make an alive engine invisible to the
     // discovery read.
     expect(joinTaskTabs(undefined, "t1", [{ key: "t1::tab-1", alive: true }])).toEqual([
       {
@@ -297,9 +322,9 @@ describe("joinTaskTabs", () => {
     ])
   })
 
-  it("surfaces an alive session the snapshot does not list — the issue-#20 invisible engine", () => {
-    // The incident replay: snapshot holds only tab-2, yet the pty host has
-    // tab-1 + tab-2 alive. tab-1 ran for 1h44m with zero UI presence.
+  it("surfaces an alive session the snapshot does not list — the invisible engine", () => {
+    // The shape: snapshot holds only tab-2, yet the pty host has tab-1 +
+    // tab-2 alive, so tab-1 runs for hours with zero UI presence.
     const snap = {
       tabs: [{ kind: "engine", id: "tab-2", title: null, ordinal: 2 }],
       activeId: "tab-2",
@@ -344,7 +369,7 @@ describe("joinTaskTabs", () => {
     expect(rows[0]).toMatchObject({ alive: false, exit })
   })
 
-  it("keeps clean exits quiet: code 0 reports exit null (issue #9 no-noise rule)", () => {
+  it("keeps clean exits quiet: code 0 reports exit null — the no-noise rule", () => {
     const exit = { code: 0, signal: null, at: "2026-08-11T00:00:00.000Z" }
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit }])
     expect(rows[0]?.exit).toBeNull()

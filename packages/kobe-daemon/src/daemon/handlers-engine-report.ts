@@ -1,6 +1,6 @@
 /**
- * `engine.reportEvent` — the busiest RPC, split from `handlers.ts` (file-size
- * cap). A `kobe hook <verb>` (or `rove api engine-report`) process reports a
+ * `engine.reportEvent` — the busiest RPC, its own module for the file-size
+ * cap. A `kobe hook <verb>` (or `rove api engine-report`) process reports a
  * NORMALIZED engine activity event; this handler folds it into activity
  * state, the attention inbox, the recent-events feed, plugin event hooks,
  * turn telemetry, auto-status rules, and quota auto-resume.
@@ -29,10 +29,10 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     // `taskId` (legacy/direct) wins; otherwise resolve from `cwd`.
     const explicitId = optionalString(payload, "taskId")
     const cwd = optionalString(payload, "cwd")
-    // External-worktree sync (replaces the removed WorktreeCreate hook): a
-    // session starting in an unadopted worktree under a tracked repo's
-    // a managed worktree root is auto-adopted as a task, so the cwd then maps
-    // to it below. Gated to `session-start` to bound the work; the path
+    // External-worktree sync: a session starting in an unadopted worktree
+    // under a tracked repo's managed worktree root is auto-adopted as a
+    // task, so the cwd then maps to it below. Gated to `session-start` to
+    // bound the work; the path
     // check is git-free and `adoptWorktree` is idempotent + git-validated
     // (a bogus dir just throws → caught → dropped).
     if (!explicitId && cwd && kind === "session-start") {
@@ -68,10 +68,10 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
     if (isStateKind) {
       ctx.activity.report(taskId, kind, detail, tabId, session, vendor)
       // A tab id makes the episode tab-precise; without one it is still
-      // recorded at TASK level (owner call 2026-08-10) — an engine the
-      // user typed into a bare shell inherits no KOBE_TAB_ID, and
-      // dropping its events is why such a session could finish without
-      // ever appearing in the Inbox. `explicitId` still gates: a
+      // recorded at TASK level — an engine the user typed into a bare
+      // shell inherits no KOBE_TAB_ID, and dropping its events would let
+      // such a session finish without ever appearing in the Inbox.
+      // `explicitId` still gates: a
       // cwd-matched task is a guess, not an identity.
       if (explicitId) {
         await ctx.inbox
@@ -104,7 +104,7 @@ export const ENGINE_REPORT_HANDLER: DaemonRequestHandler = {
       ...(sessionId ? { sessionId } : {}),
     }
     if (kind !== "turn-complete") ctx.plugins?.handleEngineReport(pluginReport)
-    // Per-turn telemetry (issue #32): a finished turn is the moment its
+    // Per-turn telemetry: a finished turn is the moment its
     // records are complete on disk. Fire-and-forget — the transcript read
     // must not delay the hook RPC, and losing a record is a telemetry
     // gap, never an engine failure. The turn.complete plugin event rides

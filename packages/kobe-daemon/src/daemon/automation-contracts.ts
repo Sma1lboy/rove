@@ -2,9 +2,9 @@
  * Scheduled automations ("routines") — the schedule record, its run history,
  * and the patch shape edits take.
  *
- * Their own module along a seam that was already there: nothing else in the
- * daemon's contracts refers to these, and they are the one group with their
- * own store, runner, and RPC family.
+ * Their own module along a real seam: nothing else in the daemon's contracts
+ * refers to these, and they are the one group with their own store, runner,
+ * and RPC family.
  */
 
 import type { VendorId } from "./contracts.ts"
@@ -49,7 +49,7 @@ export interface Automation {
   readonly baseRef?: string
   /**
    * Re-deliver into ONE standing task instead of creating a fresh worktree
-   * per firing (issue #91). Off by default, and deliberately per-routine:
+   * per firing. Off by default, and deliberately per-routine:
    * an inspection routine wants yesterday's context, while a routine that
    * EDITS code wants a clean branch it can land — piling a week of runs onto
    * one branch makes it unlandable.
@@ -82,7 +82,7 @@ export interface Automation {
 export type AutomationRunStatus =
   | "dispatched"
   /**
-   * A standing session (issue #91) whose engine had died was respawned in the
+   * A standing session whose engine had died was respawned in the
    * same worktree. Distinct from `dispatched` because the files carried over
    * but the CONVERSATION did not — a run that answered without yesterday's
    * context in front of it should not read as one that had it.

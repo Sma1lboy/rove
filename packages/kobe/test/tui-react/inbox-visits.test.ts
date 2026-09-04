@@ -33,9 +33,9 @@ describe("inbox visit log", () => {
     expect(log).toEqual([visit("b", "tab-2", 3), visit("a", "tab-1", 1)])
   })
 
-  // Owner report 2026-08-10: entries are keyed by (task, TAB). A task-keyed
-  // log collapsed a whole session of chat-tab switching into one row, so the
-  // tabs you'd just left never appeared in RECENT.
+  // Entries are keyed by (task, TAB). A task-keyed log collapses a whole
+  // session of chat-tab switching into one row, so the tabs you just left
+  // never appear in RECENT.
   test("keeps a separate entry per tab of the same task", () => {
     const log = recordInboxVisit([visit("a", "tab-1", 1)], visit("a", "tab-2", 2))
     expect(log).toEqual([visit("a", "tab-2", 2), visit("a", "tab-1", 1)])

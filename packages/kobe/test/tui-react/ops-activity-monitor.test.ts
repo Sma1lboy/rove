@@ -1,12 +1,10 @@
 /**
  * The Ops pane's framework-free turn-status poll loop
- * (`tui/ops/activity-monitor.ts`), extracted from the Solid host so the
- * React port (issue #15, G3) runs the SAME loop body. Why these tests
- * matter: the loop was previously component-internal and untestable
- * (host.tsx pulls @opentui render assets); the extraction makes the
- * teardown-race swallow and the ChatTab done rule ("new completion id +
- * quiescent pane") directly checkable with fake IO and fake timers —
- * regressions here silently report "done" for a sibling window's turn.
+ * (`tui/ops/activity-monitor.ts`). Kept out of the component (host.tsx pulls
+ * @opentui render assets) so the teardown-race swallow and the ChatTab done
+ * rule ("new completion id + quiescent pane") are checkable with fake IO and
+ * fake timers — a regression here silently reports "done" for a sibling
+ * window's turn.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"

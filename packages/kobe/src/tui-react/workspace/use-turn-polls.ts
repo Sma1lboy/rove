@@ -1,22 +1,21 @@
 /**
- * Per-tab turn-state polling for the workspace terminal tabs — React port
- * of `tui/workspace/turn-polls.ts` (issue #16 React migration). Same
- * `startTurnStatusPoll` loop the Ops pane runs, with PTY IO in place of
- * tmux capture-pane; shared mode when the host passes the daemon's
- * transcript.activity slice, local fixed-cadence fallback otherwise.
+ * Per-tab turn-state polling for the workspace terminal tabs. The same
+ * `startTurnStatusPoll` loop the Ops pane runs, reading PTY output; shared
+ * mode when the host passes the daemon's transcript.activity slice, local
+ * fixed-cadence fallback otherwise.
  *
- * Unified process-identity model (owner 2026-07-07): every tab is a shell;
+ * Unified process-identity model: every tab is a shell;
  * an engine is just a process running in it. A tab gets a turn detector
  * attached whenever its foreground process IS an engine — kobe-launched
  * (an engine tab with a live engine leaf) OR user-typed (`claude` in a
  * plain shell, detected from the PTY's OSC window title via
  * `vendorFromTerminalTitle`), detaching again the moment the title stops
- * matching. `targetFor`/`soloKey` (identity resolution) are the shared
- * framework-free `turn-target.ts` — the Solid original and this hook use
- * the exact same rule. The same title stream feeds `liveTitles` — the tab
- * strip's dynamic "$process $ordinal" default names.
+ * matching. `targetFor`/`soloKey` (identity resolution) live in the shared
+ * framework-free `turn-target.ts`, so every surface resolves identity by one
+ * rule. The same title stream feeds `liveTitles` — the tab strip's dynamic
+ * "$process $ordinal" default names.
  *
- * Solid→React deltas: the reconcile pass is a STABLE callback reading its
+ * Freshness rules: the reconcile pass is a STABLE callback reading its
  * changing inputs through latest-render refs; a `useEffect` keyed on
  * `[taskId, worktree, vendor, state]` re-runs it whenever the tabs snapshot
  * changes, and the 2s lazy-attach tick + title-store pushes call it
@@ -27,8 +26,8 @@
  * mirroring `ops/host.tsx`'s `sharedMapRef` convention. The `turnPolls` Map
  * lives in a ref so it persists across renders without becoming React state
  * churn; the per-tab live-title tracking is the shared framework-free
- * `TitleSubscriptions` store (O18) — the same instance-compared reconcile
- * this hook used to hand-write, now shared with `TerminalSplit.tsx`.
+ * `TitleSubscriptions` store, whose instance-compared reconcile
+ * `TerminalSplit.tsx` uses too.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -171,7 +170,7 @@ export function useTurnPolls(deps: {
           // Marker-less engines (copilot/kimi-without-hooks) classify the
           // capture declaratively instead of publishing "unknown".
           ...(entry.screenManifest ? { screenManifest: entry.screenManifest } : {}),
-          // Shared mode (issue #24): the daemon's transcript.activity push
+          // Shared mode: the daemon's transcript.activity push
           // supplies completion reads + drives the adaptive capture
           // cadence; null (no daemon data) falls back to fixed-cadence
           // local polling — the Ops pane's exact contract.
@@ -199,7 +198,7 @@ export function useTurnPolls(deps: {
       attached.add(tabId)
     }
 
-    // Tabs whose process is no longer an engine (closed, degraded, or the
+    // Tabs whose process is not an engine any more (closed, degraded, or the
     // user-typed engine exited back to the prompt) stop polling.
     for (const [id, poll] of turnPolls) {
       if (attached.has(id)) continue
@@ -227,8 +226,7 @@ export function useTurnPolls(deps: {
   // identity — re-evaluate attach/detach the moment a user-typed engine
   // announces itself, not on the next slow tick. Deferred one microtask
   // (coalesced): a fresh subscription seeds its title SYNCHRONOUSLY inside
-  // the store's reconcile loop, which must never be re-entered — the old
-  // setState tick got this asynchrony for free from React.
+  // the store's reconcile loop, which must never be re-entered.
   useEffect(() => {
     let active = true
     let scheduled = false

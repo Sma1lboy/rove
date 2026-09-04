@@ -217,15 +217,14 @@ describe("mergeWorktreeSyncHook (external worktree sync)", () => {
 })
 
 /**
- * The retired PostToolUse(Bash) observer. Rove installed it into every user's
- * `~/.claude/settings.json` to archive the task pinned to a removed worktree;
- * archive was removed (issue #75) and the hook has done nothing since — while
- * still spawning a ~170ms `kobe hook` process on EVERY Bash call of every
- * session machine-wide. Nothing installs it now, so these tests cover the only
- * remaining direction: getting it back OUT of files that already have it,
- * without disturbing anything the user or another tool put there.
+ * The PostToolUse(Bash) watch observer, which a registered
+ * `~/.claude/settings.json` can still carry: it does nothing but spawn a
+ * ~170ms `kobe hook` process on EVERY Bash call of every session
+ * machine-wide. Nothing installs it, so these tests cover the only direction
+ * that matters: getting it back OUT of files that have it, without disturbing
+ * anything the user or another tool put there.
  */
-describe("removeWorktreeWatchHook (retired PostToolUse observer)", () => {
+describe("removeWorktreeWatchHook (PostToolUse observer)", () => {
   /** What a registered user's settings.json actually holds, verbatim. */
   const REGISTERED = {
     matcher: "Bash",

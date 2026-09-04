@@ -2,11 +2,11 @@
  * The General section's label column is a budget, not a constant.
  *
  * Its rows are `overflow="hidden"` + `wrapMode="none"`, so overspending is a
- * silent hard cut — no ellipsis says it happened. The column used to be a
- * flat 30 cells regardless of terminal width, which did the most damage
- * exactly where there was least room: `docs/TUI.md` promises phone SSH down
- * to 46 columns, and at 46 the row owns 26 cells, so the padding alone
- * overran it and took the label with it.
+ * silent hard cut — no ellipsis says it happened. A flat 30-cell column
+ * regardless of terminal width does the most damage exactly where there is
+ * least room: `docs/TUI.md` promises phone SSH down to 46 columns, and at 46
+ * the row owns 26 cells, so the padding alone overruns it and takes the label
+ * with it.
  */
 
 import { describe, expect, test } from "vitest"
@@ -22,8 +22,8 @@ describe("generalLabelLayout", () => {
   })
 
   test("46 columns (phone SSH, narrow padding): drops the hint, stops padding", () => {
-    // The regression. 46 − 2 − 14 − 2 − 2 = 26 cells for the whole row, so a
-    // 30-cell pad overran it by 4 before any hint text existed.
+    // 46 − 2 − 14 − 2 − 2 = 26 cells for the whole row, so a 30-cell pad
+    // overruns it by 4 before any hint text exists.
     expect(rowCells(46, 1)).toBe(26)
     const { labelColumn, showHint } = generalLabelLayout(46, 1)
     expect(showHint).toBe(false)
@@ -31,7 +31,7 @@ describe("generalLabelLayout", () => {
   })
 
   test("50 columns: the width where a 30-cell pad consumed the budget exactly", () => {
-    // rowCells === 30 here, so the old code left the hint structurally
+    // rowCells === 30 here, so a flat 30-cell pad leaves the hint structurally
     // unreachable — never clipped, never rendered.
     expect(rowCells(50, 1)).toBe(30)
     expect(generalLabelLayout(50, 1).showHint).toBe(false)

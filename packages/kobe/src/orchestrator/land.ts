@@ -16,18 +16,25 @@
  * subprocesses through the same {@link ExecHost} the worktree manager uses.
  */
 
-import fs from "node:fs"
 import path from "node:path"
 import type { ExecHost } from "../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task, TaskId } from "../types/task.ts"
-import { EmptyBranchDirtyWorktreeError, EmptyBranchError, LandConflictError, MainCheckoutDirtyError } from "./errors.ts"
+import {
+  EmptyBranchDirtyWorktreeError,
+  EmptyBranchError,
+  GitCommandFailedError,
+  LandConflictError,
+  MainCheckoutDirtyError,
+  MissingRefError,
+} from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import type { WorktreeResidue } from "./worktree/manager-remove.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
+import { canonicalize } from "./worktree/paths.ts"
 import type { SalvageRecord } from "./worktree/salvage.ts"
 
-export type LandStrategy = "merge" | "squash"
+type LandStrategy = "merge" | "squash"
 
 export interface LandTaskInput {
   readonly strategy?: LandStrategy
@@ -68,7 +75,7 @@ export interface LandDeps {
  * thrown. `reason` is not failure-only: it also accompanies `removed: true`
  * when the directory went but clearing the task's worktree path did not.
  */
-export interface LandWorktreeCleanup {
+interface LandWorktreeCleanup {
   /** Whether git's registration of the worktree is gone. TRUE even when the
    *  directory survived — see {@link residue}. */
   readonly removed: boolean
@@ -109,8 +116,23 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
   // so without an anchor those commits are reachable from nothing at all.
   // `deleteBranch` writes one and reports it here; on a `--no-ff` merge it
   // finds the merge commit already reaches the tip and writes nothing.
+  //
+  // Gate it on the worktree ACTUALLY being gone. git refuses to delete a
+  // branch a live worktree has checked out, and `deleteBranch` is best-effort
+  // (`allowFail`, exit code discarded) — so every path that keeps the worktree
+  // (`removeWorktree: false`, a dirty tree, the caller's own cwd) would
+  // otherwise run the delete, have git refuse it, and report success anyway,
+  // anchor and all.
+  // A task that never materialised a worktree has nothing holding the branch,
+  // so it deletes normally.
   let branchAnchor: SalvageRecord | null = null
-  if (opts.deleteBranch) {
+  let branchKept: { readonly reason: string } | undefined
+  const worktreeGone = !task.worktreePath.trim() || worktree?.removed === true
+  if (opts.deleteBranch && !worktreeGone) {
+    branchKept = {
+      reason: worktree?.reason ?? `worktree ${task.worktreePath} was kept, and still has the branch checked out`,
+    }
+  } else if (opts.deleteBranch) {
     await deps.worktrees.deleteBranch(task.repo, result.branch, {
       force: true,
       onAnchor: (record) => {
@@ -122,15 +144,7 @@ export async function landTaskWithCleanup(task: Task, opts: LandTaskOpts, deps: 
     ...result,
     ...(worktree ? { worktree } : {}),
     ...(branchAnchor ? { branchAnchor } : {}),
-  }
-}
-
-/** Best-effort realpath for containment/identity checks (`/var` vs `/private/var`). */
-function resolveReal(p: string): string {
-  try {
-    return fs.realpathSync.native(p)
-  } catch {
-    return path.resolve(p)
+    ...(branchKept ? { branchKept } : {}),
   }
 }
 
@@ -148,10 +162,15 @@ async function removeLandedWorktree(
 ): Promise<LandWorktreeCleanup> {
   const worktreePath = task.worktreePath.trim()
   if (!worktreePath) return { removed: false, reason: "task has no worktree on disk (never materialised)" }
-  const wt = resolveReal(worktreePath)
-  if (wt === resolveReal(task.repo)) return { removed: false, reason: "refusing to remove the base checkout" }
+  // Same canonicalizer that matched this worktree to its task (`canonPath` /
+  // `canonicalize`, plain `fs.realpathSync`) — the refusals below are string
+  // compares, so the guard must normalise exactly the way the assignment did.
+  // `realpathSync.native` agrees with it everywhere we run, and one
+  // implementation beats a second syscall.
+  const wt = canonicalize(worktreePath)
+  if (wt === canonicalize(task.repo)) return { removed: false, reason: "refusing to remove the base checkout" }
   if (callerCwd) {
-    const rel = path.relative(wt, resolveReal(callerCwd))
+    const rel = path.relative(wt, canonicalize(callerCwd))
     if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
       return {
         removed: false,
@@ -183,7 +202,7 @@ async function removeLandedWorktree(
   // A removal git half-completed (metadata deregistered, directory undeletable)
   // resolves rather than throws — the worktree IS deregistered, so the land's
   // cleanup is done and reporting `removed: false` would send the user to
-  // retry something git can no longer act on.
+  // retry something git cannot act on at all.
   let residue: WorktreeResidue | undefined
   try {
     await deps.worktrees.remove(worktreePath, {
@@ -197,7 +216,7 @@ async function removeLandedWorktree(
   // Past this point the directory IS gone, so the outcome is `removed: true`
   // whatever the store write does. Folding the two calls into one try/catch
   // would report `removed: false` when only the bookkeeping failed — telling
-  // the user to go look for a worktree that no longer exists. The failure is
+  // the user to go look for a worktree that is already gone. The failure is
   // still reported, in `reason`, because a dangling `worktreePath` is real.
   try {
     await deps.clearWorktreePath(task.id)
@@ -234,6 +253,15 @@ export interface LandResult {
    * without knowing `refs/rove/salvage` exists.
    */
   readonly branchAnchor?: { readonly ref: string; readonly commit: string }
+  /**
+   * Set when `deleteBranch` was asked for and the branch was NOT deleted,
+   * because its worktree is still on disk with the branch checked out — git
+   * would refuse the delete, so Rove does not pretend it happened. `reason` is
+   * the worktree cleanup's own refusal (dirty tree, base checkout, caller's own
+   * cwd) or the explicit `removeWorktree: false`. Re-run the land's cleanup
+   * (or remove the worktree by hand) and the branch deletes.
+   */
+  readonly branchKept?: { readonly reason: string }
 }
 
 /** Resolve the git working dir + ExecHost for the base repo — local path or remote basePath. */
@@ -247,13 +275,17 @@ async function git(
   dir: string,
   args: readonly string[],
   opts?: { readonly readOnly?: boolean },
-): Promise<{ stdout: string; exitCode: number }> {
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   // Read-only probes (status/diff/rev-parse/rev-list) run lock-free per
   // READ_ONLY_GIT_ENV — land inspects worktrees an engine may be
   // committing in right now. Writes (merge/abort/reset/commit) never set
   // readOnly: they genuinely need `.git/index.lock`.
+  //
+  // `stderr` is carried, not dropped: when a write fails, git's own message is
+  // the only thing that says WHY (a hook, a signing key, an unset user.email),
+  // and guessing at it is what produced this file's two worst error reports.
   const r = await exec.run(["git", ...args], { cwd: dir, env: opts?.readOnly ? READ_ONLY_GIT_ENV : undefined })
-  return { stdout: r.stdout, exitCode: r.exitCode }
+  return { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode }
 }
 
 /** `git status --porcelain` non-empty in `dir` (untracked counts). */
@@ -287,6 +319,13 @@ function porcelainPaths(stdout: string): string[] {
  *   - worktree clean/gone → genuine no-op ({@link EmptyBranchError}).
  * An unreadable worktree (already removed, remote path mismatch) falls through
  * to the clean case — ambiguity must not hide the no-op signal.
+ *
+ * The count itself has a THIRD outcome that is neither: `git rev-list` exiting
+ * non-zero, which means git could not resolve `<base>..<branch>` at all (the
+ * branch was renamed or deleted outside Rove). That is a broken task record —
+ * {@link MissingRefError} — and must not fall through to the merge, which would
+ * fail with "not something we can merge" and get reported as a phantom
+ * LAND_CONFLICT carrying an empty conflicted-file list.
  */
 async function assertBranchHasWork(
   task: Task,
@@ -297,6 +336,13 @@ async function assertBranchHasWork(
   deps: WorktreeExecDeps,
 ): Promise<void> {
   const aheadOut = await git(exec, dir, ["rev-list", "--count", `${landedOn}..${branch}`], { readOnly: true })
+  // Exit code first, and it is NOT the same question as an unparseable count:
+  // non-zero means git never counted (the ref does not resolve) → refuse the
+  // land; exit 0 with output we cannot parse means git counted and we failed to
+  // read it, where assuming "has work" and letting the merge speak is the safe
+  // fallback. Collapsing the two is what made a renamed branch look like a
+  // merge conflict.
+  if (aheadOut.exitCode !== 0) throw new MissingRefError(branch, landedOn, dir)
   const ahead = Number.parseInt(aheadOut.stdout.trim(), 10)
   if (!Number.isFinite(ahead) || ahead > 0) return
   const worktreePath = task.worktreePath.trim()
@@ -326,6 +372,9 @@ async function assertBranchHasWork(
  *   - the task has a branch to land (a never-materialised task has none);
  *   - the base checkout is clean — a merge into a dirty tree would entangle the
  *     user's in-progress work with the landed branch, so we refuse;
+ *   - the branch RESOLVES in the base repo — a branch renamed or deleted
+ *     outside Rove is a stale task record, refused as {@link MissingRefError}
+ *     rather than handed to a merge that fails for an unrelated reason;
  *   - the branch has at least one commit ahead of the base — a zero-commit
  *     branch is a no-op land ("worker reported success, delivered nothing"),
  *     refused as {@link EmptyBranchError}, or as
@@ -374,10 +423,27 @@ export async function landTask(
     }
     const commit = await git(exec, dir, ["commit", "--no-edit", "-m", `Land ${branch} (squash)`])
     if (commit.exitCode !== 0) {
-      // Nothing to commit = the branch was already fully in base. Reset the
-      // squash's staged index so the base checkout is untouched, and report it.
-      await git(exec, dir, ["reset", "--hard", "HEAD"]).catch(() => {})
-      throw new Error(`landTask: '${branch}' has nothing to land onto '${landedOn}' (already merged or empty)`)
+      // "Nothing to commit" is only ONE reason `git commit` exits non-zero,
+      // and after `assertBranchHasWork` proved the branch is ahead and the
+      // squash staged cleanly it is nearly never the reason — a hook, a
+      // broken signing key or an unset user.email is. Ask git which it was
+      // instead of assuming: `diff --cached --quiet` exits 0 only when
+      // genuinely nothing is staged.
+      const staged = await git(exec, dir, ["diff", "--cached", "--quiet"], { readOnly: true })
+      if (staged.exitCode === 0) {
+        // Genuinely empty. Reset the squash's staged index so the base
+        // checkout is untouched, and report it as before.
+        await git(exec, dir, ["reset", "--hard", "HEAD"]).catch(() => {})
+        throw new Error(`landTask: '${branch}' has nothing to land onto '${landedOn}' (already merged or empty)`)
+      }
+      // The squash IS staged and git refused to commit it. NO reset — that
+      // would throw away a merge that succeeded, over a problem the user can
+      // fix in one command.
+      throw new GitCommandFailedError(
+        `commit (squash-landing '${branch}' onto '${landedOn}')`,
+        commit.stderr,
+        "the squashed merge is left STAGED in the base checkout — fix the cause and `git commit` it, or `git reset --hard HEAD` to discard",
+      )
     }
   } else {
     const before = (await git(exec, dir, ["rev-parse", "HEAD"], { readOnly: true })).stdout.trim()
@@ -385,6 +451,19 @@ export async function landTask(
     if (merge.exitCode !== 0) {
       const files = await conflictedFiles(exec, dir)
       await git(exec, dir, ["merge", "--abort"]).catch(() => {})
+      // An EMPTY conflicted list with a failed merge is NOT a conflict — the
+      // trees merged and git refused at commit time (hook, signing key,
+      // unset user.email). That is exactly the phantom-LAND_CONFLICT shape
+      // `assertBranchHasWork`'s docstring exists to prevent; it just arrives
+      // through the commit door instead of the ref door. The abort above
+      // still ran, so the base checkout is clean either way.
+      if (files.length === 0) {
+        throw new GitCommandFailedError(
+          `merge --no-ff (landing '${branch}' onto '${landedOn}')`,
+          merge.stderr,
+          "the merge was aborted, so the base checkout is unchanged",
+        )
+      }
       throw new LandConflictError(task.id, branch, files)
     }
     // `git merge --no-ff` on an already-merged/empty branch exits 0 with

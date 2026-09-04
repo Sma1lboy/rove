@@ -1,15 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React `kobe ops --preview <rel>` — the `src/tui/ops/preview.tsx`
- * counterpart (issue #15, G3). React is the default runtime since
- * 2026-07-07 (`uiFramework()` in `src/env.ts`); `KOBE_SOLID=1` is the
- * legacy escape hatch. Data + syntax-style
- * mapping are the shared `tui/ops/preview-core.ts` / `preview-syntax.ts`.
- * The Solid host's single `createResource` follows THE ASYNC CANON
- * (`src/tui-react/history/host.tsx`): `useState` + a dependency-keyed
+ * `kobe ops --preview <rel>`. Data + syntax-style mapping are the shared
+ * `tui/ops/preview-core.ts` / `preview-syntax.ts`. Loading follows THE ASYNC
+ * CANON (`src/tui-react/history/host.tsx`): `useState` + a dependency-keyed
  * `useEffect` whose stale completions are dropped by an effect-local
- * `disposed` flag. The read is one-shot (the preview window is immutable
- * for its lifetime), so there's no refresh tick.
+ * `disposed` flag. `r` bumps a reload tick: the standalone `rove ops
+ * --preview` window really is immutable for its lifetime, but the workspace
+ * diff tab is meant to stay open while the engine works (docs/TUI.md), so its
+ * hunks go stale under you with no way to ask for the current ones.
  */
 
 import type { DiffRenderable } from "@opentui/core"
@@ -23,7 +21,6 @@ import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { worktreeFilePath } from "../../worktree/content"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
-import { bootPaneHost } from "../lib/host-boot"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
 import { useDiffReview } from "./preview-review"
 
@@ -55,7 +52,9 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   const filetype = filetypeOf(props.relPath)
 
   const [data, setData] = useState<PreviewData | null>(null)
+  const [reloadTick, setReloadTick] = useState(0)
   const base = props.base
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
     void loadPreviewData(props.worktree, props.relPath, base ? { base } : undefined)
@@ -63,13 +62,13 @@ export function PreviewScreen(props: OpsPreviewArgs) {
         if (!disposed) setData(d)
       })
       .catch(() => {
-        // Same boundary as the Solid resource: a failed read (worktree torn
+        // Failure boundary: a failed read (worktree torn
         // down mid-open) leaves the loading placeholder rather than crashing.
       })
     return () => {
       disposed = true
     }
-  }, [props.worktree, props.relPath, base])
+  }, [props.worktree, props.relPath, base, reloadTick])
 
   // System-open (`o`) only makes sense for a LOCAL worktree — the file the
   // OS viewer would open doesn't exist on this machine for a remote one.
@@ -93,6 +92,9 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     // never shadows anything else the rest of the time.
     bindings: [
       ...pageCloseBindings(onClose),
+      // `r` matches the Files pane next door, which has refreshed its tree
+      // with the same key since it landed.
+      { key: "r", cmd: () => setReloadTick((tick) => tick + 1) },
       ...(canSystemOpen
         ? [
             {
@@ -158,13 +160,4 @@ export function PreviewScreen(props: OpsPreviewArgs) {
       {review.footer}
     </box>
   )
-}
-
-export async function startOpsPreview(args: OpsPreviewArgs): Promise<void> {
-  // Same minimal provider set as the Ops pane host (and same
-  // no-log-context delta as the Solid preview entrypoint — preserved).
-  await bootPaneHost({
-    providers: { kv: false, focus: false },
-    setup: () => ({ root: () => <PreviewScreen {...args} /> }),
-  })
 }

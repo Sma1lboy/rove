@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest"
 import { STALL_HEARTBEAT_MS, STALL_THRESHOLD_MS, stallReport } from "../../src/tui/lib/event-loop-stall"
 
 // Why this matters: the stall report is the incident-forensics primitive for
-// "the TUI froze" reports (2026-07-07/08 — we could never tell OS paging
-// apart from an in-process block after the fact). The threshold branch and
+// "the TUI froze" reports — without it nothing tells OS paging
+// apart from an in-process block after the fact. The threshold branch and
 // the MB math are the whole contract; if either drifts, the log line lies.
 describe("stallReport", () => {
   const mem = { rss: 300 * 1048576, heapUsed: 120 * 1048576 }

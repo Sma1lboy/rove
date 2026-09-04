@@ -16,7 +16,7 @@ import {
 // vi.mock replaces EVERY export; a new invocation.ts function must be stubbed
 // here too or default-arg calls become undefined()).
 vi.mock("../../src/cli/invocation.ts", () => ({
-  kobeCliInvocation: () => ["kobe"],
+  roveCliInvocation: () => ["kobe"],
   kobeHookInvocation: () => ["kobe"],
 }))
 

@@ -16,18 +16,22 @@
  *   3. Search-mode chords (registry ids).
  *   4. Menu-mode chords + menu escape.
  *
- * Registration order mirrors the old code (main → move → search → menu), so
- * the LIFO stack priority stays identical: menu > search > move > main.
+ * Registration order is main → move → search → menu, which gives the LIFO
+ * stack the priority menu > search > move > main.
  */
 
 import type { createSidebarController } from "../../../tui/panes/sidebar/controller"
 import { RECENT_ROW_ID, parseRowId } from "../../../tui/panes/sidebar/tree-core"
 import { bindByIds } from "../../context/keybindings"
 import { useBindings } from "../../lib/keymap"
+import type { SidebarTaskCallbacks } from "./types"
 import type { TreeMenu } from "./use-tree-menu"
 import type { TreeSearch } from "./use-tree-search"
 
-export interface TreeBindingsOpts {
+export interface TreeBindingsOpts
+  extends Readonly<
+    Pick<SidebarTaskCallbacks, "onDeleteRequest" | "onRenameRequest" | "onPinRequest" | "onLocalMergeRequest">
+  > {
   readonly focused: boolean
   readonly search: TreeSearch
   readonly menu: Pick<TreeMenu, "open" | "moveCursor" | "pickCurrent" | "close">
@@ -37,11 +41,18 @@ export interface TreeBindingsOpts {
   readonly flatIdsRef: React.MutableRefObject<readonly string[]>
   readonly cursorRef: React.MutableRefObject<number>
   readonly moveCursorRow: (delta: -1 | 1) => void
-  readonly onDeleteRequest?: (id: string) => void
-  readonly onRenameRequest?: (id: string) => void
-  readonly onPinRequest?: (id: string) => void
-  readonly onLocalMergeRequest?: (id: string) => void
   readonly markKeysUsed: () => void
+}
+
+/**
+ * The task a cursor row names, or null when the row is not a task (the
+ * "↩ recent" jump row, an empty tree). Shared by the tree's own row verbs
+ * and the host's sidebar-scope chords (`b`/`v`/`o`) so both resolve the
+ * same target.
+ */
+export function cursorTaskIdOf(rowId: string | undefined): string | null {
+  if (rowId === undefined || rowId === RECENT_ROW_ID) return null
+  return parseRowId(rowId).taskId
 }
 
 export function useTreeBindings(opts: TreeBindingsOpts): void {
@@ -63,10 +74,8 @@ export function useTreeBindings(opts: TreeBindingsOpts): void {
   } = opts
 
   function withCursorTask(fn?: (taskId: string) => void): void {
-    const rowId = flatIdsRef.current[cursorRef.current]
-    if (rowId === undefined || !fn) return
-    if (rowId === RECENT_ROW_ID) return
-    fn(parseRowId(rowId).taskId)
+    const taskId = cursorTaskIdOf(flatIdsRef.current[cursorRef.current])
+    if (taskId !== null && fn) fn(taskId)
   }
 
   // 1. Main navigation & per-row verbs — only when no transient mode has the

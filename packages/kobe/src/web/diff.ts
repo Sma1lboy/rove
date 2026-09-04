@@ -60,14 +60,14 @@ async function runGit(cwd: string, args: string[]): Promise<SpawnResult> {
   return { ok: code === 0, stdout: res.stdout, stderr: res.stderr, code }
 }
 
-export interface DiffFile {
+interface DiffFile {
   path: string
   status: string
   staged: boolean
   patch: string
 }
 
-export interface DiffResult {
+interface DiffResult {
   files: DiffFile[]
   raw: string
 }

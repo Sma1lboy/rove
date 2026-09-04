@@ -16,7 +16,7 @@
 import type { VendorId } from "@/types/vendor"
 import type { PersistedSplit } from "./terminal-tab-split"
 
-export interface TabBase {
+interface TabBase {
   /** Stable id — registry key suffix. Never reused within a task. */
   readonly id: string
   /** User title; null = untitled (view shows the numbered default). */
@@ -56,7 +56,7 @@ export interface TabBase {
   /**
    * Frozen split layout for this tab (the "group"). Absent/null = unsplit
    * (the tab's own engine fills the whole body). Persisted WITH the tab so
-   * the layout survives restart (owner ask 2026-07-06): `leaf-1` is the
+   * the layout survives restart: `leaf-1` is the
    * tab's engine and resumes via the tab's sessionId exactly like an
    * unsplit tab; the other leaves are shells that respawn fresh. We freeze
    * the LAYOUT only — a shell the user ran `claude` inside comes back as a
@@ -100,7 +100,7 @@ export interface EngineTab extends TabBase {
   readonly sessionId?: string | null
   /**
    * True once this tab's PTY has actually spawned. Drives the restart
-   * story (issue #22): a persisted engine tab that already ran resumes
+   * story: a persisted engine tab that already ran resumes
    * its conversation (`--resume <sessionId>`) instead of opening a
    * blank session under the same id.
    */
@@ -148,9 +148,9 @@ export interface CommandTab extends TabBase {
 }
 
 /**
- * A read-only file view — the FileTree `d` action (issue #21): the preview
- * `<diff>`/`<code>` renderable, hosted as a tab instead of the removed
- * `kobe ops --preview` window. No PTY: it renders from a one-shot git read
+ * A read-only file view — the FileTree `d` action: the preview
+ * `<diff>`/`<code>` renderable, hosted as a tab.
+ * No PTY: it renders from a one-shot git read
  * (`loadPreviewData`), so it never spawns, resumes, or auto-closes on an
  * exit. Like the editor tab it's a FileTree-owned SINGLETON slot ({@link
  * openContentTab} replaces it in place), so repeatedly hitting `d` swaps the
@@ -169,3 +169,27 @@ export interface ContentTab extends TabBase {
  * tab, close-on-exit without a command) cannot be represented.
  */
 export type TerminalTab = EngineTab | CommandTab | ContentTab
+
+/**
+ * A task's whole tab list, as persisted. The SHAPE of the list lives beside
+ * the shape of a tab; who is allowed to produce one from what is
+ * `terminal-tabs-lifecycle.ts` (start / restart / revive / recycle) and
+ * `terminal-tabs-core.ts` (a user action on an existing list).
+ */
+export interface TabsState {
+  readonly tabs: readonly TerminalTab[]
+  readonly activeId: string
+  /** Next ordinal to hand out (monotonic — close does not recycle). */
+  readonly nextOrdinal: number
+  /**
+   * What the LAST tab was, recorded as it closed, so re-entering an emptied
+   * task reopens the same kind of session instead of always an engine
+   * ({@link reopenTabs}). Only set when `tabs` is empty — a task with tabs
+   * doesn't need it, and a stale value would outlive its meaning.
+   *
+   * An older snapshot simply lacks the field, so {@link reopenTabs} treats
+   * absence as "use the default" rather than as an error: upgrading in place
+   * has to stay silent.
+   */
+  readonly reopenAs?: { readonly kind: "engine"; readonly vendor?: VendorId } | { readonly kind: "command" }
+}

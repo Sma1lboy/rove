@@ -21,7 +21,7 @@ import { FRAME } from "./frame"
 
 /** Above the hover tooltip: if both are somehow up, the menu is the one the
  *  user is interacting with. */
-export const CONTEXT_MENU_Z_INDEX = SIDEBAR_HOVER_TOOLTIP_Z_INDEX + 10
+const CONTEXT_MENU_Z_INDEX = SIDEBAR_HOVER_TOOLTIP_Z_INDEX + 10
 
 export interface ContextMenuEntry {
   readonly id: string

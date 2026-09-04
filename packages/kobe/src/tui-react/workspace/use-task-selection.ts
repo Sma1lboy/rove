@@ -72,10 +72,10 @@ export async function activateWorkspaceTask(opts: ActivateWorkspaceTaskOptions, 
  * freshly-respawned daemon can replay a null/ancient focus while disk still
  * knows the truth) → the most recently UPDATED live task. Raw array order is
  * never used as a tiebreak — tasks.json leads with the oldest saved repo's
- * main task, which is how every SSH reconnect used to land on an untouched
- * project instead of the one being worked on.
+ * main task, so array order lands every SSH reconnect on an untouched project
+ * instead of the one being worked on.
  *
- * The recency fallback SKIPS a routine's standing session (issue #91): a
+ * The recency fallback SKIPS a routine's standing session: a
  * schedule that fired at 03:00 makes it the most recently updated task in the
  * install, but it is the least likely thing you meant to open — and its
  * sidebar row is folded away, so booting onto it would leave the cursor on a

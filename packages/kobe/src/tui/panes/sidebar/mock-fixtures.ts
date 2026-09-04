@@ -1,7 +1,6 @@
 /**
- * Shared mock task fixtures for the sidebar smoke hosts (issue #15, G3).
- * Framework-free, so the React mock hosts (e.g.
- * `src/tui-react/panes/sidebar/mock-host.tsx`) can render the same
+ * Shared mock task fixtures for the sidebar smoke host.
+ * Framework-free, so `src/tui-react/mock/host.tsx` (`dev:mock`) can render a
  * synthetic task list without a daemon, tasks.json, or real worktrees.
  * Paths point under /mock so the git pollers fail closed (chips hidden).
  */
@@ -9,7 +8,7 @@
 import type { Task } from "@/types/task"
 import { toTaskId } from "@/types/task"
 
-export const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
+const MOCK_SIDEBAR_REPO = "/mock/repos/rove"
 
 /** A representative task list: project row, running/pinned/backlog. */
 export function seedSidebarTasks(): readonly Task[] {

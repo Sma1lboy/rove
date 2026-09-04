@@ -4,7 +4,7 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
-import { encodeWheel } from "./keys-pure"
+import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
   type CursorPos,
@@ -122,6 +122,17 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     }
   }
 
+  inputModes(): TerminalInputModes {
+    try {
+      return {
+        applicationCursorKeys: this.term.modes.applicationCursorKeysMode === true,
+        applicationKeypad: this.term.modes.applicationKeypadMode === true,
+      }
+    } catch {
+      return { applicationCursorKeys: false, applicationKeypad: false }
+    }
+  }
+
   onExit(cb: () => void): () => void {
     if (this._killed) {
       cb()
@@ -175,6 +186,53 @@ export abstract class XtermTaskPty implements TaskPtyLike {
       /* mode probe is best-effort */
     }
     return false
+  }
+
+  click(
+    kind: "down" | "up" | "drag",
+    button: 0 | 1 | 2,
+    col: number,
+    row: number,
+    modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
+  ): boolean {
+    if (this._killed) return false
+    try {
+      const seq = encodeMouseButton(
+        { mouseTracking: this.term.modes.mouseTrackingMode },
+        kind,
+        button,
+        col,
+        row,
+        modifiers,
+      )
+      if (seq !== null) {
+        this.write(seq)
+        return true
+      }
+    } catch {
+      /* mode probe is best-effort */
+    }
+    return false
+  }
+
+  get appOwnsMouse(): boolean {
+    if (this._killed) return false
+    try {
+      return this.term.modes.mouseTrackingMode !== "none"
+    } catch {
+      /* mode probe is best-effort */
+      return false
+    }
+  }
+
+  get onAlternateScreen(): boolean {
+    if (this._killed) return false
+    try {
+      return this.term.buffer.active.type === "alternate"
+    } catch {
+      /* buffer probe is best-effort */
+      return false
+    }
   }
 
   onData(

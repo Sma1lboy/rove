@@ -22,17 +22,18 @@
  * command in `engineCommand.<id>`, its display name in `engineName.<id>`,
  * and — new here — the protocol it speaks in `engineProtocol.<id>`,
  * declared once at registration so every later dispatch is deterministic
- * instead of re-sniffed. A preset registered before this key existed reads
- * as generic until its protocol is set.
+ * instead of re-sniffed. A preset with no `engineProtocol.<id>` recorded
+ * reads as generic until its protocol is set.
  *
  * State-reading by construction, which is why it is NOT in `registry.ts`
  * (that module stays state-free so vitest and the daemon can import it).
  */
 
 import { randomUUID } from "node:crypto"
-import { engineEntry } from "@/engine/registry"
+import { type EngineRegistryEntry, engineEntry } from "@/engine/registry"
 import { getCustomEngineIds, getPersistedString } from "@/state/repos"
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { isContribEngine } from "./contrib-engines.ts"
 import { vendorFromArgv } from "./foreground.ts"
 import {
   defaultEngineCommand,
@@ -71,16 +72,23 @@ export function engineProtocolKey(id: string): string {
   return `engineProtocol.${id}`
 }
 
-/** A preset's declared protocol, or undefined (built-ins ARE their protocol). */
+/**
+ * A preset's declared protocol, or undefined.
+ *
+ * Built-ins and contrib engines ARE their own protocol: each has a registry
+ * entry carrying the knowledge a protocol names (a screen manifest, for a
+ * contrib engine), so answering `generic` for `opencode` would throw away
+ * the badge rules `engineEntry("opencode")` already holds.
+ */
 export function getEngineProtocol(id: string): VendorId | undefined {
-  if (isBuiltinVendor(id)) return id
+  if (isBuiltinVendor(id) || isContribEngine(id)) return id
   const raw = getPersistedString(engineProtocolKey(id))?.trim()
   return raw && ENGINE_PROTOCOLS.includes(raw) ? raw : undefined
 }
 
 /** True when `id` names an engine kobe can launch by NAME alone. */
-export function isPresetId(id: string): boolean {
-  return isBuiltinVendor(id) || getCustomEngineIds().includes(id)
+function isPresetId(id: string): boolean {
+  return isBuiltinVendor(id) || isContribEngine(id) || getCustomEngineIds().includes(id)
 }
 
 /** Every registered engine id, built-ins first. */
@@ -168,7 +176,7 @@ export interface EngineLaunchSpec {
  *     silently drop every flag, so a declared protocol would buy nothing at
  *     launch time.
  *
- * A built-in id resolves to itself, so this is the same argv it always was.
+ * A built-in id resolves to itself, so the two rules agree for a built-in.
  */
 export function engineLaunchArgv(spec: EngineLaunchSpec): readonly string[] {
   const command = spec.command?.trim()
@@ -194,11 +202,6 @@ function presetBaseArgv(id: string): readonly string[] | null {
   return defaultEngineCommand(id)
 }
 
-/** The launch binary a delivery gate should match this spec's engine by. */
-export function engineLaunchBin(spec: EngineLaunchSpec): string | undefined {
-  return engineLaunchArgv(spec)[0]
-}
-
 /**
  * The engine whose SESSION VERBS apply to a launch of `id` — its declared
  * protocol when it is a custom preset, else the id itself.
@@ -207,14 +210,30 @@ export function engineLaunchBin(spec: EngineLaunchSpec): string | undefined {
  * terminal-title flags, applied to session identity: a preset `claudecpa`
  * declaring the claude protocol IS a claude launch, so it takes claude's
  * `--session-id` / `--resume`. Keying off the id instead would find the
- * empty custom entry and silently drop both — which is exactly what the old
- * `withClaudeSessionId` did with its literal `vendor === "claude"` check,
- * and why every wrapper engine lost its conversation on restart.
+ * empty custom entry and silently drop both, so a wrapper engine would lose
+ * its conversation on restart.
  */
 export function sessionProtocol(vendor: VendorId | undefined): VendorId {
   const id = vendor?.trim()
   if (!id) return "claude"
   return getEngineProtocol(id) ?? id
+}
+
+/**
+ * The registry entry whose PROTOCOL behaviour applies to `vendor` — its
+ * declared `engineProtocol.<id>` when it is a custom preset, else its own.
+ *
+ * `engineEntry(vendor)` answers "what IS this engine" (display name, default
+ * command) and must stay keyed on the raw id. This answers "how do we TALK to
+ * it": the transcript reader, the workspace-trust store and first-message
+ * delivery are all the wrapped engine's, exactly as `docs/ENGINES.md`
+ * promises. Keying those off the raw id finds the empty custom entry, so a
+ * `claudecpa` preset would read no history, meet the trust dialog Rove is
+ * supposed to pre-answer, and — for a kimi-protocol preset — take the first
+ * message on argv, which kills the launch.
+ */
+export function protocolEntry(vendor: VendorId | undefined): EngineRegistryEntry {
+  return engineEntry(sessionProtocol(vendor))
 }
 
 /**
@@ -257,8 +276,7 @@ export function engineResumeArgv(
  *
  * Protocol-resolved like {@link withPinnedSessionId}: a preset `claudecpa`
  * declaring the claude protocol IS a claude launch, so it forks. Keying off
- * the raw id instead found the empty custom entry and refused — the same
- * silent gap `withClaudeSessionId` had.
+ * the raw id instead finds the empty custom entry and refuses.
  */
 export function engineCanFork(vendor: VendorId | undefined): boolean {
   return acceptsSessionFork(engineEntry(sessionProtocol(vendor)).sessionIdentity)

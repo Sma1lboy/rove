@@ -49,14 +49,16 @@ describe("prefix HUD feed", () => {
 
     dispatchKeyEvent(stack, event("a", true), 100)
     expect(prefixHudState()).toMatchObject({
-      armed: true,
-      armedAt: 100,
-      options: [{ stroke: "t", action: "tab.new" }],
+      guide: {
+        kind: "prefix",
+        armedAt: 100,
+        options: [{ stroke: "t", action: "tab.new" }],
+      },
     })
 
     dispatchKeyEvent(stack, event("t"), 200)
     const snap = prefixHudState()
-    expect(snap.armed).toBe(false)
+    expect(snap.guide).toBeNull()
     expect(snap.entries).toHaveLength(1)
     expect(snap.entries[0]).toMatchObject({ prefixKey: "ctrl+a", stroke: "t", action: "tab.new", at: 200 })
   })
@@ -94,7 +96,7 @@ describe("prefix HUD feed", () => {
 
     dispatchKeyEvent(stack, event("a", true), 100)
 
-    expect(prefixHudState().options).toEqual([{ stroke: "t", action: "modal.tab" }])
+    expect(prefixHudState().guide?.options).toEqual([{ stroke: "t", action: "modal.tab" }])
   })
 
   test("a second stroke that matches nothing lands a null-action (miss) entry", () => {
@@ -113,7 +115,7 @@ describe("prefix HUD feed", () => {
     dispatchKeyEvent(stack, event("escape"), 200)
 
     const snap = prefixHudState()
-    expect(snap.armed).toBe(false)
+    expect(snap.guide).toBeNull()
     expect(snap.entries).toHaveLength(0)
   })
 
@@ -125,7 +127,7 @@ describe("prefix HUD feed", () => {
     dispatchKeyEvent(stack, event("t"), 5000)
 
     const snap = prefixHudState()
-    expect(snap.armed).toBe(false)
+    expect(snap.guide).toBeNull()
     expect(snap.entries).toHaveLength(0)
   })
 

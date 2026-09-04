@@ -28,7 +28,7 @@
  * platform overlay replaces the SAME id's entry from `bindings:` wholesale
  * (no per-chord merge).
  *
- * Chord grammar mirrors `matchKey()` (keymap-dispatch.ts) — the override
+ * Chord grammar mirrors `matchKey()` (keymap-match.ts) — the override
  * must produce exactly the candidate string the dispatcher mints:
  *   - `mod+...+key`, modifiers in any order/alias; canonicalized to the
  *     dispatcher's order: ctrl, cmd, alt, shift.

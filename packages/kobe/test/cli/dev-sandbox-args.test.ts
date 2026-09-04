@@ -56,12 +56,12 @@ describe("sandboxChildEnv", () => {
     expect(env.KOBE_DEV).toBe("1")
   })
 
-  // The prod 2026-08-13 socket hijack: a TUI stamps the production socket onto
-  // every task terminal it spawns, and an explicit socket path outranks
-  // HOME_DIR — so an inherited one made the sandbox daemon bind the REAL
-  // socket and serve its empty task index to attached TUIs. Pinning the paths
-  // under the sandbox home fixes it; deleting them only deferred to HOME_DIR,
-  // which a stray override could still poison.
+  // The socket-hijack shape: a TUI stamps the production socket onto every
+  // task terminal it spawns, and an explicit socket path outranks HOME_DIR —
+  // so an inherited one makes the sandbox daemon bind the REAL socket and
+  // serve its empty task index to attached TUIs. Pinning the paths under the
+  // sandbox home fixes it; deleting them only defers to HOME_DIR, which a
+  // stray override can still poison.
   it("pins socket and pid paths under the sandbox home so inherited overrides cannot outrank it", () => {
     const env = sandboxChildEnv("/tmp/isolated", {
       KOBE_DAEMON_SOCKET_PATH: "/run/user/1000/kobe.sock",
@@ -83,6 +83,15 @@ describe("sandboxChildEnv", () => {
     expect(env.ROVE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
     expect(env.KOBE_PTY_PID_PATH).toBe("/tmp/isolated/.rove/pty.pid")
     expect(env.KOBE_HOME_DIR).toBe("/tmp/isolated")
+  })
+
+  // A redirected HOME hid ~/.claude.json, ~/.codex/auth.json and friends from
+  // the engines, so the sandbox offered a different vendor set than production.
+  it("keeps the operator's HOME so engines see production credentials", () => {
+    const env = sandboxChildEnv("/tmp/isolated", { HOME: "/Users/op" })
+    expect(env.HOME).toBe("/Users/op")
+    expect(env.XDG_CONFIG_HOME).toBeUndefined()
+    expect(env.ROVE_HOME_DIR).toBe("/tmp/isolated")
   })
 
   it("ignores an ambient production web port and uses the sandbox default", () => {

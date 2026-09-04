@@ -3,11 +3,19 @@
  * The brand-row update chip — the passive half of the update surface. The
  * daemon's npm poll lands in `updateSignal`; this pins that a `hasUpdate`
  * payload renders a right-aligned, clickable chip on the ROVE brand row and
- * that no chip renders otherwise (regression: the consumer was lost with the
- * tmux runtime in #313 and the poll went nowhere for months).
+ * that no chip renders otherwise — with no consumer, the poll runs and its
+ * result goes nowhere, silently.
  */
 
 import { expect, test } from "bun:test"
+import {
+  DEFAULT_THEME,
+  type ThemeJson,
+  ThemeProvider,
+  addTheme,
+  setTheme,
+  setThemeMode,
+} from "../../src/tui-react/context/theme"
 import { SidebarBrandHeader } from "../../src/tui-react/panes/sidebar/chrome"
 import { renderComponent } from "./harness"
 
@@ -55,4 +63,48 @@ test("clicking the chip opens the update surface", async () => {
 
   await mockMouse.click(text.split("\n")[row].indexOf("0.9.99"), row)
   expect(calls).toBe(1)
+})
+
+test("uses the configured warning color for the update chip", async () => {
+  const name = "sidebar-update-chip-test"
+  expect(
+    addTheme(name, {
+      theme: {
+        background: "#000000",
+        text: "#ffffff",
+        textMuted: "#999999",
+        warning: { dark: "#ffaa00", light: "#aa5500" },
+        success: { dark: "#00aa55", light: "#0055aa" },
+      },
+    } satisfies ThemeJson),
+  ).toBe(true)
+
+  try {
+    const cases: Array<{
+      mode: "dark" | "light"
+      warning: [number, number, number, number]
+    }> = [
+      { mode: "dark", warning: [255, 170, 0, 255] },
+      { mode: "light", warning: [170, 85, 0, 255] },
+    ]
+    for (const { mode, warning } of cases) {
+      const handle = await renderComponent(
+        <ThemeProvider theme={name} mode={mode}>
+          <SidebarBrandHeader focused={false} status={null} update={{ label: "↑ 0.9.99" }} />
+        </ThemeProvider>,
+        { width: 30, height: 3, providers: { theme: false } },
+      )
+      try {
+        const updateSpan = (await handle.spans()).lines
+          .flatMap((line) => line.spans)
+          .find((span) => span.text.includes("0.9.99"))
+        expect(updateSpan?.fg.toInts()).toEqual(warning)
+      } finally {
+        handle.destroy()
+      }
+    }
+  } finally {
+    setTheme(DEFAULT_THEME)
+    setThemeMode("dark")
+  }
 })

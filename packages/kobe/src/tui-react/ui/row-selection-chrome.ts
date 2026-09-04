@@ -6,7 +6,7 @@
  * and tint, while a persistent selection remains visible after the cursor
  * moves without pretending the pane owns global focus.
  *
- * Transparent mode (owner call 2026-08-09): NO background fill at all — an
+ * Transparent mode: NO background fill at all — an
  * opaque tint block on top of the host wallpaper reads as a mismatched
  * patch, so the cursor signal moves entirely into the ▌ marker, which takes
  * the focus accent to stay visible against any wallpaper. Detected off the

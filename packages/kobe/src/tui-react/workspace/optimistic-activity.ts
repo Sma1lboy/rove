@@ -12,13 +12,13 @@
  * - `interrupted` (esc) is a FACT ABOUT THE PAST — "at time T the user
  *   interrupted". Every authoritative state stamped BEFORE T is therefore
  *   stale evidence, and stays suppressed until a genuinely newer event
- *   arrives. It never decays back into the old state; its TTL is only a
- *   memory bound.
+ *   arrives. It never decays back into the state it suppressed; its TTL is
+ *   only a memory bound.
  *
- * That asymmetry is what kills the recurring class of bug: an engine that
- * never reports a terminal state (esc during `/compact` sends no
- * post-compact and no Stop hook) used to leave a `running` entry that
- * resurfaced the moment any suppression expired.
+ * That asymmetry is what handles an engine that never reports a terminal
+ * state: esc during `/compact` sends no post-compact and no Stop hook, so a
+ * decaying suppression would let the stale `running` entry resurface the
+ * moment it expired.
  *
  * No label text is ever derived from a mark — this feeds the ICON only.
  */
@@ -120,7 +120,7 @@ const tabKey = (taskId: string, tabId: string): string => `${taskId}::${tabId}`
  * Only call this when the tab actually shows `permission_needed` — an enter at
  * an idle tab is an ordinary prompt submit and must not suppress anything.
  */
-export function noteQuestionAnswered(taskId: string, tabId: string): void {
+function noteQuestionAnswered(taskId: string, tabId: string): void {
   const next = new Map(answered.get())
   next.set(tabKey(taskId, tabId), Date.now())
   answered.set(next)
@@ -166,9 +166,9 @@ export function mergeAnsweredTabs(
     // Downgrade, never delete. An ABSENT tab entry does not read as "nothing
     // to show" downstream — `tabRowActivity` hands the row no activity at all,
     // and the sidebar then draws the dim `·` it reserves for "the daemon has
-    // never reported this tab". So deleting the entry blanked the row of an
-    // engine that was visibly working, for as long as the 30min mark lived
-    // (owner report 2026-08-25). `idle` is the honest claim: we know the tab
+    // never reported this tab". So deleting the entry would blank the row of
+    // an engine that is visibly working, for as long as the 30min mark lives.
+    // `idle` is the honest claim: we know the tab
     // stopped waiting on the user, we just don't know what it is doing now —
     // which is exactly what the resting `○` says.
     const nextTabs = new Map(perTab)

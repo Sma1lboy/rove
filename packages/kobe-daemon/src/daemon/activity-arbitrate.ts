@@ -35,7 +35,7 @@
  *      ESC-interrupt / dead-engine gap).
  *   3. any other hook entry wins.
  *   4. no hook entry → the observed slot wins: `running` fills the hole a
- *      daemon restart left (#16), `idle` is the known-idle marker.
+ *      daemon restart left, `idle` is the known-idle marker.
  *   5. neither → undefined: unknown, distinguishable from known-idle.
  *
  * Pure: no timers, no bus, no I/O — the registry owns those.
@@ -61,8 +61,8 @@ export interface ObservedSlot {
   readonly at: number
   readonly vendor?: string
   /** Lineage carried over from the hook slot this observation corrected —
-   *  the hook slot is retired once disproved, so the id has to live on
-   *  somewhere for late subscribers and the liveness probe. */
+   *  a disproved hook slot is dropped, so the id has to live on somewhere
+   *  for late subscribers and the liveness probe. */
   readonly session?: EngineSessionInfo
 }
 

@@ -54,10 +54,10 @@ describe("claude-plugin hooks.json mirrors the Claude hook adapter", () => {
     }
   })
 
-  // The retired PostToolUse(Bash) observer fired `hook worktree-created` after
-  // EVERY Bash call to archive the task pinned to a removed worktree. Archive
-  // was removed (issue #75), leaving a ~170ms process spawn per Bash call that
-  // did nothing. A plugin install pays that too, so the plugin must not ship it.
+  // A PostToolUse(Bash) observer firing `hook worktree-created` after EVERY
+  // Bash call costs a ~170ms process spawn per Bash call, and there is no
+  // archive step left for it to drive. A plugin install pays that cost too,
+  // so the plugin must not ship it.
   test("the retired worktree-watch observer is NOT shipped", () => {
     expect(JSON.stringify(pluginHooks())).not.toContain("worktree-created")
   })
@@ -76,11 +76,18 @@ describe("claude-plugin hooks.json mirrors the Claude hook adapter", () => {
 })
 
 describe("claude-plugin bundle integrity", () => {
-  test("bundled SKILL.md is byte-identical to the canonical skill", () => {
-    const canonical = readFileSync(join(ROOT, ".agents", "skills", "kobe", "SKILL.md"), "utf8")
-    const bundled = readFileSync(join(PLUGIN, "skills", "rove", "SKILL.md"), "utf8")
-    expect(bundled).toBe(canonical)
-  })
+  // Every file of the skill, not just SKILL.md: the reference under
+  // `references/` had already drifted between the two copies (a `tab-close`
+  // row and its prose existed canonically and not in the bundle) while this
+  // test watched SKILL.md alone and stayed green.
+  test.each(["SKILL.md", join("references", "api-flags.md")])(
+    "bundled %s is byte-identical to the canonical skill",
+    (file) => {
+      const canonical = readFileSync(join(ROOT, ".agents", "skills", "kobe", file), "utf8")
+      const bundled = readFileSync(join(PLUGIN, "skills", "rove", file), "utf8")
+      expect(bundled).toBe(canonical)
+    },
+  )
 
   test("plugin.json points at hooks.json and names the plugin rove", () => {
     const manifest = JSON.parse(readFileSync(join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8")) as {

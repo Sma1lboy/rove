@@ -1,11 +1,11 @@
 /**
  * Re-entering a task whose last tab you closed must give it a tab back.
  *
- * `closeTab({ allowEmpty })` (owner call 2026-08-31) lets the last tab go, and
- * `show-workspace` deliberately renders nothing for an empty tab list — mounting
- * TerminalTabs over one would mint a replacement it cannot control. That left
- * the task reachable but dead: its row was still in the sidebar, and selecting
- * it landed on a blank pane with no way out.
+ * `closeTab({ allowEmpty })` lets the last tab go, and `show-workspace`
+ * deliberately renders nothing for an empty tab list — mounting TerminalTabs
+ * over one would mint a replacement it cannot control. Without a revive that
+ * leaves the task reachable but dead: its row is still in the sidebar, and
+ * selecting it lands on a blank pane with no way out.
  *
  * `reviveEmptiedTabs` is the missing half, and this pins the states it must and
  * must NOT act on. `terminal-tabs-core.test`-adjacent coverage

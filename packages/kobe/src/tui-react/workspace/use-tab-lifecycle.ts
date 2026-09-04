@@ -1,6 +1,6 @@
 /**
- * Mount-once tab-lifecycle effects: restart-resume verification (issue #22)
- * and the tab auto-naming poll (the tmux naming pass) — grouped with
+ * Mount-once tab-lifecycle effects: restart-resume verification and the tab
+ * auto-naming poll — grouped with
  * `use-tab-handoffs.ts` by lifetime, not by topic: what these have in common
  * is running once per mount and living forever. Both are mount-only, forever-
  * lived effects — everything they read comes through the caller's
@@ -22,7 +22,7 @@ import {
   setTabSpawned,
 } from "../../tui/workspace/terminal-tabs-core"
 
-/** Cadence of the tab auto-naming pass (tmux ran its pass on the monitor tick). */
+/** Cadence of the tab auto-naming pass. */
 const NAMING_POLL_MS = 5000
 
 /**
@@ -41,7 +41,7 @@ export interface TabLifecycleIO {
 }
 
 /**
- * Restart resume verification (issue #22): rehydrated tabs' `spawned`
+ * Restart resume verification: rehydrated tabs' `spawned`
  * flags are up to 5s stale and must be re-verified against the real
  * transcripts before anything spawns. Returns the `hydrating` gate —
  * while true, the caller must not mount anything that spawns.
@@ -73,8 +73,8 @@ export function useTabHydration(rehydrated: boolean, io: TabLifecycleIO): boolea
             }
             // Ask whether the session is RECORDED, not whether kobe can
             // parse its messages: `readHistory` is empty for engines that
-            // ship no message parser (kimi), so the old check reported
-            // every kimi session as absent and the tab respawned blank.
+            // ship no message parser (kimi), so a parse-based check reports
+            // every kimi session as absent and the tab respawns blank.
             const exists = await engineSessionExists(vendor, worktree, tab.sessionId)
             if (cancelled) return
             io.update(setTabSpawned(io.stateRef.current, tab.id, exists))
@@ -91,7 +91,7 @@ export function useTabHydration(rehydrated: boolean, io: TabLifecycleIO): boolea
   return hydrating
 }
 
-/** Auto-naming + existence tracking (the tmux naming pass), mount-only. */
+/** Auto-naming + existence tracking, mount-only. */
 export function useTabNaming(io: TabLifecycleIO): void {
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once interval; reads propsRef/stateRef for freshness.
   useEffect(() => {
@@ -103,7 +103,7 @@ export function useTabNaming(io: TabLifecycleIO): void {
      * id the engine reports in its OWN live title — codex writes its thread
      * UUID there until the thread is named, and that thread is exactly the
      * rollout holding the first prompt. Without the second source a codex tab
-     * had no session to name itself from and wore `codex N` forever.
+     * has no session to name itself from and wears `codex N` forever.
      */
     const namingSessionId = (tab: EngineTab): string | null =>
       tab.sessionId ?? engineSessionIdFromTitle(vendorOf(tab), tab.lastTitle ?? "")

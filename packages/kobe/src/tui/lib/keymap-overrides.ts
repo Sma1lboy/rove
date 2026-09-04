@@ -16,14 +16,12 @@
 import type { KeymapOverrideEntry } from "./keymap-overrides-parse"
 
 export {
-  type ChordResult,
-  type ExtractedKeybindingOverrides,
   type KeymapOverrideEntry,
   extractKeybindingOverrides,
   normalizeChord,
 } from "./keymap-overrides-parse"
 
-export type OverridableHint = {
+type OverridableHint = {
   keys: string
 }
 
@@ -50,7 +48,7 @@ export type AppliedOverride = {
 /**
  * Ids whose event-shape or handler contract cannot be expressed by a rebind.
  * The four diff-review chords are raw literal bindings registered by
- * preview-review.tsx (owner sign-off 2026-07-27: fixed, docs/KEYBINDINGS.md
+ * preview-review.tsx (fixed bindings, docs/KEYBINDINGS.md
  * "Diff review") — the table rows exist so F1 lists them, but no handler
  * reads the keymap, so an override would apply cleanly and change nothing.
  * `applyKeymapOverrides` rejects any id listed here, and Settings →
@@ -70,7 +68,7 @@ export const FIXED_BINDING_IDS: Readonly<Record<string, string>> = {
  * meaning of each position is a documented contract an override must
  * respect.
  */
-export type SlotContract = {
+type SlotContract = {
   /** Human-readable layout, used in warnings and the docs. */
   layout: string
   /** Null when `count` chords satisfy the layout; otherwise the problem. */
@@ -95,7 +93,7 @@ function pairContract(first: string, second: string): SlotContract {
  * {@link applyKeymapOverrides} (and re-runs on a live keybindings
  * reload, since the reload path resets and re-applies from scratch).
  */
-export const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
+const SLOT_CONTRACTS: Readonly<Record<string, SlotContract>> = {
   "sidebar.goto": pairContract("top (double-tap)", "bottom"),
   "sidebar.nav": pairContract("down", "up"),
   "files.nav": pairContract("down", "up"),

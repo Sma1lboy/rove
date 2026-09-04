@@ -1,6 +1,9 @@
 /** Request-traffic tests for single-task `add` and the `send` handler.
  *  The parallel `add --count` round lives in `./api-add-parallel.test.ts`. */
 
+import { mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { ApiError, type ApiRuntime, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { resetVerifiedSelfSession, verifiedSelfSession } from "../../src/cli/api/dispatcher.ts"
@@ -127,7 +130,7 @@ describe("add handler", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })) as Record<string, unknown>
     // newTask marks this as a fresh worktree task's FIRST prompt — the
-    // delivery layer appends the branch-rename coda for it (issue #8).
+    // delivery layer appends the branch-rename coda for it.
     expect(calls[0]).toMatchObject({
       target: { id: "t1", vendor: "codex", modelEffort: "high", newTask: true },
       prompt: "do it",
@@ -139,7 +142,7 @@ describe("add handler", () => {
     expect(client.requests).toContainEqual({ name: "task.setPrompt", payload: { taskId: "t1", prompt: "do it" } })
   })
 
-  it("reports a created task whose prompt never landed (issue #72/#73)", async () => {
+  it("reports a created task whose prompt never landed", async () => {
     const task = taskFixture({ kind: "task", vendor: "kimi" })
     const client = new FakeClient({
       "task.create": () => ({ taskId: "t1", task }),
@@ -180,7 +183,7 @@ describe("send handler", () => {
     expect(client.subscribeCount).toBe(0)
     expect(calls[0].prompt).toBe("hi")
     // send targets an EXISTING task — never flagged as a new-task first
-    // prompt, so the branch-rename coda can't reach it (issue #8).
+    // prompt, so the branch-rename coda can't reach it.
     expect(calls[0].target.newTask).toBeUndefined()
     expect(result).toMatchObject({ ok: true, taskId: "abc", started: true })
   })
@@ -206,6 +209,33 @@ describe("send handler", () => {
     )
   })
 
+  // docs/API.md documents `delivered`, `bytes` and `promptEcho` under `send`.
+  // The delivery layer measured all three for every path and `send` dropped
+  // them, so a successful send carried no `delivered` key at all while a
+  // deferred one reported it as the only outcome field — `add` had been
+  // emitting the same three the whole time.
+  it("reports the delivery facts it documents", async () => {
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
+    const { deliver } = recordingDelivery({ bytes: 42, promptEcho: "confirmed" })
+    const result = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(result).toMatchObject({ delivered: true, bytes: 42, promptEcho: "confirmed" })
+  })
+
+  it("reports a deferred prompt as delivered:false, not as an error", async () => {
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
+    const { deliver } = recordingDelivery({ delivered: false, deferred: { id: "d1", layer: "composer-not-empty" } })
+    const result = (await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })) as { ok: boolean; delivered: boolean; deferred: unknown }
+    expect(result.ok).toBe(true)
+    expect(result.delivered).toBe(false)
+    expect(result.deferred).toBeDefined()
+  })
+
   it("requires an explicit or active target", async () => {
     await expectApiError(
       () => invokeVerb("send", ["--prompt", "hi"], { client: new FakeClient(), runtime: stubRuntime() }),
@@ -226,6 +256,46 @@ describe("send handler", () => {
       runtime: stubRuntime({ deliverPrompt: deliver }),
     })
     expect(calls[1].target.tab).toBe("tab-3")
+  })
+
+  // The shell, not Rove, was eating prompts: backticks inside a double-quoted
+  // --prompt are command substitution, so the text that names a reply
+  // command (`rove api send …`) shipped as that command's OUTPUT. A file (or
+  // stdin) bypasses every quoting rule — the bytes on disk are the message.
+  it("--prompt-file delivers the file's bytes verbatim, backticks and all", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "rove-prompt-"))
+    const file = join(dir, "msg.md")
+    const body = "reply via `rove api send --task-id t1 --tab tab-2` and $(echo no)\n"
+    writeFileSync(file, body)
+    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
+    const { calls, deliver } = recordingDelivery()
+    await invokeVerb("send", ["--task-id", "abc", "--prompt-file", file], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    expect(calls[0].prompt).toBe(body)
+  })
+
+  it("--prompt and --prompt-file together is a BAD_FLAG, not a silent pick", async () => {
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--prompt", "a", "--prompt-file", "/dev/null"], {
+          client: new FakeClient(),
+          runtime: stubRuntime(),
+        }),
+      "BAD_FLAG",
+    )
+  })
+
+  it("an empty --prompt-file is refused (a blank turn is never what was meant)", async () => {
+    await expectApiError(
+      () =>
+        invokeVerb("send", ["--task-id", "abc", "--prompt-file", "/dev/null"], {
+          client: new FakeClient(),
+          runtime: stubRuntime(),
+        }),
+      "BAD_FLAG",
+    )
   })
 
   it("a new tab can run a DIFFERENT engine than the task (two agents, one worktree)", async () => {
@@ -270,7 +340,7 @@ describe("send handler", () => {
     const saved = process.env.KOBE_TASK_ID
     beforeEach(async () => {
       process.env.KOBE_TASK_ID = "sender-1"
-      // Identity is the VERIFIED env pair (issue #24) — prime the memo with a
+      // Identity is the VERIFIED env pair — prime the memo with a
       // process tree where this process really does descend from the tab's
       // shell, so no real pty-host/ps read happens here.
       await verifiedSelfSession(
@@ -334,10 +404,9 @@ describe("send handler", () => {
     it("gives a dispatched task the same reply address in its opening brief", async () => {
       // `add --prompt` from inside a kobe session is agent-to-agent too, and
       // its brief is where the reply address matters most: every report that
-      // task ever sends flows back through it. Before this, `add` recorded the
-      // sender only as `dispatcher` on the task ROW — data a receiver has to
-      // think to go read — so a dispatched survey finished and sat waiting
-      // (2026-09-01, issue #92).
+      // task ever sends flows back through it. Recording the sender only as
+      // `dispatcher` on the task ROW — data a receiver has to think to go
+      // read — leaves a dispatched worker finished and sitting waiting.
       const { calls, deliver } = recordingDelivery()
       await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "研究一下 X"], {
         client: new FakeClient({

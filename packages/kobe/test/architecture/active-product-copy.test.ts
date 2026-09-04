@@ -1,11 +1,10 @@
 /**
  * Staleness guard for product copy that lives OUTSIDE `packages/kobe/src`.
  *
- * `no-tmux-runtime.test.ts` scans the shipped source for references to the
- * retired tmux runtime, but it cannot see the landing page, the marketing
- * metadata, the web dashboard, or the design docs — and those are exactly
- * where a retired-architecture claim survives longest, because nobody
- * re-reads them.
+ * `no-tmux-runtime.test.ts` scans the shipped source for references to a tmux
+ * runtime, but it cannot see the landing page, the marketing metadata, the
+ * web dashboard, or the design docs — and those are exactly where a
+ * stale-architecture claim survives longest, because nobody re-reads them.
  *
  * NEGATIVE assertions only, deliberately. A `toContain("<exact sentence>")`
  * pin does not guard an invariant; it freezes copy, so every rewording fails

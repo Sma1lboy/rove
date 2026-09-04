@@ -4,6 +4,7 @@ import type {
   DaemonOrchestrator,
   DaemonTask,
   EngineActivityKind,
+  EngineContextUsage,
   EngineQuotaUsage,
   UpdateInfo,
   VendorId,
@@ -24,16 +25,10 @@ export interface EngineTurnDetectorAdapter {
   supportsCompletionMarkers(): boolean
 }
 
-export interface PollCadenceConfig {
-  readonly timeoutMs: number
-  readonly slowRetryMs: number
-  readonly minIntervalMs: number
-}
-
-export interface PollScheduleState {
-  inFlight: boolean
-  nextAllowedAt: number
-}
+/** The cadence knobs + per-key state the scheduling core reads and writes.
+ *  Re-exported, not restated: this file used to carry its own copies of both
+ *  shapes alongside the ones in `poll-scheduling.ts`. */
+export type { PollCadenceConfig, PollScheduleState } from "./poll-scheduling.ts"
 
 export interface DaemonRuntimeAdapter {
   readonly currentVersion: string
@@ -49,7 +44,7 @@ export interface DaemonRuntimeAdapter {
    * pid (kobe's `engine/foreground.ts`, the same primitive `kobe api
    * inspect` uses). The engine's own vendor AND pid, or null for "no engine
    * in this tree". Consumed by the daemon activity observer's reconciler
-   * (issues #11/#16); the pid is what a death record names as the process
+   * the pid is what a death record names as the process
    * that actually died, distinct from the PTY that outlived it.
    */
   foregroundEngines(pids: readonly number[]): Promise<ReadonlyMap<number, { vendor: VendorId; pid: number } | null>>
@@ -61,7 +56,7 @@ export interface DaemonRuntimeAdapter {
    */
   titleTurnHint(vendor: VendorId, title: string): "working" | "rest" | null
   /**
-   * Tier-(b) protocol sniff consumer (issue #31): given a task record and
+   * Tier-(b) protocol sniff consumer: given a task record and
    * live evidence from its engine tab (foreground-walk vendor + OSC title),
    * the `setCommand` payload that upgrades a generic record to the named
    * protocol — or null to leave the record alone. Naming + eligibility are
@@ -73,7 +68,7 @@ export interface DaemonRuntimeAdapter {
     evidence: { readonly walkVendor: VendorId | null; readonly title: string },
   ): { command: string; vendor: VendorId } | null
   /**
-   * Engine-owned per-turn telemetry (issue #32): completed turns read out of
+   * Engine-owned per-turn telemetry: completed turns read out of
    * ONE session transcript by the vendor's own adapter. `[]` when the engine
    * ships no turn reader or the file is unreadable — the daemon never parses
    * a vendor transcript itself.
@@ -83,13 +78,34 @@ export interface DaemonRuntimeAdapter {
   latestTranscriptMtime(vendor: VendorId, worktreePath: string): Promise<number>
   deriveTitleFromSession(worktreePath: string, vendor: VendorId): Promise<string>
   createEngineTurnDetector(vendor: VendorId): EngineTurnDetectorAdapter
-  runWorktreeStatus(worktreePath: string, signal: AbortSignal): Promise<WorktreeChanges>
+  /** `baseRef` is the owning task's RECORDED fork point; the implementation
+   *  falls back to its own resolution ladder when it is absent or stale, and
+   *  omits `behind` when nothing resolves. */
+  runWorktreeStatus(worktreePath: string, signal: AbortSignal, baseRef?: string): Promise<WorktreeChanges>
+  /**
+   * The engine's own context-window reading for one live session. Delegated
+   * straight to the vendor's history reader — the daemon never sums vendor
+   * fields itself. `null` when the engine reports none (custom engines, a
+   * session with no transcript yet, kimi's unverified wire), which is
+   * different from a reported zero.
+   */
+  readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
   /** Remove a worktree. Resolves with the leftover directory when git
    *  deregistered the worktree but could not delete it (a partial removal that
    *  no retry can advance); resolves with null on a clean removal. */
   removeWorktree(path: string, force: boolean): Promise<{ path: string; reason: string } | null>
+  /**
+   * Merge a task's base branch INTO its worktree (the sidebar's "Sync with
+   * base"). Rejects with a `SYNC_CONFLICT: <files>` / `SYNC_WORKTREE_DIRTY`
+   * message on the two outcomes a human acts on — the same typed-marker shape
+   * `landTask` uses for `LAND_CONFLICT`.
+   */
+  syncWorktreeWithBase(
+    worktreePath: string,
+    recordedBaseRef: string | undefined,
+  ): Promise<{ baseRef: string; alreadyCurrent: boolean }>
   availableEngineIds(): Promise<readonly VendorId[]>
   engineDisplayName(vendor: VendorId): string
   kobeApiInvocation(): string
@@ -141,9 +157,9 @@ export interface DaemonRuntimeAdapter {
    * {@link deliverPromptToLiveEngine} with the composer-busy outcome as DATA
    * rather than a thrown `ComposerBusyError` — the error class lives in the
    * `rove` package, which depends on this one, so the daemon cannot catch it
-   * by type. A caller that must not drop the prompt (a routine's daily report
-   * — issue #91) reads `busy` and files a deferral; quota-resume keeps using
-   * the boolean form, where dropping is the right answer.
+   * by type. A caller that must not drop the prompt (a routine's daily
+   * report) reads `busy` and files a deferral; quota-resume keeps using the
+   * boolean form, where dropping is the right answer.
    *
    * `tabId` names which tab the live engine was found on, so the deferral and
    * its Inbox episode point at the tab a human will actually open.
@@ -165,6 +181,30 @@ export interface DaemonRuntimeAdapter {
         readonly layer: "recent-human-write" | "composer-not-empty"
       }
   >
+  /**
+   * Deliver to one exact live tab. Used when draining daemon-owned deferred
+   * prompts: rerouting a queued tab-2 message into tab-1 would be data loss.
+   */
+  deliverPromptToLiveEngineTabDetailed(
+    target: {
+      readonly id: string
+      readonly tabId: string
+      readonly vendor?: VendorId
+      readonly command?: string
+      readonly worktreePath: string
+    },
+    prompt: string,
+  ): Promise<
+    | { readonly outcome: "delivered"; readonly tabId: string }
+    | { readonly outcome: "no-session" }
+    | {
+        readonly outcome: "busy"
+        readonly tabId: string
+        readonly layer: "recent-human-write" | "composer-not-empty"
+      }
+  >
+  /** Fresh persisted state, checked between deferred-queue deliveries. */
+  composerGateEnabled(): boolean
   settingsSnapshot(): Response
   settingsPatch(request: Request): Promise<Response>
   handleDiffRequest(request: Request, url: URL): Promise<Response | null>

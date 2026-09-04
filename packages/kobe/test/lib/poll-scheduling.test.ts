@@ -147,7 +147,7 @@ describe("decodeCapturedChunks", () => {
     const buf = Buffer.from("文档", "utf8")
     const chunks = [buf.subarray(0, 2), buf.subarray(2)]
     expect(decodeCapturedChunks(chunks)).toBe("文档")
-    // Per-chunk decoding (the old `String(chunk)` path) would corrupt the split char.
+    // Per-chunk decoding (a bare `String(chunk)`) would corrupt the split char.
     expect(String(chunks[0]) + String(chunks[1])).not.toBe("文档")
   })
   test("accepts string chunks and preserves ASCII round-trips", () => {

@@ -84,18 +84,18 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
 })
 
 /**
- * The terminal's acquire-failure state used to be a dead end.
+ * The terminal's acquire-failure state must not be a dead end.
  *
  * `terminal.exited` names its recovery key ("process exited — F5 restarts
- * it"), and F5 is documented as THE terminal recovery chord. But
- * `requestReset` began `if (!pty) return`, and a failed acquire runs
- * `setPty(null)` — so in the one state that most needs recovery, F5 did
- * nothing at all. The only escape was switching tasks away and back, which
+ * it"), and F5 is documented as THE terminal recovery chord. But a
+ * `requestReset` that begins `if (!pty) return` does nothing after a failed
+ * acquire, which runs `setPty(null)` — so in the one state that most needs
+ * recovery, F5 is dead. The only escape is switching tasks away and back, which
  * the screen never mentioned.
  *
  * This drives the real chord through the real pane against a registry whose
- * first spawn throws, and asserts BOTH halves of the fix: the hint naming F5
- * is on screen, and pressing F5 actually brings the terminal up.
+ * first spawn throws, and asserts BOTH halves: the hint naming F5 is on
+ * screen, and pressing F5 actually brings the terminal up.
  */
 test("terminal: F5 recovers a failed acquire, and the pane says so", async () => {
   let attempt = 0
@@ -135,16 +135,16 @@ test("terminal: F5 recovers a failed acquire, and the pane says so", async () =>
 })
 
 /**
- * Enter on a task whose worktree can't be materialized used to be a TOTAL
- * no-op: `activateWorkspaceTask` correctly refused to move the selection and
- * called `reportError`, but the host wired `reportError` to a bare
- * `console.error`. Under the alternate screen that reaches the daemon log
- * only, so the row didn't move, no toast appeared, and the user could press
- * Enter forever with identical results.
+ * Enter on a task whose worktree can't be materialized must not be a TOTAL
+ * no-op. `activateWorkspaceTask` correctly refuses to move the selection and
+ * calls `reportError`; wiring `reportError` to a bare `console.error` sends it
+ * to the daemon log only under the alternate screen, so the row does not move,
+ * no toast appears, and the user can press Enter forever with identical
+ * results.
  *
  * The unit tests next door cover the error→copy MAPPING. This one covers the
- * WIRING — that the mapped string actually reaches the toast surface. Reverting
- * either half must fail something, and mapping alone passed the old test suite.
+ * WIRING — that the mapped string actually reaches the toast surface.
+ * Reverting either half must fail something; a mapping-only suite would pass.
  */
 function SelectionHarness(props: { orch: never; notifyError: (m: string) => void }) {
   const selection = useWorkspaceSelection({

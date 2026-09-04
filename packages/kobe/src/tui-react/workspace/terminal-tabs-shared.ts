@@ -25,16 +25,16 @@ import { type TabsSnapshotKv, forgetTaskTabsSnapshot, terminalTabsKey } from "./
  *
  *  WRITE THROUGH `setTaskTabs` / `deleteTaskTabs`, never `.set` / `.delete`
  *  directly: a plain Map mutation is invisible to React, and `ShowWorkspace`
- *  decides whether to mount `TerminalTabs` at all from this map. Closing a
- *  task's last tab wrote here and re-rendered nothing, so the component that
- *  owns the now-empty tab list stayed mounted and kept dereferencing an
- *  `active` tab that no longer existed. */
+ *  decides whether to mount `TerminalTabs` at all from this map. A raw
+ *  mutation when a task's last tab closes re-renders nothing, leaving the
+ *  component that owns the now-empty tab list mounted and dereferencing an
+ *  `active` tab that is gone. */
 export const tabsByTask = new Map<string, TabsState>()
 
 /** Bumped on every `tabsByTask` write — the subscribable half of the map, so
  *  a React surface reading it re-renders when it changes. Cheap: a counter,
  *  not a copy of the state; readers still go to the map for the value. */
-export const tabsRevision = createStateCell(0)
+export const tabsRevision = createStateCell(0, "tabs.revision")
 
 /** Write a task's tab state AND notify React readers. */
 export function setTaskTabs(taskId: string, state: TabsState): void {
@@ -45,11 +45,10 @@ export function setTaskTabs(taskId: string, state: TabsState): void {
 /**
  * Revive a task whose last tab was closed, returning true when it did.
  *
- * Selecting the task is the affordance (owner call 2026-08-31): the sidebar
- * row IS the button, so entering an emptied task reopens the kind of tab that
- * was there rather than landing on a pane with nothing to press. A snapshot
- * from before `reopenAs` existed reopens the default engine tab — see
- * {@link reopenTabs}.
+ * Selecting the task is the affordance: the sidebar row IS the button, so
+ * entering an emptied task reopens the kind of tab that was there rather than
+ * landing on a pane with nothing to press. A snapshot carrying no `reopenAs`
+ * reopens the default engine tab — see {@link reopenTabs}.
  *
  * No-op for every other state: a task with tabs, and a task that has never
  * opened any (`null`, not empty — TerminalTabs mounts and mints its own).
@@ -62,7 +61,7 @@ export function reviveEmptiedTabs(kv: TabsSnapshotKv | null, taskId: string, she
 }
 
 /** Drop a task's tab state AND notify React readers. */
-export function deleteTaskTabs(taskId: string): void {
+function deleteTaskTabs(taskId: string): void {
   if (!tabsByTask.delete(taskId)) return
   tabsRevision.update((n) => n + 1)
 }
@@ -80,7 +79,7 @@ export function activeTabIdFor(taskId: string): string | null {
  *  mounted before the context exists) still sees the live tabs instead of
  *  crashing: the in-memory map is authoritative for anything running now,
  *  and the snapshot only adds tasks that have not mounted since restart. */
-export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
+function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
   const live = tabsByTask.get(taskId)
   if (live) return live
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined
@@ -101,12 +100,10 @@ export function knownTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
  *
  * The distinction is load-bearing because callers DELETE episodes that read
  * as unavailable. `knownTaskTab(...) !== undefined` collapses "don't know"
- * into "gone" and destroys live episodes — the owner-reported "two tabs are
- * unread but the Inbox only lists one" (40641c01). That fix converted the
- * host but left the dialog, its per-row badge, and the F7 jump on the binary
- * form, so the badge counted episodes the list hid and opening such a row
- * silently dismissed it instead of navigating. Route every availability
- * question through here.
+ * into "gone" and destroys live episodes: the list hides episodes the badge
+ * still counts, and opening such a row silently dismisses it instead of
+ * navigating. The host, the dialog, its per-row badge and the F7 jump must
+ * all route their availability question through here.
  */
 export function taskTabExists(kv: TabsSnapshotKv | null, taskId: string, tabId: string): boolean | undefined {
   const known = knownTaskTabs(kv, taskId)
@@ -133,42 +130,71 @@ export function knownTaskTabs(
 }
 
 /**
- * Cross-component "activate this tab" request (the F7 attention jump). The
- * mounted TerminalTabs for `taskId` consumes it via the listener; a task
- * that isn't mounted yet consumes it on mount (the host selects the task
- * first, TerminalTabs mounts, then reads the pending request). Unknown tab
- * ids are dropped on consume — the tab may have closed meanwhile.
+ * One cross-component request slot: a caller (the sidebar, a plugin, the F7
+ * jump) names a task, and whoever owns that task's tab state claims it.
+ *
+ * Every box shares ONE listener set — a request of any kind wakes every
+ * mounted consumer, which is what lets `use-tab-requests.ts` drain them all in
+ * a fixed order on a single pass. `take` hands the payload only to the task it
+ * was addressed to. `takeUnclaimed` returns it whoever it was for, and is
+ * re-exported ONLY by the three boxes whose callers have a background
+ * fallback; the other four must wait for a mount (see {@link requestNewTab}).
  */
-let pendingTabActivation: { taskId: string; tabId: string } | null = null
 export const tabActivationListeners = new Set<() => void>()
 
-export function requestTabActivation(taskId: string, tabId: string): void {
-  pendingTabActivation = { taskId, tabId }
-  for (const listener of tabActivationListeners) listener()
+function requestBox<T>(): {
+  request(taskId: string, payload: T): void
+  take(taskId: string): T | null
+  takeUnclaimed(): { taskId: string; payload: T } | null
+} {
+  let pending: { taskId: string; payload: T } | null = null
+  return {
+    request(taskId, payload) {
+      pending = { taskId, payload }
+      for (const listener of tabActivationListeners) listener()
+    },
+    take(taskId) {
+      if (pending?.taskId !== taskId) return null
+      const { payload } = pending
+      pending = null
+      return payload
+    },
+    takeUnclaimed() {
+      const claimed = pending
+      pending = null
+      return claimed
+    },
+  }
 }
 
-/** Consume a pending activation for this task, or null. */
-export function takeTabActivation(taskId: string): string | null {
-  if (pendingTabActivation?.taskId !== taskId) return null
-  const tabId = pendingTabActivation.tabId
-  pendingTabActivation = null
-  return tabId
-}
-
-/**
- * Cross-component "open a command tab" request (`tab.open` — plugin panes).
- * pendingTabActivation's twin: consumed by the mounted TerminalTabs via the
- * same listener set, or on mount for a task selected later.
- */
-let pendingTabOpen: {
-  taskId: string
+const activationBox = requestBox<string>()
+const openBox = requestBox<{
   argv: readonly string[]
   title: string
   tabId?: string
   placement?: "split" | "tab"
   direction?: "right" | "down"
-} | null = null
+}>()
+const newTabBox = requestBox<"chat" | "shell">()
+const paneCloseBox = requestBox<{ title: string; tabId?: string }>()
+const tabCloseBox = requestBox<string>()
+const adoptBox = requestBox<readonly string[]>()
+const moveBox = requestBox<{ tabId: string; delta: -1 | 1 }>()
 
+/**
+ * "Activate this tab" (the F7 attention jump). The mounted TerminalTabs for
+ * `taskId` consumes it via the listener; a task that isn't mounted yet
+ * consumes it on mount (the host selects the task first, TerminalTabs mounts,
+ * then reads the pending request). Unknown tab ids are dropped on consume —
+ * the tab may have closed meanwhile.
+ */
+export const requestTabActivation = activationBox.request
+export const takeTabActivation = activationBox.take
+
+/** "Open a command tab" (`tab.open` — plugin panes). Activation's twin:
+ *  consumed by the mounted TerminalTabs, or on mount for a task selected
+ *  later. Positional args rather than the box's payload object because every
+ *  caller is a plugin bridge passing them one at a time. */
 export function requestTabOpen(
   taskId: string,
   argv: readonly string[],
@@ -177,157 +203,74 @@ export function requestTabOpen(
   direction?: "right" | "down",
   tabId?: string,
 ): void {
-  pendingTabOpen = { taskId, argv, title, placement, direction, tabId }
-  for (const listener of tabActivationListeners) listener()
+  openBox.request(taskId, { argv, title, placement, direction, tabId })
 }
+export const takeTabOpen = openBox.take
 
 /**
- * Cross-component "add a session to this task" request — the sidebar tree's
- * right-click "New conversation" / "New shell" (owner ask 2026-08-18).
+ * "Add a session to this task" — the sidebar tree's right-click
+ * "New conversation" / "New shell".
  *
  * Twin of {@link requestTabActivation}, not of {@link requestTabClose}: both
- * kinds need the task's OWN workspace (the picker is a dialog; a shell tab
- * has to spawn its PTY where the tabs render), so the caller selects the task
+ * kinds need the task's OWN workspace (the picker is a dialog; a shell tab has
+ * to spawn its PTY where the tabs render), so the caller selects the task
  * first and an unclaimed request simply waits for that mount instead of
- * falling back to a background write.
+ * falling back to a background write. That is why this box — and activation,
+ * open and pane-close — exposes no unclaimed reader.
  */
-let pendingNewTab: { taskId: string; kind: "chat" | "shell" } | null = null
+export const requestNewTab = newTabBox.request
+export const takeNewTab = newTabBox.take
 
-export function requestNewTab(taskId: string, kind: "chat" | "shell"): void {
-  pendingNewTab = { taskId, kind }
-  for (const listener of tabActivationListeners) listener()
-}
-
-/** Consume a pending new-tab request for this task, or null. */
-export function takeNewTab(taskId: string): "chat" | "shell" | null {
-  if (pendingNewTab?.taskId !== taskId) return null
-  const kind = pendingNewTab.kind
-  pendingNewTab = null
-  return kind
-}
-
-/**
- * Cross-component "close panes opened under a title" request (`tab.close` —
- * pane-close, the inverse of {@link requestTabOpen}). Consumed by the
- * mounted TerminalTabs; matching is by pane label, so only titled
- * split-leaves / command tabs (the ones tab.open creates) are affected.
- */
-let pendingPaneClose: { taskId: string; title: string; tabId?: string } | null = null
-
+/** "Close panes opened under a title" (`tab.close` — the inverse of
+ *  {@link requestTabOpen}). Consumed by the mounted TerminalTabs; matching is
+ *  by pane label, so only titled split-leaves / command tabs (the ones
+ *  tab.open creates) are affected. */
 export function requestPaneClose(taskId: string, title: string, tabId?: string): void {
-  pendingPaneClose = { taskId, title, tabId }
-  for (const listener of tabActivationListeners) listener()
+  paneCloseBox.request(taskId, { title, tabId })
 }
-
-/** Consume a pending pane-close for this task, or null. */
-export function takePaneClose(taskId: string): { title: string; tabId?: string } | null {
-  if (pendingPaneClose?.taskId !== taskId) return null
-  const { title, tabId } = pendingPaneClose
-  pendingPaneClose = null
-  return { title, tabId }
-}
+export const takePaneClose = paneCloseBox.take
 
 /**
- * Cross-component "close this tab" request — the third of the same family.
- *
- * Unlike its twins, this one has a caller that can name a tab of a task whose
- * TerminalTabs is NOT mounted (the sidebar tree lists every worktree's tabs),
- * so an unconsumed request is not "wait for mount" — it means nobody owns that
- * task's state right now and the write has to happen in the background.
- * `closeTaskTab` (terminal-tabs-close.ts) is what decides between the two by
- * checking whether the request survived the listener sweep.
+ * "Close this tab". Unlike its twins above, this one has a caller that can
+ * name a tab of a task whose TerminalTabs is NOT mounted (the sidebar tree
+ * lists every worktree's tabs), so an unconsumed request is not "wait for
+ * mount" — it means nobody owns that task's state right now and the write has
+ * to happen in the background. `closeTaskTab` (terminal-tabs-close.ts) is what
+ * decides between the two by checking whether the request survived the
+ * listener sweep. Adopt and move below share that protocol.
  */
-let pendingTabClose: { taskId: string; tabId: string } | null = null
-
-export function requestTabClose(taskId: string, tabId: string): void {
-  pendingTabClose = { taskId, tabId }
-  for (const listener of tabActivationListeners) listener()
-}
-
-/** Consume a pending close for this task, or null. */
-export function takeTabClose(taskId: string): string | null {
-  if (pendingTabClose?.taskId !== taskId) return null
-  const tabId = pendingTabClose.tabId
-  pendingTabClose = null
-  return tabId
-}
+export const requestTabClose = tabCloseBox.request
+export const takeTabClose = tabCloseBox.take
 
 /** Whether the last {@link requestTabClose} went unclaimed — i.e. no mounted
  *  TerminalTabs owns that task. Clears the request either way. */
 export function takeUnclaimedTabClose(): { taskId: string; tabId: string } | null {
-  const pending = pendingTabClose
-  pendingTabClose = null
-  return pending
+  const claimed = tabCloseBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, tabId: claimed.payload }
 }
 
-/**
- * Cross-component "adopt these live tab ids" request — same claim protocol as
- * {@link requestTabClose}: a mounted TerminalTabs owns its task's state and
- * must do the write itself, and only an UNCLAIMED request may be written in
- * the background. See `terminal-tabs-adopt.ts` for what adoption is for.
- */
-let pendingTabAdopt: { taskId: string; tabIds: readonly string[] } | null = null
-
-export function requestTabAdopt(taskId: string, tabIds: readonly string[]): void {
-  pendingTabAdopt = { taskId, tabIds }
-  for (const listener of tabActivationListeners) listener()
-}
-
-/** Consume a pending adoption for this task, or null. */
-export function takeTabAdopt(taskId: string): readonly string[] | null {
-  if (pendingTabAdopt?.taskId !== taskId) return null
-  const tabIds = pendingTabAdopt.tabIds
-  pendingTabAdopt = null
-  return tabIds
-}
+/** "Adopt these live tab ids" — see `terminal-tabs-adopt.ts` for what
+ *  adoption is for. */
+export const requestTabAdopt = adoptBox.request
+export const takeTabAdopt = adoptBox.take
 
 /** The twin of {@link takeUnclaimedTabClose} for adoption. */
 export function takeUnclaimedTabAdopt(): { taskId: string; tabIds: readonly string[] } | null {
-  const pending = pendingTabAdopt
-  pendingTabAdopt = null
-  return pending
+  const claimed = adoptBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, tabIds: claimed.payload }
 }
 
-/**
- * Cross-component "move this tab up/down" request (sidebar move mode, issue
- * #43) — same claim protocol as {@link requestTabClose}: the sidebar can name
- * a tab of a task whose TerminalTabs is not mounted, so an unclaimed request
- * is written in the background (`moveTaskTabRow`).
- */
-let pendingTabMove: { taskId: string; tabId: string; delta: -1 | 1 } | null = null
-
+/** "Move this tab up/down" (sidebar move mode); the background write is
+ *  `moveTaskTabRow`. */
 export function requestTabMove(taskId: string, tabId: string, delta: -1 | 1): void {
-  pendingTabMove = { taskId, tabId, delta }
-  for (const listener of tabActivationListeners) listener()
+  moveBox.request(taskId, { tabId, delta })
 }
-
-/** Consume a pending tab-move for this task, or null. */
-export function takeTabMove(taskId: string): { tabId: string; delta: -1 | 1 } | null {
-  if (pendingTabMove?.taskId !== taskId) return null
-  const { tabId, delta } = pendingTabMove
-  pendingTabMove = null
-  return { tabId, delta }
-}
+export const takeTabMove = moveBox.take
 
 /** The twin of {@link takeUnclaimedTabClose} for tab moves. */
 export function takeUnclaimedTabMove(): { taskId: string; tabId: string; delta: -1 | 1 } | null {
-  const pending = pendingTabMove
-  pendingTabMove = null
-  return pending
-}
-
-/** Consume a pending tab-open for this task, or null. */
-export function takeTabOpen(taskId: string): {
-  argv: readonly string[]
-  title: string
-  tabId?: string
-  placement?: "split" | "tab"
-  direction?: "right" | "down"
-} | null {
-  if (pendingTabOpen?.taskId !== taskId) return null
-  const request = pendingTabOpen
-  pendingTabOpen = null
-  return request
+  const claimed = moveBox.takeUnclaimed()
+  return claimed && { taskId: claimed.taskId, ...claimed.payload }
 }
 
 /**
@@ -377,7 +320,7 @@ export function reportTabsDelta(taskId: string, prev: readonly TerminalTab[], ne
 }
 
 /**
- * Reclaim a DELETED task's in-process + persisted tab state (O19): drop its
+ * Reclaim a DELETED task's in-process + persisted tab state: drop its
  * `tabsByTask` entry (module-level, otherwise only-grows) and its
  * `terminalTabs.*` kv snapshot. Call from the task-DELETE flow only. Its PTYs
  * are released separately by the host's deleting-task sweep / the tab's own
@@ -440,5 +383,9 @@ export function appendBackgroundEngineTab(
   }
   setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
+  // A real open, not a mount-time restore: without this the tab's eventual
+  // `tab.closed` (terminal-tabs-close.ts) is the first a plugin ever hears of
+  // it, and anything counting open panes underflows.
+  reportTabsDelta(taskId, state.tabs, next.tabs)
   return { state: next, tab }
 }

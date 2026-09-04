@@ -9,7 +9,7 @@
 /** Comet profile, head-first: full block, then two tapering tails. */
 const COMET = ["█", "▋", "▍"] as const
 
-export const SWEEP_WIDTH = 8
+const SWEEP_WIDTH = 8
 
 /** Eighth-block ramp for the determinate meter's fractional cell. */
 const EIGHTHS = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"] as const

@@ -3,8 +3,7 @@
  * FocusProvider — pane focus context (src/tui-react/context/focus.tsx). Imports
  * @opentui/react (useRenderer) so it can't run under vitest at all; this is its
  * only coverage. Drives the real `focused`/`is`/`cycle`/`setFocused` surface
- * every pane wrapper reads. API delta from Solid: `focused`/`is()` are plain
- * values, not accessors.
+ * every pane wrapper reads.
  */
 import { describe, expect, it } from "bun:test"
 import { FocusProvider, type PaneId, useFocus } from "../../src/tui-react/context/focus"

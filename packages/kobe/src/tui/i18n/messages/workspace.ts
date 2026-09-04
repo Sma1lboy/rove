@@ -15,6 +15,10 @@ export const en = {
     /** Every tab of this task was closed — the task and its worktree remain.
      *  Both chords are bound by `EmptyWorkspacePane`, which renders this. */
     noSessions: "No sessions here — press ⏎ or ctrl+e to start one",
+    /** Experimental remote (`ssh://`) project: the worktree is on the other
+     *  machine, and the PTY host only spawns locally. Said here rather than
+     *  letting the launch guard throw through the render path. */
+    remoteUnsupported: "Hosted engine launch over SSH is not implemented — this task's worktree is on {host}",
   },
   /** Zero-tasks welcome panel (first launch) */
   welcome: {
@@ -58,7 +62,7 @@ export const en = {
       running: "running",
       /** A dead engine PROCESS (pty exit record), not a failed turn. */
       dead: "engine exited",
-      /** A peer/API message accepted by the daemon but not yet pasted (issue #78). */
+      /** A peer/API message accepted by the daemon but not yet pasted. */
       promptDeferred: "message queued",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
@@ -73,7 +77,6 @@ export const en = {
     /** Insert feedback: the release attempt errored (RPC/PTY hiccup). */
     deferredInsertFailed: "Couldn't insert the queued message — it's still in the Inbox.",
   },
-  terminalComing: "Embedded terminal is starting...",
 }
 
 export const zh: typeof en = {
@@ -85,6 +88,7 @@ export const zh: typeof en = {
   empty: {
     selectTask: "请选择一个带 worktree 的任务",
     noSessions: "这里没有会话——按 ⏎ 或 ctrl+e 开一个",
+    remoteUnsupported: "尚未实现通过 SSH 启动托管引擎——该任务的 worktree 在 {host} 上",
   },
   welcome: {
     title: "欢迎使用 Rove",
@@ -119,7 +123,7 @@ export const zh: typeof en = {
       rateLimited: "限流",
       running: "进行中",
       dead: "引擎已退出",
-      /** peer/API 消息已被 daemon 受理但尚未插入（issue #78）。 */
+      /** peer/API 消息已被 daemon 受理但尚未插入。 */
       promptDeferred: "消息已排队",
     },
     resumesAt: "{time} 恢复",
@@ -132,5 +136,4 @@ export const zh: typeof en = {
     /** 插入反馈：放行过程出错（RPC/PTY 故障）。 */
     deferredInsertFailed: "无法插入排队的消息——它仍在收件箱中。",
   },
-  terminalComing: "嵌入终端正在启动……",
 }

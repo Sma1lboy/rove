@@ -20,7 +20,7 @@ describe("isProtocolCompatible", () => {
   })
 
   it("rejects a peer older than our minimum", () => {
-    // remote is v1, but we no longer speak below v2.
+    // remote is v1, but we do not speak below v2.
     expect(isProtocolCompatible({ localVersion: 2, localMin: 2, remoteVersion: 1, remoteMin: 1 })).toBe(false)
   })
 
@@ -44,8 +44,8 @@ describe("isForeignDaemonHome", () => {
   })
 
   it("rejects a sandbox daemon squatting on the production socket", () => {
-    // prod 2026-08-13: `dev:sandbox` inherited KOBE_DAEMON_SOCKET_PATH from the
-    // task terminal, bound the real socket, and served an EMPTY task index.
+    // `dev:sandbox` inheriting KOBE_DAEMON_SOCKET_PATH from the task terminal
+    // binds the real socket and serves an EMPTY task index.
     expect(isForeignDaemonHome("/repo/packages/kobe/.dev-sandbox/home", "/home/dev")).toBe(true)
   })
 
@@ -126,7 +126,7 @@ describe("normalizeChannelFilter", () => {
 
   it("returns null when the filter has zero valid channels (deliver-everything)", () => {
     // An all-garbage / empty list must not silently mute the subscriber —
-    // it falls back to the historical deliver-all behavior.
+    // it falls back to the deliver-all default.
     expect(normalizeChannelFilter([])).toBeNull()
     expect(normalizeChannelFilter(["bogus", 1])).toBeNull()
   })

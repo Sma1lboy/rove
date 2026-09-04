@@ -18,9 +18,9 @@
  * hook events with.
  *
  * Once ANY tab of the task has reported, the rollup means "whichever tab
- * moved last", and lending it to whichever tab happens to be active made a
- * switch inside a busy worktree light the tab you switched TO with its
- * sibling's spinner until its own state landed (owner report 2026-08-10).
+ * moved last", and lending it to whichever tab happens to be active would
+ * make a switch inside a busy worktree light the tab you switched TO with
+ * its sibling's spinner until its own state lands.
  */
 export function tabRowActivity<T>(args: {
   /** This tab's own entry, when the daemon has one. */

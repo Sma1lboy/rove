@@ -2,6 +2,7 @@ import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
 import { describe, expect, it, vi } from "vitest"
+import { CODEX_SCREEN_MANIFEST } from "../../src/engine/codex-local/screen.ts"
 import {
   ComposerBusyError,
   type HostedSessionRpc,
@@ -68,7 +69,7 @@ describe("hosted session helpers", () => {
           key: "task-a::tab-1",
           cwd: "/worktree",
           // No cols/rows: a size-less open must never resize a live
-          // session away from its attached TUI (issue #18).
+          // session away from its attached TUI.
           command: ["engine", "--resume", "session-1"],
           defaultColors,
         },
@@ -78,7 +79,7 @@ describe("hosted session helpers", () => {
   })
 })
 
-describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () => {
+describe("pastePromptWhenEngineUp (first-message paste delivery)", () => {
   const noSleep = () => Promise.resolve()
   // ps -A -o pid=,ppid=,args= shape: a shell (pid 42) with a kimi child.
   const withEngine = "  42   1 /bin/zsh -ilc kimi\n  43  42 kimi\n"
@@ -147,7 +148,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
     expect(request).not.toHaveBeenCalledWith("pty.write", expect.anything())
   })
 
-  it("waits for the init marker before budgeting engine-startup time (issue #73)", async () => {
+  it("waits for the init marker before budgeting engine-startup time", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
     const marker = path.join(tmp, "marker")
     let written = ""
@@ -196,6 +197,57 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
     fs.rmSync(tmp, { recursive: true, force: true })
   })
 
+  // The marker records the init OUTCOME, so it appears on a failing init too.
+  // While it only appeared on success, "init failed" and "init still running"
+  // were the same observation from here and this loop sat out its whole
+  // 120s budget before the prompt was ever pasted.
+  it("stops waiting on the first poll after a FAILING init records its outcome", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-failed-"))
+    const marker = path.join(tmp, "marker")
+    let written = ""
+    const request = vi.fn().mockImplementation((name: string, payload: unknown) => {
+      if (name === "pty.peek")
+        return Promise.resolve({
+          exists: true,
+          alive: true,
+          offset: 0,
+          data: Buffer.from(`\x1b[?2004h${written}`).toString("base64"),
+        })
+      if (name === "pty.write") {
+        written += (payload as { data?: string })?.data ?? ""
+        return Promise.resolve({})
+      }
+      return Promise.resolve({ sessions: [session("task-a::tab-1")] })
+    })
+    const rpc: HostedSessionRpc = { request }
+
+    // Two marker-loop sleeps, then the launch script records `1` (init failed).
+    let markerSleeps = 0
+    let markerLanded = false
+    const sleep = vi.fn().mockImplementation(async () => {
+      if (markerLanded) return
+      markerSleeps += 1
+      if (markerSleeps === 2) {
+        fs.writeFileSync(marker, "1")
+        markerLanded = true
+      }
+    })
+
+    const delivered = await pastePromptWhenEngineUp(rpc, "task-a::tab-1", "kimi", "fix it", {
+      initMarkerPath: marker,
+      // A budget far larger than the marker wait: if the loop ran to the
+      // deadline instead of reacting to the sentinel, `markerSleeps` would
+      // keep climbing.
+      initTimeoutMs: 600_000,
+      sleep,
+      snapshot: async () => withEngine,
+    })
+
+    expect(delivered).not.toBeNull()
+    expect(markerSleeps).toBe(2) // exited on the poll right after it appeared
+    fs.rmSync(tmp, { recursive: true, force: true })
+  })
+
   it("returns false if the session dies while waiting for the init marker", async () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kobe-hosted-init-marker-"))
     const marker = path.join(tmp, "marker")
@@ -213,7 +265,7 @@ describe("pastePromptWhenEngineUp (issue #25 first-message paste delivery)", () 
   })
 })
 
-describe("deliverToHostedKey A+C gates (issue #78)", () => {
+describe("deliverToHostedKey A+C gates", () => {
   function rpcWith(
     peek: Partial<{ alive: boolean; data: string; lastHumanWriteMs: number; humanWriteQuietMs: number }>,
   ) {
@@ -345,5 +397,64 @@ describe("deliverToHostedKey A+C gates (issue #78)", () => {
     // An observed outcome now, not a bare boolean.
     expect(ok).toMatchObject({ ready: true, confirmed: true })
     expect(writes).toEqual(["pty.write", "pty.write"])
+  })
+
+  it("delivers over Codex's empty-composer placeholder", async () => {
+    const writes: string[] = []
+    let written = ""
+    const rpc: HostedSessionRpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        if (name === "pty.peek") {
+          return {
+            exists: true,
+            alive: true,
+            offset: 0,
+            data: Buffer.from(
+              `\x1b[?2004h› \x1b[2mAsk Codex to do anything\x1b[22m\r\n  gpt-5.6-sol high fast${written}`,
+              "utf8",
+            ).toString("base64"),
+          } as T
+        }
+        if (name === "pty.write") {
+          written += (payload as { data?: string })?.data ?? ""
+          writes.push(name)
+        }
+        return {} as T
+      },
+    }
+
+    const outcome = await deliverToHostedKey(rpc, "t1::tab-1", "go", {
+      screenManifest: CODEX_SCREEN_MANIFEST,
+      composerGate: true,
+    })
+
+    expect(outcome).toMatchObject({ ready: true, confirmed: true })
+    expect(writes).toEqual(["pty.write", "pty.write"])
+  })
+
+  it("does not submit a Codex draft that equals the placeholder text", async () => {
+    const writes: string[] = []
+    const rpc: HostedSessionRpc = {
+      request: async <T>(name: string): Promise<T> => {
+        if (name === "pty.peek") {
+          return {
+            exists: true,
+            alive: true,
+            offset: 0,
+            data: Buffer.from("\x1b[?2004h› Ask Codex to do anything", "utf8").toString("base64"),
+          } as T
+        }
+        if (name === "pty.write") writes.push(name)
+        return {} as T
+      },
+    }
+
+    await expect(
+      deliverToHostedKey(rpc, "t1::tab-1", "go", {
+        screenManifest: CODEX_SCREEN_MANIFEST,
+        composerGate: true,
+      }),
+    ).rejects.toBeInstanceOf(ComposerBusyError)
+    expect(writes).toEqual([])
   })
 })

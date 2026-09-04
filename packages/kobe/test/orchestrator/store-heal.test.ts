@@ -65,10 +65,10 @@ describe("TaskIndexStore self-heal on load", () => {
 })
 
 /**
- * Vendor coercion on load. The bug it guards: `coerceTask` used to validate
- * the persisted `vendor` against a narrow `claude | codex` literal check, so a
- * `copilot` task — or any user-registered custom engine — silently downgraded
- * to `claude` on every daemon restart. Engines are an OPEN set, so load must
+ * Vendor coercion on load. The bug it guards: validating the persisted
+ * `vendor` against a narrow `claude | codex` literal check silently downgrades
+ * a `copilot` task — or any user-registered custom engine — to `claude` on
+ * every daemon restart. Engines are an OPEN set, so load must
  * preserve any non-empty recorded vendor (built-in OR custom) and only fall
  * back to the default for a truly absent/empty value.
  */

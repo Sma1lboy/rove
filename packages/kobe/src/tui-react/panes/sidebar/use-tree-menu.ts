@@ -138,6 +138,7 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
       setMenu(null)
       if (row.kind === "project") {
         if (action === "newTask") deps.onAddTask?.()
+        if (action === "fieldNotes") actions.onFieldNotesRequest?.(row.repo)
         // Forget routes to the SAME flow `d` runs (task-actions.ts sends a
         // main row to `forgetProject` behind a confirm). The header itself is
         // not navigable, so the row the flow needs is the project's main
@@ -174,6 +175,42 @@ export function useTreeMenu(deps: TreeMenuDeps): TreeMenu {
           break
         case "reorder":
           actions.onLocalMergeRequest?.(taskId)
+          break
+        case "runAgain":
+          actions.onRunAgainRequest?.(taskId)
+          break
+        case "setStatus":
+          actions.onSetStatusRequest?.(taskId)
+          break
+        case "copyBranch":
+          actions.onCopyRequest?.(taskId, "branch")
+          break
+        case "copyPath":
+          actions.onCopyRequest?.(taskId, "path")
+          break
+        // The `o` / `b` / `v` trio. Routed through the MENU's row (`taskId`),
+        // not the active task the chords read (host-keybindings.ts
+        // `deps.selectedId`) — a right-click names one row, and the verb
+        // must land on that row.
+        case "openEditor":
+          actions.onOpenEditorRequest?.(taskId)
+          break
+        case "renameBranch":
+          actions.onRenameBranchRequest?.(taskId)
+          break
+        case "changeEngine":
+          actions.onChangeEngineRequest?.(taskId)
+          break
+        // Menu-only, like `setStatus` above: no chord to mirror, so the
+        // ROW's task is the only thing it could mean.
+        case "fixChecks":
+          actions.onFixChecksRequest?.(taskId)
+          break
+        case "syncBase":
+          actions.onSyncBaseRequest?.(taskId)
+          break
+        case "land":
+          actions.onLandRequest?.(taskId)
           break
         case "delete":
           actions.onDeleteRequest?.(taskId)

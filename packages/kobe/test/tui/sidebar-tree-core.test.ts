@@ -94,15 +94,15 @@ describe("buildTreeRows", () => {
   })
 
   test("every tab always renders — the tree has no fold", () => {
-    // Owner call 2026-08-01 round 5: no collapse anywhere, ever. The tree is
-    // a map; hiding rows made the map lie.
+    // No collapse anywhere, ever. The tree is
+    // a map; hiding rows makes the map lie.
     const tabs = new Map([["a", [tab("tab-1"), tab("tab-2")]]])
     const result = rows({ tasks: [task("a")], tabsByTask: tabs })
     expect(result.map((r) => r.id)).toEqual(["/repos/rove", "a", "a::tab-1", "a::tab-2"])
   })
 
   test("a dir task groups under its directory as the project header", () => {
-    // `kobe .` on an arbitrary directory (owner 2026-08-02): loose rows
+    // `kobe .` on an arbitrary directory: loose rows
     // after the last project read as THAT project's rows, so the directory
     // itself is the header — same grouping rule as every other task.
     const result = rows({ tasks: [task("d", { kind: "dir", repo: "/tmp/scratch" })] })
@@ -119,7 +119,7 @@ describe("buildTreeRows", () => {
     expect(result.filter((r) => r.kind === "tab")).toHaveLength(0)
   })
 
-  test("scratch tasks render in one Scratch section above every project (issue #33)", () => {
+  test("scratch tasks render in one Scratch section above every project", () => {
     const result = rows({
       tasks: [
         task("m", { kind: "main", repo: "/repos/rove", branch: "", worktreePath: "/repos/rove" }),
@@ -136,7 +136,7 @@ describe("buildTreeRows", () => {
     ])
   })
 
-  test("a scratch task with tabs renders NO worktree row — tabs hang under the header (issue #41)", () => {
+  test("a scratch task with tabs renders NO worktree row — tabs hang under the header", () => {
     // The auto-generated scratch name is noise; the shell IS the session.
     // The task stays real in the data layer — only its middle row is skipped.
     const result = rows({
@@ -250,10 +250,10 @@ describe("mainTaskIdOfProject", () => {
   })
 })
 
-// `tabRowActivity` moved to the golden matrix
+// `tabRowActivity` is covered by the golden matrix
 // (`test/golden/sidebar-row-state.golden.txt`, "which entry a TAB row may
 // read"), which enumerates its whole truth table — tabActivity present/absent
-// x reportedTabCount 0/1/2 x active — instead of the five rows sampled here.
+// x reportedTabCount 0/1/2 x active — rather than a sample of it here.
 
 describe("withRecentRow", () => {
   test("prepends a navigable recent row whose id no task can own", () => {
@@ -300,7 +300,7 @@ describe("rowLiveBranchPath", () => {
   })
 })
 
-describe("worktreeRowLabel (issue #42)", () => {
+describe("worktreeRowLabel", () => {
   test("a branch names the row, over everything else", () => {
     expect(worktreeRowLabel(task("a", { branch: "feat/a", title: "some title" }))).toBe("feat/a")
   })
@@ -353,7 +353,7 @@ describe("worktreeRowLabel (issue #42)", () => {
   })
 })
 
-describe("a project closed down to nothing (owner call 2026-08-31)", () => {
+describe("a project closed down to nothing", () => {
   const mainOf = (repo: string, id = "m") => task(id, { kind: "main", repo, title: repo.split("/").pop() ?? repo })
 
   test("hides the project when its only row is main and its tabs are closed", () => {
@@ -439,10 +439,9 @@ describe("a project closed down to nothing (owner call 2026-08-31)", () => {
     expect(treeFlatIds(out)).toEqual([])
   })
 
-  // The half that shipped without a guard (issue #90): six tests pinned that
-  // the project GOES, none that it can come back. It could not — the dialog
-  // only ever minted `kind: "task"`. The way back is now `mode: "open"` →
-  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts); what
+  // The other half of the guard: the tests above pin that the project GOES,
+  // and the way back is `mode: "open"` →
+  // `ensureMainTask` (test/tui/create-task-flow-open-project.test.ts). What
   // belongs HERE is the tree's side of that round trip.
   test("the hidden project returns as soon as its main has a tab again", () => {
     const tasks = [mainOf("/repos/codefox")]

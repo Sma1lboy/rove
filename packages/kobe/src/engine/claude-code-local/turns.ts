@@ -1,6 +1,6 @@
 /**
  * Claude Code's {@link EngineTurnReader} — per-turn telemetry lifted out of
- * its own JSONL transcript (issue #32).
+ * its own JSONL transcript.
  *
  * The turn boundary Claude persists: a `user` record with real prompt content
  * opens a turn, every `assistant` record after it belongs to that turn, and

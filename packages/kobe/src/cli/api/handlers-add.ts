@@ -1,13 +1,12 @@
 /**
  * The `add` verb — the one create path, single or parallel.
  *
- * `fan-out` used to be a separate verb for "N tasks of one prompt"; it was
- * the same create-then-deliver loop with a count, and having two verbs meant
- * an agent had to know which one to reach for before it knew how many
- * attempts it wanted. `add --count N` (and `--agents claude:2,codex:1`) is
- * that verb folded back in: `--count` absent = exactly one task, and the
- * whole parallel contract (shared `groupId`, `#i/N` titles, per-sibling
- * failure rows, PARTIAL_FANOUT) applies unchanged from N=2 up.
+ * There is deliberately no separate "N tasks of one prompt" verb: it is the
+ * same create-then-deliver loop with a count, and two verbs would make an
+ * agent choose one before it knows how many attempts it wants. `--count`
+ * absent = exactly one task, and the whole parallel contract (shared
+ * `groupId`, `#i/N` titles, per-sibling failure rows, PARTIAL_FANOUT) applies
+ * from N=2 up.
  *
  * Its own module rather than living beside `send` in `handlers-tasks.ts`: the
  * handlers there act on a task that already exists, while everything here is
@@ -21,7 +20,8 @@ import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { resolveCommandProtocol } from "../../engine/engine-presets.ts"
 import { ulid } from "../../orchestrator/index/ulid.ts"
 import type { TaskStatus } from "../../types/task.ts"
-import type { VendorId } from "../../types/vendor.ts"
+import { DEFAULT_VENDOR, type VendorId } from "../../types/vendor.ts"
+import type { DaemonRpc } from "../daemon-session.ts"
 import { dispatcherEnvPayload, withPeerProvenance } from "./dispatcher.ts"
 import { FANOUT_CAP, buildCountPlan, parseAgentsSpec } from "./flags.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -52,9 +52,25 @@ function enginePayload(choice: EngineChoice): Record<string, string> {
   return { ...(choice.command ? { command: choice.command } : {}), ...(choice.vendor ? { vendor: choice.vendor } : {}) }
 }
 
+/**
+ * `--status` / `--pin` aren't create-time fields on the RPC — apply them as
+ * follow-ups so `add` is the one-stop "make me a task exactly like this".
+ * Shared by the single and parallel paths so the two cannot drift: the
+ * parallel path once read neither flag, and both validated, passed, and
+ * silently evaporated. Returns whether anything was applied (the caller
+ * decides whether a refreshed `task.get` is worth the round-trip).
+ */
+async function applyPostCreateFlags(daemon: DaemonRpc, taskId: string, args: VerbContext["args"]): Promise<boolean> {
+  const status = args.enumOf<TaskStatus>("status")
+  if (status) await daemon.request("task.status", { taskId, status })
+  const pin = args.bool("pin")
+  if (pin !== undefined) await daemon.request("task.pin", { taskId, pinned: pin })
+  return Boolean(status) || pin !== undefined
+}
+
 export async function add(ctx: VerbContext): Promise<unknown> {
   const { args, runtime } = ctx
-  const repo = await runtime.resolveRepoRoot(args.requirePath("repo"))
+  const repo = await runtime.resolveRepoRoot(args.requireRepo("repo"))
   const count = args.int("count")
   const agentsSpec = args.str("agents")
   if (count !== undefined || agentsSpec) return addParallel(ctx, repo, count, agentsSpec)
@@ -64,7 +80,13 @@ export async function add(ctx: VerbContext): Promise<unknown> {
 async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
-  // Record who dispatched this create (issue #21) — the reply address a
+  // Read (and validate) the prompt BEFORE anything is created. `promptText`
+  // is flag validation — mutual exclusion of --prompt/--prompt-file — plus a
+  // file read, and both of its throws used to fire after `task.create` had
+  // committed, leaving an orphan task behind an error carrying no taskId.
+  // `addParallel` has always read it first; this matches.
+  const prompt = args.promptText()
+  // Record who dispatched this create — the reply address a
   // sub-task's bare `send` routes its outcome back to.
   const choice = await engineChoice(ctx, repo)
   const payload: Record<string, string> = { repo, ...(await dispatcherEnvPayload()), ...enginePayload(choice) }
@@ -84,19 +106,11 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // pull focus" taste.
   if (args.bool("activate")) await daemon.request("task.setActive", { taskId })
 
-  // status / pin aren't create-time fields on the RPC — apply them as
-  // follow-ups so `add` is the one-stop "make me a task exactly like this".
-  const status = args.enumOf<TaskStatus>("status")
-  if (status) await daemon.request("task.status", { taskId, status })
-  const pin = args.bool("pin")
-  if (pin !== undefined) await daemon.request("task.pin", { taskId, pinned: pin })
-
   let task = res.task
-  if (status || pin !== undefined) {
+  if (await applyPostCreateFlags(daemon, taskId, args)) {
     task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   }
 
-  const prompt = args.str("prompt")
   if (!prompt) return { taskId, task, started: false }
   // Same provenance prefix `send` carries: a task created from inside another
   // kobe session is agent-to-agent, and its opening brief is where the reply
@@ -122,7 +136,7 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   )
   // A prompt that never confirmed AND was not deferred is a failure — but the
   // task IS created, so carry the taskId in the error so a script can find it.
-  // Deferred (issue #78 B-layer) is a SUCCESS: the daemon owns the message now.
+  // A deferred prompt is a SUCCESS: the daemon owns the message now.
   if (!delivered.delivered && !delivered.deferred) {
     throw new ApiError(
       `task ${taskId} created but the prompt was not delivered (paste did not land)`,
@@ -156,8 +170,8 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
 /**
  * `--count N` / `--agents e:2,f:1`: N sibling tasks of ONE prompt, each in
  * its own worktree + branch. Every sibling of this round shares one groupId,
- * so the grouping outlives this CLI call (the JSON output used to be its only
- * record). Siblings share the prompt, so bare titles would converge onto the
+ * so the grouping outlives this CLI call rather than living only in the JSON
+ * output. Siblings share the prompt, so bare titles would converge onto the
  * SAME name — an explicit --title gets its `#i/N` ordinal here; placeholder-
  * titled siblings get theirs appended by the daemon's auto-title pass (keyed
  * on groupId) when the prompt-derived name lands.
@@ -172,7 +186,7 @@ async function addParallel(
   const { args } = ctx
   // A parallel round with nothing to deliver would spawn N idle worktrees —
   // the prompt IS the round.
-  const prompt = args.str("prompt")
+  const prompt = args.promptText()
   if (!prompt) {
     throw new ApiError(
       "--count/--agents spawn parallel attempts of ONE prompt — pass --prompt",
@@ -191,7 +205,9 @@ async function addParallel(
   // `--command` / `--count` alongside it have nothing left to say. Refuse
   // rather than silently ignore — a caller who wrote both believes both
   // applied, and a fleet is expensive to spawn wrong (same reasoning as
-  // `send --command` without `--tab new`).
+  // `send --command` without `--tab new`). `--status` / `--pin` are NOT
+  // conflicts: they apply per sibling below (applyPostCreateFlags), the same
+  // as on a single `add`.
   if (agentsSpec) {
     const conflict = count !== undefined ? "--count" : args.str("command") ? "--command" : null
     if (conflict) {
@@ -211,7 +227,7 @@ async function addParallel(
   const choice = await engineChoice(ctx, repo)
   const plan: VendorId[] = agentsSpec
     ? parseAgentsSpec(agentsSpec)
-    : buildCountPlan(count ?? 1, choice.vendor ?? "claude")
+    : buildCountPlan(count ?? 1, choice.vendor ?? DEFAULT_VENDOR)
   if (plan.length > FANOUT_CAP) {
     throw new ApiError(
       `a parallel round of ${plan.length} exceeds the cap of ${FANOUT_CAP} — spawn in batches`,
@@ -229,7 +245,7 @@ async function addParallel(
   // can retry or delete them instead of double-spawning.
   const created: Array<{ taskId: string; vendor: VendorId; task: SerializedTask }> = []
   let createFailure: { vendor: VendorId; error: { message: string; code: string } } | null = null
-  // Every sibling records the same dispatcher (issue #21) — the reply
+  // Every sibling records the same dispatcher — the reply
   // address each worker's bare `send` routes its outcome back to.
   const dispatcher = await dispatcherEnvPayload()
   for (const [i, vendor] of plan.entries()) {
@@ -249,6 +265,11 @@ async function addParallel(
       break
     }
   }
+
+  // Same `--status` / `--pin` follow-ups a single `add` applies, once per
+  // created sibling — before delivery so the row already reads right when the
+  // engine boots.
+  for (const { taskId } of created) await applyPostCreateFlags(daemon, taskId, args)
 
   const settled = await Promise.allSettled(
     created.map(({ taskId, vendor, task }) =>
@@ -278,9 +299,10 @@ async function addParallel(
   settled.forEach((r, i) => {
     const { taskId, vendor } = created[i]
     if (r.status === "fulfilled" && (r.value.delivered || r.value.deferred)) {
-      // Deferred (issue #78 B-layer) is a SUCCESS, exactly as `addOne`/`send`
+      // A deferred prompt is a SUCCESS, exactly as `addOne`/`send`
       // treat it: the daemon took ownership of the prompt and queued an inbox
-      // episode, so the caller must NOT retry (a retry stacks a duplicate). It
+      // episode, so the caller must NOT retry (the tab stays occupied until
+      // that deferred prompt is released, dismissed, or expires). It
       // resolves with `delivered:false`, so route it here — not to `failures` —
       // and carry the marker through so a script can see it was queued.
       tasks.push({

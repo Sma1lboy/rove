@@ -19,7 +19,6 @@ import { type ReadableState, createStateCell } from "../../lib/external-store"
 import { CATALOGS, DEFAULT_LOCALE, LOCALES, type LocaleId } from "./catalog"
 import { interpolate, lookup, lookupKeys } from "./lookup"
 
-export { LOCALES, DEFAULT_LOCALE, isLocaleId } from "./catalog"
 export type { LocaleId } from "./catalog"
 
 const langState = createStateCell<LocaleId>(DEFAULT_LOCALE)

@@ -2,9 +2,9 @@
 /**
  * A task whose worktree disappears out-of-band (another client, the worktrees
  * page, another agent's `rove api`) has ALL of its terminal tabs dropped — its
- * PTYs released and its persisted snapshot deleted. That was silent, which is
- * how "the tab I was working in just vanished" reached the owner with nothing
- * to look at (2026-08-29). It must announce itself.
+ * PTYs released and its persisted snapshot deleted. Silently, that reads as
+ * "the tab I was working in just vanished" with nothing to look at. It must
+ * announce itself.
  *
  * Deliberately NOT a confirm dialog: the worktree is already gone by the time
  * this runs, so there is nothing left to consent to.

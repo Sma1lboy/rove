@@ -35,8 +35,7 @@ changes immediately, and an unbound or currently unreachable action is not
 advertised. Clicking a guide row rechecks the current pane and modal scope
 before it runs. The setting changes only whether the pending command layer also
 marks controls in place. Both choices use the same prefix, second stroke,
-timeout, pane scope, and cancellation rules. No hold or key-release support is
-required.
+timeout, pane scope, and cancellation rules.
 
 ## The prefix
 
@@ -52,11 +51,14 @@ shows only actions that can run right now.
 | `ctrl+a` `h` / `l` | Move focus left / right across panes |
 | `ctrl+a` `o` | Open the Task directory in your editor |
 | `ctrl+a` `m` | Reorder sidebar rows (scope-aware: tab / task / project) |
-| `ctrl+a` `w` | Close the active split |
+| `ctrl+a` `n` | New task |
+| `ctrl+a` `w` | Close the active split, otherwise the tab — the prefix twin of `ctrl+w` |
 | `ctrl+a` `1` / `2` / `3` | Kanban / Routines / Issues |
 | `ctrl+a` `z` | Toggle zen mode |
 | `ctrl+a` `,` | Open Settings |
-| `ctrl+a` `p` / `P` | Create a PR from the active task |
+| `ctrl+a` `p` / `P` | Create a PR from the active task, or from the sidebar row under the cursor |
+| `ctrl+a` `k` | Pull the failing PR checks' logs into the task's engine (**proposed — awaiting owner sign-off**) |
+| `ctrl+a` `u` | Merge the base branch into the task's worktree (**proposed — awaiting owner sign-off**) |
 
 `ctrl+a` `c` picks an engine first. Claude and Codex can fork their own
 conversations natively. Copilot and Kimi use a transcript handoff even for a
@@ -66,6 +68,28 @@ continuation is refused. See [Engines](./ENGINES.md#resuming-and-forking).
 
 The sequence cancels on timeout, `esc`, an invalid second key, or a change of
 focus or dialog.
+
+## Hold ctrl to reveal follow-up keys
+
+Hold either Ctrl key for at least 400 ms to open a guide to the keys you can
+press next. The guide includes each available direct `ctrl+<key>` shortcut and
+the current prefix entry. Each row omits the `ctrl+` prefix because Ctrl is
+already held. Bare keys, F-row keys, multi-modifier chords, and individual
+prefix commands stay out of this guide. The current Binding Stack determines
+the rows, so changing focus or opening a page or dialog narrows the list to the
+shortcuts that work there.
+
+The guide also opens while an embedded engine terminal has focus. It does not
+take ownership of the next key. Releasing Ctrl or pressing any other key closes
+the guide, and that other key continues through normal shortcut or terminal
+dispatch.
+
+This guide needs a terminal that reports modifier press and release events
+through the kitty keyboard protocol. Unsupported terminals ignore Rove's
+request, so the guide stays unavailable and existing typing and shortcuts keep
+their old behavior. See
+[Troubleshooting](./TROUBLESHOOTING.md#holding-ctrl-does-not-open-the-one-press-shortcut-guide)
+for terminal support.
 
 ## One-press keys
 
@@ -91,6 +115,10 @@ Overlap resolves by context: `ctrl+w` closes the innermost split when a tab
 is split, otherwise the tab. `F2` follows the same rule. `enter` is bound only
 by the "no sessions here" pane, which has no input and no tab of its own —
 everywhere else in the workspace it reaches the terminal as usual.
+
+New task is `ctrl+a` `n` from anywhere (the sidebar also answers to bare
+`n`). It is a prefix sequence, not a direct `ctrl+n`, so the embedded engine
+and shell terminals keep `ctrl+n` for readline/emacs next-history.
 
 Both split chords need a terminal speaking the kitty keyboard protocol
 (legacy terminals can't encode `ctrl+=`, and `ctrl+\` would be SIGQUIT);
@@ -128,6 +156,12 @@ is active.
 | `shift+p` | Pin / unpin managed Task | | `right` | Focus the current engine pane |
 | `shift+m` | Enter reorder mode (scope-aware: tab / task / project) | | `t` | Switch task sort (default ↔ recent) |
 
+Sidebar row verbs (`b`, `v`, `o`, `d`, `r`, `shift+p`, `shift+m`) act on the
+row under the cursor — the highlight `j`/`k` moves, which may differ from the
+active task until you press `enter`. Prefix chords (`ctrl+a o`, `ctrl+a p`)
+are global and act on the active task, except while the sidebar has focus —
+both of them then follow the row under the cursor.
+
 In reorder mode, `j`/`k` moves the highlighted project and `enter` or `esc`
 finishes. Project headings themselves aren't cursor rows; the move routes
 through a Task row in that project.
@@ -158,8 +192,21 @@ Right-click any row for its context menu; `j`/`k` and `⏎` drive it, and a pres
 anywhere else, or `esc`, dismisses it. Common row actions also have direct
 chords. A Task or tab row also offers **New conversation** (the `ctrl+e`
 engine/shell picker) and **New shell** (a bare shell tab) for that worktree,
-both enter the Task first, exactly as pressing the chord there would. (If right-click opens your *terminal's* menu instead, see
-[Troubleshooting](./TROUBLESHOOTING.md).)
+both enter the Task first, exactly as pressing the chord there would.
+Four entries have no chord. **Set status** opens a picker over the six Task
+statuses and writes the one you choose. **Copy branch name** and **Copy path**
+put the Task's branch or recorded worktree path on the system clipboard (local
+clipboard command plus OSC 52, so it also works over SSH); copying never
+creates the worktree, and a project-main or directory row, whose stored branch
+is empty, offers only Copy path. **Land into base branch** runs the same land
+the Worktrees page's `l` does, and appears only on a managed Task row that has
+a branch — a project-main or directory row owns no Rove branch to land.
+**Open in editor**, **Rename branch**, and
+**Change engine** are the `o`, `b`, and `v` chords for the row you clicked;
+the engine entry opens a picker over your available engines instead of
+cycling, and Rename branch follows the same empty-branch rule as Copy branch
+name. (If right-click opens your *terminal's* menu
+instead, see [Troubleshooting](./TROUBLESHOOTING.md).)
 
 ## Terminal scrollback
 
@@ -173,6 +220,25 @@ engine or shell does not receive them.
 
 The mouse wheel uses the same scrollback. Buffer size is configured in
 Settings → General → Terminal and applies to newly opened terminals.
+
+### Searching it
+
+`ctrl+a` `/` opens a query row in the pane footer. Typing filters as you go,
+and each new query parks on the newest occurrence — a scrollback is read
+backwards, so the hit you want is nearly always the last one.
+
+| Key | Action |
+|---|---|
+| `ctrl+a` `/` | Open the query row |
+| `return` or `up` | Walk to the older match (wraps at the top) |
+| `down` | Walk to the newer match |
+| `escape` | Close the row and return to the scroll position you opened it at |
+
+Every hit on screen is highlighted; the one you are parked on is painted in
+the accent colour. The search covers Rove's own scrollback only — while a
+full-screen app (an engine, `vim`, `less`) is on the alternate screen it owns
+its buffer, and the row says so instead of searching one screen of somebody
+else's redraw.
 
 ## Inbox
 
@@ -195,9 +261,12 @@ In the read-only diff tab, with the workspace focused:
 | `j` / `k` (or arrows) | Move the line cursor |
 | `v` | Anchor a range (`v` again cancels) |
 | `c` | Write a note |
+| `x` | Drop the note the cursor sits inside |
 | `s` | Send all unsent notes to the engine |
+| `r` | Reload the diff from disk |
 
-These four are fixed and can't be rebound. The workflow:
+These are fixed and can't be rebound. A send with no engine session in the
+Task leaves the notes unsent and says so. The workflow:
 [The TUI → Diff review](TUI.md#diff-review).
 
 ## Workspace pages
@@ -210,7 +279,7 @@ active only while the page has focus.
 | Kanban | arrows move between cards; `tab` changes project; `enter` opens details; `n` creates; `d` deletes; `r` refreshes |
 | Routines | `j`/`k` select; `n` creates; `e` pauses/resumes; `s` runs now; `d` deletes; `r` refreshes; `enter` opens the latest run's Task |
 | GitHub Issues | `j`/`k` select; `tab` changes repo; `a` toggles "assigned to me"; `r` refreshes; `enter` starts a Task |
-| Worktrees | arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
+| Worktrees | `j`/`k` or arrows select; `l` lands; `d` starts removal; see [Managing worktrees](WORKTREES.md) |
 | Update | `j`/`k` selects an action; `u` updates; `r` opens the release page; `enter` runs the selected action |
 
 In the Kanban story drawer, `tab` / `shift+tab` walks fields and `ctrl+enter`

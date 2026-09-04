@@ -27,7 +27,7 @@ export const en = {
     language: "Language",
     languageHint: "Display language for Rove's UI. l to enter list · j/k to highlight · enter to apply.",
     transparent: "Transparent background",
-    transparentHint: "Drops the renderer's bg fill so the host terminal shows through. `t` toggles.",
+    transparentHint: "Drops the renderer's bg fill so the host terminal shows through. enter toggles.",
     on: "[x] on",
     off: "[ ] off",
     focusAccent: "Focus accent",
@@ -75,13 +75,13 @@ export const en = {
     worktreeCustom: "custom: {path}",
     worktreeCustomUnset: "(unset — enter to edit)",
     worktreeBaseTitle: "Custom worktree location (blank = default; $project_dir = project root)",
-    worktreeBaseField: "path",
+    worktreeBaseField: "PATH",
     terminal: "Terminal",
     terminalHint: "Applies to terminals opened after the change.",
     scrollbackRow: "scrollback: {rows} rows",
     scrollbackRowHint: "100–100000 · larger costs proportionally more CPU per redraw",
     scrollbackTitle: "Terminal scrollback rows (100–100000)",
-    scrollbackField: "rows",
+    scrollbackField: "ROWS",
     scrollbackInvalidTitle: "Not a number",
     scrollbackInvalidBody: "Scrollback must be a number of rows (e.g. 1000). Keeping the previous setting.",
     /** `{mode}` = one of tabStripMode.* below. */
@@ -109,7 +109,7 @@ export const en = {
   },
   plugins: {
     title: "Plugins",
-    hint: "Plugins registered in ~/.kobe/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
+    hint: "Plugins registered in ~/.rove/plugins.json. enter (or click) toggles one on or off — the daemon watches the file, so the change applies live. Rows indented under a plugin are the settings it declares; enter edits one, and the value reaches the plugin on its next run. Install and remove them from the shell: `rove plugin install <owner/repo>`, `rove plugin link <dir>`.",
     empty:
       "No plugins registered. Install one with `rove plugin install <owner/repo>` — browse the `rove-plugin` topic on GitHub.",
     sourceLink: "linked {path}",
@@ -214,7 +214,7 @@ export const zh: typeof en = {
     language: "语言",
     languageHint: "Rove 界面的显示语言。l 进入列表 · j/k 高亮 · enter 应用。",
     transparent: "透明背景",
-    transparentHint: "去掉渲染器的背景填充，让宿主终端透出来。按 `t` 切换。",
+    transparentHint: "去掉渲染器的背景填充，让宿主终端透出来。按 enter 切换。",
     on: "[x] 开",
     off: "[ ] 关",
     focusAccent: "聚焦强调色",
@@ -292,7 +292,7 @@ export const zh: typeof en = {
   },
   plugins: {
     title: "插件",
-    hint: "在 ~/.kobe/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
+    hint: "在 ~/.rove/plugins.json 里注册的插件。enter（或点击）切换启用/禁用——daemon 监听该文件，改动实时生效。插件下方缩进的行是它声明的设置项，enter 编辑，新值在插件下次运行时生效。安装与移除在 shell 里做：`rove plugin install <owner/repo>`、`rove plugin link <dir>`。",
     empty:
       "尚未注册任何插件。用 `rove plugin install <owner/repo>` 安装一个——可在 GitHub 的 `rove-plugin` 话题下浏览。",
     sourceLink: "本地链接 {path}",

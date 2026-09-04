@@ -1,14 +1,11 @@
 /**
  * Task-deletion audit trail.
  *
- * A task delete destroys a worktree and every tab under it, and until this
- * existed the daemon recorded a line ONLY when the removal FAILED
- * (`logDaemonError("task-deletion", …)`). A successful delete left no trace at
- * all, and no delete recorded WHO asked for it — so the owner-reported "a tab
- * I was working in vanished and it wasn't me" (2026-08-29) was only traceable
- * because that particular removal happened to fail. Deletes are the most
- * destructive thing an `rove api` caller can do to somebody else's session;
- * they get a record whether or not they succeed.
+ * A task delete destroys a worktree and every tab under it. Without a record
+ * of every delete and WHO asked for it, "a tab I was working in vanished and
+ * it wasn't me" is only traceable when the removal happens to fail. Deletes
+ * are the most destructive thing an `rove api` caller can do to somebody
+ * else's session; they get a record whether or not they succeed.
  *
  * The record goes to `daemon.log` via {@link logDaemonInfo}/{@link
  * logDaemonError}, not a separate file: it is already the place a user is
@@ -41,7 +38,7 @@ export interface DeletionOrigin {
    * The CLI caller's own VERIFIED Rove session (`rove api delete` from inside
    * an engine tab). Verified the way `send` verifies it — the bare
    * `$ROVE_TASK_ID` env inherits down the whole process tree and would name a
-   * stranger's tab (issue #24) — so an unverifiable caller is absent here
+   * stranger's tab — so an unverifiable caller is absent here
    * rather than misattributed.
    */
   readonly requestedBy?: { readonly taskId: string; readonly tabId: string }
@@ -151,7 +148,7 @@ export function auditWorktreeSalvaged(worktreePath: string, ref: string, commit:
  * delete its directory (an unwritable path inside it, most often).
  *
  * Info, not error: the deletion itself completed — the task entry is gone and
- * git no longer knows this worktree. What is left is an ordinary directory
+ * git has deregistered the worktree. What is left is an ordinary directory
  * that Rove will never list again, so this line is the only place its path is
  * recorded. Rove does not delete it: whatever made it undeletable may be
  * something the user wants, and removing it would be a destructive act nobody
@@ -169,7 +166,7 @@ export function auditDeletionResidue(taskId: string, worktreePath: string, reaso
  * A worktree removal outside the task lifecycle (worktrees page / web DELETE)
  * deregistered the worktree but could not delete its directory. Same subsystem
  * as the deletion lines for the same reason {@link auditWorktreeSalvaged} is:
- * a user hunting for a directory Rove no longer shows should not have to know
+ * a user hunting for a directory Rove has stopped showing should not have to know
  * which UI removed it.
  */
 export function auditWorktreeResidue(worktreePath: string, reason: string): void {

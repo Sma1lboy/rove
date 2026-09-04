@@ -15,6 +15,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
+import { requirePromptText } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
 
 const SCHEDULE_FLAG = {
@@ -36,16 +37,18 @@ const PRECHECK_FLAGS = [
     name: "precheck-timeout",
     type: "int",
     placeholder: "SEC",
-    description: "Seconds before the precheck is killed and the run skipped (default 120).",
+    default: "120",
+    description: "Seconds before the precheck is killed and the run skipped.",
   },
 ] as const
 
 const GRACE_FLAG = {
   name: "grace",
-  type: "int",
+  type: "uint",
   placeholder: "MIN",
+  default: "60",
   description:
-    "How late a missed occurrence may still run when the daemon was down (default 60). Only the most recent missed occurrence is ever run.",
+    "How late a missed occurrence may still run when the daemon was down. Only the most recent missed occurrence is ever run.",
 } as const
 
 const PERSISTENT_FLAG = {
@@ -86,6 +89,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       F.repo(),
       { name: "name", type: "string", required: true, placeholder: "N", description: "Routine name." },
       F.prompt(true, "Text delivered as the new session's first message."),
+      F.promptFile(),
       { ...SCHEDULE_FLAG, required: true },
       F.vendor(),
       {
@@ -101,14 +105,16 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "automation.create", {
-        repo: ctx.args.requirePath("repo"),
+        repo: ctx.args.requireRepo("repo"),
         name: ctx.args.require("name"),
-        prompt: ctx.args.require("prompt"),
+        prompt: requirePromptText(ctx, "routine-create"),
         schedule: ctx.args.require("schedule"),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),
         ...precheckPayload(ctx),
-        ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
+        ...(ctx.args.nonNegativeInt("grace") !== undefined
+          ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
+          : {}),
         ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
         ...(ctx.args.bool("disabled") ? { enabled: false } : {}),
       }),
@@ -121,6 +127,7 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       { name: "id", type: "string", required: true, placeholder: "ID", description: "Routine id." },
       { name: "name", type: "string", placeholder: "N", description: "New name." },
       F.prompt(false, "New prompt."),
+      F.promptFile(),
       SCHEDULE_FLAG,
       F.vendor(),
       { name: "base-branch", type: "string", placeholder: "B", description: "New base ref ('' to clear)." },
@@ -132,15 +139,24 @@ export const ROUTINE_VERBS: readonly VerbSpec[] = [
       simpleRpc(ctx, "automation.update", {
         id: ctx.args.require("id"),
         ...(ctx.args.str("name") !== undefined ? { name: ctx.args.str("name") } : {}),
-        ...(ctx.args.str("prompt") !== undefined ? { prompt: ctx.args.str("prompt") } : {}),
+        ...(ctx.args.promptText() !== undefined ? { prompt: ctx.args.promptText() } : {}),
         ...(ctx.args.str("schedule") !== undefined ? { schedule: ctx.args.str("schedule") } : {}),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         // `--base-branch ''` clears the base ref (sends null); `present` keeps
         // that empty value visible where `str` would fold it into "absent".
         ...(ctx.args.present("base-branch") ? { baseRef: ctx.args.str("base-branch") ?? null } : {}),
         ...precheckPayload(ctx),
-        ...(ctx.args.int("grace") !== undefined ? { missedRunGraceMinutes: ctx.args.int("grace") } : {}),
-        ...(ctx.args.bool("persistent-session") ? { persistentSession: true } : {}),
+        ...(ctx.args.nonNegativeInt("grace") !== undefined
+          ? { missedRunGraceMinutes: ctx.args.nonNegativeInt("grace") }
+          : {}),
+        // `present` + `bool`, not a bare `bool` ternary: an explicit
+        // `--persistent-session false` is falsy, so the ternary dropped the key
+        // and left the routine standing — there was no CLI path back to
+        // fresh-worktree-per-run. (On `routine-create` above, absent and false
+        // mean the same thing, so the ternary is harmless there.)
+        ...(ctx.args.present("persistent-session")
+          ? { persistentSession: ctx.args.bool("persistent-session") ?? true }
+          : {}),
       }),
   },
   {

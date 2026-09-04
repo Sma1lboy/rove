@@ -1,12 +1,11 @@
 /**
- * Persisted terminal-tab snapshot reclamation (O19) — the `terminalTabs.*` kv
- * keys `TerminalTabs.tsx` writes on every tab mutation (the whole splitTree +
- * pinned sessionId per task) were WRITE-ONLY: nothing ever deleted them, so a
- * high-churn build/delete workflow (fan-out is the product's basic move) grew
- * one orphan snapshot per deleted task forever, and because kv-core reads and
- * rewrites the whole file, every leftover key taxed every later tab write.
- * The web side already does the symmetric cleanup (kobe-web tabs.ts), so this
- * is a TUI-side gap, not a design choice.
+ * Persisted terminal-tab snapshot reclamation — the `terminalTabs.*` kv keys
+ * `TerminalTabs.tsx` writes on every tab mutation (the whole splitTree +
+ * pinned sessionId per task). Without a deleter they are WRITE-ONLY: a
+ * high-churn build/delete workflow (fan-out is the product's basic move)
+ * grows one orphan snapshot per deleted task forever, and because kv-core
+ * reads and rewrites the whole file, every leftover key taxes every later tab
+ * write. The web side does the symmetric cleanup (kobe-web tabs.ts).
  *
  * Two pure operations over a minimal kv surface (`set(key, undefined)` deletes
  * — kv-core's explicit-undefined serialization). Framework-free so both live

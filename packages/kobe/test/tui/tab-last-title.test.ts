@@ -43,11 +43,11 @@ describe("recorded live title (lastTitle)", () => {
     expect(tabTitle(renamed, "claude", "live")).toBe("my tab")
   })
 
-  // Regression (owner report 2026-08-10): "the chattab shows the right title
-  // for a second, then goes back to claude 7." The live-title store seeded a
-  // freshly-attached PTY with "" (nothing reported YET), the host recorded
-  // that over the real name, and the tab fell to its vendor default — then
-  // persisted, so it came back wrong on the next start too.
+  // Regression: "the chattab shows the right title
+  // for a second, then goes back to claude 7." Seeding a
+  // freshly-attached PTY with "" (nothing reported YET) lets the host record
+  // that over the real name, dropping the tab to its vendor default — and
+  // persisting it, so it comes back wrong on the next start too.
   it("an empty title never erases the recorded one", () => {
     const state = setTabLastTitle(initialTabs(), firstTab(initialTabs()).id, "✳ 运行本地Codex处理图片")
     const blanked = setTabLastTitle(state, firstTab(state).id, "")
@@ -65,8 +65,8 @@ describe("recorded live title (lastTitle)", () => {
 /**
  * Codex's OSC title is its THREAD ID until the thread is named, so the live
  * stream hands the ladder `01a00ee9-…` — an identifier, not a name. It must
- * lose to the tab's own first-prompt title (owner report 2026-08-17: "现在显示
- * 的是uuid"), which is what the naming pass derives from that very id.
+ * lose to the tab's own first-prompt title (otherwise the tab shows a uuid),
+ * which is what the naming pass derives from that very id.
  */
 describe("placeholder live titles (codex thread ids)", () => {
   const THREAD_ID = "01a00ee9-f0e9-7503-a11c-83b4eface0f6"

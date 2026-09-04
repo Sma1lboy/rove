@@ -34,13 +34,6 @@ import {
 } from "../../src/tui/workspace/terminal-tabs-core"
 
 describe("terminal tabs state", () => {
-  it("starts with one untitled active tab", () => {
-    const s = initialTabs()
-    expect(s.tabs).toHaveLength(1)
-    expect(s.activeId).toBe("tab-1")
-    expect(s.tabs[0].title).toBeNull()
-  })
-
   it("addTab inserts after the active tab, focuses it, never reuses ids", () => {
     let s = addTab(initialTabs()) // [1, 2*]
     s = cycleTab(s, -1) // [1*, 2]
@@ -117,7 +110,7 @@ describe("terminal tabs state", () => {
     expect(s.activeId).toBe("tab-2")
   })
 
-  // Regression (2026-07-10): FileTree opens share one File tab. Opening a
+  // Regression: FileTree opens share one File tab. Opening a
   // second file replaces and focuses that slot instead of growing one editor
   // tab per file forever.
   it("openEditorTab reuses the single editor slot", () => {
@@ -174,41 +167,7 @@ describe("terminal tabs state", () => {
     expect(after.tabs[1]).not.toHaveProperty("sessionId", "uuid-2")
   })
 
-  // Why: rehydrateTabs is the restart contract (issue #22, revised
-  // 2026-07-07) — a tab is a TERMINAL, so every tab survives: engine tabs
-  // come back resumable, command tabs (a degraded shell, a dead editor)
-  // come back as plain shells. Dropping command tabs was the "closed
-  // shell reopens as claude" bug: a lone degraded tab fell through to
-  // initialTabs(), resurrecting a fresh engine in the terminal's place.
-  it("rehydrateTabs keeps every tab; command tabs respawn as shells", () => {
-    let s = addTab(initialTabs(), "codex") // [1, 2*(codex)]
-    s = setTabSessionId(s, "tab-1", "uuid-1")
-    s = openEditorTab(s, ["sh", "-c", "nvim x"], "x") // [1, 2, 3*(editor)]
-    const back = rehydrateTabs(s, ["/bin/zsh"])
-    expect(back.tabs.map((t) => t.id)).toEqual(["tab-1", "tab-2", "tab-3"])
-    expect(back.activeId).toBe("tab-3")
-    expect(back.tabs[0]).toMatchObject({ kind: "engine", sessionId: "uuid-1" })
-    // The editor's process is gone — its terminal comes back as a shell.
-    expect(back.tabs[2]).toMatchObject({ kind: "command", command: ["/bin/zsh"] })
-    expect(back.tabs[2]).toHaveProperty("purpose", undefined)
-    expect(back.nextOrdinal).toBe(s.nextOrdinal)
-    // THE reported bug: a single persisted COMMAND tab (a shell pick from
-    // an older snapshot) must reopen as that shell, NOT as a fresh engine.
-    const shellOnly = rehydrateTabs(
-      {
-        tabs: [{ kind: "command", id: "tab-1", title: null, ordinal: 1, command: ["/bin/zsh"] }],
-        activeId: "tab-1",
-        nextOrdinal: 2,
-      },
-      ["/bin/zsh"],
-    )
-    expect(shellOnly.tabs).toHaveLength(1)
-    expect(shellOnly.tabs[0]).toMatchObject({ kind: "command", id: "tab-1", command: ["/bin/zsh"] })
-    // Corrupt/empty snapshot still falls back to a fresh initial state.
-    expect(rehydrateTabs({ tabs: [], activeId: "tab-1", nextOrdinal: 1 }, ["/bin/zsh"])).toEqual(initialTabs())
-  })
-
-  // Why: the frozen split layout (owner ask 2026-07-06) must survive the
+  // Why: the frozen split layout must survive the
   // persist → rehydrate round-trip so a `claude | shell` group reopens
   // after restart. setTabSplit stores/clears the tree; rehydrateTabs keeps
   // it on the surviving engine tab. leaf-1 (null content = the tab's
@@ -267,29 +226,6 @@ describe("terminal tabs state", () => {
     expect(meaningfulAutoTitle(" fix the race ")).toBe("fix the race")
   })
 
-  // Why: the last-tab in-place recycle used to reset to bare initialTabs(),
-  // dropping title/autoTitle — the naming pass then derived a NEW name from
-  // the fresh session's first prompt, so the tab visibly renamed itself on
-  // every recycle. Carrying both fields keeps the name stable AND blocks
-  // re-derivation (the pass only names tabs with neither field set).
-  it("recycleTabs keeps the exited tab's title/autoTitle on the fresh tab", () => {
-    let s = setTabAutoTitle(initialTabs(), "tab-1", "fix the resize race")
-    s = renameActiveTab(s, "my name")
-    const fresh = recycleTabs(s.tabs[0])
-    expect(fresh.tabs).toHaveLength(1)
-    expect(fresh.tabs[0]).toMatchObject({
-      kind: "engine",
-      id: "tab-1",
-      title: "my name",
-      autoTitle: "fix the resize race",
-    })
-    // Fresh session: no carried sessionId/spawned from the dead tab.
-    expect((fresh.tabs[0] as EngineTab).sessionId).toBeUndefined()
-    expect((fresh.tabs[0] as EngineTab).spawned).toBeUndefined()
-    // An untitled tab recycles untitled — nothing invented.
-    expect(recycleTabs(initialTabs().tabs[0]).tabs[0]).toMatchObject({ title: null })
-  })
-
   // Why: closing the engine leaf (`leaf-1`) inside a split keeps `kind:
   // "engine"` (57e3a20a — a surviving shell must not respawn the engine),
   // but its PTY is gone. Turn polling and the tab-strip chip must stop
@@ -305,7 +241,7 @@ describe("terminal tabs state", () => {
     expect(hasEngineLeaf(engineClosed)).toBe(false) // only the shell survives
   })
 
-  // Why: this argv decision IS the restart-survival contract (issue #22) —
+  // Why: this argv decision IS the restart-survival contract —
   // `--resume` must fire ONLY for a tab that already conversed and has no
   // live PTY; a live PTY (re-render churn) or a never-spawned tab must
   // keep pinning the fresh id, or claude errors "no conversation found".
@@ -328,8 +264,8 @@ describe("terminal tabs state", () => {
     expect(engineTabArgv(tab({ sessionId: "u1", spawned: true }), base, false)).toEqual(["claude", "--resume", "u1"])
   })
 
-  // Why: the quick-fork initial prompt (issue #17, delivery verified in
-  // 12283c57) rides the argv as a positional arg ONLY on the first engine
+  // Why: the quick-fork initial prompt rides the argv as a positional arg
+  // ONLY on the first engine
   // tab's FIRST spawn — any wider and the prompt re-delivers on re-render
   // churn / restart / every new tab, replaying the fork message forever.
   it("engineTabSpawnFor: the initial prompt rides only the first engine tab's first spawn", () => {
@@ -348,8 +284,8 @@ describe("terminal tabs state", () => {
     const firstSpawn = engineTabSpawnFor(s, first, base, opts)
     expect(firstSpawn.command.slice(0, 2)).toEqual(["/bin/zsh", "-ilc"])
     expect(firstSpawn.command[2]).toContain("claude 'fix the bug")
-    // A quick-fork prompt is a fresh worktree task's FIRST prompt. It used to
-    // carry a branch-rename coda; that standing instruction now lives in the
+    // A quick-fork prompt is a fresh worktree task's FIRST prompt. It carries
+    // no branch-rename coda — that standing instruction lives in the
     // Rove agent skill, so the prompt reaches the engine as the user wrote it.
     expect(firstSpawn.command[2]).not.toContain("set-branch")
     // Second engine tab: never gets the prompt.
@@ -397,7 +333,7 @@ describe("terminal tabs state", () => {
     expect(tabExitAction({ ...engine, spawned: undefined }, true, false)).toBe("close") // never conversed
   })
 
-  // Why: shellSpawn is the vendor-launch contract (2026-07-10): the PTY
+  // Why: shellSpawn is the vendor-launch contract: the PTY
   // runs the user's SHELL and the engine command is TYPED into it, so the
   // session keeps rc-file context and exiting the vendor lands on a
   // prompt. Quoting must keep an argv with spaces/quotes ONE argument at

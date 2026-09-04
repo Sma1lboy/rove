@@ -15,16 +15,16 @@ import type { TranscriptActivity } from "../../client/remote-orchestrator"
 import { TURN_STATUS_POLL_MS, nextTurnStatusPollDelay } from "./activity-poll"
 
 /** Consecutive unchanged capture-pane reads before a completion marker counts as "done". */
-export const STABLE_POLLS_FOR_DONE = 2
+const STABLE_POLLS_FOR_DONE = 2
 
-export function fingerprint(text: string): string {
+function fingerprint(text: string): string {
   return createHash("sha1").update(text).digest("hex")
 }
 
 /* ─── per-window turn-status poll ────────────────────────────────────── */
 
 /** The slice of `EngineTurnDetector` this loop consumes (structural, fakeable). */
-export interface TurnDetectorLike {
+interface TurnDetectorLike {
   supportsCompletionMarkers(): boolean
   latestCompletion(worktree: string): Promise<{ readonly id: string } | null>
 }

@@ -99,11 +99,10 @@ describe("runThemeSubcommand list", () => {
   })
 
   // `theme list` must name every bundled theme, not a copy of the list that
-  // happened to be true when it was written. The CLI used to hand-mirror these
-  // names because importing the theme map pulled in opentui + Solid; once Solid
-  // went away the workaround outlived its reason, leaving two files and two
-  // "keep in sync" comments as the only thing holding them together. This
-  // asserts against the map that owns the JSON imports, so adding a bundled
+  // happened to be true when it was written. Hand-mirroring the names leaves
+  // two files and a "keep in sync" comment as the only thing holding them
+  // together. This asserts against the map that owns the JSON imports, so
+  // adding a bundled
   // theme without the CLI picking it up fails here.
   it("lists every bundled theme in the canonical map", async () => {
     await runThemeSubcommand(["list"])

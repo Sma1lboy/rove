@@ -9,8 +9,8 @@
  *   - a session started by an older kobe, before the CLI wrote snapshots;
  *   - a snapshot reclaimed by the orphan sweep while its PTY lived on;
  *   - anything that opens a `<taskId>::<tabId>` session without going
- *     through either writer (issue #20: a canonical-spawn fallback ran a
- *     live engine for 1h44m that the sidebar never showed).
+ *     through either writer (a canonical-spawn fallback can run a live engine
+ *     for hours that the sidebar never shows).
  *
  * In every one of those the engine is alive and the sidebar showed either
  * nothing or a tab list missing the session. So: reconcile at TAB
@@ -31,7 +31,7 @@ export interface LiveSession {
   /** OSC window title of the live process, when the host observed one. */
   readonly title?: string | null
   /** Shell pid of the hosted session — roots the live-engine probe's
-   *  process-tree walk for tabs this TUI never attached (issue #33). */
+   *  process-tree walk for tabs this TUI never attached. */
   readonly pid?: number | null
 }
 
@@ -39,8 +39,8 @@ export interface LiveSession {
  * Group live sessions into UNREGISTERED tab rows per task, skipping every
  * exact `<taskId>::<tabId>` key in `registered` (a snapshot answered for
  * those tabs). Tab-granular on purpose: a task whose snapshot lists tab-2
- * while tab-1 is alive must still surface tab-1 — that divergence is issue
- * #20's invisible engine, and skipping whole tasks is what hid it.
+ * while tab-1 is alive must still surface tab-1 — that divergence is an
+ * invisible live engine, and skipping whole tasks is what hides it.
  *
  * The label is the live process title when the host has one, else the tab
  * id, prefixed ⚠ — the row exists because the snapshot does NOT know this

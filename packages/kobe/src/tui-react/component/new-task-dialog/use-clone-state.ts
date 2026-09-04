@@ -1,6 +1,6 @@
 /**
- * Clone-tab state hook for the React new-task dialog (issue #15, G3W2) —
- * the "For New Repo" cluster split out of `./view-model.ts`: git URL,
+ * Clone-tab state hook for the new-task dialog — the "For New Repo" cluster
+ * split out of `./view-model.ts`: git URL,
  * parent-dir drill-down picker, auto-derived folder name, base branch,
  * and the async `git clone` commit path. All fs/spawn plumbing comes from
  * the shared `src/tui/component/new-task-dialog/clone.ts`.
@@ -17,6 +17,7 @@ import {
   validateCloneTarget,
   validateGitUrl,
 } from "../../../tui/component/new-task-dialog/clone"
+import { completeRepoInput } from "../../../tui/component/new-task-dialog/repo-field"
 import {
   type Field,
   type NewTaskInput,
@@ -91,6 +92,30 @@ export function useCloneState(args: {
     args.setField("cloneFolder")
   }
 
+  /**
+   * Tab in the parent-dir field — the clone tab's half of the repo field's
+   * shell completion, and the same bargain: finish the highlighted row in
+   * place, and let the key mean "next field" only once there is nothing left
+   * to finish. Always a browse walk, because a parent directory is only ever
+   * a path — there is no saved-name mode on this side, so no `repoOptions`.
+   *
+   * The caller owns the focus check; this owns "is there anything to say".
+   */
+  function completeCloneParent(): boolean {
+    if (cloneParentPicked) return false
+    const done = completeRepoInput({
+      value: cloneParent,
+      mode: "browse",
+      highlighted: cloneParentFiltered[cloneParentCursor],
+      baseExpanded: cloneParentSplit.base,
+      repoOptions: [],
+    })
+    if (!done) return false
+    setCloneParent(done.value)
+    setCloneParentCursor(0)
+    return true
+  }
+
   function selectCloneParentAt(absoluteIndex: number): void {
     const picked = cloneParentFiltered[absoluteIndex]
     if (!picked) return
@@ -116,8 +141,8 @@ export function useCloneState(args: {
     const targetReason = validateCloneTarget(cloneParent, cloneFolder)
     if (targetReason) {
       args.setSubmitError(targetReason)
-      // Blame the field actually at fault — same probe strategy as the
-      // Solid shell (see its commitClone for the full rationale).
+      // Blame the field actually at fault: probe which input is wrong rather
+      // than reporting the failure against the whole form.
       const folder = cloneFolder.trim()
       const folderStructurallyBad = !folder || folder.includes("/") || folder.includes("\\")
       const parentAtFault = !folderStructurallyBad && validateCloneTarget(cloneParent, "__kobe_probe__") != null
@@ -155,6 +180,7 @@ export function useCloneState(args: {
     cloneParentWindow,
     cloneParentCursor,
     cloneParentPicked,
+    completeCloneParent,
     setCloneUrlText,
     setCloneParentText,
     setCloneFolderText,

@@ -149,8 +149,8 @@ const WEB_EXPOSED_RPCS = webExposedRpcNames(createDaemonHandlerRegistry())
  * carry identical fields. Two deliberate HTTP-side differences, both pinned
  * by tests: the message travels under `error` (the SPA's api-client parses
  * `error`, not `message` — packages/kobe-web/src/lib/api-client.ts), and a
- * plain anonymous Error's `name: "Error"` stays off the wire (historical
- * shape, pinned by kobe-web's bridge-routes test).
+ * plain anonymous Error's `name: "Error"` stays off the wire (pinned by
+ * kobe-web's bridge-routes test).
  */
 export function webRpcErrorBody(err: unknown): { error: string; name?: string } {
   const { message, name } = shapeDaemonError(err)
@@ -185,7 +185,9 @@ async function enginesResponse(runtime: DaemonRuntimeAdapter): Promise<Response>
       label: runtime.engineDisplayName(id),
       effortLevels: runtime.engineEntry(id).effortLevels,
     }))
-    return Response.json({ engines: engines.length > 0 ? engines : [{ id: "claude", label: "Claude" }] })
+    // Empty stays empty: the SPA keeps its own four-built-in fallback only
+    // when the route yields nothing, and a synthesized entry defeats that.
+    return Response.json({ engines })
   } catch (err) {
     return webRpcErrorResponse(err, 500)
   }
@@ -247,21 +249,29 @@ async function quickPromptsPut(runtime: DaemonRuntimeAdapter, req: Request): Pro
 }
 
 /**
- * Hand the SPA its token by rewriting the served HTML.
+ * Echo the token back into the served HTML, for a caller that already proved
+ * it holds one.
  *
- * The alternative — a `/api/token` endpoint the SPA calls on boot — cannot
- * work: to be reachable before the SPA holds a token it would have to be
- * unauthenticated, which makes it a back door that hands the credential to
- * precisely the caller this whole mechanism exists to turn away. Shipping the
- * token WITH the page is safe for the same reason the page itself is: both
- * are already behind the Origin check and the loopback bind, and anything
- * able to fetch the page could equally read the token file.
+ * This is a CONVENIENCE, never a bootstrap: the SPA arrives at `/?token=…`
+ * (the URL `rove web` prints), and the meta tag is how the token crosses from
+ * the address bar into a place `fetch` can read on every later navigation.
+ *
+ * It must stay bound to an authenticated requester. `/` is deliberately
+ * outside {@link requiresWebToken} — a browser cannot attach a bearer header
+ * or the query token to the subresources it fetches on its own, so gating the
+ * shell 401s every script and stylesheet. Injecting unconditionally into that
+ * open page turned it into a credential dispenser: `curl` with no Origin and
+ * no token read the value out of the body and drove the whole `/api/*`
+ * surface, including `task.setCommand` (arbitrary command execution). The
+ * 0600 mode on the token file exists to stop exactly that caller.
  */
 function injectWebToken(html: string, token: string): string {
   const tag = `<meta name="rove-web-token" content="${token}">`
   return html.includes("</head>") ? html.replace("</head>", `  ${tag}\n  </head>`) : `${tag}${html}`
 }
 
+/** `token` is supplied ONLY when the request presented it — see
+ *  {@link injectWebToken}. An anonymous caller gets the shell verbatim. */
 async function staticResponse(pathname: string, staticDir: string, token?: string): Promise<Response> {
   const rel = pathname === "/" ? "/index.html" : pathname
   const resolved = normalize(join(staticDir, rel))
@@ -311,17 +321,24 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     // A `curl` sends no Origin and so sails past the check above; it is this
     // gate that stops it. Everything that reads or mutates daemon state goes
     // through here, so a route added later is authenticated by default.
-    if (
-      requiresWebToken(url, DAEMON_WEB_HEALTH_PATH) &&
-      deps.webToken &&
-      !tokensMatch(presentedToken(req, url), deps.webToken)
-    ) {
+    // Computed for EVERY path, not just the gated ones, because the static
+    // shell needs the same answer to decide whether it may echo the token
+    // back (see injectWebToken).
+    const authenticated = deps.webToken !== undefined && tokensMatch(presentedToken(req, url), deps.webToken)
+    if (requiresWebToken(url, DAEMON_WEB_HEALTH_PATH) && deps.webToken && !authenticated) {
       return unauthorizedResponse()
     }
     if (url.pathname === "/events") {
       return sseResponse((send) => {
+        // Nothing fallible above the acquire. `onSseOpen` bumps the gui
+        // refcount and hands back the ONLY way to undo it, so a throw between
+        // the two (assembling the snapshot reaches the orchestrator and the
+        // activity map) left a phantom gui that nothing could remove: the
+        // daemon never idle-exited and every collector polled forever for a
+        // browser that got a 500. Build the payload first, acquire last.
+        const hydration = link.snapshot()
         const closeGui = deps.onSseOpen?.() ?? (() => {})
-        send("snapshot", link.snapshot())
+        send("snapshot", hydration)
         sseSends.add(send)
         return () => {
           sseSends.delete(send)
@@ -358,7 +375,7 @@ export function createDaemonWebRequestHandler(deps: RequestHandlerDeps): (req: R
     if (worktrees) return worktrees
     const themes = runtime.handleThemesRequest(req, url)
     if (themes) return themes
-    if (staticDir) return staticResponse(url.pathname, staticDir, deps.webToken)
+    if (staticDir) return staticResponse(url.pathname, staticDir, authenticated ? deps.webToken : undefined)
     return new Response("not found", { status: 404 })
   }
 }
@@ -430,18 +447,16 @@ export function createDirectWebLink(args: {
  * veto over daemon startup and must NEVER kill whatever holds the port.
  *   - port free               → bind.
  *   - held by another kobe web → SKIP (don't fight another daemon for it;
- *     since ADR 0003 the port-holder IS a live daemon process, so SIGTERM-ing
- *     it would kill every parallel session — the 2026-07-07 sweep failure
- *     shape). The already-listening daemon serves the browser fine.
+ *     the port-holder IS a live daemon process, so SIGTERM-ing it would kill
+ *     every parallel session). The already-listening daemon serves the
+ *     browser fine.
  *   - held by a non-kobe svc   → SKIP (a stray `vite preview` on the port must
  *     not make kobe unbootable).
  * A skip degrades the daemon to socket-only; it never throws.
  */
 export async function probeWebPort(port: number, healthPath: string = DAEMON_WEB_HEALTH_PATH): Promise<boolean> {
-  let body: string
   try {
-    const res = await fetch(`http://localhost:${port}${healthPath}`, { signal: AbortSignal.timeout(800) })
-    body = (await res.text()).trim()
+    await fetch(`http://localhost:${port}${healthPath}`, { signal: AbortSignal.timeout(800) })
   } catch {
     // Nothing answered the health probe → assume the port is free to bind.
     // If something races onto it, Bun.serve's EADDRINUSE is caught upstream.
@@ -457,9 +472,6 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
     )
   }
   const sseSends = new Set<SseSend>()
-  const unsubscribe = opts.onEvent((event) => {
-    for (const send of sseSends) send("channel", event)
-  })
   const hostname = opts.hostname?.trim() || process.env.KOBE_WEB_HOST?.trim() || "127.0.0.1"
   const allowedHost = allowedHostForBindHost(hostname)
   // Minted here rather than defaulted inside the handler: `webToken` is
@@ -478,6 +490,13 @@ export async function startDaemonWebServer(opts: DaemonWebServerOptions): Promis
     webToken,
   })
   const server = Bun.serve({ port: opts.port, hostname, idleTimeout: 0, fetch: handle })
+  // Subscribed only once there is something to unsubscribe FROM: above the
+  // bind, an `ensureWebToken` write error or a lost port race throws past every
+  // caller of the returned `close()`, and the bus keeps calling this orphaned
+  // closure for the daemon's whole lifetime — once per restart that loses.
+  const unsubscribe = opts.onEvent((event) => {
+    for (const send of sseSends) send("channel", event)
+  })
   return {
     port: server.port ?? opts.port,
     hostname,

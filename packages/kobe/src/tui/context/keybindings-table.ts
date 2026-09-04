@@ -69,7 +69,7 @@ import { FILES_BINDINGS } from "./keybindings-files.ts"
 import { INBOX_BINDINGS } from "./keybindings-inbox.ts"
 import { SIDEBAR_BINDINGS } from "./keybindings-sidebar.ts"
 
-/** Pane scopes used to gate where a binding is active. */
+/** Pane scopes that gate where a binding is active. */
 export type KobeBindingScope = "global" | "sidebar" | "workspace" | "files" | "inbox" | "terminal"
 
 /**
@@ -106,6 +106,8 @@ export type KobeBinding = {
   hint?: KobeBindingHint
   /** User-facing tier. Only the deliberately small Kobe-owned direct set opts in. */
   presentation?: "onePress"
+  /** Let an enabled PTY input binding win this direct chord. */
+  yieldToPassthrough?: boolean
 }
 
 /**
@@ -130,14 +132,25 @@ export const KobeKeymap: readonly KobeBinding[] = [
     // Sidebar-only — single letter `n`. While focused on the chat
     // composer / files / terminal, `n` is just a letter you type;
     // ctrl+q jumps back to the sidebar where `n` opens the new-task
-    // dialog. Avoids the muscle-memory-vs-typing collision the old
-    // global `ctrl+n` had.
+    // dialog. A global `ctrl+n` would hit the muscle-memory-vs-typing
+    // collision instead.
     id: "task.new",
     scope: "sidebar",
     keys: ["n"],
     category: "Sidebar",
     description: "New task",
     hint: { keys: "n" },
+  },
+  {
+    // From anywhere via the prefix. Not a direct ctrl+n: readline/emacs
+    // next-history inside the embedded engine and shell terminals owns
+    // that chord, and the prefix's first stroke never passes through.
+    id: "task.new.global",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["n"],
+    category: "Global",
+    description: "New task",
   },
   {
     id: "task.openEditor",
@@ -147,13 +160,12 @@ export const KobeKeymap: readonly KobeBinding[] = [
     category: "Global",
     description: "Open active Task directory in editor",
   },
-  // The PROPOSED `prefix+t` Scratch-shell chord was REJECTED (owner
-  // 2026-08-16): Scratch entry lives in the ctrl+e new-conversation
-  // dialog as a trailing choice instead; no chord until frequency proves
-  // one out. See docs/design/keybinding-decisions.md.
+  // No Scratch-shell chord: Scratch entry lives in the ctrl+e
+  // new-conversation dialog as a trailing choice instead; no chord until
+  // frequency proves one out. See docs/design/keybinding-decisions.md.
   {
-    // PROPOSED chord (owner picked prefix+m 2026-07-16): global entry into
-    // the sidebar's move mode — focuses the sidebar, highlights the current
+    // Global entry into the sidebar's move mode — focuses the sidebar,
+    // highlights the current
     // selection, then j/k reorders saved projects; enter/esc exits.
     id: "task.moveMode",
     scope: "global",
@@ -195,12 +207,9 @@ export const KobeKeymap: readonly KobeBinding[] = [
     hint: { keys: "x" },
   },
   {
-    // Prefix-only `prefix+c` (owner call 2026-07-29, demoting the bare
-    // sidebar `c` it shipped with): the kanban is a step-back-and-look
-    // surface, not a per-task verb, so it doesn't earn a direct sidebar
     // The three sidebar-rail pages take prefix+1/2/3, matching the rail's
-    // own top-to-bottom order (owner call 2026-08-01) — the sidebar is the
-    // legend, so there is no mnemonic to remember. They swap only the content
+    // own top-to-bottom order — the sidebar is the legend, so there is no
+    // mnemonic to remember. They swap only the content
     // pane, so the prefix stays live behind them and 1→2→3 hops directly
     // between pages without an esc.
     id: "kanban.open",
@@ -242,9 +251,9 @@ export const KobeKeymap: readonly KobeBinding[] = [
   },
   {
     // "Back to tasks" chord. Plain `q` (sidebar scope) actually quits;
-    // ctrl+q is THE escape hatch out of any pane (direct-only again —
-    // owner call 2026-07-11, same as the tab-management rows: too
-    // load-bearing for a two-stroke prefix). Scope stays "workspace"
+    // ctrl+q is THE escape hatch out of any pane (direct-only, same as the
+    // tab-management rows: too load-bearing for a two-stroke prefix).
+    // Scope stays "workspace"
     // for override validation.
     id: "focus.sidebar",
     scope: "workspace",
@@ -257,13 +266,11 @@ export const KobeKeymap: readonly KobeBinding[] = [
 
   // ─── Navigation ───────────────────────────────────────────────────────
   {
-    // Relative pane cycling replaces the old four-slot absolute
-    // ctrl/prefix+h/j/k/l map (owner call 2026-07-14). Keeping previous
+    // Relative pane cycling, not a four-slot absolute map. Keeping previous
     // and next as separate ids lets users rebind either direction without
-    // preserving a positional slot contract. Direct ctrl+h/j/k/l remain
+    // preserving a positional slot contract. Direct ctrl+h/j/k/l stay
     // available to the embedded engine. prefix+h/l, not j/k — the three
-    // panes sit side by side, so the chords read left/right (owner call
-    // 2026-07-17).
+    // panes sit side by side, so the chords read left/right.
     id: "focus.previous",
     scope: "global",
     keys: [],
@@ -273,11 +280,11 @@ export const KobeKeymap: readonly KobeBinding[] = [
   },
   {
     // Forward pane move — walks sidebar → workspace → files, clamped at
-    // the ends (cursor semantics, owner call 2026-07-25 — no wrap).
+    // the ends (cursor semantics — no wrap).
     // `f4` stays the direct alias and sits in RESERVED_GLOBAL_CHORDS
     // (panes/terminal/keys-pure.ts), so it fires identically from inside
     // the embedded terminal; prefix+l is the relative navigation form.
-    // NOT `tab` (tried 2026-07-06, cut same day): the cycle path always
+    // NOT `tab`: the cycle path always
     // lands on the workspace terminal, which must keep tab as shell /
     // engine completion — so tab-cycling both trapped there every lap AND
     // typed a literal \t into the engine composer on arrival. NOT
@@ -310,12 +317,11 @@ export const KobeKeymap: readonly KobeBinding[] = [
     presentation: "onePress",
   },
   {
-    // Zen toggle (issue #18, pure-tui shape) — hides the Files column;
-    // the sidebar's ☯ ZEN chip is the click-based exit affordance, this is
-    // the keyboard one. Prefix-only `prefix+z` (owner call 2026-07-17,
-    // dropping the old f6 direct chord entirely — f6 now passes through
-    // to the embedded shell). Reachable from the terminal pane too since
-    // 2026-08-10: the prefix first stroke no longer passes through.
+    // Zen toggle — hides the Files column; the sidebar's ☯ ZEN chip is the
+    // click-based exit affordance, this is the keyboard one. Prefix-only
+    // `prefix+z`; f6 carries no chord and passes through to the embedded
+    // shell. Reachable from the terminal pane too, because the prefix first
+    // stroke does not pass through.
     id: "workspace.zenToggle",
     scope: "global",
     keys: [],
@@ -325,9 +331,9 @@ export const KobeKeymap: readonly KobeBinding[] = [
   },
   {
     // Doc-only: the chord is registered inline in Chat.tsx (gated on
-    // focused + streaming + no dialog). ESC no longer "detaches" focus
-    // back to the sidebar — that pulled focus out from under the user
-    // mid-edit. Use `ctrl+q` (`focus.sidebar`) for the explicit detach;
+    // focused + streaming + no dialog). ESC does NOT "detach" focus back to
+    // the sidebar — that would pull focus out from under the user mid-edit.
+    // Use `ctrl+q` (`focus.sidebar`) for the explicit detach;
     // ESC in chat is reserved for interrupting the current turn.
     id: "chat.interrupt",
     scope: "workspace",
@@ -378,6 +384,52 @@ export const KobeKeymap: readonly KobeBinding[] = [
     description: "Reset terminal — kill the current shell and respawn",
     hint: { keys: "f5" },
     presentation: "onePress",
+  },
+  {
+    // PROPOSED chord, pending owner sign-off (docs/design/keybinding-decisions.md).
+    // Prefix-only: the terminal forwards a bare `/` to the shell and must keep
+    // doing so, and the prefix's first stroke never passes through. `/` as the
+    // second stroke mirrors the sidebar's bare `/` — one search key across the
+    // app. Adds nothing to TRAPPED_KEYS.
+    id: "terminal.search",
+    scope: "terminal",
+    keys: [],
+    prefixKeys: ["/"],
+    category: "Terminal",
+    description: "Search the scrollback",
+  },
+  {
+    // Search-mode walk, registered only while the query row is open. Named by
+    // DIRECTION rather than next/previous because a new query parks on the
+    // newest hit, so the useful first press goes back through history — and
+    // `return` is the obvious repeat key for that after typing.
+    //
+    // NOT `shift+return`: without the kitty keyboard protocol (which Rove
+    // keeps off — see host-render-options.ts) a terminal sends the same CR
+    // for enter and shift+enter, so `matchKey` sees a plain `return` and the
+    // chord would be a silently dead key.
+    id: "terminal.search.older",
+    scope: "terminal",
+    keys: ["up", "return"],
+    category: "Terminal",
+    description: "Scrollback search: walk to the older match",
+  },
+  {
+    id: "terminal.search.newer",
+    scope: "terminal",
+    keys: ["down"],
+    category: "Terminal",
+    description: "Scrollback search: walk to the newer match",
+  },
+  {
+    // Search-mode cancel — closes the row and restores the prior viewport.
+    // Only registered while searching; outside it the terminal passes esc
+    // through to the shell (vim depends on that).
+    id: "terminal.search.cancel",
+    scope: "terminal",
+    keys: ["escape"],
+    category: "Terminal",
+    description: "Close scrollback search (restore prior scroll position)",
   },
   // NOTE: The terminal pane's bare-key passthrough (every alphanumeric /
   // named key forwarded to the PTY) is intentionally NOT in this table.

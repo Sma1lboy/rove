@@ -57,8 +57,8 @@ export async function readActivityLiveness(
   // Prefer the reporting session's OWN transcript (piped by the hook). The
   // worktree-wide scan reads the newest completion across EVERY session in
   // the dir — with several tabs sharing one worktree, a sibling's Stop
-  // landed `completedAt >= at` and idled a genuinely mid-turn engine at the
-  // TTL. A vanished file (session rotated) falls back to the wide scan.
+  // satisfies `completedAt >= at` and idles a genuinely mid-turn engine at
+  // the TTL. A vanished file (session rotated) falls back to the wide scan.
   const scoped = transcriptPath ? await detector.latestActivityInFile(transcriptPath) : null
   const { marker, mtimeMs } = scoped ?? (await detector.latestActivity(task.worktreePath))
   return {

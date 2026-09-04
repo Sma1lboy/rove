@@ -1,43 +1,38 @@
 /**
  * Framework-free live-title subscription store — the ONE "ptyKey → live
  * foreground-process display title" reconciler shared by the workspace
- * terminal surfaces (O18). Before this, `use-turn-polls.ts` Pass 1 and
- * `TerminalSplit.tsx` each hand-wrote a lazy-attach-with-retry title
- * subscription pass, and they had DRIFTED apart: turn-polls compared PTY
- * INSTANCES (release + respawn at the same key drops the dead PTY's stale
- * title), while TerminalSplit only did a `has(id)` existence check keyed on
- * the bare leaf id — so a split leaf that respawned kept a subscription
- * pinned to the dead PTY (frozen title), and because TerminalSplit mounts
- * without a React key its instance survives tab switches while every tab's
- * leaves start at `leaf-1`, so a subscription from one tab's `leaf-1` bled
- * its title onto the next tab's `leaf-1`. Both bugs vanish once the reconcile
- * is instance-compared and keyed on the GLOBALLY-UNIQUE registry ptyKey
- * (`splitLeafPtyKey(tabKey, id)` / `soloKey(...)`), which is exactly what
- * this store does.
+ * terminal surfaces. Two properties are load-bearing, and a hand-written
+ * subscription pass tends to miss both:
  *
- * The correct reconcile logic is lifted verbatim from `use-turn-polls.ts`
- * Pass 1 (the already-verified writing): for each requested ptyKey, resolve
- * the registry PTY, (re)subscribe when the instance at that key changed, and
- * drop subscriptions whose key is no longer requested or whose PTY died.
+ *   - INSTANCE-compared, not `has(key)`: release + respawn at the same key
+ *     must re-subscribe, or the leaf keeps a subscription pinned to the dead
+ *     PTY and freezes on its last title.
+ *   - keyed on the GLOBALLY-UNIQUE registry ptyKey
+ *     (`splitLeafPtyKey(tabKey, id)` / `soloKey(...)`), not on the bare leaf
+ *     id: TerminalSplit mounts without a React key, so its instance survives
+ *     tab switches while every tab's leaves start at `leaf-1` — a bare-id
+ *     subscription bleeds one tab's title onto the next tab's `leaf-1`.
  *
- * The STORE keeps titles raw — the OSC stream IS the label (owner
- * 2026-08-01: "don't waste the OSC name"). It once collapsed an engine's
- * title to its binary ("✳ Claude Code" → "claude") via the live-engine
- * vendor, which (a) threw away the one line of live status the engine writes
- * and (b) FLICKERED: the ps-walk probe transiently loses a vendor mid-turn,
- * so labels flapped raw ↔ collapsed every probe tick. Identity (which
- * detector to attach) still comes from the process tree; display no longer
- * does.
+ * Reconcile is therefore: for each requested ptyKey, resolve the registry
+ * PTY, (re)subscribe when the instance at that key changed, and drop
+ * subscriptions whose key is unrequested or whose PTY died.
+ *
+ * The STORE keeps titles raw — the OSC stream IS the label. Collapsing an
+ * engine's title to its binary ("✳ Claude Code" → "claude") via the
+ * live-engine vendor would (a) throw away the one line of live status the
+ * engine writes and (b) FLICKER: the ps-walk probe transiently loses a vendor
+ * mid-turn, so labels would flap raw ↔ collapsed every probe tick. Identity
+ * (which detector to attach) comes from the process tree; display does not.
  *
  * What the RENDER projections below (and use-turn-polls' twin) do strip is
  * the engine's leading STATUS decoration — claude's `✳`/`⠂`/`⠐`, codex's
  * spinner frame — because kobe draws that state in its own glyph column and
- * showing both says it twice (owner 2026-08-10). That is a display concern,
+ * showing both says it twice. That is a display concern,
  * so it lives in the projection, not in the store, and the vocabulary is
  * declared per engine (`terminalTitle.statusPrefixes`). The name itself is
  * still never rewritten.
  *
- * No React, no Solid, no @opentui — plain closures over Maps, unit-testable
+ * No React, no @opentui — plain closures over Maps, unit-testable
  * under vitest. Callers own the tick that drives `reconcile()` (a PTY spawns
  * asynchronously after its Terminal mounts, so the attach must retry).
  */
@@ -87,7 +82,7 @@ export function createTitleSubscriptions(
       const wanted = new Set(ptyKeys)
       let changed = false
 
-      // Drop subscriptions no longer wanted OR whose PTY instance changed
+      // Drop subscriptions that are unwanted OR whose PTY instance changed
       // (release + respawn) — the dead PTY's title must not linger.
       for (const [key, sub] of subs) {
         const cur = wanted.has(key) ? lookup(key) : null
@@ -109,7 +104,7 @@ export function createTitleSubscriptions(
         // "this tab's live title is empty" instead of "nothing reported
         // yet", and the host records that over the tab's real `lastTitle`
         // (use-tab-turn-state), wiping the name to the vendor default a beat
-        // after the correct one rendered (owner report 2026-08-10).
+        // after the correct one rendered.
         const entry: Entry = { pty, unsub: () => {}, title: undefined }
         entry.unsub = pty.onTitleChange((raw) => {
           if (entry.title === raw) return
@@ -198,7 +193,7 @@ export function useTitleSubscriptions(ptyKeys: ReadonlyMap<string, string>): Rea
   // Title-change pushes (not caused by a reconcile) re-project the view.
   // Deferred one microtask (coalesced): a fresh subscription seeds its title
   // SYNCHRONOUSLY inside the store's reconcile loop, which must never be
-  // re-entered — the old setState tick got this asynchrony for free from React.
+  // re-entered.
   useEffect(() => {
     let active = true
     let scheduled = false

@@ -1,9 +1,11 @@
 import { execFile } from "node:child_process"
-import { mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, isAbsolute, join, resolve } from "node:path"
+import { join, resolve } from "node:path"
 import { promisify } from "node:util"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
+import { gitTopLevel, resolveRepoRoot } from "./repo-key.ts"
 
 const execFileAsync = promisify(execFile)
 
@@ -90,35 +92,13 @@ function todayStamp(): string {
   return `${d.getFullYear()}-${mm}-${dd}`
 }
 
-async function gitCommonDir(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--git-common-dir"])
-  const dir = stdout.trim()
-  return realpath(isAbsolute(dir) ? dir : resolve(path, dir))
-}
-
-async function gitTopLevel(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--show-toplevel"])
-  return stdout.trim()
-}
-
-async function gitMainWorktree(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "worktree", "list", "--porcelain"])
-  const first = stdout
-    .split(/\r?\n/)
-    .find((line) => line.startsWith("worktree "))
-    ?.slice("worktree ".length)
-    .trim()
-  return first ? realpath(first) : gitTopLevel(path)
-}
-
 async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: string }> {
   if (typeof raw !== "string" || raw.length === 0) throw new Error("repoRoot is required")
-  const absolute = resolve(raw)
-  const s = await stat(absolute).catch(() => null)
-  if (!s?.isDirectory()) throw new Error("repoRoot does not exist")
   try {
-    const [repoRoot, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
-    return { repoRoot, repoKey }
+    const { repoRoot, repoKey } = await resolveRepoRoot(raw)
+    // No worktree line at all still has a readable root: fall back to the
+    // toplevel rather than refuse the repo.
+    return { repoRoot: repoRoot ?? (await gitTopLevel(resolve(raw))), repoKey }
   } catch (err) {
     if (isGitNotRepositoryError(err)) throw new Error("repoRoot is not a git repository")
     throw err
@@ -150,10 +130,7 @@ async function readStore(path: string): Promise<IssuesStoreFile> {
 }
 
 async function writeStore(path: string, store: IssuesStoreFile): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp`
-  await writeFile(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, store)
 }
 
 function response(repoRoot: string, record: RepoIssueRecord | null): RepoIssues {
@@ -165,36 +142,12 @@ function response(repoRoot: string, record: RepoIssueRecord | null): RepoIssues 
   }
 }
 
-const locks = new Map<string, Promise<unknown>>()
-
-/**
- * Serialize async sections that share a resource named by `key`. The issue
- * store keeps ALL repos in one file (read/written whole), so the unit of
- * contention is the file path, NOT the repoKey — locking per-repo lets two
- * different repos' read-modify-write cycles interleave and the second
- * `writeStore` rename silently drops the first repo's mutation. Callers pass
- * `this.path` so every mutation against the file is serialized.
- */
-async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const tail = locks.get(key) ?? Promise.resolve()
-  const run = tail.then(fn)
-  const settled = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  locks.set(key, settled)
-  void settled.then(() => {
-    if (locks.get(key) === settled) locks.delete(key)
-  })
-  return run
-}
-
 export class IssuesStore {
   constructor(private readonly path = defaultIssuesStorePath()) {}
 
   async list(repo: unknown): Promise<RepoIssues> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
-    return withLock(this.path, async () => {
+    return serialized(this.path, async () => {
       const store = await readStore(this.path)
       const record = store.repos[repoKey] ?? null
       if (record && record.repoRoot !== repoRoot) {
@@ -218,7 +171,7 @@ export class IssuesStore {
   async mirrorTaskDone(repo: unknown, taskId: string): Promise<RepoIssues | null> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!taskId) return null
-    return withLock(this.path, async () => {
+    return serialized(this.path, async () => {
       const store = await readStore(this.path)
       const record = store.repos[repoKey]
       if (!record) return null
@@ -231,12 +184,37 @@ export class IssuesStore {
     })
   }
 
+  /**
+   * Drop the link from whatever issue points at `taskId` — the reverse of the
+   * `link` op, fired when the task itself is deleted. Without it the link
+   * outlives its task and `issueColumnKey` parks the card in In progress
+   * forever with no gesture to recover it.
+   *
+   * Same shape as {@link mirrorTaskDone}: one lock, reverse look-up on
+   * `Issue.taskId`, `null` when there is nothing to unlink.
+   */
+  async unlinkTask(repo: unknown, taskId: string): Promise<RepoIssues | null> {
+    const { repoRoot, repoKey } = await resolveRepo(repo)
+    if (!taskId) return null
+    return serialized(this.path, async () => {
+      const store = await readStore(this.path)
+      const record = store.repos[repoKey]
+      if (!record) return null
+      const issue = record.issues.find((i) => i.taskId === taskId)
+      if (!issue) return null
+      issue.taskId = undefined
+      record.repoRoot = repoRoot
+      await writeStore(this.path, store)
+      return response(repoRoot, record)
+    })
+  }
+
   async mutate(repo: unknown, op: unknown): Promise<RepoIssues> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!op || typeof op !== "object" || Array.isArray(op) || typeof (op as { type?: unknown }).type !== "string") {
       throw new Error("missing op")
     }
-    return withLock(this.path, async () => {
+    return serialized(this.path, async () => {
       const store = await readStore(this.path)
       let record = store.repos[repoKey]
       if (!record) {

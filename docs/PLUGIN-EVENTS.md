@@ -154,7 +154,7 @@ detail shape:
 | `automationId` | string | the schedule's id |
 | `name` | string | its display name |
 | `repo` | string | target repo |
-| `status` | string | the precise outcome: `dispatched`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed` |
+| `status` | string | the precise outcome: `dispatched`, `revived`, `deferred`, `skipped_precheck`, `skipped_missed`, `skipped_unavailable`, `dispatch_failed`. `revived` and `deferred` are the standing-session successes — a plugin that branches on `=== "dispatched"` alone silently drops them |
 | `trigger` | `"scheduled" \| "manual"` | cron tick or run-now |
 | `scheduledFor` | ISO string | the occurrence this run was for |
 | `error` | string? | present on skips/failures: the precheck output, the missed-grace message, or the dispatch error |

@@ -1,9 +1,8 @@
 /**
  * Verb handlers for `collect` and `feedback` — grouped separately from
- * `handlers-tasks.ts` since they don't touch single-task CRUD. The
- * `fan-out` handler that named this file folded into `add --count`
- * (`handlers-add.ts`, issue #30); the file keeps its name so its git
- * history stays traceable.
+ * `handlers-tasks.ts` since they don't touch single-task CRUD. The parallel
+ * create path this file is named for lives in `handlers-add.ts`, behind
+ * `add --count`.
  */
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
@@ -62,12 +61,14 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     // second get-task hop (same join as get-task).
     const { tabs, running } = await runtime.taskTabs(taskId)
     // `changes` is the UNCOMMITTED view; `base` is the committed one (ahead
-    // count + diffstat vs the merge-base). Both matter when picking a
-    // parallel-round winner: an attempt that commits its work reads +0/−0 here.
+    // and behind counts + diffstat vs the merge-base). Both matter when
+    // picking a parallel-round winner: an attempt that commits its work reads
+    // +0/−0 here, and `base.behind` says whether it was building against a
+    // base that has since moved.
     const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : { added: 0, deleted: 0 }
     const base = task.worktreePath
       ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
-      : { baseRef: null, ahead: null, diff: null }
+      : { baseRef: null, ahead: null, behind: null, diff: null }
     const entry = registry?.[task.id]
     // `forMs` = time in the CURRENT state ("idle for 40min" when state is
     // idle). Clock skew between daemon and CLI clamps to 0, never negative.
@@ -82,7 +83,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       vendor: task.vendor,
       status: task.status,
       ...(task.groupId ? { groupId: task.groupId } : {}),
-      // Lineage read (issue #21): who dispatched this task, so a parallel
+      // Lineage read: who dispatched this task, so a parallel
       // round's parent is programmatically discoverable.
       ...(task.dispatcher ? { dispatcher: task.dispatcher } : {}),
       running,

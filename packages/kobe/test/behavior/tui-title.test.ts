@@ -1,11 +1,11 @@
 /**
  * Regression pin: the pure-TUI host owns the outer terminal tab title while
- * it is running. Packaged Rove previously emitted no OSC title, so iTerm2
- * fell back to the JavaScript runtime name (observed as "node").
+ * it is running. Without an emitted OSC title, iTerm2 falls back to the
+ * JavaScript runtime name (it shows up as "node").
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv } from "./harness.ts"
+import { type BehaviorEnv, DIST_ROVE_CLI, closeTui, loadNodePty, makeBehaviorEnv } from "./harness.ts"
 
 // node-pty is a native addon; CI's linux runner has no prebuild for it, so a
 // top-level import fails the whole suite before skip logic can run. The
@@ -51,7 +51,7 @@ describe.skipIf(!nodePty)("Rove outer terminal title (behavior)", () => {
       })
       expect(raw).toContain(TITLE_SEQUENCE)
     } finally {
-      child.kill()
+      await closeTui(child)
     }
   }, 15_000)
 })

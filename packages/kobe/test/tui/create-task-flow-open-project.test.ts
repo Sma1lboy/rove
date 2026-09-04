@@ -1,15 +1,14 @@
 /**
- * The way BACK to a project the sidebar hid (issue #90).
+ * The way BACK to a project the sidebar hid.
  *
  * `isClosedDownProject` drops a project whose only row is its main checkout
- * once that checkout's last tab closes. Nothing is deleted, and the rule's
- * comment always claimed the repo was "still there in the new-task picker to
- * open again" — but every submit path went through `createTask`, which mints
- * a `kind: "task"`. Picking the hidden repo therefore added a worktree beside
- * the project and still produced no project row. The hiding rule had six
- * tests; the way back had none, which is why the gap shipped.
+ * once that checkout's last tab closes. Nothing is deleted, and the repo is
+ * meant to be "still there in the new-task picker to open again" — but a
+ * submit path through `createTask` mints a `kind: "task"`, so picking the
+ * hidden repo would add a worktree beside the project and still produce no
+ * project row.
  *
- * `mode: "open"` is that way back. These pin the half that was missing: the
+ * `mode: "open"` is the way back. These pin it: the
  * flow calls `ensureMainTask` (idempotent — it RESOLVES the existing main row
  * rather than creating a second one), lands on it, and creates no task.
  */
@@ -101,10 +100,9 @@ describe("createTaskFlow — opening a project instead of branching off it", () 
   })
 
   test("creates no task — that is the bug it exists to fix", async () => {
-    // Submitting the same repo through the default path is what used to
-    // happen, and it left the user with an extra worktree and still no
-    // project. Asserting the absence is the only thing that separates the
-    // fix from the bug: both end with a task selected.
+    // Submitting the same repo through the default path leaves the user with
+    // an extra worktree and still no project. Asserting the absence is the
+    // only thing that separates the two paths: both end with a task selected.
     const h = makeCtx({ submit: OPEN })
 
     await createTaskFlow(h.ctx)

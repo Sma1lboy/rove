@@ -74,9 +74,8 @@ const dispatchInstalled = new WeakSet<KobeDaemonClient>()
 /**
  * Install the single per-frame router on a shared client. Both `pty.data`
  * and `pty.exit` fan out to exactly one map lookup; unknown keys (a dead
- * handle's late frame, a key from another process) drop silently — the same
- * behavior the old per-handle `payload.key === this.taskId` guard gave, but
- * O(1) instead of O(open-tabs).
+ * handle's late frame, a key from another process) drop silently, in
+ * O(1) rather than the O(open-tabs) a per-handle key compare would cost.
  */
 function installDispatch(client: KobeDaemonClient): void {
   if (dispatchInstalled.has(client)) return

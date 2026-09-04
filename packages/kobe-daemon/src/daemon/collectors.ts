@@ -12,8 +12,14 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import {
+  DEFAULT_DEFERRED_SWEEP_TICK_MS,
+  type DeferredSweepDeps,
+  startDeferredPromptSweep,
+} from "./deferred-prompt-sweep.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import {
   DEFAULT_KEYBINDINGS_DEBOUNCE_MS,
@@ -45,9 +51,11 @@ export interface DaemonCollectorOptions {
   readonly keybindingsDebounceMs?: number
   readonly worktreeChangesTickMs?: number
   readonly transcriptActivityTickMs?: number
+  readonly contextUsageTickMs?: number
   readonly quotaResumeTickMs?: number
   readonly quotaUsageTickMs?: number
   readonly automationTickMs?: number
+  readonly deferredSweepTickMs?: number
 }
 
 /** What the automation sweep needs; omitted in tests that don't exercise it. */
@@ -56,14 +64,14 @@ export interface AutomationCollectorDeps {
   readonly link: DaemonRpcClient | (() => DaemonRpcClient)
   /** Plugin host getter (constructed after the collectors start, like `link`). */
   readonly plugins?: () => import("../plugins/runtime.ts").PluginHost | null
-  /** Where a standing session's blocked report goes (issue #91) instead of
+  /** Where a standing session's blocked report goes instead of
    *  being dropped. Optional so tests that don't exercise it keep working. */
   readonly deferred?: import("./deferred-prompts-store.ts").DeferredPromptsStore
   readonly inbox?: import("./automation-dispatch.ts").DispatchInbox
 }
 
 /**
- * Tier-(b) protocol sniff (issue #31): the observer's evidence hook that
+ * Tier-(b) protocol sniff: the observer's evidence hook that
  * upgrades a GENERIC task record from its live session. Only `tab-1` — the
  * deterministic engine tab launched from the task's own command (kobe's
  * `hosted-session.ts`) — may speak for the record: an engine a user starts
@@ -121,7 +129,7 @@ export function createProtocolUpgradeReporter(
  *   - keybindings watcher (KOB — cross-session keybinding propagation):
  *     watch `~/.rove/settings/keybindings.yaml` and ping the `keybindings`
  *     channel on change, so every pane re-reads + re-applies the file live.
- *   - worktree-changes collector (issue #6): the daemon runs the guarded
+ *   - worktree-changes collector: the daemon runs the guarded
  *     `git status` polls for every local worktree and publishes
  *     the counts map on the `worktree.changes` channel, so panes render
  *     pushes instead of each spawning their own per-row git polls.
@@ -141,15 +149,19 @@ export function startDaemonCollectors(
   options: DaemonCollectorOptions,
   quotaUsage?: QuotaUsageCache,
   automations?: AutomationCollectorDeps,
-  /** The activity registry — enables the activity observer (issues #11/#16:
-   *  PTY output heartbeat + foreground-walk reconciler + restart seeding).
+  /** The activity registry — enables the activity observer (PTY output
+   *  heartbeat + foreground-walk reconciler + restart seeding).
    *  Optional so handler-level tests that build collectors without one keep
    *  working; the real server always passes it. */
   activity?: DaemonActivityRegistry,
+  /** Deferred-prompt expiry sweep. Separate from `automations` on purpose:
+   *  the TTL must be enforced on every daemon, including one with no
+   *  routines configured. */
+  deferredSweep?: DeferredSweepDeps,
 ): () => void {
   // Activity observer: first tick immediately (restart seeding), then the
   // slow poll; gated per-tick on subscribers like every collector here. Its
-  // per-session evidence also feeds the tier-(b) protocol sniff (#31).
+  // per-session evidence also feeds the tier-(b) protocol sniff.
   const stopActivityObserver = activity
     ? startActivityObserver(
         activity,
@@ -207,6 +219,21 @@ export function startDaemonCollectors(
     hasSubscribers,
   )
 
+  // Context-window occupancy per live engine session (the footer's `ctx N%`).
+  // Gated on subscribers like the other display collectors: with no pane
+  // attached there is no footer to draw it in. Needs the activity registry —
+  // it is what knows which tabs have a live session.
+  const stopContextUsageCollector = activity
+    ? startContextUsageCollector(
+        activity,
+        orch,
+        bus,
+        runtime,
+        options.contextUsageTickMs ?? DEFAULT_CONTEXT_USAGE_TICK_MS,
+        hasSubscribers,
+      )
+    : () => {}
+
   // PR status is the only CI truth Rove holds, and an unattended agent is the
   // consumer that needs it most — so this collector's gate also opens on a
   // live engine, not just an attached pane (see startPrStatusPoller). With
@@ -247,6 +274,14 @@ export function startDaemonCollectors(
       )
     : () => {}
 
+  // Deferred-prompt TTL: ungated for the same reason as the two above —
+  // expiring a record nobody is watching is the point — and with an
+  // immediate first pass, so a restart clears what went stale while the
+  // daemon was down.
+  const stopDeferredPromptSweep = deferredSweep
+    ? startDeferredPromptSweep(deferredSweep, options.deferredSweepTickMs ?? DEFAULT_DEFERRED_SWEEP_TICK_MS)
+    : () => {}
+
   // Usage poller (Settings dashboard + workspace footer): gated on
   // subscribers — the resume scheduler does its own on-demand cache reads.
   // Every vendor WITH A PROBE is polled, not just the ones some task
@@ -265,10 +300,12 @@ export function startDaemonCollectors(
     stopPrStatusPoller()
     stopQuotaResumeRunner()
     stopAutomationRunner()
+    stopDeferredPromptSweep()
     stopQuotaUsagePoller()
     stopUiPrefsWatcher()
     stopKeybindingsWatcher()
     stopWorktreeChangesCollector()
     stopTranscriptActivityCollector()
+    stopContextUsageCollector()
   }
 }

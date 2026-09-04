@@ -11,6 +11,7 @@ import { engineLaunchArgv, withPinnedSessionId } from "../../engine/engine-prese
 
 import { buildEngineSessionLaunch } from "../../engine/session-launch.ts"
 import { trustEngineWorktree } from "../../engine/trust-worktree.ts"
+import { type TerminalTab, tabPtyKeyFor } from "../../tui/workspace/terminal-tabs-core.ts"
 import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 
 // Kept for existing callers in this directory; new callers should import from
@@ -27,6 +28,7 @@ import {
 } from "./pty-delivery.ts"
 import {
   type TaskSessionRow,
+  closeTabsSnapshot,
   hasLiveEngineTab,
   joinTaskTabs,
   markCliTabSession,
@@ -94,7 +96,7 @@ async function deliverHosted(
       engineLaunchArgv({ command: launchCommand, vendor: launchVendor, effort: target.modelEffort }),
       launchVendor,
     )
-    // Pre-trust the worktree in the protocol's first-run store (issue #28) —
+    // Pre-trust the worktree in the protocol's first-run store —
     // a hosted session can't answer a trust dialog. A generic protocol has
     // no store kobe knows how to pre-answer, and trustEngineWorktree no-ops.
     trustEngineWorktree(launchVendor, worktree)
@@ -119,16 +121,16 @@ async function deliverHosted(
       },
     )
     // `started && !delivered` is the real failure: the session was created but
-    // the prompt never reached it. `engineReady` no longer stands in for that
-    // — it is now an independent readiness observation, and an engine that
-    // never announced bracketed paste can still have been written to.
+    // the prompt never reached it. `engineReady` does NOT stand in for that —
+    // it is an independent readiness observation, and an engine that never
+    // announced bracketed paste can still have been written to.
     if (result.started && !result.delivered && !result.deferred) {
       throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
     }
     // Make the session visible to the sidebar tree, which lists a worktree's
-    // tabs from the task's persisted snapshot — a CLI-started session used to
-    // run live with no snapshot, so the tree showed the worktree with no tabs
-    // under it at all. Write-once (a --tab new spawn already appended its tab
+    // tabs from the task's persisted snapshot. Without this a CLI-started
+    // session runs live with no snapshot, so the tree shows the worktree with
+    // no tabs under it at all. Write-once (a --tab new spawn already appended its tab
     // in mintCliTab); see `tab-snapshot.ts`. When THIS delivery started the
     // session, record the pinned session id + spawned flag too, so a later
     // dead-reattach resumes the conversation (see engineTabArgv).
@@ -150,6 +152,53 @@ async function deliverHosted(
 
 const realPromptDeliveryOps: PromptDeliveryOps = {
   deliverHosted: (target, worktree, prompt, defer) => deliverHosted(target, worktree, prompt, defer),
+}
+
+/** Headless half of ctrl+w: remove the persisted tab, then end every hosted
+ * PTY the tab owns. Attached TUIs run their existing close path instead. */
+async function closeHeadlessTerminalTab(
+  taskId: string,
+  tabId: string,
+): Promise<{ kind: TerminalTab["kind"]; wasAlive: boolean }> {
+  const host = await openPtyHost()
+  try {
+    const sessions = host ? await listSessions(host.rpc) : []
+    const snapshot = readTabsSnapshot(taskId)
+    const saved = snapshot?.tabs.find((tab) => tab.id === tabId)
+    const directKey = `${taskId}::${tabId}`
+    const unregisteredAlive = sessions.some((session) => session.key === directKey && session.alive)
+    if (!saved && !unregisteredAlive) {
+      throw new ApiError(`tab ${tabId} does not exist on task ${taskId}`, "TAB_NOT_FOUND", {
+        hint: "refresh the task's tab ids with get-task, then retry with one of its .tabs[].id values",
+        nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+      })
+    }
+
+    const closing = saved ? closeTabsSnapshot(taskId, tabId) : undefined
+    if (saved && !closing) {
+      throw new ApiError(`tab ${tabId} no longer exists on task ${taskId}`, "TAB_NOT_FOUND", {
+        hint: "the tab closed while this command was running; refresh with get-task before retrying",
+        nextCommandArgs: ["api", "get-task", "--task-id", taskId],
+      })
+    }
+
+    const baseKey = closing ? tabPtyKeyFor(taskId, closing) : directKey
+    const ownsBase = !(closing?.kind === "engine" && closing.ptyTask)
+    // `ownsBase` gates the SPLIT LEAVES too. For a viewport tab `baseKey` is
+    // the REFERENCED task's key (`tabPtyKeyFor` resolves through `ptyTask`), so
+    // `<referenced>::tab-1::leaf-N` are that task's own splits — closing the
+    // borrowing tab must not kill them any more than it kills the base.
+    const keys = ownsBase
+      ? sessions
+          .filter((session) => session.key === baseKey || session.key.startsWith(`${baseKey}::`))
+          .map((session) => session.key)
+      : []
+    const wasAlive = sessions.some((session) => keys.includes(session.key) && session.alive)
+    if (host) await killTaskSessions(host.rpc, keys)
+    return { kind: closing?.kind ?? "engine", wasAlive }
+  } finally {
+    host?.close()
+  }
 }
 
 export async function deliverPrompt(
@@ -176,20 +225,23 @@ export async function deliverPrompt(
     await client.request("task.observeLanguage", { taskId: target.id, text: prompt }).catch(() => {})
   }
 
-  // The deferral sink hands a composer-busy prompt to daemon ownership
-  // (issue #78 B-layer): the daemon stores the text and queues an inbox
-  // episode, and this send reports accepted-but-deferred — a SUCCESS the
-  // caller must NOT retry (a retry would stack a duplicate in the queue).
+  // The deferral sink hands a composer-busy prompt to daemon
+  // ownership: the daemon stores the text and queues an inbox episode, and
+  // this send reports accepted-but-deferred. The distinct verb is the
+  // rolling-upgrade guard: a replace-on-file daemon rejects it, so the caller
+  // fails instead of losing a prompt it has already accepted.
   const defer: PromptDeferralSink = {
-    defer: (info) =>
-      client
-        .request<{ id: string }>("deferredPrompt.file", {
-          taskId: info.taskId,
-          tabId: info.tabId,
-          prompt: info.prompt,
-          layer: info.layer,
-        })
-        .then((res) => res.id),
+    defer: async (info) => {
+      const result = await client.request<unknown>("deferredPrompt.fileIfVacant", info)
+      if (!result || typeof result !== "object" || Array.isArray(result) || !("kind" in result) || !("id" in result)) {
+        throw new Error("invalid deferredPrompt.fileIfVacant response")
+      }
+      const { kind, id } = result
+      if ((kind !== "filed" && kind !== "occupied") || typeof id !== "string" || id.length === 0) {
+        throw new Error("invalid deferredPrompt.fileIfVacant response")
+      }
+      return { kind, id }
+    },
   }
   const hosted = await ops.deliverHosted(target, worktree, prompt, defer)
   if (!hosted) throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
@@ -210,7 +262,7 @@ export const defaultApiRuntime: ApiRuntime = {
         host.close()
       }
     }
-    // Live foreground-walk verdicts per session (issue #33): ONE ps snapshot,
+    // Live foreground-walk verdicts per session: ONE ps snapshot,
     // the same shallowest-engine walk inspect/live-engine run — so get-task's
     // `liveVendor` reflects what runs NOW, not what a mounted TUI last
     // recorded. Best-effort: a failed ps just keeps the recorded values.
@@ -239,6 +291,7 @@ export const defaultApiRuntime: ApiRuntime = {
       running: hasLiveEngineTab(snapshot, taskId, sessions),
     }
   },
+  closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
   defaultVendor: async (repo) => {

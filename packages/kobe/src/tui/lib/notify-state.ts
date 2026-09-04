@@ -1,8 +1,7 @@
 /**
- * Framework-free notification state (issue #15, G3) — the pure map
+ * Framework-free notification state — the pure map
  * transforms + gating rules behind the per-ChatTab completion
- * notifications, shared by the Solid provider
- * (`src/tui/context/notifications.tsx`) and the React port
+ * notifications, consumed by the notification provider
  * (`src/tui-react/context/notifications.tsx`). Keeping the escalation
  * rule ("needs_input / error outrank done") and the "error toasts always
  * show" invariant in one place means both runtimes can't drift.
@@ -103,8 +102,8 @@ export function attentionKindFor(state: string): NotificationKind | null {
  */
 export function chipAttentionKind(turn: string): NotificationKind | null {
   if (turn === "done") return "done"
-  // `rate_limited` and `dead` split out of the chip's `error` in 2026-08-30;
-  // they stay attention edges here, matching `attentionKindFor`'s task-level
+  // `rate_limited` and `dead` are separate from the chip's `error`, but all
+  // three are attention edges here, matching `attentionKindFor`'s task-level
   // rule. The chip vocabulary distinguishes them so the GLYPH can; a toast
   // has only the three kinds, and all three mean "something needs you".
   if (turn === "error" || turn === "rate_limited" || turn === "dead") return "error"

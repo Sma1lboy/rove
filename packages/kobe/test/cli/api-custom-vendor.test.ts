@@ -15,9 +15,9 @@
  *   - `--vendor` survives on the surfaces the dispatch face does NOT own
  *     (routines, work-items), where an engine is still picked by id.
  *
- * `--vendor` on `add`/`send`/`set-vendor` is gone (issue #30); the closed-
- * enum-vs-open-registry gate those verbs used to need went with it, because
- * `--command` is a plain string with no enum to disagree about.
+ * `--vendor` on `add`/`send`/`set-vendor` is gone, and so is the closed-
+ * enum-vs-open-registry gate those verbs needed: `--command` is a plain
+ * string with no enum to disagree about.
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
@@ -167,7 +167,7 @@ describe("the dispatch face takes a command, not an engine enum", () => {
     const command = flags.flags.find((f) => f.name === "command")
     expect(command?.type).toBe("string")
     expect(command?.values).toBeUndefined()
-    // ... and the retired flag is gone from the dispatch verbs entirely.
+    // ... and the dropped flag is gone from the dispatch verbs entirely.
     expect(flags.flags.some((f) => f.name === "vendor")).toBe(false)
   })
 })

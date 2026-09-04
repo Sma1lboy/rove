@@ -1,10 +1,8 @@
 /**
  * kobe TUI bootstrap.
  *
- * Thin entry point: plain `kobe` starts the Workspace Host. The opentui outer monitor (`app.tsx`) and its
- * `KOBE_OUTER_MONITOR` / `KOBE_NO_DAEMON` escape hatches were retired —
- * see docs/design/app-retirement.md. Daemon recovery is `kobe daemon
- * restart`, not a daemon-less in-process Orchestrator.
+ * Thin entry point: plain `kobe` starts the Workspace Host. Daemon recovery
+ * is `kobe daemon restart`, not a daemon-less in-process Orchestrator.
  */
 
 import { ensureGlobalKobeHooks } from "../cli/hook-cmd.ts"
@@ -27,7 +25,6 @@ export async function startTui(): Promise<void> {
   // out of date. Best-effort — the reliable check is `kobe skill status`.
   await maybeHintSkillInstall()
 
-  // Hook installation used to live in the retired direct-tmux bootstrap.
   // Finish the idempotent local settings merge before the Workspace Host can
   // launch an engine, so its first activity events are observable too.
   await ensureGlobalKobeHooks()

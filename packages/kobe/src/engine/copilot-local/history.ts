@@ -5,6 +5,7 @@ import type { ContentBlock } from "@/types/content"
 import type { EngineHistory, EngineUsageSnapshot, Message } from "@/types/engine"
 import { isJsonlLineWithinBound, readTextFileBounded } from "../file-bounds"
 import { createAppendParseCache } from "../history-cache"
+import { vendorConfigHome } from "../vendor-home"
 import { copilotUsageToSnapshot } from "./usage"
 
 export interface CopilotHistoryDeps {
@@ -17,9 +18,7 @@ export interface CopilotHistoryDeps {
 
 const defaultDeps: CopilotHistoryDeps = {
   copilotDir() {
-    const override = process.env.COPILOT_HOME?.trim()
-    if (override) return override
-    return path.join(homedir(), ".copilot")
+    return vendorConfigHome("copilot")
   },
   async readdir(p) {
     try {

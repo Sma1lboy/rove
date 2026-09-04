@@ -9,7 +9,7 @@
  * signal — it just never floats or counts toward "N need you").
  */
 
-import { TextAttributes } from "@opentui/core"
+import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { ReactNode } from "react"
 import type { TaskActivityState } from "../../engine/hook-events"
@@ -25,7 +25,7 @@ import { FRAME } from "../ui/frame"
 const ACTIVITY_BADGE: Partial<
   Record<TaskActivityState, { labelKey: string; tone: "accent" | "warning" | "error" | "success" }>
 > = {
-  running: { labelKey: "tasks.status.working", tone: "accent" },
+  running: { labelKey: "tasks.activity.working", tone: "accent" },
   turn_complete: { labelKey: "kanban.turnComplete", tone: "success" },
   rate_limited: { labelKey: "tasks.activity.rateLimited", tone: "warning" },
   permission_needed: { labelKey: "tasks.activity.permissionNeeded", tone: "warning" },
@@ -43,6 +43,9 @@ export function KanbanCard(props: {
    *  detail drawer (Enter's mouse twin). */
   onSelect: () => void
   onOpen: () => void
+  /** Registers the card with the board's cursor-follow so the selected card
+   *  can be scrolled into its lane's viewport. */
+  boxRef?: (r: BoxRenderable | null) => (() => void) | undefined
 }): ReactNode {
   const { theme, transparentBackground } = useTheme()
   const t = useT()
@@ -62,11 +65,11 @@ export function KanbanCard(props: {
     success: theme.success,
   } as const
   // Transparent mode means transparent: the card drops its tinted surface and
-  // lets the host terminal through, like every other pane. It used to keep
+  // lets the host terminal through, like every other pane. Keeping
   // `backgroundElement` on the theory that a card is content rather than
-  // chrome — but a solid tile is the one thing on the board that cannot be
-  // seen through, so the exception read as the board ignoring the setting.
-  // Its border and the column's still separate it from the lane.
+  // chrome would make it the one thing on the board you cannot see through,
+  // which reads as the board ignoring the setting. Its border and the
+  // column's still separate it from the lane.
   // Horizontal padding only, plus a margin below. `padding={1}` was doing
   // three jobs at once — air inside the card, separation from the next card,
   // and a break between title and description — and paid two rows per card
@@ -76,6 +79,7 @@ export function KanbanCard(props: {
   // top margin.
   return (
     <box
+      ref={props.boxRef}
       // Rounded to match the column that holds it — a square card inside a
       // rounded column reads as two different systems one cell apart.
       {...FRAME}

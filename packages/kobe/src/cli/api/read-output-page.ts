@@ -20,7 +20,7 @@ import { ApiError } from "./types.ts"
 export const DEFAULT_PAGE_MESSAGES = 40
 export const MAX_PAGE_MESSAGES = 50
 /** Serialized-bytes budget per history page (always at least one message). */
-export const PAGE_BYTE_BUDGET = 128 * 1024
+const PAGE_BYTE_BUDGET = 128 * 1024
 /** Any single string inside a message is clipped past this many chars. */
 export const STRING_CLIP_CHARS = 16 * 1024
 /** Terminal fallback tail caps — lines and bytes. */
@@ -29,7 +29,7 @@ export const TERMINAL_TAIL_BYTES = 64 * 1024
 
 // ── Envelope + cursor types ──────────────────────────────────────────────────
 
-export type ReadSource = "history" | "terminal"
+type ReadSource = "history" | "terminal"
 export type ReadSourceArg = "auto" | ReadSource
 export type FallbackReason = "engine_unsupported" | "history_missing" | "history_unreadable"
 
@@ -157,7 +157,7 @@ export function buildHistoryPage(messages: readonly Message[], startIdx: number,
  *  (`kobe-daemon/daemon/terminal-rows`), which the death record's tail uses
  *  too — an engine's alt-screen paint writes no newlines, so the escapes have
  *  to become rows before anything counts lines. */
-export function terminalLines(text: string): string[] {
+function terminalLines(text: string): string[] {
   return terminalRows(text)
 }
 

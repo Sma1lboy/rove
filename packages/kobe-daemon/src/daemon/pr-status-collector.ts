@@ -50,9 +50,9 @@
  * A status is only ever WRITTEN from a successful `gh pr list` (exit 0, a
  * non-empty array); an error or empty keeps the last value, so a transient
  * auth/network blip never clobbers a known chip. A non-zero exit is ALWAYS an
- * `error` now — "no PR" only comes from the structural empty-array success
- * path, never from a guessed stderr pattern, so a `gh` failure can no longer
- * silently masquerade as "no PR". Best-effort + sequential (gentle on the
+ * `error` — "no PR" only comes from the structural empty-array success path,
+ * never from a guessed stderr pattern, so a `gh` failure cannot silently
+ * masquerade as "no PR". Best-effort + sequential (gentle on the
  * subprocess budget); a per-task failure is logged, never fatal, never blocks
  * the other tasks in the pass.
  */
@@ -61,6 +61,7 @@ import { spawn } from "node:child_process"
 import type { DaemonOrchestrator, DaemonTask as Task } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 export interface GhPrView {
   readonly number?: number
@@ -132,7 +133,7 @@ export type PrViewResult =
 /** Runs `gh pr list --head` for a branch in a worktree. Injectable for tests. */
 export type PrViewRunner = (worktreePath: string, branch: string) => Promise<PrViewResult>
 
-interface GhSpawnResult {
+export interface GhSpawnResult {
   readonly status: number | null
   readonly stdout: string
   readonly stderr: string
@@ -157,7 +158,7 @@ export function decodeSpawnChunks(chunks: readonly (Buffer | string)[]): string 
 /** Spawn `gh` capturing stdout AND stderr (needed to classify the failure).
  * Never rejects: a spawn error or abort resolves with `status: null` so the
  * caller branches on the captured signals rather than a thrown error. */
-function spawnGh(args: readonly string[], cwd: string, signal: AbortSignal): Promise<GhSpawnResult> {
+export function spawnGh(args: readonly string[], cwd: string, signal: AbortSignal): Promise<GhSpawnResult> {
   return new Promise((resolve) => {
     const outChunks: (Buffer | string)[] = []
     const errChunks: (Buffer | string)[] = []
@@ -268,6 +269,28 @@ export interface PrStatusPassOptions {
 }
 
 /**
+ * Write (or clear) the reason the last poll failed on the task's LAST GOOD
+ * status. The chip keeps its value — a transient `gh` blip must not clobber a
+ * good reading — and gains a marker saying the value is no longer being
+ * refreshed. Returns whether anything was persisted.
+ *
+ * Nothing to mark when the task has no PR status: a staleness marker on a chip
+ * that is not drawn tells nobody anything.
+ *
+ * `samePrStatus` deliberately ignores `lastError`, so the poller's own diff can
+ * neither carry this write nor suppress it — the change check lives here, and
+ * it is what keeps a long outage from re-persisting and re-broadcasting on
+ * every backoff tick.
+ */
+async function setPrStaleMarker(orch: DaemonOrchestrator, taskId: string, error: string | undefined): Promise<boolean> {
+  const prev = orch.getTask(taskId)?.prStatus
+  if (!prev || prev.lastError === error) return false
+  const { lastError: _cleared, ...rest } = prev
+  await orch.setPRStatus(taskId, error === undefined ? rest : { ...rest, lastError: error })
+  return true
+}
+
+/**
  * Run one polling pass over every eligible task whose backoff has elapsed.
  * Returns the ids whose persisted status actually changed (for tests). Pure
  * orchestrator work — no timers, no `Date.now()`.
@@ -285,7 +308,15 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
     jitterRatio: PR_POLL_JITTER_RATIO,
   }
   const changed: string[] = []
-  for (const task of orch.listTasks()) {
+  const tasks = orch.listTasks()
+  // Drop entries for tasks that are GONE, not merely ineligible. The delete
+  // below only fires for ids still in `listTasks()`, so a deleted task's entry
+  // had no exit at all — unbounded over a long-lived daemon.
+  const live = new Set(tasks.map((task) => task.id))
+  for (const id of opts.schedule.keys()) {
+    if (!live.has(id)) opts.schedule.delete(id)
+  }
+  for (const task of tasks) {
     if (!isPrPollable(task)) {
       opts.schedule.delete(task.id) // forget backoff for now-ineligible tasks
       continue
@@ -304,6 +335,8 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
           "pr-status-poller",
           `gh pr list failed (${result.error}) for task ${task.id} [${task.branch}] — keeping last PR status, backing off`,
         )
+        // The log alone left the chip claiming a fact nobody was refreshing.
+        if (await setPrStaleMarker(orch, task.id, result.error)) changed.push(task.id)
         opts.schedule.set(
           task.id,
           opts.runtime.prStatus.nextPoll({ kind: "error", error: result.error }, prevFailures, opts.now, cfg, rand),
@@ -312,7 +345,9 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       }
       if (result.kind === "empty") {
         // gh ran and there is genuinely no PR yet. Keep the last value; back off
-        // (a branch rarely sprouts a PR between ticks).
+        // (a branch rarely sprouts a PR between ticks). `gh` reaching the
+        // provider is what clears the stale marker, not the answer it gave.
+        if (await setPrStaleMarker(orch, task.id, undefined)) changed.push(task.id)
         opts.schedule.set(task.id, opts.runtime.prStatus.nextPoll({ kind: "empty" }, prevFailures, opts.now, cfg, rand))
         continue
       }
@@ -324,7 +359,11 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
         opts.schedule.delete(task.id)
         continue
       }
-      if (!opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
+      // `sameStatus` ignores `lastError`, so an otherwise-identical status
+      // would leave a stale marker on a chip that just polled cleanly. `next`
+      // never carries one, so writing it IS the clear.
+      const wasStale = current.prStatus?.lastError !== undefined
+      if (wasStale || !opts.runtime.prStatus.sameStatus(current.prStatus, next ?? undefined)) {
         await orch.setPRStatus(task.id, next)
         changed.push(task.id)
       }
@@ -338,6 +377,7 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
       // The injected runner threw (the real one never does). Treat as a
       // transient error so it backs off rather than hammering.
       logDaemonError("pr-status-poller", err)
+      if (await setPrStaleMarker(orch, task.id, "network").catch(() => false)) changed.push(task.id)
       opts.schedule.set(
         task.id,
         opts.runtime.prStatus.nextPoll({ kind: "error", error: "network" }, prevFailures, opts.now, cfg, rand),
@@ -352,19 +392,18 @@ export async function runPrStatusPass(orch: DaemonOrchestrator, opts: PrStatusPa
  * `intervalMs <= 0` to disable (no-op stop).
  *
  * The consumer gate is `hasSubscribers() || hasWorkingAgent()`. `prStatus` is
- * the ONLY CI truth Rove holds, and the original gate ("no GUI ⇒ nobody wants
- * this") silently assumed every consumer is a human at a pane. An agent
- * working unattended is a consumer too, and it is the one whose need is
- * sharpest: an unattended run is precisely when there is no GUI, so
- * `checkState` was guaranteed stale or missing at the exact moment a worker
- * asked whether its PR was green. That gap is one mechanism behind "CI is
- * green" being asserted from a local test run.
+ * the ONLY CI truth Rove holds, and a gate of "no GUI ⇒ nobody wants this"
+ * assumes every consumer is a human at a pane. An agent working unattended is
+ * a consumer too, and it is the one whose need is sharpest: an unattended run
+ * is precisely when there is no GUI, so a GUI-only gate leaves `checkState`
+ * stale or missing at the exact moment a worker asks whether its PR is green
+ * — one mechanism behind "CI is green" being asserted from a local test run.
  *
  * `hasWorkingAgent` is the engine-activity registry (`currentNonIdle()`), fed
  * by the ungated `engine.reportEvent` hook path, so it is a free in-memory
- * read that needs no network and no pane. It keeps the gate's original point
- * intact — a daemon with no GUI **and** no live engine still polls nobody,
- * which is the parked-daemon case the gate was written for.
+ * read that needs no network and no pane. It keeps the gate's point intact —
+ * a daemon with no GUI **and** no live engine still polls nobody, which is
+ * the parked-daemon case the gate exists for.
  */
 export function startPrStatusPoller(
   orch: DaemonOrchestrator,
@@ -374,27 +413,21 @@ export function startPrStatusPoller(
   run: PrViewRunner = makeGhPrViewRunner(runtime.prStatus.classify, runtime.prStatus.viewFields),
   hasWorkingAgent?: () => boolean,
 ): () => void {
-  if (intervalMs <= 0) return () => {}
   const schedule: PrPollSchedule = new Map()
-  let running = false
-  const tick = (): void => {
-    if (hasSubscribers && !hasSubscribers() && !hasWorkingAgent?.()) return
-    if (running) return
-    running = true
-    void runPrStatusPass(orch, {
-      runtime,
-      run,
-      now: Date.now(),
-      at: new Date().toISOString(),
-      schedule,
-      tickMs: intervalMs,
-    })
-      .catch((err) => logDaemonError("pr-status-poller", err))
-      .finally(() => {
-        running = false
-      })
-  }
-  const timer = setInterval(tick, intervalMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  return startTicker({
+    name: "pr-status-poller",
+    tickMs: intervalMs,
+    // Two-term gate: an unattended agent is the consumer that needs CI truth
+    // most, so a live engine opens it even with no pane attached.
+    ...(hasSubscribers ? { gate: () => hasSubscribers() || (hasWorkingAgent?.() ?? false) } : {}),
+    run: () =>
+      runPrStatusPass(orch, {
+        runtime,
+        run,
+        now: Date.now(),
+        at: new Date().toISOString(),
+        schedule,
+        tickMs: intervalMs,
+      }),
+  })
 }

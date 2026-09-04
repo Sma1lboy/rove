@@ -12,10 +12,8 @@ import { useEffect, useRef, useState } from "react"
 import { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { sidebarWidthFor } from "../../tui/panes/sidebar/view-core"
 import { getDefaultPtyRegistry } from "../../tui/panes/terminal/registry"
-import { CURRENT_VERSION } from "../../version.ts"
 import { PrefixHud } from "../component/prefix-hud"
 import { ToastOverlay } from "../component/toast-overlay"
-import { StaleInstallBanner, VersionSkewBanner } from "../component/version-skew-banner"
 import { useFocus } from "../context/focus"
 import { useKV } from "../context/kv"
 import { useNotifications } from "../context/notifications"
@@ -27,17 +25,19 @@ import { useDaemonNotices } from "../lib/use-daemon-notices"
 import { useLatest } from "../lib/use-latest"
 import { useSidebarHostState } from "../panes/sidebar/use-sidebar-host-state.tsx"
 import { useDialog } from "../ui/dialog"
+import { FullWindowPage, useHostBanner } from "./host-banner"
 import { HostFilesPane } from "./host-files-pane"
 import { WorkspaceFrame } from "./host-footer"
 import { useWorkspaceKeybindings } from "./host-keybindings"
 import { useHostPagesRender, useHostPagesState } from "./host-pages"
-import { HostSidebar } from "./host-sidebar"
+import { HostSidebarMount } from "./host-sidebar-mount"
 import { useWorkspaceTaskActions } from "./host-task-actions"
 import { openTaskWorktreeFor } from "./open-task-worktree"
 import { useQuickFork } from "./quick-fork"
 import { ShowWorkspace } from "./show-workspace"
 import { activeTabIdFor, forgetTaskTabs, requestTabActivation, setUiEventReporter } from "./terminal-tabs-shared"
 import { useAttention } from "./use-attention"
+import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
 import { useEditorHandles } from "./use-editor-handles"
 import { useInboxHost } from "./use-inbox-host"
@@ -48,7 +48,7 @@ import { useZenMode } from "./use-zen-mode"
 
 /** Exported for the render track: the banner wiring can only be proven by
  *  mounting the REAL host — a test against the banner component alone stays
- *  green when the mount is deleted, which is the exact bug being fixed. */
+ *  green even when the mount is deleted. */
 export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   const { theme } = useTheme()
   const inactiveBorder = theme.borderActive
@@ -116,8 +116,8 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   })
   const worktree = selectedTask?.worktreePath || null
 
-  // Toasts + global sort pref + move-mode — the wiring shared with the tmux
-  // Tasks pane, extracted to the hook next to the Sidebar itself.
+  // Toasts + global sort pref + move-mode — the sidebar-adjacent wiring,
+  // extracted to the hook next to the Sidebar itself.
   const { sortMode, toggleSortMode, moveMode, setMoveMode, notifyError, notifyInfo, onLocalMergeRequest } =
     useSidebarHostState({ kv, notif, tasks, selectedId, setSelectedId })
 
@@ -134,7 +134,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     notifyInfo,
   })
 
-  // Cross-task attention (P0): rising-edge notify for non-selected tasks +
+  // Cross-task attention: rising-edge notify for non-selected tasks +
   // the global chord's jump-to-next handler. State is engine-owned/neutral.
   const { jumpToNextAttention } = useAttention({
     tasks,
@@ -150,31 +150,35 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
 
   // Task-action callbacks (new/delete/rename/branch/engine/pin/move)
   // — the shared lib/task-actions flows live in host-task-actions.ts.
-  const { createTask, deleteTask, renameTask, renameBranch, cycleVendor, setVendor, togglePin, moveTask } =
-    useWorkspaceTaskActions({
-      orchestrator: orch,
-      tasks: () => tasks,
-      dialog,
-      notifyError,
-      notifyInfo,
-      selectedId: () => selectedId,
-      setSelectedId,
-      selectedTask: () => selectedTask,
-      activateTask,
-      forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
-    })
+  // Kept as ONE bundle rather than destructured: the sidebar mount takes it
+  // whole, and naming each verb here only to re-name it there was where the
+  // sidebar's wiring started leaking into the host.
+  const taskActions = useWorkspaceTaskActions({
+    orchestrator: orch,
+    tasks: () => tasks,
+    dialog,
+    notifyError,
+    notifyInfo,
+    notifyNeedsInput: (message) => notif.notify({ kind: "needs_input", taskId: "", tabId: "", title: message }),
+    t,
+    selectedId: () => selectedId,
+    setSelectedId,
+    selectedTask: () => selectedTask,
+    activateTask,
+    forgetTaskTabs: (id) => forgetTaskTabs(kv, id),
+  })
 
   // Imperative tab handles: refs handed by TerminalTabs + FileTree/PR actions.
-  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError })
+  const editor = useEditorHandles({ orchestrator: orch, worktree, selectedId, focus, notifyError, activateTask })
 
-  // Quick-fork (issue #17, ctrl+f): composer → create+enter → hand the
+  // Quick-fork (ctrl+f): composer → create+enter → hand the
   // prompt to the new task's TerminalTabs mount (phase 2). Wiring lives in
   // `quick-fork.ts` because the create/enter/pending-prompt shape is identical
   // regardless of host — the other caller is TerminalTabs, and both must stay
   // one implementation.
   const quickFork = useQuickFork(orch, { selectTask: setSelectedId, enterTask: activateTask, notifyError })
 
-  // Scratch temp shell tasks (issue #33) — open gesture, exit deletion, and
+  // Scratch temp shell tasks — open gesture, exit deletion, and
   // the quiet adoption loop all live in the hook.
   const scratch = useScratchShell({
     orchestrator: orch,
@@ -188,7 +192,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     notifyInfo,
   })
 
-  /* --------- zen mode (issue #18, pure-tui shape) ----------------------- */
+  /* --------- zen mode ---------------------------------------------------- */
   const { zen, toggleZen } = useZenMode({ kv, focus })
 
   // Tab open/close (and editor-file close) edges report as plugin events
@@ -201,8 +205,6 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // Which surface the workspace shows — settings/worktrees/update full swaps
   // plus the rail's one-at-a-time nav. State + rationale in host-pages.tsx.
   const pages = useHostPagesState(focus)
-  // Sidebar layout: the tree lists each worktree's tabs as rows (the strip is
-  // off by default to match); `flat` restores the PROJECTS / TASKS list.
   // The selected task's active tab — the tree marks that exact row as live.
   // Read from the module map rather than threaded through TerminalTabs: the
   // sidebar renders tabs for tasks whose TerminalTabs is not mounted, so the
@@ -237,6 +239,14 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     activateTask,
   })
 
+  // `o` and the row menu's "Open in editor" share this; both pass the row
+  // under the cursor (the menu's row IS the cursor row).
+  const openTaskWorktree = (id: string): void =>
+    openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError })
+
+  // Filled by the mounted SidebarTree; null until it mounts (a rail page,
+  // zen), which is fine — every reader is gated on sidebar focus.
+  const cursorTaskIdRef = useRef<() => string | null>(() => null)
   useWorkspaceKeybindings({
     focus,
     dialog,
@@ -244,19 +254,29 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     filesPaneVisible: !zen && pages.nav === "terminal" && pageRender.showSidebar && pageRender.showContent,
     searchActive,
     selectedId,
-    openTaskWorktree: (id) =>
-      openTaskWorktreeFor(id, { tasks, ensureWorktree: orch.ensureWorktree.bind(orch), notifyError }),
-    createTask: () => void createTask(),
-    renameBranch: (id) => void renameBranch(id),
-    cycleVendor: (id) => void cycleVendor(id),
+    cursorTaskId: () => cursorTaskIdRef.current(),
+    openTaskWorktree,
+    createTask: () => void taskActions.createTask(),
+    renameBranch: (id) => void taskActions.renameBranch(id),
+    cycleVendor: (id) => void taskActions.cycleVendor(id),
     toggleZen,
     jumpToNextAttention,
     openInbox: inbox.show,
     createPR: () => void editor.onCreatePR(),
+    // A row that is not the mounted task: park, then enter it so its
+    // workspace mounts and claims the request.
+    createPRFor: (id) => {
+      requestCreatePR(id)
+      activateTask(id)
+    },
+    // PROPOSED prefix+k: same aim as the row menu, so the same handler.
+    fixChecksFor: editor.onFixChecks,
+    // PROPOSED prefix+u: same aim, and the merge runs daemon-side.
+    syncBaseFor: (id) => void taskActions.syncBase(id),
     // prefix+m — global entry into the sidebar's move mode: focus the
     // sidebar, highlight the selection (falling back to the first task),
-    // then j/k reorders the cursor row's level (tab/task/project — issue
-    // #43) and enter/esc exits.
+    // then j/k reorders the cursor row's level (tab/task/project) and
+    // enter/esc exits.
     enterMoveMode: () => {
       const target = selectedId ?? tasks[0]?.id
       if (!target) return
@@ -276,62 +296,26 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // live `focus.focused` so the pane frame stays lit under the dim backdrop.
   const activePane = dialog.stack.length > 0 ? null : focus.focused
 
-  // The skew banner's problem, and its fix. `daemonStaleSignal()`
-  // has been accurate since it was written and its ONLY reader was the mock
-  // workbench — so the state it names has been invisible in the product the
-  // whole time. That state is not an edge case here: Rove ships several times
-  // a day and the daemon is a long-lived process that outlives an `npm i -g`,
-  // which makes "new binary, old daemon" the ordinary result of updating.
-  //
-  const daemonStale = useAccessor(orch.daemonStaleSignal())
-  const daemonVersion = useAccessor(orch.daemonVersionSignal())
-  // Daemon-polled npm check (collectors' update channel). The chip is the
-  // passive half of the update surface; `u` / a click opens the page.
-  const updateInfo = useAccessor(orch.updateSignal())
-  // Skew only. A daemon-disconnect banner used to sit in front of this one:
-  // a full-width red alert on every socket drop. It was the wrong weight —
-  // the reconnect loop recovers most drops in under a second, and Rove keeps
-  // working through the ones it doesn't, so the alert interrupted to announce
-  // something with nothing to act on. Skew is different: it persists until
-  // someone restarts the daemon, which is why it kept its banner.
-  // The one condition that outranks skew: this process's install was deleted,
-  // so it cannot start a daemon at all. It used to be invisible — the client
-  // just looked like it was reconnecting, for two days (issue #96). Latched,
-  // never cleared: only a reinstall fixes it.
-  const staleInstall = useAccessor(orch.staleInstallSignal())
-  const banner = staleInstall ? (
-    <StaleInstallBanner message={staleInstall} width={dims.width} />
-  ) : (
-    <VersionSkewBanner
-      stale={daemonStale}
-      daemonVersion={daemonVersion}
-      clientVersion={CURRENT_VERSION}
-      width={dims.width}
-    />
-  )
+  // Top-of-window banner (skew / gone-install) + the update chip's payload —
+  // one question, three render paths below. See `host-banner.tsx`.
+  const banner = useHostBanner(orch, dims.width)
 
-  // Settings and the full-window pages replace the WHOLE window, frame
-  // included, so each needs the banner wrapped around it rather than relying
-  // on WorkspaceFrame.
-  if (pageRender.settingsPage) {
+  const fullWindow = pageRender.settingsPage ?? pageRender.fullWindowPage
+  if (fullWindow)
     return (
-      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
-        {banner}
-        {pageRender.settingsPage}
-      </box>
+      <FullWindowPage banner={banner.element} background={theme.background}>
+        {fullWindow}
+      </FullWindowPage>
     )
-  }
-  if (pageRender.fullWindowPage) {
-    return (
-      <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
-        {banner}
-        {pageRender.fullWindowPage}
-      </box>
-    )
-  }
 
   return (
-    <WorkspaceFrame orchestrator={orch} onOpenSettings={pages.openSettings} banner={banner}>
+    <WorkspaceFrame
+      orchestrator={orch}
+      onOpenSettings={pages.openSettings}
+      banner={banner.element}
+      activeTaskId={selectedId}
+      activeTabId={selectedTabId}
+    >
       {/* Tasks sidebar stays visible in zen (tmux parity) — its
           ☯ ZEN chip is also the exit affordance. */}
       {/* Borderless rail (owner call 2026-07-27): no frame, no divider —
@@ -339,73 +323,41 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           carries no border prop at all. The workspace frame's left edge is
           the only boundary; sidebar focus shows on the KOBE brand text. */}
       {pageRender.showSidebar ? (
-        <HostSidebar
-          width={pageRender.showContent ? sidebarWidthFor(dims.width) : dims.width}
-          nav={pages.nav}
-          onNavChange={pages.goToNav}
+        <HostSidebarMount
+          terminalWidth={dims.width}
+          showContent={pageRender.showContent}
+          recentTask={pageRender.recentTask}
           tasks={tasks}
           selectedId={selectedId}
           selectedTabId={selectedTabId}
-          // Picking a task means "show me that task" — so it returns the
-          // content pane to its terminal. Without this the rail page stayed
-          // up and selecting a row did nothing visible.
-          onSelect={(id) => {
-            selectTask(id)
-            pages.setNav("terminal")
+          selectTask={selectTask}
+          activateTask={activateTask}
+          daemon={{
+            sidebarEngineState,
+            engineTabState,
+            engineLifecycle,
+            taskJobs,
+            worktreeChanges,
+            transcriptActivity,
           }}
-          onActivate={(id) => {
-            pages.setNav("terminal")
-            void activateTask(id)
-          }}
-          // Picking a TAB is entering that session (owner 2026-08-01): focus
-          // moves to the terminal, same as activate — a click that leaves the
-          // sidebar's letter chords (d!) live under your typing is how issues
-          // got mis-deleted. Re-clicking the tab you are ALREADY in flips focus
-          // back to the sidebar (owner 2026-08-09): the first click entered the
-          // session, so a second click on the same row means "give me the
-          // sidebar". Keyboard enter is exempt (sidebar already focused —
-          // enter always means enter the session), as is a click that brings
-          // the terminal back from a rail page.
-          onSelectTab={(taskId, tabId) => {
-            const reClick =
-              pages.nav === "terminal" &&
-              focus.focused !== "sidebar" &&
-              taskId === selectedId &&
-              tabId === selectedTabId
-            pages.setNav("terminal")
-            requestTabActivation(taskId, tabId)
-            focus.setFocused(reClick ? "sidebar" : "workspace")
-          }}
-          engineState={sidebarEngineState}
-          engineTabState={engineTabState}
-          engineLifecycle={engineLifecycle}
-          taskJobs={taskJobs}
-          worktreeChanges={worktreeChanges}
-          transcriptActivity={transcriptActivity}
-          focused={activePane === "sidebar"}
-          // Task lifecycle (issue #20): the Sidebar's own d/r/p/m keys
-          // fire these; the flows are the shared lib/task-actions bodies.
-          onAddTask={() => void createTask()}
-          onDeleteRequest={(id) => void deleteTask(id)}
-          onRenameRequest={(id) => void renameTask(id)}
-          onPinRequest={(id) => void togglePin(id)}
+          actions={taskActions}
+          pages={pages}
+          focus={focus}
+          inbox={inbox}
+          update={banner.update}
+          onFixChecks={editor.onFixChecks}
+          runAgain={quickFork.runAgain}
+          activePane={activePane}
+          zen={zen}
+          toggleZen={toggleZen}
+          sortMode={sortMode}
           moveMode={moveMode}
-          onMoveRequest={(id, delta) => void moveTask(id, delta)}
-          onMoveModeExit={() => setMoveMode(false)}
+          exitMoveMode={() => setMoveMode(false)}
           onLocalMergeRequest={onLocalMergeRequest}
           onSearchActiveChange={setSearchActive}
-          sortMode={sortMode}
-          headerStatus={{
-            label: `${t("workspace.inbox.title")} ${inbox.counts.total}`,
-            emphasize: inbox.counts.total > 0,
-          }}
-          onHeaderStatusClick={inbox.show}
-          updateChip={updateInfo?.hasUpdate ? { label: t("update.chip", { version: updateInfo.latest }) } : null}
-          onUpdateChipClick={pages.openUpdate}
-          zenActive={zen}
-          onZenClick={toggleZen}
-          onFocusRequest={() => focus.setFocused("sidebar")}
-          recentTask={pageRender.recentTask}
+          cursorTaskIdRef={cursorTaskIdRef}
+          openTaskWorktree={openTaskWorktree}
+          t={t}
         />
       ) : null}
 
@@ -436,7 +388,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
               onTabVisited={inbox.resolveVisited}
               onScratchExit={scratch.onScratchExit}
               onOpenScratch={scratch.openScratchShell}
-              onEngineChosen={setVendor}
+              onEngineChosen={taskActions.setVendor}
             />
           )}
         </box>
@@ -456,15 +408,15 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
           onMention={editor.onMention}
           onZenToggle={toggleZen}
           onCreatePR={() => void editor.onCreatePR()}
+          taskKind={selectedTask?.kind}
         />
       ) : null}
 
-      {/* Cross-task attention toasts (issue #15). `useAttention` above fires
-          `notif.notify()` on unfocused-task state changes, but the main app
-          never mounted the overlay that renders them (only the standalone
-          `kobe tasks` pane did) — so the bottom-right toast silently never
-          appeared. Absolute-positioned overlay, under the
-          host's NotificationsProvider. */}
+      {/* Cross-task attention toasts. `useAttention` above fires
+          `notif.notify()` on unfocused-task state changes; without this
+          overlay mounted, nothing renders them and the bottom-right toast
+          silently never appears. Absolute-positioned, under the host's
+          NotificationsProvider. */}
       <ToastOverlay />
       {/* Prefix sequence HUD — bottom-left over the Tasks sidebar (the
           terminal column is off-limits: it collided with the engine's own

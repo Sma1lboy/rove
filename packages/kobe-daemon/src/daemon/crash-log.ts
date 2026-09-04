@@ -3,7 +3,7 @@
  *
  * The kobe daemon is a long-lived background process. It is spawned
  * detached with its stdout/stderr redirected to `~/.kobe/daemon.log`
- * (see `client/daemon-process.ts`). Two failure modes used to make it
+ * (see `client/daemon-process.ts`). Two things would otherwise make it
  * "die easily":
  *
  *   1. **No crash net.** With no `process.on("unhandledRejection" /
@@ -11,9 +11,9 @@
  *      to terminate the process. A single stray rejected promise from
  *      one of the daemon's many fire-and-forget `void someAsync()`
  *      calls (request pump, socket event handlers, timers, engine
- *      subprocess events) was enough to take the whole daemon down.
- *   2. **No trace.** Combined with the old `stdio: "ignore"` spawn, the
- *      crash produced zero output — the daemon just vanished.
+ *      subprocess events) takes the whole daemon down.
+ *   2. **No trace.** A `stdio: "ignore"` spawn makes that crash produce
+ *      zero output — the daemon just vanishes.
  *
  * Registering these handlers flips the default: an unhandled rejection
  * or uncaught exception is *logged* (to stderr, hence into

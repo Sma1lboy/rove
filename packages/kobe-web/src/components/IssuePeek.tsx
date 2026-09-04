@@ -1,6 +1,6 @@
 /**
  * IssuePeek — the unified Board's wide story-detail drawer onto one issue, and
- * the owner-specified START surface for turning a story into a task. It rides
+ * the START surface for turning a story into a task. It rides
  * the shared {@link SlideOver} chrome in its `wide` two-column shell
  * (right-docked, slide-in, focus-trapped, Esc/backdrop close) and splits into:
  *
@@ -14,7 +14,7 @@
  *     created date, a "running" line for a linked issue, and the engine-owned
  *     {@link EngineEffortPicker}. Its bottom holds the start actions.
  *
- * Start actions (owner-explicit): an un-started, startable issue gets TWO
+ * Start actions: an un-started, startable issue gets TWO
  * buttons — "Start in background" (spawn + stay on the board) and "Start &
  * watch" (spawn + open the live session). A linked issue swaps both for a single
  * "Open session". A done story has nothing to start.

@@ -33,8 +33,6 @@ export interface EngineUsageSnapshot {
   readonly context_tokens_approximate?: boolean
   /** Model context window, when known. */
   readonly context_window_tokens?: number
-  /** Tokens/sec across the whole session, when derivable. */
-  readonly total_speed_tokens_per_second?: number
 }
 
 export interface HistoryMessage {

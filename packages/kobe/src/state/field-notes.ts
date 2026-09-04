@@ -28,7 +28,7 @@ export interface StoredFieldNote {
   readonly author: string
 }
 
-export function fieldNotesPath(): string {
+function fieldNotesPath(): string {
   return join(roveStateDir(), "notes.json")
 }
 

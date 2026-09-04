@@ -19,7 +19,9 @@ import {
   EmptyBranchDirtyWorktreeError,
   EmptyBranchError,
   LandConflictError,
+  MISSING_REF_CODE,
   MainCheckoutDirtyError,
+  MissingRefError,
 } from "../../src/orchestrator/errors.ts"
 import { landTask, landTaskWithCleanup } from "../../src/orchestrator/land.ts"
 import { GitWorktreeManager } from "../../src/orchestrator/worktree/manager.ts"
@@ -170,6 +172,29 @@ describe("landTask", () => {
     expect(fs.existsSync(path.join(repo, "wip.txt"))).toBe(false)
   })
 
+  test("a branch that no longer resolves is MISSING_REF, not a phantom conflict", async () => {
+    // The recorded branch was renamed outside Rove, so `git rev-list --count
+    // main..feat` exits 128 with empty stdout. Before the exitCode guard the
+    // unparseable count read as "has work", the merge then failed with "not
+    // something we can merge", and land reported LAND_CONFLICT with an empty
+    // conflicted-file list — sending the operator hunting for files to resolve.
+    git(["checkout", "-b", "feat"], repo)
+    write("b.txt", "feature\n")
+    git(["add", "."], repo)
+    git(["commit", "-m", "feat commit"], repo)
+    git(["checkout", "main"], repo)
+    git(["branch", "-m", "feat", "feat-renamed"], repo)
+    const head = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).stdout.trim()
+
+    await expect(landTask(task("feat"))).rejects.toBeInstanceOf(MissingRefError)
+    await expect(landTask(task("feat"))).rejects.toThrow(MISSING_REF_CODE)
+    await expect(landTask(task("feat"))).rejects.toThrow(/'feat' does not resolve/)
+    // No merge was attempted: base checkout clean, HEAD unmoved.
+    const status = spawnSync("git", ["status", "--porcelain"], { cwd: repo, encoding: "utf8" }).stdout.trim()
+    expect(status).toBe("")
+    expect(spawnSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).stdout.trim()).toBe(head)
+  })
+
   test("refuses a dirty base checkout", async () => {
     git(["checkout", "-b", "feat"], repo)
     write("b.txt", "feature\n")
@@ -249,8 +274,8 @@ describe("landTaskWithCleanup worktree cleanup", () => {
 
   test("a half-removed worktree still counts as landed, and names the leftover directory", async () => {
     // git deregisters the worktree, then fails to unlink it (an unwritable
-    // directory inside). Before issue #89 this reported `removed: false` and
-    // sent the user to retry a removal git can no longer act on at all.
+    // directory inside). Reporting `removed: false` here would send the user
+    // to retry a removal git cannot act on at all.
     makeWorktree()
     // Committed, not untracked: an untracked file would trip the dirty
     // refusal, which is a different (already-covered) branch. The tree is
@@ -320,7 +345,7 @@ describe("landTaskWithCleanup worktree cleanup", () => {
   /**
    * Same ordering bug as the worktrees page, reached through land: the dirty
    * check that let this land through ran seconds earlier in `landTask`, and
-   * an engine still running has kept writing since. Removing its directory
+   * an engine still running has kept writing since then. Removing its directory
    * first means every write after that goes to an unlinked inode.
    *
    * The assertion is the ORDER — recorded at the moment teardown runs, when
@@ -388,6 +413,64 @@ describe("landTaskWithCleanup worktree cleanup", () => {
     )
     expect(res.worktree).toEqual({ removed: true })
     expect(fs.existsSync(wt)).toBe(false)
+  })
+
+  /**
+   * The gate: `git branch -D` cannot delete a branch a live worktree has
+   * checked out, and `deleteBranch` is best-effort (exit code discarded), so
+   * without the gate `--delete-branch` ran, git refused, and land reported a
+   * clean success — anchor included — for a branch that is still right there.
+   *
+   * Mutation: drop `&& !worktreeGone` from the gate in `land.ts` and this goes
+   * red on `branchKept` (the delete runs and reports nothing).
+   */
+  test("keeps the branch when the worktree it is checked out in stays", async () => {
+    makeWorktree()
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup(
+      { ...task("feat"), worktreePath: wt },
+      { removeWorktree: false, deleteBranch: true, strategy: "squash" },
+      d,
+    )
+    // git keeps the branch either way; the point is that the RESULT says so.
+    expect(branchExists("feat")).toBe(true)
+    expect(res.branchKept?.reason).toMatch(/still has the branch checked out/)
+    // No anchor: writing one before the delete is attempted would name a
+    // salvage ref for a branch nothing deleted.
+    expect(res.branchAnchor).toBeUndefined()
+  })
+
+  test("a refused removal keeps the branch too, and reports the refusal as the reason", async () => {
+    makeWorktree()
+    fs.writeFileSync(path.join(wt, "wip.txt"), "uncommitted\n")
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
+    expect(res.worktree?.removed).toBe(false)
+    expect(branchExists("feat")).toBe(true)
+    expect(res.branchKept?.reason).toMatch(/dirty/)
+  })
+
+  test("the worktree going lets --delete-branch through", async () => {
+    makeWorktree()
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup({ ...task("feat"), worktreePath: wt }, { deleteBranch: true }, d)
+    expect(res.worktree?.removed).toBe(true)
+    expect(branchExists("feat")).toBe(false)
+    expect(res.branchKept).toBeUndefined()
+  })
+
+  test("a task that never materialised a worktree still deletes its branch", async () => {
+    // Nothing holds the branch, so the gate must not block it.
+    git(["branch", "feat"], repo)
+    git(["checkout", "feat"], repo)
+    write("b.txt", "feature\n")
+    git(["add", "."], repo)
+    git(["commit", "-m", "feat commit"], repo)
+    git(["checkout", "main"], repo)
+    const { deps: d } = deps()
+    const res = await landTaskWithCleanup(task("feat"), { deleteBranch: true }, d)
+    expect(branchExists("feat")).toBe(false)
+    expect(res.branchKept).toBeUndefined()
   })
 
   test("never removes the base checkout even if worktreePath points at it", async () => {

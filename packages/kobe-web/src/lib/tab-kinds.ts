@@ -1,12 +1,10 @@
 /**
  * tab-kinds — the single registry of workspace tab kinds.
  *
- * A tab's kind drives two cross-cutting facts that were previously string-matched
- * in many places: whether it owns a server-side PTY (so closing or pruning the
- * tab must tear that PTY down) and how a fresh tab of the kind is titled. Both
- * lived as scattered `kind === "vendor" || kind === "terminal"` guards (three
- * copies) and count-based title strings spread across five tab-mutation helpers.
- * They live here now, so adding or changing a kind is one registry entry and the
+ * A tab's kind drives two cross-cutting facts: whether it owns a server-side
+ * PTY (so closing or pruning the tab must tear that PTY down) and how a fresh
+ * tab of the kind is titled. Both are declared here rather than string-matched
+ * at each site, so adding or changing a kind is one registry entry and the
  * rules are unit-tested in isolation.
  *
  * Pure + React-free: the per-kind RENDER (a component) stays in WorkspaceTabs'

@@ -1,7 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * React view for the file tree pane's header chrome — the `src/tui/panes/
- * filetree/header-view.tsx` counterpart (issue #15, G3): the optional
+ * View for the file tree pane's header chrome: the optional
  * Zen / Create-PR action row, the All / Changes tab chips, and the
  * Changes-tab status legend. Pure render — tab state and actions stay in
  * the pane component.
@@ -44,11 +43,24 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
       {/* Action row — sits above the All / Changes tabs so it's reachable
          from both tabs. Zen toggle sits left of Create PR (prefix+p). */}
       {props.onZenToggle || props.onCreatePR ? (
-        // wrap, and chips flexShrink={0}: on a narrow pane Yoga used to
-        // squeeze the chips' inner gaps first ("[~]Zen"), and with shrink
-        // forbidden the row would overflow the pane border instead — wrapping
-        // stacks the chips right-aligned, both still whole.
-        <box flexDirection="row" flexWrap="wrap" justifyContent="flex-end" gap={2} paddingBottom={1} flexShrink={0}>
+        // wrap, and chips flexShrink={0}: on a narrow pane Yoga squeezes the
+        // chips' inner gaps first ("[~]Zen"), and with shrink forbidden the
+        // row would overflow the pane border instead — wrapping stacks the
+        // chips right-aligned, both still whole.
+        //
+        // columnGap, NOT gap: Yoga's `gap` sets BOTH gutters, so the wrap this
+        // row is designed around also inherited a 2-row vertical gutter — and
+        // the chips ALWAYS wrap (8 + 2 + 30 cells against the pane's 22-34
+        // cell clamp), so the header permanently opened with Zen, two blank
+        // rows, Create PR. Only the horizontal gutter is wanted here.
+        <box
+          flexDirection="row"
+          flexWrap="wrap"
+          justifyContent="flex-end"
+          columnGap={2}
+          paddingBottom={1}
+          flexShrink={0}
+        >
           {props.onZenToggle ? (
             // stopPropagation: the chip click must NOT bubble to the host
             // pane box's own onMouseUp (workspace host focuses the files

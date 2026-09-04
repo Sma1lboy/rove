@@ -1,10 +1,9 @@
 /**
- * Pure tab-list state for the workspace terminal tabs (issue #16) — the
- * PTY-world successor of the tmux chattab concept. Same user contract:
+ * Pure tab-list state for the workspace terminal tabs. User contract:
  * new tab spawns the SAME engine command in the same worktree, the last
  * tab can't be closed, titles are user-renameable, bracket chords cycle.
  *
- * Framework-free on purpose: the Solid component owns signals/UI, this
+ * Framework-free on purpose: the component owns signals/UI, this
  * module owns the transitions so vitest can pin them. Tab PTYs are keyed
  * `${taskId}::${tabId}` into the existing PtyRegistry — no registry
  * changes; each tab is just another registry entry that survives task
@@ -20,7 +19,6 @@ import type { PersistedSplit } from "./terminal-tab-split"
 // importers keep one entry point.
 export {
   type PersistedSplit,
-  SHELL_LEAF_NAME,
   collapseSplit,
   hasEngineLeaf,
   isTabSplit,
@@ -36,82 +34,15 @@ export {
 // argv composition and the component can depend on the shapes without
 // depending on these transitions. Re-exported here so importers keep one
 // entry point.
-export type { CommandTab, ContentTab, EngineTab, TerminalTab } from "./terminal-tab-shapes"
-import type { CommandTab, ContentTab, TerminalTab } from "./terminal-tab-shapes"
+export type { CommandTab, ContentTab, EngineTab, TabsState, TerminalTab } from "./terminal-tab-shapes"
+import type { CommandTab, ContentTab, TabsState, TerminalTab } from "./terminal-tab-shapes"
 
-export interface TabsState {
-  readonly tabs: readonly TerminalTab[]
-  readonly activeId: string
-  /** Next ordinal to hand out (monotonic — close does not recycle). */
-  readonly nextOrdinal: number
-  /**
-   * What the LAST tab was, recorded as it closed, so re-entering an emptied
-   * task reopens the same kind of session instead of always an engine
-   * ({@link reopenTabs}). Only set when `tabs` is empty — a task with tabs
-   * doesn't need it, and a stale value would outlive its meaning.
-   *
-   * A snapshot written before this field existed simply lacks it, which is
-   * why {@link reopenTabs} treats absence as "use the default" rather than
-   * as an error: the whole point is that upgrading in place is silent.
-   */
-  readonly reopenAs?: { readonly kind: "engine"; readonly vendor?: VendorId } | { readonly kind: "command" }
-}
-
-/** A task's initial state: one untitled engine tab, active. */
-export function initialTabs(): TabsState {
-  return { tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }], activeId: "tab-1", nextOrdinal: 2 }
-}
-
-/**
- * What to reopen an emptied task as, derived from the tab that just closed.
- *
- * Only the SHAPE is carried, never the session: the PTY died with the tab, so
- * an engine comes back as a fresh engine (its `sessionId` deliberately absent)
- * and a shell as a fresh shell. A content/preview tab has no session to speak
- * of and reopens as an engine — reviving a file preview as the whole workspace
- * would be a strange thing to land in.
- */
-function reopenHintFor(closed: TerminalTab | undefined): TabsState["reopenAs"] {
-  if (closed?.kind === "command") return { kind: "command" }
-  if (closed?.kind === "engine" && closed.vendor) return { kind: "engine", vendor: closed.vendor }
-  return { kind: "engine" }
-}
-
-/**
- * Revive a task whose last tab was closed: one fresh tab of the kind that was
- * there before, active. `shell` is the argv a `command` tab respawns with.
- *
- * `reopenAs` is absent for a snapshot written before it existed (an install
- * upgrading in place), and absence means the default engine tab — the same
- * thing {@link initialTabs} gives a brand-new task. That is the fallback, not
- * an error path: a user who upgrades mid-session should not be able to reach a
- * task that refuses to reopen.
- */
-export function reopenTabs(state: TabsState, shell: string): TabsState {
-  const ordinal = state.nextOrdinal
-  const id = `tab-${ordinal}`
-  const next = state.nextOrdinal + 1
-  if (state.reopenAs?.kind === "command") {
-    return { tabs: [{ kind: "command", id, title: null, ordinal, command: [shell] }], activeId: id, nextOrdinal: next }
-  }
-  const vendor = state.reopenAs?.kind === "engine" ? state.reopenAs.vendor : undefined
-  return {
-    tabs: [{ kind: "engine", id, title: null, ordinal, ...(vendor ? { vendor } : {}) }],
-    activeId: id,
-    nextOrdinal: next,
-  }
-}
-
-/** A SCRATCH task's initial state (issue #33): one bare shell tab, active —
- *  the task is the shell, an engine only appears when the user types one.
- *  Same shape the ctrl+e "shell" pick mints ({@link openCommandTab}). */
-export function initialShellTabs(shell: string): TabsState {
-  return {
-    tabs: [{ kind: "command", id: "tab-1", title: null, ordinal: 1, command: [shell] }],
-    activeId: "tab-1",
-    nextOrdinal: 2,
-  }
-}
+// Whole-list lifecycle (first mount, restart, revive, recycle) lives in
+// `./terminal-tabs-lifecycle` — where a list COMES FROM, versus this file's
+// what a user action does to one that exists. Re-exported here so importers
+// keep one entry point.
+export { initialShellTabs, initialTabs, recycleTabs, rehydrateTabs, reopenTabs } from "./terminal-tabs-lifecycle"
+import { initialTabs, reopenHintFor } from "./terminal-tabs-lifecycle"
 
 /** Shared insert: append `tab` after the active tab and focus it. */
 function insertAfterActive(state: TabsState, tab: TerminalTab): TabsState {
@@ -184,7 +115,7 @@ export function findContentTab(state: TabsState): ContentTab | undefined {
  * openEditorTab}. First time: insert after the active tab and focus it. Later
  * hits: retarget the existing tab to the new file/base in place (its render
  * re-reads on the prop change) and select it. Selecting is a content swap,
- * not a focus grab — the FileTree keeps keyboard focus (KOB-25); the host
+ * not a focus grab — the FileTree keeps keyboard focus; the host
  * wires it without a `focus.setFocused`.
  */
 export function openContentTab(state: TabsState, relPath: string, label: string, base?: string): TabsState {
@@ -210,8 +141,8 @@ export function openContentTab(state: TabsState, relPath: string, label: string,
 export function closeTab(
   state: TabsState,
   id: string,
-  /** Allow the task's LAST tab to close, leaving `tabs` empty (owner call
-   *  2026-08-31). Off by default: `closeActive`'s scratch branch reads a
+  /** Allow the task's LAST tab to close, leaving `tabs` empty.
+   *  Off by default: `closeActive`'s scratch branch reads a
    *  refusal as "this task is ending", so flipping this unconditionally would
    *  turn every scratch ctrl+w into a task teardown. */
   opts: { readonly allowEmpty?: boolean } = {},
@@ -270,6 +201,20 @@ export function setTabForkFrom(state: TabsState, id: string, sourceSessionId: st
   return { ...state, tabs }
 }
 
+/**
+ * Pin the RAW launch command on an engine tab (see `EngineTab.engineCommand`),
+ * so the tab launches `command` while its `vendor` carries the protocol kobe
+ * resolved for it. Set together with a vendor when the two differ — a custom
+ * preset (`claudecpa`) launches by its own name but speaks the wrapped
+ * engine's session verbs.
+ */
+export function setTabEngineCommand(state: TabsState, id: string, command: string): TabsState {
+  const tabs = state.tabs.map(
+    (t): TerminalTab => (t.id === id && t.kind === "engine" ? { ...t, engineCommand: command } : t),
+  )
+  return { ...state, tabs }
+}
+
 /** Give an engine tab its own first-spawn prompt (see
  *  `EngineTab.initialPrompt`) — the cross-engine handoff brief. */
 export function setTabInitialPrompt(state: TabsState, id: string, prompt: string): TabsState {
@@ -287,9 +232,8 @@ export function setTabInitialPrompt(state: TabsState, id: string, prompt: string
  * An EMPTY title is also a no-op: this field exists so surfaces that render
  * a tab they don't host still know its name, and "the process has not
  * reported a title" must never erase the one it reported earlier. Recording
- * `""` renamed a live session to its vendor default a beat after the real
- * title appeared (owner report 2026-08-10) — and persisted that, so the tab
- * came back wrong on the next start too.
+ * `""` would rename a live session to its vendor default and persist that,
+ * so the tab would come back wrong on the next start too.
  */
 export function setTabLastTitle(state: TabsState, id: string, lastTitle: string): TabsState {
   if (lastTitle.length === 0) return state
@@ -346,52 +290,8 @@ export function markTabSpawned(state: TabsState, id: string): TabsState {
 // off the transitions); shell-quoting in `./terminal-tab-spawn` (imports
 // nothing, pure string work). Both re-exported here so importers keep one
 // entry point.
-export { type TabExitAction, engineTabArgv, engineTabSpawnFor, tabExitAction } from "./terminal-tab-argv"
+export { engineTabArgv, engineTabSpawnFor, tabExitAction } from "./terminal-tab-argv"
 export { type TabSpawn, shellCommandLine, shellIdentityInput, shellSpawn } from "./terminal-tab-spawn"
-
-/**
- * Rehydrate a persisted tab snapshot (issue #22). A tab is a TERMINAL
- * (owner model 2026-07-07): claude/an editor are just processes that ran
- * in it, so EVERY tab survives restart. Engine tabs keep their identity
- * + sessionId so the host can `--resume` the conversation; command tabs
- * (a shell pick, a dead editor) come back running `shell` — their old
- * process is gone, and resurrecting a fresh engine
- * in its place was the "closed shell reopens as claude" bug. Same
- * freeze-the-layout rule splitTree restore follows. Guards against a
- * corrupt/empty snapshot by falling back to `initialTabs()`; re-anchors
- * `activeId` if it pointed at a tab that no longer exists.
- */
-export function rehydrateTabs(
-  persisted: TabsState,
-  shell: readonly string[],
-  /** Keep an intentionally-empty snapshot empty (owner call 2026-08-31).
-   *  Without this a task whose last tab you closed grows one back on the next
-   *  mount, so the close never appears to take. Off by default so a CORRUPT
-   *  snapshot (the case this fallback was written for) still recovers. */
-  opts: { readonly allowEmpty?: boolean } = {},
-): TabsState {
-  const tabs = persisted.tabs.map(
-    (t): TerminalTab => (t.kind === "command" ? { ...t, command: shell, purpose: undefined } : t),
-  )
-  if (tabs.length === 0) return opts.allowEmpty ? persisted : initialTabs()
-  const activeId = tabs.some((t) => t.id === persisted.activeId) ? persisted.activeId : tabs[0].id
-  const maxOrdinal = tabs.reduce((max, t) => Math.max(max, t.ordinal), 0)
-  return { tabs, activeId, nextOrdinal: Math.max(persisted.nextOrdinal, maxOrdinal + 1) }
-}
-
-/**
- * Recycle-in-place state for the last tab's exit: a fresh engine tab
- * (new session, ordinal 1) that KEEPS the exited tab's name — user
- * `title` and `autoTitle` carry over, so the strip doesn't visibly
- * rename itself on every recycle. The carried autoTitle also blocks the
- * naming pass from deriving a new one (its `!title && !autoTitle`
- * self-limit), which was the "title changes every recycle" bug.
- */
-export function recycleTabs(prev: TerminalTab): TabsState {
-  const fresh = initialTabs()
-  const tabs = [{ ...fresh.tabs[0], title: prev.title, autoTitle: prev.autoTitle }]
-  return { ...fresh, tabs }
-}
 
 /** Cycle the active tab by ±1, wrapping at the ends. */
 export function cycleTab(state: TabsState, delta: 1 | -1): TabsState {
@@ -404,7 +304,7 @@ export function cycleTab(state: TabsState, delta: 1 | -1): TabsState {
 
 /**
  * Move a tab up/down within its task's tab list (sidebar move mode, issue
- * #43). Edge-stops — moving the first tab up or the last down returns the
+ * Edge-stops — moving the first tab up or the last down returns the
  * SAME state object (no wrap), so callers persist nothing on a no-op. Tab
  * order IS the persisted `tabs` array order (`rehydrateTabs` keeps it), so
  * this needs no new persistence key.

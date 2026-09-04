@@ -137,7 +137,7 @@ describe("splitRepoRow (repo rows lead with the basename)", () => {
   })
 })
 
-describe("offersProjectIntent (issue #90)", () => {
+describe("offersProjectIntent", () => {
   it("offers only for a repo that already has a project checkout", () => {
     const mains = new Set(["/repos/codefox"])
     expect(offersProjectIntent("/repos/codefox", mains)).toBe(true)
@@ -173,7 +173,7 @@ describe("nextField / firstFieldFor (per-tab field cycling)", () => {
     expect(nextField("engine", "existing")).toBe("repo")
   })
 
-  it("inserts the intent stop only when that row renders (issue #90)", () => {
+  it("inserts the intent stop only when that row renders", () => {
     // The row exists only for a repo that already has a project checkout, so
     // the walk is TOLD whether it is on screen. Offering the stop
     // unconditionally parks focus on nothing; omitting it when the row IS

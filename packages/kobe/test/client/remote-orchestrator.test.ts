@@ -260,7 +260,7 @@ describe("RemoteOrchestrator channel handling", () => {
     })
   })
 
-  // `worktree.changes` — the daemon-collected `+N −M` map (issue #6). Each
+  // `worktree.changes` — the daemon-collected `+N −M` map. Each
   // push REPLACES the whole map (the daemon publishes the full picture and
   // prunes deleted tasks' entries itself), so unlike engine-state
   // there's no snapshot reconciliation — but unchanged pushes must still be
@@ -493,7 +493,7 @@ describe("worktree.changes pure helpers", () => {
   })
 })
 
-describe("framework-free store twins (React hosts, issue #15 G3)", () => {
+describe("framework-free store twins (React hosts)", () => {
   it("ui-prefs channel lands in uiPrefsStore and notifies subscribers", () => {
     const { client, emit } = fakeClient()
     const orch = new RemoteOrchestrator(client)

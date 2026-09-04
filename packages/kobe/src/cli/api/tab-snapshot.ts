@@ -22,9 +22,9 @@
  */
 
 import type { PtySessionExit } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { loadStateFile, patchStateFile } from "../../state/store.ts"
+import { loadStateFile, patchStateFile, updateStateFile } from "../../state/store.ts"
 import { terminalTabsKey } from "../../tui-react/workspace/terminal-tabs-persist.ts"
-import { type TabsState, type TerminalTab, initialTabs } from "../../tui/workspace/terminal-tabs-core.ts"
+import { type TabsState, type TerminalTab, closeTab, initialTabs } from "../../tui/workspace/terminal-tabs-core.ts"
 import type { VendorId } from "../../types/vendor.ts"
 
 /**
@@ -43,13 +43,13 @@ export interface TaskTabRow {
   readonly autoTitle: string | null
   readonly alive: boolean
   /** How the tab's session died — ABNORMAL exits only (clean exit 0 stays
-   *  null, per issue #9's no-noise rule); null while alive/unknown. Joined
+   *  null, by the no-noise rule); null while alive/unknown. Joined
    *  from the live host when present, else the durable exit records —
    *  `tail` (the exit-time output lines the durable record keeps) rides
    *  along whenever the record describes the same death. */
   readonly exit: (PtySessionExit & { tail?: readonly string[] }) | null
   /** Present (true) only on rows derived from a LIVE pty session the
-   *  persisted snapshot does not list — issue #20's invisible engine. The
+   *  persisted snapshot does not list — an otherwise invisible engine. The
    *  snapshot is a record of intent; the pty host holds the truth, and a
    *  divergence must render as a row, not vanish. */
   readonly unregistered?: true
@@ -72,12 +72,37 @@ export function readTabsSnapshot(taskId: string): TabsState | undefined {
   }
 }
 
+/**
+ * Remove one persisted tab with the same pure transition ctrl+w uses.
+ * Returns the removed tab, or undefined when the current snapshot does not
+ * name it. The fresh-state transaction prevents a stale CLI snapshot from
+ * overwriting a newer TUI tab list.
+ */
+export function closeTabsSnapshot(taskId: string, tabId: string): TerminalTab | undefined {
+  let closing: TerminalTab | undefined
+  const key = terminalTabsKey(taskId)
+  updateStateFile((store) => {
+    const state = store[key] as TabsState | undefined
+    if (!state || !Array.isArray(state.tabs)) return false
+    closing = state.tabs.find((tab) => tab.id === tabId)
+    if (!closing) return false
+    const { state: next, closedId } = closeTab(state, tabId, { allowEmpty: true })
+    if (!closedId) {
+      closing = undefined
+      return false
+    }
+    store[key] = next
+    return undefined
+  })
+  return closing
+}
+
 const aliveKeysOf = (sessions: readonly TaskSessionRow[]): Set<string> =>
   new Set(sessions.filter((s) => s.alive).map((s) => s.key))
 
 /**
  * Tab ids with a LIVE `<taskId>::<tabId>` pty session the snapshot does not
- * list — the reconciliation read behind issue #20 (a canonical-spawn
+ * list — the reconciliation read for an invisible engine (a canonical-spawn
  * fallback, an older kobe, any future path that opens a session without
  * writing the snapshot). Split leaves (`::leaf-N` suffix) belong to their
  * tab and never count on their own, matching `joinTaskTabs`' exact-key rule.
@@ -111,7 +136,7 @@ const abnormalExit = (exit: PtySessionExit | null | undefined): PtySessionExit |
  * key) answers "how did it die" after the host itself is gone; a live host's
  * in-memory exit wins when both exist.
  *
- * `liveVendors` (issue #33) is a fresh foreground-walk verdict per session
+ * `liveVendors` is a fresh foreground-walk verdict per session
  * key — the same tri-state the TUI's live-engine store speaks: a vendor =
  * that engine runs under the session's shell NOW, null = walked and
  * engine-free, absent = couldn't look. Where it answers it overrides the

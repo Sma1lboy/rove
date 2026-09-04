@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings sections (issue #15 G3) — Feedback + Dev + Keybindings.
+ * Settings sections — Feedback + Dev + Keybindings.
  * Feedback-form design notes: the body is an UNCONTROLLED `<textarea>` so
  * pasted newlines survive; edits mirror back through `onContentChange`,
  * and an external reset clears the edit buffer through the ref.
@@ -153,8 +153,8 @@ export function DevSettingsSection(
     const row = rowIndex(rows, id)
     return (
       // Wrapped (not a fragment) so the gap lands BETWEEN experiments — each
-      // one is prose + its switch, and previously they ran together into a
-      // wall where the switches were invisible.
+      // one is prose + its switch, and without the gap they run together into
+      // a wall where the switches are invisible.
       <box flexDirection="column" gap={0} paddingTop={1}>
         <text fg={theme.textMuted} wrapMode="word">
           {t(hintKey)}
@@ -331,9 +331,8 @@ export function KeybindingsSettingsSection(
         </text>
       </box>
       {!report.exists ? (
-        // The example used to be printed here for the user to retype into a
-        // file they also had to create. It is now the CONTENT of that file,
-        // one keypress away — see `keybindings-starter.ts`.
+        // The example is the CONTENT of the starter file, one keypress away,
+        // rather than something to retype — see `keybindings-starter.ts`.
         <box flexDirection="column" gap={0}>
           <text fg={theme.textMuted} wrapMode="word">
             {t("settings.keybindings.createHint")}

@@ -29,7 +29,7 @@ import type { KVContext } from "../context/kv"
 import { isNarrowWidth, narrowSurface } from "../lib/narrow-mode"
 import type { DialogContext } from "../ui/dialog"
 
-export interface HostPageState {
+interface HostPageState {
   readonly worktreesOpen: boolean
   readonly automationsOpen: boolean
   readonly workItemsOpen: boolean
@@ -234,8 +234,8 @@ export interface UseHostPagesRenderResult {
  *
  * `pageDeps`, the full-window/content-page render calls, the narrow-mode
  * surface decision, and the settings standalone page all serve one concern:
- * deciding which surface occupies the workspace. Keeping them together means
- * `host.tsx` no longer has to thread every dependency through `pageDeps`.
+ * deciding which surface occupies the workspace. Keeping them together is
+ * what spares `host.tsx` from threading every dependency through `pageDeps`.
  */
 export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRenderResult {
   const {
@@ -304,7 +304,7 @@ export function useHostPagesRender(opts: UseHostPagesRenderOpts): UseHostPagesRe
 
   const settingsPage = pages.settingsOpen ? (
     <box flexGrow={1} backgroundColor="transparent" paddingTop={1}>
-      <SettingsDialog kv={kv} orchestrator={orchestrator} standalone={true} onClose={pages.closeSettings} />
+      <SettingsDialog kv={kv} orchestrator={orchestrator} onClose={pages.closeSettings} />
     </box>
   ) : null
 

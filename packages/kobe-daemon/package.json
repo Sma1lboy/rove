@@ -34,6 +34,7 @@
     "./daemon/crash-log": "./src/daemon/crash-log.ts",
     "./daemon/collectors": "./src/daemon/collectors.ts",
     "./daemon/cwd-task": "./src/daemon/cwd-task.ts",
+    "./daemon/deferred-prompt-sweep": "./src/daemon/deferred-prompt-sweep.ts",
     "./daemon/deferred-prompts-store": "./src/daemon/deferred-prompts-store.ts",
     "./daemon/engine-events-log": "./src/daemon/engine-events-log.ts",
     "./daemon/event-bus": "./src/daemon/event-bus.ts",
@@ -46,8 +47,12 @@
     "./daemon/notes-store": "./src/daemon/notes-store.ts",
     "./daemon/paths": "./src/daemon/paths.ts",
     "./daemon/platform-shell": "./src/daemon/platform-shell.js",
+    "./daemon/context-usage-collector": "./src/daemon/context-usage-collector.ts",
+    "./daemon/poll-scheduling": "./src/daemon/poll-scheduling.ts",
+    "./daemon/pr-failing-checks": "./src/daemon/pr-failing-checks.ts",
     "./daemon/pr-status-collector": "./src/daemon/pr-status-collector.ts",
     "./daemon/prompt-broker": "./src/daemon/prompt-broker.ts",
+    "./daemon/tab-close-broker": "./src/daemon/tab-close-broker.ts",
     "./daemon/protocol": "./src/daemon/protocol.ts",
     "./daemon/pty-driver": "./src/daemon/pty-driver.ts",
     "./daemon/pty-env": "./src/daemon/pty-env.js",
@@ -69,6 +74,7 @@
     "./daemon/transcript-activity-collector": "./src/daemon/transcript-activity-collector.ts",
     "./daemon/ui-prefs-watcher": "./src/daemon/ui-prefs-watcher.ts",
     "./daemon/web-server": "./src/daemon/web-server.ts",
+    "./daemon/web-token": "./src/daemon/web-token.ts",
     "./daemon/web-session": "./src/daemon/web-session.ts",
     "./daemon/worktree-changes-collector": "./src/daemon/worktree-changes-collector.ts",
     "./plugins/env": "./src/plugins/env.ts",
@@ -85,7 +91,8 @@
     "./daemon/quota-resume": "./src/daemon/quota-resume.ts",
     "./prompts/issue-prompts": "./src/prompts/issue-prompts.ts",
     "./prompts/observed-language": "./src/prompts/observed-language.ts",
-    "./daemon/terminal-rows": "./src/daemon/terminal-rows.ts"
+    "./daemon/terminal-rows": "./src/daemon/terminal-rows.ts",
+    "./daemon/ticker": "./src/daemon/ticker.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -1,7 +1,7 @@
 /**
- * Engine-layer death records: the blind spot behind the 2026-08-30 incident
- * (seven engines killed by a provider usage limit; `pty-exits.json` held
- * ZERO records, because every wrapper shell survived its engine).
+ * Engine-layer death records. Without them, engines killed by a provider
+ * usage limit leave `pty-exits.json` with ZERO records, because every
+ * wrapper shell survives its engine.
  *
  * Two halves, tested where each lives: the store must persist an engine
  * death with the wrapper's exit code scraped out of the tail, and the
@@ -30,7 +30,7 @@ beforeEach(() => {
 })
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-// The real shape from the incident: provider error, zsh's own kill notice,
+// The real shape of a quota death: provider error, zsh's own kill notice,
 // then the keepAlive wrapper's banner (ANSI-wrapped). 143 = 128 + SIGTERM.
 const INCIDENT_TAIL =
   "Error: [provider.auth_error] 403 You_ve reached your 5-hour usage limit.\r\n" +

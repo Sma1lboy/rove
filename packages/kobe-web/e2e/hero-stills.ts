@@ -15,7 +15,7 @@
 
 import { join, resolve } from "node:path"
 import { chromium } from "@playwright/test"
-import { HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
+import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..")
 const ASSETS = join(REPO_ROOT, "docs", "assets")
@@ -200,11 +200,7 @@ try {
       viewport: { width, height },
       deviceScaleFactor: still.scale ?? STILL_SCALE,
     })
-    // `webgl=1` for the same reason recordings use it: the DOM renderer cannot
-    // use xterm's `customGlyphs`, so block-element and box-drawing characters
-    // (pane borders, engine banner art) photograph with a seam at every cell
-    // boundary. A failed context falls back to DOM inside ChatTerminal.
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&webgl=1`)
+    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}`)
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
     await look(page, "orbit-sdk", 60_000)
     await page.getByTestId("opentui-terminal").click({ position: { x: 24, y: Math.min(400, height - 80) } })
@@ -213,7 +209,7 @@ try {
     const out = join(ASSETS, `${still.name}.png`)
     await page.screenshot({ path: out })
     await page.request
-      .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } })
+      .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() })
       .catch(() => {})
     await page.close()
     console.log(`${out}  — ${still.subject}`)

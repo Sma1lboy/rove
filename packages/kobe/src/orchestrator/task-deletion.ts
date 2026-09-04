@@ -107,9 +107,9 @@ export class TaskDeletionCoordinator {
           },
           // A removal git half-completed (metadata deregistered, directory
           // undeletable) is NOT an error here. Parking the task in `error`
-          // would be a lie the user cannot act on: git no longer knows this
+          // would be a lie the user cannot act on: git has forgotten this
           // worktree, so every retry is `fatal: is not a working tree` and the
-          // task is stuck forever (issue #89). The deletion finishes; the
+          // task is stuck forever. The deletion finishes; the
           // leftover directory is reported instead of being made the task's
           // problem — and never deleted from under the user, since whatever
           // made it undeletable may be something they want.

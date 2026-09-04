@@ -3,7 +3,7 @@
  *
  * The host keeps an exited session's ring in memory, but the host itself
  * idle-exits ~60s after its last live session dies — exactly the window in
- * which a crashed engine's cause evaporates (issue #9). This store writes a
+ * which a crashed engine's cause evaporates. This store writes a
  * small JSON file per KOBE home (`pty-exits.json`) at exit time so
  * `get-task`/`inspect` can answer "how did it die" long after the host is
  * gone.
@@ -12,8 +12,8 @@
  * session's own child died. `engine` records come from the daemon's activity
  * observer noticing the AI process gone from a session that is STILL ALIVE:
  * a tab's shell wrapper reaps its engine and `exec`s a fallback shell, so
- * that death is invisible to the hook above and used to leave no trace at
- * all. Store keys differ (`<key>` vs `<key>#engine`) so both coexist.
+ * that death is invisible to the hook above. Store keys differ (`<key>` vs
+ * `<key>#engine`) so both coexist.
  *
  * Noise rules: clean PTY exits (code 0, no signal) and internal keys (the
  * warm `::spare`) are never recorded — engine deaths always are, since an

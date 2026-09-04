@@ -1,7 +1,7 @@
 /**
- * Invariants for the shared notification state (issue #15, G3) — the pure
- * transforms behind BOTH the Solid and React NotificationsProviders. The
- * escalation rule (needs_input/error outrank done) and the "error toasts
+ * Invariants for the shared notification state — the pure transforms behind
+ * the NotificationsProvider. The escalation rule (needs_input/error outrank
+ * done) and the "error toasts
  * always show" gate are behavior users notice the moment they regress
  * (a red unread dot silently downgraded to green, or a failure toast
  * suppressed by the completion-toast preference), so they're pinned here

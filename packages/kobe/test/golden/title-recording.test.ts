@@ -1,6 +1,6 @@
 /**
- * Golden behavior — tab-title derivation, anchored end to end (issue #11
- * Phase 1). Unlike the per-function suites (tab-title-stable, status-prefix,
+ * Golden behavior — tab-title derivation, anchored end to end.
+ * Unlike the per-function suites (tab-title-stable, status-prefix,
  * tab-last-title), these walk the REAL recording chain a live session drives:
  *
  *   OSC title stream → entry-point strip (`stripEngineStatusPrefix`, the
@@ -8,9 +8,8 @@
  *   (`setTabLastTitle`/`setTabLiveVendor`/`demoteExitedEngine`, the
  *   use-tab-turn-state effect) → display (`tabTitle`/`tabTitleStable`).
  *
- * These are the Phase 1 stakes for the 2026-08-10/11 title fixes
- * (982a996a, f2b6d744, 496c46ee, 57a6f9d7, e9405e07, 5d218f58): Phase 2's
- * running-state work must keep every one of them green.
+ * Every title fix in that chain is staked here: later running-state work must
+ * keep all of them green.
  */
 
 import { describe, expect, it } from "vitest"
@@ -61,8 +60,8 @@ describe("golden: title stream → recording → display", () => {
 
   it("the probe-blind window still strips — the union vocabulary, not a vendor gate", () => {
     // The ps-walk probe takes ~2s; until it answers there is NO vendor. The
-    // strip must not wait for one (f2b6d744) — a raw `⠹ …` recorded in that
-    // window is exactly the prefix that kept coming back.
+    // strip must not wait for one — a raw `⠹ …` recorded in that window is
+    // exactly the prefix that keeps coming back.
     expect(stripEngineStatusPrefix("⠹ add the ruler", undefined)).toBe("add the ruler")
     expect(stripEngineStatusPrefix("✳ 修复构建失败", undefined)).toBe("修复构建失败")
     let state = initialTabs()
@@ -144,7 +143,7 @@ describe("golden: title stream → recording → display", () => {
     } as TerminalTab
     expect(tabTitleStable(stale, "claude", "claude")).toBe("利用自进化 1")
     // A user WRAPPER vendor (custom id, declares no glyph vocabulary) heals
-    // too — cleaning is not gated on `ownsStatus` (496c46ee).
+    // too — cleaning is not gated on `ownsStatus`.
     const wrapper = { ...stale, vendor: "claudecpa" } as TerminalTab
     expect(tabTitleStable(wrapper, "claudecpa" as VendorId, "claudecpa" as VendorId)).toBe("利用自进化 1")
   })

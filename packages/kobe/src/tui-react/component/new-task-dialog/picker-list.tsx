@@ -1,19 +1,16 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Shared windowed picker list + field-label styling for the React
- * new-task dialog (issue #15, G3W2). The Solid shell repeats the
- * "↑ N more / rows / ↓ N more" block four times (repo, branch, clone
- * parent, adopt); the React port renders all four through this one
- * component — callers supply the pre-windowed row bodies and pick
- * handler, the list owns the cursor arrow, bold, and overflow lines.
- * Also home to {@link ChoiceRow}, the horizontal choose-one row shared
- * across the dialog layer (engine picker, quick composer, this dialog).
+ * Shared windowed picker list + field-label styling for the new-task dialog.
+ * All four pickers (repo, branch, clone parent, adopt) render their
+ * "↑ N more / rows / ↓ N more" block through this one component — callers
+ * supply the pre-windowed row bodies and pick handler, the list owns the
+ * cursor arrow, bold, and overflow lines.
  */
 
 import { TextAttributes } from "@opentui/core"
 import type { ReactNode } from "react"
-import type { Field, PickerWindow } from "../../../tui/component/new-task-dialog/state"
-import { type Theme, useTheme } from "../../context/theme"
+import type { PickerWindow } from "../../../tui/component/new-task-dialog/state"
+import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 
 /** One visible picker row — body text plus an accent (selected) flag. */
@@ -104,65 +101,6 @@ export function PickerList(props: {
         </text>
       ) : null}
       {props.footer}
-    </box>
-  )
-}
-
-/** Focused field labels go primary + bold + underline; others stay muted. */
-export function labelStyle(theme: Theme, focusedField: Field, f: Field): { fg: Theme["primary"]; attributes?: number } {
-  return focusedField === f
-    ? { fg: theme.primary, attributes: TextAttributes.BOLD | TextAttributes.UNDERLINE }
-    : { fg: theme.textMuted }
-}
-
-/**
- * Horizontal choose-one row — the engine/vendor selector pattern shared by
- * the new-task dialog, the engine-picker dialog and the quick-task
- * composer: choices side by side (`gap={2}`), the selected one primary +
- * bold (arrowed variants prefix `▸ ` / two spaces), click picks.
- *
- * Overflow (fixed 2026-07-30): a choice label is ATOMIC. Without
- * `wrapMode="none"` + `flexShrink={0}` Yoga compressed the cells and each
- * `<text>` wrapped INTERNALLY, so with enough engines installed a label like
- * `lazygit (split)` split mid-word across two lines and the row read as
- * garbage. The labels are now unbreakable and the ROW wraps instead, moving
- * whole choices onto the next line.
- */
-export function ChoiceRow<T extends string>(props: {
-  choices: readonly T[]
-  selected: T
-  /** Leading cell (e.g. a field label) rendered before the choices. */
-  label?: ReactNode
-  onPick: (choice: T) => void
-  /** `▸ `/two-space prefix on each choice (default true). */
-  arrow?: boolean
-  /** Display text for a choice (default: the choice itself). */
-  display?: (choice: T) => string
-  /** Trailing content (spacer/hints) inside the same row. */
-  children?: ReactNode
-}) {
-  const { theme } = useTheme()
-  const arrow = props.arrow !== false
-  return (
-    <box flexDirection="row" flexWrap="wrap" gap={2}>
-      {props.label}
-      {props.choices.map((choice) => {
-        const selected = props.selected === choice
-        const prefix = arrow ? (selected ? "▸ " : "  ") : ""
-        return (
-          <text
-            key={choice}
-            fg={selected ? theme.primary : theme.textMuted}
-            attributes={selected ? TextAttributes.BOLD : undefined}
-            wrapMode="none"
-            flexShrink={0}
-            onMouseUp={() => props.onPick(choice)}
-          >
-            {prefix + (props.display ? props.display(choice) : choice)}
-          </text>
-        )
-      })}
-      {props.children}
     </box>
   )
 }

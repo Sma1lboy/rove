@@ -67,7 +67,7 @@ describe("parseNumstat", () => {
   })
 
   // ── Rename forms (the bug this file pins) ────────────────────────────────
-  // With `-z`, git emits the old and new paths as separate NUL-delimited
+  // With `-z`, git emits the source and destination paths as separate NUL-delimited
   // fields; the canonical NEW path must match what `git status --porcelain`
   // reports as the `R` row's path.
 

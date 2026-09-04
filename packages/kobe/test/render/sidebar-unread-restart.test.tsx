@@ -1,6 +1,7 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Issue #22 at the render boundary: a completion this process has never seen
+ * The durable seen mark at the render boundary: a completion this process has
+ * never seen
  * — the state a relaunched kobe is in — must still draw as read when the
  * persisted mark covers it.
  *

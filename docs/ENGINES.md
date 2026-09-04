@@ -16,14 +16,17 @@ you need git-level isolation and a separate branch.
 
 ## Which engines are supported
 
-| Engine | Id | Account detect | Activity badge | History | Model picker |
+| Engine | Id | Account detect | Activity badge | History | Effort levels |
 |---|---|---|---|---|---|
-| Claude Code | `claude` | ✓ | ✓ | ✓ | ✓ |
-| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | ✓ + effort levels |
+| Claude Code | `claude` | ✓ | ✓ | ✓ | — |
+| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh` |
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
 | Anything you register | custom | binary only | — | — | — |
+
+There is no in-app model picker for any engine — pick the model the way that
+engine does, on its own launch command.
 
 **Claude Code is the default** and the most complete: its quota probe drives
 rate-limit auto-resume and the Settings usage dashboard.
@@ -69,18 +72,36 @@ Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, passed as
 `-c model_reasoning_effort=<level>`. Other engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 
+Three places select one:
+
+- the web board's engine picker, when you start a task from an issue;
+- the sidebar row menu's **Change engine** entry, whose second row lists the
+  engine's levels (`←→` picks one, and "engine default" clears it). Engines
+  that declare no levels show no row;
+- `rove api set-effort --task-id ID --level LEVEL` from a shell.
+
+All three take effect on the task's next session rebuild, not on the running
+one.
+
 ### Workspace trust
 
-Claude, Codex, and Kimi each gate a first launch in a never-seen directory
-behind a trust dialog, and every task worktree is such a directory, so a
-hosted session can't answer it (Kimi's dialog even exits the process when a
-pasted first message lands on "Don't trust"). Before spawning an engine into
-a Rove-created worktree, Rove writes the vendor's own trust record for that
-path (`~/.claude.json` `projects[<path>].hasTrustDialogAccepted`,
-`~/.codex/config.toml` `[projects."<path>"] trust_level = "trusted"`, or
-`~/.kimi-code/workspace-trust/`), merging into existing entries, never
-clobbering. This only ever fires for worktrees Rove itself created from a
-repo you already work in; your own directories are untouched.
+All four builtin engines gate a first launch in a never-seen directory behind
+a trust dialog, and every task worktree is such a directory, so a hosted
+session can't answer it (Kimi's dialog even exits the process when a pasted
+first message lands on "Don't trust"; Copilot's cursor sits on a
+session-only "Yes", so it returns every launch). Before spawning an engine
+into a Rove-created worktree, Rove writes that vendor's own trust record for
+the path, merging into existing entries, never clobbering:
+
+| Engine | Trust record |
+| --- | --- |
+| Claude | `~/.claude.json` → `projects[<path>].hasTrustDialogAccepted` |
+| Codex | `~/.codex/config.toml` → `[projects."<path>"] trust_level = "trusted"` |
+| Copilot | `~/.copilot/config.json` → `trustedFolders` |
+| Kimi | `~/.kimi-code/workspace-trust/<record>` |
+
+This only ever fires for worktrees Rove itself created from a repo you already
+work in; your own directories are untouched.
 
 ### Custom launch commands
 
@@ -213,9 +234,9 @@ Rove separates two things a "vendor" used to conflate:
 
 The protocol is **derived** from the command, never declared beside it:
 
-1. `argv[0]` names a registered preset (built-in or yours) → that preset's
-   protocol. Deterministic, and it answers before anything spawns. This is
-   the normal path.
+1. `argv[0]` names a preset — a built-in, a contrib engine from the table
+   above, or one of yours → that preset's protocol. Deterministic, and it
+   answers before anything spawns. This is the normal path.
 2. Otherwise Rove can recognise a known engine binary through wrappers
    (`env FOO=1 claude`, `node …/codex.js`), the same walk the process probe
    uses at runtime.
@@ -228,6 +249,13 @@ The protocol is **derived** from the command, never declared beside it:
    trust pre-answer, and delivery start applying mid-session. The sniff is
    deliberately conservative: ambiguous or absent evidence leaves the task
    generic, and a task whose protocol is already known is never flipped.
+
+   When that engine tab was launched from one of *your* registered presets
+   and the walk found a built-in's process in it, Rove also writes
+   `engineProtocol.<id>` for the preset itself, so the next task on it starts
+   named instead of sniffing again. Only the process walk mints that key — a
+   title glyph names one session, and this outlives every session on the
+   preset — and a protocol you declared is never overwritten.
 
 `rove api engine-list` prints every entry with its raw command and resolved
 protocol; copy one into `rove api add --command` verbatim, or edit a flag

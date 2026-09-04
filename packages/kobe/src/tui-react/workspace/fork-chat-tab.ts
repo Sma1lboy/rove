@@ -9,15 +9,15 @@
  * keeping it thin is what stops either of them leaking into the component.
  */
 
-import { engineCanFork } from "@/engine/engine-presets"
+import { engineCanFork, getEngineProtocol, protocolEntry } from "@/engine/engine-presets"
 import { engineDisplayName } from "@/engine/interactive-command"
-import { engineEntry } from "@/engine/registry"
 import { buildHandoffPrompt } from "@/engine/session-handoff"
 import type { VendorId } from "@/types/vendor"
 import {
   type TabsState,
   type TerminalTab,
   addTab,
+  setTabEngineCommand,
   setTabForkFrom,
   setTabInitialPrompt,
 } from "../../tui/workspace/terminal-tabs-core"
@@ -28,13 +28,35 @@ import {
 export type ChatForkPlan =
   /** Same engine, native fork: it reopens its own conversation and branches. */
   | { readonly kind: "fork"; readonly sessionId: string }
-  /** Different engine: it starts fresh, briefed to read the old transcript. */
+  /** Different engine: it starts fresh, briefed to read the source
+   *  transcript. */
   | { readonly kind: "handoff"; readonly prompt: string }
   /** Nothing to continue from — this tab has no conversation yet. */
   | { readonly kind: "no-session" }
   /** There IS a conversation, but its engine keeps no transcript kobe can
    *  name (kimi, copilot, custom), so there is nothing to hand over. */
   | { readonly kind: "no-transcript"; readonly engine: string }
+
+/**
+ * The protocol the active tab's engine actually SPEAKS, which is not always
+ * the id it was launched under.
+ *
+ * A custom preset registered without `engineProtocol.<id>` (the shape every
+ * pre-`engineProtocol` preset has on disk) resolves to the empty custom
+ * registry entry: no transcript reader, no fork verb — so a `claudecpa` tab
+ * that has been talking to claude all along would report "nothing to
+ * continue". The process-tree walk already answers this question and records
+ * it as `EngineTab.liveVendor`; this is the join.
+ *
+ * Evidence, never a default. A declared protocol (built-in, contrib, or a
+ * preset that named one) is authoritative and wins; a live vendor that names
+ * no protocol of its own is no better than the id we started with.
+ */
+export function liveSourceProtocol(active: TerminalTab, tabVendor: VendorId): VendorId {
+  if (getEngineProtocol(tabVendor)) return tabVendor
+  const live = active.kind === "engine" ? active.liveVendor : undefined
+  return live && getEngineProtocol(live) ? live : tabVendor
+}
 
 /**
  * Resolve "continue this chat in `target`" to one outcome.
@@ -54,7 +76,7 @@ export async function planChatContinuation(
   const sessionId = await forkSourceSessionId(active, source, worktree)
   if (!sessionId) return { kind: "no-session" }
   if (target === source && engineCanFork(source)) return { kind: "fork", sessionId }
-  const transcriptPath = await engineEntry(source).history.transcriptPath(sessionId, worktree)
+  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
   if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
   return {
     kind: "handoff",
@@ -63,7 +85,7 @@ export async function planChatContinuation(
 }
 
 /**
- * "Continue this conversation" for the FORK destination (issue #7): the
+ * "Continue this conversation" for the FORK destination: the
  * child task runs in a NEW worktree, and engine-native session forks are
  * keyed to the source cwd — so this is ALWAYS a handoff (or a refusal),
  * never `{ kind: "fork" }`. The brief names the source worktree, which is
@@ -76,7 +98,7 @@ export async function planWorktreeHandoff(
 ): Promise<ChatForkPlan> {
   const sessionId = await forkSourceSessionId(active, source, worktree)
   if (!sessionId) return { kind: "no-session" }
-  const transcriptPath = await engineEntry(source).history.transcriptPath(sessionId, worktree)
+  const transcriptPath = await protocolEntry(source).history.transcriptPath(sessionId, worktree)
   if (!transcriptPath) return { kind: "no-transcript", engine: engineDisplayName(source) }
   return {
     kind: "handoff",
@@ -92,22 +114,28 @@ export async function planWorktreeHandoff(
  * only source of truth for what conversation this tab is showing.
  * `listSessionIdsForWorktree` is oldest-first, so the fork source is last.
  */
-export async function forkSourceSessionId(
-  active: TerminalTab,
-  vendor: VendorId,
-  worktree: string,
-): Promise<string | null> {
+async function forkSourceSessionId(active: TerminalTab, vendor: VendorId, worktree: string): Promise<string | null> {
   if (active.kind !== "engine") return null
   if (active.sessionId) return active.sessionId
-  const ids = await engineEntry(vendor).history.listSessionIdsForWorktree(worktree)
+  const ids = await protocolEntry(vendor).history.listSessionIdsForWorktree(worktree)
   return ids.at(-1) ?? null
 }
 
-/** New engine tab pinned to `vendor` (always CONCRETE — `engineTabArgv`
- *  only forks a tab whose vendor it can read), marked as its fork. */
-export function addForkTab(state: TabsState, vendor: VendorId, sourceSessionId: string): TabsState {
-  const next = addTab(state, vendor)
-  return setTabForkFrom(next, next.activeId, sourceSessionId)
+/**
+ * New engine tab that LAUNCHES `pick` but speaks `protocol`, marked as a fork
+ * of `sourceSessionId`.
+ *
+ * The two split for a wrapper preset: the user picked `claudecpa` and the new
+ * tab must still run it (its zsh function passes `"$@"` through), while every
+ * session verb `engineTabArgv` reaches for — the fork flags above all — is
+ * claude's. `EngineTab.engineCommand` already means exactly that ("wins over
+ * `vendor` at spawn; `vendor` then carries the protocol kobe resolved for
+ * it"), so pinning the pick there is what keeps the launch honest.
+ */
+export function addForkTab(state: TabsState, pick: VendorId, protocol: VendorId, sourceSessionId: string): TabsState {
+  const next = addTab(state, protocol)
+  const launched = pick === protocol ? next : setTabEngineCommand(next, next.activeId, pick)
+  return setTabForkFrom(launched, launched.activeId, sourceSessionId)
 }
 
 /** New engine tab pinned to `vendor`, opening on the handoff brief. */

@@ -36,8 +36,8 @@ export interface IssueChatBackgroundSpawn {
   readonly ptyKey: string
   readonly command: readonly string[]
   readonly initialInput?: string
-  /** Paste-delivery vendor's first message (kimi — issue #25): the story
-   *  prompt rode OUTSIDE the argv; the hosted PTY pastes it post-spawn. */
+  /** Paste-delivery vendor's first message (kimi): the prompt rides OUTSIDE
+   *  the argv; the hosted PTY pastes it post-spawn. */
   readonly firstMessage?: string
   /** Engine binary name for the first-message engine-up probe. */
   readonly engineBin?: string

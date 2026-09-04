@@ -1,8 +1,8 @@
 /**
- * Tests for the append-log rotation logic (issue #26): `~/.kobe/client.log`
- * grew to 736MB and `~/.kobe/daemon.log` to 345MB with no cap. These lock
- * the pure size-threshold decision plus the real rename-based rotation
- * against a temp dir (never the real ~/.kobe).
+ * Tests for the append-log rotation logic. Uncapped, `~/.kobe/client.log`
+ * and `~/.kobe/daemon.log` grow into the hundreds of MB. These lock the pure
+ * size-threshold decision plus the real rename-based rotation against a temp
+ * dir (never the real ~/.kobe).
  */
 
 import { mkdtemp, rm, stat, writeFile } from "node:fs/promises"

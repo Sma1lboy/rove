@@ -6,7 +6,7 @@
  * process holding it is alive (`paths.ts`). The reverse is not true: a binary
  * predating the rename knows exactly one path, so a new daemon binding
  * `.rove/daemon.sock` is invisible to it — and an invisible daemon is not an
- * error the old binary reports, it is a second daemon it starts, on the same
+ * error a legacy binary reports, it is a second daemon it starts, on the same
  * task index. Mixed installs are ordinary (a brew copy beside an npm one), so
  * this is a real state, not a hypothetical.
  *

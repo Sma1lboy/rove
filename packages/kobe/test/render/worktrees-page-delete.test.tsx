@@ -4,9 +4,9 @@
  * daemon.
  *
  * `git worktree remove` on a worktree with a populated `node_modules` is
- * seconds of real filesystem work; the page used to `await` it before
- * refetching, so the row sat there looking hung. These tests pin the
- * optimistic behavior: gone on confirm, back on failure.
+ * seconds of real filesystem work, so `await`ing it before refetching leaves
+ * the row sitting there looking hung. These tests pin the optimistic
+ * behavior: gone on confirm, back on failure.
  */
 
 import { expect, test } from "bun:test"

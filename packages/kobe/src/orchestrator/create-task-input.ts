@@ -31,7 +31,7 @@ export interface CreateTaskInput {
   readonly groupId?: string
   /** The kobe session (task + tab) dispatching this create, when one is. */
   readonly dispatcher?: TaskDispatcher
-  /** Marks this the standing session task of a routine (issue #91): the
+  /** Marks this the standing session task of a routine: the
    *  sidebar folds it behind a count row instead of a loose task row. */
   readonly routine?: TaskRoutineLink
   /**

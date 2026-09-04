@@ -1,4 +1,4 @@
-/** Per-turn telemetry read RPC (issue #32). Read-only; the write side is the
+/** Per-turn telemetry read RPC. Read-only; the write side is the
  *  hook-driven ingest in `agent-turns-ingest.ts`. */
 
 import { optionalNumber, optionalString } from "./handler-validators.ts"

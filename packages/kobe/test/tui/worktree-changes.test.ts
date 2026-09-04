@@ -26,7 +26,7 @@ describe("parsePorcelain", () => {
   })
 })
 
-// The sidebar's source-preference seam (issue #6): a non-null pushed map
+// The sidebar's source-preference seam: a non-null pushed map
 // means the daemon owns collection — including for rows ABSENT from the
 // map (remote / just-created), which must read as zeros, never
 // as "poll locally", or panes would re-grow git polls for exactly the

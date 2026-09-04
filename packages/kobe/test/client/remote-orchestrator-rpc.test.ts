@@ -79,6 +79,12 @@ describe("RemoteOrchestrator RPC wire mapping", () => {
     expect(request).toHaveBeenCalledWith("task.setBranch", { taskId: "t1", branch: "feat/x" })
     await orch.setVendor("t1", "codex")
     expect(request).toHaveBeenCalledWith("task.setVendor", { taskId: "t1", vendor: "codex" })
+    // `effort` rides the SAME rpc, and is omitted when the caller has no
+    // opinion so the daemon can tell "keep the level" from "" = clear it.
+    await orch.setVendor("t1", "codex", "xhigh")
+    expect(request).toHaveBeenCalledWith("task.setVendor", { taskId: "t1", vendor: "codex", effort: "xhigh" })
+    await orch.setVendor("t1", "codex", "")
+    expect(request).toHaveBeenCalledWith("task.setVendor", { taskId: "t1", vendor: "codex", effort: "" })
     await orch.setPinned("t1", true)
     expect(request).toHaveBeenCalledWith("task.pin", { taskId: "t1", pinned: true })
     await orch.setStatus("t1", "in_review")

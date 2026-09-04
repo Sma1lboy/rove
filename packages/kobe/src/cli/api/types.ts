@@ -48,7 +48,10 @@ export function helpStep(verbName: string): Record<string, unknown> {
 
 // ── Declarative verb + flag specs (single source of truth) ───────────────────
 
-export type FlagType = "string" | "int" | "bool" | "enum" | "csv"
+/** `int` is a POSITIVE integer (the common case: counts, limits, ids).
+ *  `uint` also admits zero, for a flag whose zero means something rather
+ *  than "unset" — see `--grace` on the routine verbs. */
+type FlagType = "string" | "int" | "uint" | "bool" | "enum" | "csv"
 
 export interface FlagSpec {
   readonly name: string
@@ -79,16 +82,16 @@ export interface VerbContext {
   readonly runtime: ApiRuntime
 }
 
-export type VerbHandler = (ctx: VerbContext) => Promise<unknown>
+type VerbHandler = (ctx: VerbContext) => Promise<unknown>
 
 /**
  * The taxonomy `rove api schema` exposes for LEVELED exploration. Closed on
  * purpose: a verb's group is a REQUIRED field on {@link VerbSpec}, so a new
  * verb does not compile until it is grouped, and `VERB_GROUPS` is derived from
  * the specs instead of being hand-maintained beside them. There is
- * deliberately no `other`: the old fallback let an ungrouped verb report a
- * group name that `--group` then rejected as unknown — invisible until an
- * agent actually browsed by group.
+ * deliberately no `other`: such a fallback lets an ungrouped verb report a
+ * group name that `--group` then rejects as unknown — invisible until an
+ * agent actually browses by group.
  */
 export const VERB_GROUP_IDS = [
   "discover",
@@ -165,17 +168,16 @@ export interface DeliveredPrompt {
    * The engine had its tty in raw mode and was READING when we wrote —
    * observed via DECSET 2004 in the session ring, not inferred from the
    * process table. This is the field that decides whether a large prompt
-   * can survive: a write before this is true is silently truncated to the
-   * tty's 1024-byte canonical buffer.
+   * can survive: a write made while this is false is silently truncated to
+   * the tty's 1024-byte canonical buffer.
    *
-   * It used to be a literal copy of {@link delivered}, which made it a
-   * second voice repeating one guess rather than an independent signal.
+   * Never a copy of {@link delivered} — that would be a second voice
+   * repeating one guess rather than an independent signal.
    */
   readonly engineReady: boolean
   /**
    * The prompt was written to the engine's pty AFTER it was confirmed
-   * reading. This is a real observation now — previously the spawn path
-   * hardcoded `true` without checking anything.
+   * reading. A real observation, never a hardcoded `true`.
    *
    * It does NOT promise the engine's composer rendered the text; that is
    * {@link promptEcho}. Delivery is byte-level truth, echo is UI-level
@@ -191,7 +193,7 @@ export interface DeliveredPrompt {
   readonly bytes?: number
   /**
    * Whether the prompt's tail was seen echoed back on capture — the capture
-   * confirmation `delivered` used to claim in its docs but never performed.
+   * confirmation that {@link delivered} deliberately does not make.
    *
    * `"confirmed"` is positive proof. `"unconfirmed"` is INCONCLUSIVE, not
    * failure: engines that collapse a big paste into a placeholder never echo
@@ -200,12 +202,13 @@ export interface DeliveredPrompt {
   readonly promptEcho?: "confirmed" | "unconfirmed"
   /**
    * Present when the delivery gate found the composer busy and the prompt was
-   * accepted-but-deferred rather than dropped (issue #78 B-layer): the daemon
+   * accepted-but-deferred rather than dropped: the daemon
    * stored the text and queued a `prompt_deferred` inbox episode. This is a
    * SUCCESS outcome for the caller — the daemon now owns the message and will
    * hold it for a human to release from the Inbox. Callers MUST NOT retry a
-   * deferred send: a retry would stack a duplicate of the same message in the
-   * queue. Absent on direct delivery and on genuine failure.
+   * deferred send: the tab's deferred slot stays occupied until release or
+   * expiry, and a later send fails with `DEFERRED_PROMPT_PENDING`. Absent on
+   * direct delivery and on genuine failure.
    */
   readonly deferred?: { readonly id: string; readonly layer: "recent-human-write" | "composer-not-empty" }
 }
@@ -213,15 +216,15 @@ export interface DeliveredPrompt {
 /** What the delivery layer calls to hand a blocked prompt to daemon ownership. */
 export interface PromptDeferralSink {
   /**
-   * Store the blocked prompt and return the daemon's record id. Implementations
-   * perform the `deferredPrompt.file` daemon RPC; tests inject a fake.
+   * Try to store the blocked prompt. Implementations perform the
+   * `deferredPrompt.file` daemon RPC; tests inject a fake.
    */
   defer(info: {
     readonly taskId: string
     readonly tabId: string
     readonly prompt: string
     readonly layer: "recent-human-write" | "composer-not-empty"
-  }): Promise<string>
+  }): Promise<{ readonly kind: "filed"; readonly id: string } | { readonly kind: "occupied"; readonly id: string }>
 }
 
 /** Hosted prompt delivery seam, injectable for handler/unit tests. */
@@ -252,6 +255,8 @@ export interface ApiRuntime {
    * gives, from the same read (`get-task` needs both, one host round-trip).
    */
   taskTabs(taskId: string): Promise<{ tabs: readonly TaskTabRow[]; running: boolean }>
+  /** Close one exact Terminal Tab without a mounted TUI. */
+  closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
   /** Canonical source repo for task creation and grouping. */
@@ -260,7 +265,7 @@ export interface ApiRuntime {
   defaultVendor(repo?: string): Promise<VendorId | undefined>
   /** Uncommitted +/− counts for a worktree. */
   readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number }>
-  /** Committed work vs the branch's base: ahead count + diffstat (`collect`).
+  /** Committed work vs the branch's base: ahead/behind counts + diffstat (`collect`).
    *  `recordedBaseRef` is the task's persisted fork point (`add --base-branch`);
    *  when present it wins over the base guess; absent/unresolvable falls back. */
   readBranchSignals(
@@ -269,6 +274,7 @@ export interface ApiRuntime {
   ): Promise<{
     baseRef: string | null
     ahead: number | null
+    behind: number | null
     diff: { files: number; insertions: number; deletions: number } | null
   }>
   /**

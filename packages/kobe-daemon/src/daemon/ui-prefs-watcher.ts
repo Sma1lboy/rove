@@ -4,10 +4,10 @@
  *
  * The theme / transparent-background / focus-accent prefs persist in the
  * shared KV blob (`~/.config/rove/state.json`, written by the State Store
- * in `packages/kobe/src/state/store.ts`). Every pane host used to read
- * them ONCE at boot (`readPersistedUiPrefs`), so switching the theme in
- * one session's Settings left the Tasks/Ops panes of every OTHER task
- * session on the old theme forever. This module makes the daemon the
+ * in `packages/kobe/src/state/store.ts`). A pane host that read them ONCE
+ * at boot (`readPersistedUiPrefs`) would keep whatever theme it started
+ * with, so switching the theme in one session's Settings would leave every
+ * OTHER task session's Tasks/Ops panes behind. This module is the
  * cross-session fan-out point: watch the state file, read the visual-pref
  * keys, and publish a `ui-prefs` channel payload that every subscribed
  * pane applies live.
@@ -20,7 +20,7 @@
  *   - **Stat-poll, not fs events.** `file-watch-trigger.ts` stamp-polls the
  *     watched basenames — on macOS the FSEvents stream behind fs events
  *     starts asynchronously and permanently drops writes landing in its
- *     arm window (issue #61), so event-based watching cannot be lossless.
+ *     arm window, so event-based watching cannot be lossless.
  *   - **Debounce.** A write burst (KVProvider flush + a `setPersisted*`
  *     call) collapses into one read ~{@link DEFAULT_UI_PREFS_DEBOUNCE_MS}
  *     later.
@@ -85,7 +85,7 @@ export function readUiPrefsFromStateFile(statePath: string): UiPrefsPayload {
     // prefs channel must always have a sane value to replay.
   }
   const theme = typeof parsed.activeTheme === "string" && parsed.activeTheme.length > 0 ? parsed.activeTheme : "claude"
-  // Default-true (2026-07-12): only an explicit stored `false` opts out.
+  // Default-true: only an explicit stored `false` opts out.
   const transparentBackground = parsed.transparentBackground !== false
   const focusAccent =
     typeof parsed.focusAccent === "string" &&
@@ -156,7 +156,7 @@ export function startUiPrefsWatcher(bus: DaemonEventBus, options: UiPrefsWatcher
       logDaemonError("ui-prefs-watcher", err)
     }
   }
-  // Watch BEFORE the initial read (issue #61 pattern): the trigger's
+  // Watch BEFORE the initial read: the trigger's
   // baseline stamp is taken synchronously in here, so a write landing
   // before it is seen by the initial publish below and one landing after
   // it flips the stamp — no write can fall between the two.

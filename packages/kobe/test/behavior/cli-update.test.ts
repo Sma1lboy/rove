@@ -1,7 +1,7 @@
 /**
  * `kobe update` black-box behavior + the update.sh package-manager matrix.
  *
- * Pins issue #205's class: the update must run through the package manager
+ * Pins the bug class: the update must run through the package manager
  * that OWNS the `kobe` on PATH, or the new version lands in another prefix
  * and PATH keeps resolving the stale install. The manager decision lives in
  * scripts/update.sh (fetched remotely by `kobe update`), so the matrix here
@@ -91,7 +91,7 @@ async function runUpdateScript(
   return { code: r.status ?? -1, out: `${r.stdout}${r.stderr}`, log }
 }
 
-describe("scripts/update.sh manager detection (issue #205)", () => {
+describe("scripts/update.sh manager detection", () => {
   let env: BehaviorEnv
   beforeAll(async () => {
     env = await makeBehaviorEnv()
@@ -107,8 +107,8 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     expect(r.out).toContain("many sessions. one terminal.")
     expect(r.out).toContain("Thanks for using Rove. Happy building.")
     expect(r.out).toContain("via bun")
-    // `--no-cache` since #703: bun's manifest cache served a stale version for
-    // minutes after a publish, so the update reported success and installed
+    // `--no-cache`: bun's manifest cache serves a stale version for minutes
+    // after a publish, so a cached update reports success while installing
     // what was already there.
     expect(r.log).toContain("bun install -g --no-cache @sma1lboy/rove@latest")
     expect(r.log).not.toContain("npm install -g")
@@ -176,7 +176,7 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     expect(r.log).not.toContain("uninstall")
   })
 
-  // #205's second half. Choosing npm-vs-bun is not enough: with several
+  // The second half of the same bug class. Choosing npm-vs-bun is not enough: with several
   // npm on one machine, `npm install -g` writes to the prefix of whichever
   // node runs npm — not the prefix that owns the binary on PATH. The
   // install must be pinned to the prefix we resolved the binary into.
@@ -215,8 +215,8 @@ describe("scripts/update.sh manager detection (issue #205)", () => {
     expect(r.log).not.toContain("--prefix")
   })
 
-  // The silent half of the incident: two installs, and the one running is
-  // not the one you think. Updating only names the winner, so say so.
+  // The silent half of the failure: two installs, and the one running is not
+  // the one you think. Updating only names the winner, so say so.
   it("warns when a second install is on PATH, naming which one is updated", async () => {
     const base = join(env.home, "case-dupes")
     const prefixA = join(base, "prefix-a")

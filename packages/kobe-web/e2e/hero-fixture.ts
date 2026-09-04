@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
-import { createTaskWithChatTab, runInFixture, runRoveApi, seedGitRepo } from "../../kobe/scripts/fixture-core.ts"
+import { createTaskWithChatTab, runInFixture, runRoveApi, seedGitRepo, writeFixtureWebToken } from "../../kobe/scripts/fixture-core.ts"
 import { HERO_CLI, HERO_CONFIG, HERO_HOME, HERO_REPO, HERO_ROOT, KOBE_DIR, heroEnv } from "./hero-env.ts"
 import { HERO_COMMITS, HERO_FILES } from "./hero-repo.ts"
 
@@ -165,6 +165,9 @@ async function main(): Promise<void> {
     }
     await rm(HERO_ROOT, { recursive: true, force: true })
     await mkdir(HERO_HOME, { recursive: true })
+    // Before anything can start the hero daemon: `ensureWebToken` reuses an
+    // existing file, so this pins the whole capture run to one known token.
+    await writeFixtureWebToken(HERO_HOME)
     await seedSettings()
     await seedRepo()
     for (const task of IDLE_TASKS) {

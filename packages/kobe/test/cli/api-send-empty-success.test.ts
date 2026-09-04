@@ -56,7 +56,7 @@ function clientWith(senderOverrides: Record<string, unknown> = {}): FakeClient {
 }
 
 /** The signal that makes the guard fire: a resolvable base, zero commits. */
-const emptyBranch = { readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, diff: null }) }
+const emptyBranch = { readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 0, behind: null, diff: null }) }
 
 beforeEach(async () => {
   resetVerifiedSelfSession()
@@ -99,8 +99,18 @@ describe("send refuses an empty-branch success report", () => {
       const data = (error as { data?: Record<string, unknown> }).data ?? {}
       expect(data.branch).toBe("fix/thing")
       expect(String(data.hint)).toMatch(/commit your work/)
-      // The retry argv must be runnable verbatim, carrying the original text.
-      expect(data.nextCommandArgs).toEqual(["api", "send", "--allow-empty", "--prompt", "succeeded: done"])
+      // The retry argv must be runnable verbatim, carrying the original text
+      // AND the target it was addressed to: run without `--task-id`, the retry
+      // re-resolves through the active-task fallback and can land somewhere else.
+      expect(data.nextCommandArgs).toEqual([
+        "api",
+        "send",
+        "--task-id",
+        "coord-1",
+        "--allow-empty",
+        "--prompt",
+        "succeeded: done",
+      ])
     }
   })
 
@@ -123,6 +133,26 @@ describe("send refuses an empty-branch success report", () => {
         }),
       "EMPTY_SUCCESS_REPORT",
     )
+    expect(calls).toHaveLength(0)
+  })
+
+  it("measures against the task's RECORDED base, not the origin/main guess", async () => {
+    // A task cut from `release/2.x` (ahead of main) with no commits of its
+    // own: against the recorded base it is empty; against the guess it reads
+    // ahead — the read that let a hollow success walk past this guard.
+    const { calls, deliver } = recordingDelivery()
+    await expect(
+      invokeVerb("send", ["--task-id", "coord-1", "--prompt", "succeeded: done"], {
+        client: clientWith({ baseRef: "release/2.x" }),
+        runtime: stubRuntime({
+          deliverPrompt: deliver,
+          readBranchSignals: async (_worktree, recordedBaseRef) =>
+            recordedBaseRef === "release/2.x"
+              ? { baseRef: "release/2.x", ahead: 0, behind: null, diff: null }
+              : { baseRef: "origin/main", ahead: 2, behind: null, diff: null },
+        }),
+      }),
+    ).rejects.toMatchObject({ code: "EMPTY_SUCCESS_REPORT" })
     expect(calls).toHaveLength(0)
   })
 
@@ -156,7 +186,7 @@ describe("send delivers everything the guard has no business refusing", () => {
       client: clientWith(),
       runtime: stubRuntime({
         deliverPrompt: deliver,
-        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 3, diff: null }),
+        readBranchSignals: async () => ({ baseRef: "origin/main", ahead: 3, behind: null, diff: null }),
       }),
     })
     expect(calls).toHaveLength(1)
@@ -168,7 +198,7 @@ describe("send delivers everything the guard has no business refusing", () => {
       client: clientWith(),
       runtime: stubRuntime({
         deliverPrompt: deliver,
-        readBranchSignals: async () => ({ baseRef: null, ahead: null, diff: null }),
+        readBranchSignals: async () => ({ baseRef: null, ahead: null, behind: null, diff: null }),
       }),
     })
     expect(calls).toHaveLength(1)

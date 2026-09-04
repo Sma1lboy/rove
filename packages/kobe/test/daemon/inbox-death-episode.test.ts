@@ -9,11 +9,11 @@ import { describe, expect, it } from "vitest"
 /**
  * A killed engine must leave a durable Inbox episode.
  *
- * Every OTHER episode is something the engine reported about ITSELF, so an
- * engine that was killed (no Stop, no SessionEnd, no hook at all) produced
- * none — and the one surface whose job is "what needs me" stayed silent
- * through seven simultaneous deaths on 2026-08-30. The badge is transient;
- * this is the half that is still there after the tab scrolls away.
+ * Every OTHER episode is something the engine reported about ITSELF, so a
+ * killed engine (no Stop, no SessionEnd, no hook at all) produces none, and
+ * the one surface whose job is "what needs me" stays silent through every
+ * simultaneous death. The badge is transient; this is the half that is still
+ * there after the tab scrolls away.
  */
 describe("inbox death episode", () => {
   it("persists a dead episode carrying the exit detail", async () => {

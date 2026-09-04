@@ -7,9 +7,9 @@
  * so feeding it directly is the same seam). Real git + real store on disk —
  * adopt shells `git worktree list`, so mocking would only test the mock.
  *
- * The fixed path: `adoptWorktree` creates the task WITH its worktree → both
- * `task.created` and `worktree.created` (previously: neither the
- * `ensureWorktree` job nor any handler fired for adopt).
+ * The path under test: `adoptWorktree` creates the task WITH its worktree, so
+ * BOTH `task.created` and `worktree.created` must fire — neither the
+ * `ensureWorktree` job nor any RPC handler runs on the adopt path.
  */
 
 import { spawnSync } from "node:child_process"

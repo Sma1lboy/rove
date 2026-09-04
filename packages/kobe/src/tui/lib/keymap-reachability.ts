@@ -55,6 +55,7 @@ export function scanReachability(snapshot: readonly RegisteredBinding[]): Reacha
   const prefixIds = new Set<string>()
   let prefixReachable = false
   let inputPassthrough = false
+  const yieldedDirectIds = new Set<string>()
   const prefixOptions: PrefixHudOption[] = []
   const seenPrefixKeys = new Set<string>()
   for (let i = snapshot.length - 1; i >= 0; i--) {
@@ -71,9 +72,13 @@ export function scanReachability(snapshot: readonly RegisteredBinding[]): Reacha
         }
       } else if (binding.id) {
         directIds.add(binding.id)
+        if (binding.yieldToPassthrough) yieldedDirectIds.add(binding.id)
       }
     }
     if (cfg.modal) break
+  }
+  if (inputPassthrough) {
+    for (const id of yieldedDirectIds) directIds.delete(id)
   }
   return { prefixReachable, inputPassthrough, prefixOptions, directIds, prefixIds }
 }

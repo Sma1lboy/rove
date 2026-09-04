@@ -1,52 +1,33 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Embedded terminal pane — React port of `tui/panes/terminal/Terminal.tsx`
- * (issue #16 React migration). Same seam: the PureTUI Workspace Host
- * mounts it as the center column running the task's real interactive
- * engine CLI (its `command` prop); it also works as a plain worktree
- * shell. Body: a headless xterm screen snapshot fed by the task PTY,
- * clipped via opentui's `overflow` + viewport slicing.
+ * Embedded terminal pane. The PureTUI Workspace Host mounts it as the center
+ * column running the task's real interactive engine CLI (its `command`
+ * prop); it also works as a plain worktree shell. Body: a headless xterm
+ * screen snapshot fed by the task PTY, clipped via opentui's `overflow` +
+ * viewport slicing.
  *
- * Shared framework-free logic (PTY backend, key encoding, SGR→StyledText,
- * viewport math, grid selection) is imported straight from the Solid
- * cluster `tui/panes/terminal/*` — this file (plus its `use-terminal-*`
- * hooks) owns only the React reactivity. See the Solid original for the
- * full lifecycle rationale (acquire/subscribe contract, never-kill-on-
- * unmount, dead-shell banner, F5 reset). Deltas below.
+ * Framework-free logic (PTY backend, key encoding, SGR→StyledText, viewport
+ * math, grid selection) comes from `tui/panes/terminal/*`; this file plus its
+ * `use-terminal-*` hooks own only the React reactivity. The lifecycle
+ * contract — acquire/subscribe, never-kill-on-unmount, the dead-shell banner,
+ * F5 reset — is documented on `use-terminal-pty.ts`.
  *
- * Solid→React translation notes:
- *   - `cwd`/`taskId`/`focused`/`resetToken` are plain values, not
- *     Accessors — React re-renders on prop change.
- *   - The Solid original's declaration-order comment ("selection memo
- *     BEFORE the render memos — cursorRows reads selection() during its
- *     EAGER first evaluation, a later declaration is a TDZ crash") is a
- *     Solid-specific hazard: `createMemo` evaluates eagerly at
- *     declaration time there. React's `useMemo` evaluates lazily off a
- *     dependency array during render, so no such ordering constraint
- *     exists — the hooks below are ordered for readability, not
- *     correctness.
- *   - Body-box measurement and the resize-push / host-cursor-anchor
- *     effects live in `use-terminal-geometry.ts` and
- *     `use-terminal-host-cursor.ts`. They receive the PTY handle and the
- *     computed viewport cursor after `useTerminalPty` has produced them,
- *     so the call order in this file remains the same and there is no
- *     chicken-and-egg hook-ordering hazard.
+ * Hook ORDER here is for readability, not correctness: `useMemo` evaluates
+ * lazily off a dependency array, so a memo may be declared after one it
+ * reads. Body-box measurement and the resize-push / host-cursor-anchor
+ * effects live in `use-terminal-geometry.ts` and `use-terminal-host-cursor.ts`
+ * — they receive the PTY handle and the computed viewport cursor after
+ * `useTerminalPty` has produced them. Turning the visible rows plus their
+ * overlays (selection, search hits, cursor) into the single rendered
+ * `StyledText` is `use-terminal-paint.ts`; this file only feeds it.
  */
 
 import type { EngineTerminalPresentation } from "@/types/terminal-presentation"
 import type { BoxRenderable, TextRenderable } from "@opentui/core"
-import { StyledText } from "@opentui/core"
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
 import { ImeCursorRetention } from "../../../tui/panes/terminal/ime-cursor"
 import { type PtyRegistry, getDefaultPtyRegistry } from "../../../tui/panes/terminal/registry"
-import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
-import {
-  isShellMissing,
-  overlayCursor,
-  resolveInverseAttributes,
-  sealRowEndAttributes,
-} from "../../../tui/panes/terminal/terminal-render"
-import { overlaySelection } from "../../../tui/panes/terminal/terminal-selection"
+import { isShellMissing } from "../../../tui/panes/terminal/terminal-render"
 import {
   FOLLOW_VIEWPORT,
   type ViewportScrollState,
@@ -61,10 +42,14 @@ import { useLatest } from "../../lib/use-latest"
 import { useDialog } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { useTerminalBindings } from "./keys"
+import { TerminalSearchBar } from "./search-bar"
 import { useTerminalGeometry } from "./use-terminal-geometry"
 import { useTerminalHostCursor } from "./use-terminal-host-cursor"
+import { useTerminalPaint } from "./use-terminal-paint"
+import { useTerminalPointerForward } from "./use-terminal-pointer-forward"
 import { useTerminalPty } from "./use-terminal-pty"
 import { useTerminalReset } from "./use-terminal-reset"
+import { useTerminalSearch } from "./use-terminal-search"
 import { useTerminalSelection } from "./use-terminal-selection"
 
 /* --------------------------------------------------------------------- */
@@ -106,7 +91,7 @@ export type TerminalProps = {
    */
   initialInput?: string
   /** Paste-delivery vendor's first message + the engine binary its up-probe
-   *  matches (`TaskPtyOpts.firstMessage`, issue #25): the hosted backend
+   *  matches (`TaskPtyOpts.firstMessage`): the hosted backend
    *  pastes it once the fresh-spawned engine is up; reattaches never
    *  redeliver it. */
   firstMessage?: string
@@ -191,32 +176,9 @@ export function Terminal(props: TerminalProps) {
     setScrollState((current) => moveViewportScroll(current, snapshot.length, bodyRows, lines, snapshotWindow))
   }
 
-  /**
-   * Emulator order for ANY scroll this pane performs — a wheel tick or a
-   * selection drag hanging past an edge. An app that owns its own scrollback
-   * (mouse tracking, or a fullscreen app on the alternate screen) gets wheel
-   * events; only when it wants neither do we move kobe's local viewport.
-   * Engine tabs are why this matters for the drag: Claude Code runs on the
-   * ALTERNATE screen, where there is no local scrollback to move at all, so a
-   * drag held at the edge has to ask the app to scroll, exactly as the wheel
-   * does. `screenX`/`screenY` are absolute pointer coords. Returns true when
-   * the scroll was forwarded — the selection hook then tracks the content
-   * shifts the app's redraws cause under the fixed snapshot rows.
-   */
-  const scrollFromPointer = (lines: number, screenX: number, screenY: number): boolean => {
-    if (lines === 0) return false
-    const direction = lines < 0 ? "up" : "down"
-    if (pty && !pty.killed && bodyEl) {
-      const col = Math.max(1, screenX - bodyEl.screenX + 1)
-      const row = Math.max(1, screenY - bodyEl.screenY + 1)
-      if (pty.wheel(direction, col, row)) {
-        for (let i = 1; i < Math.abs(lines); i++) pty.wheel(direction, col, row)
-        return true
-      }
-    }
-    scrollBy(lines)
-    return false
-  }
+  // Pointer → PTY routing in emulator order (wheel and buttons); the pane
+  // only scrolls its local viewport when the app wants neither.
+  const { scrollFromPointer, forwardMouse } = useTerminalPointerForward({ pty, bodyEl, scrollBy })
 
   /* --------- viewport slicing ---------- */
 
@@ -253,6 +215,22 @@ export function Terminal(props: TerminalProps) {
     snapshot,
     snapshotWindow,
     scrollBy: scrollFromPointer,
+    // Same `mouseTrackingMode` the forwarded press is gated on, read rather
+    // than clicked — the pane has to notice the app taking the mouse under a
+    // selection that already exists, and no click announces that.
+    appOwnsMouse: pty?.appOwnsMouse ?? false,
+  })
+
+  /* --------- scrollback search ---------- */
+
+  const search = useTerminalSearch({
+    focused,
+    snapshot,
+    snapshotWindow,
+    bodyRows,
+    onAlternateScreen: pty?.onAlternateScreen ?? false,
+    scrollState,
+    setScrollState,
   })
 
   const terminalColors = useMemo(() => {
@@ -264,50 +242,16 @@ export function Terminal(props: TerminalProps) {
     } as const
   }, [theme])
 
-  const cursorRows = useMemo(() => {
-    const withSelection = overlaySelection(
-      visibleRows,
-      selection.selection,
-      visibleRange.start,
-      bodyGeometry?.cols ?? 80,
-    )
-    // While a selection is active, the synthetic cursor cell is hidden
-    // (tmux copy-mode behavior): cursor and selection share the same
-    // inverse styling, so a cursor sitting just past the selection read
-    // as the highlight overrunning by one blinking cell.
-    const cursorWhileUnselected = focused && !selection.selection ? visibleCursor : null
-    return overlayCursor(withSelection, cursorWhileUnselected, terminalColors)
-  }, [visibleRows, selection.selection, visibleRange.start, bodyGeometry, focused, visibleCursor, terminalColors])
-
-  // Flatten every visible row into ONE `StyledText` — see the Solid
-  // original for why a single element (not per-row `<text>`s) is load-
-  // bearing for the cursor positioning math.
-  //
-  // `sealRowEndAttributes` is a local workaround for an opentui renderer bug
-  // (attributes open at a row's last column leak into the rest of the frame —
-  // the "wrapped URL underlines everything below it" report). Its doc comment
-  // has the full mechanism; drop this call once opentui resets per row.
-  const styledSnapshot = useMemo(() => {
-    const resolved = resolveInverseAttributes(cursorRows, terminalColors.foreground, terminalColors.background)
-    const sealed = sealRowEndAttributes(
-      resolved,
-      bodyGeometry?.cols ?? 80,
-      terminalColors.foreground,
-      terminalColors.background,
-    )
-    return new StyledText(rowsToStyledText(sealed))
-  }, [cursorRows, bodyGeometry, terminalColors])
-
-  // Imperative content push — opentui 0.4 won't accept StyledText as a
-  // JSX child or through the content prop (stringifies it).
-  const [snapshotTextEl, setSnapshotTextEl] = useState<TextRenderable | null>(null)
-  useEffect(() => {
-    // `isDestroyed` guard: when the pane flips pty→null (failed reset) the
-    // <text> unmounts, but its null ref lands a render AFTER this effect
-    // re-runs with the stale element — writing to it throws "TextBuffer is
-    // destroyed" into the error boundary.
-    if (snapshotTextEl && !snapshotTextEl.isDestroyed) snapshotTextEl.content = styledSnapshot
-  }, [snapshotTextEl, styledSnapshot])
+  const setSnapshotTextEl = useTerminalPaint({
+    visibleRows,
+    firstRow: visibleRange.start,
+    cols: bodyGeometry?.cols ?? 80,
+    selection: selection.selection,
+    paintMatches: search.paint,
+    cursor: visibleCursor,
+    focused,
+    colors: terminalColors,
+  })
 
   /* --------- reset (F5, confirm-gated) ---------- */
 
@@ -331,6 +275,7 @@ export function Terminal(props: TerminalProps) {
     // TerminalSplit explicitly assigns IME ownership to its active leaf.
     // Require that explicit signal here so standalone/future mounts fail closed.
     unfocusedAttachmentTarget,
+    inputModes: () => pty?.inputModes() ?? { applicationCursorKeys: false, applicationKeypad: false },
     write: (data) => {
       if (!pty || pty.killed) return
       pty.write(data)
@@ -345,6 +290,10 @@ export function Terminal(props: TerminalProps) {
     },
     scroll: scrollBy,
     reset: requestReset,
+    searchActive: search.active,
+    openSearch: search.open,
+    stepSearch: search.step,
+    closeSearch: search.close,
   })
 
   /* --------- resize-push + host-cursor anchor ---------- */
@@ -370,22 +319,25 @@ export function Terminal(props: TerminalProps) {
       overflow="hidden"
       backgroundColor={theme.background}
       onMouseDown={(evt) => {
-        if (evt.button !== 0) return
         // Focus on press — but ONLY when not already focused, so clicking
         // inside a focused terminal is a pure no-op. A text-selection
         // drag still works regardless.
         if (!focused) props.onRequestFocus?.()
+        if (forwardMouse("down", evt)) return
+        if (evt.button !== 0) return
         const cell = selection.cellFromEvent(evt)
         if (!cell) return
         selection.beginSelection(cell)
       }}
       onMouseDrag={(evt) => {
+        if (forwardMouse("drag", evt)) return
         // Past the top/bottom edge this keeps scrolling on its own — opentui
         // captures the drag here, so the coordinates stay real off-pane.
         selection.dragTo(evt)
       }}
-      onMouseUp={() => {
+      onMouseUp={(evt) => {
         setFocusedLocal(true)
+        if (forwardMouse("up", evt)) return
         if (!selection.isDragging()) return
         selection.endDragging()
         if (selection.selection) {
@@ -424,7 +376,17 @@ export function Terminal(props: TerminalProps) {
           </text>
         </box>
       ) : null}
-      {scrollOffset > 0 ? (
+      {search.active ? (
+        <TerminalSearchBar
+          query={search.query}
+          index={search.index}
+          matchCount={search.matchCount}
+          unavailable={search.unavailable}
+        />
+      ) : null}
+      {/* The query row states where you are, so it replaces this hint rather
+          than stacking on it — both are bottom-anchored overlays. */}
+      {scrollOffset > 0 && !search.active ? (
         <box
           position="absolute"
           zIndex={10}

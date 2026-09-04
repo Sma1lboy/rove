@@ -2,11 +2,10 @@
 /**
  * In-workspace update details page.
  *
- * `onClose` seam (daemon issue #23 remainder): `UpdatePage` now takes an
- * `{ onClose }` prop — same shape as `WorktreesPage` — so the pure-tui
- * workspace host mounts it as an in-place swap. The close
- * ("q"/esc/Ctrl+C/[Close] action)
- * path calls `onClose()` instead of `process.exit(0)`. The post-update
+ * `onClose` seam: `UpdatePage` takes an `{ onClose }` prop — same shape as
+ * `WorktreesPage` — so the pure-tui workspace host mounts it as an in-place
+ * swap. The close ("q"/esc/Ctrl+C/[Close] action) path calls `onClose()`
+ * instead of `process.exit(0)`. The post-update
  * self-replace exit is UNCHANGED: `runUpdater()` still destroys the
  * renderer and `process.exit(code)`s after the shell updater completes —
  * an embedded swap can't survive that, so it stays, with a status line

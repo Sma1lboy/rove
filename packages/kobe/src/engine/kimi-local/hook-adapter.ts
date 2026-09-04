@@ -37,6 +37,7 @@ import { quoteShellArgv } from "../../lib/shell-command.ts"
 import type { EngineHookAdapter, EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { GATED_TOOL_VERBS, type HookEventSpec } from "../json-hooks.ts"
+import { vendorConfigHome } from "../vendor-home.ts"
 
 /** Kimi hook event → normalized kobe verb. The ONE place Kimi event names live. */
 export const KIMI_HOOK_EVENT_MAP: readonly HookEventSpec[] = [
@@ -69,11 +70,9 @@ const BLOCK_END = "# <<< rove hooks"
 /** Bound each hook spawn — `kobe hook` is sub-second; Kimi's default is 30s. */
 const HOOK_TIMEOUT_SECONDS = 10
 
-/** Where Kimi reads its config (the hooks live inline in config.toml).
- *  `KIMI_CODE_HOME` is the same override `kimi-local/history.ts` honors. */
+/** Where Kimi reads its config (the hooks live inline in config.toml). */
 export function kimiConfigPath(home: string = homedir()): string {
-  const override = process.env.KIMI_CODE_HOME?.trim()
-  return join(override && override.length > 0 ? override : join(home, ".kimi-code"), "config.toml")
+  return join(vendorConfigHome("kimi", { env: (k) => process.env[k], home: () => home }), "config.toml")
 }
 
 /** Render kobe's `[[hooks]]` block. `inv` is injectable for tests. */
@@ -149,15 +148,14 @@ export function mergeKimiHooks(
  *     included, which is why the class name alone is not enough).
  *   - `error_message` carries a `[provider.*]` code prefix from Kimi's own
  *     ErrorCodes — `provider.rate_limit` for a limit, and
- *     `provider.auth_error` for the 403 in the 2026-08-30 incident
- *     ("You've reached your 5-hour usage limit"), which Kimi files under
- *     AUTH but is a quota wall.
+ *     `provider.auth_error` for the 403 that carries "You've reached your
+ *     5-hour usage limit", which Kimi files under AUTH but is a quota wall.
  *
  * `billing`, not `rate_limit`, for the auth/quota-wall case: it needs a human
  * (re-auth, or a plan change), and the daemon deliberately does NOT arm a
  * resume timer for `billing`. A plain 429 IS `rate_limit` and does arm one.
  */
-export function kimiFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
+function kimiFailureDetail(payload: Record<string, unknown>): EngineActivityDetail {
   const type = typeof payload.error_type === "string" ? payload.error_type : ""
   const message = typeof payload.error_message === "string" ? payload.error_message : ""
   const note = type || undefined
@@ -186,9 +184,8 @@ export class KimiHookAdapter implements EngineHookAdapter {
   /** Kimi's stdin payload spells tool fields `tool_name`; the permission
    *  event is always a permission (Kimi has no elicitation notification).
    *  `turn-failed` classifies the StopFailure — without it every Kimi
-   *  failure reduced to `error` and Kimi could never reach `rate_limited`
-   *  (so it never armed auto-resume), which is exactly what happened when
-   *  Kimi hit its 5-hour limit on 2026-08-30. */
+   *  failure reduces to `error`, Kimi can never reach `rate_limited`, and
+   *  auto-resume is never armed when Kimi hits its 5-hour limit. */
   activityDetailFromPayload(
     kind: EngineActivityKind,
     payload: Record<string, unknown>,
@@ -228,7 +225,7 @@ export class KimiHookAdapter implements EngineHookAdapter {
   }
 
   async removeWorktreeWatchHook(): Promise<void> {
-    /* Never installed the retired PostToolUse watch hook. */
+    /* Kimi never installed the PostToolUse watch hook. */
   }
 }
 

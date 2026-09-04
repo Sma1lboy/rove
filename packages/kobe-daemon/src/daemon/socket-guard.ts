@@ -1,13 +1,13 @@
 /**
- * Daemon-socket bind + ownership hygiene (issue #10 — the 2026-08-10/11
- * daemon-succession split brain).
+ * Daemon-socket bind + ownership hygiene — the guard against daemon-
+ * succession split brain.
  *
- * The boot-time live-owner probe (49dfec845) refuses to REPLACE a healthy
- * daemon, but it cannot help once the path has already been clobbered: the
- * client-side stop+spawn path unlinks the socket before spawning, so a
- * usurper's boot probe sees "absent" and binds — leaving the incumbent
- * serving its attached TUI on an unlinked inode, invisible to every new
- * connection. Two rules here close that hole:
+ * The boot-time live-owner probe refuses to REPLACE a healthy daemon, but it
+ * cannot help once the path has already been clobbered: the client-side
+ * stop+spawn path unlinks the socket before spawning, so a usurper's boot
+ * probe sees "absent" and binds — leaving the incumbent serving its attached
+ * TUI on an unlinked inode, invisible to every new connection. Two rules here
+ * close that hole:
  *
  *  1. A running daemon WATCHES its own socket path
  *     ({@link createSocketOwnershipGuard}): if the file vanishes or its
@@ -77,15 +77,14 @@ export interface SocketOwnershipGuard {
    * whoever owns the path now. The unref'd listener sits on an unlinked
    * inode, can never accept another connection, and dies with the process.
    *
-   * "Never armed" used to fall back to unconditional cleanup, which is how
-   * the cascade came back (2026-09-01, 293 autospawns / 23 takeovers in one
-   * window): a daemon that lost the path between bind and arm deleted the
-   * live owner's socket AND pidfile. The missing pidfile then blinded
-   * `ensureDaemonReachable`'s busy-daemon grace, which keys on
-   * `readPidFile` — so every client skipped the grace and went straight to
-   * stop+spawn, feeding the loop. The cost of failing closed is a stale
-   * socket/pidfile, which the boot probe and `stopDaemonProcess` already
-   * clear; the cost of failing open is killing a healthy daemon.
+   * "Never armed" must NOT fall back to unconditional cleanup: a daemon that
+   * lost the path between bind and arm would delete the live owner's socket
+   * AND pidfile, and a missing pidfile blinds `ensureDaemonReachable`'s
+   * busy-daemon grace, which keys on `readPidFile` — every client then skips
+   * the grace and goes straight to stop+spawn, feeding a takeover cascade.
+   * The cost of failing closed is a stale socket/pidfile, which the boot
+   * probe and `stopDaemonProcess` already clear; the cost of failing open is
+   * killing a healthy daemon.
    */
   release(server: Server): Promise<void>
 }

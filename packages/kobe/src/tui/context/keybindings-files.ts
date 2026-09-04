@@ -82,7 +82,7 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // `d` → open the current file's read-only diff in a workspace content
-    // tab (a content swap, does not steal focus — KOB-25). Enter still opens
+    // tab (a content swap, does not steal focus). Enter still opens
     // the editable editor tab; this is the non-focus-stealing diff view.
     id: "files.diff",
     scope: "files",
@@ -113,11 +113,9 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
   },
   {
     // Ops-pane action on the Changes tab: sends the PR prompt into the
-    // engine pane. prefix+p / prefix+P, no direct chord (owner call
-    // 2026-07-18): the old files-scoped ctrl+p was unreachable from the
-    // sidebar (ctrl+p = project filter there) and from the terminal
-    // (passes through to the engine) — the owner's muscle memory went
-    // straight to the prefix route, which was unbound. shift+p rides
+    // engine pane. prefix+p / prefix+P, no direct chord: a files-scoped
+    // ctrl+p is unreachable from the sidebar (ctrl+p = project filter there)
+    // and from the terminal (passes through to the engine). shift+p rides
     // along because "PR" reads uppercase: the capital press lands too.
     // Registered by the workspace host (host-keybindings.ts), not the
     // FileTree pane, so it fires from any pane focus.
@@ -128,8 +126,35 @@ export const FILES_BINDINGS: readonly KobeBinding[] = [
     category: "Files",
     description: "Ask the agent to create a PR from the current task",
   },
+  {
+    // PROPOSED CHORD — awaiting owner sign-off
+    // (docs/design/keybinding-decisions.md). The row menu's "Fix failing
+    // checks" is the settled route; this mirrors it for the keyboard. `k` is
+    // free behind the prefix (the bare `k` is the sidebar's cursor-up, which
+    // the prefix does not reach) and sits next to the `p`/`P` create-PR pair
+    // because they are the same shape of action: build a prompt about this
+    // branch's PR and hand it to the engine.
+    id: "files.fixChecks",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["k"],
+    category: "Files",
+    description: "Ask the agent to fix the failing PR checks",
+  },
+  {
+    // PROPOSED CHORD — awaiting owner sign-off
+    // (docs/design/keybinding-decisions.md). The row menu's "Sync with base"
+    // is the settled route; this mirrors it for the keyboard. `u` is free
+    // behind the prefix and reads as "update this branch from its base".
+    id: "files.syncBase",
+    scope: "global",
+    keys: [],
+    prefixKeys: ["u"],
+    category: "Files",
+    description: "Merge the base branch into this task's worktree",
+  },
   // ─── Diff review (read-only diff content tab) ─────────────────────────
-  // Owner sign-off 2026-07-27: plain letters, diff-tab-scoped raw bindings
+  // Plain letters, diff-tab-scoped raw bindings
   // (registered by preview-review.tsx like the preview's `o`), inert
   // everywhere else so they can't shadow input or embedded terminals.
   // Rows here are documentation-only (`keys: []`) so F1 lists them.

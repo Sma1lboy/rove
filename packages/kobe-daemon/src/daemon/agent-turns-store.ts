@@ -1,5 +1,5 @@
 /**
- * Durable per-turn telemetry store (issue #32) — the daemon side of the
+ * Durable per-turn telemetry store — the daemon side of the
  * engine-owned {@link AgentTurnRecord} contract.
  *
  * The engine adapter produces turns from its own transcript; this store does
@@ -13,13 +13,13 @@
  * records landed is the more complete one).
  */
 
-import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import type { AgentTurnRecord } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 interface AgentTurnsFile {
   readonly version: 1
@@ -76,7 +76,6 @@ function sameRecord(a: AgentTurnRecord, b: AgentTurnRecord): boolean {
 
 export class AgentTurnsStore {
   private readonly turns = new Map<string, AgentTurnRecord>()
-  private tail: Promise<void> = Promise.resolve()
 
   constructor(private readonly path: string) {}
 
@@ -162,13 +161,10 @@ export class AgentTurnsStore {
 
   private async write(): Promise<void> {
     const body: AgentTurnsFile = { version: 1, turns: [...this.turns.values()] }
-    const tmp = `${this.path}.tmp-${process.pid}-${randomUUID()}`
     try {
-      await mkdir(dirname(this.path), { recursive: true })
       // 0600: no credentials here, but the records do name every repo you work
       // in and when — defense in depth, and free.
-      await writeFile(tmp, `${JSON.stringify(body)}\n`, { encoding: "utf8", mode: 0o600 })
-      await rename(tmp, this.path)
+      await writeJsonAtomic(this.path, body, { mode: 0o600, compact: true })
     } catch (err) {
       logDaemonError("agent-turns-write", err)
     }
@@ -177,11 +173,6 @@ export class AgentTurnsStore {
   /** Serialize mutations so two concurrent hook ingests can't interleave a
    *  read-modify-write and lose turns. */
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(work, work)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, work)
   }
 }

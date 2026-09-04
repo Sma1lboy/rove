@@ -1,12 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * The keys the no-sessions placeholder advertises (issue #90).
+ * The keys the no-sessions placeholder advertises.
  *
- * The copy has always read "press ⏎ or ctrl+e to start one", and neither key
- * did anything: both are registered inside `TerminalTabs`, which this state
- * deliberately does NOT mount (its `active` tab is non-null by construction,
- * so mounting over an empty list would mint a replacement and the close would
- * never appear to take). The placeholder named an affordance nothing backed.
+ * The copy reads "press ⏎ or ctrl+e to start one", and both keys are normally
+ * registered inside `TerminalTabs`, which this state deliberately does NOT
+ * mount (its `active` tab is non-null by construction, so mounting over an
+ * empty list would mint a replacement and the close would never appear to
+ * take). Without the placeholder's own bindings it names an affordance
+ * nothing backs.
  *
  * So the pane binds them itself, and these pin that: a press REVIVES the
  * task's tabs. Asserting on `tabsByTask` rather than the frame is deliberate —

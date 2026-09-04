@@ -1,12 +1,11 @@
 /**
- * Socket-takeover guard (prod incident 2026-08-10): `startDaemonServer` used
- * to `unlink(socketPath)` unconditionally, so an autospawned daemon stole the
- * path out from under a healthy incumbent — the incumbent kept serving its
- * already-attached TUI while every NEW connection (engine hooks, `kobe api`)
- * landed on the usurper. Split-brain activity state; sidebar badges vanished
- * for engines that were genuinely mid-turn. The guard probes the socket
- * before binding: a live (hello-answering) owner refuses the boot, a stale
- * leftover file is still cleared like before.
+ * Socket-takeover guard. An unconditional `unlink(socketPath)` in
+ * `startDaemonServer` lets an autospawned daemon steal the path out from
+ * under a healthy incumbent — the incumbent keeps serving its already-attached
+ * TUI while every NEW connection (engine hooks, `kobe api`) lands on the
+ * usurper. Split-brain activity state; sidebar badges vanish for engines that
+ * are genuinely mid-turn. The guard probes the socket before binding: a live
+ * (hello-answering) owner refuses the boot, a stale leftover file is cleared.
  */
 
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
@@ -135,14 +134,13 @@ describe("daemon socket takeover guard", () => {
   })
 
   it("a guard that never armed unlinks NOTHING on release — the self-feeding-cascade regression", async () => {
-    // The 2026-09-01 field cascade (293 autospawns / 23 takeovers in one
-    // window). `arm()` returns without stamping when the initial stat sees
-    // ENOENT — the path was already clobbered between bind and arm. release()
-    // used to treat "never armed" as "still mine" and unlink socket + pidfile
-    // BY PATH (both node and Bun do that inside server.close() too), deleting
-    // the LIVE owner's files. Deleting the pidfile is the half that made it
+    // `arm()` returns without stamping when the initial stat sees ENOENT —
+    // the path was already clobbered between bind and arm. A release() that
+    // treats "never armed" as "still mine" unlinks socket + pidfile BY PATH
+    // (both node and Bun do that inside server.close() too), deleting the
+    // LIVE owner's files. Deleting the pidfile is the half that makes it
     // self-feeding: `ensureDaemonReachable`'s busy-daemon grace keys on
-    // readPidFile, so with it gone every client skipped the grace and went
+    // readPidFile, so with it gone every client skips the grace and goes
     // straight to stop+spawn.
     const dir = mkdtempSync(join(tmpdir(), "kobe-sock-unarmed-"))
     try {

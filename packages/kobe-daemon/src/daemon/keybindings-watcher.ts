@@ -4,9 +4,9 @@
  * sibling to `ui-prefs-watcher.ts`.
  *
  * The TUI applies keybinding overrides ONCE at boot (`applyUserKeybindings`
- * onto the in-memory `KobeKeymap`), so editing the YAML used to require a
- * full session rebuild before any pane saw the new chords. This watcher
- * makes the daemon the cross-session trigger: watch the file and publish a
+ * onto the in-memory `KobeKeymap`), so without a push, editing the YAML
+ * would need a full session rebuild before any pane saw the new chords. This
+ * watcher is the cross-session trigger: watch the file and publish a
  * monotonically-bumping `rev` on the `keybindings` channel. A pane doesn't
  * need the file CONTENT from us — it re-reads + re-applies the file itself
  * (it owns the keymap registry); the channel is purely the "re-read now"

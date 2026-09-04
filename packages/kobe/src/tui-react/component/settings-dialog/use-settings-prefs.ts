@@ -1,5 +1,5 @@
 /**
- * kv-backed preference helpers for the settings dialog (issue #15, G3) —
+ * kv-backed preference helpers for the settings dialog —
  * the General/Dev getter+toggle closures, kept apart from `./index.tsx` so the
  * dialog's structure (which sections, which is open) never mixes with the
  * per-preference kv keys and their normalizers. Adding a preference edits only
@@ -11,8 +11,9 @@
 
 import { accessSync, constants as fsConstants, mkdirSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
+import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import { AUTO_STATUS_KEY } from "../../../state/auto-status"
-import { COMPOSER_GATE_KEY } from "../../../state/composer-gate"
+import { composerGatePreferenceOn, toggleComposerGatePreference } from "../../../state/composer-gate"
 import { DISPATCHER_KEY } from "../../../state/dispatcher"
 import { DEFAULT_SCROLLBACK_ROWS, SCROLLBACK_ROWS_KEY, normalizeScrollbackRows } from "../../../state/scrollback"
 import { SPLIT_STYLE_KEY, type SplitStyle, normalizeSplitStyle } from "../../../state/split-style"
@@ -53,7 +54,7 @@ import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
-export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
+export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onComposerGateDisabled?: () => void) {
   const t = useT()
 
   function toastEnabled(): boolean {
@@ -111,8 +112,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   }
 
   // Chat tab strip: never / only with 2+ tabs / always. Cycles rather than
-  // toggles — the sidebar tree made "off" the default, so the setting has
-  // three states instead of the old boolean (see state/tab-strip.ts).
+  // toggles — "off" is the default now that the sidebar tree lists tabs, so
+  // the setting has three states rather than a boolean (state/tab-strip.ts).
   function tabStripMode(): TabStripMode {
     return resolveTabStripMode(kv.get(TAB_STRIP_MODE_KEY, undefined), kv.get(TAB_STRIP_HIDE_SINGLE_KEY, undefined))
   }
@@ -143,10 +144,15 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   // ON by default (the only default-on switch here) — it is an escape hatch
   // for a gate that reads a vendor's screen layout, not a feature to opt into.
   function composerGateOn(): boolean {
-    return kv.get(COMPOSER_GATE_KEY, true) !== false
+    return composerGatePreferenceOn(kv)
   }
   function toggleComposerGate(): void {
-    kv.set(COMPOSER_GATE_KEY, !composerGateOn())
+    if (toggleComposerGatePreference(kv, onComposerGateDisabled) === "persist-failed") {
+      logClientError(
+        "settings",
+        "could not persist the disabled composer delivery check; deferred prompts were not flushed",
+      )
+    }
   }
 
   // Editor preference: which editor the file tree's `e` key launches.
@@ -165,7 +171,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext) {
   async function editEditorCustom(): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, editorCustomCommand(), {
       dialogTitle: "Custom editor command (use {file} for the path)",
-      fieldLabel: "command",
+      fieldLabel: "COMMAND",
       submitLabel: "save",
       allowEmpty: true,
     })

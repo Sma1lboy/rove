@@ -267,7 +267,7 @@ export function createSidecarController(dependencies) {
     const fixtureRepo = resolve(request.fixtureRepo)
     kobeDir = join(repoRoot, "packages", "kobe")
     // Prefer the BUILT cli. Prompt codas that kobe writes into an engine
-    // session embed `kobeCliInvocation()`, which resolves to a bare `kobe`
+    // session embed `roveCliInvocation()`, which resolves to a bare `kobe`
     // only from a `.js` entry — run from source it bakes the capture host's
     // absolute bun + repo paths into the recording, showing viewers a command
     // no installed user ever sees. Run `bun --filter @sma1lboy/rove build`

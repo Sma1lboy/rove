@@ -2,16 +2,19 @@
  * Wire-codec field guard for `serializeTask` — the SECOND hand-written
  * allowlist a Task field has to survive.
  *
- * `store-codec-roundtrip.test.ts` closes the disk side (issue #57: a field
- * writes fine and vanishes on load). This closes the wire side, which is a
- * separate list in `daemon/protocol.ts` with the same failure mode and no
- * coverage before now: a field can round-trip through tasks.json perfectly
- * and still be invisible to every RPC consumer — the TUI, the web board, and
- * `rove api get-task`.
+ * `store-codec-roundtrip.test.ts` closes the disk side (a field writes fine
+ * and vanishes on load). This closes the wire side, which is a separate list
+ * in `daemon/protocol.ts` with the same failure mode: a field can round-trip
+ * through tasks.json perfectly and still be invisible to every RPC consumer —
+ * the TUI, the web board, and `rove api get-task`.
  *
- * That is not hypothetical. `observedLanguage` passed the disk round-trip
- * and was still dropped here; only a live write → daemon restart → read-back
- * caught it. This test makes the next one fail in CI instead.
+ * That is not hypothetical: `observedLanguage` passes the disk round-trip and
+ * is still droppable here, where only a live write → daemon restart →
+ * read-back would catch it. This test makes that fail in CI instead.
+ *
+ * The third list is the decode back into a Task
+ * (`test/client/deserialize-task-fields.test.ts`), the same failure mode on
+ * the way to the TUI.
  *
  * Same technique as the disk guard: `DeepRequired` forces the fixture to
  * name every field at compile time, so a new optional breaks the build here
@@ -44,7 +47,6 @@ const FULL: DeepRequired<SerializedTask> = {
   vendor: "claude",
   command: "claude --continue",
   observedLanguage: "zh",
-  position: 3.5,
   modelEffort: "high",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FAW",
   prStatus: {
@@ -93,9 +95,9 @@ describe("serializeTask", () => {
     }
   })
 
-  it("carries the observed language, which a daemon restart used to erase", () => {
-    // The regression this file was written for: persisted fine, invisible to
-    // every RPC reader, so injected prompts silently reverted to English.
+  it("carries the observed language, which a daemon restart would otherwise erase", () => {
+    // The failure this file exists for: persisted fine, invisible to every
+    // RPC reader, so injected prompts silently revert to English.
     expect(serializeTask({ ...FULL, observedLanguage: "zh" } as unknown as Task).observedLanguage).toBe("zh")
     expect(serializeTask({ ...FULL, observedLanguage: undefined } as unknown as Task).observedLanguage).toBeUndefined()
   })

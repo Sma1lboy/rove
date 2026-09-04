@@ -3,8 +3,8 @@
  *
  * Three fixtures build an isolated Rove home, seed a throwaway git repo, and
  * create tasks with real chat tabs. They legitimately differ on `HOME` policy:
- * README capture keeps the operator's HOME so the real engine finds credentials,
- * while CI visual tests and the dev sandbox redirect HOME for determinism.
+ * README capture and the dev sandbox keep the operator's HOME so the real engine
+ * finds credentials, while CI visual tests redirect HOME for determinism.
  * This module makes that policy explicit and pins every runtime path so a stray
  * inherited override cannot attach a fixture to the operator's live daemon.
  */
@@ -15,7 +15,7 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { dirname, join, resolve, sep } from "node:path"
 import { setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 
-export type HomePolicy = "redirect" | "keep"
+type HomePolicy = "redirect" | "keep"
 
 export type FixturePorts = {
   daemonWebPort: number
@@ -43,12 +43,12 @@ export type FixtureEnvConfig = {
   extra?: Record<string, string>
 }
 
-export type RepoCommit = {
+type RepoCommit = {
   message: string
   paths: readonly string[]
 }
 
-export type RepoFile = {
+type RepoFile = {
   path: string
   body: string
 }
@@ -60,7 +60,11 @@ export type TaskSeed = {
   command?: string
 }
 
-/** Canonical ports for a fixture that runs a web server + daemon + PTY sidecar. */
+/**
+ * Canonical ports for a fixture that runs a web server + daemon + PTY sidecar.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function fixturePortBase(base: number): FixturePorts {
   return { webPort: base, daemonWebPort: base + 1, ptyPort: base + 2 }
 }
@@ -78,7 +82,11 @@ export function fixtureRuntimePaths(home: string): Omit<FixturePaths, "root" | "
   }
 }
 
-/** Paths every isolated fixture derives from its scratch root. */
+/**
+ * Paths every isolated fixture derives from its scratch root.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function fixturePaths(root: string, repoName: string): FixturePaths {
   const { home, ...paths } = fixtureRuntimePaths(join(root, "home"))
   return { root, home, repo: join(root, repoName), ...paths }
@@ -91,6 +99,8 @@ export function fixturePaths(root: string, repoName: string): FixturePaths {
  * test, which then boots with "Transcript saving is off" and writes no session
  * file at all. The engine-owned history the chat pane renders comes from that
  * file, so the seeded workspace degrades to a raw terminal.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export const CLAUDE_MARKERS: readonly string[] = [
   "CLAUDECODE",
@@ -109,7 +119,7 @@ export const CLAUDE_MARKERS: readonly string[] = [
  * to the operator's session identity. Inherited values for these must be
  * dropped before stamping the fixture's own.
  */
-export const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
+const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
   "DAEMON_SOCKET_PATH",
   "DAEMON_PID_PATH",
   "PTY_SOCKET_PATH",
@@ -126,7 +136,7 @@ export const FIXTURE_SCRUBBED_SUFFIXES: readonly string[] = [
 ]
 
 /** Remove inherited markers and path/session overrides from a parent env. */
-export function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
+function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
   const out: Record<string, string> = {}
   for (const [key, value] of Object.entries(parent)) {
     if (value === undefined) continue
@@ -136,6 +146,35 @@ export function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, strin
     out[key] = value
   }
   return out
+}
+
+/**
+ * Bearer token for a fixture's daemon web transport and PTY sidecar.
+ *
+ * Every browser-facing route — REST, SSE, and now the PTY WebSocket that
+ * spawns the harness TUI — requires the web token. Fixtures pin it instead of
+ * letting the daemon mint one so the participants agree without ordering
+ * games: setup writes the file before the daemon starts (`ensureWebToken`
+ * reuses an existing one), Vite hands the same value to the browser through
+ * `VITE_ROVE_WEB_TOKEN` because Vite, not the daemon, serves the SPA in these
+ * stacks, and teardown can still reach `/pty/close` on a gated sidecar.
+ *
+ * Safe to hard-code: a fixture home is a throwaway under `.scratch/`,
+ * loopback-bound, and deleted at teardown. Production mints 32 random bytes.
+ */
+export const FIXTURE_WEB_TOKEN = "rove-fixture-web-token"
+
+/** `Authorization` for a fixture's own PTY-sidecar calls (teardown closes). */
+export function fixtureAuthHeaders(): Record<string, string> {
+  return { authorization: `Bearer ${FIXTURE_WEB_TOKEN}` }
+}
+
+/** Pin the fixture home's web token. Call before anything can start its
+ *  daemon — `ensureWebToken` only mints when the file is absent. */
+export async function writeFixtureWebToken(home: string): Promise<void> {
+  const dir = join(home, ".rove")
+  await mkdir(dir, { recursive: true })
+  await writeFile(join(dir, "web-token"), FIXTURE_WEB_TOKEN, { mode: 0o600 })
 }
 
 /**
@@ -178,6 +217,10 @@ export function buildFixtureEnv(config: FixtureEnvConfig): Record<string, string
   setRoveEnv("DAEMON_PID_PATH", join(runtime, "daemon.pid"), env)
   setRoveEnv("PTY_PID_PATH", join(runtime, "pty.pid"), env)
 
+  // Vite serves the SPA in every fixture stack, so the daemon never injects its
+  // <meta> tag; this is the browser's only channel to the token.
+  env.VITE_ROVE_WEB_TOKEN = FIXTURE_WEB_TOKEN
+
   if (config.extra) Object.assign(env, config.extra)
   return env
 }
@@ -203,7 +246,11 @@ export function assertFixtureIsolation(home: string, fixtureRoot: string): void 
   }
 }
 
-/** Run a command in the fixture environment and return trimmed stdout. */
+/**
+ * Run a command in the fixture environment and return trimmed stdout.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function runInFixture(
   command: string,
   args: readonly string[],
@@ -213,7 +260,11 @@ export function runInFixture(
   return execFileSync(command, [...args], { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim()
 }
 
-/** One `rove api` call through a given CLI path. */
+/**
+ * One `rove api` call through a given CLI path.
+ *
+ * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ */
 export function runRoveApi(
   cliPath: string,
   args: readonly string[],
@@ -224,13 +275,14 @@ export function runRoveApi(
 }
 
 /** Seed a throwaway git repo with the given files and commit sequence. */
-export type RepoIdentity = {
+type RepoIdentity = {
   email: string
   name: string
 }
 
 const DEFAULT_REPO_IDENTITY: RepoIdentity = { email: "fixture@rove.local", name: "Rove Fixture" }
 
+/** @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export. */
 export async function seedGitRepo(
   repoDir: string,
   files: readonly RepoFile[],

@@ -19,7 +19,7 @@
  *
  * Question 3 exists because an engine's title is only as good as what the
  * engine has to put in it. Codex writes its thread UUID until the thread is
- * named, so a fresh codex tab reported `01a00ee9-f0e9-…` where claude and
+ * named, so a fresh codex tab reports `01a00ee9-f0e9-…` where claude and
  * kimi report a sentence. {@link EngineTerminalTitle.sessionIdFromTitle} is
  * how an engine says so — and, because that placeholder happens to be an id,
  * how it says what to name the tab instead. An engine whose bad title carries
@@ -55,7 +55,7 @@ export interface EngineTerminalTitle {
    * turn is running (its animated frames). A title that stops starting
    * with one of these is the engine's own "I stopped working" signal —
    * the one observable event an ESC interrupt leaves behind (claude-code
-   * runs no Stop hook on its abort path; issue #15). Consumed by
+   * runs no Stop hook on its abort path). Consumed by
    * {@link titleTurnHint}. Omit when the engine's resting title is
    * indistinguishable from its working one.
    */
@@ -112,7 +112,7 @@ export function stripStatusPrefix(title: string, prefixes: readonly string[]): s
  * A status-owning engine writes its animated frames (`workingPrefixes`) into
  * the title exactly while a turn runs and rewrites the title the moment it
  * stops — including on an ESC interrupt, which fires no Stop hook at all
- * (claude-code's abort path returns before its stop hooks; issue #15). That
+ * (claude-code's abort path returns before its stop hooks). That
  * rewrite is therefore the one event-grade "the turn ended" signal an
  * interrupt produces.
  *

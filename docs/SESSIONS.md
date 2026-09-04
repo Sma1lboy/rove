@@ -13,7 +13,7 @@ instead.
 | Quit the TUI | ✓ | ✓ | ✓ | ✓ |
 | Drop your SSH connection | ✓ | ✓ | ✓ | ✓ |
 | `rove daemon restart` | ✓ | ✓ | ✓ | ✓ |
-| Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored | ✓ | ✓ |
+| Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, for the 64 newest records under 14 days old | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
 | Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
 | Stop `rove web` | browser-owned PTYs end; standalone-host PTYs stay | browser sidecar has no freeze/thaw | ✓ | engine-owned files stay |
@@ -86,10 +86,12 @@ flowchart TB
   scrollback ring) to `<home>/.rove/pty-sessions/`, throttled to one write
   per few seconds while streaming, immediately on exit, and in full at
   shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
-  thaws each record into a dead *restored* session: reattaching replays the
-  old screen and respawns the command in place. Closing a tab, deleting a
-  task, or `rove reset` deletes the record instead. An intentional end is
-  never resurrected.
+  thaws each surviving record into a dead *restored* session: reattaching
+  replays the old screen and respawns the command in place. Two limits prune
+  the rest at boot rather than thawing them: a record untouched for **14 days**
+  is deleted, and only the **64 most recently updated** survive — past that,
+  the oldest go. Closing a tab, deleting a task, or `rove reset` deletes the
+  record too. An intentional end is never resurrected.
 
 ## Detaching and reattaching
 
@@ -114,9 +116,11 @@ local to each one.
   a shell. The same PTY and scrollback remain alive.
 - **Exiting the shell or a one-off command ends that PTY.** An extra tab closes
   itself; if it was the task's only tab, Rove recycles the slot into a fresh
-  engine tab because a task cannot have zero tabs.
+  engine tab, so a process that died on its own leaves you somewhere to work.
 - **Closing a tab** explicitly kills that tab's hosted PTY and drops its frozen
-  record. The last tab cannot be closed with the close action.
+  record. Closing the last tab is allowed and leaves the task with zero tabs:
+  the sidebar row stays and re-opens on ⏎ / ctrl+e. A **scratch** task is the
+  exception — its last tab is its whole life, so closing it tears the task down.
 - **Deleting a managed or directory Task** stops all of its hosted sessions and drops their frozen
   records. The task record is removed, but the branch stays; the worktree is
   removed unless the task is a directory Task.
@@ -198,7 +202,9 @@ process, including a reboot.
   fresh.
 - A resumable engine tab found dead on attach gets **one** automatic resume
   attempt. If that dies too, an extra tab closes; the task's only tab recycles
-  into a fresh engine tab rather than respawning forever.
+  into a fresh engine tab rather than respawning forever. (That recycle is a
+  convenience, not an invariant — closing the last tab yourself leaves the task
+  with none.)
 - To resume a conversation that is not represented by a tab, use the engine's
   own picker (e.g. claude-code's `/resume`) inside a fresh engine tab.
 

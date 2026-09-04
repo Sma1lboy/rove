@@ -46,7 +46,7 @@ export class TaskEditor {
   }
 
   /** Rename a task. Empty / whitespace-only titles are rejected. Naming a
-   *  SCRATCH task is the "keep this" gesture (issue #33) — it clears the
+   *  SCRATCH task is the "keep this" gesture — it clears the
    *  flag, so the row survives its shell exiting. */
   async setTitle(id: TaskId | string, title: string): Promise<void> {
     const trimmed = title.trim()
@@ -62,7 +62,7 @@ export class TaskEditor {
    * branch is still the placeholder-derived default (`new-task`, or a legacy
    * `rove/`/`kobe/` spelling). This is what lets a task auto-named from its
    * first prompt also pick up a meaningful branch. It fires at most
-   * once: after the first rename the branch no longer matches the placeholder
+   * once: after the first rename the branch stops matching the placeholder
    * derivation, so a later title change (or a manual `setBranch`) is never
    * clobbered. Skipped for `main` (no branch) and for not-yet-materialised
    * tasks (their branch is derived fresh from the title in `ensureWorktree`,
@@ -73,7 +73,7 @@ export class TaskEditor {
    * stand, and the placeholder branch simply stays):
    *   - never rename a branch that has an upstream (`branch -m` would orphan
    *     the remote branch / any open PR); an unreadable probe counts as
-   *     ambiguity and also keeps the old name;
+   *     ambiguity and also keeps the existing name;
    *   - a collision with an existing local branch resolves to a `-2`, `-3`…
    *     suffixed unique name instead of failing.
    */
@@ -142,10 +142,23 @@ export class TaskEditor {
     await this.store.update(task.id, { observedLanguage: observed })
   }
 
-  async setVendor(id: TaskId | string, vendor: VendorId): Promise<void> {
+  /**
+   * `effort` is a THREE-state field, because "leave it alone" and "clear it"
+   * are different asks: `undefined` keeps the task's recorded level (the
+   * caller had no opinion), `""` clears it (back to the engine's own
+   * default), any other string records that level. Without the tri-state the
+   * engine picker could never take a codex task back off `xhigh`.
+   *
+   * The same-vendor early return must not swallow an effort-only change — a
+   * user re-picking codex to move it from `medium` to `high` is changing
+   * something, even though the vendor is identical.
+   */
+  async setVendor(id: TaskId | string, vendor: VendorId, effort?: string): Promise<void> {
     const task = this.requireTask(id)
-    if (task.vendor === vendor) return
-    await this.store.update(task.id, { vendor })
+    const nextEffort = effort?.trim() ? effort.trim() : undefined
+    const effortChanges = effort !== undefined && task.modelEffort !== nextEffort
+    if (task.vendor === vendor && !effortChanges) return
+    await this.store.update(task.id, { vendor, ...(effort !== undefined ? { modelEffort: nextEffort } : {}) })
   }
 
   /**
@@ -175,10 +188,10 @@ export class TaskEditor {
   /**
    * Move a task up/down within its visible ordering partition. Main
    * (project) rows move among each other — the sidebar renders projects in
-   * the mains' stored order (owner 2026-07-16), so reordering the store IS
-   * reordering the project list. Regular tasks move within their REPO's
-   * partition (issue #43: the sidebar tree groups tasks under their repo, so
-   * a cross-repo swap would be invisible or jump groups), still split by the
+   * the mains' stored order, so reordering the store IS reordering the
+   * project list. Regular tasks move within their REPO's partition (the
+   * sidebar tree groups tasks under their repo, so a cross-repo swap would be
+   * invisible or jump groups), still split by the
    * pinned flag. Edge-stop: `store.move` past the partition's first/last is
    * a no-op, never a wrap.
    */
@@ -194,24 +207,6 @@ export class TaskEditor {
       )
       .map((t) => String(t.id))
     await this.store.move(task.id, delta, groupIds)
-  }
-
-  /**
-   * Batch-assign web-board positions (docs/design/web-kanban.md M3).
-   * Positions are fractional ordering keys consumed ONLY by the web
-   * board's per-status columns; the TUI sidebar never reads them. Main
-   * rows are never board cards, so they're refused like moveTask.
-   * Validation is all-or-nothing: one bad entry fails the whole batch
-   * before anything persists.
-   */
-  async reorderTasks(moves: ReadonlyArray<{ readonly taskId: string; readonly position: number }>): Promise<void> {
-    if (moves.length === 0) return
-    for (const move of moves) {
-      const task = this.requireTask(move.taskId)
-      if (task.kind === "main") throw new Error(`cannot reorder a main task: ${move.taskId}`)
-      if (!Number.isFinite(move.position)) throw new Error(`position must be a finite number: ${move.taskId}`)
-    }
-    await this.store.reorder(moves.map((move) => ({ id: move.taskId, position: move.position })))
   }
 
   /**
@@ -235,10 +230,18 @@ export class TaskEditor {
    * and it survives a daemon restart. No-op when nothing the UI renders
    * changed (the collector also pre-diffs, but guard here too so a redundant
    * call never churns a write + broadcast).
+   *
+   * `lastError` is checked separately because `samePrStatus` deliberately
+   * omits it — the collector needs that omission so a healthy PR does not
+   * churn a write every tick. But the sidebar chip renders the field (it
+   * mutes while a poll cannot reach the provider), so leaving it out of THIS
+   * guard makes the marker unwritable: every attempt to set or clear it looks
+   * like a redundant call and is dropped.
    */
   async setPRStatus(id: TaskId | string, prStatus: TaskPRStatus | null): Promise<void> {
     const task = this.requireTask(id)
-    if (samePrStatus(task.prStatus, prStatus ?? undefined)) return
+    const sameError = (task.prStatus?.lastError ?? null) === (prStatus?.lastError ?? null)
+    if (sameError && samePrStatus(task.prStatus, prStatus ?? undefined)) return
     await this.store.update(task.id, { prStatus: prStatus ?? undefined })
   }
 
@@ -265,8 +268,9 @@ export class TaskEditor {
   /**
    * Record the task brief: the full text of the prompt `add --prompt`
    * delivered into this task's engine. Written on the delivery path so the
-   * brief survives the engine's own transcript — a dead engine used to take
-   * the only copy down with it. Stored verbatim (never truncated); a
+   * brief survives the engine's own transcript — a dead engine would
+   * otherwise take the only copy down with it. Stored verbatim (never
+   * truncated); a
    * whitespace-only prompt is rejected. No-op when the stored text already
    * matches, so a redundant call never churns a write + broadcast.
    */

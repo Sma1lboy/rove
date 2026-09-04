@@ -86,7 +86,7 @@ export class TaskDeletingError extends Error {
  * `name` field doesn't survive the daemon wire, so a caller across the boundary
  * discriminates on the MESSAGE (`err.message.includes(MAIN_CHECKOUT_DIRTY_CODE)`).
  */
-export const MAIN_CHECKOUT_DIRTY_CODE = "MAIN_CHECKOUT_DIRTY"
+const MAIN_CHECKOUT_DIRTY_CODE = "MAIN_CHECKOUT_DIRTY"
 
 /**
  * Thrown by `landTask` when the base repo's checkout has uncommitted changes.
@@ -159,16 +159,43 @@ export class EmptyBranchDirtyWorktreeError extends Error {
 }
 
 /**
+ * Stable sentinel embedded in {@link MissingRefError}'s message — same
+ * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
+ */
+export const MISSING_REF_CODE = "MISSING_REF"
+
+/**
+ * Thrown by `landTask` when git cannot resolve the `<base>..<branch>` range at
+ * all — the recorded branch was renamed or deleted outside Rove, so
+ * `git rev-list --count` exits non-zero instead of printing a number. Distinct
+ * from {@link EmptyBranchError}: that one means "git counted, and the answer
+ * was zero"; this one means "git could not count", which is a broken task
+ * record, not an empty branch.
+ */
+export class MissingRefError extends Error {
+  constructor(
+    public readonly branch: string,
+    public readonly landedOn: string,
+    public readonly dir: string,
+  ) {
+    super(
+      `${MISSING_REF_CODE}: '${branch}' does not resolve in the base repo at ${dir} (comparing against '${landedOn}') — the branch was renamed or deleted outside Rove; re-point the task with \`rove api set-branch\` or recreate the branch`,
+    )
+    this.name = "MissingRefError"
+  }
+}
+
+/**
  * Stable sentinel embedded in {@link LandConflictError}'s message — same
  * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}. The conflicted-file list
  * rides along in the message so a CLI/TUI caller can print it after matching.
  */
-export const LAND_CONFLICT_CODE = "LAND_CONFLICT"
+const LAND_CONFLICT_CODE = "LAND_CONFLICT"
 
 /**
  * Thrown by `landTask` when the merge hit conflicts. The merge is aborted
- * before this throws, so the base checkout is left exactly as it was; the
- * conflicted paths are carried so the caller can show the human what to resolve.
+ * before the throw, so the base checkout is left untouched; the conflicted
+ * paths are carried so the caller can show the human what to resolve.
  */
 export class LandConflictError extends Error {
   constructor(
@@ -179,5 +206,39 @@ export class LandConflictError extends Error {
     const list = files.length > 0 ? files.join(", ") : "(none reported)"
     super(`${LAND_CONFLICT_CODE}: merging '${branch}' hit conflicts, merge aborted — conflicted files: ${list}`)
     this.name = "LandConflictError"
+  }
+}
+
+/**
+ * Stable sentinel embedded in {@link GitCommandFailedError}'s message — same
+ * wire-boundary reason as {@link DIRTY_WORKTREE_CODE}.
+ */
+export const GIT_COMMAND_FAILED_CODE = "GIT_COMMAND_FAILED"
+
+/**
+ * Thrown by `landTask` when a git command failed for a reason Rove has no
+ * policy for — a `pre-commit`/`commit-msg` hook, a broken `commit.gpgsign`
+ * key, an unset `user.email`.
+ *
+ * It exists because the alternative is a LIE. Both land strategies used to
+ * read a failed commit as the one benign cause they knew: squash reported
+ * "already merged or empty" about a branch that had staged cleanly (and then
+ * `reset --hard` threw the squash away), and merge threw the phantom
+ * {@link LandConflictError} with an empty file list that
+ * `assertBranchHasWork`'s docstring says it exists to prevent. Neither ever
+ * looked at git's stderr, which said exactly what was wrong.
+ *
+ * The `hint` names what the caller can still do — for squash, that the staged
+ * merge is deliberately left in place to be committed by hand.
+ */
+export class GitCommandFailedError extends Error {
+  constructor(
+    public readonly command: string,
+    public readonly stderr: string,
+    hint?: string,
+  ) {
+    const detail = stderr.trim() || "(git printed nothing on stderr)"
+    super(`${GIT_COMMAND_FAILED_CODE}: \`git ${command}\` failed — ${detail}${hint ? `; ${hint}` : ""}`)
+    this.name = "GitCommandFailedError"
   }
 }

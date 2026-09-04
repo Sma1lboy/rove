@@ -5,14 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { CodexHookAdapter, KOBE_CODEX_HOOK_EVENTS, codexHooksPath } from "../../src/engine/codex-local/hook-adapter.ts"
 
 // The adapter's install path builds hook commands from `kobeHookInvocation()`
-// (whose dev fallback is `kobeCliInvocation()`). Pin the whole module so the
+// (whose dev fallback is `roveCliInvocation()`). Pin the whole module so the
 // roundtrip exercises the merge/IO, not CLI-path resolution. NOTE: vi.mock
 // replaces EVERY export — a new function
 // added to invocation.ts must be stubbed here too, or json-hooks' default-arg
 // call becomes undefined() and editJsonSettings' best-effort catch silently
 // eats it (that exact gap shipped red CI once).
 vi.mock("../../src/cli/invocation.ts", () => ({
-  kobeCliInvocation: () => ["kobe"],
+  roveCliInvocation: () => ["kobe"],
   kobeHookInvocation: () => ["kobe"],
 }))
 
@@ -101,7 +101,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
     // kobe's Stop coexists with the user's Stop hook.
     expect(JSON.stringify(hooks.Stop)).toContain("turn-complete")
     expect(JSON.stringify(hooks.Stop)).toContain("user-stop")
-    // The retired PostToolUse(Bash) watch observer is never installed again.
+    // The PostToolUse(Bash) watch observer is never installed.
     expect(hooks.PostToolUse).toBeUndefined()
   })
 
@@ -118,7 +118,7 @@ describe("CodexHookAdapter install/remove roundtrip (real file)", () => {
   })
 
   // End-to-end uninstall through real file I/O: this is what an upgrading user
-  // gets on their next launch. The retired hook goes; a co-resident hook from
+  // gets on their next launch. The watch hook goes; a co-resident hook from
   // another tool must survive, and a second launch must not churn the file.
   it("uninstalls an already-registered watch hook, sparing another tool's entry", async () => {
     await writeFile(

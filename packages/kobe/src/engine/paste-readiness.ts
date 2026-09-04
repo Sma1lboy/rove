@@ -1,8 +1,7 @@
 /**
  * When a hosted engine is actually safe to paste a large prompt into.
  *
- * The bug this exists for (9 tasks dispatched with an empty prompt): a cold
- * engine's pty starts in CANONICAL mode with nothing draining it. The tty's
+ * A cold engine's pty starts in CANONICAL mode with nothing draining it. The tty's
  * canonical input buffer is `MAX_INPUT` (1024 bytes on macOS), and a write
  * past it is DISCARDED, not blocked — so an 8.6KB prompt written into that
  * window arrives as a 1024-byte prefix and the rest is gone. Measured, not
@@ -11,10 +10,9 @@
  *
  * Two things follow, and the second is the one that matters:
  *
- *  - Chunking does NOT fix it. 512-byte chunks with a gap between them lost
+ *  - Chunking does NOT fix it. 512-byte chunks with a gap between them lose
  *    exactly the same 1024 bytes — the buffer is never drained, so slower
- *    writing just refills a full buffer. The old plan of "write in chunks"
- *    would have shipped a no-op.
+ *    writing just refills a full buffer.
  *  - Once the engine is in RAW mode and reading, a single write is safe at
  *    any size we care about — 8.6KB, 64KB, 256KB and 1MB all arrived whole.
  *
@@ -23,8 +21,7 @@
  * terminal into raw mode and started reading stdin, which makes it a direct
  * observation of "this process is draining its tty" rather than a guess.
  * Measured against the three real engines: claude 258ms, codex 321ms, kimi
- * 1953ms — kimi lands AFTER the old hardcoded 1500ms settle, which is
- * exactly why kimi was the vendor that lost prompts.
+ * 1953ms. A fixed settle shorter than that drops kimi's prompt on the floor.
  *
  * It doubles as the bracketed-paste contract the interactive path already
  * honours (`pty-xterm-base.paste`): wrapping in `\x1b[200~ … \x1b[201~` is

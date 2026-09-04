@@ -1,7 +1,7 @@
 import { EngineEventLog } from "@sma1lboy/kobe-daemon/daemon/engine-events-log"
 import { PromptBroker } from "@sma1lboy/kobe-daemon/daemon/prompt-broker"
 import type { DaemonRequestName } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
+import { type DaemonHandlerContext, createDaemonHandlerRegistry } from "@sma1lboy/kobe-daemon/daemon/server"
 import { describe, expect, it } from "vitest"
 import { CURRENT_VERSION } from "../../src/version.ts"
 import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
@@ -9,10 +9,10 @@ import { TASK, dispatch, fakeCtx } from "./handler-test-context.ts"
 /**
  * RPC dispatch seam tests (registry in `kobe-daemon/src/daemon/handlers.ts`).
  *
- * WHY these matter: the daemon's dispatch used to be a ~275-line switch in
- * `server.ts` with ZERO direct tests — the only proof the RPC surface worked
- * was the end-to-end socket suite. The registry makes the seam testable
- * WITHOUT a socket: dispatch through a fake context and assert the payload. These tests pin the
+ * WHY these matter: the registry makes the RPC dispatch seam testable WITHOUT
+ * a socket — dispatch through a fake context and assert the payload, instead
+ * of leaving the end-to-end socket suite as the only proof the surface works.
+ * These tests pin the
  * WIRE CONTRACT — success payload shapes (including which calls return `{}`
  * vs an object), validation-error wording (`"repo is required"`), and the
  * unknown-request error — so a future handler edit that drifts the on-wire
@@ -45,11 +45,12 @@ describe("daemon handler registry", () => {
       "task.setCommand",
       "task.delete",
       "task.land",
+      "pr.failingChecks",
+      "task.syncBase",
       "task.pin",
       "task.move",
       "task.status",
       "task.setPrompt",
-      "task.reorder",
       "task.ensureMain",
       "task.openDir",
       "task.adoptScratchRepo",
@@ -82,12 +83,18 @@ describe("daemon handler registry", () => {
       "ui.promptReply",
       "tab.open",
       "tab.close",
+      "terminalTab.close",
+      "terminalTab.closeReply",
       "notice.send",
       "note.file",
       "note.list",
       "deferredPrompt.file",
+      "deferredPrompt.fileIfVacant",
       "deferredPrompt.get",
       "deferredPrompt.resolve",
+      "deferredPrompt.release",
+      "deferredPrompt.discardTab",
+      "deferredPrompt.flush",
     ]
     const registry = createDaemonHandlerRegistry()
     for (const name of rpcNames) expect(registry.get(name), name).toBeDefined()
@@ -184,6 +191,33 @@ describe("daemon handler registry", () => {
     })
   })
 
+  describe("terminalTab.close", () => {
+    it("waits for an attached TUI to confirm the exact tab close", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
+      const pending = dispatch("terminalTab.close", { taskId: "t1", tabId: "tab-3" }, ctx)
+      const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
+      expect(event.channel).toBe("tab.close")
+      expect(event.payload).toMatchObject({ kind: "terminal-tab", taskId: "t1", tabId: "tab-3" })
+      const requestId = event.payload.requestId as string
+      expect(await dispatch("terminalTab.closeReply", { requestId, closed: true }, ctx)).toEqual({ ok: true })
+      expect(await pending).toEqual({ ok: true, handled: true })
+      expect(await dispatch("terminalTab.closeReply", { requestId, closed: true }, ctx)).toEqual({ ok: false })
+    })
+
+    it("returns immediately for headless callers and rejects an unknown task", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
+      ;(ctx.daemon as { guiCount: () => number }).guiCount = () => 0
+      await expect(dispatch("terminalTab.close", { taskId: "t1", tabId: "tab-1" }, ctx)).resolves.toEqual({
+        ok: true,
+        handled: false,
+      })
+      expect(rec.published).toHaveLength(0)
+      await expect(dispatch("terminalTab.close", { taskId: "missing", tabId: "tab-1" }, ctx)).rejects.toThrow(
+        /task not found/,
+      )
+    })
+  })
+
   describe("tab.open", () => {
     it("publishes a tab.open event for a known task", async () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
@@ -223,16 +257,66 @@ describe("daemon handler registry", () => {
   })
 
   describe("session.deliver", () => {
-    it("publishes with an explicit tabId and rejects an unknown task", async () => {
+    /** Swap in a canned delivery verdict for the exact-tab adapter. */
+    const withOutcome = (ctx: DaemonHandlerContext, outcome: unknown): DaemonHandlerContext =>
+      ({
+        ...ctx,
+        runtime: { ...ctx.runtime, deliverPromptToLiveEngineTabDetailed: async () => outcome },
+      }) as DaemonHandlerContext
+
+    it("reports the paste it actually performed, and does NOT also broadcast it", async () => {
+      // The bug this pins: `dispatch` against a TUI-hosted task used to answer
+      // `ok: true` while nothing pasted, because the daemon only broadcast and
+      // the TUI never subscribed. Delivering AND publishing would be the
+      // opposite failure — a listening browser pasting the same text twice.
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
-      const result = await dispatch("session.deliver", { taskId: "t1", text: "hi", tabId: "tab-2" }, ctx)
-      // `clients` counts attached connections (#499's reached-nobody probe).
-      expect(result).toEqual({ ok: true, clients: 1 })
+      const result = await dispatch(
+        "session.deliver",
+        { taskId: "t1", text: "hi", tabId: "tab-2" },
+        withOutcome(ctx, { outcome: "delivered", tabId: "tab-2" }),
+      )
+      expect(result).toEqual({ ok: true, delivered: true, tabId: "tab-2", clients: 1 })
+      expect(rec.published).toHaveLength(0)
+    })
+
+    it("refuses a busy composer instead of writing over someone mid-message", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => TASK })
+      const result = await dispatch(
+        "session.deliver",
+        { taskId: "t1", text: "hi", tabId: "tab-2" },
+        withOutcome(ctx, { outcome: "busy", tabId: "tab-2", layer: "composer-not-empty" }),
+      )
+      expect(result).toEqual({
+        ok: true,
+        delivered: false,
+        reason: "busy",
+        layer: "composer-not-empty",
+        tabId: "tab-2",
+        clients: 1,
+      })
+      // Broadcasting here would hand a browser the same clobber we refused.
+      expect(rec.published).toHaveLength(0)
+    })
+
+    it("falls back to the broadcast when no hosted session answers", async () => {
+      // The browser-hosted case: the SPA mints its own tab ids, so its
+      // sessions are invisible to the PTY host and the channel is the only
+      // way to reach one. `delivered: false` says the paste is unconfirmed.
+      const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
+      const result = await dispatch(
+        "session.deliver",
+        { taskId: "t1", text: "hi", tabId: "tab-2" },
+        withOutcome(ctx, { outcome: "no-session" }),
+      )
+      expect(result).toEqual({ ok: true, delivered: false, reason: "broadcast", clients: 1 })
       const event = rec.published[0] as { channel: string; payload: Record<string, unknown> }
       expect(event.channel).toBe("session.deliver")
       expect(event.payload).toMatchObject({ taskId: "t1", text: "hi", tabId: "tab-2", source: "dispatcher" })
-      const { ctx: ctx2 } = fakeCtx({ getTask: () => undefined })
-      await expect(dispatch("session.deliver", { taskId: "nope", text: "x" }, ctx2)).rejects.toThrow(/task not found/)
+    })
+
+    it("rejects an unknown task", async () => {
+      const { ctx } = fakeCtx({ getTask: () => undefined })
+      await expect(dispatch("session.deliver", { taskId: "nope", text: "x" }, ctx)).rejects.toThrow(/task not found/)
     })
   })
 
@@ -283,11 +367,11 @@ describe("daemon handler registry", () => {
   })
 
   describe("broadcast reach (clients)", () => {
-    // Broadcast-only handlers used to return a bare { ok: true } — an agent
-    // headless (no TUI attached) read that as "the pane opened" and reported
-    // a thing that never happened. `clients` is the same reach signal
-    // `session.deliver` already reports (#499): connection count, where 0 is
-    // the unambiguous "nobody performed it".
+    // A broadcast-only handler returning a bare { ok: true } reads to a
+    // headless agent (no TUI attached) as "the pane opened", reporting a
+    // thing that never happened. `clients` is the same reach signal
+    // `session.deliver` reports: connection count, where 0 is the
+    // unambiguous "nobody performed it".
     it("tab.open / tab.close / notice.send report clients: 0 when nothing is attached", async () => {
       const { ctx } = fakeCtx({ getTask: () => TASK })
       ;(ctx.daemon as { clientCount: () => number }).clientCount = () => 0

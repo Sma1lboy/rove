@@ -1,6 +1,6 @@
 /**
- * The "auto status flow" opt-in (docs/design/web-kanban.md M5, revised
- * 2026-06-11): one switch gates BOTH halves of the flow —
+ * The "auto status flow" opt-in (docs/design/web-kanban.md M5):
+ * one switch gates BOTH halves of the flow —
  *
  *   - daemon rule: `turn-start` on a backlog task → `in_progress`
  *     (monitor/status-rules.ts), and

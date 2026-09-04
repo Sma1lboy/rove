@@ -54,7 +54,7 @@ export function buildPaneArgv(
   const script = `exec env ${pairs.map(([k, v]) => shq(`${k}=${v}`)).join(" ")} ${command.map(shq).join(" ")}`
   // Same integration path as the engine tab (session-launch.ts): the user's
   // login shell with the interactive bit, so a plugin pane reads the same
-  // PATH/exports as the engine tab does (#26).
+  // PATH/exports as the engine tab does.
   return [resolveLoginShell(), "-ilc", script]
 }
 

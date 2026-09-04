@@ -1522,12 +1522,55 @@ status=error         act=error              | main=0 title=fix the sidebar  glyp
 status=error         act=dead               | main=0 title=fix the sidebar  glyph=†   tone=error       load=0 matz=0 sub=feat/sidebar
 
 ## PR check chip
-checkState=<no prStatus>     chip=<none>
-checkState=none              chip=<none>
-checkState=unknown           chip=<none>
-checkState=passing           chip=✓ (success)
-checkState=failing           chip=✗ (error)
-checkState=pending           chip=• (warning)
+checkState=<no prStatus>     stale=0  chip=<none>
+checkState=<no prStatus>     stale=1  chip=<none>
+checkState=none              stale=0  chip=<none>
+checkState=none              stale=1  chip=<none>
+checkState=unknown           stale=0  chip=<none>
+checkState=unknown           stale=1  chip=<none>
+checkState=passing           stale=0  chip=✓ (success)
+checkState=passing           stale=1  chip=✓ (textMuted)
+checkState=failing           stale=0  chip=✗ (error)
+checkState=failing           stale=1  chip=✗ (textMuted)
+checkState=pending           stale=0  chip=• (warning)
+checkState=pending           stale=1  chip=• (textMuted)
+
+## PR merge-conflict chip
+mergeable=<absent>           stale=0  chip=<none>
+mergeable=<absent>           stale=1  chip=<none>
+mergeable=MERGEABLE          stale=0  chip=<none>
+mergeable=MERGEABLE          stale=1  chip=<none>
+mergeable=CONFLICTING        stale=0  chip=≠ (error)
+mergeable=CONFLICTING        stale=1  chip=≠ (textMuted)
+mergeable=UNKNOWN            stale=0  chip=<none>
+mergeable=UNKNOWN            stale=1  chip=<none>
+mergeable=conflicting        stale=0  chip=≠ (error)
+mergeable=conflicting        stale=1  chip=≠ (textMuted)
+<no prStatus>                stale=0  chip=<none>
+
+## PR review-state chip
+lifecycle=<no prStatus>      stale=0  chip=<none>
+lifecycle=<no prStatus>      stale=1  chip=<none>
+lifecycle=creating           stale=0  chip=<none>
+lifecycle=creating           stale=1  chip=<none>
+lifecycle=open               stale=0  chip=<none>
+lifecycle=open               stale=1  chip=<none>
+lifecycle=ready_to_merge     stale=0  chip=» (success)
+lifecycle=ready_to_merge     stale=1  chip=» (textMuted)
+lifecycle=merged             stale=0  chip=≡ (textMuted)
+lifecycle=merged             stale=1  chip=≡ (textMuted)
+lifecycle=closed             stale=0  chip=<none>
+lifecycle=closed             stale=1  chip=<none>
+lifecycle=unknown            stale=0  chip=<none>
+lifecycle=unknown            stale=1  chip=<none>
+
+## board status chip
+status=backlog               chip=<none>
+status=in_progress           chip=<none>
+status=in_review             chip=◇ (primary)
+status=done                  chip=◆ (success)
+status=canceled              chip=† (textMuted)
+status=error                 chip=× (error)
 
 ## tabRowActivity — which entry a TAB row may read
 tabActivity=-        reported=0   active=0   -> <none>

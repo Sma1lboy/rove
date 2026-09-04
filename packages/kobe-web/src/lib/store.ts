@@ -75,7 +75,7 @@ function set(next: Partial<AppState>): void {
   for (const l of listeners) l()
 }
 
-/** Drop per-task entries whose task no longer exists in the snapshot. Returns
+/** Drop per-task entries whose task is absent from the snapshot. Returns
  *  the SAME reference when nothing changed (so React skips a needless update).
  *  Exported for tests. */
 export function pruneByTask<T>(
@@ -89,8 +89,8 @@ export function pruneByTask<T>(
 }
 
 /** A delete publishes task.snapshot (task gone) THEN a trailing idle
- *  engine-state for the same id. An idle state for a task that no longer
- *  exists is that orphan — drop it so the badge map stays clean. A NON-idle
+ *  engine-state for the same id. An idle state for a task the snapshot does
+ *  not list is that orphan — drop it so the badge map stays clean. A NON-idle
  *  state for an unknown task is a mid-creation race, not an orphan, so it's
  *  kept. Exported for tests. */
 export function isOrphanIdleEngineState(
@@ -128,7 +128,7 @@ function applyIssueSnapshotEvent(
 
 /** A task.snapshot is the authoritative task list — sweep every per-task
  *  side table (engine badges, jobs, workspace tabs + their PTYs) for tasks
- *  that no longer exist, so a delete in ANY surface (TUI, api, another
+ *  the list does not name, so a delete in ANY surface (TUI, api, another
  *  browser) cleans this one up too. */
 function applyTaskList(tasks: Task[]): void {
   const live = new Set(tasks.map((t) => t.id))
@@ -248,10 +248,10 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 /** A stream is "live enough" to reuse when its EventSource exists and hasn't
  *  reached CLOSED — CONNECTING (the browser's own retry) and OPEN both count.
- *  Once CLOSED, the source is dead and must be replaced; the old code's bare
- *  `if (source) return` left a CLOSED source assigned, so after a daemon
- *  restart every later subscribe()/ensureStream() early-returned and the
- *  dashboard wedged on "connecting…" until a full browser refresh. */
+ *  Once CLOSED, the source is dead and must be replaced; a bare
+ *  `if (source) return` would leave a CLOSED source assigned, so after a
+ *  daemon restart every later subscribe()/ensureStream() early-returns and
+ *  the dashboard wedges on "connecting…" until a full browser refresh. */
 function isStreamReusable(s: EventSource | null): boolean {
   return s !== null && s.readyState !== EventSource.CLOSED
 }

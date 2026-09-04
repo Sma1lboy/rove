@@ -11,22 +11,32 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { optionalString, requireString } from "./handler-validators.ts"
+import { optionalBoolean, optionalString, requireString } from "./handler-validators.ts"
 import type { DaemonRequestHandler } from "./handlers.ts"
 import { displayTaskTitle } from "./protocol.ts"
 
 /** `ui.prompt` timeout bounds — a plugin must not hang the CLI forever. */
 const PROMPT_DEFAULT_TIMEOUT_MS = 120_000
 const PROMPT_MAX_TIMEOUT_MS = 600_000
+/** A live TUI normally acknowledges in one render turn. Bound the wait so a
+ * stale GUI connection cannot turn a headless close into a hung CLI. */
+const TAB_CLOSE_TUI_TIMEOUT_MS = 750
 
 export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "session.deliver",
     async handle(payload, ctx) {
-      // Dispatcher messenger (docs/design/dispatcher.md): `kobe api
-      // dispatch` routes text to a task's live engine session. The daemon
-      // only validates + broadcasts; the front-end hosting that session
-      // (the SPA via /pty/send) owns the actual paste.
+      // Dispatcher messenger (docs/design/dispatcher.md): `kobe api dispatch`
+      // routes text to a task's live engine session.
+      //
+      // The daemon DELIVERS it, then falls back to the broadcast. It used to
+      // only broadcast, on the assumption that "the front-end hosting that
+      // session (the SPA via /pty/send) owns the actual paste" — true when the
+      // SPA was the product surface, and false since: an engine tab opened in
+      // the TUI lives in the shared PTY host, which the daemon reaches through
+      // the same adapter `send` uses. Nothing subscribed to the channel on the
+      // TUI side, so `dispatch` against a TUI-hosted task answered `ok: true`
+      // and pasted nowhere.
       const taskId = requireString(payload, "taskId")
       const text = requireString(payload, "text")
       const tabId = optionalString(payload, "tabId")
@@ -34,17 +44,41 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       if (source !== undefined && source !== "note" && source !== "dispatcher") {
         throw new Error('source must be "note" or "dispatcher"')
       }
-      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
-      ctx.bus.publish("session.deliver", {
-        taskId,
-        text,
-        ...(tabId !== undefined ? { tabId } : {}),
-        at: Date.now(),
-        source: source ?? "dispatcher",
-      })
-      // `clients` mirrors the RPC's own honesty note above: broadcast-only
-      // delivery can't be observed, so the event reports REACH (connection
-      // count; 0 = certainly nobody performed the paste), not a confirmation.
+      const task = ctx.orch.getTask(taskId)
+      if (!task) throw new Error(`task not found: ${taskId}`)
+      // Delivery is engine-owned: both adapters respect each engine's composer
+      // gate, and NEITHER spawns — they paste into an already-live hosted
+      // session or report `no-session`. `dispatch`'s own contract ("requires
+      // an already-hosted session") is exactly that, so a miss here is honest
+      // rather than a reason to start something.
+      const outcome = task.worktreePath
+        ? await (tabId === undefined
+            ? ctx.runtime.deliverPromptToLiveEngineDetailed(
+                { id: task.id, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+                text,
+              )
+            : ctx.runtime.deliverPromptToLiveEngineTabDetailed(
+                { id: task.id, tabId, vendor: task.vendor, command: task.command, worktreePath: task.worktreePath },
+                text,
+              )
+          ).catch(() => ({ outcome: "no-session" }) as const)
+        : ({ outcome: "no-session" } as const)
+      // Broadcast ONLY when we did not deliver, and only for `no-session`. A
+      // browser-hosted session is invisible to the PTY host (the SPA mints its
+      // own tab ids), so the channel is still the only way to reach one — but
+      // publishing after a successful paste would make a listening browser
+      // paste the same text a second time, and publishing over `busy` would
+      // clobber a composer somebody is typing in right now.
+      const broadcast = outcome.outcome === "no-session"
+      if (broadcast) {
+        ctx.bus.publish("session.deliver", {
+          taskId,
+          text,
+          ...(tabId !== undefined ? { tabId } : {}),
+          at: Date.now(),
+          source: source ?? "dispatcher",
+        })
+      }
       ctx.plugins?.handleUiReport({
         kind: "message.delivered",
         taskId,
@@ -55,17 +89,27 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           clients: ctx.daemon.clientCount(),
         },
       })
-      // Report reach, don't just claim success. `session.deliver` is
-      // broadcast-only — an attached client performs the paste — so with
-      // nothing listening the text goes into the void while the caller still
-      // reads `ok: true`. That is how a dispatched answer goes missing and
-      // leaves a `permission_needed` badge stranded.
-      //
-      // `clients` counts CONNECTIONS, which is a weak proxy: the calling CLI
-      // is itself one, so 1 does not prove a session host is listening. It
-      // still distinguishes the unambiguous 0 case, and the caller can
-      // confirm a real host with `api pty-list`.
-      return { ok: true, clients: ctx.daemon.clientCount() }
+      // `delivered` is OBSERVED, not claimed: true only when a paste actually
+      // landed in a live engine session. `false` with `reason: "busy"` means a
+      // human is mid-message and the text was deliberately not written; false
+      // with `reason: "broadcast"` means no hosted session answered and the
+      // event went out for a browser to pick up, which nothing can confirm —
+      // `clients` (raw CONNECTION count, the calling CLI included) is the only
+      // reach signal there, and 0 proves the text reached nobody.
+      if (outcome.outcome === "delivered") {
+        return { ok: true, delivered: true, tabId: outcome.tabId, clients: ctx.daemon.clientCount() }
+      }
+      if (outcome.outcome === "busy") {
+        return {
+          ok: true,
+          delivered: false,
+          reason: "busy",
+          layer: outcome.layer,
+          tabId: outcome.tabId,
+          clients: ctx.daemon.clientCount(),
+        }
+      }
+      return { ok: true, delivered: false, reason: "broadcast", clients: ctx.daemon.clientCount() }
     },
   },
   {
@@ -79,18 +123,25 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       }
       const taskId = optionalString(payload, "taskId")
       const detail = payload.detail
+      const eventDetail =
+        detail && typeof detail === "object" && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
+      if (kind === "tab.closed" && taskId && typeof eventDetail?.tabId === "string" && ctx.deferredPrompts) {
+        const dropped = await ctx.deferredPrompts.discardTab(taskId, eventDetail.tabId, "tab closed")
+        for (const record of dropped) {
+          await ctx.inbox.deleteEpisode(taskId, eventDetail.tabId, undefined, "prompt_deferred", record.id)
+        }
+      }
       ctx.plugins?.handleUiReport({
         kind: kind as import("../plugins/manifest.ts").PluginEventName,
         ...(taskId ? { taskId } : {}),
-        ...(detail && typeof detail === "object" && !Array.isArray(detail)
-          ? { detail: detail as Record<string, unknown> }
-          : {}),
+        ...(eventDetail ? { detail: eventDetail } : {}),
       })
       return {}
     },
   },
   {
     name: "ui.prompt",
+    blocking: true,
     async handle(payload, ctx) {
       // Host-provided input dialog (plugins → `kobe api prompt`): publish
       // the request to every attached TUI and block until one answers via
@@ -157,7 +208,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         ...(direction === "right" || direction === "down" ? { direction } : {}),
         at: Date.now(),
       })
-      // Same reach report as `session.deliver` (#499): the split is performed
+      // Same reach report as `session.deliver`: the split is performed
       // by an attached TUI, so with nothing listening the pane goes nowhere
       // while a bare `ok` would read as "opened". `clients` counts CONNECTIONS
       // — the calling CLI is one, so 1 does not prove a host is listening; 0
@@ -184,6 +235,35 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // A close with no attached TUI silently matched nothing — without this
       // the caller cannot tell "pane closed" from "nobody was listening".
       return { ok: true, clients: ctx.daemon.clientCount() }
+    },
+  },
+  {
+    name: "terminalTab.close",
+    async handle(payload, ctx) {
+      const taskId = requireString(payload, "taskId")
+      const tabId = requireString(payload, "tabId")
+      if (!ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
+      const broker = ctx.tabCloses
+      if (!broker || ctx.daemon.guiCount() === 0) return { ok: true, handled: false }
+
+      const requestId = randomUUID()
+      const handled = broker.create(requestId, TAB_CLOSE_TUI_TIMEOUT_MS)
+      ctx.bus.publish("tab.close", {
+        kind: "terminal-tab",
+        taskId,
+        tabId,
+        requestId,
+        at: Date.now(),
+      })
+      return { ok: true, handled: await handled }
+    },
+  },
+  {
+    name: "terminalTab.closeReply",
+    handle(payload, ctx) {
+      const requestId = requireString(payload, "requestId")
+      const closed = optionalBoolean(payload, "closed") ?? false
+      return { ok: ctx.tabCloses?.settle(requestId, closed) ?? false }
     },
   },
   {
@@ -231,8 +311,8 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
         .catch(() => false)
       const main = ctx.orch.listTasks().find((t) => (t.kind ?? "task") === "main" && t.repo === author.repo)
       // No dispatcher seat, or the dispatcher noting to itself: accepted
-      // but unrouted — filing must never error a working agent. Still
-      // persisted above, which is why an unrouted note is no longer a loss.
+      // but unrouted — filing must never error a working agent. It is
+      // persisted above, so an unrouted note is not a loss.
       const routed = !!main && main.id !== author.id
       if (routed && main) {
         ctx.bus.publish("session.deliver", {

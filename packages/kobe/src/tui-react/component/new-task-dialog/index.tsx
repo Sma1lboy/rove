@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * New-task dialog entry point (issue #15, G3W2) — every call site opens
+ * New-task dialog entry point — every call site opens
  * the dialog through the `show(dialog, defaultRepo, savedRepos, options)`
  * contract. NewTaskDialog is THE canonical task-creation surface — this
  * is the full dialog (Existing / New Repo / Adopt tabs, engine selector,
@@ -15,8 +15,7 @@ import type { NewTaskDialogOptions, NewTaskInput } from "../../../tui/component/
 import { type DialogContext, showDialog } from "../../ui/dialog"
 import { NewTaskDialogView } from "./dialog"
 
-export type { NewTaskDialogOptions, NewTaskInput } from "../../../tui/component/new-task-dialog/state"
-export { isBlankText, stripNewlines } from "../../../tui/component/new-task-dialog/state"
+export type { NewTaskDialogOptions } from "../../../tui/component/new-task-dialog/state"
 
 /**
  * Open the new-task dialog and resolve with the user's selection —

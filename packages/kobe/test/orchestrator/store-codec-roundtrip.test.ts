@@ -1,13 +1,18 @@
 /**
- * Schema round-trip guard for the tasks.json codec (issue #57).
+ * Schema round-trip guard for the tasks.json codec.
  *
  * `coerceTask` is a hand-written coercer: the WRITE path picks up a new Task
  * field automatically (object spread), but the READ path needs a hand-written
  * coerce line — and forgetting it is completely silent (optional fields make
  * the type system happy, and the field just vanishes on the next daemon
- * restart). That has happened seven times: command, position, modelEffort,
+ * restart). That has happened seven times: command, modelEffort,
  * groupId, quotaResume, linkedWorkItem, dispatcher, `deletion.deleteBranch` —
  * and now `observedLanguage`.
+ *
+ * Two sibling guards close the same class one layer out each: the wire
+ * (`test/daemon/serialize-task-fields.test.ts`) and the decode into the TUI
+ * (`test/client/deserialize-task-fields.test.ts`). A field has to survive
+ * all three hand-written lists to be visible in the product.
  *
  * This test closes the class, not the instance. `DeepRequired<Task>` forces
  * the fixture to carry EVERY field, nested optionals included, at compile
@@ -66,7 +71,6 @@ const FULL_TASK: DeepRequired<Task> = {
     lastCheckedAt: "2026-08-27T00:00:00.000Z",
     lastError: "transient fetch error",
   },
-  position: 1.5,
   modelEffort: "high",
   groupId: "01ARZ3NDEKTSV4RRFFQ69G5FB0",
   deletion: {

@@ -3,10 +3,9 @@
  *
  * Why this matters: a `kobe` helper running INSIDE an engine tab inherits
  * the session's identity env (KOBE_TASK_ID/KOBE_TAB_ID/KOBE_TUI/
- * KOBE_TERMINAL_PTY, plus their ROVE_* aliases). Passing that straight into
- * a spawned daemon produced
- * the 2026-07-13 zombies: long-lived shared daemons stamped with one tab's
- * identity, invisible to the idle-stop policy (they never saw a gui). The
+ * KOBE_TERMINAL_PTY, plus their ROVE_* aliases). Passing that straight into a
+ * spawned daemon breeds zombies: long-lived shared daemons stamped with one
+ * tab's identity, invisible to the idle-stop policy (they never see a gui). The
  * spawn env must drop the session markers and carry the autospawn flag the
  * lifetime policy keys its first-gui grace on.
  */

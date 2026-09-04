@@ -8,6 +8,10 @@
  * The visible symptom was a label padded to 30 cells inside a 26-cell row:
  * `Row` is `overflow="hidden"` + `wrapMode="none"`, so the label was cut with
  * no ellipsis and the hint beside it never appeared at all.
+ *
+ * The viewport is tall on purpose: the page scrolls, and the row under test
+ * sits well down the General section. Height here buys the row into frame
+ * without a pile of `j` presses that would be asserting navigation instead.
  */
 
 import { expect, test } from "bun:test"
@@ -25,13 +29,13 @@ function Driver() {
 
 async function generalAt(width: number): Promise<string> {
   process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-narrow-"))
-  const { frame } = await renderComponent(<Driver />, { width, height: 42, providers: { kv: true, dialog: true } })
+  const { frame } = await renderComponent(<Driver />, { width, height: 120, providers: { kv: true, dialog: true } })
   return await frame()
 }
 
 test("at 46 columns the label renders whole instead of being cut mid-word", async () => {
   const text = await generalAt(46)
-  // The longest General label, previously clipped by its own padding.
+  // The longest General label — the one its own padding would clip.
   expect(text).toContain("Show keyboard hints")
   // Its inline hint is dropped rather than rendered as a clipped fragment.
   expect(text).not.toContain("re-enabling relights")

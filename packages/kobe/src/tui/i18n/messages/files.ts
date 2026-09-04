@@ -4,6 +4,8 @@
  */
 
 export const en = {
+  /** Error toast when `a` has no engine session to paste the mention into. */
+  mentionNoEngine: "No engine session in this task — nothing to mention into. Open one with ctrl+t.",
   tabs: {
     all: "All",
     changes: "Changes",
@@ -35,10 +37,15 @@ export const en = {
   },
   toast: {
     prOnTargetBranch: "Already on the target branch ({branch}) — ask the agent to create the PR from a task branch",
+    /** `gh` unavailable, the run expired, or the checks went green while the
+     *  menu was open — better than pasting a prompt with no evidence in it. */
+    ciNoFailingChecks: "No failing check logs to read — the run may have expired, or the checks are no longer red",
   },
 }
 
 export const zh: typeof en = {
+  /** `a` 没有引擎会话可粘贴提及时的错误 toast。 */
+  mentionNoEngine: "这个任务没有引擎会话——没有地方可以提及。用 ctrl+t 开一个。",
   tabs: {
     all: "全部",
     changes: "改动",
@@ -70,5 +77,6 @@ export const zh: typeof en = {
   },
   toast: {
     prOnTargetBranch: "当前就在目标分支（{branch}）— 请在任务分支上让 agent 创建 PR",
+    ciNoFailingChecks: "没有可读的失败检查日志——运行记录可能已过期，或检查已不再是红的",
   },
 }

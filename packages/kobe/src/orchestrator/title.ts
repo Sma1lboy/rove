@@ -1,8 +1,8 @@
 /**
  * Title derivation + placeholder-branch recognition.
  *
- * Branch NAMES are no longer derived here — `branch-style.ts` owns the
- * repo-convention naming (issue #39). This module keeps the title helpers
+ * Branch NAMES are not derived here — `branch-style.ts` owns the
+ * repo-convention naming. This module keeps the title helpers
  * and the placeholder-branch discriminator that the first-rename
  * branch-follow flow depends on. `deriveTitleFromPrompt` is kept for the
  * rare case where we still accept a free-form prompt as a title source

@@ -6,8 +6,8 @@
  *
  * One rule holds the four together: the Inbox's vocabulary must MATCH the
  * sidebar rail's (`row-view.ts`) and the tab strip's (`tab-strip.tsx`). Three
- * surfaces describing one tab in three vocabularies is how a rate limit and a
- * crash ended up looking identical.
+ * surfaces describing one tab in three vocabularies is what makes a rate
+ * limit and a crash look identical.
  */
 
 import type { Task } from "@/types/task"
@@ -27,10 +27,10 @@ export function itemColor(state: AttentionInboxItem["state"], theme: ThemeColors
 export function itemGlyph(state: AttentionInboxItem["state"]): string {
   if (state === "permission_needed") return "?"
   if (state === "turn_complete") return "✓"
-  // `◷`, the sidebar's rate-limited glyph, not the `⌛` this used to show:
-  // U+231B carries the Unicode Emoji property, so macOS resolved it to
-  // AppleColorEmoji — a 2.13-cell colour glyph in a 1-cell column, which
-  // both overflowed and broke the pane's monochrome ink (2026-08-15).
+  // `◷`, the sidebar's rate-limited glyph, deliberately not `⌛`: U+231B
+  // carries the Unicode Emoji property, so macOS resolves it to
+  // AppleColorEmoji — a 2.13-cell colour glyph in a 1-cell column, which both
+  // overflows and breaks the pane's monochrome ink.
   if (state === "rate_limited") return "◷"
   // `†` — the engine PROCESS is gone, the sidebar rail's DEAD_GLYPH.
   if (state === "dead") return "†"
@@ -52,10 +52,9 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
 /**
  * "resumes 3:14 PM" for a rate-limited task whose auto-resume is armed, in the
  * viewer's locale clock. The daemon persists `Task.quotaResume.resumeAt` when
- * the engine's quota probe answers when the window clears (quota-resume.ts) —
- * and until 2026-08-30 that timestamp was written to disk and read by NOTHING,
- * so "rate limited" gave a user no way to tell "back at 3:14, already
- * scheduled" from "stuck, go do something else".
+ * the engine's quota probe answers when the window clears (quota-resume.ts).
+ * Showing it is what lets a user tell "back at 3:14, already scheduled" from
+ * "stuck, go do something else".
  *
  * Null unless the state is `rate_limited` (the only state the schedule
  * describes), the task carries a schedule, and its stamp parses — a garbage

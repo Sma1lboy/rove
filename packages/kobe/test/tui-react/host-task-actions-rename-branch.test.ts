@@ -16,8 +16,19 @@ const mocks = vi.hoisted(() => ({
   branchPickerShow: vi.fn(),
 }))
 
+// The hook's one React import (the renderer the copy flow's OSC52 writer
+// needs); the real module drags in react-reconciler.
+vi.mock("@opentui/react", () => ({
+  useRenderer: () => ({ copyToClipboardOSC52: vi.fn() }),
+}))
+
 vi.mock("../../src/tui-react/component/branch-picker-dialog", () => ({
   BranchPickerDialog: { show: mocks.branchPickerShow },
+}))
+// Not exercised here (see host-task-actions-set-status.test.ts) but imported
+// by the module under test, and the real one drags in `@opentui/react`.
+vi.mock("../../src/tui-react/component/status-picker-dialog", () => ({
+  StatusPickerDialog: { show: vi.fn() },
 }))
 vi.mock("../../src/tui-react/ui/task-dialog-adapters", () => ({
   buildBaseCreateTaskContext: vi.fn(() => ({})),
@@ -51,6 +62,8 @@ function makeActions(tasks: readonly Task[]) {
     dialog: {} as never,
     notifyError: vi.fn(),
     notifyInfo: vi.fn(),
+    notifyNeedsInput: vi.fn(),
+    t: (key: string) => key,
     selectedId: () => null,
     setSelectedId: vi.fn(),
     selectedTask: () => undefined,

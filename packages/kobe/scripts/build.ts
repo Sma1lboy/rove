@@ -103,7 +103,10 @@ const result = await Bun.build({
   // that dynamic import into dist/index.js, where Bun can no longer
   // resolve the optional platform package under isolated installs.
   external: ["node-pty", "@opentui/core"],
-  minify: true,
+  // React's production error boundary reports component ownership through
+  // Function.name. Minify syntax and whitespace, but preserve identifiers so
+  // a pane-crash stack stays readable in the shipped bundle.
+  minify: { syntax: true, whitespace: true, identifiers: false },
   // Without this Bun inlines NODE_ENV as "development", so react/react-reconciler
   // resolve to their *development* builds and ship to users. Those builds keep
   // per-update debug bookkeeping alive, which grows unboundedly in a long-lived

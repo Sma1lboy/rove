@@ -6,11 +6,11 @@ import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from 
 
 /**
  * Runtime files (sockets, pidfiles, logs) live under the product's own state
- * dir — `.rove`. `.kobe` is where they used to live, and a socket path is not
- * a preference: it is the ADDRESS of a process that is already running. An
+ * dir — `.rove`. `.kobe` is the legacy location, and a socket path is not a
+ * preference: it is the ADDRESS of a process that is already running. An
  * upgrade that simply changed the constant would make the live daemon and the
  * live PTY host invisible to the new client, which would then start a second
- * pair and orphan every engine tab the old host owns.
+ * pair and orphan every engine tab the running host owns.
  *
  * So the rule for an address is: canonical if it exists, else the legacy path
  * IF the process it belongs to is still alive, else canonical. A stale `.kobe`
@@ -101,10 +101,10 @@ const SOCKET_PATH_SAFETY_LIMIT = 100
 
 /**
  * Default port for the daemon-hosted web transport. Deliberately far from
- * the 3000–9999 dev-server neighbourhood: the old 5174 default sat right
- * next to Vite's 5173 and was routinely squatted by a stray `vite` from an
- * unrelated project, silently downgrading every daemon start to
- * socket-only. Overridable via `KOBE_DAEMON_WEB_PORT`.
+ * the 3000–9999 dev-server neighbourhood: a port next to Vite's 5173 gets
+ * routinely squatted by a stray `vite` from an unrelated project, which
+ * silently downgrades every daemon start to socket-only. Overridable via
+ * `KOBE_DAEMON_WEB_PORT`.
  */
 export const DEFAULT_DAEMON_WEB_PORT = 45174
 
@@ -153,10 +153,10 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
  * `$TMPDIR/kobe-<homeTag>-daemon.sock` instead of failing to listen.
  *
  * The XDG fallback is intentionally below the env-var step. Linux
- * desktop sessions set `XDG_RUNTIME_DIR` (e.g. `/run/user/1000`), and
- * the previous code unconditionally placed the socket there — which
- * collapsed the test-daemon and production-daemon sockets to the same
- * path, defeating `KOBE_HOME_DIR=...` isolation.
+ * desktop sessions set `XDG_RUNTIME_DIR` (e.g. `/run/user/1000`), so placing
+ * the socket there unconditionally collapses the test-daemon and
+ * production-daemon sockets onto the same path, defeating
+ * `KOBE_HOME_DIR=...` isolation.
  *
  * NOTE — this stays a filesystem socket on Windows, unlike the PTY host's
  * (see {@link defaultPtyHostSocketPath}). The two differ for one reason: the

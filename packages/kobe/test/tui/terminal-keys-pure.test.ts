@@ -7,6 +7,7 @@ import {
   PASSTHROUGH_NAMES,
   RESERVED_GLOBAL_CHORDS,
   TRAPPED_KEYS,
+  encodeMouseButton,
   keyEventToShellBytes,
 } from "../../src/tui/panes/terminal/keys-pure"
 
@@ -15,6 +16,25 @@ function evt(partial: Partial<KeyEvent> & { name: string }): KeyEvent {
 }
 
 describe("keyEventToShellBytes", () => {
+  it.each([
+    "leftshift",
+    "leftctrl",
+    "leftalt",
+    "leftsuper",
+    "lefthyper",
+    "leftmeta",
+    "rightshift",
+    "rightctrl",
+    "rightalt",
+    "rightsuper",
+    "righthyper",
+    "rightmeta",
+    "iso_level3_shift",
+    "iso_level5_shift",
+  ])("drops bare kitty modifier event %s", (name) => {
+    expect(keyEventToShellBytes(evt({ name, sequence: name, raw: "\x1b[57442;5u" } as never))).toBeNull()
+  })
+
   it("forwards the upstream byte sequence verbatim when present", () => {
     expect(keyEventToShellBytes(evt({ name: "a", sequence: "\x1b[Z" } as never))).toBe("\x1b[Z")
   })
@@ -46,9 +66,9 @@ describe("keyEventToShellBytes", () => {
   it("re-encodes kitty CSI-u keystrokes instead of trusting sequence", () => {
     // The host renderer runs with useKittyKeyboard, so on kitty-capable
     // terminals modifier chords arrive CSI-u encoded. Field shapes below
-    // were measured on the real wire (Bun PTY probe, 2026-07-06): for
+    // were measured on the real wire (Bun PTY probe): for
     // ctrl+c opentui puts the LOGICAL key ("c") in `sequence` — forwarding
-    // it verbatim typed a literal "c" instead of interrupting — while for
+    // it verbatim types a literal "c" instead of interrupting — while for
     // esc `sequence` carries the raw CSI-u bytes.
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "c", raw: "\x1b[99;5u" } as never))).toBe("\x03")
     expect(keyEventToShellBytes(evt({ name: "escape", sequence: "\x1b[27u", raw: "\x1b[27u" } as never))).toBe("\x1b")
@@ -58,18 +78,110 @@ describe("keyEventToShellBytes", () => {
     expect(keyEventToShellBytes(evt({ name: "\\", ctrl: true, sequence: "\\", raw: "\x1b[92;5u" } as never))).toBe(
       "\x1c",
     )
+    expect(keyEventToShellBytes(evt({ name: "pageup", ctrl: true, sequence: "\x1b[57354;5u" } as never))).toBe(
+      "\x1b[5;5~",
+    )
     // A ctrl chord the synthesizer can't map is dropped — typing a stray
     // literal into the shell would be worse.
-    expect(keyEventToShellBytes(evt({ name: "pageup", ctrl: true, sequence: "\x1b[57362;5u" } as never))).toBeNull()
+    expect(keyEventToShellBytes(evt({ name: "pause", ctrl: true, sequence: "\x1b[57362;5u" } as never))).toBeNull()
     // Legacy bytes keep forwarding verbatim (raw == sequence, not CSI-u).
     expect(keyEventToShellBytes(evt({ name: "delete", sequence: "\x1b[3~", raw: "\x1b[3~" } as never))).toBe("\x1b[3~")
     expect(keyEventToShellBytes(evt({ name: "c", ctrl: true, sequence: "\x03", raw: "\x03" } as never))).toBe("\x03")
   })
 
+  it("forwards a kitty IME text event (CSI 0 u with reportText) as the committed characters", () => {
+    // allKeysAsEscapes makes a terminal encode an input-method commit as
+    // codepoint 0 with the text in the third field. Without reportText that
+    // field is absent and the event carries nothing to type.
+    const committed = {
+      name: "中文",
+      sequence: "中文",
+      raw: "\x1b[0;1;20013:25991u",
+      source: "kitty",
+      ctrl: false,
+      meta: false,
+      shift: false,
+      option: false,
+    } as unknown as KeyEvent
+    expect(keyEventToShellBytes(committed)).toBe("中文")
+    const empty = { name: "", sequence: "\x1b[0u", raw: "\x1b[0u", source: "kitty" } as unknown as KeyEvent
+    expect(keyEventToShellBytes(empty)).toBeNull()
+  })
+
+  it("re-encodes printable keys when kitty sends every key as CSI-u", () => {
+    expect(keyEventToShellBytes(evt({ name: "a", sequence: "a", raw: "\x1b[97u" } as never))).toBe("a")
+    expect(keyEventToShellBytes(evt({ name: "1", sequence: "1", raw: "\x1b[49u" } as never))).toBe("1")
+    expect(keyEventToShellBytes(evt({ name: "z", shift: true, sequence: "Z", raw: "\x1b[90;2u" } as never))).toBe("Z")
+    expect(keyEventToShellBytes(evt({ name: "😀", sequence: "😀", raw: "\x1b[128512u" } as never))).toBe("😀")
+    expect(keyEventToShellBytes(evt({ name: "𠀀", sequence: "𠀀", raw: "\x1b[131072u" } as never))).toBe("𠀀")
+  })
+
+  it("re-encodes kitty keypad and event-form navigation keys for a legacy PTY", () => {
+    expect(keyEventToShellBytes(evt({ name: "kpenter", sequence: "\x1b[57414u", raw: "\x1b[57414u" } as never))).toBe(
+      "\r",
+    )
+    for (const [name, codepoint, expected] of [
+      ["kpleft", 57417, "\x1b[D"],
+      ["kpright", 57418, "\x1b[C"],
+      ["kpup", 57419, "\x1b[A"],
+      ["kpdown", 57420, "\x1b[B"],
+      ["kppageup", 57421, "\x1b[5~"],
+      ["kppagedown", 57422, "\x1b[6~"],
+      ["kphome", 57423, "\x1b[H"],
+      ["kpend", 57424, "\x1b[F"],
+      ["kpinsert", 57425, "\x1b[2~"],
+      ["kpdelete", 57426, "\x1b[3~"],
+    ] as const) {
+      const raw = `\x1b[${codepoint}u`
+      expect(keyEventToShellBytes(evt({ name, sequence: raw, raw } as never))).toBe(expected)
+    }
+    expect(
+      keyEventToShellBytes(evt({ name: "up", sequence: "\x1b[1;1:1A", raw: "\x1b[1;1:1A", source: "kitty" } as never)),
+    ).toBe("\x1b[A")
+  })
+
+  it("encodes Alt-modified named keys with xterm modifier parameters", () => {
+    expect(keyEventToShellBytes(evt({ name: "up", option: true } as never))).toBe("\x1b[1;3A")
+    expect(keyEventToShellBytes(evt({ name: "left", meta: true } as never))).toBe("\x1b[1;3D")
+    expect(keyEventToShellBytes(evt({ name: "home", option: true } as never))).toBe("\x1b[1;3H")
+    expect(keyEventToShellBytes(evt({ name: "pageup", option: true } as never))).toBe("\x1b[5;3~")
+    expect(keyEventToShellBytes(evt({ name: "f1", option: true } as never))).toBe("\x1b[1;3P")
+    expect(keyEventToShellBytes(evt({ name: "f5", ctrl: true, option: true } as never))).toBe("\x1b[15;7~")
+  })
+
+  it("uses the child PTY cursor and keypad application modes", () => {
+    const applicationModes = { applicationCursorKeys: true, applicationKeypad: true }
+    expect(keyEventToShellBytes(evt({ name: "up" }), applicationModes)).toBe("\x1bOA")
+    expect(keyEventToShellBytes(evt({ name: "home" }), applicationModes)).toBe("\x1bOH")
+    expect(keyEventToShellBytes(evt({ name: "kpenter" }), applicationModes)).toBe("\x1bOM")
+
+    const normalModes = { applicationCursorKeys: false, applicationKeypad: false }
+    expect(keyEventToShellBytes(evt({ name: "up" }), normalModes)).toBe("\x1b[A")
+    expect(keyEventToShellBytes(evt({ name: "home" }), normalModes)).toBe("\x1b[H")
+    expect(keyEventToShellBytes(evt({ name: "kpenter" }), normalModes)).toBe("\r")
+  })
+
+  it("re-encodes kitty PUA function keys and standard navigation keys for a legacy PTY", () => {
+    for (const [name, codepoint, expected] of [
+      ["insert", 57348, "\x1b[2~"],
+      ["pageup", 57354, "\x1b[5~"],
+      ["pagedown", 57355, "\x1b[6~"],
+      ["f6", 57369, "\x1b[17~"],
+      ["f8", 57371, "\x1b[19~"],
+      ["f9", 57372, "\x1b[20~"],
+      ["f10", 57373, "\x1b[21~"],
+      ["f11", 57374, "\x1b[23~"],
+      ["f12", 57375, "\x1b[24~"],
+    ] as const) {
+      const raw = `\x1b[${codepoint}u`
+      expect(keyEventToShellBytes(evt({ name, sequence: raw, raw, source: "kitty" } as never))).toBe(expected)
+    }
+  })
+
   it("keeps the typed uppercase for shift+letter keystrokes on both wire formats", () => {
-    // Regression (2026-07-18): shift+letter became a bindable chord and
-    // Shift+Z on kitty terminals typed lowercase "z" — the CSI-u path
-    // synthesized from `name` ("z"), dropping the shift. The parser puts
+    // Regression: shift+letter is a bindable chord, and
+    // Shift+Z on kitty terminals types lowercase "z" if the CSI-u path
+    // synthesizes from `name` ("z"), dropping the shift. The parser puts
     // the typed TEXT in `sequence` ("Z"); with no ctrl/alt that is the
     // byte to forward.
     expect(keyEventToShellBytes(evt({ name: "z", shift: true, sequence: "Z", raw: "\x1b[122:90;2u" } as never))).toBe(
@@ -86,7 +198,7 @@ describe("keyEventToShellBytes", () => {
   })
 
   it("returns null for unknown multi-char names and nameless events", () => {
-    expect(keyEventToShellBytes(evt({ name: "pageup" }))).toBeNull()
+    expect(keyEventToShellBytes(evt({ name: "pause" }))).toBeNull()
     expect(keyEventToShellBytes(evt({ name: "" }))).toBeNull()
   })
 })
@@ -94,19 +206,19 @@ describe("keyEventToShellBytes", () => {
 describe("key routing tables", () => {
   it("reserves ONLY the minimal kobe chords; the engine owns the rest", () => {
     expect(TRAPPED_KEYS).toEqual(["ctrl+pageup", "ctrl+pagedown"])
-    // Owner decision 2026-07-06: ctrl+q escape hatch + tab management +
+    // The reserved set: ctrl+q escape hatch + tab management +
     // splits + reset, plus f4 (focus.next pane cycle — the one cross-pane
     // chord besides ctrl+q reachable from inside the terminal). Anything
-    // beyond this list steals a chord from the engine CLI. f6 was the zen
-    // toggle 2026-07-07..17, released back to the shell when zen moved to
-    // prefix-only prefix+z; f7 (attention.next — jump to the next waiting
+    // beyond this list steals a chord from the engine CLI. f6 is NOT here —
+    // zen is prefix-only (prefix+z), so f6 belongs to the shell;
+    // f7 (attention.next — jump to the next waiting
     // task) same rationale as f4.
-    // NOT ctrl+g for attention.next: that's the engine's readline abort —
-    // it moved to f7 so ctrl+g passes through to the engine again.
-    // ctrl+<digit> joined 2026-07-29 (owner request): jump to the task
+    // NOT ctrl+g for attention.next: that's the engine's readline abort, so
+    // attention.next takes f7 and ctrl+g passes through to the engine.
+    // ctrl+<digit>: jump to the task
     // showing that digit, which only works if the digits don't reach the
     // engine. ctrl+1 is NOT here — the legacy terminal protocol can't
-    // encode it (verified on the owner's terminal), so the rows print
+    // encode it, so the rows print
     // 2…9,0 instead. The cost is the shell's ctrl+digit control bytes
     // (ctrl+3 = ESC, ctrl+8 = DEL); the real escape/backspace keys are
     // untouched.
@@ -130,9 +242,8 @@ describe("key routing tables", () => {
         "ctrl+w",
         "ctrl+\\",
         "ctrl+=",
-        // f1 joined 2026-08-09 (owner call): "F1 anywhere" is the docs'
-        // promise and the status-bar hint advertises it inside the
-        // terminal — no engine binds F1.
+        // f1: "F1 anywhere" is the docs' promise and the status-bar hint
+        // advertises it inside the terminal — no engine binds F1.
         "f1",
         "f2",
         "f3",
@@ -189,5 +300,29 @@ describe("key routing tables", () => {
   it("synthesizes modifier bytes for synthetic events", () => {
     expect(keyEventToShellBytes(evt({ name: "tab", shift: true }))).toBe("\x1b[Z")
     expect(keyEventToShellBytes(evt({ name: "b", option: true } as never))).toBe("\x1bb")
+  })
+})
+
+describe("encodeMouseButton", () => {
+  it("returns null when the app never asked for the mouse", () => {
+    expect(encodeMouseButton({ mouseTracking: "none" }, "down", 0, 5, 7)).toBeNull()
+  })
+
+  it("encodes SGR press/release with 1-based clamped coordinates", () => {
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "down", 0, 5, 7)).toBe("\x1b[<0;5;7M")
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "up", 0, 0, 0)).toBe("\x1b[<0;1;1m")
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "down", 2, 3, 4)).toBe("\x1b[<2;3;4M")
+  })
+
+  it("adds the xterm modifier bits", () => {
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "down", 0, 1, 1, { ctrl: true, alt: true })).toBe(
+      "\x1b[<24;1;1M",
+    )
+  })
+
+  it("reports drags only under button-event or any-event tracking", () => {
+    expect(encodeMouseButton({ mouseTracking: "vt200" }, "drag", 0, 2, 2)).toBeNull()
+    expect(encodeMouseButton({ mouseTracking: "drag" }, "drag", 0, 2, 2)).toBe("\x1b[<32;2;2M")
+    expect(encodeMouseButton({ mouseTracking: "any" }, "drag", 0, 2, 2)).toBe("\x1b[<32;2;2M")
   })
 })

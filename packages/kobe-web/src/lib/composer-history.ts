@@ -1,6 +1,6 @@
 /**
  * Per-task prompt history for the engine composer — a shell-like recall ring so
- * ↑/↓ walk your previously-sent prompts. Persisted in localStorage per task so
+ * ↑/↓ walk the prompts you already sent. Persisted in localStorage per task so
  * it survives reloads. `navigateHistory` is pure (the cursor math); load/push
  * touch localStorage.
  */

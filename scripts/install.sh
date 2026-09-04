@@ -14,6 +14,16 @@ PACKAGE="@sma1lboy/rove"
 LEGACY_PACKAGE="@sma1lboy/kobe"
 VERSION="${1:-}"
 
+# Oldest Bun Rove runs on. Must match `engines.bun` in packages/kobe/package.json
+# and MIN_BUN_VERSION in packages/kobe/src/cli/bun-runtime.ts — the three are
+# held together by test/architecture/bun-version-floor.test.ts.
+#
+# Checked because nobody else checks it: `bun install` ignores `engines`
+# outright, so a machine with an old Bun installs Rove cleanly and then runs a
+# build whose terminal tabs are silently dead (Bun's PTY spawn option arrived
+# in 1.3.11; older Bun drops it without an error).
+MIN_BUN="1.3.11"
+
 if [ -t 1 ]; then
   BOLD='\033[1m'
   ACCENT='\033[38;2;204;120;92m'
@@ -27,6 +37,25 @@ fi
 
 say() { printf '%b\n' "$1"; }
 die() { printf '%berror: %b%b\n' "$RED" "$1" "$RESET" >&2; exit 1; }
+
+# `bun --version` reduced to a bare x.y.z (it can carry a `-canary…` tail).
+bun_version_of() {
+  "$1" --version 2>/dev/null | head -n 1 | tr -d '\r' | sed 's/^v//; s/[^0-9.].*$//'
+}
+
+# Prints 1 when $1 is older than $2, else 0. awk because `sort -V` is GNU-only
+# and this script has to run on macOS's BSD userland too.
+version_older() {
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    split(a, x, "."); split(b, y, ".")
+    for (i = 1; i <= 3; i++) {
+      av = x[i] + 0; bv = y[i] + 0
+      if (av < bv) { print 1; exit }
+      if (av > bv) { print 0; exit }
+    }
+    print 0
+  }'
+}
 
 printf '%b\n' \
   "${ACCENT}${BOLD}██████╗  ██████╗ ██╗   ██╗███████╗" \
@@ -63,7 +92,30 @@ if [ -z "$BUN" ]; then
   [ -x "$BUN" ] || die "Bun installed but no binary at $BUN"
   say ""
 else
-  say "${DIM}bun found: ${BUN}${RESET}"
+  say "${DIM}bun found: ${BUN} ($(bun_version_of "$BUN"))${RESET}"
+fi
+
+# 1b. …and new enough. A Bun below MIN_BUN installs Rove without complaint and
+# then runs it with dead terminals, so this is the last place to catch it before
+# the user hits that. Bun that installed itself is upgraded in place; a Bun
+# owned by Homebrew/npm/asdf is left alone — upgrading someone else's package
+# manager's package behind their back is not this script's call.
+BUN_VERSION="$(bun_version_of "$BUN")"
+if [ -n "$BUN_VERSION" ] && [ "$(version_older "$BUN_VERSION" "$MIN_BUN")" = "1" ]; then
+  BUN_PREFIX="${BUN_INSTALL:-$HOME/.bun}"
+  case "$BUN" in
+    "$BUN_PREFIX"/*)
+      say "${BOLD}Upgrading Bun${RESET} ${DIM}(${BUN_VERSION} is older than the ${MIN_BUN} Rove needs)${RESET}"
+      "$BUN" upgrade >/dev/null 2>&1 || true
+      BUN_VERSION="$(bun_version_of "$BUN")"
+      [ -n "$BUN_VERSION" ] && [ "$(version_older "$BUN_VERSION" "$MIN_BUN")" = "0" ] ||
+        die "bun is still ${BUN_VERSION:-unknown} after \`bun upgrade\` — Rove needs ${MIN_BUN}.\n  Upgrade it by hand, then re-run this script."
+      say "${DIM}bun upgraded to ${BUN_VERSION}${RESET}"
+      ;;
+    *)
+      die "bun ${BUN_VERSION} at ${BUN} is too old — Rove needs ${MIN_BUN} or newer.\n\n  Rove's terminals use Bun's PTY API; on an older Bun every terminal and\n  engine tab opens empty and stays empty.\n\n  Upgrade it, then re-run this script:\n    brew upgrade bun            # Homebrew\n    npm install -g bun@latest   # npm-managed Bun\n    curl -fsSL https://bun.sh/install | bash   # Bun's own installer"
+      ;;
+  esac
 fi
 
 BUN_BIN_DIR="$(dirname "$BUN")"

@@ -3,11 +3,11 @@
  * actually running in this shell right now", answered from the process
  * tree instead of the OSC window title.
  *
- * The title was the old signal (`vendorFromTerminalTitle`) and it is
- * structurally wrong: an engine's title is free-form activity text it
- * writes for HUMANS ("✳ Claude Code" at launch, then a summary of what
- * it's doing), so a claude session whose summary happened to mention
- * "codex" identified as codex — a substring collision, not an identity.
+ * The OSC title is structurally wrong for this: an engine's title is
+ * free-form activity text it writes for HUMANS ("✳ Claude Code" at launch,
+ * then a summary of what it's doing), so a claude session whose summary
+ * mentions "codex" identifies as codex — a substring collision, not an
+ * identity.
  *
  * A process tree can't collide like that: we walk the PTY shell's
  * descendants and ask each one's ARGV[0] (the executable, never its
@@ -49,6 +49,17 @@ function binaryName(token: string): string {
   return basename(token).replace(/\.(exe|js|mjs|cjs)$/, "")
 }
 
+/** Resolve the executable identity from launch argv, through known wrappers. */
+function executableNameFromArgv(argv: readonly string[]): string | null {
+  for (const token of argv.slice(0, 8)) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue
+    const name = binaryName(token)
+    if (WRAPPERS.has(name)) continue
+    return name || null
+  }
+  return null
+}
+
 /**
  * The vendor a command line IS, or null. Only the executable position
  * counts — scanning arguments is what made the title heuristic wrong
@@ -56,21 +67,16 @@ function binaryName(token: string): string {
  * is what identifies, and the tree walk finds that one).
  */
 export function vendorFromArgv(commandLine: string): VendorId | null {
-  for (const token of commandLine.trim().split(/\s+/).slice(0, 4)) {
-    // `env FOO=1 claude` — the assignments sit between wrapper and binary.
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue
-    const name = binaryName(token)
-    if (WRAPPERS.has(name)) continue
-    // defaultCommand[0] is the launch binary; processNames covers engines
-    // that rewrite their process title post-launch (kimi → `kimi-co`).
-    return (
-      BUILTIN_VENDORS.find((v) => {
-        const entry = engineEntry(v)
-        return entry.defaultCommand[0] === name || entry.processNames?.includes(name) === true
-      }) ?? null
-    )
-  }
-  return null
+  const name = executableNameFromArgv(commandLine.trim().split(/\s+/))
+  if (!name) return null
+  // defaultCommand[0] is the launch binary; processNames covers engines
+  // that rewrite their process title post-launch (kimi → `kimi-co`).
+  return (
+    BUILTIN_VENDORS.find((v) => {
+      const entry = engineEntry(v)
+      return entry.defaultCommand[0] === name || entry.processNames?.includes(name) === true
+    }) ?? null
+  )
 }
 
 /** Parse `ps -A -o pid=,ppid=,args=` output; unparsable lines are skipped. */
@@ -96,7 +102,7 @@ function childrenIndex(rows: readonly ProcRow[]): Map<number, ProcRow[]> {
 /**
  * Is `ancestorPid` anywhere on `pid`'s parent chain (or `pid` itself)?
  *
- * The lineage half of "am I really running inside this tab" (issue #24):
+ * The lineage half of "am I really running inside this tab":
  * `$KOBE_TASK_ID` is an ordinary env var and inherits down the whole
  * process tree, so a background daemon forked out of an engine tab keeps
  * that identity for as long as it lives. A pid chain can't be inherited —
@@ -139,25 +145,32 @@ export function foregroundEngineIn(rows: readonly ProcRow[], rootPid: number): F
 
 /**
  * Is ANY engine process running under `rootPid`? The delivery gate's
- * question (herdr's "agent is no longer the pane foreground process"):
- * kobe's keepAlive wrapper keeps a tab's PTY alive after its engine exits,
+ * question — is an agent still the pane's foreground process? kobe's
+ * keepAlive wrapper keeps a tab's PTY alive after its engine exits,
  * so "session alive" never proves an engine is there — and pasting a prompt
  * into the fallback SHELL executes it as commands. Vendor-agnostic on
  * purpose: any engine may receive text (cross-vendor send is legitimate);
- * only a bare shell must not. `extraBin` matches a custom engine's launch
- * binary by name — a user-registered engine (aider etc.) is not a builtin,
- * so the argv walk alone can't see it.
+ * only a bare shell must not. `extraLaunch` supplies a custom engine's full
+ * launch argv; both it and the process row are normalized through the same
+ * wrapper/path parser before comparison.
  */
-export function engineProcessIn(rows: readonly ProcRow[], rootPid: number, extraBin?: string): boolean {
+export function engineProcessIn(
+  rows: readonly ProcRow[],
+  rootPid: number,
+  extraLaunch?: string | readonly string[],
+): boolean {
   if (foregroundEngineIn(rows, rootPid)) return true
-  if (!extraBin) return false
+  const expected = extraLaunch
+    ? executableNameFromArgv(typeof extraLaunch === "string" ? [extraLaunch] : extraLaunch)
+    : null
+  if (!expected) return false
   const kids = childrenIndex(rows)
   const queue = [...(kids.get(rootPid) ?? [])]
   while (queue.length > 0) {
     const row = queue.shift()
     if (!row) break
-    const argv0 = row.args.trim().split(/\s+/)[0] ?? ""
-    if (basename(argv0) === extraBin) return true
+    const executable = executableNameFromArgv(row.args.trim().split(/\s+/))
+    if (executable === expected) return true
     queue.push(...(kids.get(row.pid) ?? []))
   }
   return false

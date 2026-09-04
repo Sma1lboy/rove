@@ -12,7 +12,7 @@ export interface PRPromptState {
 
 const GIT_TIMEOUT_MS = 5_000
 
-export const DEFAULT_PR_PROMPT_TEMPLATE = `The user likes the current state of the code.
+const DEFAULT_PR_PROMPT_TEMPLATE = `The user likes the current state of the code.
 
 {{dirtyCountSentence}}
 The current branch is {{branch}}.
@@ -32,7 +32,7 @@ Follow these steps to create a PR:
 If any of these steps fail, ask the user for help.`
 
 // Async spawn — `git status` is O(repo size), and this runs on the Ops
-// pane's render process. On a huge repo the old spawnSync blocked the
+// pane's render process. On a huge repo a spawnSync would block the
 // pane until the timeout; the async child costs nothing on the event
 // loop. Same timeout, SIGKILLed via AbortSignal.
 async function git(cwd: string, args: readonly string[]): Promise<string | null> {

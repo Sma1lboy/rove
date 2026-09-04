@@ -222,7 +222,7 @@ export async function statusFiles(worktreePath: string, signal?: AbortSignal): P
 }
 
 /** An untracked-directory status row (default-mode `?? dir/`). */
-export function isUntrackedDir(e: StatusEntry): boolean {
+function isUntrackedDir(e: StatusEntry): boolean {
   return e.status === "?" && e.path.endsWith("/")
 }
 

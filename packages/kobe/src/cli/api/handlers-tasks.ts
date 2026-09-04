@@ -31,7 +31,7 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   if (title === undefined && body === undefined && task === undefined) {
     throw new ApiError("issue-update requires --title, --body, and/or --task", "MISSING_FLAG")
   }
-  const repoRoot = ctx.args.requirePath("repo")
+  const repoRoot = ctx.args.requireRepo("repo")
   const id = ctx.args.int("id")
   let result: unknown
   if (title !== undefined || body !== undefined) {
@@ -93,7 +93,14 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
   // exactly like the `ahead: null` it returns for an unresolvable base.
   let ahead: number | null
   try {
-    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath)).ahead
+    // Paired with `collect`'s read in handlers-fanout.ts: both measure against
+    // the task's RECORDED base (`add --base-branch`), never the origin/main
+    // guess. Reading against the guess produced BOTH failure modes at once on
+    // a task cut from `release/2.x` two commits ahead of `main`: an empty
+    // branch read `ahead: 2` (the guard let a hollow success through), and a
+    // HEAD behind the guessed base read a false positive — the exact
+    // "false POSITIVE blocks a worker" case the paragraph above warns against.
+    ahead = (await ctx.runtime.readBranchSignals(sender.worktreePath, sender.baseRef)).ahead
   } catch {
     return
   }
@@ -106,14 +113,33 @@ async function assertNotEmptySuccess(daemon: DaemonRpc, ctx: VerbContext, prompt
       taskId: self.taskId,
       branch,
       hint: "commit your work with a real message and send again — or, if this task genuinely produced no commits (an investigation or a review), re-send with --allow-empty to say so explicitly",
-      nextCommandArgs: ["api", "send", "--allow-empty", "--prompt", prompt],
+      // Carry the caller's own target forward. The hint tells the agent to run
+      // this verbatim, and without the flags the retry re-resolves through the
+      // active-task fallback — so an explicit `send --task-id X` could retry
+      // into a DIFFERENT task than the one it addressed.
+      nextCommandArgs: [
+        "api",
+        "send",
+        ...(ctx.args.str("task-id") ? ["--task-id", ctx.args.str("task-id") as string] : []),
+        ...(ctx.args.str("tab") ? ["--tab", ctx.args.str("tab") as string] : []),
+        "--allow-empty",
+        "--prompt",
+        prompt,
+      ],
     },
   )
 }
 
+/** `--prompt` or `--prompt-file`, and one of them must be there. */
+export function requirePromptText(ctx: VerbContext, verb: string): string {
+  const text = ctx.args.promptText()
+  if (text === undefined) throw new ApiError("--prompt (or --prompt-file) is required", "MISSING_FLAG", helpStep(verb))
+  return text
+}
+
 export async function send(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
-  const prompt = ctx.args.require("prompt")
+  const prompt = requirePromptText(ctx, "send")
   let tab = ctx.args.str("tab")
   if (tab && tab !== "new" && !/^tab-[A-Za-z0-9-]+$/.test(tab)) {
     throw new ApiError(`--tab must be "new" or a tab id like tab-2 (got ${JSON.stringify(tab)})`, "BAD_TAB")
@@ -181,8 +207,8 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     text,
   )
   // A prompt that never landed AND was not deferred is a delivery FAILURE the
-  // script must see — non-zero exit, not a phantom `ok:true`. Deferred
-  // (issue #78 B-layer) is a SUCCESS: the daemon owns the message and queued
+  // script must see — non-zero exit, not a phantom `ok:true`. A deferred
+  // prompt is a SUCCESS: the daemon owns the message and queued
   // an inbox episode. The caller must NOT retry — a retry would stack a
   // duplicate of the same message in the deferred queue.
   if (!delivered.delivered && !delivered.deferred) {
@@ -194,38 +220,44 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     session: delivered.session,
     started: delivered.started,
     engineReady: delivered.engineReady,
-    ...(delivered.deferred
-      ? {
-          deferred: delivered.deferred,
-          // The deferred outcome is a SUCCESS, not an error — say so explicitly
-          // so a scripted sender does not read `deferred` as a failure and retry.
-          delivered: false,
-        }
-      : {}),
+    // The measured delivery facts, spelled the same way `add` spells them
+    // (handlers-add.ts) — `send` used to compute them and throw them away, so
+    // a successful send omitted `delivered` entirely while a deferred one
+    // reported it as the only outcome field.
+    delivered: delivered.delivered,
+    ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
+    ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
+    // The deferred outcome is a SUCCESS, not an error — say so explicitly so a
+    // scripted sender does not read `deferred` as a failure and retry.
+    ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
   }
 }
 
-export async function dispatch(ctx: VerbContext): Promise<unknown> {
+async function dispatch(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
-  const text = ctx.args.require("prompt")
+  const text = requirePromptText(ctx, "dispatch")
   const tabId = ctx.args.str("tab")
   const reply = (await daemon.request("session.deliver", {
     taskId,
     text,
     ...(tabId !== undefined ? { tabId } : {}),
     source: "dispatcher",
-  })) as { clients?: number } | undefined
-  // Surface the daemon's reach verdict. `session.deliver` is broadcast-only
-  // (an attached client performs the paste), so `clients: 0` means the text
-  // reached nobody — the caller must not read `ok` as "the engine saw it".
-  // An older daemon omits the field; absent stays absent rather than being
-  // guessed either way.
+  })) as { clients?: number; delivered?: boolean; reason?: string; layer?: string; tabId?: string } | undefined
+  // Surface the daemon's own verdict. `delivered: true` is OBSERVED — a paste
+  // landed in a live engine session. `false` is not: the daemon either
+  // refused (a busy composer) or fell back to the broadcast, where `clients`
+  // is a raw CONNECTION count (the calling CLI is one of them) and only its
+  // zero is proof — the text reached nobody. An older daemon omits `delivered`
+  // entirely; absent stays absent rather than being guessed either way.
   return {
     ok: true,
     taskId,
-    ...(tabId !== undefined ? { tabId } : {}),
+    ...(reply?.tabId !== undefined ? { tabId: reply.tabId } : tabId !== undefined ? { tabId } : {}),
     routed: "session.deliver",
+    ...(reply?.delivered !== undefined ? { delivered: reply.delivered } : {}),
+    ...(reply?.reason !== undefined ? { reason: reply.reason } : {}),
+    ...(reply?.layer !== undefined ? { layer: reply.layer } : {}),
     ...(reply?.clients !== undefined ? { clients: reply.clients } : {}),
   }
 }
@@ -237,10 +269,11 @@ export const DISPATCH_VERB: VerbSpec = {
   name: "dispatch",
   group: "drive",
   summary:
-    "Route text into a task's live session via the daemon's session.deliver channel. The dispatcher's messenger (docs/design/dispatcher.md); unlike `send`, it requires an already-hosted session.",
+    'Route text into a task\'s live session. The dispatcher\'s messenger (docs/design/dispatcher.md); unlike `send`, it never starts an engine — it requires an already-hosted session. The daemon pastes into it and reports `delivered`; `delivered:false` with `reason:"busy"` means a human is mid-message, and `reason:"broadcast"` means no hosted session answered and the text went out on the session.deliver channel for a browser to pick up (unconfirmable; `clients: 0` proves it reached nobody).',
   flags: [
     F.taskId(true),
     F.prompt(true, "Text delivered into the task's engine session."),
+    F.promptFile(),
     {
       name: "tab",
       type: "string",
@@ -290,7 +323,7 @@ export async function deleteTask(ctx: VerbContext): Promise<unknown> {
   const deleteBranch = ctx.args.bool("delete-branch") ?? false
   // Deleting somebody else's task destroys their worktree and every tab in
   // it, so the daemon's audit line has to name WHO asked. Same verified
-  // identity `send`/`add` use (never the bare env — issue #24): unverifiable
+  // identity `send`/`add` use, never the bare env: unverifiable
   // stays unattributed rather than blaming a stranger's session.
   const self = await verifiedSelfSession()
   const res = (await daemon.request("task.delete", {
@@ -355,12 +388,12 @@ export async function land(ctx: VerbContext): Promise<unknown> {
       // Left UNDEFINED when the flag is absent so the orchestrator's default
       // (remove it) applies; only an explicit `--remove-worktree=false` keeps
       // the worktree. Coercing undefined to false here would pin the CLI to
-      // the old opt-in behaviour.
+      // an opt-in it does not have.
       removeWorktree: ctx.args.bool("remove-worktree"),
       // Sent on EVERY land: the daemon refuses to remove the worktree the
       // caller is running from, and it can only know where that is if we tell
-      // it. Since removal is now the default rather than an opt-in flag, an
-      // agent landing its own task would otherwise delete its own cwd.
+      // it. Removal is the default, so an agent landing its own task would
+      // otherwise delete its own cwd.
       callerCwd: process.cwd(),
     })
   } catch (err) {
@@ -402,7 +435,7 @@ export async function adopt(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const { args } = ctx
   const input: Record<string, string> = {
-    repo: args.requirePath("repo"),
+    repo: args.requireRepo("repo"),
     worktreePath: args.requirePath("worktree"),
   }
   const branch = args.str("branch")

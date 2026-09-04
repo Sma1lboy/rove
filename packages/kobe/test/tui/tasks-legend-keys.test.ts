@@ -6,10 +6,10 @@
  * promises every surface follows the keymap: "one mutation re-points every
  * surface — chord, Help copy, and footer hint follow automatically
  * (overridden rows get their hint.keys refreshed; an unbound row loses its
- * hint)". The legend rows used to be a hardcoded literal array
- * (`{ k: "n" }`, `{ k: "a/d" }`, …) so an override / unbind in
- * ~/.kobe/settings/keybindings.yaml changed dispatch but NOT the advertised
- * cap — the legend lied. The fix derives each cap from `KobeKeymap` via
+ * hint)". A hardcoded literal array of legend rows
+ * (`{ k: "n" }`, `{ k: "a/d" }`, …) lets an override / unbind in
+ * ~/.kobe/settings/keybindings.yaml change dispatch but NOT the advertised
+ * cap, so the legend lies. Each cap is derived from `KobeKeymap` via
  * `legendCap` / `legendRowCap`, which live in the framework-free
  * `src/tui/lib/help-groups.ts` — imported here directly (no opentui in the
  * module graph), so this file tests the REAL helpers the footer legend

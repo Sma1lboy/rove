@@ -1,14 +1,13 @@
 /** @jsxImportSource @opentui/react */
 /**
- * WorktreesPage — React port of `src/tui/component/worktrees-page.tsx`
- * (issue #15/#23). Lists every git worktree across all locally-saved
- * projects (kobe-managed or not — see `worktree.list`'s handler), each row
- * flagging whether kobe manages it, its age, uncommitted-changes state, and
- * whether its branch has reached `origin`. Modeled on `tui-react/settings/
- * host.tsx` (standalone full-window surface, same close-key contract) and
- * the React new-task dialog's Adopt tab (cursor-navigable worktree list —
- * see `component/new-task-dialog/tab-adopt.tsx` for the row-grammar this
- * extends with badges).
+ * WorktreesPage — lists every git worktree across all locally-saved projects
+ * (kobe-managed or not — see `worktree.list`'s handler), each row flagging
+ * whether kobe manages it, its age, uncommitted-changes state, and whether
+ * its branch has reached `origin`. Modeled on `tui-react/settings/host.tsx`
+ * (standalone full-window surface, same close-key contract) and the new-task
+ * dialog's Adopt tab (cursor-navigable worktree list — see
+ * `component/new-task-dialog/tab-adopt.tsx` for the row grammar this extends
+ * with badges).
  *
  * Delete flow mirrors the daemon's own safety gate
  * (`GitWorktreeManager.remove`): a clean worktree deletes on a single
@@ -21,33 +20,32 @@
  * disappears the moment the user confirms and the daemon call runs in the
  * background. A failure (dirty refusal, or anything else) puts the row back.
  *
- * Solid→React deltas: the Solid `createResource` becomes THE ASYNC CANON
- * (`src/tui-react/history/host.tsx`) — `useState` + a `reloadTick`-keyed
- * `useEffect` whose stale completions are dropped by an effect-local
- * `disposed` flag; `refetch()` is just bumping `reloadTick`. `For`/`Show`
- * become plain `.map()`/ternaries.
+ * Loading follows THE ASYNC CANON (`src/tui-react/history/host.tsx`):
+ * `useState` + a `reloadTick`-keyed `useEffect` whose stale completions are
+ * dropped by an effect-local `disposed` flag; a refetch is just bumping
+ * `reloadTick`.
  */
 
 import { TextAttributes } from "@opentui/core"
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { relativeAge } from "../../lib/relative-time"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
-import { relativeAgeMs } from "../../tui/history/message-core"
 import type { WorktreeAuditRow, WorktreeProject } from "../../types/worktree"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { useDialog } from "../ui/dialog"
 import { DialogConfirm } from "../ui/dialog-confirm"
+import { landTaskAction } from "../workspace/land-task-action"
 
 function flattenRows(projects: readonly WorktreeProject[]): readonly WorktreeAuditRow[] {
   return projects.flatMap((p) => p.worktrees)
 }
 
 const DIRTY_REFUSAL_RE = /refusing to remove dirty worktree/
-const LAND_CONFLICT_RE = /LAND_CONFLICT/
-const MAIN_DIRTY_RE = /MAIN_CHECKOUT_DIRTY/
 
 /** Match a worktree row's path to a tracked task id (loose realpath tolerance). */
 function taskIdForPath(orch: RemoteOrchestrator, wtPath: string): string | undefined {
@@ -87,7 +85,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   // (ls-remote + gh PR states, seconds when a remote is slow) swaps in when
   // it lands. `fullLanded` guards the rare inversion where the full pass
   // returns before the fast one — richer rows must not be overwritten.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER (the effect body doesn't read it) — matching the Solid refetch() re-run guard.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reloadTick is a TRIGGER — the effect body doesn't read it.
   useEffect(() => {
     let disposed = false
     let fullLanded = false
@@ -117,8 +115,8 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
         setRemovingPaths((paths) => paths.filter((p) => live.has(p)))
       })
       .catch(() => {
-        // Same boundary as the Solid resource: a failed read leaves the
-        // fast-pass rows (or the loading placeholder) rather than crashing.
+        // Failure boundary: a failed read leaves the fast-pass rows (or the
+        // loading placeholder) rather than crashing.
       })
     return () => {
       disposed = true
@@ -135,10 +133,13 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
   const flatRows = flattenRows(visibleProjects)
 
   const [cursor, setCursor] = useState(0)
-  // Re-clamp whenever the row count changes — the Solid `createEffect` on `flatRows().length`.
+  // Re-clamp whenever the row count changes.
   useEffect(() => {
     setCursor((c) => clampCursor(c, flatRows.length))
   }, [flatRows.length])
+  // Rows are two lines each and the page scrolls, so a cursor a few screens
+  // down is otherwise off-frame with nothing following it.
+  const follow = useCursorFollow(cursor)
 
   const [busyPath, setBusyPath] = useState<string | null>(null)
 
@@ -198,49 +199,32 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
       console.error("[rove worktrees] land refused: no tracked task for", row.path)
       return
     }
-    const ok = await DialogConfirm.show(
-      dialog,
-      t("worktrees.land.confirmTitle"),
-      t("worktrees.land.confirmBody", { branch: row.branch || row.path }),
-      t("common.cancel"),
-      t("worktrees.land.button"),
-    )
-    if (ok !== true) return
+    // The land itself is shared with the sidebar row menu
+    // (`workspace/land-task-action.ts`); the page adds only the busy row and
+    // the refetch that clears it, since landing removes the worktree.
     setBusyPath(row.path)
     try {
-      // Land removes the worktree by default — same as the CLI, so the row
-      // clears itself. `callerCwd` lets the daemon refuse the worktree this
-      // TUI is itself running from instead of deleting its own cwd.
-      const res = await orch.landTask(taskId, { callerCwd: process.cwd() })
-      notifyInfo(t("worktrees.land.done", { branch: res.branch, landedOn: res.landedOn, commit: res.commit }))
-      // Two cleanup outcomes carry information, and neither is ever thrown —
-      // surface them as attention toasts (yellow) so the user knows there is
-      // manual follow-up. A refused removal leaves the directory in place; a
-      // removal whose bookkeeping write failed takes the directory but leaves
-      // the task still pointing at it. They need different copy: `worktreeKept`
-      // would be actively wrong for the second.
-      const cleanup = res.worktree
-      if (cleanup && !cleanup.removed) {
-        notifyNeedsInput(t("worktrees.land.worktreeKept", { reason: cleanup.reason ?? "refused" }))
-      } else if (cleanup?.reason) {
-        notifyNeedsInput(t("worktrees.land.worktreePathStale", { reason: cleanup.reason }))
-      }
-      if (cleanup?.residue) {
-        notifyNeedsInput(
-          t("worktrees.land.worktreeResidue", { path: cleanup.residue.path, reason: cleanup.residue.reason }),
-        )
-      }
+      await landTaskAction(
+        {
+          orchestrator: orch,
+          confirm: (branch) =>
+            DialogConfirm.show(
+              dialog,
+              t("worktrees.land.confirmTitle"),
+              t("worktrees.land.confirmBody", { branch }),
+              t("common.cancel"),
+              t("worktrees.land.button"),
+            ).then((ok) => ok === true),
+          notifyInfo,
+          notifyNeedsInput,
+          notifyError,
+          t,
+          callerCwd: process.cwd(),
+        },
+        taskId,
+        row.branch || row.path,
+      )
       refetch()
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (LAND_CONFLICT_RE.test(msg)) {
-        notifyNeedsInput(t("worktrees.land.conflict", { files: msg }))
-      } else if (MAIN_DIRTY_RE.test(msg)) {
-        notifyNeedsInput(t("worktrees.land.dirtyBase"))
-      } else {
-        notifyError(t("worktrees.land.failed", { error: msg }))
-      }
-      console.error("[rove worktrees] land failed:", err)
     } finally {
       setBusyPath(null)
     }
@@ -251,7 +235,9 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
     bindings: [
       ...pageCloseBindings(props.onClose),
       { key: "up", cmd: () => setCursor((c) => clampCursor(c - 1, flatRows.length)) },
+      { key: "k", cmd: () => setCursor((c) => clampCursor(c - 1, flatRows.length)) },
       { key: "down", cmd: () => setCursor((c) => clampCursor(c + 1, flatRows.length)) },
+      { key: "j", cmd: () => setCursor((c) => clampCursor(c + 1, flatRows.length)) },
       {
         key: "d",
         cmd: () => {
@@ -289,6 +275,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
 
   return (
     <scrollbox
+      ref={follow.scrollRef}
       flexGrow={1}
       backgroundColor={theme.background}
       paddingTop={1}
@@ -325,7 +312,12 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                   const absoluteIndex = base + i
                   const isCursor = absoluteIndex === cursor
                   return (
-                    <box key={row.path} gap={0} onMouseUp={() => setCursor(absoluteIndex)}>
+                    <box
+                      key={row.path}
+                      ref={follow.rowRef(absoluteIndex)}
+                      gap={0}
+                      onMouseUp={() => setCursor(absoluteIndex)}
+                    >
                       <box flexDirection="row">
                         <text
                           fg={isCursor ? theme.primary : theme.text}
@@ -347,7 +339,7 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                         </text>
                         {row.createdAtMs > 0 ? (
                           <text fg={theme.textMuted} wrapMode="none">
-                            {t("worktrees.row.created", { age: relativeAgeMs(row.createdAtMs) })}
+                            {t("worktrees.row.created", { age: relativeAge(row.createdAtMs) })}
                           </text>
                         ) : null}
                       </box>

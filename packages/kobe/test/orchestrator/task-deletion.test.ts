@@ -49,7 +49,7 @@ describe("durable background task deletion", () => {
     expect(orch.getTask(task.id)?.deletion?.phase).toBe("running")
 
     await orch.finishTaskDeletion(task.id)
-    // Design guarantee (issue #29): delete keeps the branch by default —
+    // Design guarantee: delete keeps the branch by default —
     // git is the durable record, the task row is not.
     expect(worktrees.remove).toHaveBeenCalledWith(
       "/wt/task",
@@ -122,9 +122,9 @@ describe("durable background task deletion", () => {
   })
 
   it("a half-completed removal COMPLETES the deletion and reports the leftover directory", async () => {
-    // git deregistered the worktree but could not delete its directory (issue
-    // #89). Parking the task in `error` would be unfixable: git no longer
-    // knows this worktree, so every retry is `fatal: is not a working tree`.
+    // git deregistered the worktree but could not delete its directory.
+    // Parking the task in `error` would be unfixable: git has forgotten this
+    // worktree, so every retry is `fatal: is not a working tree`.
     // The task must go, and the leftover path must reach the sink — it is the
     // only place that directory is ever named again.
     const residues: { taskId: string; path: string; reason: string }[] = []
@@ -173,10 +173,10 @@ describe("durable background task deletion", () => {
   })
 
   it("deleting a dir task never touches its directory, forced or not", async () => {
-    // The scratch-shell teardown used to pass `force: true` on the reasoning
-    // that a scratch row owns no worktree. That is true only while the row is
-    // `kind: "dir"` — and the flag was unconditional, so it stood ready to
-    // authorise a real destructive removal if the row's kind ever changed.
+    // A scratch-shell teardown passing `force: true` reasons that a scratch
+    // row owns no worktree. That is true only while the row is `kind: "dir"`,
+    // and an unconditional flag stands ready to authorise a real destructive
+    // removal if the row's kind ever changes.
     // Both gates already special-case `dir`, which is what makes the flag
     // redundant; this pins that, so dropping it stays safe.
     for (const force of [false, true]) {

@@ -23,7 +23,7 @@
  * Absent skill → one-shot hint, never nags. Stale skill on an interactive
  * terminal → a yes / no / don't-notify-this-version prompt (runs before the
  * screen takeover); "no" re-asks next launch, "don't notify" mutes that
- * skill version, non-TTY falls back to the old one-shot hint.
+ * skill version, non-TTY falls back to the one-shot hint.
  */
 
 import { accessSync, existsSync, constants as fsConstants, readFileSync } from "node:fs"
@@ -44,7 +44,7 @@ import { getPersistedString, setPersistedString } from "../state/repos.ts"
  * didn't, so we prompt the developer to re-run the active CLI's
  * `skill install` command.
  */
-export const KOBE_SKILL_VERSION = 38
+export const KOBE_SKILL_VERSION = 42
 
 /**
  * Where an installed kobe skill can be FOUND, relative to a home/project
@@ -73,7 +73,7 @@ export function skillInstallCommand(env: NodeJS.ProcessEnv = process.env): strin
  * The public repo slug. Only a FALLBACK now (and the documented route for
  * people who don't have Rove installed): resolving it means a large clone.
  */
-export const SKILL_SOURCE_SLUG = "Sma1lboy/rove"
+const SKILL_SOURCE_SLUG = "Sma1lboy/rove"
 
 /**
  * The skill directory shipped inside this install, or null in an environment
@@ -163,7 +163,7 @@ export function isNpxMissing(): boolean {
 }
 
 /** The "install Node" message shown wherever a missing `npx` blocks the install. */
-export function npxMissingMessage(): string {
+function npxMissingMessage(): string {
   return `${activeCliName()} skill install needs \`npx\` (part of Node.js), which isn't on your PATH.\nInstall Node.js (https://nodejs.org) and run it again — the Rove installer only installs Bun and Rove.`
 }
 
@@ -173,7 +173,7 @@ export function npxMissingMessage(): string {
  *
  * Checks for `npx` FIRST: `Bun.spawn` THROWS on a missing binary (unlike
  * `spawnSync`, which returns `status: undefined`), and no caller on this path
- * catches — the throw used to escape all the way to `main().catch` and print
+ * catches — the throw would escape all the way to `main().catch` and print
  * `rove failed to start: Executable not found in $PATH: "npx"`. Returning
  * {@link NPX_MISSING_EXIT} keeps the callers' existing exit-code contract.
  */
@@ -281,11 +281,11 @@ function promptLine(): Promise<string> {
  *   - stale + interactive terminal → prompt: yes (install now) / no (ask
  *     again next launch) / don't notify for this version (persists
  *     `HINT_SEEN_KEY:vN`, so the next skill-version bump prompts again).
- *   - stale + non-TTY → the old one-shot stderr hint, gated per version.
+ *   - stale + non-TTY → the one-shot stderr hint, gated per version.
  * Safe to call on every startup.
  */
 export async function maybeHintSkillInstall(io: SkillHintIO = {}): Promise<void> {
-  // Plugin takeover (issue #37): when the Rove Claude Code plugin is enabled
+  // Plugin takeover: when the Rove Claude Code plugin is enabled
   // it BUNDLES the skill, and that copy versions with the plugin — not with
   // KOBE_SKILL_VERSION. Both the install nudge and the staleness prompt step
   // aside: nagging the user to `skill install` alongside the plugin's copy

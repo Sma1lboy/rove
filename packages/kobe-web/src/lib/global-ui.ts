@@ -18,10 +18,6 @@ export function useGlobalUiState(): GlobalUiState {
   return store.useSnapshot()
 }
 
-export function openCommandPalette(): void {
-  store.update((state) => ({ ...state, paletteOpen: true }))
-}
-
 export function closeCommandPalette(): void {
   store.update((state) => ({ ...state, paletteOpen: false }))
 }

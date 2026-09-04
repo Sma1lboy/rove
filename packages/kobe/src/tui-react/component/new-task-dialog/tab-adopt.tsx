@@ -1,14 +1,14 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Adopt tab of the React new-task dialog (issue #15, G3W2) —
- * discover existing git worktrees not yet linked to a task, filter by a
+ * Adopt tab of the new-task dialog — discover existing git worktrees not yet linked to a task, filter by a
  * path glob, multi-select, then import. Discovery + selection state live
  * in the view-model; this file is JSX only.
  */
 
 import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
-import { PickerList, labelStyle } from "./picker-list"
+import { DialogField, DialogSection } from "../../ui/dialog-parts"
+import { PickerList } from "./picker-list"
 import type { NewTaskVm } from "./view-model"
 
 export function AdoptTab({ vm }: { vm: NewTaskVm }) {
@@ -26,17 +26,22 @@ export function AdoptTab({ vm }: { vm: NewTaskVm }) {
 
   return (
     <>
-      <box gap={0}>
-        <text {...labelStyle(theme, vm.field, "adoptFilter")}>{t("newTask.field.adoptFilter")}</text>
-        <input
-          value={vm.adoptFilter}
-          placeholder={t("newTask.placeholder.adoptFilter")}
-          focused={vm.field === "adoptFilter"}
-          onMouseUp={() => vm.setField("adoptFilter")}
-          onInput={(v: string) => vm.setAdoptFilterText(v)}
-          onSubmit={() => vm.toggleAdoptCursor()}
-        />
-      </box>
+      <DialogSection
+        label={t("newTask.field.adoptFilter")}
+        focused={vm.field === "adoptFilter"}
+        onPress={() => vm.setField("adoptFilter")}
+      >
+        <DialogField focused={vm.field === "adoptFilter"}>
+          <input
+            value={vm.adoptFilter}
+            placeholder={t("newTask.placeholder.adoptFilter")}
+            focused={vm.field === "adoptFilter"}
+            onMouseUp={() => vm.setField("adoptFilter")}
+            onInput={(v: string) => vm.setAdoptFilterText(v)}
+            onSubmit={() => vm.toggleAdoptCursor()}
+          />
+        </DialogField>
+      </DialogSection>
       <box paddingLeft={2}>
         <text fg={theme.textMuted} wrapMode="none">
           {t("newTask.adopt.repoLine", { path: vm.expandedRepo || t("newTask.adopt.repoNone") })}

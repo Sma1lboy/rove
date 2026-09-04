@@ -21,7 +21,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
     flags: [
       F.repo(),
       { name: "state", type: "enum", values: WORK_ITEM_STATES, default: "open", description: "Issue state filter." },
-      { name: "limit", type: "int", placeholder: "N", description: "Max items (1-50, default 20)." },
+      { name: "limit", type: "int", placeholder: "N", default: "20", description: "Max items (1-50, max 50)." },
       { name: "search", type: "string", placeholder: "Q", description: "Free-text search passed to `gh --search`." },
       {
         name: "assignee",
@@ -33,7 +33,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "workitem.list", {
-        repo: ctx.args.requirePath("repo"),
+        repo: ctx.args.requireRepo("repo"),
         ...(ctx.args.str("state") ? { state: ctx.args.str("state") } : {}),
         ...(ctx.args.int("limit") !== undefined ? { limit: ctx.args.int("limit") } : {}),
         ...(ctx.args.str("search") ? { search: ctx.args.str("search") } : {}),
@@ -54,7 +54,7 @@ export const WORK_ITEM_VERBS: readonly VerbSpec[] = [
     ],
     handler: (ctx) =>
       simpleRpc(ctx, "workitem.start", {
-        repo: ctx.args.requirePath("repo"),
+        repo: ctx.args.requireRepo("repo"),
         number: ctx.args.int("number"),
         ...(ctx.args.vendor() ? { vendor: ctx.args.vendor() } : {}),
         ...(ctx.args.str("base-branch") ? { baseRef: ctx.args.str("base-branch") } : {}),

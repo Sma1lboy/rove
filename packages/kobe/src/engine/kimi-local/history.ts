@@ -4,8 +4,8 @@
  * The wire format (`agents/<agent>/wire.jsonl`, a protocol stream rather
  * than a message log) is still unverified against a real conversation, so
  * Rove does not parse it: `readHistory` stays empty and auto-title keeps
- * the placeholder rather than guessing. What IS verified (live install,
- * 2026-08-13) is the layout, and that is all a cross-engine handoff needs
+ * the placeholder rather than guessing. What IS verified is the layout, and
+ * that is all a cross-engine handoff needs
  * — it hands the next agent the transcript's PATH and lets it read the
  * file in whatever format it finds (see `session-handoff.ts`).
  *
@@ -23,6 +23,7 @@ import { stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
 import { readTextFileBounded } from "../file-bounds"
+import { vendorConfigHome } from "../vendor-home"
 
 export interface KimiHistoryDeps {
   kimiDir(): string
@@ -32,8 +33,7 @@ export interface KimiHistoryDeps {
 
 const defaultDeps: KimiHistoryDeps = {
   kimiDir() {
-    const override = process.env.KIMI_CODE_HOME?.trim()
-    return override || path.join(homedir(), ".kimi-code")
+    return vendorConfigHome("kimi")
   },
   async readFile(p) {
     // Size-bounded like the other readers: a corrupt index degrades to ""
@@ -72,7 +72,7 @@ async function sessionIndex(deps: KimiHistoryDeps): Promise<KimiSessionEntry[]> 
 /** The main agent's stream — the one a handoff points at. Sub-agent dirs
  *  (`agents/agent-N/`) are that session's internal fan-out, not its
  *  conversation. */
-export function wirePath(sessionDir: string): string {
+function wirePath(sessionDir: string): string {
   return path.join(sessionDir, "agents", "main", "wire.jsonl")
 }
 

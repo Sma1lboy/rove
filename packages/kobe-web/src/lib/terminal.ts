@@ -7,6 +7,7 @@
 
 import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
 import { ApiError, api } from "./api-client.ts"
+import { withWebTokenQuery } from "./web-token.ts"
 
 export type PtyMode = "engine" | "shell"
 
@@ -35,7 +36,10 @@ export function ptyUrl(
     cols: String(cols),
     rows: String(rows),
   })
-  return `${ptyBase("ws")}/pty?${q.toString()}`
+  // A WebSocket cannot set a request header, so the token rides the query the
+  // same way the SSE stream's does. Without it the sidecar refuses the upgrade
+  // — this route spawns a shell, and it is the one route the token missed.
+  return withWebTokenQuery(`${ptyBase("ws")}/pty?${q.toString()}`)
 }
 
 /** Kill a tab's engine process server-side (when the user closes the tab). */

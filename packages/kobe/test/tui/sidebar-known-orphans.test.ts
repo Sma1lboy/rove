@@ -1,7 +1,7 @@
 /**
  * Scale guard for the sidebar tree's orphan backstop (`filterKnownOrphanTabs`
- * in orphan-tabs): orphan tabs are keyed by task id, and each orphan used to
- * prove its task still exists with a `tasks.some(...)` scan — O(orphans ×
+ * in orphan-tabs): orphan tabs are keyed by task id, and proving each orphan's
+ * task still exists with a `tasks.some(...)` scan would be O(orphans ×
  * tasks) on every poll tick, i.e. a few hundred scans of a few hundred
  * entries at real-install scale. The pure keeps ONE Set build for all
  * orphans; the instrumented array below fails the test on any per-orphan

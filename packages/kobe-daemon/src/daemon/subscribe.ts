@@ -65,8 +65,7 @@ export function handleSubscribe(
     `client #${client.id} subscribed as ${role}${client.channels ? ` [${[...client.channels].join(",")}]` : ""} — ${deps.clientCount()} client(s), ${deps.lifetime.guiCount()} gui${firstSubscriber ? " (collectors resume)" : ""}`,
   )
   // Replay the current value of every populated channel so a late
-  // subscriber hydrates without a separate round trip — generalized
-  // from the old single task.snapshot send. Filtered to the
+  // subscriber hydrates without a separate round trip. Filtered to the
   // client's requested channels (null = all). The bus cache is warm
   // (subscribeTasks' eager fire).
   for (const event of deps.bus.snapshot()) {

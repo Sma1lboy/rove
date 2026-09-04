@@ -15,7 +15,7 @@ const FULL: ComposerDraft = {
   schedule: "0 9 * * MON-FRI",
 }
 
-/** Fri 2026-07-31 10:00 local — the reference "now" for every preview test. */
+/** Friday 31 July 2026, 10:00 local — the reference "now" for every preview test. */
 const NOW = new Date(2026, 6, 31, 10, 0, 0).getTime()
 
 describe("field order", () => {

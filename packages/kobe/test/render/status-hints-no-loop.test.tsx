@@ -2,7 +2,7 @@
 /**
  * The status hint row must not re-run its snapshot effect on every render.
  *
- * React error #185 ("Maximum update depth exceeded") crashed the workspace
+ * React error #185 ("Maximum update depth exceeded") crashes the workspace
  * while deleting tasks in a burst. `useStatusKeyHintItems` renders in the
  * workspace FOOTER, which wraps the whole pane tree, so its `setState`
  * re-renders every sidebar row — and each row's `useBindings` bumps the
@@ -96,10 +96,10 @@ test("deleting rows in a burst settles instead of looping", async () => {
 })
 
 test("a render that changes no hint input does not re-run the snapshot", async () => {
-  // The regression guard proper. Without a dependency array this effect ran
-  // on EVERY render, which is the precondition for the loop above; the
-  // compare-and-set only hid it. Here the tree re-renders with the same
-  // focus, same bindings, same keymap — the effect must stay quiet.
+  // The guard proper. Without a dependency array this effect runs on EVERY
+  // render, which is the precondition for the loop above; a compare-and-set
+  // only hides it. Here the tree re-renders with the same focus, same
+  // bindings, same keymap — the effect must stay quiet.
   const { frame, mockInput } = await renderComponent(<App />, { width: 80, height: 12 })
   await act(async () => {})
 

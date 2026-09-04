@@ -11,7 +11,7 @@ export type PrefixOverridableBinding = {
   prefixKeys?: readonly string[]
 }
 
-export type PrefixConfigurationOverride = {
+type PrefixConfigurationOverride = {
   key?: string | null
   timeoutMs?: number
 }

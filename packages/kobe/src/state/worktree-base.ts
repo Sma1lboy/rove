@@ -20,7 +20,7 @@
  * same file) and read FRESH on every worktree-path computation, so
  * changing it takes effect for the next task with no daemon restart.
  * Only NEW tasks move: existing tasks keep their persisted worktreePath,
- * and the old default root stays recognized for listing/slug allocation
+ * and the earlier default root stays recognized for listing/slug allocation
  * (see `managedWorktreeRootsFor`).
  *
  * Remote (SSH) projects are unaffected — their worktrees live on the

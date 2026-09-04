@@ -40,6 +40,20 @@ export function expandHome(p: string): string {
   return p
 }
 
+/**
+ * Drop a path's trailing slash. `/i/rove/` and `/i/rove` name the same
+ * directory, but only one of them is a stable KEY — a task is filed under the
+ * repo path it was created with, so the two spellings would file two repos.
+ *
+ * The slash is load-bearing while the path is being TYPED (it is what points
+ * the suggestion picker at a directory's children rather than its siblings),
+ * so it is stripped where the text stops being an edit buffer and becomes an
+ * answer, never in the field itself. Root stays `/`.
+ */
+export function stripTrailingSlash(p: string): string {
+  return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p
+}
+
 export type PathSplit = { base: string; filter: string }
 
 /**

@@ -13,12 +13,14 @@ import {
   defaultPtyHostPidPath,
   defaultPtyHostSocketPath,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { isForeignDaemonHome } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { readPidFile } from "@sma1lboy/kobe-daemon/daemon/server"
 import { homeDir, kvStatePath, roveStateDir } from "../env.ts"
 import { formatBytes } from "../lib/format-bytes.ts"
 import { kobeSkillState, skillInstallCommand } from "../lib/skill-install.ts"
 import { t } from "../tui/i18n"
 import { CURRENT_VERSION } from "../version.ts"
+import { MIN_BUN_VERSION, isBunAtLeast } from "./bun-runtime.ts"
 import {
   type DoctorFix,
   applyFixes,
@@ -29,8 +31,10 @@ import {
   reinstallManualFix,
   resetManualFix,
   skillInstallFix,
+  spawnHelperFix,
 } from "./doctor-fix.ts"
 import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
+import { installedSpawnHelpers, spawnHelperDoctorLines } from "./doctor-node-pty.ts"
 import { terminalDoctorLines } from "./doctor-terminal.ts"
 import { probeEngines, probeGit } from "./env-checks.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
@@ -178,14 +182,22 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   // Can this process still re-exec itself? A `bun`/`node` process holds its
   // entry open by inode, so uninstalling Rove out from under a running one
   // leaves it alive on a path that is gone — it keeps working until it needs
-  // to spawn a daemon, then fails identically forever (issue #96). The check
+  // to spawn a daemon, then fails identically forever. The check
   // is exactly the resolution the spawn path performs, so the two can never
   // disagree about whether this install is intact.
   const install = describeInstall()
   if (!install.ok) fixes.push(reinstallManualFix())
+  // Reachable only behind ROVE_SKIP_BUN_CHECK — the launcher refuses to start
+  // on a Bun below the floor. That is exactly the run where the user needs to
+  // be told which of their symptoms is just an unsupported runtime.
+  const staleBun = !isBunAtLeast(Bun.version)
+  if (staleBun) fixes.push(humanOnlyFix("staleBun"))
   const out = [
     "Rove doctor",
     `  build:  v${CURRENT_VERSION} (${process.platform} ${process.arch}, bun ${Bun.version})`,
+    ...(staleBun
+      ? [`          ⚠ bun ${Bun.version} is below the ${MIN_BUN_VERSION} Rove needs — terminals will not paint`]
+      : []),
     `  home:   ${homeDir()}`,
     "",
     ...(await terminalDoctorLines()),
@@ -210,6 +222,15 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
       out.push(`         → run \`${CLI_NAME} daemon restart\`, then relaunch Rove`)
       fixes.push(daemonRestartFix(CLI_NAME, "daemonStale"))
     } else if (version) out.push(`         build: v${version}`)
+    // A daemon serving a DIFFERENT state root than this CLI reads is the
+    // "my tasks vanished" symptom: a sandbox/dev daemon that inherited the
+    // production socket path answers with an empty index, and every read
+    // below it is honest about the wrong home. The TUI already rejects this
+    // (protocol.isForeignDaemonHome); doctor is where a user finds out why.
+    if (isForeignDaemonHome(typeof daemon.homeDir === "string" ? daemon.homeDir : undefined, homeDir())) {
+      out.push(`         ⚠ foreign home: daemon serves ${String(daemon.homeDir)}, you are reading ${homeDir()}`)
+      out.push(`         → clear ROVE_HOME_DIR/KOBE_HOME_DIR, then \`${CLI_NAME} daemon restart\``)
+    }
     // Hook channel: hooks are the only sub-second path to the badge, and
     // they fail SILENTLY (`kobe hook` swallows everything by contract), so
     // a dead channel reads as a merely sluggish UI. Read-only — the verdict
@@ -282,6 +303,14 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
     )
     if (!node) fixes.push(humanOnlyFix("windowsNode"))
   }
+  // macOS: node-pty@1.1.0 ships spawn-helper at 0644. The root postinstall
+  // restores +x on install; a tree where it did not run fails every node-pty
+  // spawn with nothing on screen, so name it here.
+  if (process.platform === "darwin") {
+    const helpers = spawnHelperDoctorLines(installedSpawnHelpers())
+    out.push(...helpers.lines)
+    if (helpers.broken.length > 0) fixes.push(spawnHelperFix(helpers.broken))
+  }
   out.push("")
 
   const legacy = await inspectLegacyTmux()
@@ -305,7 +334,7 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   out.push(`tasks.json: ${describeFile(tasksPath)}${count === null ? "" : ` — ${count} task(s)`}`)
   out.push(`state.json: ${describeFile(statePath)}`)
   out.push(`daemon.log: ${describeFile(daemonLog)}`)
-  out.push(`pty-host.log: ${describeFile(ptyLog)}`)
+  out.push(`pty.log: ${describeFile(ptyLog)}`)
   return { lines: out, fixes }
 }
 

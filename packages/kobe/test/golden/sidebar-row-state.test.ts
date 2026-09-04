@@ -29,13 +29,13 @@ import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, toTaskId } from "@/types/task"
 import { afterAll, beforeAll, expect, test } from "vitest"
 import { goldenDocument, goldenPath, matchGolden } from "./golden-file"
+import { conflictChipBlock, prChipBlock, reviewChipBlock, statusChipBlock } from "./sidebar-chip-blocks"
 import {
   OMITTED_FIELDS,
   RECORDED_FIELDS,
   activityCrossProduct,
   completionGraceBlock,
   mainRowBlock,
-  prChipBlock,
   spinnerBlock,
   statusVsActivityBlock,
   subagentBlock,
@@ -70,6 +70,9 @@ test("sidebar row state matrix matches the committed golden", () => {
       lines: statusVsActivityBlock(),
     },
     { title: "PR check chip", lines: prChipBlock() },
+    { title: "PR merge-conflict chip", lines: conflictChipBlock() },
+    { title: "PR review-state chip", lines: reviewChipBlock() },
+    { title: "board status chip", lines: statusChipBlock() },
     { title: "tabRowActivity — which entry a TAB row may read", lines: tabActivityBlock() },
   ])
 
@@ -85,10 +88,9 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
   // why the reduced-motion pulse was removed, and the collision would
   // otherwise be invisible in a golden full of correct-looking glyphs.
   //
-  // `·` joined this set on 2026-08-15, when it became the single no-state
-  // glyph (untracked custom engine + non-agent tab + unobserved agent tab) and
-  // simultaneously stopped being a spinner frame — Claude's brand set, which
-  // opened and closed on it, was removed the same day.
+  // `·` is in this set because it is the single no-state glyph (untracked
+  // custom engine + non-agent tab + unobserved agent tab), so no spinner set
+  // may use it as a frame.
   const settled = new Set(["●", "○", "·", "✓", "?", "◷", "×"])
   const spinnerLines = spinnerBlock().filter((line) => line.includes("frames(0..25)="))
   expect(spinnerLines.length).toBeGreaterThan(0)
@@ -110,10 +112,10 @@ test("no spinner frame collides with a settled-state badge glyph", () => {
  * label beside it. Ambiguous-width codepoints hide this, because everyone in
  * the pipeline still calls them 1 cell.
  *
- * That shipped: `◌` U+25CC (the tab row's old "unknown" glyph) is absent from
- * FiraCode Nerd Font and SF Mono, so macOS drew it from HiraginoSans at 1.62
- * cells and it sat on the first letter of every tab name (2026-08-15). `✕`
- * U+2715 did the same at 1.24 cells via ZapfDingbats.
+ * Measured: `◌` U+25CC is absent from FiraCode Nerd Font and SF Mono, so
+ * macOS draws it from HiraginoSans at 1.62 cells and it sits on the first
+ * letter of every tab name. `✕` U+2715 does the same at 1.24 cells via
+ * ZapfDingbats.
  *
  * So the vocabulary is an allowlist, and adding to it means checking the
  * candidate against the fonts people actually run first. The dingbat block
@@ -138,13 +140,33 @@ test("every rendered glyph is in the font-verified vocabulary", () => {
     ["✓", "U+2713 — seen; the one dingbat-adjacent glyph both fonts carry"],
     ["?", "ASCII — needs input"],
     ["▴", "U+25B4 — pinned marker"],
+    ["✗", "U+2717 — PR checks failing; the sibling of ✓ both fonts carry"],
+    ["•", "U+2022 General Punctuation — PR checks pending"],
+    // U+2260 Mathematical Operators — the PR cannot merge. `fc-list
+    // :charset=2260`: Fira Code, FiraCode/JetBrainsMono Nerd Font, Menlo AND
+    // Monaco — the widest coverage of any glyph in this table. The intuitive
+    // `⑂` (U+2442 OCR FORK) is in NONE of them and was rejected here.
+    ["≠", "U+2260 — PR merge conflict; in Fira Code / JetBrainsMono / Menlo / Monaco"],
+    // U+25C6 joins its hollow twin U+25C7 (already here for the subagent
+    // prefix) for the `done` status chip. `fc-list :charset=25c6`: Fira Code,
+    // FiraCode/JetBrainsMono Nerd Font, Menlo AND Monaco — strictly wider
+    // coverage than U+25C7, so if the outline diamond is safe this is.
+    ["◆", "U+25C6 — status done; in Fira Code / JetBrainsMono / Menlo / Monaco"],
     ...DEFAULT_SPINNER_FRAMES.map((frame) => [frame, "braille — uniform AppleBraille fallback"] as const),
   ])
   // Glyph cells the matrix emits, plus the constants the tab rows render
-  // directly (they never reach `buildSidebarRowView`).
+  // directly (they never reach `buildSidebarRowView`). The two CHIP blocks
+  // are scanned too: they render into the same row at the same one cell, so a
+  // chip glyph that falls back oversized overruns the label exactly like a
+  // state glyph would — leaving them out is how `◆` would have entered the
+  // vocabulary unchecked.
   const rendered = new Set<string>([NO_STATE_GLYPH])
   for (const line of activityCrossProduct()) {
     const glyph = / glyph=(\S+)/.exec(line)?.[1]
+    if (glyph) for (const ch of glyph) rendered.add(ch)
+  }
+  for (const line of [...prChipBlock(), ...conflictChipBlock(), ...statusChipBlock()]) {
+    const glyph = /chip=(\S+) \(/.exec(line)?.[1]
     if (glyph) for (const ch of glyph) rendered.add(ch)
   }
   for (const glyph of rendered) {

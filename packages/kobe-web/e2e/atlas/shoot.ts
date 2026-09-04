@@ -16,7 +16,7 @@ import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { chromium } from "@playwright/test"
-import { HERO_PTY_PORT, HERO_WEB_PORT } from "../hero-env.ts"
+import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "../hero-env.ts"
 import { heroApi } from "../hero-fixture.ts"
 import { FLOWS, type Flow } from "./flows.ts"
 
@@ -201,10 +201,7 @@ async function shootFlow(flow: Flow): Promise<void> {
   const runId = `atlas-${flow.name}-${Date.now()}`
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 })
   try {
-    // `webgl=1` for the same reason the stills use it: the DOM renderer cannot
-    // draw xterm's `customGlyphs`, so pane borders photograph with a seam at
-    // every cell boundary. A failed context falls back to DOM in ChatTerminal.
-    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}&webgl=1`).catch(() => {
+    await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}`).catch(() => {
       throw new Error(`no server on :${HERO_WEB_PORT} — start \`bun e2e/hero-serve.ts\` first`)
     })
     await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
@@ -253,7 +250,7 @@ async function shootFlow(flow: Flow): Promise<void> {
     shots.push({ flow: flow.name, step: "<boot>", index: -1, file: "", subject: flow.summary, failed: String(err) })
   } finally {
     await page.request
-      .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } })
+      .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() })
       .catch(() => {})
     await page.close().catch(() => {})
   }

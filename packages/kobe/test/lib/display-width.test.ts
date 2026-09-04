@@ -84,7 +84,7 @@ describe("charWidth", () => {
 
   it("counts the Enclosed Ideographic Supplement block as two cells", () => {
     // Whole block (U+1F200–U+1F2FF) is East-Asian-Width = Wide; it sits just
-    // below the emoji range and was previously counted as one cell.
+    // below the emoji range, which makes it easy to miscount as one cell.
     expect(charWidth(0x1f200)).toBe(2) // 🈀 square hiragana hoka
     expect(charWidth(0x1f21a)).toBe(2) // 🈚 squared CJK "no charge"
     expect(charWidth(0x1f22f)).toBe(2) // 🈯 squared CJK "reserved"

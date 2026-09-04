@@ -1,10 +1,10 @@
 /**
- * Task-rail filter state — module store (issue #7). The `/` route renders
- * <AppShell/> directly while /task/$taskId wraps it in <TaskRoute>, so the
- * first task-open from home unmounts+remounts AppShell and used to wipe the
- * rail's local useState (text query, status chip, sort) on
- * its most common trigger. Holding the state at module level (same pattern as
- * tabs.ts/toast.ts) makes it survive the remount.
+ * Task-rail filter state — module store. The `/` route renders <AppShell/>
+ * directly while /task/$taskId wraps it in <TaskRoute>, so the first
+ * task-open from home unmounts+remounts AppShell, wiping any local useState
+ * (text query, status chip, sort) on its most common trigger. Holding the
+ * state at module level (same pattern as tabs.ts/toast.ts) makes it survive
+ * the remount.
  *
  * Persistence semantics (deliberate): in-memory ONLY — state survives route
  * navigation but resets on a full page reload. A text query or status filter
@@ -30,8 +30,8 @@ const initial: RailState = {
 
 const store = createExternalStore(initial)
 /** Last ui-prefs sortMode applied — lets applyPrefSort fire only on a CHANGED
- *  pref (rising edge), so an AppShell remount with the same pref no longer
- *  stomps a local sort toggle the way the old mount-effect reset did. */
+ *  pref (rising edge), so an AppShell remount with the same pref does not
+ *  stomp a local sort toggle the way a plain mount-effect reset would. */
 let lastAppliedPrefSort: TaskSortMode | null = null
 
 function set(next: Partial<RailState>): void {

@@ -1,10 +1,9 @@
 /**
- * Framework-free pane logic for the file tree — extracted from the Solid
- * `FileTree.tsx` (issue #15, G3) so the React port shares the exact same
- * behavior instead of duplicating it. Everything here is pure functions
+ * Framework-free pane logic for the file tree, kept out of `FileTree.tsx`
+ * so every consumer shares the exact same behavior instead of duplicating
+ * it. Everything here is pure functions
  * over the `Row` model (plus one node-only fs.watch helper), unit-tested
- * in `test/tui-react/filetree-pane-core.test.ts`; the Solid component
- * keeps consuming these so the two runtimes cannot drift.
+ * in `test/tui-react/filetree-pane-core.test.ts`.
  */
 
 import { watch } from "node:fs"
@@ -41,7 +40,7 @@ export function statusToken(s: FileStatus): "warning" | "success" | "error" | "t
  * like `git ls-files ... (cwd=/foo) exited with code 128: fatal: not
  * a git repository`. Most users don't need the full args / exit
  * code; we surface the common cases and keep the rest generic.
- * `t` is the caller's translate fn — Solid and React each pass their
+ * `t` is the caller's translate fn — each caller passes its
  * own reactive one.
  */
 export function summarizeGitError(raw: string, t: (key: string) => string): string {
@@ -183,16 +182,16 @@ type EventedWatcher = ReturnType<typeof watch> & { on(event: "error", listener: 
  * Recursive fs watch over a worktree with a 500ms trailing debounce.
  * Returns a disposer. Errors are swallowed (the `r` keystroke remains as
  * the escape hatch); an unwatchable path degrades to manual refresh.
- * Opt-in at the call site via `KOBE_FILETREE_WATCH=1` — on large repos a
- * recursive watcher can overwhelm the TUI process before the user does
- * anything.
+ * On by default; `KOBE_FILETREE_WATCH=0` at the call site opts out, for a
+ * repo big enough that a recursive watcher costs more than the staleness it
+ * removes.
  *
- * Known window, deliberately NOT closed (issue #61): macOS FSEvents arms
+ * Known window, deliberately NOT closed: macOS FSEvents arms
  * asynchronously, so a write landing right after this call may be dropped
  * before the stream is live. The daemon's single-file watchers close that
  * with a stat-poll, but stat-polling a whole worktree is disproportionate
  * here — the cost of a miss is only a stale pane until the next fs event
- * or a manual `r`, in a feature that is already opt-in and best-effort.
+ * or a manual `r`, in a feature that is best-effort by contract.
  */
 export function watchWorktree(path: string, onChange: () => void, debounceMs = 500): () => void {
   let debounceTimer: ReturnType<typeof setTimeout> | null = null

@@ -10,7 +10,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { PANE_CLOSE_VERB, PANE_VERB } from "./handlers-pane.ts"
+import { PANE_CLOSE_VERB, PANE_VERB, TAB_CLOSE_VERB } from "./handlers-pane.ts"
 import { DISPATCH_VERB, note, send, setActive } from "./handlers-tasks.ts"
 import type { VerbSpec } from "./types.ts"
 
@@ -19,10 +19,11 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     name: "send",
     group: "drive",
     summary:
-      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. When the target composer is busy (you'd paste into a half-typed message), the prompt is accepted-but-deferred: the daemon stores it and queues a `prompt_deferred` Inbox episode for a human to release — that outcome is a SUCCESS (exit 0, `deferred` in the JSON). Do NOT retry a deferred send: the daemon already owns the message, and resending stacks a duplicate in the queue. A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits.",
+      "Paste a follow-up prompt into a task's running engine (one full turn). Without --task-id, a task spawned from another Rove session replies to its dispatcher's tab (then that task's live canonical engine; nothing alive = DISPATCHER_UNREACHABLE, never a silent spawn); otherwise the active task. Sent from inside another Rove task ($ROVE_TASK_ID), the prompt is prefixed with [ROVE PEER] provenance — who sent it and how to reply (tab-precise) — so agent-to-agent messaging needs no coordinator. When the target composer is busy (you'd paste into a half-typed message), the prompt is accepted-but-deferred: the daemon stores it and queues a `prompt_deferred` Inbox episode for a human to release — that outcome is a SUCCESS (exit 0, `deferred` in the JSON). Do NOT retry a deferred send: the daemon already owns the message. A later send to the same tab fails with DEFERRED_PROMPT_PENDING until the Inbox item is released, dismissed, or expires. A `succeeded:` report sent from a managed task whose branch has 0 commits is REFUSED (EMPTY_SUCCESS_REPORT) — commit first, or pass --allow-empty when the task genuinely produced no commits.",
     flags: [
       F.taskId(false),
       F.prompt(true, "Text pasted + submitted into the engine pane."),
+      F.promptFile(),
       {
         name: "tab",
         type: "string",
@@ -75,10 +76,11 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     group: "drive",
     summary: "Read a repo's accumulated field notes, newest first. Returns { notes }.",
     flags: [F.repo(true)],
-    handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requirePath("repo") }),
+    handler: (ctx) => simpleRpc(ctx, "note.list", { repo: ctx.args.requireRepo("repo") }),
   },
   PANE_VERB,
   PANE_CLOSE_VERB,
+  TAB_CLOSE_VERB,
   {
     name: "notify",
     group: "drive",

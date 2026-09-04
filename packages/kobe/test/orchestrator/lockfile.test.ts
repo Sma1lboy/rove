@@ -49,7 +49,7 @@ describe("acquire / release", () => {
   })
 
   it("rejects when a SIBLING holder in this same process holds the lock", async () => {
-    // Same pid, different token — the issue #53 topology (two stores, one
+    // Same pid, different token — two stores in one
     // process). The holder is alive, so the second acquirer must wait, not
     // steal.
     await writeFile(lock, `${process.pid}:some-other-instance`)
@@ -77,7 +77,7 @@ describe("acquire / release", () => {
   it("release only removes a lock we still own", async () => {
     // Victim acquires, thief takes over. The victim's release must NOT unlink
     // the thief's lock — that would let a third writer into the critical
-    // section while the thief is still inside it (issue #53's cascade).
+    // section while the thief is still inside it.
     const victim = await acquire(lock)
     const thief = await acquire(lock, { forceTakeover: true })
     await release(lock, victim)

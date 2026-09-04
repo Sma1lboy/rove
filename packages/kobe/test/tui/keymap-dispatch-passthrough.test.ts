@@ -2,6 +2,7 @@
 
 import type { KeyEvent } from "@opentui/core"
 import { beforeEach, describe, expect, test } from "vitest"
+import { bindByIds } from "../../src/tui/context/keybindings"
 import {
   type RegisteredBinding,
   configurePrefix,
@@ -83,13 +84,13 @@ describe("prefix passthrough boundary", () => {
     expect(dispatchKeyEvent(stack, evt, 100)).toBe(true)
     expect(forwarded).toBe(false)
     expect(evt.defaultPrevented).toBe(true)
-    expect(prefixHudState().armed).toBe(true)
+    expect(prefixHudState().guide?.kind).toBe("prefix")
     expect(bindingReachability(stack).inputPassthrough).toBe(true)
 
     expect(dispatchKeyEvent(stack, makeEvt("f"), 200)).toBe(true)
     expect(prefixFired).toBe(true)
     expect(forwarded).toBe(false)
-    expect(prefixHudState().armed).toBe(false)
+    expect(prefixHudState().guide).toBeNull()
     expect(prefixHudState().entries[0]?.action).toBe("chat.fork.new")
   })
 
@@ -115,11 +116,11 @@ describe("prefix passthrough boundary", () => {
 
     expect(dispatchKeyEvent(stack, makeEvt("a", { ctrl: true }), 100)).toBe(true)
     expect(forwarded).toEqual(["ctrl+a"])
-    expect(prefixHudState().armed).toBe(false)
+    expect(prefixHudState().guide).toBeNull()
 
     expect(dispatchKeyEvent(stack, makeEvt("x", { ctrl: true }), 200)).toBe(true)
     expect(forwarded).toEqual(["ctrl+a"])
-    expect(prefixHudState().armed).toBe(true)
+    expect(prefixHudState().guide?.kind).toBe("prefix")
   })
 
   test("disabling the prefix releases its former first stroke to the terminal", () => {
@@ -148,7 +149,7 @@ describe("prefix passthrough boundary", () => {
 
     expect(dispatchKeyEvent(stack, makeEvt("a", { ctrl: true }), 100)).toBe(true)
     expect(forwarded).toBe(true)
-    expect(prefixHudState().armed).toBe(false)
+    expect(prefixHudState().guide).toBeNull()
   })
 
   test("entering terminal input cancels a prefix armed in another pane", () => {
@@ -171,7 +172,7 @@ describe("prefix passthrough boundary", () => {
     }
 
     expect(dispatchKeyEvent([global], makeEvt("a", { ctrl: true }), 100)).toBe(true)
-    expect(prefixHudState().armed).toBe(true)
+    expect(prefixHudState().guide?.kind).toBe("prefix")
 
     const terminal: RegisteredBinding = {
       id: 2,
@@ -190,7 +191,81 @@ describe("prefix passthrough boundary", () => {
     expect(dispatchKeyEvent([global, terminal], makeEvt("f"), 200)).toBe(true)
     expect(forwarded).toBe(true)
     expect(prefixFired).toBe(false)
-    expect(prefixHudState().armed).toBe(false)
+    expect(prefixHudState().guide).toBeNull()
     expect(prefixHudState().entries).toHaveLength(0)
+  })
+})
+
+describe("prefix+n New task", () => {
+  test("opens New task on a UI surface and inside terminal passthrough", () => {
+    for (const passthrough of [false, true]) {
+      resetPrefixState()
+      let opened = false
+      let forwarded = false
+      const terminal: RegisteredBinding = {
+        id: 1,
+        config: () => ({
+          bindings: [
+            {
+              key: "ctrl+n",
+              passthrough: true,
+              cmd: () => {
+                forwarded = true
+              },
+            },
+          ],
+        }),
+      }
+      const host: RegisteredBinding = {
+        id: 2,
+        config: () => ({
+          bindings: bindByIds({
+            "task.new.global": () => {
+              opened = true
+            },
+          }),
+        }),
+      }
+      const stack = passthrough ? [terminal, host] : [host]
+      expect(bindingReachability(stack).prefix).toContain("task.new.global")
+      expect(bindingReachability(stack).direct).not.toContain("task.new.global")
+
+      expect(dispatchKeyEvent(stack, makeEvt("a", { ctrl: true }), 100)).toBe(true)
+      expect(dispatchKeyEvent(stack, makeEvt("n"), 200)).toBe(true)
+      expect(opened).toBe(true)
+      expect(forwarded).toBe(false)
+    }
+  })
+
+  test("a bare ctrl+n reaches the terminal, never New task", () => {
+    let opened = false
+    let forwarded = false
+    const terminal: RegisteredBinding = {
+      id: 1,
+      config: () => ({
+        bindings: [
+          {
+            key: "ctrl+n",
+            passthrough: true,
+            cmd: () => {
+              forwarded = true
+            },
+          },
+        ],
+      }),
+    }
+    const host: RegisteredBinding = {
+      id: 2,
+      config: () => ({
+        bindings: bindByIds({
+          "task.new.global": () => {
+            opened = true
+          },
+        }),
+      }),
+    }
+    expect(dispatchKeyEvent([terminal, host], makeEvt("n", { ctrl: true }), 100)).toBe(true)
+    expect(opened).toBe(false)
+    expect(forwarded).toBe(true)
   })
 })

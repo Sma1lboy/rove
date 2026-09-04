@@ -3,12 +3,12 @@
  * COUNTS, never wall-clock (docs/HARNESS.md §Performance contracts).
  *
  * `setActiveTask` is the single most frequent user action in this multi-
- * session TUI (every task/focus switch). It used to call
- * `store.update(id, {})` with an EMPTY patch purely to bump `updatedAt` so
- * the sidebar's `recent` sort tracks focus order. That empty patch still
- * ran a full fsync'd read-merge-write (`doSave`: flock + read + merge +
- * `handle.sync()` + rename) on EVERY switch — one fsync'd disk rewrite +
- * one full-list broadcast, all to move a field the DEFAULT sort never reads.
+ * session TUI (every task/focus switch), and all it needs is `updatedAt`
+ * bumped so the sidebar's `recent` sort tracks focus order. Routing that
+ * through `store.update(id, {})` with an EMPTY patch runs a full fsync'd
+ * read-merge-write (`doSave`: flock + read + merge + `handle.sync()` +
+ * rename) on EVERY switch — one fsync'd disk rewrite + one full-list
+ * broadcast, all to move a field the DEFAULT sort never reads.
  *
  * The fix (`store.touchRecency`) bumps `updatedAt` in-cache + notifies
  * listeners (so `recent` still reorders LIVE) but flushes lazily on the next
@@ -103,10 +103,10 @@ describe("setActiveTask focus-switch op budget", () => {
       await orch.setActiveTask(ids[i % 5] ?? null)
     }
 
-    // THE win: the focus path no longer fsyncs a disk rewrite per switch.
+    // THE win: the focus path fsyncs no disk rewrite per switch.
     expect(diskWritesToManifest()).toBe(0)
     // Listeners STILL notified per switch so live `recent` reorders — the
-    // broadcast is not the cost we removed (the fsync'd disk rewrite is).
+    // broadcast is not the cost being avoided (the fsync'd disk rewrite is).
     expect(snapshotPublishes).toBe(10)
 
     // Lazy flush: the accumulated recency bumps ride the NEXT real mutation's

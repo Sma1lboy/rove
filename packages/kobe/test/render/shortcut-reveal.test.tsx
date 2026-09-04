@@ -49,8 +49,8 @@ function tempHome(mode?: "local" | "guide"): string {
 
 // The complete guide is a deliberate delayed reveal: PrefixHud only opens it
 // PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
-// product delay plus frame latency on a loaded CI runner (issue #82: a bare
-// 1s budget flaked at ~1.1s test wall-clock).
+// product delay plus frame latency on a loaded CI runner — a bare 1s budget
+// flakes at ~1.1s test wall-clock.
 const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
 
 async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {

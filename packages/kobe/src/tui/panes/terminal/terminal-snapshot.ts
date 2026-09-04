@@ -35,7 +35,7 @@ export function reconcileTerminalRows(previous: readonly TerminalRow[], next: Te
   return changed ? next : previous
 }
 
-/** Cursor objects are recreated on every probe; retain the old reference when their visible value is unchanged. */
+/** Cursor objects are recreated on every probe; retain the existing reference when their visible value is unchanged. */
 export function reconcileTerminalCursor(previous: CursorPos | null, next: CursorPos | null): CursorPos | null {
   if (previous === next) return previous
   if (previous && next && previous.x === next.x && previous.y === next.y) return previous

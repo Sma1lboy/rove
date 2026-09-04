@@ -1,6 +1,6 @@
 /**
- * Pure, CONTENT-AGNOSTIC split-tree state for one workspace surface
- * (issue #16) — the tmux-pane layout idea, generic over what a leaf
+ * Pure, CONTENT-AGNOSTIC split-tree state for one workspace surface —
+ * the tmux-pane layout idea, generic over what a leaf
  * shows. Leaves carry an opaque `content` payload (today: a terminal
  * command, see `TerminalSplit.tsx`; later: any workspace surface);
  * groups lay their children out `row` (side-by-side, tmux's `%`) or
@@ -9,7 +9,7 @@
  * new group — arbitrary tmux-style layouts fall out of two chords.
  *
  * Framework-free on purpose, same architecture as `terminal-tabs-core.ts`:
- * the Solid renderer owns signals/UI, this module owns the transitions
+ * the renderer owns signals/UI, this module owns the transitions
  * so vitest can pin them. Nothing in here may know about terminals,
  * PTYs, or engines — content-specific keying (e.g. `splitLeafPtyKey`)
  * lives with the content adapter.
@@ -23,7 +23,7 @@ export interface SplitLeaf<T> {
   /** Opaque payload — what this leaf displays. Owned by the adapter. */
   readonly content: T
   /** User-set display name. Absent/null = the adapter's default name
-   *  (owner semantics 2026-07-06: the TAB is the "group"; every leaf
+   *  (the TAB is the "group"; every leaf
    *  inside carries its own name, tab-title naming-flow style). */
   readonly title?: string | null
 }

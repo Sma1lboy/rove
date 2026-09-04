@@ -5,7 +5,7 @@ const socketPath = "/home/u/.rove/daemon.sock"
 
 describe("classifyHookChannel", () => {
   it("reports down when live tabs exist but none is hook-sourced", () => {
-    // The 2026-08-26 field shape: every badge painted by the ~10s observer
+    // The field shape: every badge painted by the ~10s observer
     // poll because each hook silently dropped its event.
     const verdict = classifyHookChannel({
       socketPath,

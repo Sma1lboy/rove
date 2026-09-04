@@ -2,7 +2,7 @@
  * Adopt live-but-unregistered pty sessions into a task's tab state.
  *
  * The pty host holds the truth about what is running; the tab snapshot is a
- * record of intent, and the two diverge (issue #20 — a canonical-spawn
+ * record of intent, and the two diverge (a canonical-spawn
  * fallback, a tab closed while its task was unmounted so the kill never
  * reached the host, an older kobe). The sidebar already SHOWS such sessions
  * as `⚠` rows, but a row that isn't in the tab state can't be opened,

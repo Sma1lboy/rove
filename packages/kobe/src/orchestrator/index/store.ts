@@ -129,7 +129,7 @@ export class TaskIndexStore {
     } catch (err) {
       // Back the original bytes up FIRST: the next save read-merge-writes
       // from this empty recovery base and replaces the corrupt file, so
-      // without a copy the user's tasks are gone for good (PR #276).
+      // without a copy the user's tasks are gone for good.
       const backup = await backupCorruptManifest(sourcePath)
       warnManifestRecovery(
         `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
@@ -192,9 +192,9 @@ export class TaskIndexStore {
       // file is read only by machines, and pretty-printing tripled the bytes.
       const json = `${JSON.stringify(payload)}\n`
 
-      // Unique per save: a shared `<path>.tmp` let a second writer clobber the
-      // first's staging file whenever mutual exclusion broke, failing the
-      // survivor's rename with ENOENT (issue #53).
+      // Unique per save: a shared `<path>.tmp` lets a second writer clobber
+      // the first's staging file whenever mutual exclusion breaks, failing
+      // the survivor's rename with ENOENT.
       const tmpPath = `${this.path}.${process.pid}.${ulid()}.tmp`
       try {
         // 0600: task titles are free-form user prose and every record names a
@@ -292,10 +292,10 @@ export class TaskIndexStore {
    * Bump `updatedAt` to now for recency ONLY — the focus-switch hot path.
    *
    * `setActiveTask` is the most frequent action in the TUI (every task/focus
-   * switch). It used to call {@link update} with an empty patch purely to move
-   * `updatedAt` so the sidebar's `recent` sort tracks focus order — but that
-   * paid a full fsync'd read-merge-write ({@link doSave}) on EVERY switch, all
-   * to move one field the default sort never reads.
+   * switch), and it only needs `updatedAt` moved so the sidebar's `recent`
+   * sort tracks focus order. Routing that through {@link update} with an empty
+   * patch would pay a full fsync'd read-merge-write ({@link doSave}) on EVERY
+   * switch, all to move one field the default sort never reads.
    *
    * This bumps `updatedAt` in the in-memory cache and notifies listeners (so
    * `recent` reorders LIVE, this session, from the pushed snapshot), then marks
@@ -305,7 +305,7 @@ export class TaskIndexStore {
    * orchestrator restores focus from there), so the only thing riding the lazy
    * flush is the finer-grained `recent` ORDERING across a hard restart, which
    * is best-effort and re-established as tasks get real writes. No-op on an
-   * unknown id (mirrors the old empty-patch guard in `setActiveTask`).
+   * unknown id.
    */
   touchRecency(id: TaskId | string): void {
     this.assertLoaded()
@@ -349,53 +349,6 @@ export class TaskIndexStore {
     return next
   }
 
-  /**
-   * Batch-assign web-board `position` keys. Deliberately does NOT bump
-   * `updatedAt`: a board reorder is cosmetic placement, not task activity —
-   * bumping would shuffle the TUI's `recent` sort from a web-only move.
-   * One save + one listener notification for the whole batch, so N moves
-   * publish ONE task.snapshot.
-   */
-  async reorder(moves: ReadonlyArray<{ readonly id: TaskId | string; readonly position: number }>): Promise<void> {
-    this.assertLoaded()
-    // Resolve the whole batch BEFORE mutating: a missing id must fail with
-    // the cache untouched, not half-applied (the save below is all-or-none).
-    const resolved = moves.map((move) => {
-      const idx = this.cache.tasks.findIndex((t) => t.id === move.id)
-      const existing = idx >= 0 ? this.cache.tasks[idx] : undefined
-      if (!existing) throw new Error(`task not found: ${move.id}`)
-      return { idx, position: move.position }
-    })
-    let dirty = false
-    const before = new Map<number, Task>()
-    // Ids this call newly marked dirty (skip ones already pending), so a
-    // rollback removes exactly its own protection and nothing else.
-    const markedDirty: string[] = []
-    for (const { idx, position } of resolved) {
-      const existing = this.cache.tasks[idx]
-      if (!existing || existing.position === position) continue
-      if (!before.has(idx)) before.set(idx, existing)
-      this.cache.tasks[idx] = { ...existing, position }
-      if (!this.dirtyIds.has(existing.id)) {
-        this.dirtyIds.add(existing.id)
-        markedDirty.push(existing.id)
-      }
-      dirty = true
-    }
-    if (!dirty) return
-    try {
-      await this.save()
-    } catch (err) {
-      // A failed write must not leave the cache ahead of disk — the caller's
-      // rejection rolls the UI back, so a later unrelated save would silently
-      // resurrect the positions. Restore and rethrow.
-      for (const [idx, task] of before) this.cache.tasks[idx] = task
-      for (const id of markedDirty) this.dirtyIds.delete(id)
-      throw err
-    }
-    this.notifyListeners()
-  }
-
   async remove(id: TaskId | string): Promise<void> {
     this.assertLoaded()
     const idx = this.cache.tasks.findIndex((t) => t.id === id)
@@ -404,7 +357,7 @@ export class TaskIndexStore {
     // Record the deletion so the read-merge-write doesn't resurrect this task
     // from a stale on-disk copy, and stop treating it as a pending edit. The
     // save persists it as a tombstone so PEER writers that still hold the
-    // task dirty in memory don't write it back either (issue #47).
+    // task dirty in memory don't write it back either.
     this.dirtyIds.delete(String(id))
     this.removedIds.set(String(id), new Date().toISOString())
     await this.save()

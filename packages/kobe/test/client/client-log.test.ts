@@ -84,7 +84,7 @@ describe("client-log", () => {
   })
 
   /**
-   * The pane crash net: each `kobe <pane>` process used to terminate on a
+   * The pane crash net: without it a `kobe <pane>` process terminates on a
    * single stray rejected fire-and-forget. These lock that the handlers are
    * installed exactly once (idempotent) and remove cleanly, mirroring the
    * daemon's `crash-log` contract.

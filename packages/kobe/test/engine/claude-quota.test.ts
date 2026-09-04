@@ -77,13 +77,13 @@ describe("usageFromClaudePayload", () => {
 })
 
 describe("fetchClaudeQuotaUsage keychain lookup", () => {
-  // The owner's machine carried TWO items under this service name: a stale
-  // `acct=unknown` row and today's login. Looking the item up by service
-  // alone returned the stale one, so the dashboard stayed empty through
-  // repeated re-logins. Pin the account flag the CLI itself passes.
+  // A machine can carry TWO items under this service name: a stale
+  // `acct=unknown` row and the current login. Looking the item up by service
+  // alone returns the stale one, leaving the dashboard empty through repeated
+  // re-logins. Pin the account flag the CLI itself passes.
   // darwin-only: the lookup bails before spawning `security` elsewhere,
   // so on Linux CI the spy records no call and the assertions have no
-  // subject (v0.8.66 publish gate failure).
+  // subject.
   it.runIf(process.platform === "darwin")("queries the keychain by account as well as service", async () => {
     spawnCapture.mockResolvedValue({ status: 1, stdout: "", stderr: "" })
     const { fetchClaudeQuotaUsage } = await import("../../src/engine/claude-code-local/quota.ts")

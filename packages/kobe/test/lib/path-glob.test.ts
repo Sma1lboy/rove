@@ -75,8 +75,8 @@ describe("matchPathGlob", () => {
   })
 
   it("matches a nested `**` filter against a worktree directly under the prefix", () => {
-    // Regression: `src/**/login` previously failed to match `/work/src/login`
-    // because the globstar required at least one intervening directory.
+    // A globstar that required at least one intervening directory would fail
+    // to match `/work/src/login`.
     expect(matchPathGlob("/work/**/login", "/work/login")).toBe(true)
     expect(matchPathGlob("/work/**/login", "/work/feature/login")).toBe(true)
   })

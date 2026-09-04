@@ -23,7 +23,13 @@ moves left or right, and `ctrl+q` returns from the workspace to Tasks. From the
 Tasks pane, right arrow enters the current engine tab. Mouse clicks select rows
 and tabs; right-clicking a sidebar row opens the same common actions available
 from the keyboard, including **New conversation** and **New shell** for that
-Task's worktree. Clicking anywhere else dismisses that menu.
+Task's worktree, plus **Copy branch name** and **Copy path**, which put the
+Task's branch or worktree path on the system clipboard for a `git checkout` or
+`cd` in another shell, and **Open in editor**, **Rename branch**, and
+**Change engine** for the row you clicked. Right-clicking a project header
+offers **New task**, **Field notes** (a read-only list of the notes agents filed
+on that repo with `rove api note`, newest first, each with its author and time)
+and **Remove project**. Clicking anywhere else dismisses that menu.
 
 Zen mode (`ctrl+a` `z`) hides Files and lets the workspace use the freed width.
 The Tasks rail remains visible. Below 70 columns, the separate
@@ -44,8 +50,23 @@ Task rows carry worktree-level facts:
 |---|---|
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
+| `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
 | `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
+| `≠` | The pull request conflicts with its base branch |
+| `»` / `≡` | The pull request is approved and clear to merge, or already merged |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
+
+The status mark is what a person said about the Task; the check mark next to it
+is what CI reports, so the two can disagree. `»` answers a third question the
+check mark cannot: green checks look identical on a PR that is approved, one
+still waiting on a reviewer, and one that merged an hour ago. All three marks
+drain to grey when the last PR poll failed — the reading stands, but nothing is
+confirming it any more. `backlog` and `in_progress` show
+nothing — those are the states Rove moves a Task through on its own, so a mark
+there would say only that the row is ordinary. Set the status from the row's
+right-click menu (**Set status**) or with `rove api set-status`; it is a label,
+and changing it leaves the worktree, the branch, and every running session
+alone.
 
 Session state belongs to the engine tab that runs it, so the status glyph sits
 on the **tab rows** underneath:
@@ -107,6 +128,13 @@ row or one of its tab rows:
   record for a directory Task, or removes a managed Task and its worktree after
   the dirty-worktree safety check.
 
+Right-clicking a row opens the same verbs as a menu, plus **Run again** on any
+Task that still has its brief. Rove stores the prompt a Task was created with,
+so the entry re-runs those exact words in a NEW Task with its own branch and
+worktree, leaving the original untouched. The confirm shows the brief in full
+before anything is created. A Task created without a prompt has no brief to
+re-run, and the entry does not appear for it.
+
 The confirmation dialogs state the exact deletion boundary before anything is
 changed. See [Concepts → Task](CONCEPTS.md#task) for the three Task kinds and
 [Sessions](SESSIONS.md#what-actually-ends-a-session) for session teardown.
@@ -147,7 +175,8 @@ on a file to open its read-only diff, then:
 1. `j` / `k` move the line cursor.
 2. `v` anchors a range. Move to the other end with `j`/`k`; `v` again
    cancels. Skip this for a single-line note.
-3. `c` writes a note for the current line or range.
+3. `c` writes a note for the current line or range. `x` drops the note the
+   cursor sits inside — the way out of a typo that isn't sending it.
 4. `s` sends **all** unsent notes, across all files of the task, to the
    engine as one prompt, and submits it.
 
@@ -155,11 +184,16 @@ The prompt the engine receives is just file, line numbers, and your words,
 no code excerpt. The engine reads the worktree itself. Notes are stored per
 task and survive restarts; the footer counts `notes · unsent` so you always
 know what's pending. Sending doesn't switch tabs, so keep reviewing while the
-engine works.
+engine works, and `r` reloads the diff when the engine has changed the file
+under you.
+
+A Task with no engine session has nowhere to send to — `ctrl+w` on the last
+tab leaves one in exactly that state. `s` then leaves every note unsent and
+says so, rather than reporting a delivery that did not happen.
 
 Notes anchor to the file path and the line number displayed at the time you
-wrote them; they don't re-anchor when the diff changes underneath. These four
-keys are fixed and not rebindable.
+wrote them; they don't re-anchor when the diff changes underneath. These keys
+are fixed and not rebindable.
 
 ## Files pane
 
@@ -177,8 +211,10 @@ engine without submitting it, and `o` sends audio, video, or PDF files to the
 system application. Remote files cannot use a local system viewer.
 
 The pane watches local worktrees for changes and also supports `r` for an
-explicit refresh. See [Keybindings](KEYBINDINGS.md#sidebar-and-files) for the
-complete navigation table.
+explicit refresh. Set `KOBE_FILETREE_WATCH=0` to turn the watcher off and leave
+`r` as the only way to repopulate the list. See
+[Keybindings](KEYBINDINGS.md#sidebar-and-files) for the complete navigation
+table.
 
 ## Create a pull request with the active agent
 
@@ -189,7 +225,9 @@ active engine. The prompt asks the agent to review the diff, commit remaining
 changes, push the branch, and run `gh pr create`.
 
 Watch the engine tab for progress, failures, or questions. The action is
-unavailable on the target branch and requires an active engine session. A repo
+unavailable on the target branch and requires an active engine session. A
+project's `main` row is that repo's own checkout rather than a task branch, so
+the chip is not offered there; `ctrl+a` `p` still answers with the reason. A repo
 can replace the prompt with `.rove/pr-instructions.md`; see
 [Per-repo init](CONFIGURATION.md#per-repo-init). Because the engine performs the
 work, its own skills and approval rules still apply. The default prompt expects
@@ -197,15 +235,31 @@ an authenticated `gh` CLI and a pushable `origin` remote.
 
 ## Creating a task
 
+Every dialog in Rove is built from the same pieces — a bold title with `esc`
+opposite it, capitalised field labels that light up when focused, rounded
+wells around the inputs, chip buttons for choose-one rows, a key legend, and
+a bottom-right `[ Action ]` where one applies. On a terminal under 34 rows
+those borders drop away so the action button is never pushed off the bottom.
+[`docs/design/dialogs.md`](design/dialogs.md) is the rule and the components
+that carry it.
+
 Focus the sidebar and press `n`. The New task dialog starts on a mode selector
 and an engine selector; `tab` walks every field and the bottom-right Create
-button, while `ctrl+e` cycles the detected engines from anywhere in the
-dialog. Use `ctrl+[` / `ctrl+]` to move between its three modes, or focus the
+button — except in the two path fields (the repo, and the Clone tab's parent
+directory), where it first completes the highlighted suggestion in place,
+exactly as a shell would, and only moves on once there is nothing left to
+complete. `ctrl+e` cycles the detected engines from anywhere in
+the dialog. Use `ctrl+[` / `ctrl+]` to move between its three modes, or focus the
 mode selector and use the left/right arrows.
 
 - **For Existing** picks a local repository and the ref to branch from. Rove
   creates a new task branch and worktree, then opens it ready for the first
   prompt. The current repository and its checked-out branch are the defaults.
+  Type a name to filter your saved repositories, or a path (`/` or `~/`) to
+  browse directories instead; `↑`/`↓` moves the highlight. `tab` completes the
+  highlighted row without leaving the field — a browsed directory keeps its
+  trailing slash, so the next `tab` walks one level deeper — while `enter`
+  takes the highlighted row and moves on to the branch field.
   For a repository Rove already tracks as a project, an extra **opens** row
   appears: leave it on "a new task worktree" for the behaviour above, or
   choose "the project itself" to open that repository's own checkout instead
@@ -214,7 +268,8 @@ mode selector and use the left/right arrows.
   because opening a checkout forks from nothing.
 - **For New Repo** clones a Git URL into a chosen parent directory, derives an
   available folder name, then creates a task from the requested base branch.
-  The parent directory is remembered for the next clone.
+  The parent-directory field browses the same way the repo field does, `tab`
+  included. The parent directory is remembered for the next clone.
 - **Adopt Worktree** imports existing git worktrees that are not already
   tasks. The path-glob field filters by absolute path or basename; `enter`
   toggles the highlighted row and `ctrl+a` selects or clears all filtered
@@ -241,6 +296,15 @@ leaves run your login shell in the same worktree. `F3` cycles split focus;
 tab. Split layouts and custom names survive a Rove restart, but which split had
 focus does not. If a split process exits, its leaf disappears and the remaining
 layout collapses naturally.
+
+Who owns the mouse inside a terminal decides who owns selection. At a plain
+shell prompt — a `git log`, a `cat`, anything that never asks for the mouse —
+drag to select and Rove copies the text to your system clipboard on release.
+Inside an app that tracks the mouse itself (Claude Code, Codex, `vim`, `less`,
+`htop`) the click goes to the app instead, so its own selection and copy work
+as they do in any terminal, and Rove paints nothing over them. Launching such
+an app clears a selection Rove was still showing. Hold `shift` while dragging
+to select out of a mouse-aware app anyway, the way iTerm2 and kitty do.
 
 The optional horizontal tab strip can be always visible, visible only for
 multiple tabs, or hidden. The sidebar tree still lists every tab in all three
@@ -399,8 +463,10 @@ When the page opens, `a` filters to issues assigned to you, `tab` switches
 repos, and `r` refreshes past the cache. `enter` starts a Rove task from the
 selected issue: the issue body arrives as the first prompt (fenced, and
 explicitly marked as an untrusted report), and the task keeps a
-`linkedWorkItem` pointer back to the issue. Nothing is imported into the local
-issue store and nothing is written back to GitHub.
+`linkedWorkItem` pointer back to the issue. An issue that already has a task
+shows that task's title on its detail line, and `enter` opens the task instead
+of creating a second one. Nothing is imported into the local issue store and
+nothing is written back to GitHub.
 
 ## Updates and version warnings
 

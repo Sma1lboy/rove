@@ -42,6 +42,13 @@ export interface WorktreeChanges {
   readonly added: number
   /** Files deleted (in index or worktree). */
   readonly deleted: number
+  /**
+   * Commits this worktree is BEHIND its base (`git rev-list --count
+   * HEAD..<base>`), from the daemon's collector. Absent when no base ref
+   * resolves, or when the counts came from the local sync fallback — which
+   * only reads `git status` and therefore knows nothing about the base.
+   */
+  readonly behind?: number
 }
 
 const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
@@ -53,12 +60,12 @@ const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
  * (DESIGN §5.5) is one predicate everywhere.
  */
 export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
 }
 
 /**
  * Pick the DAEMON-pushed counts for a row, or `null` when the local
- * poller must serve it (issue #6). A non-null `pushed` map means a
+ * poller must serve it. A non-null `pushed` map means a
  * daemon-side collector owns git polling for this process — a worktree
  * absent from the map (just-created task, deleted row, remote project)
  * reads as zeros (chip hidden), NEVER as "poll locally": the fallback is
@@ -105,9 +112,9 @@ export function readWorktreeChanges(worktreePath: string): WorktreeChanges {
  * rename resolution) is delegated to the shared {@link parsePorcelainRows};
  * this helper only classifies each row by its raw status pair: a `D` in
  * EITHER column counts as a deletion, everything else (M, A, R, C, T, U, ??)
- * as an addition. A rename is one porcelain row → one `added` event, as
- * before — the shared parser preserves the raw `x`/`y` chars so this
- * classification is byte-for-byte the same as the old inline scan.
+ * as an addition. A rename is one porcelain row → one `added` event; the
+ * shared parser preserves the raw `x`/`y` chars so this
+ * classification stays exact.
  */
 export function parsePorcelain(text: string): WorktreeChanges {
   let added = 0

@@ -43,12 +43,14 @@ import type { DaemonServer, DaemonServerOptions } from "./server-options.ts"
 import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.ts"
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
+import { TabCloseBroker } from "./tab-close-broker.ts"
 import { type DaemonWebServer, createDirectWebLink, startDaemonWebServer } from "./web-server.ts"
 import { WorkItemCache } from "./work-items.ts"
 
 // RPC handler registry + per-request dispatch seam — re-exported so consumers
 // (tests, kobe-web bridge) keep the existing `daemon/server` import path.
 export {
+  blockingRpcNames,
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
   shapeDaemonError,
@@ -71,13 +73,12 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // `isForeignDaemonHome` in protocol.ts.
   const homeDir = resolveDaemonHomeDir(options.homeDir)
   const startedAt = options.startedAt ?? new Date()
-  // Never steal a live daemon's socket: an unconditional pre-bind unlink let
-  // an autospawned daemon usurp the path while the incumbent kept serving its
-  // attached clients — hooks and TUI split across two daemons, activity
-  // badges gone (prod 2026-08-10). Probed FIRST so a refused boot constructs
-  // nothing. A dead ("absent") or hung ("wedged", connects but won't answer
-  // hello — replaceable, same recoverability the unconditional unlink
-  // provided) socket may still be cleared below.
+  // Never steal a live daemon's socket: an unconditional pre-bind unlink lets
+  // an autospawned daemon usurp the path while the incumbent keeps serving
+  // its attached clients — hooks and TUI split across two daemons, activity
+  // badges gone. Probed FIRST so a refused boot constructs nothing. A dead
+  // ("absent") or hung ("wedged", connects but won't answer hello —
+  // replaceable) socket may still be cleared below.
   if ((await probeDaemonSocket(socketPath)) === "alive") {
     throw new Error(`rove daemon: another daemon is already serving ${socketPath} — refusing to replace it`)
   }
@@ -209,8 +210,8 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     // deletes (`kobe api`) where no TUI sends pty.kill. Fire-and-forget;
     // never spawns a host, never throws. MUST pass this server's homeDir
     // (like every other path above): a temp-home daemon resolving the
-    // ambient default sweeps the REAL pty-host with its own task list —
-    // the 2026-07-07/08 "every test run killed my running engines" incident.
+    // ambient default sweeps the REAL pty-host with its own task list, which
+    // kills the engines a human is running.
     void sweepPtyHostSessions(
       snapshot.map((t) => t.id),
       options.homeDir,
@@ -249,11 +250,12 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // the collectors, and the sweep only reads it on a tick.
       plugins: () => pluginHost,
       // A standing routine session whose composer is busy hands its report to
-      // these instead of dropping it (issue #91).
+      // these instead of dropping it.
       ...(deferredPrompts ? { deferred: deferredPrompts } : {}),
       inbox,
     },
     activity,
+    deferredPrompts ? { store: deferredPrompts, inbox } : undefined,
   )
 
   // Plugin runtime: startup hooks + channel-derived event hooks (plugins/runtime.ts).
@@ -275,6 +277,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
 
   // Pending host-dialog prompts (`ui.prompt` ↔ `ui.promptReply`).
   const prompts = new PromptBroker()
+  const tabCloses = new TabCloseBroker()
 
   let webServer: DaemonWebServer | null = null
   // Why the web transport isn't listening (port taken, bind failed). Surfaced
@@ -282,7 +285,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // of the TUI's misleading "daemon did not start".
   let webError: string | null = null
 
-  // Ownership watch (issue #10, rationale in socket-guard.ts): a daemon whose
+  // Ownership watch (rationale in socket-guard.ts): a daemon whose
   // socket path was taken over is unreachable for every NEW connection and
   // must not linger as a split-brain island — stop, so the attached clients'
   // reconnect loops migrate them to the new owner.
@@ -305,29 +308,39 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     clients,
     async close() {
       lifetime.markStopping()
-      unsubscribeStore()
-      webServer?.close()
-      webServer = null
-      stopCollectors()
-      ptyHold.stop()
-      stopPtyExitWatch()
-      // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
-      await pluginHost?.stop()
-      prompts.clear()
-      activity.close()
-      // Hosted PTYs are deliberately NOT touched here: they live in the
-      // standalone `kobe pty-host` process, so `kobe daemon restart` never
-      // ends a running engine session — only `kobe reset` does.
-      // Task sessions are intentionally untouched here: closing the daemon
-      // never tears them down. Session teardown lives ONLY in `kobe reset` /
-      // `kobe kill-sessions`. Keep it that way.
-      broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
-      for (const client of Array.from(clients)) {
-        client.socket.destroy()
+      // Release in a `finally`: a throw between the halves used to strand a
+      // zombie — `stopping` latched and the internals gone, but the socket and
+      // pidfile still on disk answering `hello`. `pluginHost.stop()` throws
+      // (its `run` spawns outside the inner promise).
+      try {
+        unsubscribeStore()
+        webServer?.close()
+        webServer = null
+        stopCollectors()
+        ptyHold.stop()
+        stopPtyExitWatch()
+        // Awaited: [[shutdown]] hooks finish inside stop()'s bounded grace.
+        await pluginHost?.stop()
+        prompts.clear()
+        tabCloses.clear()
+        activity.close()
+      } catch (err) {
+        logDaemonError("daemon-shutdown", err)
+      } finally {
+        // Hosted PTYs are deliberately NOT touched here: they live in the
+        // standalone `kobe pty-host` process, so `kobe daemon restart` never
+        // ends a running engine session — only `kobe reset` does.
+        // Task sessions are intentionally untouched here: closing the daemon
+        // never tears them down. Session teardown lives ONLY in `kobe reset` /
+        // `kobe kill-sessions`. Keep it that way.
+        broadcast(clients, { type: "event", name: "daemon.stopping", payload: {} })
+        for (const client of Array.from(clients)) {
+          client.socket.destroy()
+        }
+        // Ownership-aware teardown: a superseded daemon must neither close the
+        // listener nor unlink files another daemon owns — see socket-guard.ts.
+        await sockGuard.release(server)
       }
-      // Ownership-aware teardown: a superseded daemon must neither close the
-      // listener nor unlink files another daemon owns — see socket-guard.ts.
-      await sockGuard.release(server)
     },
   }
 
@@ -345,7 +358,14 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   async function stopSoon(): Promise<void> {
     if (lifetime.isStopping()) return
     lifetime.markStopping()
-    await options.onStop?.()
+    try {
+      await options.onStop?.()
+    } catch (err) {
+      // The latch is set, so nothing re-arms the idle timer: a stop hook that
+      // took the close below with it left the daemon outliving every request
+      // to stop it — idle, takeover and `rove daemon stop` all route here.
+      logDaemonError("daemon-stop-hook", err)
+    }
     setTimeout(() => {
       serverApi.close().catch((err) => logDaemonError("daemon-shutdown", err))
     }, 0).unref()
@@ -380,6 +400,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       engineEvents,
       ...(pluginHost ? { plugins: pluginHost } : {}),
       prompts,
+      tabCloses,
       daemon: {
         startedAt,
         socketPath,
@@ -454,7 +475,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
         writeEvent: (target, name, payload) => writeFrame(target as ClientState, { type: "event", name, payload }),
       })
       if (!hadSubscribers && lifetime.hasSubscribers()) {
-        // The poller's startup tick ran before this client could subscribe;
+        // The poller's startup tick can land ahead of a client's subscribe;
         // wake it now instead of leaving a cold footer empty for 60 seconds.
         for (const vendor of runtime.vendorsWithQuotaProbe()) void quotaUsage.refreshIfDue(vendor)
       }
@@ -472,9 +493,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       writeFrame(client, { type: "response", id: req.id, name: req.name, payload })
     } catch (err) {
       // shapeDaemonError (handlers.ts) is the ONE place a thrown error
-      // becomes a wire DaemonError — message + Error name, same bytes as
-      // the old inline shaping. The parse-error path below deliberately
-      // stays bare `{ message }` (it never carried a `name` on the wire).
+      // becomes a wire DaemonError — message + Error name. The parse-error
+      // path below deliberately stays bare `{ message }`: a `name` has never
+      // been part of that frame's wire shape.
       writeFrame(client, { type: "response", id: req.id, name: req.name, error: shapeDaemonError(err) })
     }
   }

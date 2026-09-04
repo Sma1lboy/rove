@@ -30,7 +30,7 @@ import {
 import { PluginCliError, installPlugin } from "./plugin-install.ts"
 import { activeCliName } from "./rename-compat.ts"
 
-export interface OutdatedRow {
+interface OutdatedRow {
   readonly id: string
   readonly spec: string
   readonly version: string
@@ -65,7 +65,7 @@ function checkEntry(entry: PluginRegistryEntry & { source: { kind: "github"; spe
 }
 
 /** Probe every GitHub-installed plugin; refreshes the Settings cache. */
-export function listOutdated(): OutdatedRow[] {
+function listOutdated(): OutdatedRow[] {
   const rows = loadPluginRegistry()
     .plugins.filter(
       (p): p is PluginRegistryEntry & { source: { kind: "github"; spec: string } } => p.source.kind === "github",
@@ -95,10 +95,10 @@ export function printOutdated(): void {
 
 /**
  * An update whose manifest declares a NEW id (the author renamed the
- * plugin) installs under that id, which would leave the old registry entry
- * enabled and pointing at the old checkout — two copies of the same plugin
- * firing every hook. Carry the user's data across and unregister the old
- * one. Nothing is deleted: the stale checkout directory is left in place
+ * plugin) installs under that id, leaving the previous registry entry
+ * enabled and pointing at its own checkout — two copies of the same plugin
+ * firing every hook. Carry the user's data across and unregister the
+ * previous id. Nothing is deleted: the stale checkout directory is left in place
  * and reported, so a rename can never lose configuration.
  */
 function migrateRenamedPlugin(oldId: string, newId: string): void {
@@ -108,7 +108,7 @@ function migrateRenamedPlugin(oldId: string, newId: string): void {
     if (!existsSync(from)) continue
     mkdirSync(to, { recursive: true })
     // Only carry entries the fresh install didn't already create, so a
-    // re-run can't clobber newer values with the old ones.
+    // re-run can't clobber a newer value with a stale one.
     for (const entry of readdirSync(from)) {
       if (existsSync(join(to, entry))) continue
       renameSync(join(from, entry), join(to, entry))

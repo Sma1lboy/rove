@@ -101,3 +101,34 @@ describe("a task whose last tab was closed", () => {
     expect(await frameForTask(SELECTED)).not.toContain("No sessions here")
   })
 })
+
+/**
+ * An experimental remote (`ssh://`) project. The worktree is on the other
+ * machine and the PTY host only spawns locally, so the launch builder refuses
+ * — and a refusal thrown from inside TerminalTabs reaches the user as
+ * "This pane crashed", which names nothing. Not mounting is the whole fix.
+ */
+describe("a task on a remote ssh:// project", () => {
+  const REMOTE = { id: "t1", repo: "ssh://me@buildbox", kind: "task" } as unknown as Task
+
+  const frameForRemote = async (task: Task, worktree: string): Promise<string> => {
+    tabsByTask.clear()
+    const { frame } = await renderComponent(<ShowWorkspace {...props(ONE_TASK)} task={task} worktree={worktree} />)
+    await act(async () => {})
+    return await frame()
+  }
+
+  it("says what is unimplemented instead of mounting an engine tab", async () => {
+    const frame = await frameForRemote(REMOTE, "/srv/rove/me-buildbox/t1")
+    expect(frame).toContain("SSH is not implemented")
+    expect(frame).toContain("ssh://me@buildbox")
+  })
+
+  it("catches a remote WORKTREE under a repo key that reads local", async () => {
+    expect(await frameForRemote(SELECTED, "ssh://me@buildbox/srv/rove/t1")).toContain("SSH is not implemented")
+  })
+
+  it("leaves a local task mounting as before", async () => {
+    expect(await frameForRemote(SELECTED, "/wt/t1")).not.toContain("SSH is not implemented")
+  })
+})

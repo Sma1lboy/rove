@@ -16,6 +16,22 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "issue.mutate",
     async handle(payload, ctx) {
       const repoRoot = requireString(payload, "repoRoot")
+      // A `link` op names a task, and the store only type-checks `taskId` as a
+      // non-empty string — without this guard a typo'd id is accepted and the
+      // card sits in In progress pointing at nothing. The check lives HERE,
+      // rather than in the store: both the
+      // CLI (`issue-update --task`) and the web link route funnel through this
+      // one RPC, and the task index is on the handler context, so the issue
+      // store keeps knowing nothing about tasks. The prose is the same one
+      // every other handler throws, which `toApiError` maps to a typed
+      // TASK_NOT_FOUND with the `api list` recovery command.
+      const op = payload.op
+      if (op && typeof op === "object" && (op as { type?: unknown }).type === "link") {
+        const taskId = (op as { taskId?: unknown }).taskId
+        if (typeof taskId === "string" && taskId.length > 0 && !ctx.orch.getTask(taskId)) {
+          throw new Error(`task not found: ${taskId}`)
+        }
+      }
       const state = await ctx.issues.mutate(repoRoot, payload.op)
       ctx.bus.publish("issue.snapshot", state)
       ctx.plugins?.handleUiReport({

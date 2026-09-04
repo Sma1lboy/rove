@@ -34,6 +34,11 @@ export default defineConfig({
     include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
     exclude,
     environment: "node",
+    // Strips the ambient ROVE_*/KOBE_* identity vars and redirects the home
+    // at an empty tmpdir before any test file's own hooks run, so a result
+    // cannot depend on the developer's shell, saved presets, or where the
+    // checkout sits. See the header of that file for the measured numbers.
+    setupFiles: ["test/setup-env.ts"],
     // `bun run coverage` / --coverage. v8 provider; json-summary feeds the
     // per-touched-file CI gate (scripts/coverage-gate.mjs), text is for humans.
     // No global % thresholds — the gate is per-file on files a PR touches.

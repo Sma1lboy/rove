@@ -15,6 +15,7 @@ import {
   pastePromptWhenEngineUp,
 } from "../engine/hosted-session.ts"
 import { engineEntry } from "../engine/registry.ts"
+import { sessionHasEngine } from "../engine/session-engine-presence.ts"
 import { buildEngineSessionLaunch } from "../engine/session-launch.ts"
 import { trustEngineWorktree } from "../engine/trust-worktree.ts"
 import { TaskDeletingError } from "../orchestrator/errors.ts"
@@ -22,7 +23,9 @@ import type { PromptDeliveryIntent } from "../state/repo-init.ts"
 import type { VendorId } from "../types/task.ts"
 
 async function getTask(link: DaemonRpcClient, taskId: string): Promise<SerializedTask> {
-  const { task } = await link.request<{ task: SerializedTask }>("task.get", { taskId })
+  const { task } = await link.request<{ task: SerializedTask }>("task.get", {
+    taskId,
+  })
   return task
 }
 
@@ -42,11 +45,15 @@ export async function ensureTaskSessionAdapter(link: DaemonRpcClient, taskId: st
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
     if (!opened.alive) throw new Error(`failed to start hosted engine session for ${taskId}`)
-    // Paste-delivery vendor (kimi — issue #25) with a repo init-prompt: the
-    // message rode outside the argv. Best-effort paste — the engine IS up,
+    // Paste-delivery vendor (kimi) with a repo init-prompt: the
+    // message rides outside the argv. Best-effort paste — the engine IS up,
     // so a missed paste leaves an idle prompt, not a failed session.
     if (launch.firstMessage) {
-      const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
+      const engineBin = engineLaunchArgv({
+        command: task.command,
+        vendor: task.vendor,
+        effort: task.modelEffort,
+      })[0]
       await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
         initMarkerPath: launch.initMarkerPath,
         initTimeoutMs: launch.initTimeoutMs,
@@ -81,18 +88,25 @@ export async function startTaskSessionWithPromptAdapter(
   // session it was observed from.
   await link.request("task.observeLanguage", { taskId, text: prompt }).catch(() => {})
   // "new-task", not "explicit": both callers (automation runner, work-item
-  // start) create the task right before this call, so the first prompt gets
+  // start) create the task immediately ahead of this call, so the first prompt gets
   // the branch-rename coda like every other new-worktree entry point.
-  const launch = taskEngineLaunch(task, worktreePath, { kind: "new-task", prompt })
+  const launch = taskEngineLaunch(task, worktreePath, {
+    kind: "new-task",
+    prompt,
+  })
   const host = await ensureHostedSessionHost()
   try {
     const opened = await ensureHostedEngine(host.rpc, worktreePath, launch)
     if (!opened.alive) return false
-    // Paste-delivery vendor (kimi — issue #25): the prompt rode OUTSIDE the
+    // Paste-delivery vendor (kimi): the prompt rides OUTSIDE the
     // argv; deliver it once the engine process is up. A paste that never
     // lands means the prompt was not delivered — report false.
     if (launch.firstMessage) {
-      const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort })[0]
+      const engineBin = engineLaunchArgv({
+        command: task.command,
+        vendor: task.vendor,
+        effort: task.modelEffort,
+      })[0]
       const outcome = await pastePromptWhenEngineUp(host.rpc, launch.key, engineBin, launch.firstMessage, {
         initMarkerPath: launch.initMarkerPath,
         initTimeoutMs: launch.initTimeoutMs,
@@ -106,13 +120,22 @@ export async function startTaskSessionWithPromptAdapter(
 }
 
 function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptIntent: PromptDeliveryIntent) {
-  // Pre-trust the worktree in the vendor's first-run store (issue #28).
+  // Pre-trust the worktree in the vendor's first-run store.
   trustEngineWorktree(task.vendor, worktreePath)
   return buildEngineSessionLaunch({
-    task: { id: task.id, kind: task.kind, vendor: task.vendor, repo: task.repo },
+    task: {
+      id: task.id,
+      kind: task.kind,
+      vendor: task.vendor,
+      repo: task.repo,
+    },
     worktreePath,
     shell: resolveLoginShell({ fallback: "/bin/zsh" }),
-    argv: engineLaunchArgv({ command: task.command, vendor: task.vendor, effort: task.modelEffort }),
+    argv: engineLaunchArgv({
+      command: task.command,
+      vendor: task.vendor,
+      effort: task.modelEffort,
+    }),
     promptIntent,
   })
 }
@@ -120,16 +143,23 @@ function taskEngineLaunch(task: SerializedTask, worktreePath: string, promptInte
 export async function engineSpecAdapter(link: DaemonRpcClient, taskId: string) {
   const { task, worktreePath } = await ensureTaskWorktree(link, taskId)
   const launch = taskEngineLaunch(task, worktreePath, { kind: "repo-init" })
-  // Paste-delivery vendor (kimi — issue #25): the repo init-prompt rode
+  // Paste-delivery vendor (kimi): the repo init-prompt rides
   // OUTSIDE the argv; the web PTY sidecar pastes it after the fresh spawn
   // (the sidecar owns its own PTYs — the daemon's hosted paste can't reach
   // them). Without this the message would be silently dropped.
-  return { cwd: worktreePath, command: [...launch.command], firstMessage: launch.firstMessage }
+  return {
+    cwd: worktreePath,
+    command: [...launch.command],
+    firstMessage: launch.firstMessage,
+  }
 }
 
 export async function terminalSpecAdapter(link: DaemonRpcClient, taskId: string) {
   const { worktreePath } = await ensureTaskWorktree(link, taskId)
-  return { cwd: worktreePath, command: [resolveLoginShell({ fallback: "/bin/zsh" }), "-il"] }
+  return {
+    cwd: worktreePath,
+    command: [resolveLoginShell({ fallback: "/bin/zsh" }), "-il"],
+  }
 }
 
 /**
@@ -139,18 +169,30 @@ export async function terminalSpecAdapter(link: DaemonRpcClient, taskId: string)
  * "no alive engine" returns false and the schedule is dropped instead.
  */
 export async function deliverPromptToLiveEngineAdapter(
-  task: { readonly id: string; readonly vendor?: VendorId; readonly command?: string; readonly worktreePath: string },
+  task: {
+    readonly id: string
+    readonly vendor?: VendorId
+    readonly command?: string
+    readonly worktreePath: string
+  },
   prompt: string,
 ): Promise<boolean> {
   const host = await openHostedSessionHost()
   if (!host) return false
   try {
     const sessions = await listHostedSessions(host.rpc)
-    const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor })[0]
+    const engineBin = engineLaunchArgv({
+      command: task.command,
+      vendor: task.vendor,
+    })[0]
     const key = findHostedEngineKey(sessions, task.id, engineBin)
     if (!key) return false
     const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
-    return (await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })) !== null
+    return (
+      (await deliverToHostedKey(host.rpc, key, prompt, {
+        screenManifest: manifest,
+      })) !== null
+    )
   } catch (err) {
     // Composer-busy is not a silent failure: let the quota-resume runner log
     // it instead of dropping the prompt without a trace.
@@ -169,34 +211,52 @@ function tabIdFromHostedKey(key: string): string {
 /**
  * {@link deliverPromptToLiveEngineAdapter} reporting composer-busy as a VALUE.
  *
- * The routine runner (issue #91) must not drop a daily report the way
+ * The routine runner must not drop a daily report the way
  * quota-resume drops a continue nudge: a dropped report and a routine that
  * never ran look identical to the user. It needs the busy layer and the tab
  * to file a deferral, and the daemon cannot catch `ComposerBusyError` by type
  * across the package boundary — so the outcome crosses as data.
  */
 export async function deliverPromptToLiveEngineDetailedAdapter(
-  task: { readonly id: string; readonly vendor?: VendorId; readonly command?: string; readonly worktreePath: string },
+  task: {
+    readonly id: string
+    readonly vendor?: VendorId
+    readonly command?: string
+    readonly worktreePath: string
+  },
   prompt: string,
 ): Promise<
   | { outcome: "delivered"; tabId: string }
   | { outcome: "no-session" }
-  | { outcome: "busy"; tabId: string; layer: "recent-human-write" | "composer-not-empty" }
+  | {
+      outcome: "busy"
+      tabId: string
+      layer: "recent-human-write" | "composer-not-empty"
+    }
 > {
   const host = await openHostedSessionHost()
   if (!host) return { outcome: "no-session" }
   try {
     const sessions = await listHostedSessions(host.rpc)
-    const engineBin = engineLaunchArgv({ command: task.command, vendor: task.vendor })[0]
+    const engineBin = engineLaunchArgv({
+      command: task.command,
+      vendor: task.vendor,
+    })[0]
     const key = findHostedEngineKey(sessions, task.id, engineBin)
     if (!key) return { outcome: "no-session" }
     const manifest = task.vendor ? engineEntry(task.vendor).screenManifest : undefined
     try {
-      const delivered = await deliverToHostedKey(host.rpc, key, prompt, { screenManifest: manifest })
+      const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
+        screenManifest: manifest,
+      })
       return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: tabIdFromHostedKey(key) }
     } catch (err) {
       if (err instanceof ComposerBusyError) {
-        return { outcome: "busy", tabId: tabIdFromHostedKey(key), layer: err.layer }
+        return {
+          outcome: "busy",
+          tabId: tabIdFromHostedKey(key),
+          layer: err.layer,
+        }
       }
       throw err
     }
@@ -204,6 +264,59 @@ export async function deliverPromptToLiveEngineDetailedAdapter(
     // A host that went away mid-delivery is indistinguishable from one that
     // was never there — both mean "revive it", which is the caller's fallback.
     return { outcome: "no-session" }
+  } finally {
+    host.close()
+  }
+}
+
+/** Exact-tab variant used by deferred queue draining. Never reroutes or spawns. */
+export async function deliverPromptToLiveEngineTabDetailedAdapter(
+  target: {
+    readonly id: string
+    readonly tabId: string
+    readonly vendor?: VendorId
+    readonly command?: string
+    readonly worktreePath: string
+  },
+  prompt: string,
+): Promise<
+  | { outcome: "delivered"; tabId: string }
+  | { outcome: "no-session" }
+  | {
+      outcome: "busy"
+      tabId: string
+      layer: "recent-human-write" | "composer-not-empty"
+    }
+> {
+  const host = await openHostedSessionHost()
+  if (!host) return { outcome: "no-session" }
+  try {
+    const key = `${target.id}::${target.tabId}`
+    let sessions: Awaited<ReturnType<typeof listHostedSessions>>
+    try {
+      sessions = await listHostedSessions(host.rpc)
+    } catch {
+      return { outcome: "no-session" }
+    }
+    const session = sessions.find((candidate) => candidate.alive && candidate.key === key)
+    if (!session) return { outcome: "no-session" }
+    const engineArgv = engineLaunchArgv({
+      command: target.command,
+      vendor: target.vendor,
+    })
+    if (!(await sessionHasEngine(session.pid, engineArgv))) return { outcome: "no-session" }
+    const manifest = target.vendor ? engineEntry(target.vendor).screenManifest : undefined
+    try {
+      const delivered = await deliverToHostedKey(host.rpc, key, prompt, {
+        screenManifest: manifest,
+      })
+      return delivered === null ? { outcome: "no-session" } : { outcome: "delivered", tabId: target.tabId }
+    } catch (err) {
+      if (err instanceof ComposerBusyError) {
+        return { outcome: "busy", tabId: target.tabId, layer: err.layer }
+      }
+      throw err
+    }
   } finally {
     host.close()
   }

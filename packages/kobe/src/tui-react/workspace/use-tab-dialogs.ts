@@ -1,20 +1,19 @@
 /**
  * Tab-strip dialog flows: rename (F2) and the unified new-conversation dialog
- * (issue #7) — the places the component ASKS the user something, kept apart
- * from the places it acts. Pure composition over the injected deps: no state
- * of its own, so every closure reads the CURRENT
- * render's `state`/`active` (the caller re-creates this hook's return every
- * render, same freshness contract as the inline originals).
+ * — the places the component ASKS the user something, kept apart from the
+ * places it acts. Pure composition over the injected deps: no state of its
+ * own, so every closure reads the CURRENT render's `state`/`active` (the
+ * caller re-creates this hook's return every render).
  *
- * `requestNewChat` replaces the old separate choose-engine / chat-fork /
- * quick-fork flows: one dialog (`NewChatDialog`), two toggles, four combos:
+ * `requestNewChat` is the single entry: one dialog (`NewChatDialog`), two
+ * toggles, four combos:
  *
- *   destination=tab  + context=fresh    → new tab here (old ctrl+e enter,
+ *   destination=tab  + context=fresh    → new tab here (ctrl+e enter,
  *                                         incl. shell / plugin panes)
  *   destination=tab  + context=continue → fork/handoff sibling tab
- *                                         (old `ctrl+a c`)
+ *                                         (`ctrl+a c`)
  *   destination=fork + context=fresh    → QuickTaskComposer child task
- *                                         (old `ctrl+a f`)
+ *                                         (`ctrl+a f`)
  *   destination=fork + context=continue → composer, first prompt led by the
  *                                         transcript handoff brief
  */
@@ -48,6 +47,7 @@ import {
   type ChatForkPlan,
   addForkTab,
   addHandoffTab,
+  liveSourceProtocol,
   planChatContinuation,
   planWorktreeHandoff,
 } from "./fork-chat-tab"
@@ -73,7 +73,7 @@ export function useTabDialogs(deps: {
   activeLeafSize: () => { cols: number; rows: number } | null
   onChooseEngine?: (vendor: VendorId) => void
   onQuickFork?: (repo: string, result: QuickTaskResult) => void
-  /** The dialog's trailing "scratch shell" choice (issue #33): open a
+  /** The dialog's trailing "scratch shell" choice: open a
    *  Scratch temp shell task. Absent = the choice isn't offered. */
   onOpenScratch?: () => void
   /** Toast for the "nothing to continue from" refusals. */
@@ -105,12 +105,17 @@ export function useTabDialogs(deps: {
     )
 
   /** destination=tab: land the picked engine as a sibling tab — fresh
-   *  (plain `addTab`) or continuing (fork/handoff, old `ctrl+a c`). */
-  const openTabHere = async (choice: NewChatChoice, source: VendorId): Promise<void> => {
+   *  (plain `addTab`) or continuing (fork/handoff, `ctrl+a c`).
+   *  `tabVendor` is the id the active tab was LAUNCHED under, `source` the
+   *  protocol it speaks; picking that same id is "continue here", so it
+   *  continues under the same protocol rather than reading as a handoff to a
+   *  foreign engine. */
+  const openTabHere = async (choice: NewChatChoice, tabVendor: VendorId, source: VendorId): Promise<void> => {
     const vendor = choice.pick as VendorId
     if (choice.context === "continue") {
-      const plan = await planChatContinuation(active, source, vendor, deps.worktree)
-      if (plan.kind === "fork") update(pinSession(addForkTab(state, vendor, plan.sessionId), vendor))
+      const target = vendor === tabVendor ? source : vendor
+      const plan = await planChatContinuation(active, source, target, deps.worktree)
+      if (plan.kind === "fork") update(pinSession(addForkTab(state, vendor, target, plan.sessionId), target))
       else if (plan.kind === "handoff") update(pinSession(addHandoffTab(state, vendor, plan.prompt), vendor))
       else notifyRefusal(plan)
       return
@@ -124,8 +129,8 @@ export function useTabDialogs(deps: {
     }
   }
 
-  /** destination=fork: the QuickTaskComposer child-task flow (old
-   *  `ctrl+a f`), seeded from THIS task's repo/branch and the dialog's
+  /** destination=fork: the QuickTaskComposer child-task flow (`ctrl+a f`),
+   *  seeded from THIS task's repo/branch and the dialog's
    *  engine pick. With context=continue the created task's first prompt
    *  opens on the transcript handoff brief, then the user's own prompt. */
   const forkChildTask = async (
@@ -161,10 +166,11 @@ export function useTabDialogs(deps: {
    *  open it with a toggle pre-flipped. Dispatches the four combos above. */
   const requestNewChat = (preset: NewChatPreset = {}): void => {
     void (async () => {
-      const source = (active.kind === "engine" ? active.vendor : undefined) ?? deps.vendor
+      const tabVendor = (active.kind === "engine" ? active.vendor : undefined) ?? deps.vendor
+      const source = liveSourceProtocol(active, tabVendor)
       const available = await availableEngineIds()
-      // Installed plugin panes ride the same picker (owner ask 2026-07-29):
-      // ctrl+e is "what runs in this tab", and a pane is exactly that. Reads
+      // Installed plugin panes ride the same picker: ctrl+e is "what runs in
+      // this tab", and a pane is exactly that. Reads
       // the local registry synchronously — a handful of small files. Only
       // offered in the default combo (the dialog filters otherwise).
       let panes: PaneLaunch[] = []
@@ -179,7 +185,7 @@ export function useTabDialogs(deps: {
         // Continue-presets highlight the tab's own engine (the conversation
         // being continued); the pristine entry keeps ctrl+e's task-engine
         // default.
-        preset.context === "continue" ? source : deps.vendor,
+        preset.context === "continue" ? tabVendor : deps.vendor,
         {
           allowShell: true,
           allowScratch: deps.onOpenScratch !== undefined,
@@ -205,14 +211,13 @@ export function useTabDialogs(deps: {
         update(openCommandTab(state, [defaultShell()], null))
         return
       }
-      // "scratch" = a whole Scratch temp shell TASK, not a tab of this one
-      // (issue #33 — owner entry point 2026-08-16, replacing the rejected
-      // prefix+t chord).
+      // "scratch" = a whole Scratch temp shell TASK, not a tab of this one.
+      // This menu entry is its only entry point; there is no chord.
       if (choice.pick === "scratch") {
         deps.onOpenScratch?.()
         return
       }
-      await openTabHere(choice, source)
+      await openTabHere(choice, tabVendor, source)
     })()
   }
 

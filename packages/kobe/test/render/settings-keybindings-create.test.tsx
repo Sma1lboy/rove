@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Settings → Keybindings used to print a YAML example and leave you to create
- * the file yourself. The page now writes it: one keypress, and the section
- * flips from "not created yet" to a real config it can report on.
+ * Settings → Keybindings WRITES the starter YAML rather than printing an
+ * example for you to retype: one keypress, and the section flips from "not
+ * created yet" to a real config it can report on.
  */
 
 import { expect, test } from "bun:test"
@@ -18,7 +18,7 @@ const NOOP = (): void => {}
 
 function Driver() {
   const kv = useKV()
-  return <SettingsDialog kv={kv} standalone onClose={NOOP} />
+  return <SettingsDialog kv={kv} onClose={NOOP} />
 }
 
 test("the Keybindings page writes the starter YAML on enter", async () => {

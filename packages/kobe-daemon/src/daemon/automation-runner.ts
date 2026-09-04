@@ -2,7 +2,7 @@
  * Automation sweep: fire due schedules.
  *
  * WHERE a firing's prompt lands is `automation-dispatch.ts` (fresh task per
- * run, or one standing session re-delivered into — issue #91). This module
+ * run, or one standing session re-delivered into). This module
  * owns only WHEN, and recording what happened.
  *
  * Shape copied wholesale from {@link startQuotaResumeRunner} — same stateless
@@ -33,6 +33,7 @@ import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { latestCronAtOrBefore } from "./cron.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 /** How often the sweep looks for due schedules. Cron's own resolution is one
  *  minute, so a faster tick would only re-ask the same question. */
@@ -54,10 +55,20 @@ export function dueAutomations(automations: readonly Automation[], nowMs: number
  * deserves to be tested without a clock or a filesystem. `notBefore` is the
  * automation's creation time so a brand-new schedule cannot claim occurrences
  * that predate it.
+ *
+ * The grace window has a FLOOR of one tick, because the sweep is a poller:
+ * `scheduledFor` is the occurrence at or before now, and the earliest the
+ * sweep can possibly see it is the tick that follows it, so `now -
+ * scheduledFor` is somewhere in 0..tickMs on a perfectly healthy run. Without
+ * the floor, `missedRunGraceMinutes: 0` made `missed` true on EVERY firing:
+ * the automation recorded `skipped_missed` forever and never dispatched, and
+ * zero looks like a reasonable setting. So a grace of N means "up to and
+ * including N minutes late, plus the tick that discovered it".
  */
 export function resolveDueOccurrence(
   automation: Automation,
   nowMs: number,
+  tickMs: number = DEFAULT_AUTOMATION_TICK_MS,
 ): { scheduledFor: number; missed: boolean } | null {
   const notBefore = Date.parse(automation.createdAt)
   const scheduledFor = latestCronAtOrBefore(automation.schedule, nowMs, Number.isFinite(notBefore) ? notBefore : 0)
@@ -65,12 +76,12 @@ export function resolveDueOccurrence(
   // current expression (a hand-edited file, or an edit that lost a race). The
   // caller just re-anchors the schedule.
   if (scheduledFor === null) return null
-  const graceMs = automation.missedRunGraceMinutes * 60_000
+  const graceMs = automation.missedRunGraceMinutes * 60_000 + Math.max(tickMs, 0)
   return { scheduledFor, missed: nowMs - scheduledFor > graceMs }
 }
 
 /** The slice of the orchestrator this runner needs. `getTask` resolves a
- *  standing session's task before re-delivering into it (issue #91). */
+ *  standing session's task before re-delivering into it. */
 export type AutomationOrchestrator = Pick<DaemonOrchestrator, "createTask" | "getTask">
 
 export type AutomationRuntime = Pick<
@@ -220,12 +231,14 @@ export async function runAutomationOnce(
   })
 }
 
-/** One sweep pass. Exported so tests can drive it without a timer. */
-export async function sweepAutomations(deps: RunnerDeps): Promise<void> {
+/** One sweep pass. Exported so tests can drive it without a timer.
+ *  `tickMs` is the runner's own cadence, which sets the grace floor — see
+ *  {@link resolveDueOccurrence}. */
+export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): Promise<void> {
   const now = deps.now ?? Date.now
   for (const automation of dueAutomations(deps.store.list(), now())) {
     const nowMs = now()
-    const occurrence = resolveDueOccurrence(automation, nowMs)
+    const occurrence = resolveDueOccurrence(automation, nowMs, tickMs)
     if (!occurrence) {
       await deps.store.advanceNextRun(automation.id, nowMs)
       continue
@@ -267,18 +280,7 @@ export async function sweepAutomations(deps: RunnerDeps): Promise<void> {
  * daemon with every collector zeroed, and this must honour that too.
  */
 export function startAutomationRunner(deps: RunnerDeps, tickMs: number = DEFAULT_AUTOMATION_TICK_MS): () => void {
-  if (tickMs <= 0) return () => {}
-  let sweeping = false
-  const tick = async (): Promise<void> => {
-    if (sweeping) return
-    sweeping = true
-    try {
-      await sweepAutomations(deps)
-    } finally {
-      sweeping = false
-    }
-  }
-  const timer = setInterval(() => void tick().catch((err) => logDaemonError("automation-sweep", err)), tickMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+  // Ungated for the same reason as quota-resume, only more so: a schedule
+  // that requires an audience is not a schedule.
+  return startTicker({ name: "automation-sweep", tickMs, run: () => sweepAutomations(deps, tickMs) })
 }

@@ -10,9 +10,9 @@ import * as fileBounds from "../../src/engine/file-bounds.ts"
  *
  * `appendInterruptedUserPrompt` runs from `engine.stop`, while the claude
  * subprocess we just SIGTERM'd may still be flushing buffered records to
- * the same JSONL. The old implementation read the whole file into memory,
- * spliced, and `writeFile`-rewrote it — clobbering anything flushed after
- * the read snapshot. These tests prove the writer now only ever appends:
+ * the same JSONL. Reading the whole file into memory, splicing, and
+ * `writeFile`-rewriting it clobbers anything flushed after the read snapshot.
+ * These tests prove the writer only ever appends:
  * a record a "concurrent writer" lands between the read and the write is
  * preserved, and existing bytes are never truncated.
  */
@@ -102,8 +102,8 @@ describe("appendInterruptedUserPrompt — append-only", () => {
   it("does NOT lose a record a concurrent writer appends between the read and the write", async () => {
     const { deps, filePath } = await makeDeps()
     // Merge case: last conversational record is a user turn (a prior rescue
-    // with no assistant reply yet) — the exact path that used to rewrite the
-    // whole file.
+    // with no assistant reply yet) — the path a naive writer rewrites the
+    // whole file on.
     const seed = `${userRecord("first rescued", "u1", "p0")}\n`
     await writeFile(filePath("s"), seed)
 

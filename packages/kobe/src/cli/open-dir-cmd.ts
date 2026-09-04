@@ -2,11 +2,10 @@
  * `kobe <path>` — the `code .` gesture: open a directory and land in the TUI
  * focused on it. What it opens depends on WHAT the directory is:
  *
- *   - **The root of an eligible git repo** → the project itself (owner call
- *     2026-08-31), i.e. the same outcome as `rove add . && rove`. Opening a
- *     checkout you work in used to mint a throwaway `dir` row beside the main
- *     row it would later be promoted into, so the sidebar listed the same
- *     checkout twice under one header.
+ *   - **The root of an eligible git repo** → the project itself, i.e. the
+ *     same outcome as `rove add . && rove`. Minting a throwaway `dir` row for
+ *     a checkout you work in would put it beside the main row it is later
+ *     promoted into, listing the same checkout twice under one header.
  *   - **Anything else** — a subdirectory, a plain folder, a `/tmp` scratch —
  *     → a standalone `kind:"dir"` task with NO project association: no saved
  *     repo, no main task, no worktree/branch. The task pins the directory
@@ -44,11 +43,11 @@ export function isPathLikeArg(arg: string): boolean {
 }
 
 /**
- * Whether `dir` is the ROOT of a repo eligible to be a project (owner call
- * 2026-08-31). Only the toplevel qualifies: running `rove .` inside
- * `my-monorepo/packages/app` should open a session there, not silently
- * re-target the whole monorepo — and a subdirectory that minted its own
- * project row was the "ghost project named after a subdirectory" bug.
+ * Whether `dir` is the ROOT of a repo eligible to be a project. Only the
+ * toplevel qualifies: running `rove .` inside `my-monorepo/packages/app`
+ * should open a session there, not silently re-target the whole monorepo —
+ * and a subdirectory that mints its own project row is a ghost project named
+ * after a subdirectory.
  */
 async function projectRootFor(dir: string): Promise<string | null> {
   const { isGitRepo, resolveRepoRoot } = await import("../state/repos.ts")
@@ -73,10 +72,10 @@ export async function runOpenDirectory(arg: string): Promise<void> {
     process.stderr.write(`${activeCliName()}: "${arg}" is not a directory (resolved to ${dir}).\n`)
     process.exit(1)
   }
-  // A repo root opens AS THE PROJECT (owner call 2026-08-31): `rove .` in a
-  // checkout you work in is the same gesture as `rove add . && rove`, and
-  // minting a throwaway `dir` row beside the main row it would later be
-  // promoted into just made the sidebar say the same checkout twice.
+  // A repo root opens AS THE PROJECT: `rove .` in a checkout you work in is
+  // the same gesture as `rove add . && rove`, and a throwaway `dir` row would
+  // sit beside the main row it is later promoted into, saying the same
+  // checkout twice.
   // Anything else — a subdirectory, a non-repo folder, a `/tmp` scratch —
   // keeps the dir-task behaviour: pinned to that directory, no project row.
   const projectRoot = await projectRootFor(dir)

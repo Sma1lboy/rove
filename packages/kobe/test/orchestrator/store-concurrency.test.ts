@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { type TaskCreateInput, TaskIndexStore } from "../../src/orchestrator/index/store.ts"
 
 /**
- * Multi-process consistency for the task index (fix B). Two kobe instances
- * (TUI + daemon + CLI) write the SAME `~/.rove/tasks.json`. Before the lock +
- * read-merge-write, a save serialized the writer's WHOLE in-memory snapshot,
- * so process B silently clobbered the task process A had just created (lost
- * update). These tests pin the two guarantees the fix adds: interleaved writes
+ * Multi-process consistency for the task index. Two kobe instances (TUI +
+ * daemon + CLI) write the SAME `~/.rove/tasks.json`. Without the lock +
+ * read-merge-write, a save serializes the writer's WHOLE in-memory snapshot,
+ * so process B silently clobbers the task process A just created (lost
+ * update). These tests pin the two guarantees: interleaved writes
  * keep BOTH tasks, and the lock is actually taken on the write path so two
  * processes can't physically race.
  */
@@ -54,7 +54,7 @@ describe("TaskIndexStore multi-process consistency", () => {
 
     // Interleave the two creates. Without the lock + merge, whichever wrote
     // last would persist only its own task (it based the write on its empty
-    // load snapshot). With the fix the loser re-reads, finds the peer's task,
+    // load snapshot). With the merge the loser re-reads, finds the peer's task,
     // and merges its own on top.
     const [taskA, taskB] = await Promise.all([procA.create(input("alpha")), procB.create(input("beta"))])
 
@@ -74,7 +74,7 @@ describe("TaskIndexStore multi-process consistency", () => {
     await procB.load()
     expect(procB.get(task.id)).toBeDefined()
 
-    // A removes it (disk no longer has it). B then writes an UNRELATED create.
+    // A removes it (gone from disk). B then writes an UNRELATED create.
     // B's stale cache still holds the doomed task, but the merge must take the
     // peer's deletion as truth and not write it back.
     await procA.remove(task.id)
@@ -96,8 +96,8 @@ describe("TaskIndexStore multi-process consistency", () => {
 
     // A deletes; B then touches the SAME task without flushing (touchRecency
     // marks dirty but defers the save). At B's next save the task is dirty in
-    // B's memory while gone from disk — the exact issue #47 resurrection
-    // recipe: the merge's dirty branch used to write it back unconditionally.
+    // B's memory while gone from disk — the resurrection recipe: a merge
+    // whose dirty branch writes it back unconditionally.
     // A's on-disk tombstone must beat B's pending edit.
     await procA.remove(task.id)
     procB.touchRecency(task.id)

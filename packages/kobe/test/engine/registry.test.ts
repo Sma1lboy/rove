@@ -1,8 +1,8 @@
 /**
  * Engine registry (engine/registry.ts) — the consolidation point for the
- * per-vendor conditionals that used to be scattered through
- * monitor/auto-title.ts, engine/hook-adapter.ts and the
- * three account detectors. These tests pin the registry's contract:
+ * per-vendor conditionals that would otherwise scatter through
+ * monitor/auto-title.ts, engine/hook-adapter.ts and the three account
+ * detectors. These tests pin the registry's contract:
  *
  *  - known vendors resolve to REAL entries (the right detector, the right
  *    history reader, claude's hook adapter);
@@ -55,7 +55,7 @@ describe("engineEntry — built-in vendors", () => {
     expect(supportsStructuredHistory("claude")).toBe(true)
     expect(supportsStructuredHistory("kimi")).toBe(false)
     expect(supportsStructuredHistory("my-custom-engine")).toBe(false)
-    // First-message delivery (issue #25): kimi's positional CLI slot is a
+    // First-message delivery: kimi's positional CLI slot is a
     // subcommand, so its first message pastes post-spawn; claude/codex and
     // custom engines keep the argv contract.
     expect(engineEntry("kimi").firstMessageDelivery).toBe("paste")
@@ -100,11 +100,9 @@ describe("engineEntry — built-in vendors", () => {
     expect(engineEntry("my-custom-engine").history.readUsageSnapshot).toBeUndefined()
   })
 
-  it("exposes Codex identity and its harness default model through capabilities", () => {
+  it("exposes Codex identity and its terminal-title policy", () => {
     const entry = engineEntry("codex")
-    expect(entry.identity?.inputPlaceholder).toBe("Ask Codex…")
-    expect(entry.capabilities?.defaultModelId()).toBe("gpt-5.3-codex")
-    expect(entry.capabilities?.permissionModes).toEqual([])
+    expect(entry.identity?.shortName).toBe("Codex")
     expect(entry.terminalTitle?.ownsStatus).toBe(true)
     expect(entry.terminalTitle?.launchArgs).toEqual(["-c", 'tui.terminal_title=["activity","thread-title"]'])
     // The `activity` segment codex is asked for above is a spinner frame,
@@ -113,23 +111,30 @@ describe("engineEntry — built-in vendors", () => {
   })
 
   it("routes detectAccount to the vendor's own detector (claude oauth)", async () => {
-    const status = await engineEntry("claude").detectAccount(
+    const detect = engineEntry("claude").detectAccount
+    // Every built-in must CARRY a detector — `engine-status.ts` dispatches on
+    // this field alone, so an absent one silently degrades the engine to
+    // "login not detectable".
+    expect(detect).toBeDefined()
+    const status = await detect?.(
       deps({
         // ~/.claude.json shape — only the claude detector understands this.
         readFile: () => JSON.stringify({ oauthAccount: { emailAddress: "a@b.com" } }),
       }),
     )
-    expect(status.account.kind).toBe("oauth")
+    expect(status?.account.kind).toBe("oauth")
   })
 
   it("routes detectAccount to the vendor's own detector (codex api key)", async () => {
-    const status = await engineEntry("codex").detectAccount(
+    const detect = engineEntry("codex").detectAccount
+    expect(detect).toBeDefined()
+    const status = await detect?.(
       deps({
         // ~/.codex/auth.json shape — only the codex detector understands this.
         readFile: () => JSON.stringify({ OPENAI_API_KEY: "sk-test" }),
       }),
     )
-    expect(status.account.kind).toBe("apikey")
+    expect(status?.account.kind).toBe("apikey")
   })
 })
 
@@ -150,12 +155,12 @@ describe("vendorsWithQuotaProbe", () => {
 
 describe("getCapabilities", () => {
   it("returns the engine's own capabilities for vendors that have them", () => {
-    expect(getCapabilities("claude")?.vendorId).toBe("claude")
-    expect(getCapabilities("codex")?.vendorId).toBe("codex")
+    expect(getCapabilities("claude")).toBeDefined()
+    expect(getCapabilities("codex")).toBeDefined()
   })
 
   it("returns undefined for engines with no capabilities (no claude fallback)", () => {
-    // copilot + custom must NOT borrow claude's model catalog / permission modes.
+    // copilot + custom must NOT borrow another vendor's presentation policy.
     expect(getCapabilities("copilot")).toBeUndefined()
     expect(getCapabilities("aider")).toBeUndefined()
   })
@@ -191,10 +196,12 @@ describe("engineEntry — custom (user-registered) vendors", () => {
     expect(detector.vendor).toBe("aider")
     expect(detector.supportsCompletionMarkers()).toBe(false)
     expect(await detector.latestCompletion("/some/worktree")).toBeNull()
-    // No account detection, no hooks.
-    const status = await entry.detectAccount()
-    expect(status.account).toEqual({ kind: "none" })
-    expect(status.binary.found).toBe(false)
+    // No account detection, no hooks. ABSENT, not a stub answering
+    // `{ kind: "none" }`: that kind means "we looked and found no login", and
+    // `engineUsable` treats it as unusable — a stub here would mark every
+    // contrib/custom engine unlaunchable. Absent is what becomes the
+    // `account: null` ("not detectable") the Accounts view renders.
+    expect(entry.detectAccount).toBeUndefined()
     expect(entry.createHookAdapter().supportsHooks()).toBe(false)
   })
 })

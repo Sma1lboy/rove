@@ -3,7 +3,7 @@
  * `quick-task-composer.tsx` so the field-gating contract is
  * vitest-testable (the component file drags in `@opentui`).
  *
- * THE contract (regression: "type a prompt, hit enter" was dead): a
+ * THE contract, and what "type a prompt, hit enter" depends on: a
  * matched binding consumes its keypress — `dispatchKeyEvent` calls
  * `preventDefault()` on every hit, so the focused input never sees the
  * key. Field-dependent chords therefore must be gated at REGISTRATION:

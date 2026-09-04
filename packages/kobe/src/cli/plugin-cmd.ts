@@ -4,7 +4,7 @@
  * A plugin is a directory with a `rove-plugin.toml` manifest (the legacy
  * `kobe-plugin.toml` spelling remains accepted); the whole Rove CLI is the
  * plugin API. This command owns
- * the registry (`~/.kobe/plugins.json`); the daemon's PluginHost watches
+ * the registry (`~/.rove/plugins.json`); the daemon's PluginHost watches
  * that file, so mutations here apply to a running daemon without a restart.
  */
 
@@ -22,6 +22,7 @@ import {
   removePluginEntry,
   savePluginRegistry,
 } from "@sma1lboy/kobe-daemon/plugins/registry"
+import { flagValue } from "./argv.ts"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
@@ -117,7 +118,7 @@ function uninstall(idOrSpec: string): void {
   savePluginRegistry(removePluginEntry(registry, entry.id))
   // Managed checkout goes; config/ and state/ stay so a reinstall keeps user data.
   rmSync(pluginCheckoutDir(entry.id), { recursive: true, force: true })
-  console.log(`uninstalled ${entry.id} (config/state kept under ~/.kobe/plugins/${entry.id}/)`)
+  console.log(`uninstalled ${entry.id} (config/state kept under ~/.rove/plugins/${entry.id}/)`)
 }
 
 function listActions(pluginFilter?: string): void {
@@ -226,11 +227,6 @@ function tailLog(id: string, count: number): void {
   }
   const lines = text.trimEnd().split("\n")
   for (const line of lines.slice(-count)) console.log(line)
-}
-
-function flagValue(rest: string[], flag: string): string | undefined {
-  const i = rest.indexOf(flag)
-  return i >= 0 ? rest[i + 1] : undefined
 }
 
 export async function runPluginSubcommand(rest: string[]): Promise<void> {

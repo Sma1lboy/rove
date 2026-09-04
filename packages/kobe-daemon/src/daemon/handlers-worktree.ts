@@ -4,11 +4,11 @@
  * The `worktree.` slice of the one registry, grouped by RPC-name prefix like
  * `handlers-task.ts` / `handlers-ui.ts` and spread back in by `handlers.ts`.
  *
- * `worktree.reconcile` (adopt-on-`git worktree add`) was REMOVED
- * 2026-08-24: creation is mechanical, not intent — adoption now needs an
- * engine session-start in a managed root or an explicit `rove add .`/adopt.
+ * There is deliberately no adopt-on-`git worktree add`: creating a worktree
+ * is mechanical, not intent, so adoption needs an engine session-start in a
+ * managed root or an explicit `rove add .`/adopt.
  *
- * `list`/`remove` are NEW — the standalone worktree-management TUI page
+ * `list`/`remove` back the standalone worktree-management TUI page
  * (`tui/component/worktrees-page.tsx`). Unlike the other four, they don't
  * need `ctx.orch`: `GitWorktreeManager` and `getSavedRepos()` are already
  * public, orchestrator-independent primitives, so these compose them
@@ -27,6 +27,7 @@ import { serializeTask } from "./protocol.ts"
 export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   {
     name: "worktree.discoverAdoptable",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
@@ -36,6 +37,7 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "worktree.adopt",
+    blocking: true,
     web: true,
     async handle(payload, ctx) {
       const task = await ctx.orch.adoptWorktree({
@@ -51,12 +53,14 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
   },
   {
     name: "worktree.list",
+    blocking: true,
     async handle(payload, ctx) {
       return { projects: await ctx.runtime.listWorktreeProjects(payload.network !== false) }
     },
   },
   {
     name: "worktree.remove",
+    blocking: true,
     async handle(payload, ctx) {
       const path = requireString(payload, "path")
       const force = payload.force === true

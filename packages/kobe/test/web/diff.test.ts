@@ -18,9 +18,9 @@ describe("mapPool", () => {
 
   it("runs exactly `limit` workers concurrently, never more (deterministic gate)", async () => {
     // Gate every worker on a manually-released promise instead of a
-    // wall-clock sleep: the old `peak > 1` assertion raced the scheduler
-    // (under load all microtasks could settle serially → peak===1 → flaky
-    // red), exactly the "timing never gates CI" rule in docs/HARNESS.md.
+    // wall-clock sleep. A `peak > 1` assertion races the scheduler (under
+    // load all microtasks can settle serially → peak===1 → flaky red),
+    // exactly the "timing never gates CI" rule in docs/HARNESS.md.
     // Here the concurrency is OBSERVED precisely: after one macrotask the
     // pool has spawned its initial cohort and parked it, so inFlight is
     // exactly `limit` — no race, we only wait for already-queued work.

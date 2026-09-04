@@ -30,7 +30,13 @@ import {
 } from "../../tui/workspace/terminal-tabs-core"
 import { releaseSplitLeaves } from "./TerminalSplit"
 import { type TabsSnapshotKv, terminalTabsKey } from "./terminal-tabs-persist"
-import { requestTabClose, setTaskTabs, tabsByTask, takeUnclaimedTabClose } from "./terminal-tabs-shared"
+import {
+  reportTabsDelta,
+  requestTabClose,
+  setTaskTabs,
+  tabsByTask,
+  takeUnclaimedTabClose,
+} from "./terminal-tabs-shared"
 
 /**
  * Release a closing tab's PTYs — the split leaves plus the tab's own.
@@ -88,13 +94,16 @@ function backgroundTabsState(kv: TabsSnapshotKv, taskId: string): TabsState | nu
  * empties the list and leaves the row, exactly as the mounted path does.
  */
 export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string): boolean {
+  const state = backgroundTabsState(kv, taskId)
+  // Check before publishing: a mounted component claims requests by task, so
+  // publishing an unknown id first would look like a successful close even
+  // though closeById made no state transition.
+  if (!state || !state.tabs.some((tab) => tab.id === tabId)) return false
   requestTabClose(taskId, tabId)
   const unclaimed = takeUnclaimedTabClose()
   // Claimed: the mounted TerminalTabs already ran its own close path.
   if (!unclaimed) return true
 
-  const state = backgroundTabsState(kv, taskId)
-  if (!state) return false
   const closing = state.tabs.find((tab) => tab.id === tabId)
   // `allowEmpty`, matching the mounted path (`useTabClose`): a task's last tab
   // may go, leaving the row to be revived on re-entry (`reviveEmptiedTabs`).
@@ -108,6 +117,7 @@ export function closeTaskTab(kv: TabsSnapshotKv, taskId: string, tabId: string):
   if (!closedId) return false
   setTaskTabs(taskId, next)
   kv.set(terminalTabsKey(taskId), next)
+  reportTabsDelta(taskId, state.tabs, next.tabs)
   releaseClosedTabPtys(taskId, closing, closedId)
   return true
 }

@@ -22,7 +22,10 @@ const AUTOMATION = {
   prompt: "audit",
   schedule: "0 9 * * MON-FRI",
   enabled: true,
-  nextRunAt: new Date(NOW + 3_600_000).toISOString(),
+  // 100 minutes, not a flat hour: the preview FLOORS, so a fixture sitting on
+  // the boundary reads `59m` the moment the render takes a millisecond. 100
+  // also separates the two rules — flooring says `in 1h`, rounding said `in 2h`.
+  nextRunAt: new Date(NOW + 100 * 60_000).toISOString(),
   missedRunGraceMinutes: 60,
   createdAt: "2026-07-01T00:00:00Z",
   updatedAt: "2026-07-01T00:00:00Z",
@@ -34,8 +37,8 @@ const ONLINE = createStateCell("online")
 
 function orchestrator(automations: unknown[] = []) {
   return {
-    // The page no longer reads this; kept so a re-added reader can't
-    // silently crash the test.
+    // The page does not read this; kept so a re-added reader can't silently
+    // crash the test.
     connectionStateSignal: () => ONLINE,
     listAutomations: async () => ({ automations, keepsDaemonAlive: automations.length > 0 }),
     automationRuns: async () => ({ runs: [] }),
@@ -55,8 +58,8 @@ test("n opens the create flow", async () => {
 })
 
 test("esc closes the create flow", async () => {
-  // The composer used to bind escape itself and only resolve the promise —
-  // as a modal MEMBER it outranked the barrier, so the card never popped.
+  // A composer that binds escape itself and only resolves the promise is a
+  // modal MEMBER outranking the barrier, so the card never pops.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={true} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
@@ -89,8 +92,8 @@ test("esc closes the page", async () => {
 })
 
 test("keys stay dead while another pane holds focus", async () => {
-  // The sidebar binds `n` too (new task). Both are live at once now that rail
-  // pages no longer disable the workspace chords, so the page must yield.
+  // The sidebar binds `n` too (new task), and rail pages do not disable the
+  // workspace chords, so both are live at once and the page must yield.
   const { frame, mockInput } = await renderComponent(
     <AutomationsPage orchestrator={orchestrator()} focused={false} onClose={() => {}} />,
     { width: 60, height: 16, providers: { dialog: true, notifications: true } },
@@ -164,7 +167,7 @@ test("the detail frame stays mounted with nothing selected", async () => {
   )
   await new Promise((r) => setTimeout(r, 120))
   const text = await frame()
-  expect(text).toContain("┌")
+  expect(text).toContain("╭")
   expect(text).toContain("A routine runs its prompt")
 })
 

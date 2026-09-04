@@ -59,11 +59,12 @@ retired worktree-sync hook was once installed so the next launch (or
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `activeTheme` | theme name | `"claude"` | See [Themes](#themes) |
-| `transparentBackground` | boolean | `true` | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and lifts body/muted text to stay readable on it — no setting needed |
+| `transparentBackground` | boolean | `true` | Let the terminal background show through. In transparent mode Rove detects the terminal's actual background (OSC 11) and adjusts body, muted, and host-backed warning text to stay readable on it. Warning text on opaque dialogs and controls keeps the theme color. No setting is needed |
 | `focusAccent` | `primary` \| `success` \| `info` | `primary` | Color of the focused-pane indicator |
 | `appearance.splitStyle` | `box` \| `line` | `box` | `box` frames each split; `line` is the minimal tmux-style look |
 | `locale` | `en` \| `zh` | `en` | UI language |
 | `hints.keyboard.enabled` | boolean | `true` | Keyboard discoverability hints |
+| `hints.keyboard.prefixTapPresentation` | `local` \| `guide` | `local` | What one tap of the prefix key shows: `local` a hint beside the focused pane, `guide` the full keyboard guide |
 
 Turning keyboard hints back on relights the first-use pane hints you'd
 already dismissed.
@@ -89,6 +90,11 @@ Rove tries the `code`, `cursor`, `windsurf`, and `zed` CLIs in that order,
 then the platform opener. These variables do not change the file tree's
 per-file TTY editor.
 
+The Files pane watches the worktree so edits appear without a keypress. Set
+`KOBE_FILETREE_WATCH=0` to turn that watcher off — worth doing on a repo large
+enough that a recursive watcher costs more than the staleness it removes. With
+it off, `r` is the only thing that repopulates the list.
+
 ### Engines
 
 | Key | Type | Default | What it does |
@@ -108,12 +114,12 @@ Launch commands are parsed shell-ish, so quotes group arguments. Clear both
 | Key | Type | Default | What it does |
 |---|---|---|---|
 | `terminal.scrollbackRows` | number | `1000` | History per embedded terminal. Clamped 100–100,000 |
-| `chat.tabStrip.mode` | `always` \| `multipleOnly` \| `never` | `always` | Horizontal chat tab strip |
+| `chat.tabStrip.mode` | `always` \| `multipleOnly` \| `never` | `never` | Horizontal chat tab strip |
 
-The tab strip is on by default: the sidebar tree lists every tab, but the
-strip is the affordance that says which tab the pane below is showing.
-`multipleOnly` hides it while a task has only one tab, `never` leaves the
-tree as the only tab list. (An older
+The tab strip is off by default: the sidebar tree already lists every tab and
+marks the active one, so the strip spends a row of the content pane saying
+what the tree says for free. `always` shows it, `multipleOnly` shows it only
+once a task has more than one tab. (An older
 `chat.tabStrip.hideSingle` boolean still works if you set it before
 `chat.tabStrip.mode` existed; writing the new key retires it.)
 
@@ -174,6 +180,12 @@ between that persisted order and most-recently-touched; the choice is saved
 as `activeSortMode` and read back on startup. Older state files may contain
 `tasksPane.projectFilter`; the daemon still mirrors that compatibility value
 for background consumers, but the current PureTUI tree does not consume it.
+
+### Delivery
+
+| Key | Type | Default | What it does |
+|---|---|---|---|
+| `delivery.composerGate` | boolean | `true` | The screen-based check that runs before a peer or `rove api` prompt is written into an engine: a composer holding half-typed text defers the prompt to your Inbox instead of pasting over it. Turning this **off removes that safety check** — deliveries land unconditionally, and a message you were mid-way through typing can be interleaved with one |
 
 ### Experimental
 

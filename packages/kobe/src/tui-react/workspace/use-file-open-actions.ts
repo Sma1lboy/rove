@@ -49,7 +49,8 @@ export function useFileOpenActions(deps: {
       return opened("external")
     }
     // Stale continuation: the user switched tasks while the editor resolved —
-    // the file belongs to the old worktree, not whatever tab mount is live now.
+    // the file belongs to the worktree it was resolved against, not whatever
+    // tab mount is live now.
     if (selectedWorktreeRef.current !== wt || openEditorTabFn.current !== openEditorTab) return
     openEditorTab?.(["sh", "-c", launch.command], launch.label)
     opened("editor")
@@ -57,7 +58,7 @@ export function useFileOpenActions(deps: {
   }
 
   // Deliberately NO `focus.setFocused` — a read-only open is a content swap,
-  // not a navigation (KOB-25), so the FileTree keeps keyboard focus.
+  // not a navigation, so the FileTree keeps keyboard focus.
   function openDiff(relPath: string, base?: string): void {
     const label = pathLeaf(relPath)
     openDiffTabFn.current?.(relPath, label, base)

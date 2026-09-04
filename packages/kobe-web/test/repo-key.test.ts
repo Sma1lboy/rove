@@ -7,9 +7,9 @@ import {
 } from "../src/lib/repo-key.ts"
 
 /**
- * repo-key is the single home for the issue-snapshot aliasing contract that
- * used to be copy-pasted across store.ts, daemon-link.ts, and use-repo-issues.ts.
- * These tests pin the contract so the three consumers can't silently diverge.
+ * repo-key is the single home for the issue-snapshot aliasing contract shared
+ * by store.ts, daemon-link.ts, and use-repo-issues.ts. These tests pin the
+ * contract so the three consumers can't silently diverge.
  */
 
 describe("normalizeRepoPath", () => {

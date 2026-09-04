@@ -85,7 +85,7 @@ function lifecycleIO(state: TabsState, wt: string): TabLifecycleIO & { state: ()
 test("a rehydrated kimi tab adopts the session its worktree already has", async () => {
   await seedKimiSession()
   const state: TabsState = {
-    // No sessionId — exactly how every kimi tab persisted before this change.
+    // No sessionId — exactly how a kimi tab persists.
     tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1, vendor: "kimi" }],
     activeId: "tab-1",
     nextOrdinal: 2,

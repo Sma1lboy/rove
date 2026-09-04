@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { VISUAL_PTY_PORT, VISUAL_RUN_ID } from "./visual-fixture.ts"
+import { fixtureAuthHeaders, VISUAL_PTY_PORT, VISUAL_RUN_ID } from "./visual-fixture.ts"
 
 const TITLE = "Improve Kanban card hierarchy"
 const BODY = "Make status, project, and next action easy to scan."
@@ -72,7 +72,7 @@ async function withVisualTui(page: Page, run: VisualJourney): Promise<void> {
   } finally {
     // Kill this run's TUI so warm mode never accumulates PTY children.
     await page.request
-      .post(`http://127.0.0.1:${VISUAL_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } })
+      .post(`http://127.0.0.1:${VISUAL_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() })
       .catch(() => {})
   }
 }

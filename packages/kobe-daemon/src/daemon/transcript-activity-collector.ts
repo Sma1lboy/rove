@@ -53,43 +53,13 @@
 import type { DaemonTask as Task, VendorId } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { type PollCadenceConfig, type PollScheduleState, maybeStartScheduledRun } from "./poll-scheduling.ts"
 import type { TranscriptActivityPayload } from "./protocol.ts"
-import type {
-  DaemonRuntimeAdapter,
-  EngineTurnDetectorAdapter as EngineTurnDetector,
-  PollCadenceConfig,
-  PollScheduleState,
-} from "./runtime.ts"
+import type { DaemonRuntimeAdapter, EngineTurnDetectorAdapter as EngineTurnDetector } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 function isRemoteRepoKey(value: string): boolean {
   return value.startsWith("ssh://")
-}
-
-function maybeStartScheduledRun<T>(
-  state: PollScheduleState,
-  cfg: PollCadenceConfig,
-  run: (signal: AbortSignal) => Promise<T>,
-  onValue: (value: T) => void,
-): boolean {
-  const startedAt = Date.now()
-  if (state.inFlight || startedAt < state.nextAllowedAt) return false
-  state.inFlight = true
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), cfg.timeoutMs)
-  void run(controller.signal)
-    .then((value) => {
-      if (!controller.signal.aborted) onValue(value)
-    })
-    .catch(() => {})
-    .finally(() => {
-      clearTimeout(timer)
-      const finishedAt = Date.now()
-      state.nextAllowedAt = controller.signal.aborted
-        ? startedAt + cfg.slowRetryMs
-        : finishedAt + Math.max(cfg.minIntervalMs, (finishedAt - startedAt) * 5)
-      state.inFlight = false
-    })
-  return true
 }
 
 /** Tick cadence — matches the Ops pane's 1.5s turn-detector poll (the most responsive consumer). */
@@ -212,8 +182,8 @@ export interface TranscriptActivityCollectorOptions {
 
 /**
  * Tick-driven collector. `tick()` is synchronous and never throws: it
- * prunes entries for worktrees no longer tracked (deleted/now-
- * remote tasks), starts guarded probes for due worktrees, and publishes the
+ * prunes entries for worktrees the daemon stopped tracking (deleted/remote
+ * tasks), starts guarded probes for due worktrees, and publishes the
  * full map when — and only when — membership or a value changed. Exposed as
  * a class so tests drive `tick()` directly with a fake lister/bus/runner;
  * `startTranscriptActivityCollector` is the production interval binding.
@@ -332,7 +302,6 @@ export function startTranscriptActivityCollector(
   tickMs: number = DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
   hasSubscribers?: () => boolean,
 ): () => void {
-  if (tickMs <= 0) return () => {}
   const collector = new TranscriptActivityCollector(orch, bus, {
     hasSubscribers,
     createDetector: runtime.createEngineTurnDetector,
@@ -346,11 +315,12 @@ export function startTranscriptActivityCollector(
       return { mtimeMs: resolvedMtime, completionId: marker?.id ?? null, completionAt: marker?.timestampMs ?? 0 }
     },
   })
-  collector.tick()
-  const timer = setInterval(() => collector.tick(), tickMs)
-  timer.unref?.()
-  return () => {
-    clearInterval(timer)
-    collector.stop()
-  }
+  // Gate lives inside `collector.tick()`, as in the worktree collector.
+  return startTicker({
+    name: "transcript-activity-collector",
+    tickMs,
+    immediate: true,
+    run: () => collector.tick(),
+    onStop: () => collector.stop(),
+  })
 }

@@ -24,7 +24,7 @@ import type { TaskActivityState } from "@/engine/hook-events"
 import { TASK_ACTIVITY_STATES } from "@/engine/hook-events"
 import { DEFAULT_SPINNER_FRAMES } from "@/engine/spinner-frames"
 import type { SidebarRowView } from "@/tui/panes/sidebar/row-view"
-import { buildSidebarRowView, prCheckChip, rowIsLoading, withSpinnerFrame } from "@/tui/panes/sidebar/row-view"
+import { buildSidebarRowView, rowIsLoading, withSpinnerFrame } from "@/tui/panes/sidebar/row-view"
 import { tabRowActivity } from "@/tui/panes/sidebar/tree-core"
 import { truncateBranchLabel } from "@/tui/panes/sidebar/view-core"
 import { type Task, type TaskDeletionPhase, type TaskStatus, toTaskId } from "@/types/task"
@@ -47,9 +47,8 @@ const BRANCH = "feat/sidebar"
 const CUSTOM_VENDOR = "my-engine"
 
 /** `undefined` is a real, distinct INPUT everywhere below — no activity entry
- *  at all reaches different code than an `idle` one, even though both now
- *  render as the same dim `·` (the tab row's separate `◌ unknown` glyph was
- *  dropped 2026-08-15). Keeping them apart here is what proves that. */
+ *  at all reaches different code than an `idle` one, even though both render
+ *  as the same dim `·`. Keeping them apart here is what proves that. */
 const ACTIVITY_STATES: ReadonlyArray<TaskActivityState | undefined> = [undefined, ...TASK_ACTIVITY_STATES]
 
 const DELETION_PHASES = [undefined, "queued", "running", "error"] as const
@@ -71,7 +70,7 @@ void _deletionPhasesExhaustive
  */
 const VENDORS: readonly string[] = [...BUILTIN_VENDORS, CUSTOM_VENDOR]
 
-function task(over: Partial<Task> = {}): Task {
+export function task(over: Partial<Task> = {}): Task {
   return {
     id: toTaskId("01JCTASKTASKTASKTASKTASK"),
     title: "fix the sidebar",
@@ -98,10 +97,10 @@ const JOB: TaskJobState = { kind: "ensureWorktree" }
  * Every scalar field of `SidebarRowView`, in the order the golden prints them.
  *
  * Hand-picking a subset is how a golden quietly reintroduces the sampling
- * problem it exists to remove: the first cut of this file recorded only
- * glyph/tone/loading/subtitle, so `isMain`, `titleText` and `materializing`
- * (which selects the sweep bar over the shimmer) could all have regressed
- * without moving a single line. {@link RECORDED_FIELDS} is therefore checked
+ * problem it exists to remove: recording only glyph/tone/loading/subtitle
+ * lets `isMain`, `titleText` and `materializing` (which selects the sweep bar
+ * over the shimmer) all regress without moving a single line.
+ * {@link RECORDED_FIELDS} is therefore checked
  * against the real object's keys by the test — adding a field to the interface
  * fails loudly until someone decides where it belongs.
  *
@@ -330,8 +329,8 @@ export function completionGraceBlock(): string[] {
     }
   }
   // No transcript facts at all, and a ZERO mtime (a record the collector wrote
-  // before it could stat the file) — both are the pre-daemon-collector path,
-  // which must stay exactly the old behavior rather than guessing.
+  // before it could stat the file) — both take the no-facts path, which must
+  // render from what it has rather than guessing.
   for (const seen of [false, true]) {
     const view = build({ task: task(), activity: activityOf("turn_complete"), completionSeen: seen })
     lines.push(row([pad("mtime=<none>", 22), `seen=${seen ? 1 : 0}`], view))
@@ -400,18 +399,6 @@ export function subtitleBudgetBlock(): string[] {
     }
   }
   return lines
-}
-
-/** The PR-check chip is a pure map from the daemon-written `checkState`. */
-export function prChipBlock(): string[] {
-  const states = [undefined, "none", "unknown", "passing", "failing", "pending"] as const
-  return states.map((checkState) => {
-    const subject = task({
-      prStatus: checkState === undefined ? undefined : ({ checkState } as Task["prStatus"]),
-    })
-    const chip = prCheckChip(subject)
-    return `${pad(`checkState=${checkState ?? "<no prStatus>"}`, 28)} chip=${chip ? `${chip.glyph} (${chip.tone})` : "<none>"}`
-  })
 }
 
 /**

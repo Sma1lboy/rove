@@ -49,7 +49,7 @@ describe("PluginEventReducer", () => {
     feed([task("a", { worktreePath: "" })])
     const events = feed([task("a", { worktreePath: "/wt/a" })])
     expect(events.map((e) => e.event)).toEqual(["task.changed", "worktree.created"])
-    // task.jobs no longer feeds the reducer at all.
+    // task.jobs does not feed the reducer at all.
     expect(
       reducer.reduce({
         channel: "task.jobs",

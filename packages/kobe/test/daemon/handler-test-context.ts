@@ -11,6 +11,7 @@ import {
   createDaemonHandlerRegistry,
   dispatchDaemonRequest,
 } from "@sma1lboy/kobe-daemon/daemon/server"
+import { TabCloseBroker } from "@sma1lboy/kobe-daemon/daemon/tab-close-broker"
 import type { WorkItemCache } from "@sma1lboy/kobe-daemon/daemon/work-items"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import type { Orchestrator } from "../../src/orchestrator/core.ts"
@@ -65,12 +66,17 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     orch: { listTasks: () => [], getTask: () => undefined, ...orch } as unknown as Orchestrator,
     bus: {
       publish: (channel: string, payload: unknown) => rec.published.push({ channel, payload }),
+      // `debug.inspect` reads the bus's last-value cache; the fake keeps the
+      // same shape so a handler that asks for it gets an empty replay rather
+      // than a TypeError.
+      snapshot: () => rec.published.map(({ channel, payload }) => ({ channel, payload })),
     } as unknown as DaemonEventBus,
     activity: {
       report: (taskId: string, kind: string, detail?: unknown) => rec.reported.push({ taskId, kind, detail }),
       clearTask: (taskId: string) => rec.cleared.push(taskId),
     } as unknown as DaemonActivityRegistry,
     inbox: {
+      snapshot: () => (orch.inboxItems as unknown[] | undefined) ?? [],
       record: (taskId: string, kind: string, detail?: unknown, tabId?: string) => {
         rec.inboxRecords.push({ taskId, kind, detail, tabId })
         return Promise.resolve()
@@ -115,6 +121,13 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
         rec.issueCalls.push({ method: "mutate", repo, op })
         return { repoRoot: String(repo), exists: true, nextId: 2, issues: [] }
       },
+      // `task.delete` clears the deleted task's issue link. Returning a state
+      // (not null) keeps the snapshot-publish path covered by default; a test
+      // that wants the "nothing linked" branch supplies its own fake.
+      unlinkTask: async (repo: unknown, taskId: unknown) => {
+        rec.issueCalls.push({ method: "unlinkTask", repo, op: { taskId } })
+        return { repoRoot: String(repo), exists: true, nextId: 2, issues: [] }
+      },
     } as unknown as IssuesStore,
     // Field-note store fake. `appendThrows` lets a test drive the
     // persist-failure path — filing must degrade to routing-only, never
@@ -146,6 +159,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     // Never hits `gh`: work-item behavior has its own suite.
     workItems: { list: async () => [], clear: () => {} } as unknown as WorkItemCache,
     selfLink: { request: async () => ({}) } as unknown as DaemonRpcClient,
+    tabCloses: new TabCloseBroker(),
     daemon: {
       startedAt: new Date("2026-06-01T00:00:00.000Z"),
       socketPath: "/tmp/fake/daemon.sock",

@@ -24,8 +24,8 @@ import type { EngineHistoryReader } from "./registry.ts"
 /**
  * The documented empty history reader for engines with no on-disk
  * transcript store (custom engines). Auto-title then keeps the placeholder
- * title rather than mis-reading claude's transcripts (the old
- * `else → claude` default would do exactly that for any unknown id).
+ * title rather than mis-reading claude's transcripts (defaulting an unknown
+ * id to claude would do exactly that).
  */
 export const EMPTY_HISTORY: EngineHistoryReader = {
   async listSessionIdsForWorktree() {

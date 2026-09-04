@@ -1,7 +1,6 @@
 /**
- * Regression pin for issue #22 (owner report 2026-08-12, wisp): a session you
- * have already read must not come back UNREAD after you quit kobe and start
- * it again.
+ * Regression pin: a session you have already read must not come back UNREAD
+ * after you quit kobe and start it again.
  *
  * The bug is environment-shaped, which is why this test spends two real TUI
  * processes on it: the daemon's activity registry outlives the TUI, so the
@@ -19,7 +18,15 @@ import { join } from "node:path"
 import { Terminal } from "@xterm/headless"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { SIDEBAR_WIDTH } from "../../src/tui/panes/sidebar/view-core.ts"
-import { type BehaviorEnv, DIST_ROVE_CLI, loadNodePty, makeBehaviorEnv, makeScratchRepo, runRove } from "./harness.ts"
+import {
+  type BehaviorEnv,
+  DIST_ROVE_CLI,
+  closeTui,
+  loadNodePty,
+  makeBehaviorEnv,
+  makeScratchRepo,
+  runRove,
+} from "./harness.ts"
 
 const nodePty = await loadNodePty()
 
@@ -28,6 +35,16 @@ const ROWS = 40
 /** ● an unread completion, ○ one already looked at (· = no signal at all). */
 const UNREAD = "●"
 const SEEN = "○"
+
+/** Is that pid still a live process? (signal 0 = existence probe.) */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
 
 async function poll(predicate: () => boolean | Promise<boolean>, timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs
@@ -43,6 +60,8 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
   let statePath: string
   let taskId: string
   let branch: string
+  /** The pid of the most recent `withTui` launch, for the exited-yet check. */
+  let lastTuiPid = 0
 
   const readState = async (): Promise<Record<string, unknown>> =>
     JSON.parse(await readFile(statePath, "utf8")) as Record<string, unknown>
@@ -59,6 +78,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
     // off under a test RUNNER — it is a real TUI in its own process.
     const { VITEST, NODE_ENV, BUN_TEST, ...tuiEnv } = env.env as Record<string, string>
     const child = nodePty.spawn("bun", [DIST_ROVE_CLI], { cols: COLS, rows: ROWS, cwd: repo, env: tuiEnv })
+    lastTuiPid = child.pid
     const data = child.onData((chunk: string) => term.write(chunk))
     try {
       return await run(() => {
@@ -69,7 +89,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
       })
     } finally {
       data.dispose()
-      child.kill()
+      await closeTui(child)
     }
   }
 
@@ -83,7 +103,7 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
   beforeAll(async () => {
     env = await makeBehaviorEnv()
     repo = await makeScratchRepo(env)
-    // Rove reads and writes its canonical state; the old path is migration
+    // Rove reads and writes its canonical state; the legacy path is migration
     // input only, not a live mirror.
     const stateDir = join(env.home, ".config", "rove")
     await mkdir(stateDir, { recursive: true })
@@ -146,14 +166,26 @@ describe.skipIf(!nodePty)("Pure TUI unread lamp across a restart (behavior)", ()
       expect(await readState(), "launch #1 never recorded the completion as read").toHaveProperty("completionSeen")
     })
 
+    // The ordering this whole test rests on. Launch #1 flushes its KV store
+    // from `process.on("exit")`, dirty-key-merging its own `terminalTabs`
+    // snapshot onto the file — so if it is still alive here, that flush lands
+    // AFTER the rewrite below and silently reverts it.
+    expect(alive(lastTuiPid), "launch #1 was still running when the test rewrote its state").toBe(false)
+
     // Between launches the user leaves that tab: tab-2 is what the next
     // launch opens, so tab-1's row is a session nobody is looking at.
     const state = await readState()
     const snapshot = state[key] as { tabs: unknown[]; activeId: string; nextOrdinal: number }
     expect((snapshot?.tabs?.[0] as { id?: string } | undefined)?.id).toBe("tab-1")
-    snapshot.tabs.push({ kind: "engine", id: "tab-2", title: null, ordinal: 2 })
-    snapshot.activeId = "tab-2"
-    snapshot.nextOrdinal = 3
+    // Write the WHOLE snapshot rather than pushing onto whatever is there:
+    // vitest does not re-run `beforeAll` for a `--retry`, so a
+    // read-modify-write would stack a SECOND tab-2 on attempt 2 and the retry
+    // would exercise a tab list this test never described.
+    state[key] = {
+      tabs: [snapshot.tabs[0], { kind: "engine", id: "tab-2", title: null, ordinal: 2 }],
+      activeId: "tab-2",
+      nextOrdinal: 3,
+    }
     await writeFile(statePath, JSON.stringify(state))
 
     // Launch #2 — the daemon replays the very same turn_complete it never

@@ -27,8 +27,8 @@ describe("overlayCursor — cell-column aware", () => {
 
   it("lands on the right char when the row has wide (CJK) glyphs", () => {
     // "你好x": 你 = cells 0-1, 好 = cells 2-3, x = cell 4. `cursor.x` is a
-    // CELL column, so counting code points (你好x = 3) used to drift the
-    // cursor left by one column per wide char — this pins the fix.
+    // CELL column, so counting code points (你好x = 3) drifts the
+    // cursor left by one column per wide char — this pins against that.
     const rows = [[{ text: "你好x" } as Chunk]]
     expect(cursorCell(overlayCursor(rows, { x: 0, y: 0 }, COLORS), 0)?.text).toBe("你")
     expect(cursorCell(overlayCursor(rows, { x: 2, y: 0 }, COLORS), 0)?.text).toBe("好")

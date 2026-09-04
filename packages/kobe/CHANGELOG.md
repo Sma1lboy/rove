@@ -1,5 +1,705 @@
 # Changelog
 
+## 0.9.107
+
+### Patch Changes
+
+- [#848](https://github.com/Sma1lboy/rove/pull/848) [`ca8cea2`](https://github.com/Sma1lboy/rove/commit/ca8cea28a262c64c6927c8f4be41aa251a0b4db5) Plugins installed before the `.kobe` → `.rove` rename load again. The layout migration moved every checkout under `~/.rove/plugins/` but the registry kept naming the old tree, so Settings › Plugins showed "manifest unreadable" for all of them and the daemon enabled none. A managed root recorded under `~/.kobe/plugins/` is re-anchored on read; user-facing copy names the new path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#847](https://github.com/Sma1lboy/rove/pull/847) [`714a762`](https://github.com/Sma1lboy/rove/commit/714a762dec6138760f2b3cc23cea6d893c036a33) `tab` in the New task dialog's repo field now COMPLETES the highlighted suggestion instead of leaving the field. Typing `a`, seeing `academic-…` under it and pressing the key that finishes things in every shell used to land you on `from branch` with `a` still in the repo box — the dropdown had no key that finished a suggestion and stayed, so continuing meant clicking back. A second `tab`, with nothing left to complete, advances as before. Browsed directories complete one level DOWN and keep their trailing slash, so repeated `tab` walks a path the way a shell does; saved repos complete to their name and close the dropdown. The Clone tab's parent-directory field walks the same way, since it is the same picker. The walking slash no longer travels with the value, so `/i/rove/` and `/i/rove` file one repo rather than two. — [@ZHallen122](https://github.com/ZHallen122)
+
+## 0.9.106
+
+### Patch Changes
+
+- [#846](https://github.com/Sma1lboy/rove/pull/846) [`5385bd0`](https://github.com/Sma1lboy/rove/commit/5385bd08375a6ea4324dc77c9ac5c4d2a6103934) The wrapper-preset continuation tests isolate the kv store, so a machine whose daemon has already learned `engineProtocol.claudecpa` no longer fails them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.105
+
+### Patch Changes
+
+- [#845](https://github.com/Sma1lboy/rove/pull/845) [`fda326d`](https://github.com/Sma1lboy/rove/commit/fda326d87045e728238e2bcbb97593e3481f92e1) One relative-time clock, and it floors. The Routines page rounded while every other surface floored, so the same instant read two ways: a routine firing in 1h40m previewed as `in 2h` and fired twenty minutes early, and a run 100 seconds old showed `2m ago` on the Routines page while the Inbox called it `1m`. `relativeBuckets` in `lib/relative-time.ts` now floors and owns the label too — `relativeAgeMs` is gone from `tui/history/message-core.ts` and its six consumers read `relativeAge` from the one module. A sub-minute run also now reads `now` / `just now` instead of `1m ago`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.104
+
+### Patch Changes
+
+- [#838](https://github.com/Sma1lboy/rove/pull/838) [`4e384d5`](https://github.com/Sma1lboy/rove/commit/4e384d5d8318e0df1211732083b336218662363e) Pre-trust a Rove worktree for Copilot, so a copilot task reaches its prompt
+  instead of a dialog nobody can answer.
+
+  Claude, Codex and Kimi each got a `trustWorktree` hook; Copilot never did, and
+  nothing recorded whether that was a decision or an omission. It was an
+  omission. Copilot CLI gates a first launch in a never-seen directory behind
+  "Confirm folder trust", and a Rove-created worktree is always such a directory,
+  so a hosted copilot session sat at the dialog. Worse than the other three: its
+  cursor sits on "1. Yes", which grants trust for that session only — so even a
+  human answering it is asked again on every relaunch.
+
+  Rove now writes the path into `trustedFolders` in Copilot's own
+  `<COPILOT_HOME>/config.json`, the same list its "remember this folder" answer
+  writes, merging into existing entries and preserving the JSONC header Copilot
+  puts at the top of that file. Verified against Copilot CLI v1.0.82: the dialog
+  appears in a fresh worktree, and after the pre-trust write the same worktree
+  launches straight to the prompt.
+
+  A registry-level test now fails if any builtin engine ships without a
+  `trustWorktree` hook, so the next engine added cannot omit it in silence. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#840](https://github.com/Sma1lboy/rove/pull/840) [`3e13ab6`](https://github.com/Sma1lboy/rove/commit/3e13ab6b3988b4987394c8d0a663bd9eb040dd85) Stop `rove doctor` reporting a red ✗ for the healthiest possible machine.
+
+  The legacy-tmux row exists to find leftover pre-v0.8 sessions. It classifies a
+  failed `tmux list-sessions` as either "no server" (fine) or "inspection failed"
+  (a ✗), by matching tmux's message — and the phrasing tmux 3.5 uses when the
+  socket file does not exist at all, `error connecting to <path> (No such file or
+directory)`, was not in the list. So every install that never ran pre-v0.8 Rove
+  — which is every new install — was told something was wrong:
+
+  ```
+  legacy tmux: ✗ inspection failed — tmux list-sessions failed: error connecting to /private/tmp/tmux-501/kobe (No such file or directory)
+  ```
+
+  A missing socket is a missing server. That machine now gets the healthy line:
+
+  ```
+  legacy tmux: tmux 3.5a — no sessions on `kobe`
+  ```
+
+  The same wording covers a stale socket whose server has died, and a genuine
+  inspection failure still reports one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#841](https://github.com/Sma1lboy/rove/pull/841) [`dab3d63`](https://github.com/Sma1lboy/rove/commit/dab3d639d2c9b573d464aeb9a68d91acf1fa473c) A superseded renderer can no longer register key bindings into the live
+  renderer's stack. `ensureInstalled` already refused to let a torn-down
+  renderer's tree steal the `keyInput` listener back, but `useBindings`'s mount
+  effect inserted unconditionally — so a component that tree mounts LATE (a
+  dialog opened by a pending timer) landed in the stack _after_ the
+  `stack.length = 0` that was supposed to drop it. One stale `modalOwner`
+  arriving that way makes `modalActive()` true with nothing left to clear it, and
+  every raw `keyInput` listener gated on it goes silent — including the terminal
+  pane's paste forwarder, which then drops the paste before it reaches the PTY.
+  The mount effect now applies the same superseded-renderer guard as the
+  listener. Production runs one renderer per process and never supersedes it, so
+  this only fires where renderers are swapped in-process. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#837](https://github.com/Sma1lboy/rove/pull/837) [`df35270`](https://github.com/Sma1lboy/rove/commit/df352708db64c489d76daeebe02f54fddc87e850) Require the web bearer token on the PTY sidecar, and let the sidecar present
+  it to the daemon.
+
+  The PTY routes were the one part of the web surface the token never reached,
+  and they are the part that runs commands: `ws /pty` spawns the task's engine or
+  a shell in its worktree, `POST /pty/send` types into that process, and `POST
+/pty/close` kills it. Their only gate was the Origin check, which admits a
+  request with **no** `Origin` — every non-browser client — and admits **any**
+  loopback origin, so a page the user happened to have open on another localhost
+  port could attach as well. WebSocket upgrades get no CORS preflight, so nothing
+  else stood in the way. Against a running `rove web`, a tokenless upgrade
+  returned a live shell prompt and a tokenless `/pty/send` typed into it; a wrong
+  token worked just as well. Exposure was limited to whatever could reach the
+  sidecar's loopback port — on a shared machine, any other local user, which is
+  the boundary the token file's 0600 mode exists to hold — and not reachable from
+  a remote network unless the port had been bound off loopback.
+
+  All three routes now require the token that every REST and SSE caller already
+  sends: the browser puts it on the WebSocket URL the way the `/events` stream
+  does, and the sidecar refuses an upgrade without it (`401`). The Origin check
+  stays as defence in depth. The sidecar reads the same `0600` token file the
+  daemon mints rather than taking the secret from whoever spawned it, so a
+  launcher that forgot to forward it cannot silently reopen the gap; no readable
+  file means no request is served.
+
+  This also repairs the web terminal, dead since 0.9.60: the sidecar fetches each
+  tab's launch spec from the daemon's `/api/*`, that route began requiring the
+  token in 0.9.60, and the sidecar was never taught to send one — so every engine
+  and shell tab died with `failed to start shell: unauthorized: this request
+carried no valid web token` before any PTY was spawned. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.103
+
+### Patch Changes
+
+- [#836](https://github.com/Sma1lboy/rove/pull/836) [`b2722ba`](https://github.com/Sma1lboy/rove/commit/b2722ba026c37f6f4ccfcde17d21e4384dabeab6) Quit promptly on SIGHUP/SIGTERM/SIGINT instead of always sitting for five
+  seconds. The signal backstop used a flat five-second sleep as a stand-in for
+  "in-flight work has finished", so `kill <pid>` on an idle Rove host took five
+  seconds — long enough that a supervisor with a shorter grace escalated to
+  SIGKILL, which skips the exit handler that flushes pending UI state to disk.
+  The exit now follows a readiness signal that the flows which kill their own
+  session can hold open, and the five seconds survives only as a ceiling that
+  says in the log when it fires. Measured on the behavior suite: SIGTERM to
+  process gone went from ~5,030ms to ~50ms. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.102
+
+### Patch Changes
+
+- [#835](https://github.com/Sma1lboy/rove/pull/835) [`e9ffb50`](https://github.com/Sma1lboy/rove/commit/e9ffb508c21f04dd26bccce366101d7abadfaaaa) Stop misreporting git failures during a land or a sync. A `git commit` that
+  failed for any reason Rove has no policy for — a pre-commit hook, a broken
+  `commit.gpgsign` key, an unset `user.email` — used to come back as "'branch' has
+  nothing to land onto 'main' (already merged or empty)" on a squash (which then
+  `reset --hard` threw the staged merge away) or as a conflict with an empty file
+  list on a merge. Both now surface git's own message; the squashed merge is left
+  staged so it can be committed by hand once the cause is fixed.
+
+  Syncing a worktree with its base likewise refuses up front when an untracked
+  file would collide with one the base adds — the guard was passing
+  `--untracked-files=no`, so that case slipped through to an unmappable "git merge
+  failed". The dirty refusal now names the offending files, and the residual
+  failure branch quotes git instead of only saying that it failed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.101
+
+### Patch Changes
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) The footer says what the session has cost. The context collector already parsed
+  prompt, completion and cache tokens out of the transcript every ten seconds and
+  dropped four of the seven fields at one line; they now ride the same
+  `usage.context` read to a `Σ 44k` chip beside `ctx`, and `rove api inspect`
+  gains a `daemon.contextUsage` section carrying all of them per live session —
+  the only read that shows the token counts at all. No new poll and no new
+  arithmetic in the neutral layers: every number is the engine adapter's own.
+  Cache tokens stay on the wire but out of the `Σ`, because a cached prompt is
+  reuse and folding it in would read as effort. `EngineUsageSnapshot` loses
+  `total_speed_tokens_per_second`, which nothing produced and nothing read. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#830](https://github.com/Sma1lboy/rove/pull/830) [`e598d70`](https://github.com/Sma1lboy/rove/commit/e598d707764dc212652f5bf1b0991210ae1d8b8b) Stop idling a working Claude engine mid-turn. The Claude turn detector treated
+  every assistant transcript record as a completed turn, but Claude Code appends
+  one per step and ~95% of them are `stop_reason: "tool_use"` — mid-turn. The
+  daemon's lapse watchdog read the newest of those as "this turn already ended"
+  and dropped the activity badge to idle at the 10-minute TTL while the engine was
+  still working, with its heartbeat re-arm unreachable. The marker now requires a
+  turn-ending `stop_reason` (`end_turn`, `stop_sequence`, `max_tokens`,
+  `refusal`); `tool_use`, `pause_turn` and a missing reason all read as still
+  running. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) `rove api dispatch` now delivers the text instead of hoping somebody else does.
+  The verb published on the daemon's `session.deliver` channel and returned
+  `{ ok: true, clients: N }`; the only subscribers were the browser SPA, so
+  dispatching into a TUI-hosted task exited 0 with the prompt going nowhere — an
+  agent answering a stranded permission prompt got a success and a task that
+  stayed stuck. The daemon now pastes into the task's live hosted engine session
+  through the same adapter `send` uses (never spawns, respects each engine's
+  composer gate) and reports what happened: `delivered: true` with the `tabId`
+  that took it, `delivered: false, reason: "busy"` when a human is mid-message and
+  nothing was written, or `delivered: false, reason: "broadcast"` when no hosted
+  session answered and the event went out for a browser to pick up. Only that last
+  case still broadcasts — publishing after a successful paste would make a
+  listening browser paste the same text twice. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#831](https://github.com/Sma1lboy/rove/pull/831) [`b6c3cc0`](https://github.com/Sma1lboy/rove/commit/b6c3cc0e9f8ec3f97bf9d7a3501674e4995c9ad5) Thirty-seven places where the docs, the agent skill, or a `--help` string described behavior the code does not have. The five that cost you something:
+
+  - `rove api send` now reports the delivery facts it was already measuring. `delivered`, `bytes` and `promptEcho` were computed on both delivery paths and then thrown away by `send`, so a successful send omitted `delivered` entirely while a deferred one reported it as the only outcome field — `add` had emitted all three the whole time. `docs/API.md` documented the fields under `send`; now they are there.
+  - The agent skill (v42) said `pane-open --command` runs through `sh -lc`. It runs your login shell with `-ilc`, which is why a pane sees the same rc-exported `PATH` as an engine tab. The skill also claimed routines take `--prompt` only (both routine verbs accept `--prompt-file`), listed `$KOBE_TASK_ID`/`$KOBE_TAB_ID` as retired (they are live aliases), omitted `set-vendor` → `set-command` from the retired table, dropped `collect --group` and `send --allow-empty` from the block headed "nothing here should ever need `schema`", and never mentioned that a `deferred` send is a success you must not retry.
+  - `rove doctor` printed `pty-host.log:` in front of a file that is written as `pty.log`, sending anyone who followed it looking for a filename that does not exist.
+  - `rove doctor` now names a daemon serving a different state root than the CLI is reading — the "my tasks vanished" symptom of a sandbox daemon that inherited the production socket path. `daemon.status` carries `homeDir` for it, the way `hello` already did.
+  - `rove config --help` stated the editor precedence backwards: an editor set in Settings → General → Editor wins, and `$VISUAL`/`$EDITOR` apply only when that is left on Auto. `rove web --help` called `--no-takeover` "reserved for compatibility" while takeover has been live (it SIGTERMs an older Rove PTY sidecar on `port + 2`), and `rove add --help` spelled `--key <path>` as though the path were required when omitting it uses ssh-agent.
+
+  The rest are doc corrections: the routine-run status union is 7 values, not 5 (`revived` and `deferred` reach plugins as `automation.dispatched` and a plugin branching on `=== "dispatched"` drops them); `skipped_unavailable` is the catch-all for any dispatch throw, and `dispatch_failed` also covers a busy composer whose deferral could not be filed; routine history is capped at 100 runs per routine, so "read the ids off its history before deleting it" quietly fails for a `*/30` schedule; `--precheck-timeout` is clamped to 1-600s; cron day-of-week accepts `7` as Sunday; the routine composer is missing five CLI-only fields, not one; a routine's tasks carry a marker that folds them in the sidebar; the last tab CAN be closed (a task may hold zero tabs — only a scratch task refuses, by tearing itself down); freeze/thaw drops records older than 14 days and keeps only the 64 newest; `[[shutdown]]` accepts `platforms`; `rove hook setup` is not a no-op (it removes the legacy `WorktreeCreate` hook); `rove reset` takes `-y`; `rove doctor` never reported duplicate runtimes or stale worktrees; CLI.md's doctor scope list was missing four checks and its `rove --help` block had been silently re-aligned; and `delivery.composerGate` and `hints.keyboard.prefixTapPresentation` had a Settings row but no documentation. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#832](https://github.com/Sma1lboy/rove/pull/832) [`8faa3b1`](https://github.com/Sma1lboy/rove/commit/8faa3b11194384472f248ae25bab830084c8febc) Internal: the engine adapters stop re-deriving two things they had each written out by hand.
+
+  CLI-binary discovery was four copies of the same probe — a `BinaryDiscoveryDeps` interface, a `defaultDeps` implementation, a not-found error class and a `tryPath` walk, in `claude-code-local`, `codex-local`, `kimi-local` and `copilot-local`. `engine/binary-discovery.ts` now owns _how_ to probe (the `which` call and its macOS alias unwrapping, the stat check, the ordered ledger of checked paths that ends up in the error message) and each vendor file owns only _where_ to look. Every search order, every checked-path list and its order, every error message and every `error.name` is byte-identical — 420 lines of duplication out, 112 back.
+
+  One deliberate behaviour change falls out of it: `kimi` now unwraps a macOS `which` alias line the way the other three already did. An aliased `kimi` used to resolve to the literal `"kimi: aliased to /path"` string, fail the file check, and fall through to the install dirs for no reason.
+
+  Vendor config-home resolution — `$CLAUDE_CONFIG_DIR`/`$CODEX_HOME`/`$COPILOT_HOME`/`$KIMI_CODE_HOME` and their default dotdirs — was written nine times across six files, and the copies had already drifted: three treated a blank override as a real path, so `CODEX_HOME="  "` resolved to `/auth.json` at the filesystem root. `engine/vendor-home.ts` is now the single derivation, blank means unset everywhere, and claude's genuine asymmetry (`~/.claude.json` sits at the home root when unset, inside the dir when set) is preserved and documented. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#834](https://github.com/Sma1lboy/rove/pull/834) [`93ab6d5`](https://github.com/Sma1lboy/rove/commit/93ab6d5e893cbfd74e3f4055f31f2ba9f1a797c7) Repo init: record the outcome in the marker, and restore its exports for every
+  session. A `.rove/init.sh` that failed or timed out wrote no marker at all, so
+  the paste-delivery spawner (kimi) could not tell "init failed" from "init still
+  running" and sat out its whole 120s budget before delivering a task's first
+  message; the marker now carries init's exit code, and a recorded failure still
+  re-runs init on the next launch. The env restore has also moved outside the
+  once-per-worktree marker guard and into a durable `0600` dump next to the
+  marker, so a second engine tab — and a restart of the first — gets the PATH,
+  venv and API-key exports init set, instead of only the very first session in
+  the worktree ever seeing them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) Sidebar rows now say where a PR stands with its reviewers. The poller has been
+  writing `reviewDecision` and folding an approved open PR into a `ready_to_merge`
+  lifecycle since it landed, and neither reached the screen: a green `✓` looked
+  identical on a PR that is approved and clear, one still waiting on a reviewer,
+  and one that merged an hour ago — which is exactly the distinction you need when
+  picking which parallel attempt to land. `»` marks approved and clear to advance,
+  `≡` marks already merged (muted; it is history, not news), and both drain to
+  grey when the last PR poll failed. Both glyphs are one cell in Fira Code,
+  JetBrainsMono Nerd Font, Menlo and Monaco. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#833](https://github.com/Sma1lboy/rove/pull/833) [`8b7df70`](https://github.com/Sma1lboy/rove/commit/8b7df70ed0195d8cab452ad8b68b47997379e84c) A skipped routine now says why it skipped. The runner has always captured the
+  precheck's stdout, stderr, exit code and duration and stored them on the run
+  record; the Routines page collapsed all four to `[#12](https://github.com/Sma1lboy/rove/issues/12) skipped_precheck — precheck
+exited 1`, leaving you to reconstruct the command by hand — the debugging step
+  Rove had already done and then discarded. The detail box now shows the exit code,
+  the duration and the last ten lines of each captured stream under the run list,
+  for the most recent run. Run rows also carry the trigger: `·` fired by cron,
+  `▸` run by hand, so a manual test and a scheduled firing stop looking alike. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.100
+
+### Patch Changes
+
+- [#828](https://github.com/Sma1lboy/rove/pull/828) [`98aa72a`](https://github.com/Sma1lboy/rove/commit/98aa72a77581b473e80d18779bb2ce24ae9a291f) Diff review no longer marks notes sent when nothing was delivered.
+
+  `s` handed the batch to a send closure that returned nothing whether it pasted or not, so on a Task with no engine session — one `ctrl+w` away — every note was marked sent, the footer dropped to `0 unsent`, the warning paint cleared, and the notes were indistinguishable from delivered ones forever. The engine send and paste closures now report whether they reached a session; a refused send leaves the notes unsent and says why. The FileTree `a` mention went through the same closure and dropped writes the same silent way; it now reports too.
+
+  The diff tab also gains `r` to reload the file it is showing (the Files pane next door has had it all along, and the tab is meant to stay open while the engine changes the file), and `x` to drop the note the cursor sits inside. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#826](https://github.com/Sma1lboy/rove/pull/826) [`ecced69`](https://github.com/Sma1lboy/rove/commit/ecced69de3db50deef7f45f81f28b36e48bbb422) Rail-page cursors now stay on screen, and the Kanban board keeps its cards readable in a narrow window.
+
+  Worktrees, Routines, GitHub Issues and Kanban all moved a cursor with nothing following it, and Routines and Issues rendered their rows into a plain box with no scroll region at all — past the first screenful the selected row simply was not in the frame. All four now scroll the cursor row into view through one shared mechanism.
+
+  The board also decides its lane count from the width it actually has rather than the whole terminal's: at 100 columns four lanes left each card nine cells, less than the ten its date alone needs, so it now shows the single-lane view there. The wide layout is unchanged.
+
+  Routines: `enter` opens the latest run's task instead of the newest run that happened to create one — a healthy `skipped_precheck` used to open work from a different day. The "Ran X: dispatched" notice now clears when the cursor moves instead of sitting under the next routine as if it were its result; the GitHub Issues notice clears on a repo or filter switch for the same reason. Worktrees answers to `j`/`k` alongside the arrows, like every other list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#829](https://github.com/Sma1lboy/rove/pull/829) [`3f4704c`](https://github.com/Sma1lboy/rove/commit/3f4704cd3b7716b89a9dcd0f10cf4748a86a461d) Settings drops its dead overlay path, and `t` no longer flips transparency from every section.
+
+  `SettingsDialog` carried a second, overlay shape behind a `standalone` prop that production only ever passed `true`. `SettingsDialog.show` had no callers at all, and the overlay branches would not have worked anyway — cursor-follow reads a scrollbox ref only the page branch ever set. The page layout is now the only one.
+
+  `t` toggled transparency from the Plugins list, the Keybindings section and Dev — anywhere the surface had focus — while appearing in no keybinding table. It is gone; `enter` on the Transparency row in General does the same thing and always did. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.99
+
+### Patch Changes
+
+- [#827](https://github.com/Sma1lboy/rove/pull/827) [`dfff021`](https://github.com/Sma1lboy/rove/commit/dfff021723e74bf618e27aef44d2d5fcdeadbdc7) Daemon collectors share one poll scheduler and one ticker. `maybeStartScheduledRun` lived three times (once in the CLI package, twice byte-identical in the daemon) because the daemon cannot import the CLI; it now lives in the daemon and the CLI re-exports it. Eight daemon loops that each hand-rolled the same `setInterval` skeleton (tick guard, reentrancy flag, subscriber gate, unref, clear) share `startTicker`, with the three real per-collector variations kept as explicit options. Behavior add: the quota-usage cache gains the `tickMs <= 0` disable guard every sibling already had. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.98
+
+### Patch Changes
+
+- [#824](https://github.com/Sma1lboy/rove/pull/824) [`6865044`](https://github.com/Sma1lboy/rove/commit/686504467921b3424c6f1369bc40f4551f496a30) Sidebar rows now say when a worktree has fallen behind its base. `↓N` joins `+N −N` in the warning tone, counting the commits the base has that the worktree does not, and `≠` marks a PR GitHub reports as `CONFLICTING` — a field the poller has been collecting since it landed and nothing rendered. Both come from the daemon's existing per-worktree read, so no new polling. The row menu gains **Sync with base**, which merges the base in (never rebases — the worktree may have a live engine holding files open) and reports a conflict the way landing already does. `rove api collect` gains `base.behind` beside `base.ahead`. A proposed `ctrl+a u` chord mirrors the menu entry; it shadows nothing and is awaiting owner sign-off. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#825](https://github.com/Sma1lboy/rove/pull/825) [`3448871`](https://github.com/Sma1lboy/rove/commit/34488715fc31f96f5361cdfa66e39a0bef58fa3d) Stop killing long-running daemon calls at 20 seconds.
+
+  Every RPC except six worktree verbs got a 20s client deadline, and blowing it
+  did more than fail the call: it rejected with "daemon wedged?", force-closed
+  the socket and dropped every channel subscription. So `rove api prompt`
+  returned an RPC error at 20s no matter what `--timeout` said, and a `task.land`
+  on a large repo put the whole workspace into the reconnect path while the
+  daemon was healthy.
+
+  A verb whose contract is to block now says so on its own registry entry
+  (`blocking: true`, beside `web: true`), and the client reads that set instead
+  of a hand-kept list far from where verbs are defined. Covers `ui.prompt`,
+  `task.land`, `workitem.start`, `automation.runNow`, and both deferred-prompt
+  release paths alongside the worktree verbs. The wedge detector still guards
+  everything that answers in milliseconds. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#825](https://github.com/Sma1lboy/rove/pull/825) [`3448871`](https://github.com/Sma1lboy/rove/commit/34488715fc31f96f5361cdfa66e39a0bef58fa3d) Expire deferred prompts and their Inbox rows after 24 hours, as the policy
+  always said.
+
+  The store documented a 24h TTL, but nothing ever swept: expiry was only
+  computed inside `deferredPrompt.flush`, which a human reaches by opening
+  Settings and toggling the composer gate. A prompt the delivery gate parked
+  because a composer was busy therefore sat on disk forever, and its
+  `prompt_deferred` Inbox row outlived every later turn on that tab — the
+  deferred episode has its own lane, so nothing else cleared it.
+
+  The daemon now runs the same coordinated record + Inbox cleanup on boot and
+  hourly, ungated on attached UIs. It expires only: re-delivering a live record
+  stays a deliberate human action, so a parked prompt is never pasted by a timer. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#823](https://github.com/Sma1lboy/rove/pull/823) [`886c66b`](https://github.com/Sma1lboy/rove/commit/886c66bab3e35a79783881c2e0eceaa0dfee8eca) The workspace footer now shows how full the active session's context window is — `ctx 62%`, in the same ok/warn/crit tones as the quota chips beside it, suffixed `~` when the figure is the engine's own estimate rather than a number it reports. It answers a different question from the quota chips: not how much budget is left this week, but how much room is left in this conversation, which is the thing that quietly compacts your session away. The number was already engine-computed and already rendered in the browser; the TUI was discarding it. Nothing is summed or guessed in a neutral layer — a vendor that does not report its context window renders nothing rather than a percentage of an invented denominator. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#822](https://github.com/Sma1lboy/rove/pull/822) [`a52a9f3`](https://github.com/Sma1lboy/rove/commit/a52a9f3a513060ab03e95aca00adaf8d32b6b4ca) Stop serving the web-transport bearer token to unauthenticated callers.
+
+  The daemon injected `<meta name="rove-web-token">` into every `GET /`, and
+  that route is deliberately ungated (a browser cannot attach a bearer header to
+  the subresources it fetches itself). So any caller that could open the
+  loopback port — `curl` sends no `Origin`, which the CSRF check permits — read
+  the credential out of the page body and then drove the whole `/api/*` surface,
+  including `task.setCommand`, which sets an engine's launch argv. On a shared
+  machine that reached any other local user, which is exactly the boundary the
+  token file's 0600 mode exists to hold. Exposure was limited to callers who
+  could reach the daemon's web port; it was not reachable from a remote network
+  unless the port had been bound off loopback.
+
+  The shell is still served to anyone — it is public build output — but the
+  token is now echoed back only to a request that already presented it. `rove
+web` prints a URL carrying `?token=…` so the first navigation bootstraps, and
+  the dashboard remembers it for the rest of the browser session, so in-app
+  navigation and reloads keep working. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#825](https://github.com/Sma1lboy/rove/pull/825) [`3448871`](https://github.com/Sma1lboy/rove/commit/34488715fc31f96f5361cdfa66e39a0bef58fa3d) A routine with a zero missed-run grace now runs instead of skipping forever.
+
+  The sweep is a poller, so it can only ever see an occurrence after it happened
+  — `now - scheduledFor` lands somewhere in 0..60s on a perfectly healthy run.
+  The grace window was compared strictly against that gap, so
+  `missedRunGraceMinutes: 0` made every single firing "missed": the routine
+  recorded `skipped_missed`, advanced its schedule, and never dispatched, while
+  its run history filled with skips.
+
+  The window now has a floor of one tick — a grace of N means "up to N minutes
+  late, plus the tick that discovered it" — and a genuinely late occurrence is
+  still skipped. Negative values, which used to be accepted and then silently
+  rewritten to 60 on the next daemon restart, are refused at the RPC boundary,
+  as is a non-positive `precheck.timeoutSeconds`. `--grace 0` is now expressible
+  from the CLI, where it previously failed the positive-integer check. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.97
+
+### Patch Changes
+
+- [#821](https://github.com/Sma1lboy/rove/pull/821) [`2b11314`](https://github.com/Sma1lboy/rove/commit/2b113146dacf9b136a2a63110659b9ed58b58c57) Internal: four daemon-side leaks and one missing plugin event. `quotaResumeTickMs: 0` now disables the quota-resume sweep like it does for every sibling collector — `collectors.ts` merges with `??`, which does not replace a `0`, so the documented "off" value gave `setInterval(fn, 0)`, a ~1000 Hz sweep of the whole task index. The PR-status poller's per-task backoff map only ever dropped entries for tasks still in `listTasks()`, so a deleted task's entry had no exit at all. The web server registered its event-bus sink above the token write and the `Bun.serve` bind, so a lost port race left an orphaned closure the bus kept calling for the daemon's whole lifetime — once per restart that lost the race; it subscribes after the bind now. `probeWebPort`'s response body has been unused since the marker comparison was removed. And a background-appended engine tab now reports `tab.opened`, so a plugin tracking open panes no longer sees the eventual `tab.closed` as the first news of it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#821](https://github.com/Sma1lboy/rove/pull/821) [`2b11314`](https://github.com/Sma1lboy/rove/commit/2b113146dacf9b136a2a63110659b9ed58b58c57) Fixed three ways the daemon could be stranded alive by a single failure. A browser SSE connection whose hydration snapshot threw left a gui behind that nothing could subtract, so the daemon never idle-exited after the TUI quit and every collector kept polling npm, git and gh for a browser that had received a 500 — the snapshot is now assembled before the refcount is acquired. A shutdown that threw partway (the plugin host's `stop()` is the known thrower) skipped the release half entirely, leaving the socket and pidfile on disk in front of a daemon that still answered `hello` but whose panes never updated again; the release now runs in a `finally`. And a rejecting stop hook took `daemon.stop`, idle-stop and socket-takeover down with it while `stopping` stayed latched, so `rove daemon stop` reported success and the process kept running — the teardown is now scheduled regardless. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#817](https://github.com/Sma1lboy/rove/pull/817) [`c94011d`](https://github.com/Sma1lboy/rove/commit/c94011d4254f341fcb117091d3fc675eead00993) The sidebar's red PR chip is no longer a dead end: a row whose checks are failing gains a **Fix failing checks** entry that pulls the failing job's log tail out of GitHub and pastes it into that task's own engine, with the branch, the PR number and the job names named. The daemon fetches on demand only — a whole job log is far more expensive than the rollup the poller reads every tick, so nothing here rides the poll interval. A proposed `ctrl+a k` chord mirrors the entry; it shadows nothing and is awaiting owner sign-off. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#821](https://github.com/Sma1lboy/rove/pull/821) [`2b11314`](https://github.com/Sma1lboy/rove/commit/2b113146dacf9b136a2a63110659b9ed58b58c57) Internal: the daemon's six file-backed stores now share one mutation serializer. The "queue this read-modify-write behind a settled promise tail" primitive was written six times in two spellings — four private `enqueue` methods (automations, attention inbox, agent turns, deferred prompts) and two module-level `withLock` copies (issues, notes) — and `json-file.ts`, already the single owner of the atomic write half, now owns `serialized(path, fn)` too. The lock key stays the file path, since each store reads and writes its document whole; a rejected mutation still settles the tail rather than wedging the queue. Repo resolution for the two repo-keyed stores collapsed the same way: `gitTopLevel` moved beside its siblings in `repo-key.ts`, which now exposes `resolveRepoRoot` for the shared stat-and-derive half while each store keeps its own answer to "no worktree line". No user-visible change — `issue-list`, `note-list` and `inspect` are byte-identical. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#821](https://github.com/Sma1lboy/rove/pull/821) [`2b11314`](https://github.com/Sma1lboy/rove/commit/2b113146dacf9b136a2a63110659b9ed58b58c57) `rove api --repo ssh://…`, safer worktree deletion, and five smaller correctness fixes
+
+  - `--repo` accepts a remote project's `ssh://…` key. Every `--repo` flag resolved its value as a filesystem path, so the key collapsed to `$PWD/ssh:/me@host/srv/proj` and the task was filed against a directory nobody typed. `savedRepos` stores the key verbatim and `resolveRepoRoot` already passes it through — the CLI's path resolution was the only thing in the way.
+  - A worktrees-location override no longer authorizes deleting your other projects. Rove only ever creates `<root>/<repo-key>/<slug>`, but the guard in front of the `rm -rf` for an unrecoverable worktree accepted anything at any depth below the root — so pointing Settings → Worktree location at `~` or `~/code` made every unrelated project below it answer "yes, Rove made this".
+  - One vanished worktree no longer blanks the whole sidebar. The dirty probe ran without the try/catch its sibling activity probe has, so a worktree removed between the listing and the probe threw out of the whole call instead of costing one row.
+  - Landing refuses a task that is already being deleted, the way every other worktree entry point does, instead of racing the daemon's deletion runner over the same directory.
+  - Clearing a task's recorded worktree path no longer applies to `dir` tasks, whose path is the user's own directory rather than a Rove-created worktree — blanking it left the task unable to open anything.
+  - Closing a viewport tab (one mirroring another task's session) no longer kills that task's split panes. The borrowed base was correctly spared; its `::leaf-N` children were not.
+  - Automation runs that were `revived` or `deferred` no longer render in the same grey as "nothing to do" — both delivered the prompt somewhere, and `deferred` reads as a warning because it is parked until you release it from the Inbox. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.96
+
+### Patch Changes
+
+- [#819](https://github.com/Sma1lboy/rove/pull/819) [`727f66a`](https://github.com/Sma1lboy/rove/commit/727f66aabe9580ce431313f14bf0abfa7f3d5957) Internal: narrow 146 module-private symbols from `export` to file scope and drop 50 barrel re-exports nobody imported, so `bun run knip` reports no unused exports or types. Genuinely dead code is detectable from now on instead of being buried in noise. `knip.json` now treats every test file as an entry point, which is what made the cross-file consumers visible — the previous `*.test.ts`-only pattern hid test helper modules and produced false "unused" reports. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#818](https://github.com/Sma1lboy/rove/pull/818) [`b937d39`](https://github.com/Sma1lboy/rove/commit/b937d39652ac3c18385a2a008ac0f0d918219833) Search the terminal scrollback. `ctrl+a` `/` opens a query row in the pane footer; typing filters live, `return`/`up` walk to older matches and `down` to newer ones, and `esc` closes the row and puts the viewport back where it was. Every hit on screen is highlighted, and the one you are parked on is painted in the accent colour. A new query parks on the newest occurrence, because a scrollback is read backwards.
+
+  The search covers Rove's own scrollback only: while a full-screen app is on the alternate screen it owns its buffer, and the row says so instead of walking one screen of somebody else's redraw. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.95
+
+### Patch Changes
+
+- [#816](https://github.com/Sma1lboy/rove/pull/816) [`990c58d`](https://github.com/Sma1lboy/rove/commit/990c58d28c3814d997c2b21f2d992636f98ab428) Housekeeping with no behaviour change: eight npm packages left behind when the board's drag-and-drop and the TanStack devtools panels were removed are gone from `kobe-web`, along with the unused `kobe-web` workspace devDependency and `lucide-react` in `kobe-docs`. The four `@deprecated` internal compatibility aliases (`kobeCliInvocation`, `kobeStateDir`, `kobeSettingsDir`, `createExternalStore`) are deleted and their ~90 call sites now name the survivors directly. The five per-pane React mock hosts and eight duplicate dev scripts — one of which pointed at a file that no longer existed — are removed; `dev:mock` and `src/tui-react/mock/host.tsx` stay. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.94
+
+### Patch Changes
+
+- [#815](https://github.com/Sma1lboy/rove/pull/815) [`7bdb94e`](https://github.com/Sma1lboy/rove/commit/7bdb94eab0bf51b7fb07e4b620b4515d10cd14f4) Engine display names now come from one place. `humanizeSlug` was implemented twice (settings model and the daemon settings adapter) and `engineLabel` was a third derivation of the same answer; the registry-backed `engineDisplayName` in `engine/interactive-command.ts` owns it now, and the hard-coded `"claude"` fallbacks in the adapter and `add` handler read a named `DEFAULT_VENDOR`. No user-visible change — the daemon settings snapshot is byte-identical. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#812](https://github.com/Sma1lboy/rove/pull/812) [`18e6f81`](https://github.com/Sma1lboy/rove/commit/18e6f81215661c6852069ed9eb19d45a2c1da204) A tab that exits as the task's last one now comes back as the engine it was pinned to. Recycling used to hand back a bare first tab, so a tab you pointed at Codex respawned as the task's engine while still wearing the Codex conversation's title. It also reused `tab-1`, which let a recycled tab inherit a dead tab's Inbox episodes and its in-flight orphan suppression — ids are minted from the task's ordinal counter now, and are never reused. Separately, `ctrl+a` `w` closes the tab when there is no split, instead of being swallowed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.93
+
+### Patch Changes
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) `rove api`: `--flag false` now works, `--prompt-file -` no longer reads stdin twice, and a bad `add` leaves no task behind
+
+  Four fixes in the `api` flag layer:
+
+  - A declared bool flag takes the space form (`--pinned false`, `--remove-worktree false`). The parser turned every bool flag into a presence flag before looking at the next argument, so `--pinned=false` was the only way to say `false` and `--pinned false` died as `unexpected positional arg`. `--force` on its own still means `true`.
+  - `--prompt-file -` reads stdin once. `routine-update` guards the flag and then reads it, which drained the pipe on the guard and hit EOF on the read — every `--prompt-file -` update failed with `--prompt-file - is empty`.
+  - `routine-update --persistent-session false` turns a standing routine back into fresh-worktree-per-run. The explicit `false` was dropped from the patch, so the routine stayed standing with no CLI path back.
+  - `add` validates `--prompt` / `--prompt-file` before it creates the task, instead of after. Passing both (or naming a missing file) created the task, then failed with an error that carried no `taskId` to find it with. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) Routines: no more double run on the DST fall-back day, no more frozen composer, and Run now defers like the schedule does
+
+  - A daily routine scheduled in the hour the clock repeats ran **twice** every autumn — two worktrees, two branches, two billed turns — and one scheduled in the hour the clock skips every spring didn't run at all, with nothing in its history to say so. The occurrence search now walks the local calendar instead of stepping fixed epoch minutes, so each wall-clock minute is one firing; a skipped local time fires at the instant the clock jumped to.
+  - A valid-but-rare expression (`0 0 30 2 *`) no longer stalls the daemon or the TUI. The old minute-by-minute scan did 4.7M date allocations before giving up (~150ms), and the automation composer runs the schedule preview while you type — arrowing the day-of-month past 29 with the month on `2` froze the terminal once per keypress. The scan is day-at-a-time now and gives up in ~1ms.
+  - Run now on a standing routine whose composer is busy files the prompt in your Inbox, matching what the same firing does on the schedule. It used to record `dispatch_failed` and discard the text. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) Internal: removed the `task.reorder` slice. It was a complete vertical — protocol verb, daemon handler, orchestrator and store methods, a persisted `position` field, two serializers and a codec branch — with no producer and no consumer. It ordered cards on the web board's per-status columns, and the board no longer carries task cards; the sidebar's move mode uses `task.move`. A `tasks.json` written before this still loads: the codec ignores keys it does not know, so a leftover `position` is dropped on the next save. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) `rove --help` mentions channel switching, and an empty-success retry keeps its target
+
+  `update` has accepted `--channel latest` / a bare `nightly` for several releases, but the top-level help still read `update [version|list]` — the subcommand lock-step test only compares the command list, so the description drifted past CI.
+
+  `send`'s empty-success refusal hands back a `nextCommandArgs` you are told to run verbatim; it dropped the `--task-id` / `--tab` you addressed, so the retry re-resolved through the active-task fallback and could deliver into a different task. It now carries the target forward. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) **A task whose worktree sits inside its own repo is deletable again.** When `git worktree remove` deregistered the worktree but could not delete its directory, Rove classified the leftover by asking `rev-parse --git-common-dir` from inside the path — and git's discovery walks up parent directories, so for a worktree nested under its own checkout (every remote project, and legacy repo-local roots) it resolved the parent repo and reported a path git had already forgotten as still registered. The removal threw, every retry threw identically, and the task parked in `deletion.phase: "error"` forever. Registration is now asked of the owning repo via `git worktree list`, which is the only place that holds the answer. The leftover directory is still reported, never deleted — it sits inside the user's checkout.
+
+  Also: removing a worktree whose directory had already vanished never pruned the stale `.git/worktrees/<name>/` registration, because it probed the repo with `cwd` set to the missing path. It probes the parent now, so the path is re-addable instead of failing a later `git worktree add`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) **A PR chip that stopped updating now says so.** When `gh` could not reach GitHub, the poller logged the failure to the daemon log, backed off, and left the chip showing its last reading — with nothing on screen to say the reading was no longer being refreshed. A branch could sit under a green `✓` for hours while polling was broken. The failure is now recorded on the task (`prStatus.lastError`, a field that was declared, persisted and diff-excluded but never written), and the sidebar's PR chip keeps its glyph and drops its colour while it stands: the fact has not changed, but nothing is confirming it any more. The next poll that reaches the provider restores the colour. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#814](https://github.com/Sma1lboy/rove/pull/814) [`72f0042`](https://github.com/Sma1lboy/rove/commit/72f00420a317eb0dc273c8d37b94f4f81775aba2) **Three PTY host lifecycle fixes.**
+
+  - **A closed tab stays closed.** `kill()` dropped the session's freeze record synchronously and then awaited the child's exit — and the exit handler force-wrote the same record straight back, with a fresh timestamp that outlived the 14-day prune. The next pty-host incarnation resurrected sessions the user had closed (or that a task deletion had killed), `rove doctor` listed them, and opening one replayed the closed session's old scrollback instead of spawning fresh. The freeze writer now honours the same "closed by request" flag the death record already did.
+  - **An engine death fires once.** The exit watcher tracked seen records by the session key while the store writes engine-layer records under `<key>#engine`, so its prune dropped each engine record on the sweep that created it and every later sweep re-fired the same death — duplicate `session.exited` plugin events, and an Attention Inbox episode the user had read popping back to unread whenever anything else touched `pty-exits.json`.
+  - **`rove doctor` reports parked tabs again.** A socket closing cleared the parked bookkeeping of every session in the host, not just the ones it was attached to — and the daemon's own liveness poll opens and closes such a socket every 15 seconds, so the parked count and parked screen bytes read `0` however many tabs were actually parked. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#813](https://github.com/Sma1lboy/rove/pull/813) [`62264f2`](https://github.com/Sma1lboy/rove/commit/62264f2924c3cd366ab83ffeb41ffa027c3a3510) A task on an experimental remote (`ssh://`) project now refuses the engine launch instead of spawning locally
+
+  `rove add --remote` and the Settings toggle both say hosted PTY engine launch over SSH is not implemented, but nothing enforced it: a remote task's worktree lives on the other machine, so opening its tab or sending it a prompt started an engine here against a directory that does not exist, and surfaced as a bare "failed to start hosted engine session". One guard at the launch builder — the single spawn-spec path the Workspace host, `rove api send`, and a prompted `add` all funnel through — now returns `hosted engine launch over SSH is not implemented`, naming the project.
+
+  In the TUI the workspace pane says it outright rather than mounting an engine tab: opening a remote task used to mint a `claude 1` tab and leave a blank pane while the PTY host retried a local spawn into a directory that is not there. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.92
+
+### Patch Changes
+
+- [#811](https://github.com/Sma1lboy/rove/pull/811) [`9007b59`](https://github.com/Sma1lboy/rove/commit/9007b593379d65888e80878a40766ee153d95e60) Every choose-one field in a dialog now renders through one shared chip row: New conversation's engine / destination / context, the engine picker's effort levels, the quick-task composer's engine, and the story drawer's engine and after-start rows join New task's mode and engine pickers. The three bespoke `▸`-marked text selectors are gone, and an architecture test rejects a new one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.91
+
+### Patch Changes
+
+- [#810](https://github.com/Sma1lboy/rove/pull/810) [`fd4640c`](https://github.com/Sma1lboy/rove/commit/fd4640c06d1bd4491138156cac3dd0e0d39ca1f3) New task moves from `ctrl+n` to the prefix: `ctrl+a` `n` opens it from anywhere, including inside an engine or shell terminal, and a bare `ctrl+n` always reaches the PTY. The sidebar keeps bare `n`. The dialog's Existing / New Repo / Adopt selector is now a `MODE` chip row like the engine picker. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.90
+
+### Patch Changes
+
+- [#809](https://github.com/Sma1lboy/rove/pull/809) [`418322f`](https://github.com/Sma1lboy/rove/commit/418322fec2ad69e602b859c78692533cfb69d7f2) A batch of small owner-decided changes.
+
+  - **The Files pane watches the worktree again.** The watcher had been behind `KOBE_FILETREE_WATCH=1` since the freeze it guarded against was fixed by moving git scans and preview reads off the event loop, and nothing had set that variable since the tmux Ops pane was removed — so the pane only ever repopulated on `r`. It now watches by default; `KOBE_FILETREE_WATCH=0` turns it off on a repo where a recursive watcher costs more than the staleness.
+  - **`ctrl+a` `p` follows the sidebar cursor.** With the sidebar focused, Create PR now acts on the highlighted row instead of always on the active task, entering that row to deliver the prompt — the rule `ctrl+a` `o` already followed.
+  - **Land is reachable from a task row.** The sidebar row menu gains "Land into base branch", running the same merge, confirm and cleanup toasts as the Worktrees page's `l`. Withheld from project-main, directory and never-entered rows, where landing has no branch to act on.
+  - **A wrapper preset learns its protocol once.** When the process walk finds a built-in engine behind one of your registered custom engines, Rove records `engineProtocol.<id>` for the preset rather than re-sniffing on every task, so history, workspace-trust pre-answer and conversation forking start working for the next task too. A protocol you declared yourself is never overwritten.
+
+  Internal: one repo-key derivation behind the issues and notes stores, the web Issue types read from the daemon instead of two hand-copies, a round-trip guard for the Issue field allowlist, and test names that say what they assert. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.89
+
+### Patch Changes
+
+- [#808](https://github.com/Sma1lboy/rove/pull/808) [`bd61c76`](https://github.com/Sma1lboy/rove/commit/bd61c7650d3ee1813dc05fbe6b6249629dfeee18) Rove no longer asks the terminal for the kitty keyboard protocol's "report all keys as escape codes" mode. 0.9.87 and 0.9.88 requested it for the ctrl-hold shortcut guide, and on iTerm2 3.5 typing with a Chinese input method then crashed the whole terminal app. Keyboard handling is back to what it was before 0.9.87; the ctrl-hold guide does not appear until a terminal can report bare modifier keys without that mode. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.88
+
+### Patch Changes
+
+- [#806](https://github.com/Sma1lboy/rove/pull/806) [`0f0be55`](https://github.com/Sma1lboy/rove/commit/0f0be558c7469a7615460af8449262b3e3f1db7f) Removed `test/tui/terminal-selection-trim.test.ts`: its one case raced real timers and failed on CI with the same `expected 0 >= 10` signature regardless of the change under test, blocking three releases in one day. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#807](https://github.com/Sma1lboy/rove/pull/807) [`80051e2`](https://github.com/Sma1lboy/rove/commit/80051e2e3f99e0bcb2962a0f97379a08504bb5a3) Chinese, Japanese and Korean input works again in kitty-protocol terminals (iTerm2 3.5+, kitty, Ghostty, WezTerm). 0.9.8x requested the protocol's "report all keys as escape codes" flag for the ctrl-hold guide, which makes the terminal encode an input-method commit as a text event whose characters travel only under the "report associated text" flag; that flag is now requested too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.87
+
+### Patch Changes
+
+- [#805](https://github.com/Sma1lboy/rove/pull/805) [`a1f9584`](https://github.com/Sma1lboy/rove/commit/a1f958446bc00f792f1dd739a7f9f0883086d770) comments: history removed from engine, cli, web, orchestrator, client, worktree, exec and kobe-web; no code change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#802](https://github.com/Sma1lboy/rove/pull/802) [`f6528ba`](https://github.com/Sma1lboy/rove/commit/f6528bac159f947d5c7312d5b02f5e6de97e13f7) comments: history removed from tui, state, types, lib, core and monitor; no code change. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#803](https://github.com/Sma1lboy/rove/pull/803) [`cb5b4de`](https://github.com/Sma1lboy/rove/commit/cb5b4de75deecc261cf454c18301a3e4547565b5) comments: history removed from tui-react; no code change — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#804](https://github.com/Sma1lboy/rove/pull/804) [`b7bbe74`](https://github.com/Sma1lboy/rove/commit/b7bbe74d63729128801036e5f810421249746d47) comments: history removed from kobe-daemon and the remaining test dirs; no code change — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#743](https://github.com/Sma1lboy/rove/pull/743) [`2072349`](https://github.com/Sma1lboy/rove/commit/2072349ab9bf2f94df63419f7a3273c91fb84e53) Show a height-bounded guide for currently reachable Ctrl shortcuts after either Ctrl key is held for 400 ms, close it when focus or modal reachability changes, and preserve kitty flag-8 keypad, navigation, function-key, and supplementary Unicode input forwarded to embedded PTYs. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#762](https://github.com/Sma1lboy/rove/pull/762) [`7b72d95`](https://github.com/Sma1lboy/rove/commit/7b72d950a9f1deb1d7269386ce68d75ca244537e) Open New task with `ctrl+n` from non-input panes and workspace pages, including
+  the Worktrees and Update full-window views.
+
+  The sidebar keeps its bare `n` shortcut. Sidebar search, Settings, dialogs,
+  engine composers, and embedded shell terminals keep input ownership instead
+  of opening the dialog. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#798](https://github.com/Sma1lboy/rove/pull/798) [`757c1d4`](https://github.com/Sma1lboy/rove/commit/757c1d45c7383aa16914efb13b12382612b96ac3) Flush queued peer and API prompts when the composer screen check is turned off.
+
+  Rove now retries every deferred prompt in insertion order after the setting is durably disabled. Each record is claimed before exact-engine-tab delivery, and a durable delivered marker prevents a failed Inbox cleanup from sending it twice. Concurrent flush, Inbox release, dismiss, and tab-close operations converge without duplicate delivery; expired records clean their Inbox pointers.
+
+  A busy, temporarily unavailable, or failed tab stays queued while later tabs continue. Re-enabling the check synchronously cancels the remaining flush, an older daemon that lacks the flush verb produces an on-screen warning, and both attached-TUI and headless tab closing discard the tab's queued prompt. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+## 0.9.86
+
+### Patch Changes
+
+- [#799](https://github.com/Sma1lboy/rove/pull/799) [`e93f3ca`](https://github.com/Sma1lboy/rove/commit/e93f3ca6f32392f9ac60676d047cf7389acbb9ce) The agent skill's flag reference is generated from the verb specs
+
+  `references/api-flags.md` was hand-written and had drifted from the CLI: it
+  listed `--prompt-file` on `routine-create`/`routine-update`, where that flag
+  does not exist, and omitted `set-effort`, `engine-report`, `collect --group`,
+  `send --allow-empty` and `delete --wait` entirely. Its flag tables now come
+  from the same verb specs `rove api schema` serves, with an architecture test
+  that fails naming the stale verb, and SKILL.md points into the file by what a
+  user asks for ("every morning", "file it upstream") rather than by Rove's own
+  group names. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#801](https://github.com/Sma1lboy/rove/pull/801) [`c8db368`](https://github.com/Sma1lboy/rove/commit/c8db368c85734f36f504eb37ac327bf916b614a5) `rove api routine-create` and `routine-update` take `--prompt-file` (`-` = stdin), the same escape hatch `send` and `add` have for a prompt with backticks, `$vars` or quotes. Optional `--prompt` flags no longer claim to be "required unless --prompt-file is given" in `--help`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#800](https://github.com/Sma1lboy/rove/pull/800) [`0fc8c10`](https://github.com/Sma1lboy/rove/commit/0fc8c10b02408dbde20470a9372c7efbb41be845) The Routines page's detail box now draws the same rounded frame as every other framed surface; it was the last square-cornered box in the TUI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#797](https://github.com/Sma1lboy/rove/pull/797) [`efc3547`](https://github.com/Sma1lboy/rove/commit/efc354776701e1b330e2d1cd6367bbab63cee42e) The Rove agent skill's routine reference now documents `--persistent-session` (one standing task, every firing a new turn), `--prompt-file`, and the `revived` / `deferred` run statuses the binary already reports. Skill version 40. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.85
+
+### Patch Changes
+
+- [#796](https://github.com/Sma1lboy/rove/pull/796) [`09c5fd5`](https://github.com/Sma1lboy/rove/commit/09c5fd599583ce43ecef2aa54be2be4bfe117502) Continue a conversation from a wrapper engine. ctrl+e → continue on a tab
+  running a custom preset that wraps a built-in CLI (a `claudecpa` shell
+  function around `claude`) refused with "No conversation in this tab to fork
+  yet": the preset id resolved to the empty engine entry, so kobe read no
+  transcripts and found no fork verb. It now resolves the source engine from
+  the live process the tab is actually running, and the forked tab still
+  launches the preset the user picked. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.84
+
+### Patch Changes
+
+- [#791](https://github.com/Sma1lboy/rove/pull/791) [`67dd5af`](https://github.com/Sma1lboy/rove/commit/67dd5af6e141bfc322d88244110186bd59c23be5) The Files pane header no longer opens with a two-row hole. Its Zen and Create-PR
+  chips always wrap (they are wider than the pane), and the row's `gap` was
+  applying vertically as well as horizontally, so the header spent five rows on
+  two hints. It now spends two or three. A project's `main` row also stops
+  offering **Ask agent to create PR** — that row is the repo's own checkout with no
+  task branch, so the action could only answer with its already-on-the-target-branch
+  toast. `ctrl+a` `p` still fires there and still says why. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#794](https://github.com/Sma1lboy/rove/pull/794) [`de0c491`](https://github.com/Sma1lboy/rove/commit/de0c4911a0057ef4c20ebdfcec583ce9073c90aa) Every dialog now wears one look. The New task and New routine cards had
+  lowercase labels and bare inputs while the kanban story drawer had capitalised
+  labels, rounded field wells and a key legend — same card, two grammars. The
+  story-drawer version won and is now shared components, so New task, New
+  routine, Set status and the rename prompt all draw their fields as rounded
+  wells, mark focus the same way, and close with the same key legend.
+
+  The Routines card's square-cornered fields are the visible half of that: a
+  framed box only gets rounded corners if its author asks, and now nobody has
+  to. On a terminal shorter than 34 rows the frames drop away instead of the
+  Create button, which is the row budget that made those borders unaffordable. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#792](https://github.com/Sma1lboy/rove/pull/792) [`8872554`](https://github.com/Sma1lboy/rove/commit/88725547ccb838804251cf724c77ad1c3d9ac6cf) Stop every successful task delete from raising a red error toast. Deleting a task tears down its engine sessions, and the PTY host recorded that requested kill in `pty-exits.json` exactly like a crash — the only thing separating the two was the exit status, and a killed child exits under `SIGKILL` either way. The daemon's exit watcher then replayed it as an engine death: a `dead` activity state, a durable Inbox episode, and an error toast titled with the raw task id, arriving a moment after the task itself was already gone. `PtyHost.kill()` now marks the session as closed on request and skips the death record, so a close you asked for is no longer reported as a death — this covers the sidebar delete, the Worktrees page delete, the headless task-deletion sweep, and closing a terminal tab. A crash still records and still toasts. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#793](https://github.com/Sma1lboy/rove/pull/793) [`d01591f`](https://github.com/Sma1lboy/rove/commit/d01591f7ecde9a736ab41758833c6bd53718d963) A terminal selection now gets out of the way of an app that owns the mouse. Selecting text at a shell prompt and then starting Claude Code, `vim` or `less` used to leave Rove's highlight painted on top of the app's own screen, and a drag begun before the app launched kept extending underneath it. Launching a mouse-aware app clears the pane's selection; drag-to-copy still works everywhere the app does not want the mouse, and `shift`+drag still selects out of one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.83
+
+### Patch Changes
+
+- [#766](https://github.com/Sma1lboy/rove/pull/766) [`8b56e18`](https://github.com/Sma1lboy/rove/commit/8b56e188279a26c1bbc1b216bc885a337dc789a9) Show the sidebar update chip in the theme's warning color, matching the emphasized Inbox count, and keep both host-backed chips readable against detected terminal backgrounds without changing warning text on opaque surfaces. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#745](https://github.com/Sma1lboy/rove/pull/745) [`d4a2ba4`](https://github.com/Sma1lboy/rove/commit/d4a2ba40530b4299874b0d6c556bbf40b3ce79c5) Deliver follow-up prompts over Codex's empty composer placeholder without submitting an identical user draft, and stop a second deferred prompt from replacing the first.
+
+  Codex draws `Ask Codex to do anything` in a dim style after the prompt glyph when its composer is empty. Rove now requires both the exact text and the placeholder style. A user who types the same words keeps their draft, and changed upstream copy fails closed.
+
+  The deferred-prompt store keeps the first accepted message for a tab until a human releases or dismisses it. A later send fails with `DEFERRED_PROMPT_PENDING` instead of dropping the older text while reporting success. New clients also fail safely against an older replace-on-file daemon, and a retry rebuilds an Inbox pointer if the daemon stopped between the two durable writes. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#765](https://github.com/Sma1lboy/rove/pull/765) [`c79c1dd`](https://github.com/Sma1lboy/rove/commit/c79c1ddf46a35a99d94930453bb9db0b667d359a) Render every OpenTUI screenshot and recording through a renderer that supports
+  xterm custom block glyphs. The shared harness now selects WebGL for opaque
+  captures and Canvas for transparent captures, so engine banner logos no longer
+  split into strips when a capture entry point omits its own renderer flag. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#764](https://github.com/Sma1lboy/rove/pull/764) [`3cd2a10`](https://github.com/Sma1lboy/rove/commit/3cd2a102a49625094137ebda5bc16196fb197f69) Pane crash logs now keep React component names readable in minified builds and include the component stack plus a bounded, content-safe trace of recent daemon, KV, and tab-state changes. Production minification previously left React [#185](https://github.com/Sma1lboy/rove/issues/185) reports with renderer-internal function names only. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#790](https://github.com/Sma1lboy/rove/pull/790) [`b18a661`](https://github.com/Sma1lboy/rove/commit/b18a661dbf6d67f20ea9f5e4e87ccbd4dea46580) Restore the `setThemeMode` helper that two concurrent changes raced on: one deleted it as unused while the other added its only caller, and main failed to typecheck once both landed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.82
+
+### Patch Changes
+
+- [#787](https://github.com/Sma1lboy/rove/pull/787) [`891dbae`](https://github.com/Sma1lboy/rove/commit/891dbae465d7e8b095cbe77ea05831e7a8c660fe) `rove api` now reaches the six shipped contrib engines. `engine-list` lists Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid and Amp whenever their CLI is on `PATH` — the same set Settings → Engines already offered — and `add --command opencode` / `set-command --command cursor` record that engine's protocol instead of falling through to `generic`, so an agent-dispatched fleet gets the activity badges a hand-picked one already had. Existing tasks already recorded as `generic` keep that value; re-run `set-command` to move one over. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#788](https://github.com/Sma1lboy/rove/pull/788) [`723f3b3`](https://github.com/Sma1lboy/rove/commit/723f3b3413567e6113b519f156f82209f138d4b2) A custom engine's `engineProtocol.<id>` now reaches workspace trust, first-message delivery and the transcript reader, not just session pinning. A preset declaring the claude protocol reads its history again (so `ctrl+a c` can fork and `rove api read-output --source history` returns real entries) and gets its worktree pre-trusted instead of stopping at claude's trust dialog. A preset declaring the kimi protocol now gets its first message pasted after launch rather than appended to argv, where kimi read it as an unknown subcommand and exited. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#786](https://github.com/Sma1lboy/rove/pull/786) [`36fc230`](https://github.com/Sma1lboy/rove/commit/36fc230ec3603bd65888b1f9a62ed6fa78506264) The Kanban card's activity badge showed the raw key `tasks.status.working` instead of "working" while a linked task's engine was mid-turn, crowding the card's created date off the row. The badge now points at `tasks.activity.working`, which exists in both locales, and the pages that showed `common.loading` while their data loaded render a real string too. The CI guard that catches an i18n key missing from every catalog only walked `src/tui`, so the whole React UI could ship keys with no catalog entry — it now scans `src/tui-react` as well, and reads `labelKey:` lookup tables, which is how the Kanban badge slipped past a literal-only scan. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#789](https://github.com/Sma1lboy/rove/pull/789) [`eefaab9`](https://github.com/Sma1lboy/rove/commit/eefaab9b1b9760807404460ccd3238fda2778fa7) Linking an issue to a task that does not exist is now refused, and deleting a task unlinks its issue. `rove api issue-update --task <id>` accepted any string, so a typo'd id parked the card in In progress pointing at nothing; deleting a linked task left the same dead link behind, because nothing ever cleared it. Both paths are fixed at the RPC the CLI and the web board share, and the kanban board now treats a link the task list cannot resolve as unlinked, so a card stranded by an older build falls back to Backlog where Start works again. The story drawer also gains an Unlink action next to "Open the linked session", so a stranded story is recoverable without the CLI. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.81
+
+### Patch Changes
+
+- [#785](https://github.com/Sma1lboy/rove/pull/785) [`ca1cc67`](https://github.com/Sma1lboy/rove/commit/ca1cc6783c5a316f270d25810766b0ba1c54ecb1) `dev:sandbox` no longer redirects `HOME`. Only Rove's own state is thrown away; engines under test see the same credentials, accounts, and vendor set as production instead of looking logged-out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#781](https://github.com/Sma1lboy/rove/pull/781) [`1a6e680`](https://github.com/Sma1lboy/rove/commit/1a6e6805d7413cf25eddf5867a8e16af4cfb8929) Delete seven exported helpers that nothing called. Four were in the TUI package (a combined protocol sniff wrapper, a theme-mode setter that duplicated the live context method, a best-effort orchestrator connect, and a one-line sidebar id mapper), and three in the daemon and web dashboard (an environment-variable delete helper, a board card accessor, and a command palette open that callers reached through the toggle instead). No behavior changes: every remaining path already went through the live equivalents. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#783](https://github.com/Sma1lboy/rove/pull/783) [`bf115b3`](https://github.com/Sma1lboy/rove/commit/bf115b3adf8e1e84de0e1e350e754be3c80375bc) Retract the unused model catalog, permission-mode list, default-model resolver, and context-window math from the engine capability contract. The native chat composer that read them was removed in the v0.6 port, so the only capability left is each engine's terminal-presentation policy, which the workspace terminal still applies unchanged. The unused `engineLaunchBin` helper goes with it. No user-visible behavior changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#782](https://github.com/Sma1lboy/rove/pull/782) [`454ab09`](https://github.com/Sma1lboy/rove/commit/454ab09363a1da4b5ae40ae2a5ed3345046b8d33) The sidebar row menu can re-run a Task's brief. Rove already stored the prompt each Task was created with, but nothing in the TUI read it — recovering a brief meant piping `rove api get-task` into `rove api add` by hand. **Run again** now shows that brief in full and re-fires it verbatim into a new Task with its own branch and worktree, leaving the original alone. Tasks created without a prompt have no brief to re-run, so the entry stays hidden for them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#784](https://github.com/Sma1lboy/rove/pull/784) [`4408eb7`](https://github.com/Sma1lboy/rove/commit/4408eb78e0b5e46bf45a689ef7cbbd248a76c502) Reasoning effort is now settable on a task that already exists. The sidebar row menu's "Change engine" dialog gained a second row listing the engine's declared levels (codex's `none`/`low`/`medium`/`high`/`xhigh`), picked with `←→`; engines that declare no levels show no row. The new `rove api set-effort --task-id ID --level LEVEL` does the same from a shell, and rejects a level the task's engine does not declare instead of passing it through to a launch that would silently drop it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#785](https://github.com/Sma1lboy/rove/pull/785) [`ca1cc67`](https://github.com/Sma1lboy/rove/commit/ca1cc6783c5a316f270d25810766b0ba1c54ecb1) Forward mouse clicks to the app inside a terminal tab when it enabled mouse tracking. Claude Code's expandable tool rows ("Read 2 files…") now open on click inside Rove, the same as in a bare terminal. Shift+click/drag keeps Rove's own text selection over a mouse-aware app. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.80
+
+### Patch Changes
+
+- [#773](https://github.com/Sma1lboy/rove/pull/773) [`cc9818a`](https://github.com/Sma1lboy/rove/commit/cc9818a6d37a621e2490c33c05f79310a36ecb13) `rove api add --count`/`--agents` now applies `--status` and `--pin` to every sibling it creates. Both flags previously validated, exited 0, and silently did nothing on a parallel round, so a fleet meant to land pinned and in review arrived unpinned in the backlog. The single and parallel paths now share one `applyPostCreateFlags` helper so they cannot drift apart again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#774](https://github.com/Sma1lboy/rove/pull/774) [`19c1e14`](https://github.com/Sma1lboy/rove/commit/19c1e149f24d15b0a7fba2656a1148eac29e7c73) Guard every Automation field across a daemon restart. A new test creates an automation with all seventeen fields set, reloads the store from disk the way a restart does, and compares the whole record, so a field the loader forgets now fails CI instead of silently disappearing after `rove daemon restart`. The same test checks that every `AutomationPatch` key actually changes the record through update, and that clearing precheck, baseRef, or the standing-session link removes the field on disk. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#775](https://github.com/Sma1lboy/rove/pull/775) [`4ecc51d`](https://github.com/Sma1lboy/rove/commit/4ecc51d0ee676db06c8a198458639a3699a84e18) The daemon's six file-backed stores (issues, field notes, automations, attention inbox, deferred prompts, agent turns) now share one atomic JSON write. Issues and notes previously staged through a fixed `.tmp` name, which two daemons overlapping during `rove daemon restart` could truncate and rename over the real file; every store now uses a per-process, per-write temp name. On-disk format is unchanged. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#777](https://github.com/Sma1lboy/rove/pull/777) [`77f5c11`](https://github.com/Sma1lboy/rove/commit/77f5c11744d92399e8baa1b948d133d17eccf3af) `rove api send` now measures a `succeeded:` report against the task's recorded base branch (`add --base-branch`), the same read `collect` makes. Before, a task cut from a branch ahead of `main` was measured against the `origin/main` guess, so an empty branch read as having commits and a hollow success reached the coordinator unrefused, only to be caught later by `land`. The opposite mistake, a false refusal when the worktree sat behind the guessed base, is gone too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#779](https://github.com/Sma1lboy/rove/pull/779) [`eeee80d`](https://github.com/Sma1lboy/rove/commit/eeee80d90317a57949499bd79393210907745b46) The Issues page (`ctrl+a` `3`) no longer duplicates work. An issue that already has a task shows that task's title on its detail line, and `enter` opens the existing task instead of creating a second worktree, branch and engine session. Unlinked issues still start a fresh task as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#778](https://github.com/Sma1lboy/rove/pull/778) [`98e6460`](https://github.com/Sma1lboy/rove/commit/98e64602f325527b9f553ee01c703256a1e087b1) `rove api land` no longer reports a phantom merge conflict when a task's branch was renamed or deleted outside Rove. The ahead-count probe ignored git's exit status, so an unresolvable branch produced an unreadable count that read as "this branch has work", and the merge that followed failed for an unrelated reason and surfaced as `LAND_CONFLICT` with an empty conflicted-file list. Land now refuses up front with `MISSING_REF`, naming the branch, the base branch, and the base repo, and leaves the base checkout untouched. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#776](https://github.com/Sma1lboy/rove/pull/776) [`05c4bf0`](https://github.com/Sma1lboy/rove/commit/05c4bf001260959fd531e5621a4f01aa0aee4fe5) `rove api land` now refuses to remove the base checkout or the caller's own worktree using the same path canonicalizer that matched the worktree to its task. Previously the land-time guard resolved symlinks with a different primitive than the code that assigned the path, so the two could in principle disagree on macOS `/var` vs `/private/var` style paths. One `canonicalize` in `worktree/paths.ts` now backs every path-identity check in the orchestrator. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#780](https://github.com/Sma1lboy/rove/pull/780) [`98d2c83`](https://github.com/Sma1lboy/rove/commit/98d2c83c7b223fba7ad9478188eac13713a45269) Drop 29 locale keys nothing renders any more, including the whole `history` namespace left behind by the removed read-only engine-history pane. The rest are the `tasks.hints` legend from the retired ShortcutHints component, two unused sidebar section headers, a nav label the rail no longer lists, a placeholder terminal message, and a stray `common.next`. English and Chinese stay in parity at 724 keys each, and no visible string changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#772](https://github.com/Sma1lboy/rove/pull/772) [`78c4f88`](https://github.com/Sma1lboy/rove/commit/78c4f88a742596ec80c5be1f78b378c5d790b213) Revert the Agent Topology page ([#758](https://github.com/Sma1lboy/rove/issues/758)). The panel, its `ctrl+a` `4` rail row, the `communications` task field, and the `task.recordCommunication` API verb are withdrawn pending a product decision on the multi-agent view. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.79
+
+### Patch Changes
+
+- [#768](https://github.com/Sma1lboy/rove/pull/768) [`6595956`](https://github.com/Sma1lboy/rove/commit/6595956f73063cfa15268e340138b6db49dd862b) `rove web --port=5399` now binds port 5399, and `rove plugin install owner/repo --ref=v1.2` now checks out `v1.2`. Both value flags only recognised the separated form (`--port 5399`), so the attached `--flag=value` spelling fell through to the default with no error: `rove web --port=foo` proceeded on the default port where `--port foo` already exited with "--port needs a number". The two forms now behave identically, and the port check rejects partial numbers like `51abc` instead of binding 51. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#742](https://github.com/Sma1lboy/rove/pull/742) [`f45fc19`](https://github.com/Sma1lboy/rove/commit/f45fc19f2de77a5d330507324258ff6987fe3cc1) Add `rove api tab-close --task-id <id> --tab <tab-N>` to close an exact
+  Terminal Tab with or without an attached TUI. The command follows the normal
+  ctrl+w lifecycle, including hosted PTY cleanup and the empty-task result when
+  the last tab closes. — [@NarwhalChen](https://github.com/NarwhalChen)
+
+- [#761](https://github.com/Sma1lboy/rove/pull/761) [`5ff8d1c`](https://github.com/Sma1lboy/rove/commit/5ff8d1c3e893a26e2a5d42856f627e0d2cdb6c10) Document what closing a project's last tab means on the Concepts page: the project leaves the sidebar but nothing is deleted, and New task → "the project itself" brings it back. Forgetting a project stays the separate un-saving gesture. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#771](https://github.com/Sma1lboy/rove/pull/771) [`8aba781`](https://github.com/Sma1lboy/rove/commit/8aba7817610c4a1cd932f11f6fda698965e0a489) Read a repo's field notes without leaving Rove: the project header's right-click menu gained a **Field notes** entry that opens a read-only list of the notes agents filed with `rove api note`, newest first, each with its author and time. Until now `rove api note-list` in a shell was the only reader. Also trims `state/zen.ts` to the two state.json keys it actually owns (its three unused helpers and tmux-era doc are gone) and un-exports three onboarding helpers nothing imported. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#770](https://github.com/Sma1lboy/rove/pull/770) [`9b26c20`](https://github.com/Sma1lboy/rove/commit/9b26c20f15bf50ceed03de1e345e6a3700de2379) Restore the exec bit on node-pty's macOS `spawn-helper` after every install. node-pty@1.1.0 is published with `prebuilds/darwin-*/spawn-helper` at mode 0644, and neither bun nor npm adds an exec bit the tarball never carried, so on macOS every PTY spawned through node-pty failed — and because `.rove/init.sh` runs `bun install` in each new worktree, the breakage came back on every task Rove created (issue [#85](https://github.com/Sma1lboy/rove/issues/85)). The root `postinstall` now runs `scripts/fix-node-pty-exec-bit.mjs`, which chmods any non-executable `spawn-helper` under `node_modules` (no-op off macOS, and a chmod failure warns instead of failing the install). `rove doctor` gains a `node-pty:` row that names the broken helpers on a tree from before this fix, and `--fix` offers the chmod. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#759](https://github.com/Sma1lboy/rove/pull/759) [`7ea98df`](https://github.com/Sma1lboy/rove/commit/7ea98dfad76a983e4567c514ecbe32f8eb5dacd7) The sidebar row menu now carries the three verbs its keyboard already had: **Open in editor** (`o`), **Rename branch** (`b`), and **Change engine** (`v`). Each acts on the row you right-clicked, and the engine entry opens a picker over your available engines instead of cycling blindly. Rename branch is left out on rows with no branch of their own, such as a project's main checkout. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#769](https://github.com/Sma1lboy/rove/pull/769) [`adb23d1`](https://github.com/Sma1lboy/rove/commit/adb23d184ada2e81d9eb010058162e20e97bc797) Sidebar `b` (rename branch), `v` (change engine) and `o` (open in editor) now act on the row under the cursor, like `d`/`r`/`shift+p` already did. Before, they acted on the active task even after `j`/`k` had moved the highlight elsewhere, so a rename or engine change could silently land on a different worktree than the one highlighted. The global `ctrl+a o` still opens the active task unless the sidebar has focus, where it follows the cursor too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#758](https://github.com/Sma1lboy/rove/pull/758) [`b468d09`](https://github.com/Sma1lboy/rove/commit/b468d09a8552249ba0c80adbe1a21559e6c65ce8) Add an Agent Topology page to the sidebar rail (fourth row, `ctrl+a` `4`). Dagre lays out owner-to-subagent spawn edges from each task's recorded dispatcher, batch outlines group siblings from one parallel launch, and task nodes show engine-normalized roles and live activity. Confirmed `rove api send` deliveries are now recorded on the sender as bounded `communications` edges (target, count, last time, and a 160-character preview of the first message) and drawn as directed message lines; hovering a line shows that preview, and selecting a node spotlights its traffic. Left/right cycles between independent spawn roots. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.78
+
+### Patch Changes
+
+- [#748](https://github.com/Sma1lboy/rove/pull/748) [`8a0120a`](https://github.com/Sma1lboy/rove/commit/8a0120a33515878bd674222ff2939054b12c6a4e) Refuse to run on a Bun older than `engines.bun` (1.3.11) instead of starting with silently dead terminals. Rove's terminal backend uses Bun's PTY spawn option, which an older Bun drops as an unknown option — no error, no output — and nothing was checking: `bun install` ignores `engines` outright and npm only honours it under `engine-strict`, so an old machine installed Rove cleanly, passed `rove doctor`, and then opened every terminal and engine tab empty. The launcher now skips a too-old Bun in favour of any newer one on the machine, and when there is none it names the binary, its version, and the upgrade command for whichever manager owns it (`ROVE_SKIP_BUN_CHECK=1` overrides, unsupported). `install.sh` checks the same floor before installing — upgrading a self-installed Bun in place, and refusing with instructions for a Bun it does not own — and `rove doctor` flags a below-floor Bun. — [@ZHallen122](https://github.com/ZHallen122)
+
+- [#757](https://github.com/Sma1lboy/rove/pull/757) [`bcdfe52`](https://github.com/Sma1lboy/rove/commit/bcdfe52dc42ec9635a7e2283d42bfe98cfaaf4bc) A task row's right-click menu now offers **Copy branch name** and **Copy path**, so a `git checkout` or `cd` into a task's worktree from another shell no longer means retyping a truncated sidebar label or shelling out to `rove api get-task`. Both write through the same two channels the terminal's copy-on-select already uses (the local clipboard command plus OSC 52, which is what reaches your machine over SSH) and confirm with a toast naming what was copied. Copy path copies the recorded worktree path without creating the worktree, and a project-main or directory row, whose stored branch is empty, offers only Copy path. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#756](https://github.com/Sma1lboy/rove/pull/756) [`ebb52a0`](https://github.com/Sma1lboy/rove/commit/ebb52a033655304cdea5c88ce2bb73faf837a124) The daemon's `/api/engines` route no longer invents a lone Claude entry when no engine is available. That synthesized row overwrote the web dashboard's own four-built-in fallback, so on a machine with no detected engine, or with every engine switched off in Settings, every vendor picker collapsed to Claude with no way to reach the rest. An empty list now stays empty and the New Task dialog offers all four built-ins again. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#755](https://github.com/Sma1lboy/rove/pull/755) [`dda9149`](https://github.com/Sma1lboy/rove/commit/dda9149f234948f1a62d7dd4d30ecc75d7f826e1) Retire the `productName`, `assistantName`, and `inputPlaceholder` fields on engine identity. Nothing ever read them: only `shortName` reaches the UI, so the built-in engines, plugin engines, and the plugin manifest parser now carry `shortName` alone. Plugin manifests that still set `product_name`, `assistant_name`, or `input_placeholder` keep loading unchanged, since unknown identity keys are ignored. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.77
+
+### Patch Changes
+
+- [#752](https://github.com/Sma1lboy/rove/pull/752) [`92cb11b`](https://github.com/Sma1lboy/rove/commit/92cb11b5c022f6c732bb1aed091d3c23d1ec45a9) Fix seven task fields being silently dropped between the daemon and the TUI. `deserializeTask` — the single decode every task the TUI renders passes through — named only 18 of the 25 fields the wire carries, so `command`, `position`, `observedLanguage`, `quotaResume`, `linkedWorkItem`, `prompt` and `baseRef` arrived correctly and were then thrown away. The visible symptom: a task created with `rove api add --command 'claude --dangerously-skip-permissions'` reached the launcher with no command and started the plain vendor default instead, and a quota-paused task could never show its "resumes at …" line. A new compile-time guard test closes the class, so the next field added to the wire breaks the build until the decode carries it too. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#750](https://github.com/Sma1lboy/rove/pull/750) [`df11cf5`](https://github.com/Sma1lboy/rove/commit/df11cf5116b506437731a0b6b9d497d3686ca310) `land --delete-branch` no longer reports a deletion it did not perform. git refuses to delete a branch a live worktree has checked out, so pairing `--delete-branch` with `--remove-worktree=false` — or with a removal that got refused for a dirty tree, the base checkout, or the caller's own worktree — left the branch in place while the land reported success. The branch deletion is now gated on the worktree actually being gone, and a land that keeps the branch says so in the result's new `branchKept` field with the reason. It also no longer returns a `branchAnchor` naming a salvage ref for a branch nothing deleted. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#753](https://github.com/Sma1lboy/rove/pull/753) [`821b7e2`](https://github.com/Sma1lboy/rove/commit/821b7e2297ed62b9717242bb01d6ac9e176511ac) Removed dead code with no remaining callers: the Solid-era `tui/component/border.ts`
+  presets, the unused `tui/history/mock-fixtures.ts` transcript fixtures, `allModels()`
+  in the engine registry, and `startOpsPreview()` (the entrypoint for a `rove ops --preview`
+  subcommand that no longer exists). No user-visible behavior changes. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#751](https://github.com/Sma1lboy/rove/pull/751) [`e7a2e8e`](https://github.com/Sma1lboy/rove/commit/e7a2e8e79e868b93c57e2bef9482a931694dce23) Account detection now dispatches through the engine registry instead of a
+  second hand-written vendor list. Adding a built-in engine is one edit in its
+  registry entry; previously a missing entry in the neutral status module made
+  Settings → Accounts and `rove doctor` report "login not detectable" for an
+  engine that had a working detector wired up. Nothing changes for existing
+  engines — built-ins, contrib and custom engines all report exactly as before. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#749](https://github.com/Sma1lboy/rove/pull/749) [`68f9ab2`](https://github.com/Sma1lboy/rove/commit/68f9ab271e358cb2fbde422eba173d882b8cac6b) The selection-across-trim test gave its settle waits a 30-second budget while the test itself kept vitest's 5-second cap, so a loaded CI runner timed the test out underneath its own wait and blocked the 0.9.76 publish. The test now declares a timeout that covers the budget it hands out. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#754](https://github.com/Sma1lboy/rove/pull/754) [`17bfc46`](https://github.com/Sma1lboy/rove/commit/17bfc4603e4d3a9f0c1f3a4a501da6380695c9ba) Set a task's status from the TUI, and see it on the row. The sidebar's
+  right-click menu gains **Set status**, a picker over the six task statuses, and
+  a task row now carries a mark once its status leaves `backlog`/`in_progress`:
+  `◇` in review, `◆` done, `†` canceled, `×` error. The status is still just a
+  label — picking `canceled` relabels the task and leaves its worktree, branch
+  and running sessions exactly where they were. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.76
+
+### Patch Changes
+
+- [#747](https://github.com/Sma1lboy/rove/pull/747) [`337aac5`](https://github.com/Sma1lboy/rove/commit/337aac575c7b7df81fe7a2dea576d21dce89e9aa) Refresh the Claude model picker to the Claude 5 family: Fable 5.1 (with the full effort ladder), Opus 5 / Opus 5 1M, Sonnet 5 / Sonnet 5 1M, Haiku 4.5. The unpinned default now falls back to Opus 5 1M instead of the retired Opus 4.7 1M. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+## 0.9.75
+
+### Patch Changes
+
+- [#744](https://github.com/Sma1lboy/rove/pull/744) [`15f6f47`](https://github.com/Sma1lboy/rove/commit/15f6f47723dee41bdd06ab3cb673a92bbe831af2) Fix `rove api routine-update --precheck ''` and `--base-branch ''` so they actually clear the field instead of silently leaving it in place. Both flags are documented as "'' clears it", and the daemon already treats an empty value as a clear, but the CLI folded the empty string into "not passed" and dropped it before it reached the daemon — so the old value stayed. Passing an empty value now sends an explicit clear. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#746](https://github.com/Sma1lboy/rove/pull/746) [`6fcafb9`](https://github.com/Sma1lboy/rove/commit/6fcafb994f7bc5686a576aa8a1afbbbb6e119ff9) `rove api send`, `add`, and `dispatch` accept `--prompt-file PATH` (`-` = stdin) as an alternative to `--prompt`. A message that names a reply command in backticks used to be eaten by the shell — inside double quotes `` `rove api send …` `` is command substitution, so the receiver got that command's output instead of the words, and single quotes would have blocked `$ROVE_TASK_ID`. Reading the text from a file sidesteps every quoting rule; the Rove skill now routes any prompt with backticks, `$vars`, or quotes through a heredoc on `--prompt-file -`. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.74
 
 ### Patch Changes

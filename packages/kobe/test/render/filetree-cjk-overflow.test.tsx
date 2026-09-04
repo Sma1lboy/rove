@@ -4,11 +4,11 @@
  * the real frame, in cells, with a real Chinese path.
  *
  * Rove defaults to Simplified Chinese, so a CJK path is the ordinary case,
- * not an exotic one. The row's budget (`computePathBudget`) has always been
- * in CELLS, but it used to be SPENT by a code-point counter: a 26-cell budget
- * "fitted" `文档/设计/终端渲染说明书笔记.md` at 18 code points and drew its 31
- * cells, five of them through the border and onto the workspace pane, taking
- * the `+N`/`−N` stat columns with it.
+ * not an exotic one. The row's budget (`computePathBudget`) is in CELLS, and
+ * spending it with a code-point counter is the trap: a 26-cell budget "fits"
+ * `文档/设计/终端渲染说明书笔记.md` at 18 code points and draws its 31 cells,
+ * five of them through the border and onto the workspace pane, taking the
+ * `+N`/`−N` stat columns with it.
  *
  * Asserting the truncated STRING would not catch that — the string is the
  * same either way until you ask what it costs. So the assertion is on the
@@ -93,7 +93,7 @@ test("the All tab shows a CJK filename, not git's octal escaping", async () => {
 })
 
 test("an ASCII path of the same length is unchanged", async () => {
-  // The desktop-layout guard: 1 cell per glyph spends what it always did.
+  // The desktop-layout guard: 1 cell per glyph, so cells and code points agree.
   const text = await changesFrame(repoWith("docs/design/terminal-notes.md"), "terminal-notes")
   expect(text).toContain("terminal-notes.md")
   for (const line of text.split("\n")) {

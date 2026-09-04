@@ -226,10 +226,10 @@ unconditional.
 Both the daemon web transport and the PTY sidecar
 ([`pty-server.mjs`](../../packages/kobe-web/pty-server.mjs)) bind
 **`127.0.0.1` by default**. `KOBE_WEB_HOST` overrides only when a LAN bind is
-intended. A PTY WS is arbitrary command exec in the worktree, so the upgrade enforces a
-**localhost-Origin allowlist** (`localhost`/`127.0.0.1`/`[::1]`) — a browser
-cross-origin upgrade is rejected; a non-browser client (no `Origin`) is allowed
-since there's no ambient browser session to ride.
+intended. A PTY WS is arbitrary command exec in the worktree, so the upgrade
+enforces a **localhost-Origin allowlist** (`localhost`/`127.0.0.1`/`[::1]`) —
+a browser cross-origin upgrade is rejected — **and** the bearer token below,
+which is the check that stops a caller sending no `Origin` at all.
 
 The browser-facing HTTP routes live at the daemon-owned seam, so the Origin
 policy, RPC allowlist, and event-channel filtering are enforced before a browser
@@ -265,9 +265,19 @@ still refused.
   the SPA holds one it would have to be unauthenticated, which is the very hole
   the token closes.
 - **Two channels** — `Authorization: Bearer <token>` for everything on `fetch`;
-  `?token=` for the `/events` SSE stream only, because `EventSource` cannot set
-  a request header. The query channel is weaker (it lands in logs) and is
-  acceptable only because this server is loopback-bound.
+  `?token=` for the two callers that cannot set a request header, the `/events`
+  SSE stream (`EventSource`) and the `/pty` WebSocket upgrade. The query channel
+  is weaker (it lands in logs) and is acceptable only because this server is
+  loopback-bound.
+- **The PTY sidecar too** — `ws /pty`, `POST /pty/send` and `POST /pty/close`
+  each require the token
+  ([`pty-auth.mjs`](../../packages/kobe-web/pty-auth.mjs)); `ws` refuses a
+  rejected upgrade with `401`. The sidecar reads the same `0600` file rather
+  than taking the secret from whoever spawned it — it starts from four places
+  (`rove web`, `dev.ts`, Playwright, by hand) and a launcher that forgot to
+  forward it would silently reopen the hole. Missing file means every request
+  is refused. The sidecar also presents the token on its own `/api/*` hop to
+  the daemon for each tab's launch spec.
 - **Rotation** — delete the file and restart the daemon; the next read mints a
   fresh token. That is also the response to a leaked token.
 - **Exempt** — `/__kobe_web`, the health probe a starting daemon uses to detect
@@ -277,5 +287,9 @@ still refused.
   body carries a `hint` and `nextCommandArgs` naming the fix, in the shape the
   CLI's typed errors use.
 
-In `vite dev` Vite serves the HTML, so nothing injects the tag; set
-`VITE_ROVE_WEB_TOKEN` to the file's contents to exercise the real path.
+In `vite dev` Vite serves the HTML, so nothing injects the tag:
+`VITE_ROVE_WEB_TOKEN` is the browser's only channel there. `dev.ts` sets it from
+the token file, and the visual/hero fixtures pin a known one
+(`FIXTURE_WEB_TOKEN` in
+[`fixture-core.ts`](../../packages/kobe/scripts/fixture-core.ts)) written before
+their daemon starts, so the `/harness` capture path stays on the real gate.

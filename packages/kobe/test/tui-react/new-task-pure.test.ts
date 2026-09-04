@@ -1,10 +1,9 @@
 /**
- * Unit tests for the React new-task dialog's extracted pure helpers
- * (`src/tui-react/component/new-task-dialog/pure.ts`). These were inline
- * in the Solid shell; the React port pulls them out so the vendor-set
- * fallback, initial-vendor clamping, and adopt multi-select semantics
- * are pinned without mounting the dialog (no @opentui import here —
- * vitest never loads the renderer).
+ * Unit tests for the new-task dialog's extracted pure helpers
+ * (`src/tui-react/component/new-task-dialog/pure.ts`): the vendor-set
+ * fallback, initial-vendor clamping, and adopt multi-select semantics,
+ * pinned without mounting the dialog (no @opentui import here — vitest never
+ * loads the renderer).
  *
  * Why these matter: the vendor fallback is what guarantees the engine
  * selector is never empty (task creation must never be blocked by a

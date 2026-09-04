@@ -182,7 +182,7 @@ export class WorktreeCoordinator {
    * the repo's naming convention from its existing branch names (local +
    * origin), apply it to the title's slug, and de-collide with a short
    * `-2` / `-3` suffix against both existing branches and names other
-   * in-flight materialisations just reserved (issue #39). Never contains
+   * in-flight materialisations just reserved. Never contains
    * a rove/kobe brand token; an unreadable/empty repo falls back to a bare
    * kebab slug.
    */

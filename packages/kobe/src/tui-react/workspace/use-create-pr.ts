@@ -44,6 +44,33 @@ export function createPRAction(deps: CreatePRDeps): () => Promise<void> {
   }
 }
 
+/**
+ * "Create a PR for THAT task" — the sidebar-row aim of `prefix+p`, held
+ * across the task switch it needs.
+ *
+ * The action can only run where the engine is: `sendToEngineFn` is handed up
+ * by the mounted TerminalTabs, so a row that is not the active task has no
+ * send closure to reach. The host therefore activates the row and parks the
+ * request here; the next `onEngineSendReady` for that task claims it. Same
+ * shape as the sidebar menu's `requestNewTab`, kept in this module because
+ * the action is what it is about.
+ *
+ * One slot: a second press before the first is claimed retargets it rather
+ * than queueing, which is what a user pressing the chord twice means.
+ */
+let pendingCreatePR: string | null = null
+
+export function requestCreatePR(taskId: string): void {
+  pendingCreatePR = taskId
+}
+
+/** Claim a parked request for this task. */
+export function takeCreatePR(taskId: string | null): boolean {
+  if (taskId === null || pendingCreatePR !== taskId) return false
+  pendingCreatePR = null
+  return true
+}
+
 export function useCreatePR(args: Omit<CreatePRDeps, "t" | "gather" | "build">): () => Promise<void> {
   const t = useT()
   return createPRAction({ ...args, t })

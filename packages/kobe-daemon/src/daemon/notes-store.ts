@@ -13,14 +13,12 @@
  * genuinely outgrow it wants tagging and retrieval, not a bigger number.
  */
 
-import { execFile } from "node:child_process"
-import { mkdir, readFile, realpath, rename, stat, writeFile } from "node:fs/promises"
+import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, isAbsolute, join, resolve } from "node:path"
-import { promisify } from "node:util"
+import { join, resolve } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
-
-const execFileAsync = promisify(execFile)
+import { serialized, writeJsonAtomic } from "./json-file.ts"
+import { resolveRepoRoot } from "./repo-key.ts"
 
 /** Newest-N kept per repo. Older notes are dropped on write. */
 export const NOTES_RETENTION_CAP = 50
@@ -62,28 +60,9 @@ function normalizeNote(entry: unknown): FieldNote | null {
   }
 }
 
-async function gitCommonDir(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "rev-parse", "--git-common-dir"])
-  const dir = stdout.trim()
-  return realpath(isAbsolute(dir) ? dir : resolve(path, dir))
-}
-
-async function gitMainWorktree(path: string): Promise<string> {
-  const { stdout } = await execFileAsync("git", ["-C", path, "worktree", "list", "--porcelain"])
-  const first = stdout
-    .split(/\r?\n/)
-    .find((line) => line.startsWith("worktree "))
-    ?.slice("worktree ".length)
-    .trim()
-  if (!first) throw new Error("repoRoot is not a git repository")
-  return realpath(first)
-}
-
 async function resolveRepo(raw: string): Promise<{ repoRoot: string; repoKey: string }> {
-  const absolute = resolve(raw)
-  const s = await stat(absolute).catch(() => null)
-  if (!s?.isDirectory()) throw new Error("repoRoot does not exist")
-  const [repoRoot, repoKey] = await Promise.all([gitMainWorktree(absolute), gitCommonDir(absolute)])
+  const { repoRoot, repoKey } = await resolveRepoRoot(raw)
+  if (!repoRoot) throw new Error("repoRoot is not a git repository")
   return { repoRoot, repoKey }
 }
 
@@ -110,46 +89,25 @@ async function readStore(path: string): Promise<NotesStoreFile> {
   }
 }
 
-const locks = new Map<string, Promise<unknown>>()
-
-/** Serialize read-modify-write on the shared file — same rationale (and the
- *  same whole-file contention unit) as the issue store's lock. */
-async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const tail = locks.get(key) ?? Promise.resolve()
-  const run = tail.then(fn)
-  const settled = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  locks.set(key, settled)
-  void settled.then(() => {
-    if (locks.get(key) === settled) locks.delete(key)
-  })
-  return run
-}
-
 export class NotesStore {
   constructor(private readonly path = defaultNotesStorePath()) {}
 
   /** Newest-first notes for a repo; empty for a repo that never filed one. */
   async list(repo: string): Promise<readonly FieldNote[]> {
     const { repoKey } = await resolveRepo(repo)
-    return withLock(this.path, async () => (await readStore(this.path)).repos[repoKey]?.notes ?? [])
+    return serialized(this.path, async () => (await readStore(this.path)).repos[repoKey]?.notes ?? [])
   }
 
   /** Append one note, newest-first, evicting past {@link NOTES_RETENTION_CAP}. */
   async append(repo: string, note: FieldNote): Promise<void> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
-    await withLock(this.path, async () => {
+    await serialized(this.path, async () => {
       const store = await readStore(this.path)
       const record = store.repos[repoKey] ?? { repoRoot, notes: [] }
       record.repoRoot = repoRoot
       record.notes = [note, ...record.notes].slice(0, NOTES_RETENTION_CAP)
       store.repos[repoKey] = record
-      await mkdir(dirname(this.path), { recursive: true })
-      const tmp = `${this.path}.tmp`
-      await writeFile(tmp, `${JSON.stringify(store, null, 2)}\n`, "utf8")
-      await rename(tmp, this.path)
+      await writeJsonAtomic(this.path, store)
     })
   }
 }

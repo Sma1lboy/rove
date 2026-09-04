@@ -26,6 +26,7 @@
 import type { DaemonOrchestrator, VendorId } from "./contracts.ts"
 import { logDaemonError } from "./crash-log"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
+import { startTicker } from "./ticker.ts"
 
 /** Default re-scan cadence; responsive without hammering disk. */
 export const DEFAULT_AUTO_TITLE_POLL_MS = 4000
@@ -116,23 +117,13 @@ export function startAutoTitlePoller(
   intervalMs: number = DEFAULT_AUTO_TITLE_POLL_MS,
   hasSubscribers?: () => boolean,
 ): () => void {
-  if (intervalMs <= 0) return () => {}
-  let running = false
-  const tick = (): void => {
+  return startTicker({
+    name: "auto-title-poller",
+    tickMs: intervalMs,
     // Consumer gate: no subscribed pane means no Tasks pane is rendering a
     // live rename, so skip the disk work entirely.
-    if (hasSubscribers && !hasSubscribers()) return
-    // Skip if a previous pass is still in flight so a slow disk read can't
-    // pile up overlapping scans.
-    if (running) return
-    running = true
-    void runAutoTitlePass(orch, runtime.deriveTitleFromSession, runtime.placeholderTaskTitle, runtime.defaultTaskVendor)
-      .catch((err) => logDaemonError("auto-title-poller", err))
-      .finally(() => {
-        running = false
-      })
-  }
-  const timer = setInterval(tick, intervalMs)
-  timer.unref?.()
-  return () => clearInterval(timer)
+    ...(hasSubscribers ? { gate: hasSubscribers } : {}),
+    run: () =>
+      runAutoTitlePass(orch, runtime.deriveTitleFromSession, runtime.placeholderTaskTitle, runtime.defaultTaskVendor),
+  })
 }

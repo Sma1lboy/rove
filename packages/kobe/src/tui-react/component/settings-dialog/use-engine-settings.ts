@@ -1,11 +1,10 @@
 /**
- * Engines-section state for the React settings dialog (issue #15, G3) — one
- * section's state in its own file, like `use-settings-prefs` / `use-section-data`,
- * so `./index.tsx` owns only the dialog's structure. This is the section with
- * real logic behind it: a custom-engine registry and the global default. Same
- * kv keys and flows
- * as the Solid `src/tui/component/settings-dialog.tsx`: per-vendor launch
- * command + display-name overrides (engineCommand.<id> / engineName.<id>),
+ * Engines-section state for the React settings dialog — one section's state
+ * in its own file, like `use-settings-prefs` / `use-section-data`, so
+ * `./index.tsx` owns only the dialog's structure. This is the section with
+ * real logic behind it: a custom-engine registry and the global default.
+ * Per-vendor launch command + display-name overrides
+ * (engineCommand.<id> / engineName.<id>),
  * the customEngineIds registry, and the GLOBAL default engine (the ●
  * marker — only this dialog writes it; per-project picks live in
  * state/vendor-prefs.ts).
@@ -14,10 +13,14 @@
 import { useEffect, useState } from "react"
 import { installedEngineIds } from "../../../engine/account-detect"
 import { ENGINE_PROTOCOLS, engineProtocolKey } from "../../../engine/engine-presets"
-import { defaultEngineCommand, engineCommandKey, engineNameKey } from "../../../engine/interactive-command"
+import {
+  defaultEngineCommand,
+  engineCommandKey,
+  engineNameKey,
+  humanizeSlug,
+} from "../../../engine/interactive-command"
 import { engineEntry } from "../../../engine/registry"
 import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/vendor-prefs"
-import { humanizeSlug } from "../../../tui/component/settings-dialog/model"
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
 import { ALL_VENDORS, isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
@@ -136,7 +139,7 @@ export function useEngineSettings(
   async function editEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineCommandText(vendor), {
       dialogTitle: `${engineName(vendor)} launch command`,
-      fieldLabel: "command",
+      fieldLabel: "COMMAND",
       submitLabel: "save",
       allowEmpty: true, // blank clears the override → built-in default
     })
@@ -146,7 +149,7 @@ export function useEngineSettings(
   async function renameEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineName(vendor), {
       dialogTitle: `${engineName(vendor)} display name (blank = default)`,
-      fieldLabel: "name",
+      fieldLabel: "NAME",
       submitLabel: "save",
       allowEmpty: true, // blank clears the name override → default label
     })
@@ -159,7 +162,7 @@ export function useEngineSettings(
     kv.set(engineNameKey(vendor), "")
     if (isCustomEngine(vendor)) {
       // A removed preset must not leave its protocol behind: re-adding the
-      // same id later would silently inherit the old declaration.
+      // same id later would silently inherit the removed one's declaration.
       kv.set(engineProtocolKey(vendor), "")
       kv.set(
         "customEngineIds",
@@ -174,7 +177,7 @@ export function useEngineSettings(
   async function addEngineFlow(): Promise<void> {
     const idRaw = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: "Add engine",
-      fieldLabel: "id",
+      fieldLabel: "ID",
       submitLabel: "next",
       placeholder: "lowercase slug, e.g. aider",
     })
@@ -183,26 +186,26 @@ export function useEngineSettings(
     if (!id || isBuiltinVendor(id) || customEngines().includes(id)) return // no blank / shadow / dup
     const command = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "command",
+      fieldLabel: "COMMAND",
       submitLabel: "next",
       placeholder: "e.g. aider --model sonnet",
     })
     if (command === undefined) return
     // Declared ONCE, here: a custom engine is a named PRESET, and its
     // protocol is what makes every later `--command <id>` dispatch
-    // deterministic instead of sniffed (issue #30). Blank = the generic
+    // deterministic instead of sniffed. Blank = the generic
     // protocol — the engine still launches, it just gets no transcript
     // reader, trust pre-answer, or engine-specific delivery.
     const protocol = await RenameTaskDialog.show(dialog, "", {
       dialogTitle: `Add engine · ${id} — protocol (blank = none)`,
-      fieldLabel: "protocol",
+      fieldLabel: "PROTOCOL",
       submitLabel: "next",
       allowEmpty: true,
       placeholder: ENGINE_PROTOCOLS.join(" / "),
     })
     const name = await RenameTaskDialog.show(dialog, id, {
       dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "name",
+      fieldLabel: "NAME",
       submitLabel: "add",
       allowEmpty: true, // blank = humanized id
     })

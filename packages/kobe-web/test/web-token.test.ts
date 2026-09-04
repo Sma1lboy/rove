@@ -23,10 +23,12 @@ async function freshModule(html: string | null) {
 describe("web token", () => {
   beforeEach(() => {
     document.head.innerHTML = ""
+    sessionStorage.clear()
   })
   afterEach(() => {
     vi.unstubAllGlobals()
     document.head.innerHTML = ""
+    sessionStorage.clear()
   })
 
   it("reads the token the daemon injected into the served HTML", async () => {
@@ -47,6 +49,31 @@ describe("web token", () => {
     const { withWebTokenQuery } = await freshModule('<meta name="rove-web-token" content="tok 123">')
     expect(withWebTokenQuery("/events")).toBe("/events?token=tok%20123")
     expect(withWebTokenQuery("/events?x=1")).toBe("/events?x=1&token=tok%20123")
+  })
+
+  it("remembers the entry token for later loads that carry no meta tag", async () => {
+    // The daemon injects the tag only for a request that already presented the
+    // token — the `?token=` on the URL `rove web` prints. An in-app route
+    // change drops that query, so a reload of /board arrives with neither
+    // channel and would otherwise go out unauthenticated.
+    const first = await freshModule('<meta name="rove-web-token" content="tok-entry">')
+    expect(first.webToken()).toBe("tok-entry")
+
+    const reload = await freshModule("")
+    expect(reload.webToken()).toBe("tok-entry")
+  })
+
+  it("survives storage that throws (Safari private mode)", async () => {
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => {
+        throw new Error("denied")
+      },
+      setItem: () => {
+        throw new Error("denied")
+      },
+    })
+    const { webToken } = await freshModule('<meta name="rove-web-token" content="tok-nostore">')
+    expect(webToken()).toBe("tok-nostore")
   })
 
   it("leaves requests untouched when no token was injected (vite dev)", async () => {

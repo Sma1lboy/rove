@@ -58,10 +58,10 @@ export const VERB_ALIASES: Readonly<Record<string, string>> = { "spawn-task": "a
  *
  * Deliberately not aliases: `fan-out` folded into `add --count` and
  * `set-vendor` became `set-command`, and both changed their flag contract in
- * the process — an alias would silently accept the old flags and do
- * something subtly different. `archive` (issue #75) had no successor hiding
- * state — its replacement is the destructive-but-recoverable `delete`. A
- * retired verb instead fails loud with
+ * the process — an alias would silently accept the superseded flags and do
+ * something subtly different. `archive` has no successor hiding state — its
+ * replacement is the destructive-but-recoverable `delete`. A removed verb
+ * instead fails loud with
  * `UNKNOWN_VERB` plus the `nextCommandArgs` an agent can run verbatim, which
  * is the same self-healing contract every other high-traffic rejection uses.
  */
@@ -74,9 +74,9 @@ export const RETIRED_VERBS: Readonly<Record<string, { hint: string; nextCommandA
     hint: "set-vendor was replaced by `set-command`, which takes the engine's raw launch command (an engine id from `engine-list`, or a full command line)",
     nextCommandArgs: ["api", "set-command", "--help"],
   },
-  // `archive` went away with the archived-task dimension itself (issue #75) —
-  // there is no "hide but keep" left; `delete` is the cleanup, and its branch
-  // always survives unless the caller explicitly passes --delete-branch.
+  // `archive` went away with the archived-task dimension itself: there is no
+  // "hide but keep"; `delete` is the cleanup, and its branch always survives
+  // unless the caller explicitly passes --delete-branch.
   archive: {
     hint: "archive was removed: there is no hide-without-delete anymore — use `delete` to remove a finished task and its worktree; the git branch survives (pass --delete-branch explicitly only when the history may go)",
     nextCommandArgs: ["api", "delete", "--help"],
@@ -127,10 +127,10 @@ export const API_VERBS = VERBS.map((v) => v.name)
  * (groups + verb summaries), then drills into one verb or one group — instead
  * of slurping every flag of every verb and polluting its context.
  *
- * DERIVED from `VerbSpec.group`, not hand-written: a verb used to state its
- * group twice (once by which `verbs-*.ts` declares it, once in a table here),
- * and forgetting the table half silently produced a group `--group` then
- * rejected as unknown (issue #95). One declaration, one source of truth —
+ * DERIVED from `VerbSpec.group`, not hand-written. Stating a verb's group
+ * twice (once by which `verbs-*.ts` declares it, once in a table here) lets
+ * the table half be forgotten, silently producing a group that `--group` then
+ * rejects as unknown. One declaration, one source of truth —
  * `VerbGroup` is a closed union, so an ungrouped verb is a type error.
  *
  * Group order follows {@link VERB_GROUP_IDS}; verbs within a group follow the

@@ -15,7 +15,7 @@
 
 import { resolve } from "node:path"
 import { chromium } from "@playwright/test"
-import { HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
+import { fixtureAuthHeaders, HERO_PTY_PORT, HERO_WEB_PORT } from "./hero-env.ts"
 
 const KEY_NAMES: Record<string, string> = {
   enter: "Enter",
@@ -58,10 +58,9 @@ const runId = `hero-${Date.now()}`
 const browser = await chromium.launch({ headless: true })
 try {
   const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor })
-  const webgl = args.includes("--webgl") ? "&webgl=1" : ""
   const wp = args.find((a) => a.startsWith("--wallpaper="))?.slice(12)
   const wallpaper = wp ? `&wallpaper=${encodeURIComponent(wp)}` : ""
-  await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${webgl}${wallpaper}`).catch(() => {
+  await page.goto(`http://localhost:${HERO_WEB_PORT}/harness?run=${runId}${wallpaper}`).catch(() => {
     throw new Error(`no server on :${HERO_WEB_PORT} — start \`bun e2e/hero-serve.ts\` first`)
   })
   await page.getByTestId("opentui-harness").waitFor({ timeout: 15_000 })
@@ -83,7 +82,7 @@ try {
   await page.waitForTimeout(1_200)
   await page.screenshot({ path: out })
   await page.request
-    .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` } })
+    .post(`http://127.0.0.1:${HERO_PTY_PORT}/pty/close`, { data: { tab: `visual-${runId}` }, headers: fixtureAuthHeaders() })
     .catch(() => {})
   console.log(out)
 } finally {

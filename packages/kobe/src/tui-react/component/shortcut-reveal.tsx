@@ -2,7 +2,7 @@
 /**
  * React/OpenTUI adapter for prefix-tap presentation.
  *
- * The dispatcher-owned `prefixHudState.armed` is the only interaction state.
+ * The dispatcher-owned prefix guide is the only interaction state for badges.
  * Settings changes only whether the complete guide is accompanied by local
  * control badges.
  */
@@ -45,9 +45,9 @@ export function ShortcutRevealProvider(props: { readonly children: ReactNode }) 
   const value = useMemo<ShortcutRevealPresentation>(
     () => ({
       mode,
-      activeSurface: hud.armed ? mode : null,
+      activeSurface: hud.guide?.kind === "prefix" ? mode : null,
     }),
-    [mode, hud.armed],
+    [mode, hud.guide?.kind],
   )
   return <ShortcutRevealContext.Provider value={value}>{props.children}</ShortcutRevealContext.Provider>
 }

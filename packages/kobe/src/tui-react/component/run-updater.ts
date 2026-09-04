@@ -11,7 +11,7 @@ import { CURRENT_VERSION } from "../../version.ts"
 
 type UpdaterT = (key: string, params?: Record<string, string>) => string
 
-export function waitForKeypress(): Promise<void> {
+function waitForKeypress(): Promise<void> {
   if (!process.stdin.isTTY) return Promise.resolve()
   return new Promise((resolve) => {
     const stdin = process.stdin

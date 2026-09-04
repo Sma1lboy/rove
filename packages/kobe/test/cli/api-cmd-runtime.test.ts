@@ -124,7 +124,7 @@ describe("defaultApiRuntime", () => {
     await expect(defaultApiRuntime.isTaskRunning("t1")).resolves.toBe(true)
   })
 
-  it("isTaskRunning is true when only a LATER engine tab is alive (issue #5)", async () => {
+  it("isTaskRunning is true when only a LATER engine tab is alive", async () => {
     mocks.listSessions.mockResolvedValue([
       { key: "t1::tab-1", alive: false },
       { key: "t1::tab-2", alive: true },
@@ -288,10 +288,10 @@ describe("realPromptDeliveryOps (deliverPrompt with the default ops)", () => {
     // rides the "new-task" intent, which is what gates the per-worktree
     // codas (today: the missing-dependency warning) in repo-init.ts.
     //
-    // The spawner id used to ride here too, to address a send-back coda. That
-    // instruction now lives in the Rove agent skill, and the reply address
-    // comes from the task's recorded `dispatcher` — proven identity, covered
-    // by `api-dispatcher.test.ts` (issue #24), not from this payload.
+    // The spawner id deliberately does NOT ride here. The send-back
+    // instruction lives in the Rove agent skill, and the reply address comes
+    // from the task's recorded `dispatcher` — proven identity, covered by
+    // `api-dispatcher.test.ts`, not by this payload.
     vi.stubEnv("KOBE_TASK_ID", "")
     await deliverPrompt(
       client,

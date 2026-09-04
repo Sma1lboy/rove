@@ -8,7 +8,7 @@
  * stat-polls `plugins.json` so a CLI install/link/enable applies to the
  * running daemon without a restart — polling, not `fs.watch`: on macOS the
  * FSEvents stream behind `fs.watch` starts asynchronously, and a write landing
- * before it is live is dropped forever, with no signal (issue #61). Startup
+ * before it is live is dropped forever, with no signal. Startup
  * hooks run only at daemon start (herdr semantics): a reload swaps hook
  * registrations, nothing more.
  */
@@ -47,8 +47,8 @@ const OUTPUT_CAP = 8 * 1024
 
 /** Cap for a single plugin's log.jsonl. Smaller than daemon.log's 10MB
  *  because this is per plugin and every enabled one keeps its own: a plugin
- *  hooked to `tool.pre`/`tool.post` appends a record per tool call, forever,
- *  and before this there was no cap at all. One `.old` generation is kept. */
+ *  hooked to `tool.pre`/`tool.post` appends a record per tool call, forever.
+ *  One `.old` generation is kept. */
 const PLUGIN_LOG_CAP_BYTES = 4 * 1024 * 1024
 const RELOAD_DEBOUNCE_MS = 150
 /** Registry stat-poll cadence; reload latency is this + the debounce. */

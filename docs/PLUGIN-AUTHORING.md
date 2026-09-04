@@ -173,11 +173,8 @@ name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
 
-[engines.identity]               # optional product identity for UI copy
-product_name = "Aider"           # each field falls back to `name`
-short_name = "Aider"
-assistant_name = "Aider"         # how the assistant is referred to
-input_placeholder = "Ask Aider…" # composer placeholder
+[engines.identity]               # optional product identity for UI labels
+short_name = "Aider"             # falls back to `name`
 
 [[engines.rules]]                # screen-state rules, first match wins;
 state = "blocked"                # declare blocked before working
@@ -196,7 +193,7 @@ invalid types/patterns are install-time errors.
 
 The accepted platform tokens are exactly `macos`, `linux`, and `windows`.
 A top-level list applies to the whole plugin; `platforms` on an individual
-build, startup, action, event, or pane replaces that list for that item. With
+build, startup, shutdown, action, event, or pane replaces that list for that item. With
 no declaration, Rove assumes the command is portable and allows it everywhere.
 
 A plugin whose top-level `platforms` excludes the current machine stays in

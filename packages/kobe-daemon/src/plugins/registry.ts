@@ -7,8 +7,8 @@
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname } from "node:path"
-import { pluginRegistryPath } from "./plugin-paths.ts"
+import { dirname, join, relative } from "node:path"
+import { legacyPluginsRootDir, pluginRegistryPath, pluginsRootDir } from "./plugin-paths.ts"
 
 export interface PluginRegistryEntry {
   readonly id: string
@@ -37,12 +37,30 @@ export function loadPluginRegistry(homeDir?: string): PluginRegistry {
   try {
     const raw = JSON.parse(text) as { plugins?: unknown }
     if (!Array.isArray(raw.plugins)) return EMPTY
-    return { plugins: raw.plugins.filter(isEntry) }
+    return { plugins: raw.plugins.filter(isEntry).map((entry) => withCanonicalRoot(entry, homeDir)) }
   } catch {
     // A corrupt registry disables plugins rather than crashing the daemon;
     // the next CLI mutation rewrites it whole.
     return EMPTY
   }
+}
+
+/**
+ * A managed checkout's `root` is an absolute path recorded at install time.
+ * The `.kobe` → `.rove` layout migration moves the checkout tree but the
+ * registry still names the old tree, so every manifest read fails with
+ * "no rove-plugin.toml found at ~/.kobe/plugins/…". Re-anchor a root that
+ * sits under the legacy plugins dir onto the canonical one; the next save
+ * writes the corrected path. Linked plugins keep the author's root as-is.
+ */
+function withCanonicalRoot(entry: PluginRegistryEntry, homeDir?: string): PluginRegistryEntry {
+  if (entry.source.kind !== "github") return entry
+  const legacy = legacyPluginsRootDir(homeDir)
+  const canonical = pluginsRootDir(homeDir)
+  if (legacy === canonical) return entry
+  const inside = relative(legacy, entry.root)
+  if (inside === "" || inside.startsWith("..") || inside.startsWith("/")) return entry
+  return { ...entry, root: join(canonical, inside) }
 }
 
 function isEntry(v: unknown): v is PluginRegistryEntry {

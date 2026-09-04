@@ -13,7 +13,7 @@ import type { EngineQuotaUsage } from "../../../types/engine.ts"
 export const USAGE_BAR_WIDTH = 10
 
 /** Severity tone → theme color pick happens in the component. */
-export type UsageTone = "ok" | "warn" | "crit"
+type UsageTone = "ok" | "warn" | "crit"
 
 export interface UsageRowView {
   readonly label: string
@@ -57,7 +57,7 @@ export interface UsageChipView {
  * `5h 42% → 14:00`. Same tone thresholds, no padding — the footer packs
  * several vendors onto one row, so every cell has to earn its width.
  */
-export function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
+function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipView[] {
   return usage.windows.map((w) => ({
     label: w.label,
     percentText: `${w.percent}%`,
@@ -67,7 +67,7 @@ export function usageChips(usage: EngineQuotaUsage, nowMs: number): UsageChipVie
 }
 
 /**
- * Narrow-footer form (issue #14): ONE chip per vendor, pinned to the
+ * Narrow-footer form: ONE chip per vendor, pinned to the
  * session window — the "5h" rolling window every vendor reports as its
  * tightest budget — falling back to the vendor's first window when no
  * session window exists. Reset time is dropped; at 46 cols only the
@@ -85,13 +85,13 @@ export function narrowUsageChip(usage: EngineQuotaUsage, nowMs: number): UsageCh
 }
 
 /** One vendor's full chip block in the footer row (label + tone + reset). */
-export interface FooterVendorFull {
+interface FooterVendorFull {
   readonly vendor: string
   readonly chips: UsageChipView[]
 }
 
 /** Compact fallback: vendor name + tone percent only (the narrow form). */
-export interface FooterVendorCompact {
+interface FooterVendorCompact {
   readonly vendor: string
   readonly percentText: string
   readonly tone: UsageTone
@@ -179,6 +179,85 @@ export function buildFooterChips(opts: {
     break
   }
   return { form: "compact", vendors }
+}
+
+/**
+ * The context-window chip — `ctx 62%`, or `ctx 62%~` when the figure is the
+ * engine's own estimate rather than a number it reports.
+ *
+ * Answers a different question from the quota chips beside it: those say how
+ * much budget is left this week, this says how much room is left in THIS
+ * conversation. The moment it runs out the session compacts and the agent
+ * quietly loses the context you spent an hour building; the first symptom is
+ * a worse answer.
+ *
+ * `null` — render nothing — in three cases, and all three are the same honest
+ * refusal: no snapshot, no `contextWindowTokens` (only some vendors report the
+ * model's window, and a percentage of an unknown denominator is a made-up
+ * number), or a window of zero. The neutral layer must NOT guess the
+ * denominator from a model name: what a vendor counts toward its context is
+ * the ADAPTER's arithmetic (CLAUDE.md, "Engine-owned UI data").
+ *
+ * Same three tones as the quota chips, so one glance reads both halves of the
+ * footer the same way. Pure — unit-tested.
+ */
+export function contextChip(
+  usage: { contextTokens: number; contextWindowTokens?: number; approximate?: boolean } | null | undefined,
+): UsageChipView | null {
+  if (!usage) return null
+  const window = usage.contextWindowTokens
+  if (window === undefined || window <= 0) return null
+  // Clamp: a vendor that reports a prompt slightly over its own advertised
+  // window (tool definitions, system prompt) must read as full, not 103%.
+  const percent = Math.min(100, Math.max(0, Math.round((usage.contextTokens / window) * 100)))
+  return {
+    label: "ctx",
+    percentText: `${percent}%${usage.approximate ? "~" : ""}`,
+    resetText: "",
+    tone: toneOf(percent),
+  }
+}
+
+/**
+ * The session token chip — `Σ 45k`, right of the context meter.
+ *
+ * Answers the third question the footer's other two do not: the quota chips
+ * say how much budget is left this week, `ctx` says how much room is left in
+ * this conversation, and this says what the conversation has COST so far.
+ * That number was already being read — the same `readUsageSnapshot` call the
+ * context collector makes every ten seconds parses it out of the transcript —
+ * and every layer between there and here dropped it.
+ *
+ * `Σ` is prompt + completion, the two counts that are billed as new work.
+ * Cache reads and cache writes ride the same wire (`cacheReadTokens` /
+ * `cacheCreationTokens`) and deliberately do NOT land in this figure: a cached
+ * prompt can be an order of magnitude larger than the turn that used it, so
+ * folding it in would make the chip read as effort where it is mostly reuse.
+ *
+ * `null` — render nothing — when the vendor reported neither count. Absence is
+ * the honest answer for an adapter that does not report tokens; a `0` there
+ * would claim a free session. One count present and the other missing renders
+ * the one that exists rather than treating the gap as zero.
+ *
+ * Muted tone throughout, unlike the chips beside it: a token total is a fact
+ * about the past, not a budget running out, so it has no threshold to colour.
+ * Pure — unit-tested.
+ */
+export function tokenTotalChip(
+  usage: { inputTokens?: number; outputTokens?: number } | null | undefined,
+): { label: string; text: string } | null {
+  if (!usage) return null
+  if (usage.inputTokens === undefined && usage.outputTokens === undefined) return null
+  return { label: "Σ", text: humanTokens((usage.inputTokens ?? 0) + (usage.outputTokens ?? 0)) }
+}
+
+/** Token counts run to seven digits; the footer has cells for four. Truncate
+ *  rather than round up, so the chip never claims a milestone the session has
+ *  not reached (`999_999` reads `999k`, never `1.0M`). */
+function humanTokens(total: number): string {
+  if (total < 1_000) return String(total)
+  if (total < 1_000_000) return `${Math.floor(total / 1_000)}k`
+  return `${(Math.floor(total / 100_000) / 10).toFixed(1)}M`
 }
 
 /**

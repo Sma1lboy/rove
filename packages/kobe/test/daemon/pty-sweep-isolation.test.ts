@@ -6,11 +6,10 @@ import { sweepPtyHostSessions } from "@sma1lboy/kobe-daemon/client/pty-process"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 /**
- * Regression pin — incident 2026-07-07/08: `sweepPtyHostSessions` resolved
- * the pty-host socket from ambient env instead of the calling daemon's
- * homeDir, so every temp-home test daemon (test:socket suite) swept the
- * REAL user pty-host with its fake (empty) task list and killed every live
- * engine session on the machine, on every `bun run test`.
+ * Regression pin: resolving the pty-host socket from ambient env instead of
+ * the calling daemon's homeDir makes every temp-home test daemon (test:socket
+ * suite) sweep the REAL user pty-host with its fake (empty) task list, killing
+ * every live engine session on the machine on every `bun run test`.
  *
  * The pin: given an explicit homeDir, the sweep's connection MUST land on
  * `<homeDir>/.kobe/pty.sock` — observed via a raw listener planted there.

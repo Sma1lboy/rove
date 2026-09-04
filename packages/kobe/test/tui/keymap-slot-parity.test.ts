@@ -13,8 +13,8 @@
  * layouts.
  *
  * These tests pin two invariants:
- *   1. with the DEFAULT keys, slot dispatch is byte-identical to the old
- *      name-based behavior (j/down → down, k/up → up, h/left → collapse,
+ *   1. with the DEFAULT keys, slot dispatch is byte-identical to plain
+ *      name-based dispatch (j/down → down, k/up → up, h/left → collapse,
  *      l/right → expand, [ → prev, ] → next);
  *   2. after a user override (and across the live-reload reset), the slot
  *      layout follows the new chords (`sidebar.nav: [w, s]` → w=down,

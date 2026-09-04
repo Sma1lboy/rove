@@ -1,19 +1,17 @@
 /**
- * Workspace-host keybinding registration — React port of `tui/workspace/
- * host-keybindings.ts` (issue #16 React migration). Owns the four
- * `useBindings` blocks the native workspace needs, plus the quit/exit and
- * pane-cycle helpers only those bindings use.
+ * Workspace-host keybinding registration. Owns the four `useBindings` blocks
+ * the native workspace needs, plus the quit/exit and pane-cycle helpers only
+ * those bindings use.
  *
  * Pure wiring: every handler is a closure the host passes in; this module
  * adds no state of its own beyond the renderer handle `exitApp` needs. See
  * `docs/KEYBINDINGS.md` for the scope/boundary rules these rows follow.
  *
- * Solid→React deltas: `settingsOpen`/`worktreesOpen`/`searchActive`/
- * `selectedId` are plain values (the host re-renders on change), not
- * Accessors — `useBindings`'s config function is re-evaluated on every
- * keypress via a render-refreshed ref (`tui-react/lib/keymap.ts`), so a
- * plain closure over these params is exactly as fresh as the Solid
- * Accessor calls were.
+ * `settingsOpen`/`worktreesOpen`/`searchActive`/`selectedId` are plain values
+ * (the host re-renders on change), and `useBindings`'s config function is
+ * re-evaluated on every keypress via a render-refreshed ref
+ * (`tui-react/lib/keymap.ts`) — so a plain closure over these params reads
+ * the current value, not the one from its registering render.
  */
 
 import { useRenderer } from "@opentui/react"
@@ -45,7 +43,15 @@ export type WorkspaceKeybindingDeps = {
   /** False while the files pane is unmounted (zen, or a rail page). */
   filesPaneVisible?: boolean
   searchActive: boolean
+  /** The ACTIVE task — what the workspace shows. Global-scope verbs act on it. */
   selectedId: string | null
+  /**
+   * The task under the sidebar CURSOR (null on a non-task row or an empty
+   * tree). `j`/`k` move the cursor without selecting, so the two diverge the
+   * moment the user walks the tree; sidebar-scope row verbs act on this one,
+   * like the tree's own `d`/`r`/`P` do.
+   */
+  cursorTaskId: () => string | null
   openTaskWorktree: (id: string) => void
   createTask: () => void
   renameBranch: (id: string) => void
@@ -57,6 +63,12 @@ export type WorkspaceKeybindingDeps = {
   enterMoveMode: () => void
   /** prefix+p / prefix+P — send the Create PR prompt into the engine pane. */
   createPR: () => void
+  /** Same action aimed at a sidebar ROW's task: enter it, then send there. */
+  createPRFor: (id: string) => void
+  /** PROPOSED prefix+k — pull the failing PR checks into that task's engine. */
+  fixChecksFor: (id: string) => void
+  /** PROPOSED prefix+u — merge that task's base branch into its worktree. */
+  syncBaseFor: (id: string) => void
   /** `t` — flip the sidebar task sort between default and recent. */
   toggleSortMode: () => void
 }
@@ -92,7 +104,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
     if (ok) exitApp()
   }
 
-  // Cursor semantics, not a ring (owner call 2026-07-25): focus movement
+  // Cursor semantics, not a ring: focus movement
   // clamps at both ends — sidebar ← workspace → files — instead of
   // wrapping, so "previous" from the sidebar never jumps to files.
   function cyclePane(delta: 1 | -1): void {
@@ -123,7 +135,7 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         // f4 — reserved from terminal passthrough, so the cycle behaves
         // identically from every pane including inside the terminal.
         "focus.next": prefixAction(() => cyclePane(1)),
-        // prefix+z only (owner call 2026-07-17). The configured prefix is
+        // prefix+z only. The configured prefix is
         // Kobe-global, so this remains reachable inside the terminal pane.
         "workspace.zenToggle": prefixAction(() => deps.toggleZen()),
         // f7 — reserved from terminal passthrough too, so "jump to the
@@ -135,15 +147,46 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
         "workItems.open": prefixAction(() => deps.pages.openWorkItems()),
         "task.moveMode": prefixAction(() => deps.enterMoveMode()),
         // prefix+, — the global companion to the sidebar's bare `s`. The
-        // row shipped in the table (and docs) without a handler here, so
-        // the chord was dead outside the sidebar.
+        // row exists in the table (and docs); without a handler here the
+        // chord is dead outside the sidebar.
         "settings.open": prefixAction(() => deps.pages.openSettings()),
-        "files.createPR": prefixAction(() => deps.createPR()),
+        // Global scope, so it acts on the active task — except while the
+        // sidebar has focus, where the highlighted row is what the user
+        // means (the same rule `task.openEditor` follows below). Aiming at
+        // another row has to enter it first: the send closure belongs to
+        // the mounted workspace, so there is no other task to send into.
+        "files.createPR": prefixAction(() => {
+          const row = focus.focused === "sidebar" ? deps.cursorTaskId() : null
+          if (row !== null && row !== deps.selectedId) deps.createPRFor(row)
+          else deps.createPR()
+        }),
+        // Same aim rule as `files.createPR` above; the action itself parks
+        // the request when the row is not the active task.
+        "files.fixChecks": prefixAction(() => {
+          const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
+          if (id) deps.fixChecksFor(id)
+        }),
+        // Same aim rule again; the merge itself runs in the daemon, so unlike
+        // fix-checks it does not need the row's engine to be mounted.
+        "files.syncBase": prefixAction(() => {
+          const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
+          if (id) deps.syncBaseFor(id)
+        }),
+        // Global scope, so it acts on the active task — except while the
+        // sidebar has focus, where the highlighted row is what the user means.
         "task.openEditor": prefixAction(() => {
-          if (deps.selectedId) deps.openTaskWorktree(deps.selectedId)
+          const id = (focus.focused === "sidebar" ? deps.cursorTaskId() : null) ?? deps.selectedId
+          if (id) deps.openTaskWorktree(id)
         }),
       }),
     ],
+  }))
+  // New task belongs everywhere but a dialog, Settings, or the sidebar
+  // search box — including the Worktrees and Update full-window pages and
+  // the terminal (the prefix's first stroke does not pass through).
+  useBindings(() => ({
+    enabled: !pages.dialogOpen && !pages.settingsOpen && !deps.searchActive,
+    bindings: bindByIds({ "task.new.global": () => deps.createTask() }),
   }))
   useBindings(() => ({
     enabled: pagesClosed && focus.focused !== "sidebar",
@@ -171,24 +214,27 @@ export function useWorkspaceKeybindings(deps: WorkspaceKeybindingDeps): void {
       "tasks.update": () => deps.pages.openUpdate(),
     }),
   }))
-  // Task-lifecycle chords (issue #20 — the tmux Tasks pane's n/b/v set).
+  // Task-lifecycle chords — the n/b/v set.
   // d/a/r/pin/move fire from the Sidebar's OWN keys via the Request props;
   // these three are host-scoped in both hosts. Gated on sidebar focus + no
   // dialog + search inactive (typing `n` into the search box must not open
-  // the new-task dialog — same chord-leak class).
+  // the new-task dialog — same chord-leak class). Like the tree's own row
+  // verbs they act on the CURSOR row, not the active task: after a `j`
+  // without enter the two differ, and `b`/`v` rewrite a real worktree.
   useBindings(() => ({
     enabled: pagesClosed && focus.focused === "sidebar" && !deps.searchActive,
     bindings: bindByIds({
       "task.new": () => deps.createTask(),
       "tasks.openWorktree": () => {
-        if (deps.selectedId) deps.openTaskWorktree(deps.selectedId)
+        const id = deps.cursorTaskId()
+        if (id) deps.openTaskWorktree(id)
       },
       "tasks.renameBranch": () => {
-        const id = deps.selectedId
+        const id = deps.cursorTaskId()
         if (id) deps.renameBranch(id)
       },
       "tasks.cycleEngine": () => {
-        const id = deps.selectedId
+        const id = deps.cursorTaskId()
         if (id) deps.cycleVendor(id)
       },
       // Right arrow — the tmux Tasks pane's "go right into the engine"

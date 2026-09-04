@@ -27,7 +27,8 @@ describe("SettingsDialog", () => {
     process.env.KOBE_HOME_DIR = mkdtempSync(join(tmpdir(), "kobe-settings-"))
     const { frame, mockInput } = await renderComponent(<Driver />, {
       width: 110,
-      height: 40,
+      // Tall enough for a whole section inside the page's scroll viewport.
+      height: 90,
       providers: { kv: true, dialog: true },
     })
 
@@ -68,7 +69,8 @@ describe("SettingsDialog", () => {
     process.env.KOBE_HOME_DIR = home
     const { frame, mockInput } = await renderComponent(<Driver />, {
       width: 110,
-      height: 40,
+      // Tall enough for a whole section inside the page's scroll viewport.
+      height: 90,
       providers: { kv: true, dialog: true },
     })
 

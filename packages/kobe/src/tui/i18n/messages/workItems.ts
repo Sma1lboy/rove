@@ -10,6 +10,9 @@ export const en = {
   assignedFilter: "assigned to me",
   starting: "Starting work on #{number}…",
   startedNoEngine: "Created {title}, but its engine did not start.",
+  /** Detail-line chip on an issue that already has a task. `{title}` = that task's title. */
+  linkedChip: "→ {title}",
+  openingLinked: "Opening {title}…",
   /** Error-toast title when starting work fails. `{number}` = issue number, `{error}` = the daemon's message. */
   startFailed: "Couldn't start work on #{number}: {error}",
   errorHint: {
@@ -27,6 +30,9 @@ export const zh: typeof en = {
   assignedFilter: "分配给我的",
   starting: "正在开始处理 #{number}…",
   startedNoEngine: "已创建 {title}，但引擎没有启动。",
+  /** 已有任务的议题在详情行上的标记。`{title}` = 那个任务的标题。 */
+  linkedChip: "→ {title}",
+  openingLinked: "正在打开 {title}…",
   /** 开始处理失败时的错误 toast 标题。`{number}` = 议题编号，`{error}` = daemon 返回的信息。 */
   startFailed: "开始处理 #{number} 失败：{error}",
   errorHint: {

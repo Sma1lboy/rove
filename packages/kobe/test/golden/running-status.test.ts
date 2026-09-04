@@ -1,15 +1,14 @@
 /**
  * Golden behavior — session events → sidebar running state, anchored end to
- * end (issue #11 Phase 1). Each case feeds a REAL hook-event sequence through
+ * end. Each case feeds a REAL hook-event sequence through
  * the daemon's activity registry, over the actual `engine-state` wire payload,
  * into the client accumulator, and derives what a sidebar TAB row renders
  * (`tabRowActivity` + `buildSidebarRowView`) — the same chain a live TUI runs.
  *
- * These are the Phase 1 stakes for the 2026-08-10/11 activity fixes
- * (a85f0919 don't-borrow-a-sibling's-spinner, a4f901d5 cold-registry Stop,
- * 49dfec84 session-scoped liveness). Deliberately asserted at DISPLAY level:
- * Phase 2 (output heartbeat / unknown state / reconciler) may add signal for
- * rows that previously showed nothing, but must never change what these
+ * The stakes: don't borrow a sibling's spinner, honour a cold-registry Stop,
+ * keep liveness session-scoped. Deliberately asserted at DISPLAY level, so
+ * later signal work (output heartbeat / unknown state / reconciler) may light
+ * up rows that render nothing today, but must never change what these
  * sequences render.
  */
 
@@ -158,7 +157,7 @@ describe("golden: session events → sidebar running state", () => {
 
   it("an interrupt drops the spinner without a completion lamp", () => {
     // The `turn-interrupted` event is what the TUI's interrupt observer
-    // reports after confirming an ESC (issue #15) — and what Kimi fires
+    // reports after confirming an ESC — and what Kimi fires
     // natively instead of Stop. Either way: idle, never a ● lamp.
     const h = track(harness())
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1")
@@ -170,7 +169,7 @@ describe("golden: session events → sidebar running state", () => {
   })
 
   it("an interrupted tab re-lights on its next turn-start, and that turn completes normally", () => {
-    // The transitions AROUND an interrupt (issue #15 stake): interrupt →
+    // The transitions AROUND an interrupt: interrupt →
     // idle must not poison the next turn's running edge or its ● lamp.
     const h = track(harness())
     h.registry.report(TASK_ID, "turn-start", undefined, "tab-1")
@@ -187,7 +186,7 @@ describe("golden: session events → sidebar running state", () => {
     const permRow = perm.row("tab-1")
     expect(permRow).toMatchObject({ loading: false, glyph: "?", tone: "warning" })
     // Sticky: no lapse watchdog armed — an engine blocked on the user writes
-    // nothing, and the old watchdog idled exactly the tasks needing a human.
+    // nothing, so a watchdog here would idle exactly the tasks needing a human.
     expect(perm.registry.debugSnapshot().tasks[TASK_ID]?.lapseArmed).toBe(false)
     expect(perm.registry.debugSnapshot().tabs[TASK_ID]?.["tab-1"]?.lapseArmed).toBe(false)
 

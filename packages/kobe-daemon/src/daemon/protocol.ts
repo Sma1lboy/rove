@@ -1,12 +1,9 @@
 /**
  * Daemon wire protocol (v0.6).
  *
- * v0.5's protocol was huge because the daemon hosted live chat
- * streams: `chat.delta`, `chat.event`, `chat.complete`, pending-input
- * brokers, plan-usage polling, rc-bridge state, etc. v0.6 collapses
- * all of that — engine sessions live in hosted PTYs, so the daemon's
- * only job is to be a single writer for the task index. The protocol
- * shrinks to a task-CRUD + subscribe shape.
+ * Engine sessions live in hosted PTYs, so the daemon's only job is to be
+ * a single writer for the task index: the protocol is a task-CRUD +
+ * subscribe shape.
  */
 
 import type { ChannelName } from "./channels.ts"
@@ -47,9 +44,8 @@ export {
 } from "./channels.ts"
 
 /**
- * Bumped to 2 in v0.6 to signal the shape change. The handshake now
- * negotiates a COMPATIBILITY RANGE rather than requiring an exact match
- * (LSP-style): each peer advertises its current version plus the oldest
+ * The handshake negotiates a COMPATIBILITY RANGE rather than requiring an
+ * exact match (LSP-style): each peer advertises its current version plus the oldest
  * version it can still talk to ({@link MIN_COMPATIBLE_PROTOCOL_VERSION}),
  * and unknown extra fields are ignored. A backward-compatible change bumps
  * `DAEMON_PROTOCOL_VERSION` while leaving `MIN_COMPATIBLE_PROTOCOL_VERSION`
@@ -57,8 +53,8 @@ export {
  * rolling upgrade instead of hard-rejecting it. Bump the MIN only on a
  * breaking change.
  *
- * v3: `daemon.web.start` / `daemon.web.stop` removed from the socket protocol.
- * Browser HTTP/SSE now lives on the daemon-owned web transport instead of a
+ * v3: no `daemon.web.start` / `daemon.web.stop` in the socket protocol.
+ * Browser HTTP/SSE lives on the daemon-owned web transport instead of a
  * socket RPC that starts/stops routes. A v2 client's `kobe web` gets a clear
  * "unknown daemon request" error; everything else still interoperates, so MIN
  * stays 2.
@@ -91,8 +87,8 @@ export function isProtocolCompatible(args: {
  * Build-version skew check (KOB) — distinct from the protocol check above.
  * The protocol range only catches a BREAKING wire change; a normal patch
  * upgrade keeps the same protocol version, so a stale-build daemon (the user
- * upgraded the binary but the long-lived daemon is still running the old code
- * in memory) is otherwise invisible. This compares the daemon's reported build
+ * upgraded the binary but the long-lived daemon is still running the code it
+ * booted with) is otherwise invisible. This compares the daemon's reported build
  * version (`hello.kobeVersion` / `daemon.status`'s `kobeVersion`) against the
  * client's own {@link import("../version").CURRENT_VERSION}.
  *
@@ -120,8 +116,8 @@ export function isDaemonVersionStale(daemonVersion: string | undefined, clientVe
  * `*_DAEMON_SOCKET_PATH` outranks a sandbox's `*_HOME_DIR` (see
  * `scripts/dev-sandbox-args.ts`): the sandbox daemon binds the production
  * socket and answers `hello` with its own empty task index, which the TUI
- * used to render as a truthful "No active tasks" while every task sat intact
- * on disk (prod 2026-08-13).
+ * would otherwise render as a truthful "No active tasks" while every task
+ * sits intact on disk.
  *
  * FATAL by design, unlike {@link isDaemonVersionStale}: serving another home's
  * data is silent corruption of what the user sees, so the client refuses the
@@ -172,6 +168,10 @@ export type DaemonRequestName =
   // of the worktree→engine→branch lifecycle that had no product path; refuses a
   // dirty base checkout and aborts on conflict, returning the conflicted files.
   | "task.land"
+  // Merge a task's base branch INTO its worktree — the answer to the sidebar's
+  // behind-base drift chip. Merge, never rebase: the worktree may have a live
+  // engine holding files open.
+  | "task.syncBase"
   | "task.pin"
   | "task.move"
   | "task.status"
@@ -181,14 +181,10 @@ export type DaemonRequestName =
   // Deliberately NOT web-exposed: the browser has no reason to write another
   // task's brief, and the web allowlist is a security contract.
   | "task.setPrompt"
-  // Web-board ordering (docs/design/web-kanban.md M3): batch-assign sparse
-  // fractional `position` keys for per-status column order. ONE snapshot
-  // push per batch; the TUI never reads `position`.
-  | "task.reorder"
   | "task.ensureMain"
   // Open an existing directory as a standalone `kind:"dir"` task (`kobe .`).
   | "task.openDir"
-  // Scratch → project migration (issue #33): repoint + clear the flag.
+  // Scratch → project migration: repoint + clear the flag.
   | "task.adoptScratchRepo"
   | "project.forget"
   | "task.ensureWorktree"
@@ -231,9 +227,13 @@ export type DaemonRequestName =
   // `session.deliver` channel event addressed to a task's live session.
   // The daemon only routes; the front-end hosting that session delivers.
   | "session.deliver"
+  // On-demand read of a PR's FAILING check logs (the sidebar's "Fix failing
+  // checks"). Never polled: it downloads whole job logs, so it runs once per
+  // human click and leaves the pr-status poller's cadence alone.
+  | "pr.failingChecks"
   // Read one task's recent engine lifecycle events (the TUI event feed).
   | "task.recentEvents"
-  // Per-turn agent telemetry (issue #32): the durable turn store's read side.
+  // Per-turn agent telemetry: the durable turn store's read side.
   // Written only by the hook-driven ingest on `turn-complete`.
   | "agentTurn.list"
   // Production diagnostics (`kobe api inspect`): the activity registry's RAW
@@ -252,8 +252,13 @@ export type DaemonRequestName =
   // `pty.open`; the daemon only validates + publishes.
   | "tab.open"
   // The inverse: publish a `tab.close` channel event asking the TUI hosting
-  // the task to close panes previously opened under a title.
+  // the task to close the panes it opened under a title.
   | "tab.close"
+  // Exact Terminal Tab lifecycle: ask an attached TUI to run its normal
+  // ctrl+w close path, then acknowledge whether it owned the tab. The CLI
+  // falls back to the standalone PTY Host when nobody confirms.
+  | "terminalTab.close"
+  | "terminalTab.closeReply"
   // Broadcast one toast to every attached UI over the `notice.event`
   // channel (`kobe api notify`). The daemon only validates + publishes.
   | "notice.send"
@@ -285,11 +290,11 @@ export type DaemonRequestName =
   | "pty.list"
   | "pty.sweep"
   // Re-key a running session (`{from, to}` → `{renamed: boolean}`) — the
-  // scratch-fold move (issue #40): the child keeps running, only its
-  // ownership label changes so sweeps and future attaches see it under the
-  // adopting task's tab key. Older hosts reject the verb; callers treat
-  // that as "fold the tab record only, session stays under the old key
-  // until the scratch task's teardown" — hence they must check `renamed`.
+  // scratch-fold move: the child keeps running, only its ownership label
+  // changes so sweeps and future attaches see it under the adopting task's
+  // tab key. Older hosts reject the verb; callers treat that as "fold the
+  // tab record only, session stays under its original key until the scratch
+  // task's teardown" — hence they must check `renamed`.
   | "pty.rename"
   // Read-only ring-buffer peek for one session key: no attach, no spawn,
   // no resize — the observation primitive `kobe api read-output` uses for
@@ -300,14 +305,61 @@ export type DaemonRequestName =
   // is that bare shell adopts it (already rc-initialized) instead of
   // paying shell startup. Best-effort; older hosts reject the verb.
   | "pty.warm"
-  // Deferred prompts (issue #78 B-layer): the delivery gate accepted a prompt
-  // it could not paste (composer busy) into daemon ownership. `file` stores the
-  // text + records a `prompt_deferred` inbox episode; `get` reads one back for
-  // the exit path; `resolve` drops it after a successful insert or a dismiss.
-  // Older daemons reject the verbs; callers then surface COMPOSER_BUSY instead.
+  // Deferred prompts: the delivery gate accepted a prompt
+  // it could not paste (composer busy) into daemon ownership. New clients use
+  // `fileIfVacant`, whose distinct name makes old replace-on-file daemons fail
+  // loud. `release` and `flush` claim records before exact-tab delivery;
+  // `get`/`resolve` remain only for loud legacy skew and pre-restart cleanup.
   | "deferredPrompt.file"
+  | "deferredPrompt.fileIfVacant"
   | "deferredPrompt.get"
   | "deferredPrompt.resolve"
+  | "deferredPrompt.release"
+  | "deferredPrompt.discardTab"
+  | "deferredPrompt.flush"
+
+/**
+ * Verbs whose CONTRACT is to block, so the client must not put a wedge
+ * deadline on them.
+ *
+ * The socket client gives every request a 20s deadline, and blowing it is not
+ * a plain failure: it rejects with `RpcTimeoutError("… daemon wedged?")`, then
+ * force-disconnects and emits a lifecycle `close`, dropping every channel
+ * subscription on the TUI's long-lived connection. That is the right move for
+ * a genuinely wedged daemon and the wrong one for a verb that is simply still
+ * working — a `task.land` on a large repo would put the whole workspace into
+ * the reconnect path while the daemon is perfectly healthy.
+ *
+ * Each name here either waits on a human (`ui.prompt`), shells out on a
+ * user-sized repo or through `gh`, or delivers serially into PTYs. For all of
+ * them the DAEMON owns settlement, so the client's timer buys nothing.
+ *
+ * This set lives in the wire contract, next to {@link DaemonRequestName},
+ * because both the client (which must not import the handler registry — that
+ * would drag every daemon module into the CLI) and the registry need it. The
+ * registry entry is where a verb DECLARES it (`blocking: true` beside
+ * `web: true`), and `test/daemon/rpc-deadline.test.ts` fails if the two drift.
+ */
+export const BLOCKING_RPCS: ReadonlySet<DaemonRequestName> = new Set<DaemonRequestName>([
+  // Blocks on a human answering the TUI dialog (default 120s, max 600s).
+  "ui.prompt",
+  // Merge/squash plus optional worktree removal, on a repo of any size.
+  "task.land",
+  // `gh` lookup (its own 20s subprocess budget) then task/worktree/engine setup.
+  "workitem.start",
+  // Precheck subprocess, then a full session start.
+  "automation.runNow",
+  // One PTY delivery per queued record, serially.
+  "deferredPrompt.flush",
+  "deferredPrompt.release",
+  // Worktree work and forge lookups (ls-remote, gh PR states) — minute-scale.
+  "task.ensureWorktree",
+  "task.ensureMain",
+  "worktree.discoverAdoptable",
+  "worktree.adopt",
+  "worktree.list",
+  "worktree.remove",
+])
 
 /**
  * Subscribe role (KOB) — distinguishes WHO is subscribing, so the daemon's
@@ -320,8 +372,8 @@ export type DaemonRequestName =
  *   windows, transient `kobe api` pokes). It subscribes to RECEIVE push
  *   channels but must NOT keep the daemon alive: these panes outlive the
  *   attach (the front-end session persists after the user quits), so counting
- *   them wedged the daemon open forever — N Terminal Tabs meant N Tasks panes,
- *   so the count never reached 0 on quit.
+ *   them wedges the daemon open forever — N Terminal Tabs means N Tasks panes,
+ *   and the count never reaches 0 on quit.
  *
  * Default is `pane`: a subscriber that forgets to declare a role is the safe
  * non-holding kind, so a future client can never accidentally pin the daemon.
@@ -351,9 +403,9 @@ export interface SerializedTask {
   readonly branch: string
   readonly worktreePath: string
   readonly kind: "main" | "task" | "dir"
-  /** Scratch shell task (issue #33) — Scratch-section row, cleared on adopt/rename. */
+  /** Scratch shell task — Scratch-section row, cleared on adopt/rename. */
   readonly scratch?: boolean
-  /** Standing session of a routine (issue #91) — folded behind the sidebar's
+  /** Standing session of a routine — folded behind the sidebar's
    *  routine count row instead of rendering as a loose task. */
   readonly routine?: DaemonTask["routine"]
   readonly status: DaemonTask["status"]
@@ -362,8 +414,6 @@ export interface SerializedTask {
   /** Raw engine launch command as given to `add --command` / `set-command`. */
   readonly command?: DaemonTask["command"]
   readonly prStatus?: DaemonTask["prStatus"]
-  /** Web-board ordering key (sparse fractional; absent until first drop). */
-  readonly position?: number
   /** Engine reasoning/effort level, when the vendor supports one. */
   readonly modelEffort?: string
   /** Fan-out round marker shared by the siblings of one fan-out call. */
@@ -386,7 +436,7 @@ export interface SerializedTask {
 }
 
 /**
- * Display fallback for an empty task title (issue #42): a scratch task mints
+ * Display fallback for an empty task title: a scratch task mints
  * no auto-name, so the wire fills branch → directory → "scratch" HERE — one
  * spot upstream of every consumer (TUI task channel, web board/kanban,
  * `api list`/`get-task`, notification copy), so none can render a blank row.
@@ -413,7 +463,6 @@ export function serializeTask(task: DaemonTask): SerializedTask {
     vendor: task.vendor,
     command: task.command,
     prStatus: task.prStatus,
-    position: task.position,
     modelEffort: task.modelEffort,
     groupId: task.groupId,
     observedLanguage: task.observedLanguage,

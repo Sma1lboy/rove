@@ -10,11 +10,10 @@ const RETIRED_ROOT = join(SRC_ROOT, "tmux")
 const LEGACY_COMPAT = join(SRC_ROOT, "cli", "legacy-tmux.ts")
 const LEGACY_IMPORTERS = new Set([join(SRC_ROOT, "cli", "doctor-cmd.ts"), join(SRC_ROOT, "cli", "reset-cmd.ts")])
 /**
- * Files allowed to NAME tmux without hosting it. The guard exists to keep the
- * retired tmux RUNTIME out of the shipped product; reporting that the USER is
- * running inside a multiplexer is the opposite of that — Rove spawns nothing,
- * it reads an env var so a keyboard bug report can rule the multiplexer out.
- * Losing that line was collateral damage when the runtime went away.
+ * Files allowed to NAME tmux without hosting it. The guard exists to keep a
+ * tmux RUNTIME out of the shipped product; reporting that the USER is running
+ * inside a multiplexer is the opposite of that — Rove spawns nothing, it
+ * reads an env var so a keyboard bug report can rule the multiplexer out.
  */
 const DIAGNOSTIC_NAMERS = new Set([join(SRC_ROOT, "cli", "doctor-terminal.ts")])
 

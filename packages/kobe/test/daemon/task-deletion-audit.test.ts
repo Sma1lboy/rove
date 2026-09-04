@@ -1,10 +1,9 @@
 /**
  * Task deletion is the most destructive thing an `rove api` caller can do to
- * someone else's live session, and until this module existed the daemon logged
- * a line ONLY when the worktree removal FAILED. A successful delete left no
- * record, and no delete recorded who asked — which is why the owner-reported
- * "a tab I was working in vanished and it wasn't me" (2026-08-29) was only
- * traceable by the accident of that removal happening to fail.
+ * someone else's live session. Logging a line only when the worktree removal
+ * FAILS leaves a successful delete with no record and no note of who asked,
+ * so "a tab I was working in vanished and it wasn't me" is traceable only by
+ * the accident of that removal happening to fail.
  *
  * These assert the two properties a reader of `daemon.log` depends on: every
  * phase leaves a line, and each line carries enough to answer "who and what".

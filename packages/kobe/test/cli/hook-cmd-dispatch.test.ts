@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   connectIfRunning: vi.fn(),
   request: vi.fn(),
   close: vi.fn(),
-  // Plugin takeover flag (issue #37) — mocked so the gate never reads the
+  // Plugin takeover flag — mocked so the gate never reads the
   // developer's real ~/.claude/settings.json (which may genuinely have the
   // Rove plugin enabled).
   rovePluginEnabled: vi.fn(() => false),
@@ -249,9 +249,9 @@ describe("ensureGlobalKobeHooks (default-ON global install)", () => {
     expect(mocks.adapter.installActivityHooks).toHaveBeenCalledWith("/fake/.claude/settings.json", {
       toolEvents: false,
     })
-    // The retired PostToolUse(Bash) watch hook is UNINSTALLED on every launch —
-    // that is how an already-registered user stops paying its per-Bash-call
-    // spawn. Nothing installs it any more.
+    // The PostToolUse(Bash) watch hook is UNINSTALLED on every launch — that
+    // is how an already-registered user stops paying its per-Bash-call spawn.
+    // Nothing installs it.
     expect(mocks.adapter.removeWorktreeWatchHook).toHaveBeenCalledWith("/fake/.claude/settings.json")
     // The WorktreeCreate provider-hook cleanup runs on every launch.
     expect(mocks.adapter.removeWorktreeSyncHook).toHaveBeenCalledWith(join(homedir(), ".claude", "settings.json"))

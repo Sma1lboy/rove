@@ -149,10 +149,10 @@ describe("resolveEngineLaunchInit", () => {
   })
 
   // Why: standing instructions for a worker — name your branch, report your
-  // outcome home — moved to the Rove agent skill, which the agent reads once.
-  // They used to be appended to EVERY new task's first prompt, which meant a
-  // user writing Chinese had their own words trailed by two English
-  // paragraphs, and the send-back half duplicated what SKILL.md already said.
+  // outcome home — live in the Rove agent skill, which the agent reads once.
+  // Appending them to EVERY new task's first prompt would trail a user
+  // writing Chinese with two English paragraphs, and duplicate what SKILL.md
+  // already says.
   //
   // What must survive: the user's prompt reaches the engine unchanged, and
   // the per-worktree FACTS (the missing-dependency warning below) still ride
@@ -175,7 +175,7 @@ describe("resolveEngineLaunchInit", () => {
   })
 })
 
-// Why: issue #35 — a fresh worktree with a committed lockfile but no install
+// Why: a fresh worktree with a committed lockfile but no install
 // output makes every build/test fail for reasons unrelated to the task, and
 // agents have reported that breakage as a product regression. Advice only:
 // installing belongs to `.rove/init.sh`, so a repo that configures one is

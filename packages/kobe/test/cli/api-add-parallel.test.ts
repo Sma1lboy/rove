@@ -1,10 +1,9 @@
 /**
  * Request-traffic tests for a PARALLEL `add` round (`--count` / `--agents`).
  *
- * Split out of `api-handlers.test.ts` for the file-size cap: this was the
- * `fan-out` verb's suite, and folding it into `add` (issue #30) kept every
- * rule it pinned — shared groupId, `#i/N` titles, per-sibling failure rows
- * that never orphan a created task — plus the new flag conflicts.
+ * Split out of `api-handlers.test.ts` for the file-size cap. Pins the
+ * parallel contract — shared groupId, `#i/N` titles, per-sibling failure rows
+ * that never orphan a created task — plus the flag conflicts.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -89,6 +88,26 @@ describe("add --count (parallel round)", () => {
     expect(calls.map((call) => call.prompt)).toEqual(["go", "go", "go"])
     // Every sibling is a fresh worktree task → first-prompt coda applies.
     expect(calls.every((call) => call.target.newTask === true)).toBe(true)
+  })
+
+  it("applies --status and --pin to every sibling, not just a single add", async () => {
+    const client = new FakeClient({
+      "task.create": (_payload, index) => ({ taskId: `t${index + 1}`, task: taskFixture({ id: `t${index + 1}` }) }),
+      "task.status": () => ({}),
+      "task.pin": () => ({}),
+    })
+    const { deliver } = recordingDelivery()
+    await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "go", "--count", "2", "--status", "in_review", "--pin"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: deliver }),
+    })
+    const followUps = client.requests.filter((r) => r.name === "task.status" || r.name === "task.pin")
+    expect(followUps).toEqual([
+      { name: "task.status", payload: { taskId: "t1", status: "in_review" } },
+      { name: "task.pin", payload: { taskId: "t1", pinned: true } },
+      { name: "task.status", payload: { taskId: "t2", status: "in_review" } },
+      { name: "task.pin", payload: { taskId: "t2", pinned: true } },
+    ])
   })
 
   it("expands per-vendor agent counts in order", async () => {
@@ -216,7 +235,7 @@ describe("add --count (parallel round)", () => {
 
   it("counts a deferred sibling as a success, not a delivery failure", async () => {
     // A sibling whose composer is briefly busy resolves accepted-but-deferred
-    // (issue #78 B-layer): `delivered:false` but `deferred` present. The daemon
+    // — `delivered:false` but `deferred` present. The daemon
     // owns the message and queued an inbox episode — the caller must NOT retry.
     // It must land in `tasks` (with the marker), never in `failures`, so the
     // round does not throw PARTIAL_FANOUT and a script does not double-deliver.

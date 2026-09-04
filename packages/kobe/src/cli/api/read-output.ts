@@ -26,7 +26,7 @@
  *   - Strictly read-only: never spawns, attaches, resizes, or mutates
  *     task/engine lifecycle (terminal reads go through `pty.peek`).
  *
- * Tab precision (2026-08-16): the default terminal read resolves the
+ * Tab precision: the default terminal read resolves the
  * task's CANONICAL engine tab; `--tab tab-N` reads exactly that hosted
  * session instead (the API's smallest unit is one tab, same as
  * `send --tab`). A tab read is terminal-only — history is
@@ -35,8 +35,8 @@
  */
 
 import type { PtyPeekResult, SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { engineLaunchArgv } from "../../engine/engine-presets.ts"
-import { type EngineHistoryReader, engineEntry, supportsStructuredHistory } from "../../engine/registry.ts"
+import { engineLaunchArgv, protocolEntry, sessionProtocol } from "../../engine/engine-presets.ts"
+import { type EngineHistoryReader, supportsStructuredHistory } from "../../engine/registry.ts"
 import type { Message } from "../../types/engine.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
@@ -65,25 +65,16 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 // Re-exported so `@/cli/api/read-output` stays the one import site.
 export {
   boundedTail,
-  buildHistoryPage,
   clipStrings,
-  decodeCursor,
   DEFAULT_PAGE_MESSAGES,
-  encodeCursor,
   MAX_PAGE_MESSAGES,
   STRING_CLIP_CHARS,
   TERMINAL_TAIL_BYTES,
   TERMINAL_TAIL_LINES,
 } from "./read-output-page.ts"
 export type {
-  Cursor,
-  FallbackReason,
-  HistoryPage,
   ReadOutputEnvelope,
-  ReadSource,
-  ReadSourceArg,
   TerminalPeekPage,
-  TerminalTail,
 } from "./read-output-page.ts"
 
 // ── The read itself (deps-injected, unit-testable) ───────────────────────────
@@ -360,7 +351,7 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
   const vendor = task.vendor as VendorId | undefined
   const tab = ctx.args.str("tab")
   const deps: ReadOutputDeps = {
-    history: vendor && supportsStructuredHistory(vendor) ? engineEntry(vendor).history : null,
+    history: vendor && supportsStructuredHistory(sessionProtocol(vendor)) ? protocolEntry(vendor).history : null,
     peekTerminal: (tabId, sinceOffset) => peekTaskTerminal(taskId, vendor, tabId, sinceOffset),
   }
   const envelope = await readTaskOutput(
@@ -415,6 +406,7 @@ export const READ_OUTPUT_VERB: VerbSpec = {
       name: "limit",
       type: "int",
       placeholder: "N",
+      default: String(DEFAULT_PAGE_MESSAGES),
       description: `History messages per page (default ${DEFAULT_PAGE_MESSAGES}, max ${MAX_PAGE_MESSAGES}).`,
     },
   ],

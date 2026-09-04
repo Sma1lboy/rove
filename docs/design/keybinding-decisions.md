@@ -8,6 +8,46 @@ reasoning is recorded so the next agent has the context.
 The user-facing vocabulary lives in [`../KEYBINDINGS.md`](../KEYBINDINGS.md).
 `F1` renders the live keymap and is authoritative over both.
 
+## Tab in the New task dialog's repo field
+
+**2026-09-03 — `tab` completes the highlighted suggestion in place; a second
+`tab`, with nothing left to complete, advances the field as before.** Owner
+call, made from the report that drove it: the dialog had no key that finished
+a suggestion and STAYED. `enter` picked-and-advanced, `tab` advanced, so a
+user who typed `a`, saw `academic-…` under it and pressed the key that
+finishes things in every shell they own landed on `from branch` with `a`
+still in the repo box — and had to click back to keep typing.
+
+Why `tab` rather than a new chord (the two alternatives the owner weighed
+were `→`-at-end-of-line, fish-style, and a dedicated chord): the shell
+bargain is already `tab`'s, and layering completion under advance costs no
+new key and no muscle memory — a key that means "finish this for me" ends by
+finishing the field when there is nothing else to finish. `→` was rejected as
+the more hidden of the two (it means cursor-right inside an input every other
+moment), and a dedicated chord as one more thing to remember for a dialog
+that should feel like a prompt.
+
+Scope: both of the dialog's path fields — the Existing tab's repo and the
+Clone tab's parent dir, which are the same drill-down picker; a key that
+walked one but not the other would mean two things inside one dialog. Only
+while the dropdown is on screen, though: the guard is the picker's own render
+condition, so `tab` keeps its plain meaning everywhere else. Browse rows complete one directory DOWN, with
+the trailing slash that re-points the picker at the children (the walk is the
+point); saved rows complete to the repo name and close the dropdown, because
+nothing lives under a repo. Both modes complete toward the row the cursor is
+ON, which is what `enter` and `↑`/`↓` already meant.
+
+## New task from anywhere
+
+**2026-09-03 — `prefix+n` opens New task from anywhere; the sidebar keeps
+bare `n`; there is no direct `ctrl+n`.** The 2026-09-02 direct `ctrl+n` was
+gated to non-input surfaces so the embedded terminals kept readline/emacs
+next-history, which made it unreachable from exactly the place the owner is
+usually looking — the engine pane. The owner's call: move it behind the
+prefix. The prefix's first stroke never passes through, so `ctrl+a` `n` works
+inside the terminal too, and `ctrl+n` reaches the PTY unconditionally. The
+`yieldToPassthrough` mechanism stays for future direct chords.
+
 ## Prefix tap presentation
 
 **2026-08-28 — the prefix has tap behavior only. Every tap opens the complete
@@ -36,6 +76,33 @@ to that same armed state, so switching the display does not add a second input
 state machine or require terminal key-repeat/release reporting. The combined
 default keeps spatial teaching on existing controls while the guide remains a
 complete reference and clickable mouse entry.
+
+## Hold ctrl to reveal direct shortcuts
+
+**2026-09-01. Holding either Ctrl key for 400 ms opens the Ctrl follow-up
+guide.** The owner confirmed that the panel answers one question: while Ctrl is
+still held, which next keys do something? The guide therefore reads reachable
+direct bindings from the current Binding Stack, keeps only exact
+`ctrl+<single-key>` chords, and displays the key after `ctrl+`. Bare keys,
+F-row keys, multi-modifier chords, and prefix second strokes stay out. One
+synthetic row shows the current prefix's follow-up key as "More commands
+(prefix)"; it does not create a binding. The 400 ms threshold is a default,
+subject to tuning — the owner signed off on the panel's semantics, not on that
+number.
+
+The live keymap remains the only direct-chord list, so rebindings and
+pane-specific reachability stay accurate. A page or dialog barrier shrinks the
+guide to the Ctrl chords that remain dispatchable in that context.
+
+The guide opens while an embedded engine terminal has focus. This is a discovery
+hint, not a modal input state. Releasing Ctrl or pressing any other key closes
+it, and the next key still follows the ordinary Rove or PTY path. Rove consumes
+bare modifier events before composer and PTY forwarding, so requesting kitty
+keyboard modifier events cannot type their key names into either input.
+
+Terminals without kitty keyboard protocol support silently keep the legacy input
+path. The hold gesture is unavailable in Terminal.app, xterm.js, and inside
+tmux. Existing shortcuts and terminal bytes are unchanged there.
 
 ## Repo context filter — removed, chord revoked
 
@@ -352,6 +419,122 @@ gesture one pane over.
 `ctrl+e` (`chat.tab.chooseEngine`) is re-registered on the same pane. That is
 not a second chord for one action; it is the existing chord staying
 answerable in the one state where its usual owner is unmounted.
+
+## `ctrl+a` `p` follows the sidebar cursor; landing stays menu-only
+
+Owner call, 2026-09-02.
+
+`files.createPR` was global-scope and always acted on the ACTIVE task, so
+the only way to open a PR for a task you were looking at in the sidebar was
+to enter it first. It now reads the highlighted row while the sidebar has
+focus — the same rule `task.openEditor` (`ctrl+a` `o`) already follows, so
+the two row-scoped prefix verbs behave alike rather than each having its own
+answer to "which task did you mean?".
+
+Aiming at another row has to ENTER it. The PR prompt is delivered through
+the send closure the mounted `TerminalTabs` hands up, so there is no engine
+to reach in a task whose workspace is not mounted. The chord therefore parks
+the request (`workspace/use-create-pr.ts`) and activates the row; the target
+task's next mount claims it. A task switch the user did not ask for is the
+cost, and it is the honest one: the alternative is a chord that silently
+does nothing on three quarters of the rows.
+
+`shift+p` still rides along as an alias of `p` — unchanged, and not part of
+this decision.
+
+**Landing got NO chord.** "Land into base branch" is a sidebar row-menu
+entry that calls the same `orch.landTask` and confirm dialog as the
+Worktrees page's `l`. Landing is rare, irreversible from the row's point of
+view (the worktree goes with it), and every letter near `p` is either taken
+or too easy to fat-finger into a merge. Menu-only is the same sequencing
+answer `setStatus` and the two copies got: the capability exists now, and a
+chord can be added later if reaching for the mouse turns out to be the
+friction rather than the safety.
+
+## `<prefix> w` closes the tab when there is no split
+
+No chord was added or moved. `ctrl+w` and `<prefix> w` are one documented
+gesture — "close the active split, otherwise the tab" — split across two
+registry rows that are mutually gated so exactly one is live:
+`workspace.split.close` while the active tab is split, `chat.tab.close`
+otherwise.
+
+Only the split row declared `prefixKeys: ["w"]`. On an unsplit tab the second
+stroke therefore found no enabled prefix binding, and the dispatcher CONSUMES
+a prefix miss on purpose (so a deliberate sequence can never type into a
+terminal). The key was eaten, silently, while `KEYBINDINGS.md`, the row's own
+F1 help text and its i18n twin all promised it closed the tab.
+
+The fix gives `chat.tab.close` the same `prefixKeys: ["w"]` its twin already
+had, so whichever row the gate leaves live owns BOTH strokes. Nothing new is
+reachable that the direct chord did not already reach, and no other binding
+loses a key. Its handler is wrapped in `prefixAction` for the same reason the
+split row's is: the prefix HUD's clickable option resolves through `action`,
+not `cmd`.
+
+## `ctrl+a` `/` — search the terminal scrollback (PROPOSED, awaiting sign-off)
+
+Prefix-only, and it has to be. The terminal pane forwards a bare `/` to the
+shell and must keep doing so, while the prefix's first stroke never passes
+through — so `/` as the SECOND stroke costs the shell nothing. `TRAPPED_KEYS`
+is unchanged. The letter mirrors the sidebar's bare `/`: one search key across
+the app, chosen for that rather than for being free.
+
+What it may shadow: nothing today. `ctrl+a` `/` resolved to no binding before
+this row, and the dispatcher consumed the miss.
+
+The walk keys are `return`/`up` (older) and `down` (newer), registered only
+while the query row is open — at which point the pane's passthrough is off, so
+the arrows are not being taken from the shell.
+
+`shift+return` was specified for "previous" and had to be dropped: without the
+kitty keyboard protocol a terminal sends the same CR byte for enter and
+shift+enter, so `matchKey` sees a plain `return` and the chord is a silently
+dead key. Rove keeps kitty's `allKeysAsEscapes` off deliberately (it crashes
+iTerm2's Chinese input — see `host-render-options.ts`), so this is not a
+temporary limitation. A render test pins the direction of every walk key.
+## PROPOSED (not decided): `ctrl+a k` — Fix failing checks
+
+Status: **proposed, awaiting owner sign-off.** Wired in the registry as
+`files.fixChecks` with `prefixKeys: ["k"]` so it can be tried, and listed here
+so the next agent does not read it as settled.
+
+What it does: builds a prompt out of the failing CI job's log tail and sends it
+into the task's engine — the same delivery `files.createPR` uses. The settled
+route is the sidebar row menu's "Fix failing checks", which needs no chord.
+
+Why `k`, behind the prefix:
+
+- It shadows nothing. `ctrl+a k` was unbound; the prefix table's letters in use
+  are `c f h i l m n o p P w z ,` plus the digits.
+- The bare `k` is the sidebar's cursor-up and the FileTree's, and the prefix
+  never reaches a bare key, so neither loses anything.
+- It sits next to `ctrl+a p` / `P` on purpose: both build a prompt about this
+  branch's pull request and hand it to the engine, so they should be neighbours
+  in muscle memory.
+- Nothing is added to the terminal pane's `TRAPPED_KEYS`, so the engine keeps
+  every key it has today.
+
+What the owner still has to decide: whether this deserves a chord at all (it is
+a rare action — a red PR, once), and whether `k` is the letter or whether it
+should live under a different one.
+
+## PROPOSED (not decided): `ctrl+a u` — Sync with base
+
+Status: **proposed, awaiting owner sign-off.** Same treatment as `ctrl+a k`.
+
+What it does: `git merge <base>` in the row's worktree, the settled route being
+the row menu's "Sync with base". Merge, not rebase, deliberately: the worktree
+may have a live engine holding files open, and a rebase interrupted mid-turn is
+not recoverable from a toast.
+
+Why `u`, behind the prefix: it shadows nothing (`u` was unbound in the prefix
+table), and it reads as "update this branch from its base". The bare `u` is not
+a sidebar or files chord, so nothing is lost there either.
+
+What the owner still has to decide: the letter, and whether an action that
+mutates the worktree belongs behind a two-stroke sequence at all rather than
+staying menu-only where it is harder to fire by accident.
 
 ## Adding or moving a chord
 

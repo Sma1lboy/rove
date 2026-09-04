@@ -1,8 +1,8 @@
 /**
  * Size-capped rotation for kobe's append-only diagnostic logs
- * (`daemon.log`, `client.log`). Neither log had a cap before this — issue
- * #26: a daemon with dozens of orphan panes spamming reconnect-failure
- * lines forever grew `client.log` to 736MB and `daemon.log` to 345MB.
+ * (`daemon.log`, `client.log`). Uncapped, a daemon with dozens of orphan
+ * panes spamming reconnect-failure lines grows `client.log` into the
+ * hundreds of MB.
  *
  * One generation is kept (`<path>.old`), overwritten each rotation — this
  * is a debug trail, not an archive, so more generations just cost disk for

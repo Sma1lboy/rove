@@ -190,8 +190,8 @@ export async function ensurePtyHostReachable(): Promise<string> {
  * the ambient default while running against a non-default home (the
  * test:socket suite's temp-home daemons) sweeps the REAL user pty-host
  * with ITS task list — a fake orchestrator's empty snapshot then kills
- * every live engine session on the machine (incident 2026-07-07/08: every
- * `bun run test` wiped the user's running claude tabs).
+ * every live engine session on the machine, so a plain `bun run test` wipes
+ * the user's running engine tabs.
  */
 export async function sweepPtyHostSessions(liveTaskIds: readonly string[], homeDir?: string): Promise<void> {
   const socketPath = defaultPtyHostSocketPath(homeDir)

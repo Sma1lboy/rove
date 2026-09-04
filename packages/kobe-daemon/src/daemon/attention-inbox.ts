@@ -9,10 +9,9 @@
  * the older item at the end of the queue.
  */
 
-import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import {
   type AttentionInboxItem,
@@ -24,6 +23,7 @@ import {
 } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 interface AttentionInboxFile {
   readonly version: 1
@@ -40,6 +40,8 @@ interface AttentionInboxFile {
  * accumulate tax forever.
  */
 export const MAX_EPISODES = 500
+
+export type AttentionInboxLane = "activity" | "prompt_deferred"
 
 export function defaultAttentionInboxPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "attention-inbox.json")
@@ -64,8 +66,8 @@ function normalizeItem(value: unknown): AttentionInboxItem | null {
     tabId: item.tabId,
     state: item.state,
     ...(item.detail ? { detail: item.detail } : {}),
-    // All retained episodes are pending. Preserve the compatibility field
-    // when loading snapshots, but the queue model no longer reads it.
+    // All retained episodes are pending. The field is written for snapshot
+    // compatibility; the queue model does not read it.
     unread: item.unread !== false,
     at: item.at,
   }
@@ -84,16 +86,12 @@ async function readStore(path: string): Promise<AttentionInboxItem[]> {
 }
 
 async function writeStore(path: string, items: readonly AttentionInboxItem[]): Promise<void> {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   const body: AttentionInboxFile = { version: 1, items: [...items] }
-  await writeFile(tmp, `${JSON.stringify(body, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, body)
 }
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
-  private tail: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly path: string,
@@ -114,13 +112,12 @@ export class AttentionInboxStore {
   }
 
   /**
-   * `tabId` is nullable (owner call 2026-08-10): an engine the user typed
-   * into a shell that kobe did not spawn — including the shell an exited
-   * engine leaves behind in place — inherits no `KOBE_TAB_ID`, so its hooks
-   * report task-only. Dropping those events entirely is why such a session
-   * finished without ever showing up in the Inbox. A task-level episode
-   * still navigates (the task's active tab); the tab-level one is simply
-   * more precise when the identity is there.
+   * `tabId` is nullable: an engine the user typed into a shell that kobe did
+   * not spawn — including the shell an exited engine leaves behind in place —
+   * inherits no `KOBE_TAB_ID`, so its hooks report task-only. Dropping those
+   * events would keep such a session out of the Inbox entirely. A task-level
+   * episode still navigates (the task's active tab); the tab-level one is
+   * simply more precise when the identity is there.
    */
   async record(
     taskId: string,
@@ -139,7 +136,7 @@ export class AttentionInboxStore {
       } else {
         const state = stateFor(kind, detail)
         if (!state) return
-        // Dedupe rule (owner 2026-07-16): one pending episode per task+tab —
+        // Dedupe rule: one pending episode per task+tab —
         // a fresh event REPLACES the stale one and takes the latest position
         // (delete-then-set so the fresh `at` re-sorts it to the queue tail).
         next.delete(key)
@@ -164,11 +161,10 @@ export class AttentionInboxStore {
    * `record()` kind, for the same reason `recordPromptDeferred` has one —
    * there is no hook event behind it, so it has no {@link EngineActivityKind}.
    *
-   * This is the queue's blindest spot until now: every OTHER episode is
-   * something the engine reported about itself, so an engine that was KILLED
-   * (no Stop, no SessionEnd, no hook at all) produced no episode, and the one
-   * surface whose job is "what needs me" stayed silent about seven dead
-   * agents at once (2026-08-30).
+   * Every OTHER episode is something the engine reported about itself, so a
+   * KILLED engine (no Stop, no SessionEnd, no hook at all) has nothing to
+   * report — without this path the one surface whose job is "what needs me"
+   * stays silent about every dead agent.
    *
    * Deduped per task+tab like every other episode: a fresh death replaces the
    * previous episode for that tab and takes the queue tail.
@@ -184,7 +180,7 @@ export class AttentionInboxStore {
   }
 
   /**
-   * Record a `prompt_deferred` episode (issue #78 B-layer): a prompt the
+   * Record a `prompt_deferred` episode: a prompt the
    * delivery gate blocked was accepted into the DeferredPromptsStore, and the
    * episode points at that record by id (the prompt text is NOT copied here —
    * `EngineActivityDetail` describes engine activity). One pending episode per
@@ -217,25 +213,35 @@ export class AttentionInboxStore {
    * (`deleteEpisode` via attention.dismiss). Kept for old clients whose
    * open still calls attention.markRead — treat it as the same resolve.
    */
-  async markRead(taskId: string, tabId: string | null, at: number): Promise<boolean> {
-    return await this.deleteEpisode(taskId, tabId, at)
+  async markRead(
+    taskId: string,
+    tabId: string | null,
+    at: number,
+    lane?: AttentionInboxLane,
+    deferredId?: string,
+  ): Promise<boolean> {
+    return await this.deleteEpisode(taskId, tabId, at, lane, deferredId)
   }
 
-  /** Nullable tabId addresses legacy task-level data only; new writes require a tab. */
-  async deleteEpisode(taskId: string, tabId: string | null, at?: number): Promise<boolean> {
+  /** Delete a matching episode; lane and deferredId narrow cross-store cleanup. */
+  async deleteEpisode(
+    taskId: string,
+    tabId: string | null,
+    at?: number,
+    lane?: AttentionInboxLane,
+    deferredId?: string,
+  ): Promise<boolean> {
     return await this.enqueue(async () => {
-      // Both lanes for this tab — the activity episode and any deferred-prompt
-      // one. Callers address a TAB ("I dealt with this"), not a lane; making
-      // them name the lane would leave whichever they forgot on screen.
-      const keys = [
-        attentionInboxItemKey({ taskId, tabId }),
-        attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" }),
-      ]
+      const activityKey = attentionInboxItemKey({ taskId, tabId })
+      const deferredKey = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
+      const keys =
+        lane === "activity" ? [activityKey] : lane === "prompt_deferred" ? [deferredKey] : [activityKey, deferredKey]
       const next = new Map(this.items)
       let removed = false
       for (const key of keys) {
         const item = this.items.get(key)
         if (!item || (at !== undefined && item.at !== at)) continue
+        if (deferredId !== undefined && item.detail?.deferredPrompt?.id !== deferredId) continue
         next.delete(key)
         removed = true
       }
@@ -263,13 +269,9 @@ export class AttentionInboxStore {
     await this.deleteTask(taskId).catch((err) => logDaemonError("attention-inbox-task-delete", err))
   }
 
+  /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(operation)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, operation)
   }
 
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */

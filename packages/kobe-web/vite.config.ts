@@ -16,10 +16,10 @@ const ptyPort = process.env.KOBE_PTY_PORT ?? "5175"
 
 const config = defineConfig({
   // Dedupe React to ONE copy. The monorepo has two React versions on disk
-  // (kobe-web pins ^19.2, branding pins 19.0); @dnd-kit's loose `react
-  // >=16.8` peer otherwise lets the board's drag hooks resolve the other
-  // copy, so useSortable runs against a second React dispatcher → "Invalid
-  // hook call" in dev and a duplicated runtime in the bundle.
+  // (kobe-web pins ^19.2, branding pins 19.0), and any dependency with a
+  // loose `react >=16.8` peer can resolve the other one — which puts hooks
+  // on a second React dispatcher ("Invalid hook call" in dev) and ships both
+  // runtimes in the bundle.
   resolve: { tsconfigPaths: true, dedupe: ["react", "react-dom"] },
   server: {
     proxy: {

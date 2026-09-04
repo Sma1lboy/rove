@@ -3,8 +3,7 @@
  * The tab row's view derivation must be memoized on its real inputs
  * (`useTabRowBaseView` in tree-rows.tsx). The sidebar re-renders on the
  * ~10Hz spinner tick with a fresh `shared` object every render, and without
- * the memo every idle tab row re-ran `buildSidebarRowView` each tick — the
- * flat cards fixed the same thing in `useRowCardChrome` (row-cards.tsx).
+ * the memo every idle tab row re-runs `buildSidebarRowView` each tick.
  * This probe mounts the hook with CONSTANT inputs, forces re-renders the
  * way the tick does, and pins the returned view to ONE object identity.
  */

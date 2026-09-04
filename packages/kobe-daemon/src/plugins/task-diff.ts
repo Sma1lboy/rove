@@ -3,10 +3,10 @@
  *
  * Every task mutation — whatever RPC, collector, or orchestrator path made it
  * — funnels through the store and republishes `task.snapshot`, so diffing
- * consecutive snapshots is the ONE place that observes every change. This is
- * what fixes the historical drops: archive-via-worktree-removal, archive from
- * `land --then-archive`, and worktree materialization via adopt all bypassed
- * the RPC handlers that used to emit events.
+ * consecutive snapshots is the ONE place that observes every change. Emitting
+ * from the RPC handlers instead drops every path that bypasses them:
+ * archive-via-worktree-removal, archive from `land --then-archive`, and
+ * worktree materialization via adopt.
  *
  * Emitted per changed task:
  *   - `task.changed`     — any watched field changed (`detail.fields/from/to`)
@@ -18,9 +18,9 @@
 
 import type { SerializedTask } from "../daemon/protocol.ts"
 
-/** Fields worth an event. Excluded on purpose: `position` (drag ordering
- *  noise), `updatedAt`/`createdAt` (ride every change), `quotaResume`
- *  (the quota.* events cover it), `deletion` (task.deleted covers it). */
+/** Fields worth an event. Excluded on purpose: `updatedAt`/`createdAt` (they
+ *  ride every change), `quotaResume` (the quota.* events cover it),
+ *  `deletion` (task.deleted covers it). */
 const WATCHED_FIELDS = [
   "title",
   "branch",

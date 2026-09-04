@@ -220,7 +220,7 @@ describe("GitWorktreeManager.remove", () => {
     const metadataDir = path.join(repo, ".git", "worktrees", "task-rt")
     expect(fs.existsSync(metadataDir)).toBe(false)
 
-    // Worktree no longer in `git worktree list`.
+    // Worktree gone from `git worktree list`.
     const list = spawnSync("git", ["worktree", "list", "--porcelain"], { cwd: repo, encoding: "utf8" })
     expect(list.stdout).not.toContain(target)
 

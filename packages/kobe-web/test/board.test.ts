@@ -22,7 +22,7 @@ import {
   setBoardQuery,
   setBoardRepo,
 } from "../src/lib/board-state.ts"
-import type { Issue, RepoIssues } from "../src/lib/types.ts"
+import type { Issue, RepoIssues } from "../src/lib/issues.ts"
 
 /**
  * Issues-only kanban column math. The load-bearing rules: the board renders
@@ -354,7 +354,7 @@ describe("buildBoardView — the whole board view-model", () => {
       "/u/kobe",
       "/u/web",
     ])
-    // Only issue #1 matches "auth", so one shown card, one project board.
+    // Only the id-1 issue matches "auth", so one shown card, one project board.
     expect(view.shownCount).toBe(1)
     expect(view.projectBoards.map((b) => b.repo)).toEqual(["/u/kobe"])
     expect(view.hasAnyCard).toBe(true)

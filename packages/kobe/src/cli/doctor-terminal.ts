@@ -86,7 +86,7 @@ export function kittyProbeLine(result: KittyProbeResult): string {
  * into the pipe or wait on a reply that can't come). Raw mode for the read,
  * always restored; hard timeout so doctor can never hang on a mute terminal.
  */
-export async function probeKittyKeyboard(timeoutMs = 300): Promise<KittyProbeResult> {
+async function probeKittyKeyboard(timeoutMs = 300): Promise<KittyProbeResult> {
   const stdin = process.stdin
   if (!stdin.isTTY || !process.stdout.isTTY) return { kind: "skipped", reason: "not an interactive terminal" }
 

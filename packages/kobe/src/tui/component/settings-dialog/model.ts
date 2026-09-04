@@ -117,7 +117,7 @@ export type SettingsRowsInput = {
   focusAccentSlots: readonly FocusAccentSlot[]
   /** Built-ins + user-registered custom engines, in display order. */
   engineList: readonly VendorId[]
-  /** Registered plugins (`~/.kobe/plugins.json`), in registry order. */
+  /** Registered plugins (`~/.rove/plugins.json`), in registry order. */
   plugins: readonly PluginRowsEntry[]
   hasDaemon: boolean
   /** False while `keybindings.yaml` is absent — the section then offers to write it. */
@@ -255,21 +255,6 @@ export function rowIndex(rows: readonly SettingsRow[], id: string): number {
 /** The row at a body index, or undefined when out of range. */
 export function rowAt(rows: readonly SettingsRow[], index: number): SettingsRow | undefined {
   return rows[index]
-}
-
-/**
- * Turn a custom-engine slug into a presentable display name: split on
- * `-`/`_` and title-case each word. `my-local-agent` → `My Local Agent`.
- * Used so a custom engine added with no name still reads like the
- * title-cased built-ins instead of its raw lowercase-hyphenated id.
- * (Shared by the Solid and React settings dialogs.)
- */
-export function humanizeSlug(id: string): string {
-  return id
-    .split(/[-_]+/)
-    .filter((word) => word.length > 0)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
 }
 
 /** Cells the section sidebar reserves, and the gap between it and the body. */

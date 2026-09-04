@@ -253,8 +253,8 @@ describe("bunTerminalDriver", () => {
     expect(proc.pid).toBe(777)
 
     bun.settleExit(3)
-    // The death cause used to be discarded here (issue #9) — the driver now
-    // reads Bun's exitCode/signalCode after settle instead of dropping them.
+    // The driver reads Bun's exitCode/signalCode after settle, so the death
+    // cause survives instead of being dropped here.
     await expect(proc.exited).resolves.toEqual({ code: 3, signal: null })
   })
 

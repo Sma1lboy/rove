@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/react */
 /**
- * Narrow dialog clamp (issue #14, M5/3A): body padding halves below the
+ * Narrow dialog clamp: body padding halves below the
  * breakpoint (one shared hook, live on resize), the card width clamps to
  * terminal−2, and the new-chat footer hint wraps to a second line instead
  * of clipping. Content itself is unchanged.

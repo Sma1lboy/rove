@@ -1,9 +1,9 @@
 /**
  * `demoteExitedEngine` — a tab is a SHELL; the engine is a process in it.
  *
- * The bug this pins (owner report 2026-08-10): a tab you exited claude in
- * kept `kind: "engine"`, so the sidebar row kept its agent state dot and
- * every keystroke marked an optimistic turn — while the row's own label had
+ * The bug this pins: a tab you exited claude in
+ * keeps `kind: "engine"`, so the sidebar row keeps its agent state dot and
+ * every keystroke marks an optimistic turn — while the row's own label has
  * already fallen back to `shell N`. Resetting the state at the exit is what
  * makes label, glyph and activity agree without a per-consumer guard.
  */

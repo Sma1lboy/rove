@@ -83,7 +83,7 @@ export function NotesPanel({
     // Repoint the ref BEFORE flushing so the outgoing task's queued save can't
     // reflect a stale "saved" onto the incoming task (the flush is target-
     // guarded on this ref). The flush persists an edit made in the last
-    // <debounce ms — the old clearTimeout here silently dropped it.
+    // <debounce ms, which a bare clearTimeout here would silently drop.
     loadedTaskRef.current = taskId
     flushPendingSave()
     setSaveState("idle")

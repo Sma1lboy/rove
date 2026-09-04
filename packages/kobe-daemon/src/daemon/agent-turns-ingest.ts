@@ -1,5 +1,5 @@
 /**
- * Turn-telemetry ingest (issue #32): the bridge from an engine hook report to
+ * Turn-telemetry ingest: the bridge from an engine hook report to
  * the durable {@link AgentTurnsStore}.
  *
  * Fired on `turn-complete`, the one event that means "a turn just finished and

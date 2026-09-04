@@ -9,9 +9,9 @@ import {
 } from "../../src/engine/foreground.ts"
 
 /**
- * Verbatim `ps -A -o pid=,ppid=,args=` lines captured while the owner's
- * `claudecpa` zsh function ran in a real PTY (2026-07-27): the shell
- * spawns cc-switch's `/bin/sh -c` wrapper, which spawns the actual
+ * Verbatim `ps -A -o pid=,ppid=,args=` lines captured while a `claudecpa`
+ * zsh function ran in a real PTY: the shell spawns cc-switch's
+ * `/bin/sh -c` wrapper, which spawns the actual
  * claude binary two levels down.
  */
 const REAL_TREE = `
@@ -42,7 +42,7 @@ describe("vendorFromArgv", () => {
   })
 
   it("identifies kimi by its rewritten process title (registry processNames)", () => {
-    // Verbatim `ps -o args=` lines from two live kimi sessions (2026-08-15):
+    // Verbatim `ps -o args=` lines from two live kimi sessions:
     // the Mach-O launcher rewrites argv[0] to `kimi-co`, and what follows is
     // environ memory, not arguments.
     expect(vendorFromArgv("kimi-co NVM_RC_VERSION=")).toBe("kimi")
@@ -116,7 +116,23 @@ describe("engineProcessIn (delivery foreground gate)", () => {
 11 10 /usr/local/bin/aider --model gpt
 `)
     expect(engineProcessIn(rows, 10)).toBe(false)
-    expect(engineProcessIn(rows, 10, "aider")).toBe(true)
+    expect(engineProcessIn(rows, 10, ["aider"])).toBe(true)
+  })
+
+  it("matches custom launch argv through absolute paths and env wrappers", () => {
+    const absolute = parsePsSnapshot(`
+10 1 -zsh
+11 10 /usr/local/bin/aider --model gpt
+`)
+    expect(engineProcessIn(absolute, 10, ["/usr/local/bin/aider", "--model", "gpt"])).toBe(true)
+
+    const wrapped = parsePsSnapshot(`
+10 1 -zsh
+11 10 /usr/bin/env OPENAI_API_KEY=redacted /opt/tools/aider --model sonnet
+`)
+    expect(
+      engineProcessIn(wrapped, 10, ["env", "OPENAI_API_KEY=redacted", "/opt/tools/aider", "--model", "sonnet"]),
+    ).toBe(true)
   })
 })
 
@@ -134,7 +150,7 @@ describe("foregroundEngine", () => {
   })
 })
 
-describe("hasAncestor (issue #24: env inherits, a pid chain doesn't)", () => {
+describe("hasAncestor (env inherits, a pid chain doesn't)", () => {
   // A tab shell (10) → engine (11) → its tool shell (12) → this CLI (13),
   // plus a sibling (20) that detached out of the same shell days ago and
   // reparented to init — it still carries the tab's exported env.

@@ -6,9 +6,10 @@
  * the table of specs.
  */
 
+import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { expandTilde } from "../../lib/path-home.ts"
-import { getCustomEngineIds } from "../../state/repos.ts"
+import { getCustomEngineIds, isRemoteRepoKey } from "../../state/repos.ts"
 import { ALL_VENDORS, type VendorId } from "../../types/vendor.ts"
 import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, helpStep } from "./types.ts"
 
@@ -30,6 +31,26 @@ export function parsePositiveInt(raw: string): number | undefined {
   if (!/^\d+$/.test(raw.trim())) return undefined
   const n = Number.parseInt(raw, 10)
   return Number.isSafeInteger(n) && n > 0 ? n : undefined
+}
+
+/** Same shape as {@link parsePositiveInt}, admitting zero. The regex already
+ *  excludes a leading `-`, so this rejects negatives the same way. */
+function parseNonNegativeInt(raw: string): number | undefined {
+  if (!/^\d+$/.test(raw.trim())) return undefined
+  const n = Number.parseInt(raw, 10)
+  return Number.isSafeInteger(n) && n >= 0 ? n : undefined
+}
+
+/**
+ * A boolean flag's value, or `undefined` when the string isn't one. Shared by
+ * the parser (deciding whether `--pinned false` is a value or a presence flag)
+ * and {@link VerbArgs.bool} (coercing it), so the two can never disagree about
+ * what counts as a boolean.
+ */
+function parseBoolLiteral(raw: string): boolean | undefined {
+  if (["true", "1", "yes"].includes(raw)) return true
+  if (["false", "0", "no"].includes(raw)) return false
+  return undefined
 }
 
 /** Both parallel-plan parsers are only reachable from `add`, so their errors point at its help. */
@@ -79,7 +100,20 @@ export const F = {
     type: "string",
     required,
     placeholder: "TEXT",
-    description: desc,
+    description: required ? `${desc} Required unless --prompt-file is given.` : desc,
+  }),
+  /**
+   * The escape hatch for a prompt the shell would mangle: backticks inside
+   * double quotes are command substitution, so a `--prompt "reply via
+   * `rove api send …`"` RUNS that command and ships its output instead.
+   * Read the text from a file (or stdin as `-`) and no quoting rule applies.
+   */
+  promptFile: (): FlagSpec => ({
+    name: "prompt-file",
+    type: "string",
+    placeholder: "PATH",
+    description:
+      "Read the prompt from this file instead of --prompt (`-` = stdin). Use it whenever the text has backticks, $vars, or quotes you don't want the shell to touch. Exactly one of --prompt / --prompt-file.",
   }),
 }
 
@@ -120,9 +154,20 @@ export function parseFlags(argv: readonly string[], booleanFlags: ReadonlySet<st
       help = true
       continue
     }
-    // A boolean verb flag with no value is a presence flag (`--force`).
+    // A boolean verb flag takes the space form (`--pinned false`) only when the
+    // next argv element IS a boolean literal. Anything else — another flag, a
+    // string flag's value, end of argv — leaves it a presence flag (`--force`),
+    // so both halves of the contract work: `bool()` has always accepted
+    // `false`/`0`/`no`, and before this the parser made that value unreachable
+    // except through `--pinned=false`.
     if (booleanFlags.has(key)) {
-      flags.set(key, "true")
+      const next = argv[i + 1]
+      if (next !== undefined && parseBoolLiteral(next) !== undefined) {
+        flags.set(key, next)
+        i += 1
+      } else {
+        flags.set(key, "true")
+      }
       continue
     }
     const next = argv[i + 1]
@@ -144,7 +189,9 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
     }
   }
   for (const f of verb.flags) {
-    if (f.required && !flags.get(f.name))
+    // --prompt-file stands in for a required --prompt; `promptText` rejects both at once.
+    const satisfied = flags.get(f.name) || (f.name === "prompt" && flags.get("prompt-file"))
+    if (f.required && !satisfied)
       throw new ApiError(`--${f.name} is required for "${verb.name}"`, "MISSING_FLAG", helpStep(verb.name))
     if (f.type === "enum" && f.values) {
       const raw = flags.get(f.name)
@@ -162,6 +209,11 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
       const raw = flags.get(f.name)
       if (raw !== undefined && parsePositiveInt(raw) === undefined)
         throw new ApiError(`--${f.name} must be a positive integer`, "BAD_FLAG")
+    }
+    if (f.type === "uint") {
+      const raw = flags.get(f.name)
+      if (raw !== undefined && parseNonNegativeInt(raw) === undefined)
+        throw new ApiError(`--${f.name} must be a non-negative integer`, "BAD_FLAG")
     }
   }
 }
@@ -202,6 +254,38 @@ export class VerbArgs {
   present(name: string): boolean {
     this.spec(name)
     return this.flags.get(name) !== undefined
+  }
+
+  /**
+   * The prompt text from `--prompt` or `--prompt-file` (`-` = stdin), never
+   * both. `undefined` when neither was given — callers that need one wrap
+   * this in their own MISSING_FLAG.
+   *
+   * Memoized, because it is the one accessor with a SIDE EFFECT: `-` drains
+   * stdin. Every sibling here is pure, so callers naturally write
+   * `promptText() !== undefined ? { prompt: promptText() } : {}` — which used
+   * to consume stdin on the guard and then read EOF on the branch, failing
+   * "--prompt-file - is empty" for a pipe that was never empty.
+   */
+  promptText(): string | undefined {
+    if (this.promptMemo !== undefined) return this.promptMemo.value
+    const value = this.readPromptText()
+    this.promptMemo = { value }
+    return value
+  }
+
+  private promptMemo: { value: string | undefined } | undefined
+
+  private readPromptText(): string | undefined {
+    const inline = this.str("prompt")
+    const file = this.str("prompt-file")
+    if (inline !== undefined && file !== undefined) {
+      throw new ApiError("pass --prompt or --prompt-file, not both", "BAD_FLAG", helpStep(this.verb.name))
+    }
+    if (file === undefined) return inline
+    const text = readFileSync(file === "-" ? 0 : resolve(process.cwd(), expandTilde(file)), "utf8")
+    if (text.trim().length === 0) throw new ApiError(`--prompt-file ${file} is empty`, "BAD_FLAG")
+    return text
   }
 
   /** Required string value (MISSING_FLAG when absent). */
@@ -258,9 +342,9 @@ export class VerbArgs {
     this.spec(name)
     const raw = this.str(name)
     if (raw === undefined) return undefined
-    if (["true", "1", "yes"].includes(raw)) return true
-    if (["false", "0", "no"].includes(raw)) return false
-    throw new ApiError(`--${name} must be a boolean (true/false)`, "BAD_FLAG")
+    const value = parseBoolLiteral(raw)
+    if (value === undefined) throw new ApiError(`--${name} must be a boolean (true/false)`, "BAD_FLAG")
+    return value
   }
 
   /** Positive-integer flag; undefined when absent. */
@@ -273,6 +357,20 @@ export class VerbArgs {
     return n
   }
 
+  /** A `uint` flag: like {@link int}, but zero is a legal value rather than a
+   *  floor error. For a flag whose zero MEANS something — `--grace 0` is "no
+   *  slack beyond the tick that discovers the occurrence", not "unset".
+   *  Rejecting it would leave a setting the daemon honours but the CLI cannot
+   *  express. */
+  nonNegativeInt(name: string): number | undefined {
+    this.spec(name)
+    const raw = this.str(name)
+    if (raw === undefined) return undefined
+    const n = parseNonNegativeInt(raw)
+    if (n === undefined) throw new ApiError(`--${name} must be a non-negative integer`, "BAD_FLAG")
+    return n
+  }
+
   /** Optional PATH flag resolved against $PWD (with a leading `~` expanded first). */
   path(name: string): string | undefined {
     const v = this.str(name)
@@ -282,6 +380,21 @@ export class VerbArgs {
   /** Required PATH flag resolved against $PWD (with a leading `~` expanded first). */
   requirePath(name: string): string {
     return resolve(process.cwd(), expandTilde(this.require(name)))
+  }
+
+  /**
+   * Required REPO flag: a local path, or a remote project's `ssh://…` key
+   * verbatim.
+   *
+   * Separate from {@link requirePath} because `resolve()` treats the key as a
+   * relative path and collapses it to `$PWD/ssh:/me@host` — a directory that
+   * does not exist, so `--repo ssh://…` failed with a path nobody typed.
+   * `savedRepos` stores that key as-is and `resolveRepoRoot` already passes it
+   * through, so the mangling was the only thing in the way.
+   */
+  requireRepo(name: string): string {
+    const raw = this.require(name)
+    return isRemoteRepoKey(raw) ? raw : resolve(process.cwd(), expandTilde(raw))
   }
 }
 

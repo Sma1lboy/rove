@@ -27,21 +27,21 @@
  * ten braille frames), so that rule costs nothing now and is what keeps a
  * future engine borrowing a glyph from silently stealing its identity.
  *
- * The consumer (issue #31) is {@link protocolUpgradeFromLiveSession}: the
+ * The consumer is {@link protocolUpgradeFromLiveSession}: the
  * daemon's activity observer relays each walked live session's evidence
  * (foreground-walk vendor + OSC title) and, when a task that recorded the
  * generic protocol is identified, upgrades the record's `vendor` via
  * `setCommand` — metadata only, so the history reader / trust store /
  * delivery mode start applying while WHAT LAUNCHES never changes. The
  * session-store read stays unconsumed there on purpose: a transcript can
- * outlive the engine that wrote it (a worktree previously run with claude,
- * later re-pinned to a genuinely different CLI, would mis-identify), so the
+ * outlive the engine that wrote it (a worktree whose transcripts came from
+ * claude and was later re-pinned to a different CLI would mis-identify), so the
  * record upgrade only trusts evidence that describes the session running
  * right now. Both sniff reads stay pure.
  */
 
 import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
-import { GENERIC_PROTOCOL, resolveCommandProtocol } from "./engine-presets.ts"
+import { GENERIC_PROTOCOL, getEngineProtocol, resolveCommandProtocol } from "./engine-presets.ts"
 import { engineEntry } from "./registry.ts"
 
 /**
@@ -91,18 +91,6 @@ export async function sniffProtocolFromSessions(worktree: string | undefined): P
   return found.length === 1 ? found[0] : null
 }
 
-/**
- * Combined sniff: the title first (it answers instantly and describes the
- * process that is running RIGHT NOW), then the session store (slower, and a
- * file can outlive the engine that wrote it). Null = stay generic.
- */
-export async function sniffProtocol(input: {
-  readonly title?: string | null
-  readonly worktree?: string
-}): Promise<VendorId | null> {
-  return sniffProtocolFromTitle(input.title) ?? (await sniffProtocolFromSessions(input.worktree))
-}
-
 /** What the observer knows about one LIVE, walked engine-tab session. */
 export interface LiveSessionEvidence {
   /** Foreground-walk verdict for the session's pid: a built-in vendor whose
@@ -144,4 +132,51 @@ export function protocolUpgradeFromLiveSession(
   const walk = evidence.walkVendor
   const vendor = walk !== null && isBuiltinVendor(walk) ? walk : sniffProtocolFromTitle(evidence.title)
   return vendor ? { command, vendor } : null
+}
+
+/**
+ * Tier (b)'s SECOND product: the protocol to persist for the custom PRESET
+ * the session was launched under, or null.
+ *
+ * The record upgrade above names ONE task. A wrapper preset (`claudecpa`, a
+ * zsh function that passes `"$@"` to claude) is launched by every future task
+ * that picks it, and each one re-learns nothing: the preset itself has no
+ * `engineProtocol.<id>`, so the history reader, the trust store and the fork
+ * verb all keep answering "no transcript" until someone opens Settings and
+ * declares it. Writing the key once, from the process the walk actually
+ * found, is what makes the next task start named.
+ *
+ * The refusals differ from the record upgrade's on purpose:
+ *
+ *   - a declared protocol wins, always. `getEngineProtocol` already answers
+ *     the id itself for a built-in or contrib engine, so those are covered by
+ *     the same check.
+ *   - the id must be a REGISTERED custom engine. That is the durability bar:
+ *     a raw `--command` string is a one-off, and minting a persistent
+ *     `engineProtocol.<one-off>` key from one would leave state.json growing
+ *     a row per ad-hoc command line.
+ *   - only the WALK names it. A title glyph is what the engine last wrote and
+ *     is good enough for a record that a later `setCommand` can correct; this
+ *     key outlives every session on the preset, so it takes the running
+ *     process as its only evidence.
+ *
+ * Deliberately NOT gated on a pinned `command`: a preset id IS the launch
+ * instruction (`engineCommand.<id>` holds the command line), so the reason
+ * the record upgrade refuses a command-less task — that writing there would
+ * change what spawns — does not apply to a key that only says how to TALK.
+ *
+ * Idempotent: the write makes `getEngineProtocol(id)` answer, so the next
+ * tick resolves null.
+ */
+export function protocolWriteBackFromLiveSession(
+  task: { readonly vendor?: string },
+  evidence: LiveSessionEvidence,
+  customEngineIds: readonly string[],
+): { id: string; protocol: VendorId } | null {
+  const id = task.vendor?.trim()
+  if (!id) return null
+  if (getEngineProtocol(id) !== undefined) return null
+  if (!customEngineIds.includes(id)) return null
+  const walk = evidence.walkVendor
+  return walk !== null && isBuiltinVendor(walk) ? { id, protocol: walk } : null
 }

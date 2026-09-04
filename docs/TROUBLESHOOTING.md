@@ -26,6 +26,28 @@ see it too. The bare `env: bun: No such file or directory` message comes from an
 made before the launcher shipped, whose bin needed Bun on `PATH`. `rove update`
 replaces it.
 
+## `rove` exits with "this machine's Bun is too old"
+
+Rove's terminals are built on Bun's PTY API, which arrived in Bun 1.3.11
+(`engines.bun` in the published package). An older Bun ignores the option
+silently, so Rove would start, look healthy, and open every terminal and engine
+tab empty — Rove refuses to start instead.
+
+Nothing else catches this for you: `bun install` ignores `engines` outright and
+npm only honours it under `engine-strict`, so the install itself always
+succeeds. Upgrade Bun with whichever manager owns it:
+
+```bash
+bun upgrade                 # Bun installed itself (~/.bun)
+brew upgrade bun            # Homebrew
+npm install -g bun@latest   # npm-managed Bun
+```
+
+A newer Bun elsewhere on the machine is enough — Rove skips a too-old candidate
+and uses the next one it finds, or you can name it with `ROVE_BUN=/path/to/bun`.
+`ROVE_SKIP_BUN_CHECK=1` runs on the old Bun anyway; it is unsupported and the
+terminals stay blank, so use it only to reach `rove doctor` or `rove update`.
+
 ## Windows opens Rove, but engine and terminal tabs never start
 
 Windows needs three separate runtimes:
@@ -126,7 +148,7 @@ torn down and the Inbox/activity state cleared, but the worktree directory and
 the task entry remain, and the task is left in `deletion.phase === "error"`
 (the sidebar row shows it). Delete it again once you have fixed whatever the
 reason names — a common one is a worktree directory that is no longer a git
-worktree, which `rove doctor` also reports.
+worktree, which `git -C <path> rev-parse --is-inside-work-tree` confirms.
 
 (Installs upgraded from pre-0.8.189 builds may still have a `~/.kobe/`
 directory; runtime files now live under `~/.rove`, with legacy paths honoured
@@ -285,8 +307,14 @@ silently spawns an engine on a guess.
 
 A `deferred` result is a success, not an error: the delivery gate found the
 target busy, so the daemon took ownership of the text and queued a
-`prompt_deferred` episode for you to release from the Inbox. Retrying stacks a
-duplicate — the daemon already has the message.
+`prompt_deferred` episode for you to release from the Inbox. Do not retry. The
+daemon keeps the first deferred prompt for each tab. A later send fails with
+`DEFERRED_PROMPT_PENDING` until you release or dismiss the existing Inbox item,
+or until it expires, so no accepted prompt is silently replaced.
+
+If the send instead fails with an unknown `deferredPrompt.fileIfVacant`
+request, the client found an older running daemon whose filing behavior is not
+safe for this retry. Restart Rove, then run the original send again.
 
 Two gates can defer, and the `layer` in the response says which:
 
@@ -299,9 +327,18 @@ The second one reads the engine's CURRENT on-screen layout, so a vendor
 redesign can make it wrong: it holds every message while reporting a composer
 you can see is empty. If that happens, turn the check off in **Settings → Dev
 → Check the composer before delivering**. Delivery then skips the screen read
-and relies on the keystroke-recency guard alone, which measures time instead
-of parsing a layout and so cannot go stale — a composer you are typing into
-right now stays protected either way.
+and immediately retries every queued prompt in its original order. A prompt
+that still cannot reach its exact live engine tab stays in the Inbox; an alive
+PTY whose engine exited into its fallback shell is never used. Later tabs are
+still attempted, so one dead or recently typed-in tab cannot strand the rest. The
+keystroke-recency guard remains active and can keep a prompt queued until the
+10-second quiet period passes. Explicitly closing that tab discards its queued
+prompt, clears the stale Inbox entry, and records the discard in the daemon log.
+
+Turning the check back on cancels the remaining flush after its current item;
+both setting transitions are persisted synchronously. If the attached daemon
+is too old to support queue flushing, Settings shows an error dialog. Restart
+Rove to load the matching daemon, then toggle the setting again.
 
 Leave it on otherwise. It is what stops an agent's message landing in the
 middle of a half-typed sentence.
@@ -350,7 +387,7 @@ an old Homebrew bin) is still being launched somewhere.
 
 ```bash
 rove --version        # every entry point should report the same version
-rove doctor           # reports version mismatches and duplicate runtimes
+rove doctor           # reports version mismatches between the CLI and the daemon
 rove daemon restart   # rebinds on the canonical ~/.rove paths
 ```
 
@@ -459,6 +496,18 @@ fallback below.
 chord on the row itself (`r` rename, `d` delete, and so on); see
 [KEYBINDINGS.md](./KEYBINDINGS.md). The one right-click-only surface today
 is the project header's menu.
+
+## Holding ctrl does not open the direct-shortcut guide
+
+The guide needs kitty keyboard protocol modifier press and release events. It
+works in iTerm2 3.5+, kitty, Ghostty, and WezTerm. Terminal.app and xterm.js do
+not provide these events. The guide also does not work when Rove runs inside
+tmux, because tmux does not pass the required modifier events through.
+
+Run `rove doctor` to check whether the current terminal answers the kitty
+keyboard protocol probe. Unsupported terminals silently keep the legacy input
+path. Typing and existing shortcuts continue to work. Only the hold-to-reveal
+guide is unavailable.
 
 ## Mouse wheel in the embedded terminal
 

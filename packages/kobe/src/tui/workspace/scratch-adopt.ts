@@ -1,13 +1,13 @@
 /**
- * Scratch-task adoption decision (issues #33/#40) — pure. A scratch shell
+ * Scratch-task adoption decision — pure. A scratch shell
  * earns a project home when TWO facts line up: its live cwd resolved to a
  * git repo, and a coding harness is confirmed running in it (the foreground
  * walk's verdict — the same confidence bar the tab identity uses; a mere
  * `cd` into a repo is browsing, not working).
  *
  * Once that bar is met, the decision de-dupes against tasks that already
- * exist (issue #40 — migrating a shell parked in the kobe main checkout
- * used to mint a second sidebar row for the same directory):
+ * exist, so migrating a shell parked in the kobe main checkout does not
+ * mint a second sidebar row for the same directory:
  *
  *   1. cwd equal to or inside a MANAGED task's worktree → FOLD the shell
  *      into that task as a new terminal tab. Checked first because
@@ -44,7 +44,7 @@ export interface ScratchAdoptInput {
   readonly harnessLive: boolean
   /** Known project roots: savedRepos + every existing task's repo. */
   readonly knownRepos: ReadonlySet<string>
-  /** Candidate owners for the fold check (issue #40). */
+  /** Candidate owners for the fold check. */
   readonly ownerTasks: readonly ScratchOwnerTask[]
 }
 

@@ -141,7 +141,7 @@ describe("runApiSubcommand", () => {
     expect(JSON.parse(stdoutText())).toHaveProperty("tasks")
   })
 
-  test("an unverified session identity rides the verb's own JSON result (issue #24)", async () => {
+  test("an unverified session identity rides the verb's own JSON result", async () => {
     // The degrade must be VISIBLE: stderr carries one JSON error envelope by
     // contract, so a plain-text warning there would corrupt it — the notice
     // goes on stdout, attached to the successful result.

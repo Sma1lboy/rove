@@ -146,7 +146,7 @@ describe("runOpenDirectory", () => {
     expect(mocks.startTui).toHaveBeenCalled()
   })
 
-  describe("a git repo ROOT opens as the project (owner call 2026-08-31)", () => {
+  describe("a git repo ROOT opens as the project", () => {
     /** The opened dir is its own git toplevel = a repo root. */
     function asRepoRoot(): void {
       mocks.statSync.mockReturnValue({ isDirectory: () => true })

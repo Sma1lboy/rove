@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import {
   inspectLegacyTmux,
+  isMissingServer,
   legacyPaneProcesses,
   legacyTmuxDoctorLines,
   parseLegacyPsRows,
@@ -18,6 +19,36 @@ function result(stdout = "", code = 0, stderr = "") {
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+})
+
+/**
+ * The classifier `rove doctor`'s legacy-tmux row hangs on. tmux exits 1 both
+ * when there is no server and when the inspection genuinely broke, so getting
+ * this wrong shows a red ✗ to a machine with nothing wrong with it.
+ */
+describe("isMissingServer", () => {
+  const failure = (stderr: string) => ({ code: 1, stdout: "", stderr, missing: false })
+
+  it.each([
+    // tmux 3.5a (Apple Git build and Homebrew) when the socket file is absent
+    // — every machine that never ran pre-v0.8 Rove. This is the one that was
+    // missing, and it turned a healthy install into `✗ inspection failed`.
+    "error connecting to /private/tmp/tmux-501/kobe (No such file or directory)",
+    // Same wording when the socket is there but its server died.
+    "error connecting to /private/tmp/tmux-501/kobe (Connection refused)",
+    "no server running on /tmp/tmux-501/kobe",
+    "failed to connect to server",
+    "no sessions",
+  ])("reads %j as an absent server", (stderr) => {
+    expect(isMissingServer(failure(stderr))).toBe(true)
+  })
+
+  it.each(["permission denied", "lost server", "can't create socket: Operation not permitted"])(
+    "reads %j as a real inspection failure",
+    (stderr) => {
+      expect(isMissingServer(failure(stderr))).toBe(false)
+    },
+  )
 })
 
 describe("legacy tmux process inspection", () => {
@@ -49,6 +80,23 @@ describe("legacy tmux process inspection", () => {
       processes: [],
       error: null,
     })
+  })
+
+  it("reports the healthy no-sessions line when the socket file does not exist", async () => {
+    // End to end from the tmux message to the doctor line: this exact stderr
+    // is what a machine that never ran pre-v0.8 Rove produces.
+    vi.stubGlobal("Bun", {
+      spawn: vi.fn((argv: readonly string[]) =>
+        argv.join(" ") === "tmux -V"
+          ? result("tmux 3.5a\n")
+          : result("", 1, "error connecting to /private/tmp/tmux-501/kobe (No such file or directory)\n"),
+      ),
+    })
+
+    const report = await inspectLegacyTmux()
+    expect(report.error).toBeNull()
+    expect(report.sessions).toEqual([])
+    expect(legacyTmuxDoctorLines(report)).toEqual(["legacy tmux: tmux 3.5a — no sessions on `kobe`"])
   })
 
   it("keeps the installed version when no legacy server is running", async () => {

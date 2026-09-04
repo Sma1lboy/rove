@@ -1,5 +1,5 @@
 /**
- * Zen mode state for the PureTUI workspace (issue #18): the layout collapses
+ * Zen mode state for the PureTUI workspace: the layout collapses
  * to the engine pane, hiding files and terminal (and the Tasks rail too, when
  * `zen.keepTasks` is off).
  *

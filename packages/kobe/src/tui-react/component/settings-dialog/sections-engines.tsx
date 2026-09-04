@@ -4,9 +4,9 @@
  * inspected. Each engine is a two-line card — the navigable line carries its
  * on/off switch, the ● default marker, its display name and launch command;
  * the muted line under it carries what detection found (the binary, and for
- * the built-ins whether an account is logged in). Accounts used to be its own
- * read-only section; splitting "which engines exist" from "do they work" only
- * made you hop between two lists of the same names.
+ * the built-ins whether an account is logged in). Accounts are NOT a section
+ * of their own: splitting "which engines exist" from "do they work" only makes
+ * you hop between two lists of the same names.
  */
 
 import { TextAttributes } from "@opentui/core"

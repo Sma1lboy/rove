@@ -1,7 +1,6 @@
 /**
- * Invariants for the shared help-dialog grouping (issue #15, G3) — consumed
- * by BOTH the Solid and React HelpDialogs. Declaration order is the visible
- * contract: the F1 help lists categories in the order the keymap declares
+ * Invariants for the shared help-dialog grouping. Declaration order is the
+ * visible contract: the F1 help lists categories in the order the keymap declares
  * them, and every binding must land in exactly one group (a dropped row is
  * an invisible keybinding).
  */

@@ -1,4 +1,4 @@
-/** CLI entry routing: public commands, sole TUI launch, and retired surfaces. */
+/** CLI entry routing: public commands, sole TUI launch, and removed surfaces. */
 
 import { type MockInstance, afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 

@@ -282,12 +282,12 @@ describe("TranscriptActivityCollector", () => {
 })
 
 /**
- * The perf fix this suite guards: `runTranscriptActivity` used to make TWO
- * independent walks of the same codex `sessions` date-tree per probe —
+ * The perf property this suite guards: `runTranscriptActivity` must not make
+ * TWO independent walks of the same codex `sessions` date-tree per probe —
  * `latestTranscriptMtime` (a full tree readdir) then `detector.latestCompletion`
  * (another full tree readdir + a stat). The detector already computes the
  * newest mtime while finding the completion, so one `detector.latestActivity`
- * call now yields both — ONE tree walk, HALF the stats. This is a deterministic
+ * call yields both — ONE tree walk, HALF the stats. This is a deterministic
  * call-count assertion (readdir/stat spies), not a wall-clock benchmark; a
  * regression that re-introduces the second walk fails the readdir count.
  */
@@ -335,7 +335,7 @@ describe("runTranscriptActivity — single codex tree walk", () => {
   }
 
   test("probes the date-tree once and returns byte-identical facts to the old two-walk path", async () => {
-    // Correctness pin: recompute the OLD path's result (mtime from the
+    // Correctness pin: recompute the two-walk result (mtime from the
     // standalone reader + marker from the detector) over an INDEPENDENT deps
     // instance, then assert the fused single-walk probe matches it exactly.
     const oldSide = countingDeps()
@@ -346,14 +346,14 @@ describe("runTranscriptActivity — single codex tree walk", () => {
       completionId: oldMarker?.id ?? null,
       completionAt: oldMarker?.timestampMs ?? 0,
     }
-    // The old path walked the day dir TWICE (once per reader).
+    // The two-walk path reads the day dir TWICE (once per reader).
     expect(oldSide.counts.treeReaddir).toBe(2)
 
     const newSide = countingDeps()
     const got = await runTranscriptActivity(WT, "codex", newSide.detector, new AbortController().signal)
 
     expect(got).toEqual(expected)
-    // AFTER the fix: exactly ONE day-dir readdir, and half the stats.
+    // The fused probe: exactly ONE day-dir readdir, and half the stats.
     expect(newSide.counts.treeReaddir).toBe(1)
     expect(newSide.counts.stat).toBe(oldSide.counts.stat / 2)
   })

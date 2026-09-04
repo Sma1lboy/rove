@@ -37,10 +37,10 @@ describe("resolveKobeSpawn", () => {
     ])
   })
 
-  // Issue #96. `bun`/`node` hold an entry open by inode, so uninstalling
-  // Rove out from under a running process leaves it alive on a path that no
-  // longer exists — `/opt/homebrew/lib/node_modules/@sma1lboy/` was gone
-  // while a GUI kept running from it (owner's machine, 2026-09-01). The
+  // `bun`/`node` hold an entry open by inode, so uninstalling Rove out from
+  // under a running process leaves it alive on a path that is gone — a GUI
+  // keeps running from a deleted
+  // `/opt/homebrew/lib/node_modules/@sma1lboy/`. The
   // failure has to be DISTINGUISHABLE from an ordinary spawn failure,
   // because the two want opposite handling: retry a transient one, stop on
   // this one.
@@ -118,19 +118,14 @@ describe("testDaemonResponds", () => {
     expect(await testDaemonResponds(path, 300)).toBe(false)
   })
 
-  // CONTRACT CHANGE, 2026-08-30 (issue #83). This was a characterization
-  // test asserting "alive" — pinned as the behavior that shipped, with a
-  // note saying it was not the DESIRED behavior. It is now the assertion it
-  // always wanted to be.
-  //
-  // Before: the hello was `.catch(() => true)`, so a peer that dropped the
-  // connection counted as having ANSWERED. A daemon in its shutdown path
+  // A hello of the form `.catch(() => true)` counts a peer that dropped the
+  // connection as having ANSWERED. A daemon in its shutdown path
   // does exactly that (`server.ts` close() destroys every client socket
-  // after broadcasting `daemon.stopping`), so a probe landing in that
-  // window reported a healthy daemon and handed its caller a socket that
-  // disappeared milliseconds later.
+  // after broadcasting `daemon.stopping`), so a probe landing in that window
+  // would report a healthy daemon and hand its caller a socket that
+  // disappears milliseconds later.
   //
-  // After: a connection the peer drops before answering is `absent`. Not
+  // So a connection the peer drops before answering is `absent`. Not
   // `wedged` — a closing daemon is LEAVING, so the caller should stop+spawn
   // (what absent means), whereas wedged makes `ensureDaemonReachable` throw
   // instead of recover when called from inside an engine session.
@@ -259,8 +254,8 @@ function overrideRoveEnv(vars: Record<string, string | undefined>): () => void {
 
 describe("ensureDaemonReachable under a held spawn lock", () => {
   it("waits for the winner's daemon instead of stacking a second stop+spawn", async () => {
-    // Two clients race after the same daemon drop (the 2026-08-11 twin
-    // autospawn). The loser must NOT kill/spawn — it polls until the
+    // Two clients race after the same daemon drop (twin autospawn). The
+    // loser must NOT kill/spawn — it polls until the
     // winner's daemon answers, and never releases the winner's lock.
     const dir = mkdtempSync(join(tmpdir(), "kobe-spawn-wait-"))
     const socketPath = join(SOCK_DIR, `kobe-dpr-wait-${process.pid}.sock`)
@@ -320,11 +315,10 @@ function busyThenHealthy(silentConnections: number, seen: string[]) {
 
 describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
   it("waits out a live-but-slow daemon instead of stopping it", async () => {
-    // The 2026-08-29 succession storm: a busy daemon misses the hello
-    // deadline, the client concludes it is dead and kills it, the
-    // replacement's arrival makes the old one self-stop, every client
-    // reconnects at once onto a cold-starting daemon, repeat — eleven
-    // successions in fifty minutes.
+    // The succession storm: a busy daemon misses the hello deadline, the
+    // client concludes it is dead and kills it, the replacement's arrival
+    // makes the predecessor self-stop, every client reconnects at once onto a
+    // cold-starting daemon, repeat — eleven successions in fifty minutes.
     //
     // What must hold is an ACTION, not a duration: a daemon whose PROCESS is
     // alive must not be stopped merely for being slow. So the stand-in is a
@@ -332,8 +326,8 @@ describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
     // both halves of "we did not kill it" are asserted directly —
     // `daemon.stop` was never sent, and the process is still running after.
     //
-    // Two earlier versions asserted proxies and stayed green with the fix
-    // deleted, so both traps are pinned here: a pidfile naming THIS process
+    // Two tempting proxies stay green with the guard deleted, so both traps
+    // are pinned here: a pidfile naming THIS process
     // is skipped by the guard (`livePid !== process.pid`) AND by
     // `stopDaemonProcess`, leaving nothing at risk; and destroying the
     // probe's own connection makes `probeDaemonSocket` read the close as a
@@ -401,16 +395,15 @@ describe("ensureDaemonReachable when the daemon is busy, not dead", () => {
 })
 
 /**
- * Issue #96, the destructive half — and the one nobody reported, because its
- * symptom is indistinguishable from the reported one.
+ * The destructive half of a stale install — and the one nobody reports,
+ * because its symptom is indistinguishable from the reported one.
  *
- * `ensureDaemonReachable` used to call `stopDaemonProcess` FIRST and
- * `resolveKobeSpawn` second. On a stale install that ordering does damage:
- * the client kills the daemon and unlinks its socket + pidfile, and only
- * then discovers it has no entry point to re-exec — so it has removed a
- * daemon it cannot replace. PR #733 established that a client which cannot
- * spawn must not be a reason to take down a daemon; this is that rule
- * applied to the one client that can NEVER spawn.
+ * Calling `stopDaemonProcess` FIRST and `resolveKobeSpawn` second does damage
+ * on a stale install: the client kills the daemon and unlinks its socket +
+ * pidfile, and only then discovers it has no entry point to re-exec — so it
+ * has removed a daemon it cannot replace. A client which cannot spawn must
+ * not be a reason to take down a daemon, and this is that rule applied to the
+ * one client that can NEVER spawn.
  *
  * The assertion is about EFFECTS, not the message: a stale install must
  * leave the pidfile and the daemon process exactly as it found them.

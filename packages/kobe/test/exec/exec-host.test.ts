@@ -279,8 +279,8 @@ describe("LocalExecHost.run (async, non-blocking)", () => {
   })
 
   it("does not block the event loop while the subprocess runs", async () => {
-    // The daemon-freeze regression pin: with the old spawnSync impl a timer
-    // could never fire while a command ran. Start a 300ms subprocess, then
+    // The daemon-freeze pin: under a spawnSync implementation no timer can
+    // fire while a command runs. Start a 300ms subprocess, then
     // prove a 50ms timer resolves FIRST — i.e. the event loop kept turning.
     const host = new LocalExecHost()
     const order: string[] = []

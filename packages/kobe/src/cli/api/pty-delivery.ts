@@ -14,7 +14,7 @@
 
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
-import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "../../engine/foreground.ts"
+import type { PsSnapshot } from "../../engine/foreground.ts"
 import {
   ComposerBusyError,
   type HostedSessionRpc,
@@ -33,39 +33,15 @@ import {
 } from "../../engine/hosted-session.ts"
 import { engineEntry } from "../../engine/registry.ts"
 import type { EngineScreenManifest } from "../../engine/screen-state.ts"
+import { sessionHasEngine } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
-/**
- * Foreground gate for delivery into an EXISTING session (herdr's
- * "agent is no longer the pane foreground process" check, ported to the
- * process tree): a session's spawn argv says what WAS launched, not what is
- * running now — kobe's keepAlive drops an exited engine into a fallback
- * SHELL, where a pasted prompt executes as shell commands. Walk the PTY
- * child's descendants: any registered engine counts (cross-vendor send is
- * legitimate), `extraBin` additionally matches a custom engine's binary
- * name. False on no pid / ps failure — unverifiable is "not an engine".
- *
- * Known ceiling: during an engine's first ~1-2s (login shell still sourcing
- * rc, engine child not yet spawned) the gate reads "shell only" and refuses;
- * the typed error's hint makes the retry trivial. Watching the spawn argv
- * would close it but can't distinguish boot from the post-exit exec'd shell.
- */
-async function sessionHasEngine(
-  pid: number | null | undefined,
-  extraBin?: string,
-  snapshot: PsSnapshot = psSnapshot,
-): Promise<boolean> {
-  if (!pid) return false
-  try {
-    return engineProcessIn(parsePsSnapshot(await snapshot()), pid, extraBin)
-  } catch {
-    return false
-  }
-}
-
+// `sessionHasEngine` is the foreground gate for delivery into an existing
+// hosted session: an alive PTY may now be a fallback shell after the engine
+// exits, and pasting there would execute the prompt as shell commands.
 /**
  * The narrow pty-host surface this module needs: request/response RPC plus
  * cleanup. `KobeDaemonClient` satisfies it; tests inject a fake that
@@ -359,10 +335,10 @@ function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | unde
 }
 
 /**
- * Gate blocked the paste. With a deferral sink (issue #78 B-layer) the prompt
- * is ACCEPTED into daemon ownership — store it and report the deferred success
- * outcome; the caller must not retry. Without a sink there is no queue to hand
- * it to, so surface the legacy typed error instead of dropping it silently.
+ * Gate blocked the paste. With a deferral sink (issue #78 B-layer), try to
+ * hand the prompt to daemon ownership. Report deferred success only when the
+ * daemon accepts it; an occupied slot or failed handoff is an error. Without
+ * a sink there is no queue, so surface the legacy typed error.
  */
 async function deferOrThrow(
   error: ComposerBusyError,
@@ -372,19 +348,30 @@ async function deferOrThrow(
   prompt: string,
 ): Promise<DeliveredPrompt> {
   if (sink) {
+    let deferred: Awaited<ReturnType<PromptDeferralSink["defer"]>>
     try {
-      const id = await sink.defer({ taskId, tabId, prompt, layer: error.layer })
-      return {
-        session: `${taskId}::${tabId}`,
-        pane: `${taskId}::${tabId}`,
-        started: false,
-        engineReady: false,
-        delivered: false,
-        deferred: { id, layer: error.layer },
-      }
+      deferred = await sink.defer({ taskId, tabId, prompt, layer: error.layer })
     } catch {
-      // Older daemon without the deferredPrompt verbs — degrade to the typed
-      // error rather than dropping the prompt silently.
+      // The handoff failed (including when an older daemon lacks this verb).
+      // Fail rather than claim ownership of unstored text.
+      throw composerBusyApiError(error, taskId, prompt)
+    }
+    if (deferred.kind === "occupied") {
+      throw new ApiError(`task ${taskId} tab ${tabId} already has a deferred prompt`, "DEFERRED_PROMPT_PENDING", {
+        taskId,
+        tabId,
+        existingId: deferred.id,
+        hint: "release or dismiss the existing Inbox prompt before retrying",
+        nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--prompt", prompt],
+      })
+    }
+    return {
+      session: `${taskId}::${tabId}`,
+      pane: `${taskId}::${tabId}`,
+      started: false,
+      engineReady: false,
+      delivered: false,
+      deferred: { id: deferred.id, layer: error.layer },
     }
   }
   throw composerBusyApiError(error, taskId, prompt)

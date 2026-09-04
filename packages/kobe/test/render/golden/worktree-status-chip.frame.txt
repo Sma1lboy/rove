@@ -1,0 +1,26 @@
+# sidebar frame: worktree-status-chip
+# the human-set board status joins the same right-edge cluster, LEFT of the machine PR chip; backlog/in_progress stay bare
+# 30x22
+# GENERATED — do not hand-edit. Regenerate: KOBE_UPDATE_GOLDEN=1 bun run test:render
+|                              |
+| ROVE                         |
+| New task                + n  |
+| Kanban                       |
+| Routines                     |
+| Issues                       |
+|                              |
+| rove ─────────────────────── |
+|▌ feat/review             ◇ ✓ |
+|  feat/shipped              ◆ |
+|  feat/dropped              † |
+|  feat/broke                × |
+|  feat/quiet                  |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |
+|                              |

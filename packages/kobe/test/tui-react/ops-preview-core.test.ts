@@ -1,10 +1,9 @@
 /**
- * Data half of the ops preview window (`tui/ops/preview-core.ts`), shared
- * by the Solid and React previews (issue #15, G3). Why these tests matter:
+ * Data half of the ops preview window (`tui/ops/preview-core.ts`).
  * `loadPreviewData` decides which renderable the preview mounts — a dirty
  * file MUST render as a `<diff>` vs HEAD and a clean/untracked one as its
- * `<code>` content — and `filetypeOf` picks the tree-sitter grammar; both
- * were previously locked inside the untestable host.tsx.
+ * `<code>` content — and `filetypeOf` picks the tree-sitter grammar. Both
+ * live here rather than inside the untestable host.tsx.
  */
 
 import { execFileSync } from "node:child_process"

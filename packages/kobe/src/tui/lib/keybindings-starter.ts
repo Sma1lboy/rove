@@ -2,9 +2,8 @@
  * The starter `keybindings.yaml` Rove writes on request from Settings →
  * Keybindings.
  *
- * The section used to PRINT this example and leave the user to create the file
- * themselves — twelve dead lines on screen, a path that wrapped across two of
- * them, and a retyping job. The same text is worth more inside the file, where
+ * Rove writes the file rather than printing the example for the user to
+ * retype: the same text is worth more inside the file, where
  * it sits next to what you are actually writing.
  *
  * Everything is commented out, so creating the file cannot change behavior: an
@@ -16,7 +15,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { DEFAULT_PREFIX_CONFIGURATION } from "./keymap-dispatch"
 
-export const KEYBINDINGS_STARTER = `# Rove keybindings — every line below is an example, commented out.
+const KEYBINDINGS_STARTER = `# Rove keybindings — every line below is an example, commented out.
 # Uncomment what you want; changes reload live, no restart.
 # Press F1 in Rove for the live keymap with every binding id.
 #

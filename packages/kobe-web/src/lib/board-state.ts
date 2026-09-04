@@ -1,11 +1,11 @@
 /**
  * Board view state that must survive route changes — a module store (the
  * tabs.ts pattern), NOT component useState, so navigating board → task →
- * board keeps the filter (the issue #7 lesson: route-local state resets on
- * the first navigation because the view unmounts).
+ * board keeps the filter — route-local state resets on the first navigation,
+ * because the view unmounts.
  *
  * The board is issues-only and non-optimistic (the daemon issue.snapshot is
- * truth), so there's no optimistic-override layer here any more — just the two
+ * truth), so there is no optimistic-override layer here — just the two
  * display filters. Deliberately not persisted to localStorage: a filter that
  * outlives the browser session is surprising on a fresh load.
  */

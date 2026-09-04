@@ -45,7 +45,7 @@ describe("parseCron", () => {
   it("treats weekday 7 and 0 as the same Sunday", () => {
     const zero = parseCron("0 0 * * 0")
     const seven = parseCron("0 0 * * 7")
-    // 2026-08-02 is a Sunday.
+    // Aug 2 2026 is a Sunday.
     expect(cronMatches(zero, at(2026, 8, 2))).toBe(true)
     expect(cronMatches(seven, at(2026, 8, 2))).toBe(true)
   })
@@ -61,17 +61,17 @@ describe("cronMatches day-field OR rule", () => {
   const rule = parseCron("0 0 1 * MON")
 
   it("matches the day-of-month even on the wrong weekday", () => {
-    // 2026-09-01 is a Tuesday.
+    // Sep 1 2026 is a Tuesday.
     expect(cronMatches(rule, at(2026, 9, 1))).toBe(true)
   })
 
   it("matches the weekday even on the wrong day-of-month", () => {
-    // 2026-09-07 is a Monday.
+    // Sep 7 2026 is a Monday.
     expect(cronMatches(rule, at(2026, 9, 7))).toBe(true)
   })
 
   it("rejects a day that satisfies neither", () => {
-    // 2026-09-02, a Wednesday.
+    // Sep 2 2026, a Wednesday.
     expect(cronMatches(rule, at(2026, 9, 2))).toBe(false)
   })
 
@@ -100,7 +100,7 @@ describe("nextCronAfter", () => {
   })
 
   it("skips to Monday for a weekday schedule run on Friday evening", () => {
-    // 2026-07-31 is a Friday; next weekday 09:00 is Monday 2026-08-03.
+    // Jul 31 2026 is a Friday; next weekday 09:00 is Monday Aug 3.
     expect(nextCronAfter("0 9 * * MON-FRI", at(2026, 7, 31, 18, 0))).toBe(at(2026, 8, 3, 9, 0))
   })
 
@@ -156,7 +156,7 @@ describe("latestCronAtOrBefore", () => {
   })
 
   it("crosses a weekend backwards for a weekday schedule", () => {
-    // 2026-08-02 is a Sunday; the last weekday 09:00 was Friday 2026-07-31.
+    // Aug 2 2026 is a Sunday; the last weekday 09:00 is Friday Jul 31.
     expect(latestCronAtOrBefore("0 9 * * MON-FRI", at(2026, 8, 2, 20, 0), CREATED)).toBe(at(2026, 7, 31, 9, 0))
   })
 })

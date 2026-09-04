@@ -3,15 +3,15 @@
  *
  * The web transport exposes mutating RPCs to the browser — `task.setCommand`
  * sets the engine's launch argv, which is arbitrary command execution. Its
- * only gate used to be the Origin check (`web-origin.ts`), and Origin is a
- * CSRF control, not an authentication one: browsers attach it automatically,
- * so it stops another site's JavaScript from reaching the daemon, but `curl`
- * simply omits the header and `originAllowed(null)` returns true. Anything
- * that can open a socket to the port could therefore drive the daemon.
+ * other gate, the Origin check (`web-origin.ts`), is a CSRF control and not an
+ * authentication one: browsers attach Origin automatically, so it stops
+ * another site's JavaScript from reaching the daemon, but `curl` simply omits
+ * the header and `originAllowed(null)` returns true. On its own it would let
+ * anything that can open a socket to the port drive the daemon.
  *
- * This module adds the missing half: a secret the caller must present. The two
- * checks stack rather than replace each other — Origin still answers "which
- * page is asking", the token answers "is this caller entitled at all".
+ * This module is the other half: a secret the caller must present. The two
+ * checks stack rather than replace each other — Origin answers "which page is
+ * asking", the token answers "is this caller entitled at all".
  *
  * The secret is 32 random bytes in one 0600 file under the state dir, so the
  * OS enforces the boundary that matters on a shared machine: another local

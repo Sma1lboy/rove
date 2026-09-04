@@ -205,7 +205,7 @@ describe("npx preflight", () => {
     }) as typeof process.stderr.write
     process.env.PATH = tempDir()
     try {
-      // Must RESOLVE, not reject — the old Bun.spawn path threw here.
+      // Must RESOLVE, not reject — a bare Bun.spawn throws here.
       await expect(runNpxSkillsInstall()).resolves.toBe(NPX_MISSING_EXIT)
       const said = stderr.join("")
       expect(said).toContain("npx")

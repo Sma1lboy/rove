@@ -92,7 +92,7 @@ export function engineTabsManualFix(): DoctorFix {
 }
 
 /**
- * The install this process runs from was deleted (issue #96). Print-only,
+ * The install this process runs from was deleted. Print-only,
  * and not because it is dangerous: doctor cannot reinstall Rove over the
  * running process, and the running process is the one asking.
  */
@@ -106,7 +106,18 @@ export function reinstallManualFix(): DoctorFix {
   }
 }
 
-type HumanOnlyReason = "git" | "noEngine" | "windowsNode"
+/** node-pty's spawn-helper lost its exec bit: chmod is idempotent and undoable. */
+export function spawnHelperFix(paths: readonly string[]): DoctorFix {
+  return {
+    kind: "run",
+    id: "spawn-helper-chmod",
+    label: t("doctor.fix.spawnHelper"),
+    command: ["chmod", "755", ...paths],
+    why: t("doctor.fix.spawnHelperWhy"),
+  }
+}
+
+type HumanOnlyReason = "git" | "noEngine" | "windowsNode" | "staleBun"
 
 /** Installs and logins: doctor can only point, a human has to act. */
 export function humanOnlyFix(reason: HumanOnlyReason): DoctorFix {

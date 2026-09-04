@@ -8,7 +8,7 @@
  * per tick on a huge repo. The sync helper survives ONLY for one-shot
  * CLI use (`kobe api`); render paths must go through this poller.
  *
- * The scheduling core (per-key Solid signal, in-flight dedupe, adaptive
+ * The scheduling core (per-key value cell, in-flight dedupe, adaptive
  * cadence, timeout + hard backoff) is the generic
  * `src/tui/lib/background-poll.ts` — this module is the worktree-changes
  * binding: one async `git status --porcelain=v1` per worktree, parsed
@@ -18,9 +18,9 @@
  *
  * Deleted rows never call `poll()` at all (the Sidebar shows only live
  * tasks): a deleted task must not pay git-status for worktrees that no
- * longer matter — that's the exact original bug.
+ * longer matter.
  *
- * Since issue #6 this poller is the NO-DAEMON FALLBACK only: when a
+ * This poller is the NO-DAEMON FALLBACK only: when a
  * connected daemon advertises the `worktree.changes` channel (one
  * collector in the daemon, pushed counts), the Sidebar renders the pushes
  * and never calls `poll()` here — a pane spawns zero git processes while

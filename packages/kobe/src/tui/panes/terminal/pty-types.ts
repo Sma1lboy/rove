@@ -2,6 +2,7 @@ import type { TerminalStyleRewrite } from "@/types/terminal-presentation"
 import { parse } from "@ansi-tools/parser"
 import { resolveLoginShell } from "@sma1lboy/kobe-daemon/daemon/platform-shell"
 import type { TerminalDefaultColors } from "@sma1lboy/kobe-daemon/daemon/terminal-colors"
+import type { TerminalInputModes } from "./keys-pure"
 import type { Chunk } from "./sgr"
 
 /** One rendered row: a list of opentui-ready style runs. */
@@ -44,7 +45,7 @@ export type TaskPtyOpts = {
   initialInput?: string
   /**
    * First message to bracketed-paste once the engine process is up
-   * (paste-delivery vendors, issue #25 — their positional argv slot is a
+   * (paste-delivery vendors — their positional argv slot is a
    * subcommand, so the message can't ride `command`). Same fresh-spawn-only
    * rule as `initialInput`: a reattach must NOT redeliver it. Delivered by
    * the hosted backend (`pastePromptWhenEngineUp`); other backends ignore it.
@@ -53,7 +54,7 @@ export type TaskPtyOpts = {
   /** Engine binary name the first-message engine-up probe matches against. */
   engineBin?: string
   /**
-   * A previously parked screen to restore (issue #29). When the host
+   * A parked screen to restore. When the host
    * confirms the recorded byte offset is still inside its ring window,
    * the fresh emulator is primed with `serialized` and fed only the
    * delta written since park — bit-identical to never detaching. When
@@ -121,6 +122,8 @@ export interface TaskPtyLike {
   readonly killed: boolean
 
   write(data: string): void
+  /** Current child-requested keyboard modes used when kitty input must be re-encoded. */
+  inputModes(): TerminalInputModes
   /**
    * Deliver pasted text. Backends that can see the app's DECSET 2004
    * state wrap it in bracketed-paste markers when (and only when) the
@@ -164,6 +167,38 @@ export interface TaskPtyLike {
    * local scrollback view, exactly like a normal terminal's wheel.
    */
   wheel(direction: "up" | "down", col: number, row: number): boolean
+  /**
+   * Route a mouse button transition the same way: the app enabled mouse
+   * tracking → encode an SGR press/release/drag at (col,row) and forward
+   * it, returning true — the app owns the click (claude's expandable tool
+   * rows, vim, less…). False when the app did not ask for the mouse — the
+   * CALLER then keeps the click for its local grid selection.
+   */
+  click(
+    kind: "down" | "up" | "drag",
+    button: 0 | 1 | 2,
+    col: number,
+    row: number,
+    modifiers?: { shift?: boolean; alt?: boolean; ctrl?: boolean },
+  ): boolean
+  /**
+   * True while the app has mouse tracking enabled — the SAME
+   * `mouseTrackingMode` read `click()` gates on, exposed so the pane can see
+   * the app TAKE the mouse without waiting for a click. That is the case a
+   * forwarded press cannot cover: `vim` typed at a prompt where the pane's
+   * own selection is still highlighted leaves two highlights stacked, and
+   * the app cannot see (or clear) ours. Backends with no emulator behind
+   * them (`PipeTaskPty`) omit it and the pane keeps the mouse.
+   */
+  readonly appOwnsMouse?: boolean
+  /**
+   * True while the child is on the ALTERNATE screen (vim, less, an engine
+   * TUI). That app owns its own scrollback, so Rove's local ring holds one
+   * screen and nothing more — the scrollback search refuses instead of
+   * walking a buffer the user can already see in full. Backends with no
+   * emulator behind them (`PipeTaskPty`, mocks) omit it and count as normal.
+   */
+  readonly onAlternateScreen?: boolean
   resize(cols: number, rows: number): void
   /** Current emulator geometry in cells — the last size pushed via
    *  `resize()` (the spawn size before any resize). Backends without a

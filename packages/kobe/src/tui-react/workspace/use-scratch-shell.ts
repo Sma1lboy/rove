@@ -1,8 +1,8 @@
 /**
- * Scratch temp shell tasks (issue #33) — the host-side lifecycle wiring:
+ * Scratch temp shell tasks — the host-side lifecycle wiring:
  *
- *   - `openScratchShell` (ctrl+e dialog's trailing "scratch shell" choice —
- *     the prefix+t chord was rejected, owner 2026-08-16): create a scratch
+ *   - `openScratchShell` (the ctrl+e dialog's trailing "scratch shell" choice,
+ *     the only entry point — there is no chord): create a scratch
  *     dir task rooted at $HOME and enter it. The task's tab-1 spawns as a
  *     bare shell (TerminalTabs' scratch mode); the row lives in the
  *     sidebar's Scratch section.
@@ -12,7 +12,7 @@
  *     UNFORCED: `kind: "dir"` already skips the dirty gate and never removes
  *     the directory, so `force` here would only be a standing licence to
  *     destroy a real worktree if the row's kind ever changed.
- *   - the fold finish (issue #40): the adoption loop moved the shell's
+ *   - the fold finish: the adoption loop moved the shell's
  *     sessions under an existing task — quietly re-point selection to the
  *     folded tab (ONLY when the scratch row was the selected one; a
  *     background fold must not move the user), then delete the emptied
@@ -34,7 +34,7 @@ import { useScratchAdopt } from "./use-scratch-adopt"
 
 /** Task ids whose scratch teardown already started — module-level so the
  *  guard survives the hook being rebuilt every render. Never cleared: a
- *  torn-down scratch task's id is retired with it. */
+ *  torn-down scratch task's id stays in the set for the process's life. */
 const scratchTeardowns = new Set<string>()
 
 export function useScratchShell(deps: {
@@ -54,7 +54,7 @@ export function useScratchShell(deps: {
   const { orchestrator, enterTask, forgetTaskTabs, notifyError } = deps
 
   // The quiet cwd+harness adoption loop rides along: one hook is the whole
-  // scratch lifecycle from the host's perspective. Fold (issue #40) hands
+  // scratch lifecycle from the host's perspective. The fold hands
   // back here for the selection follow-up + row deletion.
   useScratchAdopt({
     tasks: deps.tasks,
@@ -70,9 +70,9 @@ export function useScratchShell(deps: {
       }
       // No `force`: a scratch row is `kind: "dir"`, and BOTH deletion gates
       // already special-case that kind (the dirty check is skipped, and
-      // `finish()` never removes a dir task's directory). So `force` bought
-      // nothing here — it only stood ready to authorise a real destructive
-      // removal if this row ever stopped being a dir task.
+      // `finish()` never removes a dir task's directory). So `force` would
+      // buy nothing here — it would only stand ready to authorise a real
+      // destructive removal if this row ever stopped being a dir task.
       await orchestrator.deleteTask(scratchTaskId)
       forgetTaskTabs(scratchTaskId)
     },
@@ -88,7 +88,7 @@ export function useScratchShell(deps: {
   }
 
   const onScratchExit = (taskId: string): void => {
-    // Idempotence: ctrl+w on the last tab (issue #42) kills the live PTY,
+    // Idempotence: ctrl+w on the last tab kills the live PTY,
     // whose exit event re-enters this teardown before the delete lands —
     // the second call would surface a spurious "task not found" toast.
     if (scratchTeardowns.has(taskId)) return

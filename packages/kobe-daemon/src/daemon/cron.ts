@@ -12,17 +12,29 @@
  *   - {@link latestCronAtOrBefore} — "what SHOULD have run by now", which is
  *     what missed-run compensation needs after the daemon was down
  *
- * Both scan minute-by-minute rather than solving the field constraints
- * algebraically. A valid expression can have a genuinely huge gap (`0 0 29 2 *`
- * skips 8 years across a non-leap century boundary), so the scan bound is
- * generous; the loop body is a handful of Set lookups, so even the pathological
- * case stays well under a millisecond.
+ * Both scan the LOCAL CALENDAR — day by day, then only the hours and minutes
+ * the expression actually names — rather than stepping fixed epoch minutes.
+ * That is what makes them DST-correct: a cron expression names a wall clock,
+ * and on a fall-back day one wall-clock minute maps to two epoch instants
+ * while on a spring-forward day one maps to none. Stepping epoch minutes and
+ * testing the local clock fired a daily routine twice every autumn and
+ * skipped it silently every spring. Enumerating each local minute exactly
+ * once, then converting to an instant, gives one firing per day in both
+ * directions; a nonexistent local time resolves to the instant the clock
+ * jumped to (02:30 fires at 03:30) rather than vanishing.
+ *
+ * Day-at-a-time also keeps the pathological case cheap. A valid expression can
+ * have a genuinely huge gap (`0 0 29 2 *` skips 8 years across a non-leap
+ * century boundary); at a minute per step that is 4.7M iterations, each
+ * allocating a Date — ~150ms on the daemon's event loop, and the TUI's
+ * schedule preview runs it in the render body, so arrowing the day-of-month
+ * past 29 with the month on `2` froze the terminal once per keypress.
  */
 
 const MINUTE_MS = 60_000
 
-/** Scan ceiling in minutes. Sized for `0 0 29 2 *` (Feb 29 across 2100). */
-const SCAN_MINUTES = 9 * 366 * 24 * 60
+/** Scan ceiling in days. Sized for `0 0 29 2 *` (Feb 29 across 2100). */
+const SCAN_DAYS = 9 * 366
 
 export interface ParsedCron {
   readonly minutes: ReadonlySet<number>
@@ -162,24 +174,58 @@ export function isValidCron(expression: string): boolean {
   }
 }
 
+/** A local wall-clock day. The scans step in these, never in epoch minutes. */
+interface LocalDay {
+  year: number
+  /** 1-12, matching the cron field rather than `Date`'s 0-11. */
+  month: number
+  day: number
+}
+
+/** The instant a local wall clock names. An ambiguous (repeated) local time
+ *  resolves to one of its two instants and a nonexistent (skipped) one to the
+ *  instant the clock jumped to — both deliberate, see the module header. */
+function instantOf(d: LocalDay, hour: number, minute: number): number {
+  return new Date(d.year, d.month - 1, d.day, hour, minute, 0, 0).getTime()
+}
+
+function localDayOf(ms: number): LocalDay {
+  const d = new Date(ms)
+  return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() }
+}
+
+/** Shift by whole local days through `Date`, which owns month/year rollover. */
+function shiftDay(d: LocalDay, delta: number): LocalDay {
+  return localDayOf(new Date(d.year, d.month - 1, d.day + delta, 12, 0, 0, 0).getTime())
+}
+
 /**
- * Does `timeMs` match? Day matching follows the Vixie-cron rule that trips
- * everyone up: when BOTH day fields are restricted they are OR'd, not AND'd
- * (`0 0 1 * MON` = the 1st **or** any Monday). With one restricted, only that
- * one applies; with neither, every day matches.
+ * Does this local day match? The Vixie-cron rule that trips everyone up: when
+ * BOTH day fields are restricted they are OR'd, not AND'd (`0 0 1 * MON` = the
+ * 1st **or** any Monday). With one restricted, only that one applies; with
+ * neither, every day matches.
+ */
+function dayMatches(rule: ParsedCron, d: LocalDay): boolean {
+  if (!rule.months.has(d.month)) return false
+  const domMatch = rule.daysOfMonth.has(d.day)
+  const dowMatch = rule.daysOfWeek.has(new Date(d.year, d.month - 1, d.day).getDay())
+  if (rule.dayOfMonthRestricted && rule.dayOfWeekRestricted) return domMatch || dowMatch
+  if (rule.dayOfMonthRestricted) return domMatch
+  if (rule.dayOfWeekRestricted) return dowMatch
+  return true
+}
+
+/**
+ * Does `timeMs` match? Same day rule as {@link dayMatches}, applied to the
+ * whole instant. The scans do not use this — they enumerate matching local
+ * minutes instead, which is what keeps them one-firing-per-day across a DST
+ * boundary — but it is the honest "is this instant an occurrence" predicate.
  */
 export function cronMatches(rule: ParsedCron, timeMs: number): boolean {
   const d = new Date(timeMs)
   if (!rule.minutes.has(d.getMinutes())) return false
   if (!rule.hours.has(d.getHours())) return false
-  if (!rule.months.has(d.getMonth() + 1)) return false
-
-  const domMatch = rule.daysOfMonth.has(d.getDate())
-  const dowMatch = rule.daysOfWeek.has(d.getDay())
-  if (rule.dayOfMonthRestricted && rule.dayOfWeekRestricted) return domMatch || dowMatch
-  if (rule.dayOfMonthRestricted) return domMatch
-  if (rule.dayOfWeekRestricted) return dowMatch
-  return true
+  return dayMatches(rule, localDayOf(timeMs))
 }
 
 /** Truncate to the start of the containing minute (cron's resolution).
@@ -187,6 +233,10 @@ export function cronMatches(rule: ParsedCron, timeMs: number): boolean {
  *  number of minutes, so the modulo lands on a local minute boundary too. */
 function floorToMinute(ms: number): number {
   return ms - (ms % MINUTE_MS)
+}
+
+function sorted(values: ReadonlySet<number>, direction: 1 | -1): number[] {
+  return [...values].sort((a, b) => (a - b) * direction)
 }
 
 /**
@@ -200,10 +250,29 @@ function floorToMinute(ms: number): number {
  */
 export function nextCronAfter(expression: string, afterMs: number): number {
   const rule = parseCron(expression)
-  let candidate = floorToMinute(afterMs) + MINUTE_MS
-  for (let i = 0; i < SCAN_MINUTES; i++) {
-    if (cronMatches(rule, candidate)) return candidate
-    candidate += MINUTE_MS
+  const hours = sorted(rule.hours, 1)
+  const minutes = sorted(rule.minutes, 1)
+  const from = new Date(floorToMinute(afterMs) + MINUTE_MS)
+  let day = localDayOf(from.getTime())
+  let fromHour = from.getHours()
+  let fromMinute = from.getMinutes()
+  for (let i = 0; i < SCAN_DAYS; i++) {
+    if (dayMatches(rule, day)) {
+      for (const hour of hours) {
+        if (hour < fromHour) continue
+        for (const minute of minutes) {
+          if (hour === fromHour && minute < fromMinute) continue
+          const at = instantOf(day, hour, minute)
+          // A local minute inside a repeated hour can resolve to an instant at
+          // or before `afterMs` (the earlier of its two offsets). Skipping it
+          // keeps the result strictly increasing without firing twice.
+          if (at > afterMs) return at
+        }
+      }
+    }
+    day = shiftDay(day, 1)
+    fromHour = 0
+    fromMinute = 0
   }
   throw new Error(`cron expression never matches: ${expression}`)
 }
@@ -221,10 +290,30 @@ export function nextCronAfter(expression: string, afterMs: number): number {
 export function latestCronAtOrBefore(expression: string, nowMs: number, notBeforeMs: number): number | null {
   if (nowMs < notBeforeMs) return null
   const rule = parseCron(expression)
-  let candidate = floorToMinute(nowMs)
-  for (let i = 0; i < SCAN_MINUTES && candidate >= notBeforeMs; i++) {
-    if (cronMatches(rule, candidate)) return candidate
-    candidate -= MINUTE_MS
+  const hours = sorted(rule.hours, -1)
+  const minutes = sorted(rule.minutes, -1)
+  const from = new Date(floorToMinute(nowMs))
+  let day = localDayOf(from.getTime())
+  let fromHour = from.getHours()
+  let fromMinute = from.getMinutes()
+  for (let i = 0; i < SCAN_DAYS; i++) {
+    // Every remaining candidate is earlier than this day's last minute, so once
+    // that is out of the window there is nothing left to find.
+    if (instantOf(day, 23, 59) < notBeforeMs) return null
+    if (dayMatches(rule, day)) {
+      for (const hour of hours) {
+        if (hour > fromHour) continue
+        for (const minute of minutes) {
+          if (hour === fromHour && minute > fromMinute) continue
+          const at = instantOf(day, hour, minute)
+          if (at > nowMs) continue
+          return at >= notBeforeMs ? at : null
+        }
+      }
+    }
+    day = shiftDay(day, -1)
+    fromHour = 23
+    fromMinute = 59
   }
   return null
 }

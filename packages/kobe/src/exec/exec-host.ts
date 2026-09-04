@@ -132,7 +132,7 @@ export const shJoin = quoteShellArgv
 /** Single-quote a token only if it contains characters that aren't safe to
  *  leave bare in a POSIX shell word. Keeps flags / `user@host` readable while
  *  still protecting paths with spaces or metachars. */
-export function shToken(s: string): string {
+function shToken(s: string): string {
   return /^[A-Za-z0-9_@%+=:,./-]+$/.test(s) ? s : quoteShellArg(s)
 }
 
@@ -170,11 +170,11 @@ export function sshConnectArgs(spec: RemoteSpec, opts: { tty?: boolean; batch?: 
 }
 
 /**
- * Async spawn that collects stdout/stderr and resolves with the same result
- * contract `spawnSync` produced (`status ?? -1`, `stdout/stderr ?? ""`):
+ * Async spawn that collects stdout/stderr and resolves with `spawnSync`'s
+ * result contract (`status ?? -1`, `stdout/stderr ?? ""`):
  *   - non-zero exit → resolved result with that exitCode (never rejects);
  *   - spawn failure (ENOENT, bad cwd, …) → `{ stdout: "", stderr: "", exitCode: -1 }`,
- *     matching the old `SpawnSyncReturns`-derived shape exactly.
+ *     the same shape `SpawnSyncReturns` yields.
  */
 function spawnCollect(
   argv: readonly string[],

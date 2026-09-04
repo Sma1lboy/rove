@@ -74,11 +74,11 @@ describe("validateRepoPath", () => {
     expect(validateRepoPath(repo)).toBeNull()
   })
 
-  // A freshly `git init`ed repo passes `rev-parse --git-dir`, so the dialog
-  // used to accept it, prefill baseRef with DEFAULT_BASE_REF (getCurrentBranch
-  // returns null on an unborn HEAD), and only fail later inside ensureWorktree
+  // A freshly `git init`ed repo passes `rev-parse --git-dir`, so accepting it
+  // means prefilling baseRef with DEFAULT_BASE_REF (getCurrentBranch
+  // returns null on an unborn HEAD) and only failing later inside ensureWorktree
   // with `fatal: invalid reference: main` — on a path whose sole error handler
-  // is a console.error invisible under alt-screen. The user was left on a task
+  // is a console.error invisible under alt-screen, leaving the user on a task
   // row with an empty worktreePath telling them to select a task.
   it("rejects a repo with no commits, and says so", () => {
     const reason = validateRepoPath(emptyRepo)
@@ -96,10 +96,10 @@ describe("validateRepoPath", () => {
   })
 
   // git absent from PATH makes spawnSync return `status: null` + ENOENT, which
-  // used to satisfy `status !== 0` and produce the not-a-repo copy — telling a
-  // user with no git to run `git init && git add -A && git commit`, three
-  // commands that would each also be `command not found`. The WelcomePane's
-  // own probe already got this right; both surfaces now say the same thing.
+  // also satisfies `status !== 0` — a bare check there produces the not-a-repo
+  // copy, telling a user with no git to run `git init && git add -A && git
+  // commit`, three commands that would each also be `command not found`. This
+  // and the WelcomePane's own probe must say the same thing.
   it("says git is missing, not that the folder isn't a repo, when git is absent", () => {
     const realPath = process.env.PATH
     // An empty dir as the entire PATH: no `git` binary is reachable.
@@ -125,6 +125,19 @@ describe("getCurrentBranch", () => {
   it("degrades to null for non-repos and empty input", () => {
     expect(getCurrentBranch(notRepo)).toBeNull()
     expect(getCurrentBranch("")).toBeNull()
+  })
+
+  // A detached HEAD is the one case where git EXITS ZERO and still has no
+  // branch name to give: `--abbrev-ref` prints the literal "HEAD". Prefilling
+  // baseRef with that string would send `git worktree add` at a ref that moves
+  // under it, so it has to read as null and fall back to DEFAULT_BASE_REF.
+  it('degrades to null on a detached HEAD, which git reports as the name "HEAD"', () => {
+    git(repo, "checkout", "--detach")
+    try {
+      expect(getCurrentBranch(repo)).toBeNull()
+    } finally {
+      git(repo, "checkout", "zeta")
+    }
   })
 })
 

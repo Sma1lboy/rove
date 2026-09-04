@@ -1,5 +1,5 @@
 /**
- * React access to the kobe keymap (issue #15, G2). The data table, lookup
+ * React access to the kobe keymap. The data table, lookup
  * fns, and override machinery are the framework-free parts of
  * `src/tui/context/keybindings.ts` and are re-exported untouched; the only
  * React-specific piece is subscribing chord legends to live keymap reloads
@@ -12,14 +12,10 @@ import { keymapVersion, subscribeKeymapVersion } from "../../tui/context/keybind
 
 export {
   KobeKeymap,
-  findBinding,
-  chordsOf,
   bindByIds,
-  resetKeymapToDefaults,
   bumpKeymapVersion,
   subscribeKeymapVersion,
 } from "../../tui/context/keybindings"
-export type { KobeBinding, KobeBindingScope, KobeBindingHint } from "../../tui/context/keybindings"
 
 /**
  * Subscribe the component to keymap reloads. Returns the current version

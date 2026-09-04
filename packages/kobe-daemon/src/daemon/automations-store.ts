@@ -14,13 +14,14 @@
  */
 
 import { randomUUID } from "node:crypto"
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { dirname, join } from "node:path"
+import { join } from "node:path"
 import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
 import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
+import { serialized, writeJsonAtomic } from "./json-file.ts"
 
 /** Per-automation run history cap. The whole document is re-serialized on every
  *  write, so an unbounded log makes each save permanently slower. */
@@ -136,11 +137,8 @@ async function readStore(path: string): Promise<{ automations: Automation[]; run
 }
 
 async function writeStore(path: string, automations: readonly Automation[], runs: readonly AutomationRun[]) {
-  await mkdir(dirname(path), { recursive: true })
-  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   const body: AutomationsFile = { version: 1, automations: [...automations], runs: [...runs] }
-  await writeFile(tmp, `${JSON.stringify(body, null, 2)}\n`, "utf8")
-  await rename(tmp, path)
+  await writeJsonAtomic(path, body)
 }
 
 /**
@@ -179,7 +177,6 @@ export function pruneRuns(
 export class AutomationsStore {
   private automations: Automation[] = []
   private runs: AutomationRun[] = []
-  private tail: Promise<void> = Promise.resolve()
 
   constructor(
     private readonly path: string,
@@ -272,8 +269,8 @@ export class AutomationsStore {
           : patch.sessionTaskId !== undefined
             ? { sessionTaskId: patch.sessionTaskId }
             : {}),
-        // Re-anchor the schedule whenever the expression changes, else the old
-        // nextRunAt would fire on a rule the user just replaced.
+        // Re-anchor the schedule whenever the expression changes, else a stale
+        // nextRunAt fires on a rule the user just replaced.
         ...(patch.schedule !== undefined ? { nextRunAt: new Date(nextCronAfter(schedule, nowMs)).toISOString() } : {}),
         updatedAt: new Date(nowMs).toISOString(),
       }
@@ -309,7 +306,7 @@ export class AutomationsStore {
       try {
         nextRunAt = new Date(nextCronAfter(current.schedule, afterMs)).toISOString()
       } catch (err) {
-        // A stored schedule that no longer resolves (hand-edited file, or a
+        // A stored schedule that fails to resolve (hand-edited file, or a
         // once-only date now in the past) must not wedge the sweep on a
         // permanently-due row: disable it and surface it in `automation-list`.
         logDaemonError("automations-advance", err)
@@ -345,11 +342,6 @@ export class AutomationsStore {
 
   /** Serialize mutations so concurrent RPC/sweep writes cannot clobber the file. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.tail.then(operation)
-    this.tail = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
+    return serialized(this.path, operation)
   }
 }

@@ -1,12 +1,11 @@
 /**
- * Framework-free helpers for the React new-task dialog (issue #15, G3W2).
+ * Framework-free helpers for the new-task dialog.
  *
  * The bulk of the dialog's pure logic (field cycling, filters, windowing)
- * already lives in the shared `src/tui/component/new-task-dialog/state.ts`
- * and is consumed verbatim by both frameworks. This file holds only the
- * bits the Solid shell computes inline — extracted here so the React port
- * can unit-test them without mounting the dialog (`test/tui-react/
- * new-task-pure.test.ts`). No React, no Solid, no fs.
+ * lives in the shared `src/tui/component/new-task-dialog/state.ts`. This file
+ * holds the rest, kept out of the component so it is unit-testable without
+ * mounting the dialog (`test/tui-react/new-task-pure.test.ts`). No React,
+ * no fs.
  */
 
 import { DEFAULT_TASK_VENDOR } from "@/types/task"

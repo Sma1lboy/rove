@@ -9,7 +9,9 @@
  *
  * Enter is the whole point of the page — it creates a task whose branch derives
  * from the issue title and whose engine opens with the issue already in hand,
- * replacing copy-title → invent-branch → create-task → paste-body.
+ * replacing copy-title → invent-branch → create-task → paste-body. An issue
+ * that already has a task (`task.linkedWorkItem`) shows that task on its
+ * detail line, and enter opens it instead of minting a duplicate.
  */
 
 import { TextAttributes } from "@opentui/core"
@@ -19,10 +21,12 @@ import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { sidebarProjectLabel } from "../../tui/panes/sidebar/groups"
+import type { Task } from "../../types/task"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
 import { pageCloseBindings, useBindings } from "../lib/keymap"
+import { useCursorFollow } from "../lib/use-cursor-follow"
 import { resolveRowSelectionChrome } from "../ui/row-selection-chrome"
 
 /** Repos the user has open, newest-activity first — the source picker. */
@@ -33,6 +37,11 @@ function reposOf(orch: RemoteOrchestrator | null): string[] {
     if (task.repo && !seen.includes(task.repo)) seen.push(task.repo)
   }
   return seen
+}
+
+/** The task already started from `number` on `repo`, if any. */
+function linkedTaskFor(orch: RemoteOrchestrator | null, repo: string, number: number): Task | undefined {
+  return orch?.listTasks().find((task) => task.repo === repo && task.linkedWorkItem?.number === number)
 }
 
 function errorHint(error: string, t: ReturnType<typeof useT>): string {
@@ -131,11 +140,29 @@ export function WorkItemsPage(props: {
   useEffect(() => {
     setCursor((c) => clampCursor(c, rows.length))
   }, [rows.length])
+  // Two lines per issue against a `limit: 30` fetch — the back half of the
+  // list is off-frame from the first keypress.
+  const follow = useCursorFollow(cursor)
+
+  // The notice names one action on one issue; a repo switch or a filter
+  // toggle makes it stale, and it has no other way to clear.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: repo/filter are TRIGGERS — the body clears state rather than reading them.
+  useEffect(() => {
+    setNotice(null)
+  }, [repo, assignedToMe])
 
   async function startSelected(): Promise<void> {
     const orch = props.orchestrator
     const item = rows[cursor]
     if (!orch || !item || !repo || starting) return
+    // Already started: land on that task. The daemon creates unconditionally
+    // by contract; this page is the surface that knows what the user sees.
+    const linked = linkedTaskFor(orch, repo, item.number)
+    if (linked) {
+      setNotice(t("workItems.openingLinked", { title: linked.title }))
+      props.onOpenTask?.(linked.id)
+      return
+    }
     setStarting(true)
     setNotice(t("workItems.starting", { number: item.number }))
     try {
@@ -193,15 +220,24 @@ export function WorkItemsPage(props: {
       ) : rows.length === 0 ? (
         <text fg={theme.textMuted}>{t("workItems.empty")}</text>
       ) : (
-        <box flexDirection="column" marginTop={1} flexGrow={1}>
+        <scrollbox
+          ref={follow.scrollRef}
+          flexGrow={1}
+          flexShrink={1}
+          flexBasis={0}
+          marginTop={1}
+          verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
+        >
           {rows.map((item, index) => {
             // Sidebar row grammar: ▌ marker column, title line, muted detail
             // line. The number leads the title because that is how an issue is
             // referred to out loud, and it survives truncation there.
             const chrome = resolveRowSelectionChrome(theme, { cursor: index === cursor, selected: false })
+            const linked = linkedTaskFor(props.orchestrator, repo, item.number)
             return (
               <box
                 key={`${item.number}`}
+                ref={follow.rowRef(index)}
                 flexDirection="column"
                 flexShrink={0}
                 {...(chrome.backgroundColor ? { backgroundColor: chrome.backgroundColor } : {})}
@@ -232,6 +268,11 @@ export function WorkItemsPage(props: {
                     <text fg={theme.textMuted} wrapMode="none" flexGrow={1}>
                       {[item.author, ...item.labels.slice(0, 2)].filter(Boolean).join(" · ")}
                     </text>
+                    {linked ? (
+                      <text fg={theme.textMuted} wrapMode="none">
+                        {t("workItems.linkedChip", { title: linked.title })}
+                      </text>
+                    ) : null}
                     <text fg={theme.textMuted} wrapMode="none">
                       {relativeAge(item.updatedAt, now)}
                     </text>
@@ -240,10 +281,14 @@ export function WorkItemsPage(props: {
               </box>
             )
           })}
-        </box>
+        </scrollbox>
       )}
 
-      {notice ? <text fg={theme.textMuted}>{notice}</text> : null}
+      {notice ? (
+        <text fg={theme.textMuted} flexShrink={0}>
+          {notice}
+        </text>
+      ) : null}
     </box>
   )
 }

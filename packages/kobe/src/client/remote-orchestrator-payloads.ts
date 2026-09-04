@@ -50,7 +50,7 @@ export interface TaskEngineState {
   readonly transcriptPath?: string
   /** The tab that produced this entry, when the event carried one — on the
    *  TASK rollup it records which tab last wrote it, so a tab-scoped idle
-   *  only clears a rollup its own tab owns (issue #11). */
+   *  only clears a rollup its own tab owns. */
   readonly tabId?: string
   readonly at: number
 }
@@ -77,7 +77,7 @@ export interface TaskJobState {
 
 /**
  * Daemon-collected `+N −M` counts keyed by worktree path, from the
- * `worktree.changes` channel (issue #6 — one collector in the daemon
+ * `worktree.changes` channel (one collector in the daemon
  * instead of per-pane git polling). `null` means "no daemon-collected
  * data": either the daemon predates the channel (absent from
  * `hello.capabilities`) or `init()` hasn't completed — the sidebar then
@@ -115,9 +115,15 @@ export function parseWorktreeChangesPayload(payload: unknown): Map<string, Workt
   if (!changes || typeof changes !== "object" || Array.isArray(changes)) return null
   const map = new Map<string, WorktreeChanges>()
   for (const [path, value] of Object.entries(changes as Record<string, unknown>)) {
-    const counts = value as { added?: unknown; deleted?: unknown } | undefined
+    const counts = value as { added?: unknown; deleted?: unknown; behind?: unknown } | undefined
     if (typeof counts?.added !== "number" || typeof counts.deleted !== "number") return null
-    map.set(path, { added: counts.added, deleted: counts.deleted })
+    // `behind` is additive: an older daemon omits it, and the chip then simply
+    // does not draw — never a fabricated zero.
+    map.set(path, {
+      added: counts.added,
+      deleted: counts.deleted,
+      ...(typeof counts.behind === "number" ? { behind: counts.behind } : {}),
+    })
   }
   return map
 }
@@ -171,6 +177,78 @@ export function sameWorktreeChangesMap(a: WorktreeChangesMap, b: WorktreeChanges
  * fetched) — the Settings dashboard then renders nothing.
  */
 export type UsageSnapshotMap = ReadonlyMap<string, EngineQuotaUsage>
+
+/**
+ * Context-window occupancy per live engine session, keyed `taskId::tabId`,
+ * from the `usage.context` channel. `null` means "no daemon-collected data
+ * yet" (older daemon, nothing live) — the footer then renders nothing.
+ */
+export interface ContextUsage {
+  readonly contextTokens: number
+  readonly contextWindowTokens?: number
+  readonly approximate?: boolean
+  /** Session token totals, when the vendor's history reader reports them.
+   *  Absent means "this engine does not say", never zero. */
+  readonly inputTokens?: number
+  readonly outputTokens?: number
+  readonly cacheReadTokens?: number
+  readonly cacheCreationTokens?: number
+}
+export type ContextUsageMap = ReadonlyMap<string, ContextUsage>
+
+/**
+ * Parse a `usage.context` wire payload. `null` for a malformed one (the event
+ * is ignored rather than clobbering a good map). Each entry is validated
+ * field-by-field: this is a trust boundary, and one bad row drops the payload.
+ */
+/** The optional token counts carried alongside the context reading. */
+const TOKEN_TOTAL_FIELDS = ["inputTokens", "outputTokens", "cacheReadTokens", "cacheCreationTokens"] as const
+
+export function parseContextUsagePayload(payload: unknown): Map<string, ContextUsage> | null {
+  const context = (payload as { context?: unknown } | undefined)?.context
+  if (!context || typeof context !== "object" || Array.isArray(context)) return null
+  const map = new Map<string, ContextUsage>()
+  for (const [key, value] of Object.entries(context as Record<string, unknown>)) {
+    const v = value as Record<string, unknown> | undefined
+    if (typeof v?.contextTokens !== "number") return null
+    if (v.contextWindowTokens !== undefined && typeof v.contextWindowTokens !== "number") return null
+    // Same trust-boundary rule as the two fields above: a token count that is
+    // present but not a number drops the whole payload rather than being
+    // silently coerced or skipped — one bad row means the sender is not the
+    // sender we think it is.
+    const totals: Record<string, number> = {}
+    for (const field of TOKEN_TOTAL_FIELDS) {
+      const raw = v[field]
+      if (raw === undefined) continue
+      if (typeof raw !== "number") return null
+      totals[field] = raw
+    }
+    map.set(key, {
+      contextTokens: v.contextTokens,
+      ...(typeof v.contextWindowTokens === "number" ? { contextWindowTokens: v.contextWindowTokens } : {}),
+      ...(v.approximate === true ? { approximate: true } : {}),
+      ...totals,
+    })
+  }
+  return map
+}
+
+/** Value equality for two context maps (gate re-renders on real changes). */
+export function sameContextUsageMap(a: ContextUsageMap, b: ContextUsageMap): boolean {
+  if (a.size !== b.size) return false
+  for (const [key, value] of a) {
+    const other = b.get(key)
+    if (
+      !other ||
+      other.contextTokens !== value.contextTokens ||
+      other.contextWindowTokens !== value.contextWindowTokens ||
+      other.approximate !== value.approximate ||
+      TOKEN_TOTAL_FIELDS.some((field) => other[field] !== value[field])
+    )
+      return false
+  }
+  return true
+}
 
 /**
  * Folded `engine.lifecycle` state per task — the sidebar's subagent mark.
@@ -312,8 +390,8 @@ export interface RemoteOrchestratorOptions {
    * receive EVERY channel (the default — what a primary orchestrator
    * driving the task list needs). Pass a narrow set for a single-purpose
    * consumer: host-boot's UiPrefsSync passes `["ui-prefs", "keybindings"]`
-   * so it no longer receives — nor deserializes — the full `task.snapshot`
-   * fan-out it never reads. When the filter excludes `task.snapshot`, the
+   * so it never receives — nor deserializes — the full `task.snapshot`
+   * fan-out it does not read. When the filter excludes `task.snapshot`, the
    * `hello` task hydration is also skipped (the task list would be dead
    * weight), and `worktreeChangesSignal()` is left null (its consumer isn't
    * subscribed). An older daemon ignores the filter and sends everything;
@@ -346,6 +424,8 @@ export interface OrchestratorSignals {
   readonly setWorktreeChangesSig: (next: WorktreeChangesMap | null) => void
   readonly usageSnapshotAcc: ReadableState<UsageSnapshotMap | null>
   readonly setUsageSnapshotSig: (next: UsageSnapshotMap | null) => void
+  readonly contextUsageAcc: ReadableState<ContextUsageMap | null>
+  readonly setContextUsageSig: (next: ContextUsageMap | null) => void
   readonly transcriptActivityAcc: ReadableState<TranscriptActivityMap | null>
   readonly setTranscriptActivitySig: (next: TranscriptActivityMap | null) => void
   readonly setNoticeSig: (next: NoticeEventPayload | null) => void
@@ -392,11 +472,17 @@ export function deserializeTask(s: SerializedTask): Task {
     status: s.status,
     pinned: s.pinned,
     vendor: s.vendor,
+    command: s.command,
     prStatus: s.prStatus,
     modelEffort: s.modelEffort,
     groupId: s.groupId,
+    observedLanguage: s.observedLanguage,
     deletion: s.deletion,
+    quotaResume: s.quotaResume,
+    linkedWorkItem: s.linkedWorkItem,
     dispatcher: s.dispatcher,
+    prompt: s.prompt,
+    baseRef: s.baseRef,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
   }

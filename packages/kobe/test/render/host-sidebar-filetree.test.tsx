@@ -51,6 +51,15 @@ function sidebarProps(over: Partial<HostSidebarProps> = {}): HostSidebarProps {
     onDeleteRequest: NOOP,
     onRenameRequest: NOOP,
     onPinRequest: NOOP,
+    onSetStatusRequest: NOOP,
+    onCopyRequest: NOOP,
+    onOpenEditorRequest: NOOP,
+    onRenameBranchRequest: NOOP,
+    onChangeEngineRequest: NOOP,
+    onFieldNotesRequest: NOOP,
+    onFixChecksRequest: NOOP,
+    onSyncBaseRequest: NOOP,
+    onRunAgainRequest: NOOP,
     moveMode: false,
     onMoveRequest: NOOP,
     onMoveModeExit: NOOP,
@@ -174,6 +183,7 @@ describe("HostFilesPane", () => {
           onMention={(p) => mentions.push(p)}
           onZenToggle={NOOP}
           onCreatePR={NOOP}
+          taskKind="task"
         />,
         24,
       ),

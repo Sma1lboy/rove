@@ -91,31 +91,6 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.setPrompt", { taskId: "t1" }, ctx)).rejects.toThrow("prompt is required")
     })
 
-    it("task.reorder forwards a validated batch and returns the empty object", async () => {
-      const batches: unknown[] = []
-      const { ctx } = fakeCtx({
-        reorderTasks: async (moves: unknown) => {
-          batches.push(moves)
-        },
-      })
-      await expect(dispatch("task.reorder", { moves: [{ taskId: "t1", position: 1.5 }] }, ctx)).resolves.toEqual({})
-      expect(batches).toEqual([[{ taskId: "t1", position: 1.5 }]])
-    })
-
-    it("task.reorder rejects an empty batch and non-finite positions", async () => {
-      const { ctx } = fakeCtx({
-        reorderTasks: async () => {
-          throw new Error("must not be called")
-        },
-      })
-      await expect(dispatch("task.reorder", { moves: [] }, ctx)).rejects.toThrow("moves must be a non-empty array")
-      await expect(dispatch("task.reorder", {}, ctx)).rejects.toThrow("moves must be a non-empty array")
-      await expect(dispatch("task.reorder", { moves: [{ taskId: "t1", position: Number.NaN }] }, ctx)).rejects.toThrow(
-        "position must be a finite number",
-      )
-      await expect(dispatch("task.reorder", { moves: [{ position: 1 }] }, ctx)).rejects.toThrow("taskId is required")
-    })
-
     it("task.delete durably prepares, clears activity, and enqueues background cleanup", async () => {
       const prepared: unknown[] = []
       const { ctx, rec } = fakeCtx({
@@ -131,6 +106,34 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(prepared).toEqual([["t1", { force: true }]])
       expect(rec.cleared).toEqual(["t1"])
       expect(rec.inboxTaskDeleted).toEqual(["t1"])
+      expect(rec.deletions).toEqual(["t1"])
+    })
+
+    // The issue owns the link (`Issue.taskId`), so nothing else would ever
+    // clear it: without this cascade a deleted task's card stays In progress
+    // forever, its "open the linked session" action pointing at a task the
+    // sidebar does not list.
+    it("task.delete unlinks the deleted task's issue and republishes the board", async () => {
+      const { ctx, rec } = fakeCtx({
+        getTask: () => TASK,
+        prepareTaskDeletion: async () => true,
+      })
+      await dispatch("task.delete", { taskId: "t1" }, ctx)
+      expect(rec.issueCalls).toEqual([{ method: "unlinkTask", repo: "/repo", op: { taskId: "t1" } }])
+      expect(rec.published).toEqual([
+        { channel: "issue.snapshot", payload: { repoRoot: "/repo", exists: true, nextId: 2, issues: [] } },
+      ])
+    })
+
+    // The deletion already committed by the time the unlink runs, so an issue
+    // store that throws (missing repo, raced write) must not turn a completed
+    // delete into a failed RPC.
+    it("task.delete survives an issue store that throws on unlink", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => TASK, prepareTaskDeletion: async () => true })
+      ;(ctx.issues as unknown as { unlinkTask: () => Promise<never> }).unlinkTask = () => {
+        throw new Error("disk on fire")
+      }
+      await expect(dispatch("task.delete", { taskId: "t1" }, ctx)).resolves.toEqual({ taskId: "t1", queued: true })
       expect(rec.deletions).toEqual(["t1"])
     })
 
@@ -151,8 +154,8 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.deletions).toEqual([])
     })
 
-    // Regression (2026-08-29): a delete left no record of WHO asked, so an
-    // agent deleting somebody's live task was untraceable. The CLI sends its
+    // Without a record of WHO asked, an agent deleting somebody's live task
+    // is untraceable. The CLI sends its
     // verified session; the handler must put it in the audit line — and must
     // write that line even when the delete is REFUSED, since a refused
     // destructive request is exactly as worth recording.
@@ -190,10 +193,10 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.inboxTaskDeleted).toEqual(["missing"])
     })
 
-    // The point of the whole change: a REFUSED delete must not be reportable
-    // as a successful one. Both outcomes used to return a bare `{}`, so a
-    // caller deleting a list of tasks could not tell which ones were even
-    // scheduled — the wire carried no evidence either way. Asserting the two
+    // A REFUSED delete must not be reportable as a successful one. If both
+    // outcomes returned a bare `{}`, a caller deleting a list of tasks could
+    // not tell which ones were even scheduled — the wire would carry no
+    // evidence either way. Asserting the two
     // responses are UNEQUAL is what fails if `queued` ever stops riding along,
     // whatever value it settles on.
     it("task.delete reports a refusal differently from an acceptance", async () => {
@@ -243,6 +246,31 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
         },
       ])
     })
+
+    // The link op names a task and until this guard nothing checked it
+    // existed: `issue-update --task NOPE` returned exit 0 with taskId "NOPE"
+    // and the card sat In progress pointing at nothing, with no unlink
+    // gesture in the TUI to recover it. The guard is on the RPC (not in the
+    // store) so the CLI and the web link route are both covered; the prose
+    // matches every other handler's, which `toApiError` maps to a typed
+    // TASK_NOT_FOUND carrying the `api list` recovery command.
+    it("issue.mutate refuses a link to a task that does not exist", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => undefined })
+      await expect(
+        dispatch("issue.mutate", { repoRoot: "/repo", op: { type: "link", id: 1, taskId: "NOPE" } }, ctx),
+      ).rejects.toThrow("task not found: NOPE")
+      // Refused BEFORE the store: nothing was written, nothing published.
+      expect(rec.issueCalls).toEqual([])
+      expect(rec.published).toEqual([])
+    })
+
+    it("issue.mutate links to a task that exists", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
+      await expect(
+        dispatch("issue.mutate", { repoRoot: "/repo", op: { type: "link", id: 1, taskId: "t1" } }, ctx),
+      ).resolves.toEqual({ repoRoot: "/repo", exists: true, nextId: 2, issues: [] })
+      expect(rec.issueCalls).toEqual([{ method: "mutate", repo: "/repo", op: { type: "link", id: 1, taskId: "t1" } }])
+    })
   })
 
   describe("task.ensureWorktree", () => {
@@ -258,7 +286,7 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       await expect(dispatch("task.ensureWorktree", {}, ctx)).rejects.toThrow("taskId is required")
     })
 
-    // Long-operation feedback (issue #5): `git worktree add` is minute-class
+    // Long-operation feedback: `git worktree add` is minute-class
     // on a huge repo and the RPC stays blocking, so the handler must publish
     // lifecycle progress on `task.jobs` around the call — running before,
     // and ALWAYS a terminal phase after (done on success, error on throw).

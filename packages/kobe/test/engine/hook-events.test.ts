@@ -16,8 +16,8 @@ describe("reduceActivity", () => {
 
   it("a Stop on a KNOWN untracked state is an automated wake, not a completion", () => {
     // Engines fire Stop on hook-driven wakes (a monitor stream ending) with
-    // no user turn in flight — that must not light the ● lamp (owner
-    // 2026-08-02). The wake signature is an explicit idle/sticky previous
+    // no user turn in flight — that must not light the ● lamp. The wake
+    // signature is an explicit idle/sticky previous
     // state; running / permission_needed (a mid-turn approval resumes
     // without a new turn-start) complete.
     expect(reduceActivity("idle", "turn-complete")).toBe("idle")
@@ -28,8 +28,8 @@ describe("reduceActivity", () => {
   it("a Stop on a COLD registry (undefined) completes — the turn outlived a daemon restart", () => {
     // A restart wipes the in-memory registry; a turn that started before the
     // wipe ends with a Stop that is the task's FIRST event since boot.
-    // Swallowing it cost the ● lamp for every turn that outlived a restart
-    // (prod 2026-08-10). Only a known untracked state means "automated wake".
+    // Swallowing it costs the ● lamp for every turn that outlives a restart.
+    // Only a known untracked state means "automated wake".
     expect(reduceActivity(undefined, "turn-complete")).toBe("turn_complete")
   })
 
@@ -41,7 +41,7 @@ describe("reduceActivity", () => {
   })
 
   it("treats awaiting-input as permission_needed — permission prompt AND question dialog", () => {
-    // Owner call 2026-07-12: a question dialog blocks the engine on the user
+    // A question dialog blocks the engine on the user
     // exactly like a permission prompt, and F7 must reach it. `detail.waiting`
     // keeps which one it was.
     expect(reduceActivity("running", "awaiting-input", { waiting: "permission" })).toBe("permission_needed")

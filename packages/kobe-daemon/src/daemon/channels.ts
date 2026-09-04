@@ -10,6 +10,7 @@ import { DAEMON_CHANNELS } from "@sma1lboy/rove-plugin-sdk/contract"
 import type {
   AttentionInboxItem,
   EngineActivityDetail,
+  EngineContextUsage,
   EngineQuotaUsage,
   TaskActivityState,
   UpdateInfo,
@@ -93,8 +94,9 @@ export interface ChannelPayloads {
    * `transparentBackground` / `focusAccent` / `activeSortMode`), pushed
    * whenever the daemon's file watcher sees them change. Every pane host
    * applies the payload live so a theme switch in one session's Settings
-   * restyles the Tasks/Ops panes of EVERY task session — without this, each
-   * pane read the prefs once at boot and kept the old look forever. The
+   * restyles the Tasks/Ops panes of EVERY task session — without the push,
+   * each pane would read the prefs once at boot and keep that look forever.
+   * The
    * same fan-out carries `sortMode`: toggling the Tasks-pane sort (`t`) in
    * one session re-sorts the Tasks pane of EVERY session, instead of only
    * the pane the key was pressed in; `keysCollapsed` likewise syncs the
@@ -154,7 +156,7 @@ export interface ChannelPayloads {
     error?: string
   }
   /**
-   * Uncommitted-change counts for every collected worktree (issue #6) —
+   * Uncommitted-change counts for every collected worktree —
    * the daemon is the SINGLE `git status` collector; panes render these
    * pushes instead of each running their own per-row git polls (N panes ×
    * M tasks of duplicated subprocesses, the pre-daemon shape). The payload
@@ -255,6 +257,20 @@ export interface ChannelPayloads {
     usage: Record<string, EngineQuotaUsage>
   }
   /**
+   * Per-SESSION context-window occupancy, keyed `taskId::tabId` — the
+   * workspace footer's `ctx 62%` meter. The sibling of `usage.snapshot`, and
+   * deliberately a separate channel rather than a second field on it: the two
+   * have different producers and different cadences, and one last-value slot
+   * per channel means a co-tenant would clobber the other's replay.
+   *
+   * STATE channel, full-map-replace like `worktree.changes`. A session whose
+   * engine reports no usage simply never appears — the footer then renders
+   * nothing, which is the honest answer, not a zero.
+   */
+  "usage.context": {
+    context: Record<string, EngineContextUsage>
+  }
+  /**
    * One "ask the human for a line of text" request (`kobe api prompt` —
    * the host-provided input dialog plugins call through the CLI). EVENT
    * channel like `tab.open`: consumers dedupe on `at`, drop stale
@@ -322,8 +338,8 @@ export interface TabOpenPayload {
   readonly at: number
 }
 
-/** The `tab.close` channel payload — close panes opened under `title`. */
-export interface TabClosePayload {
+/** The `tab.close` channel's pane-close variant. */
+export interface PaneClosePayload {
   readonly taskId: string
   /** Pane label to close — matches the `title` split leaves / command tabs
    *  were opened with (`tab.open`); engine leaves are never closed. */
@@ -334,6 +350,19 @@ export interface TabClosePayload {
   /** Publish time (ms epoch) — the consumer-side dedupe key. */
   readonly at: number
 }
+
+/** The `tab.close` channel's exact Terminal Tab close variant. */
+export interface TerminalTabClosePayload {
+  readonly kind: "terminal-tab"
+  readonly taskId: string
+  readonly tabId: string
+  /** Correlates the TUI's close result with the waiting CLI request. */
+  readonly requestId: string
+  readonly at: number
+}
+
+/** Pane closes retain their existing wire shape; exact tab closes discriminate by `kind`. */
+export type TabClosePayload = PaneClosePayload | TerminalTabClosePayload
 
 /** The `ui.prompt` channel payload — one host-dialog text-input request. */
 export interface UiPromptPayload {

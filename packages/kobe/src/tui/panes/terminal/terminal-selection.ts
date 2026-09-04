@@ -18,7 +18,7 @@
 
 import { charWidth } from "../../../lib/display-width"
 import type { TerminalSnapshotWindow } from "./pty-types"
-import { ATTR, type Chunk } from "./sgr"
+import { ATTR, type Chunk, type RGB } from "./sgr"
 
 export type CellPoint = { readonly row: number; readonly col: number }
 export type SelectionRange = { readonly anchor: CellPoint; readonly head: CellPoint }
@@ -155,8 +155,25 @@ export function extractSelection(rows: readonly (readonly Chunk[])[], range: Sel
   return lines.join("\n")
 }
 
-/** Re-chunk one row so `[from, to)` renders inverse-video. */
-function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[] {
+/**
+ * How {@link overlaySelection} repaints the cells it covers.
+ *
+ * `"inverse"` XORs the inverse attribute — the pane's own selection, which
+ * has to read as "selected" over whatever colors the cell already carried.
+ * A flat `{fg,bg}` OVERRIDES those colors instead, which is what the
+ * scrollback search's current hit needs: it shares the screen with the other
+ * hits, and two inverse blocks would be indistinguishable.
+ */
+export type SpanPaint = "inverse" | { readonly fg: RGB; readonly bg: RGB }
+
+/** Apply `paint` to one chunk's worth of covered text. */
+function paintChunk(chunk: Chunk, text: string, paint: SpanPaint): Chunk {
+  if (paint === "inverse") return { ...chunk, text, attributes: (chunk.attributes ?? 0) ^ ATTR.INVERSE }
+  return { ...chunk, text, fg: paint.fg, bg: paint.bg }
+}
+
+/** Re-chunk one row so `[from, to)` renders in `paint`. */
+function overlayRowSpan(row: readonly Chunk[], from: number, to: number, paint: SpanPaint): Chunk[] {
   const out: Chunk[] = []
   let col = 0
   for (const chunk of row) {
@@ -169,7 +186,7 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[
     }
     const { before, selected, after } = sliceTextByCells(chunk.text, from - start, to - start)
     if (before) out.push({ ...chunk, text: before })
-    out.push({ ...chunk, text: selected, attributes: (chunk.attributes ?? 0) ^ ATTR.INVERSE })
+    out.push(paintChunk(chunk, selected, paint))
     if (after) out.push({ ...chunk, text: after })
   }
   // Selection reaching past the row's painted cells: show the highlight
@@ -182,7 +199,7 @@ function overlayRowSpan(row: readonly Chunk[], from: number, to: number): Chunk[
   if (col < to) {
     const gap = from - col
     if (gap > 0) out.push({ text: " ".repeat(gap) })
-    out.push({ text: " ".repeat(to - Math.max(col, from)), attributes: ATTR.INVERSE })
+    out.push(paintChunk({ text: "" }, " ".repeat(to - Math.max(col, from)), paint))
   }
   return out
 }
@@ -219,7 +236,7 @@ export const EMPTY_SHADOW: SelectionShadow = { above: [], below: [] }
 /** Rows banked per drag. ponytail: at the auto-scroll cap (~100 lines/s) this
  *  is ~20s of held drag; past it the anchor clamps instead of silently
  *  dropping middle rows. Raise if someone actually drags that long. */
-export const SHADOW_ROW_CAP = 2000
+const SHADOW_ROW_CAP = 2000
 
 /**
  * The vertical displacement of the content between two snapshots: positive
@@ -350,6 +367,29 @@ export function extractShadowedSelection(
 }
 
 /**
+ * Whether the app inside the PTY just TOOK the mouse — the moment the pane's
+ * own selection has to get out of its way.
+ *
+ * Mouse ownership decides selection ownership. An app with mouse tracking on
+ * (claude, vim, htop, less) draws and copies its own selection, so a second
+ * highlight painted over it is always the wrong one — the app cannot see it
+ * and neither layer can clear the other's. A forwarded PRESS already keeps the
+ * pane out of a mouse-aware app (`encodeMouseButton` returns null only while
+ * tracking is `none`, and `Terminal.tsx` starts a selection only when the
+ * press was NOT forwarded). What a press cannot cover is the app arriving
+ * afterwards: `vim` typed at a prompt where text is still highlighted, or
+ * launched while a drag is live.
+ *
+ * So this is a RISING EDGE, not the steady state. A selection begun while the
+ * app ALREADY owned the mouse is the shift bypass — the iTerm/kitty escape
+ * hatch for pulling text out of a mouse-aware app — and a deliberate override
+ * must survive, highlight included.
+ */
+export function appTookMouse(previouslyOwned: boolean, ownedNow: boolean): boolean {
+  return ownedNow && !previouslyOwned
+}
+
+/**
  * Paint the selection over VIEWPORT rows. `firstRow` is the absolute
  * snapshot index of `rows[0]` (the viewport start), mapping the
  * absolute-addressed range onto the visible slice.
@@ -359,11 +399,12 @@ export function overlaySelection(
   range: SelectionRange | null,
   firstRow: number,
   width: number,
+  paint: SpanPaint = "inverse",
 ): readonly (readonly Chunk[])[] {
   if (!range) return rows
   return rows.map((row, i) => {
     const span = rowSpan(range, firstRow + i, width)
-    return span ? overlayRowSpan(row, span[0], span[1]) : row
+    return span ? overlayRowSpan(row, span[0], span[1], paint) : row
   })
 }
 
@@ -384,7 +425,7 @@ export function overlaySelection(
  *
  * Returns the input by reference when nothing moved, and `null` when line
  * numbering was RESET (a resize reflows history and bumps `epoch`): the
- * selection then addresses content that no longer exists under those ids and
+ * selection then addresses content that does not exist under those ids and
  * must be dropped, not silently mis-mapped.
  */
 export function followWindowShift(

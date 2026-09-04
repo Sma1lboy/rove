@@ -58,7 +58,10 @@ const CLOSED_PAGES: HostPagesState = {
 /** Minimal orchestrator stand-in — the frame only reads the usage signal. */
 function fakeOrchestrator(): RemoteOrchestrator {
   const cell = createStateCell(null)
-  return { usageSnapshotSignal: () => cell } as unknown as RemoteOrchestrator
+  return {
+    usageSnapshotSignal: () => cell,
+    contextUsageSignal: () => createStateCell(null),
+  } as unknown as RemoteOrchestrator
 }
 
 /** Find a substring's cell coordinates in a captured char frame. */
@@ -82,6 +85,7 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     filesPaneVisible: true,
     searchActive: false,
     selectedId: null,
+    cursorTaskId: () => null,
     openTaskWorktree: NOOP,
     createTask: NOOP,
     renameBranch: NOOP,
@@ -91,6 +95,9 @@ function WorkspaceDriver(props: { children?: React.ReactNode; onToggleZen?: () =
     openInbox: NOOP,
     enterMoveMode: NOOP,
     createPR: NOOP,
+    createPRFor: NOOP,
+    fixChecksFor: () => {},
+    syncBaseFor: () => {},
     toggleSortMode: NOOP,
   })
   return <>{props.children}</>
@@ -140,8 +147,8 @@ function withGuideKvHome(): void {
 
 // The which-key guide is a deliberate delayed reveal: PrefixHud only opens it
 // PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
-// product delay plus frame latency on a loaded CI runner (same flake as
-// issue #82 in shortcut-reveal).
+// product delay plus frame latency on a loaded CI runner (same flake
+// shortcut-reveal guards against).
 const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
 
 async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {

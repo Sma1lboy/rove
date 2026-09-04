@@ -95,7 +95,7 @@ describe("branch follows title", () => {
 
     await orch.setTitle(task.id, "Some new title")
 
-    // Branch was no longer the placeholder default, so it stays put.
+    // Branch is not the placeholder default any more, so it stays put.
     expect(orch.getTask(task.id)?.branch).toBe("feature/custom")
     expect(gitBranches()).toContain("feature/custom")
   })
@@ -109,7 +109,7 @@ describe("branch follows title", () => {
     expect(orch.getTask(task.id)?.branch).toBe(afterFirst)
 
     await orch.setTitle(task.id, "Second name")
-    // Branch is no longer the placeholder default, so the second rename
+    // Branch is not the placeholder default any more, so the second rename
     // does not move it — it tracks the first non-placeholder title.
     expect(orch.getTask(task.id)?.branch).toBe(afterFirst)
     expect(gitBranches()).toContain(afterFirst)

@@ -1,9 +1,8 @@
 /**
  * Unit tests for `src/tui/panes/sidebar/view-core.ts` — the framework-free
- * view logic extracted for the React sidebar port (issue #15, G3; the Solid
- * original was removed 2026-07-07). These pin the shared derivations (tab
- * cycle, budgets, empty-state key selection, the `/`-search keystroke
- * reducer, and the small row helpers).
+ * sidebar view logic. These pin the shared derivations (tab cycle, budgets,
+ * empty-state key selection, the `/`-search keystroke reducer, and the small
+ * row helpers).
  */
 
 import { describe, expect, it } from "vitest"

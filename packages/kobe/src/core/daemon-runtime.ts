@@ -2,10 +2,11 @@
 
 import type { DaemonRuntimeAdapter } from "@sma1lboy/kobe-daemon/daemon/runtime"
 import { availableEngineIds } from "../engine/account-detect.ts"
+import { engineProtocolKey } from "../engine/engine-presets.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
 import { affectsActivityState, isEngineActivityKind } from "../engine/hook-events.ts"
 import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-command.ts"
-import { protocolUpgradeFromLiveSession } from "../engine/protocol-sniff.ts"
+import { protocolUpgradeFromLiveSession, protocolWriteBackFromLiveSession } from "../engine/protocol-sniff.ts"
 import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
 import { createEngineTurnDetector } from "../engine/turn-detector.ts"
 import { issueAssetsDir } from "../env.ts"
@@ -16,7 +17,9 @@ import { deriveTitleFromSession } from "../monitor/auto-title.ts"
 import { GH_PR_VIEW_FIELDS, classifyGhFailure, mapGhPrView, nextPrPoll, samePrStatus } from "../monitor/pr-status.ts"
 import { maybeAutoStart } from "../monitor/status-rules.ts"
 import { type Orchestrator, PLACEHOLDER_TASK_TITLE } from "../orchestrator/core.ts"
-import { getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
+import { SYNC_TIMEOUT_MS, syncWorktreeWithBase } from "../orchestrator/sync-base.ts"
+import { composerGateEnabled } from "../state/composer-gate.ts"
+import { getCustomEngineIds, getPersistedString, getSavedRepos, setPersistedString } from "../state/repos.ts"
 import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
@@ -25,9 +28,11 @@ import { handleDiffRequest } from "../web/diff.ts"
 import { handleHistoryRequest } from "../web/history.ts"
 import { handleNotesRequest } from "../web/notes.ts"
 import { handleThemesRequest } from "../web/themes.ts"
+import { resolveBaseRefCached } from "./base-ref-cache.ts"
 import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
+  deliverPromptToLiveEngineTabDetailedAdapter,
   engineSpecAdapter,
   ensureTaskSessionAdapter,
   startTaskSessionWithPromptAdapter,
@@ -41,6 +46,27 @@ import {
   removeWorktreeAdapter,
 } from "./daemon-worktree-adapter.ts"
 
+/**
+ * The observer's protocol hook, doing tier (b)'s two jobs in one pass: name
+ * THIS task's record (returned to the daemon, which writes it via
+ * `setCommand`) and — separately — learn the custom PRESET's protocol, so the
+ * next task launched on that preset starts named instead of re-sniffing.
+ *
+ * Both rules live in `protocol-sniff.ts`; the preset write is here because it
+ * is the only half that touches state.json, and it is a write rather than a
+ * return value because the daemon's `resolveProtocolUpgrade` contract is
+ * about one task's record. Idempotent — the key it writes is what makes the
+ * next call refuse — so no dedupe is needed around it.
+ */
+function resolveProtocolUpgradeAndLearnPreset(
+  task: { readonly vendor?: string; readonly command?: string },
+  evidence: { readonly walkVendor: VendorId | null; readonly title: string },
+): { command: string; vendor: VendorId } | null {
+  const preset = protocolWriteBackFromLiveSession(task, evidence, getCustomEngineIds())
+  if (preset) setPersistedString(engineProtocolKey(preset.id), preset.protocol)
+  return protocolUpgradeFromLiveSession(task, evidence)
+}
+
 export const daemonRuntime: DaemonRuntimeAdapter = {
   currentVersion: CURRENT_VERSION,
   defaultTaskVendor: DEFAULT_TASK_VENDOR,
@@ -48,7 +74,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   isTaskStatus,
   isEngineActivityKind,
   affectsActivityState,
-  // The activity observer's foreground walk (issues #11/#16): ONE `ps`
+  // The activity observer's foreground walk: ONE `ps`
   // snapshot, then the same shallowest-engine walk `kobe api inspect` uses.
   async foregroundEngines(pids) {
     const rows = parsePsSnapshot(await psSnapshot())
@@ -60,28 +86,54 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     return out
   },
   titleTurnHint: engineTitleTurnHint,
-  // Tier-(b) protocol sniff (issue #31): the record upgrade for a generic
-  // task identified by its live session — rules live with the sniffer.
-  resolveProtocolUpgrade: protocolUpgradeFromLiveSession,
-  // Per-turn telemetry (issue #32) — delegated straight to the vendor's own
+  // Tier-(b) protocol sniff: the record upgrade for a generic
+  // task identified by its live session, plus the preset write-back —
+  // rules live with the sniffer.
+  resolveProtocolUpgrade: resolveProtocolUpgradeAndLearnPreset,
+  // Per-turn telemetry — delegated straight to the vendor's own
   // adapter; an engine without a turn reader simply reports none.
   readEngineTurns: async (vendor, transcriptPath) => (await engineEntry(vendor).readTurns?.(transcriptPath)) ?? [],
   checkLatestVersion,
   latestTranscriptMtime,
   deriveTitleFromSession,
   createEngineTurnDetector,
-  async runWorktreeStatus(worktreePath, signal) {
+  async runWorktreeStatus(worktreePath, signal, baseRef) {
     const result = await spawnCapture("git", ["status", "--porcelain=v1"], {
       cwd: worktreePath,
       env: readOnlyGitProcessEnv(),
       signal,
     })
     if (result.status !== 0) throw new Error("git status failed")
-    return parsePorcelain(result.stdout)
+    const counts = parsePorcelain(result.stdout)
+    // The behind-base drift, on the SAME guarded run as the status walk so it
+    // inherits its in-flight dedupe, timeout and backoff. The base resolution
+    // ladder lives here rather than in the daemon: `resolveBaseRef` is kobe's,
+    // and kobe-daemon does not import kobe sources.
+    const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
+    if (!base) return counts
+    const behind = await spawnCapture("git", ["rev-list", "--count", `HEAD..${base}`], {
+      cwd: worktreePath,
+      env: readOnlyGitProcessEnv(),
+      signal,
+    })
+    if (behind.status !== 0) return counts
+    const n = Number.parseInt(behind.stdout.trim(), 10)
+    return Number.isInteger(n) && n >= 0 ? { ...counts, behind: n } : counts
   },
   maybeAutoStart: (orch, taskId) => maybeAutoStart(orch as Orchestrator, taskId),
   listWorktreeProjects: listWorktreeProjectsAdapter,
   removeWorktree: removeWorktreeAdapter,
+  async syncWorktreeWithBase(worktreePath, recordedBaseRef) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), SYNC_TIMEOUT_MS)
+    try {
+      const baseRef = await resolveBaseRefCached(worktreePath, recordedBaseRef, controller.signal)
+      if (!baseRef) throw new Error("no base ref resolves for this worktree")
+      return await syncWorktreeWithBase(worktreePath, baseRef, controller.signal)
+    } finally {
+      clearTimeout(timer)
+    }
+  },
   availableEngineIds,
   engineDisplayName,
   kobeApiInvocation,
@@ -91,10 +143,39 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   ensureTaskSession: ensureTaskSessionAdapter,
   startTaskSessionWithPrompt: startTaskSessionWithPromptAdapter,
   tearDownTaskSession: tearDownTaskSessionAdapter,
+  // Delegated straight to the vendor's own history reader: what counts as
+  // "context" and what counts toward a token total are both vendor
+  // arithmetic, and the neutral layers only carry and render the result. The
+  // same read already produced the four token counts — dropping them here was
+  // paying for the parse and throwing away most of what it returned.
+  //
+  // `context_tokens` stays the gate: no context reading, no entry, so the
+  // footer meter's behaviour is unchanged. Each token count is carried only
+  // when the adapter reported it; a missing field stays missing rather than
+  // becoming a fabricated `0`.
+  async readEngineContextUsage(vendor, sessionId) {
+    const read = engineEntry(vendor).history.readUsageSnapshot
+    if (!read) return null
+    const snapshot = await read(sessionId)
+    if (snapshot?.context_tokens === undefined) return null
+    return {
+      contextTokens: snapshot.context_tokens,
+      ...(snapshot.context_window_tokens === undefined ? {} : { contextWindowTokens: snapshot.context_window_tokens }),
+      ...(snapshot.context_tokens_approximate ? { approximate: true } : {}),
+      ...(snapshot.input_tokens === undefined ? {} : { inputTokens: snapshot.input_tokens }),
+      ...(snapshot.output_tokens === undefined ? {} : { outputTokens: snapshot.output_tokens }),
+      ...(snapshot.cache_read_input_tokens === undefined ? {} : { cacheReadTokens: snapshot.cache_read_input_tokens }),
+      ...(snapshot.cache_creation_input_tokens === undefined
+        ? {}
+        : { cacheCreationTokens: snapshot.cache_creation_input_tokens }),
+    }
+  },
   quotaUsage: (vendor) => engineEntry(vendor).quotaUsage?.() ?? Promise.resolve(null),
   vendorsWithQuotaProbe,
   deliverPromptToLiveEngine: deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
+  deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
+  composerGateEnabled,
   settingsSnapshot: daemonSettingsSnapshot,
   settingsPatch: daemonSettingsPatch,
   handleDiffRequest,

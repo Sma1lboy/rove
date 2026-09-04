@@ -1,9 +1,9 @@
 /**
- * Fold execution (issue #40): the scratch shell's hosted sessions move
- * under the owning task's next free tab ids and get adopted into its tab
- * state — quietly (adoption never steals the target's active tab), and
- * only when the host actually re-keyed something (an old host or a dead
- * session must NOT delete the scratch row over nothing).
+ * Fold execution: the scratch shell's hosted sessions move under the owning
+ * task's next free tab ids and get adopted into its tab state — quietly
+ * (adoption never steals the target's active tab), and only when the host
+ * actually re-keyed something (a host without rename support, or a dead
+ * session, must NOT delete the scratch row over nothing).
  */
 
 import { afterEach, describe, expect, it } from "vitest"

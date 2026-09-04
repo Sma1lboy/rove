@@ -1,7 +1,6 @@
 /**
  * Theme → tree-sitter SyntaxStyle mapping for the ops preview window,
- * extracted from `tui/ops/host.tsx` and shared by the Solid and React
- * previews (issue #15, G3). Kept apart from `./preview-core` because it
+ * shared by the previews. Kept apart from `./preview-core` because it
  * imports `@opentui/core`, which vitest can't load.
  */
 

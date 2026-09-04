@@ -3,6 +3,7 @@ import {
   engineCommandKey,
   engineDisplayName,
   engineNameKey,
+  humanizeSlug,
 } from "../engine/interactive-command.ts"
 import { AUTO_STATUS_KEY } from "../state/auto-status.ts"
 import { DISPATCHER_KEY } from "../state/dispatcher.ts"
@@ -15,7 +16,7 @@ import {
   normalizeEditorKind,
 } from "../tui/lib/editor-prefs.ts"
 import type { VendorId } from "../types/task.ts"
-import { BUILTIN_VENDORS, isBuiltinVendor } from "../types/vendor.ts"
+import { BUILTIN_VENDORS, DEFAULT_VENDOR, isBuiltinVendor } from "../types/vendor.ts"
 
 const FOCUS_ACCENTS = ["primary", "success", "info"] as const
 const ENGINE_ID_RE = /^[a-z][a-z0-9_-]{0,47}$/
@@ -28,18 +29,6 @@ function customEngineIdsFrom(state: Record<string, unknown>): string[] {
   return raw.filter((id): id is string => typeof id === "string" && ENGINE_ID_RE.test(id) && !isBuiltinVendor(id))
 }
 
-function humanizeSlug(id: string): string {
-  return id
-    .split(/[-_]+/)
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(" ")
-}
-
-function engineLabel(state: Record<string, unknown>, id: VendorId): string {
-  return stringValue(state[engineNameKey(id)]).trim() || engineDisplayName(id)
-}
-
 function engineCommand(state: Record<string, unknown>, id: VendorId): string {
   return stringValue(state[engineCommandKey(id)]).trim() || defaultEngineCommand(id).join(" ")
 }
@@ -48,7 +37,7 @@ export function daemonSettingsSnapshot(): Response {
   const state = loadStateFile()
   const custom = customEngineIdsFrom(state)
   const engineIds = [...BUILTIN_VENDORS, ...custom] as VendorId[]
-  const defaultEngine = stringValue(state.defaultVendor, stringValue(state.lastSelectedVendor, "claude"))
+  const defaultEngine = stringValue(state.defaultVendor, stringValue(state.lastSelectedVendor, DEFAULT_VENDOR))
   const focusAccent = stringValue(state.focusAccent, "primary")
   return Response.json({
     activeTheme: stringValue(state.activeTheme, "claude"),
@@ -64,7 +53,7 @@ export function daemonSettingsSnapshot(): Response {
     defaultEngine,
     engines: engineIds.map((id) => ({
       id,
-      label: engineLabel(state, id),
+      label: engineDisplayName(id),
       command: engineCommand(state, id),
       isBuiltin: isBuiltinVendor(id),
       isCustom: !isBuiltinVendor(id),
@@ -122,8 +111,8 @@ export async function daemonSettingsPatch(request: Request): Promise<Response> {
       patch.customEngineIds = custom.filter((engine) => engine !== id)
       patch[engineCommandKey(id)] = undefined
       patch[engineNameKey(id)] = undefined
-      if (state.defaultVendor === id) patch.defaultVendor = "claude"
-      if (state.lastSelectedVendor === id) patch.lastSelectedVendor = "claude"
+      if (state.defaultVendor === id) patch.defaultVendor = DEFAULT_VENDOR
+      if (state.lastSelectedVendor === id) patch.lastSelectedVendor = DEFAULT_VENDOR
     }
     if (Object.keys(patch).length > 0) patchStateFile(patch)
     return daemonSettingsSnapshot()

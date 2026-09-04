@@ -1,4 +1,4 @@
-/** Durable per-turn telemetry: store persistence + the hook-driven ingest (issue #32). */
+/** Durable per-turn telemetry: store persistence + the hook-driven ingest. */
 
 import { mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"

@@ -213,8 +213,8 @@ describe("deriveCodexUsageMetrics", () => {
     JSON.stringify({ type: "turn.completed", ...(timestamp ? { timestamp } : {}), usage: { output_tokens: output } })
 
   it("takes the latest (file-order) turn when records carry no timestamp", () => {
-    // Regression: the old `else if (latestUsage === undefined)` froze on the
-    // FIRST timestamp-less turn, reporting stale first-turn usage.
+    // An `else if (latestUsage === undefined)` gate freezes on the FIRST
+    // timestamp-less turn and reports stale first-turn usage.
     const raw = [turn(10), turn(20), turn(30)].join("\n")
     expect(deriveCodexUsageMetrics(raw)).toEqual({ input_tokens: 0, output_tokens: 30 })
   })
