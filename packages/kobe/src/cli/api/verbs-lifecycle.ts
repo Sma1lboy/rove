@@ -33,6 +33,12 @@ export const LIFECYCLE_VERBS: readonly VerbSpec[] = [
     flags: [
       F.taskId(),
       {
+        name: "dry-run",
+        type: "bool",
+        description:
+          "Report whether the land would proceed, and write nothing. Returns { branch, landedOn, ahead?, baseDirty?, refusal?, dirtyFiles?, baseDir } — `landedOn` is the base checkout's CURRENT branch (the merge destination), `ahead` the commits that would land, and `refusal` one of DETACHED_HEAD, SAME_BRANCH, MAIN_CHECKOUT_DIRTY, MISSING_REF, EMPTY_BRANCH, EMPTY_BRANCH_DIRTY_WORKTREE when the land would be refused. Ignores --strategy/--delete-branch/--remove-worktree.",
+      },
+      {
         name: "strategy",
         type: "enum",
         values: ["merge", "squash"],

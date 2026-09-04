@@ -3,7 +3,7 @@ import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { promisify } from "node:util"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { gitTopLevel, resolveRepoRoot } from "./repo-key.ts"
 
@@ -54,7 +54,7 @@ function isGitNotRepositoryError(err: unknown): boolean {
   return message.includes("not a git repository")
 }
 
-export function defaultIssuesStorePath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultIssuesStorePath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "issues.json")
 }
 

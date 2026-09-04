@@ -405,6 +405,12 @@ export class RemoteOrchestrator {
   /** Land a task's branch back into its base repo (`task.land`). Throws with a
    *  `LAND_CONFLICT` / `MAIN_CHECKOUT_DIRTY` sentinel in the message on the
    *  guarded failures so callers can print the conflicted files / re-prompt. */
+  /** Read-only land probe (`task.landPreflight`) — destination, commit count,
+   *  refusal. Never writes; behind the land confirm's copy. */
+  landPreflight(id: TaskId | string): ReturnType<typeof writes.landPreflightOp> {
+    return writes.landPreflightOp(this.client, id)
+  }
+
   landTask(id: TaskId | string, opts?: Parameters<typeof writes.landTaskOp>[2]): ReturnType<typeof writes.landTaskOp> {
     return writes.landTaskOp(this.client, id, opts)
   }

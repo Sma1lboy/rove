@@ -60,7 +60,9 @@ export function useFileOpenActions(deps: {
   // Deliberately NO `focus.setFocused` — a read-only open is a content swap,
   // not a navigation, so the FileTree keeps keyboard focus.
   function openDiff(relPath: string, base?: string): void {
-    const label = pathLeaf(relPath)
+    // `.` (whole worktree) and `src/` (a directory) are pathspecs, not files:
+    // `pathLeaf` would label them "." and "" respectively.
+    const label = relPath === "." ? "all" : relPath.endsWith("/") ? relPath : pathLeaf(relPath)
     openDiffTabFn.current?.(relPath, label, base)
   }
 

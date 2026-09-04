@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync } from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /**
  * Runtime files (sockets, pidfiles, logs) live under the product's own state
@@ -176,7 +176,7 @@ export function fitSocketPath(naturalPath: string, homeDir: string, role: string
 export function defaultDaemonSocketPath(homeDir?: string): string {
   const override = readRoveEnv("DAEMON_SOCKET_PATH")
   if (override && override.length > 0) return override
-  const explicit = homeDir ?? readRoveEnv("HOME_DIR")
+  const explicit = homeDir ?? readRoveHomeDirEnv()
   if (explicit && explicit.length > 0) {
     return fitSocketPath(runtimePath(explicit, "daemon.sock", "daemon.pid"), explicit, "daemon")
   }
@@ -195,11 +195,11 @@ export function defaultDaemonSocketPath(homeDir?: string): string {
  * it against its own before trusting the task list.
  */
 export function resolveDaemonHomeDir(homeDir?: string): string {
-  const explicit = homeDir ?? readRoveEnv("HOME_DIR")
+  const explicit = homeDir ?? readRoveHomeDirEnv()
   return explicit && explicit.length > 0 ? explicit : homedir()
 }
 
-export function defaultDaemonPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultDaemonPidPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   const override = readRoveEnv("DAEMON_PID_PATH")
   if (override && override.length > 0) return override
   return runtimePath(homeDir, "daemon.pid", "daemon.pid")
@@ -212,7 +212,7 @@ export function defaultDaemonPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
  * rejection) left no trace at all — the daemon just vanished. Keep the
  * file next to the socket + pidfile under `<home>/.rove/`.
  */
-export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultDaemonLogPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "daemon.log")
 }
 
@@ -227,7 +227,7 @@ export function defaultDaemonLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedi
  * Tasks-pane sync drift was invisible for so long). Honours ROVE_HOME_DIR
  * like every other state path so sandbox runs stay isolated.
  */
-export function defaultClientLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultClientLogPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "client.log")
 }
 
@@ -271,7 +271,7 @@ export function windowsPipePath(homeDir: string, role: string): string {
 export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Platform = process.platform): string {
   const override = readRoveEnv("PTY_SOCKET_PATH")
   if (override && override.length > 0) return override
-  const explicit = homeDir ?? readRoveEnv("HOME_DIR")
+  const explicit = homeDir ?? readRoveHomeDirEnv()
   if (platform === "win32") return windowsPipePath(explicit || homedir(), "pty")
   if (explicit && explicit.length > 0) {
     return fitSocketPath(runtimePath(explicit, "pty.sock", "pty.pid"), explicit, "pty")
@@ -284,19 +284,19 @@ export function defaultPtyHostSocketPath(homeDir?: string, platform: NodeJS.Plat
   return fitSocketPath(runtimePath(home, "pty.sock", "pty.pid"), home, "pty")
 }
 
-export function defaultPtyHostPidPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultPtyHostPidPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   const override = readRoveEnv("PTY_PID_PATH")
   if (override && override.length > 0) return override
   return runtimePath(homeDir, "pty.pid", "pty.pid")
 }
 
-export function defaultPtyHostLogPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultPtyHostLogPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "pty.log")
 }
 
 /** Durable per-session death records (`pty-exit-store.ts`) — must outlive
  *  the host's idle-exit, so a crashed engine's cause stays queryable. */
-export function defaultPtyExitsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultPtyExitsPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "pty-exits.json")
 }
 
@@ -304,13 +304,13 @@ export function defaultPtyExitsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir
  *  own 0600 file rather than a field in `state.json`, because state.json is
  *  user-editable preferences that get pasted into bug reports, and a
  *  single-purpose file can be chmod'd whole and rotated with one `rm`. */
-export function defaultWebTokenPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultWebTokenPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "web-token")
 }
 
 /** Frozen live-session snapshots (`pty-freeze-store.ts`) — one JSON file per
  *  session key, so a host restart (crash, reboot) can hand every session's
  *  metadata + scrollback back to the next host incarnation. */
-export function defaultPtyFreezeDir(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultPtyFreezeDir(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return runtimeDataPath(homeDir, "pty-sessions")
 }

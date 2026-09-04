@@ -28,6 +28,10 @@ export type FileTreeHeaderProps = {
   /** Optional Ops-pane chips (see FileTreeProps). */
   onZenToggle?: () => void
   onCreatePR?: () => void
+  /** Open the whole worktree's combined diff in one tab. Rendered as a chip on
+   *  the Changes tab so the feature is reachable with no chord at all — its
+   *  `D` binding is still PROPOSED (docs/design/keybinding-decisions.md). */
+  onDiffAll?: () => void
 }
 
 export function FileTreeHeaderView(props: FileTreeHeaderProps) {
@@ -147,6 +151,20 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
           <text fg={theme.textMuted} wrapMode="none">
             {t("files.legend.changes")}
           </text>
+          {props.onDiffAll ? (
+            // stopPropagation for the same reason the Zen chip does it: a chip
+            // click is an action, never a background click on the pane.
+            <text
+              fg={theme.accent}
+              wrapMode="none"
+              onMouseUp={(e: { stopPropagation(): void }) => {
+                e.stopPropagation()
+                props.onDiffAll?.()
+              }}
+            >
+              {t("files.actions.diffAll")}
+            </text>
+          ) : null}
         </box>
       ) : (
         <box flexDirection="row" paddingBottom={1} flexShrink={0} />

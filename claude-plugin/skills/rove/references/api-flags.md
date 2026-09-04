@@ -160,7 +160,7 @@ set-effort   --task-id(REQ) --level(REQ)
 set-status   --task-id(REQ)
              --status{backlog|in_progress|in_review|done|canceled|error}(REQ)
 pin          --task-id(REQ) --pinned(true)
-land         --task-id(REQ) --strategy{merge|squash}(merge) --delete-branch
+land         --task-id(REQ) --dry-run --strategy{merge|squash}(merge) --delete-branch
              --remove-worktree(true)
 delete       --task-id(REQ) --force --delete-branch --wait
 ```

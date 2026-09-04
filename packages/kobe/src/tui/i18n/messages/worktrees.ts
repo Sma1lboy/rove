@@ -45,8 +45,18 @@ export const en = {
   land: {
     button: "Land",
     confirmTitle: "Land branch?",
+    // NAMES the destination and the commit count, both read before the dialog
+    // opens (`task.landPreflight`). The old copy said "the base repo's current
+    // branch" — a description of a value Rove already had — on the one screen
+    // where the docs tell you to check it. The refusals it used to warn about
+    // (dirty base, empty branch) now stop the land BEFORE this dialog, so they
+    // are gone from the body.
     confirmBody:
-      'Merge "{branch}" into the base repo\'s current branch, then remove this worktree? The branch is kept. A dirty base checkout is refused; conflicts abort with a file list.',
+      'Merge "{branch}" into {landedOn} ({commits} commits), then remove this worktree? The branch is kept. Conflicts abort with a file list.',
+    /** Singular sibling of {@link confirmBody} — "1 commits" is the kind of
+     *  wrong that makes a user distrust the number next to it. */
+    confirmBodyOne:
+      'Merge "{branch}" into {landedOn} (1 commit), then remove this worktree? The branch is kept. Conflicts abort with a file list.',
     noTask: "This worktree isn't tracked as a Rove task — nothing to land.",
     conflict: "Land hit conflicts (merge aborted). Resolve by hand: {files}",
     dirtyBase:
@@ -104,7 +114,9 @@ export const zh: typeof en = {
     button: "合入",
     confirmTitle: "合入分支？",
     confirmBody:
-      '把 "{branch}" 合入基仓库当前分支，然后移除这个 worktree？分支会保留。基础检出有未提交改动会被拒绝；冲突会中止并给出文件清单。',
+      '把 "{branch}" 合入 {landedOn}（{commits} 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。',
+    confirmBodyOne:
+      '把 "{branch}" 合入 {landedOn}（1 个提交），然后移除这个 worktree？分支会保留。冲突会中止并给出文件清单。',
     noTask: "该 worktree 未作为 Rove 任务被跟踪——没有可合入的对象。",
     conflict: "合入遇到冲突（已中止）。请手动解决：{files}",
     dirtyBase:

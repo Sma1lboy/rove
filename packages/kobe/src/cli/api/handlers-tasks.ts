@@ -378,6 +378,16 @@ async function awaitDeletion(
 export async function land(ctx: VerbContext): Promise<unknown> {
   const daemon = daemonOf(ctx)
   const taskId = ctx.args.require("task-id")
+  // `--dry-run` returns the same probe the land itself runs first, and writes
+  // nothing: the destination branch, how many commits would land, whether the
+  // base is dirty, and the refusal if there is one. A coordinator deciding
+  // WHICH sibling to land needs this before it picks; a human needs it because
+  // the destination is the base checkout's current branch, which nothing else
+  // tells them until the success toast.
+  if (ctx.args.bool("dry-run") === true) {
+    const res = await daemon.request<{ result: unknown }>("task.landPreflight", { taskId })
+    return res.result
+  }
   const strategy = ctx.args.str("strategy") === "squash" ? "squash" : "merge"
   let res: { result: unknown }
   try {

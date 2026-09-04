@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import type { Automation, AutomationPatch, AutomationRun } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { nextCronAfter } from "./cron.ts"
@@ -33,7 +33,7 @@ interface AutomationsFile {
   readonly runs: AutomationRun[]
 }
 
-export function defaultAutomationsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultAutomationsPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "automations.json")
 }
 

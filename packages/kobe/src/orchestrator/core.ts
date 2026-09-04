@@ -20,10 +20,12 @@ import type {
 } from "../types/task.ts"
 import { DEFAULT_TASK_VENDOR } from "../types/task.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
-import { canonPath, normalizeMainRepo, randomDirTaskSuffix, repoWorkingDir, titleFromRepo } from "./core-helpers.ts"
+import { type OpenDirectoryTaskInput, adoptScratchRepoRow, createTaskRow, openDirectoryTaskRow } from "./core-create.ts"
+import { canonPath, repoWorkingDir } from "./core-helpers.ts"
 import type { CreateTaskInput } from "./create-task-input.ts"
 import { DirtyWorktreeError, TaskDeletingError, TaskNotFoundError, WorktreeRemoveFailedError } from "./errors.ts"
 import type { TaskIndexStore, TaskIndexUnsubscribe } from "./index/store.ts"
+import { type LandPreflight, landPreflight } from "./land-preflight.ts"
 import { type LandResult, type LandTaskOpts, landTaskWithCleanup } from "./land.ts"
 import { MainTaskCoordinator } from "./main-task.ts"
 import { promotableDirTasks } from "./promote-dir-tasks.ts"
@@ -220,111 +222,20 @@ export class Orchestrator {
   // --- write ---
 
   /**
-   * Create a new task entry. Worktree allocation is lazy — the
-   * `worktreePath` field stays empty until {@link ensureWorktree} is
-   * called (typically when the user enters the task for the first
-   * time).
+   * Create a new task row — body in `core-create.ts`. Row minting is the one
+   * cluster here that is not already a coordinator delegation, so it is where
+   * this file splits; the class stays the thin delegator its doc claims.
    */
-  async createTask(input: CreateTaskInput): Promise<Task> {
-    if (!input.repo) throw new Error("createTask: repo is required")
-    // Bring the project row into existence alongside the task — but only if
-    // the repo may BE a project (state/project-eligibility.ts). A `/tmp`
-    // fixture or a checkout inside `.dev-sandbox` still gets its task; it
-    // just stops leaving a permanent sidebar row behind — which is how a
-    // project list reaches a dozen rows on two saved repos. `buildTreeRows`
-    // groups a main-less task under a header derived from its own repo, so
-    // the task still renders — the header just dies with it.
-    //
-    // Normalize to the git toplevel regardless of that outcome. A caller
-    // passing a SUBDIRECTORY (`rove` run from `my-monorepo/packages/app`,
-    // whose path passes `validateRepoPath` because `rev-parse --git-dir`
-    // succeeds in a subdir) otherwise splits into two sidebar projects: the
-    // main row keyed on `/my-monorepo`, this task keyed on
-    // `/my-monorepo/packages/app` — a ghost project named after a
-    // subdirectory, with its own worktree root. Taking the normalization from
-    // `normalizeMainRepo` directly, rather than off the returned main row,
-    // keeps it working when no row is created.
-    // Dir/scratch tasks do NOT come through here (see openDirectoryTask),
-    // so pinning a user-owned directory is unaffected.
-    const mainTask = await this.mainTasks.ensureIfEligible(input.repo, input.projectIntent ?? "explicit")
-    const repo = mainTask?.repo ?? normalizeMainRepo(input.repo).repo
-    const title = (input.title ?? PLACEHOLDER_TASK_TITLE).trim() || PLACEHOLDER_TASK_TITLE
-    // Leave the branch EMPTY for a lazily-allocated task (unless the caller
-    // gave an explicit one): {@link ensureWorktree} derives a repo-convention
-    // name (branch-style.ts) with collision suffixes when the worktree
-    // materialises. We must NOT pre-derive a branch here — uniqueness is
-    // resolved against the repo's live branch list at materialise time, and
-    // deferring also lets the branch follow a rename made before first enter.
-    const task = await this.store.create({
-      repo,
-      title,
-      branch: input.branch ?? "",
-      worktreePath: "",
-      status: "backlog",
-      kind: "task",
-      vendor: input.vendor ?? DEFAULT_TASK_VENDOR,
-      ...(input.command?.trim() ? { command: input.command.trim() } : {}),
-      ...(input.modelEffort ? { modelEffort: input.modelEffort } : {}),
-      ...(input.groupId ? { groupId: input.groupId } : {}),
-      ...(input.dispatcher ? { dispatcher: input.dispatcher } : {}),
-      ...(input.routine ? { routine: input.routine } : {}),
-      // Persisted ON the task (not a one-shot side-map): `ensureWorktree`
-      // reads it whenever the worktree materialises — including after a
-      // daemon restart between create and first enter — and `collect`'s
-      // branch signals compare against the recorded fork point instead of
-      // re-guessing the base.
-      ...(input.baseRef?.trim() ? { baseRef: input.baseRef.trim() } : {}),
-    })
-    return task
-  }
+  createTask = (input: CreateTaskInput): Promise<Task> =>
+    createTaskRow({ store: this.store, mainTasks: this.mainTasks }, input)
 
-  /**
-   * Open an existing directory as a standalone `kind: "dir"` task
-   * (`kobe .`). Deliberately NO project association: no main task is
-   * ensured, no worktree or branch is created — the task pins the
-   * directory itself and deletion later only drops the index entry.
-   * Every call creates a NEW task: opening the same
-   * directory twice is two parallel sessions in it, so the title gets a
-   * random suffix (`kobe-af3x`) to tell the rows apart.
-   */
-  async openDirectoryTask(input: {
-    readonly dir: string
-    readonly vendor?: VendorId
-    /** Temp shell task for the sidebar's Scratch section: same
-     *  dir-task shape, `scratch: true`, shell-exit deletes the row. */
-    readonly scratch?: boolean
-  }): Promise<Task> {
-    if (!input.dir) throw new Error("openDirectoryTask: dir is required")
-    const dir = canonPath(input.dir)
-    // A scratch shell's home is unsettled by definition, so it mints NO
-    // auto-name: title stays empty until the user names it or
-    // adoption derives one; every display surface falls back to path/branch.
-    return this.store.create({
-      repo: dir,
-      title: input.scratch ? "" : `${titleFromRepo(dir)}-${randomDirTaskSuffix()}`,
-      branch: "",
-      worktreePath: dir,
-      status: "backlog",
-      kind: "dir",
-      ...(input.scratch ? { scratch: true } : {}),
-      vendor: input.vendor ?? resolvePreferredVendor(),
-    })
-  }
+  /** Open an existing directory as a standalone `kind:"dir"` task (`rove .`). */
+  openDirectoryTask = (input: OpenDirectoryTaskInput): Promise<Task> =>
+    openDirectoryTaskRow({ store: this.store }, input)
 
-  /**
-   * Migrate a scratch task into a repo (adoption): the shell's
-   * live cwd landed in `repo` and a coding harness was detected there, so
-   * the row earns a project home. Repoints `repo`/`worktreePath` at the
-   * repo root and clears the scratch flag — the task becomes an ordinary
-   * `kind: "dir"` row grouped under that repo. No-op unless the task is
-   * actually a scratch dir task.
-   */
-  async adoptScratchRepo(id: TaskId | string, repo: string): Promise<void> {
-    const task = this.store.get(id)
-    if (!task || task.kind !== "dir" || task.scratch !== true) return
-    const dir = canonPath(repo)
-    await this.store.update(id, { repo: dir, worktreePath: dir, scratch: false, title: titleFromRepo(dir) })
-  }
+  /** Migrate a scratch task into a repo (adoption) — see `core-create.ts`. */
+  adoptScratchRepo = (id: TaskId | string, repo: string): Promise<void> =>
+    adoptScratchRepoRow({ store: this.store }, id, repo)
 
   /** Ensure the repo's `kind:"main"` sidebar row exists — see {@link MainTaskCoordinator.ensure}. */
   async ensureMainTask(repo: string): Promise<Task> {
@@ -433,6 +344,19 @@ export class Orchestrator {
   /** Execute physical cleanup and retain a visible error on failure. */
   async finishTaskDeletion(id: TaskId | string): Promise<void> {
     return this.deletions.finish(id)
+  }
+
+  /**
+   * Read-only "may this land, and into what" — the same probes `landTask` runs
+   * before its merge, with nothing written. Behind the land confirm's
+   * destination + commit count and `rove api land --dry-run`.
+   */
+  async landPreflight(id: TaskId | string): Promise<LandPreflight> {
+    const task = this.requireTask(id)
+    if (task.kind === "main") throw new Error("landTask: a main task has no branch to land")
+    if (task.kind === "dir") throw new Error("landTask: a directory task has no Rove-managed branch to land")
+    if (task.deletion) throw new TaskDeletingError(String(task.id))
+    return landPreflight(task)
   }
 
   /** Land a task's branch back into its base repo — executor + cleanup in `land.ts`. */

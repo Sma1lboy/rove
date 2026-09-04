@@ -11,7 +11,14 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { filetypeOf, isImagePath, loadPreviewData, looksBinaryText } from "../../src/tui/ops/preview-core.ts"
+import {
+  filetypeOf,
+  isCombinedPathspec,
+  isImagePath,
+  loadPreviewData,
+  looksBinaryText,
+  unifiedDiffFiles,
+} from "../../src/tui/ops/preview-core.ts"
 
 describe("filetypeOf", () => {
   test("maps known extensions to their tree-sitter grammar and unknown ones to undefined", () => {
@@ -70,6 +77,89 @@ describe("loadPreviewData", () => {
     writeFileSync(join(repo, "blob.dat"), Buffer.from("abc\u0000def"))
     const data = await loadPreviewData(repo, "blob.dat")
     expect(data).toMatchObject({ kind: "binary", image: false })
+  })
+
+  // A directory is a git pathspec, and git already answers it with the
+  // multi-file unified diff `<diff>` renders — the pane refused it, not git.
+  test("a directory pathspec previews as the combined diff of every file under it", async () => {
+    const repo = makeRepo()
+    execFileSync("git", ["mv", "a.ts", "src-a.ts"], { cwd: repo })
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "move"], { cwd: repo })
+    execFileSync("mkdir", ["-p", join(repo, "src")], { cwd: repo })
+    writeFileSync(join(repo, "src", "one.ts"), "export const one = 1\n")
+    writeFileSync(join(repo, "src", "two.ts"), "export const two = 2\n")
+    execFileSync("git", ["add", "src"], { cwd: repo })
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "two"], { cwd: repo })
+    writeFileSync(join(repo, "src", "one.ts"), "export const one = 11\n")
+    writeFileSync(join(repo, "src", "two.ts"), "export const two = 22\n")
+    const data = await loadPreviewData(repo, "src/")
+    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    expect(data.text).toContain("src/one.ts")
+    expect(data.text).toContain("src/two.ts")
+  })
+
+  // The file path falls back to the file's own content; a directory has none,
+  // and falling through would render a blank pane instead of saying so.
+  test("a combined pathspec with no changes reports empty, never a blank code view", async () => {
+    const repo = makeRepo()
+    expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
+    expect(await loadPreviewData(repo, ".")).toEqual({ kind: "empty" })
+  })
+})
+
+describe("isCombinedPathspec", () => {
+  test("only the whole worktree and trailing-slash directories span files", () => {
+    expect(isCombinedPathspec(".")).toBe(true)
+    expect(isCombinedPathspec("src/")).toBe(true)
+    expect(isCombinedPathspec("a/b/")).toBe(true)
+    expect(isCombinedPathspec("src/a.ts")).toBe(false)
+    expect(isCombinedPathspec("a.ts")).toBe(false)
+  })
+})
+
+// opentui's DiffRenderable keeps only `patches[0]`, so a combined diff handed
+// over whole renders its first file and drops the rest. The view stacks one
+// `<diff>` per entry instead, and each needs an explicit row count.
+describe("unifiedDiffFiles", () => {
+  const TWO_FILES = [
+    "diff --git a/src/auth.ts b/src/auth.ts",
+    "index eb7d33f..1e391ec 100644",
+    "--- a/src/auth.ts",
+    "+++ b/src/auth.ts",
+    "@@ -1,3 +1,3 @@",
+    "-export function login(user: string) {",
+    "+export function login(user: string, token: string) {",
+    " }",
+    "diff --git a/src/session.ts b/src/session.ts",
+    "index 3572d91..708d773 100644",
+    "--- a/src/session.ts",
+    "+++ b/src/session.ts",
+    "@@ -1 +1,2 @@",
+    "-export const TTL = 900",
+    "+export const TTL = 1800",
+    "+export const IDLE = 300",
+    "",
+  ].join("\n")
+
+  test("splits on the git header and keeps each patch parseable on its own", () => {
+    const files = unifiedDiffFiles(TWO_FILES)
+    expect(files.map((f) => f.path)).toEqual(["src/auth.ts", "src/session.ts"])
+    expect(files[0]?.text).toContain("@@ -1,3 +1,3 @@")
+    expect(files[0]?.text.startsWith("diff --git a/src/auth.ts")).toBe(true)
+    // The second file's patch must NOT carry the first one's hunks.
+    expect(files[1]?.text).not.toContain("login")
+  })
+
+  test("counts only the rows a hunk body draws — not the ---/+++ preamble", () => {
+    const files = unifiedDiffFiles(TWO_FILES)
+    expect(files[0]?.lines).toBe(3)
+    expect(files[1]?.lines).toBe(3)
+  })
+
+  test("a single-file diff comes back as one entry, and empty text as none", () => {
+    expect(unifiedDiffFiles("").length).toBe(0)
+    const one = unifiedDiffFiles(TWO_FILES.split("diff --git a/src/session.ts")[0] ?? "")
+    expect(one.length).toBe(1)
   })
 })
 

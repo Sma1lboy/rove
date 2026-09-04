@@ -536,6 +536,27 @@ What the owner still has to decide: the letter, and whether an action that
 mutates the worktree belongs behind a two-stroke sequence at all rather than
 staying menu-only where it is harder to fire by accident.
 
+## PROPOSED (not decided): `shift+D` — diff the whole worktree
+
+Status: **proposed, awaiting owner sign-off.**
+
+What it does: opens the whole worktree's combined diff (`git diff <base>...HEAD`
+with pathspec `.`) in one read-only tab, from the Files pane. The per-directory
+form needs no chord at all — it rides the existing `d` on a directory row.
+
+Why `shift+D`, direct rather than behind the prefix: it shadows nothing in the Files
+table, it is files-scoped so it cannot collide outside the pane, and it reads as
+"the bigger `d`" sitting next to the `d` it generalises. Behind the prefix it
+would be a two-stroke sequence for a read-only view, which is heavier than the
+action.
+
+What the owner still has to decide: whether a capital letter belongs in the
+Files table at all — every other chord there is lowercase, so `D` is the first
+shift-letter in that scope and sets a precedent for the rest. The feature does
+not depend on the answer: the Changes tab carries a `[D] diff everything` chip
+that opens the same tab with no chord, so removing the binding costs the chip's
+label and nothing else.
+
 ## Adding or moving a chord
 
 Get owner sign-off on direct versus prefix placement, the selected key, and

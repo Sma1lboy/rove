@@ -173,7 +173,8 @@ through a Task row in that project.
 | `j` / `k` (or arrows) | Move |
 | `h` / `l` (or `←`/`→`) | Collapse / expand |
 | `enter` | Open in your configured editor; changed files use a Vim/Nvim diff when available, otherwise Rove falls back to its read-only preview |
-| `d` | Open a read-only diff in a workspace tab without moving focus |
+| `d` | Open a read-only diff in a workspace tab without moving focus. On a directory row it opens everything under it as one combined diff |
+| `shift+D` | Open the whole worktree's diff in one tab (**proposed**, awaiting sign-off — the Changes tab's `[D] diff everything` chip does the same with no chord) |
 | `r` | Refresh the current file tab |
 | `b` | On Changes, switch working-tree changes ⇄ branch vs base |
 | `o` | Open audio, video, or PDF files in the system application |

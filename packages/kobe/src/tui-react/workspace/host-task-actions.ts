@@ -199,11 +199,13 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     await landTaskAction(
       {
         orchestrator,
-        confirm: (branch) =>
+        // Body arrives rendered from `landTaskAction` — it names the
+        // destination branch and commit count, which the preflight owns.
+        confirm: (body) =>
           DialogConfirm.show(
             dialog,
             t("worktrees.land.confirmTitle"),
-            t("worktrees.land.confirmBody", { branch }),
+            body,
             t("common.cancel"),
             t("worktrees.land.button"),
           ).then((ok: unknown) => ok === true),

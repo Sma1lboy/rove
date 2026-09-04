@@ -20,9 +20,13 @@ const LAND_CONFLICT_RE = /LAND_CONFLICT/
 const MAIN_DIRTY_RE = /MAIN_CHECKOUT_DIRTY/
 
 export interface LandTaskDeps {
-  readonly orchestrator: Pick<RemoteOrchestrator, "landTask">
-  /** Resolved confirm: true = go ahead. The caller owns the dialog stack. */
-  readonly confirm: (branchLabel: string) => Promise<boolean>
+  readonly orchestrator: Pick<RemoteOrchestrator, "landTask" | "landPreflight">
+  /**
+   * Resolved confirm: true = go ahead. The caller owns the dialog stack, but
+   * NOT the copy — the body arrives rendered because it names the destination
+   * branch and the commit count, which only the preflight below knows.
+   */
+  readonly confirm: (body: string) => Promise<boolean>
   readonly notifyInfo: (message: string) => void
   /** Attention tone (yellow): landed, but something needs a human next. */
   readonly notifyNeedsInput: (message: string) => void
@@ -37,10 +41,43 @@ export interface LandTaskDeps {
  * Run one land. Resolves true when the branch landed (whatever the cleanup
  * did afterwards), false on a refusal, a declined confirm, or a failure —
  * every one of which has already been reported through the notifiers.
+ *
+ * The preflight runs FIRST, and it is the reason this function grew a step: the
+ * checks that refuse a land (detached base, dirty base, empty branch) all used
+ * to run after the user had already confirmed, so every refusal arrived as an
+ * error toast for a merge they thought was happening. Now a refusal replaces
+ * the dialog instead of following it, and the dialog that does open names what
+ * it is merging into.
  */
 export async function landTaskAction(deps: LandTaskDeps, taskId: string, branchLabel: string): Promise<boolean> {
   const { t } = deps
-  if (!(await deps.confirm(branchLabel))) return false
+  let preflight: Awaited<ReturnType<RemoteOrchestrator["landPreflight"]>>
+  try {
+    preflight = await deps.orchestrator.landPreflight(taskId)
+  } catch (err) {
+    // A preflight that cannot even run (task gone, repo unreachable) is a
+    // failure, not a refusal — same reporting as a failed land.
+    deps.notifyError(t("worktrees.land.failed", { error: err instanceof Error ? err.message : String(err) }))
+    console.error("[rove land] preflight failed:", err)
+    return false
+  }
+  if (preflight.refusal) {
+    // The refusal carries the exact message the land would have thrown, so no
+    // new strings: the dirty base keeps its own actionable copy (never
+    // `git stash` here), everything else reports what the merge would have.
+    if (preflight.refusal === "MAIN_CHECKOUT_DIRTY") deps.notifyNeedsInput(t("worktrees.land.dirtyBase"))
+    else deps.notifyError(t("worktrees.land.failed", { error: preflight.message ?? preflight.refusal }))
+    return false
+  }
+  const body = t(preflight.ahead === 1 ? "worktrees.land.confirmBodyOne" : "worktrees.land.confirmBody", {
+    branch: branchLabel,
+    landedOn: preflight.landedOn,
+    // `?` only when git exited 0 and printed something that is not a number —
+    // unreachable in practice, and still better than inventing a count on the
+    // screen whose whole job is to show the real one.
+    commits: preflight.ahead ?? "?",
+  })
+  if (!(await deps.confirm(body))) return false
   try {
     // Land removes the worktree by default — same as the CLI.
     const res = await deps.orchestrator.landTask(taskId, { callerCwd: deps.callerCwd })

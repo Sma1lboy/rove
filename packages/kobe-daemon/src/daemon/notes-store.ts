@@ -16,7 +16,7 @@
 import { readFile, stat } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { resolveRepoRoot } from "./repo-key.ts"
 
@@ -44,7 +44,7 @@ interface NotesStoreFile {
   repos: Record<string, RepoNoteRecord>
 }
 
-export function defaultNotesStorePath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultNotesStorePath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "notes.json")
 }
 

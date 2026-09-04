@@ -23,7 +23,7 @@
 import { existsSync, lstatSync, mkdirSync, renameSync, symlinkSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { COMPAT_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 
 /** PTY-host-owned entries: the exit store (file) and the freeze store (dir). */
 const PTY_HOST_DATA_ENTRIES = ["pty-exits.json", "pty-sessions"] as const
@@ -40,7 +40,7 @@ function lstatIfExists(path: string): ReturnType<typeof lstatSync> | undefined {
  * Best-effort by contract: a failed move leaves the legacy entry in place and
  * the host boots with an empty store rather than not booting at all.
  */
-export function migrateLegacyPtyHostData(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): readonly string[] {
+export function migrateLegacyPtyHostData(homeDir = readRoveHomeDirEnv() ?? homedir()): readonly string[] {
   const canonicalDir = join(homeDir, ROVE_STATE_DIR_BASENAME)
   const legacyDir = join(homeDir, COMPAT_STATE_DIR_BASENAME)
   if (canonicalDir === legacyDir) return []
