@@ -58,4 +58,13 @@ describe("sameWorktreeChanges", () => {
     expect(sameWorktreeChanges({ added: 1, deleted: 2 }, { added: 1, deleted: 3 })).toBe(false)
     expect(sameWorktreeChanges({ added: 0, deleted: 0 }, { added: 1, deleted: 0 })).toBe(false)
   })
+
+  test("a change in `ahead` alone is a change", () => {
+    // A worker that commits moves nothing but this: `added`/`deleted` drop to
+    // zero and stay there. An equality that ignored `ahead` would freeze the
+    // row's memo at the pre-commit value and the `↑N` chip would never draw.
+    expect(sameWorktreeChanges({ added: 0, deleted: 0, ahead: 0 }, { added: 0, deleted: 0, ahead: 1 })).toBe(false)
+    expect(sameWorktreeChanges({ added: 0, deleted: 0 }, { added: 0, deleted: 0, ahead: 0 })).toBe(false)
+    expect(sameWorktreeChanges({ added: 0, deleted: 0, ahead: 2 }, { added: 0, deleted: 0, ahead: 2 })).toBe(true)
+  })
 })

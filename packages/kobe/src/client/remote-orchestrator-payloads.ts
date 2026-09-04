@@ -115,14 +115,15 @@ export function parseWorktreeChangesPayload(payload: unknown): Map<string, Workt
   if (!changes || typeof changes !== "object" || Array.isArray(changes)) return null
   const map = new Map<string, WorktreeChanges>()
   for (const [path, value] of Object.entries(changes as Record<string, unknown>)) {
-    const counts = value as { added?: unknown; deleted?: unknown; behind?: unknown } | undefined
+    const counts = value as { added?: unknown; deleted?: unknown; behind?: unknown; ahead?: unknown } | undefined
     if (typeof counts?.added !== "number" || typeof counts.deleted !== "number") return null
-    // `behind` is additive: an older daemon omits it, and the chip then simply
-    // does not draw — never a fabricated zero.
+    // `behind` and `ahead` are both additive: an older daemon omits them, and
+    // the chip then simply does not draw — never a fabricated zero.
     map.set(path, {
       added: counts.added,
       deleted: counts.deleted,
       ...(typeof counts.behind === "number" ? { behind: counts.behind } : {}),
+      ...(typeof counts.ahead === "number" ? { ahead: counts.ahead } : {}),
     })
   }
   return map

@@ -62,18 +62,31 @@ export function useChanges(
  * the flexible middle column. This keeps every row scannable at the same
  * visual anchor even when a branch/title is long. Shared with the tree rows.
  *
- * `+N −M` count UNCOMMITTED files; `↓K` counts COMMITS the base has that this
- * worktree does not. It sits last and in the warning tone because it is the
- * only one of the three that is not about work the row did: main moves several
- * times a day, and an attempt that has been running for two hours is building
- * against a base that no longer exists. Absent (not zero) when no base ref
- * resolves, so a repo with no remote reads exactly as it always did. */
+ * `+N −M` count UNCOMMITTED files; `↑J` counts COMMITS this worktree has that
+ * its base does not, and `↓K` the ones the base has that it does not. `↑J`
+ * leads, in the success tone, because it is the row's own delivered work — and
+ * because committing empties `+N −M`, it is the ONLY thing that separates a
+ * worker that shipped from one that reported success and shipped nothing. `↓K`
+ * sits last and in the warning tone because it is the only one that is not
+ * about work the row did: main moves several times a day, and an attempt that
+ * has been running for two hours is building against a base that no longer
+ * exists. Both are absent (not zero) when no base ref resolves, so a repo with
+ * no remote reads exactly as it always did.
+ *
+ * `↑`/`↓` are U+2191/U+2193 (Arrows) — single-width in every monospace font we
+ * target, same coverage rule the `row-view.ts` glyph comments record. */
 export function ChangeStats(props: { readonly changes: WorktreeChanges }) {
   const { theme } = useTheme()
+  const ahead = props.changes.ahead ?? 0
   const behind = props.changes.behind ?? 0
-  if (props.changes.added <= 0 && props.changes.deleted <= 0 && behind <= 0) return null
+  if (props.changes.added <= 0 && props.changes.deleted <= 0 && ahead <= 0 && behind <= 0) return null
   return (
     <box flexDirection="row" gap={1} flexShrink={0}>
+      {ahead > 0 ? (
+        <text fg={theme.success} wrapMode="none" flexShrink={0}>
+          ↑{ahead}
+        </text>
+      ) : null}
       {props.changes.added > 0 ? (
         <text fg={theme.success} wrapMode="none" flexShrink={0}>
           +{props.changes.added}

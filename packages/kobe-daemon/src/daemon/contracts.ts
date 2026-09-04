@@ -443,4 +443,16 @@ export interface WorktreeChanges {
    * rather than reporting a fabricated zero.
    */
   readonly behind?: number
+  /**
+   * Commits this worktree has that its base does NOT (the right half of `git
+   * rev-list --left-right --count <base>...HEAD`). Absent under exactly the
+   * same conditions as `behind` — they come off one process — so a repo with
+   * no resolvable base reports neither rather than a fabricated zero.
+   *
+   * This is the only number that separates a worker that committed (clean
+   * worktree, `ahead > 0`) from one that reported success and delivered
+   * nothing (clean worktree, `ahead === 0`); without it both rows render
+   * blank and the difference only surfaces at land time as `EMPTY_BRANCH`.
+   */
+  readonly ahead?: number
 }

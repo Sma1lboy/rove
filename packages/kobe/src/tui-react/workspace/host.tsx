@@ -168,7 +168,13 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // `quick-fork.ts` because the create/enter/pending-prompt shape is identical
   // regardless of host — the other caller is TerminalTabs, and both must stay
   // one implementation.
-  const quickFork = useQuickFork(orch, { selectTask: setSelectedId, enterTask: activateTask, notifyError })
+  const quickFork = useQuickFork(orch, {
+    selectTask: setSelectedId,
+    enterTask: activateTask,
+    notifyError,
+    notify: notifyInfo,
+    t,
+  })
 
   // Scratch temp shell tasks — open gesture, exit deletion, and
   // the quiet adoption loop all live in the hook.

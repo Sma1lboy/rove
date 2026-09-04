@@ -239,6 +239,7 @@ export function WorktreeTreeRow(props: {
     (conflict ? 2 : 0) +
     (review ? 2 : 0) +
     (status ? 2 : 0) +
+    ((changes.ahead ?? 0) > 0 ? clusterCells(`↑${changes.ahead}`) : 0) +
     (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
     (changes.deleted > 0 ? clusterCells(`−${changes.deleted}`) : 0) +
     ((changes.behind ?? 0) > 0 ? clusterCells(`↓${changes.behind}`) : 0) +

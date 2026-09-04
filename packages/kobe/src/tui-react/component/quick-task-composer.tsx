@@ -3,10 +3,18 @@
  * Prompt-first quick-task composer (`<prefix> f`).
  *
  * The quick path is prompt-first: the PROMPT field is focused on open and
- * `enter` from it creates the task immediately. Engine and branch are right
- * there too — `tab` cycles prompt → engine → branch, `ctrl+e` (or ←/→ on the
- * engine field) switches engine — but they default from the firing task, so
- * the common path is just "type a prompt, hit enter".
+ * `enter` from it creates the task immediately. Attempts, engine and branch
+ * are right there too — `tab` cycles prompt → attempts → engine → branch,
+ * `ctrl+e` (or ←/→ on the engine field) switches engine — but they default
+ * from the firing task, so the common path is just "type a prompt, hit
+ * enter".
+ *
+ * ATTEMPTS is what makes this the product's headline gesture rather than a
+ * one-task shortcut: picking N > 1 fans the SAME prompt out to N siblings of
+ * one round. It stops at 5 while `rove api add --count` allows 10 —
+ * `docs/ORCHESTRATION.md` calls 3-4 the sweet spot, and a chip row of ten
+ * choices is a worse dialog than the shell command you would reach for to
+ * exceed five.
  *
  * This is deliberately NOT the full `NewTaskDialog` (repo picker, clone/adopt
  * tabs) and NOT `RenameTaskDialog` (whose field is literally labelled
@@ -46,10 +54,15 @@ export interface QuickTaskResult {
   readonly baseRef: string
   /** Absolute file paths (images/PDFs) to reference alongside the prompt. */
   readonly attachments: readonly string[]
+  /** How many siblings to fan this prompt out to. `1` is the plain fork. */
+  readonly attempts: number
 }
 
-type Field = "prompt" | "engine" | "branch"
-const FIELDS: readonly Field[] = ["prompt", "engine", "branch"]
+/** The choices the ATTEMPTS row offers. See the file header for why it stops at 5. */
+export const ATTEMPT_CHOICES: readonly string[] = ["1", "2", "3", "4", "5"]
+
+type Field = "prompt" | "attempts" | "engine" | "branch"
+const FIELDS: readonly Field[] = ["prompt", "attempts", "engine", "branch"]
 
 function QuickTaskComposerView(
   props: QuickTaskComposerOptions & {
@@ -63,6 +76,7 @@ function QuickTaskComposerView(
   const padX = useDialogPaddingX()
   const [field, setField] = useState<Field>("prompt")
   const [prompt, setPrompt] = useState("")
+  const [attempts, setAttempts] = useState(1)
   const [vendor, setVendor] = useState<VendorId>(props.defaultVendor)
   const [baseRef, setBaseRef] = useState(props.defaultBaseRef)
   const [attachments, setAttachments] = useState<readonly string[]>([])
@@ -92,6 +106,12 @@ function QuickTaskComposerView(
       return FIELDS[(i + dir + FIELDS.length) % FIELDS.length] ?? "prompt"
     })
   }
+  function stepAttempts(dir: 1 | -1): void {
+    // Clamped, not wrapped: ←  from 1 stays on 1. The engine row cycles because
+    // every engine is equivalent; here 1 and 5 are opposite ends of a scale, and
+    // one keypress past the end must not fan out five attempts.
+    setAttempts((n) => Math.min(ATTEMPT_CHOICES.length, Math.max(1, n + dir)))
+  }
   function stepEngine(dir: 1 | -1): void {
     const list = props.engines
     if (list.length === 0) return
@@ -117,6 +137,7 @@ function QuickTaskComposerView(
       vendor,
       baseRef: baseRef.trim() || props.defaultBaseRef,
       attachments,
+      attempts,
     })
     dialog.clear()
   }
@@ -134,6 +155,7 @@ function QuickTaskComposerView(
     enabled: true,
     bindings: quickTaskBindings(field, {
       cycleField,
+      stepAttempts,
       stepEngine,
       commit,
       pasteAttachment,
@@ -178,6 +200,22 @@ function QuickTaskComposerView(
             ))}
           </box>
         ) : null}
+
+        <DialogSection
+          label={t("quickTask.attemptsLabel")}
+          focused={field === "attempts"}
+          hint="←/→"
+          onPress={() => setField("attempts")}
+        >
+          <ChipRow
+            choices={ATTEMPT_CHOICES}
+            selected={String(attempts)}
+            onPick={(v) => {
+              setAttempts(Number(v))
+              setField("attempts")
+            }}
+          />
+        </DialogSection>
 
         <DialogSection
           label={t("quickTask.engineLabel")}

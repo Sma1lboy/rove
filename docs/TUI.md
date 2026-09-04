@@ -50,11 +50,18 @@ Task rows carry worktree-level facts:
 |---|---|
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
+| `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
 | `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
 | `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
 | `≠` | The pull request conflicts with its base branch |
 | `»` / `≡` | The pull request is approved and clear to merge, or already merged |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
+
+`↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
+without it a worker that committed its work and one that reported success and
+delivered nothing render the same blank row — a difference you would otherwise
+meet at land time, as `EMPTY_BRANCH`. `↑N` and `↓N` are absent rather than zero
+when no base branch resolves, so a repo with no remote reads as it always did.
 
 The status mark is what a person said about the Task; the check mark next to it
 is what CI reports, so the two can disagree. `»` answers a third question the
@@ -376,9 +383,19 @@ built-in source can also hand off to a different built-in or custom target.
 A custom source has no readable transcript, so Rove refuses to continue it
 instead of opening a context-free tab.
 
-**Fork a child task** opens the quick composer (prompt, engine, branch). The
-child branches from your task's **current branch**, so committed work carries
-over. Uncommitted changes stay behind; commit first if the child needs them.
+**Fork a child task** opens the quick composer (prompt, attempts, engine,
+branch). The child branches from your task's **current branch**, so committed
+work carries over. Uncommitted changes stay behind; commit first if the child
+needs them.
+
+**Attempts** fans the same prompt out to a round of up to 5 siblings, the
+keyboard path to `rove api add --count N --prompt …`. They share one round id,
+so `rove api collect --group <id>` reports them together. A round does not move
+you: the siblings appear in the sidebar and start working while you stay on the
+task you fired from — only a single attempt still carries you into the child,
+because that one is "carry on from here". The chip stops at 5 where the CLI
+allows 10; [Orchestration](ORCHESTRATION.md) calls 3-4 the sweet spot, and past
+five the shell command is the better tool.
 
 `ctrl+a` `c` (continue in a new tab) and `ctrl+a` `f` (fork a child task)
 open the same dialog with the toggles pre-set.

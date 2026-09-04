@@ -23,6 +23,7 @@ import { DEFAULT_BASE_REF, getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { repoBasename } from "../../tui/panes/sidebar/groups"
 import { DEFAULT_TASK_VENDOR, type Task, type VendorId } from "../../types/task"
 import type { QuickTaskComposerOptions, QuickTaskResult } from "../component/quick-task-composer"
+import { type RoundOrchestrator, runQuickForkRound } from "./quick-fork-round"
 
 /**
  * Seed the composer from the task a quick-fork chord fired in.
@@ -55,7 +56,7 @@ export function quickForkDefaultVendor(repo: string, detected: readonly VendorId
   return detected[0] ?? pref
 }
 
-export interface QuickForkOrchestrator {
+export interface QuickForkOrchestrator extends RoundOrchestrator {
   createTask(input: { repo: string; baseRef: string; vendor: VendorId }): Promise<Task>
   /** Record the brief on the created task — "Run again" only (see {@link runAgainTask}). */
   setPrompt(id: string, prompt: string): Promise<void>
@@ -179,13 +180,34 @@ export function useQuickFork(
     selectTask: (id: string) => void
     enterTask: (id: string) => Promise<void>
     notifyError: (message: string) => void
+    notify: (message: string) => void
+    t: (key: string, vars?: Record<string, string | number>) => string
   },
 ): UseQuickForkResult {
   const [pending, setPending] = useState<PendingInitialPrompt | null>(null)
 
   async function onQuickFork(repo: string, result: QuickTaskResult): Promise<void> {
+    const prompt = appendAttachmentRefs(result.prompt, result.attachments)
+    // A round (attempts > 1) is a different gesture, not a loop over this one:
+    // it does not steal focus and it cannot ride the single pending slot. See
+    // `quick-fork-round.ts`. One attempt keeps today's behaviour exactly.
+    if (result.attempts > 1) {
+      const outcome = await runQuickForkRound(orch, repo, { ...result, prompt, attempts: result.attempts })
+      if (outcome.failures.length > 0) {
+        hooks.notifyError(
+          `${hooks.t("quickTask.roundPartial", {
+            ok: outcome.started.length,
+            count: result.attempts,
+            failed: outcome.failures.length,
+          })}: ${outcome.failures.join("; ")}`,
+        )
+        return
+      }
+      hooks.notify(hooks.t("quickTask.startedRound", { count: outcome.started.length }))
+      return
+    }
     const taskId = await runQuickFork(orch, repo, result, hooks)
-    if (taskId) setPending({ taskId, prompt: appendAttachmentRefs(result.prompt, result.attachments) })
+    if (taskId) setPending({ taskId, prompt })
   }
 
   async function onRunAgain(task: Task): Promise<void> {

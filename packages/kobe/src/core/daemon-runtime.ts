@@ -1,6 +1,7 @@
 /** Production Adapter for the daemon package's consumer-owned runtime seam. */
 
 import type { DaemonRuntimeAdapter } from "@sma1lboy/kobe-daemon/daemon/runtime"
+import { parseAheadBehind } from "@sma1lboy/kobe-daemon/daemon/worktree-changes-collector"
 import { availableEngineIds } from "../engine/account-detect.ts"
 import { engineProtocolKey } from "../engine/engine-presets.ts"
 import { foregroundEngineIn, parsePsSnapshot, psSnapshot } from "../engine/foreground.ts"
@@ -29,7 +30,7 @@ import { handleHistoryRequest } from "../web/history.ts"
 import { handleNotesRequest } from "../web/notes.ts"
 import { handleThemesRequest } from "../web/themes.ts"
 import { resolveBaseRefCached } from "./base-ref-cache.ts"
-import { behindCountCached } from "./behind-cache.ts"
+import { driftCached } from "./behind-cache.ts"
 import {
   deliverPromptToLiveEngineAdapter,
   deliverPromptToLiveEngineDetailedAdapter,
@@ -106,26 +107,28 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
     })
     if (result.status !== 0) throw new Error("git status failed")
     const counts = parsePorcelain(result.stdout)
-    // The behind-base drift, on the SAME guarded run as the status walk so it
-    // inherits its in-flight dedupe, timeout and backoff. The base resolution
-    // ladder lives here rather than in the daemon: `resolveBaseRef` is kobe's,
-    // and kobe-daemon does not import kobe sources.
+    // The base drift BOTH ways, on the SAME guarded run as the status walk so
+    // it inherits its in-flight dedupe, timeout and backoff. One
+    // `--left-right --count` process yields behind and ahead together: two
+    // separate counts would cost a second fork per poll per worktree and
+    // could straddle a commit, reporting a pair that never coexisted. The
+    // base resolution ladder lives here rather than in the daemon:
+    // `resolveBaseRef` is kobe's, and kobe-daemon does not import kobe
+    // sources.
     const base = await resolveBaseRefCached(worktreePath, baseRef, signal)
     if (!base) return counts
-    // Memoised on the HEAD/base shas read from the ref files: the count can
-    // only move when one of them does, and re-deriving it every tick was half
-    // the collector's spawns.
-    const n = await behindCountCached(worktreePath, base, async () => {
-      const behind = await spawnCapture("git", ["rev-list", "--count", `HEAD..${base}`], {
+    // Memoised on the HEAD/base shas read from the ref files: the counts can
+    // only move when one of them does, and re-deriving them every tick was
+    // half the collector's spawns.
+    const drift = await driftCached(worktreePath, base, async () => {
+      const out = await spawnCapture("git", ["rev-list", "--left-right", "--count", `${base}...HEAD`], {
         cwd: worktreePath,
         env: readOnlyGitProcessEnv(),
         signal,
       })
-      if (behind.status !== 0) return null
-      const parsed = Number.parseInt(behind.stdout.trim(), 10)
-      return Number.isInteger(parsed) && parsed >= 0 ? parsed : null
+      return out.status === 0 ? parseAheadBehind(out.stdout) : null
     })
-    return n === null ? counts : { ...counts, behind: n }
+    return drift === null ? counts : { ...counts, ...drift }
   },
   maybeAutoStart: (orch, taskId) => maybeAutoStart(orch as Orchestrator, taskId),
   listWorktreeProjects: listWorktreeProjectsAdapter,
