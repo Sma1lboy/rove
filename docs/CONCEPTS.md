@@ -127,14 +127,11 @@ survive you:
 ```mermaid
 flowchart LR
   TUI["Rove (TUI)"] --> D["Daemon"]
-  WEB["rove web / browser"] --> D
   API["rove api"] --> D
   TUI --> P["PTY Host"]
   API --> P
-  WEB --> BP["Browser PTY sidecar"]
   D --> IDX["Task index + worktrees"]
   P --> E["TUI/API engine + shell sessions"]
-  BP --> BE["browser-owned terminal sessions"]
 ```
 
 - **Daemon.** Owns your task list, worktrees, and the issue store. Starts on
@@ -143,9 +140,6 @@ flowchart LR
   (it must stay up to collect engine activity, or the status dots go stale).
 - **PTY host.** Owns the running engine and shell processes. Survives both
   the TUI *and* a daemon restart.
-- **Browser PTY sidecar.** A separate Node process started by `rove web` for
-  browser-owned terminals. It is not the standalone PTY host and does not own
-  the TUI's hosted sessions.
 - **The TUI.** Just a viewport. Quitting it kills nothing.
 
 Full lifetime rules, and exactly what survives a reboot:
@@ -159,7 +153,7 @@ store at `~/.rove/issues.json`, shared between a repo and all its worktrees.
 It's deliberately simple. No type taxonomy, just a status
 (`open → doing → done`, plus `hold` for things parked on purpose):
 
-- **You.** The Issues page in `rove web`, or the Kanban in the TUI.
+- **You.** The Kanban in the TUI.
 - **Agents and scripts.** `rove api issue-list`, `issue-create`,
   `issue-set-status`, `issue-update`.
 
@@ -200,12 +194,6 @@ on that machine, so dropping SSH does not end hosted sessions. SSH back in and
 run `rove` to reattach. Clipboard and terminal notifications depend on the
 attached terminal connection; attention that happens while disconnected stays
 available in Rove's Inbox when you return.
-
-**The browser dashboard as a maintenance surface.** `rove web` serves the
-frozen browser SPA (default `http://localhost:45174`). It shares daemon-owned
-Task and issue data with the TUI, but browser terminal tabs belong to the
-browser PTY sidecar and are not the TUI's hosted Terminal Tabs. New product
-surface work belongs in the TUI; `/harness` remains the visual test path.
 
 ## Glossary
 

@@ -1,9 +1,5 @@
 import { createRootRoute, Outlet } from "@tanstack/react-router"
-import { useEffect } from "react"
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx"
-import { GlobalShortcuts } from "../components/GlobalShortcuts.tsx"
-import { attentionCount, documentTitle } from "../lib/document-title.ts"
-import { useAppState } from "../lib/store.ts"
 
 import "../styles.css"
 
@@ -11,21 +7,20 @@ export const Route = createRootRoute({
   component: RootComponent,
 })
 
-/** Keep the tab title's "(N)" attention badge live on every route. Lives at
- *  the root so it tracks tasks regardless of which view is open. */
-function useAttentionTitle(): void {
-  const { tasks, engineStates } = useAppState()
-  useEffect(() => {
-    document.title = documentTitle(attentionCount(tasks, engineStates))
-  }, [tasks, engineStates])
-}
-
+/**
+ * The root of the capture app. `/harness` is the only route: it embeds
+ * xterm.js over the PTY sidecar and runs the REAL OpenTUI, which is the one
+ * ground-truth surface for visual acceptance (docs/HARNESS.md).
+ *
+ * There is deliberately nothing else here — no global shortcuts, no command
+ * palette, no document-title badge. Those belonged to the browser dashboard
+ * this app used to be; a capture surface that reacts to keystrokes of its own
+ * would compete with the TUI it is photographing.
+ */
 function RootComponent() {
-  useAttentionTitle()
   return (
     <ErrorBoundary>
       <Outlet />
-      <GlobalShortcuts />
     </ErrorBoundary>
   )
 }

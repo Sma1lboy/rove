@@ -13,7 +13,6 @@ const spies = vi.hoisted(() => ({
   daemon: vi.fn(async () => {}),
   doctor: vi.fn(async () => {}),
   reset: vi.fn(async () => {}),
-  web: vi.fn(async () => {}),
   skill: vi.fn(async () => {}),
   hook: vi.fn(async () => {}),
   addRemote: vi.fn(async () => {}),
@@ -32,7 +31,6 @@ vi.mock("../../src/cli/feedback-cmd.ts", () => ({ runFeedbackSubcommand: spies.f
 vi.mock("../../src/cli/daemon-cmd.ts", () => ({ runDaemonSubcommand: spies.daemon }))
 vi.mock("../../src/cli/doctor-cmd.ts", () => ({ runDoctorSubcommand: spies.doctor }))
 vi.mock("../../src/cli/reset-cmd.ts", () => ({ runResetSubcommand: spies.reset }))
-vi.mock("../../src/cli/web-cmd.ts", () => ({ runWebSubcommand: spies.web }))
 vi.mock("../../src/cli/skill-cmd.ts", () => ({ runSkillSubcommand: spies.skill }))
 vi.mock("../../src/cli/hook-cmd.ts", () => ({ runHookSubcommand: spies.hook }))
 vi.mock("../../src/cli/add-remote.ts", () => ({ runAddRemote: spies.addRemote }))
@@ -137,7 +135,6 @@ describe("public subcommand routing", () => {
     [["daemon", "status"], "daemon", ["status"]],
     [["doctor"], "doctor", []],
     [["reset", "--yes"], "reset", ["--yes"]],
-    [["web"], "web", []],
     [["skill", "install"], "skill", ["install"]],
     [["hook", "claude"], "hook", ["claude"]],
   ]

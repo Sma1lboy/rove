@@ -39,7 +39,6 @@ Task = git worktree + hosted engine sessions + branch
 
 ```bash
 rove --help
-rove web
 rove daemon status
 rove daemon restart
 rove api --help

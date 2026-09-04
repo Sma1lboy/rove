@@ -67,7 +67,6 @@ touched.
 ```bash
 rove            # the TUI (first run: onboarding wizard)
 rove .          # open a directory as a task, the `code .` gesture
-rove web        # the browser dashboard on http://localhost:45174
 ```
 
 A typo never silently opens the TUI: an unknown subcommand prints usage and
@@ -84,7 +83,6 @@ Run with no command to launch PureTUI.
 Run `rove .` (or `rove <path>`) to open a directory as a standalone task.
 
 Commands:
-  web [options]           Launch the browser dashboard
   completions <shell>     Generate shell completion script (bash/zsh/fish)
   add [path]              Save a repo path for the new-task picker
   remove [path]           Forget a saved project (inverse of add; non-destructive)
@@ -148,26 +146,6 @@ local engine cwd, and engine launch may fail. Files/diffs and repo init also
 lack full remote parity. Do not use this experiment as a security boundary or
 assume prompts, engine execution, or repository reads are confined to the SSH
 host.
-
-## web
-
-```bash
-rove web [--port <n>] [--routes-only] [--no-takeover]
-```
-
-(`--bridge-only` is accepted as a legacy alias for `--routes-only`.)
-
-Serves the dashboard on `:45174`, plus a sidecar for browser terminal tabs.
-`--routes-only` starts/verifies only the daemon-hosted HTTP/SSE routes, for a
-separate Vite dev server. Normally Rove may replace an older Rove PTY sidecar
-on `<port + 2>`; `--no-takeover` disables that replacement and never probes or
-kills the prior sidecar.
-
-`ROVE_DAEMON_WEB_PORT` is read when the **daemon starts** (`0`/`off`/`false`
-disables its web transport). It is not a substitute for `rove web --port`:
-`rove web` targets `45174` unless `--port` is present. Neither setting can
-rebind a daemon that is already running; after changing the daemon port, run
-`rove daemon restart`, then pass the same port to `rove web`.
 
 ## completions
 
@@ -410,8 +388,6 @@ are set: `ROVE_HOME_DIR` beats `KOBE_HOME_DIR`, `ROVE_OPEN_EDITOR` beats
 |---|---|
 | `ROVE_HOME_DIR` | Move Rove's home-rooted task/runtime data; platform settings and engine-owned history keep their own locations |
 | `ROVE_OPEN_EDITOR` | Command that opens a worktree in a GUI editor (`code`, `cursor`, …) |
-| `ROVE_DAEMON_WEB_PORT` | Daemon web-transport port at daemon startup (default 45174; `0`/`off`/`false` disables). `rove web` itself uses `--port`. |
-| `ROVE_WEB_HOST` | Host the daemon binds its web transport to, read at daemon startup |
 | `ROVE_DEV=1` | Mark a developer checkout; hides the update chip |
 | `ROVE_DEBUG=1` | Print full startup errors instead of one line |
 | `ROVE_TASK_ID` / `ROVE_TAB_ID` | Set inside tabs Rove opens; how `rove api` verbs resolve the calling task |

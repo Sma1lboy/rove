@@ -47,7 +47,10 @@ function remember(token: string): void {
 
 function readToken(): string {
   if (typeof document !== "undefined") {
-    const injected = document.querySelector('meta[name="rove-web-token"]')?.getAttribute("content")?.trim()
+    const injected = document
+      .querySelector('meta[name="rove-web-token"]')
+      ?.getAttribute("content")
+      ?.trim()
     if (injected) {
       remember(injected)
       return injected
@@ -55,7 +58,9 @@ function readToken(): string {
     const saved = remembered()
     if (saved) return saved
   }
-  return (import.meta.env?.VITE_ROVE_WEB_TOKEN as string | undefined)?.trim() ?? ""
+  return (
+    (import.meta.env?.VITE_ROVE_WEB_TOKEN as string | undefined)?.trim() ?? ""
+  )
 }
 
 let cached: string | null = null
@@ -70,7 +75,13 @@ export function webToken(): string {
 export function withWebToken(init: RequestInit): RequestInit {
   const token = webToken()
   if (!token) return init
-  return { ...init, headers: { ...(init.headers as Record<string, string>), authorization: `Bearer ${token}` } }
+  return {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string>),
+      authorization: `Bearer ${token}`,
+    },
+  }
 }
 
 /**

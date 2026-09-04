@@ -1,6 +1,6 @@
 /**
  * kobe daemon server: the single writer for the task index, plus the
- * push-channel bus every attached TUI/pane/web client subscribes to. RPC
+ * push-channel bus every attached TUI/pane client subscribes to. RPC
  * surface: hello / daemon.status / daemon.stop + handlers.ts + subscribe.
  */
 
@@ -17,6 +17,7 @@ import { startDaemonCollectors } from "./collectors.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import type { DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
+import { createDirectLink } from "./direct-link.ts"
 import { DaemonEventBus } from "./event-bus.ts"
 import {
   type DaemonHandlerContext,
@@ -44,12 +45,10 @@ import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.t
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
 import { TabCloseBroker } from "./tab-close-broker.ts"
-import { createDirectWebLink } from "./web-server.ts"
-import { createWebTransport } from "./web-transport-boot.ts"
 import { WorkItemCache } from "./work-items.ts"
 
 // RPC handler registry + per-request dispatch seam — re-exported so consumers
-// (tests, kobe-web bridge) keep the existing `daemon/server` import path.
+// (tests) keep the existing `daemon/server` import path.
 export {
   blockingRpcNames,
   createDaemonHandlerRegistry,
@@ -84,15 +83,11 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     throw new Error(`rove daemon: another daemon is already serving ${socketPath} — refusing to replace it`)
   }
   const clients = new Set<ClientState>()
-  // Secondary HTTP/SSE surface — its listener, SSE client set and bind-failure
-  // reason all live in web-transport-boot.ts. Created empty here so the
-  // lifetime generator below can yield from it; booted after `selfLink`.
-  const web = createWebTransport()
   let nextClientId = 1
 
   // Refcounted lazy shutdown + collector gate (KOB): the daemon's lifetime is
   // bound to the number of attached GUIs — a front-end that subscribed with
-  // `role: "gui"` (the `kobe` TUI process, or the kobe-web bridge). The count
+  // `role: "gui"` (the `rove` TUI process). The count
   // deliberately EXCLUDES helper panes (Tasks/Ops/settings, `role: "pane"`):
   // those subscribe for push channels but persist after the user quits the
   // front-end, so counting them kept the daemon alive forever (N Terminal Tabs
@@ -108,7 +103,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   const lifetime = new DaemonLifetime({
     clients: function* () {
       yield* clients
-      yield* web.clients
     },
     idleGraceMs: resolveIdleGraceMs(),
     // Autospawned daemons (connectOrStartDaemon's spawn stamps the env
@@ -300,9 +294,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     socketPath,
     pidPath,
     startedAt,
-    get webPort() {
-      return web.port
-    },
     clients,
     async close() {
       lifetime.markStopping()
@@ -312,7 +303,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // (its `run` spawns outside the inner promise).
       try {
         unsubscribeStore()
-        web.close()
         stopCollectors()
         ptyHold.stop()
         stopPtyExitWatch()
@@ -402,11 +392,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
         startedAt,
         socketPath,
         homeDir,
-        webPort: web.port,
-        webError: web.error,
         pid: process.pid,
         guiCount: () => lifetime.guiCount(),
-        clientCount: () => clients.size + web.clients.size,
+        clientCount: () => clients.size,
         stopSoon,
         reevaluateIdle: () => lifetime.reevaluateIdle(),
       },
@@ -414,20 +402,10 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     }
   }
 
-  // In-process RPC client over the daemon's OWN handler registry — no socket,
-  // no web transport. Built unconditionally: the automation runner needs it to
-  // launch engine sessions whether or not `--web-port` was passed. The web
-  // server reuses the same object when it is enabled.
-  const selfLink = createDirectWebLink({ orch, bus, activity, ctx: handlerContext })
-
-  await web.start({
-    options,
-    bus,
-    link: selfLink,
-    lifetime,
-    ptyHold,
-    socketClientCount: () => clients.size,
-  })
+  // In-process RPC client over the daemon's OWN handler registry — no socket
+  // round-trip. Built unconditionally: the automation runner needs it to launch
+  // engine sessions whether or not anyone is attached.
+  const selfLink = createDirectLink({ orch, bus, activity, ctx: handlerContext })
 
   async function dispatch(req: Extract<DaemonFrame, { type: "request" }>, client: ClientState): Promise<unknown> {
     if (req.name === "subscribe") {

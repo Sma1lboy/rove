@@ -13,12 +13,7 @@ import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { installDaemonCrashHandlers } from "@sma1lboy/kobe-daemon/daemon/crash-log"
 import { stopDaemonProcess } from "@sma1lboy/kobe-daemon/daemon/lifecycle"
 import { rotateLogIfNeeded } from "@sma1lboy/kobe-daemon/daemon/log-rotate"
-import {
-  DEFAULT_DAEMON_WEB_PORT,
-  defaultDaemonLogPath,
-  defaultDaemonPidPath,
-  defaultDaemonSocketPath,
-} from "@sma1lboy/kobe-daemon/daemon/paths"
+import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { readPidFile, startDaemonServer } from "@sma1lboy/kobe-daemon/daemon/server"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { createKobeCore } from "../core/index.ts"
@@ -42,13 +37,6 @@ function printDaemonUsage(out: Pick<typeof process.stderr, "write">): void {
       "",
     ].join("\n"),
   )
-}
-
-function resolveDaemonWebPort(): number | undefined {
-  const raw = readRoveEnv("DAEMON_WEB_PORT")?.trim()
-  if (raw === "0" || raw === "off" || raw === "false") return undefined
-  const value = raw ? Number.parseInt(raw, 10) : DEFAULT_DAEMON_WEB_PORT
-  return Number.isFinite(value) && value > 0 ? value : DEFAULT_DAEMON_WEB_PORT
 }
 
 export async function runDaemonSubcommand(argv: readonly string[]): Promise<void> {
@@ -147,9 +135,6 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     socketPath,
     pidPath,
     homeDir: core.homeDir,
-    webPort: resolveDaemonWebPort(),
-    webHost: readRoveEnv("WEB_HOST"),
-    webStaticDir: readRoveEnv("DAEMON_WEB_STATIC_DIR"),
     // Plugin callbacks exec THIS Rove where that is expressible as one
     // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
     plugins: { binPath: resolvePluginBinPath() },
@@ -158,7 +143,6 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     },
   })
   console.log(`${CLI_NAME} daemon: listening on ${server.socketPath}`)
-  if (server.webPort) console.log(`${CLI_NAME} daemon: web transport listening on http://127.0.0.1:${server.webPort}`)
 
   const shutdown = async () => {
     await server.close()

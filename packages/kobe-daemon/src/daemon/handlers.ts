@@ -133,11 +133,9 @@ export interface DaemonHandlerContext {
      *  render as a legitimate "you have no tasks". */
     readonly homeDir?: string
     /** Loopback web transport port, when this daemon is exposing browser routes. */
-    readonly webPort?: number
     /** Why the web transport isn't listening (port taken / bind failed), or
      *  null when it's up or was never requested. Reported by `daemon.status`
      *  so a socket-only degrade shows the real reason, not a generic error. */
-    readonly webError?: string | null
     /** The daemon process pid (reported by `hello` / `daemon.status`). */
     readonly pid: number
     /** Attached-GUI refcount (reported as `attachedClients`). */
@@ -314,8 +312,6 @@ export function createDaemonHandlerRegistry(): ReadonlyMap<DaemonRequestName, Da
           // which otherwise reads as "my tasks vanished".
           homeDir: ctx.daemon.homeDir,
           socketPath: ctx.daemon.socketPath,
-          webPort: ctx.daemon.webPort ?? null,
-          webError: ctx.daemon.webError ?? null,
         }
       },
     },

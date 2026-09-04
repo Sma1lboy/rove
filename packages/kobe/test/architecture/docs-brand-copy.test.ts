@@ -44,7 +44,6 @@ const CURRENT_DESIGN_DOCS = [
   "docs/design/remote-topology-status.md",
   "docs/design/tasks.md",
   "docs/design/terminal-graphics.md",
-  "docs/design/web-dashboard.md",
   "docs/design/work-items.md",
 ]
 
