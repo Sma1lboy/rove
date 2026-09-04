@@ -27,7 +27,7 @@
  */
 
 import type { EngineCapabilities, EngineIdentity, EngineQuotaUsage, EngineUsageSnapshot, Message } from "@/types/engine"
-import { type VendorId, isBuiltinVendor } from "@/types/vendor"
+import { BUILTIN_VENDORS, type VendorId, isBuiltinVendor } from "@/types/vendor"
 import type {
   ClaudeAccount,
   CodexAccount,
@@ -38,7 +38,7 @@ import type {
 } from "./account-detect.ts"
 import type { EngineTurnReader } from "./agent-turn.ts"
 import { BUILTIN_ENGINES } from "./builtin-engines.ts"
-import { contribEngineEntry, isContribEngine } from "./contrib-engines.ts"
+import { CONTRIB_ENGINE_IDS, contribEngineEntry, isContribEngine, pluginEngineIds } from "./contrib-engines.ts"
 import { EMPTY_HISTORY } from "./history-readers.ts"
 import { type EngineHookAdapter, NoopHookAdapter } from "./hook-adapter.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
@@ -272,6 +272,23 @@ export function engineEntry(vendor: VendorId): EngineRegistryEntry {
   // Shipped contrib engines (data-only long tail): the custom empty entry
   // overlaid with the catalog's identity + screen manifest.
   return isContribEngine(vendor) ? contribEngineEntry(vendor, custom) : custom
+}
+
+/**
+ * Every engine id whose launch binary this module can NAME without reading
+ * state: the built-ins, the shipped contrib catalog, and whatever plugins
+ * registered this run. That is the identifiable set — a truly custom id
+ * carries its binary in `engineCommand.<id>`, which lives in state this
+ * module deliberately never reads, so callers holding that state pass the
+ * launch argv in themselves (see `foreground.ts#engineProcessIn`'s
+ * `extraLaunch`).
+ *
+ * Recomputed per call rather than cached: `pluginEngineIds()` changes when
+ * plugins are enabled/disabled at runtime, and the array is small enough
+ * that a stale cache would cost more than it saves.
+ */
+export function identifiableEngineIds(): readonly VendorId[] {
+  return [...BUILTIN_VENDORS, ...CONTRIB_ENGINE_IDS, ...pluginEngineIds()]
 }
 
 /**

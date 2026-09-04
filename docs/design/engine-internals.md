@@ -159,9 +159,20 @@ merged hook-wins (`src/tui/workspace/turn-state-merge.ts`):
    covers hook-less or untrusted sessions of hook-capable engines.
 3. **Quiescence/mtime fallback** — for engines with no markers (copilot) the
    daemon watches the latest transcript mtime; a session that goes quiet
-   reads as done. Custom engines resolve to an empty history reader, so their
-   badge stays dark. Rove labels the gap honestly rather than guessing state
-   from screen scraping.
+   reads as done.
+4. **Screen manifests** — a declarative last resort for engines with no
+   transcript at all: the poll classifies the captured screen against the
+   engine's own `screenManifest` rules (`src/engine/screen-state.ts`). This
+   is what badges the contrib catalog and plugin engines, and it is the
+   *whole* reason contrib is a category — a catalog entry is a name, a
+   launch command, and these rules. An engine with no manifest and no
+   history reader (a genuinely custom one, registered with only a launch
+   command) has nothing to read either way, and its badge stays dark. Rove
+   labels *that* gap honestly rather than guessing.
+
+Which engine gets which tier is decided by the tab's LIVE process identity,
+not its recorded vendor (`engine/foreground.ts`) — so that walk must be able
+to name every engine that can badge, contrib and plugin ids included.
 
 Because hook delivery can lapse (daemon restart, dropped event), a ~10-minute
 watchdog caps how long a stale "working" badge survives without confirmation.
