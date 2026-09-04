@@ -50,9 +50,10 @@ function seedHome(): void {
     }),
     "utf8",
   )
-  mkdirSync(join(home, ".kobe"), { recursive: true })
+  // Canonical: the PTY host moves this out of `.kobe` at its first boot.
+  mkdirSync(join(home, ".rove"), { recursive: true })
   writeFileSync(
-    join(home, ".kobe", "pty-exits.json"),
+    join(home, ".rove", "pty-exits.json"),
     JSON.stringify({
       "t1::tab-1": {
         key: "t1::tab-1",
