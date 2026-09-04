@@ -64,6 +64,10 @@ describe("trustKimiWorktree", () => {
     expect(path.basename(file)).toBe(`wd_task-a_${createHash("sha256").update(target).digest("hex").slice(0, 12)}`)
     // …and the same worktree reached the long way round lands on one record.
     expect(kimiTrustFilePath(target, home)).toBe(file)
+    // The record's own `root` resolves too, so it is shaped like one kimi
+    // writes rather than merely being FILED where kimi looks.
+    trustKimiWorktree(viaLink, home)
+    expect((JSON.parse(fs.readFileSync(file, "utf8")) as { root: string }).root).toBe(target)
   })
 
   it("is idempotent — an existing record is not rewritten", () => {

@@ -29,13 +29,16 @@ import path from "node:path"
  * `realpathSync` throws on a path that isn't there yet; fall back to the given
  * one so this stays a pure function the caller can test.
  */
-export function kimiTrustFilePath(worktreePath: string, home: string = homedir()): string {
-  let resolved = worktreePath
+function resolvedWorktree(worktreePath: string): string {
   try {
-    resolved = realpathSync(worktreePath)
+    return realpathSync(worktreePath)
   } catch {
-    /* not on disk yet — hash what we were given */
+    return worktreePath /* not on disk yet — use what we were given */
   }
+}
+
+export function kimiTrustFilePath(worktreePath: string, home: string = homedir()): string {
+  const resolved = resolvedWorktree(worktreePath)
   const hash = createHash("sha256").update(resolved).digest("hex").slice(0, 12)
   const dir = path.basename(resolved).toLowerCase()
   return path.join(home, ".kimi-code", "workspace-trust", `wd_${dir}_${hash}`)
@@ -45,5 +48,7 @@ export function trustKimiWorktree(worktreePath: string, home: string = homedir()
   const file = kimiTrustFilePath(worktreePath, home)
   if (existsSync(file)) return
   mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
-  writeFileSync(file, JSON.stringify({ root: worktreePath, trustedAt: Date.now() }), { mode: 0o600 })
+  // `root` carries the resolved path too, so the record is shaped exactly like
+  // one kimi writes for itself rather than only being FILED where kimi looks.
+  writeFileSync(file, JSON.stringify({ root: resolvedWorktree(worktreePath), trustedAt: Date.now() }), { mode: 0o600 })
 }
