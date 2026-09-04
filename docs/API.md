@@ -193,9 +193,15 @@ replacement in `nextCommandArgs`.
     it uses for one.
   - `.tabs` — the same per-tab join as `get-task` (pick a `send --tab`
     target without a second hop). A tab whose session died abnormally
-    carries `.exit` with `code`/`signal`/`at` **and** `tail`, the last lines
-    the session printed, so a crash comes back with its cause attached. The
-    tail rides along only when the durable record describes that same death.
+    carries `.exit` with `code`/`signal`/`at`/`layer` **and** `tail`, the last
+    lines the session printed, so a crash comes back with its cause attached.
+    The tail rides along only when the durable record describes that same
+    death. `layer` says WHICH process the record describes (`"pty"` — the
+    tab's own session child), without which `code` and `signal` cannot be
+    read together: a signalled session has no wait-status code, so `code`
+    then comes from the wrapper's own `Engine exited (code N)` banner and
+    belongs to the ENGINE, while `signal` belongs to the session that
+    outlived it.
   - `.changes` — uncommitted files (`added`/`deleted`). Non-zero means the
     task cannot land as-is, however it reported itself.
   - `.base` — committed work: `ahead` (commits vs the base branch) and a
@@ -380,6 +386,22 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     engines that collapse a large paste into a `[Pasted text #1]` placeholder
     never echo the text, so a positive proves delivery while a negative
     merely fails to.
+  - `reason` — why nothing was confirmed. Present only with
+    `engineReady: false`.
+
+  A FRESH spawn carries the prompt on the engine's own command line, so there
+  is no write to observe; `engineReady` there reports the engine PROCESS being
+  found inside the session, and nothing else. A hosted session stays alive
+  after its engine exits — the wrapper `exec`s a login shell in its place — so
+  its liveness answers a different question, and a launch command that does not
+  exist would otherwise report a clean success on every field. A spawn that
+  produces no engine fails as `SESSION_FAILED`, carrying the already-created
+  `taskId`, the `session` key, and the session's own last line as `reason`. The
+  one non-failure that reports `engineReady: false` is a repo whose
+  `.rove/init.sh` is still running: it precedes the engine, so `delivered`
+  stays `true` (the prompt is still riding an argv that has not run yet) and
+  `reason` says so, rather than holding `add` open for the length of an
+  install.
 - `dispatch --task-id ID (--prompt TEXT | --prompt-file PATH) [--tab TAB]`: route text into a
   task's live session (the dispatcher's messenger; see
   [design/dispatcher.md](./design/dispatcher.md)). Unlike `send` it never

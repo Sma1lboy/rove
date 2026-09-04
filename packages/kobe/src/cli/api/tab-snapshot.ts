@@ -57,8 +57,13 @@ export interface TaskTabRow {
    *  null, by the no-noise rule); null while alive/unknown. Joined
    *  from the live host when present, else the durable exit records —
    *  `tail` (the exit-time output lines the durable record keeps) rides
-   *  along whenever the record describes the same death. */
-  readonly exit: (PtySessionExit & { tail?: readonly string[] }) | null
+   *  along whenever the record describes the same death.
+   *
+   *  `layer` names WHICH process this describes: `"pty"` is the tab's own
+   *  session child. Without it `code`/`signal` cannot be read — a `code`
+   *  recovered from the wrapper's `Engine exited (code N)` banner belongs
+   *  to the engine, while `signal` belongs to the session that outlived it. */
+  readonly exit: (PtySessionExit & { tail?: readonly string[]; layer?: "pty" | "engine" }) | null
   /** Present (true) only on rows derived from a LIVE pty session the
    *  persisted snapshot does not list — an otherwise invisible engine. The
    *  snapshot is a record of intent; the pty host holds the truth, and a
@@ -172,7 +177,9 @@ export function joinTaskTabs(
   /** `null` = the pty host could not be asked; every liveness field on every
    *  row then reports `null` rather than a verdict nobody checked. */
   sessions: readonly TaskSessionRow[] | null,
-  persistedExits: Readonly<Record<string, PtySessionExit & { tail?: readonly string[] }>> = {},
+  persistedExits: Readonly<
+    Record<string, PtySessionExit & { tail?: readonly string[]; layer?: "pty" | "engine" }>
+  > = {},
   liveVendors?: ReadonlyMap<string, string | null>,
   engineAlive?: ReadonlyMap<string, boolean>,
 ): TaskTabRow[] {
@@ -188,8 +195,19 @@ export function joinTaskTabs(
     const ex = abnormalExit(sessionExits.get(key) ?? persistedExits[key])
     if (!ex) return null
     const record = persistedExits[key]
-    const tail = record?.at === ex.at ? record.tail : undefined
-    return { code: ex.code, signal: ex.signal, at: ex.at, ...(tail && tail.length > 0 ? { tail } : {}) }
+    const sameDeath = record?.at === ex.at
+    const tail = sameDeath ? record?.tail : undefined
+    // The live host's in-memory exit wins on freshness but carries only a
+    // wait status, and a signalled session has no code in one. The durable
+    // record for the SAME death recovered the engine's from the wrapper's
+    // banner — take that rather than report `code: null` beside a tail that
+    // spells the number out.
+    const code = ex.code ?? (sameDeath ? (record?.code ?? null) : null)
+    // Keyed by the bare session key, so this row is structurally the PTY
+    // layer (engine-layer records live under `<key>#engine`); a legacy
+    // record predating the field is PTY-layer too.
+    const layer = record?.layer ?? "pty"
+    return { code, signal: ex.signal, at: ex.at, layer, ...(tail && tail.length > 0 ? { tail } : {}) }
   }
   const rows: TaskTabRow[] = (snapshot?.tabs ?? []).map((t) => {
     const key = `${taskId}::${t.id}`

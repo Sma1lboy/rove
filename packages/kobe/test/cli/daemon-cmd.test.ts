@@ -165,7 +165,13 @@ describe("kobe daemon restart", () => {
 
 describe("kobe daemon start", () => {
   it("installs crash handlers, creates the core, and starts the server", async () => {
-    const core = { orchestrator: { tag: "orch" }, homeDir: home, close: vi.fn() }
+    // `store.stateDir` is where boot sweeps a crashed predecessor's leftovers.
+    const core = {
+      orchestrator: { tag: "orch" },
+      homeDir: home,
+      store: { stateDir: join(home, ".rove") },
+      close: vi.fn(),
+    }
     mocks.createKobeCore.mockResolvedValue(core)
     mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", close: vi.fn() })
 

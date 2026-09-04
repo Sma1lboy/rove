@@ -399,6 +399,32 @@ describe("joinTaskTabs", () => {
     expect(rows[0]).toMatchObject({ alive: false, exit })
   })
 
+  it("takes the durable record's banner code when the live host's exit has none", () => {
+    // The host's in-memory exit is fresher but carries only a wait status, and
+    // a SIGKILLed session has no code in one. The record for the same death
+    // recovered the engine's from the wrapper banner.
+    const at = "2026-08-11T00:00:00.000Z"
+    const rows = joinTaskTabs(
+      oneTabSnap("tab-1"),
+      "t1",
+      [{ key: "t1::tab-1", alive: false, exit: { code: null, signal: "SIGKILL", at } }],
+      {
+        "t1::tab-1": { code: 143, signal: null, at, layer: "pty", tail: ["Engine exited (code 143)."] },
+      },
+    )
+    expect(rows[0]?.exit).toMatchObject({ code: 143, signal: "SIGKILL", layer: "pty" })
+  })
+
+  it("does not borrow a code from a record describing a DIFFERENT death", () => {
+    const rows = joinTaskTabs(
+      oneTabSnap("tab-1"),
+      "t1",
+      [{ key: "t1::tab-1", alive: false, exit: { code: null, signal: "SIGKILL", at: "2026-08-11T02:00:00.000Z" } }],
+      { "t1::tab-1": { code: 143, signal: null, at: "2026-08-11T00:00:00.000Z", layer: "pty" } },
+    )
+    expect(rows[0]?.exit).toMatchObject({ code: null, signal: "SIGKILL" })
+  })
+
   it("keeps clean exits quiet: code 0 reports exit null — the no-noise rule", () => {
     const exit = { code: 0, signal: null, at: "2026-08-11T00:00:00.000Z" }
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit }])
@@ -419,7 +445,8 @@ describe("joinTaskTabs", () => {
       tail: ["Error: ENOSPC: no space left on device", "  at write (node:fs)"],
     }
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [], { "t1::tab-1": record })
-    expect(rows[0]?.exit).toEqual(record)
+    // `layer` is added by the join: this key is structurally the PTY layer.
+    expect(rows[0]?.exit).toEqual({ ...record, layer: "pty" })
   })
 
   it("a stale record never captions a NEWER death — different `at`, no tail borrowed", () => {
@@ -431,7 +458,7 @@ describe("joinTaskTabs", () => {
     const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false, exit: fresh }], {
       "t1::tab-1": older,
     })
-    expect(rows[0]?.exit).toEqual(fresh)
+    expect(rows[0]?.exit).toEqual({ ...fresh, layer: "pty" })
     expect(rows[0]?.exit).not.toHaveProperty("tail")
   })
 

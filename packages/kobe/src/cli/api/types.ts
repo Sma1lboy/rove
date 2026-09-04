@@ -224,6 +224,18 @@ export interface DeliveredPrompt {
    */
   readonly promptEcho?: "confirmed" | "unconfirmed"
   /**
+   * Why nothing was confirmed — the session's own last line (its shell's
+   * `no such file or directory`, or the wrapper's `Engine exited (code N)`
+   * banner) when a fresh spawn produced no engine process. Present only
+   * alongside `engineReady: false` on a launch that reported `started`, so a
+   * fan-out sees WHICH launch failed instead of N uniform green results.
+   *
+   * `engineReady: false` with `delivered: true` is the one non-failure it
+   * describes: a repo-init script is still running, so the engine has not
+   * started yet and the prompt is still riding its unexecuted launch argv.
+   */
+  readonly reason?: string
+  /**
    * Present when the delivery gate found the composer busy and the prompt was
    * accepted-but-deferred rather than dropped: the daemon
    * stored the text and queued a `prompt_deferred` inbox episode. This is a

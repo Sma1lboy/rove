@@ -228,6 +228,7 @@ export async function send(ctx: VerbContext): Promise<unknown> {
     delivered: delivered.delivered,
     ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
     ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
+    ...(delivered.reason ? { reason: delivered.reason } : {}), // see `DeliveredPrompt.reason`
     // The deferred outcome is a SUCCESS, not an error — say so explicitly so a
     // scripted sender does not read `deferred` as a failure and retry.
     ...(delivered.deferred ? { deferred: delivered.deferred } : {}),

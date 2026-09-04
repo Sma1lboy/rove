@@ -12,6 +12,7 @@
  * the vendor's own launch binary — never a hard-coded "claude"/"codex".
  */
 
+import { existsSync } from "node:fs"
 import type { PtyOpenResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import type { PsSnapshot } from "../../engine/foreground.ts"
@@ -19,9 +20,11 @@ import {
   ComposerBusyError,
   type HostedSessionRpc,
   type PromptWriteOutcome,
+  awaitEngineProcess,
   deliverToHostedKey,
   ensureHostedSessionHost,
   findHostedEngineKey,
+  hostedSessionFailureLine,
   hostedTaskKeys,
   isHostedTaskKey,
   killHostedSessions,
@@ -91,6 +94,18 @@ export const listSessionsOrNull = listHostedSessionsOrNull
 export const deliverToKey = deliverToHostedKey
 
 const writePrompt = writeHostedPromptIfClear
+
+/**
+ * How long a fresh argv-delivery spawn gets to put an engine in the process
+ * table before this call reports it unobserved. Short on purpose: a caller
+ * is blocked on the answer, a failed launch (`command not found`) never
+ * produces one, and an engine that is merely slow reports
+ * `engineReady: false` with the session's own output as the reason rather
+ * than a claim nobody checked.
+ */
+const ENGINE_START_PROBE_MS = 3_000
+const ENGINE_START_POLL_MS = 150
+const ENGINE_NOT_OBSERVED_REASON = `no engine process appeared in the session within ${ENGINE_START_PROBE_MS}ms`
 
 /**
  * Turn an observed write into the API's outcome fields. One place so every
@@ -262,16 +277,54 @@ export async function deliverHostedPrompt(
       return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome) }
     }
     // OUR launch carried the prompt in its argv, so no paste happened here.
-    // The engine receives the prompt from its own command line — a delivery
-    // this code never observed, and must not claim to have confirmed. It
-    // used to hardcode `delivered = true` (and copy that into engineReady),
-    // which is how a task that received nothing still reported a clean
-    // success on all three fields.
+    // The engine reads the prompt from its own command line — a delivery this
+    // code never observed, and the only thing that can confirm it is the
+    // engine PROCESS existing. `open.alive` is not that: keepAlive `exec`s a
+    // login shell where the engine exits, so a session whose launch command
+    // does not exist reports `alive` exactly like a healthy one, and
+    // `engineReady: true, delivered: true` came back for a binary that had
+    // already printed `no such file or directory`.
+    //
+    // First, the one case where the walk cannot answer: a repo-init script
+    // runs BEFORE the engine (`.rove/init.sh`, e.g. a
+    // `bun install`), and its marker file appears only when it finishes. So
+    // while that marker is absent "no engine yet" is not a failed launch, and
+    // neither answer the probe could give is right: waiting would hold `add`
+    // open for the length of the install, and reporting failure would reject a
+    // launch that is proceeding normally. Report it as unconfirmed instead.
+    if (launch.initMarkerPath && !existsSync(launch.initMarkerPath)) {
+      return {
+        session: launch.key,
+        pane: launch.key,
+        started,
+        engineReady: false,
+        delivered: true,
+        reason: "repo init script is still running; the engine has not started yet",
+      }
+    }
+    // Otherwise walk for the process — the same `sessionHasEngine` the
+    // existing-session gate above uses, in the loop `awaitEngineProcess`
+    // already owns, not a third implementation of the same question.
+    const enginePid = await awaitEngineProcess(rpc, launch.key, target.engineBin, {
+      timeoutMs: ENGINE_START_PROBE_MS,
+      intervalMs: ENGINE_START_POLL_MS,
+      snapshot: opts?.snapshot,
+    })
+    if (enginePid === null) {
+      return {
+        session: launch.key,
+        pane: launch.key,
+        started,
+        engineReady: false,
+        delivered: false,
+        reason: (await hostedSessionFailureLine(rpc, launch.key)) ?? ENGINE_NOT_OBSERVED_REASON,
+      }
+    }
     return {
       session: launch.key,
       pane: launch.key,
       started,
-      engineReady: open.alive,
+      engineReady: true,
       delivered: true,
     }
   } finally {

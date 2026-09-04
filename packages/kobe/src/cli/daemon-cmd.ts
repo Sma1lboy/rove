@@ -17,6 +17,7 @@ import { defaultDaemonLogPath, defaultDaemonPidPath, defaultDaemonSocketPath } f
 import { readPidFile, startDaemonServer } from "@sma1lboy/kobe-daemon/daemon/server"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { createKobeCore } from "../core/index.ts"
+import { sweepIndexLeftovers } from "../orchestrator/index/sweep.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
 import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { activeCliName } from "./rename-compat.ts"
@@ -130,6 +131,18 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
   for (const warning of migration.warnings) console.error(`[rove] daemon state migration will retry: ${warning}`)
 
   const core = await createKobeCore()
+  // A killed writer leaves the index lockfile behind every time, and ~5% of
+  // the time a full staging copy of the manifest too (11.8 MB on a 30k-task
+  // index) under a name no later run reuses. Nothing else sweeps `.rove/`,
+  // so daemon boot is where a crashed predecessor's mess gets cleaned.
+  const swept = sweepIndexLeftovers(core.store.stateDir)
+  if (swept.lock || swept.tmp.length > 0) {
+    console.error(
+      `[rove] swept crash leftovers in ${core.store.stateDir}: ` +
+        `${swept.tmp.length} orphaned staging file(s) (${swept.tmpBytes} bytes)` +
+        `${swept.lock ? ", stale task-index lockfile" : ""}`,
+    )
+  }
   const server = await startDaemonServer(core.orchestrator, {
     runtime: daemonRuntime,
     socketPath,

@@ -43,6 +43,12 @@ export type PtyExitLayer = "pty" | "engine"
 export interface PtyExitRecord {
   readonly key: string
   readonly pid: number | null
+  /** Wait-status code where the OS gave one; otherwise the shell wrapper's
+   *  own `Engine exited (code N)` banner ({@link engineExitCodeFromTail}),
+   *  which is the only code a signalled or reaped death leaves behind. Read
+   *  it together with {@link signal} and {@link layer}: `code: 143` beside
+   *  `signal: "SIGKILL"` on a `pty` record means the ENGINE exited 143 and
+   *  the surviving session was then killed. */
   readonly code: number | null
   readonly signal: string | null
   readonly at: string
@@ -107,15 +113,21 @@ export function readPtyExitRecords(path = defaultPtyExitsPath()): Record<string,
 export function recordPtyExit(info: PtySessionEndInfo, path = defaultPtyExitsPath()): void {
   if (info.key.startsWith("::")) return
   if (info.exit.code === 0 && info.exit.signal === null) return
+  const tail = plainTail(info.tail)
   writeRecord(
     info.key,
     {
       key: info.key,
       pid: info.pid,
-      code: info.exit.code,
+      // A signalled session has no wait-status code, so `code` used to be
+      // null while the very tail in the same record spelled the number out
+      // (`Engine exited (code 143)`). The banner is the only code that
+      // exists then — publish it rather than making every caller re-parse
+      // prose the store already knows how to read.
+      code: info.exit.code ?? engineExitCodeFromTail(tail),
       signal: info.exit.signal,
       at: info.exit.at,
-      tail: plainTail(info.tail),
+      tail,
       layer: "pty",
     },
     path,
