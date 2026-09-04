@@ -18,6 +18,8 @@ export const en = {
     Sessions: "Sessions",
     Attention: "Attention",
     Tools: "Tools",
+    "Diff review": "Diff review",
+    Inbox: "Inbox",
   },
   desc: {
     "help.open": "Show keybindings help",
@@ -75,6 +77,7 @@ export const en = {
     "workspace.split.focus-next": "Focus next split",
     "workspace.split.close": "Close active split (tab when unsplit)",
     "workspace.split.rename": "Rename active split (tab when unsplit)",
+    "workspace.reopenSession": "Reopen a session in a task whose tabs are all closed",
     "files.nav": "Move cursor up/down",
     "files.hierarchy": "Collapse / expand tree level",
     "files.open": "Open file in configured editor (diff when supported)",
@@ -122,6 +125,8 @@ export const zh: typeof en = {
     Sessions: "会话",
     Attention: "提醒",
     Tools: "工具",
+    "Diff review": "差异审阅",
+    Inbox: "收件箱",
   },
   desc: {
     "help.open": "显示快捷键帮助",
@@ -179,6 +184,7 @@ export const zh: typeof en = {
     "workspace.split.focus-next": "聚焦下一个分屏",
     "workspace.split.close": "关闭当前分屏（未分屏时关闭标签页）",
     "workspace.split.rename": "重命名当前分屏（未分屏时重命名标签页）",
+    "workspace.reopenSession": "在标签页全部关闭的任务中重新打开会话",
     "files.nav": "上下移动光标",
     "files.hierarchy": "折叠 / 展开树层级",
     "files.open": "在已配置的编辑器中打开文件（支持时显示 diff）",

@@ -28,6 +28,61 @@ export const en = {
     dayOfWeek: "weekday",
   },
 
+  /**
+   * The schedule preview — the one line that answers "when does this fire".
+   * `describeCron` names the recurrence, `when.*` the next occurrence. Word
+   * order is part of the translation, so each phrase is ONE key with slots
+   * rather than fragments the caller concatenates.
+   */
+  schedule: {
+    everyDay: "every day {at}",
+    weekdays: "weekdays {at}",
+    weekends: "weekends {at}",
+    onWeekday: "{weekday} {at}",
+    everyMinute: "every minute",
+    everyMinutes: "every {n}m",
+    everyHours: "every {n}h",
+    hourlyAt: "hourly at :{minute}",
+    atClock: "at {time}",
+    /** Recurring weekday phrase — English pluralises, Chinese prefixes. */
+    dow: {
+      MON: "Mondays",
+      TUE: "Tuesdays",
+      WED: "Wednesdays",
+      THU: "Thursdays",
+      FRI: "Fridays",
+      SAT: "Saturdays",
+      SUN: "Sundays",
+    },
+  },
+  /** Next-run and last-run clocks. `{n}` is already a coarse bucket. */
+  when: {
+    inMinutes: "in {n}m",
+    inHours: "in {n}h",
+    inDays: "in {n}d",
+    minutesAgo: "{n}m ago",
+    hoursAgo: "{n}h ago",
+    now: "now",
+    justNow: "just now",
+    /** `{date}` is `Intl`-formatted for the UI locale, so it carries its own
+     *  word order; only the comma before the clock is ours. */
+    dateTime: "{date}, {time}",
+  },
+  /**
+   * The daemon's `AutomationRunStatus` enum, so a run row is not half English
+   * in a Chinese page. `run.error` beside it stays untranslated on purpose —
+   * it is a machine message the user searches for and pastes into an issue,
+   * and a translated copy of it matches nothing.
+   */
+  runStatus: {
+    dispatched: "dispatched",
+    revived: "revived",
+    deferred: "deferred",
+    skipped_precheck: "skipped (precheck)",
+    skipped_missed: "skipped (missed)",
+    skipped_unavailable: "skipped (unavailable)",
+    dispatch_failed: "dispatch failed",
+  },
   cronNever: "valid, but never fires",
   missing: {
     name: "Give it a name.",
@@ -92,6 +147,45 @@ export const zh: typeof en = {
     dayOfWeek: "星期",
   },
 
+  schedule: {
+    everyDay: "每天{at}",
+    weekdays: "工作日{at}",
+    weekends: "周末{at}",
+    onWeekday: "{weekday}{at}",
+    everyMinute: "每分钟",
+    everyMinutes: "每 {n} 分钟",
+    everyHours: "每 {n} 小时",
+    hourlyAt: "每小时的 :{minute}",
+    atClock: "{time}",
+    dow: {
+      MON: "每周一",
+      TUE: "每周二",
+      WED: "每周三",
+      THU: "每周四",
+      FRI: "每周五",
+      SAT: "每周六",
+      SUN: "每周日",
+    },
+  },
+  when: {
+    inMinutes: "{n} 分钟后",
+    inHours: "{n} 小时后",
+    inDays: "{n} 天后",
+    minutesAgo: "{n} 分钟前",
+    hoursAgo: "{n} 小时前",
+    now: "即将",
+    justNow: "刚刚",
+    dateTime: "{date} {time}",
+  },
+  runStatus: {
+    dispatched: "已派发",
+    revived: "已重启会话",
+    deferred: "已排队待放行",
+    skipped_precheck: "已跳过（预检）",
+    skipped_missed: "已跳过（错过时间）",
+    skipped_unavailable: "已跳过（不可用）",
+    dispatch_failed: "派发失败",
+  },
   cronNever: "语法合法，但永远不会触发",
   missing: {
     name: "起个名字。",

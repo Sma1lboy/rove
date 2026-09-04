@@ -9,6 +9,7 @@
  * rather than letting the daemon reject a typo after the fact.
  */
 
+import { intlLocale, t } from "@/tui/i18n"
 import { isValidCron, nextCronAfter } from "@sma1lboy/kobe-daemon/daemon/cron"
 import { relativeBuckets } from "../../lib/relative-time"
 
@@ -88,18 +89,21 @@ export function previewSchedule(expression: string, nowMs: number): SchedulePrev
 
 function formatRelative(deltaMs: number): string {
   const { minutes, hours, days } = relativeBuckets(deltaMs)
-  if (minutes < 60) return `in ${Math.max(1, minutes)}m`
-  if (hours < 24) return `in ${hours}h`
-  return `in ${days}d`
+  if (minutes < 60) return t("automations.when.inMinutes", { n: Math.max(1, minutes) })
+  if (hours < 24) return t("automations.when.inHours", { n: hours })
+  return t("automations.when.inDays", { n: days })
 }
-
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const
 
 /**
  * Local wall-clock, at the coarsest useful precision: `09:00` when it fires
- * today, `Mon 09:00` within the week, `Mon Aug 3, 09:00` beyond it. The date
+ * today, `Mon 09:00` within the week, `Mon, Aug 3, 09:00` beyond it. The date
  * is what disambiguates a schedule; repeating today's is noise.
+ *
+ * The calendar words and their ORDER come from `Intl` for the UI locale, not
+ * from an English table plus a hand-built template: zh reads `8月3日周一`,
+ * not `周一 8月 3`, and every locale added later gets its own order for free.
+ * The 24-hour clock is built by hand on purpose — it is the same instant in
+ * every locale, and `Intl`'s en-US default would turn it into `9:00 AM`.
  */
 function formatAbsolute(atMs: number, nowMs: number): string {
   const at = new Date(atMs)
@@ -108,7 +112,10 @@ function formatAbsolute(atMs: number, nowMs: number): string {
   const sameDay =
     at.getFullYear() === now.getFullYear() && at.getMonth() === now.getMonth() && at.getDate() === now.getDate()
   if (sameDay) return time
-  const weekday = WEEKDAYS[at.getDay()] ?? ""
-  if (atMs - nowMs < 6 * 24 * 60 * 60 * 1000) return `${weekday} ${time}`
-  return `${weekday} ${MONTHS[at.getMonth()] ?? ""} ${at.getDate()}, ${time}`
+  const withinWeek = atMs - nowMs < 6 * 24 * 60 * 60 * 1000
+  const date = at.toLocaleDateString(
+    intlLocale(),
+    withinWeek ? { weekday: "short" } : { weekday: "short", month: "short", day: "numeric" },
+  )
+  return withinWeek ? `${date} ${time}` : t("automations.when.dateTime", { date, time })
 }

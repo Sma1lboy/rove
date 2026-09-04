@@ -17,7 +17,7 @@ import type { AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { ReactNode } from "react"
 import { useTheme } from "../context/theme"
 import { useT } from "../i18n"
-import { formatWhen } from "./automations-format"
+import { formatRunStatus, formatWhen } from "./automations-format"
 
 /** Run-status → how it should read at a glance. The four "didn't run" reasons
  *  are deliberately distinct: `skipped_precheck` is healthy (nothing to do),
@@ -154,7 +154,7 @@ export function RunHistory(props: { runs: readonly AutomationRun[]; now: number 
         runs.slice(0, 5).map((run) => {
           return (
             <text key={run.id} fg={runToneColor(run.status, theme)}>
-              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${run.status}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
+              {`${triggerGlyph(run.trigger)} #${run.runNumber} ${formatRunStatus(run.status, t)}${run.error ? ` \u2014 ${run.error}` : ""}  ${formatWhen(run.at, props.now)}`}
             </text>
           )
         })

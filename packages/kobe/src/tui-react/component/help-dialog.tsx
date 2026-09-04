@@ -15,7 +15,12 @@
 import { type ScrollBoxRenderable, TextAttributes } from "@opentui/core"
 import { useMemo, useRef } from "react"
 import { formatChord } from "../../tui/lib/chord-glyphs"
-import { type HelpGrammarSection, type HelpSurface, grammarHelpSections } from "../../tui/lib/help-groups"
+import {
+  type HelpGrammarSection,
+  type HelpSurface,
+  grammarHelpSections,
+  scopeCategory,
+} from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import type { BindingReachability } from "../../tui/lib/keymap-reachability"
 import { KobeKeymap, useKeymapVersion } from "../context/keybindings"
@@ -23,15 +28,6 @@ import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { currentBindingReachability, useBindings } from "../lib/keymap"
 import { type DialogContext, useDialog, useDialogPaddingX } from "../ui/dialog"
-
-function scopeCategory(scope: HelpGrammarSection["scope"]): string {
-  if (!scope) return "Global"
-  if (scope === "sidebar") return "Sidebar"
-  if (scope === "workspace") return "Workspace"
-  if (scope === "files") return "Files"
-  if (scope === "terminal") return "Terminal"
-  return "Dialog"
-}
 
 function displayCap(cap: string): string {
   return cap

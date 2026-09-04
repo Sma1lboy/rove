@@ -11,6 +11,7 @@
  */
 
 import { relativeCountdown } from "@/lib/relative-time"
+import { intlLocale } from "@/tui/i18n"
 import type { Task } from "@/types/task"
 import type { RGBA } from "@opentui/core"
 import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -80,7 +81,9 @@ export function quotaResumeNote(
   const at = Date.parse(raw)
   if (!Number.isFinite(at)) return null
   return t("workspace.inbox.resumesAt", {
-    time: new Date(at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+    // The UI locale, not the machine's: the sentence around this clock is
+    // translated, so an OS-locale clock inside it is a seam the user sees.
+    time: new Date(at).toLocaleTimeString(intlLocale(), { hour: "numeric", minute: "2-digit" }),
   })
 }
 

@@ -88,10 +88,17 @@ const zh: Messages = {
   doctor: doctorZh,
 }
 
-/** Registered locales, in display order. */
+/**
+ * Registered locales, in display order. `intl` is the BCP-47 tag handed to
+ * `Intl`/`toLocale*` — a UI language is a catalog id, and the two are not
+ * interchangeable. Calling `toLocaleDateString()` with no argument formats in
+ * the OS locale instead, which is wrong in BOTH directions: a zh UI on an
+ * `en-US` machine printed `8/3/2026`, an en UI on a `zh-CN` machine printed
+ * `2026/8/3`, and neither followed the setting the user actually changed.
+ */
 export const LOCALES = [
-  { id: "en", label: "English" },
-  { id: "zh", label: "中文" },
+  { id: "en", label: "English", intl: "en-US" },
+  { id: "zh", label: "中文", intl: "zh-CN" },
 ] as const
 
 export type LocaleId = (typeof LOCALES)[number]["id"]

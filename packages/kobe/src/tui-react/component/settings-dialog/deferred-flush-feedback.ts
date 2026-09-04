@@ -1,6 +1,7 @@
 import { errorMessage } from "@/lib/error-message"
 import { logClientError } from "@sma1lboy/kobe-daemon/client/client-log"
 import type { RemoteOrchestrator } from "../../../client/remote-orchestrator"
+import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 
@@ -16,8 +17,8 @@ export async function flushDeferredPromptsWithFeedback(
     logClientError("settings", `deferred prompt flush failed: ${message}`)
     await DialogConfirm.show(
       dialog,
-      "Deferred prompts were not flushed",
-      `${message}. Restart or update the daemon, then retry.`,
+      t("settings.deferredFlush.failedTitle"),
+      t("settings.deferredFlush.failedBody", { message }),
       "cancel",
     )
   }

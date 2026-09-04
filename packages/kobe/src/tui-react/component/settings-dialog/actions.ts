@@ -11,6 +11,7 @@ import {
   removeTasksFileForReset,
 } from "../../../tui/component/settings-dialog/actions-core"
 import type { KVContext } from "../../context/kv"
+import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
 import { DialogConfirm } from "../../ui/dialog-confirm"
 
@@ -28,8 +29,8 @@ export async function confirmResetState(
 ): Promise<void> {
   const ok = await DialogConfirm.show(
     dialog,
-    "Reset UI state?",
-    "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch for a fresh start with an empty working session list. Worktrees on disk and engine session history are NOT touched.",
+    t("settings.reset.title"),
+    t("settings.reset.body"),
     "cancel",
     undefined,
     { danger: true },
@@ -38,7 +39,7 @@ export async function confirmResetState(
   kv.clear()
   removeTasksFileForReset()
   destroyRendererSafely(renderer, "reset")
-  process.stderr.write("Rove: UI state reset. Relaunch Rove to start fresh.\n")
+  process.stderr.write(`${t("settings.reset.done")}\n`)
   process.exit(0)
 }
 
@@ -52,14 +53,9 @@ export async function confirmRestartDaemon(
   renderer: DestroyableRenderer | null | undefined,
 ): Promise<void> {
   if (!hasRestartableDaemon(orchestrator)) return
-  const ok = await DialogConfirm.show(
-    dialog,
-    "Restart backend?",
-    "Quits this Rove window. Relaunch to (re)spawn the daemon. Any other attached windows keep their connection. In v0.6 the daemon's RPC surface shrank to task CRUD + subscribe, so a graceful daemon.stop RPC is no longer plumbed through the client — quit + relaunch is the path.",
-    "cancel",
-  )
+  const ok = await DialogConfirm.show(dialog, t("settings.restart.title"), t("settings.restart.body"), "cancel")
   if (ok !== true) return
   destroyRendererSafely(renderer, "daemon restart")
-  process.stderr.write("Rove: window closed. Relaunch Rove to start fresh.\n")
+  process.stderr.write(`${t("settings.restart.done")}\n`)
   process.exit(0)
 }

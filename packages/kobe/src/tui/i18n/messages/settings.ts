@@ -76,6 +76,13 @@ export const en = {
     worktreeCustomUnset: "(unset — enter to edit)",
     worktreeBaseTitle: "Custom worktree location (blank = default; $project_dir = project root)",
     worktreeBaseField: "PATH",
+    editorCustomTitle: "Custom editor command (use {file} for the path)",
+    worktreeBaseInvalidTitle: "Can't use that worktree location",
+    /** `{token}` is the literal `$project_dir`, not a translatable word. */
+    worktreeBaseTokenBody:
+      "{token} only expands as the leading path segment (e.g. {token}/../kobe-worktrees). Keeping the previous setting.",
+    worktreeBaseUnusableBody:
+      "{path} isn't usable ({error}). Keeping the previous setting — pick a writable directory.",
     terminal: "Terminal",
     terminalHint: "Applies to terminals opened after the change.",
     scrollbackRow: "scrollback: {rows} rows",
@@ -92,11 +99,51 @@ export const en = {
       always: "always",
     },
   },
+  /**
+   * Copy for the modals the Settings screen opens — `DialogConfirm` bodies
+   * and the field labels / submit captions of the `RenameTaskDialog` it
+   * reuses per field. These sit INSIDE a translated dialog, so leaving them
+   * as literals produced a Chinese screen with an English modal on top.
+   */
+  field: {
+    command: "COMMAND",
+    name: "NAME",
+    id: "ID",
+    protocol: "PROTOCOL",
+  },
+  action: {
+    save: "save",
+    next: "next",
+    add: "add",
+  },
+  reset: {
+    title: "Reset UI state?",
+    body: "Wipes ~/.config/rove/state.json and ~/.rove/tasks.json, then quits Rove — relaunch for a fresh start with an empty working session list. Worktrees on disk and engine session history are NOT touched.",
+    /** Printed to stderr AFTER the TUI is torn down — the user reads it in
+     *  their shell, so it is UI copy despite not going through a pane. */
+    done: "Rove: UI state reset. Relaunch Rove to start fresh.",
+  },
+  restart: {
+    title: "Restart backend?",
+    body: "Quits this Rove window. Relaunch to (re)spawn the daemon. Any other attached windows keep their connection. In v0.6 the daemon's RPC surface shrank to task CRUD + subscribe, so a graceful daemon.stop RPC is no longer plumbed through the client — quit + relaunch is the path.",
+    done: "Rove: window closed. Relaunch Rove to start fresh.",
+  },
+  deferredFlush: {
+    failedTitle: "Deferred prompts were not flushed",
+    failedBody: "{message}. Restart or update the daemon, then retry.",
+  },
   engines: {
     title: "Engines",
     hint: "Every engine Rove can launch, with what detection found under each one: where its binary is, and for the engines with an account detector whether you are logged in. [x] = offered when picking an engine for a task; (●) = the global default (per-project picks, e.g. Ctrl+Shift+T, override it) — click either, or use the keys below. Override a launch command when the binary isn't on PATH or to pass default flags. space on/off · enter edit command · r rename · x reset/remove · d set default.",
     customTag: "  (custom)",
     addEngine: "+ Add engine",
+    launchCommandTitle: "{name} launch command",
+    displayNameTitle: "{name} display name (blank = default)",
+    addTitle: "Add engine",
+    addStepTitle: "Add engine · {id}",
+    addProtocolTitle: "Add engine · {id} — protocol (blank = none)",
+    idPlaceholder: "lowercase slug, e.g. aider",
+    commandPlaceholder: "e.g. aider --model sonnet",
   },
   accounts: {
     checking: "Checking…",
@@ -260,6 +307,10 @@ export const zh: typeof en = {
     worktreeCustomUnset: "(未设置 — enter 编辑)",
     worktreeBaseTitle: "自定义工作树位置（留空 = 默认；$project_dir = 项目根目录）",
     worktreeBaseField: "路径",
+    editorCustomTitle: "自定义编辑器命令（用 {file} 代表文件路径）",
+    worktreeBaseInvalidTitle: "无法使用该工作树位置",
+    worktreeBaseTokenBody: "{token} 只能作为路径的第一段展开（如 {token}/../kobe-worktrees）。保留原设置。",
+    worktreeBaseUnusableBody: "{path} 不可用（{error}）。保留原设置 —— 请选择一个可写目录。",
     terminal: "终端",
     terminalHint: "对修改后新打开的终端生效。",
     scrollbackRow: "回滚行数: {rows} 行",
@@ -275,11 +326,43 @@ export const zh: typeof en = {
       always: "始终显示",
     },
   },
+  field: {
+    command: "命令",
+    name: "名称",
+    id: "标识",
+    protocol: "协议",
+  },
+  action: {
+    save: "保存",
+    next: "下一步",
+    add: "添加",
+  },
+  reset: {
+    title: "重置界面状态？",
+    body: "将清除 ~/.config/rove/state.json 和 ~/.rove/tasks.json 并退出 Rove —— 重新启动后会是一个干净的开始，工作会话列表为空。磁盘上的工作树和引擎会话历史不受影响。",
+    done: "Rove：界面状态已重置。重新启动 Rove 即可从头开始。",
+  },
+  restart: {
+    title: "重启后端？",
+    body: "会退出当前 Rove 窗口。重新启动即可（重新）拉起 daemon。其他已连接的窗口不受影响。v0.6 起 daemon 的 RPC 只保留了任务增删改查和订阅，客户端不再接出优雅的 daemon.stop，所以退出再启动就是这条路径。",
+    done: "Rove：窗口已关闭。重新启动 Rove 即可从头开始。",
+  },
+  deferredFlush: {
+    failedTitle: "排队的提示词未能放行",
+    failedBody: "{message}。请重启或升级 daemon 后重试。",
+  },
   engines: {
     title: "引擎",
     hint: "Rove 能启动的所有引擎，每个下面跟着本地探测到的情况：二进制在哪，以及对有账户探测器的引擎是否已登录。[x] = 为任务选引擎时会列出它；(●) = 全局默认引擎（各项目自己的选择会覆盖它，如 Ctrl+Shift+T）——两者都可直接点，也可用下面的按键。二进制不在 PATH 上、或要传默认参数时，覆盖它的启动命令。space 开/关 · enter 编辑命令 · r 重命名 · x 重置/移除 · d 设为默认。",
     customTag: "  (自定义)",
     addEngine: "+ 添加引擎",
+    launchCommandTitle: "{name} 的启动命令",
+    displayNameTitle: "{name} 的显示名称（留空 = 默认）",
+    addTitle: "添加引擎",
+    addStepTitle: "添加引擎 · {id}",
+    addProtocolTitle: "添加引擎 · {id} —— 协议（留空 = 无）",
+    idPlaceholder: "小写短名，如 aider",
+    commandPlaceholder: "如 aider --model sonnet",
   },
   accounts: {
     checking: "检查中…",
