@@ -30,6 +30,7 @@
 
 import { homedir } from "node:os"
 import { join } from "node:path"
+import type { EngineSessionRef } from "../hook-adapter.ts"
 import type { EngineActivityDetail, EngineActivityKind } from "../hook-events.ts"
 import { JsonHookAdapter } from "../json-hook-adapter.ts"
 import type { HookEventSpec } from "../json-hooks.ts"
@@ -92,5 +93,23 @@ export class CodexHookAdapter extends JsonHookAdapter {
       return { compact: { trigger: payload.trigger === "manual" ? "manual" : "auto" } }
     }
     return undefined
+  }
+
+  /** Codex spells session identity exactly as Claude does. Its `Stop` payload
+   *  schema (read off codex-cli 0.153.2's binary) REQUIRES both `session_id`
+   *  and `transcript_path`, and `transcript_path` is the rollout JSONL — the
+   *  same file `codexHistoryReader.transcriptPath` resolves. Without this
+   *  override the daemon records a codex turn with no transcript to read, so
+   *  {@link import("./turns.ts").readCodexTurns} is never reached and
+   *  `rove api agent-turns` answers an empty page for a codex task.
+   *  `transcript_path` is nullable in the schema, hence the string guard. */
+  override sessionFromPayload(payload: Record<string, unknown>): EngineSessionRef | undefined {
+    if (typeof payload.session_id !== "string" || !payload.session_id) return undefined
+    return {
+      sessionId: payload.session_id,
+      ...(typeof payload.transcript_path === "string" && payload.transcript_path
+        ? { transcriptPath: payload.transcript_path }
+        : {}),
+    }
   }
 }

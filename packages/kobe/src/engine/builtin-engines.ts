@@ -37,6 +37,7 @@ import { fetchCodexQuotaUsage } from "./codex-local/quota.ts"
 import { CODEX_SCREEN_MANIFEST } from "./codex-local/screen.ts"
 import { codexSessionIdFromTitle } from "./codex-local/terminal-title.ts"
 import { trustCodexWorktree } from "./codex-local/trust.ts"
+import { readCodexTurns } from "./codex-local/turns.ts"
 import { COPILOT_SCREEN_MANIFEST } from "./copilot-local/screen.ts"
 import { trustCopilotWorktree } from "./copilot-local/trust.ts"
 import {
@@ -123,6 +124,7 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     capabilities: codexCapabilities,
     identity: codexIdentity,
     trustWorktree: trustCodexWorktree,
+    readTurns: readCodexTurns,
     screenManifest: CODEX_SCREEN_MANIFEST,
     // Codex's default is activity + project-name, which makes every tab in
     // one repo say "rove". Keep its native activity state, but ask Codex to
