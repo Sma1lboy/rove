@@ -95,6 +95,12 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
         description: "Toast text (one line).",
       },
       {
+        name: "body",
+        type: "string",
+        placeholder: "TEXT",
+        description: "Optional second line under the title — context, not a second message.",
+      },
+      {
         name: "kind",
         type: "string",
         default: "done",
@@ -113,6 +119,7 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
     handler: async (ctx) => {
       return simpleRpc(ctx, "notice.send", {
         title: ctx.args.str("title"),
+        body: ctx.args.str("body"),
         kind: ctx.args.str("kind") ?? "done",
         taskId: ctx.args.str("task-id"),
         source: ctx.args.str("source"),

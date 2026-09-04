@@ -139,7 +139,13 @@ the shape your target Rove version actually emits. The channel names are the
 `task.snapshot`, `issue.snapshot`, `active-task`, `update`, `engine-state`,
 `attention.inbox`, `ui-prefs`, `keybindings`, `task.jobs`, `worktree.changes`,
 `transcript.activity`, `session.deliver`, `tab.open`, `tab.close`,
-`engine.lifecycle`, `notice.event`, `usage.snapshot`, `ui.prompt`.
+`engine.lifecycle`, `notice.event`, `usage.snapshot`, `usage.context`,
+`ui.prompt`.
+
+A name the daemon does not know is dropped from the filter, not rejected: the
+subscribe succeeds and that channel simply never arrives. So an SDK older than
+the Rove it talks to fails silently — check the SDK version before assuming a
+channel is dead.
 
 Your handler also receives `daemon.stopping` at daemon shutdown — not a
 channel, always delivered regardless of the filter.

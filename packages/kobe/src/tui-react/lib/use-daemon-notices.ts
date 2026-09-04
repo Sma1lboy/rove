@@ -116,6 +116,12 @@ export function useDaemonNotices(
     // Arbitrary kinds are allowed on the wire; only the known severities
     // carry styling/unread semantics — everything else renders as "done".
     const kind = notice.kind === "needs_input" || notice.kind === "error" ? notice.kind : "done"
-    notifyRef.current({ kind, taskId: notice.taskId ?? "", tabId: "", title: notice.title })
+    notifyRef.current({
+      kind,
+      taskId: notice.taskId ?? "",
+      tabId: "",
+      title: notice.title,
+      ...(notice.body ? { body: notice.body } : {}),
+    })
   }, [notice])
 }
