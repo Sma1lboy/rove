@@ -108,6 +108,15 @@ clobbering:
 This only ever fires for worktrees Rove itself created from a repo you already
 work in; your own directories are untouched.
 
+Contrib, plugin, and custom engines have no trust record Rove knows how to
+write, so whether a task worktree launches cleanly is up to the CLI. OpenCode
+does not gate at all (checked against 0.6.3 in an unseen directory, including
+with an empty config, so it needs nothing). Cursor Agent does gate — its
+`--trust` flag only applies to `--print`/headless runs, so an interactive
+task worktree stops at its trust prompt and you have to answer it once in the
+pane. The rest are unmeasured; if a task sits on a dialog at launch, that is
+what you are looking at.
+
 ### Custom launch commands
 
 Override any engine's launch command in Settings → Engines, or by hand in
