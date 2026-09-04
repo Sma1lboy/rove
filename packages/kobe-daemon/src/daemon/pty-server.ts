@@ -239,8 +239,9 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
       // the directory holds is the one thing a user cannot otherwise see, and
       // `expired` is a deletion — silence there is how a store quietly loses
       // scrollback nobody knew was at risk.
-      const notes = [`restored ${s.restored} (${(s.bytesRead / 1e6).toFixed(0)}MB)`]
-      if (s.deferred > 0) notes.push(`${s.deferred} left unread past the ${FREEZE_RESTORE_MAX_BYTES / 1e6}MB budget`)
+      const mib = (bytes: number): string => `${Math.round(bytes / (1024 * 1024))}MB`
+      const notes = [`restored ${s.restored} (${mib(s.bytesRead)})`]
+      if (s.deferred > 0) notes.push(`${s.deferred} left unread past the ${mib(FREEZE_RESTORE_MAX_BYTES)} budget`)
       if (s.expired > 0) notes.push(`${s.expired} deleted past the ${FREEZE_TTL_MS / 86_400_000}-day TTL`)
       if (s.unreadable > 0) notes.push(`${s.unreadable} unreadable`)
       log("freeze", notes.join(", "))
