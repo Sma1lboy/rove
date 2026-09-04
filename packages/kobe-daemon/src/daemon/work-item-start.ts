@@ -117,6 +117,6 @@ export async function startWorkItem(
   // task whose session is about to start.
   await deps.orch.setLinkedWorkItem(task.id, linked).catch(() => {})
 
-  const started = await deps.runtime.startTaskSessionWithPrompt(deps.link, task.id, buildWorkItemPrompt(args.item))
-  return { task, started }
+  const outcome = await deps.runtime.startTaskSessionWithPrompt(deps.link, task.id, buildWorkItemPrompt(args.item))
+  return { task, started: outcome.started }
 }

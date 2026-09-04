@@ -20,8 +20,10 @@
  * module actually has to answer: an occurrence that came and went unobserved.
  * That is `missedRunGraceMinutes` — run it late if it is still recent enough
  * to be useful, otherwise record `skipped_missed` and move on. Only the most
- * recent missed occurrence is ever considered; a week offline must not
- * stampede seven runs at boot.
+ * recent missed occurrence is ever RUN; a week offline must not stampede
+ * seven runs at boot. The ones passed over are still COUNTED and recorded
+ * ({@link droppedOccurrences}), because "did not run it" and "did not mention
+ * it" are different promises, and only the second one is a lie.
  */
 
 import type { DaemonRpcClient } from "../client/rpc.ts"
@@ -30,7 +32,7 @@ import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./aut
 import type { AutomationsStore } from "./automations-store.ts"
 import type { Automation, AutomationRunStatus, DaemonOrchestrator } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
-import { latestCronAtOrBefore } from "./cron.ts"
+import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
@@ -153,6 +155,45 @@ function emitRunEvent(
   })
 }
 
+/** Record a run the sweep decided NOT to make. Shared by both skip paths so
+ *  the record + plugin event never drift apart between them. */
+async function recordSkip(
+  deps: RunnerDeps,
+  automation: Automation,
+  status: AutomationRunStatus,
+  scheduledFor: number,
+  error: string,
+): Promise<void> {
+  const now = deps.now ?? Date.now
+  await deps.store.recordRun({
+    automationId: automation.id,
+    scheduledFor: new Date(scheduledFor).toISOString(),
+    status,
+    trigger: "scheduled",
+    at: new Date(now()).toISOString(),
+    error,
+  })
+  emitRunEvent(deps, automation, status, { scheduledFor, trigger: "scheduled" }, { error })
+}
+
+/**
+ * Occurrences this automation was armed for that the sweep never reached.
+ *
+ * A sweep pass is serial and its ticker drops re-entrant ticks, so one slow
+ * precheck stalls every routine behind it. The stall itself is bounded and
+ * survivable; the LIE is not. `latestCronAtOrBefore` returns only the newest
+ * occurrence, so the ones passed over used to vanish with no record of any
+ * kind — a per-minute routine that fired five times out of nine showed five
+ * `dispatched` runs and nothing else. This is the gap between what the
+ * automation was armed for and what the sweep actually found.
+ */
+function droppedOccurrences(automation: Automation, scheduledFor: number): { count: number; firstMs: number } | null {
+  const armedAt = Date.parse(automation.nextRunAt)
+  if (!Number.isFinite(armedAt) || armedAt >= scheduledFor) return null
+  const count = countCronBetween(automation.schedule, armedAt, scheduledFor)
+  return count > 0 ? { count, firstMs: armedAt } : null
+}
+
 /**
  * Execute one automation now, recording exactly one run. Exported for
  * `automation.runNow` (manual trigger), which skips the precheck: the user
@@ -244,26 +285,35 @@ export async function sweepAutomations(deps: RunnerDeps, tickMs: number = DEFAUL
       continue
     }
 
+    // Read the gap BEFORE advancing: `nextRunAt` is what this automation was
+    // armed for, and advancing overwrites it with the occurrence we found.
+    const dropped = droppedOccurrences(automation, occurrence.scheduledFor)
+
     // Advance BEFORE doing any work: an overlapping sweep (or a slow engine
     // spawn) must never see this occurrence as still due and fire it twice.
     await deps.store.advanceNextRun(automation.id, occurrence.scheduledFor)
 
-    if (occurrence.missed) {
-      const error = `missed by more than the ${automation.missedRunGraceMinutes}m grace window`
-      await deps.store.recordRun({
-        automationId: automation.id,
-        scheduledFor: new Date(occurrence.scheduledFor).toISOString(),
-        status: "skipped_missed",
-        trigger: "scheduled",
-        at: new Date(nowMs).toISOString(),
-        error,
-      })
-      emitRunEvent(
+    // One row for every occurrence between the armed time and the one being
+    // run — recorded whatever happens next, because a routine that quietly
+    // became four-hourly and one that ran every minute must not read the same.
+    if (dropped) {
+      const first = new Date(dropped.firstMs).toISOString()
+      await recordSkip(
         deps,
         automation,
         "skipped_missed",
-        { scheduledFor: occurrence.scheduledFor, trigger: "scheduled" },
-        { error },
+        dropped.firstMs,
+        `${dropped.count} earlier occurrence${dropped.count === 1 ? "" : "s"} never ran (from ${first})`,
+      ).catch((err) => logDaemonError("automation-dropped", err))
+    }
+
+    if (occurrence.missed) {
+      await recordSkip(
+        deps,
+        automation,
+        "skipped_missed",
+        occurrence.scheduledFor,
+        `missed by more than the ${automation.missedRunGraceMinutes}m grace window`,
       )
       continue
     }

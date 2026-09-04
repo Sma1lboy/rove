@@ -47,7 +47,7 @@ const link = {} as DaemonRpcClient
 function fakeDeps(args: {
   store: AutomationsStore
   createTask?: (input: unknown) => Promise<DaemonTask>
-  start?: (link: DaemonRpcClient, taskId: string, prompt: string) => Promise<boolean>
+  start?: DispatchRuntime["startTaskSessionWithPrompt"]
   /** Tasks `resolveStandingTask` can find, keyed by id. */
   tasks?: Record<string, DaemonTask>
   deliver?: DispatchRuntime["deliverPromptToLiveEngineDetailed"]
@@ -75,7 +75,7 @@ function fakeDeps(args: {
           args.start ??
           (async (_l: DaemonRpcClient, _id: string, prompt: string) => {
             prompts.push(prompt)
-            return true
+            return { started: true }
           }),
         deliverPromptToLiveEngineDetailed:
           args.deliver ??
@@ -248,7 +248,7 @@ describe("runAutomationOnce", () => {
 
   it("records dispatch_failed but keeps the task id when the engine will not start", async () => {
     const store = await tempStore()
-    const { deps } = fakeDeps({ store, start: async () => false })
+    const { deps } = fakeDeps({ store, start: async () => ({ started: false, error: "engine process never started; last session output: command not found" }) })
     const a = automation()
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatch_failed")

@@ -87,7 +87,7 @@ function harness(
     runtime: {
       startTaskSessionWithPrompt: async (_l: DaemonRpcClient, taskId: string, prompt: string) => {
         spawned.push({ taskId, prompt })
-        return args.startOk !== false
+        return { started: args.startOk !== false }
       },
       deliverPromptToLiveEngineDetailed:
         args.deliver ??

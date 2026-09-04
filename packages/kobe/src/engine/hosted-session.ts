@@ -14,7 +14,7 @@ import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from ".
 import { PASTE_READY_POLL_MS, PASTE_READY_TIMEOUT_MS, bracketedPasteActive, encodePaste } from "./paste-readiness.ts"
 import { engineEntry } from "./registry.ts"
 import type { EngineScreenManifest } from "./screen-state.ts"
-import { type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
+import { ENGINE_EXIT_BANNER, type EngineSessionLaunch, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
 export interface HostedSessionRpc {
   request<T = unknown>(name: string, payload?: unknown): Promise<T>
@@ -418,22 +418,25 @@ export interface PasteFirstMessageOptions extends HostedPromptDeliveryOpts {
 }
 
 /**
- * Deliver a paste-delivery vendor's FIRST message: the launch
- * spawned the bare engine (its positional argv slot is a subcommand, not a
- * prompt), so the prompt is bracketed-pasted once the engine process is
- * actually up — the same reason `send` into a cold engine embeds nowhere
- * but waits here instead. Polls the session's process tree until an engine
- * child appears (or the session dies / the wait budget runs out), grants a
- * waits for it to start READING, then pastes + submits.
- * Returns what the write observed, or `null` when it never happened.
+ * Wait until the ENGINE process appears inside a hosted session's tree.
+ *
+ * The session's own liveness is the LOGIN SHELL's, not the engine's: keepAlive
+ * leaves a session whose engine exited sitting in a fallback shell, so
+ * `pty.open` reports `alive` for `engineCommand: /nonexistent/binary` exactly
+ * as it does for a healthy launch. The process table is the only thing that
+ * separates "the engine is running" from "the shell printed `command not
+ * found` and stayed". Anything that reports success for a spawn — and a
+ * scheduled routine has nobody watching to catch it out — has to look here.
+ *
+ * Returns the session's pid once the engine is in its tree, or `null` when the
+ * session died or the budget ran out.
  */
-export async function pastePromptWhenEngineUp(
+export async function awaitEngineProcess(
   rpc: HostedSessionRpc,
   key: string,
   engineBin: string | undefined,
-  prompt: string,
   opts: PasteFirstMessageOptions = {},
-): Promise<PromptWriteOutcome | null> {
+): Promise<number | null> {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const snapshot = opts.snapshot ?? psSnapshot
 
@@ -464,17 +467,75 @@ export async function pastePromptWhenEngineUp(
       } catch {
         up = false // ps hiccup — treat as "not yet", keep polling
       }
-      if (up) {
-        // The engine process exists; now wait for it to actually be READING
-        // (see `awaitPasteReady`). Only when it never announces bracketed
-        // paste do we fall back to a blind settle.
-        if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
-          await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
-        }
-        return await writeHostedPromptIfClear(rpc, key, prompt, opts)
-      }
+      if (up) return session.pid
     }
     await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
+  }
+  return null
+}
+
+/**
+ * The line that explains why a hosted session has no engine in it.
+ *
+ * A caller outside the PTY can see that the engine never appeared but not why.
+ * The session itself printed the answer: the shell's own `command not found`,
+ * and above all the `Engine exited (code N)` banner that {@link keepAlive}
+ * prints before dropping into the fallback shell. That banner is preferred
+ * over the literal last line, which by then is the fallback shell's PROMPT —
+ * true, and useless to whoever has to fix the launch command.
+ */
+export async function hostedSessionFailureLine(
+  rpc: HostedSessionRpc,
+  key: string,
+  limit = 200,
+): Promise<string | undefined> {
+  try {
+    const peek = await rpc.request<PtyPeekResult>("pty.peek", { key })
+    const lines = stripAnsi(Buffer.from(peek.data, "base64").toString("utf8"))
+      .split(/\r?\n/)
+      .map((row) => row.trim())
+      .filter((row) => row.length > 0)
+    const line = lines.findLast((row) => ENGINE_EXIT_BANNER.test(row)) ?? lines.at(-1)
+    return line === undefined ? undefined : line.slice(0, limit)
+  } catch {
+    return undefined
+  }
+}
+
+/** Enough of a stripper to make a PTY ring readable as text: OSC strings (which
+ *  run to BEL or ST) and CSI/two-byte escapes. Not a terminal emulator — the
+ *  caller wants one line for a run record, not a rendered screen. */
+function stripAnsi(text: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: reading a raw PTY ring is the point
+  return text.replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "").replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, "")
+}
+
+/**
+ * Deliver a paste-delivery vendor's FIRST message: the launch
+ * spawned the bare engine (its positional argv slot is a subcommand, not a
+ * prompt), so the prompt is bracketed-pasted once the engine process is
+ * actually up — the same reason `send` into a cold engine embeds nowhere
+ * but waits here instead. Waits for the engine child to appear (or the
+ * session to die / the budget to run out), waits for it to start READING,
+ * then pastes + submits.
+ * Returns what the write observed, or `null` when it never happened.
+ */
+export async function pastePromptWhenEngineUp(
+  rpc: HostedSessionRpc,
+  key: string,
+  engineBin: string | undefined,
+  prompt: string,
+  opts: PasteFirstMessageOptions = {},
+): Promise<PromptWriteOutcome | null> {
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
+  if ((await awaitEngineProcess(rpc, key, engineBin, opts)) !== null) {
+    // The engine process exists; now wait for it to actually be READING
+    // (see `awaitPasteReady`). Only when it never announces bracketed
+    // paste do we fall back to a blind settle.
+    if (!(await awaitPasteReady(rpc, key, { timeoutMs: opts.pasteReadyTimeoutMs, sleep }))) {
+      await sleep(opts.settleMs ?? FIRST_MESSAGE_SETTLE_MS)
+    }
+    return await writeHostedPromptIfClear(rpc, key, prompt, opts)
   }
   return null
 }

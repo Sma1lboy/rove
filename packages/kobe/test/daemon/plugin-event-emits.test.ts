@@ -109,7 +109,7 @@ describe("automation runner emit sites", () => {
           advanceNextRun: async () => {},
         } as unknown as AutomationsStore,
         orch: { createTask: async () => ({ id: "task-9" }) },
-        runtime: { startTaskSessionWithPrompt: async () => true },
+        runtime: { startTaskSessionWithPrompt: async () => ({ started: true }) },
         link: (() => ({})) as never,
         plugins: () => ({ handleUiReport: (r: Report) => seen.push(r) }),
         ...overrides,
@@ -137,7 +137,7 @@ describe("automation runner emit sites", () => {
   })
 
   it("a failed engine start fires automation.failed", async () => {
-    const { seen, deps: d } = deps({ runtime: { startTaskSessionWithPrompt: async () => false } })
+    const { seen, deps: d } = deps({ runtime: { startTaskSessionWithPrompt: async () => ({ started: false }) } })
     await runAutomationOnce(d as never, automation as never, { scheduledFor: 0, trigger: "manual" })
     expect(seen[0]).toMatchObject({
       kind: "automation.failed",

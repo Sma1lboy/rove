@@ -122,7 +122,7 @@ export interface DaemonRuntimeAdapter {
   ensureTaskSession(link: DaemonRpcClient, taskId: string): Promise<{ session: string; worktreePath: string }>
   /**
    * Materialize a task's worktree and START its engine with `prompt` as the
-   * launch-time first message. Returns false when the session did not come up.
+   * launch-time first message.
    *
    * The spawning sibling of {@link deliverPromptToLiveEngine}, which exists for
    * the opposite case (resume a session that is already alive, never spawn).
@@ -130,8 +130,18 @@ export interface DaemonRuntimeAdapter {
    * one. The prompt rides the engine's own argv rather than being typed into
    * the PTY afterwards — a cold engine can swallow a raced paste, and an
    * unattended run has nobody watching to notice.
+   *
+   * `started` means the ENGINE process was seen running. The adapter looks at
+   * the process table to answer that, because the PTY's own liveness is the
+   * login shell's and stays true for an engine binary that does not exist.
+   * `error` carries what the session last printed, which is the only thing
+   * that can tell an unattended caller a `code 127` from a real start.
    */
-  startTaskSessionWithPrompt(link: DaemonRpcClient, taskId: string, prompt: string): Promise<boolean>
+  startTaskSessionWithPrompt(
+    link: DaemonRpcClient,
+    taskId: string,
+    prompt: string,
+  ): Promise<{ started: boolean; error?: string }>
   tearDownTaskSession(taskId: string): Promise<void>
   /**
    * Engine-owned subscription-quota probe: snapshot of the vendor account's
