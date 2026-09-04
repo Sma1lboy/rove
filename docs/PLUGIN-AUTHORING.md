@@ -65,7 +65,7 @@ Module-by-module SDK reference: [PLUGIN-SDK.md](./PLUGIN-SDK.md).
 Five runnable examples live under `packages/kobe-plugin-sdk/examples/`, one
 per surface. Each clip below is the real TUI — recorded through the same
 browser-PTY path the README assets use, against a throwaway home with the
-example already linked (`packages/kobe-web/e2e/hero-plugin-demos.ts`), so what
+example already linked (`packages/kobe-harness/e2e/hero-plugin-demos.ts`), so what
 you see is where your plugin actually shows up.
 
 ![task-board](./assets/plugins/task-board.gif)
@@ -93,7 +93,7 @@ copy appears as a toast in every attached UI.*
 Re-record with:
 
 ```bash
-cd packages/kobe-web
+cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh   # throwaway home + a real repo
 bun e2e/hero-plugins.ts           # link all five examples (BEFORE the TUI boots)
 bun e2e/hero-serve.ts             # warm capture stack (keep running)

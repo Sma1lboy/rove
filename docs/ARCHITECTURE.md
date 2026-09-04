@@ -44,7 +44,7 @@ reuse their directory and do not own a Rove-created worktree or branch.
   transport, standalone PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
   see [docs/design/plugins.md](./design/plugins.md)).
-- `packages/kobe-web/` — the `/harness` capture page and its PTY sidecar (see docs/HARNESS.md).
+- `packages/kobe-harness/` — the `/harness` capture page and its PTY sidecar (see docs/HARNESS.md).
   **Frozen (2026-07-25):** no new features. It survives because its `/harness`
   route is the only sanctioned visual ground truth for OpenTUI work, not
   because the SPA is a product surface. Every extra GUI consumer is another

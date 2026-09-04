@@ -269,7 +269,7 @@ echo ""
 
 # ── commit & tag ──────────────────────────────────────────────────────────────
 # `changeset version` rewrites EVERY bumped workspace package (Rove, the
-# plugin SDK, private internals like kobe-daemon/kobe-web get dependency
+# plugin SDK, private internals like kobe-daemon/kobe-harness get dependency
 # bumps too) — stage them all. Staging only packages/kobe once tagged a
 # commit that pinned Rove to a daemon version that existed nowhere (0.8.30).
 git add packages/*/package.json packages/*/CHANGELOG.md .changeset

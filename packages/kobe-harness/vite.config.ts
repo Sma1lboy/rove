@@ -12,7 +12,7 @@ const ptyPort = process.env.KOBE_PTY_PORT ?? "5175"
 
 const config = defineConfig({
   // Dedupe React to ONE copy. The monorepo has two React versions on disk
-  // (kobe-web pins ^19.2, branding pins 19.0), and any dependency with a
+  // (kobe-harness pins ^19.2, branding pins 19.0), and any dependency with a
   // loose `react >=16.8` peer can resolve the other one — which puts hooks
   // on a second React dispatcher ("Invalid hook call" in dev) and ships both
   // runtimes in the bundle.

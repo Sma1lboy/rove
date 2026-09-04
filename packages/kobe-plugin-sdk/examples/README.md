@@ -21,14 +21,14 @@ bun dev:sandbox --name demo run plugin action invoke examples.task-board.snapsho
 ## Demo clips
 
 Each example is recorded in the real TUI — where the surface it declares
-actually appears — by `packages/kobe-web/e2e/hero-plugin-demos.ts`; the clips
+actually appears — by `packages/kobe-harness/e2e/hero-plugin-demos.ts`; the clips
 are embedded in [`docs/PLUGIN-AUTHORING.md`](../../../docs/PLUGIN-AUTHORING.md).
 Re-shoot from a fresh fixture (the takes create real records and do not clean
 up), and note that every example must be linked BEFORE the harness boots: the
 TUI reads the plugin registry once at start.
 
 ```bash
-cd packages/kobe-web
+cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh && bun e2e/hero-plugins.ts
 bun e2e/hero-serve.ts             # keep running
 bun e2e/hero-plugin-demos.ts      # all five, or name one

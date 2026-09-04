@@ -33,7 +33,7 @@ This is a Bun-workspaces monorepo:
 
 - [`packages/kobe/`](./packages/kobe) — the published CLI and PureTUI.
 - [`packages/kobe-daemon/`](./packages/kobe-daemon) — daemon protocol/server and Hosted PTY runtime.
-- [`packages/kobe-web/`](./packages/kobe-web) — browser dashboard and PTY sidecar.
+- [`packages/kobe-harness/`](./packages/kobe-harness) — the `/harness` capture page and its PTY sidecar.
 - [`packages/branding/`](./packages/branding) — Remotion render pipeline for brand assets.
 
 The current ownership map is in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).

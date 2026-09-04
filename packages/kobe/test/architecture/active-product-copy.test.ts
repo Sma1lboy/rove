@@ -35,7 +35,7 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
       "需要 Bun ≥ 1.3.11、tmux",
     ],
   ],
-  ["packages/kobe-web/README.md", ["kobe-sandbox tmux socket"]],
+  ["packages/kobe-harness/README.md", ["kobe-sandbox tmux socket"]],
   [".claude/skills/release/SKILL.md", ["needs tmux", "apt-installed tmux"]],
   ["marketing/brand.meta.yaml", ["git worktrees, tmux sessions", "persistent tmux sessions"]],
   ["docs/design/tasks.md", ["inside a tmux pane/embedded terminal"]],
@@ -47,14 +47,14 @@ const STALE_CLAIMS: Array<[path: string, phrases: string[]]> = [
 
 /** Rename leaks on active harness/web/CI surfaces, scoped to definite stale copy. */
 const STALE_RENAME_COPY: Array<[path: string, phrases: string[]]> = [
-  ["packages/kobe-web/index.html", ["<title>kobe-web</title>"]],
-  ["packages/kobe-web/pty-server.mjs", ["kobe pty-server listening"]],
+  ["packages/kobe-harness/index.html", ["<title>kobe-harness</title>"]],
+  ["packages/kobe-harness/pty-server.mjs", ["kobe pty-server listening"]],
   ["packages/kobe/scripts/check-preview-deps.ts", ["kobe — preview-pane system dependencies"]],
   [
-    "packages/kobe-web/e2e/visual-fixture.ts",
+    "packages/kobe-harness/e2e/visual-fixture.ts",
     ["./src/cli/kobe.ts", 'join(XDG_CONFIG_HOME, "kobe")', '"skills", "kobe", "SKILL.md"', "/kobe-skill-version:"],
   ],
-  ["packages/kobe-web/e2e/hero-fixture.ts", ['join(HERO_CONFIG, "kobe")']],
+  ["packages/kobe-harness/e2e/hero-fixture.ts", ['join(HERO_CONFIG, "kobe")']],
 ]
 
 describe("active product copy", () => {
@@ -70,7 +70,7 @@ describe("active product copy", () => {
 
   test("current product pages do not publish pre-Rove terminal recordings", () => {
     // Captures re-shot as Rove through the browser `/harness` path
-    // (`packages/kobe-web/e2e/hero-*.ts`, docs/HARNESS.md) are current product
+    // (`packages/kobe-harness/e2e/hero-*.ts`, docs/HARNESS.md) are current product
     // renderings and may be published: `demo.*`, `workspace.png`,
     // `diff-review.png`, `narrow-sidebar.png`, `routines.png`, and the kanban
     // set (`kanban.png`, `kanban-story.png`, `kanban.gif`/`.mp4`, shot by

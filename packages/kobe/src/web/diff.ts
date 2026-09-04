@@ -11,7 +11,7 @@
  *     → 400 { error }  missing / non-absolute / non-existent path
  *     → 500 { error }  not a git repo, or git failed
  *
- * Response shape (also mirrored client-side in kobe-web/src/lib/diff.ts):
+ * Response shape:
  *
  *   interface DiffFile {
  *     path: string         // repo-relative path (the post-rename path for renames)

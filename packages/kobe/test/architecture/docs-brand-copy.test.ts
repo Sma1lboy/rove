@@ -180,7 +180,7 @@ describe("current docs and landing copy speak Rove", () => {
     expect(read("packages/kobe/scripts/pty-soak.ts"), "the PTY soak banner still labels Kobe").not.toContain(
       "kobe pty soak",
     )
-    const webReadme = read("packages/kobe-web/README.md")
+    const webReadme = read("packages/kobe-harness/README.md")
     expect(webReadme, "the web README still calls the product Kobe").not.toMatch(PRODUCT_NAME_KOBE)
     expect(webReadme, "the web README still teaches the compatibility CLI").not.toMatch(TYPED_KOBE_COMMAND)
   })

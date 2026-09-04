@@ -83,8 +83,8 @@ describe("Rove package distribution", () => {
 
   test("acceptance tooling defaults to the built Rove artifacts while retaining explicit alias coverage", () => {
     const harness = read("packages/kobe/test/behavior/harness.ts")
-    const visualFixture = read("packages/kobe-web/e2e/visual-fixture.ts")
-    const heroFixture = read("packages/kobe-web/e2e/hero-fixture.ts")
+    const visualFixture = read("packages/kobe-harness/e2e/visual-fixture.ts")
+    const heroFixture = read("packages/kobe-harness/e2e/hero-fixture.ts")
     const build = read("packages/kobe/scripts/build.ts")
 
     expect(harness).toContain('DIST_ROVE_CLI = join(PKG_ROOT, "dist/cli/rove.js")')

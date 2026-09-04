@@ -63,7 +63,7 @@ export type TaskSeed = {
 /**
  * Canonical ports for a fixture that runs a web server + daemon + PTY sidecar.
  *
- * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export function fixturePortBase(base: number): FixturePorts {
   return { webPort: base, daemonWebPort: base + 1, ptyPort: base + 2 }
@@ -85,7 +85,7 @@ export function fixtureRuntimePaths(home: string): Omit<FixturePaths, "root" | "
 /**
  * Paths every isolated fixture derives from its scratch root.
  *
- * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export function fixturePaths(root: string, repoName: string): FixturePaths {
   const { home, ...paths } = fixtureRuntimePaths(join(root, "home"))
@@ -100,7 +100,7 @@ export function fixturePaths(root: string, repoName: string): FixturePaths {
  * file at all. The engine-owned history the chat pane renders comes from that
  * file, so the seeded workspace degrades to a raw terminal.
  *
- * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export const CLAUDE_MARKERS: readonly string[] = [
   "CLAUDECODE",
@@ -249,7 +249,7 @@ export function assertFixtureIsolation(home: string, fixtureRoot: string): void 
 /**
  * Run a command in the fixture environment and return trimmed stdout.
  *
- * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export function runInFixture(
   command: string,
@@ -263,7 +263,7 @@ export function runInFixture(
 /**
  * One `rove api` call through a given CLI path.
  *
- * @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
+ * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export function runRoveApi(
   cliPath: string,
@@ -282,7 +282,7 @@ type RepoIdentity = {
 
 const DEFAULT_REPO_IDENTITY: RepoIdentity = { email: "fixture@rove.local", name: "Rove Fixture" }
 
-/** @public — imported across the package boundary by `packages/kobe-web/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export. */
+/** @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export. */
 export async function seedGitRepo(
   repoDir: string,
   files: readonly RepoFile[],

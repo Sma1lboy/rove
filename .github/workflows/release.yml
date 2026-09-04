@@ -113,7 +113,7 @@ jobs:
         run: bun run build
 
       - name: Verify node-pty can create a real child terminal
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: |
           node --input-type=module <<'EOF'
           import { spawn } from "node-pty"
@@ -127,11 +127,11 @@ jobs:
           EOF
 
       - name: Install Chromium for the visual ground-truth harness
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: bunx playwright install chromium
 
       - name: Visual journey (browser → PTY → real OpenTUI)
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: bun run visual
 
   publish:
