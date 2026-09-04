@@ -168,6 +168,14 @@ replacement in `nextCommandArgs`.
   Select the tasks by fan-out round (`--group`, the `groupId` that
   `add --count` returns), by repo, or by explicit ids.
 
+  With `--repo`, a repo path that no longer resolves to a readable git
+  repository is reported, never filtered away: the target failing to resolve
+  is a `REPO_UNRESOLVABLE` error naming the path, and a task whose own repo
+  will not resolve is listed in `unresolvableRepos` beside `tasks`. An empty
+  `tasks` list is only "this round is empty" when `unresolvableRepos` is
+  absent — the same null-versus-empty distinction `pty-list` and
+  `discover-adoptable` keep.
+
   Per task: identity, branch, lineage (`.dispatcher`, `.groupId`), plus
 
   - `.running` — `true` / `false` / `null`. Is an ENGINE PROCESS alive in
@@ -217,7 +225,9 @@ replacement in `nextCommandArgs`.
   no task state.
 - `digest --repo PATH [--since-days N]`: the repo's recent agent work,
   tasks touched in the window plus routine outcomes by status. Default
-  window 7 days. Task outcomes are deliberately absent: completion travels
+  window 7 days. Repo resolution follows `collect`: an unresolvable `--repo`
+  is a `REPO_UNRESOLVABLE` error, and unresolvable task repos come back in
+  `unresolvableRepos` rather than being counted as absent. Task outcomes are deliberately absent: completion travels
   to the spawning agent's engine tab (`send`), not into Rove state.
 - `agent-turns [--task-id ID] [--repo PATH] [--since-days N] [--limit N]`:
   per-turn agent telemetry, one record per completed engine turn
@@ -664,7 +674,11 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `ensure-worktree --task-id ID`: materialize a task's git worktree on
   disk now (without starting an engine). Returns `{ worktreePath }`.
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
-  tracked as Rove tasks. Returns `{ worktrees, unreadable }`. `unreadable` is
+  tracked as Rove tasks. Returns `{ worktrees, unreadable }`. The
+  repository's own primary checkout is never offered — not even when `PATH`
+  is one of its linked worktrees, where the caller and the main checkout are
+  different directories. `adopt` validates against this same list, so it
+  refuses the primary checkout by name. `unreadable` is
   the admin-dir names under `<repo>/.git/worktrees/` that `git worktree list`
   omitted without an error — a worktree that exists on disk (uncommitted work
   and all) but cannot be read, and so cannot be adopted until the permissions
