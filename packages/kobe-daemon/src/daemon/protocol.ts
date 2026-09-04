@@ -117,6 +117,9 @@ export type DaemonRequestName =
   | "task.ensureWorktree"
   | "task.setActive"
   | "issue.list"
+  // Repo roots the issue store holds a record for — a board section means
+  // "this repo has a backlog", which the task index cannot answer.
+  | "issue.repos"
   | "issue.mutate"
   | "worktree.discoverAdoptable"
   | "worktree.adopt"

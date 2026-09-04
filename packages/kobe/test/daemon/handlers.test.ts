@@ -59,6 +59,7 @@ describe("daemon handler registry", () => {
       "task.ensureWorktree",
       "task.setActive",
       "issue.list",
+      "issue.repos",
       "issue.mutate",
       "worktree.discoverAdoptable",
       "worktree.adopt",

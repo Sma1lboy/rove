@@ -8,8 +8,11 @@ export const en = {
   /** Footer/legend hint. */
   hint: "tab project · ←↓↑→ card · enter detail · n new · d delete · r refresh · esc close",
   loading: "Loading issues…",
-  /** No saved projects / no tasks to derive repos from. */
-  noRepos: "No projects yet — create a task first.",
+  /** Nothing to render a section for: no saved project, no live task, and no
+   *  repo in the issue store. It used to say "create a task first" while
+   *  deriving its sections from the task index alone, so a store full of
+   *  stories read as an empty one. */
+  noRepos: "No projects yet — add one with `rove add <path>`, or file a story with `rove api issue-create`.",
   /** A repo section with zero issues. */
   empty: "No issues — agents file them via `rove api issue-create`.",
   /** In place of the four columns when THIS project's issue read rejected.
@@ -114,7 +117,7 @@ export const zh: typeof en = {
   title: "看板",
   hint: "tab 切项目 · ←↓↑→ 选卡片 · enter 详情 · n 新建 · d 删除 · r 刷新 · esc 关闭",
   loading: "正在加载 issues…",
-  noRepos: "还没有项目——先创建一个任务。",
+  noRepos: "还没有项目——用 `rove add <路径>` 添加一个，或用 `rove api issue-create` 创建一个 story。",
   empty: "暂无 issue——agent 可通过 `rove api issue-create` 创建。",
   readFailed: "读取该项目的 story 失败：{error}",
   readFailedToast: "读取 {repo} 的 story 失败：{error}",
