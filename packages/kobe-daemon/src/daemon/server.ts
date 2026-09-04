@@ -44,7 +44,8 @@ import { createSocketOwnershipGuard, listenOnUnixSocket } from "./socket-guard.t
 import { initDaemonStores } from "./stores.ts"
 import { handleSubscribe } from "./subscribe.ts"
 import { TabCloseBroker } from "./tab-close-broker.ts"
-import { type DaemonWebServer, createDirectWebLink, startDaemonWebServer } from "./web-server.ts"
+import { createDirectWebLink } from "./web-server.ts"
+import { createWebTransport } from "./web-transport-boot.ts"
 import { WorkItemCache } from "./work-items.ts"
 
 // RPC handler registry + per-request dispatch seam — re-exported so consumers
@@ -83,7 +84,10 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     throw new Error(`rove daemon: another daemon is already serving ${socketPath} — refusing to replace it`)
   }
   const clients = new Set<ClientState>()
-  const webClients = new Set<{ subscribed: boolean; holdsLifetime: boolean }>()
+  // Secondary HTTP/SSE surface — its listener, SSE client set and bind-failure
+  // reason all live in web-transport-boot.ts. Created empty here so the
+  // lifetime generator below can yield from it; booted after `selfLink`.
+  const web = createWebTransport()
   let nextClientId = 1
 
   // Refcounted lazy shutdown + collector gate (KOB): the daemon's lifetime is
@@ -104,7 +108,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   const lifetime = new DaemonLifetime({
     clients: function* () {
       yield* clients
-      yield* webClients
+      yield* web.clients
     },
     idleGraceMs: resolveIdleGraceMs(),
     // Autospawned daemons (connectOrStartDaemon's spawn stamps the env
@@ -279,12 +283,6 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   const prompts = new PromptBroker()
   const tabCloses = new TabCloseBroker()
 
-  let webServer: DaemonWebServer | null = null
-  // Why the web transport isn't listening (port taken, bind failed). Surfaced
-  // via daemon.status so `kobe daemon status` reports the real reason instead
-  // of the TUI's misleading "daemon did not start".
-  let webError: string | null = null
-
   // Ownership watch (rationale in socket-guard.ts): a daemon whose
   // socket path was taken over is unreachable for every NEW connection and
   // must not linger as a split-brain island — stop, so the attached clients'
@@ -303,7 +301,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     pidPath,
     startedAt,
     get webPort() {
-      return webServer?.port
+      return web.port
     },
     clients,
     async close() {
@@ -314,8 +312,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       // (its `run` spawns outside the inner promise).
       try {
         unsubscribeStore()
-        webServer?.close()
-        webServer = null
+        web.close()
         stopCollectors()
         ptyHold.stop()
         stopPtyExitWatch()
@@ -405,11 +402,11 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
         startedAt,
         socketPath,
         homeDir,
-        webPort: webServer?.port,
-        webError,
+        webPort: web.port,
+        webError: web.error,
         pid: process.pid,
         guiCount: () => lifetime.guiCount(),
-        clientCount: () => clients.size + webClients.size,
+        clientCount: () => clients.size + web.clients.size,
         stopSoon,
         reevaluateIdle: () => lifetime.reevaluateIdle(),
       },
@@ -423,46 +420,14 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // server reuses the same object when it is enabled.
   const selfLink = createDirectWebLink({ orch, bus, activity, ctx: handlerContext })
 
-  if (options.webPort !== undefined) {
-    // The web transport is a SECONDARY surface — a bind failure (port taken by
-    // a stray `vite preview`, another kobe daemon, whatever) must NEVER take
-    // the daemon down. Degrade to socket-only, record the reason for status,
-    // and keep serving every attached TUI/pane over the unix socket.
-    try {
-      webServer = await startDaemonWebServer({
-        runtime,
-        port: options.webPort,
-        hostname: options.webHost,
-        staticDir: options.webStaticDir,
-        link: selfLink,
-        onEvent: (sink) => bus.onPublish(sink),
-        onSseOpen: () => {
-          const client = { subscribed: true, holdsLifetime: true }
-          webClients.add(client)
-          lifetime.guiAttached()
-          logDaemonInfo(
-            "conn",
-            `web client subscribed — ${clients.size + webClients.size} client(s), ${lifetime.guiCount()} gui`,
-          )
-          return () => {
-            webClients.delete(client)
-            logDaemonInfo(
-              "conn",
-              `web client disconnected — ${clients.size + webClients.size} client(s), ${lifetime.guiCount()} gui left`,
-            )
-            void ptyHold.probeSoon()
-            lifetime.clientDisconnected(true)
-          }
-        },
-      })
-      logDaemonInfo("web", `daemon web transport listening on http://${webServer.hostname}:${webServer.port}`)
-    } catch (err) {
-      webServer = null
-      webError = err instanceof Error ? err.message : String(err)
-      logDaemonError("web", err)
-      logDaemonInfo("web", "daemon running socket-only — web transport disabled (see error above)")
-    }
-  }
+  await web.start({
+    options,
+    bus,
+    link: selfLink,
+    lifetime,
+    ptyHold,
+    socketClientCount: () => clients.size,
+  })
 
   async function dispatch(req: Extract<DaemonFrame, { type: "request" }>, client: ClientState): Promise<unknown> {
     if (req.name === "subscribe") {

@@ -23,15 +23,14 @@
  */
 
 import { createHash } from "node:crypto"
-import { homedir } from "node:os"
 import { join } from "node:path"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import {
-  LEGACY_KOBE_CONFIG_DIR_BASENAME,
-  LEGACY_KOBE_STATE_DIR_BASENAME,
-  ROVE_CONFIG_DIR_BASENAME,
-  ROVE_STATE_DIR_BASENAME,
-} from "./product.ts"
+  defaultKeybindingsPath,
+  defaultUiPrefsStatePath,
+  resolveProductHomeDir,
+} from "@sma1lboy/kobe-daemon/daemon/product-paths"
+import { LEGACY_KOBE_CONFIG_DIR_BASENAME, LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "./product.ts"
 
 /**
  * `ROVE_DEV=1` (or compatible `KOBE_DEV=1`) — declares the binary is running from a developer
@@ -52,7 +51,7 @@ export function isDev(): boolean {
  * so they don't trample the real `~/.rove/`.
  */
 export function homeDir(): string {
-  return readRoveEnv("HOME_DIR") ?? homedir()
+  return resolveProductHomeDir()
 }
 
 /**
@@ -81,7 +80,7 @@ export function legacyKobeStateDir(): string {
  * this accessor is the one place the path is spelled.
  */
 export function kvStatePath(): string {
-  return join(homeDir(), ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
+  return defaultUiPrefsStatePath(homeDir())
 }
 
 /** Compatibility path copied on first launch after upgrade. */
@@ -108,7 +107,7 @@ export function roveSettingsDir(): string {
  * absent.
  */
 export function keybindingsConfigPath(): string {
-  return join(roveSettingsDir(), "keybindings.yaml")
+  return defaultKeybindingsPath(homeDir())
 }
 
 /**

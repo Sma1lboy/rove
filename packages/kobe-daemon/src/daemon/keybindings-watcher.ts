@@ -21,25 +21,19 @@
  * each pane is the accepted trade for keeping the daemon keymap-neutral.
  */
 
-import { homedir } from "node:os"
-import { basename, join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { basename } from "node:path"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { startFileWatchTrigger } from "./file-watch-trigger.ts"
+import { defaultKeybindingsPath } from "./product-paths.ts"
 
 /** Default debounce between a file event and the rev bump+publish. */
 export const DEFAULT_KEYBINDINGS_DEBOUNCE_MS = 200
 
-/**
- * Path of the user keybindings file for a kobe home. Mirrors
- * `keybindingsConfigPath()` in `packages/kobe/src/env.ts` (keep in sync):
- * `<home>/.rove/settings/keybindings.yaml`. The `.yml` spelling is also
- * honoured — the watch is on the directory, so both filenames match.
- */
-export function defaultKeybindingsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, ROVE_STATE_DIR_BASENAME, "settings", "keybindings.yaml")
-}
+// Path of the user keybindings file — derived in `product-paths.ts`, which the
+// TUI's `keybindingsConfigPath()` wraps too. Re-exported here because this
+// module's own importers (collectors, tests) address it by the watcher.
+export { defaultKeybindingsPath }
 
 export interface KeybindingsWatcherOptions {
   /** Keybindings file path to watch. Defaults to {@link defaultKeybindingsPath}. */

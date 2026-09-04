@@ -38,12 +38,11 @@
  */
 
 import { readFileSync } from "node:fs"
-import { homedir } from "node:os"
-import { basename, join } from "node:path"
-import { ROVE_CONFIG_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { basename } from "node:path"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
 import { startFileWatchTrigger } from "./file-watch-trigger.ts"
+import { defaultUiPrefsStatePath } from "./product-paths.ts"
 import type { UiPrefsPayload } from "./protocol.ts"
 
 /** Default debounce between a state-file event and the read+publish. */
@@ -56,15 +55,10 @@ export const DEFAULT_UI_PREFS_DEBOUNCE_MS = 200
  */
 const FOCUS_ACCENT_SLOT_NAMES = ["primary", "success", "info"] as const
 
-/**
- * Path of the shared KV blob for a kobe home. Mirrors `kvStatePath()` in
- * `packages/kobe/src/env.ts` (keep in sync — same `defaultDaemonPidPath`
- * pattern as `daemon/paths.ts`): the daemon resolves it from the homeDir
- * the server was started with so sandbox/test homes stay isolated.
- */
-export function defaultUiPrefsStatePath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
-  return join(homeDir, ".config", ROVE_CONFIG_DIR_BASENAME, "state.json")
-}
+// Path of the shared KV blob — derived in `product-paths.ts`, which the TUI's
+// `kvStatePath()` wraps too. Re-exported here because this module's own
+// importers (collectors, tests) address it by the watcher.
+export { defaultUiPrefsStatePath }
 
 /**
  * Read the visual-pref keys out of the state file. Never throws —
