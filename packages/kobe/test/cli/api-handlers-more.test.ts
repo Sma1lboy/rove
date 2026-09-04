@@ -366,9 +366,7 @@ describe("issue verbs", () => {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests).toEqual([
-      { name: "issue.mutate", payload: { repoRoot: "/repo/x", op: { type: "link", id: 7, taskId: "01TASK" } } },
-    ])
+    expect(client.requests[0].payload).toMatchObject({ op: { type: "update", id: 7, taskId: "01TASK" } })
   })
 
   it("issue-update --task none unlinks", async () => {
@@ -377,18 +375,27 @@ describe("issue verbs", () => {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests).toEqual([
-      { name: "issue.mutate", payload: { repoRoot: "/repo/x", op: { type: "unlink", id: 7 } } },
-    ])
+    expect(client.requests[0].payload).toMatchObject({ op: { type: "update", id: 7, taskId: null } })
   })
 
-  it("issue-update with title AND task sends update then link, in that order", async () => {
+  // The half-apply: title/body and the link used to be two RPCs, so a rejected
+  // link left the rename committed behind a total-failure error. One RPC is
+  // what makes the store's single lock cover the whole command.
+  it("issue-update with title AND task sends ONE mutate carrying both", async () => {
     const client = new FakeClient({ "issue.mutate": () => ({ issues: [] }) })
     await invokeVerb("issue-update", ["--repo", "/repo/x", "--id", "7", "--title", "Renamed", "--task", "01TASK"], {
       client,
       runtime: stubRuntime(),
     })
-    expect(client.requests.map((r) => (r.payload as { op: { type: string } }).op.type)).toEqual(["update", "link"])
+    expect(client.requests).toEqual([
+      {
+        name: "issue.mutate",
+        payload: {
+          repoRoot: "/repo/x",
+          op: { type: "update", id: 7, title: "Renamed", body: undefined, taskId: "01TASK" },
+        },
+      },
+    ])
   })
 })
 

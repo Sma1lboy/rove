@@ -191,8 +191,17 @@ export function KanbanPage(props: {
       orchestrator: props.orchestrator,
     }).then(async (outcome) => {
       if (!outcome) return
-      const patch = { title: outcome.title, body: outcome.body }
-      if (patch.title !== issue.title || patch.body !== issue.body) {
+      // ONLY the fields the drawer actually changed. `issue` is the open-time
+      // snapshot the drawer seeded its drafts from, so a field still equal to
+      // it is one the user never touched — and writing it back would revert
+      // whatever another client (an agent on `rove api issue-update`) put
+      // there while the drawer sat open, silently, on a field the person
+      // saving never saw. The store leaves an absent field alone, so fixing a
+      // typo in the title now keeps a body rewritten underneath it.
+      const patch: { title?: string; body?: string } = {}
+      if (outcome.title !== issue.title) patch.title = outcome.title
+      if (outcome.body !== issue.body) patch.body = outcome.body
+      if (patch.title !== undefined || patch.body !== undefined) {
         await props.orchestrator
           ?.mutateIssue(board.repoRoot, { type: "update", id: issue.id, ...patch })
           .catch((err: unknown) => {

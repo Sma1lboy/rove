@@ -147,6 +147,51 @@ describe("IssuesStore", () => {
     expect(Object.values(after.repos)[0]?.repoRoot).toBe(canonicalRepo)
   })
 
+  // `update` carries the link so the CLI's `--title X --task Y` is ONE locked
+  // write. Split across two ops, a rejected link left the rename committed.
+  describe("update carrying a taskId", () => {
+    async function seeded(): Promise<{ repo: string; store: IssuesStore }> {
+      const repo = await makeRepo()
+      const home = await mkdtemp(join(tmpdir(), "kobe-issues-store-update-link-"))
+      cleanups.push(home)
+      const store = new IssuesStore(join(home, ".kobe", "issues.json"))
+      await store.mutate(repo, { type: "create", title: "Story", body: "B1" })
+      return { repo, store }
+    }
+
+    it("applies title, body and the link in one write", async () => {
+      const { repo, store } = await seeded()
+      await store.mutate(repo, { type: "update", id: 1, title: "Renamed", body: "B2", taskId: "task-abc" })
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Renamed", body: "B2", taskId: "task-abc" })
+    })
+
+    it("taskId null unlinks; absent leaves the link alone", async () => {
+      const { repo, store } = await seeded()
+      await store.mutate(repo, { type: "update", id: 1, taskId: "task-abc" })
+      await store.mutate(repo, { type: "update", id: 1, title: "Renamed" })
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Renamed", taskId: "task-abc" })
+      await store.mutate(repo, { type: "update", id: 1, taskId: null })
+      expect((await store.list(repo)).issues[0]?.taskId).toBeUndefined()
+    })
+
+    it("a rejected taskId writes nothing — the title does not half-land", async () => {
+      const { repo, store } = await seeded()
+      await expect(store.mutate(repo, { type: "update", id: 1, title: "Renamed", taskId: "" })).rejects.toThrow(
+        "taskId must be a non-empty string or null",
+      )
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Story", body: "B1" })
+    })
+
+    it("an update that omits body leaves a concurrently-written body alone", async () => {
+      const { repo, store } = await seeded()
+      // The C2 shape at the store layer: a title-only patch must not carry a
+      // stale body back over what another writer put there.
+      await store.mutate(repo, { type: "update", id: 1, body: "AGENT WROTE THIS" })
+      await store.mutate(repo, { type: "update", id: 1, title: "Typo fixed" })
+      expect((await store.list(repo)).issues[0]).toMatchObject({ title: "Typo fixed", body: "AGENT WROTE THIS" })
+    })
+  })
+
   describe("mirrorTaskDone", () => {
     async function linkedStore(): Promise<{ repo: string; store: IssuesStore }> {
       const repo = await makeRepo()
