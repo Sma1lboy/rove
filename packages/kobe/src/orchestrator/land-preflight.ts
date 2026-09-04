@@ -21,6 +21,7 @@
 import type { ExecHost } from "../exec/exec-host.ts"
 import { READ_ONLY_GIT_ENV } from "../lib/git-env.ts"
 import type { Task } from "../types/task.ts"
+import { parseDirtyPaths } from "./dirty-paths.ts"
 import { EmptyBranchDirtyWorktreeError, EmptyBranchError, MainCheckoutDirtyError, MissingRefError } from "./errors.ts"
 import { type WorktreeExecDeps, defaultExecDeps } from "./worktree/exec-deps.ts"
 import { GitWorktreeManager } from "./worktree/manager.ts"
@@ -33,6 +34,8 @@ import { GitWorktreeManager } from "./worktree/manager.ts"
  */
 export type LandRefusal =
   | "DETACHED_HEAD"
+  | "UNREADABLE_BASE"
+  | "UNBORN_BASE"
   | "SAME_BRANCH"
   | "MAIN_CHECKOUT_DIRTY"
   | "MISSING_REF"
@@ -99,14 +102,6 @@ export async function isDirty(exec: ExecHost, dir: string): Promise<boolean> {
   return (await landGit(exec, dir, ["status", "--porcelain"], { readOnly: true })).stdout.trim().length > 0
 }
 
-/** Uncommitted/untracked paths from `git status --porcelain` output (strip the XY prefix). */
-export function porcelainPaths(stdout: string): string[] {
-  return stdout
-    .split("\n")
-    .filter((l) => l.length > 0)
-    .map((l) => l.slice(3).trim())
-}
-
 /**
  * Probe whether `task`'s branch can land, without touching anything.
  *
@@ -133,10 +128,24 @@ export async function landPreflight(task: Task, deps: WorktreeExecDeps = default
   if (!branch) throw new Error(`landPreflight: task ${task.id} has no branch to land (never materialised)`)
   const { exec, dir } = baseRepoCtx(task.repo, deps)
 
-  const headOut = await landGit(exec, dir, ["rev-parse", "--abbrev-ref", "HEAD"], { readOnly: true })
+  // `symbolic-ref --short HEAD`, not `rev-parse --abbrev-ref HEAD`: on a base
+  // checkout with NO COMMITS the latter exits 128 and prints the literal
+  // string `HEAD` on stdout, so reading its output as data reported a repo
+  // sitting squarely on `main` as detached, with advice ("check out a branch
+  // first") the user was already following. `symbolic-ref` names the branch of
+  // an unborn HEAD and fails only when HEAD genuinely is not a branch.
+  //
+  // And the EXIT CODE decides, so "git could not read this repo at all" stops
+  // sharing an answer with "the base checkout is detached": on failure, a HEAD
+  // that still resolves to a commit is a real detach; one that does not means
+  // the base dir is not a readable repo, which is a different thing to tell a
+  // user. Structural, not a match on git's message text.
+  const headOut = await landGit(exec, dir, ["symbolic-ref", "--short", "HEAD"], { readOnly: true })
   const landedOn = headOut.stdout.trim()
-  if (!landedOn || landedOn === "HEAD") {
-    return refuse({ branch, landedOn: "", baseDir: dir }, "DETACHED_HEAD")
+  if (headOut.exitCode !== 0 || !landedOn) {
+    const headCommit = await landGit(exec, dir, ["rev-parse", "--verify", "--quiet", "HEAD"], { readOnly: true })
+    const detached = headCommit.exitCode === 0 && headCommit.stdout.trim().length > 0
+    return refuse({ branch, landedOn: "", baseDir: dir }, detached ? "DETACHED_HEAD" : "UNREADABLE_BASE")
   }
   if (landedOn === branch) {
     return refuse({ branch, landedOn, baseDir: dir }, "SAME_BRANCH")
@@ -151,6 +160,15 @@ export async function landPreflight(task: Task, deps: WorktreeExecDeps = default
   // fallback. Collapsing the two is what made a renamed branch look like a
   // merge conflict.
   if (aheadOut.exitCode !== 0) {
+    // WHICH ref failed to resolve. An unborn base branch (`landedOn` is a real
+    // branch name that has no commit yet) is not a task branch renamed out
+    // from under us, and `MissingRefError`'s advice — re-point the task —
+    // cannot fix it. Probed only here, in a path that already failed, so the
+    // ordinary land pays nothing for the distinction.
+    const baseHead = await landGit(exec, dir, ["rev-parse", "--verify", "--quiet", "HEAD"], { readOnly: true })
+    if (baseHead.exitCode !== 0 || !baseHead.stdout.trim()) {
+      return refuse({ branch, landedOn, baseDirty, baseDir: dir }, "UNBORN_BASE")
+    }
     return refuse({ branch, landedOn, baseDirty, baseDir: dir }, baseDirty ? "MAIN_CHECKOUT_DIRTY" : "MISSING_REF")
   }
   const parsed = Number.parseInt(aheadOut.stdout.trim(), 10)
@@ -177,7 +195,7 @@ export async function landPreflight(task: Task, deps: WorktreeExecDeps = default
     }
     if (dirty) {
       const wtExec = deps.execForPath(worktreePath)
-      const files = porcelainPaths(
+      const files = parseDirtyPaths(
         (await landGit(wtExec, worktreePath, ["status", "--porcelain"], { readOnly: true })).stdout,
       )
       return refuse({ ...base, dirtyFiles: files }, "EMPTY_BRANCH_DIRTY_WORKTREE")
@@ -196,6 +214,12 @@ export function landRefusalError(task: Task, pf: LandPreflight & { readonly refu
   switch (pf.refusal) {
     case "DETACHED_HEAD":
       return new Error(`landTask: base checkout at ${pf.baseDir} is in detached-HEAD state; check out a branch first`)
+    case "UNREADABLE_BASE":
+      return new Error(`landTask: could not read HEAD of the base checkout at ${pf.baseDir} — is it still a git repo?`)
+    case "UNBORN_BASE":
+      return new Error(
+        `landTask: base checkout at ${pf.baseDir} is on '${pf.landedOn}' but has no commits yet, so there is nothing to merge '${pf.branch}' into; make the first commit there (or \`git merge --ff-only ${pf.branch}\`) and land again`,
+      )
     case "SAME_BRANCH":
       return new Error(`landTask: base checkout is already on '${pf.branch}' — nothing to land onto`)
     case "MAIN_CHECKOUT_DIRTY":

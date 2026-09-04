@@ -95,6 +95,36 @@ describe("landPreflight", () => {
     expect(pf.landedOn).toBe("")
   })
 
+  test("an UNBORN base checkout is not detached — it says it has no commits yet", async () => {
+    // `git rev-parse --abbrev-ref HEAD` exits 128 here and prints the literal
+    // string `HEAD` on stdout. Reading that output as data told a user sitting
+    // squarely on `main` to "check out a branch first".
+    const empty = path.join(tmpRoot, "empty")
+    fs.mkdirSync(empty)
+    git(["init", "-b", "main"], empty)
+    git(["config", "user.email", "t@t.t"], empty)
+    git(["config", "user.name", "t"], empty)
+    const wt = path.join(tmpRoot, "empty-wt")
+    git(["worktree", "add", "-b", "feat", wt], empty)
+    fs.writeFileSync(path.join(wt, "a.txt"), "work\n")
+    git(["add", "."], wt)
+    git(["commit", "-m", "work"], wt)
+
+    const pf = await landPreflight(task({ repo: empty, worktreePath: wt }))
+    expect(pf.refusal).toBe("UNBORN_BASE")
+    // The branch it IS on gets named, which the detached refusal cannot do.
+    expect(pf.landedOn).toBe("main")
+    expect(pf.message).toContain("no commits yet")
+  })
+
+  test("a base dir git cannot read at all is not reported as detached either", async () => {
+    branchOneAhead()
+    const notARepo = path.join(tmpRoot, "plain")
+    fs.mkdirSync(notARepo)
+    const pf = await landPreflight(task({ repo: notARepo }))
+    expect(pf.refusal).toBe("UNREADABLE_BASE")
+  })
+
   test("base already on the task's branch refuses with SAME_BRANCH", async () => {
     branchOneAhead()
     git(["checkout", "feat"], repo)

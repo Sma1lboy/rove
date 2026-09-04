@@ -617,8 +617,9 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
   destination, which is the thing "check the base checkout is on the branch
   you mean" asks you to check — and `ahead` is how many commits would land.
   When the land would be refused, `refusal` is one of `DETACHED_HEAD`,
-  `SAME_BRANCH`, `MAIN_CHECKOUT_DIRTY`, `MISSING_REF`, `EMPTY_BRANCH`,
-  `EMPTY_BRANCH_DIRTY_WORKTREE`, and `message` carries the same words the land
+  `UNREADABLE_BASE`, `UNBORN_BASE`, `SAME_BRANCH`, `MAIN_CHECKOUT_DIRTY`,
+  `MISSING_REF`, `EMPTY_BRANCH`, `EMPTY_BRANCH_DIRTY_WORKTREE`, and
+  `message` carries the same words the land
   itself would have failed with. A coordinator picking which sibling of a
   round to land should read this first — `ahead: 0` is the empty-merge that
   otherwise only surfaces at land time.

@@ -164,6 +164,8 @@ export interface LandPreflightResult {
   readonly baseDirty?: boolean
   readonly refusal?:
     | "DETACHED_HEAD"
+    | "UNREADABLE_BASE"
+    | "UNBORN_BASE"
     | "SAME_BRANCH"
     | "MAIN_CHECKOUT_DIRTY"
     | "MISSING_REF"

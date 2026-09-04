@@ -109,6 +109,10 @@ export class TaskDeletionCoordinator {
           // back at the repo. A task has always known this; it just never
           // passed it down, so the prune silently never ran.
           repo: task.repo,
+          // The branch to drop, for the same missing-directory case: it is
+          // normally read out of the worktree, which by then does not exist,
+          // so `deleteBranch` deleted nothing and said it had.
+          branch: task.branch,
           // `force` was frozen at prepare() time and this runs on a later
           // tick — possibly in a later daemon process (`resume()` replays a
           // queued deletion after a restart), so the worktree may have gone

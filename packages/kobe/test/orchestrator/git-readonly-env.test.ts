@@ -130,7 +130,10 @@ describe("landTask — READ_ONLY_GIT_ENV on probes", () => {
   it("pre-merge probes run lock-free; the merge itself does not", async () => {
     let headReads = 0
     const { exec, runs } = fakeExec((argv) => {
-      if (argv.includes("--abbrev-ref")) return { stdout: "main\n", stderr: "", exitCode: 0 }
+      // The base checkout's branch — `symbolic-ref`, which is what the
+      // preflight asks now that `rev-parse --abbrev-ref` was found to answer
+      // `HEAD` (exit 128) on a base checkout with no commits.
+      if (argv.includes("symbolic-ref")) return { stdout: "main\n", stderr: "", exitCode: 0 }
       if (argv.includes("status")) return ok
       if (argv.includes("rev-list")) return { stdout: "1\n", stderr: "", exitCode: 0 }
       if (argv.includes("merge")) return ok
