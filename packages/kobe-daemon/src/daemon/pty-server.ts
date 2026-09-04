@@ -23,7 +23,7 @@
  */
 
 import { readFileSync } from "node:fs"
-import { unlink, writeFile } from "node:fs/promises"
+import { mkdir, unlink, writeFile } from "node:fs/promises"
 import { type Server, type Socket, createServer } from "node:net"
 import { dirname } from "node:path"
 import { StringDecoder } from "node:string_decoder"
@@ -31,7 +31,7 @@ import { ClientWriter } from "./client-writer.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
-import { ensureOwnerOnlyDir } from "./owner-only.ts"
+import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultPtyFreezeDir,
   defaultPtyHostPidPath,
@@ -237,8 +237,9 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   // 0700 on creation AND on every boot — same reasoning as the daemon's, and
   // the same directory: this host spawns shells for whoever reaches its
   // socket, so the directory mode is the gate (see owner-only.ts).
-  if (!pipeSocket) await ensureOwnerOnlyDir(dirname(socketPath))
-  await ensureOwnerOnlyDir(dirname(pidPath))
+  await ensureOwnerOnlyStateDir(resolveDaemonHomeDir())
+  if (!pipeSocket) await mkdir(dirname(socketPath), { recursive: true })
+  await mkdir(dirname(pidPath), { recursive: true })
   // Never unlink before listen: an already-running host keeps its socket
   // alive after unlink, so a second host could bind the same pathname,
   // overwrite the pidfile, and strand the first host's live sessions.

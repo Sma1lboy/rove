@@ -25,6 +25,8 @@
  */
 
 import { chmod, mkdir } from "node:fs/promises"
+import { join } from "node:path"
+import { ROVE_STATE_DIR_BASENAME } from "../compat-env.ts"
 
 /** Directories a local user other than the owner has no business entering. */
 export const OWNER_ONLY_DIR_MODE = 0o700
@@ -61,4 +63,19 @@ export function tightenFilePermissions(file: string): Promise<void> {
 export async function ensureOwnerOnlyDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true, mode: OWNER_ONLY_DIR_MODE })
   await tightenDirPermissions(dir)
+}
+
+/**
+ * The one directory this module exists for: `<home>/.rove`.
+ *
+ * Keyed on the HOME rather than on `dirname(socketPath)`, which is the obvious
+ * spelling and the wrong one. A socket path is overridable
+ * (`ROVE_DAEMON_SOCKET_PATH`) and, for a home nested deeply enough to overrun
+ * `sun_path`, `fitSocketPath` moves it to `$TMPDIR` on its own — so tightening
+ * the socket's parent would narrow whatever directory the user pointed at,
+ * including a shared `/tmp`. Nothing else in the tree wants that, and a socket
+ * that lands outside the state dir is protected by its own 0600 mode instead.
+ */
+export function ensureOwnerOnlyStateDir(homeDir: string): Promise<void> {
+  return ensureOwnerOnlyDir(join(homeDir, ROVE_STATE_DIR_BASENAME))
 }

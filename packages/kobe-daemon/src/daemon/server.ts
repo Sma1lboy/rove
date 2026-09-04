@@ -4,7 +4,7 @@
  * surface: hello / daemon.status / daemon.stop + handlers.ts + subscribe.
  */
 
-import { unlink, writeFile } from "node:fs/promises"
+import { mkdir, unlink, writeFile } from "node:fs/promises"
 import { type Server, createServer } from "node:net"
 import { dirname } from "node:path"
 import { StringDecoder } from "node:string_decoder"
@@ -31,7 +31,7 @@ import { assertHomeUnclaimed, claimHome, releaseHomeClaim } from "./home-owner.t
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
-import { ensureOwnerOnlyDir } from "./owner-only.ts"
+import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultDaemonPidPath,
   defaultDaemonSocketPath,
@@ -161,8 +161,9 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // credential check, so this directory's mode is the entire ACL, and an
   // install that predates the mode argument is exactly the one that is
   // exposed (see owner-only.ts).
-  await ensureOwnerOnlyDir(dirname(socketPath))
-  await ensureOwnerOnlyDir(dirname(pidPath))
+  await ensureOwnerOnlyStateDir(homeDir)
+  await mkdir(dirname(socketPath), { recursive: true })
+  await mkdir(dirname(pidPath), { recursive: true })
   // Same repair for the plugin tree, whose `.env` is where PLUGIN-AUTHORING
   // tells authors to keep API keys.
   tightenInstalledPluginPermissions(options.homeDir)
