@@ -49,6 +49,14 @@ export interface WorktreeChanges {
    * only reads `git status` and therefore knows nothing about the base.
    */
   readonly behind?: number
+  /**
+   * Commits this worktree has that its base does NOT, from the same
+   * `--left-right` read that produced `behind`. Absent under exactly the same
+   * conditions. It is the only chip that survives a commit: committing empties
+   * `added`/`deleted`, so without it a worker that shipped and one that
+   * shipped nothing render identically.
+   */
+  readonly ahead?: number
 }
 
 const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
@@ -60,7 +68,7 @@ const ZERO: WorktreeChanges = { added: 0, deleted: 0 }
  * (DESIGN §5.5) is one predicate everywhere.
  */
 export function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind && a.ahead === b.ahead
 }
 
 /**

@@ -72,7 +72,11 @@ function isRemoteRepoKey(value: string): boolean {
 }
 
 function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
-  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind
+  // `ahead` belongs here for the same reason `behind` does: a field the
+  // publisher does not compare is a field whose chip freezes at whatever it
+  // read first — the row would show `↑1` forever while the worker kept
+  // committing.
+  return a.added === b.added && a.deleted === b.deleted && a.behind === b.behind && a.ahead === b.ahead
 }
 
 /** Tick cadence — matches the sidebar's ~2s `branchTick` the pane pollers rode. */
@@ -136,9 +140,10 @@ function runGit(worktreePath: string, args: readonly string[], signal: AbortSign
 }
 
 /**
- * How far the worktree is BEHIND `baseRef`. `null` when the ref does not
- * resolve or the count is unreadable — the chip then does not draw, which is
- * the honest answer for a repo with no base rather than a fabricated zero.
+ * How far the worktree has drifted from `baseRef`, both ways, in ONE process.
+ * `null` when the ref does not resolve or the counts are unreadable — the
+ * chips then do not draw, which is the honest answer for a repo with no base
+ * rather than a fabricated zero.
  *
  * The daemon does NOT own the `origin/HEAD → origin/main → main → master`
  * fallback ladder: that lives in kobe's `cli/api/branch-signals.ts`, and the
@@ -146,11 +151,36 @@ function runGit(worktreePath: string, args: readonly string[], signal: AbortSign
  * before calling in. This default runner (tests, and any daemon wired without
  * a runtime) only measures against a base it was handed.
  */
-async function countBehind(worktreePath: string, baseRef: string, signal: AbortSignal): Promise<number | null> {
-  const out = await runGit(worktreePath, ["rev-list", "--count", `HEAD..${baseRef}`], signal)
-  if (out === null) return null
-  const n = Number.parseInt(out.trim(), 10)
-  return Number.isInteger(n) && n >= 0 ? n : null
+async function countDrift(worktreePath: string, baseRef: string, signal: AbortSignal): Promise<AheadBehind | null> {
+  return parseAheadBehind(
+    await runGit(worktreePath, ["rev-list", "--left-right", "--count", `${baseRef}...HEAD`], signal),
+  )
+}
+
+/** Both halves of one drift measurement. */
+export interface AheadBehind {
+  readonly behind: number
+  readonly ahead: number
+}
+
+/**
+ * Parse `git rev-list --left-right --count <base>...HEAD`, whose one line is
+ * `<behind>\t<ahead>` — left is the base side (commits the base has that we
+ * do not), right is ours. `null` for anything that is not two non-negative
+ * integers, including the `null` a failed run hands in: a half-read line must
+ * leave BOTH numbers absent rather than let one of them be guessed.
+ *
+ * @public — imported by kobe's production runner (`core/daemon-runtime.ts`) so
+ * the two collection paths cannot disagree about what the counts mean.
+ */
+export function parseAheadBehind(stdout: string | null): AheadBehind | null {
+  if (stdout === null) return null
+  const parts = stdout.trim().split(/\s+/)
+  if (parts.length !== 2) return null
+  const behind = Number.parseInt(parts[0] ?? "", 10)
+  const ahead = Number.parseInt(parts[1] ?? "", 10)
+  if (!Number.isInteger(behind) || behind < 0 || !Number.isInteger(ahead) || ahead < 0) return null
+  return { behind, ahead }
 }
 
 /** Aggregate `git status --porcelain=v1` output into `+N −M`. */
@@ -166,7 +196,7 @@ export function countPorcelain(stdout: string): { added: number; deleted: number
 }
 
 /** The default runner: async `git status --porcelain=v1`, lock-free read,
- *  plus the behind-count when a base ref was supplied. */
+ *  plus the ahead/behind drift when a base ref was supplied. */
 export async function runGitStatus(
   worktreePath: string,
   signal: AbortSignal,
@@ -176,8 +206,8 @@ export async function runGitStatus(
   if (stdout === null) throw new Error("git status failed")
   const counts = countPorcelain(stdout)
   if (!baseRef) return counts
-  const behind = await countBehind(worktreePath, baseRef, signal)
-  return behind === null ? counts : { ...counts, behind }
+  const drift = await countDrift(worktreePath, baseRef, signal)
+  return drift === null ? counts : { ...counts, ...drift }
 }
 
 /**

@@ -22,7 +22,11 @@
 
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import type { WorktreeChangesPayload } from "@sma1lboy/kobe-daemon/daemon/protocol"
-import { WorktreeChangesCollector, trackedWorktreePaths } from "@sma1lboy/kobe-daemon/daemon/worktree-changes-collector"
+import {
+  WorktreeChangesCollector,
+  parseAheadBehind,
+  trackedWorktreePaths,
+} from "@sma1lboy/kobe-daemon/daemon/worktree-changes-collector"
 import { describe, expect, test } from "vitest"
 import type { WorktreeChanges } from "../../src/tui/panes/sidebar/worktree-changes.ts"
 import { type Task, toTaskId } from "../../src/types/task.ts"
@@ -320,5 +324,61 @@ describe("the behind-base count", () => {
     await settle()
     expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 2 })
     expect("behind" in (published.at(-1)?.changes["/wt/a"] ?? {})).toBe(false)
+  })
+})
+
+describe("parseAheadBehind", () => {
+  test("reads the left half as behind and the right half as ahead", () => {
+    // `git rev-list --left-right --count <base>...HEAD` prints one tab-joined
+    // line, base side first. Getting the halves the wrong way round would
+    // render a worker who committed as one who fell behind.
+    expect(parseAheadBehind("3\t7\n")).toEqual({ behind: 3, ahead: 7 })
+  })
+
+  test("a failed run leaves BOTH numbers absent", () => {
+    // `runGit` hands null on any non-zero exit; neither half may be guessed
+    // from the other's silence.
+    expect(parseAheadBehind(null)).toBeNull()
+  })
+
+  test("a half-read line yields nothing rather than a guess", () => {
+    // A single number is what the OLD one-way `--count` printed. Accepting it
+    // would silently reinterpret a behind-count as a pair.
+    expect(parseAheadBehind("3")).toBeNull()
+    expect(parseAheadBehind("3\t-1")).toBeNull()
+    expect(parseAheadBehind("")).toBeNull()
+    expect(parseAheadBehind("a\tb")).toBeNull()
+  })
+})
+
+describe("the ahead-of-base count", () => {
+  test("republishes when only `ahead` changed", async () => {
+    // The whole point of the chip: a committing worker leaves +N/−N at zero
+    // and moves nothing else. If `sameWorktreeChanges` ignored `ahead` the
+    // publish would be suppressed and the row would sit blank through the one
+    // event that proves the attempt delivered something.
+    const bus = new DaemonEventBus()
+    const published: WorktreeChangesPayload[] = []
+    bus.onPublish((event) => {
+      if (event.channel === "worktree.changes") published.push(event.payload as WorktreeChangesPayload)
+    })
+    let ahead = 0
+    const collector = new WorktreeChangesCollector({ listTasks: () => [task({ id: "a" })] }, bus, {
+      cadence: FAST,
+      run: async () => ({ added: 0, deleted: 0, behind: 0, ahead }),
+    })
+    collector.tick()
+    await settle()
+    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 0, behind: 0, ahead: 0 })
+
+    ahead = 1
+    collector.tick()
+    await settle()
+    expect(published.at(-1)?.changes["/wt/a"]).toEqual({ added: 0, deleted: 0, behind: 0, ahead: 1 })
+    expect(published).toHaveLength(2)
+
+    collector.tick()
+    await settle()
+    expect(published).toHaveLength(2)
   })
 })

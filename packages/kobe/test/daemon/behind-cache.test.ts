@@ -16,7 +16,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
-import { behindCountCached, resetBehindCache } from "../../src/core/behind-cache.ts"
+import { driftCached, resetBehindCache } from "../../src/core/behind-cache.ts"
 
 const AUTHOR = ["-c", "user.email=t@t", "-c", "user.name=t"]
 let repo: string
@@ -52,42 +52,42 @@ function counter(value: number | null) {
   }
 }
 
-describe("behindCountCached", () => {
+describe("driftCached", () => {
   test("computes once, then serves the memo while both shas hold still", async () => {
     const c = counter(3)
-    expect(await behindCountCached(repo, "main", c.compute)).toBe(3)
-    expect(await behindCountCached(repo, "main", c.compute)).toBe(3)
-    expect(await behindCountCached(repo, "main", c.compute)).toBe(3)
+    expect(await driftCached(repo, "main", c.compute)).toBe(3)
+    expect(await driftCached(repo, "main", c.compute)).toBe(3)
+    expect(await driftCached(repo, "main", c.compute)).toBe(3)
     expect(c.calls()).toBe(1)
   })
 
   test("recomputes when the BASE ref moves", async () => {
     const first = counter(0)
-    expect(await behindCountCached(repo, "main", first.compute)).toBe(0)
+    expect(await driftCached(repo, "main", first.compute)).toBe(0)
 
     git("update-ref", "refs/heads/main", git("commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"))
 
     const second = counter(1)
-    expect(await behindCountCached(repo, "main", second.compute)).toBe(1)
+    expect(await driftCached(repo, "main", second.compute)).toBe(1)
     expect(second.calls()).toBe(1)
   })
 
   test("recomputes when HEAD moves", async () => {
     const first = counter(2)
-    expect(await behindCountCached(repo, "main", first.compute)).toBe(2)
+    expect(await driftCached(repo, "main", first.compute)).toBe(2)
 
     writeFileSync(join(repo, "b.txt"), "b\n")
     git("add", "-A")
     git(...AUTHOR, "commit", "-qm", "work commit")
 
     const second = counter(5)
-    expect(await behindCountCached(repo, "main", second.compute)).toBe(5)
+    expect(await driftCached(repo, "main", second.compute)).toBe(5)
   })
 
   test("never memoises a failed compute", async () => {
     const failing = counter(null)
-    expect(await behindCountCached(repo, "main", failing.compute)).toBeNull()
-    expect(await behindCountCached(repo, "main", failing.compute)).toBeNull()
+    expect(await driftCached(repo, "main", failing.compute)).toBeNull()
+    expect(await driftCached(repo, "main", failing.compute)).toBeNull()
     expect(failing.calls()).toBe(2)
   })
 
@@ -95,16 +95,16 @@ describe("behindCountCached", () => {
     // No such ref, so the key can never be formed — the memo must not
     // silently degrade into "same worktree, same answer".
     const c = counter(7)
-    expect(await behindCountCached(repo, "origin/nope", c.compute)).toBe(7)
-    expect(await behindCountCached(repo, "origin/nope", c.compute)).toBe(7)
+    expect(await driftCached(repo, "origin/nope", c.compute)).toBe(7)
+    expect(await driftCached(repo, "origin/nope", c.compute)).toBe(7)
     expect(c.calls()).toBe(2)
   })
 
   test("falls through for a path that is not a git checkout", async () => {
     const plain = mkdtempSync(join(tmpdir(), "kobe-behind-plain-"))
     const c = counter(1)
-    expect(await behindCountCached(plain, "main", c.compute)).toBe(1)
-    expect(await behindCountCached(plain, "main", c.compute)).toBe(1)
+    expect(await driftCached(plain, "main", c.compute)).toBe(1)
+    expect(await driftCached(plain, "main", c.compute)).toBe(1)
     expect(c.calls()).toBe(2)
     rmSync(plain, { recursive: true, force: true })
   })

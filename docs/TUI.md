@@ -50,11 +50,18 @@ Task rows carry worktree-level facts:
 |---|---|
 | `▴` | Pinned Task |
 | `+N` / `−N` | Changed and deleted files in the worktree |
+| `↑N` / `↓N` | Commits this worktree has that its base does not, and the ones the base has that it does not |
 | `◇` / `◆` / `†` / `×` | Status is `in_review`, `done`, `canceled`, or `error` |
 | `✓` / `✗` / `•` | Pull-request checks passing, failing, or pending |
 | `≠` | The pull request conflicts with its base branch |
 | `»` / `≡` | The pull request is approved and clear to merge, or already merged |
 | jump digit | The `ctrl+2` … `ctrl+0` shortcut currently assigned to this row |
+
+`↑N` is the one mark that outlives a commit: committing empties `+N` / `−N`, so
+without it a worker that committed its work and one that reported success and
+delivered nothing render the same blank row — a difference you would otherwise
+meet at land time, as `EMPTY_BRANCH`. `↑N` and `↓N` are absent rather than zero
+when no base branch resolves, so a repo with no remote reads as it always did.
 
 The status mark is what a person said about the Task; the check mark next to it
 is what CI reports, so the two can disagree. `»` answers a third question the
