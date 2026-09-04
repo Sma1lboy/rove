@@ -217,7 +217,9 @@ async function smoketest(): Promise<never> {
   if (created.code !== 0) fail(`issue-create exited ${created.code}`)
   if (!(await seen("issue.changed"))) fail(`no issue.changed in ${eventsFile} after 15s`)
 
-  console.log(`[rove ${label}] SMOKETEST PASS -- task.created + issue.changed reached examples.hello-events (${eventsFile})`)
+  console.log(
+    `[rove ${label}] SMOKETEST PASS -- task.created + issue.changed reached examples.hello-events (${eventsFile})`,
+  )
   await stopSandbox()
   process.exit(0)
 }

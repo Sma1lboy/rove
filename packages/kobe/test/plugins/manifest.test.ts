@@ -178,9 +178,7 @@ describe("settings + file handlers", () => {
       { key: "K_N", label: "N", type: "number", default: "5" },
     ])
     // Anything else still has to be a real string.
-    expect(() =>
-      settings('[[settings]]\nkey = "K_X"\nlabel = "X"\ntype = "string"\ndefault = ""'),
-    ).toThrow(/default/)
+    expect(() => settings('[[settings]]\nkey = "K_X"\nlabel = "X"\ntype = "string"\ndefault = ""')).toThrow(/default/)
   })
 
   it("rejects an enum setting without options and unknown types", () => {

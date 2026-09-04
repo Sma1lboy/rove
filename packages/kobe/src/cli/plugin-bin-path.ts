@@ -12,7 +12,7 @@
  * and fall back to the name only when that entry cannot be exec'd on its own.
  */
 
-import { accessSync, constants, statSync } from "node:fs"
+import { constants, accessSync, statSync } from "node:fs"
 import { isAbsolute } from "node:path"
 import { activeCliName } from "./rename-compat.ts"
 

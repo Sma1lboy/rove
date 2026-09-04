@@ -22,8 +22,8 @@ import {
 } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import { savePluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { PluginHost } from "@sma1lboy/kobe-daemon/plugins/runtime"
-import { linkPlugin } from "../../src/cli/plugin-install.ts"
 import { afterEach, describe, expect, it } from "vitest"
+import { linkPlugin } from "../../src/cli/plugin-install.ts"
 
 const dirs: string[] = []
 function tmp(prefix: string): string {
@@ -92,7 +92,7 @@ describe("plugin subsystem files are owner-only", () => {
       expect(mode(pluginConfigDir("example.leaky", home))).toBe(0o700)
       expect(mode(pluginStateDir("example.leaky", home))).toBe(0o700)
     } finally {
-      if (saved === undefined) delete process.env.KOBE_HOME_DIR
+      if (saved === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
       else process.env.KOBE_HOME_DIR = saved
     }
   })
