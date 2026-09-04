@@ -141,7 +141,7 @@ export const SET_EFFORT_VERB: VerbSpec = {
   name: "set-effort",
   group: "edit",
   summary:
-    "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh; claude has none.",
+    "Set a task's reasoning effort level (takes effect on the next session rebuild). Rejected when the task's engine declares no levels, or does not declare THIS one — the error names the levels it does accept. Codex accepts none/low/medium/high/xhigh/max; claude has none.",
   flags: [
     F.taskId(),
     // Deliberately not an enum: levels are declared PER ENGINE (registry
@@ -153,7 +153,7 @@ export const SET_EFFORT_VERB: VerbSpec = {
       type: "string",
       required: true,
       placeholder: "LEVEL",
-      description: "Effort level the task's engine declares (codex: none, low, medium, high, xhigh).",
+      description: "Effort level the task's engine declares (codex: none, low, medium, high, xhigh, max).",
     },
   ],
   handler: setEffort,

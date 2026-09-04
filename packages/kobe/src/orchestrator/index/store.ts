@@ -12,6 +12,7 @@
 import { mkdir, open, rename, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
+import { readRoveHomeDirEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME } from "../../product.ts"
 import type { Task, TaskId, TaskIndex, TaskStatus } from "../../types/task.ts"
 import { DEFAULT_TASK_VENDOR, toTaskId } from "../../types/task.ts"
@@ -20,7 +21,15 @@ import { acquireWithRetry, mergeTasksWithDisk, readDiskIndex, recoverIndexFromDi
 import { ulid } from "./ulid.ts"
 
 export interface TaskIndexStoreOptions {
-  /** Override the user's home dir. Tests use this to write into tmp. */
+  /**
+   * Override the user's home dir. Tests use this to write into tmp.
+   *
+   * Omitting it does NOT mean the OS home: the constructor falls back to
+   * `ROVE_HOME_DIR`/`KOBE_HOME_DIR` first. That default is load-bearing —
+   * every isolation recipe in this repo is those variables, and the CLI's
+   * daemon-down write fallback (`openLocalOrchestrator`) constructs this
+   * store with no options at all.
+   */
   readonly homeDir?: string
 }
 
@@ -57,7 +66,7 @@ export class TaskIndexStore {
   private readonly removedIds = new Map<string, string>()
 
   constructor(options: TaskIndexStoreOptions = {}) {
-    this.homeDir = options.homeDir ?? homedir()
+    this.homeDir = options.homeDir ?? readRoveHomeDirEnv() ?? homedir()
     this.roveDir = join(this.homeDir, ROVE_STATE_DIR_BASENAME)
     this.path = join(this.roveDir, "tasks.json")
     this.legacyPath = join(this.homeDir, LEGACY_KOBE_STATE_DIR_BASENAME, "tasks.json")
