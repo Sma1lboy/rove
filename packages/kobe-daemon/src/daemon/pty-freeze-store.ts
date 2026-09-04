@@ -27,7 +27,7 @@
  * contract); a bare SIGTERM / crash / reboot leaves it for the next host.
  */
 
-import { chmodSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { defaultPtyFreezeDir } from "./paths.ts"
@@ -178,13 +178,36 @@ function parseRecord(raw: string): FrozenPtySession | null {
 export const FREEZE_TTL_MS = 14 * 24 * 60 * 60 * 1000
 
 /**
- * Hard ceiling on restored sessions, newest first. The TTL handles the
- * ordinary case; this bounds the pathological one (a burst of tasks inside
- * the window). 64 is several times any realistic number of open terminal
- * tabs, and at the 512KB scrollback cap it bounds the boot read at ~32MB
- * rather than the unbounded read that made a 54MB directory possible.
+ * How much frozen scrollback ONE boot reads back, newest first.
+ *
+ * This is a restore budget, not a retention policy: a record past it is left
+ * on disk untouched, not deleted. The two jobs used to be one 64-record cap
+ * that did neither well — it was applied AFTER reading every file (so it
+ * bounded nothing) and it `rmSync`'d the overflow (so a directory that had
+ * merely outgrown a guess lost real scrollback). A measured install carried
+ * 108 records / 69MB against that "several times any realistic number" cap,
+ * and every record past 64 was from the previous day's work.
+ *
+ * Bytes rather than records because bytes are what both costs actually track:
+ * the boot read, and the rings the host then holds in memory for the whole
+ * session. 64MB is ~128 sessions at the 512KB ring cap and ~100 at the 640KB
+ * mean record that install showed.
  */
-export const FREEZE_MAX_RECORDS = 64
+export const FREEZE_RESTORE_MAX_BYTES = 64 * 1024 * 1024
+
+/** What one {@link loadFrozenSessions} did — `pty-server` logs it, so a boot
+ *  that dropped or deferred someone's scrollback says so in `daemon.log`
+ *  instead of doing it silently. */
+export interface FreezeLoadSummary {
+  readonly restored: number
+  readonly bytesRead: number
+  /** Past {@link FREEZE_RESTORE_MAX_BYTES}: not read, not deleted, still on disk. */
+  readonly deferred: number
+  /** Past {@link FREEZE_TTL_MS}: deleted. */
+  readonly expired: number
+  /** Present but unparseable — left alone for a human to look at. */
+  readonly unreadable: number
+}
 
 /** Newest-first by `updatedAt`; unparseable stamps sort oldest. */
 function updatedAtMs(record: FrozenPtySession): number {
@@ -193,38 +216,76 @@ function updatedAtMs(record: FrozenPtySession): number {
 }
 
 /**
- * Every restorable record in `dir`; missing/corrupt entries read as none.
+ * Every restorable record in `dir` that fits the restore budget; missing or
+ * corrupt entries read as none.
  *
- * Pruned on the way out — expired (older than {@link FREEZE_TTL_MS}) and
- * over-cap records are DELETED, not merely skipped. Without this the
- * directory only ever grows: `pty.sweep` reaches only a RUNNING host, so a
- * task deleted while the host was down leaves its record behind forever,
- * and every subsequent boot pays the full read AND thaws the dead task's
- * session back into the live table.
+ * Ordering comes from each file's mtime, taken from `statSync` — deciding
+ * what to read by a field INSIDE the records would mean reading all of them
+ * first, which is the unbounded read this budget exists to stop. A record is
+ * rewritten wholesale on every freeze, so its mtime and its `updatedAt` are
+ * stamped at the same moment; the parsed `updatedAt` still governs the TTL
+ * for everything actually read, so a record whose mtime drifted newer than
+ * its contents (a copy, a restore-from-backup) is still expired correctly.
+ *
+ * Only the TTL deletes. That is what bounds the directory — `pty.sweep`
+ * reaches only a RUNNING host, so a task deleted while the host was down
+ * leaves its record behind, and two weeks is the backstop. Deferring a record
+ * for being over budget must never delete it: the budget is a statement about
+ * this boot's memory, and the user may still want that scrollback.
  */
-export function loadFrozenSessions(dir = defaultPtyFreezeDir(), now = Date.now()): FrozenPtySession[] {
+export function loadFrozenSessions(
+  dir = defaultPtyFreezeDir(),
+  now = Date.now(),
+  report?: (summary: FreezeLoadSummary) => void,
+): FrozenPtySession[] {
   let names: string[]
   try {
     names = readdirSync(dir)
   } catch {
     return []
   }
-  const kept: Array<{ name: string; record: FrozenPtySession }> = []
-  const stale: string[] = []
+  const entries: Array<{ name: string; size: number; mtimeMs: number }> = []
   for (const name of names) {
     if (!name.endsWith(".json")) continue
+    try {
+      const st = statSync(join(dir, name))
+      entries.push({ name, size: st.size, mtimeMs: st.mtimeMs })
+    } catch {
+      // Vanished between readdir and stat — nothing to restore or delete.
+    }
+  }
+  entries.sort((a, b) => b.mtimeMs - a.mtimeMs)
+
+  const kept: FrozenPtySession[] = []
+  const stale: string[] = []
+  let bytesRead = 0
+  let deferred = 0
+  let unreadable = 0
+  for (const entry of entries) {
+    // mtime can only run at or ahead of the record's own stamp, so an
+    // mtime-expired file is expired for certain — safe to drop unread.
+    if (now - entry.mtimeMs > FREEZE_TTL_MS) {
+      stale.push(entry.name)
+      continue
+    }
+    if (bytesRead + entry.size > FREEZE_RESTORE_MAX_BYTES && kept.length > 0) {
+      deferred++
+      continue
+    }
     let record: FrozenPtySession | null = null
     try {
-      record = parseRecord(readFileSync(join(dir, name), "utf8"))
+      record = parseRecord(readFileSync(join(dir, entry.name), "utf8"))
     } catch {
       // One unreadable file must not cost the rest.
     }
-    if (!record) continue
-    if (now - updatedAtMs(record) > FREEZE_TTL_MS) stale.push(name)
-    else kept.push({ name, record })
+    bytesRead += entry.size
+    if (!record) {
+      unreadable++
+      continue
+    }
+    if (now - updatedAtMs(record) > FREEZE_TTL_MS) stale.push(entry.name)
+    else kept.push(record)
   }
-  kept.sort((a, b) => updatedAtMs(b.record) - updatedAtMs(a.record))
-  for (const over of kept.splice(FREEZE_MAX_RECORDS)) stale.push(over.name)
   for (const name of stale) {
     try {
       rmSync(join(dir, name), { force: true })
@@ -232,7 +293,9 @@ export function loadFrozenSessions(dir = defaultPtyFreezeDir(), now = Date.now()
       /* best-effort: a record we couldn't delete is simply skipped this boot */
     }
   }
-  return kept.map((entry) => entry.record)
+  kept.sort((a, b) => updatedAtMs(b) - updatedAtMs(a))
+  report?.({ restored: kept.length, bytesRead, deferred, expired: stale.length, unreadable })
+  return kept
 }
 
 /** Owner-only. See {@link tightenExistingPermissions} for why the mode

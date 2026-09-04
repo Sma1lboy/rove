@@ -13,7 +13,7 @@ instead.
 | Quit the TUI | ✓ | ✓ | ✓ | ✓ |
 | Drop your SSH connection | ✓ | ✓ | ✓ | ✓ |
 | `rove daemon restart` | ✓ | ✓ | ✓ | ✓ |
-| Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, for the 64 newest records under 14 days old | ✓ | ✓ |
+| Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, newest first, up to 64MB of scrollback | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
 | Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
@@ -81,11 +81,14 @@ flowchart TB
   per few seconds while streaming, immediately on exit, and in full at
   shutdown. A host that comes back up (after a crash, a reboot, an idle-exit)
   thaws each surviving record into a dead *restored* session: reattaching
-  replays the old screen and respawns the command in place. Two limits prune
-  the rest at boot rather than thawing them: a record untouched for **14 days**
-  is deleted, and only the **64 most recently updated** survive — past that,
-  the oldest go. Closing a tab, deleting a task, or `rove reset` deletes the
-  record too. An intentional end is never resurrected.
+  replays the old screen and respawns the command in place. A boot restores
+  newest first up to **64MB** of scrollback and stops there; the records past
+  that budget are left on disk untouched, so a directory bigger than one boot
+  wants to read never loses anything. What actually deletes is age: a record
+  untouched for **14 days** goes, which is what keeps the directory bounded.
+  Closing a tab, deleting a task, or `rove reset` deletes the record too. An
+  intentional end is never resurrected. Each boot writes what it restored,
+  deferred, and expired to `pty.log`.
 
 ## Detaching and reattaching
 

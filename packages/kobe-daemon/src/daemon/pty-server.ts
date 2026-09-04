@@ -44,7 +44,13 @@ import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, frameToLine } from "./protoc
 import { migrateLegacyPtyHostData } from "./pty-data-migration.ts"
 import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
-import { clearFrozenSessions, fileFreezeSink, loadFrozenSessions } from "./pty-freeze-store.ts"
+import {
+  FREEZE_RESTORE_MAX_BYTES,
+  FREEZE_TTL_MS,
+  clearFrozenSessions,
+  fileFreezeSink,
+  loadFrozenSessions,
+} from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
@@ -227,7 +233,20 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     driver: options.driver,
     log,
   })
-  ptys.restoreFrozen(loadFrozenSessions(freezeDir))
+  ptys.restoreFrozen(
+    loadFrozenSessions(freezeDir, Date.now(), (s) => {
+      // Say what the boot did with the store. Restoring fewer sessions than
+      // the directory holds is the one thing a user cannot otherwise see, and
+      // `expired` is a deletion — silence there is how a store quietly loses
+      // scrollback nobody knew was at risk.
+      const mib = (bytes: number): string => `${Math.round(bytes / (1024 * 1024))}MB`
+      const notes = [`restored ${s.restored} (${mib(s.bytesRead)})`]
+      if (s.deferred > 0) notes.push(`${s.deferred} left unread past the ${mib(FREEZE_RESTORE_MAX_BYTES)} budget`)
+      if (s.expired > 0) notes.push(`${s.expired} deleted past the ${FREEZE_TTL_MS / 86_400_000}-day TTL`)
+      if (s.unreadable > 0) notes.push(`${s.unreadable} unreadable`)
+      log("freeze", notes.join(", "))
+    }),
+  )
 
   // A Windows named pipe lives in the `\\.\pipe` namespace, not the
   // filesystem — there is no parent directory to create.
