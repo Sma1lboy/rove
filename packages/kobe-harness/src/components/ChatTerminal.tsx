@@ -26,7 +26,6 @@ import {
   loadTerminalRenderer,
   type TerminalRendererMode,
 } from "../lib/terminal-renderer.ts"
-import { xtermTheme } from "../lib/theme.ts"
 
 // One decoder reused across every WebSocket message — a fresh `new
 // TextDecoder()` per frame (hundreds/sec during engine streaming) was needless
@@ -188,16 +187,15 @@ export function ChatTerminal({
       if (disposed) return
 
       term = new Terminal({
-        // Active TUI-synced palette when loaded; static claude otherwise.
         theme: transparent
           ? {
-              ...(xtermTheme() ?? CLAUDE_XTERM_THEME),
+              ...CLAUDE_XTERM_THEME,
               // Opaque host color when the harness simulates one (so OSC 11
               // reports it); near-invisible black otherwise so the page
               // backdrop shows through the unpainted cells.
               background: hostBackground ?? "rgba(0,0,0,0.01)",
             }
-          : (xtermTheme() ?? CLAUDE_XTERM_THEME),
+          : CLAUDE_XTERM_THEME,
         allowTransparency: transparent,
         fontFamily: TERMINAL_FONT_FAMILY,
         fontSize: 12,

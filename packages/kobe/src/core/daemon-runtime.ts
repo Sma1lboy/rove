@@ -10,7 +10,6 @@ import { engineDisplayName, kobeApiInvocation } from "../engine/interactive-comm
 import { protocolUpgradeFromLiveSession, protocolWriteBackFromLiveSession } from "../engine/protocol-sniff.ts"
 import { engineEntry, engineTitleTurnHint, vendorsWithQuotaProbe } from "../engine/registry.ts"
 import { createEngineTurnDetector } from "../engine/turn-detector.ts"
-import { issueAssetsDir } from "../env.ts"
 import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
 import { latestTranscriptMtime } from "../monitor/activity.ts"
@@ -25,10 +24,6 @@ import { parsePorcelain } from "../tui/panes/sidebar/worktree-changes.ts"
 import { DEFAULT_TASK_VENDOR, isTaskStatus } from "../types/task.ts"
 import type { VendorId } from "../types/vendor.ts"
 import { CURRENT_VERSION, checkLatestVersion } from "../version.ts"
-import { handleDiffRequest } from "../web/diff.ts"
-import { handleHistoryRequest } from "../web/history.ts"
-import { handleNotesRequest } from "../web/notes.ts"
-import { handleThemesRequest } from "../web/themes.ts"
 import { resolveBaseRefCached } from "./base-ref-cache.ts"
 import { driftCached } from "./behind-cache.ts"
 import {
@@ -39,9 +34,7 @@ import {
   startTaskSessionWithPromptAdapter,
   tearDownTaskSessionAdapter,
 } from "./daemon-session-adapter.ts"
-import { daemonSettingsPatch, daemonSettingsSnapshot } from "./daemon-settings-adapter.ts"
 import {
-  handleWorktreesRequestAdapter,
   listUnreadableWorktreesAdapter,
   listWorktreeProjectsAdapter,
   removeWorktreeAdapter,
@@ -184,14 +177,6 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   deliverPromptToLiveEngineDetailed: deliverPromptToLiveEngineDetailedAdapter,
   deliverPromptToLiveEngineTabDetailed: deliverPromptToLiveEngineTabDetailedAdapter,
   composerGateEnabled,
-  settingsSnapshot: daemonSettingsSnapshot,
-  settingsPatch: daemonSettingsPatch,
-  handleDiffRequest,
-  handleHistoryRequest,
-  handleNotesRequest,
-  handleThemesRequest,
-  handleWorktreesRequest: handleWorktreesRequestAdapter,
-  issueAssetsDir,
   getPersistedString,
   setPersistedString,
   getSavedRepos: () => [...getSavedRepos()],

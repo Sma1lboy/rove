@@ -111,18 +111,6 @@ export function keybindingsConfigPath(): string {
 }
 
 /**
- * Directory for issue-attachment uploads served by the web bridge —
- * `<home>/.rove/issue-assets/`. Scoped per-repo (by a hex hash of the repo
- * root) one level down so an upload can happen before the issue exists. Not
- * created eagerly — the upload route mkdir's at the write site, readers treat
- * a missing dir as "no asset". Honours `KOBE_HOME_DIR` like every other state
- * path via {@link roveStateDir}.
- */
-export function issueAssetsDir(): string {
-  return join(roveStateDir(), "issue-assets")
-}
-
-/**
  * Directory for prompt attachments pasted into composers (clipboard
  * screenshots saved to disk so their path can travel in a prompt) —
  * `<home>/.rove/attachments/`. Created lazily at the write site; files
