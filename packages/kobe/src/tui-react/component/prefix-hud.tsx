@@ -12,12 +12,13 @@
 
 import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useState } from "react"
-import { displayWidth } from "../../lib/display-width"
+import { charWidth, displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
+import { guideCategory } from "../../tui/lib/help-groups"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudClock, prefixHudState } from "../../tui/lib/prefix-hud"
 import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../tui/lib/shortcut-reveal"
-import { truncateEnd } from "../../tui/lib/truncate"
+import { truncateEndCells } from "../../tui/lib/truncate"
 import { useTheme } from "../context/theme"
 import { tKeys, useT } from "../i18n"
 import { invokeArmedPrefixActionFromCurrentStack } from "../lib/keymap"
@@ -47,16 +48,6 @@ function actionLabel(action: string, translate: ReturnType<typeof useT>): string
 
 type GuideAction = { action: string; strokes: string[] }
 type GuideGroup = { category: string; actions: GuideAction[] }
-
-function guideCategory(action: string): string {
-  if (["kanban.open", "automations.open", "workItems.open"].includes(action)) return "Views"
-  if (action.startsWith("focus.")) return "Navigation"
-  if (action.startsWith("inbox.") || action.startsWith("attention.")) return "Attention"
-  if (action.startsWith("chat.tab.") || action.startsWith("chat.session.")) return "Sessions"
-  if (action.startsWith("chat.fork.") || action.startsWith("task.")) return "Tasks"
-  if (action.startsWith("settings.") || action === "workspace.zenToggle") return "Tools"
-  return findBinding(action)?.category ?? "Global"
-}
 
 /** Keep catalogue order while collapsing aliases such as p / shift+p. */
 function groupPrefixGuideOptions(options: readonly { stroke: string; action: string }[]): GuideGroup[] {
@@ -274,11 +265,20 @@ export function PrefixHud(props: { left: number; width: number }) {
       {fresh.map((entry) => (
         <box key={entry.id} paddingLeft={1} paddingRight={1} backgroundColor={theme.backgroundDialog}>
           <text fg={theme.textMuted} wrapMode="none">
-            {truncateEnd(
+            {/*
+              `width` is a CELL budget, so it must be spent by the cell-aware
+              truncator: the code-point twin reads a Chinese label as fitting,
+              returns it whole, and `wrapMode="none"` hands Yoga a hard cut with
+              no ellipsis — 「打开例行任务（定时任务）」 clipped to 「打开例行任务（」,
+              which reads as a complete label ending in a dangling bracket.
+              Same reasoning as the height math above.
+            */}
+            {truncateEndCells(
               `${entry.prefixKey ? `${entry.prefixKey} + ` : ""}${entry.stroke} ${
                 entry.action ? `→ ${actionLabel(entry.action, t)}` : "∅"
               }`,
               width - 2,
+              charWidth,
             )}
           </text>
         </box>

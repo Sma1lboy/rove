@@ -4,6 +4,11 @@
  * help dialog share. `groupBindings` stays generic over the `category`
  * field; the cap helpers read the real keymap via `findBinding` (itself
  * framework-free and vitest-safe — tests import both directly).
+ *
+ * The two category mappers live here rather than in their rendering
+ * components for the same reason: which header a binding prints under is the
+ * only thing that says which `keys.category` entries the catalog must carry,
+ * and a CI guard cannot import an opentui component to ask.
  */
 
 import type { KobeBinding, KobeBindingScope } from "../context/keybindings"
@@ -142,4 +147,33 @@ export function grammarHelpSections(
   if (prefix.length) sections.push({ kind: "prefix", rows: prefix })
   for (const [scope, rows] of other) sections.push({ kind: "other", scope, rows })
   return sections
+}
+
+/**
+ * The category header the F1 help dialog prints a section under. The dialog
+ * groups by SCOPE, not by the binding's own `category` field.
+ */
+export function scopeCategory(scope: HelpGrammarSection["scope"]): string {
+  if (!scope) return "Global"
+  if (scope === "sidebar") return "Sidebar"
+  if (scope === "workspace") return "Workspace"
+  if (scope === "files") return "Files"
+  if (scope === "terminal") return "Terminal"
+  return "Dialog"
+}
+
+/**
+ * The category header the prefix HUD's guide groups an action under. Mostly
+ * a synthetic set of its own (`Views` / `Sessions` / `Tasks` / …) that has no
+ * counterpart in `KobeKeymap.category`, falling through to the binding's own
+ * category — and then to `Global` — only for actions no rule claims.
+ */
+export function guideCategory(action: string): string {
+  if (["kanban.open", "automations.open", "workItems.open"].includes(action)) return "Views"
+  if (action.startsWith("focus.")) return "Navigation"
+  if (action.startsWith("inbox.") || action.startsWith("attention.")) return "Attention"
+  if (action.startsWith("chat.tab.") || action.startsWith("chat.session.")) return "Sessions"
+  if (action.startsWith("chat.fork.") || action.startsWith("task.")) return "Tasks"
+  if (action.startsWith("settings.") || action === "workspace.zenToggle") return "Tools"
+  return findBinding(action)?.category ?? "Global"
 }
