@@ -34,6 +34,7 @@ function orchestrator(
 ) {
   return {
     listTasks: () => tasks,
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 99, issues }),
     activeTaskSignal: () => ({ get: () => null }),
   } as never
@@ -225,6 +226,7 @@ test("r refetches the board", async () => {
   let fetches = 0
   const orch = {
     listTasks: () => [{ repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => {
       fetches += 1
       return { repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }
