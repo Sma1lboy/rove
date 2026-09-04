@@ -359,12 +359,16 @@ async function deferOrThrow(
       throw composerBusyApiError(error, taskId, prompt)
     }
     if (deferred.kind === "occupied") {
+      // The recovery used to be a verbatim replay of the send that just
+      // failed, which fails again for as long as the slot is held — a
+      // self-healing step that cannot heal. Point at the action that actually
+      // frees the slot; the retry is the caller's next move after that.
       throw new ApiError(`task ${taskId} tab ${tabId} already has a deferred prompt`, "DEFERRED_PROMPT_PENDING", {
         taskId,
         tabId,
         existingId: deferred.id,
-        hint: "release or dismiss the existing Inbox prompt before retrying",
-        nextCommandArgs: ["api", "send", "--task-id", taskId, "--tab", tabId, "--prompt", prompt],
+        hint: "a prompt is already held for this tab — deliver it with `deferred-release --id`, or drop it with `deferred-dismiss --id`, then send yours again (`deferred-list` shows the text and its expiry)",
+        nextCommandArgs: ["api", "deferred-release", "--id", deferred.id],
       })
     }
     return {
@@ -373,7 +377,11 @@ async function deferOrThrow(
       started: false,
       engineReady: false,
       delivered: false,
-      deferred: { id: deferred.id, layer: error.layer },
+      deferred: {
+        id: deferred.id,
+        layer: error.layer,
+        ...(deferred.expiresAt !== undefined ? { expiresAt: deferred.expiresAt } : {}),
+      },
     }
   }
   throw composerBusyApiError(error, taskId, prompt)

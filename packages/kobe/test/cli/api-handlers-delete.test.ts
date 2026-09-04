@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest"
-import { invokeVerb } from "../../src/cli/api-cmd.ts"
+import { ApiError, invokeVerb } from "../../src/cli/api-cmd.ts"
 import { FakeClient, expectApiError, recordingTearDown, stubRuntime, taskFixture } from "./api-handler-fixtures.ts"
 
 describe("task delete handler", () => {
@@ -152,5 +152,38 @@ describe("task delete handler", () => {
       invokeVerb("delete", ["--task-id", "t1"], { client, runtime: stubRuntime({ tearDownSession }) }),
     ).rejects.toThrow("DIRTY_WORKTREE")
     expect(killed).toEqual([])
+  })
+
+  it("types the dirty-worktree refusal and points at committing, not at --force", async () => {
+    // The daemon's own wording (orchestrator/errors.ts DirtyWorktreeError) —
+    // matched verbatim so a reworded refusal cannot silently fall back to a
+    // bare RPC_ERROR, which is how an unattended cleanup loop lost the ability
+    // to tell "there is unlanded work here" from "the daemon fell over".
+    const client = new FakeClient({
+      "task.delete": () => {
+        throw new Error("DIRTY_WORKTREE: task t1 worktree has uncommitted or untracked changes")
+      },
+    })
+    try {
+      await invokeVerb("delete", ["--task-id", "t1"], { client, runtime: stubRuntime() })
+      expect.unreachable("should have thrown")
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError)
+      const err = error as ApiError
+      expect(err.code).toBe("DIRTY_WORKTREE")
+      expect(err.data?.taskId).toBe("t1")
+      // The runnable recovery is deliberately NOT `--force`: those files are
+      // somebody's unlanded work, so the first move sends the worker back to
+      // commit them. Discarding stays a decision a caller makes in words.
+      expect(err.data?.nextCommandArgs).toEqual([
+        "api",
+        "send",
+        "--task-id",
+        "t1",
+        "--prompt",
+        "your worktree has uncommitted changes and this task is being cleaned up — commit them yourself with a proper message, then report back",
+      ])
+      expect(err.data?.hint).toMatch(/--force/)
+    }
   })
 })

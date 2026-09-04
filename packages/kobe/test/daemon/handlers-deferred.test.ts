@@ -65,10 +65,18 @@ describe("deferredPrompt RPC handlers", () => {
         layer: "composer-not-empty",
       },
       ctx,
-    )) as { kind: string; id: string; layer?: string }
+    )) as { kind: string; id: string; layer?: string; expiresAt?: string }
 
     expect(first.kind).toBe("filed")
-    expect(second).toEqual({ kind: "occupied", id: first.id, layer: "composer-not-empty" })
+    // `expiresAt` rides every filing reply: it is the only place the sender
+    // learns the daemon will drop the text 24h from now if nobody releases it.
+    expect(second).toEqual({
+      kind: "occupied",
+      id: first.id,
+      layer: "composer-not-empty",
+      expiresAt: second.expiresAt,
+    })
+    expect(second.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     expect((await store.get(first.id))?.prompt).toBe("first")
     expect(rec.inboxPromptDeferred).toEqual([
       { taskId: TASK.id, tabId: "tab-1", deferredId: first.id, layer: "composer-not-empty" },
@@ -99,7 +107,7 @@ describe("deferredPrompt RPC handlers", () => {
     expect(orphan?.prompt).toBe("first")
     expect(rec.inboxPromptDeferred).toEqual([])
 
-    await expect(dispatch("deferredPrompt.fileIfVacant", payload, ctx)).resolves.toEqual({
+    await expect(dispatch("deferredPrompt.fileIfVacant", payload, ctx)).resolves.toMatchObject({
       kind: "occupied",
       id: orphan?.id,
       layer: "composer-not-empty",

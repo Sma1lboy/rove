@@ -75,6 +75,12 @@ rove api land --task-id a              # merge the winning branch
 - **Error** → `{ "error": { "message", "code", ... } }` on stderr. Common
   rejections additionally carry `hint` and `nextCommandArgs` (argv runnable
   verbatim) so a caller can self-heal without parsing prose.
+  A refusal the daemon raises keeps its own machine code — `DIRTY_WORKTREE`,
+  `LAND_CONFLICT`, `MISSING_REF`, `ISSUE_NOT_FOUND`, `TASK_DELETING`,
+  `GIT_COMMAND_FAILED`, the `EMPTY_BRANCH` pair — in `code`, not in the
+  prose. `RPC_ERROR` now means what it says: the daemon failed without
+  naming a reason. Never match on `message`; it is written for a human and
+  it no longer repeats the code.
 - Exit codes: `0` success · `1` handler/RPC failure · `2` usage errors
   (unknown verb, bad/missing flag, unreachable daemon) · `3` partial
   parallel round (some tasks created, some failed; the full payload still
@@ -336,10 +342,15 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   the task's worktree. `started: true` in the result marks that fresh
   session (vs. delivery into an existing one).
   If a busy composer defers the prompt, the result has `delivered: false` and
-  a `deferred` record id. The daemon keeps one deferred prompt per tab. A
-  later send to that tab fails with `DEFERRED_PROMPT_PENDING` until the Inbox
-  item is released, dismissed, or expires; it never replaces text the daemon
-  already accepted. During an upgrade, a new client fails the send if the
+  a `deferred` record — its `id`, the `layer` that blocked it, and
+  `expiresAt`, the moment the daemon's sweep drops the text. **Deferred is
+  not delivered.** The daemon keeps one deferred prompt per tab, and a later
+  send to that tab fails with `DEFERRED_PROMPT_PENDING` until that record is
+  released, dismissed, or expires; it never replaces text the daemon already
+  accepted. With a human attached, the Inbox is where the prompt gets
+  released. With nobody attached, `deferred-release` is — see the three
+  verbs below; a record nobody acts on is swept 24h after it was filed and
+  never delivered. During an upgrade, a new client fails the send if the
   running daemon cannot provide first-writer-wins filing. Restart Rove to use
   the new daemon, then retry the original command.
 
@@ -385,6 +396,20 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
     session to pick up. Nothing can confirm that paste; `clients` is a raw
     connection count (the calling CLI is one of them) and only its `0` proves
     anything — the text reached nobody.
+- `deferred-list [--task-id ID]`: every prompt the daemon is holding because
+  the target composer was busy when it arrived — the Inbox, read by a caller
+  with no screen. Each record carries its `id`, `taskId`, `tabId`, the
+  verbatim `prompt`, the `layer` that blocked it, `at`, and `expiresAt`.
+  Returns `{ records }`; `--task-id` filters to one task.
+- `deferred-release --id ID`: deliver one held prompt now (the Inbox's
+  release action). It re-runs the delivery gate rather than bypassing it, so
+  a composer that is STILL busy leaves the record held and returns
+  `delivered: false` with the blocking `reason` — retry later. Returns
+  `{ id, delivered, reason? }`; an id the daemon no longer holds is
+  `DEFERRED_PROMPT_NOT_FOUND`.
+- `deferred-dismiss --id ID`: drop one held prompt WITHOUT delivering it and
+  free its tab's deferred slot. The text is gone — dismiss a message that is
+  no longer wanted, then send the replacement. Returns `{ dismissed }`.
 - `note --task-id ID --text TEXT`: file a one-line field note (a resolved,
   repo-level gotcha). Appended to the repo's durable note store, so every
   future worktree session on this repo starts with it in its system prompt;

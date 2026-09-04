@@ -14,6 +14,15 @@ export type IssueStatus = "open" | "doing" | "hold" | "done"
 
 export const ISSUE_STATUSES: readonly IssueStatus[] = ["open", "doing", "hold", "done"]
 
+/**
+ * Machine-stable marker for "that issue id is not in this repo's store",
+ * carried as a `CODE: ` message prefix because an error's `name` does not
+ * survive the RPC wire. The CLI boundary lifts it into the error envelope's
+ * `code`, so a scripted caller can tell a stale issue id from a transport
+ * failure instead of reading both as `RPC_ERROR`.
+ */
+const ISSUE_NOT_FOUND_CODE = "ISSUE_NOT_FOUND"
+
 export interface Issue {
   id: number
   title: string
@@ -290,7 +299,7 @@ export class IssuesStore {
         if (typeof typed.id !== "number") throw new Error("setStatus requires a numeric id")
         if (!isValidStatus(typed.status)) throw new Error(`invalid status: must be one of ${ISSUE_STATUSES.join(", ")}`)
         const issue = record.issues.find((i) => i.id === typed.id)
-        if (!issue) throw new Error(`no issue #${typed.id}`)
+        if (!issue) throw new Error(`${ISSUE_NOT_FOUND_CODE}: no issue #${typed.id}`)
         issue.status = typed.status
       } else if (typed.type === "update") {
         if (typeof typed.id !== "number") throw new Error("update requires a numeric id")
@@ -299,7 +308,7 @@ export class IssuesStore {
         }
         if (typed.body !== undefined && typeof typed.body !== "string") throw new Error("body must be a string")
         const issue = record.issues.find((i) => i.id === typed.id)
-        if (!issue) throw new Error(`no issue #${typed.id}`)
+        if (!issue) throw new Error(`${ISSUE_NOT_FOUND_CODE}: no issue #${typed.id}`)
         if (typeof typed.title === "string") issue.title = typed.title
         if (typeof typed.body === "string") issue.body = typed.body
       } else if (typed.type === "link") {
@@ -308,17 +317,18 @@ export class IssuesStore {
           throw new Error("link requires a non-empty taskId")
         }
         const issue = record.issues.find((i) => i.id === typed.id)
-        if (!issue) throw new Error(`no issue #${typed.id}`)
+        if (!issue) throw new Error(`${ISSUE_NOT_FOUND_CODE}: no issue #${typed.id}`)
         issue.taskId = typed.taskId
       } else if (typed.type === "unlink") {
         if (typeof typed.id !== "number") throw new Error("unlink requires a numeric id")
         const issue = record.issues.find((i) => i.id === typed.id)
-        if (!issue) throw new Error(`no issue #${typed.id}`)
+        if (!issue) throw new Error(`${ISSUE_NOT_FOUND_CODE}: no issue #${typed.id}`)
         issue.taskId = undefined
       } else if (typed.type === "delete") {
         if (typeof typed.id !== "number") throw new Error("delete requires a numeric id")
         const nextIssues = record.issues.filter((i) => i.id !== typed.id)
-        if (nextIssues.length === record.issues.length) throw new Error(`no issue #${typed.id}`)
+        if (nextIssues.length === record.issues.length)
+          throw new Error(`${ISSUE_NOT_FOUND_CODE}: no issue #${typed.id}`)
         record.issues = nextIssues
       } else {
         throw new Error(`unknown op type: ${(typed as { type: string }).type}`)

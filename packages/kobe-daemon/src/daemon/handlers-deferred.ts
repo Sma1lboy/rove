@@ -9,6 +9,7 @@
 
 import { sweepExpiredDeferredPrompts } from "./deferred-prompt-sweep.ts"
 import {
+  DEFERRED_PROMPT_TTL_MS,
   type DeferredPromptClaim,
   DeferredPromptPendingError,
   type DeferredPromptRecord,
@@ -115,6 +116,38 @@ interface DeliveryReport {
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * One record as an API caller sees it. `at`/`expiresAt` are ISO strings (the
+ * shape every other timestamp on the API wears) and `expiresAt` is derived
+ * rather than stored — the TTL is a daemon constant, so publishing the
+ * deadline is the only way a caller can know its text has a shelf life at all.
+ * The claim/delivery bookkeeping (`deliveredAt`, `deliveryStartedAt`) stays
+ * internal: it describes a transaction in flight, not the caller's message.
+ */
+function publicRecord(record: DeferredPromptRecord): {
+  id: string
+  taskId: string
+  tabId: string
+  prompt: string
+  layer: string
+  at: string
+  expiresAt: string
+  senderLabel?: string
+  senderTaskId?: string
+} {
+  return {
+    id: record.id,
+    taskId: record.taskId,
+    tabId: record.tabId,
+    prompt: record.prompt,
+    layer: record.layer,
+    at: new Date(record.at).toISOString(),
+    expiresAt: new Date(record.at + DEFERRED_PROMPT_TTL_MS).toISOString(),
+    ...(record.senderLabel !== undefined ? { senderLabel: record.senderLabel } : {}),
+    ...(record.senderTaskId !== undefined ? { senderTaskId: record.senderTaskId } : {}),
+  }
 }
 
 async function deleteDeferredInboxPointer(record: DeferredPromptRecord, ctx: DaemonHandlerContext): Promise<void> {
@@ -296,6 +329,9 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       return {
         kind: result.kind,
         id: result.record.id,
+        // The sender's `deferred` payload is the only place it learns the
+        // text has a deadline at all; an older CLI just ignores the field.
+        expiresAt: publicRecord(result.record).expiresAt,
         ...(result.kind === "occupied" ? { layer: result.record.layer } : {}),
       }
     },
@@ -310,6 +346,32 @@ export const DEFERRED_PROMPT_HANDLERS: readonly DaemonRequestHandler[] = [
       // and paste the same record twice. Fail that mixed-version exit path
       // loud; current clients use the atomic `release` verb below.
       throw new Error("legacy deferred prompt release is unsafe; restart Rove to update the client")
+    },
+  },
+  {
+    // The read half of the TUI Inbox, for a caller with no screen. Reports the
+    // LIVE records only — `store.list()` already separates the TTL-expired
+    // set, which the sweep timer owns — plus each record's `expiresAt`, so a
+    // headless sender can see how long the daemon will hold its text.
+    name: "deferredPrompt.list",
+    async handle(_payload, ctx) {
+      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+      const listed = await ctx.deferredPrompts.list()
+      return { records: listed.records.map(publicRecord) }
+    },
+  },
+  {
+    // The Inbox's dismiss action: drop the text and its Inbox pointer without
+    // delivering. This is what unblocks a tab whose deferred slot is occupied
+    // (`DEFERRED_PROMPT_PENDING`) when the message is no longer wanted.
+    name: "deferredPrompt.dismiss",
+    async handle(payload, ctx) {
+      const id = requireString(payload, "id")
+      if (!ctx.deferredPrompts) throw new Error("deferred prompt store unavailable")
+      const dropped = await ctx.deferredPrompts.discard(id, "Inbox item dismissed")
+      if (!dropped) return { dismissed: false }
+      await deleteDeferredInboxPointer(dropped, ctx)
+      return { dismissed: true, record: publicRecord(dropped) }
     },
   },
   {
