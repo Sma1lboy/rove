@@ -54,8 +54,8 @@ describe("codex parseJsonl mega-line bound", () => {
   })
 })
 
-describe("codex listRolloutFiles traversal cap", () => {
-  it("collects at most MAX_ROLLOUT_FILES paths from a pathological tree", async () => {
+describe("codex listRolloutFiles complete traversal", () => {
+  it("retains all paths without a global result cap", async () => {
     const OVER = 5001
     const files = Array.from(
       { length: OVER },
@@ -74,6 +74,6 @@ describe("codex listRolloutFiles traversal cap", () => {
       stat: async () => ({ mtimeMs: 0 }),
     }
     const out = await listRolloutFiles(deps)
-    expect(out).toHaveLength(5000)
+    expect(out).toHaveLength(OVER)
   })
 })

@@ -9,10 +9,11 @@
  * combines it with pane quiescence.
  */
 
-import { readFile, stat } from "node:fs/promises"
+import { stat } from "node:fs/promises"
 import * as claudeHistory from "@/engine/claude-code-local/history"
 import * as codexHistory from "@/engine/codex-local/history"
 import type { VendorId } from "@/types/vendor"
+import { isJsonlLineWithinBound, readTextFileBounded } from "./file-bounds"
 import { engineEntry } from "./registry.ts"
 
 /** `needs_input` comes from hooks (permission prompt / question dialog via
@@ -115,125 +116,114 @@ export function createEngineTurnDetector(vendor: VendorId): EngineTurnDetector {
   return engineEntry(vendor).createTurnDetector()
 }
 
-/** Injectable IO surface for {@link ClaudeTurnDetector} (unit tests). */
-export interface ClaudeTurnDetectorDeps {
-  listSessionFiles(worktree: string): Promise<claudeHistory.WorktreeSessionFile[]>
+interface TranscriptFileDeps {
   readFile(path: string): Promise<string>
-  /** mtime of one transcript file (epoch ms), or 0 when it can't be read.
-   *  Optional so existing two-field test deps keep compiling; the real fs
-   *  stat is the default. */
   statMtimeMs?(path: string): Promise<number>
+  statFile?(path: string): Promise<{ mtimeMs: number; size: number; ctimeMs: number; ino: number; dev: number } | null>
 }
 
-const statMtimeMs = (path: string) =>
-  stat(path).then(
-    (s) => s.mtimeMs,
-    () => 0,
-  )
+export interface ClaudeTurnDetectorDeps extends TranscriptFileDeps {
+  listSessionFiles(worktree: string): Promise<claudeHistory.WorktreeSessionFile[]>
+}
+
+export interface CodexTurnDetectorDeps extends TranscriptFileDeps {
+  findLatestRollout(worktree: string): Promise<{ path: string; mtimeMs: number } | null>
+}
+
+const statFile: NonNullable<TranscriptFileDeps["statFile"]> = (path) => stat(path).catch(() => null)
+
+function completionReader(
+  deps: TranscriptFileDeps,
+  parse: (raw: string, path: string, mtimeMs: number) => TurnCompletionMarker | null,
+) {
+  const cache = new Map<string, { key: string; scan: TranscriptScan }>()
+  return async (path: string, knownMtime?: number): Promise<TranscriptScan | null> => {
+    const info = deps.statFile ? await deps.statFile(path) : null
+    if (deps.statFile && !info) return null
+    const mtimeMs =
+      info?.mtimeMs ??
+      knownMtime ??
+      (await (deps.statMtimeMs ?? (async (p) => (await statFile(p))?.mtimeMs ?? 0))(path))
+    if (!mtimeMs)
+      return knownMtime === undefined
+        ? null
+        : { marker: parse(await deps.readFile(path).catch(() => ""), path, mtimeMs), mtimeMs }
+    const key = info ? `${info.dev}:${info.ino}:${info.size}:${info.mtimeMs}:${info.ctimeMs}` : String(mtimeMs)
+    const hit = cache.get(path)
+    if (hit?.key === key) return hit.scan
+    let raw: string
+    try {
+      raw = await deps.readFile(path)
+    } catch {
+      return { marker: null, mtimeMs }
+    }
+    const scan = { marker: parse(raw, path, mtimeMs), mtimeMs }
+    cache.delete(path)
+    cache.set(path, { key, scan })
+    if (cache.size > 8) {
+      const oldest = cache.keys().next().value
+      if (oldest !== undefined) cache.delete(oldest)
+    }
+    return scan
+  }
+}
 
 const defaultClaudeDeps: ClaudeTurnDetectorDeps = {
   listSessionFiles: (worktree) => claudeHistory.listSessionFilesForWorktree(worktree),
-  readFile: (path) => readFile(path, "utf8"),
-  statMtimeMs,
+  readFile: readTextFileBounded,
+  statFile,
 }
 
 export class ClaudeTurnDetector extends EngineTurnDetector {
   readonly vendor = "claude" as const
-
-  /**
-   * Marker memo keyed by transcript path, valid while the file's mtime is
-   * unchanged. The Ops pane calls `latestCompletion` from a 1.5s poll, and
-   * without this gate every call re-reads + re-parses up to 4 WHOLE session
-   * JSONLs (multi-MB for a day-long session) even when nothing has been
-   * appended — the mtime the lister already stat()s is enough to prove the
-   * parse would produce the identical marker (it's a pure function of the
-   * file content + path + mtime). Pruned to the files of the latest scan,
-   * so it never holds more than the 4 entries per detector; the cached
-   * marker ids obey the memory invariant above (numbers + path only).
-   */
-  private cache = new Map<string, { mtimeMs: number; marker: TurnCompletionMarker | null }>()
+  private readonly readCompletion
 
   constructor(private readonly deps: ClaudeTurnDetectorDeps = defaultClaudeDeps) {
     super()
+    this.readCompletion = completionReader(deps, latestClaudeCompletionMarkerFromJsonl)
   }
 
   async latestActivity(worktree: string): Promise<TranscriptScan> {
     const files = await this.deps.listSessionFiles(worktree)
-    // `listSessionFiles` sorts newest-first, so `files[0]` is the newest
-    // transcript overall — the same value `latestTranscriptMtimeForWorktree`
-    // returns. Surfacing it here lets the daemon collector skip its own
-    // second directory scan for the mtime.
     const mtimeMs = files[0]?.mtimeMs ?? 0
     let latest: TurnCompletionMarker | null = null
-    const next = new Map<string, { mtimeMs: number; marker: TurnCompletionMarker | null }>()
     for (const file of files.slice(0, 4)) {
-      const hit = this.cache.get(file.path)
-      let marker: TurnCompletionMarker | null
-      // mtime 0 means the lister's stat failed — never trust it as a key.
-      if (hit && file.mtimeMs > 0 && hit.mtimeMs === file.mtimeMs) {
-        marker = hit.marker
-      } else {
-        const raw = await this.deps.readFile(file.path).catch(() => "")
-        marker = latestClaudeCompletionMarkerFromJsonl(raw, file.path, file.mtimeMs)
-      }
-      next.set(file.path, { mtimeMs: file.mtimeMs, marker })
+      const marker = (await this.readCompletion(file.path, file.mtimeMs))?.marker
       if (marker && (!latest || marker.timestampMs > latest.timestampMs)) latest = marker
     }
-    this.cache = next
     return { marker: latest, mtimeMs }
   }
 
-  override async latestActivityInFile(transcriptPath: string): Promise<TranscriptScan | null> {
-    const mtimeMs = await (this.deps.statMtimeMs ?? statMtimeMs)(transcriptPath)
-    if (mtimeMs === 0) return null // gone/rotated — caller falls back to the worktree scan
-    const raw = await this.deps.readFile(transcriptPath).catch(() => "")
-    return { marker: latestClaudeCompletionMarkerFromJsonl(raw, transcriptPath, mtimeMs), mtimeMs }
+  override latestActivityInFile(transcriptPath: string): Promise<TranscriptScan | null> {
+    return this.readCompletion(transcriptPath)
   }
-}
-
-/** Injectable IO surface for {@link CodexTurnDetector} (unit tests). */
-export interface CodexTurnDetectorDeps {
-  findLatestRollout(worktree: string): Promise<{ path: string; mtimeMs: number } | null>
-  readFile(path: string): Promise<string>
 }
 
 const defaultCodexDeps: CodexTurnDetectorDeps = {
   findLatestRollout: (worktree) => codexHistory.findLatestRolloutForWorktree(worktree),
-  readFile: (path) => readFile(path, "utf8"),
+  readFile: readTextFileBounded,
+  statFile,
 }
 
 export class CodexTurnDetector extends EngineTurnDetector {
   readonly vendor = "codex" as const
-
-  /**
-   * Same mtime gate as {@link ClaudeTurnDetector}: the rollout's
-   * cwd-matching is already cached inside `findLatestRolloutForWorktree`
-   * (a rollout's `session_meta` first line never changes), and this memo
-   * skips the whole-file re-read + re-parse when the matched rollout's
-   * mtime hasn't moved since the last poll. One entry — only the newest
-   * matching rollout is ever consulted.
-   */
-  private cache: { path: string; mtimeMs: number; marker: TurnCompletionMarker | null } | null = null
+  private readonly readCompletion
 
   constructor(private readonly deps: CodexTurnDetectorDeps = defaultCodexDeps) {
     super()
+    this.readCompletion = completionReader(deps, latestCodexCompletionMarkerFromJsonl)
+  }
+
+  override latestActivityInFile(transcriptPath: string): Promise<TranscriptScan | null> {
+    return this.readCompletion(transcriptPath)
   }
 
   async latestActivity(worktree: string): Promise<TranscriptScan> {
     if (!worktree) return { marker: null, mtimeMs: 0 }
     const found = await this.deps.findLatestRollout(worktree)
-    if (!found) return { marker: null, mtimeMs: 0 }
-    // `found.mtimeMs` is the newest matching rollout's mtime — identical to
-    // what `latestTranscriptMtimeForWorktree` returns — so surface it even
-    // when the marker parse below yields null (no `turn.completed` yet).
-    if (this.cache && this.cache.path === found.path && found.mtimeMs > 0 && this.cache.mtimeMs === found.mtimeMs) {
-      return { marker: this.cache.marker, mtimeMs: found.mtimeMs }
-    }
-    const raw = await this.deps.readFile(found.path).catch(() => "")
-    if (!raw) return { marker: null, mtimeMs: found.mtimeMs }
-    const marker = latestCodexCompletionMarkerFromJsonl(raw, found.path)
-    this.cache = { path: found.path, mtimeMs: found.mtimeMs, marker }
-    return { marker, mtimeMs: found.mtimeMs }
+    return found
+      ? ((await this.readCompletion(found.path, found.mtimeMs)) ?? { marker: null, mtimeMs: 0 })
+      : { marker: null, mtimeMs: 0 }
   }
 }
 
@@ -289,7 +279,7 @@ export function latestClaudeCompletionMarkerFromJsonl(
     lineNo++
     const record = parseJsonLine(line)
     if (!record) continue
-    const inner = isObject(record.message) ? (record.message as Record<string, unknown>) : record
+    const inner = isObject(record.message) ? record.message : record
     if (inner.role !== "assistant") continue
     if (typeof inner.stop_reason !== "string") continue
     if (!CLAUDE_TURN_END_STOP_REASONS.has(inner.stop_reason)) continue
@@ -345,6 +335,7 @@ export function latestCodexCompletionMarkerFromJsonl(raw: string, sourceId = "co
 }
 
 function parseJsonLine(line: string): Record<string, unknown> | null {
+  if (!isJsonlLineWithinBound(line)) return null
   const trimmed = line.trim()
   if (!trimmed) return null
   try {
