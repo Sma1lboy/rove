@@ -20,6 +20,7 @@ import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/con
 import { type ReactNode, useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
+import { getSavedRepos } from "../../state/repos"
 import { clampCursor } from "../../tui/component/new-task-dialog/state"
 import { useNotifications } from "../context/notifications"
 import { useTheme } from "../context/theme"
@@ -188,7 +189,12 @@ export function AutomationsPage(props: {
   async function createAutomation(): Promise<void> {
     const orch = props.orchestrator
     if (!orch || busyId) return
-    const repos = [...new Set(orch.listTasks().map((task) => task.repo))].filter(Boolean)
+    // Saved projects UNION the repos tasks happen to sit in — the same set the
+    // New-task dialog offers (`use-repo-field.ts`) and the "scrolling picker
+    // over your projects" `docs/ROUTINES.md` promises. Task repos alone hid a
+    // project you had saved but never opened a task in, so the one repo you
+    // could not schedule was the one you had just added.
+    const repos = [...new Set([...getSavedRepos(), ...orch.listTasks().map((task) => task.repo)])].filter(Boolean)
     if (repos.length === 0) {
       setNotice(t("automations.needRepo"))
       return

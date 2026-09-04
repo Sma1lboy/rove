@@ -54,6 +54,10 @@ function normalizeAutomation(value: unknown): Automation | null {
   if (!Number.isFinite(Date.parse(nextRunAt))) return null
 
   const precheckCommand = str(raw.precheck?.command)
+  // `lastRunAt` is the pre-rename spelling on disk (the field claimed a run
+  // had happened for occurrences that only ever skipped). Read it so an
+  // existing automations.json carries its value across the rename.
+  const lastOccurrenceAt = str(raw.lastOccurrenceAt ?? (value as { lastRunAt?: unknown }).lastRunAt)
   const grace = raw.missedRunGraceMinutes
   const now = new Date().toISOString()
   return {
@@ -80,7 +84,7 @@ function normalizeAutomation(value: unknown): Automation | null {
     ...(str(raw.baseRef) ? { baseRef: raw.baseRef } : {}),
     ...(raw.persistentSession === true ? { persistentSession: true } : {}),
     ...(str(raw.sessionTaskId) ? { sessionTaskId: raw.sessionTaskId } : {}),
-    ...(str(raw.lastRunAt) ? { lastRunAt: raw.lastRunAt } : {}),
+    ...(lastOccurrenceAt ? { lastOccurrenceAt } : {}),
     createdAt: str(raw.createdAt) ?? now,
     updatedAt: str(raw.updatedAt) ?? now,
   }
@@ -292,9 +296,10 @@ export class AutomationsStore {
   }
 
   /**
-   * Move the schedule past `afterMs` and stamp `lastRunAt`. Called BEFORE the
-   * run is dispatched so an overlapping sweep can never fire the same
-   * occurrence twice.
+   * Move the schedule past `afterMs` and stamp `lastOccurrenceAt`. Called
+   * BEFORE the run is dispatched so an overlapping sweep can never fire the
+   * same occurrence twice — which is also why the stamp is the occurrence's
+   * SCHEDULED time and says nothing about whether the run then succeeded.
    */
   async advanceNextRun(id: string, afterMs: number): Promise<Automation | null> {
     return await this.enqueue(async () => {
@@ -310,12 +315,12 @@ export class AutomationsStore {
         // once-only date now in the past) must not wedge the sweep on a
         // permanently-due row: disable it and surface it in `automation-list`.
         logDaemonError("automations-advance", err)
-        const disabled: Automation = { ...current, enabled: false, lastRunAt: iso, updatedAt: iso }
+        const disabled: Automation = { ...current, enabled: false, lastOccurrenceAt: iso, updatedAt: iso }
         this.automations = this.automations.map((a, i) => (i === index ? disabled : a))
         await this.commit()
         return disabled
       }
-      const next: Automation = { ...current, nextRunAt, lastRunAt: iso, updatedAt: iso }
+      const next: Automation = { ...current, nextRunAt, lastOccurrenceAt: iso, updatedAt: iso }
       this.automations = this.automations.map((a, i) => (i === index ? next : a))
       await this.commit()
       return next

@@ -1,5 +1,6 @@
 /** Automation CRUD + manual-trigger RPC handlers. */
 
+import { assertRoutineBaseRef, assertRoutineRepo } from "./automation-repo-check.ts"
 import { runAutomationOnce } from "./automation-runner.ts"
 import type { AutomationPatch, AutomationPrecheck } from "./contracts.ts"
 import { isValidCron } from "./cron.ts"
@@ -63,15 +64,22 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.create",
     async handle(payload, ctx) {
       const precheck = readPrecheck(payload)
+      const repo = requireString(payload, "repo")
+      const baseRef = optionalString(payload, "baseRef")
+      // Before persisting, not after the first firing: a routine that can
+      // never resolve its worktree is a row the user cannot tell from a
+      // healthy one until it has already failed unattended.
+      await assertRoutineRepo(repo)
+      if (baseRef) await assertRoutineBaseRef(repo, baseRef)
       const automation = await ctx.automations.create({
         name: requireString(payload, "name"),
-        repo: requireString(payload, "repo"),
+        repo,
         prompt: requireString(payload, "prompt"),
         schedule: requireSchedule(payload, "schedule"),
         missedRunGraceMinutes: readGraceMinutes(payload) ?? 60,
         ...(optionalVendor(payload, "vendor") ? { vendor: optionalVendor(payload, "vendor") } : {}),
         ...(precheck ? { precheck } : {}),
-        ...(optionalString(payload, "baseRef") ? { baseRef: optionalString(payload, "baseRef") } : {}),
+        ...(baseRef ? { baseRef } : {}),
         ...(optionalBoolean(payload, "persistentSession") === true ? { persistentSession: true } : {}),
         ...(optionalBoolean(payload, "enabled") !== undefined ? { enabled: optionalBoolean(payload, "enabled") } : {}),
       })
@@ -84,6 +92,12 @@ export const AUTOMATION_HANDLERS: readonly DaemonRequestHandler[] = [
     name: "automation.update",
     async handle(payload, ctx) {
       const id = requireString(payload, "id")
+      // A base ref set here is as permanently fatal as one set at create, and
+      // `--base-branch ''` (clear) has nothing to check. The repo is not
+      // patchable, so it is validated only where it is chosen.
+      const nextBaseRef = "baseRef" in payload ? optionalString(payload, "baseRef") : undefined
+      const currentRepo = ctx.automations.get(id)?.repo
+      if (nextBaseRef && currentRepo) await assertRoutineBaseRef(currentRepo, nextBaseRef)
       const patch: AutomationPatch = {
         ...(optionalString(payload, "name") !== undefined ? { name: optionalString(payload, "name") } : {}),
         ...(optionalString(payload, "prompt") !== undefined ? { prompt: optionalString(payload, "prompt") } : {}),

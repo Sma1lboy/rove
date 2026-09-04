@@ -42,7 +42,7 @@ const FULL: Omit<DeepRequired<Automation>, "id" | "nextRunAt" | "createdAt" | "u
   sessionTaskId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
   enabled: true,
   missedRunGraceMinutes: 15,
-  lastRunAt: "2026-07-30T09:00:00.000Z",
+  lastOccurrenceAt: "2026-07-30T09:00:00.000Z",
 }
 
 /** Every patch key, each with a value that differs from FULL. `null` keys are
