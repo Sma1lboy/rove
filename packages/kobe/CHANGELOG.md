@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.9.109
+
+### Patch Changes
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) `rove api notify` takes `--body`, so the SDK's `notify(title, body)` works.
+  The SDK has shipped that two-argument signature since it existed — the README
+  example, the PLUGIN-SDK reference and the `turn-notify` example plugin all use
+  it — but the verb had no such flag, so every hook that called it exited 1 with
+  `unknown flag --body`. The body now rides the `notice.event` channel into the
+  toast's second line, a slot the TUI already rendered for engine-side
+  notifications. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) `$ROVE_BIN_PATH` now points at the Rove that is actually running. The daemon
+  handed plugins the literal name `kobe` — even when started as `rove` — so a
+  hook resolved whichever install happened to sit first on `PATH`. On a machine
+  with two of them (a global npm install beside a `bun add -g` or a worktree
+  build) hooks silently drove the wrong version, and a plugin calling
+  `listTasks()` could autospawn that other version's daemon into this daemon's
+  home. Both the daemon and `rove plugin action invoke` now resolve one absolute
+  path where the entry point is runnable on its own — an npm install, a compiled
+  binary — and fall back to the invoked name only for a dev checkout, which has
+  no single token to exec. Documented in the plugin env table. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) `rove plugin link` / `install` create a plugin's config and state directories
+  0700, as the docs promise. They were 0755, and because `mkdirSync` never
+  chmods a directory that already exists, the CLI's mode won permanently — the
+  daemon's own 0700 could never take effect on a plugin the CLI had registered
+  first. The config directory is where the docs tell users to paste API keys. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) Plugins now see the FIRST `task.created` after a daemon start. The daemon
+  publishes its baseline task snapshot while wiring the orchestrator, minutes of
+  code before the plugin host exists, so the first snapshot the host's reducer
+  ever saw was the first real mutation — and the reducer's "the first snapshot is
+  the pre-existing list, not a burst of creates" rule swallowed it. Every daemon
+  lifetime silently lost its first `task.created` / `worktree.created` /
+  `task.changed`; the second task onwards worked, which is why the smoketest
+  missed it (it fired `issue.changed`, which is reported directly and never
+  passes through that reducer). The host now seeds itself from the bus's
+  last-value cache, and the sandbox smoketest asserts `task.created` first. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) `rove plugin action invoke` and `plugin pane open` honour `platforms`. The
+  daemon's event host and the TUI's pane picker have always skipped a plugin the
+  manifest excludes from this machine; from a shell it ran anyway, so a
+  Windows-only plugin executed happily on macOS. Both now refuse with the
+  platforms the manifest declares, and `plugin link` warns when it registers
+  something nothing on this machine will run (a refusal would be wrong there —
+  developing a Windows plugin on a Mac is legitimate). — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) `[[settings]] default` accepts TOML booleans and numbers. `type = "boolean"`
+  invites writing `default = true`, which failed the whole manifest with
+  "`settings[0].default` must be a non-empty string" — and nothing in the
+  reference said the value had to be quoted. `true` now stores as `"1"` (the
+  spelling a boolean setting is read back as), `false` as no default, and a
+  number as its decimal spelling. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#851](https://github.com/Sma1lboy/rove/pull/851) [`d3c6619`](https://github.com/Sma1lboy/rove/commit/d3c66194cb8bd6c03d3f363812bd8d083d88e328) Six leftovers from the `.kobe` → `.rove` rename, and the api surface that
+  disagreed with itself about which engines exist.
+
+  Settings › Developer › Reset UI state unlinks only the canonical `tasks.json`,
+  and the legacy `~/.kobe/tasks.json` read fallback ignored the daemon migration
+  marker — so every pre-rename task came back on the next start, and every save
+  folded them in as concurrent creates. The fallback is now gated on that marker
+  in the one place both readers share, and `doctor` uses it too, so it stops
+  reporting `tasks.json: absent` for a home `rove export` can read.
+
+  `pty-exits.json` and `pty-sessions/` never migrated at all: they were left off
+  the daemon-start copy list on purpose (a daemon copying them would race the
+  host that owns them), so `.kobe` became their permanent home and deleting it —
+  which the docs call safe — threw away every frozen session and exit record. The
+  PTY host moves them at its own boot now, leaving a compatibility symlink.
+  `linkLegacyRuntimePath` also stopped creating `~/.kobe` on fresh installs,
+  where its only content was dangling links.
+
+  `rove skill status` reported the first skill copy it found, so a pre-rename
+  `~/.agents/skills/kobe` went unmentioned once a `rove` copy existed — while
+  agents kept loading it. It is now named as a stale duplicate. `doctor --report`
+  prints both spellings of each knob (a `ROVE_WEB_HOST` value used to arrive
+  redacted), and `ROVE_FILETREE_WATCH`, `ROVE_RPC_TIMEOUT_MS`, `ROVE_HOOK_DEBUG`
+  and `ROVE_DAEMON_IDLE_GRACE_MS` reach their readers directly instead of only
+  through the wrapper's mirror — with rows in the CLI reference.
+
+  `rove api` accepts the plugin-contributed engines `engine-list` advertises:
+  `--vendor`, `--agents` and `schema` used to reject them with an error pointing
+  at `engine-list`, and a task created with `--command <plugin-engine>` recorded
+  `generic`. `routine-runs` on an unknown id now errors instead of answering
+  `{"runs":[]}`, which reads as "it exists and has not run yet". — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.108
 
 ### Patch Changes

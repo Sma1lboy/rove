@@ -1,5 +1,16 @@
 # @sma1lboy/rove-plugin-sdk
 
+## 0.1.7
+
+### Patch Changes
+
+- [#850](https://github.com/Sma1lboy/rove/pull/850) [`a5b552c`](https://github.com/Sma1lboy/rove/commit/a5b552cd15c8df9848b6e7f76aee1e30d34793c3) `usage.context` joins the SDK's `DAEMON_CHANNELS`. The channel shipped in the
+  daemon but the published SDK never learned the name, so a plugin typed against
+  it could not subscribe — and the daemon drops unknown channel names from a
+  filter rather than rejecting them, so the subscribe succeeded and the channel
+  simply never arrived, with no error anywhere. Documented alongside the drop
+  behaviour in the SDK's channel list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.1.6
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # kobe-web
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @sma1lboy/kobe-daemon@0.7.18
+
 ## 0.0.6
 
 ### Patch Changes
