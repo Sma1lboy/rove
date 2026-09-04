@@ -1,17 +1,17 @@
 /**
- * Bearer-token authentication for the daemon-hosted web transport.
+ * Mints the bearer token the PTY sidecar authenticates with.
  *
- * The web transport exposes mutating RPCs to the browser — `task.setCommand`
- * sets the engine's launch argv, which is arbitrary command execution. Its
- * other gate, the Origin check (`web-origin.ts`), is a CSRF control and not an
- * authentication one: browsers attach Origin automatically, so it stops
- * another site's JavaScript from reaching the daemon, but `curl` simply omits
- * the header and `originAllowed(null)` returns true. On its own it would let
- * anything that can open a socket to the port drive the daemon.
+ * This is now a MINTER only. It used to be both halves of a two-gate scheme
+ * for the daemon-hosted web transport — this token plus an Origin check
+ * (`web-origin.ts`) — but #855 deleted the transport, and with it both
+ * `web-origin.ts` and every caller of the verifying half. The remaining
+ * consumers all write the file: `kobe-harness/dev.ts`, `e2e/hero-fixture.ts`
+ * and `scripts/fixture-core.ts`.
  *
- * This module is the other half: a secret the caller must present. The two
- * checks stack rather than replace each other — Origin answers "which page is
- * asking", the token answers "is this caller entitled at all".
+ * The reader is `kobe-harness/pty-auth.mjs`, which gates the PTY sidecar —
+ * a live security boundary, since `pty-server.mjs` spawns shells. It
+ * deliberately duplicates the path logic rather than importing it (see its
+ * own header), so it does not depend on anything exported here.
  *
  * The secret is 32 random bytes in one 0600 file under the state dir, so the
  * OS enforces the boundary that matters on a shared machine: another local
@@ -20,7 +20,7 @@
  * a missing file regenerates on the next read, so no rotate verb is needed.
  */
 
-import { randomBytes, timingSafeEqual } from "node:crypto"
+import { randomBytes } from "node:crypto"
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 
@@ -85,51 +85,4 @@ export function ensureWebToken(file: string): string {
   renameSync(staging, file)
   tightenTokenPermissions(file)
   return token
-}
-
-/** Constant-time compare, so a wrong token leaks no prefix through timing. */
-export function tokensMatch(presented: string | null | undefined, expected: string): boolean {
-  if (!presented) return false
-  const a = Buffer.from(presented)
-  const b = Buffer.from(expected)
-  // timingSafeEqual throws on a length mismatch, and length is not a secret.
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
-/**
- * The token a request presents, from either channel.
- *
- * `Authorization: Bearer …` is the channel for everything that goes through
- * `fetch`. `?token=` exists for exactly one caller: `EventSource`, the browser
- * API behind the `/events` SSE stream, which has no way to set a request
- * header at all. A query token is the weaker channel (it lands in access logs
- * and referrers) — acceptable only because this server is loopback-bound and
- * the sole thing logging it is the daemon itself.
- */
-export function presentedToken(req: Request, url: URL): string | null {
-  const header = req.headers.get("authorization")
-  if (header) {
-    const match = /^Bearer\s+(.+)$/i.exec(header.trim())
-    if (match) return match[1].trim()
-  }
-  return url.searchParams.get("token")
-}
-
-/**
- * Whether this path is part of the protected surface.
- *
- * The token guards daemon STATE — the RPC/SSE/data routes. It deliberately
- * does not guard the static shell (`/`, `/assets/*`, the favicon), for a
- * mechanical reason: a browser fetches subresources on its own, and those
- * requests carry neither the `Authorization` header (only `fetch` can set
- * one) nor the `?token=` query. Gating them 401s every script and stylesheet
- * the page just asked for, so the dashboard renders blank — with the token
- * perfectly valid. The shell is public build output with no secrets in it;
- * the moment it tries to learn anything about this machine it hits `/api/*`
- * or `/events`, and there the token is required.
- */
-export function requiresWebToken(url: URL, healthPath: string): boolean {
-  const path = url.pathname
-  if (path === healthPath) return false
-  return path === "/events" || path.startsWith("/api/")
 }
