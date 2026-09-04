@@ -61,4 +61,24 @@ describe("orphanTabsByTask", () => {
     const map = orphanTabsByTask([session("t1::tab-1"), session("t2::tab-1")], new Set())
     expect([...map.keys()].sort()).toEqual(["t1", "t2"])
   })
+  it("keeps the first live leaf title and input order without modifying registered membership", () => {
+    const registered = new Set(["t1::tab-2"])
+    const map = orphanTabsByTask(
+      [
+        session("t1::tab-1", { alive: false, title: "dead" }),
+        session("t1::tab-1::leaf-2", { title: "first live" }),
+        session("t1::tab-1", { title: "later live" }),
+        session("t1::tab-2::leaf-2"),
+        session("t2::tab-1"),
+        session("t1::tab-3"),
+      ],
+      registered,
+    )
+    expect([...registered]).toEqual(["t1::tab-2"])
+    expect([...map.keys()]).toEqual(["t1", "t2"])
+    expect(map.get("t1")).toEqual([
+      { id: "tab-1", label: "⚠ first live", active: true, engine: true },
+      { id: "tab-3", label: "⚠ tab-3", active: false, engine: true },
+    ])
+  })
 })

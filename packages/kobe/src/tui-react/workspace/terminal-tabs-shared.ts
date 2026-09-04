@@ -79,7 +79,7 @@ export function activeTabIdFor(taskId: string): string | null {
  *  mounted before the context exists) still sees the live tabs instead of
  *  crashing: the in-memory map is authoritative for anything running now,
  *  and the snapshot only adds tasks that have not mounted since restart. */
-function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
+export function knownTabsState(kv: TabsSnapshotKv | null, taskId: string): TabsState | null {
   const live = tabsByTask.get(taskId)
   if (live) return live
   const saved = kv?.store[terminalTabsKey(taskId)] as TabsState | null | undefined
