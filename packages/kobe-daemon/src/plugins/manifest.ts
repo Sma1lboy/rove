@@ -54,7 +54,9 @@ export interface PluginSetting {
   readonly type: "string" | "number" | "boolean" | "enum" | "secret"
   /** Enum choices (required for type = "enum"). */
   readonly options?: readonly string[]
-  /** Default shown when the .env has no value; storage is always a string. */
+  /** Default shown when the .env has no value; storage is always a string —
+   *  TOML `true` / `false` / numbers are accepted and stored as `"1"` /
+   *  absent / their decimal spelling. */
   readonly default?: string
 }
 
@@ -229,6 +231,20 @@ function asString(value: unknown, field: string): string {
   return value
 }
 
+/**
+ * A setting's `default`, coerced to the string every value is stored as.
+ * TOML has real booleans and numbers and `type = "boolean"` invites writing
+ * `default = true`, which used to fail the whole manifest with "must be a
+ * non-empty string". `false` means "no default", matching the storage
+ * convention where a boolean is on iff its .env value is `"1"`.
+ */
+function asSettingDefault(value: unknown, field: string): string | undefined {
+  if (value === undefined || value === false) return undefined
+  if (value === true) return "1"
+  if (typeof value === "number" && Number.isFinite(value)) return String(value)
+  return asString(value, field)
+}
+
 function asCommand(value: unknown, field: string): string[] {
   if (!Array.isArray(value) || value.length === 0 || !value.every((v) => typeof v === "string" && v.length > 0)) {
     fail(`\`${field}\` must be a non-empty array of strings (argv form)`)
@@ -359,6 +375,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
           ? (t.options as string[])
           : fail(`settings[${i}].options must be an array of strings`)
     if (type === "enum" && (!options || options.length === 0)) fail(`settings[${i}] enum needs \`options\``)
+    const settingDefault = asSettingDefault(t.default, `settings[${i}].default`)
     const key = asString(t.key, `settings[${i}].key`)
     const rejection = settingKeyRejection(key)
     if (rejection) fail(`settings[${i}].key ${rejection}`)
@@ -367,7 +384,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       label: asString(t.label, `settings[${i}].label`),
       type: type as PluginSetting["type"],
       ...(options ? { options } : {}),
-      ...(t.default === undefined ? {} : { default: asString(t.default, `settings[${i}].default`) }),
+      ...(settingDefault === undefined ? {} : { default: settingDefault }),
     }
   })
 

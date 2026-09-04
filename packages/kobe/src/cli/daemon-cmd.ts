@@ -22,8 +22,8 @@ import {
 import { readPidFile, startDaemonServer } from "@sma1lboy/kobe-daemon/daemon/server"
 import { daemonRuntime } from "../core/daemon-runtime.ts"
 import { createKobeCore } from "../core/index.ts"
-import { LEGACY_KOBE_PRODUCT_NAME } from "../product.ts"
 import { migrateRoveDaemonStateLayout } from "../state/layout-migration.ts"
+import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
 
@@ -150,9 +150,9 @@ export async function runDaemonSubcommand(argv: readonly string[]): Promise<void
     webPort: resolveDaemonWebPort(),
     webHost: readRoveEnv("WEB_HOST"),
     webStaticDir: readRoveEnv("DAEMON_WEB_STATIC_DIR"),
-    // Plugin callbacks exec the packaged `kobe`, resolved on PATH at spawn
-    // time; a dev checkout without one still runs, plugins just log ENOENT.
-    plugins: { binPath: LEGACY_KOBE_PRODUCT_NAME },
+    // Plugin callbacks exec THIS Rove where that is expressible as one
+    // absolute path, else the invoked name on PATH (see plugin-bin-path.ts).
+    plugins: { binPath: resolvePluginBinPath() },
     onStop: async () => {
       await core.close()
     },

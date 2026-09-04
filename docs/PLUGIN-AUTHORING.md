@@ -156,7 +156,9 @@ key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
 label = "Mode"
 type = "enum"                    # string | number | boolean | enum | secret
 options = ["fast", "fancy"]
-default = "fast"
+default = "fast"                 # stored as a string; TOML `true` / `false` /
+                                 # numbers are accepted and become "1" /
+                                 # no default / their decimal spelling
 
 [[settings]]                     # `secret` masks the value everywhere it is
 key = "YOU_EXAMPLE_TOKEN"        # shown, for keys the user pastes in
@@ -265,7 +267,7 @@ Every plugin command gets, on top of the user's environment:
 
 | Variable | Meaning |
 |---|---|
-| `ROVE_BIN_PATH` | exec this to call back into Rove |
+| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove`/`kobe` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to |
 | `ROVE_SOCKET_PATH` | daemon unix socket, for raw JSON requests |
 | `ROVE_HOME_DIR` | set when Rove runs against a non-default home (keep passing it through) |
 | `ROVE_PLUGIN_ID`, `ROVE_PLUGIN_ROOT` | who you are, where your files are |

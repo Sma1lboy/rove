@@ -404,10 +404,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   open with no session, matching ctrl+w. A tab that still exists in the
   snapshot may be closed after its process dies; an absent or already-closed
   id returns `TAB_NOT_FOUND` with a `get-task` recovery command.
-- `notify --title TEXT [--kind KIND] [--task-id ID] [--source TAG]`: show
-  a toast in every attached Rove UI. `done` / `needs_input` / `error` get
-  severity styling; any other kind renders neutrally. The result's `clients`
-  is the reach signal: `0` = no attached UI showed the toast (headless).
+- `notify --title TEXT [--body TEXT] [--kind KIND] [--task-id ID]
+  [--source TAG]`: show a toast in every attached Rove UI. `--body` adds a
+  second, muted line under the title — context, not a second message.
+  `done` / `needs_input` / `error` get severity styling; any other kind
+  renders neutrally. The result's `clients` is the reach signal: `0` = no
+  attached UI showed the toast (headless).
 - `prompt --title TEXT [--placeholder T] [--initial T] [--timeout MS]`:
   ask the human for a line of text through the attached TUI's input dialog;
   blocks until answered/cancelled/timeout (default 120000 ms, max 600000)

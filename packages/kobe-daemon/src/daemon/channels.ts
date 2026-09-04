@@ -286,6 +286,8 @@ export interface ChannelPayloads {
 /** The `notice.event` channel payload — one toast for every attached UI. */
 export interface NoticeEventPayload {
   readonly title: string
+  /** Optional second line under the title — context, not a second message. */
+  readonly body?: string
   /**
    * Free-form kind tag. The TUI styles the known severities
    * ("done" / "needs_input" / "error" — its NotificationKind vocabulary)

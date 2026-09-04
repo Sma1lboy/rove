@@ -106,7 +106,7 @@ pane-open      --task-id --tab --command --direction{right|down}(right)
                --placement{split|tab}(split) --title
 pane-close     --task-id --title(REQ) --tab
 tab-close      --task-id(REQ) --tab(REQ)
-notify         --title(REQ) --kind(done) --task-id --source
+notify         --title(REQ) --body --kind(done) --task-id --source
 prompt         --title(REQ) --placeholder --initial --timeout
 engine-report  --task-id --kind(REQ) --engine --tab --detail
 set-active     --task-id --none

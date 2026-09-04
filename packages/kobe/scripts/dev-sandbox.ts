@@ -19,7 +19,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { mkdir } from "node:fs/promises"
 import { dirname, join } from "node:path"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
@@ -148,10 +148,10 @@ if (mode === "seed") await seed()
 
 /**
  * End-to-end plugin-event self-check: link the SDK's hello-events example
- * into this sandbox's registry, boot a fresh daemon, fire `issue.changed`
- * via `issue-create`, and assert the hook recorded it. Proves the whole
- * chain -- registry, PluginHost, event dispatch, env contract -- before a
- * task builds anything on top.
+ * into this sandbox's registry, boot a fresh daemon, fire `task.created`
+ * (via `api add`) then `issue.changed` (via `issue-create`), and assert the
+ * hook recorded both. Proves the whole chain -- registry, PluginHost, event
+ * dispatch, env contract -- before a task builds anything on top.
  */
 async function smoketest(): Promise<never> {
   const repoRoot = dirname(await gitCommonDir())
@@ -177,33 +177,51 @@ async function smoketest(): Promise<never> {
     }
   }
 
-  // Fresh daemon so the just-linked registry loads at startup.
-  await stopSandbox()
-  const created = runRove(["api", "issue-create", "--repo", repo, "--title", `smoke ${Date.now()}`], "pipe")
-  if (created.code !== 0) {
-    console.error(`[rove ${label}] SMOKETEST FAIL -- issue-create exited ${created.code}`)
+  // The hook is an async spawned process; poll its output file.
+  const seen = async (event: string): Promise<boolean> => {
+    const deadline = Date.now() + 15_000
+    while (Date.now() < deadline) {
+      try {
+        const lines = readFileSync(eventsFile, "utf8").trim().split("\n")
+        if (lines.map((l) => JSON.parse(l) as { event: string }).some((e) => e.event === event)) return true
+      } catch {
+        /* not written yet */
+      }
+      await new Promise((r) => setTimeout(r, 250))
+    }
+    return false
+  }
+  const fail = (why: string): never => {
+    console.error(`[rove ${label}] SMOKETEST FAIL -- ${why}`)
+    console.error(`[rove ${label}] check ${join(home, ".rove", "daemon.log")} and the plugin's log.jsonl`)
     process.exit(1)
   }
 
-  // The hook is an async spawned process; poll its output file.
-  const deadline = Date.now() + 15_000
-  while (Date.now() < deadline) {
-    try {
-      const lines = readFileSync(eventsFile, "utf8").trim().split("\n")
-      const hit = lines.map((l) => JSON.parse(l) as { event: string }).find((e) => e.event === "issue.changed")
-      if (hit) {
-        console.log(`[rove ${label}] SMOKETEST PASS -- issue.changed reached examples.hello-events (${eventsFile})`)
-        await stopSandbox()
-        process.exit(0)
-      }
-    } catch {
-      /* not written yet */
-    }
-    await new Promise((r) => setTimeout(r, 250))
-  }
-  console.error(`[rove ${label}] SMOKETEST FAIL -- no issue.changed in ${eventsFile} after 15s`)
-  console.error(`[rove ${label}] check ${join(home, ".rove", "daemon.log")} and the plugin's log.jsonl`)
-  process.exit(1)
+  // Fresh daemon so the just-linked registry loads at startup. Truncate the
+  // hook's output first: the file is append-only and the sandbox home
+  // survives `reset`, so a previous run's lines would satisfy every poll
+  // below and the check would pass without the daemon emitting anything.
+  await stopSandbox()
+  mkdirSync(dirname(eventsFile), { recursive: true })
+  writeFileSync(eventsFile, "")
+
+  // `task.created` FIRST and deliberately: it is snapshot-derived, so it is
+  // the one the plugin host can lose to the reducer's baseline rule if the
+  // daemon's bus cache is not replayed into it at host start. `issue.changed`
+  // is direct-reported and would pass either way -- it cannot stand in.
+  const added = runRove(["api", "add", "--repo", repo, "--title", `smoke ${Date.now()}`], "pipe")
+  if (added.code !== 0) fail(`api add exited ${added.code}`)
+  if (!(await seen("task.created"))) fail(`no task.created in ${eventsFile} after 15s`)
+
+  const created = runRove(["api", "issue-create", "--repo", repo, "--title", `smoke ${Date.now()}`], "pipe")
+  if (created.code !== 0) fail(`issue-create exited ${created.code}`)
+  if (!(await seen("issue.changed"))) fail(`no issue.changed in ${eventsFile} after 15s`)
+
+  console.log(
+    `[rove ${label}] SMOKETEST PASS -- task.created + issue.changed reached examples.hello-events (${eventsFile})`,
+  )
+  await stopSandbox()
+  process.exit(0)
 }
 
 if (mode === "smoketest") await smoketest()

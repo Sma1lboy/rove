@@ -273,6 +273,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       // only validates + broadcasts; NotificationsProvider in each
       // subscribed host renders it (and dedupes replays on `at`).
       const title = requireString(payload, "title")
+      // Optional second line: context under the title, same slot the TUI's
+      // toast already renders for engine-side notifications.
+      const body = optionalString(payload, "body")
       // Free-form kind: known severities get styled by the TUI, anything
       // else renders neutrally — agents may invent their own vocabulary.
       const kind = optionalString(payload, "kind") ?? "done"
@@ -280,7 +283,7 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       const taskId = optionalString(payload, "taskId")
       if (taskId !== undefined && !ctx.orch.getTask(taskId)) throw new Error(`task not found: ${taskId}`)
       const source = optionalString(payload, "source")
-      ctx.bus.publish("notice.event", { title, kind, taskId, at: Date.now(), source })
+      ctx.bus.publish("notice.event", { title, body, kind, taskId, at: Date.now(), source })
       // Headless honesty: with no attached UI the toast reaches nobody, and
       // `clients` is the only signal (same reach report as session.deliver).
       return { ok: true, clients: ctx.daemon.clientCount() }
