@@ -97,15 +97,17 @@ export function parseCodexTurns(raw: string, fallbackSessionId = ""): AgentTurn[
     if (payload.type === "task_started") {
       const turnId = typeof payload.turn_id === "string" ? payload.turn_id : ""
       if (!turnId) continue
-      const existing = drafts.get(turnId)
+      // A `turn_context` that landed first carries the only model name there
+      // is — keep it rather than resetting the draft over it.
+      const model = drafts.get(turnId)?.model
       // `started_at` is epoch SECONDS; the record's own ISO timestamp is the
       // millisecond-precision answer `AgentTurn` asks for, so prefer it.
       const startedAt = Number.isFinite(at) ? at : num(payload.started_at) * 1000
-      drafts.set(turnId, { ...emptyDraft(turnId, startedAt), ...(existing?.model ? { model: existing.model } : {}) })
-      if (typeof payload.model_context_window === "number") {
-        const d = drafts.get(turnId)
-        if (d) d.contextWindow = payload.model_context_window
-      }
+      drafts.set(turnId, {
+        ...emptyDraft(turnId, startedAt),
+        ...(model ? { model } : {}),
+        ...(typeof payload.model_context_window === "number" ? { contextWindow: payload.model_context_window } : {}),
+      })
       openTurnId = turnId
       continue
     }
