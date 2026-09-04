@@ -185,7 +185,7 @@ export function useDiffReview(args: {
       { key: "up", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
       { key: "v", id: "diff.review.range", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
       { key: "c", id: "diff.review.note", cmd: () => void promptNote() },
-      { key: "x", cmd: () => dropNoteAtCursor() },
+      { key: "x", id: "diff.review.drop", cmd: () => dropNoteAtCursor() },
       { key: "s", id: "diff.review.send", cmd: () => sendAll() },
     ],
   }))

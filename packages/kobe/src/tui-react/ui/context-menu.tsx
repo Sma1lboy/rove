@@ -14,6 +14,7 @@
  */
 
 import { TextAttributes } from "@opentui/core"
+import { approxCellWidth } from "../../lib/display-width"
 import { SIDEBAR_HOVER_TOOLTIP_Z_INDEX, resolveSidebarHoverTooltipLayout } from "../../tui/panes/sidebar/hover-layout"
 import { truncateTitle } from "../../tui/panes/sidebar/labels"
 import { useTheme } from "../context/theme"
@@ -27,6 +28,14 @@ export interface ContextMenuEntry {
   readonly id: string
   readonly label: string
   readonly danger?: boolean
+  /** Live chord cap for the entry, already formatted; absent when the verb
+   *  has no binding. Right-aligned so the labels stay a readable column. */
+  readonly cap?: string
+}
+
+/** Cells the cap column steals from a row's label (cap + one space gutter). */
+function capCells(entry: ContextMenuEntry): number {
+  return entry.cap ? approxCellWidth(entry.cap) + 1 : 0
 }
 
 export function ContextMenu(props: {
@@ -44,7 +53,9 @@ export function ContextMenu(props: {
     hoverY: props.y,
     screenWidth: props.dims.width,
     screenHeight: props.dims.height,
-    lines: props.entries.map((entry) => ({ text: entry.label })),
+    // Measure label + cap together: a cap sized out of the box would be
+    // clipped by the border it is supposed to sit inside.
+    lines: props.entries.map((entry) => ({ text: entry.label + " ".repeat(capCells(entry)) })),
   })
   return (
     <box
@@ -71,6 +82,7 @@ export function ContextMenu(props: {
           <box
             key={entry.id}
             flexShrink={0}
+            flexDirection="row"
             backgroundColor={active ? theme.focusAccent : undefined}
             onMouseUp={() => props.onPick(entry.id)}
           >
@@ -82,8 +94,18 @@ export function ContextMenu(props: {
               wrapMode="none"
               flexGrow={1}
             >
-              {truncateTitle(entry.label, layout.innerWidth)}
+              {truncateTitle(entry.label, layout.innerWidth - capCells(entry))}
             </text>
+            {entry.cap ? (
+              <text
+                fg={active ? theme.backgroundElement : theme.textMuted}
+                attributes={active ? undefined : TextAttributes.DIM}
+                wrapMode="none"
+                flexShrink={0}
+              >
+                {entry.cap}
+              </text>
+            ) : null}
           </box>
         )
       })}

@@ -20,7 +20,11 @@ export const en = {
   moreCommandsPrefix: "More commands (prefix)",
   focused: "Focused: {surface}",
   allBindings: "All keybinding contexts",
-  grammar: "Use keys here · one-press Rove shortcuts · {prefix} for more commands",
+  /** The sentence that names every way to drive Rove. Right-click belongs in
+   *  it: six sidebar verbs (set status, the two copies, run again, field
+   *  notes, sync with base) have no chord at all, and until this line nothing
+   *  in the running TUI said the menu existed. */
+  grammar: "Use keys here · one-press Rove shortcuts · {prefix} for more commands · right-click a row for its menu",
   disabled: "prefix disabled",
   here: "HERE — only in {surface}",
   direct: "ONE PRESS — Rove shortcuts",
@@ -40,7 +44,7 @@ export const zh: typeof en = {
   moreCommandsPrefix: "更多命令（prefix）",
   focused: "当前焦点：{surface}",
   allBindings: "所有快捷键上下文",
-  grammar: "当前区域直接按 · Rove 单次快捷键 · {prefix} 打开更多命令",
+  grammar: "当前区域直接按 · Rove 单次快捷键 · {prefix} 打开更多命令 · 右键任务行打开菜单",
   disabled: "Prefix 已禁用",
   here: "当前区域 — 仅在{surface}",
   direct: "一次按下 — Rove 快捷键",
