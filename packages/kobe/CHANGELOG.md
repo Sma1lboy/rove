@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.9.146
+
+### Patch Changes
+
+- [#896](https://github.com/Sma1lboy/rove/pull/896) [`1c395f5`](https://github.com/Sma1lboy/rove/commit/1c395f54ba027ea0feb95fb4db1d69c9a078bd44) A pty-host boot no longer deletes the scrollback it decided not to restore
+
+  `loadFrozenSessions` kept the 64 newest frozen sessions and `rmSync`'d the rest.
+  The cap's comment called 64 "several times any realistic number of open terminal
+  tabs"; a machine measured while writing this held 108 records / 69MB, and every
+  record past 64 was from the previous day's work — so the next host boot would
+  have permanently deleted 44 tabs' scrollback. The count grows with tab churn
+  over a host's lifetime, not with how many tasks you have: one long-lived task
+  cycling `tab-60`, `tab-63`, `tab-68` gets there on its own.
+
+  The cap is now a restore budget in bytes (`FREEZE_RESTORE_MAX_BYTES`, 64MB),
+  and a record past it is left on disk rather than deleted. It is also applied
+  _before_ reading, off each file's mtime, which is what the old comment claimed
+  ("bounds the boot read at ~32MB") and did not do — the 64-record cap ran after
+  every file had already been read, so a 400-record directory read 262MB to keep
+  32MB of it. Measured on seeded directories at the same mean record size: 108
+  records deleted 44 and now deletes 0; 200 deleted 136 and now deletes 0; 400
+  deleted 336 and now deletes 0. Load time was 10/17/33/82ms across those four
+  sizes and is now flat at ~13ms.
+
+  Only the 14-day TTL deletes now, and it reaches records the budget never reads,
+  so the directory is still bounded. A boot that defers or expires anything says
+  so in `pty.log` — a store that quietly loses scrollback was the actual harm. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#896](https://github.com/Sma1lboy/rove/pull/896) [`1c395f5`](https://github.com/Sma1lboy/rove/commit/1c395f54ba027ea0feb95fb4db1d69c9a078bd44) The PR-status poller's 30s interval is now the rate you actually get
+
+  One pass awaited each `gh pr list` in turn, and the ticker drops any tick
+  arriving while a pass is still running — so the real per-task refresh was
+  `max(30s, N × gh_latency)` while `DEFAULT_PR_STATUS_POLL_MS` and the module doc
+  both said 30s. A pass now runs up to `PR_POLL_CONCURRENCY` (8) calls at once.
+  Measured through the real `spawn` path with a counting shim at 800ms per call:
+  18 tasks 15.2s → 2.6s, 50 tasks 42.1s → 5.9s, 200 tasks 169.5s → 21.5s, with
+  peak concurrency going from 1 to 8 and the same number of `gh` children spawned.
+  At 50 tasks the effective refresh was 42s and is now the documented 30s.
+
+  This matters past a stale chip: `prStatus` is the only CI truth Rove holds, and
+  an unattended worker asks it whether its own PR is green. The tick, the jitter,
+  and the per-task backoffs are unchanged — only the pass was serial, and `gh`
+  waits on the network rather than the CPU, so serialising it was never buying
+  back the subprocess budget its comment claimed. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.145
 
 ### Patch Changes
