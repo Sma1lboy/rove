@@ -24,6 +24,7 @@
 
 import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
+import { parseDirtyPaths } from "./dirty-paths.ts"
 
 /** `git merge` can stall on a hook or a huge tree; kill it rather than hang. */
 export const SYNC_TIMEOUT_MS = 60_000
@@ -58,18 +59,6 @@ export function parseConflictedPaths(stdout: string): string[] {
 }
 
 /**
- * Paths from `git status --porcelain=v1`, with the two-character XY status and
- * its separating space stripped. Same shape as landing's `porcelainPaths`.
- */
-function parseDirtyPaths(stdout: string): string[] {
-  return stdout
-    .split("\n")
-    .filter((line) => line.length > 3)
-    .map((line) => line.slice(3).trim())
-    .filter((line) => line.length > 0)
-}
-
-/**
  * Merge `baseRef` into the worktree's current branch. Throws with a
  * `SYNC_CONFLICT: a, b, c` / `SYNC_WORKTREE_DIRTY: a, b, c` message on the two
  * outcomes a human can act on, and git's own stderr on anything else.
@@ -90,9 +79,12 @@ export async function syncWorktreeWithBase(
   const status = await git(worktreePath, ["status", "--porcelain=v1"], signal)
   if (status.status !== 0) throw new Error("git status failed")
   const dirty = parseDirtyPaths(status.stdout)
-  // Name them, the way SYNC_CONFLICT names its files: "commit or stash the
-  // worktree's changes" is not actionable when the change is one untracked
-  // file the user does not know is there.
+  // Name them, the way SYNC_CONFLICT names its files: "commit the worktree's
+  // changes" is not actionable when the change is one untracked file the user
+  // does not know is there. And it says COMMIT, not stash: this worktree is a
+  // managed task worktree, and the stash stack lives in the repo's common dir
+  // — shared by every linked worktree, so a parallel task can pop or drop what
+  // was stashed here (`docs/ORCHESTRATION.md`, `orchestrator/errors.ts`).
   if (dirty.length > 0) throw new Error(`${SYNC_DIRTY}: ${dirty.join(", ")}`)
 
   const before = await git(worktreePath, ["rev-parse", "HEAD"], signal)

@@ -64,6 +64,17 @@ export interface RemoveOpts {
    * caller keeps the (best-effort) discovery fallback.
    */
   readonly repo?: string
+  /**
+   * The branch this worktree has checked out, when the caller knows it.
+   *
+   * Same reason as {@link repo}, for the same missing-directory case: the
+   * branch to delete is normally read out of the worktree with
+   * `currentBranch(worktreePath)`, and that needs the directory. With it gone
+   * the read returns null and `deleteBranch: true` silently deletes nothing —
+   * the verb reports success and the branch the user asked to drop is still
+   * there. A task carries `task.branch`; a bare worktree path does not.
+   */
+  readonly branch?: string
   /** Notified with the snapshot a force-removal took (null = nothing to
    *  save, or the snapshot could not be written). */
   readonly onSalvage?: (record: SalvageRecord | null) => void
@@ -203,7 +214,18 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
     // wrong one, which is worse. The fallback stays for callers holding only a
     // path (the worktrees page), which is where it can still work.
     const goneRepo = opts?.repo ?? (await deps.findRepoFor(exec, path.dirname(worktreePath)))
-    if (goneRepo) await deps.runGit(exec, ["worktree", "prune"], { cwd: goneRepo, allowFail: true })
+    if (goneRepo) {
+      await deps.runGit(exec, ["worktree", "prune"], { cwd: goneRepo, allowFail: true })
+      // An opt-in branch delete still has to happen here. `currentBranch`
+      // cannot answer for a directory that is gone, so this is the one path
+      // where the branch has to arrive from the caller — and the prune above
+      // is what makes it deletable at all (git refuses a branch it still
+      // believes a worktree has checked out). Best-effort, like every other
+      // branch delete: it runs after the removal is otherwise complete.
+      if (opts?.deleteBranch === true && opts.branch) {
+        await deleteBranchAnchored(deps.branchDeps(), exec, goneRepo, opts.branch, { force })
+      }
+    }
     return
   }
 
@@ -281,7 +303,12 @@ export async function removeWorktree(deps: RemoveDeps, worktreePath: string, opt
 
   // Capture the branch BEFORE removal (once the worktree is gone we can't
   // read its HEAD) so an opt-in `deleteBranch` can clean it up after.
-  const branch = opts?.deleteBranch ? await deps.currentBranch(worktreePath).catch(() => null) : null
+  // The caller's `branch` is the fallback, not the primary: the worktree's own
+  // HEAD is the truth while the directory is readable (a caller's record can be
+  // stale), and `task.branch` is what is left when it is not.
+  const branch = opts?.deleteBranch
+    ? ((await deps.currentBranch(worktreePath).catch(() => null)) ?? opts.branch ?? null)
+    : null
 
   if (force) {
     // The last moment at which the doomed files still exist. The dirty check

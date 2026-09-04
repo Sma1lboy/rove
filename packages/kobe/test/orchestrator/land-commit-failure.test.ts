@@ -161,7 +161,7 @@ describe("a git commit that fails mid-land", () => {
         const args = argv.slice(1)
         calls.push([...args])
         const joined = args.join(" ")
-        if (joined.startsWith("rev-parse --abbrev-ref")) return ok("main")
+        if (joined.startsWith("symbolic-ref --short")) return ok("main")
         if (joined.startsWith("status --porcelain")) return ok("")
         if (joined.startsWith("rev-list --count")) return ok("1") // "has work"
         if (joined.startsWith("merge --squash")) return ok("")

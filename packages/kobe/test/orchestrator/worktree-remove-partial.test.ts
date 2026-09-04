@@ -331,4 +331,30 @@ describe("remove() when the directory is already gone", () => {
     // The user-visible consequence: the branch is usable again.
     execSync("git branch -D vanish", { cwd: repo, env: gitEnv })
   })
+
+  it("still deletes the branch the caller asked to drop", async () => {
+    // The branch to delete is normally read out of the worktree, and that
+    // read needs the directory. With it gone `currentBranch` answered null,
+    // so `deleteBranch: true` deleted nothing and `delete --delete-branch`
+    // reported `removed` with the branch still sitting in `git branch`.
+    const wt = join(managedRoot, "vanished-br")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b vanish-br`, { cwd: repo, env: gitEnv })
+    rmSync(wt, { recursive: true, force: true })
+
+    await manager.remove(wt, { repo, deleteBranch: true, branch: "vanish-br", force: true })
+
+    const branches = execSync("git branch --format='%(refname:short)'", { cwd: repo, env: gitEnv, encoding: "utf8" })
+    expect(branches.split("\n")).not.toContain("vanish-br")
+  })
+
+  it("without deleteBranch the branch survives, as it does everywhere else", async () => {
+    const wt = join(managedRoot, "vanished-keep")
+    execSync(`git worktree add -q ${JSON.stringify(wt)} -b keep-br`, { cwd: repo, env: gitEnv })
+    rmSync(wt, { recursive: true, force: true })
+
+    await manager.remove(wt, { repo, branch: "keep-br" })
+
+    const branches = execSync("git branch --format='%(refname:short)'", { cwd: repo, env: gitEnv, encoding: "utf8" })
+    expect(branches.split("\n")).toContain("keep-br")
+  })
 })

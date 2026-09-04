@@ -10,10 +10,9 @@
  * persisted on the task at create time, so a task cut from `release/2.x`
  * is measured against `release/2.x`, not against a guess. Records that
  * predate the field (or whose recorded ref does not resolve) fall back
- * to the re-resolution the worktrees page uses: `origin/HEAD` →
- * `origin/main` → `origin/master` → local `main`/`master`. All reads are
- * lock-free (`GIT_OPTIONAL_LOCKS=0`) and best-effort — a repo with no
- * resolvable base yields nulls, never an error.
+ * to {@link resolveBaseRef}. All reads are lock-free
+ * (`GIT_OPTIONAL_LOCKS=0`) and best-effort — a repo with no resolvable
+ * base yields nulls, never an error.
  */
 
 import { spawnSync } from "node:child_process"
@@ -51,14 +50,60 @@ function git(cwd: string, args: readonly string[]): string | null {
   }
 }
 
-/** `origin/HEAD` → `origin/main` → `origin/master` → `main` → `master`. */
+/**
+ * Whether `ref` and HEAD have a common ancestor. A ref that resolves is not
+ * yet a base: two branches can both exist and share no history at all (an
+ * abandoned orphan `main` beside a live `develop` is the shape that produced
+ * this check). Measuring against one of those yields a fabricated ahead/behind
+ * pair and a null diffstat — `git diff <unrelated>...HEAD` fails outright, and
+ * that null was the only tell the numbers beside it were nonsense.
+ */
+function sharesHistory(worktreePath: string, ref: string): boolean {
+  return git(worktreePath, ["merge-base", ref, "HEAD"]) !== null
+}
+
+/**
+ * The branch the BASE CHECKOUT is on — the same question `land` asks before it
+ * merges ({@link landPreflight} reads it from the base repo), reached here
+ * from the worktree alone. `git worktree list --porcelain` names the main
+ * working tree in its first record, so one read answers both "which checkout
+ * is the base" and "what branch is it on". Null when that record has no branch
+ * (a detached base checkout) or the read fails.
+ */
+function baseCheckoutBranch(worktreePath: string): string | null {
+  const out = git(worktreePath, ["worktree", "list", "--porcelain"])
+  if (!out) return null
+  const first = out.split("\n\n", 1)[0] ?? ""
+  const line = first.split("\n").find((l) => l.startsWith("branch "))
+  if (!line) return null
+  const branch = line
+    .slice("branch ".length)
+    .trim()
+    .replace(/^refs\/heads\//, "")
+  return branch || null
+}
+
+/**
+ * The base to measure a task branch against when the task record names none:
+ * `origin/HEAD` → `origin/main` → `origin/master` → `main` → `master`, taking
+ * the first candidate that BOTH resolves and shares history with HEAD, then
+ * falling back to the base checkout's own branch.
+ *
+ * The history check and the fallback are one fix for one failure: a repo whose
+ * real base is `develop` or `trunk` gets either an unrelated ladder hit (a
+ * stale `main` nobody has touched in a year) or nothing at all, and `collect`
+ * then reports an ahead-count a fan-out coordinator picks winners on. Asking
+ * the base checkout is not a sixth guess — it is what `land` already merges
+ * into, so the two verbs now answer about the same branch.
+ */
 export function resolveBaseRef(worktreePath: string): string | null {
   const head = git(worktreePath, ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
-  if (head) return head
-  for (const guess of ["origin/main", "origin/master", "main", "master"]) {
-    if (git(worktreePath, ["rev-parse", "--verify", "--quiet", guess]) !== null) return guess
+  for (const guess of [...(head ? [head] : []), "origin/main", "origin/master", "main", "master"]) {
+    if (git(worktreePath, ["rev-parse", "--verify", "--quiet", guess]) === null) continue
+    if (sharesHistory(worktreePath, guess)) return guess
   }
-  return null
+  const base = baseCheckoutBranch(worktreePath)
+  return base && sharesHistory(worktreePath, base) ? base : null
 }
 
 /**

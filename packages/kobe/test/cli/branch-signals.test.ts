@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { basename, join } from "node:path"
 import { afterEach, describe, expect, it } from "vitest"
 import { parseShortstat, readBranchSignals, resolveBaseRef } from "../../src/cli/api/branch-signals.ts"
 
@@ -68,6 +68,71 @@ describe("readBranchSignals", () => {
     expect(readBranchSignals(dir)).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
     expect(readBranchSignals("")).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
     expect(resolveBaseRef(dir)).toBeNull()
+  })
+})
+
+describe("a ladder hit that shares no history with the branch", () => {
+  /**
+   * The shape that made `collect` report `ahead: 5, behind: 1, diff: null` for
+   * a task holding ONE commit: an abandoned orphan `main` sitting beside the
+   * repo's real base, `develop`. Both branches resolve; they have no merge
+   * base at all, so every number measured against `main` is fabricated and the
+   * null diffstat is the only tell — the one field a fan-out coordinator
+   * reading `ahead` does not look at.
+   */
+  function makeOrphanMainRepo(): { repo: string; worktree: string } {
+    const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-orphan-"))
+    cleanups.push(repo)
+    git(repo, "init", "-q", "-b", "develop")
+    writeFileSync(join(repo, "a.txt"), "one\n")
+    git(repo, "add", "a.txt")
+    git(repo, "commit", "-q", "-m", "develop base")
+    // An orphan `main`: no shared history with `develop` by construction.
+    git(repo, "checkout", "-q", "--orphan", "main")
+    git(repo, "rm", "-rqf", ".")
+    writeFileSync(join(repo, "OLD.md"), "old\n")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-q", "-m", "abandoned main")
+    git(repo, "checkout", "-q", "develop")
+    // A linked worktree, so the base checkout stays on `develop` — the layout
+    // every managed task has, and the one `git worktree list` can answer for.
+    const worktree = join(repo, "..", `${basename(repo)}-wt`)
+    cleanups.push(worktree)
+    git(repo, "worktree", "add", "-q", "-b", "task", worktree)
+    writeFileSync(join(worktree, "one.txt"), "one\n")
+    git(worktree, "add", "-A")
+    git(worktree, "commit", "-q", "-m", "the ONE commit")
+    return { repo, worktree }
+  }
+
+  it("skips it and measures against the base checkout's real branch", () => {
+    const { worktree } = makeOrphanMainRepo()
+    const signals = readBranchSignals(worktree)
+    expect(signals.baseRef).toBe("develop")
+    expect(signals.ahead).toBe(1)
+    expect(signals.behind).toBe(0)
+    expect(signals.diff).toEqual({ files: 1, insertions: 1, deletions: 0 })
+  })
+
+  it("finds a default branch the ladder never names (`trunk`, no remote)", () => {
+    const repo = mkdtempSync(join(tmpdir(), "kobe-branch-signals-trunk-"))
+    cleanups.push(repo)
+    git(repo, "init", "-q", "-b", "trunk")
+    writeFileSync(join(repo, "a.txt"), "one\n")
+    git(repo, "add", "a.txt")
+    git(repo, "commit", "-q", "-m", "trunk base")
+    const worktree = join(repo, "..", `${basename(repo)}-wt`)
+    cleanups.push(worktree)
+    git(repo, "worktree", "add", "-q", "-b", "task", worktree)
+    writeFileSync(join(worktree, "t.txt"), "t\n")
+    git(worktree, "add", "-A")
+    git(worktree, "commit", "-q", "-m", "task work")
+    const signals = readBranchSignals(worktree)
+    // Was all-null: `main`/`master` do not exist and there is no remote, so
+    // the ladder ran out — while `land --dry-run` on the same task answered
+    // `landedOn: "trunk", ahead: 1` from the base checkout all along.
+    expect(signals.baseRef).toBe("trunk")
+    expect(signals.ahead).toBe(1)
   })
 })
 
