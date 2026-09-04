@@ -1,7 +1,5 @@
 /** Stable names used while the product moves from kobe to rove. */
 import {
-  COMPAT_CONFIG_DIR_BASENAME,
-  COMPAT_STATE_DIR_BASENAME,
   LEGACY_KOBE_CONFIG_DIR_BASENAME,
   LEGACY_KOBE_PRODUCT_NAME,
   LEGACY_KOBE_STATE_DIR_BASENAME,

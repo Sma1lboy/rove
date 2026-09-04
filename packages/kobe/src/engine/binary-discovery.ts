@@ -35,7 +35,7 @@ export interface BinaryDiscoveryDeps {
   platform?(): NodeJS.Platform
 }
 
-export const defaultBinaryDeps: BinaryDiscoveryDeps = {
+const defaultBinaryDeps: BinaryDiscoveryDeps = {
   fileExists(p) {
     try {
       return statSync(p).isFile()
@@ -95,7 +95,7 @@ export class BinaryNotFoundError extends Error {
 }
 
 /** What a vendor's candidate list gets to look at. */
-export interface BinaryCandidateContext {
+interface BinaryCandidateContext {
   readonly deps: BinaryDiscoveryDeps
   /** `deps.home()`, resolved once. */
   readonly home: string

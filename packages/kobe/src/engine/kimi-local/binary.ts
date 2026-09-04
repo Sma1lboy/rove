@@ -10,7 +10,7 @@ import { BinaryNotFoundError, createBinaryFinder } from "../binary-discovery.ts"
 
 export type { BinaryDiscoveryDeps } from "../binary-discovery.ts"
 
-export class KimiBinaryNotFoundError extends BinaryNotFoundError {
+class KimiBinaryNotFoundError extends BinaryNotFoundError {
   constructor(checkedPaths: readonly string[]) {
     super("Kimi Code CLI binary", "Ensure 'kimi' is on PATH or installed at ~/.kimi-code/bin/kimi.", checkedPaths)
     this.name = "KimiBinaryNotFoundError"

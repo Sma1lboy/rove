@@ -61,7 +61,7 @@ export function parseConflictedPaths(stdout: string): string[] {
  * Paths from `git status --porcelain=v1`, with the two-character XY status and
  * its separating space stripped. Same shape as landing's `porcelainPaths`.
  */
-export function parseDirtyPaths(stdout: string): string[] {
+function parseDirtyPaths(stdout: string): string[] {
   return stdout
     .split("\n")
     .filter((line) => line.length > 3)

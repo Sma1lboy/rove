@@ -26,7 +26,7 @@ import { type CIFailingCheck, buildCIPromptForWorktree } from "../../tui/ops/ci-
 import { useT } from "../i18n"
 
 /** The row facts the prompt names — read at call time, not captured. */
-export interface FixCITask {
+interface FixCITask {
   readonly branch: string
   readonly prNumber?: number
 }
