@@ -1,5 +1,103 @@
 # Changelog
 
+## 0.9.142
+
+### Patch Changes
+
+- [#891](https://github.com/Sma1lboy/rove/pull/891) [`194a0fe`](https://github.com/Sma1lboy/rove/commit/194a0fe7ebb39ec14969aa58a6f33d37067cebbb) `max` is now listed everywhere the other five Codex effort levels are. The engine declares `none`/`low`/`medium`/`high`/`xhigh`/`max` and accepted all six at runtime, but `rove api schema`'s `set-effort` summary and `--level` description both stopped at `xhigh` — so an agent reading the schema to decide what to pass could never discover `max`. ENGINES.md and API.md carried the same short list. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#892](https://github.com/Sma1lboy/rove/pull/892) [`46cd559`](https://github.com/Sma1lboy/rove/commit/46cd559a94b21e5bac93a2ed052f7067bc6f8fdf) `rove doctor --report` stops dropping a bug bundle into your repo, and `get-task` documents the field that tells an engine from its shell
+
+  The report bundle now lands at `~/.rove/rove-doctor-report.txt`, beside the
+  `daemon.log` and `pty.log` it quotes and under the same `ROVE_HOME_DIR`
+  override. It used to be written into `process.cwd()`, which is where the
+  instruction "run `rove doctor --report` and attach the file" sends people: run
+  it inside a checkout and it left `rove-doctor-report.txt` untracked, matched by
+  no `.gitignore`, one reflexive `git add -A` from committing recent daemon logs
+  and environment. A fixed home path is also the same path every time, which is
+  what makes the printed location worth reading out over chat.
+
+  `docs/API.md` now names `engineAlive` in the `get-task` tab shape. Every tab
+  already carried it and the page never listed it, while spending a paragraph one
+  section down warning readers that a session outlives its engine — `alive: true,
+engineAlive: false` is that hazard's per-tab answer, and an automation reading
+  the docs fell back to `collect` or its own `ps` walk for something one read had
+  already returned. Documented with the same three-valued rule `.running` gets:
+  `null` means nothing could look, never "no engine".
+
+  `docs/API.md` also explains why `api add --repo` accepts a `.scratch/` or
+  `$TMPDIR` checkout that `rove add` refuses: the eligibility gate governs what
+  may become a PROJECT, so `add --repo` still runs it and merely skips minting the
+  project row rather than failing the call.
+
+  `CONTEXT.md` stops describing `rove web` and a daemon "browser transport", both
+  removed in [#855](https://github.com/Sma1lboy/rove/issues/855). The surviving sidecar is the harness one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#889](https://github.com/Sma1lboy/rove/pull/889) [`5719b3f`](https://github.com/Sma1lboy/rove/commit/5719b3fb18cf05b14c45d97afd76242360a147a3) F1's diff-review list names the same six keys the diff footer does.
+
+  The footer under a focused diff reads `j/k line · v range · c note · x drop ·
+s send · r reload`. `KobeKeymap` carried rows for four of them, so F1 — the
+  surface a user reaches for when the footer is too terse — listed four and left
+  `x` (drop the note at the cursor) and `r` (reload the file from disk) findable
+  only by having already read the footer.
+
+  Both are doc-only rows, like the four beside them: no chord is added or moved,
+  the keys have been registered by `preview-review.tsx` and `preview.tsx` since
+  they landed. Tagging their registrations with the new ids is what puts them in
+  the reachability scan, so they appear under `HERE — only in Workspace` exactly
+  when a focused preview can run them. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#889](https://github.com/Sma1lboy/rove/pull/889) [`5719b3f`](https://github.com/Sma1lboy/rove/commit/5719b3fb18cf05b14c45d97afd76242360a147a3) F1 says the right-click menu exists, and the Inbox is called the Inbox.
+
+  Nothing in the running TUI ever mentioned right-click — not F1, not the status
+  bar, not the pane hints, not the first-run wizard — while six sidebar verbs
+  (`Set status`, `Copy branch name`, `Copy path`, `Run again`, `Field notes`,
+  `Sync with base`) are reachable no other way. F1's grammar line, the sentence
+  that already names the direct, one-press and prefix layers, now names the menu
+  as the fourth.
+
+  The Inbox rename never reached the strings that describe it: `⌃ A + i Open
+attention Inbox` rendered on the same frame as `ROVE INBOX 0`. All five
+  `inbox.*` / `attention.next` descriptions say Inbox now, matching the sidebar,
+  `docs/TUI.md`, and the keymap's own `description` fields.
+
+  F1 also headed the Inbox rows `OTHER PANE — Dialog`: `scopeCategory` had no
+  `inbox` case and fell through to a default no scope ever meant. It is a
+  `Record` over the closed scope union now, so the next scope added is a compile
+  error rather than a wrong-but-plausible header, and `Dialog` — which no binding
+  declares and nothing else produced — is gone from the catalogue with it. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#890](https://github.com/Sma1lboy/rove/pull/890) [`be98c5e`](https://github.com/Sma1lboy/rove/commit/be98c5e85bbfa2c27b804ffab6673b843314ff98) `rove api issue-update` no longer half-applies. Title, body and the task link
+  used to travel as two separate `issue.mutate` calls, so `--title X --task
+<bogus>` renamed the story and then failed the link — exit 1, a typed
+  `TASK_NOT_FOUND`, and a hint telling you to retry a command that had already
+  committed half its work. All three fields now ride one store write, and the
+  task-existence check runs before the store takes its lock, so the error means
+  what it says: nothing landed.
+
+  The Kanban story drawer no longer reverts a field it never saw. It sent both
+  the title and the body on every save, compared against the snapshot it opened
+  with — so a person fixing a typo in the title silently overwrote a description
+  an agent had rewritten while the drawer sat open. The save now carries only the
+  fields that were actually edited. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#889](https://github.com/Sma1lboy/rove/pull/889) [`5719b3f`](https://github.com/Sma1lboy/rove/commit/5719b3fb18cf05b14c45d97afd76242360a147a3) The sidebar's right-click menu now shows the chord each verb already has.
+
+  Every entry that mirrors a keyboard verb rendered as a bare label, so the one
+  surface where a mouse user meets these verbs taught none of the keys that reach
+  them: `Rename` never said `r`, `Open in editor` never said `o`, `Delete` never
+  said `d`. The caps come from `legendCap()` — the same live-keymap resolver the
+  sidebar chips and the F1 rows use — so rebinding `sidebar.rename` to `ctrl+y`
+  prints `⌃ Y` and unbinding `tasks.cycleEngine` drops `Change engine`'s cap
+  rather than advertising a dead key.
+
+  Entries with no binding at all stay bare, which is now a statement instead of an
+  accident: `Set status`, `Copy branch name`, `Copy path`, `Run again`,
+  `Field notes` and `Sync with base` reach nothing from the keyboard, and the
+  blank right-hand column is where you can see that. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#891](https://github.com/Sma1lboy/rove/pull/891) [`194a0fe`](https://github.com/Sma1lboy/rove/commit/194a0fe7ebb39ec14969aa58a6f33d37067cebbb) `rove export` and the daemon-down CLI fallback now honour `ROVE_HOME_DIR` / `KOBE_HOME_DIR`. `TaskIndexStore` resolved its home as `options.homeDir ?? homedir()` and never read the environment, so the two call sites that construct it with no options ignored the override: `rove export` in an isolated home printed the operator's real `~/.rove/tasks.json`, and with the daemon down `add` / `remove` / `adopt` / `rove <path>` wrote their task there instead. The env lookup moved into the constructor, so a call site that forgets to pass a home lands in the right one rather than the machine's. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.141
 
 ### Patch Changes
