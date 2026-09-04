@@ -9,115 +9,38 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as BoardRouteImport } from './routes/board'
 import { Route as HarnessRouteImport } from './routes/harness'
-import { Route as IssuesRouteImport } from './routes/issues'
-import { Route as WorktreesRouteImport } from './routes/worktrees'
-import { Route as TaskTaskIdRouteImport } from './routes/task.$taskId'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BoardRoute = BoardRouteImport.update({
-  id: '/board',
-  path: '/board',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const HarnessRoute = HarnessRouteImport.update({
   id: '/harness',
   path: '/harness',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IssuesRoute = IssuesRouteImport.update({
-  id: '/issues',
-  path: '/issues',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const WorktreesRoute = WorktreesRouteImport.update({
-  id: '/worktrees',
-  path: '/worktrees',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TaskTaskIdRoute = TaskTaskIdRouteImport.update({
-  id: '/task/$taskId',
-  path: '/task/$taskId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/board': typeof BoardRoute
   '/harness': typeof HarnessRoute
-  '/issues': typeof IssuesRoute
-  '/worktrees': typeof WorktreesRoute
-  '/task/$taskId': typeof TaskTaskIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/board': typeof BoardRoute
   '/harness': typeof HarnessRoute
-  '/issues': typeof IssuesRoute
-  '/worktrees': typeof WorktreesRoute
-  '/task/$taskId': typeof TaskTaskIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/board': typeof BoardRoute
   '/harness': typeof HarnessRoute
-  '/issues': typeof IssuesRoute
-  '/worktrees': typeof WorktreesRoute
-  '/task/$taskId': typeof TaskTaskIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/board'
-    | '/harness'
-    | '/issues'
-    | '/worktrees'
-    | '/task/$taskId'
+  fullPaths: '/harness'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/board' | '/harness' | '/issues' | '/worktrees' | '/task/$taskId'
-  id:
-    | '__root__'
-    | '/'
-    | '/board'
-    | '/harness'
-    | '/issues'
-    | '/worktrees'
-    | '/task/$taskId'
+  to: '/harness'
+  id: '__root__' | '/harness'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  BoardRoute: typeof BoardRoute
   HarnessRoute: typeof HarnessRoute
-  IssuesRoute: typeof IssuesRoute
-  WorktreesRoute: typeof WorktreesRoute
-  TaskTaskIdRoute: typeof TaskTaskIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/board': {
-      id: '/board'
-      path: '/board'
-      fullPath: '/board'
-      preLoaderRoute: typeof BoardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/harness': {
       id: '/harness'
       path: '/harness'
@@ -125,37 +48,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HarnessRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/issues': {
-      id: '/issues'
-      path: '/issues'
-      fullPath: '/issues'
-      preLoaderRoute: typeof IssuesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/worktrees': {
-      id: '/worktrees'
-      path: '/worktrees'
-      fullPath: '/worktrees'
-      preLoaderRoute: typeof WorktreesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/task/$taskId': {
-      id: '/task/$taskId'
-      path: '/task/$taskId'
-      fullPath: '/task/$taskId'
-      preLoaderRoute: typeof TaskTaskIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  BoardRoute: BoardRoute,
   HarnessRoute: HarnessRoute,
-  IssuesRoute: IssuesRoute,
-  WorktreesRoute: WorktreesRoute,
-  TaskTaskIdRoute: TaskTaskIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

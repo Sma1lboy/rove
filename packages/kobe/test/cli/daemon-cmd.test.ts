@@ -55,8 +55,6 @@ import { runDaemonSubcommand } from "../../src/cli/daemon-cmd.ts"
 let home: string
 let originalRoveHome: string | undefined
 let originalHome: string | undefined
-let originalRoveWebPort: string | undefined
-let originalWebPort: string | undefined
 let logSpy: MockInstance<typeof console.log>
 let errSpy: MockInstance<typeof process.stderr.write>
 let exitSpy: MockInstance<typeof process.exit>
@@ -64,12 +62,9 @@ let exitSpy: MockInstance<typeof process.exit>
 beforeEach(() => {
   originalRoveHome = process.env.ROVE_HOME_DIR
   originalHome = process.env.KOBE_HOME_DIR
-  originalRoveWebPort = process.env.ROVE_DAEMON_WEB_PORT
-  originalWebPort = process.env.KOBE_DAEMON_WEB_PORT
   home = mkdtempSync(join(tmpdir(), "kobe-daemon-cmd-"))
   process.env.ROVE_HOME_DIR = home
   process.env.KOBE_HOME_DIR = home
-  Reflect.deleteProperty(process.env, "ROVE_DAEMON_WEB_PORT")
   mkdirSync(join(home, ".rove"), { recursive: true })
 
   mocks.daemonRequest.mockReset()
@@ -94,10 +89,6 @@ afterEach(() => {
   else process.env.ROVE_HOME_DIR = originalRoveHome
   if (originalHome === undefined) Reflect.deleteProperty(process.env, "KOBE_HOME_DIR")
   else process.env.KOBE_HOME_DIR = originalHome
-  if (originalRoveWebPort === undefined) Reflect.deleteProperty(process.env, "ROVE_DAEMON_WEB_PORT")
-  else process.env.ROVE_DAEMON_WEB_PORT = originalRoveWebPort
-  if (originalWebPort === undefined) Reflect.deleteProperty(process.env, "KOBE_DAEMON_WEB_PORT")
-  else process.env.KOBE_DAEMON_WEB_PORT = originalWebPort
   rmSync(home, { recursive: true, force: true })
   logSpy.mockRestore()
   errSpy.mockRestore()
@@ -173,50 +164,16 @@ describe("kobe daemon restart", () => {
 })
 
 describe("kobe daemon start", () => {
-  it("installs crash handlers, creates the core, and starts the server with the resolved web port", async () => {
-    Reflect.deleteProperty(process.env, "KOBE_DAEMON_WEB_PORT")
+  it("installs crash handlers, creates the core, and starts the server", async () => {
     const core = { orchestrator: { tag: "orch" }, homeDir: home, close: vi.fn() }
     mocks.createKobeCore.mockResolvedValue(core)
-    mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", webPort: 45174, close: vi.fn() })
+    mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", close: vi.fn() })
 
     await runDaemonSubcommand(["start"])
 
     expect(mocks.installDaemonCrashHandlers).toHaveBeenCalledTimes(1)
-    expect(mocks.startDaemonServer).toHaveBeenCalledWith(
-      core.orchestrator,
-      expect.objectContaining({ homeDir: home, webPort: 45174 }),
-    )
-    const out = output()
-    expect(out).toContain("listening on /tmp/x.sock")
-    expect(out).toContain("web transport listening on http://127.0.0.1:45174")
-  })
-
-  it("KOBE_DAEMON_WEB_PORT=off disables the web transport", async () => {
-    process.env.KOBE_DAEMON_WEB_PORT = "off"
-    mocks.createKobeCore.mockResolvedValue({ orchestrator: {}, homeDir: home, close: vi.fn() })
-    mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", webPort: undefined, close: vi.fn() })
-
-    await runDaemonSubcommand(["start"])
-
-    expect(mocks.startDaemonServer).toHaveBeenCalledWith({}, expect.objectContaining({ webPort: undefined }))
-    expect(output()).not.toContain("web transport")
-  })
-
-  it("a custom numeric KOBE_DAEMON_WEB_PORT is passed through", async () => {
-    process.env.KOBE_DAEMON_WEB_PORT = "6000"
-    mocks.createKobeCore.mockResolvedValue({ orchestrator: {}, homeDir: home, close: vi.fn() })
-    mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", webPort: 6000, close: vi.fn() })
-    await runDaemonSubcommand(["start"])
-    expect(mocks.startDaemonServer).toHaveBeenCalledWith({}, expect.objectContaining({ webPort: 6000 }))
-  })
-
-  it("ROVE_DAEMON_WEB_PORT wins over the compatibility value", async () => {
-    process.env.ROVE_DAEMON_WEB_PORT = "6100"
-    process.env.KOBE_DAEMON_WEB_PORT = "6000"
-    mocks.createKobeCore.mockResolvedValue({ orchestrator: {}, homeDir: home, close: vi.fn() })
-    mocks.startDaemonServer.mockResolvedValue({ socketPath: "/tmp/x.sock", webPort: 6100, close: vi.fn() })
-    await runDaemonSubcommand(["start"])
-    expect(mocks.startDaemonServer).toHaveBeenCalledWith({}, expect.objectContaining({ webPort: 6100 }))
+    expect(mocks.startDaemonServer).toHaveBeenCalledWith(core.orchestrator, expect.objectContaining({ homeDir: home }))
+    expect(output()).toContain("listening on /tmp/x.sock")
   })
 
   it("refuses to migrate stores while another daemon still owns the socket", async () => {

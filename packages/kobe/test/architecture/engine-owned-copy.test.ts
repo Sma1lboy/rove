@@ -44,7 +44,6 @@ const EXEMPT_LINES: Record<string, readonly string[]> = {
   // list silently made the rest unselectable. The daemon route has NO
   // fallback of its own: an empty registry yields `{ engines: [] }`, which is
   // what lets the SPA keep this list.
-  "packages/kobe-web/src/lib/engines.ts": ['label: "Claude"', 'label: "Codex"', 'label: "Copilot"', 'label: "Kimi"'],
 }
 
 function sourceFiles(dir: string, files: string[] = []): string[] {

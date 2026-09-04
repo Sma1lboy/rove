@@ -1,20 +1,19 @@
 /**
- * Dev launcher — one `bun run dev` brings up the whole web UI:
- *   - the daemon-hosted web transport on KOBE_DAEMON_WEB_PORT (45174)
- *   - the PTY sidecar (node, node-pty) on KOBE_PTY_PORT (5175)
- *   - the Vite dev server (node) on 5173, proxying /api + /events to it
+ * Launcher for the capture stack — one `bun run dev` brings up:
+ *   - the PTY sidecar (node, because node-pty only works there) on KOBE_PTY_PORT
+ *   - the Vite dev server on KOBE_WEB_PORT, serving `/harness` and proxying /pty
  *
- * Browser-facing daemon data now comes directly from the daemon's local
- * HTTP/SSE transport. There is no bridge process in this dev stack.
+ * `/harness` is the only page: xterm.js over that sidecar, running the real
+ * OpenTUI. It is the one ground-truth surface for visual acceptance
+ * (docs/HARNESS.md). The daemon is started because the TUI inside the PTY
+ * talks to it over the unix socket, not because this stack serves its data.
  * Ctrl-C tears everything down.
  *
  * Daemon isolation: `bun run dev` connects to whatever the default socket
- * points to — your production daemon with `~/.rove` product data. `bun run dev:sandbox` sets
- * `KOBE_HOME_DIR` to a throwaway home so the daemon web transport, PTY engines, and
- * services all use a sandbox and never touch production `tasks.json`. The banner
- * below always prints which home this session is wired to, so you can never
- * mistake one for the other. (Automated tests — `bun run test` — touch no
- * daemon at all; that isolation is unconditional.)
+ * points to — your production daemon with `~/.rove` product data.
+ * `bun run dev:sandbox` sets `KOBE_HOME_DIR` to a throwaway home so the PTY
+ * engines and services use a sandbox and never touch production `tasks.json`.
+ * The banner below always prints which home this session is wired to.
  */
 
 import { mkdirSync } from "node:fs"
@@ -25,7 +24,6 @@ import { readRoveEnv, setRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { defaultWebTokenPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { ensureWebToken } from "@sma1lboy/kobe-daemon/daemon/web-token"
 
-const DAEMON_WEB_PORT = readRoveEnv("DAEMON_WEB_PORT") ?? "45174"
 const WEB_PORT = readRoveEnv("WEB_PORT") ?? "5173"
 const PTY_PORT = readRoveEnv("PTY_PORT") ?? "5175"
 
@@ -36,7 +34,6 @@ const rawHome = readRoveEnv("HOME_DIR")
 const homeDir = rawHome ? resolve(rawHome) : null
 if (homeDir) mkdirSync(homeDir, { recursive: true })
 if (homeDir) setRoveEnv("HOME_DIR", homeDir)
-setRoveEnv("DAEMON_WEB_PORT", DAEMON_WEB_PORT)
 setRoveEnv("WEB_PORT", WEB_PORT)
 setRoveEnv("PTY_PORT", PTY_PORT)
 const childEnv = { ...process.env }
@@ -45,41 +42,26 @@ const sandboxed = homeDir !== null
 console.log(
   `\x1b[1m[rove web dev]\x1b[0m ${sandboxed ? "\x1b[33msandbox\x1b[0m" : "\x1b[31mPRODUCTION\x1b[0m"} · home: ${homeDir ?? `${homedir()}/.rove (production)`}`,
 )
-console.log(`  web :${WEB_PORT}  daemon-web :${DAEMON_WEB_PORT}  pty :${PTY_PORT}`)
+console.log(`  web :${WEB_PORT}  pty :${PTY_PORT}`)
 
 await ensureDaemonReachable()
-try {
-  const res = await fetch(`http://127.0.0.1:${DAEMON_WEB_PORT}/__kobe_web`, {
-    signal: AbortSignal.timeout(1500),
-  })
-  if ((await res.text()).trim() !== "kobe-web") throw new Error("unexpected health marker")
-} catch (err) {
-  throw new Error(
-    `daemon web transport is not reachable on :${DAEMON_WEB_PORT}; run \`rove daemon restart\` so the daemon picks up this build (${err instanceof Error ? err.message : String(err)})`,
-  )
-}
 
-// The daemon-hosted transport requires a bearer token on /api, /events, and
-// (since the PTY sidecar adopted it) the terminal WebSocket. Vite serves the
-// SPA here, so the daemon never gets to inject its <meta> tag — `VITE_*` is
-// the channel the browser has in dev, and without it the whole dev dashboard
-// 401s. The daemon minted the file during ensureDaemonReachable above; this
-// only reads it back. The sidecar reads the same file itself.
+// The PTY sidecar's WebSocket requires a bearer token, and Vite serves the
+// page, so `VITE_*` is the only channel the browser has for it. Mints the file
+// if it is absent; the sidecar reads the same one.
 const webToken = ensureWebToken(defaultWebTokenPath())
 
 // node: PTY terminal server — node-pty only works under node, not bun.
-// Needs the daemon web port to fetch each tab's engine launch spec.
 const pty = Bun.spawn(["node", "pty-server.mjs"], {
   stdio: ["inherit", "inherit", "inherit"],
-  env: { ...childEnv, KOBE_PTY_PORT: PTY_PORT, KOBE_DAEMON_WEB_PORT: DAEMON_WEB_PORT },
+  env: { ...childEnv, KOBE_PTY_PORT: PTY_PORT },
 })
 
-// node (via vite): the SPA, proxying /api + /events + /pty to the above.
+// node (via vite): the capture page, proxying /pty to the sidecar above.
 const vite = Bun.spawn(["bun", "run", "vite", "dev", "--port", WEB_PORT, "--strictPort"], {
   stdio: ["inherit", "inherit", "inherit"],
   env: {
     ...childEnv,
-    KOBE_DAEMON_WEB_PORT: DAEMON_WEB_PORT,
     KOBE_PTY_PORT: PTY_PORT,
     VITE_ROVE_WEB_TOKEN: webToken,
   },

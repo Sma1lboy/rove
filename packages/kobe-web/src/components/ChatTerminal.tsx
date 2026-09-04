@@ -18,22 +18,14 @@ import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { WebLinksAddon } from "@xterm/addon-web-links"
 import { Terminal } from "@xterm/xterm"
 import "@xterm/xterm/css/xterm.css"
-import { CornerDownLeft, RotateCw } from "lucide-react"
+import { RotateCw } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
-import {
-  loadHistory,
-  navigateHistory,
-  pushHistory,
-} from "../lib/composer-history.ts"
-import { useAppState } from "../lib/store.ts"
-import { consumePendingPrompt } from "../lib/tabs.ts"
 import { type PtyMode, ptyUrl } from "../lib/terminal.ts"
 import {
   loadTerminalRenderer,
   type TerminalRendererMode,
 } from "../lib/terminal-renderer.ts"
 import { xtermTheme } from "../lib/theme.ts"
-import { isWebTransportOffline } from "../lib/web-transport.ts"
 
 // One decoder reused across every WebSocket message — a fresh `new
 // TextDecoder()` per frame (hundreds/sec during engine streaming) was needless
@@ -165,28 +157,9 @@ export function ChatTerminal({
   const ref = useRef<HTMLDivElement>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const [status, setStatus] = useState<WsStatus>("connecting")
-  // A dropped PTY socket normally means "still running, just detached". But if
-  // the daemon web transport is down, the PTY may be PAUSED — the reassuring
-  // "keeps running" copy would be wrong. Distinguish the two for the close UI.
-  const { daemonConnected, streamConnected } = useAppState()
-  const transportOffline = isWebTransportOffline({
-    daemonConnected,
-    streamConnected,
-  })
   // Bumping the epoch tears the terminal down and re-attaches to the
   // SAME server-side PTY (keyed by tab id) — its scrollback ring replays.
   const [epoch, setEpoch] = useState(0)
-  // Seed the composer with a task's pending first prompt (set by the New Task
-  // dialog) on the first engine tab to mount — consumed once.
-  const [draft, setDraft] = useState(() =>
-    mode === "engine" ? (consumePendingPrompt(taskId) ?? "") : "",
-  )
-  // Shell-like prompt recall: ↑/↓ walk already-sent prompts (newest-first).
-  const [history, setHistory] = useState<string[]>(() =>
-    mode === "engine" ? loadHistory(taskId) : [],
-  )
-  const histCursorRef = useRef(-1)
-  const liveDraftRef = useRef("")
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `epoch` is a deliberate trigger — bumping it tears down + re-attaches to the same server-side PTY (Reattach). It isn't read in the body, so biome thinks it's extraneous, but removing it would break reattach.
   useEffect(() => {
@@ -341,32 +314,6 @@ export function ChatTerminal({
     onBufferChange,
   ])
 
-  const sendPrompt = (): void => {
-    const ws = wsRef.current
-    const text = draft.trim()
-    if (!text || ws?.readyState !== WebSocket.OPEN) return
-    // Bracketed paste + Enter — the same submit contract as kobe's tmux
-    // prompt delivery (`paste-buffer -p` + Enter), so multi-line prompts
-    // arrive as ONE paste instead of line-by-line keystrokes.
-    ws.send(`\x1b[200~${text}\x1b[201~`)
-    // Defer the Enter so it lands as a SEPARATE tty read. Sent back-to-back the
-    // paste and the CR coalesce into one chunk and the engine treats the CR as
-    // paste *content* — the prompt sits in the composer, unsent. This mirrors
-    // the ~150ms split the sidecar's /pty/send path already uses for the same
-    // reason. Re-read wsRef at fire time so a reconnect mid-defer still targets
-    // the live socket (same tab → same PTY), and skip if it's gone.
-    setTimeout(() => {
-      const live = wsRef.current
-      if (live?.readyState === WebSocket.OPEN) live.send("\r")
-    }, 150)
-    setHistory(pushHistory(taskId, text))
-    histCursorRef.current = -1
-    liveDraftRef.current = ""
-    setDraft("")
-  }
-
-  const composer = mode === "engine"
-
   return (
     <div className="flex h-full w-full flex-col">
       <div
@@ -378,9 +325,7 @@ export function ChatTerminal({
       {status === "closed" ? (
         <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-t border-line bg-surface px-2">
           <span className="min-w-0 flex-1 truncate text-[11px] text-kobe-yellow">
-            {transportOffline
-              ? "Lost connection to the daemon web transport — the session may be paused. Reattach will retry once it's back."
-              : "detached — the session keeps running"}
+            detached — the session keeps running
           </span>
           <button
             type="button"
@@ -391,84 +336,6 @@ export function ChatTerminal({
             Reattach
           </button>
         </div>
-      ) : composer ? (
-        <form
-          className="flex shrink-0 items-end gap-2 border-t border-line bg-surface px-2 py-1.5"
-          onSubmit={(event) => {
-            event.preventDefault()
-            sendPrompt()
-          }}
-        >
-          <textarea
-            value={draft}
-            onChange={(event) => {
-              setDraft(event.target.value)
-              // Editing means we're back on a live draft, not browsing history.
-              histCursorRef.current = -1
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault()
-                sendPrompt()
-                return
-              }
-              // Escape exits history browsing → restore the in-progress draft.
-              if (event.key === "Escape" && histCursorRef.current >= 0) {
-                event.preventDefault()
-                histCursorRef.current = -1
-                setDraft(liveDraftRef.current)
-                return
-              }
-              const ta = event.currentTarget
-              const browsing = histCursorRef.current >= 0
-              const atStart = ta.selectionStart === 0 && ta.selectionEnd === 0
-              const atEnd =
-                ta.selectionStart === draft.length &&
-                ta.selectionEnd === draft.length
-              // Enter history from a live draft only when the caret is at the
-              // edge (so ↑/↓ still move inside a multi-line draft); once
-              // browsing, ↑/↓ keep walking the ring regardless of caret.
-              if (event.key === "ArrowUp" && (browsing || atStart)) {
-                if (histCursorRef.current === -1) liveDraftRef.current = draft
-                const step = navigateHistory(
-                  history,
-                  histCursorRef.current,
-                  "up",
-                  liveDraftRef.current,
-                )
-                if (step) {
-                  event.preventDefault()
-                  histCursorRef.current = step.cursor
-                  setDraft(step.value)
-                }
-              } else if (event.key === "ArrowDown" && (browsing || atEnd)) {
-                const step = navigateHistory(
-                  history,
-                  histCursorRef.current,
-                  "down",
-                  liveDraftRef.current,
-                )
-                if (step) {
-                  event.preventDefault()
-                  histCursorRef.current = step.cursor
-                  setDraft(step.value)
-                }
-              }
-            }}
-            placeholder="Send a prompt — Enter sends, Shift+Enter newline, ↑ history"
-            rows={Math.min(4, Math.max(1, draft.split("\n").length))}
-            className="min-w-0 flex-1 resize-none border border-line bg-bg px-2 py-1 text-[12px] leading-relaxed text-fg placeholder:text-subtle focus:border-line-active focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={!draft.trim() || status !== "open"}
-            className="flex shrink-0 items-center gap-1.5 border border-line bg-bg px-2 py-1 text-[11px] text-muted transition-colors hover:border-primary hover:text-fg disabled:opacity-40"
-            title="Paste into the engine and submit"
-          >
-            <CornerDownLeft size={11} strokeWidth={2} />
-            Send
-          </button>
-        </form>
       ) : null}
     </div>
   )

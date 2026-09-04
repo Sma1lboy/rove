@@ -16,7 +16,6 @@ instead.
 | Reboot, or the PTY host dies | — command relaunched on attach | ✓ restored, for the 64 newest records under 14 days old | ✓ | ✓ |
 | Close a tab | — that tab only | — that tab's ring is dropped | ✓ | ✓ |
 | Delete a managed/directory Task | — all of that Task's tabs | — those rings are dropped | task record removed; worktree removed unless it's a directory Task (branch stays; a force-delete salvages uncommitted work under `refs/rove/salvage/`) | ✓ |
-| Stop `rove web` | browser-owned PTYs end; standalone-host PTYs stay | browser sidecar has no freeze/thaw | ✓ | engine-owned files stay |
 | Press F5 | — active terminal is replaced | — old ring is dropped | ✓ | ✓ |
 | `rove reset` | — all hosted sessions | — all frozen rings are dropped | worktrees ✓; task index kept unless `--hard` | ✓ |
 
@@ -41,7 +40,6 @@ delete git worktrees or engine-owned transcripts.
 flowchart TB
   subgraph clients["Attach clients (N, disposable)"]
     tui["Rove (TUI)"]
-    web["rove web (browser)"]
   end
   subgraph daemon["rove daemon (state, refcounted)"]
     orch[Orchestrator]
@@ -52,13 +50,8 @@ flowchart TB
     p2["engine PTY: task B"]
     ring["per-session scrollback ring"]
   end
-  subgraph browserHost["Node browser PTY sidecar"]
-    bp["browser-owned PTYs"]
-  end
   tui <-->|unix socket| daemon
-  web <-->|HTTP/SSE| daemon
   tui <-->|unix socket| host
-  web <-->|WebSocket| bp
   orch --- idx
   p1 --- ring
   p2 --- ring
@@ -66,11 +59,6 @@ flowchart TB
 
 - **The TUI** is an attach client for standalone-host sessions. Closing it
   only detaches.
-- **The browser** is a control-plane client of the same Daemon, but its
-  terminals belong to the Node sidecar started by `rove web`. Closing a page
-  can reconnect to the same sidecar later; stopping the `rove web` process
-  stops that sidecar and all browser-owned PTYs. It does not touch standalone
-  TUI/API sessions.
 - **The daemon** owns your task index, worktree records, and the event bus.
   It starts on first launch and stops after the last attached GUI disconnects,
   unless an enabled routine or a live session in the PTY host holds it alive.
@@ -207,19 +195,6 @@ process, including a reboot.
   with none.)
 - To resume a conversation that is not represented by a tab, use the engine's
   own picker (e.g. claude-code's `/resume`) inside a fresh engine tab.
-
-## rove web as a second client
-
-`rove web` is a second live client of the same daemon: same tasks, same
-issues, same event stream. An open browser tab keeps the daemon alive exactly
-like an attached TUI does.
-
-One difference: the web dashboard's terminals are **not** views of the TUI's
-sessions. They're spawned by a separate sidecar process with their own
-lifetime. They survive page reloads and reconnects, and several browser views
-of one tab share a single terminal, but they're independent of the sessions
-your TUI is attached to. Stopping `rove web` stops the sidecar and its browser
-PTYs; they do not use the standalone host's freeze/thaw store.
 
 ## Not supported
 

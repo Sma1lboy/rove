@@ -5,20 +5,9 @@
  * env, temp dir). One boot path shared by lazy-shutdown / channel-filter /
  * active-task-replay / activity-state (and mirrored by
  * scripts/perf-golden.ts), so every daemon integration test isolates the same
- * way: never the real `~/.kobe`, never the default sockets — a test run on
+ * way: never the real `~/.rove`, never the default sockets — a test run on
  * the default pty-host socket sweeps the user's live engine sessions — and no
  * leaked clients or sockets between tests.
- *
- * Web transport: vitest's fork workers run under NODE (no `Bun.serve`), so
- * the harness cannot bind the real ephemeral-port web server here. Instead
- * it instantiates the exported `createDaemonWebRequestHandler` — the pure
- * `(Request) => Response` function where ALL of the route table, origin
- * policy, RPC allowlist, and error shaping live — with its RPC link backed
- * by a REAL socket client into the booted daemon, so `/api/rpc` calls run
- * the genuine registry dispatch end-to-end. Only the `Bun.serve` bind,
- * port takeover, and `createDirectWebLink` snapshot assembly stay out of
- * reach (they need a bun runtime; covered by `bun run perf:golden` and
- * live use).
  */
 
 import { mkdtempSync, rmSync } from "node:fs"
@@ -27,11 +16,6 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { type DaemonServer, type DaemonServerOptions, startDaemonServer } from "@sma1lboy/kobe-daemon/daemon/server"
-import {
-  type DaemonWebSnapshotState,
-  type RequestHandlerDeps,
-  createDaemonWebRequestHandler,
-} from "@sma1lboy/kobe-daemon/daemon/web-server"
 import { daemonRuntime } from "../../src/core/daemon-runtime.ts"
 import type { Orchestrator } from "../../src/orchestrator/core.ts"
 
@@ -89,18 +73,6 @@ export interface RawDaemonSocket {
   destroy(): void
 }
 
-/** The web-transport half of the harness (see module doc for scope). */
-export interface HarnessWebTransport {
-  /** Run a Request through the daemon's web request handler. */
-  fetch(path: string, init?: RequestInit): Promise<Response>
-  /** The live SSE send registry — size = currently-open event streams. */
-  readonly sseSends: RequestHandlerDeps["sseSends"]
-  /** SSE gui-lifetime hook counters (`onSseOpen` open/close). */
-  readonly sse: { opened: number; closed: number }
-  /** taskIds the RPC route asked to tear the web session down for. */
-  readonly tornDownSessions: readonly string[]
-}
-
 export interface DaemonHarnessOptions {
   orchestrator?: Orchestrator
   /** Overrides merged over the harness defaults (every poller/watcher off). */
@@ -110,10 +82,6 @@ export interface DaemonHarnessOptions {
   /** Write into the temp home BEFORE the daemon boots — for state the daemon
    *  only reads at start (the plugin registry, for one). */
   seedHome?: (dir: string) => void
-  /** Also build the web request handler (see module doc). */
-  web?:
-    | boolean
-    | { allowedHost?: string; webToken?: string; staticDir?: string; snapshot?: () => DaemonWebSnapshotState }
 }
 
 export interface DaemonHarness {
@@ -121,28 +89,11 @@ export interface DaemonHarness {
   readonly socketPath: string
   readonly pidPath: string
   readonly server: DaemonServer
-  readonly web: HarnessWebTransport | null
   /** A tracked socket client — auto-closed by `close()`. */
   client(): KobeDaemonClient
   /** A tracked raw JSON-lines connection — auto-destroyed by `close()`. */
   rawSocket(): Promise<RawDaemonSocket>
   close(): Promise<void>
-}
-
-/** An empty-but-connected web snapshot (the SSE hydration payload). */
-export function emptyWebSnapshot(): DaemonWebSnapshotState {
-  return {
-    tasks: [],
-    activeTaskId: null,
-    engineStates: {},
-    update: null,
-    jobs: {},
-    worktreeChanges: {},
-    issueSnapshots: {},
-    deliver: null,
-    uiPrefs: null,
-    connected: true,
-  }
 }
 
 export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promise<DaemonHarness> {
@@ -183,50 +134,12 @@ export async function bootDaemonHarness(opts: DaemonHarnessOptions = {}): Promis
     return client
   }
 
-  let web: HarnessWebTransport | null = null
-  if (opts.web) {
-    const webOpts = opts.web === true ? {} : opts.web
-    const sseSends: RequestHandlerDeps["sseSends"] = new Set()
-    const sse = { opened: 0, closed: 0 }
-    const tornDownSessions: string[] = []
-    const linkClient = trackClient(new KobeDaemonClient(socketPath))
-    const snapshot = webOpts.snapshot ?? emptyWebSnapshot
-    const handle = createDaemonWebRequestHandler({
-      runtime: daemonRuntime,
-      link: {
-        request: <T>(name: Parameters<KobeDaemonClient["request"]>[0], payload?: unknown) =>
-          linkClient.request<T>(name, payload),
-        snapshot,
-      },
-      sseSends,
-      allowedHost: webOpts.allowedHost,
-      webToken: webOpts.webToken,
-      staticDir: webOpts.staticDir,
-      // Injected recorder instead of the real tearDownTaskSession: the real
-      // one reaches for PTY-sidecar state this fixture never creates.
-      tearDownSession: (taskId) => tornDownSessions.push(taskId),
-      onSseOpen: () => {
-        sse.opened++
-        return () => {
-          sse.closed++
-        }
-      },
-    })
-    web = {
-      fetch: (path, init) => handle(new Request(new URL(path, "http://127.0.0.1").toString(), init)),
-      sseSends,
-      sse,
-      tornDownSessions,
-    }
-  }
-
   let closed = false
   return {
     dir,
     socketPath,
     pidPath,
     server,
-    web,
     client() {
       return trackClient(new KobeDaemonClient(socketPath))
     },

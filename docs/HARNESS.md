@@ -148,10 +148,7 @@ real sidecar talking to a real daemon over a real socket. Manual recipe when a
 change touches that path:
 
 ```bash
-cd packages/kobe && bun run build
-rove daemon restart && rove web        # real daemon + real sidecar, no KOBE_PTY_DEV_COMMAND
-# open a task's terminal tab in the browser; a spec-fetch failure surfaces as
-# the tab dying immediately with the daemon's own message, before any output.
+cd packages/kobe-web && bun run test   # test/pty-spec.test.ts covers fetchSpec directly
 ```
 
 ### README and docs assets

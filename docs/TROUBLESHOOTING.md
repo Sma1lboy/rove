@@ -119,7 +119,7 @@ worktree path, the `--force`/`--delete-branch` flags, and who asked:
 - `spawnedBy=<taskId>::<tabId>` — the deleted task's own spawner. Useful
   context, but it names who CREATED the task, not who deleted it.
 - `client=<n>` — the daemon connection id, which distinguishes concurrent
-  callers when neither identity above is present (a TUI keypress, the web UI).
+  callers when neither identity above is present (a TUI keypress, `rove api`).
 
 A `salvaged` line appears between `requested` and `removed` when a **forced**
 deletion had uncommitted work to destroy. It names the git ref holding a
@@ -131,7 +131,7 @@ Recover with: git -C <repo> show refs/rove/salvage/<branch>-<stamp> | ...
 ```
 
 The same line is written for a forced worktree removal from the worktrees page
-or the web UI (`salvaged worktree <path> — …`). No `salvaged` line means there
+(`salvaged worktree <path> — …`). No `salvaged` line means there
 was nothing uncommitted to save. See
 [WORKTREES](./WORKTREES.md#recovering-work-a-force-delete-destroyed).
 
@@ -466,9 +466,6 @@ set -g set-clipboard on
 and uses your terminal's native local selection + copy, which always lands on
 your local clipboard, at the cost of selecting across the whole Rove
 window (no pane awareness), exactly like tmux.
-
-**Remote workflows:** the rove web dashboard sidesteps all of this. The
-browser owns the clipboard.
 
 ## Right-click opens my terminal's menu instead of Rove's
 

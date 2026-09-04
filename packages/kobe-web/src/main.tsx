@@ -4,10 +4,7 @@ import "@fontsource/jetbrains-mono/latin-600.css"
 import "@fontsource/jetbrains-mono/latin-700.css"
 import { createRouter, RouterProvider } from "@tanstack/react-router"
 import ReactDOM from "react-dom/client"
-import { enableDesktopMode, preloadDesktopModules } from "./lib/desktop.ts"
 import { routeTree } from "./routeTree.gen"
-
-const desktopMode = enableDesktopMode()
 
 const router = createRouter({
   routeTree,
@@ -30,5 +27,4 @@ if (!rootElement) {
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(<RouterProvider router={router} />)
-  if (desktopMode) void preloadDesktopModules()
 }

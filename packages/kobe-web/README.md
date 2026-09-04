@@ -1,66 +1,55 @@
 # kobe-web
 
-The local browser dashboard for Rove — a terminal-native workspace for running
-many AI coding sessions at once, in the browser. Full architecture (process
-model, daemon channels, route table) lives in
-[`docs/design/web-dashboard.md`](../../docs/design/web-dashboard.md).
+The `/harness` capture page: xterm.js over a PTY sidecar, running the **real**
+OpenTUI. It is the one ground-truth surface for visual acceptance — screenshots
+here are pixels the TUI actually drew, not a mock of it. See
+[`docs/HARNESS.md`](../../docs/HARNESS.md).
 
-## Three processes
+This package used to be Rove's browser dashboard. That was removed: the TUI is
+the product, and a second UI competing for the same surface cost more than it
+returned. What remains exists to photograph the TUI.
 
-`node-pty` doesn't work under Bun, and a terminal crash must never take the
-daemon down — so the dashboard is split into three cooperating processes:
+## Two processes
 
-- **SPA** — React + TanStack Router, served by Vite in dev (`:5173`).
-- **Daemon web transport** — loopback HTTP/SSE routes hosted by the Rove daemon
-  (`:45174` by default for `rove web`).
-- **PTY sidecar** (`pty-server.mjs`) — a node process (`:5175`) running each
-  engine/terminal tab's PTY.
+`node-pty` doesn't work under Bun, so the page and the terminal are split:
+
+- **Page** — React + TanStack Router, served by Vite (`:5173` by default).
+  One route, `/harness`.
+- **PTY sidecar** (`pty-server.mjs`) — a node process (`:5175`) running the
+  TUI's PTY and serving its WebSocket.
+
+A daemon is started too, because the TUI inside the PTY talks to one over its
+unix socket — but nothing here serves daemon data to the browser.
 
 ## Develop
 
 ```bash
-bun run dev            # all three processes; opens http://localhost:5173
-bun run dev:sandbox    # same, but pointed at a throwaway KOBE_HOME_DIR so the
-                       # task index, daemon, Hosted PTY Host, and web sidecar
-                       # never touch production state
+bun run dev            # both processes; opens http://localhost:5173/harness
+bun run dev:sandbox    # same, pointed at a throwaway KOBE_HOME_DIR so the task
+                       # index, daemon, and PTY host never touch real state
 ```
 
-`bun run dev` connects to your production daemon and **production** `~/.rove` data — the startup
-banner says which home it's wired to. Use `dev:sandbox` when you don't want to
-mutate real tasks.
+`bun run dev` connects to your production daemon and **production** `~/.rove`
+data — the startup banner says which home it is wired to. Use `dev:sandbox`
+when you don't want to mutate real tasks.
+
+## Capture
+
+```bash
+bun run visual:serve                                    # warm servers + fixture
+bun run visual:shot -- --out=/tmp/shot.png wait:1500    # one screenshot
+bun run visual                                          # the Playwright suite
+```
+
+Set `KOBE_VISUAL_PORT_BASE` to run an isolated capture stack beside another.
 
 ## Test, lint, build
 
 ```bash
-bun run test    # vitest — touches NO daemon (fake links / pure helpers); safe anytime
+bun run test    # vitest — touches NO daemon; safe anytime
 bun run check   # biome lint + format (gate this by exit code)
-bun run build   # vite build → dist/ (what `rove web` serves in production)
+bun run build   # vite build → dist/
 ```
 
 The repo-root `bun run lint` does NOT cover this package — run `bun run check`
 here.
-
-## Production
-
-The canonical `@sma1lboy/rove` package bundles this web dashboard under
-`dist/web-ui`. Source checkouts can use `bun run dev` / `bun run dev:sandbox`;
-installed packages can run `rove web`, which serves the built SPA through the
-daemon web transport and spawns the PTY sidecar on `port + 2`:
-
-```bash
-rove web                 # http://localhost:45174
-rove web --port 5180
-```
-
-## What it does
-
-- **Left rail** — live tasks from the daemon (sort, filter, `j`/`k` nav, change
-  chips, PR/activity). New Task + Adopt-worktree dialogs.
-- **Center** — per-task workspace tabs (client-owned, localStorage): engine PTY
-  (with a prompt composer + reattach), shell PTY, structured Chat transcript,
-  and diff file previews.
-- **Right** — task metadata (rename/branch/status/vendor/pin/delete),
-  a markdown notes scratchpad (with preview), and a live Changes/diff rail.
-- **More** — command palette (Cmd/Ctrl+K), `?` keyboard help, an Overview
-  triage route (`/overview`), deep links (`/task/:id`), live theme sync + a
-  Settings theme picker, desktop notifications, and a root error boundary.

@@ -6,20 +6,16 @@
 flowchart LR
   CLI["Rove CLI / API"] --> D["Daemon"]
   TUI["PureTUI Workspace Host"] --> D
-  WEB["Browser dashboard"] --> D
   D --> O["Orchestrator + Task index"]
   D --> G["Git worktree manager"]
   CLI --> P["Standalone PTY Host"]
   TUI --> P
   P --> E["Interactive engine and shell children"]
-  WEB --> BP["Browser PTY sidecar"]
-  BP --> BE["Browser-owned terminal children"]
 ```
 
 The Daemon owns control-plane state. The standalone PTY Host independently owns
-TUI/API interactive processes. The browser dashboard uses its own Node PTY
-sidecar instead. This separation is load-bearing: a TUI exit or daemon restart
-must not end standalone-host sessions.
+TUI/API interactive processes. This separation is load-bearing: a TUI exit or
+daemon restart must not end standalone-host sessions.
 
 The isolation unit for a managed Task is:
 
@@ -48,7 +44,7 @@ reuse their directory and do not own a Rove-created worktree or branch.
   transport, standalone PTY Host implementation, and the plugin core
   (`src/plugins/`: manifest, registry, event derivation, daemon-side host —
   see [docs/design/plugins.md](./design/plugins.md)).
-- `packages/kobe-web/` — browser dashboard SPA and browser-side PTY transport.
+- `packages/kobe-web/` — the `/harness` capture page and its PTY sidecar (see docs/HARNESS.md).
   **Frozen (2026-07-25):** no new features. It survives because its `/harness`
   route is the only sanctioned visual ground truth for OpenTUI work, not
   because the SPA is a product surface. Every extra GUI consumer is another
@@ -76,13 +72,7 @@ environment switch.
 The Workspace Host connects as a daemon GUI client and attaches to hosted PTY
 sessions. On exit it detaches local consumers. It does not kill children.
 
-`rove web` connects the frozen browser SPA to the Daemon for shared control
-plane data and starts `packages/kobe-web/pty-server.mjs` for browser-owned
-terminal children. Browser reconnects can reattach while that sidecar remains
-alive, but browser PTYs are not standalone-host sessions and stop with the
-`rove web` sidecar.
-
-The Daemon is refcounted by attached GUI clients and browser streams. A daemon
+The Daemon is refcounted by attached GUI clients. A daemon
 idle exit leaves the PTY Host untouched. The PTY Host idle-exits only when it
 owns zero live sessions.
 
@@ -129,7 +119,7 @@ from creating duplicate children.
   process owner.
 - The PTY Host owns child lifetime and buffered terminal bytes, not Task
   metadata.
-- The browser PTY sidecar owns only browser-created terminal children; it does
+- The `/harness` PTY sidecar owns only the capture page's terminal child; it does
   not attach to or replace standalone-host sessions.
 - React components render and wire events; reusable policy/state belongs in
   framework-free `src/tui/**` modules.
@@ -143,8 +133,6 @@ from creating duplicate children.
 - Daemon socket/pid/log: derived from `ROVE_HOME_DIR` (`KOBE_HOME_DIR` fallback) and intentionally retain legacy `.kobe` runtime names
 - PTY Host socket/pid/log plus bounded `pty-sessions/` recovery snapshots and
   `pty-exits.json` abnormal-exit tails: derived independently from the same home
-- Browser PTYs: process state in the `rove web` Node sidecar; browser tab
-  metadata is not authoritative product state
 - Engine conversation history: engine-owned locations such as
   `~/.claude/projects/**`
 - Plugins: registry `<ROVE_HOME>/.rove/plugins.json` (CLI-written,
