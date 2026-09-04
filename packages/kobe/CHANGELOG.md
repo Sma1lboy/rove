@@ -1,5 +1,52 @@
 # Changelog
 
+## 0.9.112
+
+### Patch Changes
+
+- [#855](https://github.com/Sma1lboy/rove/pull/855) [`db31196`](https://github.com/Sma1lboy/rove/commit/db3119663cef4e181fc444fd4e8bd6876c95dba3) Remove the browser dashboard and the `rove web` command.
+
+  The TUI is the product. The dashboard was a second UI over the same daemon,
+  and keeping the two in step cost more than the browser surface returned — so
+  it is gone, along with the daemon's HTTP/SSE transport that served it and the
+  `ROVE_DAEMON_WEB_PORT` / `ROVE_WEB_HOST` settings that configured it. There is
+  no longer a way to reach Rove from a browser; the TUI, `rove api`, and the
+  daemon socket are the interfaces.
+
+  What stays is `/harness`: the page that runs the real OpenTUI over a PTY and is
+  the ground-truth surface for visual acceptance. It no longer depends on any of
+  the deleted code — the same fixture screenshot is byte-identical before and
+  after this change.
+
+  The daemon's in-process RPC link survives too, under its own name now
+  (`daemon/direct-link.ts`). It never belonged to the browser: the automation
+  runner uses it to launch engine sessions whether or not anyone is watching. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#857](https://github.com/Sma1lboy/rove/pull/857) [`e26649a`](https://github.com/Sma1lboy/rove/commit/e26649a2a18f8552f4fbd324c8eea1f18c16fbee) Sidebar task rows carry `↑N` — commits the worktree has that its base does not.
+  Committing empties `+N` / `−N`, so a worker that shipped its work and one that
+  reported success and shipped nothing rendered the identical blank row; you found
+  out which at land time, as `EMPTY_BRANCH`. The collector now measures both
+  directions in one `git rev-list --left-right --count <base>...HEAD` — the same
+  process that already produced `↓N`, so this costs no extra fork per poll and the
+  two numbers can never straddle a commit. `↑N` leads the chip group in the success
+  tone, and like `↓N` it is absent rather than zero when no base ref resolves. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#857](https://github.com/Sma1lboy/rove/pull/857) [`e26649a`](https://github.com/Sma1lboy/rove/commit/e26649a2a18f8552f4fbd324c8eea1f18c16fbee) Fan out a round of attempts without leaving the TUI. The fork composer
+  (`ctrl+a` `f`) grows an ATTEMPTS row: pick 2-5 and the same prompt starts that
+  many siblings of one round, sharing one round id, so `rove api collect --group
+<id>` reports them together — something no TUI-created task could do before,
+  because `groupId` had no reach in the TUI at all. Rove's headline gesture,
+  "many attempts at one prompt", existed only as a shell command until now.
+
+  A round does not move you: the siblings appear in the sidebar and start working
+  while focus stays on the task you fired from, the way `rove api add` is
+  focus-preserving unless you pass `--activate`. A single attempt is unchanged —
+  it still carries you into the child, because that one is "carry on from here".
+  The chip stops at 5 where the CLI allows 10; Orchestration calls 3-4 the sweet
+  spot, and past five the shell command is the better tool. Siblings that fail to
+  start are named in one toast and are never deleted — their engines are already
+  running. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.111
 
 ### Patch Changes
