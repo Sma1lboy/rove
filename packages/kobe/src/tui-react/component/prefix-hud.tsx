@@ -15,7 +15,7 @@ import { useEffect, useState } from "react"
 import { displayWidth } from "../../lib/display-width"
 import { KobeKeymap, findBinding } from "../../tui/context/keybindings"
 import { currentPrefixConfiguration } from "../../tui/lib/keymap-dispatch"
-import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudState } from "../../tui/lib/prefix-hud"
+import { PREFIX_GUIDE_DELAY_MS, PREFIX_HUD_TTL_MS, prefixHudClock, prefixHudState } from "../../tui/lib/prefix-hud"
 import { DIRECT_GUIDE_PREFIX_ACTION_ID } from "../../tui/lib/shortcut-reveal"
 import { truncateEnd } from "../../tui/lib/truncate"
 import { useTheme } from "../context/theme"
@@ -91,27 +91,29 @@ export function PrefixHud(props: { left: number; width: number }) {
   const showCommandGuide = guide?.kind === "direct" || showPrefixGuide
   const [, setFlushTick] = useState(0)
 
-  const now = Date.now()
+  // Every read of "now" and every expiry timer below goes through the HUD
+  // clock, never the globals: that is the seam render tests advance so the
+  // delayed reveal is deterministic instead of a race (src/tui/lib/prefix-hud).
+  const clock = prefixHudClock()
+  const now = clock.now()
   const fresh = hud.entries.filter((entry) => now - entry.at < PREFIX_HUD_TTL_MS)
 
   // Wake up when the oldest visible line crosses its TTL so it flushes out.
   const oldestAt = fresh[0]?.at
   useEffect(() => {
     if (oldestAt === undefined) return
-    const timer = setTimeout(
+    return clock.schedule(
       () => setFlushTick((tick) => tick + 1),
-      Math.max(30, oldestAt + PREFIX_HUD_TTL_MS - Date.now()),
+      Math.max(30, oldestAt + PREFIX_HUD_TTL_MS - clock.now()),
     )
-    return () => clearTimeout(timer)
-  }, [oldestAt])
+  }, [oldestAt, clock])
 
   useEffect(() => {
     if (!showPrefixGuide || guide?.kind !== "prefix") return
-    const remaining = guide.armedAt + PREFIX_GUIDE_DELAY_MS - Date.now()
+    const remaining = guide.armedAt + PREFIX_GUIDE_DELAY_MS - clock.now()
     if (remaining <= 0) return
-    const timer = setTimeout(() => setFlushTick((tick) => tick + 1), remaining)
-    return () => clearTimeout(timer)
-  }, [showPrefixGuide, guide])
+    return clock.schedule(() => setFlushTick((tick) => tick + 1), remaining)
+  }, [showPrefixGuide, guide, clock])
 
   const lineCount = fresh.length + (showCommandGuide ? 1 : 0)
   if (lineCount === 0) return null

@@ -12,7 +12,7 @@ import { bindByIds } from "../../src/tui/context/keybindings"
 import { prefixAction } from "../../src/tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, installAdvanceablePrefixHudClock, renderComponent, settle, waitForFrameText } from "./harness"
 
 function locate(frame: string, text: string): { x: number; y: number } {
   const lines = frame.split("\n")
@@ -47,14 +47,22 @@ function tempHome(mode?: "local" | "guide"): string {
   return home
 }
 
-// The complete guide is a deliberate delayed reveal: PrefixHud only opens it
-// PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
-// product delay plus frame latency on a loaded CI runner — a bare 1s budget
-// flakes at ~1.1s test wall-clock.
-const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
+// The command guide is a deliberate delayed reveal: PrefixHud only opens it
+// PREFIX_GUIDE_DELAY_MS after the tap. DRIVE that product timer, never wait on
+// it — the real one rides an event loop this suite saturates, and the armed
+// prefix cancels itself (tearing the guide down) 5000ms after the tap, so a
+// slipped timer deletes the answer rather than delaying it. Waiting longer is
+// therefore not an option; the budget below covers frame latency only and must
+// stay well under 5000ms (see waitForFrameText in ./harness for both ceilings).
+const GUIDE_FRAME_TIMEOUT_MS = 2_000
 
-async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {
-  return waitForFrameText(frame, text, { timeoutMs: GUIDE_REVEAL_TIMEOUT_MS })
+async function waitForGuideText(
+  clock: { advance(ms: number): void },
+  frame: () => Promise<string>,
+  text: string,
+): Promise<string> {
+  act(() => clock.advance(PREFIX_GUIDE_DELAY_MS))
+  return waitForFrameText(frame, text, { timeoutMs: GUIDE_FRAME_TIMEOUT_MS })
 }
 
 test("the default prefix tap shows local badges and the complete command guide together", async () => {
@@ -66,8 +74,9 @@ test("the default prefix tap shows local badges and the complete command guide t
     { width: 160, height: 30, providers: { kv: true } },
   )
 
+  const clock = installAdvanceablePrefixHudClock()
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  const local = await waitForGuideText(frame, "more Rove commands")
+  const local = await waitForGuideText(clock, frame, "more Rove commands")
   expect(local).toContain("⌃ A 1")
   expect(local).toContain("⌃ A 2")
   expect(local).toContain("more Rove commands")
@@ -89,8 +98,9 @@ test("a complete-guide row is a real clickable entry in local mode", async () =>
     { width: 160, height: 30, providers: { kv: true } },
   )
 
+  const clock = installAdvanceablePrefixHudClock()
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  const revealed = await waitForGuideText(frame, "Open active Task directory in editor")
+  const revealed = await waitForGuideText(clock, frame, "Open active Task directory in editor")
   const at = locate(revealed, "Open active Task directory in editor")
   await mockMouse.click(at.x + 1, at.y)
   await settle()
@@ -108,8 +118,9 @@ test("the guide setting routes the same prefix tap to the global command guide",
     { width: 160, height: 30, providers: { kv: true } },
   )
 
+  const clock = installAdvanceablePrefixHudClock()
   act(() => mockInput.pressKey("a", { ctrl: true }))
-  const guide = await waitForGuideText(frame, "more Rove commands")
+  const guide = await waitForGuideText(clock, frame, "more Rove commands")
   expect(guide).toContain("more Rove commands")
   expect(guide).toContain("Open active Task directory in editor")
   expect(guide).not.toContain("⌃ A 1")
