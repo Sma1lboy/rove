@@ -41,6 +41,7 @@ import {
   resolveDaemonHomeDir,
 } from "./paths.ts"
 import { DAEMON_PROTOCOL_VERSION, type DaemonFrame, frameToLine } from "./protocol.ts"
+import { migrateLegacyPtyHostData } from "./pty-data-migration.ts"
 import type { PtyDriver } from "./pty-driver.ts"
 import { recordPtyExit } from "./pty-exit-store.ts"
 import { clearFrozenSessions, fileFreezeSink, loadFrozenSessions } from "./pty-freeze-store.ts"
@@ -114,6 +115,9 @@ interface PtyClientState {
 }
 
 export async function startPtyHostServer(options: PtyHostServerOptions = {}): Promise<PtyHostServer> {
+  // Before ANY host-owned path resolves: this is the single-writer moment for
+  // the exit + freeze stores, so it is where they leave the legacy layout.
+  migrateLegacyPtyHostData()
   const socketPath = options.socketPath ?? defaultPtyHostSocketPath()
   const pidPath = options.pidPath ?? defaultPtyHostPidPath()
   const freezeDir = options.freezeDir ?? defaultPtyFreezeDir()

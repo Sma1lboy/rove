@@ -8,7 +8,16 @@
  * production daemon. Same socket = collisions + cross-contamination.
  */
 
-import { mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import {
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { homedir, tmpdir } from "node:os"
 import { join } from "node:path"
 import { defaultAttentionInboxPath } from "@sma1lboy/kobe-daemon/daemon/attention-inbox"
@@ -30,6 +39,7 @@ import {
   legacyDaemonSocketPath,
   shortHomeTag,
 } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { migrateLegacyPtyHostData } from "@sma1lboy/kobe-daemon/daemon/pty-data-migration"
 import { defaultUiPrefsStatePath } from "@sma1lboy/kobe-daemon/daemon/ui-prefs-watcher"
 import { pluginConfigDir, pluginRegistryPath, pluginStateDir } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
@@ -300,9 +310,35 @@ describe("live legacy runtime (the rename's one hazard)", () => {
     expect(defaultDaemonSocketPath(home)).toBe(join(home, ".rove", "daemon.sock"))
   })
 
-  test("host-owned data follows whichever layout holds it", () => {
+  test("host-owned data is canonical even while the legacy copy is still there", () => {
+    // The PTY host MOVES these at boot (`migrateLegacyPtyHostData`), so the
+    // resolver never points at `.kobe` — the old "whichever layout holds it"
+    // rule made the legacy location permanent for any pre-rename home.
     writeFileSync(join(home, ".kobe", "pty-exits.json"), "{}")
-    expect(defaultPtyExitsPath(home)).toBe(join(home, ".kobe", "pty-exits.json"))
+    expect(defaultPtyExitsPath(home)).toBe(join(home, ".rove", "pty-exits.json"))
+  })
+
+  test("migrateLegacyPtyHostData moves the exit + freeze stores and links the old paths", () => {
+    mkdirSync(join(home, ".kobe", "pty-sessions"), { recursive: true })
+    writeFileSync(join(home, ".kobe", "pty-sessions", "a.json"), '{"key":"a"}')
+    writeFileSync(join(home, ".kobe", "pty-exits.json"), '{"a":{}}')
+
+    expect(migrateLegacyPtyHostData(home)).toEqual(["pty-exits.json", "pty-sessions"])
+    expect(readFileSync(join(home, ".rove", "pty-exits.json"), "utf8")).toBe('{"a":{}}')
+    expect(readFileSync(join(home, ".rove", "pty-sessions", "a.json"), "utf8")).toBe('{"key":"a"}')
+    expect(lstatSync(join(home, ".kobe", "pty-sessions")).isSymbolicLink()).toBe(true)
+    // Idempotent: a second boot must not move the symlink it just left behind.
+    expect(migrateLegacyPtyHostData(home)).toEqual([])
+    expect(readFileSync(join(home, ".kobe", "pty-exits.json"), "utf8")).toBe('{"a":{}}')
+  })
+
+  test("migrateLegacyPtyHostData keeps a canonical entry that already exists", () => {
+    mkdirSync(join(home, ".rove"), { recursive: true })
+    writeFileSync(join(home, ".rove", "pty-exits.json"), '{"canonical":{}}')
+    writeFileSync(join(home, ".kobe", "pty-exits.json"), '{"legacy":{}}')
+
+    expect(migrateLegacyPtyHostData(home)).toEqual([])
+    expect(readFileSync(join(home, ".rove", "pty-exits.json"), "utf8")).toBe('{"canonical":{}}')
   })
 })
 
