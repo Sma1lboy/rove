@@ -15,7 +15,7 @@
 import { existsSync } from "node:fs"
 import type { PtyPeekResult } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
-import { type PsSnapshot, engineProcessIn, parsePsSnapshot, psSnapshot } from "./foreground.ts"
+import type { PsSnapshot } from "./foreground.ts"
 import {
   type HostedPromptDeliveryOpts,
   type HostedSessionRpc,
@@ -23,6 +23,7 @@ import {
   awaitPasteReady,
   writeHostedPromptIfClear,
 } from "./hosted-session.ts"
+import { sessionHasEngine } from "./session-engine-presence.ts"
 import { ENGINE_EXIT_BANNER, REPO_INIT_TIMEOUT_SECONDS } from "./session-launch.ts"
 
 /** Bounds for the first-message readiness wait (paste-delivery vendors). */
@@ -79,7 +80,8 @@ export async function awaitEngineProcess(
   opts: PasteFirstMessageOptions = {},
 ): Promise<number | null> {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
-  const snapshot = opts.snapshot ?? psSnapshot
+  // Undefined falls through to `sessionHasEngine`'s own default.
+  const snapshot = opts.snapshot
 
   // If the session was launched with a repo-init script, the engine child does
   // not appear until init finishes. Wait for the init marker before starting
@@ -101,15 +103,10 @@ export async function awaitEngineProcess(
     const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
     const session = sessions.find((s) => s.key === key)
     if (!session?.alive) return null
-    if (session.pid) {
-      let up = false
-      try {
-        up = engineProcessIn(parsePsSnapshot(await snapshot()), session.pid, engineBin)
-      } catch {
-        up = false // ps hiccup — treat as "not yet", keep polling
-      }
-      if (up) return session.pid
-    }
+    // Same predicate the delivery gates use, in a loop: one implementation of
+    // "is the engine actually there", and a ps hiccup reads as "not yet" and
+    // keeps polling.
+    if (session.pid && (await sessionHasEngine(session.pid, engineBin, snapshot))) return session.pid
     await sleep(opts.intervalMs ?? FIRST_MESSAGE_POLL_INTERVAL_MS)
   }
   return null

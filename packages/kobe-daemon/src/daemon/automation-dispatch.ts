@@ -230,8 +230,13 @@ export async function dispatchAutomation(deps: DispatchDeps, automation: Automat
   if (result.outcome === "busy") {
     return await deferBlockedPrompt(deps, automation, task.id, result.tabId, result.layer)
   }
-  // The engine died between firings (an overnight gap is the normal case).
+  // `no-session` (the tab is gone) and `no-engine` (the tab is alive but
+  // keepAlive left a login shell where the engine exited) both land here: the
+  // engine died between firings, an overnight gap being the normal case.
   // Respawn it in the SAME worktree: the files carry over, the transcript
   // does not — recorded as `revived` so the run history says which it was.
+  // `no-engine` reaching this branch is what stops a daily prompt from being
+  // typed at a zsh prompt and RUN as shell commands while the run records
+  // `dispatched`.
   return await spawnWithPrompt(deps, automation, task.id, "revived")
 }

@@ -91,7 +91,9 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
       })
       // `delivered` is OBSERVED, not claimed: true only when a paste actually
       // landed in a live engine session. `false` with `reason: "busy"` means a
-      // human is mid-message and the text was deliberately not written; false
+      // human is mid-message and the text was deliberately not written;
+      // `reason: "no-engine"` means the tab is alive but its engine died into
+      // a login shell, which would EXECUTE the text rather than read it; false
       // with `reason: "broadcast"` means no hosted session answered and the
       // event went out for a browser to pick up, which nothing can confirm —
       // `clients` (raw CONNECTION count, the calling CLI included) is the only
@@ -105,6 +107,18 @@ export const UI_HANDLERS: readonly DaemonRequestHandler[] = [
           delivered: false,
           reason: "busy",
           layer: outcome.layer,
+          tabId: outcome.tabId,
+          clients: ctx.daemon.clientCount(),
+        }
+      }
+      // The tab is alive with no engine in it: keepAlive `exec`ed a login
+      // shell where the engine exited, so the text would not be READ, it
+      // would be RUN. Nothing was written and nothing was broadcast.
+      if (outcome.outcome === "no-engine") {
+        return {
+          ok: true,
+          delivered: false,
+          reason: "no-engine",
           tabId: outcome.tabId,
           clients: ctx.daemon.clientCount(),
         }
