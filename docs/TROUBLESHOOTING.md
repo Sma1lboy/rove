@@ -89,13 +89,16 @@ rove api inspect --task-id <task-id> --pretty
 PTY sessions, persisted tab snapshots, and durable abnormal-exit records, so
 it is the best first attachment for a badge, label, or engine-crash report.
 `rove doctor --report` writes a bundle containing the same diagnosis plus
-recent logs and environment details.
+recent logs and environment details. It lands at
+`~/.rove/rove-doctor-report.txt` — beside the logs it quotes, and the same
+path wherever you ran the command from, so it never drops an untracked file
+into the repo you were debugging.
 
 The raw logs live under the active Rove home (normally your OS home):
 
 | Path | Contains |
 |---|---|
-| `~/.rove/daemon.log` | daemon startup, crashes, RPC and web-transport failures, task-deletion audit |
+| `~/.rove/daemon.log` | daemon startup, crashes, RPC failures, task-deletion audit |
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
 

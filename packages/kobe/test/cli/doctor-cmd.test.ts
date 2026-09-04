@@ -232,15 +232,21 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("the PTY host process is alive but its socket is unreachable (wedged)")
   })
 
-  it("--report writes a bundle file and points the user at it", async () => {
+  // The cwd is mocked to a DIFFERENT directory than the home on purpose: the
+  // bundle landing in the user's repo (untracked, gitignored nowhere, full of
+  // logs and env) is the regression, so "not in the cwd" is half the contract
+  // and asserting only the home path would pass with both writes happening.
+  it("--report writes the bundle under the Rove home, never the cwd", async () => {
     mocks.request.mockRejectedValue(new Error("not running"))
-    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(home)
+    const cwd = mkdtempSync(join(tmpdir(), "rove-doctor-cwd-"))
+    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(cwd)
 
     await runDoctorSubcommand(["--report"])
 
-    expect(output()).toContain("report written:")
-    expect(existsSync(join(home, "rove-doctor-report.txt"))).toBe(true)
-    const bundle = readFileSync(join(home, "rove-doctor-report.txt"), "utf8")
+    const reportPath = join(home, ".rove", "rove-doctor-report.txt")
+    expect(output()).toContain(`report written: ${reportPath}`)
+    expect(existsSync(join(cwd, "rove-doctor-report.txt"))).toBe(false)
+    const bundle = readFileSync(reportPath, "utf8")
     expect(bundle).toContain("# Rove doctor report")
     expect(bundle).toContain("## diagnosis")
     cwdSpy.mockRestore()

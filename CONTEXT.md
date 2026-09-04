@@ -44,15 +44,20 @@ the screen and respawn the recorded command on first attach. Explicit
 `pty.kill`, tab close, task archive/delete, terminal reset, or `rove reset`
 tears down the corresponding hosted session and frozen record.
 
-**Browser PTY sidecar** — the Node process started by `rove web`. It owns only
-browser-created terminal children and is separate from the standalone PTY Host.
+**Harness PTY sidecar** — the Node process `packages/kobe-harness` starts
+(`pty-server.mjs`, with its own bearer-token gate in `pty-auth.mjs`) to back
+the `/harness` capture page. It owns only browser-created terminal children
+and is separate from the standalone PTY Host. It is what survived #855, which
+deleted the browser dashboard, the daemon's HTTP/SSE transport, and the
+`rove web` command that used to start a sidecar.
 
 **PTY Registry** — the Workspace Host's client-side attachment manager. It
 maps tab keys to hosted sessions and reference-counts local consumers; it does
 not own child lifetime.
 
 **Daemon** — the long-lived control plane for the Task index, Worktree
-operations, settings, issues, activity channels, and browser transport. It does
+operations, settings, issues, and activity channels, reached over its unix
+socket and nothing else — #855 removed its HTTP/SSE transport too. It does
 not own or kill Hosted PTY children.
 
 **Orchestrator** — framework-free Task/Worktree state owned by the Daemon.
