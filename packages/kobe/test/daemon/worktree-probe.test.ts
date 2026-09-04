@@ -90,7 +90,7 @@ describe("worktreeFingerprint", () => {
     git(repo, "checkout", "-q", "-b", "work")
     const before = worktreeFingerprint(repo)
     pause()
-    git(repo, "update-ref", "refs/heads/main", git(repo, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"))
+    git(repo, "update-ref", "refs/heads/main", git(repo, ...AUTHOR, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"))
     expect(worktreeFingerprint(repo)).not.toBe(before)
   })
 

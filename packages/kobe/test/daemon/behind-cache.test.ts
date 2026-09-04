@@ -65,7 +65,7 @@ describe("driftCached", () => {
     const first = counter(0)
     expect(await driftCached(repo, "main", first.compute)).toBe(0)
 
-    git("update-ref", "refs/heads/main", git("commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"))
+    git("update-ref", "refs/heads/main", git(...AUTHOR, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "advance"))
 
     const second = counter(1)
     expect(await driftCached(repo, "main", second.compute)).toBe(1)
