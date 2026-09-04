@@ -444,6 +444,10 @@ function coerceDeletion(value: unknown): TaskDeletionState | undefined {
     // restart silently downgrades the user's "delete branch too" to keep.
     ...(typeof v.deleteBranch === "boolean" ? { deleteBranch: v.deleteBranch } : {}),
     requestedAt: v.requestedAt,
+    // Round-trip the branch-cleanup opt-in: deletion is a persisted,
+    // daemon-owned state machine, so a deletion queued with `deleteBranch`
+    // that survives a restart must still delete the branch on `finish()`.
+    ...(typeof v.deleteBranch === "boolean" ? { deleteBranch: v.deleteBranch } : {}),
     ...(typeof v.error === "string" ? { error: v.error } : {}),
   }
 }
