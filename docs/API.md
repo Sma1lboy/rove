@@ -137,7 +137,7 @@ replacement in `nextCommandArgs`.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
-  `autoTitle`/`sessionId` + per-tab `alive`): the discovery read for
+  `autoTitle`/`sessionId` + per-tab `alive`/`engineAlive`): the discovery read for
   `send --tab tab-N`. `sessionId` is the conversation the tab pinned — the
   exact id `claude --resume <id>` (or the engine's own resume verb) reopens,
   and the one `send --tab tab-N --respawn` brings back. Present on engine
@@ -147,6 +147,17 @@ replacement in `nextCommandArgs`.
   engine actually runs in the tab's shell right now. A hand-typed `claude`
   in a shell tab counts, a ctrl+C'd engine doesn't); dead tabs report the
   last recorded value.
+  `alive` and `engineAlive` answer different questions and a fleet reader
+  needs both: `alive` is the tab's hosted PTY SESSION, `engineAlive` is
+  whether an ENGINE PROCESS is running inside that session's tree. keepAlive
+  `exec`s a login shell where an engine exits, so `alive: true,
+  engineAlive: false` is a tab holding a bare zsh prompt — the per-tab form
+  of the session-outlives-its-engine hazard described under `collect`'s
+  `.running` below, and the field that settles it in one read instead of a
+  `collect` hop or your own `ps` walk. Both are three-valued: `null` means
+  nothing walked the tab (a `ps` that failed, a pty host that could not be
+  asked), which is "couldn't look" and never a verdict. **Never read `null`
+  as `false`** — the same rule `.running` states, for the same reason.
   A dead tab whose session ended abnormally also carries `exit`
   (`code`/`signal`/`at`); clean exits stay `exit: null`. A live PTY session
   the persisted snapshot does not list still gets a row, marked
@@ -321,6 +332,16 @@ replacement in `nextCommandArgs`.
 
   `--command` picks the engine (an id from `engine-list`, or a full command
   line). Omitted, the repo's default engine is used.
+
+  `--repo` accepts paths `rove add` refuses — a checkout under `.scratch/`,
+  `.dev-sandbox/` or `$TMPDIR` gets a task here and gets
+  `cannot be a project — inside a sandbox or scratch directory` there. The
+  two verbs ask different questions: `rove add` registers a PROJECT, and the
+  eligibility gate exists to stop throwaway checkouts becoming permanent
+  sidebar rows. `add --repo` creates a TASK, and the same gate still runs —
+  it just skips minting the project row and the `savedRepos` entry instead
+  of failing the call. So the task appears under a header derived from its
+  own repo, and disappears with it.
 
 A create issued from inside a Rove engine tab records
 the caller as the new task's `dispatcher` (`{taskId, tabId}` from

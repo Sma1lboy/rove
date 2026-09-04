@@ -16,8 +16,8 @@
  * unit-testable without touching disk.
  */
 
-import { readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 import { defaultDaemonLogPath, defaultPtyHostLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 
 /**
@@ -117,9 +117,24 @@ export function buildReportBundle(
   ].join("\n")
 }
 
-/** Write the bundle to `rove-doctor-report.txt` in the cwd; return its path. */
+/**
+ * Write the bundle next to the logs it quotes — `<home>/.rove/`, the
+ * directory `defaultDaemonLogPath()` already resolves, so the report cannot
+ * drift away from the `daemon.log` / `pty.log` it tails and it inherits the
+ * same `ROVE_HOME_DIR` override for free. Returns its path.
+ *
+ * It used to land in `process.cwd()`. The instruction we give users is "run
+ * `rove doctor --report` and attach the file", and they run it where the
+ * trouble is — inside their repo, which is where it landed, untracked and
+ * matched by no `.gitignore`. That is a bug bundle full of daemon logs and
+ * env one reflexive `git add -A` away from a commit. A fixed home-rooted
+ * path is also the same path every time, which is what makes the printed
+ * location worth reading out over chat.
+ */
 export function writeReportBundle(doctorLines: readonly string[]): string {
-  const path = join(process.cwd(), "rove-doctor-report.txt")
+  const dir = dirname(defaultDaemonLogPath())
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, "rove-doctor-report.txt")
   writeFileSync(
     path,
     buildReportBundle(doctorLines, {
