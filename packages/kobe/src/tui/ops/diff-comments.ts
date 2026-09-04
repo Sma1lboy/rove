@@ -210,13 +210,15 @@ export interface DiffReviewApi {
   remove(id: string): void
   /**
    * Send ALL of the task's unsent notes as one prompt, then mark them sent.
+   * `worktreePath` (the screen showing the diff knows it; the store does not)
+   * lets the prompt mark a note whose path the branch no longer has.
    *
    * FALSE means there were unsent notes and NOTHING was delivered (the task
    * has no live engine session). The notes stay unsent in that case — marking
    * them sent anyway is what made a dropped batch indistinguishable from a
    * delivered one. Nothing to send is not a failure and answers true.
    */
-  send(): boolean
+  send(worktreePath?: string): boolean
 }
 
 /** Structural slice of the TUI's KV context. */
@@ -235,8 +237,6 @@ export function buildDiffReview(
   taskId: string,
   /** Returns whether the text actually reached an engine session. */
   sendToEngine: (text: string) => boolean,
-  /** Worktree root — lets the sent prompt mark notes whose path is gone. */
-  worktreePath?: string,
 ): DiffReviewApi {
   const key = diffCommentsKey(taskId)
   const read = (): readonly DiffComment[] => (kv.get(key, []) as DiffComment[] | null) ?? []
@@ -251,7 +251,7 @@ export function buildDiffReview(
         read().filter((c) => c.id !== id),
       )
     },
-    send() {
+    send(worktreePath) {
       const all = read()
       const unsent = unsentComments(all)
       if (unsent.length === 0) return true

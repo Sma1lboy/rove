@@ -61,8 +61,8 @@ function ReviewHarness(props: { kv: DiffCommentsKv; deliver: boolean; focused?: 
       inner.remove(id)
       setTick((n) => n + 1)
     },
-    send: () => {
-      const ok = inner.send()
+    send: (worktreePath?: string) => {
+      const ok = inner.send(worktreePath)
       setTick((n) => n + 1)
       return ok
     },
@@ -70,6 +70,7 @@ function ReviewHarness(props: { kv: DiffCommentsKv; deliver: boolean; focused?: 
   const { footer } = useDiffReview({
     review,
     relPath: props.relPath ?? REL,
+    worktree: "/nonexistent",
     diffText: DIFF,
     focused: props.focused ?? true,
     diffRef,

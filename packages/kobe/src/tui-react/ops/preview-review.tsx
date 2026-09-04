@@ -80,6 +80,9 @@ function restoreRowColor(diff: DiffRenderable, row: DiffRow | undefined, index: 
 export function useDiffReview(args: {
   review: DiffReviewApi | undefined
   relPath: string
+  /** Worktree root — passed to `send` so the prompt can mark a note whose
+   *  path the branch no longer has. */
+  worktree: string
   diffText: string | null
   focused: boolean
   diffRef: RefObject<DiffRenderable | null>
@@ -159,7 +162,7 @@ export function useDiffReview(args: {
   function sendAll(): void {
     const review = args.review
     if (!review) return
-    if (review.send()) return
+    if (review.send(args.worktree)) return
     notif.notify({ kind: "error", taskId: "", tabId: "", title: t("ops.preview.review.sendNoEngine") })
   }
 
