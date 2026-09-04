@@ -97,6 +97,15 @@ const result = await Bun.build({
   root: "./src",
   target: "bun",
   conditions: ["browser"],
+  // Without this every `await import()` in src/cli is inlined into one 2.7MB
+  // file, so `rove --version` and every `rove api` verb evaluate the TUI,
+  // opentui and React before they can answer. The laziness is already written
+  // in src/cli/index.ts; splitting is what makes the build honour it.
+  // Chunks are named into `cli/` because package.json `files` ships
+  // `dist/cli`, not `dist` — a chunk emitted at the dist root is absent from
+  // the tarball and the published CLI dies on the first dynamic import.
+  splitting: true,
+  naming: { chunk: "cli/chunk-[hash].[ext]" },
   // Keep native/runtime-resolved packages external. @opentui/core loads
   // @opentui/core-${platform}-${arch} dynamically; bundling core moves
   // that dynamic import into dist/index.js, where Bun can no longer
