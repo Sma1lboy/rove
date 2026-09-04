@@ -26,11 +26,11 @@ import { readFileSync } from "node:fs"
 import { mkdir, unlink, writeFile } from "node:fs/promises"
 import { type Server, type Socket, createServer } from "node:net"
 import { dirname } from "node:path"
-import { StringDecoder } from "node:string_decoder"
 import { ClientWriter } from "./client-writer.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
+import { LineReceiver } from "./line-receiver.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultPtyFreezeDir,
@@ -119,7 +119,6 @@ export interface PtyHostServer {
 interface PtyClientState {
   socket: Socket
   writer: ClientWriter
-  buffer: string
 }
 
 export async function startPtyHostServer(options: PtyHostServerOptions = {}): Promise<PtyHostServer> {
@@ -274,13 +273,14 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
           socket.destroy()
         },
       }),
-      buffer: "",
     }
     clients.add(client)
-    const decoder = new StringDecoder("utf8")
-    socket.on("data", (chunk) => {
-      client.buffer += decoder.write(chunk)
-      drain(client)
+    const receiver = new LineReceiver()
+    socket.on("data", (chunk: Buffer) => {
+      if (!receiver.push(chunk, (line) => handleLine(client, line))) {
+        log("framing", "disconnecting PTY client whose request exceeded 8MiB")
+        socket.destroy()
+      }
     })
     socket.on("error", () => {})
     socket.on("close", () => {
@@ -415,36 +415,30 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     }
   }
 
-  function drain(client: PtyClientState): void {
-    let nl = client.buffer.indexOf("\n")
-    while (nl !== -1) {
-      const line = client.buffer.slice(0, nl)
-      client.buffer = client.buffer.slice(nl + 1)
-      if (line.trim().length > 0) {
-        let frame: DaemonFrame | null = null
-        try {
-          frame = JSON.parse(line) as DaemonFrame
-        } catch {
-          writeFrame(client, { type: "response", id: "parse-error", error: { message: "malformed frame" } })
-        }
-        if (frame) {
-          if (frame.type !== "request") {
-            writeFrame(client, { type: "response", id: "parse-error", error: { message: "requests only" } })
-          } else {
-            try {
-              writeFrame(client, { type: "response", id: frame.id, name: frame.name, payload: dispatch(frame, client) })
-            } catch (err) {
-              writeFrame(client, {
-                type: "response",
-                id: frame.id,
-                name: frame.name,
-                error: { message: err instanceof Error ? err.message : String(err) },
-              })
-            }
+  function handleLine(client: PtyClientState, line: string): void {
+    if (line.trim().length > 0) {
+      let frame: DaemonFrame | null = null
+      try {
+        frame = JSON.parse(line) as DaemonFrame
+      } catch {
+        writeFrame(client, { type: "response", id: "parse-error", error: { message: "malformed frame" } })
+      }
+      if (frame) {
+        if (frame.type !== "request") {
+          writeFrame(client, { type: "response", id: "parse-error", error: { message: "requests only" } })
+        } else {
+          try {
+            writeFrame(client, { type: "response", id: frame.id, name: frame.name, payload: dispatch(frame, client) })
+          } catch (err) {
+            writeFrame(client, {
+              type: "response",
+              id: frame.id,
+              name: frame.name,
+              error: { message: err instanceof Error ? err.message : String(err) },
+            })
           }
         }
       }
-      nl = client.buffer.indexOf("\n")
     }
   }
 
@@ -468,5 +462,5 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
 function writeFrame(client: Pick<PtyClientState, "writer">, frame: DaemonFrame): void {
   // Everything on this socket is critical: RPC responses and ordered PTY
   // byte-stream frames — dropping either corrupts the client.
-  client.writer.write(frameToLine(frame), true)
+  client.writer.write(frameToLine(frame))
 }

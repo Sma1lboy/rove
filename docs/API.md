@@ -17,6 +17,38 @@ this page. The rest of the binary is documented in the
 To teach a coding agent this surface, install the bundled agent skill with
 `rove skill install` instead of pasting this page into a prompt.
 
+## Socket limits and recovery
+
+Daemon and standalone PTY Host requests use newline-delimited JSON. Each request
+may contain at most **8 MiB of UTF-8 wire bytes**, excluding its terminating newline.
+This includes JSON escaping and envelope fields. The receiver closes the connection
+as soon as an unfinished or complete frame exceeds the limit; it sends no parse-error
+response for that frame. Multiple smaller frames may share a chunk. Split UTF-8
+characters survive chunk boundaries.
+
+The limit uses the existing 8 MiB outbound queue budget as a per-connection resource
+envelope. It allows multi-megabyte prompts and PTY input; it is not an OS socket limit.
+Shorten oversized request fields. PTY writers can divide input into ordered `pty.write`
+requests. Receive framing scans each new chunk once and grows storage geometrically,
+so a long line sent in small chunks does not repeatedly scan its accumulated prefix.
+
+A slow reader also has an 8 MiB queue of unsent response/event bytes, in addition to
+the socket's already accepted write. Complete snapshots for `task.snapshot`,
+`active-task`, `update`, `attention.inbox`, `ui-prefs`, `worktree.changes`,
+`transcript.activity`, `usage.snapshot`, and `usage.context` replace only an older
+queued snapshot of the same channel. Other frames retain their order, including
+per-task engine/job updates, per-repo issues, commands, keybinding notifications,
+RPC responses, lifecycle events and PTY bytes. If the remaining queue exceeds the
+budget, the server disconnects that reader. It never silently discards the last
+snapshot of a different channel to make room.
+
+Rove's GUI and pane orchestrators reconnect and subscribe again to receive current
+snapshots. Outstanding RPCs reject on disconnect, including requests without a
+normal deadline. One-shot API callers see a failure; commands are not automatically
+retried because the server may already have applied them. Transient events have no
+replay log, so a disconnection does not promise recovery of every command or event.
+PTY client disconnection detaches the reader and leaves its hosted children running.
+
 ## The orchestration loop
 
 Running many agents well is graph engineering, not prompt engineering:

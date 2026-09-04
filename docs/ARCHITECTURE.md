@@ -144,6 +144,22 @@ from creating duplicate children.
 
 Never treat browser storage as authoritative for local product state.
 
+### Worktree status collection
+
+The daemon collects at most four worktree status runs concurrently. Due paths join
+an insertion-ordered queue; later ticks refresh queued demand without moving it to
+the back. A path that finishes and becomes due again joins behind waiting paths,
+so continuously active tasks cannot starve the rest of the fleet. Completion starts
+waiting work without waiting for the next two-second tick.
+
+Per-path timeouts, hard backoff, quiet fingerprints and active-engine cadence still
+apply. A timed-out run retains its global slot until its runner settles, preventing
+an uncooperative runner from allowing extra concurrent work. Subscriber absence
+pauses new starts. Pruning drops queued demand and ignores old in-flight results,
+including when a path is removed and re-added. Stop clears the queue, aborts running
+reads and prevents delayed publications. Results arriving within a 10 ms window
+share one full-map publication; unchanged counts still publish nothing.
+
 ## 7. Reference projects
 
 `refs/` is gitignored and read-only study material. Consult the relevant

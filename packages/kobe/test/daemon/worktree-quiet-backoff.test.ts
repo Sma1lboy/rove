@@ -52,6 +52,7 @@ function harness(opts: HarnessOptions) {
   const runs = new Map<string, number>()
   const collector = new WorktreeChangesCollector({ listTasks: () => opts.tasks ?? [task("a")] }, new DaemonEventBus(), {
     cadence: FAST,
+    publishDelayMs: 0,
     quietIntervalMs: QUIET_MS,
     probe: opts.probe,
     ...(opts.activeTaskIds ? { activeTaskIds: opts.activeTaskIds } : {}),

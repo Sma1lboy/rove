@@ -54,7 +54,6 @@
  * value, never throws, never publishes garbage.
  */
 
-import { spawn } from "node:child_process"
 import type { DaemonTask as Task, WorktreeChanges } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import type { DaemonEventBus } from "./event-bus.ts"
@@ -62,6 +61,8 @@ import { type PollCadenceConfig, type PollScheduleState, maybeStartScheduledRun 
 import type { WorktreeChangesPayload } from "./protocol.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
+import { runGitStatus } from "./worktree-status-runner.ts"
+export { runGitStatus, parseAheadBehind, countPorcelain, type AheadBehind } from "./worktree-status-runner.ts"
 import { worktreeFingerprint } from "./worktree-probe.ts"
 
 /** Shared empty set — avoids allocating one per tick per collector. */
@@ -81,6 +82,8 @@ function sameWorktreeChanges(a: WorktreeChanges, b: WorktreeChanges): boolean {
 
 /** Tick cadence — matches the sidebar's ~2s `branchTick` the pane pollers rode. */
 export const DEFAULT_WORKTREE_CHANGES_TICK_MS = 2_000
+/** Bound filesystem and git pressure across the entire collector, not per path. */
+export const WORKTREE_CHANGES_CONCURRENCY = 4
 /** Kill a `git status` that runs longer than this; the repo is too big to poll. */
 export const WORKTREE_CHANGES_TIMEOUT_MS = 4_000
 /** After a timeout, leave the worktree alone for this long before retrying. */
@@ -125,102 +128,6 @@ export type WorktreeStatusRunner = (
   baseRef?: string,
 ) => Promise<WorktreeChanges>
 
-/** One lock-free `git` read in a worktree; null stdout on any non-zero exit. */
-function runGit(worktreePath: string, args: readonly string[], signal: AbortSignal): Promise<string | null> {
-  return new Promise((resolve) => {
-    let stdout = ""
-    let settled = false
-    const finish = (status: number | null) => {
-      if (settled) return
-      settled = true
-      resolve(status === 0 ? stdout : null)
-    }
-    const child = spawn("git", args.slice(), {
-      cwd: worktreePath,
-      stdio: ["ignore", "pipe", "ignore"],
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
-      signal,
-      killSignal: "SIGKILL",
-    })
-    child.stdout?.on("data", (chunk: Buffer | string) => {
-      stdout += String(chunk)
-    })
-    child.on("error", () => finish(null))
-    child.on("close", finish)
-  })
-}
-
-/**
- * How far the worktree has drifted from `baseRef`, both ways, in ONE process.
- * `null` when the ref does not resolve or the counts are unreadable — the
- * chips then do not draw, which is the honest answer for a repo with no base
- * rather than a fabricated zero.
- *
- * The daemon does NOT own the `origin/HEAD → origin/main → main → master`
- * fallback ladder: that lives in kobe's `cli/api/branch-signals.ts`, and the
- * PRODUCTION runner is kobe's `runtime.runWorktreeStatus`, which resolves it
- * before calling in. This default runner (tests, and any daemon wired without
- * a runtime) only measures against a base it was handed.
- */
-async function countDrift(worktreePath: string, baseRef: string, signal: AbortSignal): Promise<AheadBehind | null> {
-  return parseAheadBehind(
-    await runGit(worktreePath, ["rev-list", "--left-right", "--count", `${baseRef}...HEAD`], signal),
-  )
-}
-
-/** Both halves of one drift measurement. */
-export interface AheadBehind {
-  readonly behind: number
-  readonly ahead: number
-}
-
-/**
- * Parse `git rev-list --left-right --count <base>...HEAD`, whose one line is
- * `<behind>\t<ahead>` — left is the base side (commits the base has that we
- * do not), right is ours. `null` for anything that is not two non-negative
- * integers, including the `null` a failed run hands in: a half-read line must
- * leave BOTH numbers absent rather than let one of them be guessed.
- *
- * @public — imported by kobe's production runner (`core/daemon-runtime.ts`) so
- * the two collection paths cannot disagree about what the counts mean.
- */
-export function parseAheadBehind(stdout: string | null): AheadBehind | null {
-  if (stdout === null) return null
-  const parts = stdout.trim().split(/\s+/)
-  if (parts.length !== 2) return null
-  const behind = Number.parseInt(parts[0] ?? "", 10)
-  const ahead = Number.parseInt(parts[1] ?? "", 10)
-  if (!Number.isInteger(behind) || behind < 0 || !Number.isInteger(ahead) || ahead < 0) return null
-  return { behind, ahead }
-}
-
-/** Aggregate `git status --porcelain=v1` output into `+N −M`. */
-export function countPorcelain(stdout: string): { added: number; deleted: number } {
-  let added = 0
-  let deleted = 0
-  for (const line of stdout.split("\n")) {
-    if (line.length < 3 || line.startsWith("##")) continue
-    if (line[0] === "D" || line[1] === "D") deleted++
-    else added++
-  }
-  return { added, deleted }
-}
-
-/** The default runner: async `git status --porcelain=v1`, lock-free read,
- *  plus the ahead/behind drift when a base ref was supplied. */
-export async function runGitStatus(
-  worktreePath: string,
-  signal: AbortSignal,
-  baseRef?: string,
-): Promise<WorktreeChanges> {
-  const stdout = await runGit(worktreePath, ["status", "--porcelain=v1"], signal)
-  if (stdout === null) throw new Error("git status failed")
-  const counts = countPorcelain(stdout)
-  if (!baseRef) return counts
-  const drift = await countDrift(worktreePath, baseRef, signal)
-  return drift === null ? counts : { ...counts, ...drift }
-}
-
 /**
  * The worktree paths the collector tracks: tasks with a
  * non-empty LOCAL worktree. Remote (`ssh://`) projects are excluded by
@@ -262,6 +169,7 @@ interface CollectorEntry extends PollScheduleState {
 }
 
 export interface WorktreeChangesCollectorOptions {
+  readonly publishDelayMs?: number
   readonly cadence?: PollCadenceConfig
   /** Injectable status runner — tests avoid real git/worktrees. */
   readonly run?: WorktreeStatusRunner
@@ -295,14 +203,19 @@ export interface WorktreeChangesCollectorOptions {
  * prunes entries for worktrees the daemon stopped tracking (deleted/remote
  * tasks), starts guarded status runs for due worktrees, and
  * publishes the full map when — and only when — membership or a value
- * changed. Run completions publish as they land (each is a real change
- * by construction). Exposed as a class so tests drive `tick()` directly
+ * changed. Run completions batch publications over a short timer window. Exposed as a class so tests drive `tick()` directly
  * with a fake lister/bus/runner; `startWorktreeChangesCollector` is the
  * production interval binding.
  */
 export class WorktreeChangesCollector {
   private readonly entries = new Map<string, CollectorEntry>()
   private stopped = false
+  private readonly queued = new Map<string, { baseRef?: string; busy: boolean }>()
+  private active = 0
+  private readonly activePaths = new Set<string>()
+  private drainHandle: ReturnType<typeof setImmediate> | undefined
+  private publishTimer: ReturnType<typeof setTimeout> | undefined
+  private readonly controllers = new Set<AbortController>()
 
   constructor(
     private readonly orch: TaskLister,
@@ -331,18 +244,52 @@ export class WorktreeChangesCollector {
         // object — its completion checks membership before publishing.
         if (entry?.value) pruned = true
         this.entries.delete(path)
+        this.queued.delete(path)
       }
+      for (const path of this.queued.keys()) if (!tracked.has(path)) this.queued.delete(path)
       if (pruned) this.publish()
       const busy = this.busyPaths(tasks)
-      for (const [path, baseRef] of tracked) this.maybeCollect(path, baseRef, busy.has(path))
+      for (const [path, baseRef] of tracked) {
+        if (!this.entries.get(path)?.inFlight) this.queued.set(path, { baseRef, busy: busy.has(path) })
+      }
+      this.drain()
     } catch (err) {
       logDaemonError("worktree-changes", err)
     }
   }
 
-  /** Stop publishing; in-flight children die with their AbortSignal timers. */
+  /** Cancel queued work, abort running children and suppress late publications. */
   stop(): void {
     this.stopped = true
+    this.queued.clear()
+    if (this.drainHandle) clearImmediate(this.drainHandle)
+    if (this.publishTimer) clearTimeout(this.publishTimer)
+    for (const controller of this.controllers) controller.abort()
+  }
+
+  private drain(): void {
+    if (this.stopped || this.options.hasSubscribers?.() === false) return
+    const limit = WORKTREE_CHANGES_CONCURRENCY
+    for (const [path, demand] of this.queued) {
+      if (this.active >= limit) break
+      if (this.activePaths.has(path)) continue
+      this.queued.delete(path)
+      try {
+        this.maybeCollect(path, demand.baseRef, demand.busy)
+      } catch (err) {
+        logDaemonError("worktree-changes", err)
+      }
+    }
+  }
+
+  private runFinished(path: string): void {
+    this.active--
+    this.activePaths.delete(path)
+    if (this.stopped || this.drainHandle) return
+    this.drainHandle = setImmediate(() => {
+      this.drainHandle = undefined
+      this.drain()
+    })
   }
 
   /** Worktrees whose task has a working engine — exempt from quiet backoff. */
@@ -394,7 +341,23 @@ export class WorktreeChangesCollector {
         // clean row. A TIMEOUT still rejects the run (the signal aborts and the
         // callback is skipped either way), so a slow repo keeps its last value
         // and backs off exactly as before.
-        return run(worktreePath, signal, baseRef).catch((): typeof UNREADABLE => UNREADABLE)
+        this.active++
+        this.activePaths.add(worktreePath)
+        const controller = new AbortController()
+        this.controllers.add(controller)
+        const abort = () => controller.abort()
+        signal.addEventListener("abort", abort, { once: true })
+        return (async () => {
+          try {
+            return await run(worktreePath, controller.signal, baseRef)
+          } catch {
+            return UNREADABLE
+          } finally {
+            signal.removeEventListener("abort", abort)
+            this.controllers.delete(controller)
+            this.runFinished(worktreePath)
+          }
+        })()
       },
       (value) => {
         if (this.stopped) return
@@ -425,6 +388,14 @@ export class WorktreeChangesCollector {
   }
 
   private publish(): void {
+    if (this.publishTimer || this.stopped) return
+    this.publishTimer = setTimeout(() => {
+      this.publishTimer = undefined
+      if (!this.stopped) this.publishNow()
+    }, this.options.publishDelayMs ?? 10)
+  }
+
+  private publishNow(): void {
     const changes: WorktreeChangesPayload["changes"] = {}
     const unreadable: string[] = []
     for (const [path, entry] of this.entries) {

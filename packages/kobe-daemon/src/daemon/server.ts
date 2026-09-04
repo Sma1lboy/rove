@@ -7,12 +7,11 @@
 import { mkdir, unlink, writeFile } from "node:fs/promises"
 import { type Server, createServer } from "node:net"
 import { dirname } from "node:path"
-import { StringDecoder } from "node:string_decoder"
 import { probeDaemonSocket } from "../client/daemon-process.ts"
 import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-process.ts"
 import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
-import { type ClientState, broadcast, drainClientBuffer, writeFrame } from "./client-connection.ts"
+import { type ClientState, broadcast, handleClientLine, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
 import { startDaemonCollectors } from "./collectors.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
@@ -30,6 +29,7 @@ import {
 import { assertHomeUnclaimed, claimHome, releaseHomeClaim } from "./home-owner.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
+import { LineReceiver } from "./line-receiver.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
 import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
@@ -175,22 +175,24 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
       id: nextClientId++,
       connectedAt: new Date(),
       socket,
-      writer: new ClientWriter(socket),
-      buffer: "",
+      writer: new ClientWriter(socket, {
+        onOverflow: () => {
+          logDaemonInfo("backpressure", "disconnecting daemon client whose queue exceeded 8MiB")
+          socket.destroy()
+        },
+      }),
       subscribed: false,
       holdsLifetime: false,
       channels: null,
     }
     clients.add(client)
 
-    // Per-connection decoder: holds a partial multibyte UTF-8 sequence (CJK,
-    // em-dash, emoji) across TCP chunk boundaries. Decoding each chunk with a
-    // bare `toString("utf8")` would emit U+FFFD for a codepoint split between
-    // two chunks, silently corrupting task titles / field notes / prompts.
-    const decoder = new StringDecoder("utf8")
-    socket.on("data", (chunk) => {
-      client.buffer += decoder.write(chunk)
-      drainClientBuffer(client, (req, c) => void handleRequest(req, c))
+    const receiver = new LineReceiver()
+    socket.on("data", (chunk: Buffer) => {
+      if (!receiver.push(chunk, (line) => handleClientLine(client, line, (req, c) => void handleRequest(req, c)))) {
+        logDaemonInfo("framing", "disconnecting daemon client whose request exceeded 8MiB")
+        socket.destroy()
+      }
     })
     socket.on("error", () => {})
     socket.on("close", () => {

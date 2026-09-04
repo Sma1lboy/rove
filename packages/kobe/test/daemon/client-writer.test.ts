@@ -1,13 +1,4 @@
-/**
- * Per-client socket write backpressure (fix E). The daemon is a single
- * long-lived writer fanning channel frames out to every subscribed socket;
- * `socket.write()` returning `false` (OS send buffer full for a slow client)
- * must not be ignored: Node then queues unbounded heap and the daemon grows
- * to GBs and OOMs. {@link ClientWriter} obeys backpressure per client: it pauses on
- * `false`, resumes on `'drain'`, bounds its queue (dropping the oldest
- * droppable frames), and NEVER drops a critical (lifecycle/response) frame nor
- * reorders a single client's stream.
- */
+/** Socket backpressure preserves ordered frames and replaces only superseded snapshots. */
 
 import { ClientWriter } from "@sma1lboy/kobe-daemon/daemon/client-writer"
 import { describe, expect, it } from "vitest"
@@ -20,6 +11,10 @@ import { describe, expect, it } from "vitest"
 class FakeSocket {
   writes: string[] = []
   accept = true
+  destroyed = false
+  destroy(): void {
+    this.destroyed = true
+  }
   private drainListeners: Array<() => void> = []
 
   write(data: string): boolean {
@@ -46,13 +41,13 @@ describe("ClientWriter backpressure", () => {
     // Socket buffer is full: the first frame is accepted by the kernel but
     // write() reports false → the writer must pause.
     sock.accept = false
-    writer.write("a\n", false)
+    writer.write("a\n", null)
     expect(sock.writes).toEqual(["a\n"])
     expect(writer.isPaused).toBe(true)
 
     // While paused, further frames are buffered, NOT handed to the socket.
-    writer.write("b\n", false)
-    writer.write("c\n", false)
+    writer.write("b\n", null)
+    writer.write("c\n", null)
     expect(sock.writes).toEqual(["a\n"])
     expect(writer.pendingCount).toBe(2)
 
@@ -64,51 +59,41 @@ describe("ClientWriter backpressure", () => {
     expect(writer.pendingCount).toBe(0)
   })
 
-  it("drops the oldest droppable frames past the high-water mark but never a critical frame", () => {
+  it("replaces only superseded snapshots and preserves lifecycle order", () => {
     const sock = new FakeSocket()
     const writer = new ClientWriter(sock, { highWaterMark: 12 })
 
     // Saturate the socket so subsequent frames queue.
     sock.accept = false
-    writer.write("PAUSE", false)
+    writer.write("PAUSE", null)
     expect(writer.isPaused).toBe(true)
 
-    // Fill the queue past 12 bytes (each line is 5 bytes):
-    //   old01 (5) → STOP! critical (10) → new02 (15 > 12) → drop oldest
-    //   droppable (old01); STOP! is kept regardless.
-    writer.write("old01", false)
-    writer.write("STOP!", true)
-    writer.write("new02", false)
+    // A newer snapshot replaces the same channel while the lifecycle frame stays queued.
+    writer.write("old01", "task.snapshot")
+    writer.write("STOP!", null)
+    writer.write("new02", "task.snapshot")
     expect(writer.dropped).toBe(1)
     expect(writer.pendingCount).toBe(2)
 
     sock.accept = true
     sock.emitDrain()
 
-    // The lifecycle frame survived; the dropped droppable frame did not; order
-    // is preserved among survivors.
+    // Surviving frames keep their original order.
     expect(sock.writes).toEqual(["PAUSE", "STOP!", "new02"])
     expect(sock.writes).toContain("STOP!")
     expect(sock.writes).not.toContain("old01")
   })
 
-  it("never drops a critical frame even when every queued frame would overflow", () => {
+  it("bounds critical responses even without an overflow callback", () => {
     const sock = new FakeSocket()
-    const writer = new ClientWriter(sock, { highWaterMark: 4 })
-
+    const writer = new ClientWriter(sock, { highWaterMark: 1024 })
     sock.accept = false
-    writer.write("PAUSE", false)
-
-    // Three criticals, each 5 bytes, all over a 4-byte mark: none may be shed.
-    writer.write("L1!!!", true)
-    writer.write("L2!!!", true)
-    writer.write("L3!!!", true)
-    expect(writer.dropped).toBe(0)
-    expect(writer.pendingCount).toBe(3)
-
-    sock.accept = true
+    writer.write("PAUSE", null)
+    for (let i = 0; i < 100; i++) writer.write("x".repeat(1024), null)
+    expect(sock.destroyed).toBe(true)
+    expect(writer.pendingBytes).toBe(0)
     sock.emitDrain()
-    expect(sock.writes).toEqual(["PAUSE", "L1!!!", "L2!!!", "L3!!!"])
+    expect(sock.writes).toEqual(["PAUSE"])
   })
 
   it("disconnects a critical-only slow stream instead of retaining an unbounded queue", () => {
@@ -120,14 +105,14 @@ describe("ClientWriter backpressure", () => {
     })
 
     sock.accept = false
-    writer.write("PAUSE", false)
-    writer.write("L1!!!", true)
+    writer.write("PAUSE", null)
+    writer.write("L1!!!", null)
 
     expect(overflows).toBe(1)
     expect(writer.pendingBytes).toBe(0)
     expect(writer.pendingCount).toBe(0)
 
-    writer.write("L2!!!", true)
+    writer.write("L2!!!", null)
     expect(overflows).toBe(1)
     expect(writer.pendingCount).toBe(0)
   })
@@ -137,9 +122,9 @@ describe("ClientWriter backpressure", () => {
     const writer = new ClientWriter(sock)
 
     sock.accept = false
-    writer.write("a\n", false) // pause
-    writer.write("b\n", false)
-    writer.write("c\n", false)
+    writer.write("a\n", null) // pause
+    writer.write("b\n", null)
+    writer.write("c\n", null)
 
     // First drain: socket accepts exactly one more frame then saturates again.
     let served = 0
@@ -168,7 +153,7 @@ describe("ClientWriter backpressure", () => {
     sock.write = () => {
       throw new Error("EPIPE: socket destroyed")
     }
-    expect(() => writer.write("a\n", true)).not.toThrow()
+    expect(() => writer.write("a\n", null)).not.toThrow()
     // Swallowed write is treated as accepted → no pause, no queue leak.
     expect(writer.isPaused).toBe(false)
     expect(writer.pendingCount).toBe(0)
