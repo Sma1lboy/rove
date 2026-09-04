@@ -30,6 +30,7 @@ import {
   defaultFixRuntime,
   engineTabsManualFix,
   humanOnlyFix,
+  killOrphansManualFix,
   reinstallManualFix,
   resetManualFix,
   skillInstallFix,
@@ -37,6 +38,7 @@ import {
 } from "./doctor-fix.ts"
 import { classifyHookChannel, hookChannelDoctorLines } from "./doctor-hook-channel.ts"
 import { installedSpawnHelpers, spawnHelperDoctorLines } from "./doctor-node-pty.ts"
+import { type Orphan, collectOrphans, killOrphanGroups, orphanDoctorLines } from "./doctor-orphans.ts"
 import { terminalDoctorLines } from "./doctor-terminal.ts"
 import { probeEngines, probeGit } from "./env-checks.ts"
 import { inspectLegacyTmux, legacyTmuxDoctorLines } from "./legacy-tmux.ts"
@@ -44,7 +46,7 @@ import { activeCliName } from "./rename-compat.ts"
 
 const CLI_NAME = activeCliName()
 
-type PtySessionStatus = { alive?: boolean; parked?: boolean }
+type PtySessionStatus = { alive?: boolean; parked?: boolean; pid?: number | null }
 
 /** The slice of `debug.inspect` the hook-channel check reads. */
 type InspectSnapshot = {
@@ -169,7 +171,7 @@ async function appendUnavailableProcess(
  * Assemble the full read-only diagnosis as printable lines, plus the fixes
  * each failing check proposes (collected, never executed here).
  */
-async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }> {
+async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[]; orphans: Orphan[] }> {
   const daemonSocket = defaultDaemonSocketPath()
   const daemonLog = defaultDaemonLogPath()
   const ptySocket = defaultPtyHostSocketPath()
@@ -321,6 +323,17 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   }
   out.push("")
 
+  // Processes a PTY session left behind when something OUTSIDE Rove killed it.
+  // Read-only here by design: the predicate cannot tell a leak from a process
+  // the user deliberately backgrounded, so `--kill-orphans` is the consent.
+  const liveSessionPids = new Set<number>()
+  for (const session of inventory?.sessions ?? []) {
+    if (session.alive && typeof session.pid === "number") liveSessionPids.add(session.pid)
+  }
+  const orphaned = await collectOrphans(liveSessionPids)
+  out.push(...orphanDoctorLines(orphaned.orphans, orphaned.error, CLI_NAME), "")
+  if (orphaned.orphans.length > 0) fixes.push(killOrphansManualFix(CLI_NAME, orphaned.orphans.length))
+
   const legacy = await inspectLegacyTmux()
   out.push(...legacyTmuxDoctorLines(legacy), "")
   if (legacy.sessions.length > 0) fixes.push(resetManualFix(CLI_NAME, "resetLegacy"))
@@ -347,22 +360,39 @@ async function collectDoctor(): Promise<{ lines: string[]; fixes: DoctorFix[] }>
   out.push(`state.json: ${describeFile(statePath)}`)
   out.push(`daemon.log: ${describeFile(daemonLog)}`)
   out.push(`pty.log: ${describeFile(ptyLog)}`)
-  return { lines: out, fixes }
+  return { lines: out, fixes, orphans: orphaned.orphans }
+}
+
+/**
+ * `--kill-orphans`: end every process group the report just listed. Prints the
+ * groups it signalled and any that outlived SIGKILL, so "nothing changed" can
+ * never be mistaken for "nothing was there".
+ */
+async function sweepOrphans(orphans: readonly Orphan[]): Promise<string[]> {
+  if (orphans.length === 0) return ["orphans: nothing to kill"]
+  const { groups, survivors } = await killOrphanGroups(orphans)
+  const lines = [`orphans: signalled ${groups.length} process group(s) covering ${orphans.length} process(es)`]
+  if (survivors.length > 0) {
+    lines.push(`         ✗ still alive after SIGKILL: group(s) ${survivors.join(", ")} — inspect with \`ps -g <pgid>\``)
+  } else lines.push("         ✓ all of them are gone")
+  return lines
 }
 
 export async function runDoctorSubcommand(argv: readonly string[] = []): Promise<void> {
   if (argv.some((arg) => arg === "--help" || arg === "-h" || arg === "help")) {
     process.stdout.write(
       [
-        `Usage: ${CLI_NAME} doctor [--report] [--fix]`,
+        `Usage: ${CLI_NAME} doctor [--report] [--fix] [--kill-orphans]`,
         "",
         "Read-only diagnosis of the daemon / Hosted PTY / engines / git / legacy tmux / state.",
         "",
         "Options:",
-        "  --report      Also write a bug bundle (diagnosis + recent logs + env) to a file",
-        "  --fix         Review the fixes one by one: safe ones run after a per-fix y/N,",
-        "                risky ones (kill sessions, install software) are printed only",
-        "  -h, --help    Print this help",
+        "  --report        Also write a bug bundle (diagnosis + recent logs + env) to a file",
+        "  --fix           Review the fixes one by one: safe ones run after a per-fix y/N,",
+        "                  risky ones (kill sessions, install software) are printed only",
+        "  --kill-orphans  End the process groups listed under `orphans:` (SIGTERM, then",
+        "                  SIGKILL). Not undoable — run plain `doctor` and read the list first",
+        "  -h, --help      Print this help",
         "",
       ].join("\n"),
     )
@@ -370,19 +400,22 @@ export async function runDoctorSubcommand(argv: readonly string[] = []): Promise
   }
   const report = argv.some((arg) => arg === "--report")
   const fix = argv.some((arg) => arg === "--fix")
-  const unknown = argv.find((arg) => arg.length > 0 && arg !== "--report" && arg !== "--fix")
+  const kill = argv.some((arg) => arg === "--kill-orphans")
+  const known = new Set(["--report", "--fix", "--kill-orphans"])
+  const unknown = argv.find((arg) => arg.length > 0 && !known.has(arg))
   if (unknown !== undefined) {
     process.stderr.write(
-      `${CLI_NAME} doctor: unexpected argument "${unknown}"\n\nUsage: ${CLI_NAME} doctor [--report] [--fix]\n`,
+      `${CLI_NAME} doctor: unexpected argument "${unknown}"\n\nUsage: ${CLI_NAME} doctor [--report] [--fix] [--kill-orphans]\n`,
     )
     process.exit(2)
   }
 
-  const { lines, fixes } = await collectDoctor()
+  const { lines, fixes, orphans } = await collectDoctor()
   if (!fix && fixes.length > 0) {
     lines.push("", t("doctor.fix.hint", { count: fixes.length, command: `${CLI_NAME} doctor --fix` }))
   }
   console.log(lines.join("\n"))
+  if (kill) console.log(`\n${(await sweepOrphans(orphans)).join("\n")}`)
   if (fix) await applyFixes(fixes, defaultFixRuntime())
   if (report) {
     const { writeReportBundle } = await import("./doctor-report.ts")

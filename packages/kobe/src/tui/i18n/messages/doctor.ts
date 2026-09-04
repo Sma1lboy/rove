@@ -60,6 +60,12 @@ export const en = {
     /** Pre-v0.8 tmux sessions still resident */
     resetLegacy: "pre-v0.8 tmux sessions are still holding processes and memory",
 
+    /** Processes left behind by a PTY session something outside Rove killed; {count} of them */
+    orphans: "{count} process(es) outlived the PTY session that spawned them and are still running",
+    /** Why the orphan sweep is print-only */
+    orphansWhy:
+      "kills processes, which is not undoable — and a task you backgrounded on purpose looks the same; read the list, then run it yourself",
+
     /** Hook channel down: the other half of the remedy, owned by the user */
     engineTabs: "engine tabs may hold a stale daemon socket path",
     /** The in-TUI action for {@link engineTabs} */
@@ -126,6 +132,9 @@ export const zh: typeof en = {
     resetDaemonWedged: "daemon 进程存活但无法连接 (卡死)",
     resetPty: "PTY host 无法连接或没有在运行",
     resetLegacy: "v0.8 之前的 tmux 会话仍占用进程和内存",
+
+    orphans: "有 {count} 个进程比启动它们的 PTY 会话活得更久, 现在还在运行",
+    orphansWhy: "会杀进程, 不可撤销 — 而且你故意放后台的任务看起来一模一样; 先看清单, 再自己执行",
 
     engineTabs: "引擎 tab 可能持有过期的 daemon socket 路径",
     engineTabsAction: "在 TUI 里关闭并重开受影响的引擎 tab",
