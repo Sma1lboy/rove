@@ -210,10 +210,19 @@ is clean and Rove can resolve a base branch, it automatically switches to the
 whole branch-versus-base view so committed agent work does not disappear. Press
 `b` to choose the scope manually; the header always names the active scope.
 
+**Combined diffs.** `d` on a **directory** row opens everything under it as one
+diff in one tab, and the Changes tab's `[D] diff everything` chip does the same
+for the whole worktree — reviewing a twelve-file attempt is one keypress and one
+tab instead of twelve of each. A combined diff is **read-only**: a review note
+anchors to a single path, so a diff spanning files carries none, and its footer
+says so. Per-file notes are unchanged. A directory with nothing changed in the
+active scope says so rather than opening blank.
+
 Open a text file with `enter`. Rove uses the configured terminal editor; for a
 changed file it requests that editor's diff mode when Vim or Neovim is
 available, otherwise it opens Rove's read-only preview. `d` always opens the
-read-only diff in a workspace tab, `a` pastes an `@path` mention into the active
+read-only diff in a workspace tab — for a directory row, the combined diff of
+everything under it — `a` pastes an `@path` mention into the active
 engine without submitting it, and `o` sends audio, video, or PDF files to the
 system application. Remote files cannot use a local system viewer.
 

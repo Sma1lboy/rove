@@ -13,6 +13,8 @@ export const en = {
   actions: {
     zen: "Zen",
     createPR: "Ask agent to create PR",
+    /** Chip on the Changes tab — the whole worktree's diff in one tab. */
+    diffAll: "[D] diff everything",
   },
   legend: {
     changes: "M modified · A added · D deleted · ? untracked",
@@ -53,6 +55,7 @@ export const zh: typeof en = {
   actions: {
     zen: "专注模式",
     createPR: "让 agent 创建 PR",
+    diffAll: "[D] 查看全部改动",
   },
   legend: {
     changes: "M 已修改 · A 已添加 · D 已删除 · ? 未跟踪",

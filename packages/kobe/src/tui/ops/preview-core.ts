@@ -34,6 +34,24 @@ export type PreviewData =
   | { readonly kind: "diff" | "code"; readonly text: string }
   /** Image/binary placeholder card — the TUI can't render these as text. */
   | { readonly kind: "binary"; readonly image: boolean; readonly sizeBytes: number | null }
+  /**
+   * A COMBINED diff (a directory, or the whole worktree) that git produced no
+   * hunks for. A single file falls back to its own content here, which is the
+   * right answer for a file and a blank pane for a pathspec — there is no
+   * "content of src/" to show, so the emptiness has to be stated.
+   */
+  | { readonly kind: "empty" }
+
+/**
+ * Whether a pathspec can match MANY files: the whole worktree (`.`) or a
+ * directory. Callers that open a directory diff normalise it with a trailing
+ * slash, which is what makes this decidable from the string alone — no file
+ * path ever ends in one — so the flag never has to be threaded from the tree
+ * row through four hand-offs to the loader.
+ */
+export function isCombinedPathspec(relPath: string): boolean {
+  return relPath === "." || relPath.endsWith("/")
+}
 
 /** Extensions the preview treats as images (→ binary card, no text read). */
 const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "tif", "tiff", "avif", "heic"])
@@ -57,6 +75,13 @@ export function looksBinaryText(text: string): boolean {
  * Images (by extension) and files whose content carries null bytes skip the
  * text path entirely and come back as a `binary` card — a PNG rendered as
  * utf8 is mojibake, not a preview.
+ *
+ * `relPath` is a git pathspec, and a COMBINED one (a directory, or `.` for the
+ * whole worktree — see {@link isCombinedPathspec}) is handled the same way up
+ * to the fallback: git emits every matching file's hunks in one unified diff,
+ * which `<diff>` already renders. Only the EMPTY case differs — reading "the
+ * file" back does not mean anything for a directory, so it reports `empty`
+ * instead of rendering a blank code view.
  */
 export async function loadPreviewData(
   worktree: string,
@@ -70,6 +95,7 @@ export async function loadPreviewData(
   const res = await runWorktreeGit(worktree, ["diff", spec, "--", relPath])
   const diff = res.status === 0 ? res.stdout : ""
   if (diff.trim().length > 0) return { kind: "diff", text: diff }
+  if (isCombinedPathspec(relPath)) return { kind: "empty" }
   const text = (await readWorktreeFile(worktree, relPath)) ?? ""
   if (looksBinaryText(text)) {
     return { kind: "binary", image: false, sizeBytes: await worktreeFileSize(worktree, relPath) }

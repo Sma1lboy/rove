@@ -16,7 +16,7 @@ import { execHostForWorktreePath } from "../../exec/resolve"
 import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
-import { type PreviewData, filetypeOf, loadPreviewData } from "../../tui/ops/preview-core"
+import { type PreviewData, filetypeOf, isCombinedPathspec, loadPreviewData } from "../../tui/ops/preview-core"
 import { buildSyntaxStyle } from "../../tui/ops/preview-syntax"
 import { worktreeFilePath } from "../../worktree/content"
 import { useTheme } from "../context/theme"
@@ -50,6 +50,10 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   const t = useT()
   const style = useMemo(() => buildSyntaxStyle(theme), [theme])
   const filetype = filetypeOf(props.relPath)
+  // A directory / whole-worktree diff. `.` would render as a bare dot in the
+  // header, so it gets a name; everything else IS its own name.
+  const combined = isCombinedPathspec(props.relPath)
+  const pathspecLabel = props.relPath === "." ? t("ops.preview.allFiles") : props.relPath
 
   const [data, setData] = useState<PreviewData | null>(null)
   const [reloadTick, setReloadTick] = useState(0)
@@ -78,7 +82,10 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   // `review` AND the preview is a diff. Owns its own (PROPOSED) chords.
   const diffRef = useRef<DiffRenderable | null>(null)
   const review = useDiffReview({
-    review: props.review,
+    // A combined diff spans files and a note anchors to ONE path, so notes
+    // would all file against the directory. Read-only rather than wrong — the
+    // footer says so, so the absence reads as a rule.
+    review: combined ? undefined : props.review,
     relPath: props.relPath,
     diffText: data?.kind === "diff" ? data.text : null,
     focused: props.focused ?? true,
@@ -112,7 +119,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
   return (
     <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
       <box flexDirection="row" gap={1} paddingLeft={1} paddingRight={1}>
-        <text fg={theme.accent}>{props.relPath}</text>
+        <text fg={theme.accent}>{pathspecLabel}</text>
         <text fg={theme.textMuted}>
           {data?.kind === "diff"
             ? base
@@ -123,10 +130,15 @@ export function PreviewScreen(props: OpsPreviewArgs) {
               : t("ops.preview.file")}
         </text>
         <text fg={theme.textMuted}>{t("ops.preview.closeHint")}</text>
+        {combined ? <text fg={theme.textMuted}>{t("ops.preview.notesPerFile")}</text> : null}
       </box>
       <box flexGrow={1}>
         {data == null ? (
           <text fg={theme.textMuted}>{t("ops.preview.loading")}</text>
+        ) : data.kind === "empty" ? (
+          <box paddingLeft={1} paddingTop={1}>
+            <text fg={theme.textMuted}>{t("ops.preview.noChanges", { pathspec: pathspecLabel })}</text>
+          </box>
         ) : data.kind === "binary" ? (
           // No portable inline-image path in the terminal (see lib/open-external)
           // — a metadata card + hand-off to the system viewer instead of mojibake.

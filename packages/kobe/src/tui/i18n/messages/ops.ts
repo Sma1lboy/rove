@@ -14,6 +14,15 @@ export const en = {
     loading: "loading…",
     noTextPreview: "no text preview",
     openHint: "o open in system viewer",
+    /** Header label for the whole-worktree pathspec (`.`), which would
+     *  otherwise render as a bare dot. */
+    allFiles: "all files",
+    /** A directory / whole-worktree diff git produced no hunks for. A single
+     *  file falls back to its content; a pathspec has none to fall back to. */
+    noChanges: "no changes in {pathspec}",
+    /** Footer on a combined diff: review notes anchor to ONE path, so a diff
+     *  spanning files carries none. Stated so the absence reads as a rule. */
+    notesPerFile: "notes are per-file — open a single file's diff to add them",
     review: {
       noteDialogTitle: "Review note — {location}",
       noteFieldLabel: "note",
@@ -38,6 +47,9 @@ export const zh: typeof en = {
     loading: "加载中…",
     noTextPreview: "无文本预览",
     openHint: "o 用系统查看器打开",
+    allFiles: "全部文件",
+    noChanges: "{pathspec} 没有改动",
+    notesPerFile: "备注按单文件锚定——要加备注请打开单个文件的 diff",
     review: {
       noteDialogTitle: "评审备注 — {location}",
       noteFieldLabel: "备注",

@@ -11,7 +11,13 @@ import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { describe, expect, test } from "vitest"
-import { filetypeOf, isImagePath, loadPreviewData, looksBinaryText } from "../../src/tui/ops/preview-core.ts"
+import {
+  filetypeOf,
+  isCombinedPathspec,
+  isImagePath,
+  loadPreviewData,
+  looksBinaryText,
+} from "../../src/tui/ops/preview-core.ts"
 
 describe("filetypeOf", () => {
   test("maps known extensions to their tree-sitter grammar and unknown ones to undefined", () => {
@@ -70,6 +76,43 @@ describe("loadPreviewData", () => {
     writeFileSync(join(repo, "blob.dat"), Buffer.from("abc\u0000def"))
     const data = await loadPreviewData(repo, "blob.dat")
     expect(data).toMatchObject({ kind: "binary", image: false })
+  })
+
+  // A directory is a git pathspec, and git already answers it with the
+  // multi-file unified diff `<diff>` renders — the pane refused it, not git.
+  test("a directory pathspec previews as the combined diff of every file under it", async () => {
+    const repo = makeRepo()
+    execFileSync("git", ["mv", "a.ts", "src-a.ts"], { cwd: repo })
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "move"], { cwd: repo })
+    execFileSync("mkdir", ["-p", join(repo, "src")], { cwd: repo })
+    writeFileSync(join(repo, "src", "one.ts"), "export const one = 1\n")
+    writeFileSync(join(repo, "src", "two.ts"), "export const two = 2\n")
+    execFileSync("git", ["add", "src"], { cwd: repo })
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", "two"], { cwd: repo })
+    writeFileSync(join(repo, "src", "one.ts"), "export const one = 11\n")
+    writeFileSync(join(repo, "src", "two.ts"), "export const two = 22\n")
+    const data = await loadPreviewData(repo, "src/")
+    if (data.kind !== "diff") throw new Error(`expected diff, got ${data.kind}`)
+    expect(data.text).toContain("src/one.ts")
+    expect(data.text).toContain("src/two.ts")
+  })
+
+  // The file path falls back to the file's own content; a directory has none,
+  // and falling through would render a blank pane instead of saying so.
+  test("a combined pathspec with no changes reports empty, never a blank code view", async () => {
+    const repo = makeRepo()
+    expect(await loadPreviewData(repo, "src/")).toEqual({ kind: "empty" })
+    expect(await loadPreviewData(repo, ".")).toEqual({ kind: "empty" })
+  })
+})
+
+describe("isCombinedPathspec", () => {
+  test("only the whole worktree and trailing-slash directories span files", () => {
+    expect(isCombinedPathspec(".")).toBe(true)
+    expect(isCombinedPathspec("src/")).toBe(true)
+    expect(isCombinedPathspec("a/b/")).toBe(true)
+    expect(isCombinedPathspec("src/a.ts")).toBe(false)
+    expect(isCombinedPathspec("a.ts")).toBe(false)
   })
 })
 

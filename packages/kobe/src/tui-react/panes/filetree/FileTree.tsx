@@ -385,9 +385,19 @@ export function FileTree(props: FileTreeProps) {
       },
       openDiff: () => {
         const row = rows[cursorIndex]
-        if (!row || row.kind === "dir" || row.path.endsWith("/")) return
+        if (!row) return
+        // A directory is a git PATHSPEC, so it opens the combined diff of
+        // everything under it in ONE tab — reviewing a 12-file attempt used to
+        // cost 12 presses and 12 tabs. Normalised with a trailing slash: that
+        // is what tells the loader (and the preview) this diff spans files, so
+        // an empty result reports "no changes in src/" instead of falling back
+        // to reading a directory as if it were a file.
+        const spec = row.kind === "dir" || row.path.endsWith("/") ? `${row.path.replace(/\/+$/, "")}/` : row.path
         // Branch scope diffs vs the resolved base; working scope vs HEAD.
-        props.onOpenDiff?.(row.path, scope === "branch" && base != null ? base : undefined)
+        props.onOpenDiff?.(spec, scope === "branch" && base != null ? base : undefined)
+      },
+      openDiffAll: () => {
+        props.onOpenDiff?.(".", scope === "branch" && base != null ? base : undefined)
       },
       expandOrDescend: () => applyNav(expandOrDescendAction(rows, cursorIndex)),
       collapseOrParent: () => applyNav(collapseOrParentAction(rows, cursorIndex)),
@@ -414,6 +424,11 @@ export function FileTree(props: FileTreeProps) {
         onSelectTab={setTab}
         onZenToggle={props.onZenToggle}
         onCreatePR={props.onCreatePR}
+        onDiffAll={
+          props.onOpenDiff
+            ? () => props.onOpenDiff?.(".", scope === "branch" && base != null ? base : undefined)
+            : undefined
+        }
       />
 
       {/* Body: scrollable list. Track + thumb both transparent → invisible
