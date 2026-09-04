@@ -213,13 +213,20 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
       logClientError("orch", `dropped attention.inbox event: items is not an array (${describePayload(items)})`)
       return
     }
-    const valid = items.every((item) => {
+    // Per ITEM, not `every`: this payload is the whole Inbox, so rejecting it
+    // wholesale for one unrecognized row silently blanks a queue whose entire
+    // job is to be noticed — no count, no rows, and nothing to dismiss, on
+    // every republish and every fresh attach. A newer daemon's state, or one
+    // corrupt line on disk, must cost exactly its own row.
+    const kept = items.filter((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return false
       const p = item as Partial<AttentionInboxItem>
-      // `taskId: null` is legal for a routine episode only. One bad item drops
-      // the WHOLE event, so a too-strict check here does not degrade the
-      // routine row — it silently blanks the entire Inbox.
-      const taskIdOk = p.state === "routine_failed" ? p.taskId === null : typeof p.taskId === "string"
+      // Same rule as the daemon's `normalizeItem`: `null` is legal only for a
+      // routine episode. A routine episode may equally NAME a task — a firing
+      // that built one and then failed to start its engine carries that id
+      // (see `AttentionInboxItem.taskId`), and demanding `null` here rejected
+      // the episode the daemon actually writes.
+      const taskIdOk = typeof p.taskId === "string" || (p.taskId === null && p.state === "routine_failed")
       return (
         taskIdOk &&
         (p.tabId === null || typeof p.tabId === "string") &&
@@ -228,12 +235,19 @@ export function handleOrchestratorEvent(name: string, payload: unknown, signals:
         typeof p.at === "number"
       )
     })
-    if (!valid) {
-      logClientError("orch", `dropped attention.inbox event: malformed item (${describePayload(items)})`)
-      return
+    if (kept.length !== items.length) {
+      logClientError(
+        "orch",
+        `dropped ${items.length - kept.length} malformed attention.inbox item(s) of ${items.length} (${describePayload(items)})`,
+      )
     }
+    // Nothing readable at ALL is not evidence the queue is empty — that is the
+    // one case the old whole-event drop got right, so keep the previous
+    // snapshot rather than invent an empty one. A genuinely empty Inbox
+    // arrives as `items: []` and still publishes.
+    if (kept.length === 0 && items.length > 0) return
     signals.setAttentionInboxSig(
-      items.map((item) => ({
+      kept.map((item) => ({
         ...(item as AttentionInboxItem),
         unread: (item as Partial<AttentionInboxItem>).unread !== false,
       })),

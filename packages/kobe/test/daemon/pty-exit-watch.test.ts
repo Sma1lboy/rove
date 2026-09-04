@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { readFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
@@ -17,6 +17,11 @@ function tmp(): string {
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
 })
+
+/** One full poll (200ms) + debounce (250ms), with room to spare — a shorter
+ *  wait races the sweep, and a sweep that never ran makes every "nothing
+ *  fired" assertion below pass for free. */
+const settle = (): Promise<unknown> => new Promise((r) => setTimeout(r, 1_000))
 
 async function waitFor(predicate: () => boolean, ms = 5_000): Promise<void> {
   const start = Date.now()
@@ -63,6 +68,66 @@ describe("startPtyExitWatch", () => {
       recordPtyExit(exitInfo("task-9::tab-3", "2026-01-02T00:00:00.000Z"), path)
       await new Promise((r) => setTimeout(r, 400))
       expect(reports.length).toBe(1)
+    } finally {
+      stop()
+    }
+  })
+
+  it("an UNREADABLE sweep leaves `seen` intact and resurrects nothing", async () => {
+    // The prune (`if (!(key in records)) seen.delete(key)`) is what makes this
+    // dangerous: one unparsable read emptied `seen`, and the next write — any
+    // write — then made every record on disk "new" again. Up to MAX_RECORDS =
+    // 50 engines that died days ago all came back at once, carrying their
+    // ORIGINAL `at`, which sorts them to the HEAD of the oldest-first Inbox.
+    const path = join(tmp(), "pty-exits.json")
+    for (const n of [1, 2, 3]) recordPtyExit(exitInfo(`task-${n}::tab-1`, `2026-09-0${n}T00:00:00.000Z`), path)
+
+    const reports: { kind: string }[] = []
+    const deaths: string[] = []
+    const stop = startPtyExitWatch({
+      path,
+      plugins: () => ({ handleUiReport: (r) => reports.push(r) }),
+      activity: { recordEngineDeath: (taskId, tabId) => void deaths.push(`${taskId}::${tabId}`) },
+    })
+    try {
+      // Exactly what a reader saw inside the old truncate-then-write window.
+      writeFileSync(path, "", "utf8")
+      await settle()
+      // The file is whole again and something touches it — a later death, or
+      // the PTY host's own rewrite.
+      for (const n of [1, 2, 3]) recordPtyExit(exitInfo(`task-${n}::tab-1`, `2026-09-0${n}T00:00:00.000Z`), path)
+      await settle()
+      expect(reports).toEqual([])
+      expect(deaths).toEqual([])
+      // Positive control: the watch is still live, so "nothing fired" above is
+      // a fact about the records and not about a sweep that never ran.
+      recordPtyExit(exitInfo("task-9::tab-3", "2026-09-04T00:00:00.000Z"), path)
+      await waitFor(() => reports.length > 0)
+      expect(deaths).toEqual(["task-9::tab-3"])
+    } finally {
+      stop()
+    }
+  })
+
+  it("takes its baseline from the first READABLE sweep when the file was unreadable at start", async () => {
+    // A daemon that boots during an unreadable moment has never seen the file.
+    // Firing everything on the first successful read would announce a pile of
+    // deaths that already happened, so that read becomes the baseline instead
+    // — the same first-snapshot rule the start-up path uses.
+    const path = join(tmp(), "pty-exits.json")
+    recordPtyExit(exitInfo("old-task::tab-1", "2026-01-01T00:00:00.000Z"), path)
+    writeFileSync(path, "{not json", "utf8")
+
+    const reports: { kind: string }[] = []
+    const stop = startPtyExitWatch({ path, plugins: () => ({ handleUiReport: (r) => reports.push(r) }) })
+    try {
+      recordPtyExit(exitInfo("old-task::tab-1", "2026-01-01T00:00:00.000Z"), path)
+      await settle()
+      expect(reports).toEqual([])
+      // …and a genuinely NEW death after that baseline still fires.
+      recordPtyExit(exitInfo("task-9::tab-3", "2026-01-02T00:00:00.000Z"), path)
+      await waitFor(() => reports.length > 0)
+      expect(reports).toHaveLength(1)
     } finally {
       stop()
     }

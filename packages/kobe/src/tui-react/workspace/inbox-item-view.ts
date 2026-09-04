@@ -10,6 +10,7 @@
  * limit and a crash look identical.
  */
 
+import { relativeCountdown } from "@/lib/relative-time"
 import type { Task } from "@/types/task"
 import type { RGBA } from "@opentui/core"
 import type { AttentionInboxItem } from "@sma1lboy/kobe-daemon/daemon/contracts"
@@ -36,6 +37,8 @@ export function itemGlyph(state: AttentionInboxItem["state"]): string {
   if (state === "dead") return "†"
   // `≡` (no Emoji property) for a queued message — a stack, not a failure.
   if (state === "prompt_deferred") return "≡"
+  // `✕` (U+2715, no Emoji property either) — the stack that was thrown away.
+  if (state === "prompt_expired") return "✕"
   // A schedule that could not do its work — `↻`, a cycle that keeps failing.
   if (state === "routine_failed") return "↻"
   return "!"
@@ -48,6 +51,7 @@ export function itemStateKey(state: AttentionInboxItem["state"]): string {
   if (state === "rate_limited") return "workspace.inbox.state.rateLimited"
   if (state === "dead") return "workspace.inbox.state.dead"
   if (state === "prompt_deferred") return "workspace.inbox.state.promptDeferred"
+  if (state === "prompt_expired") return "workspace.inbox.state.promptExpired"
   if (state === "routine_failed") return "workspace.inbox.state.routineFailed"
   return "workspace.inbox.state.error"
 }
@@ -78,4 +82,31 @@ export function quotaResumeNote(
   return t("workspace.inbox.resumesAt", {
     time: new Date(at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
   })
+}
+
+/**
+ * The deadline half of a queued message, and the epitaph of one that missed it
+ * — `quotaResumeNote`'s sibling, and for the same reason: a row that says only
+ * "message queued — 23h" cannot be told from one that is fine, and this is the
+ * single episode with a HARD expiry behind it. `rove api deferred-list` has
+ * published `expiresAt` and documented that "a swept prompt is never
+ * delivered" all along; this is the screen half of that promise.
+ *
+ * Null when the episode is neither, or when it predates `expiresAt` being
+ * written — no deadline beats a guessed one. A deadline already past still
+ * renders (the sweep ticks hourly, so "due, waiting for the next pass" is the
+ * honest reading), exactly as {@link quotaResumeNote} treats a past resume.
+ */
+export function deferredPromptNote(
+  item: Pick<AttentionInboxItem, "state" | "detail">,
+  now: number,
+  t: (key: string, params?: Record<string, string>) => string,
+): string | null {
+  if (item.state === "prompt_expired") return t("workspace.inbox.expiredNote")
+  if (item.state !== "prompt_deferred") return null
+  const at = item.detail?.deferredPrompt?.expiresAt
+  if (at === undefined || !Number.isFinite(at)) return null
+  return at <= now
+    ? t("workspace.inbox.expiringNow")
+    : t("workspace.inbox.expiresIn", { in: relativeCountdown(at, now) })
 }

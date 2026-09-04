@@ -411,7 +411,7 @@ describe("deferredPrompt RPC handlers", () => {
     expect(await store.get(second.id)).toEqual(second)
   })
 
-  it("returns TTL-pruned ids and removes their stale Inbox pointers", async () => {
+  it("returns TTL-pruned ids and turns their Inbox pointers into an expired notice", async () => {
     const { ctx, rec, store } = await ctxWithStore()
     const expired = await store.file({
       taskId: TASK.id,
@@ -423,7 +423,11 @@ describe("deferredPrompt RPC handlers", () => {
 
     const result = await dispatch("deferredPrompt.flush", {}, ctx)
     expect(result).toMatchObject({ expired: [expired.id], delivered: [] })
-    expect(rec.inboxDeleted).toEqual([{ taskId: TASK.id, tabId: "tab-1" }])
+    // The row is REPLACED, not deleted — a human triggered this flush, but the
+    // SENDER is still owed the news that their text was never delivered, and
+    // the flush result never reaches them.
+    expect(rec.inboxDeleted).toEqual([])
+    expect(rec.inboxPromptExpired).toEqual([{ taskId: TASK.id, tabId: "tab-1", deferredId: expired.id }])
   })
 
   it("discarding or closing a tab drops its stored prompt with its Inbox episode", async () => {

@@ -19,6 +19,15 @@ export function relativeBuckets(absMs: number): { minutes: number; hours: number
   return { minutes, hours, days: Math.floor(hours / 24) }
 }
 
+/** Time REMAINING until an epoch-ms deadline ("3m", "2h", "4d"); a deadline
+ *  already past clamps to "0s". {@link relativeAge} run backwards, so a
+ *  queue's age column and its deadline cannot disagree about what an hour
+ *  looks like — and the flip is written down here once rather than at each
+ *  call site, where it reads as a trick. */
+export function relativeCountdown(deadlineMs: number, nowMs: number = Date.now()): string {
+  return relativeAge(nowMs, deadlineMs)
+}
+
 /** Relative age of an epoch-ms timestamp ("3m", "2h", "4d"); negative deltas clamp to "0s". */
 export function relativeAge(ms: number, nowMs: number = Date.now()): string {
   const delta = Math.max(0, nowMs - ms)

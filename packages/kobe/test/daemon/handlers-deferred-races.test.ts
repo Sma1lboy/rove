@@ -157,10 +157,17 @@ describe("deferredPrompt RPC persistence races", () => {
 
     expect(replacement.id).not.toBe(old.id)
     expect((await store.get(replacement.id))?.prompt).toBe("replacement")
+    const replacementRecord = await store.get(replacement.id)
     expect(inbox.snapshot()).toEqual([
       expect.objectContaining({
         detail: {
-          deferredPrompt: { id: replacement.id, layer: "recent-human-write" },
+          // `expiresAt` rides the pointer so the Inbox row can show the
+          // deadline the API half has always published.
+          deferredPrompt: {
+            id: replacement.id,
+            layer: "recent-human-write",
+            expiresAt: (replacementRecord?.at ?? 0) + 24 * 60 * 60 * 1000,
+          },
         },
       }),
     ])

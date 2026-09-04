@@ -26,6 +26,7 @@ export interface RecordedHandlerEffects {
   readonly inboxRecords: Array<{ taskId: string; kind: string; detail?: unknown; tabId?: string }>
   readonly inboxPromptDeferred: Array<{ taskId: string; tabId: string; deferredId: string; layer: string }>
   readonly inboxDeleted: Array<{ taskId: string; tabId: string | null; at?: number }>
+  readonly inboxPromptExpired: Array<{ taskId: string; tabId: string; deferredId: string }>
   readonly inboxRead: Array<{ taskId: string; tabId: string | null; at: number }>
   readonly inboxTaskDeleted: string[]
   readonly deletions: string[]
@@ -52,6 +53,7 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
     inboxRecords: [],
     inboxPromptDeferred: [],
     inboxDeleted: [],
+    inboxPromptExpired: [],
     inboxRead: [],
     inboxTaskDeleted: [],
     deletions: [],
@@ -83,6 +85,10 @@ export function fakeCtx(orch: Record<string, unknown> = {}): {
       },
       recordPromptDeferred: (taskId: string, tabId: string, deferredId: string, layer: string) => {
         rec.inboxPromptDeferred.push({ taskId, tabId, deferredId, layer })
+        return Promise.resolve()
+      },
+      recordPromptExpired: (taskId: string, tabId: string, deferredId: string) => {
+        rec.inboxPromptExpired.push({ taskId, tabId, deferredId })
         return Promise.resolve()
       },
       deleteEpisode: (taskId: string, tabId: string | null, at?: number) => {

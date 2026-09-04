@@ -95,13 +95,17 @@ export function issueColumnKey(issue: Issue, taskExists?: (taskId: string) => bo
 }
 
 /** Activity states where the linked engine is BLOCKED and won't progress on
- *  its own — a permission prompt, a dead turn, or a quota wall. These float
- *  to the head of In progress as the "needs you" group. `turn_complete` is
- *  deliberately excluded: a finished turn is the normal end state, and
- *  floating every finished card would drown the actually-blocked ones.
+ *  its own — a permission prompt, a dead turn, a quota wall, or a process
+ *  that is simply gone. These float to the head of In progress as the "needs
+ *  you" group. `turn_complete` is deliberately excluded: a finished turn is
+ *  the normal end state, and floating every finished card would drown the
+ *  actually-blocked ones. `dead` belongs here for the reason it belongs in
+ *  `attentionKindFor` and `itemGlyph`: a SIGKILLed / OOMed / 403'd engine
+ *  will never move again, and the board was the last attention surface still
+ *  reading such a card as ordinary work in progress.
  *  String-typed (like notify-state's `attentionKindFor`) so this module
  *  stays free of the engine import. */
-const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error"]
+const BOARD_ATTENTION_STATES: readonly string[] = ["permission_needed", "rate_limited", "error", "dead"]
 
 export function isBoardAttentionState(state: string | undefined): boolean {
   return state !== undefined && BOARD_ATTENTION_STATES.includes(state)

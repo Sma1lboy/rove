@@ -46,6 +46,7 @@
 import type { Automation, AutomationRunStatus, DaemonOrchestrator, DaemonTask } from "./contracts.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import {
+  DEFERRED_PROMPT_TTL_MS,
   DeferredPromptPendingError,
   type DeferredPromptRecord,
   type DeferredPromptsStore,
@@ -67,6 +68,7 @@ export interface DispatchInbox {
     tabId: string,
     deferredId: string,
     layer: "recent-human-write" | "composer-not-empty",
+    expiresAt?: number,
   ): Promise<void>
 }
 
@@ -179,6 +181,9 @@ async function deferBlockedPrompt(
       error.existing.tabId,
       error.existing.id,
       error.existing.layer,
+      // The RECORD's own deadline, not this pointer's: the text has been held
+      // since the earlier filing and the sweep counts from then.
+      error.existing.at + DEFERRED_PROMPT_TTL_MS,
     )
     return {
       status: "dispatch_failed",
@@ -186,7 +191,7 @@ async function deferBlockedPrompt(
       error: `tab ${tabId} already has a deferred prompt (${error.existing.id})`,
     }
   }
-  await deps.inbox.recordPromptDeferred(taskId, tabId, record.id, layer)
+  await deps.inbox.recordPromptDeferred(taskId, tabId, record.id, layer, record.at + DEFERRED_PROMPT_TTL_MS)
   logDaemonInfo("automation", `deferred ${automation.name} task=${taskId} tab=${tabId} layer=${layer}`)
   return { status: "deferred", taskId }
 }

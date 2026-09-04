@@ -21,7 +21,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import type { AttentionInboxStore } from "./attention-inbox.ts"
 import { startFileWatchTrigger } from "./file-watch-trigger.ts"
 import { defaultPtyExitsPath } from "./paths.ts"
-import { type PtyExitRecord, readPtyExitRecords } from "./pty-exit-store.ts"
+import { type PtyExitRecord, readPtyExitStore } from "./pty-exit-store.ts"
 
 const DEBOUNCE_MS = 250
 /** Session key shape: `taskId::tabId` (pty registry convention). */
@@ -43,6 +43,10 @@ export interface PtyExitWatchOptions {
 export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
   const path = opts.path ?? defaultPtyExitsPath(opts.homeDir)
   const seen = new Map<string, string>()
+  /** True once ONE read succeeded. The first successful read is the baseline
+   *  (everything in it predates this daemon), whether that happens below at
+   *  start or on a later sweep because the file was unreadable at start. */
+  let baselined = false
 
   const sweep = (): void => {
     const host = opts.plugins()
@@ -50,7 +54,14 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     // (Unreachable today — server.ts only starts the watch with a live host —
     // but cheap insurance against a future caller.)
     if (!host) return
-    const records = readPtyExitRecords(path)
+    const { records, readable } = readPtyExitStore(path)
+    // An unreadable read is NOT an empty file, and acting on one is how up to
+    // MAX_RECORDS engines that died days ago all come back at once: the prune
+    // below would empty `seen`, and the next sweep would then re-fire every
+    // record on disk — carrying its ORIGINAL `at`, so the corpses sort to the
+    // head of the oldest-first Inbox, above whatever actually needs a person.
+    // Wait for a readable one instead; the file is rewritten often enough.
+    if (!readable) return
     // Keyed by the STORE key, not `record.key`. The engine layer writes under
     // `<session key>#engine` while the record inside still carries the bare
     // session key, so keying by the latter both collides the pty and engine
@@ -61,9 +72,15 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     for (const [storeKey, record] of Object.entries(records)) {
       if (seen.get(storeKey) === record.at) continue
       seen.set(storeKey, record.at)
+      // Absorb silently until the baseline exists — same first-snapshot rule
+      // as the start-up read below. Losing one notification to a daemon that
+      // booted during an unreadable moment beats announcing fifty deaths that
+      // already happened.
+      if (!baselined) continue
       host.handleUiReport({ kind: "session.exited", ...exitReport(record) })
       publishDeath(record)
     }
+    baselined = true
     // The file caps at 50 records; prune dropped keys so `seen` tracks it.
     for (const key of seen.keys()) if (!(key in records)) seen.delete(key)
   }
@@ -103,8 +120,14 @@ export function startPtyExitWatch(opts: PtyExitWatchOptions): () => void {
     onTrigger: sweep,
     onError: (err) => opts.log?.(`pty-exit watch: ${String(err)}`),
   })
-  // Baseline: everything already on disk predates this daemon.
-  for (const [storeKey, record] of Object.entries(readPtyExitRecords(path))) seen.set(storeKey, record.at)
+  // Baseline: everything already on disk predates this daemon. An unreadable
+  // file here leaves `baselined` false, and the first sweep that CAN read it
+  // takes the baseline instead — never an empty one.
+  const initial = readPtyExitStore(path)
+  if (initial.readable) {
+    for (const [storeKey, record] of Object.entries(initial.records)) seen.set(storeKey, record.at)
+    baselined = true
+  }
   return stop
 }
 

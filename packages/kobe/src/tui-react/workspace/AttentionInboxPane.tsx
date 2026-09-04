@@ -30,7 +30,7 @@ import {
   partitionAttentionInboxAvailability,
   windowInboxRows,
 } from "./attention-inbox-core"
-import { itemColor, itemGlyph, itemStateKey, quotaResumeNote } from "./inbox-item-view"
+import { deferredPromptNote, itemColor, itemGlyph, itemStateKey, quotaResumeNote } from "./inbox-item-view"
 import { readInboxVisits } from "./inbox-visits"
 import { activeTabIdFor, knownTaskTab, taskTabExists } from "./terminal-tabs-shared"
 
@@ -382,7 +382,10 @@ export function AttentionInboxPane(props: {
             // already scheduled" from "stuck, go do something". This card is
             // where it belongs: the rail's tree row is one cell
             // wide, and the Inbox's whole job is what-needs-me / when.
-            const resumeNote = quotaResumeNote(item.state, task, t)
+            // A queued/expired message has no `quotaResume`; its own note
+            // carries the hard deadline (or the fact it was missed). One slot,
+            // two sources — a row never has both.
+            const resumeNote = quotaResumeNote(item.state, task, t) ?? deferredPromptNote(item, now, t)
             const project = task ? sidebarProjectLabel(task.repo, repos) : ""
             // Identity line: `project › tab` — WHERE the episode happened is
             // the primary key a user scans for (which project, which tab),
