@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.130
+
+### Patch Changes
+
+- [#876](https://github.com/Sma1lboy/rove/pull/876) [`fd7b398`](https://github.com/Sma1lboy/rove/commit/fd7b398be7e44710fa95ca4330b4b94fd4d4ee74) Window the file tree so a large worktree stops laying out every row
+
+  Expanding a directory with thousands of files made every cursor move lay out
+  the whole list. The file tree body now mounts only the rows the viewport can
+  show, padded above and below so the scrollbar and cursor-follow still see the
+  full list: on a 5000-file worktree that takes an opentui frame from 17.5ms to
+  0.6ms and first paint from 155ms to 88ms. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.129
 
 ### Patch Changes
