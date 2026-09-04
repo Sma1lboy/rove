@@ -9,7 +9,7 @@
  * constraint — they're only called from inside other function bodies.
  */
 
-import { getCustomEngineIds } from "../../state/repos.ts"
+import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import { CURRENT_VERSION } from "../../version.ts"
 import { activeCliName } from "../rename-compat.ts"
 import { ApiError, type FlagSpec, type VerbSpec } from "./types.ts"
@@ -25,18 +25,18 @@ const GLOBAL_FLAGS = [
 
 /**
  * The values a flag's schema/help should SHOW. `--vendor` is the one open
- * enum: its spec `values` lists the built-ins, but user-registered custom
- * engines are equally valid at runtime (`validateAgainstSpec` /
- * `VerbArgs.vendor` both accept them) — listing only built-ins here hid them
- * from every agent that discovers the surface through `schema` / `--help`.
- * Read at render time, not in the static VERBS table, so a newly registered
- * engine shows up in the very next invocation.
+ * enum: its spec `values` lists the built-ins, but registered engines — custom
+ * presets and plugin-contributed ones alike — are equally valid at runtime
+ * (`validateAgainstSpec` / `VerbArgs.vendor` both accept them). Listing only
+ * built-ins here hid them from every agent that discovers the surface through
+ * `schema` / `--help`. Read at render time, not in the static VERBS table, so
+ * a newly registered engine shows up in the very next invocation.
  */
 function displayValues(f: FlagSpec): readonly string[] | undefined {
   if (!f.values) return undefined
   if (f.name !== "vendor") return f.values
-  const custom = getCustomEngineIds().filter((id) => !f.values!.includes(id))
-  return custom.length > 0 ? [...f.values, ...custom] : f.values
+  const registered = registeredEngineIds().filter((id) => !f.values!.includes(id))
+  return registered.length > 0 ? [...f.values, ...registered] : f.values
 }
 
 function flagJson(f: FlagSpec): unknown {

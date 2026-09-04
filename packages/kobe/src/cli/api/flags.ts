@@ -8,8 +8,9 @@
 
 import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
+import { registeredEngineIds } from "../../engine/plugin-engines.ts"
 import { expandTilde } from "../../lib/path-home.ts"
-import { getCustomEngineIds, isRemoteRepoKey } from "../../state/repos.ts"
+import { isRemoteRepoKey } from "../../state/repos.ts"
 import { ALL_VENDORS, type VendorId } from "../../types/vendor.ts"
 import { ApiError, type FlagSpec, type Flags, type ParsedArgs, type VerbSpec, helpStep } from "./types.ts"
 
@@ -197,11 +198,12 @@ export function validateAgainstSpec(verb: VerbSpec, flags: Flags): void {
       const raw = flags.get(f.name)
       if (raw !== undefined && !f.values.includes(raw)) {
         // `--vendor` is the one OPEN enum: its `values` lists the built-ins
-        // for `--help`, but a user-registered custom engine id is equally
-        // valid (the daemon accepts any non-empty string — `optionalVendor`).
-        // Without this the spec gate rejected every custom engine before a
-        // handler could ever see it, while the TUI happily offered them.
-        if (f.name === "vendor" && getCustomEngineIds().includes(raw)) continue
+        // for `--help`, but a registered engine id — a custom preset or one a
+        // plugin contributes — is equally valid (the daemon accepts any
+        // non-empty string — `optionalVendor`). Without this the spec gate
+        // rejected every registered engine before a handler could ever see it,
+        // while the TUI and `engine-list` happily offered them.
+        if (f.name === "vendor" && registeredEngineIds().includes(raw)) continue
         throw new ApiError(`--${f.name} must be one of ${f.values.join(", ")}`, "BAD_FLAG", helpStep(verb.name))
       }
     }
@@ -329,9 +331,9 @@ export class VerbArgs {
     const builtins = this.spec("vendor").values ?? ALL_VENDORS
     if (builtins.includes(value)) return value as VendorId
     // Registry read is lazy — only a non-built-in id pays for the state read.
-    if (getCustomEngineIds().includes(value)) return value as VendorId
+    if (registeredEngineIds().includes(value)) return value as VendorId
     throw new ApiError(
-      `--vendor must be a built-in (${builtins.join(", ")}) or a registered custom engine id`,
+      `--vendor must be a built-in (${builtins.join(", ")}) or a registered engine id — see \`engine-list\``,
       "BAD_FLAG",
       helpStep(this.verb.name),
     )
@@ -416,7 +418,7 @@ export function parseAgentsSpec(spec: string): VendorId[] {
     const colon = trimmed.indexOf(":")
     if (colon === -1) throw new ApiError(`--agents entry "${trimmed}" must be engine:count`, "BAD_FLAG", FANOUT_STEP)
     const vendor = trimmed.slice(0, colon)
-    if (!ALL_VENDORS.includes(vendor as VendorId) && !getCustomEngineIds().includes(vendor)) {
+    if (!ALL_VENDORS.includes(vendor as VendorId) && !registeredEngineIds().includes(vendor)) {
       throw new ApiError(
         `--agents engine "${vendor}" must be a built-in (${ALL_VENDORS.join(", ")}) or a registered engine id — see \`engine-list\``,
         "BAD_FLAG",

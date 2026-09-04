@@ -14,6 +14,7 @@
 
 import { readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
+import { getCustomEngineIds } from "../state/repos.ts"
 import { resetAvailableVendorsCache } from "./account-detect.ts"
 import { clearPluginEngines, registerPluginEngine } from "./contrib-engines.ts"
 
@@ -73,6 +74,39 @@ export function loadPluginEngines(homeDir?: string): readonly string[] {
 export function reloadPluginEngines(homeDir?: string): readonly string[] {
   clearPluginEngines()
   const registered = loadPluginEngines(homeDir)
+  loadedOnce = registered
   resetAvailableVendorsCache()
   return registered
+}
+
+/** Memo for {@link ensurePluginEnginesLoaded}; {@link reloadPluginEngines} refreshes it. */
+let loadedOnce: readonly string[] | undefined
+
+/**
+ * Load plugin engines once per process. The TUI does it eagerly at boot; the
+ * CLI has no such step, so every `api` surface that must AGREE with
+ * `engine-list` — the flag gates, `schema`, and the protocol a `--command`
+ * resolves to — goes through this instead of re-reading the registry each time.
+ */
+export function ensurePluginEnginesLoaded(): readonly string[] {
+  loadedOnce ??= loadPluginEngines()
+  return loadedOnce
+}
+
+/**
+ * Every engine id a user may name that is not a BUILT-IN: the custom presets
+ * in state.json plus the engines enabled plugins contribute.
+ *
+ * The `api` flag gates consult this so `--vendor` / `--agents` / `schema`
+ * accept exactly what `engine-list` advertises. They used to read only the
+ * custom presets, so a plugin engine was rejected by an error message that
+ * told the agent to go look at `engine-list` — where it was listed.
+ *
+ * Loading plugin engines is a deliberate side effect: unlike the TUI, the CLI
+ * has no boot step that registers them, and registering makes the protocol
+ * resolver name the engine too, so a task created with one records that engine
+ * instead of `generic`.
+ */
+export function registeredEngineIds(): readonly string[] {
+  return [...getCustomEngineIds(), ...ensurePluginEnginesLoaded()]
 }

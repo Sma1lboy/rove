@@ -25,7 +25,7 @@ import {
   listEnginePresets,
   resolveCommandProtocol,
 } from "../../engine/engine-presets.ts"
-import { loadPluginEngines } from "../../engine/plugin-engines.ts"
+import { ensurePluginEnginesLoaded } from "../../engine/plugin-engines.ts"
 import { engineEntry } from "../../engine/registry.ts"
 import { type VendorId, coerceVendorId } from "../../types/vendor.ts"
 import { F } from "./flags.ts"
@@ -44,7 +44,7 @@ import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 async function listAllEnginePresets() {
   // Plugin-contributed engines are loaded from enabled plugin manifests at
   // process start in the TUI, but the CLI path must load them explicitly.
-  loadPluginEngines()
+  ensurePluginEnginesLoaded()
   const presets = [...listEnginePresets()]
   const seen = new Set(presets.map((p) => p.id))
   for (const id of await installedEngineIds()) {
