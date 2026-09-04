@@ -88,6 +88,50 @@ describe("load() recovery", () => {
     expect(await readFile(legacyPath, "utf8")).toBe(legacyJson)
   })
 
+  it("stops reading the legacy index once the daemon migration marker exists", async () => {
+    // The migration copies .kobe/tasks.json across once; after that the legacy
+    // file is a frozen snapshot. Settings › Reset UI state unlinks only the
+    // canonical file, so an ungated fallback resurrects every pre-rename task.
+    const legacyPath = join(home, ".kobe", "tasks.json")
+    await mkdir(join(home, ".kobe"), { recursive: true })
+    await writeFile(
+      legacyPath,
+      JSON.stringify({
+        version: 3,
+        tasks: [
+          {
+            id: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            title: "legacy",
+            repo: "/r",
+            branch: "",
+            worktreePath: "",
+            status: "backlog",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
+      }),
+      "utf8",
+    )
+    await mkdir(join(home, ".rove"), { recursive: true })
+    await writeFile(join(home, ".rove", ".layout-daemon-migration-v1"), "", "utf8")
+
+    expect((await store.load()).tasks).toEqual([])
+    // …and the save path's fresh disk read is gated by the same marker, so the
+    // legacy rows do not come back as "concurrent creates" on the next write.
+    await store.create({
+      repo: "/r",
+      title: "new",
+      branch: "",
+      worktreePath: "",
+      status: "backlog",
+      kind: "task",
+      vendor: "claude",
+    })
+    const canonical = JSON.parse(await readFile(store.filePath, "utf8")) as { tasks: Array<{ title: string }> }
+    expect(canonical.tasks.map((task) => task.title)).toEqual(["new"])
+  })
+
   it("corrupt JSON recovers empty with a warning, backing the original bytes up first", async () => {
     // Why the backup matters: the next save read-merge-writes from the empty
     // recovery base and REPLACES the corrupt file — without the copy, the

@@ -24,10 +24,12 @@
  * the mutable half — cache, dirty tracking, when to persist.
  */
 
+import { existsSync } from "node:fs"
 import { copyFile, readFile } from "node:fs/promises"
-import { dirname } from "node:path"
+import { dirname, join } from "node:path"
 import { logClient } from "@sma1lboy/kobe-daemon/client/client-log"
 import { defaultClientLogPath } from "@sma1lboy/kobe-daemon/daemon/paths"
+import { DAEMON_MIGRATION_MARKER } from "../../state/layout-migration.ts"
 import type {
   Task,
   TaskDeletionState,
@@ -183,6 +185,20 @@ export function normalizeIndex(parsed: unknown, source: string): { version: type
 const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 /**
+ * The legacy `~/.kobe/tasks.json` as a READ fallback, or `undefined` once it
+ * is stale. The fallback exists for daemon-free readers (`export`, the
+ * orchestrator bridge) on a pre-rename home that no daemon has migrated yet.
+ * Once the daemon migration marker sits beside the canonical file, the legacy
+ * copy is a frozen snapshot: reading it resurrects every task deleted since
+ * the move — the whole index after Settings › Developer › Reset UI state,
+ * which unlinks only the canonical file, and any single deletion on the next
+ * save (the read-merge-write folds unknown ids back in as concurrent creates).
+ */
+export function readableLegacyIndexPath(canonicalPath: string, legacyPath: string): string | undefined {
+  return existsSync(join(dirname(canonicalPath), DAEMON_MIGRATION_MARKER)) ? undefined : legacyPath
+}
+
+/**
  * Read + parse the manifest fresh from disk, returning the tasks and the
  * deletion tombstones. Mirrors {@link TaskIndexStore.load}: a missing
  * canonical file falls back to `legacyPath`, while both absent or a corrupt
@@ -199,7 +215,9 @@ export async function readDiskIndex(
     raw = await readFile(sourcePath, "utf8")
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-    sourcePath = legacyPath
+    const legacy = readableLegacyIndexPath(path, legacyPath)
+    if (!legacy) return { tasks: [], removed: [] }
+    sourcePath = legacy
     try {
       raw = await readFile(sourcePath, "utf8")
     } catch (legacyErr) {

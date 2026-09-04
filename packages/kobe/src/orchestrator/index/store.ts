@@ -22,6 +22,7 @@ import {
   mergeTasksWithDisk,
   normalizeIndex,
   readDiskIndex,
+  readableLegacyIndexPath,
   recoverUnsupportedVersion,
   warnManifestRecovery,
 } from "./store-codec.ts"
@@ -107,20 +108,26 @@ export class TaskIndexStore {
       raw = await readFile(this.path, "utf8")
     } catch (err) {
       const code = (err as NodeJS.ErrnoException).code
-      if (code === "ENOENT") {
-        sourcePath = this.legacyPath
+      if (code !== "ENOENT") throw err
+      // Gated, not unconditional: after the daemon migration marker lands the
+      // legacy file is a stale snapshot (see readableLegacyIndexPath).
+      const legacy = readableLegacyIndexPath(this.path, this.legacyPath)
+      let legacyRaw: string | undefined
+      if (legacy) {
         try {
-          raw = await readFile(sourcePath, "utf8")
+          legacyRaw = await readFile(legacy, "utf8")
+          sourcePath = legacy
         } catch (legacyErr) {
           if ((legacyErr as NodeJS.ErrnoException).code !== "ENOENT") throw legacyErr
-          this.cache = { version: CURRENT_VERSION, tasks: [] }
-          this.loaded = true
-          this.notifyListeners()
-          return this.snapshot()
         }
-      } else {
-        throw err
       }
+      if (legacyRaw === undefined) {
+        this.cache = { version: CURRENT_VERSION, tasks: [] }
+        this.loaded = true
+        this.notifyListeners()
+        return this.snapshot()
+      }
+      raw = legacyRaw
     }
 
     let parsed: unknown

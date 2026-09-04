@@ -30,7 +30,13 @@ import {
 
 const CLIENT_MIGRATION_MARKER = ".layout-client-migration-v1"
 const PLUGIN_MIGRATION_MARKER = ".layout-plugins-migration-v1"
-const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
+/**
+ * Written under `.rove/` once daemon-owned state has been copied across.
+ * Its presence is what makes the legacy `.kobe` copies STALE rather than a
+ * fallback, so readers outside this module import it instead of re-spelling
+ * the filename (`orchestrator/index/store-codec.ts`).
+ */
+export const DAEMON_MIGRATION_MARKER = ".layout-daemon-migration-v1"
 
 /** Client-owned data can move while a pre-upgrade daemon is still alive. */
 const CLIENT_STATE_ENTRIES = ["attachments", "settings", "themes"] as const
