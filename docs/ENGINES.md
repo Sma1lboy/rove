@@ -37,8 +37,9 @@ well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
 PATH, with a proper name, a launch command, and screen-based activity
 badges. A catalog entry also declares how its CLI takes a first message:
 OpenCode's positional argument is a project directory, so Rove pastes the
-prompt after launch instead of appending it to the command line. Settings → Engines lists them (and your own registered engines) with
-their binary discovery, and that is all detection can answer for them. No
+prompt after launch instead of appending it to the command line.
+Settings → Engines lists them (and your own registered engines) with their
+binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
 what promotes an engine to built-in.
 
@@ -91,11 +92,11 @@ All four builtin engines gate a first launch in a never-seen directory behind
 a trust dialog, and every task worktree is such a directory, so a hosted
 session can't answer it — nobody is at the pane to press a key, so the launch
 sits on the dialog instead of starting the turn (and with Kimi, whether a
-stray Enter accepts or exits the process depends on the Kimi version; Copilot's
-cursor sits on a session-only "Yes", so it returns every launch). Before
-spawning an engine
-into a Rove-created worktree, Rove writes that vendor's own trust record for
-the path, merging into existing entries, never clobbering:
+stray Enter accepts or exits the process depends on the Kimi version;
+Copilot's cursor sits on a session-only "Yes", so it returns every launch).
+Before spawning an engine into a Rove-created worktree, Rove writes that
+vendor's own trust record for the path, merging into existing entries, never
+clobbering:
 
 | Engine | Trust record |
 | --- | --- |
