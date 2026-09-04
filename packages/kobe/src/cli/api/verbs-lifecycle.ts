@@ -10,7 +10,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { deleteTask, land } from "./handlers-tasks.ts"
+import { deleteTask, land } from "./handlers-lifecycle.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const LIFECYCLE_VERBS: readonly VerbSpec[] = [

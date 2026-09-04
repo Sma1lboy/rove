@@ -98,7 +98,7 @@ needs numbers, not when you want to know what a task is doing.
 
 <!-- generated:begin drive -->
 ```text
-send              --task-id --prompt|--prompt-file(REQ) --tab --command --plain
+send              --task-id --prompt|--prompt-file(REQ) --tab --command --respawn --plain
                   --allow-empty
 dispatch          --task-id(REQ) --prompt|--prompt-file(REQ) --tab
 deferred-list     --task-id

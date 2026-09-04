@@ -41,6 +41,7 @@ import { sessionHasEngine } from "../../engine/session-engine-presence.ts"
 import type { EngineSessionLaunch } from "../../engine/session-launch.ts"
 import { readPersistedTerminalDefaultColors } from "../../tui/lib/terminal-colors.ts"
 import type { VendorId } from "../../types/vendor.ts"
+import { restoredTabsOf } from "./tab-respawn.ts"
 import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
 // `sessionHasEngine` is the foreground gate for delivery into an existing
@@ -103,9 +104,9 @@ const writePrompt = writeHostedPromptIfClear
  * `engineReady: false` with the session's own output as the reason rather
  * than a claim nobody checked.
  */
-const ENGINE_START_PROBE_MS = 3_000
-const ENGINE_START_POLL_MS = 150
-const ENGINE_NOT_OBSERVED_REASON = `no engine process appeared in the session within ${ENGINE_START_PROBE_MS}ms`
+export const ENGINE_START_PROBE_MS = 3_000
+export const ENGINE_START_POLL_MS = 150
+export const ENGINE_NOT_OBSERVED_REASON = `no engine process appeared in the session within ${ENGINE_START_PROBE_MS}ms`
 
 /**
  * Turn an observed write into the API's outcome fields. One place so every
@@ -113,7 +114,7 @@ const ENGINE_NOT_OBSERVED_REASON = `no engine process appeared in the session wi
  * its own optimistic defaults — which is how `delivered: true` came to mean
  * "we called write()" on one path and "we checked" on another.
  */
-function outcomeFields(outcome: PromptWriteOutcome | null): {
+export function outcomeFields(outcome: PromptWriteOutcome | null): {
   engineReady: boolean
   delivered: boolean
   bytes?: number
@@ -208,6 +209,12 @@ export async function deliverHostedPrompt(
     }
   }
 
+  // Everything below SPAWNS. Name the conversations a pty-host restart froze
+  // and this call is about to pass over: without it "started a blank session
+  // while your real work sits frozen" is byte-identical to a healthy first
+  // start. See {@link DeliveredPrompt.frozenTabs}.
+  const frozen = restoredTabsOf(sessions, target.id, launch.key)
+  const disclose = frozen.length > 0 ? { frozenTabs: frozen } : {}
   const staleCanonical = sessions.find((session) => session.key === launch.key && !session.alive)
   // A FREEZE-RESTORED corpse is not killed: `pty.open` respawns it in place
   // (pre-restart scrollback kept), so the launch below both revives the tab
@@ -232,6 +239,7 @@ export async function deliverHostedPrompt(
         started: open.created !== false || open.respawned === true,
         engineReady: false,
         delivered: false,
+        ...disclose,
       }
     }
     // Paste-delivery vendor (kimi — issue #25): the launch spawned the bare
@@ -256,6 +264,7 @@ export async function deliverHostedPrompt(
         pane: launch.key,
         started: open.created !== false || open.respawned === true,
         ...outcomeFields(outcome),
+        ...disclose,
       }
     }
     // Another API process may win the create race after our pty.list. Its
@@ -274,7 +283,7 @@ export async function deliverHostedPrompt(
         if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, target.id, tabId, prompt)
         throw err
       }
-      return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome) }
+      return { session: launch.key, pane: launch.key, started, ...outcomeFields(outcome), ...disclose }
     }
     // OUR launch carried the prompt in its argv, so no paste happened here.
     // The engine reads the prompt from its own command line — a delivery this
@@ -300,6 +309,7 @@ export async function deliverHostedPrompt(
         engineReady: false,
         delivered: true,
         reason: "repo init script is still running; the engine has not started yet",
+        ...disclose,
       }
     }
     // Otherwise walk for the process — the same `sessionHasEngine` the
@@ -318,6 +328,7 @@ export async function deliverHostedPrompt(
         engineReady: false,
         delivered: false,
         reason: (await hostedSessionFailureLine(rpc, launch.key)) ?? ENGINE_NOT_OBSERVED_REASON,
+        ...disclose,
       }
     }
     return {
@@ -326,66 +337,14 @@ export async function deliverHostedPrompt(
       started,
       engineReady: true,
       delivered: true,
+      ...disclose,
     }
   } finally {
     await rpc.request("pty.detach", { key: launch.key }).catch(() => {})
   }
 }
 
-/**
- * Deliver into ONE exact tab (`send --tab tab-N`) — no fallback, no spawn.
- * The addressed tab must exist and be alive; anything else is a typed error
- * so a script targeting "the second tab" never silently lands in the first.
- */
-export async function deliverToExactTab(
-  rpc: PtyHostRpc,
-  taskId: string,
-  tabId: string,
-  cwd: string,
-  prompt: string,
-  opts?: {
-    readonly engineBin?: string
-    readonly snapshot?: PsSnapshot
-    readonly vendor?: VendorId
-    readonly defer?: PromptDeferralSink
-  },
-): Promise<DeliveredPrompt> {
-  const key = `${taskId}::${tabId}`
-  const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
-  const session = sessions.find((s) => s.key === key)
-  if (!session?.alive) {
-    throw new ApiError(
-      `tab ${tabId} has no live session on task ${taskId} — see \`rove api pty-list\` for alive tabs`,
-      "TAB_NOT_FOUND",
-    )
-  }
-  // Same foreground gate as the canonical path: an addressed tab whose
-  // engine exited (or that always was a shell tab) must not have the prompt
-  // pasted into its shell. ANY running engine passes — the addressed tab's
-  // engine need not match the task's vendor (cross-vendor send).
-  if (!(await sessionHasEngine(session.pid, opts?.engineBin, opts?.snapshot))) {
-    throw new ApiError(
-      `tab ${tabId} on task ${taskId} has no live engine process — it is a plain shell right now`,
-      "ENGINE_NOT_RUNNING",
-      {
-        hint: "spawn a fresh engine tab for this prompt with --tab new, or pick an engine tab from pty-list",
-        nextCommandArgs: ["api", "pty-list"],
-      },
-    )
-  }
-  // No pty.detach — see deliverHostedPrompt's existing-key path.
-  const deliveryOpts = { screenManifest: resolveComposerManifest(opts?.vendor) }
-  let outcome: PromptWriteOutcome | null
-  try {
-    outcome = await deliverToKey(rpc, key, prompt, deliveryOpts)
-  } catch (err) {
-    if (err instanceof ComposerBusyError) return deferOrThrow(err, opts?.defer, taskId, tabId, prompt)
-    throw err
-  }
-  return { session: key, pane: key, started: false, ...outcomeFields(outcome) }
-}
-
-function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
+export function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | undefined {
   return vendor ? engineEntry(vendor).screenManifest : undefined
 }
 
@@ -395,7 +354,7 @@ function resolveComposerManifest(vendor?: VendorId): EngineScreenManifest | unde
  * daemon accepts it; an occupied slot or failed handoff is an error. Without
  * a sink there is no queue, so surface the legacy typed error.
  */
-async function deferOrThrow(
+export async function deferOrThrow(
   error: ComposerBusyError,
   sink: PromptDeferralSink | undefined,
   taskId: string,
