@@ -13,11 +13,21 @@ import { existsSync, readFileSync } from "node:fs"
 import { basename, join } from "node:path"
 import { PLUGIN_EVENT_NAMES, type PluginEventName } from "@sma1lboy/rove-plugin-sdk/contract"
 import { parse as parseToml } from "smol-toml"
+import {
+  ManifestError,
+  PLUGIN_PLATFORMS,
+  type PluginPlatform,
+  asCommand,
+  asPlatforms,
+  asSettingDefault,
+  asString,
+  asStringArray,
+  asTableArray,
+  fail,
+} from "./manifest-coerce.ts"
 import { settingKeyRejection } from "./setting-keys.ts"
 
-export type PluginPlatform = "macos" | "linux" | "windows"
-
-export const PLUGIN_PLATFORMS: readonly PluginPlatform[] = ["macos", "linux", "windows"]
+export { PLUGIN_PLATFORMS, type PluginPlatform }
 
 /** The event catalog lives in the published SDK's contract module — ONE
  *  source shared by the daemon and external plugin authors (catalog docs:
@@ -215,12 +225,6 @@ export function supportsPlatform(
   return platform !== undefined && declared.includes(platform)
 }
 
-class ManifestError extends Error {}
-
-function fail(message: string): never {
-  throw new ManifestError(`rove-plugin.toml: ${message}`)
-}
-
 /** Parse manifest text while preserving the source filename in diagnostics.
  * Direct callers default to the canonical filename; file readers pass the
  * actual basename so legacy manifests remain debuggable. */
@@ -233,48 +237,6 @@ export function parsePluginManifest(text: string, filename: string = PLUGIN_MANI
     }
     throw err
   }
-}
-
-function asString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.length === 0) fail(`\`${field}\` must be a non-empty string`)
-  return value
-}
-
-/**
- * A setting's `default`, coerced to the string every value is stored as.
- * TOML has real booleans and numbers and `type = "boolean"` invites writing
- * `default = true`, which used to fail the whole manifest with "must be a
- * non-empty string". `false` means "no default", matching the storage
- * convention where a boolean is on iff its .env value is `"1"`.
- */
-function asSettingDefault(value: unknown, field: string): string | undefined {
-  if (value === undefined || value === false) return undefined
-  if (value === true) return "1"
-  if (typeof value === "number" && Number.isFinite(value)) return String(value)
-  return asString(value, field)
-}
-
-function asCommand(value: unknown, field: string): string[] {
-  if (!Array.isArray(value) || value.length === 0 || !value.every((v) => typeof v === "string" && v.length > 0)) {
-    fail(`\`${field}\` must be a non-empty array of strings (argv form)`)
-  }
-  return value
-}
-
-function asPlatforms(value: unknown, field: string): PluginPlatform[] | undefined {
-  if (value === undefined) return undefined
-  if (!Array.isArray(value) || !value.every((v) => (PLUGIN_PLATFORMS as readonly string[]).includes(v as string))) {
-    fail(`\`${field}\` must be an array drawn from ${PLUGIN_PLATFORMS.join(", ")}`)
-  }
-  return value as PluginPlatform[]
-}
-
-function asTableArray(value: unknown, field: string): Record<string, unknown>[] {
-  if (value === undefined) return []
-  if (!Array.isArray(value) || !value.every((v) => typeof v === "object" && v !== null && !Array.isArray(v))) {
-    fail(`\`[[${field}]]\` must be an array of tables`)
-  }
-  return value as Record<string, unknown>[]
 }
 
 /**
@@ -422,14 +384,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       if (state !== "working" && state !== "blocked" && state !== "idle") {
         fail(`engines[${i}].rules[${j}].state must be working | blocked | idle`)
       }
-      const strings = (value: unknown, field: string): string[] | undefined => {
-        if (value === undefined) return undefined
-        if (!Array.isArray(value) || !value.every((v) => typeof v === "string" && v.length > 0)) {
-          fail(`\`${field}\` must be a non-empty array of strings`)
-        }
-        return value as string[]
-      }
-      const lineRegex = strings(r.line_regex, `engines[${i}].rules[${j}].line_regex`)
+      const lineRegex = asStringArray(r.line_regex, `engines[${i}].rules[${j}].line_regex`)
       for (const re of lineRegex ?? []) {
         try {
           new RegExp(re)
@@ -437,8 +392,8 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
           fail(`engines[${i}].rules[${j}].line_regex \`${re}\` is not a valid regex`)
         }
       }
-      const all = strings(r.all, `engines[${i}].rules[${j}].all`)
-      const any = strings(r.any, `engines[${i}].rules[${j}].any`)
+      const all = asStringArray(r.all, `engines[${i}].rules[${j}].all`)
+      const any = asStringArray(r.any, `engines[${i}].rules[${j}].any`)
       if (!all && !any && !lineRegex) fail(`engines[${i}].rules[${j}] needs at least one of all/any/line_regex`)
       return {
         state: state as "working" | "blocked" | "idle",
