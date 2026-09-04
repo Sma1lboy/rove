@@ -19,10 +19,9 @@
  */
 
 import { errorMessage } from "@/lib/error-message"
-import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   type GitScope,
   type StatusEntry,
@@ -39,7 +38,6 @@ import {
   computePathBudget,
   computeStatWidths,
   expandOrDescendAction,
-  followScrollTop,
   gitErrorIsRetryable,
   summarizeGitError,
   toggleDir,
