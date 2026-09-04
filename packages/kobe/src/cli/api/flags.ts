@@ -28,7 +28,7 @@ export const FANOUT_CAP = 10
  * digits — and a safe integer above zero — makes a malformed flag fail
  * loudly with BAD_FLAG, like every other validator in this module.
  */
-export function parsePositiveInt(raw: string): number | undefined {
+function parsePositiveInt(raw: string): number | undefined {
   if (!/^\d+$/.test(raw.trim())) return undefined
   const n = Number.parseInt(raw, 10)
   return Number.isSafeInteger(n) && n > 0 ? n : undefined

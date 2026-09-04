@@ -408,6 +408,8 @@ export async function ensureHostedEngine(
 // Engine-readiness probing lives in its own module (see its header for the
 // seam), re-exported here because every caller reaches these THROUGH a hosted
 // session and several tests mock this module as a whole.
+/** @public — `PasteFirstMessageOptions` is re-exported for callers that reach
+ *  it through a hosted session; knip sees the re-export, not those importers. */
 export {
   awaitEngineProcess,
   hostedSessionFailureLine,

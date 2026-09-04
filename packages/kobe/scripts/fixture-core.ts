@@ -161,16 +161,22 @@ function scrubFixtureEnv(parent: NodeJS.ProcessEnv): Record<string, string> {
  *
  * Safe to hard-code: a fixture home is a throwaway under `.scratch/`,
  * loopback-bound, and deleted at teardown. Production mints 32 random bytes.
+ *
+ * @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export.
  */
 export const FIXTURE_WEB_TOKEN = "rove-fixture-web-token"
 
-/** `Authorization` for a fixture's own PTY-sidecar calls (teardown closes). */
+/** `Authorization` for a fixture's own PTY-sidecar calls (teardown closes).
+ *
+ *  @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export. */
 export function fixtureAuthHeaders(): Record<string, string> {
   return { authorization: `Bearer ${FIXTURE_WEB_TOKEN}` }
 }
 
 /** Pin the fixture home's web token. Call before anything can start its
- *  daemon — `ensureWebToken` only mints when the file is absent. */
+ *  daemon — `ensureWebToken` only mints when the file is absent.
+ *
+ *  @public — imported across the package boundary by `packages/kobe-harness/e2e/*`, which knip's `packages/kobe` project scope cannot see. Do not un-export. */
 export async function writeFixtureWebToken(home: string): Promise<void> {
   const dir = join(home, ".rove")
   await mkdir(dir, { recursive: true })

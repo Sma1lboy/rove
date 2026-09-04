@@ -31,14 +31,9 @@ import { readOnlyGitProcessEnv } from "../lib/git-env.ts"
 import { spawnCapture } from "../lib/poll-scheduling.ts"
 
 /** How long a resolution (including "none") is trusted. */
-export const BASE_REF_TTL_MS = 5 * 60_000
+const BASE_REF_TTL_MS = 5 * 60_000
 
 const cache = new Map<string, { readonly ref: string | null; readonly at: number }>()
-
-/** Test seam — the daemon keeps one process-wide cache. */
-export function resetBaseRefCache(): void {
-  cache.clear()
-}
 
 async function refExists(worktreePath: string, ref: string, signal: AbortSignal): Promise<boolean> {
   const out = await spawnCapture("git", ["rev-parse", "--verify", "--quiet", ref], {

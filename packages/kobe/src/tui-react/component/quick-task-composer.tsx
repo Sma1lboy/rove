@@ -59,7 +59,7 @@ export interface QuickTaskResult {
 }
 
 /** The choices the ATTEMPTS row offers. See the file header for why it stops at 5. */
-export const ATTEMPT_CHOICES: readonly string[] = ["1", "2", "3", "4", "5"]
+const ATTEMPT_CHOICES: readonly string[] = ["1", "2", "3", "4", "5"]
 
 type Field = "prompt" | "attempts" | "engine" | "branch"
 const FIELDS: readonly Field[] = ["prompt", "attempts", "engine", "branch"]
