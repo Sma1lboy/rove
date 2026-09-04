@@ -59,6 +59,14 @@ describe("KIMI_SCREEN_MANIFEST", () => {
   it("reads the approval panel as blocked", () => {
     expect(classifyScreen(KIMI_SCREEN_MANIFEST, "Run this command?\n▶ Approve\n  Reject\n↵ confirm")).toBe("blocked")
   })
+  // 0.40.1 renamed the selection-dialog footer to `↑↓ navigate · Enter select
+  // · Esc exit`. The old 0.37.2 vocabulary must keep matching too, or a user
+  // on the older kimi loses the badge the day we fix the newer one.
+  it("reads the selection dialog as blocked on both 0.40.1 and 0.37.2 footers", () => {
+    const trust041 = "Trust this folder?\n↑↓ navigate · Enter select · Esc exit\n❯ Trust this folder\n  Don't trust"
+    expect(classifyScreen(KIMI_SCREEN_MANIFEST, trust041)).toBe("blocked")
+    expect(classifyScreen(KIMI_SCREEN_MANIFEST, "Pick one\n❯ a\n  b\n↑↓ select  esc cancel")).toBe("blocked")
+  })
   it("reads the moon spinner as working", () => {
     expect(classifyScreen(KIMI_SCREEN_MANIFEST, "🌖\nsome output")).toBe("working")
   })

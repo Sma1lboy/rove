@@ -19,7 +19,7 @@ you need git-level isolation and a separate branch.
 | Engine | Id | Account detect | Activity badge | History | Effort levels |
 |---|---|---|---|---|---|
 | Claude Code | `claude` | ✓ | ✓ | ✓ | — |
-| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh` |
+| Codex | `codex` | ✓ | ✓ (after you trust hooks) | ✓ | `none`/`low`/`medium`/`high`/`xhigh`/`max` |
 | GitHub Copilot | `copilot` | ✓ | ✓ (screen-based) | ✓ | — |
 | Kimi Code | `kimi` | ✓ | ✓ | handoff only | — |
 | Gemini CLI, OpenCode, Cursor Agent, Grok CLI, Droid, Amp | contrib | binary only | ✓ (screen-based) | — | — |
@@ -35,8 +35,11 @@ rate-limit auto-resume and the Settings usage dashboard.
 well-known coding CLIs (`gemini`, `opencode`, `cursor`, `grok`, `droid`,
 `amp`) so they appear in the engine selector whenever the binary is on your
 PATH, with a proper name, a launch command, and screen-based activity
-badges. Settings → Engines lists them (and your own registered engines) with
-their binary discovery, and that is all detection can answer for them. No
+badges. A catalog entry also declares how its CLI takes a first message:
+OpenCode's positional argument is a project directory, so Rove pastes the
+prompt after launch instead of appending it to the command line.
+Settings → Engines lists them (and your own registered engines) with their
+binary discovery, and that is all detection can answer for them. No
 login state, history, or model picker; those need a real adapter, which is
 what promotes an engine to built-in.
 
@@ -87,11 +90,13 @@ one.
 
 All four builtin engines gate a first launch in a never-seen directory behind
 a trust dialog, and every task worktree is such a directory, so a hosted
-session can't answer it (Kimi's dialog even exits the process when a pasted
-first message lands on "Don't trust"; Copilot's cursor sits on a
-session-only "Yes", so it returns every launch). Before spawning an engine
-into a Rove-created worktree, Rove writes that vendor's own trust record for
-the path, merging into existing entries, never clobbering:
+session can't answer it — nobody is at the pane to press a key, so the launch
+sits on the dialog instead of starting the turn (and with Kimi, whether a
+stray Enter accepts or exits the process depends on the Kimi version;
+Copilot's cursor sits on a session-only "Yes", so it returns every launch).
+Before spawning an engine into a Rove-created worktree, Rove writes that
+vendor's own trust record for the path, merging into existing entries, never
+clobbering:
 
 | Engine | Trust record |
 | --- | --- |
@@ -164,11 +169,14 @@ conversation. The two resulting tabs keep the source context and then diverge:
 | `claude` | ✓ | `--resume <src> --fork-session` |
 | `codex` | ✓ | `codex fork <src>` |
 | `copilot` | — | starts a fresh Copilot session with a transcript handoff |
-| `kimi` | — | starts a fresh Kimi session with a transcript handoff |
+| `kimi` | — | has a `kimi fork` verb, but it exits instead of opening the session — transcript handoff instead |
 | custom | — | refused, unless the preset declares a built-in protocol (then it forks like that engine) |
 
-Copilot's `--resume` and Kimi's `-S` reopen rather than branch, which would put
-two live processes on one transcript. Rove therefore uses the same transcript
+Copilot's `--resume` reopens rather than branches, which would put two live
+processes on one transcript. Kimi 0.40.1 does ship a `fork [sessionId]`
+subcommand, but it is a one-shot that prints the new session id and exits, so
+it cannot BE a tab's launch command — branching there would mean forking and
+then resuming, two launches. Rove therefore uses the same transcript
 handoff as a cross-engine continuation: the new tab is a fresh conversation
 that reads where the previous one stopped. A custom engine without a known
 session store is refused instead of silently opening a blank continuation.

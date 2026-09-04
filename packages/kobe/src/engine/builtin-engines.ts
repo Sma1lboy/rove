@@ -105,9 +105,15 @@ export const BUILTIN_ENGINES: Record<"claude" | "codex" | "copilot" | "kimi", En
     builtin: true,
     displayName: codexIdentity.shortName,
     defaultCommand: ["codex"],
-    // Effort levels real `codex exec` accepts; `minimal` is broken there and
-    // deliberately excluded.
-    effortLevels: ["none", "low", "medium", "high", "xhigh"],
+    // Effort levels the API accepts, per its own error on an invalid value:
+    // "Supported values are: 'none', 'minimal', 'low', 'medium', 'high',
+    // 'xhigh', and 'max'." `minimal` is excluded because it is MODEL-scoped,
+    // not globally broken — codex rejects it with "'minimal' is not supported
+    // with the 'gpt-5.6-luna' model", so offering it would hand the picker a
+    // level that fails on the default model. codex 0.149.1 also carries an
+    // `ultra` variant in its own enum, but the API has never been observed
+    // accepting it; don't offer a level nothing has answered 200 to.
+    effortLevels: ["none", "low", "medium", "high", "xhigh", "max"],
     effortArgv: (base, level) => [...base, "-c", `model_reasoning_effort=${level}`],
     history: codexHistoryReader,
 
