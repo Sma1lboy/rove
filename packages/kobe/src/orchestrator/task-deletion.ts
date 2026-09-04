@@ -51,12 +51,20 @@ export class TaskDeletionCoordinator {
     // doesn't apply — only the index entry goes away.
     if (task.worktreePath && !force && task.kind !== "dir") {
       let dirty = false
+      // Work `status --porcelain` cannot see. `.gitignore`d files survive a
+      // land and a sync, so they are not "dirty" — but they do NOT survive a
+      // worktree removal, and `HANDOFF.md` / `.scratch/**` / `.env*` are
+      // gitignored in this very repo. Gating on the porcelain alone let a
+      // worktree whose only work was a session's notes delete with no force,
+      // no confirm, and no salvage ref.
+      let ignored: readonly string[] = []
       try {
         dirty = await this.worktrees.isDirty(task.worktreePath)
+        if (!dirty) ignored = await this.worktrees.ignoredWork(task.worktreePath)
       } catch {
         // A missing/unreadable path is resolved by remove(), as before.
       }
-      if (dirty) throw new DirtyWorktreeError(task.id)
+      if (dirty || ignored.length > 0) throw new DirtyWorktreeError(task.id, ignored)
     }
 
     await this.store.update(task.id, {
@@ -95,6 +103,12 @@ export class TaskDeletionCoordinator {
         await this.worktrees.remove(task.worktreePath, {
           force: task.deletion.force,
           deleteBranch: task.deletion.deleteBranch === true,
+          // The owning repo, for the case where the worktree DIRECTORY is
+          // already gone: its stale admin record can only be pruned from
+          // here, and with the directory missing nothing on disk still points
+          // back at the repo. A task has always known this; it just never
+          // passed it down, so the prune silently never ran.
+          repo: task.repo,
           // `force` was frozen at prepare() time and this runs on a later
           // tick — possibly in a later daemon process (`resume()` replays a
           // queued deletion after a restart), so the worktree may have gone

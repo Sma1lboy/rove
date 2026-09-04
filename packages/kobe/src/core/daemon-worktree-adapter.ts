@@ -137,7 +137,7 @@ export async function removeWorktreeAdapter(
   await manager.remove(path, {
     force,
     onSalvage: (record) => {
-      if (record) auditWorktreeSalvaged(path, record.ref, record.commit)
+      if (record) auditWorktreeSalvaged(path, record.ref, record.commit, record.uncaptured)
     },
     // git deregistered the worktree but could not delete the directory. Not a
     // failure — the removal is as complete as git can make it and retrying is

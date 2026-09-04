@@ -47,10 +47,22 @@ export const DIRTY_WORKTREE_CODE = "DIRTY_WORKTREE"
  * changes and `force` was not requested. The UI catches it (via
  * {@link DIRTY_WORKTREE_CODE}) and re-prompts for explicit force-delete
  * confirmation rather than silently destroying the work.
+ *
+ * `ignored` names the gitignored paths that triggered the refusal, when that
+ * is what did. `git status` cannot see those, so a user told only "uncommitted
+ * or untracked changes" would go looking with a command that reports nothing
+ * — the paths are the only way that refusal is actionable.
  */
 export class DirtyWorktreeError extends Error {
-  constructor(public readonly taskId: string) {
-    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has uncommitted or untracked changes`)
+  constructor(
+    public readonly taskId: string,
+    public readonly ignored: readonly string[] = [],
+  ) {
+    const what =
+      ignored.length > 0
+        ? `gitignored work git status cannot see: ${ignored.join(", ")}`
+        : "uncommitted or untracked changes"
+    super(`${DIRTY_WORKTREE_CODE}: task ${taskId} worktree has ${what}`)
     this.name = "DirtyWorktreeError"
   }
 }

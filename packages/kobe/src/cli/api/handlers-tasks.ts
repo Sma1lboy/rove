@@ -466,14 +466,14 @@ function deleteRecoveryError(err: unknown, taskId: string): unknown {
   if (coded?.code !== DIRTY_WORKTREE_CODE) return err
   return new ApiError(coded.rest, DIRTY_WORKTREE_CODE, {
     taskId,
-    hint: "the worktree still holds uncommitted or untracked files — send the worker back to commit them, or pass --force to delete the task AND discard that work",
+    hint: "the worktree still holds work this delete would destroy — the message names it, and a gitignored path never shows in `git status`. Send the worker back to commit it, or pass --force to delete the task AND discard that work",
     nextCommandArgs: [
       "api",
       "send",
       "--task-id",
       taskId,
       "--prompt",
-      "your worktree has uncommitted changes and this task is being cleaned up — commit them yourself with a proper message, then report back",
+      "your worktree still holds work that this cleanup would destroy (it may be gitignored, so `git status` will not show it — check `git status --ignored`). Commit it yourself with a proper message, then report back",
     ],
   })
 }

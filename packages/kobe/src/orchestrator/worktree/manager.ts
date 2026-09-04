@@ -49,6 +49,7 @@ import {
 } from "./manager-list.ts"
 import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
+import { smallIgnoredPaths } from "./salvage-ignored.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
 import { parseWorktreeListPorcelain } from "./worktree-list.ts"
 
@@ -211,6 +212,7 @@ export class GitWorktreeManager implements WorktreeManager {
         findRepoFor: (exec, p) => this.findRepoFor(exec, p),
         currentBranch: (p) => this.currentBranch(p),
         isDirty: (p) => this.isDirty(p),
+        ignoredWork: (p) => this.ignoredWork(p),
         branchDeps: () => this.branchDeps(),
       },
       worktreePath,
@@ -338,6 +340,27 @@ export class GitWorktreeManager implements WorktreeManager {
       readOnly: true,
     })
     return out.stdout.length > 0
+  }
+
+  /**
+   * The gitignored paths in `worktreePath` that a delete would destroy — the
+   * work {@link isDirty} cannot see.
+   *
+   * A SEPARATE question from `isDirty`, deliberately, because the two have
+   * different answers and different consequences. `.gitignore`d files survive
+   * a land and a sync; they do not survive a worktree removal, and
+   * `HANDOFF.md` / `.scratch/**` / `.env*` are gitignored in this very repo.
+   * Folding this into `isDirty` would make every worktree holding a `.env`
+   * read dirty to the sidebar and to `land`'s preflight, which is a different
+   * (and wrong) claim.
+   *
+   * Same rule as the salvage snapshot ({@link smallIgnoredPaths}), so the gate
+   * refuses for exactly what the `--force` retry would then rescue: a
+   * multi-gigabyte `node_modules/` is over the size ceiling, so it neither
+   * blocks the delete nor bloats the snapshot.
+   */
+  async ignoredWork(worktreePath: string): Promise<readonly string[]> {
+    return smallIgnoredPaths(this.execAt(worktreePath), worktreePath)
   }
 
   /**

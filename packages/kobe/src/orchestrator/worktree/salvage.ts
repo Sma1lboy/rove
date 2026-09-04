@@ -44,6 +44,27 @@ export interface SalvageDeps {
 export interface SalvageRecord {
   readonly ref: string
   readonly commit: string
+  /**
+   * Paths the snapshot could NOT capture: submodules and nested worktrees.
+   * `git add` stages those as a `160000` gitlink — a commit SHA, never the
+   * files — so uncommitted work inside one is in neither the snapshot tree nor
+   * the commit that SHA names, while the ref itself reports success. Empty for
+   * an ordinary snapshot; non-empty is the caller's cue to say so, because the
+   * recovery commands do not work for these paths.
+   */
+  readonly uncaptured: readonly string[]
+}
+
+/** The `160000` (gitlink) entries of `tree` — submodules and nested worktrees,
+ *  recorded as a commit SHA rather than their contents. */
+async function gitlinkPaths(git: (args: readonly string[]) => Promise<GitRunResult>, tree: string): Promise<string[]> {
+  const out = await git(["ls-tree", "-r", tree])
+  if (out.exitCode !== 0) return []
+  return out.stdout
+    .split("\n")
+    .filter((line) => line.startsWith("160000 "))
+    .map((line) => line.slice(line.indexOf("\t") + 1))
+    .filter((p) => p.length > 0)
 }
 
 /** `refs/rove/salvage/<branch>-<utc-stamp>` — a ref name git accepts, keyed by
@@ -77,10 +98,19 @@ export async function salvageWorktree(
 ): Promise<SalvageRecord | null> {
   const git = (args: readonly string[]) => deps.runGit(exec, args, { cwd: worktreePath, allowFail: true })
   try {
-    // Nothing uncommitted (tracked or untracked) → nothing a force-remove
-    // could destroy that HEAD doesn't already hold.
+    // Nothing uncommitted (tracked, untracked, OR salvageable-ignored) →
+    // nothing a force-remove could destroy that HEAD doesn't already hold.
+    //
+    // `--porcelain` alone CANNOT answer that: it is blind to `.gitignore`d
+    // entries, and `HANDOFF.md` / `.scratch/**` — the two places AGENTS.md
+    // tells agents to keep cross-session reasoning — are gitignored in this
+    // very repo. Returning here on an empty porcelain made the `add -f` pass
+    // below (the whole point of `salvage-ignored.ts`) unreachable for exactly
+    // the worktrees it exists for.
     const status = await git(["status", "--porcelain"])
-    if (status.exitCode !== 0 || status.stdout.trim().length === 0) return null
+    if (status.exitCode !== 0) return null
+    const ignored = await smallIgnoredPaths(exec, worktreePath)
+    if (status.stdout.trim().length === 0 && ignored.length === 0) return null
 
     // A throwaway index INSIDE the worktree's own git dir, so staging never
     // touches the real index and the file dies with the worktree either way.
@@ -95,7 +125,6 @@ export async function salvageWorktree(
       // build output. `-f` is what overrides `.gitignore`; without it the
       // first pass silently dropped them. Best-effort — a failure here leaves
       // the tracked+untracked snapshot the first pass already staged.
-      const ignored = await smallIgnoredPaths(exec, worktreePath)
       if (ignored.length > 0) await withIndex(["add", "-f", "--", ...ignored])
       const tree = (await withIndex(["write-tree"])).stdout.trim()
       if (!tree) return null
@@ -112,7 +141,11 @@ export async function salvageWorktree(
 
       const ref = salvageRef(branch && branch !== "HEAD" ? branch : null, now)
       if ((await git(["update-ref", ref, commit])).exitCode !== 0) return null
-      return { ref, commit }
+      // Read back what the tree actually holds. A submodule or nested worktree
+      // staged as a `160000` gitlink is a promise the recovery commands cannot
+      // keep, so the record says which paths it missed rather than letting the
+      // ref imply it caught everything.
+      return { ref, commit, uncaptured: await gitlinkPaths(git, tree) }
     } finally {
       // The index file lives in `.git/worktrees/<name>/`, which the removal
       // prunes anyway; clearing it keeps a failed salvage from leaving debris

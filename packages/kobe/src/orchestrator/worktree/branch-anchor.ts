@@ -66,7 +66,9 @@ export async function anchorBranchTip(
 
     const ref = salvageRef(branch, now)
     if ((await git(["update-ref", ref, tip])).exitCode !== 0) return null
-    return { ref, commit: tip }
+    // Always complete: an anchor points at a commit that already exists, so
+    // there is no staging step that could drop a path.
+    return { ref, commit: tip, uncaptured: [] }
   } catch {
     return null
   }

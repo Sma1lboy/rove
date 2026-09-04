@@ -21,6 +21,7 @@
  */
 
 import type { ExecHost } from "../../exec/exec-host.ts"
+import { READ_ONLY_GIT_ENV } from "../../lib/git-env.ts"
 
 /**
  * Per-entry size ceiling, in kilobytes. 64 MB: comfortably above any plausible
@@ -61,7 +62,13 @@ export function parseDuKb(stdout: string): Map<string, number> {
  */
 export async function smallIgnoredPaths(exec: ExecHost, worktreePath: string): Promise<string[]> {
   try {
-    const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored"], { cwd: worktreePath })
+    // Lock-free, like every other status probe (`lib/git-env.ts`): this now
+    // runs on the ORDINARY delete path, not just the force one, so it must not
+    // compete with an engine's `git commit` for `.git/index.lock`.
+    const status = await exec.run(["git", "status", "--porcelain", "-z", "--ignored"], {
+      cwd: worktreePath,
+      env: READ_ONLY_GIT_ENV,
+    })
     if (status.exitCode !== 0) return []
     const paths = parseIgnoredPaths(status.stdout)
     if (paths.length === 0) return []
