@@ -9,7 +9,12 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { plainTail, readPtyExitRecords, recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
+import {
+  compareByExitAtDesc,
+  plainTail,
+  readPtyExitRecords,
+  recordPtyExit,
+} from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
 let dir: string
@@ -75,6 +80,34 @@ describe("pty exit store", () => {
     // The oldest (t1::tab-1 and the first t2 tabs) were trimmed; the newest kept.
     expect(records["t1::tab-1"]).toBeUndefined()
     expect(records["t2::tab-59"]).toBeDefined()
+  })
+
+  it("orders newest-first and stays a valid strict-weak ordering across ties", () => {
+    const rec = (at: string) => ({ key: "k", pid: null, code: 1, signal: null, at, tail: [] })
+    const older = rec("2026-08-11T00:00:00.000Z")
+    const newer = rec("2026-08-11T01:00:00.000Z")
+    // Newest first.
+    expect(compareByExitAtDesc(newer, older)).toBeLessThan(0)
+    expect(compareByExitAtDesc(older, newer)).toBeGreaterThan(0)
+    // Equal timestamps tie (0) instead of the non-transitive `? 1 : -1`, which
+    // claimed each preceded the other.
+    expect(compareByExitAtDesc(rec("t"), rec("t"))).toBe(0)
+    expect(compareByExitAtDesc(newer, newer)).toBe(0)
+  })
+
+  it("caps to the 50 newest even when the newest all share one timestamp", () => {
+    // A burst the observer stamps in one sweep: 50 deaths at the same instant,
+    // plus one strictly older. The older one must be the record that is trimmed.
+    const tied = "2026-08-12T00:00:00.000Z"
+    recordPtyExit(endInfo({ key: "old::tab-1", exit: { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z" } }), path)
+    for (let i = 0; i < 50; i++) {
+      recordPtyExit(endInfo({ key: `burst::tab-${i}`, exit: { code: 1, signal: null, at: tied } }), path)
+    }
+    const records = readPtyExitRecords(path)
+    expect(Object.keys(records).length).toBe(50)
+    expect(records["old::tab-1"]).toBeUndefined()
+    expect(records["burst::tab-0"]).toBeDefined()
+    expect(records["burst::tab-49"]).toBeDefined()
   })
 
   it("a corrupt or missing file reads as empty and recovers on next write", () => {

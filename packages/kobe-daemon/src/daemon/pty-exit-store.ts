@@ -87,6 +87,22 @@ export function engineExitCodeFromTail(tail: readonly string[]): number | null {
   return null
 }
 
+/**
+ * Order two records newest-first by ISO exit time. A proper strict-weak
+ * ordering: it returns 0 for equal timestamps, so it stays transitive and
+ * V8's stable sort preserves the caller's input order among ties. The naive
+ * `a.at < b.at ? 1 : -1` shorthand is non-transitive (it claims `a` precedes
+ * `b` AND `b` precedes `a` when both are equal), which leaves same-instant
+ * records — a burst of engine deaths the observer stamps in one sweep — in an
+ * engine-defined order; at the retention cap that decides which of a tied
+ * burst survives. Both the retention trim here and the `inspect` display read
+ * through this so the two can't drift.
+ */
+export function compareByExitAtDesc(a: PtyExitRecord, b: PtyExitRecord): number {
+  if (a.at === b.at) return 0
+  return a.at < b.at ? 1 : -1
+}
+
 /** All records keyed by store key; empty on missing/corrupt file. */
 export function readPtyExitRecords(path = defaultPtyExitsPath()): Record<string, PtyExitRecord> {
   try {
@@ -175,7 +191,7 @@ function writeRecord(storeKey: string, record: PtyExitRecord, path: string): voi
   const records = readPtyExitRecords(path)
   records[storeKey] = record
   const newest = Object.entries(records)
-    .sort(([, a], [, b]) => (a.at < b.at ? 1 : -1))
+    .sort(([, a], [, b]) => compareByExitAtDesc(a, b))
     .slice(0, MAX_RECORDS)
   mkdirSync(dirname(path), { recursive: true })
   // 0600: every record carries `plainTail` — the dying process's last output,
