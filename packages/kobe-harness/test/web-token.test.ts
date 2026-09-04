@@ -52,10 +52,10 @@ describe("web token", () => {
   })
 
   it("remembers the entry token for later loads that carry no meta tag", async () => {
-    // The daemon injects the tag only for a request that already presented the
-    // token — the `?token=` on the URL `rove web` prints. An in-app route
-    // change drops that query, so a reload of /board arrives with neither
-    // channel and would otherwise go out unauthenticated.
+    // The tag is injected only for a request that already presented the
+    // token via `?token=` on the entry URL. An in-app route change drops that
+    // query, so a reload arrives with neither channel and would otherwise go
+    // out unauthenticated.
     const first = await freshModule('<meta name="rove-web-token" content="tok-entry">')
     expect(first.webToken()).toBe("tok-entry")
 
@@ -88,31 +88,28 @@ describe("web token", () => {
   })
 })
 
-describe("api client wiring", () => {
+describe("fetch call-site wiring", () => {
   // The leaf tests above prove `withWebToken` builds the right header. This
-  // one proves api-client actually CALLS it: unhooking the helper from
-  // `requestJson` leaves every leaf test green while the real dashboard goes
-  // out unauthenticated.
+  // one proves a real call site actually CALLS it: unhooking the helper leaves
+  // every leaf test green while the request goes out unauthenticated.
+  // `theme.ts` is the only remaining `withWebToken` caller — the api-client
+  // that used to be the other one went with the web transport in #855.
   afterEach(() => vi.unstubAllGlobals())
 
-  it("sends the bearer token on every api verb", async () => {
+  it("sends the bearer token on the themes fetch", async () => {
     vi.resetModules()
     document.head.innerHTML = '<meta name="rove-web-token" content="tok-wire">'
-    const { api } = await import("../src/lib/api-client.ts")
     const seen: RequestInit[] = []
     vi.stubGlobal("fetch", (_url: string, init?: RequestInit) => {
       seen.push(init ?? {})
-      return Promise.resolve(new Response(JSON.stringify({ ok: true })))
+      return Promise.resolve(new Response(JSON.stringify({ themes: {} })))
     })
 
-    await api.get("/api/projects")
-    await api.post("/api/rpc", { name: "task.list" })
-    await api.patch("/api/settings", {})
+    const { applyThemeFromPrefs } = await import("../src/lib/theme.ts")
+    applyThemeFromPrefs("claude")
 
-    expect(seen).toHaveLength(3)
-    for (const init of seen) {
-      expect(init.headers).toMatchObject({ authorization: "Bearer tok-wire" })
-    }
+    expect(seen).toHaveLength(1)
+    expect(seen[0]?.headers).toMatchObject({ authorization: "Bearer tok-wire" })
   })
 
   it("sends the token on the SSE stream url", async () => {

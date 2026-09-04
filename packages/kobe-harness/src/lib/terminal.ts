@@ -5,17 +5,13 @@
  * spawn the user's shell in the same worktree.
  */
 
-import { ROVE_PRODUCT_NAME } from "@sma1lboy/kobe-daemon/compat-env"
-import { ApiError, api } from "./api-client.ts"
 import { withWebTokenQuery } from "./web-token.ts"
 
 export type PtyMode = "engine" | "shell"
 
-/** PTY sidecar origin (port + 2). `ws` picks ws/wss; `http` picks http/https. */
-function ptyBase(kind: "ws" | "http"): string {
-  const secure = location.protocol === "https:"
-  const proto =
-    kind === "ws" ? (secure ? "wss" : "ws") : secure ? "https" : "http"
+/** PTY sidecar websocket origin (port + 2). */
+function ptyWsBase(): string {
+  const proto = location.protocol === "https:" ? "wss" : "ws"
   const host = location.hostname || "localhost"
   const currentPort = Number.parseInt(location.port || "5173", 10)
   const ptyPort = Number.isFinite(currentPort) ? currentPort + 2 : 5175
@@ -39,51 +35,5 @@ export function ptyUrl(
   // A WebSocket cannot set a request header, so the token rides the query the
   // same way the SSE stream's does. Without it the sidecar refuses the upgrade
   // — this route spawns a shell, and it is the one route the token missed.
-  return withWebTokenQuery(`${ptyBase("ws")}/pty?${q.toString()}`)
-}
-
-/** Kill a tab's engine process server-side (when the user closes the tab). */
-export async function closePtyTab(tabId: string): Promise<void> {
-  try {
-    await api.post<void>(
-      `${ptyBase("http")}/pty/close`,
-      { tab: tabId },
-      { label: "close PTY tab" },
-    )
-  } catch {
-    /* best-effort — the tab is already gone from the UI */
-  }
-}
-
-/**
- * Paste text + Enter into a tab's engine — the composer's submit contract,
- * fired from outside any terminal view (board quick actions). The sidecar
- * spawns the engine on demand when the tab has no process yet, so a board
- * action works without the terminal ever having been opened; output lands
- * in the scrollback ring for the next attach. Throws on failure so callers
- * can toast.
- */
-export async function sendPtyText(
-  tabId: string,
-  taskId: string,
-  text: string,
-): Promise<{ spawned: boolean }> {
-  try {
-    const json = await api.post<{ sent?: boolean; spawned?: boolean }>(
-      `${ptyBase("http")}/pty/send`,
-      { tab: tabId, taskId, text },
-      { label: "send PTY text" },
-    )
-    if (!json.sent) throw new Error("send failed")
-    return { spawned: json.spawned === true }
-  } catch (err) {
-    // A sidecar that predates this endpoint 404s with an empty body; keep the
-    // targeted restart hint instead of surfacing a generic status error.
-    if (err instanceof ApiError && err.status === 404 && !err.detail) {
-      throw new Error(
-        `the PTY server doesn't know /pty/send — restart \`${ROVE_PRODUCT_NAME} web\` (the sidecar doesn't hot-reload)`,
-      )
-    }
-    throw err
-  }
+  return withWebTokenQuery(`${ptyWsBase()}/pty?${q.toString()}`)
 }
