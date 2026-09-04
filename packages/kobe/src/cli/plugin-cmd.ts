@@ -23,6 +23,7 @@ import {
   savePluginRegistry,
 } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { flagValue } from "./argv.ts"
+import { resolvePluginBinPath } from "./plugin-bin-path.ts"
 import { PluginCliError, installPlugin, linkPlugin } from "./plugin-install.ts"
 import { activeCliName } from "./rename-compat.ts"
 import { SUBCOMMAND_VERBS } from "./subcommands.ts"
@@ -167,7 +168,7 @@ function invokeAction(qualified: string, extraArgs: string[]): void {
     stdio: "inherit",
     env: buildPluginEnv({
       socketPath: defaultDaemonSocketPath(),
-      binPath: CLI_NAME,
+      binPath: resolvePluginBinPath(),
       pluginId: hit.entry.id,
       pluginRoot: hit.entry.root,
       extra: { ROVE_PLUGIN_ACTION_ID: action.id, ROVE_PLUGIN_INVOKE_CWD: process.cwd() },
@@ -196,7 +197,7 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
   // one login-shell `-ilc` script, env contract riding an `env` prefix, cwd = worktree.
   const argv = buildPaneArgv(loaded.entry.id, loaded.entry.root, pane, {
     socketPath: defaultDaemonSocketPath(),
-    binPath: CLI_NAME,
+    binPath: resolvePluginBinPath(),
   })
 
   const { openDaemonSession, resolveActiveTaskId } = await import("./daemon-session.ts")
