@@ -40,7 +40,7 @@ import { type EngineHistoryReader, supportsStructuredHistory } from "../../engin
 import type { Message } from "../../types/engine.ts"
 import type { VendorId } from "../../types/vendor.ts"
 import { daemonOf } from "./handler-helpers.ts"
-import { findEngineKey, listSessions, openPtyHost } from "./pty-delivery.ts"
+import { findEngineKey, listSessionsOrNull, openPtyHost } from "./pty-delivery.ts"
 import {
   type Cursor,
   DEFAULT_PAGE_MESSAGES,
@@ -57,6 +57,7 @@ import {
   encodeCursor,
 } from "./read-output-page.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec } from "./types.ts"
 
 // The paging/shaping half lives in `read-output-page.ts` — pure functions with
@@ -83,9 +84,11 @@ export interface ReadOutputDeps {
   /** The engine adapter's transcript reader; null = engine ships none. */
   readonly history: EngineHistoryReader | null
   /** Bounded ring peek of one hosted session; `tab` selects the exact tab
-   *  (`undefined` = the task's canonical engine tab). null = no host / no
-   *  session. */
-  peekTerminal(tab: string | undefined, sinceOffset?: number): Promise<TerminalPeekPage | null>
+   *  (`undefined` = the task's canonical engine tab). `null` = the host
+   *  answered and holds no such session; `"host-unreachable"` = it could not
+   *  be asked at all, which is a different fact and must not render as an
+   *  empty read. */
+  peekTerminal(tab: string | undefined, sinceOffset?: number): Promise<TerminalPeekPage | null | "host-unreachable">
 }
 
 export interface ReadOutputInput {
@@ -231,14 +234,23 @@ async function firstTerminalPage(
   fallbackReason: FallbackReason | null,
 ): Promise<ReadOutputEnvelope> {
   const t = await deps.peekTerminal(input.tab)
-  if (!t) {
+  if (!t || t === "host-unreachable") {
+    // An unreachable host is not an empty task. Saying "no live terminal
+    // session" there asserts something nobody checked, and `live: false`
+    // beside it reads as a verdict — so the host's own state wins the
+    // fallbackReason, and the warning says which question went unanswered.
+    const unreachable = t === "host-unreachable"
     return {
       taskId: input.taskId,
       source: "terminal",
       terminal: { tail: [], truncated: false, live: false, tab: input.tab },
       cursor: null,
-      fallbackReason,
-      warnings: ["no live terminal session for this task"],
+      fallbackReason: unreachable ? "pty_host_unreachable" : fallbackReason,
+      warnings: [
+        unreachable
+          ? "the pty host could not be reached — this is 'could not look', not 'no session'"
+          : "no live terminal session for this task",
+      ],
     }
   }
   const { tail, truncated } = boundedTail(t.text)
@@ -266,6 +278,7 @@ async function continueTerminal(
   cursor: TerminalCursor,
 ): Promise<ReadOutputEnvelope> {
   const t = await deps.peekTerminal(cursor.tab, cursor.off)
+  if (t === "host-unreachable") throw sourceChanged("the pty host could not be reached")
   if (!t) throw sourceChanged("the terminal session is gone")
   if (t.pid !== cursor.pid) throw sourceChanged("the terminal session restarted (new process)")
   const warnings = t.sinceValid ? [] : ["scrollback trimmed — there is a gap before this page"]
@@ -298,20 +311,31 @@ async function peekTaskTerminal(
   vendor: VendorId | undefined,
   tab: string | undefined,
   sinceOffset?: number,
-): Promise<TerminalPeekPage | null> {
+): Promise<TerminalPeekPage | null | "host-unreachable"> {
   const host = await openPtyHost()
-  if (!host) return null
+  if (!host) return "host-unreachable"
   try {
     let key: string | undefined
     if (tab) {
       key = `${taskId}::${tab}`
     } else {
       const engineBin = vendor ? engineLaunchArgv({ vendor })[0] : undefined
-      const sessions = await listSessions(host.rpc)
+      // Tri-state: a host that cannot be asked must not render as a task with
+      // no sessions — see `listHostedSessionsOrNull`.
+      const sessions = await listSessionsOrNull(host.rpc)
+      if (sessions === null) return "host-unreachable"
       key = findEngineKey(sessions, taskId, engineBin) ?? sessions.find((s) => s.key === `${taskId}::tab-1`)?.key
     }
     if (!key) return null
-    const res = await host.rpc.request<PtyPeekResult>("pty.peek", { key, sinceOffset })
+    // An explicit --tab skips the listing above, so this is the first request
+    // that can discover an unreachable host. A raw RPC failure here is that,
+    // not an empty tab.
+    let res: PtyPeekResult
+    try {
+      res = await host.rpc.request<PtyPeekResult>("pty.peek", { key, sinceOffset })
+    } catch {
+      return "host-unreachable"
+    }
     if (!res.exists) {
       if (tab) {
         throw new ApiError(
@@ -365,7 +389,7 @@ async function handleReadOutput(ctx: VerbContext): Promise<unknown> {
     },
     deps,
   )
-  const running = await ctx.runtime.isTaskRunning(taskId)
+  const running = await ctx.runtime.isTaskRunning(taskId, taskEngineArgv(task))
   return { vendor: vendor ?? null, running, ...envelope }
 }
 

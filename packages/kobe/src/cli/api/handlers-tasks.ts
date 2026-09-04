@@ -16,6 +16,7 @@ import { readOwnDispatcher, resolveDispatcherTab, verifiedSelfSession, withPeerP
 import { F } from "./flags.ts"
 import { daemonOf, simpleRpc } from "./handler-helpers.ts"
 import { resolveActiveTaskId } from "./runtime.ts"
+import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext, type VerbSpec, helpStep } from "./types.ts"
 
 /** How long `delete --wait` follows a deletion before reporting `pending`.
@@ -298,7 +299,7 @@ export async function getTask(ctx: VerbContext): Promise<unknown> {
   const res = await daemon.request<{ task: SerializedTask }>("task.get", { taskId })
   // One liveness read serves both: `.running` (any live engine tab) and the
   // per-tab `.alive` an agent needs to pick a `send --tab tab-N` target.
-  const { tabs, running } = await ctx.runtime.taskTabs(taskId)
+  const { tabs, running } = await ctx.runtime.taskTabs(taskId, taskEngineArgv(res.task))
   return { task: res.task, running, tabs }
 }
 

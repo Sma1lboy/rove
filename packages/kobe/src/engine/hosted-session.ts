@@ -50,13 +50,34 @@ export async function ensureHostedSessionHost(): Promise<HostedSessionClient> {
   return connectHostedSessionClient(await ensurePtyHostReachable())
 }
 
-export async function listHostedSessions(rpc: HostedSessionRpc): Promise<PtySessionInfo[]> {
+/**
+ * `pty.list`, keeping the ASKING distinct from the ANSWER: `null` means the
+ * host could not be asked (gone, wedged, any RPC failure), `[]` means it
+ * answered and holds nothing.
+ *
+ * A liveness READ needs that difference and nothing else can recover it —
+ * connecting to a stopped host SUCCEEDS (the kernel accepts into the listen
+ * backlog) and only the request times out, so "the socket opened" is not
+ * evidence the host is answering. Collapsing the two is how four running
+ * engines rendered as a stopped task with every tab `alive: false`.
+ */
+export async function listHostedSessionsOrNull(rpc: HostedSessionRpc): Promise<PtySessionInfo[] | null> {
   try {
     const { sessions } = await rpc.request<{ sessions: PtySessionInfo[] }>("pty.list", {})
     return sessions ?? []
   } catch {
-    return []
+    return null
   }
+}
+
+/**
+ * {@link listHostedSessionsOrNull} collapsed for callers that ACT on the
+ * inventory (deliver into a key, kill a task's sessions, resolve a tab):
+ * "couldn't ask" and "nothing there" both mean there is nothing to act on.
+ * Readers must use the tri-state version instead.
+ */
+export async function listHostedSessions(rpc: HostedSessionRpc): Promise<PtySessionInfo[]> {
+  return (await listHostedSessionsOrNull(rpc)) ?? []
 }
 
 export function isHostedTaskKey(key: string, taskId: string): boolean {

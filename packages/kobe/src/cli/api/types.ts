@@ -247,14 +247,28 @@ export interface PromptDeliveryOps {
  * git.
  */
 export interface ApiRuntime {
-  /** True iff ANY of the task's hosted engine tabs is live (not just tab-1). */
-  isTaskRunning(taskId: string): Promise<boolean>
+  /** {@link taskTabs}'s `.running`, for callers that need nothing else. */
+  isTaskRunning(taskId: string, engineArgv?: readonly string[]): Promise<boolean | null>
   /**
    * The task's persisted terminal tabs joined with hosted-session liveness,
    * plus the derived `.running` — the same answer {@link isTaskRunning}
    * gives, from the same read (`get-task` needs both, one host round-trip).
+   *
+   * `running` is TRI-STATE. `true`/`false` are verdicts about engine
+   * processes; `null` means the pty host could not be asked, which is
+   * "couldn't look" and not "nothing is running" — the distinction
+   * `pty-list` already publishes as `sessions: null`, and the one an
+   * unattended cleanup loop needs before it deletes a worktree.
+   *
+   * `engineArgv` is the task's own launch command. Without it a custom
+   * engine — a wrapper script no vendor table names — walks as "no engine"
+   * and its task reads stopped while it works; callers holding the task
+   * should pass `engineLaunchArgv({command, vendor})`.
    */
-  taskTabs(taskId: string): Promise<{ tabs: readonly TaskTabRow[]; running: boolean }>
+  taskTabs(
+    taskId: string,
+    engineArgv?: readonly string[],
+  ): Promise<{ tabs: readonly TaskTabRow[]; running: boolean | null }>
   /** Close one exact Terminal Tab without a mounted TUI. */
   closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */

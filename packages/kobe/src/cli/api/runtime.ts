@@ -23,6 +23,7 @@ import {
   ensurePtyHost,
   killTaskSessions,
   listSessions,
+  listSessionsOrNull,
   openPtyHost,
   taskKeys,
 } from "./pty-delivery.ts"
@@ -249,33 +250,55 @@ export async function deliverPrompt(
 }
 
 export const defaultApiRuntime: ApiRuntime = {
-  isTaskRunning: async (taskId) => (await defaultApiRuntime.taskTabs(taskId)).running,
-  taskTabs: async (taskId) => {
-    // No host = no sessions, an honest "nothing alive"; the persisted tabs
+  isTaskRunning: async (taskId, engineArgv) => (await defaultApiRuntime.taskTabs(taskId, engineArgv)).running,
+  taskTabs: async (taskId, engineArgv) => {
+    // No host is "couldn't ask", NOT "nothing alive" — the host idle-exits and
+    // it can be merely unreachable while every engine it hosts keeps running.
+    // Publishing that as `false` is what would have an unattended cleanup loop
+    // delete worktrees holding live work, so it travels as `null` all the way
+    // out, the same tri-state `pty-list` already publishes. The persisted tabs
     // still return so a stopped task's layout stays inspectable.
-    let sessions: readonly (TaskSessionRow & { pid?: number | null })[] = []
+    let listed: readonly (TaskSessionRow & { pid?: number | null })[] | null = null
     const host = await openPtyHost()
     if (host) {
       try {
-        sessions = await listSessions(host.rpc)
+        // The tri-state listing, NOT `listSessions`: connecting to a stopped
+        // host succeeds and only the request fails, so `host !== null` is not
+        // evidence anybody answered.
+        listed = await listSessionsOrNull(host.rpc)
       } finally {
         host.close()
       }
     }
-    // Live foreground-walk verdicts per session: ONE ps snapshot,
-    // the same shallowest-engine walk inspect/live-engine run — so get-task's
-    // `liveVendor` reflects what runs NOW, not what a mounted TUI last
-    // recorded. Best-effort: a failed ps just keeps the recorded values.
+    const sessions = listed ?? []
+    const hostReachable = listed !== null
+    // Live per-session walk verdicts: ONE ps snapshot answering two
+    // questions — which vendor is in the foreground (`liveVendor`, the same
+    // shallowest-engine walk inspect/live-engine run) and whether ANY engine
+    // is in the tree at all (`engineAlive`, the predicate delivery gates on).
+    // The second is what separates a working engine from the login shell
+    // keepAlive leaves in its place, which `alive` cannot see.
+    // Best-effort: a failed ps keeps the recorded liveVendor and leaves
+    // `engineAlive` unknown rather than guessing it false.
     let liveVendors: Map<string, string | null> | undefined
+    let engineAlive: Map<string, boolean> | undefined
     try {
-      const { foregroundEngineIn, parsePsSnapshot, psSnapshot } = await import("../../engine/foreground.ts")
+      const { engineProcessIn, foregroundEngineIn, parsePsSnapshot, psSnapshot } = await import(
+        "../../engine/foreground.ts"
+      )
       const walkable = sessions.filter((s) => s.alive && typeof s.pid === "number" && s.pid > 0)
       if (walkable.length > 0) {
         const rows = parsePsSnapshot(await psSnapshot())
         liveVendors = new Map(walkable.map((s) => [s.key, foregroundEngineIn(rows, s.pid as number)?.vendor ?? null]))
+        // `engineArgv` is the task's own launch command: without it a custom
+        // engine (a wrapper script no vendor table names) walks as "no
+        // engine" and the task reads stopped while it works.
+        engineAlive = new Map(walkable.map((s) => [s.key, engineProcessIn(rows, s.pid as number, engineArgv)]))
+      } else {
+        engineAlive = new Map()
       }
     } catch {
-      /* recorded liveVendor stays */
+      /* recorded liveVendor stays; engineAlive stays unknown */
     }
     // Durable death records outlive the host's idle-exit — a crashed tab
     // still reports its cause here. Best-effort: unreadable = none.
@@ -287,8 +310,8 @@ export const defaultApiRuntime: ApiRuntime = {
     }
     const snapshot = readTabsSnapshot(taskId)
     return {
-      tabs: joinTaskTabs(snapshot, taskId, sessions, exits, liveVendors),
-      running: hasLiveEngineTab(snapshot, taskId, sessions),
+      tabs: joinTaskTabs(snapshot, taskId, listed, exits, liveVendors, engineAlive),
+      running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive) : null,
     }
   },
   closeTerminalTab: closeHeadlessTerminalTab,

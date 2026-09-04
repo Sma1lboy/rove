@@ -228,6 +228,21 @@ describe("hasLiveEngineTab (the get-task/collect .running rule)", () => {
     const snap = snapshot([{ kind: "engine", id: "tab-2", title: null, ordinal: 2 }])
     expect(hasLiveEngineTab(snap, "t1", [{ key: "t1::tab-2::leaf-2", alive: true }])).toBe(false)
   })
+
+  // keepAlive `exec`s a login shell where an engine exits, so the PTY outlives
+  // the engine by hours. Session liveness alone reported those tasks as
+  // running the whole time.
+  it("a live PTY whose ENGINE is gone does not count as running", () => {
+    const snap = snapshot([{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }])
+    const sessions = [{ key: "t1::tab-1", alive: true }]
+    expect(hasLiveEngineTab(snap, "t1", sessions, new Map([["t1::tab-1", false]]))).toBe(false)
+    expect(hasLiveEngineTab(snap, "t1", sessions, new Map([["t1::tab-1", true]]))).toBe(true)
+  })
+
+  it("a tab nothing walked still counts — 'couldn't look' is not 'stopped'", () => {
+    const snap = snapshot([{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }])
+    expect(hasLiveEngineTab(snap, "t1", [{ key: "t1::tab-1", alive: true }], new Map())).toBe(true)
+  })
 })
 
 describe("joinTaskTabs", () => {
@@ -254,6 +269,7 @@ describe("joinTaskTabs", () => {
         lastTitle: "building",
         autoTitle: "first prompt",
         alive: false,
+        engineAlive: false,
         exit: null,
       },
       {
@@ -265,6 +281,7 @@ describe("joinTaskTabs", () => {
         lastTitle: null,
         autoTitle: null,
         alive: true,
+        engineAlive: null,
         exit: null,
       },
     ])
@@ -303,6 +320,18 @@ describe("joinTaskTabs", () => {
     expect(rows[0]?.liveVendor).toBe("claude")
   })
 
+  // An unreachable pty host answers nothing. Rendering that as `alive: false`
+  // asserts a death nobody observed, and a cleanup loop deletes worktrees on
+  // it — so every liveness field on every row goes to `null` instead.
+  it("an unasked pty host leaves every liveness field null, not false", () => {
+    const snap = { tabs: [{ kind: "engine", id: "tab-1", title: null, ordinal: 1 }] } as unknown as TabsState
+    const rows = joinTaskTabs(snap, "t1", null)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.alive).toBeNull()
+    expect(rows[0]?.engineAlive).toBeNull()
+    expect(rows[0]?.exit).toBeNull()
+  })
+
   it("a task with no snapshot still lists its live sessions as unregistered rows", () => {
     // Returning [] here would make an alive engine invisible to the
     // discovery read.
@@ -316,6 +345,7 @@ describe("joinTaskTabs", () => {
         lastTitle: null,
         autoTitle: null,
         alive: true,
+        engineAlive: null,
         exit: null,
         unregistered: true,
       },

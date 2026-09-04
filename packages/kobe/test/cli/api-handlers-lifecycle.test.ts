@@ -44,6 +44,7 @@ describe("collect handler", () => {
               lastTitle: null,
               autoTitle: null,
               alive: id === "a",
+              engineAlive: id === "a",
               exit: null,
             },
           ],
@@ -216,6 +217,7 @@ describe("task lifecycle handlers", () => {
         lastTitle: null,
         autoTitle: null,
         alive: false,
+        engineAlive: false,
         exit: { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z" },
       },
       {
@@ -227,6 +229,7 @@ describe("task lifecycle handlers", () => {
         lastTitle: "wiring tests",
         autoTitle: null,
         alive: true,
+        engineAlive: true,
         exit: null,
       },
     ] as const
