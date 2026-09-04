@@ -439,12 +439,16 @@ workspace. The chords stay live, so you can hop between pages directly.
 ![The Kanban board: Backlog, In progress and Done for one project, with the card cursor on an in-progress story](assets/kanban.png)
 
 The [issue store](CONCEPTS.md#the-issue-store) as a board, one project at a
-time (`tab` cycles projects). Four columns:
+time (`tab` cycles projects). A project gets a section if it can hold a
+backlog at all — the issue store has a record for it, you saved it as a
+project, or a live task runs in it — so deleting the task you finished leaves
+its stories on the board. Four columns:
 
-- **Backlog.** Open or doing, not linked to a task.
-- **In progress.** Linked to a task. The link *is* the column: agents move
-  cards with `rove api issue-update --task`, and in-progress cards show the
-  linked task's live engine activity.
+- **Backlog.** Status `open`, not linked to a task.
+- **In progress.** Status `doing`, or linked to a task. Either route works:
+  agents move cards with `rove api issue-update --task`, a session started
+  from the drawer sets `doing`, and in-progress cards show the linked task's
+  live engine activity when there is a task to read it from.
 - **Parked.** Status `hold`, linked or not; sits between In progress and
   Done.
 - **Done.** Status `done`.

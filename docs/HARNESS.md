@@ -206,7 +206,8 @@ only its beats. `--encode-only` re-encodes the take already on disk.
   transcript, and so the framing, to differ every run. Seeding is idempotent:
   a re-shoot reuses the sessions it already paid quota for.
 - **The kanban capture is the exception: no engine, fully deterministic.** A
-  card reaches In progress by being LINKED to a task, so `hero-issues.ts`
+  card reaches In progress by being LINKED to a task or by its own `doing`
+  status; the take is about the link, so `hero-issues.ts`
   seeds the board off the fixture's idle tasks, and `hero-kanban.ts` fires a
   real `rove api issue-update --task` mid-take to move a card on camera. It
   files a story and creates a task, so it is NOT idempotent — re-shoot from
