@@ -112,3 +112,25 @@ it("observes an engine that starts after retrying init without pasting the argv 
   expect(await result).toMatchObject({ engineReady: true, delivered: true })
   expect(request.mock.calls.some(([name]) => name === "pty.write")).toBe(false)
 })
+
+it("checks the marker again after the final session inventory request completes", async () => {
+  vi.useFakeTimers()
+  const { marker, deliver, request } = fixture()
+  writeFileSync(marker, "1")
+  let restarted = false
+  const result = deliver(async () => {
+    if (!restarted) {
+      renameSync(marker, `${marker}.previous`)
+      restarted = true
+    }
+    return "123 1 -sh\n456 123 bun install\n"
+  })
+  await vi.advanceTimersByTimeAsync(2900)
+  request.mockImplementationOnce(async (name) => {
+    expect(name).toBe("pty.list")
+    writeFileSync(marker, "1")
+    return { sessions: [{ key: "task::tab-1", alive: true, pid: 123, command: ["codex"], title: "" }] }
+  })
+  await vi.advanceTimersByTimeAsync(400)
+  expect(await result).toMatchObject({ engineReady: false, delivered: false })
+})

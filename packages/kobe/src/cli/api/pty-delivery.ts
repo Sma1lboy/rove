@@ -315,13 +315,13 @@ export async function deliverHostedPrompt(
       snapshot: opts?.snapshot,
     })
     if (enginePid === null) {
-      // The shell may have removed an old failed marker and restarted init
-      // during the probe. Marker absence only confirms pending init while
-      // that same PTY is still alive.
+      // Init may restart during the probe, then finish while inventory is
+      // loading. Check the marker after that await as well as session liveness.
       if (
         launch.initMarkerPath &&
         !existsSync(launch.initMarkerPath) &&
-        (await listSessions(rpc)).some((session) => session.key === launch.key && session.alive)
+        (await listSessions(rpc)).some((session) => session.key === launch.key && session.alive) &&
+        !existsSync(launch.initMarkerPath)
       ) {
         return pendingInit
       }
