@@ -17,12 +17,33 @@ export type KobeSocketOptions = RoveSocketOptions
 
 type Pending = { resolve: (payload: unknown) => void; reject: (err: Error) => void }
 
+/** What the daemon answers `hello` with — the runtime compatibility check. */
+export interface DaemonInfo {
+  /** Wire-format version range the daemon speaks. */
+  readonly protocolVersion: number
+  readonly minProtocolVersion: number
+  /** The daemon's BUILD version. Both spellings carry the same value; the
+   *  wire field is `kobeVersion`. */
+  readonly roveVersion: string
+  readonly kobeVersion: string
+  /** The channel names THIS daemon broadcasts — the answer to "does the host
+   *  I'm talking to know this channel", which `DAEMON_CHANNELS` (what YOUR
+   *  SDK was built against) cannot give. */
+  readonly capabilities: readonly string[]
+  readonly daemonPid?: number
+  /** The daemon's state root; a plugin whose own home differs is talking to a
+   *  foreign daemon. */
+  readonly homeDir?: string
+}
+
 export class RoveSocket {
   private sock: Socket | null = null
   private buffer = ""
   private nextId = 1
   private readonly pending = new Map<string, Pending>()
   private eventHandler: ((name: string, payload: unknown) => void) | null = null
+  private closeHandler: ((err: Error) => void) | null = null
+  private closeNotified = false
 
   /** Connect; resolves once the socket is up (before any `hello`). */
   connect(opts: RoveSocketOptions = {}): Promise<void> {
@@ -63,7 +84,40 @@ export class RoveSocket {
     await this.request("subscribe", { role: "pane", ...(channels ? { channels } : {}) })
   }
 
+  /**
+   * Ask the running daemon what it is: build version and the channel list it
+   * actually broadcasts. This is the only runtime compatibility check —
+   * your own SDK version cannot tell you what the HOST knows, and an
+   * unknown channel name is dropped from a `subscribe` filter silently.
+   */
+  async hello(): Promise<DaemonInfo> {
+    const raw = await this.request<Record<string, unknown>>("hello", {})
+    const version = typeof raw.kobeVersion === "string" ? raw.kobeVersion : ""
+    return {
+      protocolVersion: Number(raw.protocolVersion ?? 0),
+      minProtocolVersion: Number(raw.minProtocolVersion ?? 0),
+      roveVersion: version,
+      kobeVersion: version,
+      capabilities: Array.isArray(raw.capabilities) ? (raw.capabilities as string[]) : [],
+      ...(typeof raw.daemonPid === "number" ? { daemonPid: raw.daemonPid } : {}),
+      ...(typeof raw.homeDir === "string" ? { homeDir: raw.homeDir } : {}),
+    }
+  }
+
+  /**
+   * Called once when the connection dies — a daemon restart, a crash, a
+   * socket error. Without it a subscriber goes silently blind: the daemon's
+   * `daemon.stopping` only covers a GRACEFUL stop, and a hosted pane's PTY
+   * outlives the daemon, so the pane keeps drawing its last frame and looks
+   * live. Reconnect from here (`new RoveSocket()` + connect + subscribe) or
+   * tell the user the host is gone. Not called for your own `close()`.
+   */
+  onClose(handler: (err: Error) => void): void {
+    this.closeHandler = handler
+  }
+
   close(): void {
+    this.closeNotified = true // deliberate teardown is not a lost connection
     this.sock?.end()
     this.sock = null
   }
@@ -97,6 +151,11 @@ export class RoveSocket {
   private failAll(err: Error): void {
     for (const waiter of this.pending.values()) waiter.reject(err)
     this.pending.clear()
+    // Pending requests were the ONLY thing this used to fail. A subscriber
+    // has no pending request, so it heard nothing and stayed blind forever.
+    if (this.closeNotified) return
+    this.closeNotified = true
+    this.closeHandler?.(err)
   }
 }
 

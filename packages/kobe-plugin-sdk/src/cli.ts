@@ -82,9 +82,28 @@ export function listTasks<T = unknown>(opts?: RoveRunOptions): Promise<T> {
   return roveJson<T>(["api", "list"], opts)
 }
 
-/** Open one of this plugin's own `[[panes]]` (qualified id: `you.plugin.pane`). */
-export function openPane(qualifiedPaneId: string, opts?: RoveRunOptions): Promise<RoveRunResult> {
-  return rove(["plugin", "pane", "open", qualifiedPaneId], opts)
+/**
+ * Open one of this plugin's own `[[panes]]` (qualified id: `you.plugin.pane`).
+ * Pass `taskId` from an event hook's `ctx.taskId`; without it the host falls
+ * back to the active task and fails when there is none.
+ *
+ * Resolves the `{ ok, clients, title, taskId }` JSON the verb prints — check
+ * `clients`, not the exit code: 0 means the open was broadcast but no
+ * attached UI performed the split.
+ */
+export async function openPane(
+  qualifiedPaneId: string,
+  opts: RoveRunOptions & { taskId?: string } = {},
+): Promise<RoveRunResult & { clients?: number }> {
+  const { taskId, ...run } = opts
+  const args = ["plugin", "pane", "open", qualifiedPaneId, ...(taskId ? ["--task", taskId] : [])]
+  const res = await rove(args, run)
+  try {
+    const parsed = JSON.parse(res.stdout) as { clients?: number }
+    return { ...res, ...(typeof parsed.clients === "number" ? { clients: parsed.clients } : {}) }
+  } catch {
+    return res // older host: the verb printed prose, so `clients` is unknowable
+  }
 }
 
 /**

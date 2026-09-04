@@ -15,7 +15,13 @@ export {
   type KobeRunOptions,
   type KobeRunResult,
 } from "./cli.ts"
-export { RoveSocket, KobeSocket, type RoveSocketOptions, type KobeSocketOptions } from "./socket.ts"
+export {
+  RoveSocket,
+  KobeSocket,
+  type DaemonInfo,
+  type RoveSocketOptions,
+  type KobeSocketOptions,
+} from "./socket.ts"
 export { Pane, parseKeys, type Key, type PaneOptions } from "./pane.ts"
 export {
   PLUGIN_EVENT_NAMES,

@@ -354,6 +354,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
     state,
     active,
     vendor: props.vendor,
+    taskId: props.taskId,
     worktree: props.worktree,
     liveTitles,
     update,

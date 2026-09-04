@@ -64,3 +64,56 @@ describe("RoveSocket", () => {
     client.close()
   })
 })
+
+describe("RoveSocket.onClose", () => {
+  it("tells a subscriber the connection died, even with no request pending", async () => {
+    const sockets: Socket[] = []
+    const path = fakeDaemon((frame, sock) => {
+      sockets.push(sock)
+      sock.write(`${JSON.stringify({ type: "response", id: frame.id, payload: {} })}\n`)
+    })
+    const client = new RoveSocket()
+    const closes: string[] = []
+    client.onClose((err) => closes.push(err.message))
+    await client.connect({ socketPath: path })
+    // A subscriber holds no pending request — the pre-onClose socket failed
+    // only those, so a daemon crash reached the plugin as total silence.
+    await client.subscribe(() => {})
+    sockets[0]?.destroy()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(closes).toHaveLength(1)
+  })
+
+  it("stays quiet for the plugin's own close()", async () => {
+    const path = fakeDaemon(() => {})
+    const client = new RoveSocket()
+    let fired = false
+    client.onClose(() => {
+      fired = true
+    })
+    await client.connect({ socketPath: path })
+    client.close()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(fired).toBe(false)
+  })
+})
+
+describe("RoveSocket.hello", () => {
+  it("reports the RUNNING daemon's build and channel list under both spellings", async () => {
+    const path = fakeDaemon((frame, sock) => {
+      const payload =
+        frame.name === "hello"
+          ? { protocolVersion: 4, minProtocolVersion: 2, kobeVersion: "0.9.142", capabilities: ["task.snapshot"] }
+          : {}
+      sock.write(`${JSON.stringify({ type: "response", id: frame.id, payload })}\n`)
+    })
+    const client = new RoveSocket()
+    await client.connect({ socketPath: path })
+    const info = await client.hello()
+    expect(info.roveVersion).toBe("0.9.142")
+    expect(info.kobeVersion).toBe("0.9.142")
+    expect(info.capabilities).toEqual(["task.snapshot"])
+    expect(info.protocolVersion).toBe(4)
+    client.close()
+  })
+})

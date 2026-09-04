@@ -117,6 +117,7 @@ function Driver(props: { state: TabsState; captured: Captured }) {
     state: props.state,
     active: props.state.tabs[0]!,
     vendor: "claude",
+    taskId: "task-under-test",
     worktree,
     liveTitles: new Map(),
     update: (next) => props.captured.updates.push(next),

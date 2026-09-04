@@ -55,7 +55,8 @@ function printUsage(out: NodeJS.WriteStream): void {
       "  log <id> [-n <count>]                                 tail the plugin's command-run log",
       "  action list [--plugin <id>]                           declared actions",
       "  action invoke <plugin-id.action-id>                   run an action now",
-      "  pane open --plugin <id> --entrypoint <pane-id>        open a plugin pane as a terminal tab",
+      "  pane open <plugin-id.pane-id> [--task <task-id>]      open a plugin pane as a terminal tab (JSON:",
+      "                                                        clients — 0 = no attached UI performed the split)",
       "",
       "Marketplace: https://github.com/topics/rove-plugin (legacy kobe-plugin is included)",
       "",
@@ -217,25 +218,31 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
   if (!pane) throw new PluginCliError(`no pane \`${entrypoint}\` in \`${pluginId}\`; declare it under [[panes]]`)
   assertPlatformSupported(`${pluginId}.${pane.id}`, pane, loaded.manifest)
 
-  // Shared composition with the TUI's ctrl+e picker (plugins/pane-command.ts):
-  // one login-shell `-ilc` script, env contract riding an `env` prefix, cwd = worktree.
-  const argv = buildPaneArgv(loaded.entry.id, loaded.entry.root, pane, {
-    socketPath: defaultDaemonSocketPath(),
-    binPath: resolvePluginBinPath(),
-  })
-
   const { openDaemonSession, resolveActiveTaskId } = await import("./daemon-session.ts")
   const session = await openDaemonSession({ mode: "start" })
   try {
     const taskId = taskFlag ?? (await resolveActiveTaskId(session.client))
     if (!taskId) throw new PluginCliError("no active task; pass --task <id>")
-    await session.client.request("tab.open", {
+    // Resolve the task BEFORE composing argv: its id rides the env contract
+    // into the pane, so the pane can name the task it runs in instead of
+    // guessing from its cwd.
+    // Shared composition with the TUI's ctrl+e picker (plugins/pane-command.ts):
+    // one login-shell `-ilc` script, env contract riding an `env` prefix, cwd = worktree.
+    const argv = buildPaneArgv(loaded.entry.id, loaded.entry.root, pane, {
+      socketPath: defaultDaemonSocketPath(),
+      binPath: resolvePluginBinPath(),
+      taskId,
+    })
+    const reply = (await session.client.request("tab.open", {
       taskId,
       argv,
       title: pane.title,
       placement: pane.placement,
-    })
-    console.log(`opened pane ${pluginId}.${pane.id} in task ${taskId}`)
+    })) as Record<string, unknown> | undefined
+    // Same machine-readable shape as `api pane-open`: `clients` is the only
+    // way a caller can tell "nobody performed the split" from "opened" —
+    // exit 0 alone means the broadcast went out, not that a UI acted on it.
+    console.log(JSON.stringify({ ...reply, ok: true, pane: `${pluginId}.${pane.id}`, taskId, title: pane.title }))
   } finally {
     session.close()
   }
