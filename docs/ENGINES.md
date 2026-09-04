@@ -71,7 +71,7 @@ it, so Rove assumes you meant it.
 
 ### Reasoning effort
 
-Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, passed as
+Codex accepts `none`, `low`, `medium`, `high`, `xhigh`, `max`, passed as
 `-c model_reasoning_effort=<level>`. Other engines have no effort flag Rove
 can drive; a selected effort is ignored there rather than passed through.
 

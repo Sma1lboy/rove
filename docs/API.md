@@ -551,7 +551,8 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   removed `set-vendor`.
 - `set-effort --task-id ID --level LEVEL`: set a task's reasoning effort
   level (takes effect on the next session rebuild). Levels are declared by
-  the task's engine — codex accepts `none`, `low`, `medium`, `high`, `xhigh`;
+  the task's engine — codex accepts `none`, `low`, `medium`, `high`, `xhigh`,
+  `max`;
   claude declares none. A level the engine does not declare is rejected
   (`BAD_EFFORT`, naming the levels it does accept) rather than passed through,
   because the launch path drops an unknown level silently.
