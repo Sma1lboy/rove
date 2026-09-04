@@ -8,6 +8,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { type PluginManifest, qualifiedActionId, readPluginManifest } from "./manifest.ts"
+import { tightenPluginPermissions } from "./permissions.ts"
 import { pluginConfigDir } from "./plugin-paths.ts"
 import { loadPluginRegistry } from "./registry.ts"
 
@@ -74,9 +75,13 @@ export function writePluginSettings(pluginId: string, values: Record<string, str
   }
   while (next.length > 0 && next[next.length - 1] === "") next.pop()
   // 0700/0600: this .env is where PLUGIN-AUTHORING tells authors to keep API
-  // keys, so it must not be world-readable like the manifest beside it.
+  // keys, so it must not be world-readable like the manifest beside it. The
+  // `mode` arguments only cover a FRESH path — this is a rewrite-in-place, so
+  // an existing 0644 .env keeps 0644 through every save. Hence the repair
+  // afterwards, which is what actually closes an old install.
   mkdirSync(pluginConfigDir(pluginId, homeDir), { recursive: true, mode: 0o700 })
   writeFileSync(path, next.length > 0 ? `${next.join("\n")}\n` : "", { mode: 0o600 })
+  tightenPluginPermissions(pluginId, homeDir)
 }
 
 /**

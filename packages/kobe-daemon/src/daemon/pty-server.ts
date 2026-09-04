@@ -31,6 +31,7 @@ import { ClientWriter } from "./client-writer.ts"
 import { linkLegacyRuntimePath } from "./compat-link.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { objectPayload, requireString } from "./handler-validators.ts"
+import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultPtyFreezeDir,
   defaultPtyHostPidPath,
@@ -52,6 +53,7 @@ import {
   loadFrozenSessions,
 } from "./pty-freeze-store.ts"
 import { PtyHost } from "./pty-host.ts"
+import { listenOnUnixSocket } from "./socket-guard.ts"
 import { parseTerminalDefaultColors } from "./terminal-colors.ts"
 
 /**
@@ -251,6 +253,10 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
   // A Windows named pipe lives in the `\\.\pipe` namespace, not the
   // filesystem — there is no parent directory to create.
   const pipeSocket = isWindowsPipePath(socketPath)
+  // 0700 on creation AND on every boot — same reasoning as the daemon's, and
+  // the same directory: this host spawns shells for whoever reaches its
+  // socket, so the directory mode is the gate (see owner-only.ts).
+  await ensureOwnerOnlyStateDir(resolveDaemonHomeDir())
   if (!pipeSocket) await mkdir(dirname(socketPath), { recursive: true })
   await mkdir(dirname(pidPath), { recursive: true })
   // Never unlink before listen: an already-running host keeps its socket
@@ -442,10 +448,10 @@ export async function startPtyHostServer(options: PtyHostServerOptions = {}): Pr
     }
   }
 
-  await new Promise<void>((resolve, reject) => {
-    server.once("error", reject)
-    server.listen(socketPath, () => resolve())
-  })
+  // Shared with the daemon's bind (socket-guard.ts) so both sockets get the
+  // same post-listen chmod — `listen()` applies the umask, so an unchmod'd
+  // node lands world-connectable.
+  await listenOnUnixSocket(server, socketPath)
   await writeFile(pidPath, `${process.pid}\n`, "utf8")
   // Same reason as the daemon's: a pre-rename TUI that can't see this host
   // starts a SECOND one, and the engine tabs split across the pair.

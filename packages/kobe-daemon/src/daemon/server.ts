@@ -10,6 +10,7 @@ import { dirname } from "node:path"
 import { StringDecoder } from "node:string_decoder"
 import { probeDaemonSocket } from "../client/daemon-process.ts"
 import { ptyHostHasLiveSessions, sweepPtyHostSessions } from "../client/pty-process.ts"
+import { tightenInstalledPluginPermissions } from "../plugins/permissions.ts"
 import { maybeStartPluginHost } from "../plugins/runtime.ts"
 import { type ClientState, broadcast, drainClientBuffer, writeFrame } from "./client-connection.ts"
 import { ClientWriter } from "./client-writer.ts"
@@ -30,6 +31,7 @@ import { assertHomeUnclaimed, claimHome, releaseHomeClaim } from "./home-owner.t
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
+import { ensureOwnerOnlyStateDir } from "./owner-only.ts"
 import {
   defaultDaemonPidPath,
   defaultDaemonSocketPath,
@@ -155,8 +157,16 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     engineEvents,
   } = await initDaemonStores(orch, runtime, bus, options.homeDir)
 
+  // 0700 on creation AND on every boot: the socket below has no peer-
+  // credential check, so this directory's mode is the entire ACL, and an
+  // install that predates the mode argument is exactly the one that is
+  // exposed (see owner-only.ts).
+  await ensureOwnerOnlyStateDir(homeDir)
   await mkdir(dirname(socketPath), { recursive: true })
   await mkdir(dirname(pidPath), { recursive: true })
+  // Same repair for the plugin tree, whose `.env` is where PLUGIN-AUTHORING
+  // tells authors to keep API keys.
+  tightenInstalledPluginPermissions(options.homeDir)
   // Stale leftover only — a live owner was refused at the top of this boot.
   await unlink(socketPath).catch(() => {})
 

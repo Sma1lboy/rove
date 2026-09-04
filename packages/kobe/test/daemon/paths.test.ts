@@ -44,6 +44,7 @@ import { migrateLegacyPtyHostData } from "@sma1lboy/kobe-daemon/daemon/pty-data-
 import { defaultUiPrefsStatePath } from "@sma1lboy/kobe-daemon/daemon/ui-prefs-watcher"
 import { pluginConfigDir, pluginRegistryPath, pluginStateDir } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import { afterEach, beforeEach, describe, expect, test } from "vitest"
+import { roveStateDir } from "../../src/env.ts"
 
 const PREV = {
   ROVE_HOME_DIR: process.env.ROVE_HOME_DIR,
@@ -178,12 +179,25 @@ describe("defaultDaemonLogPath", () => {
 })
 
 describe("ROVE_HOME_DIR compatibility state matrix", () => {
+  /**
+   * Every path a running install writes to, asserted as an exact string under
+   * an isolated home. This is the guard against a store that resolves its own
+   * path and lands outside the home — the failure mode that let `tasks.json`
+   * escape: a store whose path is not listed here is not covered by anything,
+   * because the escape is invisible until someone's sandbox run scribbles on
+   * their real `~/.rove`. ADD AN ENTRY when you add a persisted path.
+   *
+   * `taskIndex` reaches through the kobe package's `roveStateDir()` rather
+   * than a kobe-daemon `default*Path` — which is exactly why it was missing,
+   * and why it is spelled out here instead of left to the daemon-side group.
+   */
   test("every path is canonical once nothing legacy is live", () => {
     process.env.KOBE_HOME_DIR = "/tmp/legacy-home"
     process.env.ROVE_HOME_DIR = "/tmp/rove-home"
 
     expect({
       attention: defaultAttentionInboxPath(),
+      taskIndex: join(roveStateDir(), "tasks.json"),
       automations: defaultAutomationsPath(),
       clientLog: defaultClientLogPath(),
       daemonLog: defaultDaemonLogPath(),
@@ -202,6 +216,7 @@ describe("ROVE_HOME_DIR compatibility state matrix", () => {
       uiPrefs: defaultUiPrefsStatePath(),
     }).toEqual({
       attention: "/tmp/rove-home/.rove/attention-inbox.json",
+      taskIndex: "/tmp/rove-home/.rove/tasks.json",
       automations: "/tmp/rove-home/.rove/automations.json",
       clientLog: "/tmp/rove-home/.rove/client.log",
       daemonLog: "/tmp/rove-home/.rove/daemon.log",
