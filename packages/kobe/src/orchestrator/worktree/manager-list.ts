@@ -183,15 +183,29 @@ export async function adoptablePaths(
 ): Promise<{ readonly path: string; readonly branch: string; readonly head: string }[]> {
   requireAbsolute("repo", ctx.dir)
   const all = parseWorktreeListPorcelain(await deps.runGitStdout(ctx, ["worktree", "list", "--porcelain"]))
-  const canonRepo = ctx.remote ? ctx.dir : canonicalize(ctx.dir)
+  const canon = (p: string): string => (ctx.remote ? p : canonicalize(p))
+  const canonRepo = canon(ctx.dir)
+  // The repository's PRIMARY checkout, which git always lists first — not
+  // `ctx.dir`. Called with a linked worktree, `ctx.dir` is that worktree, so
+  // comparing against it alone excluded the caller and left the user's own
+  // primary checkout in the adoptable list: `discover-adoptable` offered it
+  // and `adopt` (which validates through this same function) recorded it as a
+  // disposable managed task on the default branch, which `rove add <linked
+  // worktree>` then did unprompted.
+  const canonMain = all.find((entry) => entry.path)?.path
+  const canonMainPath = canonMain ? canon(canonMain) : null
   const kept: { readonly path: string; readonly branch: string; readonly head: string }[] = []
   for (const entry of all) {
     if (!entry.path) continue
     if (entry.bare) continue
     // Detached entries have no branch to map to a task's branch.
     if (!entry.branch || entry.detached) continue
-    // Skip the main checkout — it's the repo root (the main task).
-    if ((ctx.remote ? entry.path : canonicalize(entry.path)) === canonRepo) continue
+    const canonEntry = canon(entry.path)
+    // Skip the repo's main checkout — it is the project row, never a task.
+    if (canonMainPath !== null && canonEntry === canonMainPath) continue
+    // Skip the caller's own worktree: adopting the worktree you are asking
+    // from is never the answer.
+    if (canonEntry === canonRepo) continue
     kept.push({ path: entry.path, branch: entry.branch, head: entry.head ?? "" })
   }
   return kept
