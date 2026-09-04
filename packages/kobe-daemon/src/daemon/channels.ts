@@ -35,13 +35,19 @@ export interface ChannelPayloads {
   "task.snapshot": { tasks: SerializedTask[] }
   /**
    * Daemon-owned issue tracker snapshot for ONE repo. Published after every
-   * `issue.mutate`, so every attached web Issues pane updates from the same
-   * source of truth whether the edit came from web, TUI, or `kobe api`.
-   * The payload is the repo's full issue state, not a delta, matching the
-   * `/api/issues` route and keeping clients stateless. Last-value replay only
-   * carries the most recently changed repo; browsers still do their normal
-   * initial `/api/issues` load for every visible repo, then use this channel
-   * for live updates.
+   * `issue.mutate`. The payload is the repo's full issue state, not a delta,
+   * which keeps subscribers stateless; last-value replay carries only the
+   * most recently changed repo.
+   *
+   * WRITE-ONLY IN THIS REPO. Its subscriber was the browser Issues pane,
+   * deleted in #855; the TUI kanban uses the `issue.list` / `issue.mutate`
+   * request/response RPCs instead. The channel stays because it is a public
+   * plugin API — it is in `DAEMON_CHANNELS` (`kobe-plugin-sdk`) and
+   * documented in `docs/PLUGIN-SDK.md`, so out-of-repo subscribers nobody
+   * here can enumerate depend on it. If the cost of publishing a full
+   * snapshot per task mutation ever shows up in a profile, gate the publish
+   * on `lifetime.hasSubscribersFor("issue.snapshot")` — the same gate
+   * `startDaemonCollectors` uses — rather than removing the channel.
    */
   "issue.snapshot": RepoIssues
   /**

@@ -172,6 +172,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (task) {
         try {
           const next = await ctx.issues.unlinkTask(task.repo, taskId)
+          // Write-only in this repo; kept as a plugin API — see `channels.ts`.
           if (next) ctx.bus.publish("issue.snapshot", next)
         } catch (err) {
           logDaemonError("issue-delete-unlink", err)
@@ -282,6 +283,7 @@ export const TASK_HANDLERS: readonly DaemonRequestHandler[] = [
       if (status === "done" && prevStatus !== "done" && linked) {
         try {
           const next = await ctx.issues.mirrorTaskDone(linked.repo, taskId)
+          // Write-only in this repo; kept as a plugin API — see `channels.ts`.
           if (next) ctx.bus.publish("issue.snapshot", next)
         } catch (err) {
           logDaemonError("issue-done-mirror", err)

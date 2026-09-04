@@ -33,6 +33,7 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
         }
       }
       const state = await ctx.issues.mutate(repoRoot, payload.op)
+      // Write-only in this repo; kept as a plugin API — see `channels.ts`.
       ctx.bus.publish("issue.snapshot", state)
       ctx.plugins?.handleUiReport({
         kind: "issue.changed",
