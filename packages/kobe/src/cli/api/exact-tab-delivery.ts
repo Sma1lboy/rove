@@ -38,9 +38,11 @@ import {
 import { ApiError, type DeliveredPrompt, type PromptDeferralSink } from "./types.ts"
 
 /**
- * Deliver into ONE exact tab (`send --tab tab-N`) — no fallback, no spawn.
- * The addressed tab must exist and be alive; anything else is a typed error
- * so a script targeting "the second tab" never silently lands in the first.
+ * Deliver into ONE exact tab (`send --tab tab-N`) — no fallback, no search.
+ * The addressed tab must be able to take the prompt; anything else is a typed
+ * error so a script targeting "the second tab" never silently lands in the
+ * first. The one tab this may START is the addressed one itself, and only
+ * when it is freeze-restored AND the caller passed `opts.respawn`.
  */
 export async function deliverToExactTab(
   rpc: PtyHostRpc,
@@ -63,7 +65,6 @@ export async function deliverToExactTab(
   const key = `${taskId}::${tabId}`
   const { sessions = [] } = await rpc.request<{ sessions?: PtySessionInfo[] }>("pty.list", {})
   const session = sessions.find((s) => s.key === key)
-  let respawned = false
   if (!session?.alive) {
     // A FREEZE-RESTORED tab is not an absent one: the host is listing it, its
     // command/cwd/scrollback survived, and `pty.open` respawns it in place.
@@ -81,8 +82,7 @@ export async function deliverToExactTab(
         ...(launch ? { command: launch.command } : {}),
         defaultColors: readPersistedTerminalDefaultColors(),
       })
-      respawned = open.respawned === true || open.alive === true
-      if (!respawned) {
+      if (open.respawned !== true && open.alive !== true) {
         throw new ApiError(`tab ${tabId} on task ${taskId} could not be respawned`, "SESSION_FAILED", {
           hint: "the frozen record is still on disk; open the task in the TUI to see the session's own output",
           nextCommandArgs: ["api", "read-output", "--task-id", taskId, "--tab", tabId, "--source", "terminal"],
@@ -108,8 +108,7 @@ export async function deliverToExactTab(
           reason: (await hostedSessionFailureLine(rpc, key)) ?? ENGINE_NOT_OBSERVED_REASON,
         }
       }
-      const outcome = await deliverRespawned(rpc, key, prompt, opts, taskId, tabId)
-      return outcome
+      return await deliverRespawned(rpc, key, prompt, opts, taskId, tabId)
     }
     throw new ApiError(
       `tab ${tabId} has no live session on task ${taskId} — see \`rove api pty-list\` for alive tabs`,
