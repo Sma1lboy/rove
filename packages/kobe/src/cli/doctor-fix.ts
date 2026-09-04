@@ -80,6 +80,22 @@ export function resetManualFix(cliName: string, reason: ResetReason): DoctorFix 
   }
 }
 
+/**
+ * Orphaned PTY descendants: print-only, because the list can contain a process
+ * the user deliberately backgrounded. Killing it is not undoable, and only the
+ * user can tell those apart from a leak — so doctor shows the command and the
+ * list, and never runs it behind a y/N.
+ */
+export function killOrphansManualFix(cliName: string, count: number): DoctorFix {
+  return {
+    kind: "manual",
+    id: "kill-orphans",
+    label: t("doctor.fix.orphans", { count }),
+    action: `${cliName} doctor --kill-orphans`,
+    why: t("doctor.fix.orphansWhy"),
+  }
+}
+
 /** The user-owned half of a dead hook channel: restarting the engine tabs. */
 export function engineTabsManualFix(): DoctorFix {
   return {

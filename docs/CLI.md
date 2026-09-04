@@ -276,12 +276,13 @@ Changes apply to a running daemon without a restart. Writing one:
 ## doctor
 
 ```bash
-rove doctor [--report] [--fix]
+rove doctor [--report] [--fix] [--kill-orphans]
 ```
 
 Read-only check of your build (including install integrity and a stale bundled
 Bun), terminal, git, engine CLIs and logins, the engine hook channel, daemon,
-running sessions, leftover pre-v0.8 tmux sessions, node-pty's macOS
+running sessions, processes left behind by a PTY session that died without
+Rove seeing it, leftover pre-v0.8 tmux sessions, node-pty's macOS
 `spawn-helper` exec bit, agent skill, and state files. The terminal section names
 `TERM`/`TERM_PROGRAM`/`COLORTERM`, whether you are inside a multiplexer (tmux,
 zellij, screen — all three rewrite keys on the way in), and asks the terminal
@@ -306,6 +307,13 @@ and prints its path; attach that to bug reports.
   sessions (`rove reset`, closing engine tabs) or needs a human (installing
   git/Node.js, engine logins) is shown with the step and why doctor won't run
   it. Without a TTY (`--fix` in a script), nothing at all is executed.
+
+`--kill-orphans` ends the process groups listed under `orphans:` — SIGTERM,
+then SIGKILL on whatever survives. It is a separate flag rather than a `--fix`
+entry because the report cannot tell a leak from a process you backgrounded on
+purpose from a Rove terminal and then closed the tab on: both are reparented to
+init with a dead group leader. Run the plain report, read the list, then pass
+the flag. See [Troubleshooting](./TROUBLESHOOTING.md).
 
 The remedies mirror [Troubleshooting](./TROUBLESHOOTING.md) — `--fix` is that
 page's executable half.

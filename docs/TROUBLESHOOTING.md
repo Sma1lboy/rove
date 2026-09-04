@@ -99,6 +99,38 @@ The raw logs live under the active Rove home (normally your OS home):
 | `~/.rove/pty.log` | Hosted PTY startup and session-host failures |
 | `~/.rove/client.log` | TUI/pane connection, disconnect, and reconnect diagnostics |
 
+## Processes keep running days after their task is gone
+
+Ending a session in Rove ends its whole subtree: the PTY host signals the
+child's process *group*, which reaches the shell, the engine, and everything
+they spawned. That only happens when Rove is the one doing the killing. Kill an
+engine from outside — `kill -9`, an OOM reaper, a crashed PTY host — and Rove is
+never told, so it never signals the group, and whatever the engine had spawned
+is reparented to init and runs until you reboot. A machine that has been through
+a few of those accumulates test runners, dev servers, and browsers burning CPU
+for something you closed last week.
+
+`rove doctor` lists them under `orphans:`, with age, memory, and command:
+
+```text
+orphans: ⚠ 3 process(es) outlived the PTY session that spawned them (97 MB RSS)
+         pid 15752 (group 14297) up 04-21:22:21, 25 MB: bun test test/render
+```
+
+A process is listed only when its environment carries the marker the PTY host
+sets on every child it spawns, its parent is init, its process group has no
+leader left, and that group is not one the PTY host still reports as live. A
+healthy task never matches, and neither does anything you started outside Rove.
+
+Killing needs `rove doctor --kill-orphans`, and doctor never does it on its own:
+a database tunnel or dev server you deliberately backgrounded from a Rove
+terminal, whose tab you then closed, is indistinguishable from a leak. Read the
+list first.
+
+On macOS the environment of an Apple-signed system binary is unreadable without
+root, so those are never listed. What actually leaks — `bun`, `node`, a browser,
+a CLI tool — reads fine.
+
 ## Who deleted my task?
 
 Every task deletion is recorded in `~/.rove/daemon.log`, whether it succeeds
