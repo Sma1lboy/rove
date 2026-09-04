@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.9.120
+
+### Patch Changes
+
+- [#865](https://github.com/Sma1lboy/rove/pull/865) [`5cdd3d9`](https://github.com/Sma1lboy/rove/commit/5cdd3d94327435823e1b3eb7c595fbefb8d5428f) Routines: stop reporting success for firings that did not happen.
+
+  A sweep pass is serial, so a routine with a slow precheck stalls every routine
+  behind it — and the occurrences those routines missed left no record at all,
+  because the backwards cron search only ever returns the most recent one. A
+  per-minute routine could quietly become four-minutely and its history still
+  read as an unbroken column of `dispatched`. The gap is now counted and recorded
+  as a `skipped_missed` run naming how many occurrences never ran.
+
+  `dispatched` also meant "the login shell opened", not "the engine started" — so
+  a routine whose engine binary does not exist recorded `dispatched` forever while
+  every firing left a dead task behind, and `Run now` reported the same false
+  green. A firing now waits for the engine PROCESS to appear before reporting
+  success, and a failure records `dispatch_failed` carrying the session's own
+  `Engine exited (code N)` line. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#865](https://github.com/Sma1lboy/rove/pull/865) [`5cdd3d9`](https://github.com/Sma1lboy/rove/commit/5cdd3d94327435823e1b3eb7c595fbefb8d5428f) Surface a routine that is failing, instead of leaving it for you to find.
+
+  The Attention Inbox had exactly one routine-related entry — the success path
+  where a standing session's composer was busy. A routine pointed at a repo that
+  moved, or one whose engine will not start, produced nothing anywhere a user
+  looks, every minute, forever. Those two outcomes now raise one Inbox episode
+  per routine (not per firing, and not per throwaway task), and a run that starts
+  working again clears it. Opening the episode lands on the Routines page.
+
+  The Routines list rows also carry the latest run's status, so a routine that
+  has failed every firing no longer renders identically to one that has succeeded
+  every firing, and the header counts how many need a human. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.119
 
 ### Patch Changes
