@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.133
+
+### Patch Changes
+
+- [#879](https://github.com/Sma1lboy/rove/pull/879) [`cf303d5`](https://github.com/Sma1lboy/rove/commit/cf303d550c44143c1c617144f6975df489c00bf8) The sidebar's drift chip no longer measures against a branch that never touched the work. The daemon's base-ref ladder took the first candidate that resolved, so a repo with an abandoned orphan `main` beside its real `develop` base reported drift against history the task never forked from. Every candidate now has to survive `git merge-base <ref> HEAD`, and the base checkout's own branch is the last resort — the same rule `rove api collect` adopted in the previous release.
+
+  The correctness is free on an idle tick: each cached answer carries the HEAD and candidate shas it was reached on, all read from ref files, so an unchanged worktree renews without spawning anything. Measured at 19 worktrees, five-minute idle cost is unchanged at zero `git` processes; one `git merge-base` per worktree is paid when HEAD or a base ref actually moves. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#879](https://github.com/Sma1lboy/rove/pull/879) [`cf303d5`](https://github.com/Sma1lboy/rove/commit/cf303d550c44143c1c617144f6975df489c00bf8) Review notes stop overstating themselves, and a diff that cannot take a keypress stops advertising keys. A file's footer counted every note in the task while the glow only painted the notes on that file, so opening a file with no notes read `1 notes · 1 unsent` for a note that lived somewhere else — it now says `0 here · 1 in task` when they differ, and never renders `1 notes`. Sending a batch marks any note whose path the branch no longer has, instead of naming a file the agent cannot open. And while the diff pane is unfocused — opening a diff deliberately does not steal focus — the footer offers `ctrl+q to focus` rather than listing chords that are inert until it has it.
+
+  `shift+<letter>` chords were also reported dead. **No binding is added, moved, or removed here** — the keymap is untouched. The visual harness was dropping the Shift modifier on its way through xterm, so every existing such chord measured as its unshifted twin and looked broken; `visual:shot` now presses the uppercase letter, which is the byte a real terminal sends. That is a change to the measuring tool, not to any shortcut. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.132
 
 ### Patch Changes
