@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * kobe web — claude theme (dark).
+ * kobe-harness — claude theme (dark).
  * Palette mirrors packages/kobe/src/tui/context/theme/claude.json so the
  * web UI is visually the same product as the TUI. Do not invent colors here.
  */

@@ -6,8 +6,8 @@
  * `parseEngineCommand` keeps the attached form as a single token, and so does
  * `process.argv`. A bare `argv.includes("--flag")` / `argv.indexOf("--flag")`
  * therefore misses the attached form silently — the bug class behind double
- * `--session-id` (#361 → #365 → #386) and behind `rove web --port=N` binding
- * the default port with no error (#58). Every flag probe goes through these
+ * `--session-id` (#361 → #365 → #386) and behind a `--port=N` that bound the
+ * default port with no error (#58). Every flag probe goes through these
  * two; `test/architecture/argv-flag-guards.test.ts` rejects new bare checks.
  */
 

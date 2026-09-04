@@ -4,8 +4,8 @@
  * `state.json` remembers the last version that ran (`app.lastRunVersion`).
  * When the running binary and that stamp sit on opposite sides of a
  * version in {@link BREAKING_VERSIONS}, the on-disk daemon/task/UI state
- * may be incompatible — so the app entrances (default TUI, `kobe web`)
- * refuse to start until the user runs `kobe reset`, which tears down the
+ * may be incompatible — so the app entrance (the default TUI)
+ * refuses to start until the user runs `kobe reset`, which tears down the
  * daemon/PTY host/sessions and re-stamps the gate.
  *
  * Deliberately NOT enforced for non-app subcommands (`update`, `doctor`,
