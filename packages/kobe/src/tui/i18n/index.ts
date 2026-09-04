@@ -33,6 +33,15 @@ export function currentLang(): LocaleId {
   return langState.get()
 }
 
+/**
+ * The BCP-47 tag for the active UI language — the argument every `Intl` /
+ * `toLocale*` call needs so a date or clock follows the UI setting rather
+ * than the machine's.
+ */
+export function intlLocale(): string {
+  return LOCALES.find((locale) => locale.id === langState.get())?.intl ?? "en-US"
+}
+
 /** Read-only process locale state for UI adapters. */
 export function localeState(): ReadableState<LocaleId> {
   return langState

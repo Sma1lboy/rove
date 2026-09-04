@@ -24,6 +24,7 @@ import { getGlobalDefaultVendor, setGlobalDefaultVendor } from "../../../state/v
 import { DEFAULT_TASK_VENDOR, type VendorId } from "../../../types/task"
 import { ALL_VENDORS, isBuiltinVendor } from "../../../types/vendor"
 import type { KVContext } from "../../context/kv"
+import { t } from "../../i18n"
 import type { DialogContext } from "../../ui/dialog"
 import { RenameTaskDialog } from "../rename-task-dialog"
 
@@ -138,9 +139,9 @@ export function useEngineSettings(
 
   async function editEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineCommandText(vendor), {
-      dialogTitle: `${engineName(vendor)} launch command`,
-      fieldLabel: "COMMAND",
-      submitLabel: "save",
+      dialogTitle: t("settings.engines.launchCommandTitle", { name: engineName(vendor) }),
+      fieldLabel: t("settings.field.command"),
+      submitLabel: t("settings.action.save"),
       allowEmpty: true, // blank clears the override → built-in default
     })
     if (next === undefined) return
@@ -148,9 +149,9 @@ export function useEngineSettings(
   }
   async function renameEngine(vendor: VendorId): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, engineName(vendor), {
-      dialogTitle: `${engineName(vendor)} display name (blank = default)`,
-      fieldLabel: "NAME",
-      submitLabel: "save",
+      dialogTitle: t("settings.engines.displayNameTitle", { name: engineName(vendor) }),
+      fieldLabel: t("settings.field.name"),
+      submitLabel: t("settings.action.save"),
       allowEmpty: true, // blank clears the name override → default label
     })
     if (next === undefined) return
@@ -176,19 +177,19 @@ export function useEngineSettings(
   // name and register a new custom engine. Reuses RenameTaskDialog per field.
   async function addEngineFlow(): Promise<void> {
     const idRaw = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: "Add engine",
-      fieldLabel: "ID",
-      submitLabel: "next",
-      placeholder: "lowercase slug, e.g. aider",
+      dialogTitle: t("settings.engines.addTitle"),
+      fieldLabel: t("settings.field.id"),
+      submitLabel: t("settings.action.next"),
+      placeholder: t("settings.engines.idPlaceholder"),
     })
     if (idRaw === undefined) return
     const id = idRaw.trim().toLowerCase()
     if (!id || isBuiltinVendor(id) || customEngines().includes(id)) return // no blank / shadow / dup
     const command = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "COMMAND",
-      submitLabel: "next",
-      placeholder: "e.g. aider --model sonnet",
+      dialogTitle: t("settings.engines.addStepTitle", { id }),
+      fieldLabel: t("settings.field.command"),
+      submitLabel: t("settings.action.next"),
+      placeholder: t("settings.engines.commandPlaceholder"),
     })
     if (command === undefined) return
     // Declared ONCE, here: a custom engine is a named PRESET, and its
@@ -197,16 +198,16 @@ export function useEngineSettings(
     // protocol — the engine still launches, it just gets no transcript
     // reader, trust pre-answer, or engine-specific delivery.
     const protocol = await RenameTaskDialog.show(dialog, "", {
-      dialogTitle: `Add engine · ${id} — protocol (blank = none)`,
-      fieldLabel: "PROTOCOL",
-      submitLabel: "next",
+      dialogTitle: t("settings.engines.addProtocolTitle", { id }),
+      fieldLabel: t("settings.field.protocol"),
+      submitLabel: t("settings.action.next"),
       allowEmpty: true,
       placeholder: ENGINE_PROTOCOLS.join(" / "),
     })
     const name = await RenameTaskDialog.show(dialog, id, {
-      dialogTitle: `Add engine · ${id}`,
-      fieldLabel: "NAME",
-      submitLabel: "add",
+      dialogTitle: t("settings.engines.addStepTitle", { id }),
+      fieldLabel: t("settings.field.name"),
+      submitLabel: t("settings.action.add"),
       allowEmpty: true, // blank = humanized id
     })
     kv.set("customEngineIds", [...customEngines(), id])

@@ -170,9 +170,12 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
   }
   async function editEditorCustom(): Promise<void> {
     const next = await RenameTaskDialog.show(dialog, editorCustomCommand(), {
-      dialogTitle: "Custom editor command (use {file} for the path)",
-      fieldLabel: "COMMAND",
-      submitLabel: "save",
+      // No params on purpose: the `{file}` in this title is a command
+      // placeholder the user types, not an i18n slot. `interpolate` leaves
+      // the template untouched when no params are passed.
+      dialogTitle: t("settings.general.editorCustomTitle"),
+      fieldLabel: t("settings.field.command"),
+      submitLabel: t("settings.action.save"),
       allowEmpty: true,
     })
     if (next === undefined) return
@@ -192,7 +195,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     const next = await RenameTaskDialog.show(dialog, String(scrollbackRows()), {
       dialogTitle: t("settings.general.scrollbackTitle"),
       fieldLabel: t("settings.general.scrollbackField"),
-      submitLabel: "save",
+      submitLabel: t("settings.action.save"),
       placeholder: String(DEFAULT_SCROLLBACK_ROWS),
     })
     if (next === undefined) return
@@ -245,7 +248,7 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
     const next = await RenameTaskDialog.show(dialog, worktreeCustomPath(), {
       dialogTitle: t("settings.general.worktreeBaseTitle"),
       fieldLabel: t("settings.general.worktreeBaseField"),
-      submitLabel: "save",
+      submitLabel: t("settings.action.save"),
       placeholder: `${PROJECT_DIR_TOKEN}/../worktrees`,
       allowEmpty: true,
     })
@@ -256,8 +259,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
       if (!hasProjectDirToken(raw)) {
         await DialogConfirm.show(
           dialog,
-          "Can't use that worktree location",
-          `${PROJECT_DIR_TOKEN} only expands as the leading path segment (e.g. ${PROJECT_DIR_TOKEN}/../kobe-worktrees). Keeping the previous setting.`,
+          t("settings.general.worktreeBaseInvalidTitle"),
+          t("settings.general.worktreeBaseTokenBody", { token: PROJECT_DIR_TOKEN }),
           "cancel",
         )
         return
@@ -270,8 +273,8 @@ export function useSettingsPrefs(kv: KVContext, dialog: DialogContext, onCompose
       } catch (err) {
         await DialogConfirm.show(
           dialog,
-          "Can't use that worktree location",
-          `${resolved} isn't usable (${errorMessage(err)}). Keeping the previous setting — pick a writable directory.`,
+          t("settings.general.worktreeBaseInvalidTitle"),
+          t("settings.general.worktreeBaseUnusableBody", { path: resolved, error: errorMessage(err) }),
           "cancel",
         )
         return

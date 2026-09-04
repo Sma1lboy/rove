@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest"
+import { afterEach, beforeEach, describe, expect, test } from "vitest"
 import {
   COMPOSER_FIELDS,
   type ComposerDraft,
@@ -7,6 +7,8 @@ import {
   nextComposerField,
   previewSchedule,
 } from "../../src/tui/component/automation-composer"
+import { describeCron } from "../../src/tui/component/cron-segments"
+import { currentLang, setLocaleLang } from "../../src/tui/i18n"
 
 const FULL: ComposerDraft = {
   name: "weekday audit",
@@ -113,5 +115,55 @@ describe("previewSchedule", () => {
     const at = new Date(preview.nextRunMs)
     expect(at.getHours()).toBe(9)
     expect(preview.nextRunMs).toBeGreaterThan(NOW)
+  })
+})
+
+/**
+ * The schedule preview is the ONE line that answers "when does this fire",
+ * and it was the last fully-English line in an otherwise Chinese composer:
+ * `weekdays at 09:00 · in 2d · Mon 09:00`. The assertion is on ASCII LETTERS
+ * rather than on exact wording — the wording is a translation call, "no
+ * English left in it" is the contract.
+ */
+describe("the schedule preview under a non-English locale", () => {
+  const ASCII_LETTER = /[A-Za-z]/
+
+  let restore = currentLang()
+  beforeEach(() => {
+    restore = currentLang()
+    setLocaleLang("zh")
+  })
+  afterEach(() => setLocaleLang(restore))
+
+  test("the recurrence phrase carries no English", () => {
+    expect(describeCron("0 9 * * MON-FRI")).toBe("工作日09:00")
+    for (const cron of [
+      "0 9 * * MON-FRI",
+      "0 9 * * SAT,SUN",
+      "30 6 * * *",
+      "*/15 * * * *",
+      "0 */6 * * *",
+      "0 9 * * TUE",
+    ]) {
+      expect(describeCron(cron), cron).not.toMatch(ASCII_LETTER)
+    }
+  })
+
+  test("the next-run clock and date carry no English", () => {
+    const preview = previewSchedule("0 9 * * MON-FRI", NOW)
+    if (preview.kind !== "ok") throw new Error("expected a schedule")
+    expect(preview.relative).not.toMatch(ASCII_LETTER)
+    expect(preview.absolute).not.toMatch(ASCII_LETTER)
+    // The whole line, as the composer assembles it.
+    expect(`${describeCron("0 9 * * MON-FRI")} · ${preview.relative} · ${preview.absolute}`).not.toMatch(ASCII_LETTER)
+  })
+
+  test("a date beyond the week follows the locale's own order, not an English template", () => {
+    const preview = previewSchedule("0 0 1 2 *", NOW)
+    if (preview.kind !== "ok") throw new Error("expected a schedule")
+    // zh-CN puts the month first and the weekday last; the old WEEKDAYS /
+    // MONTHS tables could only ever emit `Mon Feb 1, 00:00`.
+    expect(preview.absolute).toContain("2月1日")
+    expect(preview.absolute).not.toMatch(ASCII_LETTER)
   })
 })

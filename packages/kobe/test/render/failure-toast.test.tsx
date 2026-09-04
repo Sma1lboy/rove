@@ -313,7 +313,13 @@ test("work-items: list rows render with number, labels, and age", async () => {
   expect(text).toContain("#42")
   expect(text).toContain("Fix the thing")
   expect(text).toContain("octocat · bug · p2")
-  expect(text).toContain("0m")
+  // The age column, by SHAPE not by literal: the fixture stamps `updatedAt`
+  // at module load, so the exact value depends on how long the file took to
+  // reach this test. It used to read `0m` because the page carried its own
+  // rounding copy of `relativeAge` with no seconds step; on the shared clock
+  // a freshly-stamped row reads `3s`, and both are the same assertion —
+  // "a row prints an age".
+  expect(text).toMatch(/\b\d+[smhd]\b/)
 })
 
 test("work-items: a failed list names the fix inline", async () => {
