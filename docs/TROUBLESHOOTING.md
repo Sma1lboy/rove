@@ -225,6 +225,34 @@ the restart instead of unsetting it. Do not point two homes at one daemon
 socket: the server refuses a live takeover, and clients reject the wrong
 owner.
 
+## Rove refuses to start a second daemon on one home
+
+The mirror of the case above: two socket paths, one state home. Rove refuses
+the second daemon and names the socket that already owns the home.
+
+```
+rove daemon: /Users/me is already served by the daemon on
+/Users/me/.rove/daemon.sock (pid 61439) — refusing to start a second daemon on
+one home.
+```
+
+This happens when a shell overrides `ROVE_DAEMON_SOCKET_PATH` but leaves
+`ROVE_HOME_DIR` pointing at a home another daemon is already serving. Letting
+both run is worse than the refusal: neither can see the other, so their task
+lists diverge permanently, the project-main row gets written twice, and
+`automations.json` and `.config/rove/state.json` are raced as well.
+
+Either stop the incumbent, or give the new daemon its own home:
+
+```bash
+rove daemon stop                       # from the incumbent's environment
+# …or, to run both:
+export ROVE_HOME_DIR=/path/to/other-home
+```
+
+A crashed daemon's claim never blocks a restart: the check asks the recorded
+socket whether anything still answers there, so a dead one is just replaced.
+
 ## Claude or Codex activity badges do not update
 
 Rove installs its own merge-safe, global activity hooks when the TUI launches:

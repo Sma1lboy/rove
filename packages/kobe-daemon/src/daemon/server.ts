@@ -26,6 +26,7 @@ import {
   objectPayload,
   shapeDaemonError,
 } from "./handlers.ts"
+import { assertHomeUnclaimed, claimHome, releaseHomeClaim } from "./home-owner.ts"
 import { IssuesStore, defaultIssuesStorePath } from "./issues-store.ts"
 import { DaemonLifetime, FIRST_GUI_GRACE_MS, resolveIdleGraceMs } from "./lifetime.ts"
 import { NotesStore, defaultNotesStorePath } from "./notes-store.ts"
@@ -82,6 +83,12 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   if ((await probeDaemonSocket(socketPath)) === "alive") {
     throw new Error(`rove daemon: another daemon is already serving ${socketPath} — refusing to replace it`)
   }
+  // …and the same question keyed on the HOME rather than the socket. The probe
+  // above only defends the path THIS daemon binds; a peer that overrode the
+  // socket while leaving the home alone binds somewhere else entirely and then
+  // races us over tasks.json, automations.json and state.json with neither
+  // side able to see the other. See home-owner.ts.
+  await assertHomeUnclaimed({ homeDir, socketPath })
   const clients = new Set<ClientState>()
   let nextClientId = 1
 
@@ -327,6 +334,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
         // Ownership-aware teardown: a superseded daemon must neither close the
         // listener nor unlink files another daemon owns — see socket-guard.ts.
         await sockGuard.release(server)
+        await releaseHomeClaim(homeDir, socketPath)
       }
     },
   }
@@ -337,6 +345,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
   // late meant either no stamp at all or a stamp of the usurper's inode.
   await sockGuard.arm()
   await writeFile(pidPath, `${process.pid}\n`, "utf8")
+  await claimHome(homeDir, socketPath)
   // A pre-rename binary only knows `.kobe`; without these it starts a second
   // daemon on the same task index. See compat-link.ts.
   await linkLegacyRuntimePath(socketPath, legacyDaemonSocketPath(homeDir))

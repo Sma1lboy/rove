@@ -362,8 +362,8 @@ describe("update / move / remove edges", () => {
     await expect(store.move(t.id, 1, ["other-id"])).rejects.toThrow(/not movable/)
   })
 
-  it("remove is a silent no-op for an unknown id", async () => {
-    await expect(store.remove("missing")).resolves.toBeUndefined()
+  it("remove reports false for an unknown id instead of throwing like update/move", async () => {
+    await expect(store.remove("missing")).resolves.toBe(false)
   })
 })
 
