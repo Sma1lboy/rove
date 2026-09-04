@@ -16,6 +16,8 @@
  */
 
 import { randomUUID } from "node:crypto"
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 
 /** One review note. `line`/`startLine` are display line numbers as shown in
  * the diff gutter (new-file numbers for added/context rows, old-file for
@@ -34,17 +36,34 @@ export type DiffComment = {
   readonly sentAt?: number
 }
 
-export function formatDiffComment(c: Pick<DiffComment, "filePath" | "startLine" | "line" | "body">): string {
+/**
+ * One note in the prompt. `stale` marks a note whose path the branch no
+ * longer has — a rename or a delete after the note was written. Saying so is
+ * the whole point: the anchoring ceiling below means the note keeps its
+ * original path forever, and a prompt that just names a file the agent
+ * cannot open reads as the agent's mistake rather than as history.
+ */
+export function formatDiffComment(
+  c: Pick<DiffComment, "filePath" | "startLine" | "line" | "body">,
+  stale = false,
+): string {
   const escaped = c.body.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r/g, "\\r").replace(/\n/g, "\\n")
   const location =
     c.startLine !== undefined && c.startLine !== c.line ? `Lines: ${c.startLine}-${c.line}` : `Line: ${c.line}`
-  return [`File: ${c.filePath}`, location, `User comment: "${escaped}"`].join("\n")
+  const staleNote = stale
+    ? ["Note: this path is no longer in the branch — it was renamed or deleted after the note was written."]
+    : []
+  return [`File: ${c.filePath}`, location, ...staleNote, `User comment: "${escaped}"`].join("\n")
 }
 
 export function formatDiffComments(
   comments: readonly Pick<DiffComment, "filePath" | "startLine" | "line" | "body">[],
+  /** Worktree root, for the staleness check. Omitted = mark nothing stale. */
+  worktreePath?: string,
 ): string {
-  return comments.map(formatDiffComment).join("\n\n")
+  return comments
+    .map((c) => formatDiffComment(c, worktreePath ? !existsSync(join(worktreePath, c.filePath)) : false))
+    .join("\n\n")
 }
 
 export function unsentComments(comments: readonly DiffComment[]): readonly DiffComment[] {
@@ -216,6 +235,8 @@ export function buildDiffReview(
   taskId: string,
   /** Returns whether the text actually reached an engine session. */
   sendToEngine: (text: string) => boolean,
+  /** Worktree root — lets the sent prompt mark notes whose path is gone. */
+  worktreePath?: string,
 ): DiffReviewApi {
   const key = diffCommentsKey(taskId)
   const read = (): readonly DiffComment[] => (kv.get(key, []) as DiffComment[] | null) ?? []
@@ -236,7 +257,7 @@ export function buildDiffReview(
       if (unsent.length === 0) return true
       // Mark sent ONLY after a delivery that answered. The order matters: a
       // refused send must leave kv untouched so the notes survive.
-      if (!sendToEngine(formatDiffComments(unsent))) return false
+      if (!sendToEngine(formatDiffComments(unsent, worktreePath))) return false
       kv.set(key, markAllSent(all, Date.now()))
       return true
     },

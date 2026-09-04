@@ -463,7 +463,7 @@ export function TerminalTabs(props: TerminalTabsProps): ReactNode {
           onClose={() => tabClose.closeExited(active.id)}
           // Line-anchored review notes: per-task, kv-persisted, sent to the
           // engine session over the same PTY paste path as the PR prompt.
-          review={buildDiffReview(kv, props.taskId, sendToEngine)}
+          review={buildDiffReview(kv, props.taskId, sendToEngine, props.worktree)}
         />
       ) : (
         <TerminalSplit

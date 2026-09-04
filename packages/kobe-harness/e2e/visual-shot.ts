@@ -51,6 +51,14 @@ function chord(token: string): string {
   const parts = token.toLowerCase().split("+")
   const key = parts.pop() ?? ""
   const mods = parts.map((part) => MODIFIERS[part] ?? part)
+  // `shift+<letter>` is pressed as the UPPERCASE letter, not as Shift held
+  // over the lowercase one: through Playwright → xterm.js the held modifier
+  // is dropped and the PTY receives a bare `d`, so every shift+letter chord
+  // measured through this path silently read as its unshifted twin (a
+  // `shift+q shift+w` probe typed `qw` into a text field). A real terminal
+  // sends 0x44 for Shift+D, which is exactly what pressing "D" produces —
+  // and opentui's parser turns that back into `{name:"d", shift:true}`.
+  if (mods.length === 1 && mods[0] === "Shift" && /^[a-z]$/.test(key)) return key.toUpperCase()
   return [...mods, KEY_NAMES[key] ?? (key.length === 1 ? key : key.charAt(0).toUpperCase() + key.slice(1))].join("+")
 }
 

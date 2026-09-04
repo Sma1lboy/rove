@@ -185,6 +185,9 @@ export function useDiffReview(args: {
 
   /* --------- footer --------- */
   const unsent = unsentComments(comments).length
+  // Per-file, because the paint is per-file: a footer counting the whole
+  // task claimed notes on a file that has none and shows none.
+  const here = comments.filter((c) => c.filePath === args.relPath).length
   // Opaque background: the row is mostly spaces, and a diff drawn behind it
   // showed through them — `0 notes · 0 unsent` arrived as `06notesn· 06unsent`
   // with the diff's next line bleeding through every gap.
@@ -198,10 +201,15 @@ export function useDiffReview(args: {
       backgroundColor={theme.background}
     >
       <text fg={unsent > 0 ? theme.warning : theme.textMuted} wrapMode="none">
-        {t("ops.preview.review.count", { total: comments.length, unsent })}
+        {here === comments.length
+          ? t("ops.preview.review.count", { total: comments.length, unsent })
+          : t("ops.preview.review.countElsewhere", { here, total: comments.length, unsent })}
       </text>
       <text fg={theme.textMuted} wrapMode="none">
-        {t("ops.preview.review.keysHint")}
+        {/* The review chords need this pane focused; opening a diff
+            deliberately does not steal focus, so until it has focus the hint
+            says how to get there rather than listing keys that do nothing. */}
+        {args.focused ? t("ops.preview.review.keysHint") : t("ops.preview.review.focusHint")}
       </text>
     </box>
   ) : null

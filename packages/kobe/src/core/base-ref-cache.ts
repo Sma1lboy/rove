@@ -159,7 +159,11 @@ function ladderFromFiles(worktreePath: string): Ladder | undefined {
   const names: string[] = []
   const head = readHeadSha(dirs)
   const parts: string[] = [`HEAD=${head}`]
-  for (const guess of [...(originHead ? [originHead] : []), ...DEFAULT_BASE_REF_CANDIDATES, ...(baseCheckout ? [baseCheckout] : [])]) {
+  for (const guess of [
+    ...(originHead ? [originHead] : []),
+    ...DEFAULT_BASE_REF_CANDIDATES,
+    ...(baseCheckout ? [baseCheckout] : []),
+  ]) {
     if (names.includes(guess)) continue
     const sha = readRefSha(dirs, guess)
     if (sha === null) continue
@@ -175,7 +179,11 @@ async function ladderFromGit(worktreePath: string, signal: AbortSignal): Promise
   const originHead = head.status === 0 ? head.stdout.trim() : ""
   const baseCheckout = await baseCheckoutBranchFromGit(worktreePath, signal)
   const names: string[] = []
-  const candidates = [...(originHead ? [originHead] : []), ...DEFAULT_BASE_REF_CANDIDATES, ...(baseCheckout ? [baseCheckout] : [])]
+  const candidates = [
+    ...(originHead ? [originHead] : []),
+    ...DEFAULT_BASE_REF_CANDIDATES,
+    ...(baseCheckout ? [baseCheckout] : []),
+  ]
   for (const guess of candidates) {
     if (names.includes(guess)) continue
     if (await refExists(worktreePath, guess, signal)) names.push(guess)

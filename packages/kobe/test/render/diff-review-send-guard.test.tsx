@@ -47,7 +47,7 @@ function memoryKv(): DiffCommentsKv & { read: () => readonly DiffComment[] } {
 
 /** The overlay over a real `<diff>`, with the same kv-backed review the
  *  workspace builds. `tick` stands in for the KV context's re-render. */
-function ReviewHarness(props: { kv: DiffCommentsKv; deliver: boolean }) {
+function ReviewHarness(props: { kv: DiffCommentsKv; deliver: boolean; focused?: boolean; relPath?: string }) {
   const diffRef = useRef<DiffRenderable | null>(null)
   const [, setTick] = useState(0)
   const inner = buildDiffReview(props.kv, "t1", () => props.deliver)
@@ -67,7 +67,13 @@ function ReviewHarness(props: { kv: DiffCommentsKv; deliver: boolean }) {
       return ok
     },
   }
-  const { footer } = useDiffReview({ review, relPath: REL, diffText: DIFF, focused: true, diffRef })
+  const { footer } = useDiffReview({
+    review,
+    relPath: props.relPath ?? REL,
+    diffText: DIFF,
+    focused: props.focused ?? true,
+    diffRef,
+  })
   return (
     <box flexDirection="column" flexGrow={1}>
       <box flexGrow={1}>
@@ -112,13 +118,13 @@ test("s keeps the notes unsent and says why when there is no engine session", as
   })
   await settle(120)
   await writeNote(handle, "please rename this", "Review note")
-  expect(await handle.frame()).toContain("1 notes · 1 unsent")
+  expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
 
   handle.mockInput.typeText("s")
   await settle(200)
 
   // The note survived and is still pending — the count is the whole assertion.
-  expect(await handle.frame()).toContain("1 notes · 1 unsent")
+  expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
   expect(unsentComments(kv.read())).toHaveLength(1)
   // …and the refusal is on screen rather than in a log nobody can read.
   expect(await handle.frame()).toContain("No engine session")
@@ -136,7 +142,7 @@ test("s still marks them sent once delivery answers", async () => {
   handle.mockInput.typeText("s")
   await settle(200)
 
-  expect(await handle.frame()).toContain("1 notes · 0 unsent")
+  expect(await handle.frame()).toContain("notes: 1 · 0 unsent")
   expect(unsentComments(kv.read())).toHaveLength(0)
 })
 
@@ -149,12 +155,12 @@ test("x drops the note under the cursor", async () => {
   })
   await settle(120)
   await writeNote(handle, "typo", "Review note")
-  expect(await handle.frame()).toContain("1 notes")
+  expect(await handle.frame()).toContain("notes: 1")
 
   handle.mockInput.typeText("x")
   await settle(200)
 
-  expect(await handle.frame()).toContain("0 notes · 0 unsent")
+  expect(await handle.frame()).toContain("notes: 0 · 0 unsent")
   expect(kv.read()).toHaveLength(0)
 })
 
@@ -181,4 +187,53 @@ test("r re-reads the file the diff tab is showing", async () => {
 
   mockInput.typeText("r")
   await waitForFrameText(frame, "SECOND CONTENT")
+})
+
+test("the footer of a file with no notes does not claim the task's notes are here", async () => {
+  // The paint filters to this file; the count did not. A note written on
+  // `a.ts` made `other.ts`'s footer read `1 notes · 1 unsent` for a note that
+  // is on neither this file nor this screen.
+  const kv = memoryKv()
+  const handle = await renderComponent(<ReviewHarness kv={kv} deliver={false} />, {
+    width: 80,
+    height: 20,
+    providers: { dialog: true, notifications: true },
+  })
+  await settle(120)
+  await writeNote(handle, "belongs to a.ts", "Review note")
+  expect(await handle.frame()).toContain("notes: 1 · 1 unsent")
+
+  // The same task's notes, viewed from a file that holds none of them.
+  const other = await renderComponent(<ReviewHarness kv={kv} deliver={false} relPath="other.ts" />, {
+    width: 80,
+    height: 20,
+    providers: { dialog: true, notifications: true },
+  })
+  await settle(150)
+  const frame = await other.frame()
+  expect(frame).toContain("0 here")
+  expect(frame).toContain("1 in task")
+})
+
+test("the footer offers the focus chord instead of chords that cannot fire", async () => {
+  // `d` opens the diff without stealing focus (deliberate), but the review
+  // bindings need this pane focused — so every key the hint listed was inert.
+  const kv = memoryKv()
+  const unfocused = await renderComponent(<ReviewHarness kv={kv} deliver={false} focused={false} />, {
+    width: 80,
+    height: 20,
+    providers: { dialog: true, notifications: true },
+  })
+  await settle(150)
+  const idle = await unfocused.frame()
+  expect(idle).toContain("ctrl+q to focus")
+  expect(idle).not.toContain("s send · r reload")
+
+  const focused = await renderComponent(<ReviewHarness kv={kv} deliver={false} focused={true} />, {
+    width: 80,
+    height: 20,
+    providers: { dialog: true, notifications: true },
+  })
+  await settle(150)
+  expect(await focused.frame()).toContain("s send · r reload")
 })
