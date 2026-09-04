@@ -40,6 +40,30 @@ export function readRoveEnv(suffix: string, env: NodeJS.ProcessEnv = process.env
 }
 
 /**
+ * `ROVE_HOME_DIR` / `KOBE_HOME_DIR` as a home directory, or `undefined`.
+ *
+ * The ONE place that decides an empty value is not a home. `VAR=` is how a
+ * shell says "unset" — the visual fixture writes `ROVE_TASK_ID=` for exactly
+ * that meaning — but every path accessor read the raw variable, so an empty
+ * `HOME_DIR` produced `""` as the home and then RELATIVE state paths: `.rove`,
+ * `.config/rove/state.json`, `.rove/daemon.pid`. Relative to whatever the
+ * process's cwd happened to be, which for the TUI is the user's repository.
+ * Blank is unset, and the caller's `?? homedir()` takes over.
+ */
+export function readRoveHomeDirEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  // Per namespace, not on the combined result: `readRoveEnv`'s `??` treats a
+  // DEFINED empty `ROVE_HOME_DIR` as a value, so trimming afterwards would let
+  // it shadow a real `KOBE_HOME_DIR` and land the caller on the OS home.
+  // Blank in the new name means unset, which is exactly when the legacy name
+  // is supposed to answer.
+  for (const key of [`${ROVE_ENV_PREFIX}HOME_DIR`, `${LEGACY_KOBE_ENV_PREFIX}HOME_DIR`]) {
+    const value = env[key]?.trim()
+    if (value) return value
+  }
+  return undefined
+}
+
+/**
  * Set an explicit control in both namespaces.
  *
  * Internal launchers use this when an isolation or command-line override must

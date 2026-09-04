@@ -16,7 +16,7 @@
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import type { AgentTurnRecord } from "./contracts.ts"
 import { logDaemonError } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
@@ -34,7 +34,7 @@ interface AgentTurnsFile {
  */
 const MAX_TURNS = 10_000
 
-export function defaultAgentTurnsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultAgentTurnsPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "agent-turns.json")
 }
 

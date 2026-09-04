@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto"
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import { logDaemonInfo } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 
@@ -75,7 +75,7 @@ interface DeferredPromptsFile {
   records: DeferredPromptRecord[]
 }
 
-export function defaultDeferredPromptsPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultDeferredPromptsPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "deferred-prompts.json")
 }
 

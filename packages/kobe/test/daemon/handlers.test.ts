@@ -45,6 +45,7 @@ describe("daemon handler registry", () => {
       "task.setCommand",
       "task.delete",
       "task.land",
+      "task.landPreflight",
       "pr.failingChecks",
       "task.syncBase",
       "task.pin",

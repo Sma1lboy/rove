@@ -12,7 +12,7 @@
 import { readFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
-import { ROVE_STATE_DIR_BASENAME, readRoveEnv } from "../compat-env.ts"
+import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
 import {
   type AttentionInboxItem,
   type AttentionInboxState,
@@ -43,7 +43,7 @@ export const MAX_EPISODES = 500
 
 export type AttentionInboxLane = "activity" | "prompt_deferred"
 
-export function defaultAttentionInboxPath(homeDir = readRoveEnv("HOME_DIR") ?? homedir()): string {
+export function defaultAttentionInboxPath(homeDir = readRoveHomeDirEnv() ?? homedir()): string {
   return join(homeDir, ROVE_STATE_DIR_BASENAME, "attention-inbox.json")
 }
 
