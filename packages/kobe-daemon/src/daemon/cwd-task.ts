@@ -13,11 +13,20 @@
  * `main` task's worktreePath can be the repo root itself, so the more specific
  * (longer) worktree must win.
  *
+ * A prefix match alone is NOT enough: the hooks are global, so a session in a
+ * DIFFERENT repository nested under a tracked project's root (a vendored
+ * clone under `refs/`, a `.dev-sandbox` checkout, any repo under a `$HOME`
+ * scratch shell's directory task) prefix-matches that project and would be
+ * billed its badge, its events, its plugin dispatch and its tokens. So a
+ * candidate is rejected when a repository boundary sits between the task's
+ * worktree and the cwd — see {@link crossesRepoBoundary}.
+ *
  * cwds that match no task (an unrelated repo, a project root with no main task)
  * return undefined → the event is dropped.
  */
 
 import { createHash } from "node:crypto"
+import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import path from "node:path"
 import { LEGACY_KOBE_STATE_DIR_BASENAME, ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
@@ -79,21 +88,51 @@ function isAncestorOrSelf(wt: string, cwd: string): boolean {
 }
 
 /**
+ * True when some directory strictly below `wt`, down to and including `cwd`,
+ * is a git repository root of its own — i.e. walking up from the engine's cwd
+ * to the task's worktree crosses out of one repository into another.
+ *
+ * `.git` is tested with a bare existence check because both spellings mean the
+ * same thing here: a directory for a normal clone, a file for a submodule or a
+ * linked worktree. Either way `git rev-parse --show-toplevel` in `cwd` would
+ * answer something other than the task's worktree, so the engine is not
+ * working on that task's code.
+ *
+ * `wt` itself is deliberately never tested — a task's own worktree IS a repo
+ * root (or a linked worktree with a `.git` file), and testing it would reject
+ * every legitimate match.
+ */
+function crossesRepoBoundary(wt: string, cwd: string): boolean {
+  for (let dir = cwd; dir.length > wt.length; dir = path.dirname(dir)) {
+    if (existsSync(path.join(dir, ".git"))) return true
+  }
+  return false
+}
+
+/**
  * Return the id of the task whose worktree contains `cwd`, preferring the
- * longest (most specific) worktree path, or undefined if none match.
+ * longest (most specific) worktree path, or undefined if none match or the
+ * best match is in a different repository than `cwd`.
+ *
+ * Only the winner is boundary-checked: a boundary below the longest candidate
+ * is below every shorter one too, so if the most specific match crosses, so
+ * does every alternative.
  */
 export function matchTaskByCwd(tasks: ReadonlyArray<CwdMatchTask>, cwd: string): string | undefined {
   const target = normalize(cwd)
   let bestId: string | undefined
+  let bestWt = ""
   let bestLen = -1
   for (const t of tasks) {
     if (!t.worktreePath) continue
     const wt = normalize(t.worktreePath)
     if (isAncestorOrSelf(wt, target) && wt.length > bestLen) {
       bestLen = wt.length
+      bestWt = wt
       bestId = t.id
     }
   }
+  if (bestId && crossesRepoBoundary(bestWt, target)) return undefined
   return bestId
 }
 

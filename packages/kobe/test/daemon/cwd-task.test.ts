@@ -1,3 +1,5 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import path from "node:path"
 import { findAdoptableWorktree, matchTaskByCwd, matchTaskByWorktreePath } from "@sma1lboy/kobe-daemon/daemon/cwd-task"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -67,6 +69,66 @@ describe("matchTaskByCwd", () => {
   it("tolerates a trailing slash on either side", () => {
     expect(matchTaskByCwd([{ id: "z", worktreePath: "/repo/wt/" }], "/repo/wt")).toBe("z")
     expect(matchTaskByCwd([{ id: "z", worktreePath: "/repo/wt" }], "/repo/wt/")).toBe("z")
+  })
+})
+
+// The engine hooks are global, so a cwd under a tracked worktree can belong to
+// a DIFFERENT repository — a vendored clone under `refs/`, a `.dev-sandbox`
+// checkout, any repo under a `$HOME` scratch shell's directory task. Real
+// directories, because the boundary is decided by a `.git` on disk.
+describe("matchTaskByCwd across a repository boundary", () => {
+  let root: string
+
+  beforeEach(() => {
+    root = mkdtempSync(path.join(tmpdir(), "rove-cwd-task-"))
+    // A tracked project, its own plain subdir, and a nested UNRELATED repo.
+    mkdirSync(path.join(root, "alpha", ".git"), { recursive: true })
+    mkdirSync(path.join(root, "alpha", "src", "deep"), { recursive: true })
+    mkdirSync(path.join(root, "alpha", "refs", "vendorlib", ".git"), { recursive: true })
+    // A repo and a plain directory under a `$HOME`-style directory task.
+    mkdirSync(path.join(root, "gamma", ".git"), { recursive: true })
+    mkdirSync(path.join(root, "notes"), { recursive: true })
+  })
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true })
+  })
+
+  it("drops a cwd in a nested repo of its own", () => {
+    const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib"))).toBeUndefined()
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib", "sub"))).toBeUndefined()
+  })
+
+  it("still matches a plain subdirectory of the same repo", () => {
+    const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "src", "deep"))).toBe("alpha")
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha"))).toBe("alpha")
+  })
+
+  it("does not make a directory task the owner of every repo beneath it", () => {
+    const tasks = [{ id: "scratch", worktreePath: root }]
+    expect(matchTaskByCwd(tasks, path.join(root, "gamma"))).toBeUndefined()
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "src", "deep"))).toBeUndefined()
+    // A plain directory under it crosses nothing and still belongs to the task.
+    expect(matchTaskByCwd(tasks, path.join(root, "notes"))).toBe("scratch")
+  })
+
+  it("matches a nested repo that is a task in its own right", () => {
+    // The nested repo IS tracked: the longer worktree wins and no boundary
+    // sits below it, so its own sessions keep landing on it.
+    const tasks = [
+      { id: "alpha", worktreePath: path.join(root, "alpha") },
+      { id: "vendor", worktreePath: path.join(root, "alpha", "refs", "vendorlib") },
+    ]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "refs", "vendorlib", "sub"))).toBe("vendor")
+  })
+
+  it("treats a `.git` FILE (submodule / linked worktree) as a boundary too", () => {
+    mkdirSync(path.join(root, "alpha", "vendored"), { recursive: true })
+    writeFileSync(path.join(root, "alpha", "vendored", ".git"), "gitdir: ../../elsewhere\n")
+    const tasks = [{ id: "alpha", worktreePath: path.join(root, "alpha") }]
+    expect(matchTaskByCwd(tasks, path.join(root, "alpha", "vendored"))).toBeUndefined()
   })
 })
 
