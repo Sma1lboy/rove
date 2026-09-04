@@ -283,10 +283,10 @@ export async function deliverHostedPrompt(
     // login shell where the engine exits, so a session whose launch command
     // does not exist reports `alive` exactly like a healthy one, and
     // `engineReady: true, delivered: true` came back for a binary that had
-    // already printed `no such file or directory`. Walk for the process —
-    // the same `sessionHasEngine` the existing-session gate above uses, in
-    // the loop `awaitEngineProcess` already owns.
-    // A repo-init script runs BEFORE the engine (`.rove/init.sh`, e.g. a
+    // already printed `no such file or directory`.
+    //
+    // First, the one case where the walk cannot answer: a repo-init script
+    // runs BEFORE the engine (`.rove/init.sh`, e.g. a
     // `bun install`), and its marker file appears only when it finishes. So
     // while that marker is absent "no engine yet" is not a failed launch, and
     // neither answer the probe could give is right: waiting would hold `add`
@@ -302,6 +302,9 @@ export async function deliverHostedPrompt(
         reason: "repo init script is still running; the engine has not started yet",
       }
     }
+    // Otherwise walk for the process — the same `sessionHasEngine` the
+    // existing-session gate above uses, in the loop `awaitEngineProcess`
+    // already owns, not a third implementation of the same question.
     const enginePid = await awaitEngineProcess(rpc, launch.key, target.engineBin, {
       timeoutMs: ENGINE_START_PROBE_MS,
       intervalMs: ENGINE_START_POLL_MS,
