@@ -56,14 +56,28 @@ export function UpdatePage(props: { onClose: () => void }) {
   const [checked, setChecked] = useState(false)
   const [releaseNotes, setReleaseNotes] = useState<ReleaseNotesRangeItem[]>([])
   const [loadingNotes, setLoadingNotes] = useState(true)
-  const [selected, setSelected] = useState<ActionId>("update")
+  /**
+   * Starts on "close", NOT "update": until the registry answers there is no
+   * known newer release, and `enter` on a pre-selected "Update now" ran the
+   * installer regardless — a DOWNGRADE whenever `latest < current` (a stale
+   * npm dist-tag, a locally built newer install). `load()` promotes the
+   * selection to "update" only once `hasUpdate` is true.
+   */
+  const [selected, setSelected] = useState<ActionId>("close")
   const [status, setStatus] = useState<string | null>(null)
 
   const latest = info?.latest ?? CURRENT_VERSION
   const latestUnknown = checked && info === null
+  const hasUpdate = info?.hasUpdate === true
+  /** The registry answered, and it answered "nothing newer". */
+  const upToDate = checked && info !== null && !hasUpdate
   const releaseUrl = releaseNotes[0]?.url ?? releasePageUrl(latest)
   const actions: ReadonlyArray<{ id: ActionId; key: string; label: string; detail: string }> = [
-    { id: "update", key: "U", label: t("update.actions.updateNow"), detail: UPDATE_COMMAND },
+    // Offered only when there IS one. `hasUpdate` used to pick a text colour
+    // and nothing else, so the action stayed on screen either way.
+    ...(hasUpdate
+      ? [{ id: "update" as const, key: "U", label: t("update.actions.updateNow"), detail: UPDATE_COMMAND }]
+      : []),
     {
       id: "release",
       key: "R",
@@ -87,8 +101,14 @@ export function UpdatePage(props: { onClose: () => void }) {
     const next = await checkLatestVersion({ force: true })
     setInfo(next)
     setChecked(true)
-    const latestVersion = next?.latest ?? CURRENT_VERSION
-    const fetched = await fetchReleaseNotesRange({ current: CURRENT_VERSION, latest: latestVersion })
+    if (next?.hasUpdate) setSelected("update")
+    // Only a FORWARD range has notes. Asking for current→latest when latest
+    // is older answered [] and the page printed "Release notes are
+    // unavailable" under a backwards "changes from v0.9.138 to v0.9.110"
+    // header — an empty range dressed as a failed fetch.
+    const fetched = next?.hasUpdate
+      ? await fetchReleaseNotesRange({ current: CURRENT_VERSION, latest: next.latest })
+      : []
     setReleaseNotes(fetched)
     setLoadingNotes(false)
   }
@@ -97,7 +117,7 @@ export function UpdatePage(props: { onClose: () => void }) {
     const ids = actions.map((a) => a.id)
     const index = ids.indexOf(selected)
     const next = (index + delta + ids.length) % ids.length
-    setSelected(ids[next] ?? "update")
+    setSelected(ids[next] ?? "close")
   }
 
   function activate(id: ActionId = selected): void {
@@ -105,6 +125,9 @@ export function UpdatePage(props: { onClose: () => void }) {
       props.onClose()
       return
     }
+    // `u` stays bound so the key is never a silent no-op mystery, but with no
+    // newer release there is nothing to run.
+    if (id === "update" && !hasUpdate) return
     if (id === "release") {
       setStatus(openWithSystemViewer(releaseUrl) ? t("update.statusReleaseOpened") : t("update.statusReleaseError"))
       return
@@ -167,11 +190,21 @@ export function UpdatePage(props: { onClose: () => void }) {
             {t("update.latestUnknown")}
           </text>
         ) : (
-          <text fg={info?.hasUpdate ? theme.warning : theme.success} attributes={TextAttributes.BOLD} wrapMode="none">
+          <text fg={hasUpdate ? theme.warning : theme.success} attributes={TextAttributes.BOLD} wrapMode="none">
             v{latest}
           </text>
         )}
       </box>
+
+      {/* Green-vs-amber on the version number was the ONLY thing that ever
+          said "nothing to install". A colour is not a sentence. */}
+      {upToDate ? (
+        <box flexShrink={0} paddingTop={1}>
+          <text fg={theme.success} wrapMode="word">
+            {t("update.upToDate")}
+          </text>
+        </box>
+      ) : null}
 
       <box flexDirection="column" flexShrink={0} paddingTop={1} gap={0}>
         {actions.map((action) => (
@@ -211,11 +244,13 @@ export function UpdatePage(props: { onClose: () => void }) {
         </text>
       ) : null}
 
-      <box flexShrink={0} paddingTop={1}>
-        <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
-          {t("update.changesSectionHeader", { from: CURRENT_VERSION, to: latest })}
-        </text>
-      </box>
+      {hasUpdate ? (
+        <box flexShrink={0} paddingTop={1}>
+          <text fg={theme.textMuted} attributes={TextAttributes.DIM} wrapMode="none">
+            {t("update.changesSectionHeader", { from: CURRENT_VERSION, to: latest })}
+          </text>
+        </box>
+      ) : null}
       <scrollbox
         flexGrow={1}
         flexShrink={1}
@@ -226,7 +261,9 @@ export function UpdatePage(props: { onClose: () => void }) {
       >
         <box flexDirection="column" paddingRight={1} paddingBottom={1} gap={0}>
           {loadingNotes ? <text fg={theme.textMuted}>{t("update.loadingNotes")}</text> : null}
-          {!loadingNotes && releaseNotes.length === 0 ? (
+          {/* Only a real fetch can fail. With nothing newer to fetch, this
+              line was reporting a failure that never happened. */}
+          {!loadingNotes && hasUpdate && releaseNotes.length === 0 ? (
             <text fg={theme.textMuted} wrapMode="word">
               {t("update.notesUnavailable")}
             </text>

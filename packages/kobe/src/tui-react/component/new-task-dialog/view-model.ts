@@ -267,6 +267,10 @@ export function useNewTaskViewModel(props: NewTaskDialogProps) {
           if (!completeFocusedField()) setField(advanceField)
         },
       },
+      // The dialog prints its own `MODE  ctrl+[ ]` label above the chips, so
+      // this chord has no KobeKeymap row: the dialog is modal, F1 cannot open
+      // over it, and the row it used to have could only ever render in panes
+      // where no New Task dialog was open.
       { key: "ctrl+]", cmd: () => switchToTab(nextDialogTab(tab)) },
       { key: "ctrl+[", cmd: () => switchToTab(prevDialogTab(tab)) },
       { key: "ctrl+e", cmd: () => cycleEngine(1) },

@@ -78,8 +78,13 @@ export type HelpGrammarSection = {
 
 function directCap(row: KobeBinding): string | null {
   if (row.keys.length > 0) return row.hint?.keys ?? row.keys[0] ?? null
-  // Documentation-only rows (composer and diff keys) still describe a
-  // direct, surface-owned gesture through their friendly hint.
+  // Documentation-only rows (the diff-review keys, the new-task tab cycler)
+  // still describe a direct, surface-owned gesture through their friendly
+  // hint. They carry no `keys`, so they are never dispatched from the table —
+  // the owning component registers the raw chord and tags it with this row's
+  // id, which is what puts them in the reachability scan alongside every
+  // other row. A doc-only row whose owner is not mounted is unreachable and
+  // must not be advertised.
   return row.prefixKeys?.length ? null : (row.hint?.keys ?? null)
 }
 
@@ -117,8 +122,7 @@ export function grammarHelpSections(
     const prefixAvailable = reachability ? reachability.prefix.has(binding.id) : staticallyAvailable
     if (cap) {
       const row = { binding, primary: cap, aliases: binding.keys.filter((key) => key !== cap) }
-      const docOnlyHere = binding.keys.length === 0 && !binding.prefixKeys?.length && staticallyAvailable
-      if ((directAvailable && (staticallyAvailable || binding.presentation === "onePress")) || docOnlyHere) {
+      if (directAvailable && (staticallyAvailable || binding.presentation === "onePress")) {
         if (binding.presentation === "onePress") direct.push(row)
         else here.push(row)
       } else if (!staticallyAvailable && binding.scope !== "global") {

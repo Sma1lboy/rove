@@ -4,53 +4,13 @@ import type { KobeBinding } from "./keybindings-table.ts"
 
 export const CHAT_BINDINGS: readonly KobeBinding[] = [
   // ─── Workspace ────────────────────────────────────────────────────────
-  {
-    // Composer textarea handles enter via its own onKeyDown. This row
-    // exists only for help-dialog visibility; no chord is registered
-    // here.
-    id: "chat.send",
-    scope: "workspace",
-    keys: [],
-    category: "Workspace",
-    description: "Send message (composer)",
-    hint: { keys: "enter" },
-  },
-  {
-    // Composer textarea inserts a literal newline on shift+enter (kitty/
-    // CSI-u terminals) and ctrl+J everywhere else; no chord is registered
-    // here. Surfaced in Help (F1) so the user doesn't have to memorize
-    // it after we stripped the inline footer hint from the composer.
-    id: "chat.newline",
-    scope: "workspace",
-    keys: [],
-    category: "Workspace",
-    description: "Newline in composer",
-    hint: { keys: "shift+enter" },
-  },
-  {
-    // Shift+tab inside the composer cycles the per-task permission mode
-    // (default ↔ plan); the chord is registered in
-    // Composer's onKeyDown, not here. Doc-only entry so Help (F1)
-    // advertises the binding to a focused user.
-    id: "chat.cycle-mode",
-    scope: "workspace",
-    keys: [],
-    category: "Workspace",
-    description: "Cycle permission mode (composer)",
-    hint: { keys: "shift+tab" },
-  },
-  {
-    // Ctrl+enter mid-stream interrupts the in-flight subprocess and
-    // dispatches the new buffer immediately. Plain enter while
-    // streaming queues instead. Chord is registered in Composer's
-    // onKeyDown; this entry is doc-only.
-    id: "chat.steer",
-    scope: "workspace",
-    keys: [],
-    category: "Workspace",
-    description: "Steer (interrupt + send) — mid-stream only",
-    hint: { keys: "ctrl+enter" },
-  },
+  // The workspace is a PTY running the engine CLI — Rove has no composer of
+  // its own, so `chat.send` / `chat.newline` / `chat.cycle-mode` / `chat.steer`
+  // (and `chat.interrupt`, formerly in keybindings-table.ts) are gone. They
+  // hard-coded ONE vendor's composer keymap into Rove's help and rendered in
+  // every workspace and terminal pane; `shift+enter` in particular is a chord
+  // terminals cannot deliver without kitty-protocol setup Rove keeps off.
+  // Engine-owned UI data belongs to the engine adapter (AGENTS.md).
   {
     id: "chat.tab.new",
     scope: "workspace",

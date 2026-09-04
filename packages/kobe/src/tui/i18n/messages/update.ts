@@ -12,6 +12,11 @@ export const en = {
   /** The registry check failed (offline, npm down, timeout). Must stay
    *  distinct from "you are up to date". */
   latestUnknown: "unknown — could not reach the registry",
+  /** The registry answered and nothing is newer. Distinct from
+   *  `latestUnknown`: this one is a checked fact, not a failed lookup. Worded
+   *  for BOTH cases it covers — the installed build can equal the published
+   *  release or be ahead of it (a local build, a lagging dist-tag). */
+  upToDate: "No newer release — nothing to install.",
   releaseUrlUnavailable: "release URL unavailable",
   statusReleaseOpened: "Opened release page in your browser.",
   statusReleaseError: "Could not open release URL.",
@@ -60,6 +65,7 @@ export const zh: typeof en = {
   current: "当前",
   latest: "最新",
   latestUnknown: "未知 —— 无法连接到 registry",
+  upToDate: "没有更新的版本 —— 无需安装。",
   releaseUrlUnavailable: "发布链接不可用",
   statusReleaseOpened: "已在浏览器中打开发布说明页面。",
   statusReleaseError: "无法打开发布链接。",

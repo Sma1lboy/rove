@@ -175,14 +175,18 @@ export function useDiffReview(args: {
   useBindings(() => ({
     enabled: enabled && args.focused,
     bindings: [
-      { key: "j", cmd: () => moveCursor(1) },
-      { key: "down", cmd: () => moveCursor(1) },
-      { key: "k", cmd: () => moveCursor(-1) },
-      { key: "up", cmd: () => moveCursor(-1) },
-      { key: "v", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
-      { key: "c", cmd: () => void promptNote() },
+      // The `id`s mirror the doc-only `diff.review.*` rows in KobeKeymap. The
+      // chords stay literal here (FIXED_BINDING_IDS rejects overrides for
+      // them) — the id is what puts the rows in the reachability scan, so F1
+      // lists them only while a diff with rows is actually focused.
+      { key: "j", id: "diff.review.cursor", cmd: () => moveCursor(1) },
+      { key: "down", id: "diff.review.cursor", cmd: () => moveCursor(1) },
+      { key: "k", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
+      { key: "up", id: "diff.review.cursor", cmd: () => moveCursor(-1) },
+      { key: "v", id: "diff.review.range", cmd: () => setAnchor((a) => (a == null ? cursor : null)) },
+      { key: "c", id: "diff.review.note", cmd: () => void promptNote() },
       { key: "x", cmd: () => dropNoteAtCursor() },
-      { key: "s", cmd: () => sendAll() },
+      { key: "s", id: "diff.review.send", cmd: () => sendAll() },
     ],
   }))
 
