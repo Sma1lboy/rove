@@ -37,6 +37,7 @@ import { KVProvider } from "../../src/tui-react/context/kv"
 import { NotificationsProvider } from "../../src/tui-react/context/notifications"
 import { ThemeProvider } from "../../src/tui-react/context/theme"
 import { DialogProvider } from "../../src/tui-react/ui/dialog"
+import { setPrefixHudClock } from "../../src/tui/lib/prefix-hud"
 
 export { act }
 
@@ -100,6 +101,9 @@ let liveRenderer: TestRenderer | null = null
 EventEmitter.defaultMaxListeners = 200
 
 afterEach(() => {
+  // A manual clock is process-global; leaving one installed freezes every
+  // later file's HUD timers.
+  setPrefixHudClock(null)
   if (!liveRenderer) return
   try {
     liveRenderer.destroy()
@@ -108,6 +112,49 @@ afterEach(() => {
   }
   liveRenderer = null
 })
+
+/**
+ * Install an advanceable clock for the prefix-HUD overlay and return its
+ * handle. `advance(ms)` jumps the overlay's `now` forward and fires everything
+ * it scheduled inside that window, so a delayed reveal resolves at once
+ * instead of riding a real timer on an event loop this suite saturates. Wrap
+ * `advance` in `act()` so React flushes the resulting re-render. `afterEach`
+ * restores real time.
+ *
+ * The clock is real time PLUS an offset, not a frozen instant: the dispatch
+ * layer stamps `armedAt` with its own `Date.now()` at the moment of the key
+ * press, so a clock pinned at install time would sit BEHIND that stamp by
+ * however long the mount took, and `advance(PREFIX_GUIDE_DELAY_MS)` would land
+ * short. Riding real time keeps the offset exact however long the mount takes.
+ */
+export function installAdvanceablePrefixHudClock(): { advance(ms: number): void } {
+  let offset = 0
+  let nextId = 1
+  const pending = new Map<number, { at: number; fn: () => void }>()
+  const now = (): number => Date.now() + offset
+  setPrefixHudClock({
+    now,
+    schedule: (fn, ms) => {
+      const id = nextId++
+      pending.set(id, { at: now() + ms, fn })
+      return () => pending.delete(id)
+    },
+  })
+  return {
+    advance(ms: number) {
+      offset += ms
+      // Re-read each pass: a fired callback may schedule the next timer.
+      for (;;) {
+        const due = [...pending].filter(([, timer]) => timer.at <= now()).sort((a, b) => a[1].at - b[1].at)
+        if (due.length === 0) return
+        for (const [id, timer] of due) {
+          pending.delete(id)
+          timer.fn()
+        }
+      }
+    },
+  }
+}
 
 /** Wrap `ui` in the requested providers, innermost-to-outermost: Theme > KV > Focus > Dialog > Notifications — the same nesting the real pane hosts mount. */
 function withProviders(ui: ReactNode, flags: ProviderFlags | undefined): ReactNode {
@@ -137,12 +184,23 @@ export function settle(ms = 60): Promise<void> {
  * Poll `frame()` until the captured frame contains `text` and return that
  * frame. Throws with the last frame on timeout.
  *
- * Call sites that wait on an INTENTIONAL product delay — e.g. the prefix-HUD
- * command guide, which only opens PREFIX_GUIDE_DELAY_MS after the tap — must
- * pass a `timeoutMs` anchored to that product constant, not a bare estimate:
- * the deadline has to cover the delay plus frame latency on a loaded CI
- * runner, or the test flakes at random on unrelated changes — a 1s budget is
- * not enough for ~1.1s of test wall-clock on a slow runner.
+ * `timeoutMs` has a HARD ceiling of 5000ms, and growing past it does not buy
+ * patience — it buys silence. Two things sit exactly on 5000ms:
+ *
+ *   1. bun's default per-test timeout (no `[test] timeout` in bunfig.toml).
+ *      A budget at or above it means bun kills the test before this function
+ *      can throw, so the failure reads `this test timed out after 5000ms`
+ *      with no frame dump — the whole point of this error message is lost.
+ *   2. `DEFAULT_PREFIX_CONFIGURATION.timeoutMs` — the armed PureTUI prefix
+ *      cancels ITSELF 5000ms after the tap and tears the HUD guide down. Past
+ *      that point the answer no longer exists to be polled for.
+ *
+ * So do NOT anchor a budget to a product delay "plus room for a loaded CI
+ * runner": that reasoning is what once put this file's guide budget at
+ * PREFIX_GUIDE_DELAY_MS + 5000 = 5180ms, over both ceilings, where every
+ * failure printed a bare bun timeout and this message never fired once.
+ * When a wait depends on a product timer, drive that timer instead of racing
+ * it (see `installManualPrefixHudClock`) and keep the budget well under 5000ms.
  */
 export async function waitForFrameText(
   frame: () => Promise<string>,

@@ -63,6 +63,16 @@ export type EngineTabStateMap = ReadonlyMap<string, ReadonlyMap<string, TaskEngi
 /** Durable daemon-owned attention episode, pushed as a full snapshot. */
 export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][number]
 
+// The `worktree.changes` wire contract lives in its own module (its payload
+// carries two facts per key); re-exported here so existing importers keep
+// naming it through this one.
+import type { WorktreeChangesMap } from "./remote-orchestrator-worktree-changes.ts"
+export {
+  type WorktreeChangesMap,
+  parseWorktreeChangesPayload,
+  sameWorktreeChangesMap,
+} from "./remote-orchestrator-worktree-changes.ts"
+
 /**
  * A long daemon operation currently IN FLIGHT for a task, accumulated from
  * the `task.jobs` channel (today: `ensureWorktree` — `git worktree add` is
@@ -74,16 +84,6 @@ export type AttentionInboxItem = ChannelPayloads["attention.inbox"]["items"][num
 export interface TaskJobState {
   readonly kind: "ensureWorktree"
 }
-
-/**
- * Daemon-collected `+N −M` counts keyed by worktree path, from the
- * `worktree.changes` channel (one collector in the daemon
- * instead of per-pane git polling). `null` means "no daemon-collected
- * data": either the daemon predates the channel (absent from
- * `hello.capabilities`) or `init()` hasn't completed — the sidebar then
- * falls back to its local poller.
- */
-export type WorktreeChangesMap = ReadonlyMap<string, WorktreeChanges>
 
 /**
  * Compact, bounded description of a dropped event payload for `client.log` —
@@ -103,30 +103,6 @@ export function describePayload(value: unknown): string {
   }
   if (text.length > 120) text = `${text.slice(0, 120)}…`
   return `${type}:${text}`
-}
-
-/**
- * Parse a `worktree.changes` wire payload into a path→counts map.
- * Returns `null` for a malformed payload (the event is then ignored —
- * never clobber a good map with garbage). Exported for unit tests.
- */
-export function parseWorktreeChangesPayload(payload: unknown): Map<string, WorktreeChanges> | null {
-  const changes = (payload as { changes?: unknown } | undefined)?.changes
-  if (!changes || typeof changes !== "object" || Array.isArray(changes)) return null
-  const map = new Map<string, WorktreeChanges>()
-  for (const [path, value] of Object.entries(changes as Record<string, unknown>)) {
-    const counts = value as { added?: unknown; deleted?: unknown; behind?: unknown; ahead?: unknown } | undefined
-    if (typeof counts?.added !== "number" || typeof counts.deleted !== "number") return null
-    // `behind` and `ahead` are both additive: an older daemon omits them, and
-    // the chip then simply does not draw — never a fabricated zero.
-    map.set(path, {
-      added: counts.added,
-      deleted: counts.deleted,
-      ...(typeof counts.behind === "number" ? { behind: counts.behind } : {}),
-      ...(typeof counts.ahead === "number" ? { ahead: counts.ahead } : {}),
-    })
-  }
-  return map
 }
 
 /**
@@ -156,20 +132,6 @@ export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
     keysCollapsed: p.keysCollapsed === true,
     projectFilter: typeof p.projectFilter === "string" && p.projectFilter.length > 0 ? p.projectFilter : null,
   }
-}
-
-/**
- * Entry-wise equality for two changes maps — an unchanged republish (e.g.
- * the bus replaying its last value across a reconnect) must not churn the
- * signal and re-render every sidebar row. Exported for unit tests.
- */
-export function sameWorktreeChangesMap(a: WorktreeChangesMap, b: WorktreeChangesMap): boolean {
-  if (a.size !== b.size) return false
-  for (const [path, counts] of a) {
-    const other = b.get(path)
-    if (!other || !sameWorktreeChanges(counts, other)) return false
-  }
-  return true
 }
 
 /**

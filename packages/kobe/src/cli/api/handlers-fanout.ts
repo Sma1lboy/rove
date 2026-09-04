@@ -65,7 +65,12 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
     // picking a parallel-round winner: an attempt that commits its work reads
     // +0/−0 here, and `base.behind` says whether it was building against a
     // base that has since moved.
-    const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : { added: 0, deleted: 0 }
+    //
+    // `null` when there is nothing to read (no worktree) or the read failed —
+    // the same honest-unknown `base` has always emitted beside it. Never
+    // `{0,0}`: this verb's summary tells the caller non-zero means the attempt
+    // cannot land, so a fabricated zero is a claim the caller acts on.
+    const changes = task.worktreePath ? await runtime.readWorktreeChanges(task.worktreePath) : null
     const base = task.worktreePath
       ? await runtime.readBranchSignals(task.worktreePath, task.baseRef)
       : { baseRef: null, ahead: null, behind: null, diff: null }

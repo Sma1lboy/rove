@@ -78,22 +78,23 @@ describe("pollWorktreeChanges end-to-end", () => {
     const repo = makeRepo()
     writeFileSync(join(repo, "a.txt"), "hello")
     writeFileSync(join(repo, "b.txt"), "world")
-    expect(worktreeChanges(repo)).toEqual({ added: 0, deleted: 0 }) // nothing until a poll lands
+    expect(worktreeChanges(repo)).toBeNull() // UNKNOWN until a poll lands — not "clean"
     pollWorktreeChanges(repo) // returns immediately — fire and forget
-    await waitFor(() => worktreeChanges(repo).added === 2)
+    await waitFor(() => worktreeChanges(repo)?.added === 2)
     expect(worktreeChanges(repo)).toEqual({ added: 2, deleted: 0 })
   })
 
-  test("a failing path keeps the last value instead of erroring", async () => {
+  test("a failing path reads unknown, never a fabricated clean", async () => {
     const missing = join(tmpdir(), "kobe-poller-definitely-missing")
     pollWorktreeChanges(missing)
-    // Give the spawn error a moment to settle; the value must stay zeros.
+    // Give the spawn error a moment to settle. `null`, not `{0,0}`: the row
+    // must render this differently from a worktree with nothing uncommitted.
     await new Promise((r) => setTimeout(r, 150))
-    expect(worktreeChanges(missing)).toEqual({ added: 0, deleted: 0 })
+    expect(worktreeChanges(missing)).toBeNull()
   })
 
-  test("empty path is a no-op", () => {
+  test("empty path is a no-op and reads unknown", () => {
     pollWorktreeChanges("")
-    expect(worktreeChanges("")).toEqual({ added: 0, deleted: 0 })
+    expect(worktreeChanges("")).toBeNull()
   })
 })

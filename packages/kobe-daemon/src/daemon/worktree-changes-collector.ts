@@ -233,9 +233,16 @@ export function trackedWorktreePaths(tasks: readonly Task[]): Map<string, string
   return paths
 }
 
+/** A run whose `git status` failed: no counts exist, and the path must be
+ *  published as UNREADABLE rather than silently omitted. Returned in place of
+ *  a throw so the scheduler's success path can carry it — `onValue` never
+ *  fires for a rejected run, which is how an unreadable worktree used to leave
+ *  the map entirely and read as clean on every subscriber. */
+const UNREADABLE = Symbol("worktree-changes-unreadable")
+
 interface CollectorEntry extends PollScheduleState {
   /** Last successful counts, absent until the first run lands. */
-  value?: WorktreeChanges
+  value?: WorktreeChanges | typeof UNREADABLE
   /** Change fingerprint sampled when the last run STARTED (before it, so a
    *  write landing mid-run is not swallowed). `null` = it was unreadable. */
   probe?: string | null
@@ -370,7 +377,13 @@ export class WorktreeChangesCollector {
         // recorded for a run that never happened would suppress the next one.
         entry.probe = probe
         entry.quietUntil = Date.now() + quietIntervalMs
-        return run(worktreePath, signal, baseRef)
+        // Resolve, don't reject, on a failed status: `maybeStartScheduledRun`
+        // only calls back on success, so a rejection would drop the path from
+        // the published map — and an absent key is what the sidebar draws as a
+        // clean row. A TIMEOUT still rejects the run (the signal aborts and the
+        // callback is skipped either way), so a slow repo keeps its last value
+        // and backs off exactly as before.
+        return run(worktreePath, signal, baseRef).catch((): typeof UNREADABLE => UNREADABLE)
       },
       (value) => {
         if (this.stopped) return
@@ -378,9 +391,22 @@ export class WorktreeChangesCollector {
         // status ran — a completion for an untracked path must not resurrect
         // it in the published map.
         if (this.entries.get(worktreePath) !== entry) return
+        // A failed status on a worktree that HAS read cleanly keeps its last
+        // counts, the same "stale, not wrong" contract the PR chip keeps for a
+        // provider it could not reach. UNREADABLE is published only when there
+        // is no good value to go stale from — which is the case that used to
+        // fall out of the map and read as a clean row.
+        if (value === UNREADABLE && entry.value !== undefined && entry.value !== UNREADABLE) return
         // Publish-on-change only: a status returning the same counts is a
         // no-op for every subscriber.
-        if (entry.value && sameWorktreeChanges(entry.value, value)) return
+        if (entry.value === value) return
+        if (
+          entry.value &&
+          entry.value !== UNREADABLE &&
+          value !== UNREADABLE &&
+          sameWorktreeChanges(entry.value, value)
+        )
+          return
         entry.value = value
         this.publish()
       },
@@ -389,10 +415,14 @@ export class WorktreeChangesCollector {
 
   private publish(): void {
     const changes: WorktreeChangesPayload["changes"] = {}
+    const unreadable: string[] = []
     for (const [path, entry] of this.entries) {
-      if (entry.value) changes[path] = entry.value
+      if (entry.value === UNREADABLE) unreadable.push(path)
+      else if (entry.value) changes[path] = entry.value
     }
-    this.bus.publish("worktree.changes", { changes })
+    // `unreadable` only rides when non-empty, so the common payload is byte-
+    // identical to what this channel has always published.
+    this.bus.publish("worktree.changes", unreadable.length > 0 ? { changes, unreadable } : { changes })
   }
 }
 

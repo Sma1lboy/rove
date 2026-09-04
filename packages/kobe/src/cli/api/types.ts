@@ -263,8 +263,13 @@ export interface ApiRuntime {
   resolveRepoRoot(absPath: string): Promise<string>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
   defaultVendor(repo?: string): Promise<VendorId | undefined>
-  /** Uncommitted +/− counts for a worktree. */
-  readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number }>
+  /** Uncommitted +/− counts for a worktree; `null` when git could not be
+   *  read at all (unreadable admin dir, git off PATH, worktree gone). NOT
+   *  `{0,0}` — that is the answer for a genuinely clean worktree, and
+   *  `collect`'s own summary says non-zero means the attempt cannot land, so
+   *  a fabricated zero reads as "safe to land / safe to delete". Mirrors the
+   *  all-null contract `readBranchSignals` already keeps for `base`. */
+  readWorktreeChanges(worktreePath: string): Promise<{ added: number; deleted: number } | null>
   /** Committed work vs the branch's base: ahead/behind counts + diffstat (`collect`).
    *  `recordedBaseRef` is the task's persisted fork point (`add --base-branch`);
    *  when present it wins over the base guess; absent/unresolvable falls back. */

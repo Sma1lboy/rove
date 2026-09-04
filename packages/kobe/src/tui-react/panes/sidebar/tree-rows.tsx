@@ -32,6 +32,7 @@ import { resolveRowSelectionChrome } from "../../ui/row-selection-chrome"
 import {
   ChangeStats,
   JumpDigit,
+  UNKNOWN_CHANGES_MARK,
   completionSeenFor,
   completionStampOf,
   useChanges,
@@ -73,7 +74,7 @@ export type TreeRowShared = {
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
-  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
+  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
 }
 
 /**
@@ -239,10 +240,13 @@ export function WorktreeTreeRow(props: {
     (conflict ? 2 : 0) +
     (review ? 2 : 0) +
     (status ? 2 : 0) +
-    ((changes.ahead ?? 0) > 0 ? clusterCells(`↑${changes.ahead}`) : 0) +
-    (changes.added > 0 ? clusterCells(`+${changes.added}`) : 0) +
-    (changes.deleted > 0 ? clusterCells(`−${changes.deleted}`) : 0) +
-    ((changes.behind ?? 0) > 0 ? clusterCells(`↓${changes.behind}`) : 0) +
+    // `changes === null` is the unknown mark, one cell like any chip glyph —
+    // it replaces the whole ↑/+/−/↓ cluster rather than sitting beside it.
+    (changes === null ? clusterCells(UNKNOWN_CHANGES_MARK) : 0) +
+    ((changes?.ahead ?? 0) > 0 ? clusterCells(`↑${changes?.ahead}`) : 0) +
+    ((changes?.added ?? 0) > 0 ? clusterCells(`+${changes?.added}`) : 0) +
+    ((changes?.deleted ?? 0) > 0 ? clusterCells(`−${changes?.deleted}`) : 0) +
+    ((changes?.behind ?? 0) > 0 ? clusterCells(`↓${changes?.behind}`) : 0) +
     (moving ? clusterCells(t("tasks.moveChip").trim()) : 0)
   return (
     <RowShell rowId={props.rowId} flatIndex={props.flatIndex} depth={1} shared={shared}>

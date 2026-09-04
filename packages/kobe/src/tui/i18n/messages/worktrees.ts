@@ -13,6 +13,7 @@ export const en = {
   badge: {
     kobeManaged: "rove",
     dirty: "dirty",
+    dirtyUnknown: "dirty?",
     remoteOn: "on remote",
     remoteOff: "not pushed",
     remoteUnknown: "remote unknown",
@@ -81,6 +82,7 @@ export const zh: typeof en = {
   badge: {
     kobeManaged: "rove",
     dirty: "有改动",
+    dirtyUnknown: "改动未知",
     remoteOn: "已推送",
     remoteOff: "未推送",
     remoteUnknown: "远端未知",

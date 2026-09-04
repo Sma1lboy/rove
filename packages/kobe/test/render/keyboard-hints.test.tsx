@@ -27,7 +27,7 @@ import { KEY_HINTS_ENABLED_KEY, PANE_HINT_USED_KEYS } from "../../src/tui/lib/ke
 import { resetPrefixState } from "../../src/tui/lib/keymap-dispatch"
 import { PREFIX_GUIDE_DELAY_MS } from "../../src/tui/lib/prefix-hud"
 import { PREFIX_TAP_PRESENTATION_KEY } from "../../src/tui/lib/prefix-tap-presentation"
-import { act, renderComponent, settle, waitForFrameText } from "./harness"
+import { act, installAdvanceablePrefixHudClock, renderComponent, settle, waitForFrameText } from "./harness"
 
 const NOOP = (): void => {}
 
@@ -145,14 +145,22 @@ function withGuideKvHome(): void {
   process.env.KOBE_HOME_DIR = home
 }
 
-// The which-key guide is a deliberate delayed reveal: PrefixHud only opens it
-// PREFIX_GUIDE_DELAY_MS after the tap, so the poll budget must cover that
-// product delay plus frame latency on a loaded CI runner (same flake
-// shortcut-reveal guards against).
-const GUIDE_REVEAL_TIMEOUT_MS = PREFIX_GUIDE_DELAY_MS + 5_000
+// The command guide is a deliberate delayed reveal: PrefixHud only opens it
+// PREFIX_GUIDE_DELAY_MS after the tap. DRIVE that product timer, never wait on
+// it — the real one rides an event loop this suite saturates, and the armed
+// prefix cancels itself (tearing the guide down) 5000ms after the tap, so a
+// slipped timer deletes the answer rather than delaying it. Waiting longer is
+// therefore not an option; the budget below covers frame latency only and must
+// stay well under 5000ms (see waitForFrameText in ./harness for both ceilings).
+const GUIDE_FRAME_TIMEOUT_MS = 2_000
 
-async function waitForGuideText(frame: () => Promise<string>, text: string): Promise<string> {
-  return waitForFrameText(frame, text, { timeoutMs: GUIDE_REVEAL_TIMEOUT_MS })
+async function waitForGuideText(
+  clock: { advance(ms: number): void },
+  frame: () => Promise<string>,
+  text: string,
+): Promise<string> {
+  act(() => clock.advance(PREFIX_GUIDE_DELAY_MS))
+  return waitForFrameText(frame, text, { timeoutMs: GUIDE_FRAME_TIMEOUT_MS })
 }
 
 describe("StatusKeyHintBar", () => {
@@ -201,8 +209,9 @@ describe("StatusKeyHintBar", () => {
     )
     await settle()
 
+    const clock = installAdvanceablePrefixHudClock()
     act(() => mockInput.pressKey("a", { ctrl: true }))
-    expect(await waitForGuideText(frame, "more Rove commands")).toContain("more Rove commands")
+    expect(await waitForGuideText(clock, frame, "more Rove commands")).toContain("more Rove commands")
 
     act(() => mockInput.pressKey("z"))
     await settle()
@@ -291,9 +300,10 @@ describe("footer hint clicks", () => {
       { width: 110, height: 30, providers: { kv: true, focus: true, dialog: true } },
     )
     await settle()
+    const clock = installAdvanceablePrefixHudClock()
     const spot = locate(await frame(), "commands")
     await mockMouse.click(spot.x + 1, spot.y)
-    expect(await waitForGuideText(frame, "more Rove commands")).toContain("more Rove commands")
+    expect(await waitForGuideText(clock, frame, "more Rove commands")).toContain("more Rove commands")
     act(() => resetPrefixState())
   })
 })
