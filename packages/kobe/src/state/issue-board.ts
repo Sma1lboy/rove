@@ -6,10 +6,15 @@
  *   - Done        — terminal disposition (wins over a stale task link).
  *   - Parked      — parked disposition (`hold` / unknown): work stopped on
  *                   purpose, worktree preserved — linked or not.
- *   - In progress — the issue is linked to a task (`taskId` set = started).
- *   - Backlog     — everything else (open / doing / unlinked).
+ *   - In progress — the issue says so (`doing`) OR it is linked to a task
+ *                   (`taskId` set = started).
+ *   - Backlog     — everything else (open / unlinked).
  * `in_progress` is DERIVED from the link, not stored — `kobe api issue-update
- * --task <id>` is the "move card" gesture, `--task none` moves it back.
+ * --task <id>` is the "move card" gesture, `--task none` moves it back. The
+ * link is not the ONLY route in: `doing` is the issue's own lifecycle step
+ * (`docs/WORK-TRACKING.md`: open → doing → done) and reading it needs no task
+ * at all, which is what the board's `project` placement — a session that runs
+ * on the main checkout with no task to link — depends on to move its card.
  */
 
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
@@ -91,6 +96,10 @@ export function issueColumnKey(issue: Issue, taskExists?: (taskId: string) => bo
   if (disposition === "terminal") return "done"
   if (disposition === "parked") return "parked"
   if (issue.taskId !== undefined && issue.taskId !== "" && (taskExists?.(issue.taskId) ?? true)) return "in_progress"
+  // The issue's own "I picked this up". Unlinked `doing` used to be
+  // indistinguishable from `open`, so the documented open → doing step moved
+  // no card and an agent that followed it watched its story sit in Backlog.
+  if (issue.status === "doing") return "in_progress"
   return "backlog"
 }
 

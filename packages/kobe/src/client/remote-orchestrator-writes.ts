@@ -357,6 +357,15 @@ export async function listIssuesOp(client: KobeDaemonClient, repoRoot: string): 
   return client.request<RepoIssues>("issue.list", { repoRoot })
 }
 
+/** Repo roots the issue store holds a record for (`issue.repos`) — the kanban
+ *  page's board source. A repo with a backlog is a board section; deriving the
+ *  set from the task index instead made a landed-and-deleted task take its
+ *  whole backlog off screen. */
+export async function listIssueReposOp(client: KobeDaemonClient): Promise<readonly string[]> {
+  const res = await client.request<{ repos?: readonly string[] }>("issue.repos", {})
+  return res.repos ?? []
+}
+
 /** A repo's durable field notes, newest first (`note.list`) — the sidebar's
  *  project-row reader. Same wire shape `state/field-notes.ts` reads at launch,
  *  but through the daemon so the reader sees the whole live store (50), not

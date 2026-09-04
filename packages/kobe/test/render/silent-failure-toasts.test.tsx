@@ -38,6 +38,7 @@ function issue(id: number, over: Record<string, unknown> = {}) {
 test("kanban: a rejected detail-drawer edit shows an error toast, not the stale card", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }),
     activeTaskSignal: () => ({ get: () => null }),
     mutateIssue: async () => {
@@ -96,6 +97,7 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
 test("kanban: a project whose issue read rejects keeps its slot, says why, and toasts", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }, { repo: BROKEN }],
+    listIssueRepos: async () => [REPO, BROKEN],
     listIssues: async (repo: string) => {
       if (repo === BROKEN) throw new Error("JSON Parse error: Unterminated string")
       return { repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)], skipped: 0 }

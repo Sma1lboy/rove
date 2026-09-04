@@ -57,6 +57,7 @@ async function expectErrorToast(
 test("kanban: a failed issue delete shows an error toast, not just a log line", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }),
     activeTaskSignal: () => ({ get: () => null }),
     mutateIssue: async () => {
@@ -96,6 +97,7 @@ test("kanban: a failed issue delete shows an error toast, not just a log line", 
 test("kanban: a failed issue create shows an error toast", async () => {
   const orch = {
     listTasks: () => [{ repo: REPO }],
+    listIssueRepos: async () => [REPO],
     listIssues: async () => ({ repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)] }),
     activeTaskSignal: () => ({ get: () => null }),
     mutateIssue: async () => {

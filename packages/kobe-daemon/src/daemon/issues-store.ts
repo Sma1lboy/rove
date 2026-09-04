@@ -23,6 +23,14 @@ export const ISSUE_STATUSES: readonly IssueStatus[] = ["open", "doing", "hold", 
  */
 const ISSUE_NOT_FOUND_CODE = "ISSUE_NOT_FOUND"
 
+/**
+ * Same wire trick for "this repo's record is shaped in a way this read did not
+ * understand at all". Reads stay soft (the entries are counted into
+ * {@link RepoIssues.skipped}); WRITES refuse, because a whole-file write can
+ * only re-emit what it parsed, and everything it did not parse would be gone.
+ */
+const ISSUE_STORE_UNREADABLE_CODE = "ISSUE_STORE_UNREADABLE"
+
 export interface Issue {
   id: number
   title: string
@@ -51,6 +59,19 @@ interface RepoIssueRecord {
   repoRoot: string
   nextId: number
   issues: Issue[]
+  /**
+   * Raw `issues` entries {@link normalizeIssue} rejected, kept verbatim and
+   * re-emitted by {@link serializeRecord} on every write. A normalizing read
+   * feeding a whole-file write used to ERASE from disk what it merely could
+   * not list, so `skipped` documented a recovery window one mutation wide.
+   */
+  unusable: readonly unknown[]
+  /**
+   * The record's `issues` was not an array, so this read parsed NOTHING here.
+   * Holds the whole original record so a write triggered by a sibling repo
+   * round-trips it untouched; a write aimed at THIS repo refuses instead.
+   */
+  unreadable?: { readonly raw: unknown }
 }
 
 interface IssuesStoreFile {
@@ -146,6 +167,43 @@ async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: s
   }
 }
 
+/** How many stories a non-array `issues` is hiding — the values of a map-shaped
+ *  record, else the one value we cannot count into. Never `0`: `skipped: 0` is
+ *  the single value {@link RepoIssues.skipped} documents as "you have it all". */
+function unreadableCount(raw: unknown): number {
+  if (raw !== null && typeof raw === "object" && !Array.isArray(raw)) return Math.max(1, Object.keys(raw).length)
+  return 1
+}
+
+function readRecord(value: object): { record: RepoIssueRecord; dropped: number } {
+  const record = value as Partial<RepoIssueRecord> & { issues?: unknown }
+  const base = {
+    repoRoot: typeof record.repoRoot === "string" ? record.repoRoot : "",
+    nextId: typeof record.nextId === "number" ? record.nextId : 1,
+  }
+  if (record.issues !== undefined && !Array.isArray(record.issues)) {
+    // `entries = []` used to make `dropped` come out `0` here — the read had
+    // thrown away every story and reported the value that means it threw away
+    // none. Then the next write persisted the emptiness.
+    return {
+      record: { ...base, issues: [], unusable: [], unreadable: { raw: value } },
+      dropped: unreadableCount(record.issues),
+    }
+  }
+  const entries: readonly unknown[] = Array.isArray(record.issues) ? record.issues : []
+  const issues = entries.map(normalizeIssue).filter((issue): issue is Issue => issue !== null)
+  const unusable = entries.filter((entry) => normalizeIssue(entry) === null)
+  return {
+    record: {
+      repoRoot: base.repoRoot,
+      nextId: typeof record.nextId === "number" ? record.nextId : nextIdFallback(entries),
+      issues,
+      unusable,
+    },
+    dropped: unusable.length,
+  }
+}
+
 async function readStore(path: string): Promise<StoreRead> {
   try {
     const raw = JSON.parse(await readFile(path, "utf8")) as Partial<IssuesStoreFile>
@@ -154,38 +212,43 @@ async function readStore(path: string): Promise<StoreRead> {
     if (raw.repos && typeof raw.repos === "object") {
       for (const [key, value] of Object.entries(raw.repos)) {
         if (!value || typeof value !== "object") continue
-        const record = value as Partial<RepoIssueRecord>
-        const entries: readonly unknown[] = Array.isArray(record.issues) ? record.issues : []
-        const issues = entries.map(normalizeIssue).filter((issue): issue is Issue => issue !== null)
+        const { record, dropped } = readRecord(value)
         // Dropping silently is what made a filed story stop existing in every
         // read while still sitting in the file. Count it here so `list` can
         // say so, and log it so the daemon log names the repo.
-        const dropped = entries.length - issues.length
         if (dropped > 0) {
           skipped.set(key, dropped)
+          const why = record.unreadable ? '"issues" is not an array' : "id is not a number"
           logDaemonError(
             "issues-store-read",
-            new Error(
-              `${key}: dropped ${dropped} unreadable issue entr${dropped === 1 ? "y" : "ies"} (id is not a number)`,
-            ),
+            new Error(`${key}: dropped ${dropped} unreadable issue entr${dropped === 1 ? "y" : "ies"} (${why})`),
           )
         }
-        repos[key] = {
-          repoRoot: typeof record.repoRoot === "string" ? record.repoRoot : "",
-          nextId: typeof record.nextId === "number" ? record.nextId : nextIdFallback(entries),
-          issues,
-        }
+        repos[key] = record
       }
     }
     return { file: { version: 1, repos }, skipped }
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return { file: emptyStore(), skipped: new Map() }
-    throw err
+    // A syntactically broken store already fails loudly and leaves the file
+    // intact — but the CLI envelope showed only the parser's complaint, which
+    // names neither the file nor the repo, so an agent could not say which
+    // store to open.
+    throw new Error(`${path}: ${err instanceof Error ? err.message : String(err)}`)
   }
 }
 
+/** File shape for one record: the issues this read understood, followed by the
+ *  raw entries it did not. An unreadable record round-trips whole. */
+function serializeRecord(record: RepoIssueRecord): unknown {
+  if (record.unreadable) return record.unreadable.raw
+  return { repoRoot: record.repoRoot, nextId: record.nextId, issues: [...record.issues, ...record.unusable] }
+}
+
 async function writeStore(path: string, store: IssuesStoreFile): Promise<void> {
-  await writeJsonAtomic(path, store)
+  const repos: Record<string, unknown> = {}
+  for (const [key, record] of Object.entries(store.repos)) repos[key] = serializeRecord(record)
+  await writeJsonAtomic(path, { version: store.version, repos })
 }
 
 function response(repoRoot: string, record: RepoIssueRecord | null, skipped = 0): RepoIssues {
@@ -206,11 +269,28 @@ export class IssuesStore {
     return serialized(this.path, async () => {
       const { file: store, skipped } = await readStore(this.path)
       const record = store.repos[repoKey] ?? null
-      if (record && record.repoRoot !== repoRoot) {
+      if (record && !record.unreadable && record.repoRoot !== repoRoot) {
         record.repoRoot = repoRoot
         await writeStore(this.path, store)
       }
       return response(repoRoot, record, skipped.get(repoKey) ?? 0)
+    })
+  }
+
+  /**
+   * Every repo root this store holds a record for. The board derived its
+   * sections from the TASK index, so landing the work and deleting the task —
+   * the ordinary end of the loop — took the whole backlog off screen, and a
+   * story filed with `issue-create --repo <path>` into a repo that never had a
+   * task was invisible from the moment it was filed. A repo the store knows
+   * about is a repo with a backlog; that is what a board section means.
+   */
+  async repos(): Promise<readonly string[]> {
+    return serialized(this.path, async () => {
+      const { file } = await readStore(this.path)
+      return Object.values(file.repos)
+        .map((record) => record.repoRoot)
+        .filter((root) => root.length > 0)
     })
   }
 
@@ -274,8 +354,18 @@ export class IssuesStore {
       const { file: store, skipped } = await readStore(this.path)
       let record = store.repos[repoKey]
       if (!record) {
-        record = { repoRoot, nextId: 1, issues: [] }
+        record = { repoRoot, nextId: 1, issues: [], unusable: [] }
         store.repos[repoKey] = record
+      }
+      if (record.unreadable) {
+        // Every write here is a whole-file write of what the read produced.
+        // This record produced nothing, so applying the op would replace the
+        // stories still in the file with just the op's result. Naming the file
+        // and the repo is the difference between a refusal an agent can act on
+        // and one it can only report.
+        throw new Error(
+          `${ISSUE_STORE_UNREADABLE_CODE}: ${repoRoot}'s record in ${this.path} has a non-array "issues" — refusing to write over stories this build cannot read`,
+        )
       }
       record.repoRoot = repoRoot
       const typed = op as IssueOp

@@ -35,6 +35,7 @@ function fakeOrchestrator(): RemoteOrchestrator {
     listTasks: () => [SELECTED_TASK],
     listAutomations: async () => ({ automations: [], keepsDaemonAlive: false }),
     automationRuns: async () => ({ runs: [] }),
+    listIssueRepos: async () => ["/x/kobe"],
     listIssues: async () => ({ repoRoot: "/x/kobe", exists: true, nextId: 99, issues: [] }),
     listWorkItems: async () => ({ items: [] }),
     connectionStateSignal: () => ONLINE,

@@ -437,6 +437,12 @@ export class RemoteOrchestrator {
     return writes.listIssuesOp(this.client, repoRoot)
   }
 
+  /** Repo roots the issue store knows (`issue.repos`) — the kanban page's
+   *  board source, see {@link writes.listIssueReposOp}. */
+  listIssueRepos(): Promise<readonly string[]> {
+    return writes.listIssueReposOp(this.client)
+  }
+
   /** One issue-store mutation (`issue.mutate`) — the kanban detail drawer's
    *  write path (link on start, setStatus for the project placement). */
   mutateIssue(repoRoot: string, op: unknown): Promise<RepoIssues> {

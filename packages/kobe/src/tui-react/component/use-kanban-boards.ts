@@ -1,8 +1,16 @@
 /**
- * Kanban board loading — the data half of `kanban-page.tsx`: fetch every saved
- * repo's issue file, poll it while the page is open, and land the initial
- * project/card cursor. Rendering, key handling, and mutations stay in the
- * page.
+ * Kanban board loading — the data half of `kanban-page.tsx`: fetch the issue
+ * file of every repo that can have a backlog, poll it while the page is open,
+ * and land the initial project/card cursor. Rendering, key handling, and
+ * mutations stay in the page.
+ *
+ * "Can have a backlog" is three sources unioned, because no one of them is the
+ * whole set: the STORE's own repo keys (`issue.repos` — a story filed with
+ * `issue-create --repo <path>` reaches a repo that may have no task and no
+ * saved-project entry), the user's SAVED projects (an empty board you can file
+ * into), and the repos of LIVE tasks. Deriving the set from tasks alone was
+ * the bug: landing the work and deleting the task — the ordinary end of the
+ * loop — dropped every card, and the page then said "No projects yet".
  *
  * The seam is IO: this is the only part that talks to the orchestrator, so the
  * page's own logic never has to reason about a poll landing mid-interaction.
@@ -12,6 +20,8 @@ import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
 import { errorMessage } from "../../lib/error-message"
+import { isRemoteRepoKey } from "../../state/remote-repos"
+import { getSavedRepos } from "../../state/repos"
 
 /** Agent moves land within one poll; issue.list is a local JSON read, so
  *  polling while the page is open is cheap. */
@@ -63,43 +73,54 @@ export function useKanbanBoards(args: {
       setBoards([])
       return
     }
-    const repos = [...new Set(orchestrator.listTasks().map((task) => task.repo))]
-    void Promise.all(
-      repos.map((repo) =>
-        orchestrator.listIssues(repo).catch(
-          (err: unknown): KanbanBoardEntry => ({
-            // A rejected read still owns its section. `exists: false` here is
-            // NOT the empty-board case below — `readError` is what separates
-            // "no issue file yet" from "could not read the issue file".
-            repoRoot: repo,
-            exists: false,
-            nextId: 1,
-            issues: [],
-            skipped: 0,
-            readError: errorMessage(err),
-          }),
-        ),
-      ),
-    ).then((results) => {
-      if (disposed) return
-      // A repo whose issue file doesn't exist yet still gets a section —
-      // `exists: false` just means an empty board, not an error.
-      const next = [...results]
-      next.sort((a, b) => a.repoRoot.localeCompare(b.repoRoot))
-      setBoards(next)
-      // First load lands on the focus task's project (opened via `c` on a
-      // task row) or, without one, the project you opened kobe in — the
-      // active task's repo (loose realpath tolerance, like WorktreesPage).
-      const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
-      const activeId = orchestrator.activeTaskSignal().get()
-      const targetRepo = focusTask?.repo ?? orchestrator.listTasks().find((task) => task.id === activeId)?.repo
-      const initialBoard = targetRepo ? next.find((board) => norm(board.repoRoot) === norm(targetRepo)) : undefined
-      setActiveRepo((prev) => prev ?? initialBoard?.repoRoot ?? null)
-      // …and the card cursor on the focus task's linked story, if any.
-      const focusId = focusTask?.id
-      const linked = focusId ? initialBoard?.issues.find((issue) => issue.taskId === focusId) : undefined
-      if (linked) setSelectedId((prev) => prev ?? linked.id)
-    })
+    const local = [...getSavedRepos(), ...orchestrator.listTasks().map((task) => task.repo)]
+    void orchestrator
+      .listIssueRepos()
+      // A daemon too old to know `issue.repos` leaves the board on the sources
+      // this process can see for itself, rather than rendering nothing.
+      .catch((): readonly string[] => [])
+      .then((stored) => {
+        // `ssh://` saved keys are remote projects; the issue store is keyed by
+        // git path and would reject each one as a visible read error.
+        const repos = [...new Set([...local, ...stored])].filter((repo) => repo && !isRemoteRepoKey(repo))
+        return Promise.all(
+          repos.map((repo) =>
+            orchestrator.listIssues(repo).catch(
+              (err: unknown): KanbanBoardEntry => ({
+                // A rejected read still owns its section. `exists: false` here
+                // is NOT the empty-board case below — `readError` is what
+                // separates "no issue file yet" from "could not read it".
+                repoRoot: repo,
+                exists: false,
+                nextId: 1,
+                issues: [],
+                skipped: 0,
+                readError: errorMessage(err),
+              }),
+            ),
+          ),
+        )
+      })
+      .then((results) => {
+        if (disposed) return
+        // A repo whose issue file doesn't exist yet still gets a section —
+        // `exists: false` just means an empty board, not an error.
+        const next = [...results]
+        next.sort((a, b) => a.repoRoot.localeCompare(b.repoRoot))
+        setBoards(next)
+        // First load lands on the focus task's project (opened via `c` on a
+        // task row) or, without one, the project you opened kobe in — the
+        // active task's repo (loose realpath tolerance, like WorktreesPage).
+        const norm = (p: string): string => p.replace(/^\/private\//, "/").replace(/\/+$/, "")
+        const activeId = orchestrator.activeTaskSignal().get()
+        const targetRepo = focusTask?.repo ?? orchestrator.listTasks().find((task) => task.id === activeId)?.repo
+        const initialBoard = targetRepo ? next.find((board) => norm(board.repoRoot) === norm(targetRepo)) : undefined
+        setActiveRepo((prev) => prev ?? initialBoard?.repoRoot ?? null)
+        // …and the card cursor on the focus task's linked story, if any.
+        const focusId = focusTask?.id
+        const linked = focusId ? initialBoard?.issues.find((issue) => issue.taskId === focusId) : undefined
+        if (linked) setSelectedId((prev) => prev ?? linked.id)
+      })
     const timer = setInterval(() => setReloadTick((tick) => tick + 1), POLL_MS)
     return () => {
       disposed = true

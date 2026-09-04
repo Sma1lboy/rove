@@ -13,6 +13,12 @@ export const ISSUE_HANDLERS: readonly DaemonRequestHandler[] = [
     },
   },
   {
+    name: "issue.repos",
+    async handle(_payload, ctx) {
+      return { repos: await ctx.issues.repos() }
+    },
+  },
+  {
     name: "issue.mutate",
     async handle(payload, ctx) {
       const repoRoot = requireString(payload, "repoRoot")

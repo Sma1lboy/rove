@@ -43,10 +43,21 @@ describe("issueColumnKey", () => {
     expect(issueColumnKey(issue({ id: 7, status: "doing", taskId: "01T" }))).toBe("in_progress")
   })
 
-  test("open / doing / empty-link are backlog", () => {
+  test("open / empty-link are backlog", () => {
     expect(issueColumnKey(issue({ id: 8 }))).toBe("backlog")
-    expect(issueColumnKey(issue({ id: 9, status: "doing" }))).toBe("backlog")
     expect(issueColumnKey(issue({ id: 10, taskId: "" }))).toBe("backlog")
+  })
+
+  // `doing` needs no task to mean what it says. Bucketing it with `open` made
+  // the documented open → doing step move no card, and left the drawer's
+  // `project` placement — which writes exactly this status and links nothing —
+  // running an engine behind a card still sitting in Backlog.
+  test("an unlinked `doing` issue is in progress on its own say-so", () => {
+    expect(issueColumnKey(issue({ id: 9, status: "doing" }))).toBe("in_progress")
+    expect(issueColumnKey(issue({ id: 11, status: "doing", taskId: "" }))).toBe("in_progress")
+    // …and a `doing` card whose task vanished stays there rather than falling
+    // back to Backlog: the link is gone, the issue's own status is not.
+    expect(issueColumnKey(issue({ id: 12, status: "doing", taskId: "01GONE" }), () => false)).toBe("in_progress")
   })
 
   // The defensive half of the link contract. The daemon unlinks an issue when
