@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.149
+
+### Patch Changes
+
+- [#901](https://github.com/Sma1lboy/rove/pull/901) [`3489122`](https://github.com/Sma1lboy/rove/commit/348912229422939a0bb3be4f5548ab1a2f0c8b98) Bound slow daemon clients and incoming daemon/PTY requests to prevent unbounded buffering. Keep the latest complete snapshot for each channel under backpressure while preserving RPC, lifecycle, command and terminal byte ordering until disconnection. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#901](https://github.com/Sma1lboy/rove/pull/901) [`3489122`](https://github.com/Sma1lboy/rove/commit/348912229422939a0bb3be4f5548ab1a2f0c8b98) Build wide file trees with indexed child lookup so large directories no longer cause quadratic insertion work. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#901](https://github.com/Sma1lboy/rove/pull/901) [`3489122`](https://github.com/Sma1lboy/rove/commit/348912229422939a0bb3be4f5548ab1a2f0c8b98) Limit worktree status collection to four concurrent runs, queue due work fairly, and batch result publications. Stop cancels queued work and aborts running status reads. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.148
 
 ### Patch Changes
