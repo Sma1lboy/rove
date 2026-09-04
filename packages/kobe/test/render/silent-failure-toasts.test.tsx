@@ -29,6 +29,7 @@ import { toTaskId } from "../../src/types/task"
 import { renderComponent, settle } from "./harness"
 
 const REPO = "/repos/rove"
+const BROKEN = "/repos/broken"
 
 function issue(id: number, over: Record<string, unknown> = {}) {
   return { id, title: `story-${id}`, status: "open", created: "2026-08-01", body: "", ...over }
@@ -81,6 +82,60 @@ test("kanban: a rejected detail-drawer edit shows an error toast, not the stale 
   // like an edit that was never made.
   expect(text).toContain("✕")
   expect(text).toContain("Couldn't save story #1")
+})
+
+/**
+ * A project whose issue read REJECTS must keep its slot on the board.
+ *
+ * `listIssues(repo).catch(() => null)` + a `filter(res => res !== null)` took
+ * the whole project out of the result, so the tab strip went from two projects
+ * to one with no error, no glyph, and no toast. A user with two repos open saw
+ * one and had no reason to believe the other existed — the failure was not
+ * merely quiet, it was indistinguishable from "you only have one project".
+ */
+test("kanban: a project whose issue read rejects keeps its slot, says why, and toasts", async () => {
+  const orch = {
+    listTasks: () => [{ repo: REPO }, { repo: BROKEN }],
+    listIssues: async (repo: string) => {
+      if (repo === BROKEN) throw new Error("JSON Parse error: Unterminated string")
+      return { repoRoot: REPO, exists: true, nextId: 9, issues: [issue(1)], skipped: 0 }
+    },
+    activeTaskSignal: () => ({ get: () => null }),
+    mutateIssue: async () => {},
+  } as never
+  const { frame, mockInput } = await renderComponent(
+    <>
+      <KanbanPage
+        orchestrator={orch}
+        focused={true}
+        onClose={() => {}}
+        onStartChat={async () => {}}
+        onOpenTask={() => {}}
+      />
+      <ToastOverlay />
+    </>,
+    { width: 120, height: 30, providers: { dialog: true, kv: true, notifications: true } },
+  )
+  await settle(300)
+
+  // The counter is the proof the project was not dropped: `1/2`, not a bare
+  // single-project label. Sorted by repoRoot, `/repos/broken` leads.
+  const first = await frame()
+  expect(first).toContain("1/2")
+  expect(first).toContain("✕")
+  expect(first).toContain("Couldn't read stories for")
+
+  // …and the broken project's own section states the failure where its four
+  // columns would be. Empty lanes there would read as "no stories filed".
+  expect(first).toContain("Couldn't read this project's stories")
+  expect(first).toContain("Unterminated string")
+
+  // The healthy project is still fully reachable — tab cycles onto its board.
+  mockInput.pressTab()
+  await settle(200)
+  const second = await frame()
+  expect(second).toContain("story-1")
+  expect(second).not.toContain("Couldn't read this project's stories")
 })
 
 /**

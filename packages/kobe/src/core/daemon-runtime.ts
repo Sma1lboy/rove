@@ -44,6 +44,7 @@ import {
 import { daemonSettingsPatch, daemonSettingsSnapshot } from "./daemon-settings-adapter.ts"
 import {
   handleWorktreesRequestAdapter,
+  listUnreadableWorktreesAdapter,
   listWorktreeProjectsAdapter,
   removeWorktreeAdapter,
 } from "./daemon-worktree-adapter.ts"
@@ -132,6 +133,7 @@ export const daemonRuntime: DaemonRuntimeAdapter = {
   },
   maybeAutoStart: (orch, taskId) => maybeAutoStart(orch as Orchestrator, taskId),
   listWorktreeProjects: listWorktreeProjectsAdapter,
+  listUnreadableWorktrees: listUnreadableWorktreesAdapter,
   removeWorktree: removeWorktreeAdapter,
   async syncWorktreeWithBase(worktreePath, recordedBaseRef) {
     const controller = new AbortController()

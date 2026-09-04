@@ -12,6 +12,14 @@ export const en = {
   noRepos: "No projects yet — create a task first.",
   /** A repo section with zero issues. */
   empty: "No issues — agents file them via `rove api issue-create`.",
+  /** In place of the four columns when THIS project's issue read rejected.
+   *  The project keeps its slot in the selector: dropping it made a whole
+   *  repo — and every card in it — vanish, reading as "you only have one
+   *  project". `{error}` = the daemon's message. */
+  readFailed: "Couldn't read this project's stories: {error}",
+  /** Error toast for the same failure, naming which project it was.
+   *  `{repo}` = the project label, `{error}` = the daemon's message. */
+  readFailedToast: "Couldn't read stories for {repo}: {error}",
   /** One column with zero cards — a quiet placeholder so the empty lane
    *  reads as intentional rather than unrendered. */
   columnEmpty: "No cards",
@@ -108,6 +116,8 @@ export const zh: typeof en = {
   loading: "正在加载 issues…",
   noRepos: "还没有项目——先创建一个任务。",
   empty: "暂无 issue——agent 可通过 `rove api issue-create` 创建。",
+  readFailed: "读取该项目的 story 失败：{error}",
+  readFailedToast: "读取 {repo} 的 story 失败：{error}",
   columnEmpty: "暂无卡片",
   column: {
     backlog: "待办",

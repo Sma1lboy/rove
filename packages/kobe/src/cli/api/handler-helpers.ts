@@ -25,8 +25,14 @@ export async function simpleRpc(ctx: VerbContext, name: string, payload: Record<
  * `pty-list` — inventory of the standalone pty host's sessions (key, pid,
  * command, live OSC window title — the same "实时进程名" stream the TUI tab
  * strip shows). Talks to the PTY HOST socket, not the daemon (offline verb),
- * and never spawns a host: no host running simply means no sessions.
- * Moved here from `verbs.ts` verbatim to keep that file under the size cap.
+ * and never spawns a host.
+ *
+ * `sessions: null` when there is no host to ask. It used to be `[]`, which is
+ * also the answer for a LIVE host running nothing — so an agent reading
+ * `{"sessions":[]}` concluded the fleet was idle and could respawn work that
+ * was already running, or call a live task dead. `inspect`'s sessions section
+ * has always returned `null` for this exact failure; the two verbs now agree.
+ * Moved here from `verbs.ts` to keep that file under the size cap.
  */
 export async function handlePtyList(): Promise<unknown> {
   const [{ KobeDaemonClient }, { defaultPtyHostSocketPath }] = await Promise.all([
@@ -38,7 +44,7 @@ export async function handlePtyList(): Promise<unknown> {
     await client.connect()
     return await client.request("pty.list", {})
   } catch {
-    return { sessions: [] }
+    return { sessions: null }
   } finally {
     client.close()
   }

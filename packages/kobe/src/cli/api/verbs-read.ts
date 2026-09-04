@@ -43,7 +43,7 @@ export const READ_VERBS: readonly VerbSpec[] = [
     name: "pty-list",
     group: "read",
     summary:
-      "List hosted PTY sessions (key, alive, pid, command, live OSC window title). Empty when no pty host runs. Returns { sessions }.",
+      "List hosted PTY sessions (key, alive, pid, command, live OSC window title). Returns { sessions }: `[]` = a live pty host with nothing running (the fleet IS idle); `null` = no pty host to ask, so this is `couldn't look` and says NOTHING about what is running.",
     flags: [],
     offline: true,
     handler: handlePtyList,

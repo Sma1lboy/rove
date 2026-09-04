@@ -22,7 +22,7 @@
 
 import { type BoxRenderable, TextAttributes } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
-import type { Issue, RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
+import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { type ReactNode, useEffect, useRef, useState } from "react"
 import type { RemoteOrchestrator, TaskEngineState } from "../../client/remote-orchestrator"
 import { availableEngineIds } from "../../engine/account-detect"
@@ -43,7 +43,7 @@ import { quickForkDefaultVendor } from "../workspace/quick-fork"
 import type { IssueChatStart } from "../workspace/use-issue-chat"
 import { IssueDetailDialog } from "./issue-detail-dialog"
 import { KanbanBoard, needsSingleLane } from "./kanban-board"
-import { useKanbanBoards } from "./use-kanban-boards"
+import { type KanbanBoardEntry, useKanbanBoards } from "./use-kanban-boards"
 
 /** paddingLeft + paddingRight on the page root, whose width is what we measure. */
 const PAGE_PADDING_CELLS = 4
@@ -109,8 +109,28 @@ export function KanbanPage(props: {
     0,
     boardList.findIndex((board) => board.repoRoot === activeRepo),
   )
-  const activeBoard: RepoIssues | undefined = boardList[activeIndex]
+  const activeBoard: KanbanBoardEntry | undefined = boardList[activeIndex]
   const repoRoots = boardList.map((board) => board.repoRoot)
+  // One toast per DISTINCT set of read failures, not per render: the poll
+  // refetches every POLL_MS and a still-broken repo must not re-toast. The key
+  // is the errors themselves, so a NEW repo failing (or a different error on
+  // the same repo) fires again while a persisting one stays quiet.
+  const readErrorKey = boardList
+    .filter((board) => board.readError)
+    .map((board) => `${board.repoRoot}\u0000${board.readError}`)
+    .join("\n")
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the error SET — notifyError/boardList are new every render and would re-toast on every frame.
+  useEffect(() => {
+    for (const board of boardList) {
+      if (!board.readError) continue
+      notifyError(
+        t("kanban.readFailedToast", {
+          repo: sidebarProjectLabel(board.repoRoot, repoRoots),
+          error: board.readError,
+        }),
+      )
+    }
+  }, [readErrorKey])
   // Rendering-only attention float: blocked-on-you cards lead In progress.
   // The task index decides In progress, not the link alone: the daemon
   // unlinks an issue when its task is deleted, but a store carried over from
@@ -317,7 +337,7 @@ export function KanbanPage(props: {
   /** One-line rolling project selector — tab/←/→ (or click) cycles, no tab
    *  row. Label stays flush with the page's left edge. The full path is a
    *  wide-layout nicety; narrow keeps only the label that identifies. */
-  function projectSelector(active: RepoIssues): ReactNode {
+  function projectSelector(active: KanbanBoardEntry): ReactNode {
     return (
       <box flexDirection="row" justifyContent="space-between" paddingTop={1}>
         <box flexDirection="row" onMouseUp={() => cycleProject(1)}>
@@ -337,7 +357,7 @@ export function KanbanPage(props: {
             </text>
           )}
         </box>
-        {active.issues.length === 0 ? (
+        {active.issues.length === 0 && !active.readError ? (
           <text fg={theme.textMuted} wrapMode="none" flexShrink={1}>
             {t("kanban.empty")}
           </text>
@@ -381,16 +401,24 @@ export function KanbanPage(props: {
       ) : (
         <>
           {projectSelector(activeBoard)}
-          <KanbanBoard
-            columns={columns}
-            attentionCount={attentionCount}
-            selectedId={selectedId}
-            singleLane={singleLane}
-            {...(props.engineStates ? { engineStates: props.engineStates } : {})}
-            follow={follow}
-            onSelect={setSelectedId}
-            onOpen={openDetail}
-          />
+          {activeBoard.readError ? (
+            // In place of the four columns, NOT in place of the project: empty
+            // lanes here would read as "this project has no stories".
+            <text fg={theme.error} wrapMode="none">
+              {t("kanban.readFailed", { error: activeBoard.readError })}
+            </text>
+          ) : (
+            <KanbanBoard
+              columns={columns}
+              attentionCount={attentionCount}
+              selectedId={selectedId}
+              singleLane={singleLane}
+              {...(props.engineStates ? { engineStates: props.engineStates } : {})}
+              follow={follow}
+              onSelect={setSelectedId}
+              onOpen={openDetail}
+            />
+          )}
         </>
       )}
     </box>
