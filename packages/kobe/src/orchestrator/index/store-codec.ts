@@ -79,7 +79,7 @@ const CURRENT_VERSION = 3 as const
  * Best-effort: a backup failure must never block startup/save; returns the
  * backup path for the caller's warn line, or null when the copy failed.
  */
-export async function backupCorruptManifest(path: string, now: () => Date = () => new Date()): Promise<string | null> {
+async function backupCorruptManifest(path: string, now: () => Date = () => new Date()): Promise<string | null> {
   const backupPath = `${path}.corrupt-${now().toISOString().replaceAll(":", "-")}`
   try {
     await copyFile(path, backupPath)
@@ -100,7 +100,7 @@ const SUPPORTED_VERSIONS: ReadonlySet<unknown> = new Set([1, 2, 3])
  * reason `client-log.ts` exists. A recovery that silently empties the task
  * index must leave a trace a human can actually find afterwards.
  */
-export function warnManifestRecovery(message: string, manifestPath?: string): void {
+function warnManifestRecovery(message: string, manifestPath?: string): void {
   console.warn(message)
   // `<home>/.rove|.kobe/tasks.json` → that same home's client.log. Resolved
   // from the manifest rather than the ambient default so a store opened on an
@@ -118,7 +118,7 @@ export function warnManifestRecovery(message: string, manifestPath?: string): vo
  *
  * Returns true when it handled the value (caller recovers empty).
  */
-export async function recoverUnsupportedVersion(parsed: unknown, sourcePath: string): Promise<boolean> {
+async function recoverUnsupportedVersion(parsed: unknown, sourcePath: string): Promise<boolean> {
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false
   const version = (parsed as { version?: unknown }).version
   if (version === undefined || SUPPORTED_VERSIONS.has(version)) return false

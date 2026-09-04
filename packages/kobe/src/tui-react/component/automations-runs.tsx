@@ -22,7 +22,7 @@ import { formatWhen } from "./automations-format"
 /** Run-status → how it should read at a glance. The four "didn't run" reasons
  *  are deliberately distinct: `skipped_precheck` is healthy (nothing to do),
  *  `dispatch_failed` wants a human. Collapsing them would hide that. */
-export const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
+const RUN_TONE: Record<string, "success" | "muted" | "warning" | "error"> = {
   dispatched: "success",
   // Delivered, so not grey: `revived` reached a respawned session (the status
   // text carries the lost-context caveat), `deferred` reached the Inbox and is

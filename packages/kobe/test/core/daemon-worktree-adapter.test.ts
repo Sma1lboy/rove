@@ -3,7 +3,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
-import { handleWorktreesRequestAdapter, listWorktreeProjectsAdapter } from "../../src/core/daemon-worktree-adapter.ts"
+import {
+  listUnreadableWorktreesAdapter,
+  listWorktreeProjectsAdapter,
+  removeWorktreeAdapter,
+} from "../../src/core/daemon-worktree-adapter.ts"
 import { addSavedRepo } from "../../src/state/repos.ts"
 
 const git = (cwd: string, ...args: string[]) =>
@@ -55,43 +59,19 @@ describe("daemon worktree adapter", () => {
     expect(row?.path.endsWith("/feature")).toBe(true)
   })
 
-  it("owns the HTTP route while delegating its audit policy", async () => {
-    const response = await handleWorktreesRequestAdapter(
-      new Request("http://localhost/api/worktrees"),
-      new URL("http://localhost/api/worktrees"),
-    )
-    expect(response?.status).toBe(200)
-    expect(await response?.json()).toEqual(expect.objectContaining({ projects: expect.any(Array) }))
-
-    await expect(
-      handleWorktreesRequestAdapter(
-        new Request("http://localhost/api/worktrees", { method: "POST" }),
-        new URL("http://localhost/api/worktrees"),
-      ),
-    ).resolves.toEqual(expect.objectContaining({ status: 405 }))
+  it("reports a repo with no unreadable worktrees as empty", async () => {
+    expect(await listUnreadableWorktreesAdapter(repo)).toEqual([])
   })
 
-  it("validates removals and turns audit failures into HTTP errors", async () => {
-    const url = new URL("http://localhost/api/worktrees")
-    const missingPath = await handleWorktreesRequestAdapter(
-      new Request(url, { method: "DELETE", body: JSON.stringify({}) }),
-      url,
-    )
-    expect(missingPath?.status).toBe(400)
-
-    const removed = await handleWorktreesRequestAdapter(
-      new Request(url, { method: "DELETE", body: JSON.stringify({ path: worktree }) }),
-      url,
-    )
-    expect(removed?.status).toBe(200)
-    const malformed = await handleWorktreesRequestAdapter(new Request(url, { method: "DELETE", body: "not-json" }), url)
-    expect(malformed?.status).toBe(400)
+  it("removes a worktree and surfaces a failed audit as a rejection", async () => {
+    // A clean worktree removes without residue: git deregisters it AND
+    // deletes the directory, so there is nothing left to report.
+    expect(await removeWorktreeAdapter(worktree, false)).toBeNull()
 
     // A saved repo whose directory does not exist — the audit must fail on
     // it. `skipGate` because the admission gate would (correctly) refuse a
     // non-repo path, and this test needs the broken entry to EXIST.
     addSavedRepo(join(root, "missing"), { skipGate: true })
-    const failedAudit = await handleWorktreesRequestAdapter(new Request(url), url)
-    expect(failedAudit?.status).toBe(500)
+    await expect(listWorktreeProjectsAdapter(true)).rejects.toThrow()
   })
 })

@@ -1,6 +1,6 @@
 # ADR 0003 - The daemon owns the web transport
 
-- Status: implemented
+- Status: superseded by #855 (2026-09-03)
 - Date: 2026-06-18
 
 ## Context
@@ -51,3 +51,31 @@ The target shape is:
 - The old bridge adapter should not be wired into dev, desktop, CLI, or package
   builds. Static hosting, dev proxies, PTY launch specs, RPC, and SSE all point
   at the daemon web transport.
+
+## Superseded
+
+PR #855 deleted the browser dashboard, the daemon's HTTP/SSE transport, and
+`rove web`. The daemon now speaks only its unix socket:
+
+```
+git grep -nE "Bun\.serve|createServer|node:http" -- packages/kobe-daemon/src
+# → only node:net, in server.ts and pty-server.ts
+```
+
+The decision above was really taken and really shipped — the bridge did move
+into the daemon — so this record stays. What no longer holds is its standing
+instruction that "new daemon-backed browser routes must be added to the daemon
+interface": there is no daemon HTTP server to add a route to. A contributor
+following that clause would write a handler nothing can reach, which is exactly
+what happened to `src/web/{diff,history,notes,themes}.ts` and the
+`settings`/`worktrees` route handlers — wired into the runtime adapter,
+declared in its interface, and called by nobody until they were removed.
+
+The one surviving piece of this shape is the PTY sidecar, which is a Node
+process with its own HTTP/WebSocket listener and its own bearer-token gate
+(`packages/kobe-harness/pty-auth.mjs`). It is not the daemon web transport and
+does not revive it.
+
+The successor decision is implicit in #855 and has no ADR of its own: the TUI
+is the product, the daemon socket is the only daemon interface, and
+`/harness` is a capture page, not a dashboard.

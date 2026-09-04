@@ -228,14 +228,6 @@ export interface DaemonRuntimeAdapter {
   >
   /** Fresh persisted state, checked between deferred-queue deliveries. */
   composerGateEnabled(): boolean
-  settingsSnapshot(): Response
-  settingsPatch(request: Request): Promise<Response>
-  handleDiffRequest(request: Request, url: URL): Promise<Response | null>
-  handleHistoryRequest(request: Request, url: URL): Promise<Response | null>
-  handleNotesRequest(request: Request, url: URL): Promise<Response | null>
-  handleThemesRequest(request: Request, url: URL): Response | null
-  handleWorktreesRequest(request: Request, url: URL): Promise<Response | null>
-  issueAssetsDir(): string
   getPersistedString(key: string): string | undefined
   setPersistedString(key: string, value: string): void
   getSavedRepos(): readonly string[]

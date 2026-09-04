@@ -158,7 +158,7 @@ export function describeAccount(account: EngineAccount | null): string {
 /** True when this engine could actually run a task: its binary is present
  *  and, for engines whose login Rove CAN read, an account exists. A null
  *  account (no detector) does not veto — the binary is all we can know. */
-export function engineUsable(status: EngineStatus): boolean {
+function engineUsable(status: EngineStatus): boolean {
   return status.binary.found && status.account?.kind !== "none"
 }
 

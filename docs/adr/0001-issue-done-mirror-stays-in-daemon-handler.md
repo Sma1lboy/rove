@@ -8,7 +8,8 @@
 When a **Task** transitions to `done`, the daemon mirrors that onto the Task's
 linked **Issue** (flip the issue to `done` too, so a unified board stays
 consistent). Today this side effect lives in the `task.status` RPC handler
-(`packages/kobe-daemon/src/daemon/handlers.ts`), which calls
+(`packages/kobe-daemon/src/daemon/handlers-task.ts`, split out of
+`handlers.ts` since this was written), which calls
 `Orchestrator.setStatus` and then `IssuesStore.mirrorTaskDone` + `bus.publish`.
 
 An architecture review suggested "deepening" this by moving the mirror *into*

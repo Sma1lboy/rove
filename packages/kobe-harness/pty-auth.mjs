@@ -1,10 +1,9 @@
 /**
  * Bearer-token gate for the PTY sidecar.
  *
- * Every other browser-facing route already requires the web token: REST goes
- * through `withWebToken` and the SSE stream through `withWebTokenQuery`. The
- * PTY routes never adopted it, and they are the ones that spawn a shell in the
- * worktree — so their only gate was the Origin check, which passes for a
+ * The PTY routes never adopted the web token the daemon already minted, and
+ * they are the ones that spawn a shell in the worktree — so their only gate
+ * was the Origin check, which passes for a
  * request with NO Origin (any local process) and for ANY loopback Origin (any
  * other page the user has open on localhost). Origin answers "which page is
  * asking"; the token answers "is this caller entitled at all". Both apply.

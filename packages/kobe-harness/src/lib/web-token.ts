@@ -1,27 +1,28 @@
 /**
- * The web transport's bearer token, as the browser sees it.
+ * The PTY sidecar's bearer token, as the browser sees it.
  *
  * The daemon rewrites a `<meta name="rove-web-token">` into index.html for a
- * request that ALREADY presented the token — the `?token=` on the URL `rove
- * web` prints. It will not mint one for an anonymous caller, because `/` is
- * ungated (a browser cannot attach a header to the subresources it fetches
- * itself) and injecting there handed the credential to any `curl`.
+ * request that ALREADY presented the token. It will not mint one for an
+ * anonymous caller, because `/` is ungated (a browser cannot attach a header
+ * to the subresources it fetches itself) and injecting there handed the
+ * credential to any `curl`.
  *
  * So the meta tag only appears on the entry navigation. `sessionStorage`
- * carries it from there: an in-app route change drops the query, and a reload
- * of `/board` would otherwise arrive with neither channel. Per-tab and
- * per-origin, so it is scoped to this browser profile — the local user who
- * cannot read the 0600 token file cannot read this either.
+ * carries it from there: a reload that arrives without the query would
+ * otherwise have neither channel. Per-tab and per-origin, so it is scoped to
+ * this browser profile — the local user who cannot read the 0600 token file
+ * cannot read this either.
  *
  * Read once, but LAZILY on first use rather than at import: this module is
  * pulled in by modules that unit tests import under node with no DOM, and a
- * module-load `document` read would throw there before any test body runs. Cached after the first call — the served page carries one token
- * for its whole life, and rotating it means restarting the daemon, which
- * means reloading anyway.
+ * module-load `document` read would throw there before any test body runs.
+ * Cached after the first call — the served page carries one token for its
+ * whole life, and rotating it means restarting the daemon, which means
+ * reloading anyway.
  *
  * Absent in `vite dev`, where Vite (not the daemon) serves the HTML and so
  * nothing injects the tag. `VITE_ROVE_WEB_TOKEN` covers that case; without
- * either, requests go out bare and the daemon answers 401 with a hint.
+ * either, the sidecar refuses the WebSocket upgrade.
  */
 const STORAGE_KEY = "rove-web-token"
 
@@ -69,23 +70,10 @@ export function webToken(): string {
   return cached
 }
 
-/** Merge the bearer header into a fetch init, leaving it alone when we have
- *  no token (dev without the env var — the 401's hint is the better error). */
-export function withWebToken(init: RequestInit): RequestInit {
-  const token = webToken()
-  if (!token) return init
-  return {
-    ...init,
-    headers: {
-      ...(init.headers as Record<string, string>),
-      authorization: `Bearer ${token}`,
-    },
-  }
-}
-
 /**
- * `EventSource` has no way to set a request header, so the SSE stream is the
- * one caller that must pass its token in the query string.
+ * A WebSocket has no way to set a request header, so `ptyUrl` — the only
+ * remaining caller, and the one route that spawns a shell — passes its token
+ * in the query string.
  */
 export function withWebTokenQuery(url: string): string {
   const token = webToken()

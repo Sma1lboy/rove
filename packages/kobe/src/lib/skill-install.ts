@@ -241,7 +241,7 @@ export interface SkillState {
 }
 
 /** One skill file on disk: where it is and which marker version it carries. */
-export interface SkillCopy {
+interface SkillCopy {
   readonly path: string
   readonly version: number | null
 }

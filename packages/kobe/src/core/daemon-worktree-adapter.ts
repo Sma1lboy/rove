@@ -124,7 +124,7 @@ export async function listUnreadableWorktreesAdapter(repo: string): Promise<read
 }
 
 /**
- * The worktrees page / web DELETE path. Its force retry re-uses a `row`
+ * The daemon runtime's `removeWorktree`. Its force retry re-uses a `row`
  * captured BEFORE the first attempt's dirty refusal, so by the time the user
  * answers the confirm the tree may hold work the confirm never described.
  * `manager.remove` salvages any uncommitted work first; this records where.
@@ -149,26 +149,4 @@ export async function removeWorktreeAdapter(
     },
   })
   return residue
-}
-
-export async function handleWorktreesRequestAdapter(request: Request, url: URL): Promise<Response | null> {
-  if (url.pathname !== "/api/worktrees") return null
-  if (request.method === "GET") {
-    try {
-      return Response.json({ projects: await listWorktreeProjectsAdapter(true) })
-    } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 })
-    }
-  }
-  if (request.method === "DELETE") {
-    try {
-      const body = (await request.json()) as { path?: unknown; force?: unknown }
-      if (typeof body.path !== "string" || !body.path) return Response.json({ error: "missing path" }, { status: 400 })
-      const residue = await removeWorktreeAdapter(body.path, body.force === true)
-      return Response.json({ removed: true, ...(residue ? { residue } : {}) })
-    } catch (error) {
-      return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 })
-    }
-  }
-  return Response.json({ error: "method not allowed" }, { status: 405 })
 }
