@@ -25,6 +25,19 @@
  *     `max(minIntervalMs, 5 × last duration)`, so slow-but-finishing
  *     repos self-thin without a special case.
  *
+ * Those all defend against a SLOW repo. One more, on a different axis,
+ * defends against an UNCHANGED one — 19 idle tasks cost 1280 `git` processes
+ * and 14.7s of CPU per 62 seconds to publish 19 frames, because every tick
+ * re-derived an answer that had not moved:
+ *
+ *   - **quiet backoff** — before spawning anything, `worktreeFingerprint`
+ *     stats the git files an observable change would touch. While it is
+ *     unmoved AND the worktree has no working engine, the poll relaxes to
+ *     {@link WORKTREE_CHANGES_QUIET_INTERVAL_MS}. The fingerprint cannot see
+ *     a NESTED edit (see worktree-probe.ts — measured, not assumed), so it
+ *     is an accelerator, never an authority: the relaxed poll still runs, and
+ *     anything unreadable falls straight through to the real poll.
+ *
  * Collection scope: every task with a LOCAL worktree. Remote (`ssh://`)
  * projects are skipped — their worktrees aren't on this filesystem.
  * Deleted tasks' entries DROP from the published map on the next
@@ -49,6 +62,10 @@ import { type PollCadenceConfig, type PollScheduleState, maybeStartScheduledRun 
 import type { WorktreeChangesPayload } from "./protocol.ts"
 import type { DaemonRuntimeAdapter } from "./runtime.ts"
 import { startTicker } from "./ticker.ts"
+import { worktreeFingerprint } from "./worktree-probe.ts"
+
+/** Shared empty set — avoids allocating one per tick per collector. */
+const EMPTY_PATHS: ReadonlySet<string> = new Set<string>()
 
 function isRemoteRepoKey(value: string): boolean {
   return value.startsWith("ssh://")
@@ -66,6 +83,14 @@ export const WORKTREE_CHANGES_TIMEOUT_MS = 4_000
 export const WORKTREE_CHANGES_SLOW_RETRY_MS = 60_000
 /** Floor between successful polls per worktree. */
 export const WORKTREE_CHANGES_MIN_INTERVAL_MS = 1_500
+/**
+ * Poll floor for a worktree whose change probe is quiet and whose engine is
+ * idle — the safety net under {@link worktreeFingerprint}, which cannot see
+ * a nested edit. This is the WORST-CASE staleness for such a worktree; a
+ * fingerprint that moves, or an engine that starts working, drops it back to
+ * {@link WORKTREE_CHANGES_MIN_INTERVAL_MS} on the next tick.
+ */
+export const WORKTREE_CHANGES_QUIET_INTERVAL_MS = 15_000
 
 /** The task-list slice the collector needs — `Orchestrator` satisfies it. */
 export interface TaskLister {
@@ -181,6 +206,11 @@ export function trackedWorktreePaths(tasks: readonly Task[]): Map<string, string
 interface CollectorEntry extends PollScheduleState {
   /** Last successful counts, absent until the first run lands. */
   value?: WorktreeChanges
+  /** Change fingerprint sampled when the last run STARTED (before it, so a
+   *  write landing mid-run is not swallowed). `null` = it was unreadable. */
+  probe?: string | null
+  /** When a poll must happen even while the probe stays quiet. */
+  quietUntil?: number
 }
 
 export interface WorktreeChangesCollectorOptions {
@@ -198,6 +228,18 @@ export interface WorktreeChangesCollectorOptions {
    * tick — what tests that drive `tick()` directly use.
    */
   readonly hasSubscribers?: () => boolean
+  /**
+   * Task ids whose engine is currently working. Their worktrees keep the
+   * full {@link WORKTREE_CHANGES_MIN_INTERVAL_MS} cadence regardless of the
+   * change probe: an engine writing `src/**` is precisely the nested case
+   * the probe is blind to, and the sidebar chip for a task being worked on
+   * is the one people watch. Omit to treat every worktree as idle.
+   */
+  readonly activeTaskIds?: () => Iterable<string>
+  /** Poll floor for a quiet, engine-idle worktree. Tests shrink it. */
+  readonly quietIntervalMs?: number
+  /** Change probe (tests inject); defaults to {@link worktreeFingerprint}. */
+  readonly probe?: (worktreePath: string, baseRef?: string) => string | null
 }
 
 /**
@@ -228,7 +270,8 @@ export class WorktreeChangesCollector {
     // replays it to the late subscriber.
     if (this.options.hasSubscribers && !this.options.hasSubscribers()) return
     try {
-      const tracked = trackedWorktreePaths(this.orch.listTasks())
+      const tasks = this.orch.listTasks()
+      const tracked = trackedWorktreePaths(tasks)
       // Prune first: a task deleted since the last tick drops its
       // entry — and, when it had published counts, triggers a republish so
       // subscribers stop showing it.
@@ -242,7 +285,8 @@ export class WorktreeChangesCollector {
         this.entries.delete(path)
       }
       if (pruned) this.publish()
-      for (const [path, baseRef] of tracked) this.maybeCollect(path, baseRef)
+      const busy = this.busyPaths(tasks)
+      for (const [path, baseRef] of tracked) this.maybeCollect(path, baseRef, busy.has(path))
     } catch (err) {
       logDaemonError("worktree-changes", err)
     }
@@ -253,12 +297,34 @@ export class WorktreeChangesCollector {
     this.stopped = true
   }
 
-  private maybeCollect(worktreePath: string, baseRef?: string): void {
+  /** Worktrees whose task has a working engine — exempt from quiet backoff. */
+  private busyPaths(tasks: readonly Task[]): ReadonlySet<string> {
+    const ids = this.options.activeTaskIds?.()
+    if (!ids) return EMPTY_PATHS
+    const active = new Set(ids)
+    if (active.size === 0) return EMPTY_PATHS
+    const paths = new Set<string>()
+    for (const task of tasks) if (task.worktreePath && active.has(task.id)) paths.add(task.worktreePath)
+    return paths
+  }
+
+  private maybeCollect(worktreePath: string, baseRef?: string, busy = false): void {
     let entry = this.entries.get(worktreePath)
     if (!entry) {
       entry = { inFlight: false, nextAllowedAt: 0 }
       this.entries.set(worktreePath, entry)
     }
+    // Quiet backoff: skip the spawns only when the probe read cleanly, read
+    // the SAME thing as at the last run's start, no engine is writing in
+    // there, and the safety poll is not yet due. Every other case — a first
+    // tick (`probe` absent), an unreadable probe (`null`, which never equals
+    // itself here because the strict compare is against a string), a moved
+    // fingerprint — falls through and polls.
+    const now = Date.now()
+    const probe = (this.options.probe ?? worktreeFingerprint)(worktreePath, baseRef)
+    const quietUntil = entry.quietUntil ?? 0
+    if (!busy && probe !== null && probe === entry.probe && now < quietUntil) return
+    const quietIntervalMs = this.options.quietIntervalMs ?? WORKTREE_CHANGES_QUIET_INTERVAL_MS
     const cadence = this.options.cadence ?? {
       timeoutMs: WORKTREE_CHANGES_TIMEOUT_MS,
       slowRetryMs: WORKTREE_CHANGES_SLOW_RETRY_MS,
@@ -268,7 +334,14 @@ export class WorktreeChangesCollector {
     maybeStartScheduledRun(
       entry,
       cadence,
-      (signal) => run(worktreePath, signal, baseRef),
+      (signal) => {
+        // Recorded here, not above: `maybeStartScheduledRun` may decline
+        // (in flight, or inside the cadence window), and a fingerprint
+        // recorded for a run that never happened would suppress the next one.
+        entry.probe = probe
+        entry.quietUntil = Date.now() + quietIntervalMs
+        return run(worktreePath, signal, baseRef)
+      },
       (value) => {
         if (this.stopped) return
         // The entry may have been pruned (task deleted) while the
@@ -311,8 +384,14 @@ export function startWorktreeChangesCollector(
   bus: DaemonEventBus,
   tickMs: number = DEFAULT_WORKTREE_CHANGES_TICK_MS,
   hasSubscribers?: () => boolean,
+  /** Task ids with a working engine — see `activeTaskIds` on the options. */
+  activeTaskIds?: () => Iterable<string>,
 ): () => void {
-  const collector = new WorktreeChangesCollector(orch, bus, { hasSubscribers, run: runtime.runWorktreeStatus })
+  const collector = new WorktreeChangesCollector(orch, bus, {
+    hasSubscribers,
+    run: runtime.runWorktreeStatus,
+    ...(activeTaskIds ? { activeTaskIds } : {}),
+  })
   // No `gate` here: the subscriber check lives inside `collector.tick()`,
   // which also owns its own per-key in-flight state.
   return startTicker({

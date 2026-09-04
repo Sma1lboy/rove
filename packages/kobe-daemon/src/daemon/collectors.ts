@@ -215,6 +215,10 @@ export function startDaemonCollectors(
     bus,
     options.worktreeChangesTickMs ?? DEFAULT_WORKTREE_CHANGES_TICK_MS,
     () => hasSubscribersFor("worktree.changes"),
+    // Worktrees with a working engine keep the fast cadence — the change
+    // probe behind the collector's quiet backoff is blind to nested writes,
+    // which is exactly what a working engine produces.
+    activity ? () => activity.currentNonIdle().map((e) => e.taskId) : undefined,
   )
 
   const stopTranscriptActivityCollector = startTranscriptActivityCollector(

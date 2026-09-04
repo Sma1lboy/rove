@@ -78,6 +78,7 @@
     "./daemon/web-token": "./src/daemon/web-token.ts",
     "./daemon/web-session": "./src/daemon/web-session.ts",
     "./daemon/worktree-changes-collector": "./src/daemon/worktree-changes-collector.ts",
+    "./daemon/worktree-probe": "./src/daemon/worktree-probe.ts",
     "./plugins/env": "./src/plugins/env.ts",
     "./plugins/events": "./src/plugins/events.ts",
     "./plugins/manifest": "./src/plugins/manifest.ts",
