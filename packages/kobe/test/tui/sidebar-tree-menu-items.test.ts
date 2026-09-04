@@ -9,6 +9,7 @@
  */
 
 import { describe, expect, test } from "vitest"
+import { findBinding } from "../../src/tui/context/keybindings"
 import type { TreeRow } from "../../src/tui/panes/sidebar/tree-core"
 import { treeMenuItems } from "../../src/tui/panes/sidebar/tree-menu"
 import { type Task, toTaskId } from "../../src/types/task"
@@ -270,5 +271,34 @@ describe("the Fix-failing-checks entry", () => {
     expect(rowActions.indexOf("fixChecks")).toBe(rowActions.indexOf("syncBase") - 1)
     const tabActions = treeMenuItems({ ...tabRow, task: task({ prStatus: failing }) }).map((item) => item.action)
     expect(tabActions).toContain("fixChecks")
+  })
+})
+
+describe("the chord an entry advertises", () => {
+  const everyItem = [
+    ...treeMenuItems(projectRow),
+    ...treeMenuItems(worktreeRow({ prStatus: { provider: "github", lifecycle: "open", checkState: "failing" } })),
+    ...treeMenuItems(tabRow, { tabCount: 2 }),
+  ]
+
+  test("every declared bindingId is a real keymap row", () => {
+    // A renamed or dropped id would not throw — `legendCap` returns null and
+    // the entry silently loses its cap forever, which looks exactly like a
+    // menu-only verb. The id is the only link between the two files.
+    const dangling = everyItem
+      .flatMap((item) => (item.bindingId ? [item.bindingId] : []))
+      .filter((id) => findBinding(id) === undefined)
+
+    expect(dangling).toEqual([])
+  })
+
+  test("the menu-only verbs stay menu-only", () => {
+    // These six have no chord anywhere in the product; the menu is their one
+    // route. Claiming a bindingId here would print a cap for a key that does
+    // not reach them.
+    const withId = new Set(everyItem.flatMap((item) => (item.bindingId ? [item.action] : [])))
+    for (const action of ["setStatus", "copyBranch", "copyPath", "runAgain", "fieldNotes", "land"]) {
+      expect(withId, action).not.toContain(action)
+    }
   })
 })
