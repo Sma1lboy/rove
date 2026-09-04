@@ -40,10 +40,11 @@ import { useAttention } from "./use-attention"
 import { requestCreatePR } from "./use-create-pr"
 import { useDaemonState } from "./use-daemon-state"
 import { useEditorHandles } from "./use-editor-handles"
+import { useHostNotifiers } from "./use-host-notifiers"
 import { useInboxHost } from "./use-inbox-host"
 import { useIssueChat } from "./use-issue-chat"
 import { useScratchShell } from "./use-scratch-shell"
-import { type WorktreeGoneEvent, useWorkspaceSelection } from "./use-workspace-selection"
+import { useWorkspaceSelection } from "./use-workspace-selection"
 import { useZenMode } from "./use-zen-mode"
 
 /** Exported for the render track: the banner wiring can only be proven by
@@ -76,7 +77,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   } = useDaemonState(orch)
 
   // Sidebar-search gate: mutes the host's letter chords while typing. Move
-  // mode / toasts live in useSidebarHostState below.
+  // mode lives in useSidebarHostState below.
   const [searchActive, setSearchActive] = useState(false)
 
   // Selection + adopt-first-focus + the deleting-task PTY sweep — one hook in
@@ -84,26 +85,14 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
   // the user on" and get it wrong together if they drift apart.
   const t = useT()
 
-  // Declared before useWorkspaceSelection so its worktree-gone callback can
-  // reach the toast surface; `notif.notify` is stable and the sidebar hook's
-  // notifyError/notifyInfo below need `selectedId`, which the selection hook
-  // produces. Same shape those two use (see use-sidebar-host-state).
-  const notifyWorktreeGone = (event: WorktreeGoneEvent): void => {
-    notif.notify({
-      kind: "error",
-      taskId: event.taskId,
-      tabId: "",
-      title: t("tasks.toast.worktreeGoneTitle", { title: event.title }),
-      body: t("tasks.toast.worktreeGoneBody", { count: String(event.closed), branch: event.branch || "—" }),
-    })
-  }
-
-  // Same pre-declaration reason as notifyWorktreeGone above: a refused
-  // activation must reach the toast surface, and `useSidebarHostState`'s
-  // notifyError can't be built yet (it needs `selectedId` from this hook).
-  const notifyActivationError = (message: string): void => {
-    notif.notify({ kind: "error", taskId: "", tabId: "", title: message })
-  }
+  // Every toast this host raises. It sits above the hooks that take one
+  // because `selectedId` reaches it as a getter, so nothing here has to be
+  // ordered against the selection hook below — see use-host-notifiers.ts.
+  const { notifyError, notifyInfo, notifyNeedsInput, notifyWorktreeGone } = useHostNotifiers({
+    notif,
+    t,
+    selectedId: () => selectedId,
+  })
 
   const { selectedId, setSelectedId, selectedTask, selectTask, activateTask } = useWorkspaceSelection({
     orch,
@@ -112,14 +101,17 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     focusWorkspace: () => focus.setFocused("workspace"),
     kv,
     notifyWorktreeGone,
-    notifyError: notifyActivationError,
+    notifyError,
   })
   const worktree = selectedTask?.worktreePath || null
 
-  // Toasts + global sort pref + move-mode — the sidebar-adjacent wiring,
-  // extracted to the hook next to the Sidebar itself.
-  const { sortMode, toggleSortMode, moveMode, setMoveMode, notifyError, notifyInfo, onLocalMergeRequest } =
-    useSidebarHostState({ kv, notif, tasks, selectedId, setSelectedId })
+  // Global sort pref + move-mode — the sidebar-adjacent wiring, extracted to
+  // the hook next to the Sidebar itself.
+  const { sortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest } = useSidebarHostState({
+    kv,
+    tasks,
+    setSelectedId,
+  })
 
   const inbox = useInboxHost({
     orchestrator: orch,
@@ -159,7 +151,7 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     dialog,
     notifyError,
     notifyInfo,
-    notifyNeedsInput: (message) => notif.notify({ kind: "needs_input", taskId: "", tabId: "", title: message }),
+    notifyNeedsInput,
     t,
     selectedId: () => selectedId,
     setSelectedId,

@@ -1,9 +1,10 @@
 /**
- * Shared Sidebar-host state — the wiring both hosts that mount the shared
- * `Sidebar` (the tmux Tasks pane and the pure-TUI workspace) had
- * copy-pasted: the error/info toast helpers, the global sort pref
- * (kv-persisted, fanned out by the daemon's ui-prefs watcher), and the
- * move-mode toggle behind the sidebar's local-merge/move request.
+ * Sidebar-host state: the global sort pref (kv-persisted, fanned out by the
+ * daemon's ui-prefs watcher) and the move-mode toggle behind the sidebar's
+ * local-merge/move request. The host's toast helpers used to live here too;
+ * they are `use-host-notifiers.ts` now, because every one of the host's
+ * notifiers wants the same `selectedId` and only some of them are
+ * sidebar-adjacent.
  *
  * KNOWN DRIFT (deliberate, not hidden here): the Tasks pane FOLLOWS live
  * `ui-prefs` pushes for sortMode/projectFilter, the workspace host does
@@ -15,7 +16,6 @@ import { useState } from "react"
 import type { TaskSortMode } from "../../../tui/panes/sidebar/groups"
 import type { Task } from "../../../types/task.ts"
 import type { KVContext } from "../../context/kv"
-import type { NotificationsContext } from "../../context/notifications"
 
 export interface SidebarHostState {
   readonly sortMode: TaskSortMode
@@ -30,23 +30,6 @@ export interface SidebarHostState {
   readonly moveMode: boolean
   readonly setMoveMode: (next: boolean) => void
   /**
-   * Surface a user-action FAILURE as a red error toast. Under an alternate
-   * screen a bare `console.error` is invisible (it only reaches the daemon
-   * log), so a failed key press would otherwise look like a silent no-op.
-   * Call sites KEEP their matching `console.error` for log forensics — this
-   * is the on-screen half. The notifications context is per-ChatTab
-   * (taskId/tabId-keyed); a host action isn't tab-scoped, so it's tagged
-   * with the selected task and an empty tab — only the toast queue is
-   * consumed, the unread-dot map is harmless side state never rendered.
-   */
-  readonly notifyError: (message: string) => void
-  /**
-   * Neutral (non-error) toast — same on-screen surfacing as notifyError but
-   * green/`done` styling, for "this happened" confirmations (engine cycled,
-   * creating task, already up to date) that aren't failures.
-   */
-  readonly notifyInfo: (message: string) => void
-  /**
    * The Sidebar's move-mode request (`shift+m`): select a row and toggle
    * move mode. The tree then routes j/k by the cursor row's LEVEL: a tab
    * moves within its task, a task within its repo group, and a `main` row
@@ -57,19 +40,10 @@ export interface SidebarHostState {
 
 export function useSidebarHostState(args: {
   readonly kv: KVContext
-  readonly notif: NotificationsContext
   readonly tasks: readonly Task[]
-  readonly selectedId: string | null
   readonly setSelectedId: (id: string) => void
 }): SidebarHostState {
-  const { kv, notif, tasks, selectedId, setSelectedId } = args
-
-  function notifyError(message: string): void {
-    notif.notify({ kind: "error", taskId: selectedId ?? "", tabId: "", title: message })
-  }
-  function notifyInfo(message: string): void {
-    notif.notify({ kind: "done", taskId: selectedId ?? "", tabId: "", title: message })
-  }
+  const { kv, tasks, setSelectedId } = args
 
   // Sort mode is a GLOBAL pref, fanned out like theme/appearance: the toggle
   // writes `activeSortMode` to state.json and the daemon's ui-prefs watcher
@@ -90,5 +64,5 @@ export function useSidebarHostState(args: {
     setMoveMode((cur) => !cur)
   }
 
-  return { sortMode, setSortMode, toggleSortMode, moveMode, setMoveMode, notifyError, notifyInfo, onLocalMergeRequest }
+  return { sortMode, setSortMode, toggleSortMode, moveMode, setMoveMode, onLocalMergeRequest }
 }
