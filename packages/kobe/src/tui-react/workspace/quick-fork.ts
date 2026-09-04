@@ -18,6 +18,7 @@ import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { addSavedRepo } from "../../state/repos"
 import { resolvePreferredVendor, setRepoLastActiveVendor } from "../../state/vendor-prefs"
+import { t } from "../../tui/i18n"
 import { appendAttachmentRefs } from "../../tui/lib/attachments"
 import { DEFAULT_BASE_REF, getCurrentBranch } from "../../tui/lib/git-snapshot"
 import { repoBasename } from "../../tui/panes/sidebar/groups"
@@ -103,7 +104,7 @@ async function runQuickFork(
     return task.id
   } catch (err) {
     console.error("[rove workspace] quick-fork task.create failed:", err)
-    hooks.notifyError(`Couldn't fork task: ${errorMessage(err)}`)
+    hooks.notifyError(t("tasks.toast.forkFailed", { error: errorMessage(err) }))
     return undefined
   }
 }

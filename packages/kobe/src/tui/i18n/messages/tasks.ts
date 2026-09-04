@@ -112,6 +112,29 @@ export const en = {
     loading: "Loading…",
     footer: "↑↓ scroll · esc close",
   },
+  /** The destructive confirms on a task row (`d` on the tasks pane). Every
+   *  body says what SURVIVES, because that is the fact that decides whether
+   *  a user should press enter. */
+  confirm: {
+    cancel: "cancel",
+    /** A project row is a saved repo, not a worktree — `d` un-saves it. */
+    forgetProjectTitle: 'Remove project "{title}"?',
+    forgetProjectBody:
+      "Forgets it from the projects list. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
+    forgetProjectConfirm: "remove",
+    deleteTitle: 'Delete "{title}"?',
+    /** A `dir` task pins the user's own directory; deletion never touches it. */
+    deleteBodyDir: "Removes the task entry. The directory itself stays on disk. Its hosted sessions are stopped.",
+    deleteBodyTask: "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
+    deleteConfirm: "delete",
+    forceDeleteTitle: '"{title}" has uncommitted changes',
+    forceDeleteConfirm: "force delete",
+  },
+  /** Bare text prompt behind `b` on hosts without the branch picker. */
+  renameBranch: {
+    title: "Rename branch",
+    fieldLabel: "branch",
+  },
   /** Inline chip while move/reorder mode is active */
   moveChip: " move",
   /** Narrow mode's top-of-sidebar jump row back into the last-entered task */
@@ -167,6 +190,28 @@ export const en = {
       "Closed {count} tab(s). The branch {branch} is still there — reopen the task to re-create its worktree.",
     copiedBranch: "Copied branch {text}",
     copiedPath: "Copied path {text}",
+
+    /** Action failures. Each names the state that SURVIVED the failure —
+     *  the `kanban.*` block's shape, and the thing a user needs in order to
+     *  know whether to retry or to stop worrying. */
+    forgetProjectFailed: "Couldn't remove the project — it stays in the projects list: {error}",
+    deleteFailed: 'Couldn\'t delete "{title}" — the task and its worktree are untouched: {error}',
+    createFailed: "Couldn't create the task — nothing was created: {error}",
+    forkFailed: "Couldn't fork the task — the original is untouched: {error}",
+    renameFailed: "Couldn't rename the task — it keeps its old title: {error}",
+    renameBranchFailed: 'Couldn\'t rename the branch — it stays "{branch}": {error}',
+    switchEngineFailed: "Couldn't switch the engine — the task keeps the one it had: {error}",
+    setStatusFailed: "Couldn't set the status — it stays {status}: {error}",
+    pinFailed: "Couldn't change the pin — the task keeps its current place: {error}",
+    moveFailed: "Couldn't move the task — it keeps its current place: {error}",
+    issueChatFailed: "Couldn't start the issue chat — the issue is unchanged: {error}",
+    inboxMarkReadFailed: "Couldn't mark it read — it stays in the inbox: {error}",
+    inboxDismissFailed: "Couldn't dismiss it — it stays in the inbox: {error}",
+
+    /** Successes with nothing on screen to show them — both changes only
+     *  become visible later, so the toast is the only feedback. */
+    engineSwitched: "Engine → {engine} (applies on reopen)",
+    statusSet: "Status → {status}",
   },
 }
 
@@ -242,6 +287,23 @@ export const zh: typeof en = {
     confirm: "重新运行",
     footer: "\u2191\u2193 滚动 \u00B7 \u2190\u2192 选择 \u00B7 enter 运行 \u00B7 esc 取消",
   },
+  confirm: {
+    cancel: "取消",
+    forgetProjectTitle: "从列表中移除项目「{title}」？",
+    forgetProjectBody:
+      "只是把它从项目列表里忘掉。仓库、分支、worktree 以及它下面的任务都会留在磁盘上——之后可以用 `rove add` 重新加回来。",
+    forgetProjectConfirm: "移除",
+    deleteTitle: "删除「{title}」？",
+    deleteBodyDir: "只删除任务条目。目录本身会留在磁盘上。它的托管会话会被停止。",
+    deleteBodyTask: "删除任务条目和它的 worktree。git 分支会保留。它的托管会话会被停止。",
+    deleteConfirm: "删除",
+    forceDeleteTitle: "「{title}」有未提交的改动",
+    forceDeleteConfirm: "强制删除",
+  },
+  renameBranch: {
+    title: "重命名分支",
+    fieldLabel: "分支",
+  },
   fieldNotes: {
     title: "现场笔记",
     empty: "该仓库暂无现场笔记——agent 可用 `rove api note` 记录。",
@@ -291,5 +353,22 @@ export const zh: typeof en = {
     worktreeGoneBody: "已关闭 {count} 个标签页。分支 {branch} 仍在——重新打开该任务会重建 worktree。",
     copiedBranch: "已复制分支 {text}",
     copiedPath: "已复制路径 {text}",
+
+    forgetProjectFailed: "移除项目失败——它仍在项目列表里：{error}",
+    deleteFailed: "删除「{title}」失败——任务和它的 worktree 都没有被改动：{error}",
+    createFailed: "创建任务失败——什么都没有被创建：{error}",
+    forkFailed: "fork 任务失败——原任务没有被改动：{error}",
+    renameFailed: "重命名任务失败——它仍用原来的标题：{error}",
+    renameBranchFailed: "重命名分支失败——它仍是「{branch}」：{error}",
+    switchEngineFailed: "切换引擎失败——任务仍使用原来的引擎：{error}",
+    setStatusFailed: "设置状态失败——它仍是 {status}：{error}",
+    pinFailed: "修改置顶状态失败——任务仍在原来的位置：{error}",
+    moveFailed: "移动任务失败——它仍在原来的位置：{error}",
+    issueChatFailed: "启动议题会话失败——议题没有被改动：{error}",
+    inboxMarkReadFailed: "标记为已读失败——它仍留在收件箱里：{error}",
+    inboxDismissFailed: "忽略失败——它仍留在收件箱里：{error}",
+
+    engineSwitched: "引擎 → {engine}（重新打开后生效）",
+    statusSet: "状态 → {status}",
   },
 }

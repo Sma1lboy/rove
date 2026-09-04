@@ -9,6 +9,7 @@ import { type VendorId, coerceVendorId } from "../types/vendor.ts"
 import type { AdoptableWorktree } from "../types/worktree.ts"
 // Static: open-dir-cmd's own imports are cheap (node builtins); the heavy
 // orchestrator/TUI imports stay dynamic inside runOpenDirectory itself.
+import { formatCliFailure } from "./cli-failure.ts"
 import { type CommandHandler, DYNAMIC_COMMANDS } from "./index-commands.ts"
 import { isPathLikeArg, runOpenDirectory } from "./open-dir-cmd.ts"
 import { openLocalOrchestrator, withDaemonOrLocal } from "./orchestrator-bridge.ts"
@@ -389,6 +390,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(`${CLI_NAME} failed to start:`, process.env.KOBE_DEBUG === "1" ? err : errorMessage(err))
+  console.error(formatCliFailure(err, { cliName: CLI_NAME, argv: process.argv, cwd: process.cwd(), env: process.env }))
   process.exit(1)
 })

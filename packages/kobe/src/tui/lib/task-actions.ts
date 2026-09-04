@@ -184,32 +184,29 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
   // leaving the repo and any real tasks under it on disk.
   if (task.kind === "main") {
     const ok = await ctx.confirm({
-      title: `Remove project "${task.title}"?`,
-      body: "Forgets it from the projects list. The repo, its branches, worktrees, and any tasks under it stay on disk — re-add it with `rove add`.",
-      cancelLabel: "cancel",
-      confirmLabel: "remove",
+      title: t("tasks.confirm.forgetProjectTitle", { title: task.title }),
+      body: t("tasks.confirm.forgetProjectBody"),
+      cancelLabel: t("tasks.confirm.cancel"),
+      confirmLabel: t("tasks.confirm.forgetProjectConfirm"),
     })
     if (!ok) return
     try {
       await ctx.orch.forgetProject(task.repo)
     } catch (err) {
       ctx.logger.error(`${ctx.logPrefix} forget project failed:`, err)
-      ctx.notifyError?.(`Couldn't remove: ${errorMessage(err)}`)
+      ctx.notifyError?.(t("tasks.toast.forgetProjectFailed", { error: errorMessage(err) }))
       return
     }
     await ctx.reload?.()
     return
   }
   const ok = await ctx.confirm({
-    title: `Delete "${task.title}"?`,
+    title: t("tasks.confirm.deleteTitle", { title: task.title }),
     // A `dir` task pins the user's own directory — deletion only drops the
     // task entry; the directory is never touched.
-    body:
-      task.kind === "dir"
-        ? "Removes the task entry. The directory itself stays on disk. Its hosted sessions are stopped."
-        : "Removes the task entry and its worktree. The git branch stays. Its hosted sessions are stopped.",
-    cancelLabel: "cancel",
-    confirmLabel: "delete",
+    body: t(task.kind === "dir" ? "tasks.confirm.deleteBodyDir" : "tasks.confirm.deleteBodyTask"),
+    cancelLabel: t("tasks.confirm.cancel"),
+    confirmLabel: t("tasks.confirm.deleteConfirm"),
     danger: true,
   })
   if (!ok) return
@@ -221,10 +218,13 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     const message = errorMessage(err)
     if (message.includes(DIRTY_WORKTREE_CODE)) {
       const forceOk = await ctx.confirm({
-        title: `"${task.title}" has uncommitted changes`,
-        body: "Its worktree has uncommitted or untracked work that will be permanently deleted. Force delete anyway?",
-        cancelLabel: "cancel",
-        confirmLabel: "force delete",
+        title: t("tasks.confirm.forceDeleteTitle", { title: task.title }),
+        // Shared verbatim with the worktrees page's force-remove: one event,
+        // one wording, and it names the salvage snapshot every force path
+        // takes rather than promising the work is gone forever.
+        body: t("worktrees.delete.forceBody", { branch: task.branch || task.title }),
+        cancelLabel: t("tasks.confirm.cancel"),
+        confirmLabel: t("tasks.confirm.forceDeleteConfirm"),
         danger: true,
       })
       if (forceOk) {
@@ -233,12 +233,12 @@ export async function deleteTaskFlow(ctx: TaskActionContext, taskId: string): Pr
           deleted = true
         } catch (forceErr) {
           ctx.logger.error(`${ctx.logPrefix} force delete failed:`, forceErr)
-          ctx.notifyError?.(`Couldn't delete: ${errorMessage(forceErr)}`)
+          ctx.notifyError?.(t("tasks.toast.deleteFailed", { title: task.title, error: errorMessage(forceErr) }))
         }
       }
     } else {
       ctx.logger.error(`${ctx.logPrefix} delete failed:`, err)
-      ctx.notifyError?.(`Couldn't delete: ${errorMessage(err)}`)
+      ctx.notifyError?.(t("tasks.toast.deleteFailed", { title: task.title, error: errorMessage(err) }))
     }
   }
   // Only tear down the session + move selection if the task was actually
@@ -270,7 +270,7 @@ export async function renameTaskFlow(ctx: TaskActionContext, taskId: string): Pr
     await ctx.orch.setTitle(taskId, next)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.rename failed:`, err)
-    ctx.notifyError?.(`Couldn't rename task: ${errorMessage(err)}`)
+    ctx.notifyError?.(t("tasks.toast.renameFailed", { error: errorMessage(err) }))
     return
   }
   await ctx.reload?.()
@@ -287,13 +287,16 @@ export async function renameTaskFlow(ctx: TaskActionContext, taskId: string): Pr
 export async function renameBranchFlow(ctx: TaskActionContext, taskId: string): Promise<void> {
   const task = ctx.tasks().find((t) => t.id === taskId)
   if (!task || task.kind === "main") return
-  const next = await ctx.promptText(task.branch, { dialogTitle: "Rename branch", fieldLabel: "branch" })
+  const next = await ctx.promptText(task.branch, {
+    dialogTitle: t("tasks.renameBranch.title"),
+    fieldLabel: t("tasks.renameBranch.fieldLabel"),
+  })
   if (!next || !ctx.orch) return
   try {
     await ctx.orch.setBranch(taskId, next)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.setBranch failed:`, err)
-    ctx.notifyError?.(`Couldn't rename branch: ${errorMessage(err)}`)
+    ctx.notifyError?.(t("tasks.toast.renameBranchFailed", { branch: task.branch, error: errorMessage(err) }))
     return
   }
   await ctx.reload?.()
@@ -345,14 +348,14 @@ export async function applyVendorChange(
     await ctx.orch.setVendor(taskId, next, opts.effort)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.setVendor failed:`, err)
-    ctx.notifyError?.(`Couldn't switch engine: ${errorMessage(err)}`)
+    ctx.notifyError?.(t("tasks.toast.switchEngineFailed", { error: errorMessage(err) }))
     return false
   }
   // Only for a change with nothing on screen to show it: the new vendor takes
   // effect on the task's NEXT enter (ensureSession rebuilds the pane when its
   // `@kobe_vendor` tag does not match), so `v` on a row otherwise looks
   // like a no-op.
-  if (!opts.silentSuccess) ctx.notifyInfo?.(`Engine → ${engineDisplayName(next)} (applies on reopen)`)
+  if (!opts.silentSuccess) ctx.notifyInfo?.(t("tasks.toast.engineSwitched", { engine: engineDisplayName(next) }))
   return true
 }
 
@@ -389,10 +392,10 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
     await ctx.orch.setStatus(taskId, next)
   } catch (err) {
     ctx.logger.error(`${ctx.logPrefix} task.status failed:`, err)
-    ctx.notifyError?.(`Couldn't set status: ${errorMessage(err)}`)
+    ctx.notifyError?.(t("tasks.toast.setStatusFailed", { status: task.status, error: errorMessage(err) }))
     return
   }
-  ctx.notifyInfo?.(`Status → ${next}`)
+  ctx.notifyInfo?.(t("tasks.toast.statusSet", { status: next }))
   await ctx.reload?.()
 }
 

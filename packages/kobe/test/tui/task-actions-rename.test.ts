@@ -131,7 +131,7 @@ describe("renameTaskFlow", () => {
 
     await renameTaskFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't rename task: boom")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't rename the task — it keeps its old title: boom")
     expect(reload).not.toHaveBeenCalled()
   })
 
@@ -193,7 +193,7 @@ describe("renameBranchFlow", () => {
 
     await renameBranchFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't rename branch: bad branch name")
+    expect(notifyError).toHaveBeenCalledWith('Couldn\'t rename the branch — it stays "kobe/t1": bad branch name')
     expect(reload).not.toHaveBeenCalled()
   })
 })
@@ -226,7 +226,7 @@ describe("cycleVendorFlow", () => {
 
     await cycleVendorFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't switch engine: nope")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't switch the engine — the task keeps the one it had: nope")
     expect(notifyInfo).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -319,7 +319,7 @@ describe("setStatusFlow", () => {
 
     await setStatusFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't set status: daemon down")
+    expect(notifyError).toHaveBeenCalledWith("Couldn't set the status — it stays backlog: daemon down")
     expect(notifyInfo).not.toHaveBeenCalled()
     expect(reload).not.toHaveBeenCalled()
   })
@@ -343,7 +343,9 @@ describe("setStatusFlow", () => {
 
     await setStatusFlow(ctx, "t1")
 
-    expect(notifyError).toHaveBeenCalledWith("Couldn't set status: illegal transition for task t1: done -> error")
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't set the status — it stays done: illegal transition for task t1: done -> error",
+    )
     expect(reload).not.toHaveBeenCalled()
   })
 

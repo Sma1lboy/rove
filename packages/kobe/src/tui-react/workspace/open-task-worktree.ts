@@ -19,7 +19,7 @@ export async function requestTaskWorktreeOpen(id: string, deps: OpenTaskWorktree
       path = await deps.ensureWorktree(id)
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
-      deps.notifyError(`Couldn't create worktree: ${reason}`)
+      deps.notifyError(t("tasks.toast.worktreeErrorGeneric", { message: reason }))
       return
     }
   }
