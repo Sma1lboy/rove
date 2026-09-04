@@ -36,6 +36,7 @@
 
 import type { DaemonFrame, PtyPeekResult } from "./protocol.ts"
 import { PtyChildController } from "./pty-child-controller.ts"
+import { shouldFreeze } from "./pty-freeze-policy.ts"
 import { type FrozenPtySession, freezeSession, thawSession } from "./pty-freeze-store.ts"
 import type { PtyAttachResult, PtyHostOptions, PtySessionState, PtySink, PtySpawnSpec } from "./pty-host-types.ts"
 import {
@@ -74,9 +75,9 @@ function resolveHumanWriteQuietMs(): number {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_HUMAN_WRITE_QUIET_MS
 }
 
-/** Minimum gap between a session's periodic freeze writes (crash-loss bound).
- *  Exits and shutdowns flush immediately; this only throttles the live stream. */
-export const FREEZE_INTERVAL_MS = 5_000
+/** Freeze cadence policy (`pty-freeze-policy.ts`) — re-exported because the
+ *  host is where callers look for it. */
+export { FREEZE_INTERVAL_MS, FREEZE_MIN_APPENDED_BYTES, FREEZE_STALE_MS } from "./pty-freeze-policy.ts"
 
 export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
@@ -451,10 +452,11 @@ export class PtyHost {
   }
 
   /**
-   * Throttled freeze writer. The write happens at most once per
-   * FREEZE_INTERVAL_MS per session (a host crash loses at most that much
-   * scrollback), immediately on exit, and for every session on shutdown.
-   * Internal keys (the warm spare) never freeze.
+   * Throttled freeze writer. A periodic write happens only when
+   * `shouldFreeze` says the whole-ring rewrite has earned itself (see
+   * `pty-freeze-policy.ts` for the numbers). `force` (exit, rename,
+   * shutdown) writes regardless: an exit record is a change no byte counter
+   * can see. Internal keys (the warm spare) never freeze.
    */
   private maybeFreeze(session: PtySessionState, force = false): void {
     const freeze = this.opts.freeze
@@ -468,8 +470,9 @@ export class PtyHost {
     // this function owes the same promise.
     if (session.closedByRequest) return
     const now = Date.now()
-    if (!force && now - session.lastFreezeAtMs < FREEZE_INTERVAL_MS) return
+    if (!force && !shouldFreeze(session, now)) return
     session.lastFreezeAtMs = now
+    session.frozenTotalBytes = session.totalBytes
     freeze.save(freezeSession(session))
   }
 

@@ -93,8 +93,19 @@ export const WORKTREE_CHANGES_MIN_INTERVAL_MS = 1_500
  * a nested edit. This is the WORST-CASE staleness for such a worktree; a
  * fingerprint that moves, or an engine that starts working, drops it back to
  * {@link WORKTREE_CHANGES_MIN_INTERVAL_MS} on the next tick.
+ *
+ * The safety net is what the whole fleet pays for, every minute, forever: at
+ * a 15s floor a fully idle fleet still forked 18 `git status` per worktree
+ * per 5 minutes — measured at both 20 and 50 worktrees, so flat per worktree
+ * and linear in the fleet, projecting to ~3600 processes at 200. A minute
+ * buys the same safety for a third of the processes. Nothing a person
+ * watches goes stale for it: an engine writing in there is exempt (the
+ * activity registry flags one within ~10s), and the ahead/behind half of the
+ * chip rides ref files the fingerprint DOES see. What can now lag by up to a
+ * minute is the `+N -M` count of a file someone created in a subdirectory,
+ * by hand, in a worktree with no engine running.
  */
-export const WORKTREE_CHANGES_QUIET_INTERVAL_MS = 15_000
+export const WORKTREE_CHANGES_QUIET_INTERVAL_MS = 60_000
 
 /** The task-list slice the collector needs — `Orchestrator` satisfies it. */
 export interface TaskLister {
