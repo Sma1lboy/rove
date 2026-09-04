@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs"
+import { userFacingErrorMessage } from "@/lib/error-message"
 import { t } from "../../tui/i18n"
 import { detectWorktreeOpener, openWorktree } from "../../tui/lib/worktree-opener"
 import type { Task } from "../../types/task"
@@ -18,8 +19,7 @@ export async function requestTaskWorktreeOpen(id: string, deps: OpenTaskWorktree
     try {
       path = await deps.ensureWorktree(id)
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
-      deps.notifyError(t("tasks.toast.worktreeErrorGeneric", { message: reason }))
+      deps.notifyError(t("tasks.toast.worktreeErrorGeneric", { message: userFacingErrorMessage(error) }))
       return
     }
   }

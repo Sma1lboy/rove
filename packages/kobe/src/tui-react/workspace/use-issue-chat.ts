@@ -27,7 +27,7 @@
  * so they ride the prompt as part of the story text.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@/lib/error-message"
 import type { Issue } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { kobeApiInvocation } from "../../engine/interactive-command"
 import {
@@ -110,7 +110,7 @@ export function useIssueChat(
       // chat. But "not fatal" isn't "not worth saying": the card silently
       // stays in Backlog while its session runs.
       console.error("[rove kanban] issue setStatus failed:", err)
-      hooks.notifyError(t("kanban.statusFailed", { id: String(issue.id), error: errorMessage(err) }))
+      hooks.notifyError(t("kanban.statusFailed", { id: String(issue.id), error: userFacingErrorMessage(err) }))
     })
     const { tab } = appendBackgroundEngineTab(kv, main.id, defaultShell(), { vendor })
     const spawn = buildIssueTabSpawn({
@@ -144,7 +144,7 @@ export function useIssueChat(
       // story just never grows its `linked to a session` badge and the
       // drawer's "open the linked session" never appears.
       console.error("[rove kanban] issue link failed:", err)
-      hooks.notifyError(t("kanban.linkFailed", { id: String(issue.id), error: errorMessage(err) }))
+      hooks.notifyError(t("kanban.linkFailed", { id: String(issue.id), error: userFacingErrorMessage(err) }))
     })
     const worktreePath = await orch.ensureWorktree(task.id)
     const spawn = buildIssueChatBackgroundSpawn({ issue, taskId: task.id, repoRoot, worktreePath, vendor, api })
@@ -181,7 +181,7 @@ export function useIssueChat(
       }
       await finish(request, task.id)
     } catch (err) {
-      hooks.notifyError(t("tasks.toast.issueChatFailed", { error: errorMessage(err) }))
+      hooks.notifyError(t("tasks.toast.issueChatFailed", { error: userFacingErrorMessage(err) }))
     }
   }
 

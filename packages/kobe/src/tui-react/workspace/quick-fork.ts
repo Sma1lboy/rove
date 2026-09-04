@@ -13,7 +13,7 @@
  * two entry points diverge on the side effects above.
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@/lib/error-message"
 import { useState } from "react"
 import { engineDisplayName } from "../../engine/interactive-command"
 import { addSavedRepo } from "../../state/repos"
@@ -104,7 +104,7 @@ async function runQuickFork(
     return task.id
   } catch (err) {
     console.error("[rove workspace] quick-fork task.create failed:", err)
-    hooks.notifyError(t("tasks.toast.forkFailed", { error: errorMessage(err) }))
+    hooks.notifyError(t("tasks.toast.forkFailed", { error: userFacingErrorMessage(err) }))
     return undefined
   }
 }

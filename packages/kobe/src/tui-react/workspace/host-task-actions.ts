@@ -14,7 +14,7 @@
  * (`TaskActionContext.tasks` is `() => readonly Task[]`).
  */
 
-import { errorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@/lib/error-message"
 import { useRenderer } from "@opentui/react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator.ts"
 import { availableEngineIds } from "../../engine/account-detect"
@@ -138,13 +138,13 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     const task = tasks().find((t) => t.id === id)
     if (!task) return
     await orchestrator.setPinned(id, !task.pinned).catch((err) => {
-      notifyError(t("tasks.toast.pinFailed", { error: errorMessage(err) }))
+      notifyError(t("tasks.toast.pinFailed", { error: userFacingErrorMessage(err) }))
     })
   }
 
   async function moveTask(id: string, delta: -1 | 1): Promise<void> {
     await orchestrator.moveTask(id, delta).catch((err) => {
-      notifyError(t("tasks.toast.moveFailed", { error: errorMessage(err) }))
+      notifyError(t("tasks.toast.moveFailed", { error: userFacingErrorMessage(err) }))
     })
   }
 
@@ -160,7 +160,7 @@ export function useWorkspaceTaskActions(deps: WorkspaceTaskActionDeps): Workspac
     const next = await BranchPickerDialog.show(dialog, { currentBranch: task.branch, repo: task.repo })
     if (!next) return
     await orchestrator.setBranch(id, next).catch((err) => {
-      notifyError(t("tasks.toast.renameBranchFailed", { branch: task.branch, error: errorMessage(err) }))
+      notifyError(t("tasks.toast.renameBranchFailed", { branch: task.branch, error: userFacingErrorMessage(err) }))
     })
   }
 
