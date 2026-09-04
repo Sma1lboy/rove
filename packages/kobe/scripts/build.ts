@@ -37,7 +37,7 @@ const OUT_FILES = CLI_NAMES.flatMap((name) => [`./dist/cli/${name}.js`, `./dist/
 /** Canonical skill source (repo root) → its home in the tarball. */
 const SKILL_SRC_DIR = "../../.agents/skills/kobe"
 const SKILL_OUT_DIR = "./dist/skills/rove"
-const WEB_PACKAGE_DIR = "../kobe-web"
+const WEB_PACKAGE_DIR = "../kobe-harness"
 const WEB_DIST_DIR = `${WEB_PACKAGE_DIR}/dist`
 const WEB_OUT_DIR = "./dist/web-ui"
 const WEB_PTY_SIDE_CAR_FILES = [

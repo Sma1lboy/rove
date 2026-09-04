@@ -110,8 +110,8 @@ bun run visual          # hermetic journey: real OpenTUI drives, assertions read
 
 bun run visual:serve    # warm iteration servers + reusable fixture (keep running)
 bun run visual:dev      # fast baseline check against visual:serve (~2s)
-cd packages/kobe-web && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
-cd packages/kobe-web && bun run visual:shot -- --scale=2 --out=shot.png
+cd packages/kobe-harness && bun run visual:shot -- ctrl+h c   # ad-hoc screenshot (~2s)
+cd packages/kobe-harness && bun run visual:shot -- --scale=2 --out=shot.png
 ```
 
 Iterate with the warm loop (`visual:serve` once, then `visual:dev` /
@@ -130,7 +130,7 @@ var — the ground-truth path is unchanged.
 ### What the harness replaces, and therefore cannot prove
 
 The harness swaps out the daemon spec fetch. `KOBE_PTY_DEV_COMMAND` is set by
-`packages/kobe-web/playwright.config.ts`, `e2e/visual-serve.ts` and
+`packages/kobe-harness/playwright.config.ts`, `e2e/visual-serve.ts` and
 `e2e/hero-serve.ts`, and `createSpecFetcher` returns on that variable before it
 ever asks the daemon — so the whole visual track spawns a command the harness
 chose, not the one a task resolves to. **A green `bun run visual` says nothing
@@ -138,27 +138,27 @@ about task-to-PTY resolution**: not the `engine` vs `shell` route choice, not
 the bearer token `/api/*` requires, not the error a failed lookup surfaces.
 That gap is how a web terminal broken from 0.9.60 to 0.9.102 passed ~40 CI runs.
 
-`packages/kobe-web/test/pty-spec.test.ts` is the track that does cover it: it
+`packages/kobe-harness/test/pty-spec.test.ts` is the track that does cover it: it
 drives the real branch with an injected `fetch` and a stub daemon, and fails
 if the `authorization` header is dropped. Run it with
-`cd packages/kobe-web && bun run test`.
+`cd packages/kobe-harness && bun run test`.
 
 The remaining blind spot the harness cannot close is the live hop itself — a
 real sidecar talking to a real daemon over a real socket. Manual recipe when a
 change touches that path:
 
 ```bash
-cd packages/kobe-web && bun run test   # test/pty-spec.test.ts covers fetchSpec directly
+cd packages/kobe-harness && bun run test   # test/pty-spec.test.ts covers fetchSpec directly
 ```
 
 ### README and docs assets
 
 Marketing stills and the demo video ride that same `/harness` path, against a
 RICHER throwaway home — the visual fixture is one empty task and photographs
-as an empty product. `packages/kobe-web/e2e/hero-*.ts` owns it:
+as an empty product. `packages/kobe-harness/e2e/hero-*.ts` owns it:
 
 ```bash
-cd packages/kobe-web
+cd packages/kobe-harness
 bun e2e/hero-fixture.ts --fresh   # isolated home + a real repo with history
 bun e2e/hero-seed.ts              # REAL Claude Code turns on two worktrees
 bun e2e/hero-issues.ts            # the kanban board's stories (no quota)
@@ -283,9 +283,9 @@ command on Linux.
 Ports derive from `KOBE_VISUAL_PORT_BASE` (default 5273); a busy port fails
 fast — never reuse a stray server, and never point the fixture at a real HOME
 or the shared `.dev-sandbox/home`. Local Terminal screenshots, native
-`kobe-web` pages such as `/board`, render-test frames, and `dev:mock` cannot
+`kobe-harness` pages such as `/board`, render-test frames, and `dev:mock` cannot
 approve visual changes; `test:e2e` (dev:mock) stays a PTY-transport smoke only.
-Failure artifacts land in `packages/kobe-web/test-results/` (actual/diff/trace).
+Failure artifacts land in `packages/kobe-harness/test-results/` (actual/diff/trace).
 
 ### Driving a live engine to observe STATE
 

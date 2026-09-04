@@ -26,7 +26,7 @@ const NEUTRAL_ROOTS = [
   "packages/kobe/src/orchestrator",
   "packages/kobe/src/client",
   "packages/kobe/src/web",
-  "packages/kobe-web/src",
+  "packages/kobe-harness/src",
   "packages/kobe-daemon/src",
 ]
 

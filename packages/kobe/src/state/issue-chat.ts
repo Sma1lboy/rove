@@ -1,7 +1,7 @@
 /**
  * Issue-chat grammar — framework-free placement + first-prompt builders for
  * starting an engine session from a kanban story. Mirrors the web board's
- * quick-start contract (kobe-web/src/lib/issues.ts): the prompt frames the
+ * quick-start contract (kobe-harness/src/lib/issues.ts): the prompt frames the
  * story, and the agent reports completion through the daemon-owned issue API
  * (`issue-set-status`), never by editing repo files.
  *
@@ -27,7 +27,7 @@ import { attachmentLabel } from "../tui/lib/attachments"
 
 export type IssueChatPlacement = "worktree" | "projectWorktree" | "project"
 
-/** Capitalized product name ("Rove") — mirror of kobe-web's `cli-name.ts`. */
+/** Capitalized product name ("Rove") — mirror of kobe-harness's `cli-name.ts`. */
 function displayProductName(): string {
   return ROVE_PRODUCT_NAME.charAt(0).toUpperCase() + ROVE_PRODUCT_NAME.slice(1)
 }

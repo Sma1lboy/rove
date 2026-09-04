@@ -271,7 +271,7 @@ jobs:
         run: bun run build
 
       - name: Verify node-pty can create a real child terminal
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: |
           node --input-type=module <<'EOF'
           import { spawn } from "node-pty"
@@ -285,11 +285,11 @@ jobs:
           EOF
 
       - name: Install Chromium for the visual ground-truth harness
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: bunx playwright install chromium
 
       - name: Visual journey (browser → PTY → real OpenTUI)
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: bun run visual
 
       - name: Upload failed visual evidence
@@ -297,5 +297,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: visual-ground-truth-${{ github.run_id }}
-          path: packages/kobe-web/test-results
+          path: packages/kobe-harness/test-results
           if-no-files-found: ignore

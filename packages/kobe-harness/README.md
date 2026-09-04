@@ -1,4 +1,4 @@
-# kobe-web
+# kobe-harness
 
 The `/harness` capture page: xterm.js over a PTY sidecar, running the **real**
 OpenTUI. It is the one ground-truth surface for visual acceptance — screenshots

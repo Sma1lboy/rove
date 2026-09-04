@@ -154,11 +154,11 @@ jobs:
         run: bun run build
 
       - name: Install Chromium for the visual ground-truth harness
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: bunx playwright install chromium
 
       - name: Visual journey (browser → PTY → real OpenTUI)
-        working-directory: packages/kobe-web
+        working-directory: packages/kobe-harness
         run: bun run visual
 
   publish:

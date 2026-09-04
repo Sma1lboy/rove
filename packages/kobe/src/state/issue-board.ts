@@ -1,7 +1,7 @@
 /**
  * Kanban column math for the daemon-owned issue store — framework-free so
  * the TUI page (and any future surface) renders from the same bucketing the
- * web Board pinned (kobe-web/src/lib/board.ts, docs/design/web-kanban.md).
+ * web Board pinned (kobe-harness/src/lib/board.ts, docs/design/web-kanban.md).
  *
  * Columns bind to the ISSUE's own lifecycle, never task status:
  *   - Done        — terminal disposition (wins over a stale task link).

@@ -1,7 +1,7 @@
 /**
  * Pins the issue-chat prompt contract — the shared builders in
- * `kobe-daemon/prompts/issue-prompts.ts` that BOTH the TUI
- * (state/issue-chat.ts) and the web board (kobe-web/src/lib/issues.ts) send.
+ * `kobe-daemon/prompts/issue-prompts.ts` that the TUI
+ * (state/issue-chat.ts) sends.
  * Both prompts frame the story (#id + title + body) and
  * end with the daemon-owned `issue-set-status … done` instruction; the
  * worktree prompt carries the worktree/merge discipline, the project prompt

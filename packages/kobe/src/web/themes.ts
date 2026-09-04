@@ -2,7 +2,7 @@
  * Theme palettes for the web dashboard — the same bundled theme JSONs the
  * TUI ships (tui/context/theme/*.json), resolved to flat hex palettes in the
  * web's token vocabulary (the `--color-*` custom properties in
- * packages/kobe-web/src/styles.css). One source of truth for brand colors:
+ * packages/kobe-harness/src/styles.css). One source of truth for brand colors:
  * a TUI theme switch fans out over the daemon's `ui-prefs` channel and the
  * web applies the matching palette live.
  *

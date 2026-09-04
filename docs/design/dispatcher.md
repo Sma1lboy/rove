@@ -36,8 +36,6 @@ flowchart LR
 | `noteFilingProtocol` + `worktreeProtocol` | `kobe/src/engine/interactive-command.ts` | Worktree (card) sessions get ONE composed `--append-system-prompt`: status self-report (gated by `experimental.autoStatus`) + note filing (gated by `experimental.dispatcher`). |
 | `dispatcherProtocol` | same | The main session's role prompt: relay verbatim with provenance, only to tasks whose work plausibly touches the same area, never back to the author, never twice, no conflict actions, no git outside its own cwd. |
 | Protocol CLI invocation | `kobeApiInvocation()` | Commands in protocols bake the environment-correct invocation (packaged → `rove api`, or the `kobe` alias when invoked that way; source checkout → the dev bun line), so a dev sandbox agent never drives a stale global install (BAD_VERB field bug). |
-| SPA forwarder | `kobe-web/src/lib/dispatch-delivery.ts` | The front-end half of delivery (browser owns tab ids). `at` high-water mark in localStorage; failed sends roll back so the snapshot replay retries. |
-| Board chip | `kobe-web/src/components/Board.tsx` | `dispatcher` chip on repo-scoped boards; opens the main session in the peek drawer. |
 
 ## v2 — notes persist and seed the next session (2026-08-08)
 
