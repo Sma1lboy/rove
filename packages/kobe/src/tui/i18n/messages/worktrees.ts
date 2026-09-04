@@ -29,7 +29,6 @@ export const en = {
   row: {
     detached: "(detached)",
     created: "created {age} ago",
-    linkedTask: "task: {title}",
   },
 
   delete: {
@@ -88,7 +87,6 @@ export const zh: typeof en = {
   row: {
     detached: "(游离状态)",
     created: "{age}前创建",
-    linkedTask: "任务：{title}",
   },
 
   delete: {
