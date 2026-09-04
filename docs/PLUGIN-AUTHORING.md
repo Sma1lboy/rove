@@ -156,7 +156,9 @@ key = "YOU_EXAMPLE_MODE"         # stored as KEY=value in your config .env;
 label = "Mode"
 type = "enum"                    # string | number | boolean | enum | secret
 options = ["fast", "fancy"]
-default = "fast"
+default = "fast"                 # stored as a string; TOML `true` / `false` /
+                                 # numbers are accepted and become "1" /
+                                 # no default / their decimal spelling
 
 [[settings]]                     # `secret` masks the value everywhere it is
 key = "YOU_EXAMPLE_TOKEN"        # shown, for keys the user pastes in

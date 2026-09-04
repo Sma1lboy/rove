@@ -13,7 +13,14 @@ import { readFileSync, rmSync } from "node:fs"
 import { errorMessage } from "@/lib/error-message"
 import { defaultDaemonSocketPath } from "@sma1lboy/kobe-daemon/daemon/paths"
 import { buildPluginEnv } from "@sma1lboy/kobe-daemon/plugins/env"
-import { type PluginManifest, qualifiedActionId, readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
+import {
+  type PluginManifest,
+  type PluginPlatform,
+  currentPluginPlatform,
+  qualifiedActionId,
+  readPluginManifest,
+  supportsPlatform,
+} from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { buildPaneArgv } from "@sma1lboy/kobe-daemon/plugins/pane-command"
 import { pluginCheckoutDir, pluginConfigDir, pluginLogPath } from "@sma1lboy/kobe-daemon/plugins/plugin-paths"
 import {
@@ -140,7 +147,7 @@ function findByLongestPluginPrefix<T>(
   qualified: string,
   options: { enabledOnly?: boolean },
   findItem: (manifest: PluginManifest, suffix: string) => T | undefined,
-): { entry: PluginRegistryEntry; item: T } | undefined {
+): { entry: PluginRegistryEntry; manifest: PluginManifest; item: T } | undefined {
   type LoadedWithManifest = { readonly entry: PluginRegistryEntry; readonly manifest: PluginManifest }
   for (const { entry, manifest } of (loadAll() as LoadedWithManifest[])
     .filter(({ entry, manifest }) =>
@@ -148,9 +155,24 @@ function findByLongestPluginPrefix<T>(
     )
     .sort((a, b) => b.entry.id.length - a.entry.id.length)) {
     const item = findItem(manifest, qualified.slice(entry.id.length + 1))
-    if (item !== undefined) return { entry, item }
+    if (item !== undefined) return { entry, manifest, item }
   }
   return undefined
+}
+
+/**
+ * Refuse to run something the manifest says this machine cannot run. The
+ * daemon's host and the TUI's pane picker have always skipped these; the CLI
+ * ran them anyway, so `platforms` meant nothing from a shell.
+ */
+function assertPlatformSupported(
+  label: string,
+  item: { readonly platforms?: readonly PluginPlatform[] },
+  manifest: PluginManifest,
+): void {
+  if (supportsPlatform(item, manifest, currentPluginPlatform())) return
+  const declared = (item.platforms ?? manifest.platforms ?? []).join(", ")
+  throw new PluginCliError(`\`${label}\` is not supported on this platform (declares ${declared})`)
 }
 
 function invokeAction(qualified: string, extraArgs: string[]): void {
@@ -158,6 +180,7 @@ function invokeAction(qualified: string, extraArgs: string[]): void {
     manifest.actions.find((a) => a.id === actionId),
   )
   if (!hit) throw new PluginCliError(`no action \`${qualified}\`; see \`${CLI_NAME} plugin action list\``)
+  assertPlatformSupported(qualified, hit.item, hit.manifest)
 
   // Extra CLI args are appended to the action's argv so an action can take
   // an argument (`<active CLI> plugin action invoke p.start <url>`).
@@ -192,6 +215,7 @@ async function openPane(pluginId: string, entrypoint: string, taskFlag: string |
   if (!loaded.entry.enabled) throw new PluginCliError(`\`${pluginId}\` is disabled`)
   const pane = loaded.manifest.panes.find((p) => p.id === entrypoint)
   if (!pane) throw new PluginCliError(`no pane \`${entrypoint}\` in \`${pluginId}\`; declare it under [[panes]]`)
+  assertPlatformSupported(`${pluginId}.${pane.id}`, pane, loaded.manifest)
 
   // Shared composition with the TUI's ctrl+e picker (plugins/pane-command.ts):
   // one login-shell `-ilc` script, env contract riding an `env` prefix, cwd = worktree.
