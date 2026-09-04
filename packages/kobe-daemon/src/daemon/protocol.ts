@@ -134,6 +134,7 @@ export type DaemonRequestName =
   // Remove the durable Inbox item at the supplied event timestamp. Explicit
   // removal, opening, and visiting the target all use this guarded operation.
   | "attention.dismiss"
+  | "attention.dismissRoutine"
   // Legacy alias for resolving the exact item; `at` guards stale clients.
   | "attention.read"
   // Scheduled Automations (docs/design/automations.md): CRUD over the

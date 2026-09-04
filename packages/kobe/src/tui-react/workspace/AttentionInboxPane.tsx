@@ -55,8 +55,8 @@ const IDENTITY_FLOOR_CELLS = 16
  * longer exists yields "" so the card falls back to task-level identity
  * instead of a raw `tab-N` id.
  */
-function taskTabLabel(taskId: string, tabId: string | null, task: Task | undefined, kv: KVContext): string {
-  const tab = tabId ? knownTaskTab(kv, taskId, tabId) : undefined
+function taskTabLabel(taskId: string | null, tabId: string | null, task: Task | undefined, kv: KVContext): string {
+  const tab = tabId && taskId ? knownTaskTab(kv, taskId, tabId) : undefined
   return tab ? tabTitleStable(tab, task?.vendor ?? DEFAULT_TASK_VENDOR) : ""
 }
 
@@ -69,7 +69,9 @@ function tabLabel(
     label: taskTabLabel(item.taskId, item.tabId, task, kv),
     // Tri-state: `available: false` makes enter DISMISS the episode instead
     // of opening it, so an unreadable tab list must not answer "gone".
-    available: isAttentionInboxItemAvailable(item, task, (tabId) => taskTabExists(kv, item.taskId, tabId)),
+    available: isAttentionInboxItemAvailable(item, task, (tabId) =>
+      item.taskId === null ? undefined : taskTabExists(kv, item.taskId, tabId),
+    ),
   }
 }
 
@@ -368,7 +370,12 @@ export function AttentionInboxPane(props: {
             const item = row.item
             const task = props.tasks.find((candidate) => candidate.id === item.taskId)
             const tab = tabLabel(item, task, props.kv)
-            const title = task?.title ?? item.taskId
+            // A routine episode names the ROUTINE and why it needs a human —
+            // it may have no task at all, so the task-shaped identity below
+            // would render an empty row for the one failure that repeats
+            // forever.
+            const routine = item.detail?.routine
+            const title = routine?.name ?? task?.title ?? item.taskId ?? ""
             // A rate-limited task usually has an auto-resume armed
             // (`Task.quotaResume`, persisted by the daemon's quota probe).
             // Surfacing that clock is what lets a user tell "back at 3:14,
@@ -385,8 +392,14 @@ export function AttentionInboxPane(props: {
             return (
               <InboxCard
                 key={row.id}
-                identity={tab.label ? `${project} › ${tab.label}` : project || title}
-                subtitle={resumeNote ? `${title} · ${resumeNote}` : title}
+                identity={
+                  routine
+                    ? `${t("automations.title")} › ${routine.name}`
+                    : tab.label
+                      ? `${project} › ${tab.label}`
+                      : project || title
+                }
+                subtitle={routine ? (routine.error ?? routine.status) : resumeNote ? `${title} · ${resumeNote}` : title}
                 badge={{
                   glyph: itemGlyph(item.state),
                   label: t(itemStateKey(item.state)),

@@ -121,6 +121,9 @@ export function WorkspaceRoot(props: { orchestrator: RemoteOrchestrator }) {
     dialog,
     selectedId,
     selectTask,
+    // `pages` is constructed below; this closure only ever runs from a user
+    // opening a routine episode, long after that.
+    openAutomations: () => pages.openAutomations(),
     focusWorkspace: () => focus.setFocused("workspace"),
     notifyError,
     notifyInfo,

@@ -11,7 +11,7 @@
  */
 
 import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
-import type { Automation, AutomationRun } from "@sma1lboy/kobe-daemon/daemon/contracts"
+import type { Automation, AutomationRun, AutomationRunStatus } from "@sma1lboy/kobe-daemon/daemon/contracts"
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import type { WorkItem } from "@sma1lboy/kobe-daemon/daemon/work-items"
@@ -166,6 +166,13 @@ export async function dismissAttentionOp(
     ...(tabId !== null ? { tabId } : {}),
     at,
   })
+  return res.deleted
+}
+
+/** Delete a routine's attention episode — addressed by the SCHEDULE, since a
+ *  routine that cannot run may have produced no task to address it by. */
+export async function dismissRoutineAttentionOp(client: KobeDaemonClient, automationId: string): Promise<boolean> {
+  const res = await client.request<{ deleted: boolean }>("attention.dismissRoutine", { automationId })
   return res.deleted
 }
 
@@ -366,10 +373,15 @@ export async function mutateIssueOp(client: KobeDaemonClient, repoRoot: string, 
   return client.request<RepoIssues>("issue.mutate", { repoRoot, op })
 }
 
-/** Scheduled automations (`automation.list`) — the automations page read. */
-export async function listAutomationsOp(
-  client: KobeDaemonClient,
-): Promise<{ automations: Automation[]; keepsDaemonAlive: boolean }> {
+/** Scheduled automations (`automation.list`) — the automations page read.
+ *  `lastRunStatus` is the latest run's status per automation id, absent for a
+ *  routine that has never run: what a list row needs to show health without a
+ *  second request per row. */
+export async function listAutomationsOp(client: KobeDaemonClient): Promise<{
+  automations: Automation[]
+  keepsDaemonAlive: boolean
+  lastRunStatus?: Record<string, AutomationRunStatus>
+}> {
   return client.request("automation.list", {})
 }
 

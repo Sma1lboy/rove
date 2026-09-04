@@ -248,7 +248,13 @@ describe("runAutomationOnce", () => {
 
   it("records dispatch_failed but keeps the task id when the engine will not start", async () => {
     const store = await tempStore()
-    const { deps } = fakeDeps({ store, start: async () => ({ started: false, error: "engine process never started; last session output: command not found" }) })
+    const { deps } = fakeDeps({
+      store,
+      start: async () => ({
+        started: false,
+        error: "engine process never started; last session output: command not found",
+      }),
+    })
     const a = automation()
 
     expect(await runAutomationOnce(deps, a, { scheduledFor: NOW, trigger: "scheduled" })).toBe("dispatch_failed")

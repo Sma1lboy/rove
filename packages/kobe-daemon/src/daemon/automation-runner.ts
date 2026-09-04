@@ -30,7 +30,12 @@ import type { DaemonRpcClient } from "../client/rpc.ts"
 import { type DispatchInbox, dispatchAutomation } from "./automation-dispatch.ts"
 import { formatPrecheckSkip, precheckPassed, runAutomationPrecheck } from "./automation-precheck.ts"
 import type { AutomationsStore } from "./automations-store.ts"
-import type { Automation, AutomationRunStatus, DaemonOrchestrator } from "./contracts.ts"
+import {
+  type Automation,
+  type AutomationRunStatus,
+  type DaemonOrchestrator,
+  automationRunNeedsAttention,
+} from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
 import { countCronBetween, latestCronAtOrBefore } from "./cron.ts"
 import type { DeferredPromptsStore } from "./deferred-prompts-store.ts"
@@ -106,8 +111,26 @@ interface RunnerDeps {
    *  Absent in a daemon booted without the stores; the firing then records a
    *  failure rather than dropping the report silently. */
   readonly deferred?: DeferredPromptsStore
-  readonly inbox?: DispatchInbox
+  readonly inbox?: RunnerInbox
   readonly now?: () => number
+}
+
+/**
+ * The Inbox slice the RUNNER needs, on top of the dispatch path's.
+ *
+ * A schedule is the only thing here that acts unattended, so a firing that
+ * needs a human has nowhere else to surface: the run history records it, but
+ * reading the run history is exactly the going-and-looking a schedule exists
+ * to avoid.
+ */
+export interface RunnerInbox extends DispatchInbox {
+  recordRoutineFailure(
+    routine: { automationId: string; name: string; status: string; error?: string },
+    taskId: string | null,
+    at: number,
+  ): Promise<void>
+  /** Optional so a daemon booted with only the dispatch slice still runs. */
+  deleteRoutineEpisode?(automationId: string): Promise<void>
 }
 
 type PluginRunReport = {
@@ -153,6 +176,41 @@ function emitRunEvent(
       ...(extra.error ? { error: extra.error } : {}),
     },
   })
+}
+
+/**
+ * Keep the Inbox agreeing with the latest run.
+ *
+ * Only the outcomes that need a person raise an episode
+ * ({@link automationRunNeedsAttention}) — `skipped_precheck` is a healthy
+ * routine finding nothing to do, and filing that would train the user to
+ * ignore the queue. A run that goes back to working clears the episode, so a
+ * routine that was broken and is fixed does not leave a permanent scar.
+ * Best-effort throughout: the Inbox is a notification, and failing to write
+ * one must never fail the run that was already recorded.
+ */
+async function raiseOrClearInboxEpisode(
+  deps: RunnerDeps,
+  automation: Automation,
+  status: AutomationRunStatus,
+  extra: { taskId?: string; error?: string },
+): Promise<void> {
+  const inbox = deps.inbox
+  if (!inbox) return
+  const now = deps.now ?? Date.now
+  const write = automationRunNeedsAttention(status)
+    ? inbox.recordRoutineFailure(
+        {
+          automationId: automation.id,
+          name: automation.name,
+          status,
+          ...(extra.error ? { error: extra.error } : {}),
+        },
+        extra.taskId ?? null,
+        now(),
+      )
+    : inbox.deleteRoutineEpisode?.(automation.id)
+  await write?.catch((err: unknown) => logDaemonError("automation-inbox", err))
 }
 
 /** Record a run the sweep decided NOT to make. Shared by both skip paths so
@@ -218,6 +276,7 @@ export async function runAutomationOnce(
       ...extra,
     })
     emitRunEvent(deps, automation, status, args, extra)
+    await raiseOrClearInboxEpisode(deps, automation, status, extra)
     return status
   }
 

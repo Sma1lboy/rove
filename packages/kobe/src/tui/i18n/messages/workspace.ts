@@ -67,6 +67,8 @@ export const en = {
       dead: "engine exited",
       /** A peer/API message accepted by the daemon but not yet pasted. */
       promptDeferred: "message queued",
+      /** A routine whose latest firing needs a human. */
+      routineFailed: "routine needs you",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
      *  `{time}` is a locale-formatted clock time. */
@@ -129,6 +131,7 @@ export const zh: typeof en = {
       dead: "引擎已退出",
       /** peer/API 消息已被 daemon 受理但尚未插入。 */
       promptDeferred: "消息已排队",
+      routineFailed: "例行任务需要处理",
     },
     resumesAt: "{time} 恢复",
     /** composer 忙、消息被受理延后的 toast 标题。 */

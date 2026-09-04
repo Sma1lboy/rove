@@ -16,6 +16,7 @@ export type {
   AutomationRunStatus,
   TaskRoutineLink,
 } from "./automation-contracts.ts"
+export { automationRunNeedsAttention } from "./automation-contracts.ts"
 
 /** Engine id (kobe `VendorId`). Deliberately plain `string`: the daemon
  *  treats vendor ids as opaque pass-through values and never narrows on
@@ -324,6 +325,20 @@ export interface EngineActivityDetail {
     readonly id: string
     readonly layer: "recent-human-write" | "composer-not-empty"
   }
+  /**
+   * The routine behind a `routine_failed` episode. A schedule is the one thing
+   * in Rove that acts with nobody watching, so when its firing needs a human
+   * the Inbox is where that has to land — and the episode's subject is the
+   * ROUTINE, which is why it is named here rather than inferred from a task.
+   * `status` is an {@link AutomationRunStatus}; `error` is the run record's own
+   * reason, copied because the Inbox row has to be readable on its own.
+   */
+  readonly routine?: {
+    readonly automationId: string
+    readonly name: string
+    readonly status: string
+    readonly error?: string
+  }
 }
 
 export type TaskActivityState =
@@ -391,6 +406,12 @@ export const ATTENTION_INBOX_STATES = [
   /** The engine PROCESS died (pty-host exit record). An episode a user must
    *  see: nothing else in the queue tells them the agent is simply gone. */
   "dead",
+  /** A routine's latest firing needs a human (see
+   *  {@link automationRunNeedsAttention}). The only episode whose subject is
+   *  not a task: a routine pointed at a repo that moved never creates one, so
+   *  requiring a task would mean the failure that repeats every minute
+   *  forever is the one failure the Inbox cannot show. */
+  "routine_failed",
 ] as const
 
 export type AttentionInboxState = (typeof ATTENTION_INBOX_STATES)[number]
@@ -403,7 +424,13 @@ export function attentionInboxItemKey(item: {
   taskId: string | null
   tabId: string | null
   state?: AttentionInboxState
+  detail?: EngineActivityDetail
 }): string {
+  // A routine episode is keyed on its ROUTINE, which is what makes the dedupe
+  // right: a fresh-task routine mints a new task every firing, so keying on
+  // the task would file 1,440 episodes a day for one broken schedule.
+  if (item.state === "routine_failed" && item.detail?.routine)
+    return `\u0000routine\u0000${item.detail.routine.automationId}`
   // `prompt_deferred` gets its own lane. Every other episode DESCRIBES the
   // engine, so one-per-tab is right: a fresh turn-complete should replace the
   // stale one. A deferred prompt is not a description — the daemon is holding
@@ -416,7 +443,9 @@ export function attentionInboxItemKey(item: {
 
 /** One daemon-owned, durable attention episode for a task's engine tab. */
 export interface AttentionInboxItem {
-  readonly taskId: string
+  /** `null` for a `routine_failed` episode, whose subject is a schedule and
+   *  which may have produced no task at all. */
+  readonly taskId: string | null
   /** `null` for hook events that predate or lack a tab identity. */
   readonly tabId: string | null
   readonly state: AttentionInboxState

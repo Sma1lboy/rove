@@ -57,12 +57,16 @@ function stateFor(kind: EngineActivityKind, detail?: EngineActivityDetail): Atte
 function normalizeItem(value: unknown): AttentionInboxItem | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const item = value as Partial<AttentionInboxItem>
-  if (typeof item.taskId !== "string" || item.taskId.length === 0) return null
+  // `null` is legal only for a routine episode, which has no task by nature.
+  const taskless = item.taskId === null || item.taskId === undefined
+  if (taskless ? item.state !== "routine_failed" : typeof item.taskId !== "string" || item.taskId.length === 0) {
+    return null
+  }
   if (item.tabId !== null && typeof item.tabId !== "string") return null
   if (!isAttentionInboxState(item.state)) return null
   if (typeof item.at !== "number" || !Number.isFinite(item.at)) return null
   return {
-    taskId: item.taskId,
+    taskId: taskless ? null : (item.taskId as string),
     tabId: item.tabId,
     state: item.state,
     ...(item.detail ? { detail: item.detail } : {}),
@@ -269,6 +273,49 @@ export class AttentionInboxStore {
     await this.deleteTask(taskId).catch((err) => logDaemonError("attention-inbox-task-delete", err))
   }
 
+  /**
+   * Record (or refresh) the `routine_failed` episode for one routine.
+   *
+   * Its own path for the same reason `recordEngineDeath` has one: no engine
+   * reported anything. A schedule fired with nobody watching and could not do
+   * its work, and every other surface that would have shown it — the sidebar
+   * badge, the tab strip, a toast — is keyed on a task this firing may never
+   * have created.
+   *
+   * Deduped on the ROUTINE, not the task: a fresh-task routine mints a task
+   * per firing, so a schedule failing every minute produces ONE episode that
+   * keeps being replaced with the latest reason, not 1,440 a day.
+   */
+  async recordRoutineFailure(
+    routine: { automationId: string; name: string; status: string; error?: string },
+    taskId: string | null,
+    at: number,
+  ): Promise<void> {
+    await this.enqueue(async () => {
+      const detail: EngineActivityDetail = { routine }
+      const key = attentionInboxItemKey({ taskId, tabId: null, state: "routine_failed", detail })
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, { taskId, tabId: null, state: "routine_failed", detail, unread: true, at })
+      await this.commit(next)
+    })
+  }
+
+  /** Drop a deleted routine's episode — nothing else would ever clear it, and
+   *  the queue is supposed to describe things that still exist. */
+  async deleteRoutineEpisode(automationId: string): Promise<void> {
+    await this.enqueue(async () => {
+      const next = new Map(this.items)
+      let changed = false
+      for (const [key, item] of next) {
+        if (item.detail?.routine?.automationId !== automationId) continue
+        next.delete(key)
+        changed = true
+      }
+      if (changed) await this.commit(next)
+    })
+  }
+
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     return serialized(this.path, operation)
@@ -290,5 +337,5 @@ export class AttentionInboxStore {
 }
 
 function compareItems(a: AttentionInboxItem, b: AttentionInboxItem): number {
-  return a.at - b.at || a.taskId.localeCompare(b.taskId) || (a.tabId ?? "").localeCompare(b.tabId ?? "")
+  return a.at - b.at || (a.taskId ?? "").localeCompare(b.taskId ?? "") || (a.tabId ?? "").localeCompare(b.tabId ?? "")
 }
