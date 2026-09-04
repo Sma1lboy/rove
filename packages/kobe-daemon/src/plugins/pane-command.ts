@@ -24,6 +24,11 @@ export interface PaneLaunchOpts {
   readonly homeDir?: string
   readonly socketPath: string
   readonly binPath: string
+  /** The task the pane opens in, injected as `ROVE_PLUGIN_TASK_ID`. Without
+   *  it a pane can only guess its task by matching its cwd against
+   *  `worktreePath`, which is ambiguous for the two task kinds that reuse an
+   *  existing checkout (project-main, directory) and share one cwd. */
+  readonly taskId?: string
 }
 
 /** POSIX single-quote for embedding in a login-shell `-ilc` script. */
@@ -44,7 +49,10 @@ export function buildPaneArgv(
     binPath: opts.binPath,
     pluginId,
     pluginRoot,
-    extra: { ROVE_PLUGIN_ENTRYPOINT_ID: pane.id },
+    extra: {
+      ROVE_PLUGIN_ENTRYPOINT_ID: pane.id,
+      ...(opts.taskId ? { ROVE_PLUGIN_TASK_ID: opts.taskId } : {}),
+    },
   })
   const pairs = Object.entries(env).filter(([k]) => k.startsWith("ROVE_") || k.startsWith("KOBE_")) as [
     string,

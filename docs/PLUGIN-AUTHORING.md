@@ -202,8 +202,17 @@ any = ["ctrl-c to interrupt"]    # at least one must appear
 # bottom_lines = 12              # trailing non-empty lines examined (default 12)
 ```
 
-`command` is always argv: never a shell, no expansion (panes expand only
-`$ROVE_PLUGIN_ROOT`). Unknown event names are warnings (forward compat);
+`command` is argv, never a shell, for events, startup, shutdown and
+actions: no expansion, no pipes, no globs. **Panes are the exception** — a
+pane runs through the user's interactive login shell (`sh -ilc`, the same
+launch path as an engine tab), expands `$ROVE_PLUGIN_ROOT`, and therefore
+inherits the rc-file environment: your `command[0]` must resolve on the PATH
+the user's `.zshrc`/`.bashrc` builds, not the daemon's, and anything those
+files print (version-manager chatter, MOTDs, banners) reaches the terminal
+before your first draw. The pane kit's `start()` handles that for you — it
+enters the alternate screen and clears it, so rc output stays on the primary
+screen; a pane that does not use the kit should clear the screen itself
+before its first frame. Unknown event names are warnings (forward compat);
 invalid types/patterns are install-time errors.
 
 `first_message_delivery` says how the CLI takes a session's first message.
@@ -287,7 +296,7 @@ Every plugin command gets, on top of the user's environment:
 
 | Variable | Meaning |
 |---|---|
-| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove`/`kobe` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to |
+| `ROVE_BIN_PATH` | exec this to call back into Rove — the absolute path of the running install when that is a runnable file (an npm install, a compiled binary), otherwise the bare `rove`/`kobe` name resolved on `PATH`, which is what a dev checkout run through `bun` falls back to. In that fallback your callbacks run **a different build than the daemon that launched you**, so a verb or flag the daemon has can still fail as a usage error: compare `$ROVE_BIN_PATH --version` against the daemon's own `roveVersion` (see [Which host am I talking to](#which-host-am-i-talking-to)) before blaming your own arguments |
 | `ROVE_SOCKET_PATH` | daemon unix socket, for raw JSON requests |
 | `ROVE_HOME_DIR` | set when Rove runs against a non-default home (keep passing it through) |
 | `ROVE_PLUGIN_ID`, `ROVE_PLUGIN_ROOT` | who you are, where your files are |
@@ -297,7 +306,7 @@ Every plugin command gets, on top of the user's environment:
 | startup | `ROVE_PLUGIN_EVENT=startup` |
 | shutdown | `ROVE_PLUGIN_EVENT=shutdown` |
 | actions | `ROVE_PLUGIN_ACTION_ID`, `ROVE_PLUGIN_INVOKE_CWD` (where the user invoked, usually "the repo I mean") |
-| panes | `ROVE_PLUGIN_ENTRYPOINT_ID`; cwd is the task worktree |
+| panes | `ROVE_PLUGIN_ENTRYPOINT_ID`, `ROVE_PLUGIN_TASK_ID`; cwd is the task worktree. Panes get no `_TASK_TITLE` — read it with `"$ROVE_BIN_PATH" api get-task --task-id "$ROVE_PLUGIN_TASK_ID"` |
 
 Every `ROVE_*` variable above is also injected under its established `KOBE_*`
 alias. Existing plugins need no edits; when both are supplied, SDK readers
@@ -336,12 +345,36 @@ The high-value verbs live under `rove api`: machine-readable list via
 "$ROVE_BIN_PATH" plugin pane open you.example.board            # qualified-id form
 "$ROVE_BIN_PATH" plugin pane open --plugin you.example \
   --entrypoint board                                           # equivalent flag form
+"$ROVE_BIN_PATH" plugin pane open you.example.board --task ID  # a specific task, not the active one
 ```
+
+`plugin pane open` prints JSON: `{"ok":true,"clients":N,"pane":…,"taskId":…,"title":…}`.
+Branch on `clients`, not the exit code — the open is a broadcast, and `0`
+means no attached UI performed the split. Without `--task` the host uses the
+active task and fails when there is none, so an event hook should pass its
+own `$ROVE_PLUGIN_TASK_ID`.
 
 **Socket (advanced):** newline-delimited JSON frames on `ROVE_SOCKET_PATH`
 (`{"type":"request","id":"1","name":"task.list","payload":{}}`); request
 names and payloads in `packages/kobe-daemon/src/daemon/protocol.ts`. Prefer
 the CLI unless you need push channels.
+
+### Which host am I talking to
+
+The `hello` request answers it, and it is the only thing that can: your SDK
+version describes what YOU were built against, not what the running daemon
+knows. Send `{"type":"request","id":"1","name":"hello","payload":{}}` (the
+SDK wraps it as `RoveSocket.hello()`) and read back:
+
+- `kobeVersion` — the daemon's build version. The SDK also surfaces it as
+  `roveVersion`; the wire field keeps its original spelling.
+- `capabilities` — the broadcast channels **this** daemon has. A channel name
+  it does not know is dropped from a `subscribe` filter silently, so this is
+  how you tell "the host is too old for that channel" from "nothing has
+  happened yet".
+- `protocolVersion` / `minProtocolVersion` — the wire range it accepts.
+- `homeDir` — its state root. A different home means you reached a foreign
+  daemon (a sandbox one on the production socket path).
 
 ## Interaction surfaces
 

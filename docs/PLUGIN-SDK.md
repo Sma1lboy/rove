@@ -85,7 +85,7 @@ channels.
 | `notify` | `(title, body?, opts?) => Promise<RoveRunResult>` | `rove api notify`; toast in every attached UI. |
 | `dispatch` | `(taskId, prompt, opts?) => Promise<RoveRunResult>` | `rove api dispatch`; text into a live session. |
 | `listTasks` | `<T>(opts?) => Promise<T>` | `rove api list`; all tasks as daemon-serialized JSON. |
-| `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult>` | `rove plugin pane open`; opens one of your `[[panes]]`. |
+| `openPane` | `(qualifiedPaneId, opts?) => Promise<RoveRunResult & { clients?: number }>` | `rove plugin pane open`; opens one of your `[[panes]]`. `opts.taskId` picks the task (pass an event's `ctx.taskId`); without it the host uses the active task and fails when there is none. Check `clients` — `0` means no attached UI performed the split. |
 | `promptUser` | `(title, opts?) => Promise<string \| null>` | `rove api prompt`; host input dialog. Returns `null` on cancel, timeout, no attached TUI, or non-zero exit. |
 
 Combined example:
@@ -132,6 +132,8 @@ gives you live broadcast channels that the CLI cannot push.
 | `connect` | `(opts?) => Promise<void>` | Connect to `ROVE_SOCKET_PATH`. |
 | `request` | `<T>(name, payload?) => Promise<T>` | One request → response; rejects on daemon error frames. |
 | `subscribe` | `(handler, channels?) => Promise<void>` | Subscribe to channels (`role: "pane"`); omit channels for all. |
+| `hello` | `() => Promise<DaemonInfo>` | Ask the RUNNING daemon its build version and channel list. |
+| `onClose` | `(handler) => void` | Called once when the connection dies (restart, crash, error). Not called for your own `close()`. |
 | `close` | `() => void` | End the socket. |
 
 SDK consumers must always subscribe with `role: "pane"`. The SDK enforces this
@@ -148,41 +150,107 @@ the shape your target Rove version actually emits. The channel names are the
 `ui.prompt`.
 
 A name the daemon does not know is dropped from the filter, not rejected: the
-subscribe succeeds and that channel simply never arrives. So an SDK older than
-the Rove it talks to fails silently — check the SDK version before assuming a
-channel is dead.
-
-Your handler also receives `daemon.stopping` at daemon shutdown — not a
-channel, always delivered regardless of the filter.
+subscribe succeeds and that channel simply never arrives. So a channel can be
+dead for two reasons that look identical, and `DAEMON_CHANNELS` cannot tell
+them apart — it is the list YOUR SDK was built against, not the list the host
+has. Ask the host with `hello()`:
 
 ```ts
-import { Pane, RoveSocket } from "@sma1lboy/rove-plugin-sdk"
+const info = await daemon.hello()
+if (!info.capabilities.includes("usage.snapshot")) {
+  console.error(`Rove ${info.roveVersion} has no usage.snapshot channel`)
+}
+```
 
+`DaemonInfo` carries `roveVersion` / `kobeVersion` (the same build version
+under both spellings; the wire field is `kobeVersion`), `capabilities`,
+`protocolVersion` / `minProtocolVersion`, `daemonPid`, and `homeDir` — a
+`homeDir` that is not yours means you reached a foreign daemon. It is also
+the way to check `$ROVE_BIN_PATH --version` against the host: in a dev
+checkout those are different builds.
+
+### Surviving a daemon restart
+
+Your handler receives `daemon.stopping` at a graceful daemon shutdown — not a
+channel, always delivered regardless of the filter — and **that is the last
+thing it ever receives**. There is no reconnect: after it, the socket is
+dead. A crash is worse, because the daemon sends nothing at all.
+
+This matters most in a pane, because a hosted pane's PTY **survives a daemon
+restart by design**. Your process stays alive and keeps drawing its last
+frame, so a board that has stopped receiving anything is visually
+indistinguishable from a live one. Register `onClose` and either reconnect or
+say so on screen:
+
+```ts
+function connect(): void {
+  const daemon = new RoveSocket()
+  daemon.onClose(() => {
+    live = false
+    frame() // draw a "host gone — reconnecting" line, not a stale board
+    setTimeout(connect, 1000)
+  })
+  daemon
+    .connect()
+    .then(() => daemon.subscribe(onEvent, ["task.snapshot"]))
+    .then(() => {
+      live = true
+      frame()
+    })
+    .catch(() => {}) // onClose already scheduled the retry
+}
+```
+
+```ts
+import { Pane, pluginContext, RoveSocket } from "@sma1lboy/rove-plugin-sdk"
+
+const ctx = pluginContext()
 const pane = new Pane()
-const daemon = new RoveSocket()
-await daemon.connect()
 
 let tasks: any[] = []
+let live = false
 function frame() {
   pane.draw([
-    "MY BOARD",
-    "",
+    `MY BOARD — ${ctx.taskTitle ?? "no task"}`,
+    live ? "" : "  host unreachable — reconnecting",
     ...tasks.map((t) => `  ${t.status.padEnd(8)} ${t.title}`),
   ])
 }
 
-await daemon.subscribe((name, payload) => {
-  if (name === "task.snapshot") {
-    tasks = (payload as any).tasks ?? []
+function connect() {
+  const daemon = new RoveSocket()
+  // Without this the pane goes silently blind on a daemon restart: its PTY
+  // outlives the daemon, so it keeps drawing the frame above forever.
+  daemon.onClose(() => {
+    live = false
     frame()
-  }
-}, ["task.snapshot"])
+    setTimeout(connect, 1000)
+  })
+  daemon
+    .connect()
+    .then(() =>
+      daemon.subscribe((name, payload) => {
+        if (name !== "task.snapshot") return
+        tasks = (payload as any).tasks ?? []
+        live = true
+        frame()
+      }, ["task.snapshot"]),
+    )
+    .catch(() => {}) // onClose scheduled the retry
+}
 
 pane.start()
 pane.onKey((k) => { if (k.name === "q") pane.exit(0) })
 pane.onResize(frame)
 frame()
+connect()
 ```
+
+`pluginContext()` gives a pane the `taskId` it opened in, and its cwd is that
+task's worktree — do not try to identify the task by matching cwd against
+`worktreePath`, which is ambiguous for the task kinds that reuse an existing
+checkout. Panes get no `taskTitle`; fetch it with
+`roveJson(["api", "get-task", "--task-id", ctx.taskId!])`.
 
 ## Pane kit
 
@@ -211,6 +279,11 @@ mind or the embedded terminal will ghost-wrap:
    double-width characters.
 3. **Redraw the whole frame on every update.** The screen is not scrollback;
    paint every row you want visible.
+
+`Pane.start()` enters the alternate screen and clears it, which is what keeps
+these rules workable: a pane runs through the user's interactive login shell,
+so anything their rc files print lands in the terminal before your first
+frame. Clear the screen yourself if you draw without the kit.
 
 ```ts
 import { Pane } from "@sma1lboy/rove-plugin-sdk"
@@ -241,7 +314,7 @@ for the event catalog and channel list, so host and SDK cannot drift.
 | Export | Kind | Meaning |
 |---|---|---|
 | `PLUGIN_EVENT_NAMES` | `readonly string[]` | Every event a plugin can subscribe to. |
-| `DAEMON_CHANNELS` | `readonly string[]` | Every broadcast channel on the socket. |
+| `DAEMON_CHANNELS` | `readonly string[]` | Every broadcast channel this SDK knows. For what the RUNNING daemon has, call `hello()`. |
 | `PluginEventName` | type | Union of event names. |
 | `PluginEventEnvelope` | type | The `ROVE_PLUGIN_EVENT_JSON` envelope. |
 | `PluginEventTask` | type | Task block embedded in envelopes that map to a task. |
