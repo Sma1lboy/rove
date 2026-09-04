@@ -25,7 +25,20 @@ import { spawnSync } from "node:child_process"
 import { realpathSync } from "node:fs"
 import { kvStatePath } from "../env.ts"
 import { type ProjectIntent, type ProjectRejection, projectRejection } from "./project-eligibility.ts"
-import { type StateSnapshot, getPersistedBool, loadStateFile, patchStateFile, updateStateFile } from "./store.ts"
+import { isRemoteRepoKey, readRemoteRepos } from "./remote-repos.ts"
+import { type StateSnapshot, loadStateFile, patchStateFile, readSavedRepos, updateStateFile } from "./store.ts"
+
+// The remote-project surface moved to `remote-repos.ts` (see the note there);
+// re-exported so existing importers of this module keep working.
+export {
+  addRemoteRepo,
+  getRemoteRepoConfig,
+  getRemoteRepos,
+  isRemoteProjectsEnabled,
+  isRemoteRepoKey,
+  remoteRepoKey,
+} from "./remote-repos.ts"
+export type { RemoteAuthConfig, RemoteRepoConfig } from "./remote-repos.ts"
 
 /**
  * Resolve `absPath` to the git toplevel that owns it. A "main" task's
@@ -111,13 +124,6 @@ export function resolveMainRepoRoot(absPath: string): string {
  */
 export function statePath(): string {
   return kvStatePath()
-}
-
-/** `savedRepos` as stored in an already-loaded snapshot (type-filtered). */
-function readSavedRepos(state: StateSnapshot): readonly string[] {
-  const raw = state.savedRepos
-  if (!Array.isArray(raw)) return []
-  return raw.filter((s): s is string => typeof s === "string")
 }
 
 export function getSavedRepos(): readonly string[] {
@@ -207,10 +213,22 @@ export interface AddSavedRepoOpts {
  * Append `absPath` to `savedRepos` if it is eligible and not already present.
  * Returns whether the entry was newly added and the resulting list size.
  *
- * The input is resolved to its git toplevel before storage (see
- * {@link resolveRepoRoot}) — so `kobe add` from a monorepo subdirectory
- * stores the repo root, not the subdir. The returned `path` is the
- * normalized form so callers report what was actually saved.
+ * The input is resolved to the repository's PRIMARY checkout before storage
+ * (see {@link resolveMainRepoRoot}) — so `kobe add` from a monorepo
+ * subdirectory stores the repo root, not the subdir, and `kobe add <linked
+ * worktree>` stores the repository instead of minting a SECOND project row
+ * for a repo that is already saved. The returned `path` is the normalized
+ * form so callers report what was actually saved.
+ *
+ * `resolveMainRepoRoot`, not `resolveRepoRoot`: the scripted entry point
+ * (`rove api add --repo`) already normalizes that way, so using the git
+ * toplevel here made the two entry points disagree about what a repo IS.
+ * One repository ended up saved under two paths AND two symlink forms
+ * (`/tmp/x` beside `/private/tmp/x`), and `note.file` routing compares
+ * `t.repo === author.repo` as an exact string — so a note filed under one row
+ * silently never reached the other row's dispatcher. Git's porcelain path is
+ * fully resolved, which also collapses the symlink and case-variant spellings
+ * that gave one repository two `~/.rove/worktrees/<key>` roots.
  *
  * VALIDATES here rather than leaving it to the caller: of the eight call
  * sites exactly one would do it, and the other
@@ -225,7 +243,7 @@ export function addSavedRepo(absPath: string, opts: AddSavedRepoOpts = {}): AddR
   // Resolve BEFORE the transaction — `git rev-parse` (a subprocess) inside
   // the read-merge-write window would widen the race we're trying to keep
   // narrow.
-  const normalized = resolveRepoRoot(absPath)
+  const normalized = resolveMainRepoRoot(absPath)
   // Gate the RESOLVED path: a subdirectory of a rejected repo must not slip
   // through by having an innocent-looking name of its own.
   const rejected = opts.skipGate ? null : projectRejection(normalized, isGitRepo, opts.intent ?? "explicit")
@@ -268,11 +286,12 @@ export function backfillSavedReposFromProjects(mainRepos: readonly string[]): re
 }
 
 /**
- * One-shot migration: rewrite the on-disk `savedRepos` list so each
- * entry is its git toplevel. Heals state files written before
- * {@link addSavedRepo} normalized at write time. Duplicates that
- * collapse to the same toplevel are de-duped. No-op when every entry
- * is already canonical.
+ * One-shot migration: rewrite the on-disk `savedRepos` list so each entry is
+ * its repository's primary checkout. Heals state files written before
+ * {@link addSavedRepo} normalized at write time — including the second row a
+ * pre-fix `rove add <linked worktree>` left behind. Duplicates that collapse
+ * to the same root are de-duped. No-op when every entry is already
+ * canonical.
  */
 export function normalizeSavedRepos(): void {
   // Resolve toplevels first (subprocess per entry), THEN merge the result
@@ -283,7 +302,7 @@ export function normalizeSavedRepos(): void {
   const next: string[] = []
   let changed = false
   for (const p of cur) {
-    const top = resolveRepoRoot(p)
+    const top = resolveMainRepoRoot(p)
     if (top !== p) changed = true
     if (seen.has(top)) {
       changed = true
@@ -395,85 +414,4 @@ export function removeSavedRepo(absPath: string): RemoveResult {
     return undefined
   })
   return result
-}
-
-// ── Remote projects (SSH-backed) ─────────────────────────────────────────────
-//
-// A remote project is a saved repo whose worktrees live on another host over
-// SSH. Hosted PTY engine launch over SSH is still pending. Its `savedRepos`
-// key is a synthetic `ssh://user@host:port`
-// URL (it has no local path), and its connection details live under the
-// separate `remoteRepos` map. The PASSWORD is never stored here — only a
-// `keychainRef` pointing at the OS keychain (see `exec/keychain.ts`). See
-// `docs/design/remote-projects.md`.
-
-/** Persisted auth: a key path, or a pointer to a keychain-stored password. */
-export type RemoteAuthConfig =
-  | { readonly kind: "key"; readonly keyPath?: string }
-  | { readonly kind: "password"; readonly keychainRef: { readonly service: string; readonly account: string } }
-
-export interface RemoteRepoConfig {
-  readonly host: string
-  readonly user: string
-  readonly port?: number
-  /** The directory on the remote under which task worktrees are created. */
-  readonly basePath: string
-  readonly auth: RemoteAuthConfig
-}
-
-/** True for a synthetic remote-project key (`ssh://…`). */
-export function isRemoteRepoKey(key: string): boolean {
-  return key.startsWith("ssh://")
-}
-
-/**
- * Whether the experimental SSH-backed remote-projects feature is enabled
- * (Settings → Dev → Experimental). Off by default. Stored as a boolean under
- * the shared state.json `experimental.remoteProjects` key (written by the
- * Settings dialog's reactive kv); read here cross-process so `kobe add
- * --remote` can refuse when the feature is off. See `docs/design/remote-projects.md`.
- */
-export function isRemoteProjectsEnabled(): boolean {
-  return getPersistedBool("experimental.remoteProjects", false)
-}
-
-/** The stable savedRepos key for a remote project: `ssh://user@host[:port]`. */
-export function remoteRepoKey(host: string, user: string, port?: number): string {
-  return port ? `ssh://${user}@${host}:${port}` : `ssh://${user}@${host}`
-}
-
-function readRemoteRepos(state: StateSnapshot): Record<string, RemoteRepoConfig> {
-  const raw = state.remoteRepos
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
-  return raw as Record<string, RemoteRepoConfig>
-}
-
-/** Read a remote project's connection config, or null when the key isn't remote. */
-export function getRemoteRepoConfig(key: string): RemoteRepoConfig | null {
-  return readRemoteRepos(loadStateFile())[key] ?? null
-}
-
-/** All remote-project configs, keyed by their `ssh://` savedRepos key. */
-export function getRemoteRepos(): Readonly<Record<string, RemoteRepoConfig>> {
-  return readRemoteRepos(loadStateFile())
-}
-
-/**
- * Register a remote project: store its config under `remoteRepos[key]` AND add
- * the synthetic key to `savedRepos` so it shows up as a project. Idempotent on
- * the savedRepos side; the config is overwritten so re-adding updates it.
- */
-export function addRemoteRepo(config: RemoteRepoConfig): { key: string; added: boolean } {
-  const key = remoteRepoKey(config.host, config.user, config.port)
-  let added = false
-  updateStateFile((state) => {
-    const repos = { ...readRemoteRepos(state) }
-    repos[key] = config
-    state.remoteRepos = repos
-    const saved = readSavedRepos(state)
-    added = !saved.includes(key)
-    if (added) state.savedRepos = [...saved, key]
-    return undefined
-  })
-  return { key, added }
 }

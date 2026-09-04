@@ -49,6 +49,20 @@ export type StateSnapshot = Record<string, unknown>
  * JSON, or a non-object root (array/string/number) — see the corrupt-file
  * policy in the module doc. Never throws.
  */
+/**
+ * `savedRepos` as stored in an already-loaded snapshot (type-filtered).
+ *
+ * Lives beside {@link StateSnapshot} rather than in `repos.ts` so the
+ * remote-project module can read the same key without importing `repos.ts`,
+ * which imports IT — a cycle whose value imports bundle into a TDZ crash in
+ * an unrelated verb.
+ */
+export function readSavedRepos(state: StateSnapshot): readonly string[] {
+  const raw = state.savedRepos
+  if (!Array.isArray(raw)) return []
+  return raw.filter((entry): entry is string => typeof entry === "string")
+}
+
 export function loadStateFile(): StateSnapshot {
   const path = kvStatePath()
   let text: string
