@@ -187,11 +187,14 @@ says whether an enabled automation is currently holding the daemon open.
 its precheck), `d` deletes, `enter` opens the task from the most recent run,
 `r` refreshes.
 
-`n` runs four single-field prompts in sequence (name → repo → prompt →
-schedule) rather than one multi-field form: the rename dialog already does a
-labelled field with validation, and four strings did not justify a new widget.
-Cancelling any step aborts. A precheck is CLI-only — it is the one field that
-is genuinely optional.
+`n` opens ONE card with Tab between its four fields (name → repo → prompt →
+schedule), replacing the four chained single-field prompts it started as. A
+schedule is a set of decisions you make together — the cron you want depends on
+what the prompt does — and a chain of prompts has no way back to reconsider a
+step. The schedule field carries a live preview ("weekdays at 09:00 · in 23h"),
+because cron is the one input you cannot verify by re-reading it. The repo
+picker offers your saved projects; `esc` aborts the whole card. A precheck is
+CLI-only — it is the one field that is genuinely optional.
 
 ## CLI
 
@@ -208,17 +211,36 @@ rove api routine-set-enabled --id <id> --enabled false
 rove api routine-delete --id <id>
 ```
 
-Full flag list: `rove api schema --group automation`.
+Full flag list: `rove api schema --group routine`. (The group is named for the
+UI vocabulary, not the on-disk `automation` one.)
 
 ## Prompt delivery
 
-The prompt rides the engine's **own argv** via
-`buildEngineSessionLaunch`'s `promptIntent: {kind: "explicit"}` — it is part of
-the spawn, not a paste that follows it. A cold engine TUI can swallow a raced
-paste, and an unattended run has nobody watching to retype it.
+The prompt rides the engine's **own argv** via `taskEngineLaunch`'s
+`promptIntent` — it is part of the spawn, not a paste that follows it. A cold
+engine TUI can swallow a raced paste, and an unattended run has nobody watching
+to retype it.
+
+The intent is `{kind: "new-task", prompt}`, not `explicit`: the runner creates
+the task immediately ahead of this call, so the firing's first prompt gets the
+branch-rename coda every other new-worktree entry point gets
+([`daemon-session-adapter.ts`](../../packages/kobe/src/core/daemon-session-adapter.ts)).
+Paste-delivery vendors (kimi) are the exception — their prompt rides outside
+argv and is typed once the engine is up.
 
 ## Not implemented
 
-- Reusing an existing task instead of creating one per run
+- **Quota awareness.** A firing consults nothing about the vendor's rate limit.
+  Measured, three firings of a `* * * * *` routine on an exhausted vendor: three
+  tasks, three worktrees, three `dispatched` rows, and a `quotaResume` armed on
+  the first throwaway task for five days out — a task nobody will read, woken by
+  a timer, in a branch nobody will land. The run history says the routine is
+  healthy. A fix is a STATUS, not a scheduler: ask the quota cache's
+  `exhaustedResetAtMs` before dispatch and record a distinct run naming the
+  reset time instead of spawning. That needs `QuotaUsageCache` threaded into
+  `RunnerDeps` (the sweep holds no reference to it today) and a new row in the
+  run-status table above, which is a vocabulary call. Rescheduling the routine
+  ONTO the reset is a separate, larger question — a routine that fires hourly
+  does not want a backlog of eight deferred turns at 07:00.
 - Timezones (the daemon host's local time)
 - Cost attribution per run, remote/SSH execution targets

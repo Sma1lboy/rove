@@ -16,7 +16,7 @@
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
 import { requirePromptText } from "./handlers-tasks.ts"
-import type { VerbSpec } from "./types.ts"
+import { ApiError, type VerbSpec } from "./types.ts"
 
 const SCHEDULE_FLAG = {
   name: "schedule",
@@ -64,9 +64,24 @@ const PERSISTENT_FLAG = {
  * nothing to clear). The flag must be read with {@link VerbArgs.present}, not
  * `str`: `str` folds an empty value into "absent", so `--precheck ''` would
  * otherwise omit the field and silently leave the existing precheck in place.
+ *
+ * `--precheck-timeout` on its own is REFUSED rather than dropped. The daemon
+ * stores the precheck as one record, so a timeout with no command has nothing
+ * to attach to — and silently omitting it made `routine-update
+ * --precheck-timeout 5` return the routine with its OLD timeout and no error,
+ * i.e. report a change it had not made. Retyping the command is the price of
+ * the call meaning what it says.
  */
 function precheckPayload(ctx: Parameters<VerbSpec["handler"]>[0]): Record<string, unknown> {
-  if (!ctx.args.present("precheck")) return {}
+  if (!ctx.args.present("precheck")) {
+    if (ctx.args.present("precheck-timeout")) {
+      throw new ApiError(
+        "--precheck-timeout requires --precheck (pass the command again to change its timeout)",
+        "BAD_FLAG",
+      )
+    }
+    return {}
+  }
   const command = ctx.args.str("precheck")
   if (command === undefined) return { precheck: null }
   return { precheck: { command, timeoutSeconds: ctx.args.int("precheck-timeout") ?? 120 } }

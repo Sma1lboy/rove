@@ -66,7 +66,18 @@ export interface Automation {
   readonly nextRunAt: string
   /** How late a missed occurrence may still run. Older ones are skipped. */
   readonly missedRunGraceMinutes: number
-  readonly lastRunAt?: string
+  /**
+   * The scheduled time of the most recent occurrence the sweep CONSUMED —
+   * stamped by `advanceNextRun` before the dispatch is even attempted, so it
+   * is set for skips and failures exactly as it is for successes.
+   *
+   * Named for what it is. As `lastRunAt` it was in the `automation.list`
+   * payload claiming a run had happened for routines that had only ever
+   * recorded `skipped_unavailable`, which is the one conclusion that makes a
+   * reader stop looking. "When did it last actually run, and what happened" is
+   * `automation.runs`, which answers with a status attached.
+   */
+  readonly lastOccurrenceAt?: string
   readonly createdAt: string
   readonly updatedAt: string
 }

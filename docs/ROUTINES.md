@@ -80,6 +80,16 @@ Reply via `rove api send --task-id $ROVE_TASK_ID` with what changed overnight.
 EOF
 ```
 
+`--repo` and `--base-branch` are checked when the routine is saved, not when it
+fires: a path that is not a git repository, or a base ref that does not resolve
+in it, is refused with a message naming the value. The check is not a guarantee
+— a repo deleted after the routine was saved still fails at 03:00 — it just
+catches the typo while you are still at the keyboard.
+
+`--precheck-timeout` only means something alongside `--precheck`; on its own it
+is refused rather than quietly ignored. To change just the timeout, pass the
+command again.
+
 Full flag list: `rove api schema --group routine`, or [rove api](API.md).
 
 ## Reading the page
