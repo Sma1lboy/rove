@@ -185,8 +185,18 @@ export function useDiffReview(args: {
 
   /* --------- footer --------- */
   const unsent = unsentComments(comments).length
+  // Opaque background: the row is mostly spaces, and a diff drawn behind it
+  // showed through them — `0 notes · 0 unsent` arrived as `06notesn· 06unsent`
+  // with the diff's next line bleeding through every gap.
   const footer = enabled ? (
-    <box flexDirection="row" justifyContent="space-between" paddingLeft={1} paddingRight={1} flexShrink={0}>
+    <box
+      flexDirection="row"
+      justifyContent="space-between"
+      paddingLeft={1}
+      paddingRight={1}
+      flexShrink={0}
+      backgroundColor={theme.background}
+    >
       <text fg={unsent > 0 ? theme.warning : theme.textMuted} wrapMode="none">
         {t("ops.preview.review.count", { total: comments.length, unsent })}
       </text>

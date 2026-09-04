@@ -20,6 +20,18 @@ export const en = {
     /** A directory / whole-worktree diff git produced no hunks for. A single
      *  file falls back to its content; a pathspec has none to fall back to. */
     noChanges: "no changes in {pathspec}",
+    /** A rename's header: the side the file came from, which its own diff
+     *  now shows paired instead of as a whole-file add. */
+    renamedFrom: "renamed from {origPath}",
+    /** A real patch git expressed entirely in its preamble. Blank is not an
+     *  answer here — it cannot be told apart from "nothing changed". */
+    binaryChanged: "binary file changed",
+    imageChanged: "image changed",
+    modeChanged: "mode changed · {from} → {to}",
+    /** git refused. Carries git's own stderr rather than presenting the
+     *  absent diff as an absence of changes. */
+    gitFailed: "could not read the diff",
+    retryHint: "r to retry",
     /** Footer on a combined diff: review notes anchor to ONE path, so a diff
      *  spanning files carries none. Stated so the absence reads as a rule. */
     notesPerFile: "notes are per-file — open a single file's diff to add them",
@@ -49,6 +61,12 @@ export const zh: typeof en = {
     openHint: "o 用系统查看器打开",
     allFiles: "全部文件",
     noChanges: "{pathspec} 没有改动",
+    renamedFrom: "重命名自 {origPath}",
+    binaryChanged: "二进制文件已改动",
+    imageChanged: "图片已改动",
+    modeChanged: "权限位已改动 · {from} → {to}",
+    gitFailed: "读取 diff 失败",
+    retryHint: "按 r 重试",
     notesPerFile: "备注按单文件锚定——要加备注请打开单个文件的 diff",
     review: {
       noteDialogTitle: "评审备注 — {location}",

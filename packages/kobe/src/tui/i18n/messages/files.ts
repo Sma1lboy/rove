@@ -23,6 +23,9 @@ export const en = {
     working: "scope: working tree",
     branch: "scope: vs {base}",
     toggleHint: "b to toggle",
+    /** Stated in place of the toggle hint when no base ref resolved: Branch
+     *  scope is unreachable, and a silent `b` reads as a broken key. */
+    noBase: "no base ref for branch scope (no origin/HEAD, main or master)",
   },
   empty: {
     noTask: "(no task — press n to create)",
@@ -69,6 +72,7 @@ export const zh: typeof en = {
     working: "范围：工作区改动",
     branch: "范围：对比 {base}",
     toggleHint: "按 b 切换",
+    noBase: "分支范围没有基准 ref（没有 origin/HEAD、main 或 master）",
   },
   empty: {
     noTask: "（暂无任务 — 按 n 创建）",
