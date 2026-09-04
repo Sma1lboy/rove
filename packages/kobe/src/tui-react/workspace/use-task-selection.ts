@@ -3,7 +3,7 @@
  * create-before-snapshot path is testable without mounting the full PTY host.
  */
 
-import { errorMessage } from "../../lib/error-message.ts"
+import { errorMessage, userFacingErrorMessage } from "../../lib/error-message.ts"
 import { TASK_DELETING_CODE, TaskDeletingError } from "../../orchestrator/errors.ts"
 import type { Task } from "../../types/task.ts"
 
@@ -13,7 +13,9 @@ import type { Task } from "../../types/task.ts"
  * Three shapes reach here and they need different words:
  *  - the task is mid-delete — nothing is wrong, the answer is "wait";
  *  - the project has no git repo yet — actionable, `git init` fixes it;
- *  - anything else — carry the raw reason so the user can act on it.
+ *  - anything else — carry the reason so the user can act on it, minus the
+ *    throw-site prefix the worktree layer stamps on it (`create(): …`),
+ *    which would otherwise stutter the verb the toast already supplies.
  *
  * `TaskDeletingError` is matched on its MESSAGE, not `instanceof`: the same
  * refusal is also raised daemon-side and the RPC layer rebuilds it as a plain
@@ -27,7 +29,7 @@ export function activationErrorMessage(
   if (message.includes(TASK_DELETING_CODE)) return translate("tasks.toast.worktreeErrorDeleting")
   if (/not a git repository|does not appear to be a git repo/i.test(message))
     return translate("tasks.toast.worktreeErrorNotGit")
-  return translate("tasks.toast.worktreeErrorGeneric", { message })
+  return translate("tasks.toast.worktreeErrorGeneric", { message: userFacingErrorMessage(error) })
 }
 
 type ActivateWorkspaceTaskOptions = {

@@ -44,15 +44,38 @@ export function statusToken(s: FileStatus): "warning" | "success" | "error" | "t
  * own reactive one.
  */
 export function summarizeGitError(raw: string, t: (key: string) => string): string {
-  const m = raw.toLowerCase()
-  if (m.includes("not a git repository")) return t("files.error.notGitRepo")
-  if (m.includes("does not exist") || m.includes("enoent")) return t("files.error.pathMissing")
-  if (m.includes("permission denied") || m.includes("eacces")) return t("files.error.permissionDenied")
-  if (m.includes("git: not found") || m.includes("command not found")) return t("files.error.gitNotInstalled")
+  const kind = classifyGitError(raw)
+  if (kind) return t(`files.error.${kind}`)
   // Fallback: strip the leading `git <args> (cwd=...)` boilerplate.
   const colon = raw.indexOf(": ")
   if (colon >= 0 && raw.startsWith("git ")) return raw.slice(colon + 2).trim() || t("files.error.gitFailed")
   return raw.trim() || t("files.error.gitFailed")
+}
+
+type GitErrorKind = "notGitRepo" | "pathMissing" | "permissionDenied" | "gitNotInstalled"
+
+/** The recognised shape of `raw`, or null when only the generic fallback fits. */
+function classifyGitError(raw: string): GitErrorKind | null {
+  const m = raw.toLowerCase()
+  if (m.includes("not a git repository")) return "notGitRepo"
+  if (m.includes("does not exist") || m.includes("enoent")) return "pathMissing"
+  if (m.includes("permission denied") || m.includes("eacces")) return "permissionDenied"
+  if (m.includes("git: not found") || m.includes("command not found")) return "gitNotInstalled"
+  return null
+}
+
+/**
+ * Should the pane offer `r` under this error?
+ *
+ * `r` re-runs the same git command, so it is only honest where a retry can
+ * change the answer: a transient git failure, or a permission the user just
+ * fixed. Offering it beside "not a git repository" or "git is not on PATH"
+ * invites the user to press it forever — neither `git init` nor an install
+ * happens by retrying.
+ */
+export function gitErrorIsRetryable(raw: string): boolean {
+  const kind = classifyGitError(raw)
+  return kind !== "notGitRepo" && kind !== "gitNotInstalled"
 }
 
 /**

@@ -176,7 +176,14 @@ export function AutomationsPage(props: {
       refetch()
     } catch (err) {
       console.error("[rove automations] toggle failed:", err)
-      notifyError(t("automations.failed", { error: errorMessage(err) }))
+      // The routine is unchanged, so the surviving state is the one it had
+      // BEFORE the click — name that, not the state the user asked for.
+      notifyError(
+        t(selected.enabled ? "automations.disableFailed" : "automations.enableFailed", {
+          name: selected.name,
+          error: errorMessage(err),
+        }),
+      )
     } finally {
       setBusyId(null)
     }
@@ -193,7 +200,7 @@ export function AutomationsPage(props: {
       refetch()
     } catch (err) {
       console.error("[rove automations] run now failed:", err)
-      notifyError(t("automations.failed", { error: errorMessage(err) }))
+      notifyError(t("automations.runFailed", { name: selected.name, error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -224,10 +231,10 @@ export function AutomationsPage(props: {
       await orch.createAutomation(draft)
       refetch()
     } catch (err) {
-      // The daemon re-validates the cron; its message names the fix, so it
-      // leads the error toast.
+      // The daemon re-validates the cron and its message names the fix, so it
+      // is carried verbatim after the action this toast failed at.
       console.error("[rove automations] create failed:", err)
-      notifyError(t("automations.failed", { error: errorMessage(err) }))
+      notifyError(t("automations.createFailed", { error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }
@@ -251,7 +258,7 @@ export function AutomationsPage(props: {
       refetch()
     } catch (err) {
       console.error("[rove automations] delete failed:", err)
-      notifyError(t("automations.failed", { error: errorMessage(err) }))
+      notifyError(t("automations.deleteFailed", { name: selected.name, error: errorMessage(err) }))
     } finally {
       setBusyId(null)
     }

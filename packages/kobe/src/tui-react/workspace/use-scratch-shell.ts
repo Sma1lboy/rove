@@ -25,6 +25,7 @@
 
 import { homedir } from "node:os"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { userFacingErrorMessage } from "../../lib/error-message"
 import { t } from "../../tui/i18n"
 import { finishDeletedTaskFlow } from "../../tui/lib/task-actions"
 import type { Task } from "../../types/task"
@@ -82,9 +83,7 @@ export function useScratchShell(deps: {
     void orchestrator
       .openDirectoryTask({ dir: homedir(), scratch: true })
       .then((task) => enterTask(task.id))
-      .catch((err) =>
-        notifyError(t("tasks.toast.scratchOpenFailed", { message: err instanceof Error ? err.message : String(err) })),
-      )
+      .catch((err) => notifyError(t("tasks.toast.scratchOpenFailed", { message: userFacingErrorMessage(err) })))
   }
 
   const onScratchExit = (taskId: string): void => {
@@ -108,7 +107,7 @@ export function useScratchShell(deps: {
           updateActiveTask: true,
         })
       } catch (err) {
-        notifyError(t("tasks.toast.scratchCloseFailed", { message: err instanceof Error ? err.message : String(err) }))
+        notifyError(t("tasks.toast.scratchCloseFailed", { message: userFacingErrorMessage(err) }))
       }
     })()
   }

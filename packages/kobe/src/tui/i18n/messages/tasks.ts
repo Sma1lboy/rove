@@ -175,7 +175,9 @@ export const en = {
   },
   /** Toast / error messages */
   toast: {
-    noDaemonWorktree: "No daemon running — can't create the worktree",
+    // `rove daemon restart` is what `doctor.fix.daemonDown` prescribes for the
+    // identical condition — the TUI and doctor must not disagree on the fix.
+    noDaemonWorktree: "No daemon running — can't create the worktree. Start it with `rove daemon restart`.",
     noEditor: "No editor found — set ROVE_OPEN_EDITOR (e.g. 'code', 'cursor', 'nvim')",
     openWorktreeFailed: "Couldn't open worktree with {label}",
     worktreeErrorDeleting: "This task is being deleted — it can't be opened",
@@ -339,7 +341,7 @@ export const zh: typeof en = {
     footer: "↑↓ 选择 · enter 设置 · esc 取消",
   },
   toast: {
-    noDaemonWorktree: "守护进程未运行——无法创建 worktree",
+    noDaemonWorktree: "守护进程未运行——无法创建 worktree。请运行 `rove daemon restart` 启动它。",
     noEditor: "未找到编辑器——请设置 ROVE_OPEN_EDITOR（如 'code'、'cursor'、'nvim'）",
     openWorktreeFailed: "无法用 {label} 打开 worktree",
     worktreeErrorDeleting: "该任务正在删除中——无法打开",
