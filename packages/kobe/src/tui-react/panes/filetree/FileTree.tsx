@@ -22,7 +22,7 @@ import { errorMessage } from "@/lib/error-message"
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react"
 import {
   type GitScope,
   type StatusEntry,
@@ -60,7 +60,7 @@ import { useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
 import { FileTreeHeaderView } from "./header-view"
-import { FileTreeRowView } from "./row-view"
+import { FileTreeBodyView } from "./body-view"
 
 /** Public props. */
 export type FileTreeProps = {
@@ -405,15 +405,6 @@ export function FileTree(props: FileTreeProps) {
     }),
   }))
 
-  // ---------- viewport follow ----------
-  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
-  useEffect(() => {
-    const scroll = scrollRef.current
-    if (!scroll || rows.length === 0) return
-    const y = followScrollTop(scroll.scrollTop, scroll.viewport.height, cursorIndex)
-    if (y != null) scroll.scrollTo({ x: 0, y })
-  }, [cursorIndex, rows])
-
   // ---------- render ----------
   const loaded = (tab === "all" && allFiles != null) || (tab === "changes" && changes != null)
   return (
@@ -432,50 +423,17 @@ export function FileTree(props: FileTreeProps) {
         }
       />
 
-      {/* Body: scrollable list. Track + thumb both transparent → invisible
-         by default but still scrollable. */}
-      <scrollbox
-        ref={(r: ScrollBoxRenderable | null) => {
-          scrollRef.current = r
-        }}
-        flexGrow={1}
-        verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
-      >
-        {props.worktreePath == null ? (
-          <box paddingTop={1} paddingLeft={1}>
-            <text fg={theme.textMuted}>{t("files.empty.noTask")}</text>
-          </box>
-        ) : error != null ? (
-          <box paddingTop={1} paddingLeft={1} flexDirection="column" gap={0}>
-            <text fg={theme.error} wrapMode="word">
-              {summarizeGitError(error, t)}
-            </text>
-            {gitErrorIsRetryable(error) ? (
-              <text fg={theme.textMuted} wrapMode="word">
-                {t("files.error.retryHint")}
-              </text>
-            ) : null}
-          </box>
-        ) : rows.length === 0 && loaded ? (
-          <box paddingTop={1} paddingLeft={1}>
-            <text fg={theme.textMuted}>{tab === "all" ? t("files.empty.noFiles") : t("files.empty.noChanges")}</text>
-          </box>
-        ) : rows.length > 0 ? (
-          <box flexShrink={0} gap={0} paddingRight={1}>
-            {rows.map((row, index) => (
-              <FileTreeRowView
-                key={`${row.kind}:${row.path}`}
-                row={row}
-                index={index}
-                cursor={index === cursorIndex}
-                statWidths={statWidths}
-                pathBudget={pathBudget}
-                onActivate={handleRowActivate}
-              />
-            ))}
-          </box>
-        ) : null}
-      </scrollbox>
+      <FileTreeBodyView
+        rows={rows}
+        cursorIndex={cursorIndex}
+        statWidths={statWidths}
+        pathBudget={pathBudget}
+        onActivate={handleRowActivate}
+        worktreePath={props.worktreePath}
+        error={error}
+        loaded={loaded}
+        tab={tab}
+      />
 
       {/* Footer hint — shown only when a worktree is loaded so the
          "no task" placeholder stays clean. First use shows the fuller

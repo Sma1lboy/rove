@@ -17,6 +17,7 @@ import {
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
+import { profileSpan, profileTick } from "../../lib/render-profile"
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
@@ -349,6 +350,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private feedInternal(data: string | Uint8Array, muteReplies: boolean): void {
     if (this._killed) return
     if (muteReplies) this.muteReplies = true
+    profileTick("feed")
     this.term.write(data, () => {
       if (muteReplies) this.muteReplies = false
       if (!this.refreshTracker.supported) this.refreshTracker.markAll()
@@ -373,14 +375,16 @@ export abstract class XtermTaskPty implements TaskPtyLike {
 
   private refreshSnapshot(): void {
     if (this._killed) return
-    const result = this.snapshotEngine.refresh(
-      this.term,
-      this.rows,
-      this.scrollbackRows,
-      this.refreshTracker,
-      this.snapshot,
-      this.cursor,
-      this.snapshotWindow,
+    const result = profileSpan("refresh", () =>
+      this.snapshotEngine.refresh(
+        this.term,
+        this.rows,
+        this.scrollbackRows,
+        this.refreshTracker,
+        this.snapshot,
+        this.cursor,
+        this.snapshotWindow,
+      ),
     )
     if (result === null) {
       // Don't snapshot a half-painted frame. Self-reschedule rather than
@@ -397,6 +401,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   }
 
   private publishSnapshot(): void {
+    profileTick("publish")
     this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow)
   }
 

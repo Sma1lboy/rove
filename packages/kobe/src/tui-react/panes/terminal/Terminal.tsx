@@ -408,6 +408,9 @@ export function Terminal(props: TerminalProps) {
         </box>
       ) : null}
 
+      {/* The inline arrow is load-bearing, not an oversight: it re-attaches on
+          every render, which is what re-runs the geometry measurement until
+          Yoga has laid the box out. See `use-terminal-geometry.ts`. */}
       <box ref={(r: BoxRenderable | null) => setBodyEl(r)} onSizeChange={bumpGeomTick} flexGrow={1} overflow="hidden">
         {/* Body */}
         {pty ? (
@@ -425,7 +428,14 @@ export function Terminal(props: TerminalProps) {
             fg={theme.text}
             wrapMode="none"
             selectable={false}
-            ref={(r: TextRenderable | null) => setSnapshotTextEl(r)}
+            // The stable state setter, NOT an inline arrow. A fresh ref-callback
+            // identity makes React detach (`setState(null)`) and reattach
+            // (`setState(el)`) on every render; here that re-ran the paint
+            // effect's imperative content push a second time per PTY frame.
+            // The body box below deliberately keeps its inline arrow — see
+            // `use-terminal-geometry.ts`, whose first measurement depends on
+            // exactly that re-attach.
+            ref={setSnapshotTextEl}
           />
         ) : (
           <box paddingLeft={1} paddingTop={1} flexDirection="column" gap={0}>
