@@ -92,6 +92,14 @@ export interface DaemonRuntimeAdapter {
   readEngineContextUsage(vendor: VendorId, sessionId: string): Promise<EngineContextUsage | null>
   maybeAutoStart(orch: DaemonOrchestrator, taskId: string): Promise<string>
   listWorktreeProjects(network: boolean): Promise<unknown[]>
+  /**
+   * Worktree admin-dir NAMES that `git worktree list --porcelain` omitted
+   * without an error or a non-zero exit — git's own silence about a worktree
+   * whose admin dir it cannot read. Names only: an unreadable admin dir takes
+   * its path/branch/head with it. Best-effort, `[]` when nothing to report or
+   * nothing could be enumerated.
+   */
+  listUnreadableWorktrees(repo: string): Promise<readonly string[]>
   /** Remove a worktree. Resolves with the leftover directory when git
    *  deregistered the worktree but could not delete it (a partial removal that
    *  no retry can advance); resolves with null on a clean removal. */

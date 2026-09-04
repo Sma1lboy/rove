@@ -4,6 +4,7 @@ import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { promisify } from "node:util"
 import { ROVE_STATE_DIR_BASENAME, readRoveHomeDirEnv } from "../compat-env.ts"
+import { logDaemonError } from "./crash-log.ts"
 import { serialized, writeJsonAtomic } from "./json-file.ts"
 import { gitTopLevel, resolveRepoRoot } from "./repo-key.ts"
 
@@ -28,6 +29,13 @@ export interface RepoIssues {
   exists: boolean
   nextId: number
   issues: Issue[]
+  /**
+   * Entries in the file this read could not use — an issue whose `id` is not
+   * a number is dropped by {@link normalizeIssue}. Non-zero means the store
+   * holds stories this response does NOT list, so a short `issues` array is
+   * not the whole board. `0` is the only value that means "you have it all".
+   */
+  skipped: number
 }
 
 interface RepoIssueRecord {
@@ -76,8 +84,32 @@ function normalizeIssue(entry: unknown): Issue | null {
   }
 }
 
+/** One read of the store file, plus what that read had to throw away. */
+interface StoreRead {
+  readonly file: IssuesStoreFile
+  /** repoKey → number of unusable issue entries this read dropped. */
+  readonly skipped: ReadonlyMap<string, number>
+}
+
 function emptyStore(): IssuesStoreFile {
   return { version: 1, repos: {} }
+}
+
+/**
+ * Where to resume allocating ids when the file's `nextId` is unusable.
+ * Falling back to `1` hands `create` an id that ALREADY EXISTS in the same
+ * file — two cards, same number, and every id-keyed op (setStatus/update/
+ * delete) then hits whichever one `find` reaches first. Scans the RAW entries
+ * so even an id we could not parse into an issue still pushes the allocation
+ * point past itself.
+ */
+function nextIdFallback(entries: readonly unknown[]): number {
+  let max = 0
+  for (const entry of entries) {
+    const id = Number((entry as { id?: unknown } | null | undefined)?.id)
+    if (Number.isFinite(id) && id > max) max = Math.trunc(id)
+  }
+  return max + 1
 }
 
 function todayStamp(): string {
@@ -105,26 +137,40 @@ async function resolveRepo(raw: unknown): Promise<{ repoRoot: string; repoKey: s
   }
 }
 
-async function readStore(path: string): Promise<IssuesStoreFile> {
+async function readStore(path: string): Promise<StoreRead> {
   try {
     const raw = JSON.parse(await readFile(path, "utf8")) as Partial<IssuesStoreFile>
     const repos: Record<string, RepoIssueRecord> = {}
+    const skipped = new Map<string, number>()
     if (raw.repos && typeof raw.repos === "object") {
       for (const [key, value] of Object.entries(raw.repos)) {
         if (!value || typeof value !== "object") continue
         const record = value as Partial<RepoIssueRecord>
+        const entries: readonly unknown[] = Array.isArray(record.issues) ? record.issues : []
+        const issues = entries.map(normalizeIssue).filter((issue): issue is Issue => issue !== null)
+        // Dropping silently is what made a filed story stop existing in every
+        // read while still sitting in the file. Count it here so `list` can
+        // say so, and log it so the daemon log names the repo.
+        const dropped = entries.length - issues.length
+        if (dropped > 0) {
+          skipped.set(key, dropped)
+          logDaemonError(
+            "issues-store-read",
+            new Error(
+              `${key}: dropped ${dropped} unreadable issue entr${dropped === 1 ? "y" : "ies"} (id is not a number)`,
+            ),
+          )
+        }
         repos[key] = {
           repoRoot: typeof record.repoRoot === "string" ? record.repoRoot : "",
-          nextId: typeof record.nextId === "number" ? record.nextId : 1,
-          issues: Array.isArray(record.issues)
-            ? record.issues.map(normalizeIssue).filter((issue): issue is Issue => issue !== null)
-            : [],
+          nextId: typeof record.nextId === "number" ? record.nextId : nextIdFallback(entries),
+          issues,
         }
       }
     }
-    return { version: 1, repos }
+    return { file: { version: 1, repos }, skipped }
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return emptyStore()
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return { file: emptyStore(), skipped: new Map() }
     throw err
   }
 }
@@ -133,12 +179,13 @@ async function writeStore(path: string, store: IssuesStoreFile): Promise<void> {
   await writeJsonAtomic(path, store)
 }
 
-function response(repoRoot: string, record: RepoIssueRecord | null): RepoIssues {
+function response(repoRoot: string, record: RepoIssueRecord | null, skipped = 0): RepoIssues {
   return {
     repoRoot,
     exists: record !== null,
     nextId: record?.nextId ?? 1,
     issues: record?.issues ?? [],
+    skipped,
   }
 }
 
@@ -148,13 +195,13 @@ export class IssuesStore {
   async list(repo: unknown): Promise<RepoIssues> {
     const { repoRoot, repoKey } = await resolveRepo(repo)
     return serialized(this.path, async () => {
-      const store = await readStore(this.path)
+      const { file: store, skipped } = await readStore(this.path)
       const record = store.repos[repoKey] ?? null
       if (record && record.repoRoot !== repoRoot) {
         record.repoRoot = repoRoot
         await writeStore(this.path, store)
       }
-      return response(repoRoot, record)
+      return response(repoRoot, record, skipped.get(repoKey) ?? 0)
     })
   }
 
@@ -172,7 +219,7 @@ export class IssuesStore {
     const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!taskId) return null
     return serialized(this.path, async () => {
-      const store = await readStore(this.path)
+      const { file: store, skipped } = await readStore(this.path)
       const record = store.repos[repoKey]
       if (!record) return null
       const issue = record.issues.find((i) => i.taskId === taskId)
@@ -180,7 +227,7 @@ export class IssuesStore {
       issue.status = "done"
       record.repoRoot = repoRoot
       await writeStore(this.path, store)
-      return response(repoRoot, record)
+      return response(repoRoot, record, skipped.get(repoKey) ?? 0)
     })
   }
 
@@ -197,7 +244,7 @@ export class IssuesStore {
     const { repoRoot, repoKey } = await resolveRepo(repo)
     if (!taskId) return null
     return serialized(this.path, async () => {
-      const store = await readStore(this.path)
+      const { file: store, skipped } = await readStore(this.path)
       const record = store.repos[repoKey]
       if (!record) return null
       const issue = record.issues.find((i) => i.taskId === taskId)
@@ -205,7 +252,7 @@ export class IssuesStore {
       issue.taskId = undefined
       record.repoRoot = repoRoot
       await writeStore(this.path, store)
-      return response(repoRoot, record)
+      return response(repoRoot, record, skipped.get(repoKey) ?? 0)
     })
   }
 
@@ -215,7 +262,7 @@ export class IssuesStore {
       throw new Error("missing op")
     }
     return serialized(this.path, async () => {
-      const store = await readStore(this.path)
+      const { file: store, skipped } = await readStore(this.path)
       let record = store.repos[repoKey]
       if (!record) {
         record = { repoRoot, nextId: 1, issues: [] }
@@ -277,7 +324,7 @@ export class IssuesStore {
         throw new Error(`unknown op type: ${(typed as { type: string }).type}`)
       }
       await writeStore(this.path, store)
-      return response(repoRoot, record)
+      return response(repoRoot, record, skipped.get(repoKey) ?? 0)
     })
   }
 }

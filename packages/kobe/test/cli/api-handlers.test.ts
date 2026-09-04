@@ -1,5 +1,6 @@
-/** Request-traffic tests for single-task `add` and the `send` handler.
- *  The parallel `add --count` round lives in `./api-add-parallel.test.ts`. */
+/** Request-traffic tests for single-task `add`. The `send` handler lives in
+ *  `./api-handlers-send.test.ts`; the parallel `add --count` round lives in
+ *  `./api-add-parallel.test.ts`. */
 
 import { mkdtempSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -142,6 +143,46 @@ describe("add handler", () => {
     expect(client.requests).toContainEqual({ name: "task.setPrompt", payload: { taskId: "t1", prompt: "do it" } })
   })
 
+  /**
+   * The persist is best-effort on purpose — the engine already HAS the prompt,
+   * so a store fault must not fail a delivered task. What it must not do is
+   * report unqualified success: without `.task.prompt` the sidebar menu drops
+   * **Run again** (`tree-menu.ts` gates the verb on it), so the action is gone
+   * with nothing anywhere saying why. This is the one trigger with no
+   * filesystem shape — an RPC/store fault — so it is stubbed rather than
+   * injected.
+   */
+  it("says so when the brief was delivered but never persisted", async () => {
+    const task = taskFixture({ kind: "task", vendor: "claude" })
+    const client = new FakeClient({
+      "task.create": () => ({ taskId: "t1", task }),
+      "task.get": () => ({ task }),
+      "task.setPrompt": () => {
+        throw new Error("issues store is read-only")
+      },
+    })
+    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+    })) as Record<string, unknown>
+    // Still a success: the task exists and the engine is burning tokens on it.
+    expect(result).toMatchObject({ taskId: "t1", delivered: true, promptPersisted: false })
+  })
+
+  it("omits promptPersisted when the brief did persist", async () => {
+    const task = taskFixture({ kind: "task", vendor: "claude" })
+    const client = new FakeClient({
+      "task.create": () => ({ taskId: "t1", task }),
+      "task.get": () => ({ task }),
+      "task.setPrompt": () => ({}),
+    })
+    const result = (await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "do it"], {
+      client,
+      runtime: stubRuntime({ deliverPrompt: recordingDelivery().deliver }),
+    })) as Record<string, unknown>
+    expect(result).not.toHaveProperty("promptPersisted")
+  })
+
   it("reports a created task whose prompt never landed", async () => {
     const task = taskFixture({ kind: "task", vendor: "kimi" })
     const client = new FakeClient({
@@ -169,305 +210,5 @@ describe("add handler", () => {
       runtime: stubRuntime(),
     })) as { taskId: string }
     expect(result.taskId).toBe("t1")
-  })
-})
-
-describe("send handler", () => {
-  it("uses an explicit target without consulting active task", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { calls, deliver } = recordingDelivery()
-    const result = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(client.subscribeCount).toBe(0)
-    expect(calls[0].prompt).toBe("hi")
-    // send targets an EXISTING task — never flagged as a new-task first
-    // prompt, so the branch-rename coda can't reach it.
-    expect(calls[0].target.newTask).toBeUndefined()
-    expect(result).toMatchObject({ ok: true, taskId: "abc", started: true })
-  })
-
-  it("falls back to the daemon active task", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "active-1" }) }) })
-    client.replay.push({ channel: "active-task", payload: { taskId: "active-1" } })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--prompt", "hi"], { client, runtime: stubRuntime({ deliverPrompt: deliver }) })
-    expect(client.subscribeCount).toBe(1)
-    expect(calls[0].target.id).toBe("active-1")
-  })
-
-  it("reports a prompt that did not land", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture() }) })
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "t1", "--prompt", "hi"], {
-          client,
-          runtime: stubRuntime({ deliverPrompt: recordingDelivery({ delivered: false }).deliver }),
-        }),
-      "NOT_DELIVERED",
-    )
-  })
-
-  // docs/API.md documents `delivered`, `bytes` and `promptEcho` under `send`.
-  // The delivery layer measured all three for every path and `send` dropped
-  // them, so a successful send carried no `delivered` key at all while a
-  // deferred one reported it as the only outcome field — `add` had been
-  // emitting the same three the whole time.
-  it("reports the delivery facts it documents", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { deliver } = recordingDelivery({ bytes: 42, promptEcho: "confirmed" })
-    const result = await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(result).toMatchObject({ delivered: true, bytes: 42, promptEcho: "confirmed" })
-  })
-
-  it("reports a deferred prompt as delivered:false, not as an error", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { deliver } = recordingDelivery({ delivered: false, deferred: { id: "d1", layer: "composer-not-empty" } })
-    const result = (await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })) as { ok: boolean; delivered: boolean; deferred: unknown }
-    expect(result.ok).toBe(true)
-    expect(result.delivered).toBe(false)
-    expect(result.deferred).toBeDefined()
-  })
-
-  it("requires an explicit or active target", async () => {
-    await expectApiError(
-      () => invokeVerb("send", ["--prompt", "hi"], { client: new FakeClient(), runtime: stubRuntime() }),
-      "MISSING_TARGET",
-    )
-  })
-
-  it("threads --tab through to the delivery target", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "new"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(calls[0].target.tab).toBe("new")
-    await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "tab-3"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(calls[1].target.tab).toBe("tab-3")
-  })
-
-  // The shell, not Rove, was eating prompts: backticks inside a double-quoted
-  // --prompt are command substitution, so the text that names a reply
-  // command (`rove api send …`) shipped as that command's OUTPUT. A file (or
-  // stdin) bypasses every quoting rule — the bytes on disk are the message.
-  it("--prompt-file delivers the file's bytes verbatim, backticks and all", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "rove-prompt-"))
-    const file = join(dir, "msg.md")
-    const body = "reply via `rove api send --task-id t1 --tab tab-2` and $(echo no)\n"
-    writeFileSync(file, body)
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "abc", "--prompt-file", file], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    expect(calls[0].prompt).toBe(body)
-  })
-
-  it("--prompt and --prompt-file together is a BAD_FLAG, not a silent pick", async () => {
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--prompt", "a", "--prompt-file", "/dev/null"], {
-          client: new FakeClient(),
-          runtime: stubRuntime(),
-        }),
-      "BAD_FLAG",
-    )
-  })
-
-  it("an empty --prompt-file is refused (a blank turn is never what was meant)", async () => {
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--prompt-file", "/dev/null"], {
-          client: new FakeClient(),
-          runtime: stubRuntime(),
-        }),
-      "BAD_FLAG",
-    )
-  })
-
-  it("a new tab can run a DIFFERENT engine than the task (two agents, one worktree)", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc", vendor: "claude" }) }) })
-    const { calls, deliver } = recordingDelivery()
-    await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "new", "--command", "codex"], {
-      client,
-      runtime: stubRuntime({ deliverPrompt: deliver }),
-    })
-    // The delivery runs codex and the tab records it (command + its resolved
-    // protocol), while the TASK's own engine is untouched — a second agent in
-    // the worktree is not a switch.
-    expect(calls[0].target).toMatchObject({ tabCommand: "codex", tabVendor: "codex" })
-    expect(client.requests.some((r) => r.name === "task.setCommand")).toBe(false)
-  })
-
-  it("refuses --command without --tab new instead of silently running the task's engine", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "tab-3", "--command", "codex"], {
-          client,
-          runtime: stubRuntime(),
-        }),
-      "BAD_FLAG",
-    )
-  })
-
-  it("rejects a malformed --tab before any delivery", async () => {
-    const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ id: "abc" }) }) })
-    await expectApiError(
-      () =>
-        invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--tab", "3"], {
-          client,
-          runtime: stubRuntime(),
-        }),
-      "BAD_TAB",
-    )
-  })
-
-  describe("peer provenance ($KOBE_TASK_ID)", () => {
-    const saved = process.env.KOBE_TASK_ID
-    beforeEach(async () => {
-      process.env.KOBE_TASK_ID = "sender-1"
-      // Identity is the VERIFIED env pair — prime the memo with a
-      // process tree where this process really does descend from the tab's
-      // shell, so no real pty-host/ps read happens here.
-      await verifiedSelfSession(
-        { KOBE_TASK_ID: "sender-1", KOBE_TAB_ID: "tab-1" },
-        {
-          pid: 500,
-          sessions: async () => [{ key: "sender-1::tab-1", pid: 100, alive: true }],
-          ps: async () => "  100     1 /bin/zsh -il\n  500   100 bun kobe api send",
-        },
-      )
-    })
-    afterEach(() => {
-      resetVerifiedSelfSession()
-      if (saved === undefined) {
-        // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-        delete process.env.KOBE_TASK_ID
-      } else process.env.KOBE_TASK_ID = saved
-    })
-
-    const peerClient = () =>
-      new FakeClient({
-        "task.get": (payload) => {
-          const id = (payload as { taskId: string }).taskId
-          return { task: taskFixture({ id, title: id === "sender-1" ? "Auth attempt" : "T" }) }
-        },
-      })
-
-    it("prefixes cross-task sends with sender identity and a reply command", async () => {
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
-      expect(calls[0].prompt).toContain("registered as /rove; legacy /kobe installs still work")
-      expect(calls[0].prompt).toContain("send --task-id sender-1")
-      // The self-teach pointer: a receiver that has never seen kobe learns
-      // where the rest of the coordination verbs live.
-      expect(calls[0].prompt).toContain("Rove agent skill")
-      // The sender's text is LAST and whole, after a blank line — not the
-      // object of the provenance sentence. A model generates in the language
-      // of the tokens nearest its turn, so a non-English prompt wrapped in an
-      // English clause came back in English.
-      expect(calls[0].prompt).toMatch(/\)\n\nhi$/)
-    })
-
-    it("keeps a non-English prompt intact and last, so nothing follows it", async () => {
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "帮我重构登录模块"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt.endsWith("帮我重构登录模块")).toBe(true)
-      // The prompt is not spliced into the sentence: everything before it is
-      // provenance, and the last thing the receiver reads is the sender's own words.
-      const [provenance, ...rest] = calls[0].prompt.split("\n\n")
-      expect(rest.join("\n\n")).toBe("帮我重构登录模块")
-      expect(provenance).not.toContain("帮我重构登录模块")
-    })
-
-    it("gives a dispatched task the same reply address in its opening brief", async () => {
-      // `add --prompt` from inside a kobe session is agent-to-agent too, and
-      // its brief is where the reply address matters most: every report that
-      // task ever sends flows back through it. Recording the sender only as
-      // `dispatcher` on the task ROW — data a receiver has to think to go
-      // read — leaves a dispatched worker finished and sitting waiting.
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("add", ["--repo", "/repo/x", "--prompt", "研究一下 X"], {
-        client: new FakeClient({
-          "task.create": () => ({ taskId: "child-1", task: taskFixture({ id: "child-1" }) }),
-          "task.get": (payload) => {
-            const id = (payload as { taskId: string }).taskId
-            return { task: taskFixture({ id, title: id === "sender-1" ? "Auth attempt" : "T" }) }
-          },
-        }),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toContain('[ROVE PEER] from "Auth attempt" (task sender-1')
-      expect(calls[0].prompt).toContain("send --task-id sender-1 --tab tab-1")
-      // Same shape as `send`: the brief is last and whole.
-      expect(calls[0].prompt.endsWith("研究一下 X")).toBe(true)
-    })
-
-    it("--plain sends verbatim", async () => {
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi", "--plain"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toBe("hi")
-    })
-
-    it("a send to yourself stays untouched", async () => {
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "sender-1", "--prompt", "hi"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toBe("hi")
-    })
-
-    it("a stale sender id degrades to id-only provenance, never a failed send", async () => {
-      const client = new FakeClient({
-        "task.get": (payload) => {
-          const id = (payload as { taskId: string }).taskId
-          if (id === "sender-1") throw new ApiError("task not found", "RPC_ERROR")
-          return { task: taskFixture({ id }) }
-        },
-      })
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-        client,
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toContain('from "sender-1" (task sender-1')
-    })
-
-    it("a send from outside any kobe task stays untouched", async () => {
-      resetVerifiedSelfSession()
-      // biome-ignore lint/performance/noDelete: env must fully unset (assigning undefined leaves the string "undefined").
-      delete process.env.KOBE_TASK_ID
-      const { calls, deliver } = recordingDelivery()
-      await invokeVerb("send", ["--task-id", "abc", "--prompt", "hi"], {
-        client: peerClient(),
-        runtime: stubRuntime({ deliverPrompt: deliver }),
-      })
-      expect(calls[0].prompt).toBe("hi")
-    })
   })
 })

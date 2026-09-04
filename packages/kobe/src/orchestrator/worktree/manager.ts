@@ -39,7 +39,14 @@ import {
   hasLocalBranch,
   renameBranch,
 } from "./manager-branch.ts"
-import { type ListDeps, adoptablePaths, listAllAdoptable, listBranchNames, listManaged } from "./manager-list.ts"
+import {
+  type ListDeps,
+  adoptablePaths,
+  listAllAdoptable,
+  listBranchNames,
+  listManaged,
+  unreadableWorktreeNames,
+} from "./manager-list.ts"
 import { type RemoveOpts, removeWorktree } from "./manager-remove.ts"
 import { canonicalize, remoteWorktreePathFor, requireAbsolute, worktreePathFor } from "./paths.ts"
 import { type SalvageRecord, salvageWorktree } from "./salvage.ts"
@@ -286,6 +293,12 @@ export class GitWorktreeManager implements WorktreeManager {
    */
   listAdoptablePaths(repo: string): Promise<readonly { readonly path: string; readonly branch: string }[]> {
     return adoptablePaths(this.listDeps(), this.ctxFor(repo))
+  }
+
+  /** Worktree admin-dir names `git worktree list` silently omitted — the ones
+   *  {@link listAll} cannot see. Body in `manager-list.ts`. */
+  listUnreadableWorktrees(repo: string): Promise<readonly string[]> {
+    return unreadableWorktreeNames(this.listDeps(), this.ctxFor(repo))
   }
 
   /** Branch names of `repo` (local + origin, prefix-stripped) — the input

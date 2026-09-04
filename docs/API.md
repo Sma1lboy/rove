@@ -196,7 +196,9 @@ replacement in `nextCommandArgs`.
   transcript and stored by the daemon on `turn-complete`; engines without a
   turn reader contribute nothing. Read-only.
 - `pty-list` *(offline)*: hosted PTY sessions (key, alive, pid, command,
-  live window title). Empty when no PTY host runs.
+  live window title). `sessions: []` means a live PTY host with nothing
+  running; `sessions: null` means there was no host to ask — "couldn't look",
+  not an idle fleet. Never read `null` as "no sessions running".
 - `read-output [--task-id ID] [--tab TAB] [--source auto|history|terminal]
   [--cursor C] [--limit N]`: a task's engine output as bounded, cursor-paged
   JSON: structured history when the engine has it, else a labeled terminal
@@ -592,7 +594,12 @@ nothing to do), `skipped_missed`, `skipped_unavailable`, and
 - `ensure-worktree --task-id ID`: materialize a task's git worktree on
   disk now (without starting an engine). Returns `{ worktreePath }`.
 - `discover-adoptable --repo PATH`: list existing git worktrees not yet
-  tracked as Rove tasks.
+  tracked as Rove tasks. Returns `{ worktrees, unreadable }`. `unreadable` is
+  the admin-dir names under `<repo>/.git/worktrees/` that `git worktree list`
+  omitted without an error — a worktree that exists on disk (uncommitted work
+  and all) but cannot be read, and so cannot be adopted until the permissions
+  are fixed. `worktrees: []` with `unreadable: []` is the only combination that
+  means "this repo has nothing to adopt".
 - `adopt --repo PATH --worktree PATH [--branch B] [--command CMD] [--title T]`:
   import an existing git worktree as a Rove task.
 

@@ -114,6 +114,16 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
 }
 
 /**
+ * Worktree admin dirs of `repo` that `git worktree list` omitted without an
+ * error — see `manager-list.ts`'s `unreadableWorktreeNames`. Reported next to
+ * `discover-adoptable`'s rows so an empty `worktrees` array means only "this
+ * repo has nothing to adopt", never "one of them is unreadable".
+ */
+export async function listUnreadableWorktreesAdapter(repo: string): Promise<readonly string[]> {
+  return manager.listUnreadableWorktrees(repo)
+}
+
+/**
  * The worktrees page / web DELETE path. Its force retry re-uses a `row`
  * captured BEFORE the first attempt's dirty refusal, so by the time the user
  * answers the confirm the tree may hold work the confirm never described.

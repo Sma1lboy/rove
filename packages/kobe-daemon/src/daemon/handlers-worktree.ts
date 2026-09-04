@@ -31,8 +31,20 @@ export const WORKTREE_HANDLERS: readonly DaemonRequestHandler[] = [
     web: true,
     async handle(payload, ctx) {
       const repo = requireString(payload, "repo")
-      const worktrees = await ctx.orch.discoverAdoptableWorktrees(repo)
-      return { worktrees }
+      // `git worktree list --porcelain` drops an entry whose admin dir it
+      // cannot read and exits 0 anyway, so `worktrees: []` alone could mean
+      // either "nothing to adopt" or "your worktree is unreadable and its
+      // uncommitted work is unreachable from here". `unreadable` separates
+      // the two. Composed from `ctx.runtime` like `list`/`remove` below —
+      // it is a git-layout fact, not an orchestrator one.
+      const [worktrees, unreadable] = await Promise.all([
+        ctx.orch.discoverAdoptableWorktrees(repo),
+        ctx.runtime.listUnreadableWorktrees(repo).catch((err) => {
+          logDaemonError("worktree-discover-unreadable", err)
+          return [] as readonly string[]
+        }),
+      ])
+      return { worktrees, unreadable }
     },
   },
   {

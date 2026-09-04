@@ -11,14 +11,28 @@
 import type { RepoIssues } from "@sma1lboy/kobe-daemon/daemon/issues-store"
 import { useEffect, useState } from "react"
 import type { RemoteOrchestrator } from "../../client/remote-orchestrator"
+import { errorMessage } from "../../lib/error-message"
 
 /** Agent moves land within one poll; issue.list is a local JSON read, so
  *  polling while the page is open is cheap. */
 const POLL_MS = 5_000
 
+/**
+ * A project's board, plus the one thing {@link RepoIssues} cannot express:
+ * this repo's issue read REJECTED. A rejection used to drop the repo from the
+ * result, which took the project out of the selector entirely — a user with
+ * two repos saw one, with no error, no glyph, and no reason to think the
+ * other existed. The section stays; the failure rides with it.
+ */
+export interface KanbanBoardEntry extends RepoIssues {
+  /** The read's error message. Absent = the read succeeded (`issues` may
+   *  still be empty, which is a real empty board, not a failure). */
+  readonly readError?: string
+}
+
 export interface KanbanBoards {
   /** null until the first load resolves — the page shows its loading line. */
-  readonly boards: readonly RepoIssues[] | null
+  readonly boards: readonly KanbanBoardEntry[] | null
   readonly activeRepo: string | null
   readonly setActiveRepo: (next: string | null) => void
   readonly selectedId: number | null
@@ -33,7 +47,7 @@ export function useKanbanBoards(args: {
    *  card cursor on its linked story. */
   readonly focusTask?: { readonly id: string; readonly repo: string }
 }): KanbanBoards {
-  const [boards, setBoards] = useState<readonly RepoIssues[] | null>(null)
+  const [boards, setBoards] = useState<readonly KanbanBoardEntry[] | null>(null)
   const [reloadTick, setReloadTick] = useState(0)
   // Keyed by repoRoot (not index) so the poll refetch keeps the selection.
   const [activeRepo, setActiveRepo] = useState<string | null>(null)
@@ -50,11 +64,27 @@ export function useKanbanBoards(args: {
       return
     }
     const repos = [...new Set(orchestrator.listTasks().map((task) => task.repo))]
-    void Promise.all(repos.map((repo) => orchestrator.listIssues(repo).catch(() => null))).then((results) => {
+    void Promise.all(
+      repos.map((repo) =>
+        orchestrator.listIssues(repo).catch(
+          (err: unknown): KanbanBoardEntry => ({
+            // A rejected read still owns its section. `exists: false` here is
+            // NOT the empty-board case below — `readError` is what separates
+            // "no issue file yet" from "could not read the issue file".
+            repoRoot: repo,
+            exists: false,
+            nextId: 1,
+            issues: [],
+            skipped: 0,
+            readError: errorMessage(err),
+          }),
+        ),
+      ),
+    ).then((results) => {
       if (disposed) return
       // A repo whose issue file doesn't exist yet still gets a section —
       // `exists: false` just means an empty board, not an error.
-      const next = results.filter((res): res is RepoIssues => res !== null)
+      const next = [...results]
       next.sort((a, b) => a.repoRoot.localeCompare(b.repoRoot))
       setBoards(next)
       // First load lands on the focus task's project (opened via `c` on a

@@ -196,3 +196,75 @@ export async function adoptablePaths(
   }
   return kept
 }
+
+/**
+ * Worktree admin-dir names under `<git-common-dir>/worktrees/` that
+ * `git worktree list --porcelain` did NOT report.
+ *
+ * Git omits an entry whose admin dir it cannot read AND still exits 0, so
+ * without this cross-check {@link adoptablePaths} answers `[]` for a repo
+ * whose worktree is merely unreadable — a result indistinguishable from
+ * "nothing to adopt", while the directory and its uncommitted work sit
+ * untouched on disk and the user has no path to adopt it.
+ *
+ * NAMES ONLY, on purpose: with the admin dir unreadable its `gitdir` file —
+ * the one record of where that worktree lives — is unreadable too, so there
+ * is no path, branch, or head to report. Inventing one would be a second lie,
+ * and a fabricated path is a path `adopt` would try to use.
+ *
+ * Diagnostic augmentation, never a gate: any failure to enumerate returns
+ * `[]`, which leaves the caller exactly where it stood before this existed.
+ */
+export async function unreadableWorktreeNames(deps: ListDeps, ctx: ExecCtx): Promise<readonly string[]> {
+  // A remote repo's admin dirs are not on this filesystem.
+  if (ctx.remote) return []
+  requireAbsolute("repo", ctx.dir)
+  let adminRoot: string
+  try {
+    // `--git-common-dir` is relative to the cwd git ran in (usually `.git`),
+    // so resolve it against that cwd rather than assuming an absolute answer.
+    const common = (await deps.runGitStdout(ctx, ["rev-parse", "--git-common-dir"])).trim()
+    if (!common) return []
+    adminRoot = path.join(path.resolve(ctx.dir, common), "worktrees")
+  } catch {
+    return []
+  }
+  let names: string[]
+  try {
+    names = fs
+      .readdirSync(adminRoot, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+  } catch {
+    return [] // no worktrees dir at all — a repo that never had one
+  }
+  if (names.length === 0) return []
+  let listed: string
+  try {
+    listed = await deps.runGitStdout(ctx, ["worktree", "list", "--porcelain"])
+  } catch {
+    return []
+  }
+  const reported = new Set(
+    parseWorktreeListPorcelain(listed)
+      .filter((entry) => entry.path)
+      .map((entry) => canonicalize(entry.path as string)),
+  )
+  const missing: string[] = []
+  for (const name of names) {
+    let gitdir: string
+    try {
+      // "<worktree>/.git" — the admin dir's own pointer back at the checkout.
+      gitdir = fs.readFileSync(path.join(adminRoot, name, "gitdir"), "utf8").trim()
+    } catch {
+      // Cannot read its own record, which is exactly why git skipped it.
+      missing.push(name)
+      continue
+    }
+    // Matching on the RESOLVED path, not the admin name: git de-duplicates
+    // colliding basenames (`foo`, `foo1`), so a name comparison would flag a
+    // perfectly healthy second `foo` as missing.
+    if (gitdir && !reported.has(canonicalize(path.dirname(gitdir)))) missing.push(name)
+  }
+  return missing
+}

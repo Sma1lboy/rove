@@ -151,8 +151,11 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
   // with the engine. Recorded only AFTER delivery confirms, so `get-task`'s
   // `.task.prompt` always means "the engine was given exactly this text".
   // Best-effort: the engine already has the prompt, so a persist failure
-  // must not turn a delivered task into an error.
-  await daemon.request("task.setPrompt", { taskId, prompt }).catch(() => undefined)
+  // must not turn a delivered task into an error — but it must not be silent
+  // either. Without `.task.prompt` the sidebar menu drops **Run again**
+  // (`tui/panes/sidebar/tree-menu.ts` gates the verb on it), so the action is
+  // gone forever with nothing on screen or in the result explaining why.
+  const promptPersisted = await persistPrompt(daemon, taskId, prompt)
   task = (await daemon.request<{ task: SerializedTask }>("task.get", { taskId })).task
   return {
     taskId,
@@ -164,6 +167,22 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
     ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
     ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
+    ...(promptPersisted ? {} : { promptPersisted: false }),
+  }
+}
+
+/**
+ * Record the brief on the task. Resolves `false` (never rejects) when the
+ * store refused it — see the call sites for why that stays best-effort and
+ * why the caller must still SAY so.
+ */
+async function persistPrompt(daemon: DaemonRpc, taskId: string, prompt: string): Promise<boolean> {
+  try {
+    await daemon.request("task.setPrompt", { taskId, prompt })
+    return true
+  } catch (err) {
+    console.error(`[rove api add] task.setPrompt failed for ${taskId} — no "Run again" for this task:`, err)
+    return false
   }
 }
 
@@ -305,7 +324,7 @@ async function addParallel(
       // that deferred prompt is released, dismissed, or expires). It
       // resolves with `delivered:false`, so route it here — not to `failures` —
       // and carry the marker through so a script can see it was queued.
-      tasks.push({
+      const row: Record<string, unknown> = {
         ok: true,
         taskId,
         vendor,
@@ -313,8 +332,17 @@ async function addParallel(
         engineReady: r.value.engineReady,
         session: r.value.session,
         ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
-      })
-      persistedPrompts.push(daemon.request("task.setPrompt", { taskId, prompt }).catch(() => undefined))
+      }
+      tasks.push(row)
+      // Same contract as `addOne`: a refused persist keeps the sibling a
+      // success, and marks the row so the caller knows this one lost its
+      // **Run again**. Patched on the pushed object because the awaits below
+      // resolve after the row is already in `tasks`.
+      persistedPrompts.push(
+        persistPrompt(daemon, taskId, prompt).then((ok) => {
+          if (!ok) row.promptPersisted = false
+        }),
+      )
       return
     }
     // Either deliverPrompt threw, or it resolved un-delivered AND un-deferred
