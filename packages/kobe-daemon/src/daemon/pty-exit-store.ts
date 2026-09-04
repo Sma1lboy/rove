@@ -64,7 +64,7 @@ export interface PtyExitRecord {
   readonly parentAlive?: boolean
   /** `at` is when the daemon DISCOVERED this death, not when it happened.
    *  Set on records the boot reconciler writes for an engine that died while
-   *  no daemon was watching (see `activity-observer.ts`'s
+   *  no daemon was watching (see `activity-observer-io.ts`'s
    *  `onEngineAbsentAtStart`): the wrapper's banner proves the death but
    *  carries no clock, and stamping discovery time silently would make an
    *  hours-old corpse read as fresh. */
