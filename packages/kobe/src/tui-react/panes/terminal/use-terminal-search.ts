@@ -29,8 +29,16 @@ import { searchQueryKeystroke } from "../../../tui/panes/sidebar/view-core"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import type { TerminalSnapshotWindow } from "../../../tui/panes/terminal/pty-types"
 import type { Chunk } from "../../../tui/panes/terminal/sgr"
-import { findMatches, overlayMatches, scrollOffsetForRow } from "../../../tui/panes/terminal/terminal-search"
+import {
+  type ParkedHit,
+  findMatches,
+  overlayMatches,
+  parkHit,
+  resolveParkedIndex,
+  scrollOffsetForRow,
+} from "../../../tui/panes/terminal/terminal-search"
 import type { SelectionRange } from "../../../tui/panes/terminal/terminal-selection"
+import type { RowWrapFlags } from "../../../tui/panes/terminal/terminal-wrap"
 import {
   type ViewportScrollState,
   moveViewportScroll,
@@ -46,6 +54,9 @@ export interface UseTerminalSearchOpts {
   readonly focused: boolean
   readonly snapshot: readonly TerminalRow[]
   readonly snapshotWindow: TerminalSnapshotWindow | null
+  /** Soft-wrap flags parallel to `snapshot`: a needle straddling a wrap point
+   *  is in no single row, so the scan runs over logical lines. */
+  readonly wrapped: RowWrapFlags
   readonly bodyRows: number
   /** The child owns its own scrollback right now — there is nothing local to walk. */
   readonly onAlternateScreen: boolean
@@ -76,7 +87,11 @@ export interface TerminalSearch {
 export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
   const [active, setActive] = useState(false)
   const [query, setQuery] = useState("")
-  const [index, setIndex] = useState(-1)
+  // The parked hit is stored by IDENTITY, not by array position — `matches` is
+  // rebuilt every PTY frame and a scrollback trim renumbers it. `index` is
+  // re-derived from it below, so the counter and the accent highlight name the
+  // occurrence the user actually walked to.
+  const [parked, setParked] = useState<ParkedHit | null>(null)
   const { theme } = useTheme()
   const optsRef = useLatest(opts)
 
@@ -89,10 +104,14 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
   // frame, so an always-on memo would re-walk the whole ring for each line of
   // streaming output — for a query nobody typed.
   const matches = useMemo(
-    () => (active && !unavailable ? findMatches(opts.snapshot, query) : NO_MATCHES),
-    [active, unavailable, opts.snapshot, query],
+    () => (active && !unavailable ? findMatches(opts.snapshot, query, opts.wrapped) : NO_MATCHES),
+    [active, unavailable, opts.snapshot, opts.wrapped, query],
   )
   const matchesRef = useLatest(matches)
+  const index = useMemo(
+    () => resolveParkedIndex(parked, matches, opts.snapshotWindow),
+    [parked, matches, opts.snapshotWindow],
+  )
   const indexRef = useLatest(index)
 
   const jumpToRow = useCallback((row: number): void => {
@@ -111,7 +130,7 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
   const open = useCallback((): void => {
     bookmarkRef.current = optsRef.current.scrollState
     setQuery("")
-    setIndex(-1)
+    setParked(null)
     setActive(true)
   }, [])
 
@@ -120,7 +139,7 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
     bookmarkRef.current = null
     setActive(false)
     setQuery("")
-    setIndex(-1)
+    setParked(null)
     if (saved) optsRef.current.setScrollState(saved)
   }, [])
 
@@ -128,25 +147,26 @@ export function useTerminalSearch(opts: UseTerminalSearchOpts): TerminalSearch {
     (delta: 1 | -1): void => {
       const list = matchesRef.current
       if (list.length === 0) return
-      // No hit parked yet: `enter` starts at the first, `shift+enter` at the last.
+      // No hit parked yet: `enter` (older) starts at the last, `↓` (newer) at
+      // the first — both land on an end of the list rather than nowhere.
       const from = indexRef.current < 0 ? (delta > 0 ? -1 : 0) : indexRef.current
       const next = (((from + delta) % list.length) + list.length) % list.length
-      setIndex(next)
+      setParked(parkHit(list, next, optsRef.current.snapshotWindow))
       jumpToRow((list[next] as SelectionRange).anchor.row)
     },
     [jumpToRow],
   )
 
   // A scrollback is read newest-first — the occurrence you want is nearly
-  // always the last one — so every new query parks on it and `shift+enter`
-  // walks back through history from there. Keyed on the QUERY and not on
-  // `matches`: the array is rebuilt on every PTY frame, and re-parking then
-  // would yank the viewport off the hit you had walked to.
+  // always the last one — so every new query parks on it and `enter` walks
+  // back through history from there. Keyed on the QUERY and not on `matches`:
+  // the array is rebuilt on every PTY frame, and re-parking then would yank
+  // the viewport off the hit you had walked to.
   // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the typed query; `matches` is re-derived per frame and must not re-trigger.
   useEffect(() => {
     if (!active) return
     const last = matches.length - 1
-    setIndex(last)
+    setParked(parkHit(matches, last, optsRef.current.snapshotWindow))
     if (last >= 0) jumpToRow((matches[last] as SelectionRange).anchor.row)
   }, [active, query])
 

@@ -126,3 +126,10 @@ export function useNotifications(): NotificationsContext {
   if (!value) throw new Error("useNotifications must be used within a NotificationsProvider")
   return value
 }
+
+/** Null instead of throwing, for panes that must also mount in render tests
+ *  and mock hosts (which intentionally omit the provider) — the same escape
+ *  hatch `useOptionalKV` gives the KV store. */
+export function useOptionalNotifications(): NotificationsContext | null {
+  return useContext(ctx)
+}

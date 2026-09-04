@@ -11,12 +11,14 @@ import {
   type CursorPos,
   DEFAULT_COLS,
   DEFAULT_ROWS,
+  type DataListener,
   type TaskPtyLike,
   type TaskPtyOpts,
   type TerminalRow,
   type TerminalSnapshotWindow,
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
+import type { RowWrapFlags } from "./terminal-wrap"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
 
 /**
@@ -46,6 +48,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private snapshot: readonly TerminalRow[] = []
   private cursor: CursorPos | null = null
   private snapshotWindow: TerminalSnapshotWindow | null = null
+  private snapshotWrapped: RowWrapFlags = []
   /** Output arrived while nobody was subscribed — snapshot is stale and
    * will be rebuilt lazily on the next capture()/subscribe. Keeps the N
    * background sessions of a multi-task workspace from re-converting
@@ -255,16 +258,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     }
   }
 
-  onData(
-    cb: (snapshot: readonly TerminalRow[], cursor: CursorPos | null, window: TerminalSnapshotWindow | null) => void,
-  ): () => void {
+  onData(cb: DataListener): () => void {
     // Refresh before registering so the lazy rebuild cannot double-notify.
     this.ensureFreshSnapshot()
     const off = this.listeners.addData(cb)
     this._unwatchedSince = null
     if (this.snapshot.length > 0) {
       try {
-        cb(this.snapshot, this.cursor, this.snapshotWindow)
+        cb(this.snapshot, this.cursor, this.snapshotWindow, this.snapshotWrapped)
       } catch {
         /* one listener must not break the others */
       }
@@ -336,6 +337,11 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   captureWindow(): TerminalSnapshotWindow | null {
     this.ensureFreshSnapshot()
     return this.snapshotWindow
+  }
+
+  captureWrapped(): RowWrapFlags {
+    this.ensureFreshSnapshot()
+    return this.snapshotWrapped
   }
 
   /** Rebuild a lazily-deferred snapshot unless synchronized output is mid-frame. */
@@ -415,13 +421,14 @@ export abstract class XtermTaskPty implements TaskPtyLike {
     this.snapshot = result.snapshot
     this.cursor = result.cursor
     this.snapshotWindow = result.snapshotWindow
+    this.snapshotWrapped = result.wrapped
     this.snapshotDirty = false
     if (result.changed) this.publishSnapshot()
   }
 
   private publishSnapshot(): void {
     profileTick("publish")
-    this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow)
+    this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow, this.snapshotWrapped)
   }
 
   /** Free the emulator's cell buffers NOW instead of waiting for GC — the

@@ -83,7 +83,7 @@ export interface TaskActionContext {
    * a renderer to hand the OSC52 half to; a host that omits it makes the flow
    * a no-op.
    */
-  readonly copyText?: (text: string) => void
+  readonly copyText?: (text: string) => Promise<boolean>
   readonly logger: TaskActionLogger
   /** Forensic log tag — `[rove]` (outer monitor) vs `[rove tasks]` (Tasks pane). */
   readonly logPrefix: string
@@ -412,13 +412,23 @@ export async function setStatusFlow(ctx: TaskActionContext, taskId: string): Pro
  * entries then (tree-menu.ts); the empty-string guard here is the backstop.
  *
  * The success toast is the only feedback a clipboard write can have on screen,
- * so it echoes what was copied rather than a bare "copied".
+ * so it echoes what was copied rather than a bare "copied" — and it is printed
+ * only once `copyText` has said the text actually landed. Neither channel is
+ * guaranteed: a headless box may have no clipboard command at all, and OSC 52
+ * is refused outright by some terminals.
  */
-export function copyTaskFieldFlow(ctx: TaskActionContext, taskId: string, field: "branch" | "path"): void {
+export async function copyTaskFieldFlow(
+  ctx: TaskActionContext,
+  taskId: string,
+  field: "branch" | "path",
+): Promise<void> {
   const task = ctx.tasks().find((candidate) => candidate.id === taskId)
   if (!task || !ctx.copyText) return
   const text = field === "branch" ? task.branch : task.worktreePath
   if (text === "") return
-  ctx.copyText(text)
+  if (!(await ctx.copyText(text))) {
+    ctx.notifyError?.(t("tasks.toast.copyFailed"))
+    return
+  }
   ctx.notifyInfo?.(t(field === "branch" ? "tasks.toast.copiedBranch" : "tasks.toast.copiedPath", { text }))
 }

@@ -18,7 +18,7 @@ describe("PtyListeners", () => {
     listeners.publishData([], null, null)
     listeners.publishTitle("claude")
 
-    expect(data).toHaveBeenCalledWith([], null, null)
+    expect(data).toHaveBeenCalledWith([], null, null, undefined)
     expect(title).toHaveBeenCalledWith("claude")
     expect(listeners.dataCount).toBe(2)
   })
