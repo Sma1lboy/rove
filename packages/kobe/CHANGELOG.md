@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.113
+
+### Patch Changes
+
+- [#856](https://github.com/Sma1lboy/rove/pull/856) [`eb90b43`](https://github.com/Sma1lboy/rove/commit/eb90b43fe27b9791444d2ba566838fb76c58c134) `d` on a directory row in the Files pane now opens everything under it as one diff, in one tab. Reviewing a twelve-file attempt was twelve keypresses and twelve tabs; for a round of three siblings, thirty-six. The loader was always a git pathspec call — a directory produces exactly the multi-file diff the renderer already draws — so the only thing in the way was the guard that refused directory rows.
+
+  The Changes tab gains a `[D] diff everything` chip for the whole worktree, and a proposed `shift+D` binding for the same (see `docs/design/keybinding-decisions.md`; the chip works with no chord either way).
+
+  Rendering a combined diff needed one more thing than the pathspec: opentui's diff renderable keeps only the first patch of a multi-file diff, so handing it a directory's whole diff drew one file and silently dropped the rest. The preview now splits the patch per file and stacks one renderable per file, each under its path.
+
+  Combined diffs are read-only: a review note anchors to a single path, so a diff spanning files carries none, and the footer says so rather than leaving the missing `c`/`v`/`x`/`s` looking broken. Per-file notes are unchanged. A directory with nothing changed in the active scope now says so instead of opening a blank pane. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#856](https://github.com/Sma1lboy/rove/pull/856) [`eb90b43`](https://github.com/Sma1lboy/rove/commit/eb90b43fe27b9791444d2ba566838fb76c58c134) An empty `ROVE_HOME_DIR` / `KOBE_HOME_DIR` now means "unset" instead of a home of `""`. Read raw, it made every state path relative to whatever the process's current directory happened to be — `homeDir()` returned `""`, `roveStateDir()` returned `.rove`, and `defaultDaemonPidPath()` returned `.rove/daemon.pid`. For the TUI that directory is the user's repository, so a `VAR=`-style clear (how a shell says "unset") could have written Rove's state into the repo it was working in.
+
+  The daemon's own `resolveDaemonHomeDir` already guarded this; every other accessor did not. All of them now read the variable through one guard, which also fixes a second edge: an empty `ROVE_HOME_DIR` used to shadow a set `KOBE_HOME_DIR` and send the caller to the OS home instead of the legacy one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#856](https://github.com/Sma1lboy/rove/pull/856) [`eb90b43`](https://github.com/Sma1lboy/rove/commit/eb90b43fe27b9791444d2ba566838fb76c58c134) The land confirm now names what it is merging into. `docs/WORKTREES.md` tells you to check that the base checkout is on the branch you mean, and the one screen where that check belongs used to say "the base repo's current branch" — a description of a value Rove already held. It now reads `Merge "fix/auth" into main (3 commits), then remove this worktree?`, with the destination and the count read before the dialog opens.
+
+  The checks that refuse a land — detached base checkout, a base already on this branch, a dirty base, an unresolvable ref, a branch with nothing on it — used to run after you confirmed, so every refusal arrived as an error toast for a merge you thought was happening. They now run first and replace the dialog. Same words, before the decision instead of after it.
+
+  New `rove api land --dry-run` returns that read as JSON: `{ branch, landedOn, ahead?, baseDirty?, refusal?, message? }`, writing nothing. An agent picking which sibling of a round to land can now see `ahead: 0` — the empty merge — before it commits to one. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.112
 
 ### Patch Changes
