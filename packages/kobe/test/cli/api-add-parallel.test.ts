@@ -164,10 +164,32 @@ describe("add --count (parallel round)", () => {
       Record<string, string | undefined>
     >
     expect(creates[0].title).toBe("solo")
-    // No --title → no title in the payload: the daemon's placeholder +
-    // auto-title pass (which appends the group ordinal) owns naming.
-    expect(creates[1].title).toBeUndefined()
-    expect(creates[2].title).toBeUndefined()
+    // No --title → seeded from the prompt at creation, and the existing #i/N
+    // suffix applies to it. Without this a fan-out lands N rows all reading
+    // `(new task)`, and QUICKSTART's very next step tells the reader to
+    // compare them.
+    expect(creates[1].title).toBe("go #1/2")
+    expect(creates[2].title).toBe("go #2/2")
+  })
+
+  it("names titleless siblings from the prompt so a fan-out is comparable on return", async () => {
+    const client = fanClient()
+    const { deliver } = recordingDelivery()
+    await invokeVerb(
+      "add",
+      ["--repo", "/repo/x", "--prompt", "Try independent approaches to simplify the auth flow.", "--count", "2"],
+      { client, runtime: stubRuntime({ deliverPrompt: deliver }) },
+    )
+    const titles = client.requests
+      .filter((r) => r.name === "task.create")
+      .map((r) => (r.payload as Record<string, string | undefined>).title)
+    expect(titles).toEqual([
+      "Try independent approaches to simplify t… #1/2",
+      "Try independent approaches to simplify t… #2/2",
+    ])
+    // The defect this replaces: N rows all reading `(new task)`, indistinguishable.
+    expect(new Set(titles).size).toBe(titles.length)
+    expect(titles).not.toContain(undefined)
   })
 
   it("carries already-created taskIds when a mid-loop create fails (no orphans)", async () => {

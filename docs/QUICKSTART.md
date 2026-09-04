@@ -4,10 +4,13 @@ Rove runs many AI coding sessions side by side in your terminal. Each managed
 Task gets its own git worktree and branch, so parallel Tasks never step on
 each other. Extra tabs inside one Task share that Task's directory.
 
-You need git and at least one engine CLI (`claude`, `codex`, `copilot`, or
-`kimi`) on your `PATH`. The Rove CLI itself runs on the [Bun](https://bun.sh)
-runtime (≥ 1.3.11). You do not have to install Bun yourself; every route
-below brings it along.
+You need git and at least one engine CLI on your `PATH`. Rove ships built-in
+support for `claude`, `codex`, `copilot` and `kimi`, and launches `gemini`,
+`opencode`, `cursor-agent`, `grok`, `droid` and `amp` too — the full list, and
+how to add your own, is in [Engines](ENGINES.md).
+
+The Rove CLI itself runs on the [Bun](https://bun.sh) runtime (≥ 1.3.11). You
+do not have to install Bun yourself; every route below brings it along.
 
 **Windows also requires [Node.js](https://nodejs.org) and Git for Windows.**
 Rove uses Node.js for its Windows PTY host and Git Bash as the POSIX shell

@@ -261,6 +261,12 @@ export interface ApiRuntime {
   deliverPrompt(client: DaemonRpc, target: PromptTarget, prompt: string): Promise<DeliveredPrompt>
   /** Canonical source repo for task creation and grouping. */
   resolveRepoRoot(absPath: string): Promise<string>
+  /** Is this resolved repo something a worktree can be cut from? On the seam
+   *  beside {@link resolveRepoRoot} because it asks about the same path at the
+   *  same boundary — and because a direct `git` shell-out here would make every
+   *  handler test need a real repo on disk. Remote (`ssh://…`) keys answer true:
+   *  the remote-add flow validates those. */
+  isUsableRepo(absPath: string): Promise<boolean>
   /** Preferred engine for new tasks in `repo`; undefined delegates to daemon defaults. */
   defaultVendor(repo?: string): Promise<VendorId | undefined>
   /** Uncommitted +/− counts for a worktree; `null` when git could not be

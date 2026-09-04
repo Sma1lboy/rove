@@ -294,6 +294,10 @@ export const defaultApiRuntime: ApiRuntime = {
   closeTerminalTab: closeHeadlessTerminalTab,
   deliverPrompt: (client, target, prompt) => deliverPrompt(client, target, prompt),
   resolveRepoRoot: async (absPath) => (await import("../../state/repos.ts")).resolveMainRepoRoot(absPath),
+  isUsableRepo: async (absPath) => {
+    const { isGitRepo, isRemoteRepoKey } = await import("../../state/repos.ts")
+    return isRemoteRepoKey(absPath) || isGitRepo(absPath)
+  },
   defaultVendor: async (repo) => {
     const { getGlobalDefaultVendor, getRepoLastActiveVendor } = await import("../../state/vendor-prefs.ts")
     return (repo ? getRepoLastActiveVendor(repo) : undefined) ?? getGlobalDefaultVendor()

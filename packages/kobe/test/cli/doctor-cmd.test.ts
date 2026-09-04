@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -197,11 +197,35 @@ describe("runDoctorSubcommand", () => {
     // Runnable fix shown with its exact command…
     expect(output()).toContain("will run:")
     expect(output()).toContain("daemon restart")
-    // …the dangerous remedy is print-only…
-    expect(output()).toContain("reset")
+    // …and a cold home proposes NO `reset`. Nothing here is broken: the PTY
+    // host is started on demand by the first task tab, so "no pidfile, no
+    // socket" is the normal state of a brand-new install. Doctor used to
+    // prescribe `reset` — which it describes in the same breath as not
+    // undoable and as killing every live session — to a user with nothing
+    // wrong and nothing to lose yet.
+    expect(output()).not.toContain("rove reset")
+    expect(output()).not.toContain("kobe reset")
+    expect(output()).toContain("starts on demand")
     // …and nothing ran (no TTY → no confirmations → no executions).
     expect(output()).toContain("nothing was executed")
     expect(output()).not.toContain("✓ done")
+  })
+
+  it("still proposes reset for a WEDGED pty host (live pid, dead socket)", async () => {
+    // The positive control for the cold case above: same unreachable socket,
+    // but a pidfile whose process is alive. That IS broken, and `reset` is
+    // the documented remedy.
+    mocks.request.mockRejectedValue(new Error("not running"))
+    const { defaultPtyHostPidPath } = await import("@sma1lboy/kobe-daemon/daemon/paths")
+    const pidPath = defaultPtyHostPidPath()
+    mkdirSync(join(pidPath, ".."), { recursive: true })
+    writeFileSync(pidPath, String(process.pid))
+
+    await runDoctorSubcommand(["--fix"])
+
+    expect(output()).toContain("WEDGED")
+    expect(output()).toMatch(/(rove|kobe) reset/)
+    expect(output()).not.toContain("starts on demand")
   })
 
   it("--report writes a bundle file and points the user at it", async () => {

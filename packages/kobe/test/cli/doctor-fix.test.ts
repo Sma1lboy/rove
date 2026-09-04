@@ -7,6 +7,8 @@ import {
   dedupeFixes,
   engineTabsManualFix,
   humanOnlyFix,
+  noEngineAction,
+  noEngineFix,
   resetManualFix,
   skillInstallFix,
 } from "../../src/cli/doctor-fix.ts"
@@ -110,5 +112,22 @@ describe("applyFixes", () => {
     await applyFixes([] as DoctorFix[], rt)
     expect(rt.exec).not.toHaveBeenCalled()
     expect(rt.lines.join("\n")).toContain("nothing to fix")
+  })
+
+  // The engine remedy branches on WHICH half failed. The installed-but-
+  // logged-out arm is the one a cold machine actually hits, and it used to
+  // print "install an engine CLI" directly under rows carrying those CLIs'
+  // absolute paths.
+  it("tells an installed-but-logged-out machine to log in, naming the engines", () => {
+    const fix = noEngineFix(["claude", "codex"])
+    expect(fix.kind).toBe("manual")
+    expect(noEngineAction(["claude", "codex"])).toContain("claude, codex")
+    expect(noEngineAction(["claude", "codex"])).toContain("login")
+    expect(noEngineAction(["claude", "codex"])).not.toContain("install an engine CLI")
+  })
+
+  it("still says install when nothing is on the machine at all", () => {
+    expect(noEngineAction([])).toContain("install an engine CLI")
+    expect(noEngineAction([])).not.toContain("run one of the installed")
   })
 })

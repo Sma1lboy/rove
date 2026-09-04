@@ -80,7 +80,14 @@ export function NewTaskDialogView(props: NewTaskDialogProps) {
           </text>
         ) : null}
       </box>
-      <DialogFooter>{t("newTask.legend")}</DialogFooter>
+      {/* Enter's caption follows the focused stop: it commits only on Create
+          and walks the form at the other four, so a static "enter create" was
+          wrong at every stop the dialog actually opens on. */}
+      <DialogFooter>
+        {t("newTask.legend", {
+          enter: t(vm.field === "confirm" ? "newTask.enterCreate" : "newTask.enterNext"),
+        })}
+      </DialogFooter>
       {/* Create commits on click; also reachable by tabbing to the confirm
           field (Enter), or Enter on the last input of the active tab. */}
       <DialogActions

@@ -36,6 +36,8 @@ import type {
   DetectDeps,
   KimiAccount,
 } from "./account-detect"
+import { installedEngineIds } from "./account-detect"
+import { listPresetIds } from "./engine-presets"
 import { interactiveEngineCommand } from "./interactive-command"
 import { engineEntry } from "./registry"
 
@@ -158,4 +160,45 @@ export function describeAccount(account: EngineAccount | null): string {
  *  account (no detector) does not veto — the binary is all we can know. */
 export function engineUsable(status: EngineStatus): boolean {
   return status.binary.found && status.account?.kind !== "none"
+}
+
+/**
+ * Every engine id worth probing on this machine: the registered presets
+ * (built-ins + the user's own) plus the contrib engines whose binary is
+ * actually on PATH.
+ *
+ * `listPresetIds()` alone omits the whole contrib catalog, so a user whose
+ * only CLI is `opencode` was told "no usable engine" by the two surfaces meant
+ * to diagnose exactly that — `rove doctor` and the setup wizard — while the
+ * new-task dialog offered opencode and ran it fine. Contrib engines that are
+ * NOT installed stay out: six `✗ not found on PATH` rows for engines the user
+ * never asked about is noise, not a diagnosis.
+ */
+export async function probeableEngineIds(): Promise<readonly VendorId[]> {
+  return [...new Set<VendorId>([...listPresetIds(), ...(await installedEngineIds())])]
+}
+
+/** Engine readiness split three ways, from one pass of statuses. */
+export interface EngineReadiness {
+  /** Could run a task right now (binary present, and logged in where readable). */
+  readonly usable: readonly VendorId[]
+  /** Binary on PATH, but the login Rove CAN read says there is no account.
+   *  The common new-user state, and the one that used to render as `✓`. */
+  readonly signedOut: readonly VendorId[]
+}
+
+/**
+ * Split statuses into "can run a task" and "installed but not signed in".
+ * The second bucket is the whole point: `usable.length === 0` alone cannot
+ * tell a machine with no CLI at all from one CLI away from working, and those
+ * two states need opposite remedies (install vs. run it once and log in).
+ */
+export function summarizeEngines(statuses: readonly EngineStatus[]): EngineReadiness {
+  const usable: VendorId[] = []
+  const signedOut: VendorId[] = []
+  for (const status of statuses) {
+    if (engineUsable(status)) usable.push(status.vendor)
+    else if (status.binary.found) signedOut.push(status.vendor)
+  }
+  return { usable, signedOut }
 }

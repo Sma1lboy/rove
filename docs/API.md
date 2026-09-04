@@ -33,6 +33,16 @@ rove api add --repo "$PWD" \
   --prompt "Try independent approaches to simplify the auth flow."
 ```
 
+Every `add` response carries a `home` field: the Rove home the tasks were
+actually written to. A `ROVE_HOME_DIR` override that collapses (an unquoted
+shell variable holding a whole `env` prefix does not word-split) otherwise
+reads as a plain success — same `count`, same empty `failures`, different
+machine state. Compare it against the home you meant before trusting the round.
+
+Siblings with no `--title` are named from `--prompt` at creation, so a fan-out
+is comparable the moment it returns rather than showing N identical `(new
+task)` rows until the engines write their first transcripts.
+
 **Completion.** A worker spawned from another Rove task sends its outcome
 back to the dispatching engine tab: creation records the dispatcher
 (task + tab), so a bare `send` routes home without any id in hand; no

@@ -350,11 +350,12 @@ describe("onboarding wizard — environment page and keyboard basics", () => {
     engines: {
       lines: ["engines:", "  claude  ✓ /bin/claude — logged in (a@b.c)", "  kimi    ✗ not found on PATH"],
       anyUsable: true,
+      signedOut: [],
     },
   }
   const emptyEnv = {
     git: { line: "git:      ✓ git version 2.39.5", found: true },
-    engines: { lines: ["engines:", "  claude  ✗ not found on PATH"], anyUsable: false },
+    engines: { lines: ["engines:", "  claude  ✗ not found on PATH"], anyUsable: false, signedOut: [] },
   }
 
   it("shows the environment page after the questions, then the keyboard page", async () => {

@@ -179,7 +179,9 @@ describe("runApiSubcommand", () => {
       if (name === "task.create") throw new Error("create exploded")
       return { tasks: [] }
     })
-    await expect(runApiSubcommand(["add", "--repo", "/repo/x", "--prompt", "go", "--count", "2"])).rejects.toThrow(
+    // A REAL repo path: this goes through the real ApiRuntime, whose
+    // `isUsableRepo` gate rejects a non-repo before any create is attempted.
+    await expect(runApiSubcommand(["add", "--repo", process.cwd(), "--prompt", "go", "--count", "2"])).rejects.toThrow(
       "exit(3)",
     )
     expect(stderrSpy).not.toHaveBeenCalled()
