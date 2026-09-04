@@ -46,7 +46,10 @@ export function useSpinnerFrame(active: boolean): number {
 const NO_CHANGES: WorktreeChanges = { added: 0, deleted: 0 }
 
 export function useChanges(
-  sources: { readonly branchTick: number; readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null },
+  sources: {
+    readonly branchTick: number
+    readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
+  },
   task: SidebarRow["task"],
 ): WorktreeChanges | null {
   const pushed = pickPushedChanges(sources.worktreeChanges, task.worktreePath)
@@ -63,6 +66,10 @@ export function useChanges(
   // otherwise every fresh task would wear a `?` while its job is still running,
   // which the materializing spinner already says better.
   if (!task.worktreePath) return NO_CHANGES
+  // `"unknown"` = the DAEMON tracked this worktree and its git read failed;
+  // `null` from the poller = the same fact on the no-daemon path. Both render
+  // as the unknown mark, so they collapse here.
+  if (pushed === "unknown") return null
   return pushed ?? worktreeChanges(task.worktreePath)
 }
 

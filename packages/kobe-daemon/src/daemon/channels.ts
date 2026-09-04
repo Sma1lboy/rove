@@ -172,6 +172,16 @@ export interface ChannelPayloads {
    */
   "worktree.changes": {
     changes: Record<string, { added: number; deleted: number }>
+    /**
+     * Tracked worktrees whose `git status` FAILED — absent from `changes`
+     * because there are no counts, but present here so a subscriber can tell
+     * "could not read" from "not collected". Without it both look like an
+     * absent key, which the sidebar renders as a clean row: exactly the
+     * signal a user checks before deleting a task. Additive: an older client
+     * ignores the field and keeps today's behaviour, and an older DAEMON
+     * omits it, which a newer client reads as "nothing unreadable".
+     */
+    unreadable?: string[]
   }
   /**
    * Engine-transcript activity for every collected worktree (perf —

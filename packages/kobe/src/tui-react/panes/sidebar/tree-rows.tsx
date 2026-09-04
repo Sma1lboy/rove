@@ -74,7 +74,7 @@ export type TreeRowShared = {
   readonly engineTabState?: ReadonlyMap<string, ReadonlyMap<string, TaskEngineState>>
   readonly engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   readonly taskJobs?: ReadonlyMap<string, TaskJobState>
-  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
+  readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
 }
 
 /**

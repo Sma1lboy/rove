@@ -68,3 +68,22 @@ describe("sameWorktreeChanges", () => {
     expect(sameWorktreeChanges({ added: 0, deleted: 0, ahead: 2 }, { added: 0, deleted: 0, ahead: 2 })).toBe(true)
   })
 })
+
+describe("pickPushedChanges and the daemon's unreadable list", () => {
+  // Three distinct facts share this one lookup, and collapsing any two of them
+  // is how an unreadable worktree came to render as a clean one.
+  test("separates counts, not-collected, and could-not-read", () => {
+    const pushed = new Map<string, { added: number; deleted: number } | null>([
+      ["/wt/ok", { added: 2, deleted: 1 }],
+      // The daemon TRACKED this one and its git status failed.
+      ["/wt/broken", null],
+    ])
+    expect(pickPushedChanges(pushed, "/wt/ok")).toEqual({ added: 2, deleted: 1 })
+    expect(pickPushedChanges(pushed, "/wt/broken")).toBe("unknown")
+    // Absent = the daemon does not collect it (remote project, fresh task).
+    // Still zeros: the row draws no chip, which is what it has always done.
+    expect(pickPushedChanges(pushed, "/wt/never-collected")).toEqual({ added: 0, deleted: 0 })
+    // No daemon at all — the caller falls back to the local poller.
+    expect(pickPushedChanges(null, "/wt/ok")).toBeNull()
+  })
+})

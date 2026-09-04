@@ -83,7 +83,11 @@ export interface TaskJobState {
  * `hello.capabilities`) or `init()` hasn't completed — the sidebar then
  * falls back to its local poller.
  */
-export type WorktreeChangesMap = ReadonlyMap<string, WorktreeChanges>
+/** Path → counts, or `null` for a worktree the daemon TRACKED but could not
+ *  read. A `null` entry and an absent key are different facts: absent means
+ *  "not collected" (remote project, just-created task) and draws no chip;
+ *  `null` means the read failed and draws the unknown mark. */
+export type WorktreeChangesMap = ReadonlyMap<string, WorktreeChanges | null>
 
 /**
  * Compact, bounded description of a dropped event payload for `client.log` —
@@ -110,10 +114,10 @@ export function describePayload(value: unknown): string {
  * Returns `null` for a malformed payload (the event is then ignored —
  * never clobber a good map with garbage). Exported for unit tests.
  */
-export function parseWorktreeChangesPayload(payload: unknown): Map<string, WorktreeChanges> | null {
+export function parseWorktreeChangesPayload(payload: unknown): Map<string, WorktreeChanges | null> | null {
   const changes = (payload as { changes?: unknown } | undefined)?.changes
   if (!changes || typeof changes !== "object" || Array.isArray(changes)) return null
-  const map = new Map<string, WorktreeChanges>()
+  const map = new Map<string, WorktreeChanges | null>()
   for (const [path, value] of Object.entries(changes as Record<string, unknown>)) {
     const counts = value as { added?: unknown; deleted?: unknown; behind?: unknown; ahead?: unknown } | undefined
     if (typeof counts?.added !== "number" || typeof counts.deleted !== "number") return null
@@ -125,6 +129,13 @@ export function parseWorktreeChangesPayload(payload: unknown): Map<string, Workt
       ...(typeof counts.behind === "number" ? { behind: counts.behind } : {}),
       ...(typeof counts.ahead === "number" ? { ahead: counts.ahead } : {}),
     })
+  }
+  // Worktrees the daemon tracked but could not read. Additive, so an older
+  // daemon that omits the field simply contributes no unknowns. Mapped to
+  // `null` — NOT left absent, which the row would draw as a clean chip.
+  const unreadable = (payload as { unreadable?: unknown } | undefined)?.unreadable
+  if (Array.isArray(unreadable)) {
+    for (const path of unreadable) if (typeof path === "string" && path.length > 0) map.set(path, null)
   }
   return map
 }
@@ -166,8 +177,8 @@ export function decodeUiPrefsPayload(payload: unknown): UiPrefsPayload | null {
 export function sameWorktreeChangesMap(a: WorktreeChangesMap, b: WorktreeChangesMap): boolean {
   if (a.size !== b.size) return false
   for (const [path, counts] of a) {
-    const other = b.get(path)
-    if (!other || !sameWorktreeChanges(counts, other)) return false
+    if (!b.has(path)) return false
+    if (!sameWorktreeChanges(counts, b.get(path) ?? null)) return false
   }
   return true
 }

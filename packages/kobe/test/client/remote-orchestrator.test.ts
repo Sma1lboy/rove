@@ -2,6 +2,7 @@ import type { KobeDaemonClient } from "@sma1lboy/kobe-daemon/client"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import {
   RemoteOrchestrator,
+  type WorktreeChangesMap,
   decodeUiPrefsPayload,
   parseWorktreeChangesPayload,
   sameWorktreeChangesMap,
@@ -483,6 +484,28 @@ describe("worktree.changes pure helpers", () => {
     expect(parseWorktreeChangesPayload(undefined)).toBeNull()
     expect(parseWorktreeChangesPayload({ changes: [] })).toBeNull()
     expect(parseWorktreeChangesPayload({ changes: { "/wt": { added: 1 } } })).toBeNull()
+  })
+
+  it("parseWorktreeChangesPayload maps the daemon's unreadable paths to null", () => {
+    // `unreadable` is additive: an older daemon omits it entirely, and the
+    // parser must still accept the payload rather than reject the whole map.
+    expect(parseWorktreeChangesPayload({ changes: { "/wt": { added: 1, deleted: 0 } } })).toEqual(
+      new Map([["/wt", { added: 1, deleted: 0 }]]),
+    )
+    const withUnreadable = parseWorktreeChangesPayload({
+      changes: { "/wt": { added: 1, deleted: 0 } },
+      unreadable: ["/wt/broken"],
+    })
+    // PRESENT with a null value, not absent: absent would read as a clean row.
+    expect(withUnreadable?.has("/wt/broken")).toBe(true)
+    expect(withUnreadable?.get("/wt/broken")).toBeNull()
+  })
+
+  it("sameWorktreeChangesMap tells an unreadable entry from a missing one", () => {
+    const unreadable: WorktreeChangesMap = new Map([["/wt", null]])
+    expect(sameWorktreeChangesMap(unreadable, new Map([["/wt", null]]))).toBe(true)
+    expect(sameWorktreeChangesMap(unreadable, new Map([["/wt", { added: 0, deleted: 0 }]]))).toBe(false)
+    expect(sameWorktreeChangesMap(unreadable, new Map())).toBe(false)
   })
 
   it("sameWorktreeChangesMap compares entry-wise", () => {

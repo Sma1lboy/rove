@@ -84,11 +84,15 @@ export function sameWorktreeChanges(a: WorktreeChanges | null, b: WorktreeChange
  * exactly the rows the daemon deliberately skips. Pure — unit-tested.
  */
 export function pickPushedChanges(
-  pushed: ReadonlyMap<string, WorktreeChanges> | null | undefined,
+  pushed: ReadonlyMap<string, WorktreeChanges | null> | null | undefined,
   worktreePath: string,
-): WorktreeChanges | null {
+): WorktreeChanges | "unknown" | null {
   if (!pushed) return null
-  return pushed.get(worktreePath) ?? ZERO
+  // PRESENT-with-null is the daemon saying it tried and could not read. That
+  // is not the same as an absent key, and it must not collapse into ZERO — the
+  // hidden chip is what let an unreadable worktree read as clean.
+  if (pushed.has(worktreePath)) return pushed.get(worktreePath) ?? "unknown"
+  return ZERO
 }
 
 /**

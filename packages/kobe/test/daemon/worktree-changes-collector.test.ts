@@ -382,3 +382,62 @@ describe("the ahead-of-base count", () => {
     expect(published).toHaveLength(2)
   })
 })
+
+describe("a worktree whose git status fails", () => {
+  test("is published as unreadable, not omitted, and never blocks the readable ones", async () => {
+    // `harness`'s runner throws for any path without seeded counts — the same
+    // shape a real EACCES `.git` or a moved admin dir produces.
+    const { collector, published } = harness([task({ id: "ok" }), task({ id: "broken" })], {
+      "/wt/ok": { added: 3, deleted: 1 },
+    })
+    collector.tick()
+    await settle()
+
+    const last = published.at(-1)
+    expect(last?.changes["/wt/ok"]).toEqual({ added: 3, deleted: 1 })
+    // The whole point. Before this, a failed run reached no callback at all,
+    // so the path fell out of the map — and an absent key is indistinguishable
+    // from "not collected", which every subscriber draws as a clean row.
+    expect(last?.changes["/wt/broken"]).toBeUndefined()
+    expect(last?.unreadable).toEqual(["/wt/broken"])
+  })
+
+  test("omits the field entirely when everything read cleanly", async () => {
+    // Wire compatibility: the common payload stays byte-identical to what this
+    // channel has always published, so an older client sees no new key.
+    const { collector, published } = harness([task({ id: "ok" })], { "/wt/ok": { added: 1, deleted: 0 } })
+    collector.tick()
+    await settle()
+    expect(published.at(-1)?.unreadable).toBeUndefined()
+  })
+
+  test("republishes when an unreadable worktree becomes readable again", async () => {
+    const h = harness([task({ id: "a" })], {})
+    h.collector.tick()
+    await settle()
+    expect(h.published.at(-1)?.unreadable).toEqual(["/wt/a"])
+
+    h.counts["/wt/a"] = { added: 2, deleted: 0 }
+    h.collector.tick()
+    await settle()
+    expect(h.published.at(-1)?.unreadable).toBeUndefined()
+    expect(h.published.at(-1)?.changes["/wt/a"]).toEqual({ added: 2, deleted: 0 })
+  })
+
+  test("does NOT overwrite counts that once read cleanly", async () => {
+    // Stale beats unknown once there is a real value to go stale from — the
+    // same trade `prCheckChip` makes for a provider it could not reach. Only a
+    // worktree that has NEVER read cleanly publishes as unreadable.
+    const h = harness([task({ id: "a" })], { "/wt/a": { added: 4, deleted: 0 } })
+    h.collector.tick()
+    await settle()
+    const before = h.published.length
+
+    h.counts["/wt/a"] = undefined as unknown as WorktreeChanges
+    h.collector.tick()
+    await settle()
+    expect(h.published.length).toBe(before)
+    expect(h.published.at(-1)?.changes["/wt/a"]).toEqual({ added: 4, deleted: 0 })
+    expect(h.published.at(-1)?.unreadable).toBeUndefined()
+  })
+})

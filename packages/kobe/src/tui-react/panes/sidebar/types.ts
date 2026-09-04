@@ -110,7 +110,7 @@ export type SidebarProps = SidebarTaskCallbacks & {
   /** Transient per-task lifecycle marks (subagent activity). */
   engineLifecycle?: ReadonlyMap<string, { readonly subagents: number }>
   taskJobs?: ReadonlyMap<string, TaskJobState>
-  worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null
+  worktreeChanges?: ReadonlyMap<string, WorktreeChanges | null> | null
   /** Daemon-collected transcript facts keyed by WORKTREE path — proves a
    * "complete" turn whose engine is still writing (hook-silent phases). */
   transcriptActivity?: ReadonlyMap<string, { readonly mtimeMs: number }> | null
