@@ -11,6 +11,11 @@
  *     value into a v3 task list, migrating v1/v2 manifests. The per-ROW half
  *     of that — one entry → a {@link Task}, field by field — lives in
  *     `store-codec-rows.ts`; the seam is manifest scope vs row scope.
+ *   - **Load-time recovery ladder.** {@link recoverIndexFromDisk} walks
+ *     missing file → gated legacy twin → corrupt JSON → future-build version,
+ *     each rung ending in an empty index with the original bytes copied
+ *     aside. It answers "what does this manifest mean"; the store only wants
+ *     the cache that falls out.
  *   - **Read-merge-write helpers.** {@link readDiskIndex} + {@link mergeTasksWithDisk}
  *     implement the disk side of the save protocol: a fresh read of the
  *     manifest (tasks + deletion tombstones) and the three-way merge between
@@ -302,4 +307,71 @@ export function mergeTasksWithDisk(
   }
 
   return { tasks: result, removed: [...tombstones].map(([id, at]) => ({ id, at })) }
+}
+
+/**
+ * Turn whatever is on disk into a v3 index the store can hold.
+ *
+ * The seam against `store.ts`: every branch here answers "what does this
+ * manifest mean", and every failure answers it with an EMPTY index after
+ * copying the original bytes aside. The store does not care which branch ran
+ * — it just gets a cache — so the recovery ladder (missing file, gated legacy
+ * twin, corrupt JSON, a future build's version) lives with the codec that
+ * already owns `normalizeIndex`, `backupCorruptManifest` and the recovery
+ * warnings, instead of as a third of the store class.
+ */
+export async function recoverIndexFromDisk(
+  path: string,
+  legacyPath: string,
+): Promise<{ version: typeof CURRENT_VERSION; tasks: Task[] }> {
+  let raw: string
+  let sourcePath = path
+  try {
+    raw = await readFile(path, "utf8")
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== "ENOENT") throw err
+    // Gated, not unconditional: after the daemon migration marker lands the
+    // legacy file is a stale snapshot (see readableLegacyIndexPath).
+    const legacy = readableLegacyIndexPath(path, legacyPath)
+    let legacyRaw: string | undefined
+    if (legacy) {
+      try {
+        legacyRaw = await readFile(legacy, "utf8")
+        sourcePath = legacy
+      } catch (legacyErr) {
+        if ((legacyErr as NodeJS.ErrnoException).code !== "ENOENT") throw legacyErr
+      }
+    }
+    if (legacyRaw === undefined) {
+      return { version: CURRENT_VERSION, tasks: [] }
+    }
+    raw = legacyRaw
+  }
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (err) {
+    // Back the original bytes up FIRST: the next save read-merge-writes
+    // from this empty recovery base and replaces the corrupt file, so
+    // without a copy the user's tasks are gone for good.
+    const backup = await backupCorruptManifest(sourcePath)
+    warnManifestRecovery(
+      `[rove] tasks.json at ${sourcePath} is corrupted (${(err as Error).message}); recovering with empty index.${
+        backup ? ` Original bytes backed up to ${backup}.` : " Backup copy failed; the stale file is left in place."
+      }`,
+      sourcePath,
+    )
+    return { version: CURRENT_VERSION, tasks: [] }
+  }
+
+  // A future build's manifest empties the index just as thoroughly as a
+  // corrupt one does, and the next save replaces the file — so its bytes
+  // get the same copy-aside before we recover empty.
+  if (await recoverUnsupportedVersion(parsed, sourcePath)) {
+    return { version: CURRENT_VERSION, tasks: [] }
+  }
+
+  return normalizeIndex(parsed, sourcePath)
 }

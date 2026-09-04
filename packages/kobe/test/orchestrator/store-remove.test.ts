@@ -61,8 +61,11 @@ describe("TaskIndexStore.remove", () => {
     expect(store.list().some((t) => t.id === task.id)).toBe(false)
   })
 
-  it("removing an unknown id is a silent no-op", async () => {
-    await expect(store.remove("no-such-task")).resolves.toBeUndefined()
+  it("removing an unknown id reports that there was nothing to remove", async () => {
+    // Not a throw (unlike update/move): the daemon replays a queued deletion
+    // after a restart and a replay finding nothing is success. But it must be
+    // distinguishable from a real deletion, hence the boolean.
+    await expect(store.remove("no-such-task")).resolves.toBe(false)
   })
 
   it("exposes filePath + stateDir for tooling", () => {

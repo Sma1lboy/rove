@@ -224,6 +224,21 @@ TUI may show any task at any time.
 >   serving another home's data silently corrupts what the user sees. The
 >   reconnect loop keeps retrying, so re-syncing needs no TUI restart. A daemon
 >   predating the field omits it and is never falsely rejected.
+>
+> **One home, two sockets (2026-09-04):** both guards above defend one socket
+> against the wrong home. The inverse — one home behind two sockets — had
+> nothing watching it, because the singleton is keyed on the socket path and
+> `socket-guard.ts` watches only its own. Override `*_DAEMON_SOCKET_PATH` while
+> leaving `*_HOME_DIR` alone (what the harness and capture isolation recipes
+> do) and two daemons serve one state root, invisible to each other: their task
+> lists diverge permanently, `ensureMainTask` writes the project-main row
+> twice, and `automations.json` and `.config/rove/state.json` race as well — so
+> a lock around the task index would not have been enough. `home-owner.ts`
+> claims the home in `<home>/.rove/daemon.owner` as `pid:socketPath`; a boot
+> that finds a claim naming a DIFFERENT socket asks that socket whether anyone
+> still answers there, and refuses with the incumbent's path if so. Liveness is
+> the socket, not the pid — pids get reused, and a crashed daemon's claim is
+> then simply overwritten rather than needing a sweep.
 
 ```bash
 $ kobed start            # binds ~/.kobe/daemon.sock, writes pidfile
