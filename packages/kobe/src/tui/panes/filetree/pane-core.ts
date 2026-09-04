@@ -182,7 +182,7 @@ type EventedWatcher = ReturnType<typeof watch> & { on(event: "error", listener: 
  * Recursive fs watch over a worktree with a 500ms trailing debounce.
  * Returns a disposer. Errors are swallowed (the `r` keystroke remains as
  * the escape hatch); an unwatchable path degrades to manual refresh.
- * On by default; `KOBE_FILETREE_WATCH=0` at the call site opts out, for a
+ * On by default; `ROVE_FILETREE_WATCH=0` at the call site opts out, for a
  * repo big enough that a recursive watcher costs more than the staleness it
  * removes.
  *

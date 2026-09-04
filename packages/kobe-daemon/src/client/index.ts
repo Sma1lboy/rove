@@ -1,5 +1,6 @@
 import { type Socket, connect } from "node:net"
 import { StringDecoder } from "node:string_decoder"
+import { readRoveEnv } from "../compat-env.ts"
 import {
   BLOCKING_RPCS,
   type ChannelName,
@@ -34,11 +35,11 @@ export class RpcTimeoutError extends Error {
  * Default per-request deadline. A healthy daemon answers writes in well under
  * a second; 20s is a wide margin for a busy-but-live daemon. Requests that can
  * legitimately run for minutes are exempted by name below, not by this value.
- * `KOBE_RPC_TIMEOUT_MS` overrides it (0/negative disables the deadline) — an
+ * `ROVE_RPC_TIMEOUT_MS` overrides it (0/negative disables the deadline) — an
  * operator escape hatch and the test seam for the wedged-daemon path.
  */
 function rpcTimeoutMs(): number {
-  const raw = process.env.KOBE_RPC_TIMEOUT_MS?.trim()
+  const raw = readRoveEnv("RPC_TIMEOUT_MS")?.trim()
   if (raw) {
     const parsed = Number.parseInt(raw, 10)
     if (Number.isFinite(parsed)) return parsed

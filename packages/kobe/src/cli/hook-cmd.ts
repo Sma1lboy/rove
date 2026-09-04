@@ -25,6 +25,7 @@ import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { connectIfRunning } from "@sma1lboy/kobe-daemon/client/daemon-process"
+import { readRoveEnv } from "@sma1lboy/kobe-daemon/compat-env"
 import { readPluginManifest } from "@sma1lboy/kobe-daemon/plugins/manifest"
 import { loadPluginRegistry } from "@sma1lboy/kobe-daemon/plugins/registry"
 import { type EngineSessionRef, createEngineHookAdapter } from "../engine/hook-adapter.ts"
@@ -154,7 +155,7 @@ export async function runHookSubcommand(argv: readonly string[]): Promise<void> 
     // silently-dropped Stop leaves the sidebar spinning with zero evidence
     // anywhere, and a catch that leaves no trace is undebuggable. Opt-in so
     // normal runs stay quiet.
-    if (process.env.KOBE_HOOK_DEBUG) {
+    if (readRoveEnv("HOOK_DEBUG")) {
       console.error(`[rove hook] ${verb} failed:`, err instanceof Error ? err.message : String(err))
     }
   }
