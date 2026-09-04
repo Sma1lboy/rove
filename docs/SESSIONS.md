@@ -200,8 +200,8 @@ process, including a reboot.
 - Headlessly, a tab a host restart froze is revived by
   `rove api send --task-id <id> --tab tab-N --respawn --prompt "…"`. Without
   `--respawn` that tab refuses with `TAB_RESTORED` rather than being re-run
-  behind your back — reviving replays the tab's recorded launch command when
-  it pinned no conversation id. A `send` that starts a fresh session while
+  behind your back — reviving a tab Rove holds no snapshot for replays its
+  frozen launch command, first prompt and all. A `send` that starts a fresh session while
   such tabs exist lists them in `frozenTabs`, so an automation is told the
   message did not reach the conversation it thought it did.
 

@@ -355,10 +355,12 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   `pty-list` with its scrollback and launch command intact, and it refuses
   with `TAB_RESTORED` until you pass `--respawn`. `--respawn` (valid only
   with `--tab tab-N`) revives that tab in place and then delivers, replying
-  `respawned: true`; a tab with a `sessionId` comes back on its own
-  conversation (`--resume <id>`), and a tab without one replays its recorded
-  launch command — which for claude carries the task's original first
-  prompt, so the flag is never implicit.
+  `respawned: true`. A tab with a `sessionId` comes back on its own
+  conversation (`--resume <id>`); a tab without one comes back on a fresh
+  conversation; a tab Rove holds no snapshot for replays its frozen launch
+  command, which for claude carries the task's original first prompt. That
+  last case is why the flag is never implicit. The prompt you send is always
+  pasted once the engine is up, never woven into the relaunch.
   When `send` STARTS a new session (`started: true`) while the task has
   freeze-restored engine tabs it did not use, the reply carries `frozenTabs`
   — `{tab, sessionId}` for each — because otherwise "opened a blank agent
