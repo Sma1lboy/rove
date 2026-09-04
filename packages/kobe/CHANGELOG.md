@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.9.123
+
+### Patch Changes
+
+- [#868](https://github.com/Sma1lboy/rove/pull/868) [`b5d8dfd`](https://github.com/Sma1lboy/rove/commit/b5d8dfd3c17d5ba691a0f39d9226055ce028c3a5) A prompt sent to a task whose engine has died is no longer executed as shell
+  commands. When an engine exits, keepAlive `exec`s a login shell in its place
+  and the PTY stays alive, so the session keeps matching the launch argv that
+  resolves a delivery target. `rove api dispatch` into such a tab returned
+  `delivered: true` — and zsh ran the text: with the engine killed and the
+  wrapper shell alive, `dispatch --prompt "touch /tmp/PROOF"` created the file.
+  The guard for this already existed and `send` already applied it; two of the
+  three delivery adapters did not, and the two without it are the ones the
+  routine runner and the quota-resume runner use. So a persistent-session
+  routine whose engine died overnight typed its daily prompt at a shell prompt,
+  unattended, and recorded the run as `dispatched`. Both now refuse: `dispatch`
+  returns `delivered: false, reason: "no-engine"` and broadcasts nothing, and a
+  routine treats it as the revive trigger it always was, recording `revived`.
+  Delivery into a live engine is unchanged.
+
+  `rove api send` also stops killing a fleet to deliver one message. An
+  unreachable pty host was reaped off a single 3-second probe — taking every
+  engine hosted on it — and the payload said nothing: measured, four processes
+  across three sessions became one, and `send` returned a bare `ok: true`. A
+  host whose PROCESS is alive now gets the same 15s grace the daemon path
+  already gives one, and a host still holding live sessions after it is refused
+  out loud instead of reaped. An idle-exited host is still resurrected silently,
+  which is what that path was for. — [@Sma1lboy](https://github.com/Sma1lboy) — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#868](https://github.com/Sma1lboy/rove/pull/868) [`b5d8dfd`](https://github.com/Sma1lboy/rove/commit/b5d8dfd3c17d5ba691a0f39d9226055ce028c3a5) `.running` on `get-task`, `collect` and `read-output` was wrong in both
+  directions, and both directions cost something.
+
+  It read `true` for a task whose engine was reaped hours earlier, because it
+  asked whether the PTY SESSION was alive and keepAlive keeps that alive on
+  purpose. It now joins the inventory with a live `ps` walk of each session's
+  tree — the same predicate delivery gates on — and every tab carries its own
+  `engineAlive`, so `alive: true, engineAlive: false` names a tab holding a bare
+  shell. Passing the task's own launch command means a custom engine (a wrapper
+  script no vendor table knows) still reads as running.
+
+  The other direction was the dangerous one: with the pty host merely
+  unreachable and four engines running, `get-task` and `collect` reported
+  `running: false` with every tab `alive: false`, and `read-output` warned "no
+  live terminal session". Connecting to a stopped host succeeds — only the
+  request fails — and that failure was being swallowed into an empty inventory.
+  `running` is now `true | false | null`, `alive` and `engineAlive` go `null`
+  alongside it, and `read-output` reports
+  `fallbackReason: "pty_host_unreachable"`. `null` means "could not look", never
+  "nothing is running"; an autonomous cleanup loop acting on the old `false`
+  would delete worktrees holding live work.
+
+  The daemon's engine-death observer also ran only while something was
+  subscribed to its event channel, which only an attached TUI ever is. Headless
+  callers therefore got `.activity: null` forever and not one `layer: "engine"`
+  exit record, however many engines died inside live PTYs in front of them.
+  Subscribers now choose the CADENCE rather than whether the loop runs: every
+  tick with one, every ~60s without. A daemon whose host owns no live sessions
+  still does no per-session work. — [@Sma1lboy](https://github.com/Sma1lboy) — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.122
 
 ### Patch Changes
