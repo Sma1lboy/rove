@@ -16,7 +16,9 @@ export function AdoptTab({ vm }: { vm: NewTaskVm }) {
   const t = useT()
 
   const rows = vm.adoptVisible.map((w) => {
-    const tags = [w.dirty ? "dirty" : "", w.kobeManaged ? "" : "external"].filter(Boolean).join(",")
+    // `dirty?` — the probe failed; not the same claim as a clean worktree.
+    const dirtyTag = w.dirty === true ? "dirty" : w.dirty === null ? "dirty?" : ""
+    const tags = [dirtyTag, w.kobeManaged ? "" : "external"].filter(Boolean).join(",")
     return {
       key: w.path,
       body: `${vm.adoptSelected.has(w.path) ? "[x] " : "[ ] "}${w.branch}${tags ? `  (${tags})` : ""}`,

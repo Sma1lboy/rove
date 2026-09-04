@@ -329,7 +329,14 @@ export function WorktreesPage(props: { orchestrator: RemoteOrchestrator | null; 
                           {row.branch || t("worktrees.row.detached")}
                         </text>
                         {row.kobeManaged ? <text fg={theme.textMuted}> {t("worktrees.badge.kobeManaged")}</text> : null}
-                        {row.dirty ? <text fg={theme.warning}> {t("worktrees.badge.dirty")}</text> : null}
+                        {row.dirty === true ? <text fg={theme.warning}> {t("worktrees.badge.dirty")}</text> : null}
+                        {/* `null` = the status probe FAILED. It reads as its own
+                            badge, not as the absence of "dirty": a worktree whose
+                            git answers "Permission denied" still holds whatever it
+                            held, and this row is where a user decides to delete it. */}
+                        {row.dirty === null ? (
+                          <text fg={theme.textMuted}> {t("worktrees.badge.dirtyUnknown")}</text>
+                        ) : null}
                         {remoteBadge(row.branchOnRemote)}
                         {verdictBadge(row)}
                         {busyPath === row.path ? <text fg={theme.textMuted}> …</text> : null}

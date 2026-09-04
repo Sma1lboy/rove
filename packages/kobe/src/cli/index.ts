@@ -289,7 +289,9 @@ async function runAdoptSubcommand(args: readonly string[]): Promise<void> {
   console.log(`adoptable worktrees in ${repo}:`)
   for (const w of worktrees) {
     const hit = glob ? (isMatch(w) ? "*" : " ") : "-"
-    const tags = [w.dirty ? "dirty" : "", w.kobeManaged ? "" : "external"].filter(Boolean).join(",")
+    // `dirty?` — the probe failed; not the same claim as a clean worktree.
+    const dirtyTag = w.dirty === true ? "dirty" : w.dirty === null ? "dirty?" : ""
+    const tags = [dirtyTag, w.kobeManaged ? "" : "external"].filter(Boolean).join(",")
     console.log(`  ${hit} ${w.branch}\t${w.path}${tags ? `  (${tags})` : ""}`)
   }
 

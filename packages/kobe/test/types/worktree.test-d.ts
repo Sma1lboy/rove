@@ -9,7 +9,9 @@ describe("WorktreeInfo", () => {
     expectTypeOf<WorktreeInfo["path"]>().toEqualTypeOf<string>()
     expectTypeOf<WorktreeInfo["branch"]>().toEqualTypeOf<string>()
     expectTypeOf<WorktreeInfo["head"]>().toEqualTypeOf<string>()
-    expectTypeOf<WorktreeInfo["dirty"]>().toEqualTypeOf<boolean>()
+    // Nullable on purpose: `null` = the status probe failed, and it must not
+    // collapse into `false` (clean) anywhere a user reads it.
+    expectTypeOf<WorktreeInfo["dirty"]>().toEqualTypeOf<boolean | null>()
   })
 
   it("rejects excess properties", () => {

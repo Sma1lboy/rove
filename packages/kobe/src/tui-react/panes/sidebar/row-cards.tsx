@@ -43,10 +43,12 @@ export function useSpinnerFrame(active: boolean): number {
  * poller cache (poll scheduled in an effect). The param is structural —
  * the tree's row props carry exactly the two fields it reads.
  */
+const NO_CHANGES: WorktreeChanges = { added: 0, deleted: 0 }
+
 export function useChanges(
   sources: { readonly branchTick: number; readonly worktreeChanges?: ReadonlyMap<string, WorktreeChanges> | null },
   task: SidebarRow["task"],
-): WorktreeChanges {
+): WorktreeChanges | null {
   const pushed = pickPushedChanges(sources.worktreeChanges, task.worktreePath)
   const hasPushed = pushed !== null
   useEffect(() => {
@@ -55,8 +57,17 @@ export function useChanges(
     if (hasPushed) return
     pollWorktreeChanges(task.worktreePath)
   }, [hasPushed, task.worktreePath, sources.branchTick])
+  // A row with NO worktree yet (task created, not yet materialized) has no
+  // uncommitted worktree work — that is a fact, not an unknown, so it draws no
+  // chip. Only a worktree that EXISTS and could not be read reads as unknown;
+  // otherwise every fresh task would wear a `?` while its job is still running,
+  // which the materializing spinner already says better.
+  if (!task.worktreePath) return NO_CHANGES
   return pushed ?? worktreeChanges(task.worktreePath)
 }
+
+/** Cells the unknown mark occupies — one, same as any single chip glyph. */
+export const UNKNOWN_CHANGES_MARK = "?"
 
 /** Right-edge git metrics stay one non-shrinking cluster while metadata takes
  * the flexible middle column. This keeps every row scannable at the same
@@ -75,8 +86,21 @@ export function useChanges(
  *
  * `↑`/`↓` are U+2191/U+2193 (Arrows) — single-width in every monospace font we
  * target, same coverage rule the `row-view.ts` glyph comments record. */
-export function ChangeStats(props: { readonly changes: WorktreeChanges }) {
+export function ChangeStats(props: { readonly changes: WorktreeChanges | null }) {
   const { theme } = useTheme()
+  // `null` = the git read failed or has not landed yet. It must NOT render
+  // like a clean row: hiding the cluster is what let an unreadable worktree
+  // read as "nothing uncommitted here" right before the user deleted it. A
+  // muted `?` says the counts are unknown — the same muted-tone vocabulary
+  // `prCheckChip` already uses for a value nothing is confirming any more,
+  // and `?` is free in the glyph set this cluster shares.
+  if (props.changes === null) {
+    return (
+      <text fg={theme.textMuted} wrapMode="none" flexShrink={0}>
+        {UNKNOWN_CHANGES_MARK}
+      </text>
+    )
+  }
   const ahead = props.changes.ahead ?? 0
   const behind = props.changes.behind ?? 0
   if (props.changes.added <= 0 && props.changes.deleted <= 0 && ahead <= 0 && behind <= 0) return null

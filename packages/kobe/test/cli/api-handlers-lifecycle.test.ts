@@ -64,7 +64,7 @@ describe("collect handler", () => {
     expect(result.tasks[0].changes).toEqual({ added: 2, deleted: 1 })
   })
 
-  it("skips changes for a task without a worktree", async () => {
+  it("reports changes as unknown, not clean, for a task without a worktree", async () => {
     const client = new FakeClient({ "task.get": () => ({ task: taskFixture({ worktreePath: "" }) }) })
     const result = (await invokeVerb("collect", ["--task-ids", "a"], {
       client,
@@ -77,7 +77,10 @@ describe("collect handler", () => {
         },
       }),
     })) as { tasks: Array<{ changes: unknown; base: unknown }> }
-    expect(result.tasks[0].changes).toEqual({ added: 0, deleted: 0 })
+    // `null`, matching the all-null `base` beside it: there was nothing to
+    // read. `{0,0}` would be a positive claim the caller acts on — the verb
+    // documents non-zero `changes` as "this attempt cannot land".
+    expect(result.tasks[0].changes).toBeNull()
     expect(result.tasks[0].base).toEqual({ baseRef: null, ahead: null, behind: null, diff: null })
   })
 

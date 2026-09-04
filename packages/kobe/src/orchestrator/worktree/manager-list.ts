@@ -132,8 +132,11 @@ export async function listManaged(deps: ListDeps, repo: string): Promise<readonl
     head: e.head,
     // A worktree can vanish between the porcelain snapshot and this probe, and
     // an unguarded throw here fails the WHOLE list — the entire sidebar goes
-    // dark over one stale row. Unknown reads as clean, like the sibling probe.
-    dirty: await deps.isDirty(e.probePath).catch(() => false),
+    // dark over one stale row. So the catch stays; what changed is its VALUE:
+    // `null` (unknown), never `false`. A worktree whose `git status` answers
+    // "Permission denied" holds whatever it held, and listing it as clean is
+    // the one answer that reads as safe to delete.
+    dirty: await deps.isDirty(e.probePath).catch(() => null),
   }))
 }
 
@@ -145,7 +148,10 @@ export async function listAllAdoptable(deps: ListDeps, repo: string): Promise<re
   // git spawns / ssh round-trips each, the slow part of this call.
   const infos = await mapWithLimit(adoptable, PROBE_CONCURRENCY, async (entry) => {
     const [dirty, activityMs] = await Promise.all([
-      deps.isDirty(entry.path).catch(() => false),
+      // Same as the sibling probe above: unknown is `null`, not clean.
+      deps
+        .isDirty(entry.path)
+        .catch(() => null),
       lastActivityMs(deps, ctx, entry.path),
     ])
     return {

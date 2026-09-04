@@ -84,7 +84,14 @@ export async function listWorktreeProjectsAdapter(network: boolean): Promise<Wor
           ])
           const judgement = judgeWorktree(
             {
-              dirty: worktree.dirty,
+              // The staleness cascade's `dirty` signal stays a boolean: an
+              // UNREADABLE probe reads as not-dirty here, exactly as it did
+              // before `dirty` grew a null. Safe because the destructive path
+              // does not consult this verdict — `manager-remove.ts` calls
+              // `isDirty` UNCAUGHT, so removing an unreadable worktree throws
+              // rather than proceeding. The honest `null` still reaches the
+              // row, which is where the user reads it.
+              dirty: worktree.dirty === true,
               prState: states?.get(worktree.branch) ?? null,
               aheadOfDefault: aheadBy,
               lastActivityMs: worktree.lastActivityMs,
