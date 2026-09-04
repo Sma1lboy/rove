@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.136
+
+### Patch Changes
+
+- [#882](https://github.com/Sma1lboy/rove/pull/882) [`8fcd73b`](https://github.com/Sma1lboy/rove/commit/8fcd73b2df3be556cd500be3242d08c0a7b0fead) `rove api agent-turns` now reports Codex turns. Codex's rollout records
+  `task_started`/`task_complete` with the turn id it assigns, plus the model and
+  per-request token deltas, so a Codex task's turns now carry model, wall-clock,
+  and tokens like Claude's. Its hook also reports session identity now — without
+  that the daemon had a turn to record and no transcript to read it from. Engines
+  with no turn reader still contribute nothing, and the verb says so rather than
+  returning a confident empty page. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#882](https://github.com/Sma1lboy/rove/pull/882) [`8fcd73b`](https://github.com/Sma1lboy/rove/commit/8fcd73b2df3be556cd500be3242d08c0a7b0fead) Plugin engines can declare `first_message_delivery` in their manifest. A CLI
+  whose first positional is a subcommand or a project directory died on its own
+  first prompt under the `"argv"` default, and the key that fixes it existed on
+  the registry but was unreachable from a manifest. An unknown value is now a
+  manifest error instead of a silent fallback to the broken default. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.135
 
 ### Patch Changes
