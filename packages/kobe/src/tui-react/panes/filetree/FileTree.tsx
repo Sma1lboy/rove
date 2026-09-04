@@ -59,8 +59,8 @@ import { useTheme } from "../../context/theme"
 import { useT } from "../../i18n"
 import { useBindings } from "../../lib/keymap"
 import { useLatest } from "../../lib/use-latest"
-import { FileTreeHeaderView } from "./header-view"
 import { FileTreeBodyView } from "./body-view"
+import { FileTreeHeaderView } from "./header-view"
 
 /** Public props. */
 export type FileTreeProps = {

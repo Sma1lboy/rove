@@ -13,6 +13,7 @@
 import type { TextRenderable } from "@opentui/core"
 import { StyledText } from "@opentui/core"
 import { useEffect, useMemo, useState } from "react"
+import { profileSpan, profileTick } from "../../../tui/lib/render-profile"
 import type { TerminalRow } from "../../../tui/panes/terminal/pty"
 import { rowsToStyledText } from "../../../tui/panes/terminal/sgr-to-text-chunk"
 import {
@@ -22,7 +23,6 @@ import {
   sealRowEndAttributes,
 } from "../../../tui/panes/terminal/terminal-render"
 import { type SelectionRange, overlaySelection } from "../../../tui/panes/terminal/terminal-selection"
-import { profileSpan, profileTick } from "../../../tui/lib/render-profile"
 
 export interface UseTerminalPaintOpts {
   readonly visibleRows: readonly TerminalRow[]
@@ -42,17 +42,21 @@ export interface UseTerminalPaintOpts {
 export function useTerminalPaint(opts: UseTerminalPaintOpts): (el: TextRenderable | null) => void {
   const { visibleRows, firstRow, cols, selection, paintMatches, cursor, focused, colors } = opts
 
-  const cursorRows = useMemo(() => profileSpan("overlay", () => {
-    const withSelection = overlaySelection(visibleRows, selection, firstRow, cols)
-    // Search hits paint OVER the selection: the two can coexist (a highlight
-    // survives until the next click), and the hit is what you are steering.
-    const withMatches = paintMatches(withSelection, firstRow, cols)
-    // While a selection is active, the synthetic cursor cell is hidden
-    // (tmux copy-mode behavior): cursor and selection share the same
-    // inverse styling, so a cursor sitting just past the selection read
-    // as the highlight overrunning by one blinking cell.
-    return overlayCursor(withMatches, focused && !selection ? cursor : null, colors)
-  }), [visibleRows, selection, firstRow, cols, paintMatches, cursor, focused, colors])
+  const cursorRows = useMemo(
+    () =>
+      profileSpan("overlay", () => {
+        const withSelection = overlaySelection(visibleRows, selection, firstRow, cols)
+        // Search hits paint OVER the selection: the two can coexist (a highlight
+        // survives until the next click), and the hit is what you are steering.
+        const withMatches = paintMatches(withSelection, firstRow, cols)
+        // While a selection is active, the synthetic cursor cell is hidden
+        // (tmux copy-mode behavior): cursor and selection share the same
+        // inverse styling, so a cursor sitting just past the selection read
+        // as the highlight overrunning by one blinking cell.
+        return overlayCursor(withMatches, focused && !selection ? cursor : null, colors)
+      }),
+    [visibleRows, selection, firstRow, cols, paintMatches, cursor, focused, colors],
+  )
 
   // Flatten every visible row into ONE `StyledText`. A single element (not
   // per-row `<text>`s) is what makes the cursor positioning math work: the

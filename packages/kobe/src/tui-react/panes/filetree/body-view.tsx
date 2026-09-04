@@ -71,7 +71,6 @@ export function FileTreeBodyView(props: {
       // React detach and reattach on every render, and each pair costs an extra
       // commit of the whole pane.
       ref={setScrollEl}
-     
       flexGrow={1}
       verticalScrollbarOptions={{ trackOptions: { foregroundColor: "transparent" } }}
     >

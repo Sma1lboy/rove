@@ -38,12 +38,7 @@
 import type { ScrollBoxRenderable } from "@opentui/core"
 import { useRenderer } from "@opentui/react"
 import { useCallback, useEffect, useState } from "react"
-
-/** Rows kept above and below the viewport so a one-line scroll never shows a gap. */
-const OVERSCAN = 16
-
-/** Rows rendered before the first layout has given the viewport a height. */
-const PRE_LAYOUT_ROWS = 64
+import { rowWindowRange } from "./row-window-range"
 
 export interface RowWindow {
   /** First row index to render. */
@@ -87,9 +82,6 @@ export function useRowWindow(opts: {
     }
   }, [renderer, sample])
 
-  if (rowCount === 0) return { start: 0, end: 0, sample }
-  if (view.height <= 0) return { start: 0, end: Math.min(rowCount, PRE_LAYOUT_ROWS), sample }
-  const start = Math.max(0, Math.floor(view.top) - OVERSCAN)
-  const end = Math.min(rowCount, Math.ceil(view.top + view.height) + OVERSCAN)
-  return { start, end: Math.max(start, end), sample }
+  const { start, end } = rowWindowRange(view.top, view.height, rowCount)
+  return { start, end, sample }
 }

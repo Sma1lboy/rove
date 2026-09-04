@@ -4,6 +4,7 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
+import { profileSpan, profileTick } from "../../lib/render-profile"
 import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
@@ -17,7 +18,6 @@ import {
 } from "./pty-types"
 import { XtermSnapshotEngine } from "./pty-xterm-snapshot"
 import { XtermRefreshTracker, wireXtermChannels, wireXtermDefaultColorQueries } from "./xterm-refresh"
-import { profileSpan, profileTick } from "../../lib/render-profile"
 
 export abstract class XtermTaskPty implements TaskPtyLike {
   readonly taskId: string
