@@ -175,6 +175,24 @@ describe("applyBoardAttention", () => {
     expect(attentionCount).toBe(3)
   })
 
+  test("a dead engine is an attention state — the board was the last surface that missed it", () => {
+    // `dead` = the engine PROCESS is gone (SIGKILL / OOM / a quota 403). It
+    // will never move again, so a card linked to one is blocked in exactly the
+    // sense this group exists for. `BOARD_ATTENTION_STATES` predates the state
+    // and was never extended, so the column read "1 needs input" while TWO
+    // tasks were stuck — and the killed one sat below the fold looking like
+    // ordinary work in progress. Every other surface already knew:
+    // `attentionKindFor` → error, `itemGlyph` → `†`, the sidebar rail and the
+    // tab strip both render it.
+    const states = new Map([
+      ["T1", "permission_needed"],
+      ["T2", "dead"],
+    ])
+    const { columns, attentionCount } = applyBoardAttention(base, (id) => states.get(id))
+    expect(inProgress(columns)).toEqual([2, 1, 3])
+    expect(attentionCount).toBe(2)
+  })
+
   test("empty board is a no-op", () => {
     const { columns, attentionCount } = applyBoardAttention(buildIssueBoard([]), () => "error")
     expect(columns.every((c) => c.issues.length === 0)).toBe(true)

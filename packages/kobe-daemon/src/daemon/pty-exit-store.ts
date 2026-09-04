@@ -23,7 +23,8 @@
  * its own fail-safe guard too.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { randomUUID } from "node:crypto"
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { defaultPtyExitsPath } from "./paths.ts"
 import type { PtySessionEndInfo } from "./pty-observability.ts"
@@ -93,15 +94,58 @@ export function engineExitCodeFromTail(tail: readonly string[]): number | null {
   return null
 }
 
-/** All records keyed by store key; empty on missing/corrupt file. */
-export function readPtyExitRecords(path = defaultPtyExitsPath()): Record<string, PtyExitRecord> {
+export interface PtyExitStoreRead {
+  readonly records: Record<string, PtyExitRecord>
+  /**
+   * - `ok` — parsed.
+   * - `absent` — no file yet, which is truthfully an empty store.
+   * - `unparsable` — bytes are there but are not a store. Only an overwrite
+   *   recovers from this, so {@link writeRecord} proceeds.
+   * - `unreadable` — the OS refused the read (EACCES, EMFILE, EIO). The
+   *   content is presumably intact and we simply do not know it, so nothing
+   *   may rewrite or prune against it.
+   */
+  readonly status: "ok" | "absent" | "unparsable" | "unreadable"
+  /** `status` is `ok` or `absent` — i.e. `records` is what is on disk. The
+   *  read/prune answer; {@link writeRecord} wants the finer `status`. */
+  readonly readable: boolean
+}
+
+/**
+ * All records keyed by store key, plus WHY the read came back the way it did.
+ *
+ * "No records" and "could not read" are different facts, and the callers that
+ * mutate state on this file must not confuse them: the watcher prunes its
+ * `seen` map against `records`, so treating a failed read as an empty file
+ * empties `seen` and re-fires every death on disk.
+ */
+export function readPtyExitStore(path = defaultPtyExitsPath()): PtyExitStoreRead {
+  const read = (status: PtyExitStoreRead["status"], records: Record<string, PtyExitRecord> = {}): PtyExitStoreRead => ({
+    records,
+    status,
+    readable: status === "ok" || status === "absent",
+  })
+  let raw: string
   try {
-    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"))
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {}
-    return parsed as Record<string, PtyExitRecord>
-  } catch {
-    return {}
+    raw = readFileSync(path, "utf8")
+  } catch (err) {
+    return read((err as NodeJS.ErrnoException).code === "ENOENT" ? "absent" : "unreadable")
   }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return read("unparsable")
+    return read("ok", parsed as Record<string, PtyExitRecord>)
+  } catch {
+    return read("unparsable")
+  }
+}
+
+/** All records keyed by store key; empty on missing/corrupt file. For
+ *  read-only consumers (`rove api inspect`, `get-task`) where "no records" and
+ *  "could not read" lead to the same rendering. Anything that WRITES or prunes
+ *  off this file must use {@link readPtyExitStore} instead. */
+export function readPtyExitRecords(path = defaultPtyExitsPath()): Record<string, PtyExitRecord> {
+  return readPtyExitStore(path).records
 }
 
 /**
@@ -182,15 +226,33 @@ export function recordEngineExit(info: EngineExitInfo, path = defaultPtyExitsPat
  * `pty` records, daemon for `engine` ones). An interleave loses a record;
  * add a lockfile if that is ever observed, not before — the writes are
  * seconds apart in practice and a lost record is what we had before.
+ *
+ * The write itself is tmp+rename, the sync twin of `json-file.ts`'s
+ * `writeJsonAtomic` (which is async, and this runs in the PTY host's node
+ * entry as well as the daemon). A plain `writeFileSync` truncates first, and
+ * with TWO writer processes the daemon's own watcher reads inside that window
+ * and sees an unparseable file — which used to resurrect every death on disk.
  */
 function writeRecord(storeKey: string, record: PtyExitRecord, path: string): void {
-  const records = readPtyExitRecords(path)
+  const store = readPtyExitStore(path)
+  // Refuse rather than rewrite the whole file from what we failed to read:
+  // that would silently drop up to MAX_RECORDS other deaths. Both callers
+  // wrap this in a fail-safe guard, so the cost is one lost record.
+  // `unparsable` is NOT refused: those bytes are already not a store, and
+  // overwriting is the only way back — refusing would wedge it forever.
+  if (store.status === "unreadable")
+    throw new Error(`pty-exits store is unreadable (${path}) — refusing to overwrite it`)
+  const records = store.records
   records[storeKey] = record
   const newest = Object.entries(records)
     .sort(([, a], [, b]) => (a.at < b.at ? 1 : -1))
     .slice(0, MAX_RECORDS)
   mkdirSync(dirname(path), { recursive: true })
+  // pid+uuid in the tmp name for the reason writeJsonAtomic carries them: a
+  // fixed `${path}.tmp` is shared state between the two writer processes.
+  const tmp = `${path}.tmp-${process.pid}-${randomUUID()}`
   // 0600: every record carries `plainTail` — the dying process's last output,
   // same class of content as the scrollback in pty-freeze-store.
-  writeFileSync(path, JSON.stringify(Object.fromEntries(newest), null, 2), { encoding: "utf8", mode: 0o600 })
+  writeFileSync(tmp, JSON.stringify(Object.fromEntries(newest), null, 2), { encoding: "utf8", mode: 0o600 })
+  renameSync(tmp, path)
 }

@@ -21,7 +21,18 @@ export function visitResolvedEpisodes(
   items: readonly AttentionInboxItem[],
   visit: { taskId: string; tabId: string | null },
 ): AttentionInboxItem[] {
-  return items.filter((item) => item.taskId === visit.taskId && (item.tabId === null || item.tabId === visit.tabId))
+  return items.filter(
+    (item) =>
+      // `prompt_expired` is exempt: every other episode DESCRIBES the target's
+      // current condition, so landing there is genuinely seeing it. An expired
+      // notice is a past-tense fact about text that is already gone — arriving
+      // at the tab tells you nothing about it, and resolving on visit would
+      // destroy the notice unread for the most likely case of all (you come
+      // back to the tab you left). It leaves on an explicit open or dismiss.
+      item.state !== "prompt_expired" &&
+      item.taskId === visit.taskId &&
+      (item.tabId === null || item.tabId === visit.tabId),
+  )
 }
 
 /**
@@ -274,8 +285,14 @@ export function nextAttentionInboxTarget(
 ): AttentionInboxItem | null {
   const liveTasks = new Set(taskOrder)
   const ordered = sortAttentionInbox(items, taskOrder).filter(
-    // A routine episode has no task to still be alive; the routine is.
-    (item) => (item.taskId === null || liveTasks.has(item.taskId)) && isAvailable(item),
+    // A routine episode's subject is the SCHEDULE, so a live task is not what
+    // makes it reachable — the same rule `isAttentionInboxItemAvailable` states,
+    // and opening one lands on the Routines page rather than on any task.
+    // Gating on a live task here made the episode that DOES name one (the
+    // firing created a task, its engine never started) visible in the pane and
+    // unreachable from F7 — listed, and skipped, forever.
+    (item) =>
+      (item.state === "routine_failed" || item.taskId === null || liveTasks.has(item.taskId)) && isAvailable(item),
   )
   if (ordered.length === 0) return null
   const currentKey = current.taskId === null ? null : attentionInboxItemKey(current)

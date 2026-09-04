@@ -19,18 +19,21 @@ import { afterEach, describe, expect, it, vi } from "vitest"
  * parked prompt sat on disk forever with a permanent `prompt_deferred` Inbox
  * row — `attentionInboxItemKey` gives that episode its own lane, so no later
  * turn on the tab cleared it either.
+ *
+ * The sweep now REPLACES that row rather than deleting it: `rove api send`
+ * exits 0 calling a deferral a success, so a silent delete a day later was the
+ * one outcome that guaranteed nobody ever learned the message never ran.
  */
 
-type DeleteEpisode = AttentionInboxStore["deleteEpisode"]
-type DeletedEpisode = Parameters<DeleteEpisode>
+type RecordExpired = AttentionInboxStore["recordPromptExpired"]
+type ExpiredEpisode = Parameters<RecordExpired>
 
-function fakeInbox(): { deleteEpisode: DeleteEpisode; deleted: DeletedEpisode[] } {
-  const deleted: DeletedEpisode[] = []
+function fakeInbox(): { recordPromptExpired: RecordExpired; expired: ExpiredEpisode[] } {
+  const expired: ExpiredEpisode[] = []
   return {
-    deleted,
-    async deleteEpisode(...args: DeletedEpisode) {
-      deleted.push(args)
-      return true
+    expired,
+    async recordPromptExpired(...args: ExpiredEpisode) {
+      expired.push(args)
     },
   }
 }
@@ -53,19 +56,20 @@ describe("deferred-prompt expiry sweep", () => {
 
   const base = { taskId: "task-1", tabId: "tab-1", prompt: "held text", layer: "composer-not-empty" as const }
 
-  it("drops a past-TTL record and its Inbox pointer", async () => {
+  it("drops a past-TTL record and leaves a dismissible trace in its place", async () => {
     const { store, path } = await create()
     const record = await store.file({ ...base, at: now })
     now += DEFERRED_PROMPT_TTL_MS + 1
 
     const inbox = fakeInbox()
-    const report = await sweepExpiredDeferredPrompts({ store, inbox })
+    const report = await sweepExpiredDeferredPrompts({ store, inbox, now: () => now })
 
     expect(report.expired).toEqual([record.id])
     expect(report.cleanupPending).toEqual([])
-    // The Inbox pointer goes with it: the row is keyed by the deferred id in
-    // its own `prompt_deferred` lane, so nothing else would ever clear it.
-    expect(inbox.deleted).toEqual([["task-1", "tab-1", undefined, "prompt_deferred", record.id]])
+    // The row is REPLACED, not deleted. The report below goes to a log line
+    // and nowhere else, so this episode is the only thing that ever tells a
+    // human the message they were told was queued was destroyed undelivered.
+    expect(inbox.expired).toEqual([["task-1", "tab-1", record.id, now]])
     // …and the record is gone from disk, not just from the in-memory list.
     expect(JSON.parse(await readFile(path, "utf8")).records).toEqual([])
   })
@@ -83,12 +87,12 @@ describe("deferred-prompt expiry sweep", () => {
     const report = await sweepExpiredDeferredPrompts({ store, inbox })
 
     expect(report.expired).toEqual([])
-    expect(inbox.deleted).toEqual([])
+    expect(inbox.expired).toEqual([])
     expect(JSON.parse(await readFile(path, "utf8")).records).toHaveLength(1)
     expect(await store.get(record.id)).not.toBeNull()
   })
 
-  it("reports a record whose Inbox deletion failed instead of orphaning the row", async () => {
+  it("reports a record whose Inbox rewrite failed instead of orphaning the row", async () => {
     const { store } = await create()
     const record = await store.file({ ...base, at: now })
     now += DEFERRED_PROMPT_TTL_MS + 1
@@ -96,7 +100,7 @@ describe("deferred-prompt expiry sweep", () => {
     const report = await sweepExpiredDeferredPrompts({
       store,
       inbox: {
-        deleteEpisode: async () => {
+        recordPromptExpired: async () => {
           throw new Error("inbox write failed")
         },
       },
@@ -122,7 +126,7 @@ describe("deferred-prompt expiry sweep", () => {
     // that went stale while it was down.
     const stop = startDeferredPromptSweep({ store, inbox }, DEFAULT_DEFERRED_SWEEP_TICK_MS)
     try {
-      await vi.waitFor(() => expect(inbox.deleted).toHaveLength(1))
+      await vi.waitFor(() => expect(inbox.expired).toHaveLength(1))
       expect(await store.get(record.id)).toBeNull()
     } finally {
       stop()

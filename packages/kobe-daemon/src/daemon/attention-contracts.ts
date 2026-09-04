@@ -54,6 +54,16 @@ export interface EngineActivityDetail {
   readonly deferredPrompt?: {
     readonly id: string
     readonly layer: "recent-human-write" | "composer-not-empty"
+    /**
+     * Epoch ms at which the sweep destroys the held text
+     * (`record.at + DEFERRED_PROMPT_TTL_MS`). Copied onto the episode because
+     * the row is the only place a human meets this record, and `rove api
+     * deferred-list` already publishes the same number — the API half promised
+     * a deadline the screen half could not show. Absent on episodes written
+     * before this field existed; the row then shows no deadline rather than a
+     * guessed one.
+     */
+    readonly expiresAt?: number
   }
   /**
    * The routine behind a `routine_failed` episode. A schedule is the one thing
@@ -101,6 +111,12 @@ export const ATTENTION_INBOX_STATES = [
   /** The engine PROCESS died (pty-host exit record). An episode a user must
    *  see: nothing else in the queue tells them the agent is simply gone. */
   "dead",
+  /** The daemon destroyed a held prompt at its TTL without delivering it.
+   *  `rove api send` returned exit 0 and called the deferral a success, so
+   *  deleting the row on expiry was the one outcome that guaranteed nobody
+   *  ever learned the message did not run. Shares the `prompt_deferred` lane
+   *  (see {@link attentionInboxItemKey}) because it REPLACES that episode. */
+  "prompt_expired",
   /** A routine's latest firing needs a human (see
    *  {@link automationRunNeedsAttention}). The only episode whose subject is
    *  not a task: a routine pointed at a repo that moved never creates one, so
@@ -132,14 +148,29 @@ export function attentionInboxItemKey(item: {
   // a human's text and this episode is the only pointer to it, so sharing the
   // tab's single slot lets the target's next turn silently orphan the record
   // — stored prompts with nothing in the inbox pointing at them.
-  const lane = item.state === "prompt_deferred" ? "\0deferred" : ""
+  // `prompt_expired` shares the lane it replaces: the expired notice takes
+  // the deferred episode's slot in place, and `attention.dismiss` reaches it
+  // through the same key.
+  const lane = item.state === "prompt_deferred" || item.state === "prompt_expired" ? "\0deferred" : ""
   return `${item.taskId}\0${item.tabId ?? ""}${lane}`
 }
 
 /** One daemon-owned, durable attention episode for a task's engine tab. */
 export interface AttentionInboxItem {
-  /** `null` for a `routine_failed` episode, whose subject is a schedule and
-   *  which may have produced no task at all. */
+  /**
+   * `null` only for a `routine_failed` episode, whose subject is a schedule
+   * and which may have produced no task at all.
+   *
+   * A routine episode MAY still name a task: a firing that created one and
+   * then failed to start its engine carries that id, because
+   * `automation-dispatch.ts` keeps it as the only handle a human has on the
+   * half-built task. Its SUBJECT is the routine either way — which is why
+   * every reader keys, filters, opens and reaches a routine episode by the
+   * routine (`attentionInboxItemKey`, `isAttentionInboxItemAvailable`,
+   * `nextAttentionInboxTarget`, the Inbox pane's open action) and never by
+   * the task. A reader that demands `null` here rejects the episode the
+   * daemon actually produces.
+   */
   readonly taskId: string | null
   /** `null` for hook events that predate or lack a tab identity. */
   readonly tabId: string | null

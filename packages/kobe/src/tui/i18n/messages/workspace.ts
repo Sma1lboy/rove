@@ -67,12 +67,22 @@ export const en = {
       dead: "engine exited",
       /** A peer/API message accepted by the daemon but not yet pasted. */
       promptDeferred: "message queued",
+      /** A queued message the daemon destroyed at its TTL, undelivered. */
+      promptExpired: "message expired",
       /** A routine whose latest firing needs a human. */
       routineFailed: "routine needs you",
     },
     /** Rate-limited card's context line: when the armed auto-resume fires.
      *  `{time}` is a locale-formatted clock time. */
     resumesAt: "resumes {time}",
+    /** Queued-message card's context line: how long before the daemon drops
+     *  the text undelivered. `{in}` is a compact duration ("47m", "23h"). */
+    expiresIn: "expires in {in}",
+    /** Same line once the deadline has passed — the hourly sweep has not run
+     *  yet, so the text is still there, and only just. */
+    expiringNow: "expiring now",
+    /** Expired-message card's context line. */
+    expiredNote: "never delivered",
     /** Toast title when a message is deferred because the composer was busy. */
     deferredToast: "Message queued — composer busy",
     /** Insert feedback: the A/C gate still blocked at release time. */
@@ -131,9 +141,14 @@ export const zh: typeof en = {
       dead: "引擎已退出",
       /** peer/API 消息已被 daemon 受理但尚未插入。 */
       promptDeferred: "消息已排队",
+      /** 排队的消息到期被 daemon 丢弃，从未送达。 */
+      promptExpired: "消息已过期",
       routineFailed: "例行任务需要处理",
     },
     resumesAt: "{time} 恢复",
+    expiresIn: "{in} 后过期",
+    expiringNow: "即将过期",
+    expiredNote: "从未送达",
     /** composer 忙、消息被受理延后的 toast 标题。 */
     deferredToast: "消息已排队——composer 正忙",
     /** 插入反馈：放行那一刻 A/C 闸门仍拦住。 */

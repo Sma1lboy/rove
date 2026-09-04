@@ -63,7 +63,13 @@ async function fileWithInbox(
   // This commit is intentionally retried for an occupied slot. A daemon can
   // die after the deferred record rename but before the Inbox rename; the
   // next filing reconstructs the pointer instead of stranding the text.
-  await ctx.inbox.recordPromptDeferred(record.taskId, record.tabId, record.id, record.layer)
+  await ctx.inbox.recordPromptDeferred(
+    record.taskId,
+    record.tabId,
+    record.id,
+    record.layer,
+    record.at + DEFERRED_PROMPT_TTL_MS,
+  )
   return { kind, record }
 }
 

@@ -6,9 +6,9 @@
  * the warm spare must never pollute the file.
  */
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { plainTail, readPtyExitRecords, recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
 
@@ -110,6 +110,33 @@ describe("pty exit store", () => {
     expect(readPtyExitRecords(path)["t1::tab-1"]).toBeDefined()
     // And the file itself is valid JSON again.
     expect(() => JSON.parse(readFileSync(path, "utf8"))).not.toThrow()
+  })
+
+  it("replaces the file by rename, so a concurrent reader never sees it truncated", () => {
+    // TWO processes write this store (the PTY host's exit hook and the
+    // daemon's activity observer) while a THIRD — the daemon's own
+    // pty-exit-watch — reads it. `writeFileSync` truncates first, and a read
+    // inside that window came back unparsable, which emptied the watcher's
+    // `seen` map and resurrected every death on disk. tmp+rename removes the
+    // window: the inode a reader holds is never the one being written, so a
+    // rewrite must swap in a NEW inode rather than refill the old one.
+    recordPtyExit(endInfo({ exit: { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z" } }), path)
+    const first = statSync(path).ino
+    recordPtyExit(endInfo({ key: "t1::tab-2", exit: { code: 1, signal: null, at: "2026-08-11T01:00:00.000Z" } }), path)
+    expect(statSync(path).ino).not.toBe(first)
+    // …and the tmp file does not linger beside it.
+    expect(readdirSync(dirname(path))).toEqual(["pty-exits.json"])
+  })
+
+  it("refuses to rewrite a store it could not READ, but still recovers a corrupt one", () => {
+    // Unreadable (EISDIR here; EACCES/EMFILE in the wild) means the records
+    // are presumably intact and we do not know them — rewriting would drop up
+    // to MAX_RECORDS other deaths. Unparsable means the bytes are already not
+    // a store, so overwriting is the only way back (pinned above).
+    const walled = join(mkdtempSync(join(tmpdir(), "kobe-pty-exits-walled-")), "pty-exits.json")
+    mkdirSync(walled)
+    expect(() => recordPtyExit(endInfo(), walled)).toThrow(/unreadable/)
+    expect(statSync(walled).isDirectory()).toBe(true)
   })
 
   it("plainTail honors CR overwrites, drops trailing blanks, and bounds the tail", () => {

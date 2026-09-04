@@ -83,7 +83,18 @@ async function readStore(path: string): Promise<AttentionInboxItem[]> {
     if (!Array.isArray(parsed.items)) return []
     return parsed.items.map(normalizeItem).filter((item): item is AttentionInboxItem => item !== null)
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return []
+    const code = (err as NodeJS.ErrnoException).code
+    // Nothing CAN be there: no file (ENOENT), or a path component that is not
+    // a directory (ENOTDIR — broken config, and the write will fail too).
+    if (code === "ENOENT" || code === "ENOTDIR") return []
+    // An I/O failure is not an empty queue. Returning `[]` published an
+    // authoritative "nothing needs you" AND made memory the source of truth,
+    // so the next `commit()` rewrote the whole file from an empty map — one
+    // transient EACCES/EMFILE/EIO permanently destroyed the queue. Re-throw,
+    // the shape `deferred-prompts-store.ts` already uses; only errors that
+    // carry an errno are I/O. A `SyntaxError` from genuinely malformed JSON
+    // has none and still reads as empty, which is the recorded decision.
+    if (code !== undefined) throw err
     logDaemonError("attention-inbox-load", err)
     return []
   }
@@ -96,6 +107,10 @@ async function writeStore(path: string, items: readonly AttentionInboxItem[]): P
 
 export class AttentionInboxStore {
   private readonly items = new Map<string, AttentionInboxItem>()
+  /** False until one read of the file SUCCEEDED. Every write rewrites the
+   *  document whole, so committing before that would publish an empty map as
+   *  the new truth — see the guard in {@link commit}. */
+  private loaded = false
 
   constructor(
     private readonly path: string,
@@ -105,8 +120,10 @@ export class AttentionInboxStore {
 
   async init(): Promise<void> {
     await this.enqueue(async () => {
+      const items = await readStore(this.path)
       this.items.clear()
-      for (const item of await readStore(this.path)) this.items.set(attentionInboxItemKey(item), item)
+      for (const item of items) this.items.set(attentionInboxItemKey(item), item)
+      this.loaded = true
       this.publish()
     })
   }
@@ -195,6 +212,7 @@ export class AttentionInboxStore {
     tabId: string,
     deferredId: string,
     layer: "recent-human-write" | "composer-not-empty",
+    expiresAt?: number,
   ): Promise<void> {
     await this.enqueue(async () => {
       const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_deferred" })
@@ -204,9 +222,46 @@ export class AttentionInboxStore {
         taskId,
         tabId,
         state: "prompt_deferred",
-        detail: { deferredPrompt: { id: deferredId, layer } },
+        detail: { deferredPrompt: { id: deferredId, layer, ...(expiresAt === undefined ? {} : { expiresAt }) } },
         unread: true,
         at: this.now(),
+      })
+      await this.commit(next)
+    })
+  }
+
+  /**
+   * Replace a `prompt_deferred` episode with the notice that its text was
+   * destroyed undelivered.
+   *
+   * The expiry sweep used to just delete the row. `rove api send` had already
+   * exited 0 calling the deferral a success and the sender's session was long
+   * gone, so a silent delete meant NOBODY ever learned the message did not
+   * run. Same key as the episode it replaces (`prompt_expired` shares the
+   * deferred lane), so this is an in-place swap and the user still dismisses
+   * it the way they dismiss anything else.
+   */
+  async recordPromptExpired(taskId: string, tabId: string, deferredId: string, at: number): Promise<void> {
+    await this.enqueue(async () => {
+      const key = attentionInboxItemKey({ taskId, tabId, state: "prompt_expired" })
+      const previous = this.items.get(key)
+      const next = new Map(this.items)
+      next.delete(key)
+      next.set(key, {
+        taskId,
+        tabId,
+        state: "prompt_expired",
+        // The layer is carried over so the row still says which gate held the
+        // text; the id keeps the episode addressable by the same RPCs.
+        detail: {
+          deferredPrompt: {
+            id: deferredId,
+            layer: previous?.detail?.deferredPrompt?.layer ?? "composer-not-empty",
+            expiresAt: at,
+          },
+        },
+        unread: true,
+        at,
       })
       await this.commit(next)
     })
@@ -323,6 +378,11 @@ export class AttentionInboxStore {
 
   /** Serialize mutations so concurrent hook/RPC writes cannot clobber the file. */
   private async commit(next: ReadonlyMap<string, AttentionInboxItem>): Promise<void> {
+    // Never write a file we could not read. `init()` leaves this false when
+    // the load threw (its caller logs and carries on), and every commit
+    // rewrites the document whole — so writing here would turn a recoverable
+    // read blip into the permanent deletion of every pending episode.
+    if (!this.loaded) throw new Error(`attention inbox never loaded (${this.path}) — refusing to overwrite it`)
     // Sorted ascending by `at`, so the tail is the newest — prune-oldest.
     const items = [...next.values()].sort(compareItems).slice(-MAX_EPISODES)
     await writeStore(this.path, items)
