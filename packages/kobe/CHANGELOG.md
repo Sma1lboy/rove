@@ -1,5 +1,64 @@
 # Changelog
 
+## 0.9.148
+
+### Patch Changes
+
+- [#899](https://github.com/Sma1lboy/rove/pull/899) [`4f65482`](https://github.com/Sma1lboy/rove/commit/4f6548235b6b30bd49addad6ea622a0da2464157) A working terminal no longer rewrites its whole scrollback to disk every five seconds
+
+  Each hosted PTY session keeps a 512KB ring of scrollback, and persisting it re-encodes and rewrites the entire ring — about 683KB of base64 — however few bytes actually moved. Engines repaint their status line at least once a second while a turn runs, so every session with an agent working in it was doing that twelve times a minute. Measured against real engine output (389-928 bytes a second, sampled from live sessions), that is 2.3 MB/s across 18 working sessions and 0.17 TB written per day; at 200 sessions, 25.6 MB/s.
+
+  A periodic freeze now waits until the session has actually produced 64KB, or a minute has passed, whichever comes first. Measured on the same fleet: 0.21 MB/s at 18 sessions (0.015 TB/day), 0.58 at 50, 2.33 at 200 — an 11x cut. A session that really does emit a lot, such as a build log, still writes on the same five-second floor as before.
+
+  What this trades: a host that dies without warning — a crash, a reboot, a `kill -9` — now loses up to a minute of the very end of a terminal's scrollback instead of up to five seconds. Every exit, rename and graceful shutdown still writes in full, and the engine's own `--resume` carries the conversation either way. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#899](https://github.com/Sma1lboy/rove/pull/899) [`4f65482`](https://github.com/Sma1lboy/rove/commit/4f6548235b6b30bd49addad6ea622a0da2464157) An idle fleet forks a third as many `git status` processes
+
+  The daemon polls `git status` per worktree to draw the sidebar's `+N −M` chips. A fingerprint of the git metadata already relaxes that poll for a worktree nothing has touched, but the floor under it was 15 seconds — so a fully idle fleet still forked 18 processes per worktree every 5 minutes to confirm nothing had changed. Measured at both 20 and 50 worktrees, which is flat per worktree and therefore linear: about 3600 processes per 5 minutes at 200 worktrees.
+
+  The floor is now a minute. Measured on the same fleet: 360 → 100 processes per 5 minutes at 20 worktrees, 900 → 250 at 50.
+
+  Nothing you watch goes stale for it. A worktree whose git metadata moves, or whose engine is working, still drops to the fast cadence on the very next tick: measured, an idle worktree polled zero times in 30 seconds and then polled 1 second after a file appeared in it. The ahead/behind half of the chip rides ref files the fingerprint sees directly. What can now lag by up to a minute is the changed-file count for a file created in a subdirectory, by hand, in a worktree with no engine running. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#900](https://github.com/Sma1lboy/rove/pull/900) [`bc6c972`](https://github.com/Sma1lboy/rove/commit/bc6c9724e5c8690473c4387c9e085bf132125165) Copying a soft-wrapped terminal line pastes as one line, and search can find text that straddles the wrap
+
+  The terminal snapshot builds one row per GRID row and never read xterm's
+  `isWrapped`, so a line the emulator broke across columns arrived downstream as
+  several unrelated rows. Two things a user does constantly fell out of that.
+  Drag-selecting a path out of a build log copied
+  `…/packages\n/kobe/src/…\narch.ts:41:9` — three broken shell commands where one
+  path was selected. And the `/` scrollback search, which ran `indexOf` per row,
+  reported `no matches` for a needle spanning the break: a confident negative for
+  text visible two rows above the query. xterm.app, iTerm2 and tmux all rejoin
+  soft-wrapped rows; Rove was the outlier.
+
+  The flags now travel with the snapshot, and both consumers group rows into
+  logical lines from them. The highlight is unchanged — you selected two visual
+  rows and still see two highlighted rows; only the extraction joins. A search hit
+  across a wrap is a multi-row range, which the existing paint already handles.
+
+  **Clipboard writes now report whether anything was copied.**
+  `copyTextToSystemClipboard` returned `void` and discarded both channels'
+  answers: the local pipe's exit status was never read (a missing command exits
+  127 without throwing; `xclip` with no `$DISPLAY` passes the `which` probe and
+  then fails), and OSC 52's boolean could not survive a `(text) => void`
+  signature. So on a headless box with no `wl-copy`/`xclip`/`xsel`, in a terminal
+  that refuses OSC 52, **Copy branch name** toasted `Copied branch feat/whatever`
+  over an untouched clipboard. It now says it could not reach a clipboard, and the
+  pane's copy-on-select — silent on success, as it should be — speaks on failure.
+  Windows also gets a local clipboard command for the first time (`clip`, then
+  PowerShell's `Set-Clipboard`): the `where` probe written for it was unreachable
+  behind a platform check that returned null, leaving OSC 52 as its only channel.
+
+  **The parked search hit no longer drifts out from under its counter.** The hit
+  you walked to was remembered as a position in the match array, which a
+  scrollback trim renumbers — the counter kept reading `3/5` while the accent
+  highlight had moved to a different occurrence, and `enter` walked on from the
+  wrong place. It is now remembered by absolute line id, re-derived each frame,
+  falling forward to the next surviving hit when that line is trimmed and dropped
+  outright when a resize resets line numbering — the same discipline
+  `followWindowShift` already applies to a selection. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.147
 
 ### Patch Changes
