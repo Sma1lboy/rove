@@ -61,6 +61,31 @@ describe("pty exit store", () => {
     expect(records["t1::tab-2"]).toMatchObject({ code: null, signal: null })
   })
 
+  it("recovers the engine's exit code from the wrapper banner when the OS gave none", () => {
+    // A SIGKILLed session has no wait-status code, but the wrapper printed
+    // the engine's own — the record used to report null beside a tail that
+    // spelled the number out.
+    recordPtyExit(
+      endInfo({
+        exit: { code: null, signal: "SIGKILL", at: "2026-08-11T00:00:00.000Z" },
+        tail: "zsh: terminated  fakeengine hello\r\n  \u26a0 Engine exited (code 143). Check Settings.\r\n",
+      }),
+      path,
+    )
+    expect(readPtyExitRecords(path)["t1::tab-1"]).toMatchObject({ code: 143, signal: "SIGKILL", layer: "pty" })
+  })
+
+  it("never overrides a real wait-status code with the banner's", () => {
+    recordPtyExit(
+      endInfo({
+        exit: { code: 2, signal: null, at: "2026-08-11T00:00:00.000Z" },
+        tail: "  \u26a0 Engine exited (code 143). Check Settings.\r\n",
+      }),
+      path,
+    )
+    expect(readPtyExitRecords(path)["t1::tab-1"]?.code).toBe(2)
+  })
+
   it("newest record per key wins, and the file caps at the 50 newest", () => {
     recordPtyExit(endInfo({ exit: { code: 1, signal: null, at: "2026-08-11T00:00:00.000Z" } }), path)
     recordPtyExit(endInfo({ exit: { code: 137, signal: null, at: "2026-08-11T01:00:00.000Z" } }), path)

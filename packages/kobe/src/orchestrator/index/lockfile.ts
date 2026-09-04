@@ -134,12 +134,27 @@ export async function acquire(lockPath: string, opts: LockfileOptions = {}): Pro
       `[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}` +
         `${alive ? ", forced" : ", process gone"})`,
     )
-    try {
-      await unlink(lockPath)
-    } catch (err) {
-      // Race: another acquirer also unlinked. ENOENT is fine here.
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-    }
+    // Delete only the lock we JUDGED. An unconditional unlink here was the
+    // whole bug: between our read of `holder` and this line a rival can win
+    // the takeover and link its own lock in, and unlinking that admits a
+    // second holder into the critical section. `releaseSync` is that check —
+    // re-read, unlink only on a byte-identical match — so a lock that
+    // changed hands is left alone and the next loop rejects against it.
+    //
+    // SYNC on purpose inside an async function: the async `release` awaits
+    // between its read and its unlink, and that await is a scheduling point
+    // a rival's entire takeover fits inside, so the verify still passed for
+    // two acquirers at once (measured: N=50 concurrent acquires still
+    // produced 2-5 double owners per 20 rounds). Nothing in this process can
+    // interleave the sync pair.
+    //
+    // ponytail: cross-process this is two back-to-back syscalls, not an
+    // atomic compare-and-unlink — POSIX has no unlink-if-unchanged, and the
+    // constructions that emulate one (a second "steal" lockfile) deadlock
+    // takeover the moment their own holder is killed, which is the exact
+    // event this whole path exists to recover from. Pay for one only if a
+    // cross-process double takeover is ever OBSERVED.
+    releaseSync(lockPath, holder)
   }
 }
 
@@ -217,13 +232,11 @@ export function acquireSync(lockPath: string, timeoutMs = 5_000): string {
       continue
     }
     // Stale holder — same takeover as the async path, warned for the same
-    // reason (a silent takeover in a concurrent context is scary).
+    // reason (a silent takeover in a concurrent context is scary), and
+    // verified for the same reason: never unlink a lock that changed hands
+    // since we judged it.
     console.warn(`[rove] removing stale lockfile at ${lockPath} (was held by pid ${holderPid}, process gone)`)
-    try {
-      unlinkSync(lockPath)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
-    }
+    releaseSync(lockPath, holder)
   }
 }
 

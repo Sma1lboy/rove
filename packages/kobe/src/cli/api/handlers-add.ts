@@ -187,6 +187,9 @@ async function addOne(ctx: VerbContext, repo: string): Promise<unknown> {
     delivered: delivered.delivered,
     ...(delivered.bytes === undefined ? {} : { bytes: delivered.bytes }),
     ...(delivered.promptEcho ? { promptEcho: delivered.promptEcho } : {}),
+    // Only set when nothing confirmed the engine — say WHY rather than
+    // leaving `engineReady: false` to be read as a bare failure.
+    ...(delivered.reason ? { reason: delivered.reason } : {}),
     ...(delivered.deferred ? { deferred: delivered.deferred } : {}),
     ...(promptPersisted ? {} : { promptPersisted: false }),
   }
@@ -359,6 +362,7 @@ async function addParallel(
         started: r.value.started,
         engineReady: r.value.engineReady,
         session: r.value.session,
+        ...(r.value.reason ? { reason: r.value.reason } : {}),
         ...(r.value.deferred ? { deferred: r.value.deferred } : {}),
       }
       tasks.push(row)

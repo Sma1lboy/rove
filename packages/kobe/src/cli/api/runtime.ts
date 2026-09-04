@@ -125,8 +125,20 @@ async function deliverHosted(
     // the prompt never reached it. `engineReady` does NOT stand in for that —
     // it is an independent readiness observation, and an engine that never
     // announced bracketed paste can still have been written to.
+    //
+    // The task and its worktree EXIST by now, so the refusal has to name them:
+    // an unattended fan-out that only reads the message would otherwise lose
+    // the id of a task it just created, and every failed launch in the batch
+    // would look identical. `reason` is the session's own last line.
     if (result.started && !result.delivered && !result.deferred) {
-      throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED")
+      throw new ApiError(`failed to start hosted engine session for ${target.id}`, "SESSION_FAILED", {
+        taskId: target.id,
+        session: result.session,
+        engineReady: result.engineReady,
+        ...(result.reason ? { reason: result.reason } : {}),
+        hint: "the session was created but no engine ran in it — fix the task's launch command (`api update --command`), then retry with `api send --tab new`",
+        nextCommandArgs: ["api", "read-output", "--task-id", target.id, "--source", "terminal"],
+      })
     }
     // Make the session visible to the sidebar tree, which lists a worktree's
     // tabs from the task's persisted snapshot. Without this a CLI-started
