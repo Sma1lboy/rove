@@ -226,6 +226,10 @@ describe("runDoctorSubcommand", () => {
     expect(output()).toContain("WEDGED")
     expect(output()).toMatch(/(rove|kobe) reset/)
     expect(output()).not.toContain("starts on demand")
+    // The label must name the condition that actually fired. "unreachable or
+    // not running" read as true either way, including in the cold case above
+    // where doctor now (correctly) proposes nothing at all.
+    expect(output()).toContain("the PTY host process is alive but its socket is unreachable (wedged)")
   })
 
   it("--report writes a bundle file and points the user at it", async () => {
