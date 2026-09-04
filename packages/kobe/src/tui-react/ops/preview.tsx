@@ -99,6 +99,7 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     // footer says so, so the absence reads as a rule.
     review: combined ? undefined : props.review,
     relPath: props.relPath,
+    worktree: props.worktree,
     diffText: data?.kind === "diff" ? data.text : null,
     focused: props.focused ?? true,
     diffRef,

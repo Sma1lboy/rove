@@ -151,6 +151,23 @@ change touches that path:
 cd packages/kobe-harness && bun run test   # test/pty-spec.test.ts covers fetchSpec directly
 ```
 
+### `shift+<letter>` is pressed as the uppercase letter
+
+`visual:shot`'s `shift+d` token presses `D`, not Shift-held-over-`d`. Through
+Playwright → xterm.js the held modifier is dropped and the PTY receives a bare
+`d`, so before this was fixed **every `shift+<letter>` chord measured through
+the harness silently read as its unshifted twin** — `shift+g` (jump to bottom)
+looked like a dead key, and `shift+d` looked like it was firing `d`'s action.
+The probe that pins it: open the rename dialog and send `shift+q shift+w`. The
+field must read `QW`; `qw` means the transport is eating Shift again.
+
+A real terminal sends `0x44` for Shift+D and opentui's parser turns that back
+into `{name:"d", shift:true}` (`s >= "A" && s <= "Z"` → `key.name =
+s.toLowerCase(); key.shift = true`), which is exactly what pressing `D`
+reproduces. Chords with a second modifier (`ctrl+shift+x`) are NOT covered by
+this and remain unmeasurable here — legacy terminals send them as the same C0
+byte as the unshifted chord anyway.
+
 ### README and docs assets
 
 Marketing stills and the demo video ride that same `/harness` path, against a
