@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.9.121
+
+### Patch Changes
+
+- [#866](https://github.com/Sma1lboy/rove/pull/866) [`af70a32`](https://github.com/Sma1lboy/rove/commit/af70a324094585ebbae3eecfd0b20dd20073da1e) A failed subcommand is reported as itself, not as a failed launch.
+
+  Every uncaught subcommand error was prefixed `rove failed to start:`, which is
+  false for everything that started fine and then failed doing its job. Running
+  `rove adopt` outside a repository printed the raw git invocation with it:
+
+  ```
+  rove failed to start: git worktree list --porcelain (cwd=/private/tmp) exited with code 128: fatal: not a git repository (or any of the parent directories): .git
+  ```
+
+  It now names the command that failed and says what to do, matching the prefix
+  the subcommands that handle their own errors already print:
+
+  ```
+  rove adopt: /private/tmp is not a git repository — run this inside one, or pass a repo path.
+  ```
+
+  `KOBE_DEBUG=1` still prints the raw throw, argv and all, so bug reports lose
+  nothing. Unrecognized messages pass through verbatim rather than being
+  flattened into a guess. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#866](https://github.com/Sma1lboy/rove/pull/866) [`af70a32`](https://github.com/Sma1lboy/rove/commit/af70a324094585ebbae3eecfd0b20dd20073da1e) `doctor.fix.resetPty` names the condition that actually fired.
+
+  The label read "the PTY host is unreachable or not running" — two conditions,
+  so it was true whichever one produced it. Since a host that is merely not
+  running no longer proposes anything, the surviving case is the other one, and
+  the label now says so: "the PTY host process is alive but its socket is
+  unreachable (wedged)". It matches the shape of `resetDaemonWedged`, which was
+  already specific. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#866](https://github.com/Sma1lboy/rove/pull/866) [`af70a32`](https://github.com/Sma1lboy/rove/commit/af70a324094585ebbae3eecfd0b20dd20073da1e) The force-delete confirm stops overstating the danger.
+
+  Both force-delete confirms said uncommitted work would be `PERMANENTLY LOST`.
+  It is not: every force path snapshots the worktree to `refs/rove/salvage/…`
+  before `git worktree remove --force` runs. Warning about a loss the product is
+  about to prevent pushes people to cancel a safe operation, and teaches them to
+  discount the warnings that are real.
+
+  Both sites now share one wording that names the snapshot and the command that
+  lists it (`git for-each-ref refs/rove/salvage`) — one event described once,
+  instead of two wordings for the same thing, one of them shouting. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#866](https://github.com/Sma1lboy/rove/pull/866) [`af70a32`](https://github.com/Sma1lboy/rove/commit/af70a324094585ebbae3eecfd0b20dd20073da1e) The task confirm dialogs and action toasts are translated.
+
+  Around two dozen user-facing strings — all three destructive confirms on a task
+  row, and the failure toasts behind delete, create, fork, rename, pin, move,
+  engine and status changes, the issue chat and the attention inbox — were
+  written as English literals rather than catalog keys. `check-i18n` compares the
+  two catalogs, so strings in neither were invisible to it: the gate passed while
+  a Chinese user got an English dialog mid-delete.
+
+  They are catalog keys now, in both locales. While moving them, each failure
+  also gained the thing it was missing — the state that survived it, so the
+  message answers whether to retry or to stop worrying:
+
+  ```
+  Couldn't delete "web-refactor" — the task and its worktree are untouched: …
+  Couldn't rename the branch — it stays "feat/parser": …
+  Couldn't dismiss it — it stays in the inbox: …
+  ```
+
+  The onboarding wizard's environment page also picks up the action line the CLI
+  path already printed. Both halves run the same check; only one said what
+  unblocks you.
+
+  Crossing a breaking version now says what the required `rove reset` costs —
+  Rove refuses to start until it runs, it stops every live session, and tasks and
+  worktrees are kept. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.120
 
 ### Patch Changes
