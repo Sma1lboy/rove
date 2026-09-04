@@ -12,6 +12,7 @@ import type { DaemonActivityRegistry } from "./activity-registry.ts"
 import { DEFAULT_AUTO_TITLE_POLL_MS, startAutoTitlePoller } from "./auto-title-poller.ts"
 import { DEFAULT_AUTOMATION_TICK_MS, startAutomationRunner } from "./automation-runner.ts"
 import type { AutomationsStore } from "./automations-store.ts"
+import type { ChannelName } from "./channels.ts"
 import { DEFAULT_CONTEXT_USAGE_TICK_MS, startContextUsageCollector } from "./context-usage-collector.ts"
 import type { DaemonOrchestrator, UpdateInfo } from "./contracts.ts"
 import { logDaemonError, logDaemonInfo } from "./crash-log.ts"
@@ -108,8 +109,12 @@ export function createProtocolUpgradeReporter(
 /**
  * Start every daemon-owned background collector. Returns a single `stop()`
  * that tears them down in the same order server.ts's `close()` historically
- * used. `hasSubscribers` gates the per-tick work of the pollers that would
- * otherwise burn CPU / network for nobody on a gui-less daemon.
+ * used. `hasSubscribersFor` gates the per-tick work of the pollers that would
+ * otherwise burn CPU / network for nobody: each collector is wired to the
+ * channel it PUBLISHES, so a client that filtered its subscribe down to
+ * `["ui-prefs", "keybindings"]` never starts the git/gh pollers whose frames
+ * it would drop at the socket anyway. An unfiltered subscriber (every real
+ * gui) opens all of them, as before.
  *
  * What each one is for:
  *   - update poll (KOB): poll npm once on start + on an interval and publish
@@ -145,7 +150,7 @@ export function startDaemonCollectors(
   orch: DaemonOrchestrator,
   runtime: DaemonRuntimeAdapter,
   bus: DaemonEventBus,
-  hasSubscribers: () => boolean,
+  hasSubscribersFor: (channel: ChannelName) => boolean,
   options: DaemonCollectorOptions,
   quotaUsage?: QuotaUsageCache,
   automations?: AutomationCollectorDeps,
@@ -169,7 +174,7 @@ export function startDaemonCollectors(
           ...createActivityObserverIo(options.homeDir, runtime),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
         },
-        hasSubscribers,
+        () => hasSubscribersFor("engine-state"),
       )
     : () => {}
   const checkUpdate = options.checkUpdate ?? runtime.checkLatestVersion
@@ -190,7 +195,8 @@ export function startDaemonCollectors(
     orch,
     runtime,
     options.autoTitlePollMs ?? DEFAULT_AUTO_TITLE_POLL_MS,
-    hasSubscribers,
+    // A rename rides the task push, so the consumer to gate on is task.snapshot.
+    () => hasSubscribersFor("task.snapshot"),
   )
 
   const stopUiPrefsWatcher = startUiPrefsWatcher(bus, {
@@ -208,7 +214,7 @@ export function startDaemonCollectors(
     runtime,
     bus,
     options.worktreeChangesTickMs ?? DEFAULT_WORKTREE_CHANGES_TICK_MS,
-    hasSubscribers,
+    () => hasSubscribersFor("worktree.changes"),
   )
 
   const stopTranscriptActivityCollector = startTranscriptActivityCollector(
@@ -216,7 +222,7 @@ export function startDaemonCollectors(
     runtime,
     bus,
     options.transcriptActivityTickMs ?? DEFAULT_TRANSCRIPT_ACTIVITY_TICK_MS,
-    hasSubscribers,
+    () => hasSubscribersFor("transcript.activity"),
   )
 
   // Context-window occupancy per live engine session (the footer's `ctx N%`).
@@ -230,7 +236,7 @@ export function startDaemonCollectors(
         bus,
         runtime,
         options.contextUsageTickMs ?? DEFAULT_CONTEXT_USAGE_TICK_MS,
-        hasSubscribers,
+        () => hasSubscribersFor("usage.context"),
       )
     : () => {}
 
@@ -242,7 +248,8 @@ export function startDaemonCollectors(
     orch,
     runtime,
     options.prStatusPollMs ?? DEFAULT_PR_STATUS_POLL_MS,
-    hasSubscribers,
+    // prStatus rides the task push too.
+    () => hasSubscribersFor("task.snapshot"),
     undefined,
     activity ? () => activity.currentNonIdle().some((e) => e.state !== "idle") : undefined,
   )
@@ -289,7 +296,12 @@ export function startDaemonCollectors(
   // with no open task still has a number worth showing. Cadence (slow poll,
   // backoff, per-vendor floor) lives entirely in the cache.
   const stopQuotaUsagePoller = quotaUsage
-    ? startQuotaUsagePoller(quotaUsage, () => runtime.vendorsWithQuotaProbe(), hasSubscribers, options.quotaUsageTickMs)
+    ? startQuotaUsagePoller(
+        quotaUsage,
+        () => runtime.vendorsWithQuotaProbe(),
+        () => hasSubscribersFor("usage.snapshot"),
+        options.quotaUsageTickMs,
+      )
     : () => {}
 
   // Same teardown order server.ts's close() used before the extraction.

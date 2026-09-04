@@ -237,7 +237,7 @@ export async function startDaemonServer(orch: DaemonOrchestrator, options: Daemo
     orch,
     runtime,
     bus,
-    () => lifetime.hasSubscribers(),
+    (channel) => lifetime.hasSubscribersFor(channel),
     options,
     quotaUsage,
     {
