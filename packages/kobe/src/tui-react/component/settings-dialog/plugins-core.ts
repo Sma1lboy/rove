@@ -34,6 +34,9 @@ export interface PluginLastRun {
   readonly label: string
   readonly exitCode: number | null
   readonly ok: boolean
+  /** The hook has not exited yet — the runtime logs a `running` record once a
+   *  hook outlives its slow threshold, so a hang is visible instead of silent. */
+  readonly running: boolean
   readonly spawnError?: string
 }
 
@@ -89,11 +92,15 @@ export function parseLastRun(logText: string | null): PluginLastRun | null {
     if (typeof record.at !== "number") continue
     const exitCode = typeof record.exitCode === "number" ? record.exitCode : null
     const spawnError = typeof record.spawnError === "string" ? record.spawnError : undefined
+    const running = record.phase === "running"
     return {
       at: record.at,
       label: typeof record.label === "string" ? record.label : typeof record.kind === "string" ? record.kind : "run",
       exitCode,
-      ok: spawnError === undefined && exitCode === 0,
+      // A hook still running is neither ok nor failed; `running` carries that
+      // third state so the row doesn't paint an in-flight hook as an error.
+      ok: !running && spawnError === undefined && exitCode === 0,
+      running,
       ...(spawnError ? { spawnError } : {}),
     }
   }

@@ -150,7 +150,11 @@ export function PluginSettingsSection(
                   </text>
                   <text
                     fg={
-                      !plugin.platformOk ? theme.warning : plugin.lastRun?.ok === false ? theme.error : theme.textMuted
+                      !plugin.platformOk || plugin.lastRun?.running
+                        ? theme.warning
+                        : plugin.lastRun?.ok === false
+                          ? theme.error
+                          : theme.textMuted
                     }
                     wrapMode="none"
                   >
@@ -159,11 +163,13 @@ export function PluginSettingsSection(
                       : plugin.lastRun
                         ? t("settings.plugins.lastRun", {
                             label: plugin.lastRun.label,
-                            status: plugin.lastRun.ok
-                              ? t("settings.plugins.runOk")
-                              : plugin.lastRun.spawnError
-                                ? t("settings.plugins.runFailed")
-                                : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
+                            status: plugin.lastRun.running
+                              ? t("settings.plugins.runRunning")
+                              : plugin.lastRun.ok
+                                ? t("settings.plugins.runOk")
+                                : plugin.lastRun.spawnError
+                                  ? t("settings.plugins.runFailed")
+                                  : t("settings.plugins.runExit", { code: String(plugin.lastRun.exitCode) }),
                             ago: relativeAge(plugin.lastRun.at, now),
                           })
                         : // "never run" only means something when the plugin

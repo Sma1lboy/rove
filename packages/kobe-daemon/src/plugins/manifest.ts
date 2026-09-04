@@ -23,6 +23,7 @@ import {
   asString,
   asStringArray,
   asTableArray,
+  asTimeoutMs,
   fail,
 } from "./manifest-coerce.ts"
 import { settingKeyRejection } from "./setting-keys.ts"
@@ -39,6 +40,13 @@ export interface PluginCommandSpec {
   readonly command: readonly string[]
   /** Item-level platform override; absent → the manifest-level list. */
   readonly platforms?: readonly PluginPlatform[]
+  /**
+   * Deadline in ms for `[[startup]]` / `[[events]]` / `[[shutdown]]` hooks,
+   * after which the host SIGKILLs the hook's whole process group. Absent →
+   * the host default for that kind. Actions and panes are user-driven and
+   * carry no deadline; declaring one there is a manifest warning.
+   */
+  readonly timeoutMs?: number
 }
 
 export interface PluginAction extends PluginCommandSpec {
@@ -276,14 +284,21 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const startup = asTableArray(raw.startup, "startup").map((t, i) => ({
     command: asCommand(t.command, `startup[${i}].command`),
     platforms: asPlatforms(t.platforms, `startup[${i}].platforms`),
+    timeoutMs: asTimeoutMs(t.timeout_ms, `startup[${i}].timeout_ms`),
   }))
   const shutdown = asTableArray(raw.shutdown, "shutdown").map((t, i) => ({
     command: asCommand(t.command, `shutdown[${i}].command`),
     platforms: asPlatforms(t.platforms, `shutdown[${i}].platforms`),
+    timeoutMs: asTimeoutMs(t.timeout_ms, `shutdown[${i}].timeout_ms`),
   }))
 
   const actions = asTableArray(raw.actions, "actions").map((t, i) => {
     const actionId = asString(t.id, `actions[${i}].id`)
+    if (t.timeout_ms !== undefined) {
+      warnings.push(
+        `actions[${i}] declares \`timeout_ms\`; actions are user-invoked and are never killed on a deadline`,
+      )
+    }
     if (!LOCAL_ID_RE.test(actionId)) fail(`action id \`${actionId}\` may not contain dots`)
     return {
       id: actionId,
@@ -304,6 +319,9 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
   const panes = asTableArray(raw.panes, "panes").map((t, i) => {
     const paneId = asString(t.id, `panes[${i}].id`)
     if (!LOCAL_ID_RE.test(paneId)) fail(`pane id \`${paneId}\` may not contain dots`)
+    if (t.timeout_ms !== undefined) {
+      warnings.push(`panes[${i}] declares \`timeout_ms\`; a pane is a terminal the user closes, not a bounded hook`)
+    }
     if (t.placement !== undefined && t.placement !== "tab" && t.placement !== "split") {
       warnings.push(`pane \`${paneId}\` placement \`${String(t.placement)}\` is not supported yet; opening as a split`)
     }
@@ -327,6 +345,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
       on: on as PluginEventName,
       command: asCommand(t.command, `events[${i}].command`),
       platforms: asPlatforms(t.platforms, `events[${i}].platforms`),
+      timeoutMs: asTimeoutMs(t.timeout_ms, `events[${i}].timeout_ms`),
     }
     if (!(PLUGIN_EVENT_NAMES as readonly string[]).includes(on)) {
       warnings.push(`unknown event \`${on}\`; this hook will never fire on this Rove version`)

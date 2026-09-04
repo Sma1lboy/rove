@@ -67,6 +67,11 @@ const mode = setting(ctx.configDir, "YOU_EXAMPLE_MODE", "fast")
 Booleans store as `"1"` or are absent; numbers remain strings, so cast if you
 need another type.
 
+A manifest `default` is the Settings editor's pre-fill, not a stored value: the
+config `.env` does not exist until the user saves one, so `setting(dir, key)`
+with no fallback returns `""` on a fresh install. Pass the same value you
+declared as the `default` — that is what the `fallback` parameter is for.
+
 ## Calling Rove from code
 
 These helpers exec `$ROVE_BIN_PATH` (falling back to `$KOBE_BIN_PATH`). Use

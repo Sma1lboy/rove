@@ -91,7 +91,22 @@ describe("parseLastRun", () => {
     const text =
       runLine({ at: NOW - 1000, kind: "startup", label: "startup", exitCode: 0, durationMs: 5 }) +
       runLine({ at: NOW - 100, kind: "event", label: "agent.turn-complete", exitCode: 2, durationMs: 7 })
-    expect(parseLastRun(text)).toEqual({ at: NOW - 100, label: "agent.turn-complete", exitCode: 2, ok: false })
+    expect(parseLastRun(text)).toEqual({
+      at: NOW - 100,
+      label: "agent.turn-complete",
+      exitCode: 2,
+      ok: false,
+      running: false,
+    })
+  })
+
+  it("reports a still-running hook as running, not as a failed exit", () => {
+    const text =
+      runLine({ at: NOW - 1000, kind: "event", label: "tool.post", exitCode: 0, durationMs: 5 }) +
+      runLine({ at: NOW - 100, kind: "event", label: "tool.post", phase: "running", timeoutMs: 30_000 })
+    // A hang used to log nothing at all; now it logs before it finishes, and
+    // the row must not read that in-flight record as `exit null`.
+    expect(parseLastRun(text)).toMatchObject({ label: "tool.post", running: true, ok: false, exitCode: null })
   })
 
   it("marks a spawn failure as not-ok and keeps the message", () => {
