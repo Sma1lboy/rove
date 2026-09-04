@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.9.114
+
+### Patch Changes
+
+- [#858](https://github.com/Sma1lboy/rove/pull/858) [`9390ae5`](https://github.com/Sma1lboy/rove/commit/9390ae59a15df6e71d9cfe42fb3e4993a32536e0) A failed git read no longer renders as a clean one. `rove api collect` reports `changes: null` when a worktree's git could not be read at all — it used to report `{added: 0, deleted: 0}`, the same answer a genuinely clean worktree gives, while `collect`'s own summary tells you non-zero means the attempt cannot land. The sidebar's `+N −M` chip now shows a muted `?` for a worktree whose `git status` failed or has not been read yet, instead of hiding the chip and reading as "nothing uncommitted here" — the signal a user checks right before deleting a task. `discover-adoptable`, the Worktrees page and the adopt picker report `dirty: null` / a `dirty?` badge when the probe failed, rather than `false`.
+
+  The daemon's worktree-changes channel now names the worktrees it tracked but could not read, instead of omitting them: an absent key means "not collected" and draws no chip, so an unreadable worktree used to arrive at every pane looking exactly like a clean one. A worktree that has read cleanly before keeps its last counts, as it always has. — [@Sma1lboy](https://github.com/Sma1lboy)
+
+- [#859](https://github.com/Sma1lboy/rove/pull/859) [`52578d5`](https://github.com/Sma1lboy/rove/commit/52578d5e510a95c86da33a2de69f6e92c455ba73) Five reads that reported a failure as a fact.
+
+  - **Kanban** kept a project on the board when its story read failed. A rejected
+    `issue.list` used to drop the whole project from the tab strip, so a user
+    with two repos saw one, with no error, no glyph, and no reason to think the
+    other existed. The project now keeps its slot, states the read failure where
+    its columns would be, and raises a toast naming the repo.
+  - **`issue-list`** reports `skipped`, the number of entries on disk it could
+    not read (an issue whose `id` is not a number is dropped). A short list is no
+    longer indistinguishable from the whole board, and the drop is logged with
+    the repo key. A corrupt `nextId` now resumes at `max(id) + 1` instead of `1`,
+    which used to hand `create` an id that already existed in the same file.
+  - **`pty-list`** answers `sessions: null` when there is no PTY host to ask.
+    `[]` used to mean both that and "a live host with nothing running", so an
+    agent could read a running fleet as idle. `[]` now means only the latter,
+    matching what `inspect` has always returned.
+  - **`add --prompt`** reports `promptPersisted: false` when the brief was
+    delivered but the store refused to record it. The task still succeeds, but an
+    unpersisted brief silently removes **Run again** from that task's menu.
+  - **`discover-adoptable`** reports `unreadable`: worktrees whose admin dir
+    `git worktree list` omitted without an error or a non-zero exit. An empty
+    `worktrees` array no longer hides a worktree that exists on disk, holds
+    uncommitted work, and has no path to adoption. — [@Sma1lboy](https://github.com/Sma1lboy)
+
 ## 0.9.113
 
 ### Patch Changes
