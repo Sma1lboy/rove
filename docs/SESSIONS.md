@@ -194,7 +194,16 @@ process, including a reboot.
   convenience, not an invariant — closing the last tab yourself leaves the task
   with none.)
 - To resume a conversation that is not represented by a tab, use the engine's
-  own picker (e.g. claude-code's `/resume`) inside a fresh engine tab.
+  own picker (e.g. claude-code's `/resume`) inside a fresh engine tab. When
+  the conversation IS a tab, you do not have to hunt for the id: `rove api
+  get-task --task-id <id>` prints each engine tab's `sessionId`.
+- Headlessly, a tab a host restart froze is revived by
+  `rove api send --task-id <id> --tab tab-N --respawn --prompt "…"`. Without
+  `--respawn` that tab refuses with `TAB_RESTORED` rather than being re-run
+  behind your back — reviving replays the tab's recorded launch command when
+  it pinned no conversation id. A `send` that starts a fresh session while
+  such tabs exist lists them in `frozenTabs`, so an automation is told the
+  message did not reach the conversation it thought it did.
 
 ## Not supported
 

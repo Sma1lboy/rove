@@ -6,7 +6,8 @@
 
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { deliverHostedPrompt, deliverToExactTab, deliverToKey } from "../../src/cli/api/pty-delivery.ts"
+import { deliverToExactTab } from "../../src/cli/api/exact-tab-delivery.ts"
+import { deliverHostedPrompt, deliverToKey } from "../../src/cli/api/pty-delivery.ts"
 import { ApiError } from "../../src/cli/api/types.ts"
 
 function session(key: string, command: string[], alive = true): PtySessionInfo {
@@ -447,5 +448,76 @@ describe("deliverToExactTab", () => {
       (e) => e,
     )
     expect((err as ApiError).code).toBe("TAB_NOT_FOUND")
+  })
+
+  // A pty-host restart leaves every tab thawed-but-dead. TAB_NOT_FOUND for
+  // one of those sent the caller to `pty-list`, which LISTS it — so the
+  // refusal has to be its own code, and reviving has to be reachable.
+  it("distinguishes a freeze-restored tab from an absent one (TAB_RESTORED, not TAB_NOT_FOUND)", async () => {
+    const { rpc, calls } = rpcWith([{ ...session("t1::tab-2", ["claude"], false), restored: true }])
+    const err = await deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "go").then(
+      () => null,
+      (e) => e,
+    )
+    expect((err as ApiError).code).toBe("TAB_RESTORED")
+    // Refusal, not a silent revival: nothing was opened and nothing written.
+    expect(calls).not.toContain("pty.open")
+    expect(calls).not.toContain("pty.write")
+  })
+
+  it("respawns a freeze-restored tab and delivers into it when the caller opts in", async () => {
+    const restored = { ...session("t1::tab-2", ["claude"], false), restored: true }
+    const sessions: PtySessionInfo[] = [restored]
+    const { rpc, calls } = rpcWith(sessions)
+    const inner = rpc.request
+    rpc.request = async <T>(name: string, payload?: unknown): Promise<T> => {
+      const out = await inner<T>(name, payload)
+      // The host's respawn-in-place: the same key comes back alive.
+      if (name === "pty.open") sessions[0] = session("t1::tab-2", ["claude"])
+      return name === "pty.open" ? ({ alive: true, respawned: true } as T) : out
+    }
+    const result = await deliverToExactTab(rpc, "t1", "tab-2", "/wt/t1", "go", {
+      engineBin: "claude",
+      snapshot: psWith("claude"),
+      respawn: () => ({ key: "t1::tab-2", command: ["zsh", "-lc", "claude --resume abc"] }),
+    })
+    expect(calls).toContain("pty.open")
+    // `respawned`, never `started`: the SAME tab came back, scrollback and
+    // conversation intact — a new session would be a different claim.
+    expect(result).toMatchObject({ session: "t1::tab-2", delivered: true, respawned: true, started: false })
+  })
+})
+
+describe("deliverHostedPrompt frozen-tab disclosure", () => {
+  it("names the freeze-restored tabs a fresh spawn passed over", async () => {
+    const sessions: PtySessionInfo[] = [
+      { ...session("t1::tab-2", ["claude"], false), restored: true },
+      { ...session("t1::tab-3", ["claude"], false), restored: true },
+    ]
+    const engine = echoingPeek()
+    const rpc = {
+      request: async <T>(name: string, payload?: unknown): Promise<T> => {
+        if (name === "pty.list") return { sessions } as T
+        if (name === "pty.peek") return engine.peek() as T
+        if (name === "pty.write") engine.onWrite((payload as { data?: string }).data ?? "")
+        if (name === "pty.open") {
+          sessions.push(session("t1::tab-1", ["claude"]))
+          return { alive: true, created: true } as T
+        }
+        return {} as T
+      },
+    }
+    const result = await deliverHostedPrompt(
+      rpc,
+      { id: "t1", engineBin: "claude" },
+      "/wt/t1",
+      "go",
+      { key: "t1::tab-1", command: ["zsh", "-lc", "claude 'go'"] },
+      { snapshot: psWith("claude") },
+    )
+    // Without this the reply is byte-identical to a healthy first start,
+    // while both real conversations sit frozen in the same host.
+    expect(result.started).toBe(true)
+    expect(result.frozenTabs?.map((t) => t.tab)).toEqual(["tab-2", "tab-3"])
   })
 })

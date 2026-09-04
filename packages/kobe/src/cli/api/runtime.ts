@@ -17,9 +17,9 @@ import { type DaemonRpc, resolveActiveTaskId } from "../daemon-session.ts"
 // Kept for existing callers in this directory; new callers should import from
 // daemon-session.ts directly to keep the daemon/session boundary clean.
 export { resolveActiveTaskId }
+import { deliverToExactTab } from "./exact-tab-delivery.ts"
 import {
   deliverHostedPrompt,
-  deliverToExactTab,
   ensurePtyHost,
   killTaskSessions,
   listSessions,
@@ -27,6 +27,7 @@ import {
   openPtyHost,
   taskKeys,
 } from "./pty-delivery.ts"
+import { restoredTabLaunch } from "./tab-respawn.ts"
 import {
   type TaskSessionRow,
   closeTabsSnapshot,
@@ -75,10 +76,19 @@ async function deliverHosted(
         vendor: target.vendor,
         effort: target.modelEffort,
       })[0]
-      return await deliverToExactTab(host.rpc, target.id, target.tab, worktree, prompt, {
+      const tabId = target.tab
+      return await deliverToExactTab(host.rpc, target.id, tabId, worktree, prompt, {
         engineBin,
         vendor: target.vendor,
         defer,
+        // Only with explicit consent (`send --respawn`). The factory is lazy
+        // so the snapshot read happens only on the branch that needs it —
+        // reviving a tab a pty-host restart froze.
+        ...(target.respawn
+          ? {
+              respawn: () => restoredTabLaunch(target, tabId, worktree, process.env.SHELL?.trim() || "/bin/zsh"),
+            }
+          : {}),
       })
     }
     const newTab = target.tab === "new" ? mintCliTab(target.id, target.tabVendor, target.tabCommand) : undefined
@@ -147,10 +157,19 @@ async function deliverHosted(
     // in mintCliTab); see `tab-snapshot.ts`. When THIS delivery started the
     // session, record the pinned session id + spawned flag too, so a later
     // dead-reattach resumes the conversation (see engineTabArgv).
+    if (!newTab) publishCliTabSnapshot(target.id, result.started ? sessionId : undefined)
     if (result.started && sessionId) {
-      if (newTab) markCliTabSession(target.id, newTab, sessionId)
-      else publishCliTabSnapshot(target.id, sessionId)
-    } else if (!newTab) publishCliTabSnapshot(target.id)
+      // publishCliTabSnapshot is write-ONCE by contract (a mounted TUI owns
+      // tab state), so on a task that already has a snapshot it no-ops and
+      // the id never lands. That is not a missing field but a WRONG one: a
+      // canonical send after a host restart respawns tab-1 under a fresh
+      // pinned id while the snapshot still names the previous conversation,
+      // so `--resume` would reopen the wrong one. Recording the id of a
+      // session THIS process just started is not fighting the TUI — it is
+      // the same write `--tab new` already does.
+      const startedTab = newTab ?? result.session.split("::")[1]
+      if (startedTab) markCliTabSession(target.id, startedTab, sessionId)
+    }
     return result
   } catch (error) {
     if (error instanceof ApiError) throw error
@@ -324,8 +343,18 @@ export const defaultApiRuntime: ApiRuntime = {
       /* keep tabs readable without the records */
     }
     const snapshot = readTabsSnapshot(taskId)
+    // The pinned conversation id per tab — persisted since engine tabs
+    // existed, readable nowhere. It is the whole recovery for a dead engine
+    // tab (`claude --resume <id>`), and `send --tab N --respawn` names it in
+    // its refusal, so a caller must be able to read it back.
+    const sessionIds = new Map(
+      (snapshot?.tabs ?? []).map((t) => [t.id, (t as { sessionId?: string | null }).sessionId ?? undefined]),
+    )
     return {
-      tabs: joinTaskTabs(snapshot, taskId, listed, exits, liveVendors, engineAlive),
+      tabs: joinTaskTabs(snapshot, taskId, listed, exits, liveVendors, engineAlive).map((row) => {
+        const sessionId = sessionIds.get(row.id)
+        return sessionId ? { ...row, sessionId } : row
+      }),
       running: hostReachable ? hasLiveEngineTab(snapshot, taskId, sessions, engineAlive) : null,
     }
   },

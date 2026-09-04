@@ -9,7 +9,7 @@
 
 import { F } from "./flags.ts"
 import { simpleRpc } from "./handler-helpers.ts"
-import { adopt } from "./handlers-tasks.ts"
+import { adopt } from "./handlers-lifecycle.ts"
 import type { VerbSpec } from "./types.ts"
 
 export const WORKTREE_VERBS: readonly VerbSpec[] = [

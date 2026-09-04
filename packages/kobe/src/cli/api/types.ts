@@ -8,6 +8,7 @@
 import type { VendorId } from "../../types/vendor.ts"
 import type { DaemonRpc } from "../daemon-session.ts"
 import type { VerbArgs } from "./flags.ts"
+import type { RestoredTabRef } from "./tab-respawn.ts"
 import type { TaskTabRow } from "./tab-snapshot.ts"
 
 export type Flags = Map<string, string>
@@ -180,6 +181,14 @@ export interface PromptTarget {
    * `PromptDeliveryIntent`'s `new-task` kind). `send` never sets it.
    */
   readonly newTask?: boolean
+  /**
+   * Consent to REVIVE a freeze-restored `--tab tab-N` (`send --respawn`).
+   * Without it an addressed tab a pty-host restart froze stays a typed
+   * refusal (`TAB_RESTORED`): respawning re-runs the tab's recorded launch,
+   * and for a tab with no pinned conversation id that command still carries
+   * the task's original first prompt. Never inferred — a caller asks.
+   */
+  readonly respawn?: boolean
 }
 
 export interface DeliveredPrompt {
@@ -223,6 +232,26 @@ export interface DeliveredPrompt {
    * the text. Absent when no write was attempted.
    */
   readonly promptEcho?: "confirmed" | "unconfirmed"
+  /**
+   * Freeze-restored (thawed, dead) engine tabs on this task that this call
+   * did NOT deliver into — the conversations a pty-host restart froze.
+   *
+   * Present only when a NEW session was started (`started: true`), which is
+   * the branch where the two outcomes are indistinguishable otherwise: a
+   * first start of a fresh task and "your two real conversations are frozen,
+   * so I opened a blank one" both report `started/engineReady/delivered:
+   * true`, and `get-task` then says `running: true` because the blank tab is
+   * alive. Each entry carries the tab id to address and the conversation id
+   * to resume it with, so the caller can act instead of guessing.
+   */
+  readonly frozenTabs?: readonly RestoredTabRef[]
+  /**
+   * This delivery RESPAWNED a freeze-restored tab before writing into it
+   * (`send --tab tab-N --respawn`). Distinct from {@link started}, which
+   * means a new session: a respawn reopens the SAME tab, keeping its
+   * scrollback, and resumes its pinned conversation when it has one.
+   */
+  readonly respawned?: true
   /**
    * Why nothing was confirmed — the session's own last line (its shell's
    * `no such file or directory`, or the wrapper's `Engine exited (code N)`
@@ -286,6 +315,19 @@ export interface PromptDeliveryOps {
   ): Promise<DeliveredPrompt>
 }
 
+/**
+ * A tab row plus the conversation id pinned on it (`TerminalTab.sessionId`)
+ * — the exact uuid `claude --resume` / `codex resume` needs. Rove has always
+ * persisted it per engine tab and exposed it on no read surface, so the
+ * documented recovery for a dead tab was to hunt for the id in the engine's
+ * own picker while it sat one field away in `state.json`.
+ *
+ * Declared here rather than on `TaskTabRow` itself only because the join
+ * happens in `runtime.ts`, where the snapshot is already in hand; folding
+ * the field into `joinTaskTabs` is the tidier home for it.
+ */
+export type TaskTabRowWithSession = TaskTabRow & { readonly sessionId?: string }
+
 // ── Runtime (the side-effect seam handlers run against) ─────────────────────
 
 /**
@@ -317,7 +359,7 @@ export interface ApiRuntime {
   taskTabs(
     taskId: string,
     engineArgv?: readonly string[],
-  ): Promise<{ tabs: readonly TaskTabRow[]; running: boolean | null }>
+  ): Promise<{ tabs: readonly TaskTabRowWithSession[]; running: boolean | null }>
   /** Close one exact Terminal Tab without a mounted TUI. */
   closeTerminalTab(taskId: string, tabId: string): Promise<{ kind: TaskTabRow["kind"]; wasAlive: boolean }>
   /** Deliver a prompt into a task's engine pane (building the session if needed). */

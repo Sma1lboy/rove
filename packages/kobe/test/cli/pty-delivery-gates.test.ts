@@ -13,7 +13,7 @@
 
 import type { PtySessionInfo } from "@sma1lboy/kobe-daemon/daemon/pty-host"
 import { describe, expect, it } from "vitest"
-import { deliverToExactTab } from "../../src/cli/api/pty-delivery.ts"
+import { deliverToExactTab } from "../../src/cli/api/exact-tab-delivery.ts"
 import { ApiError } from "../../src/cli/api/types.ts"
 
 function session(key: string, command: string[], alive = true): PtySessionInfo {

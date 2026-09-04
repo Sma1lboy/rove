@@ -137,7 +137,12 @@ replacement in `nextCommandArgs`.
 - `get-task --task-id <id>`: one task's metadata; `.running` = any of its
   hosted engine tabs is live (not just the first); `.tabs` = the task's
   terminal tabs (`id`/`kind`/`title`/`vendor`/`liveVendor`/`lastTitle`/
-  `autoTitle` + per-tab `alive`): the discovery read for `send --tab tab-N`.
+  `autoTitle`/`sessionId` + per-tab `alive`): the discovery read for
+  `send --tab tab-N`. `sessionId` is the conversation the tab pinned — the
+  exact id `claude --resume <id>` (or the engine's own resume verb) reopens,
+  and the one `send --tab tab-N --respawn` brings back. Present on engine
+  tabs that recorded one, dead tabs included; absent for engines that mint
+  their own id late and for tabs that never spawned.
   `liveVendor` on a live tab is a fresh foreground process walk (which
   engine actually runs in the tab's shell right now. A hand-typed `claude`
   in a shell tab counts, a ctrl+C'd engine doesn't); dead tabs report the
@@ -346,7 +351,19 @@ branch included, live in the Rove agent skill. Prompts into existing sessions
   a tab-precise reply command (`--task-id <sender> --tab <sender's tab>`);
   `--plain` skips that prefix. `--tab new` spawns a fresh engine tab, while
   `--tab tab-N` targets that exact tab (`TAB_NOT_FOUND` if it is dead or
-  absent). `--command CMD` is valid only with `--tab new`: it pins that new
+  absent). A tab a **pty-host restart froze** is neither: it is listed by
+  `pty-list` with its scrollback and launch command intact, and it refuses
+  with `TAB_RESTORED` until you pass `--respawn`. `--respawn` (valid only
+  with `--tab tab-N`) revives that tab in place and then delivers, replying
+  `respawned: true`; a tab with a `sessionId` comes back on its own
+  conversation (`--resume <id>`), and a tab without one replays its recorded
+  launch command — which for claude carries the task's original first
+  prompt, so the flag is never implicit.
+  When `send` STARTS a new session (`started: true`) while the task has
+  freeze-restored engine tabs it did not use, the reply carries `frozenTabs`
+  — `{tab, sessionId}` for each — because otherwise "opened a blank agent
+  while your two real conversations are frozen" reports exactly like a
+  healthy first start, and `get-task` then says `running: true`. `--command CMD` is valid only with `--tab new`: it pins that new
   tab to that engine without changing the task's own. Using it with an
   existing tab is a `BAD_FLAG` error rather than a silent switch.
   Delivery needs a live engine in that tab: one that exited into the

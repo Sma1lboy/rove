@@ -39,6 +39,13 @@ export const DRIVE_VERBS: readonly VerbSpec[] = [
           "Engine launch command for a `--tab new` tab — the API twin of the TUI's ctrl+e pick. Lets one worktree run two agents on the same files (e.g. hand the stuck work to codex without leaving the branch). An engine id from `engine-list` or a full command line; pinned to that tab, so it survives restarts and a later set-command on the task. Only valid with --tab new.",
       },
       {
+        name: "respawn",
+        type: "bool",
+        required: false,
+        description:
+          "Revive a FREEZE-RESTORED --tab tab-N before delivering. After a pty-host restart (reboot, crash) a tab keeps its scrollback and launch command but nothing runs in it; without this flag such a tab is refused (TAB_RESTORED) rather than silently re-run. With it, the tab is respawned in place and resumes its pinned conversation when it has one (`get-task` shows each tab's sessionId) — a tab with none replays its recorded launch command, which for claude carries the task's original first prompt. Only valid with --tab tab-N.",
+      },
+      {
         name: "plain",
         type: "bool",
         required: false,
