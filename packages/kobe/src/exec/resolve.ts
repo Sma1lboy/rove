@@ -3,7 +3,7 @@
  *
  * A LOCAL project (an ordinary path) → `LocalExecHost` (today's behavior). A
  * REMOTE project (`ssh://…` key with a `remoteRepos` entry) → `RemoteExecHost`
- * wired to its host/user/port, the ControlMaster socket under KOBE_HOME, and
+ * wired to its host/user/port, the ControlMaster socket under the Rove home, and
  * the keychain-backed password (read lazily, never persisted in state.json).
  *
  * Remoteness is DERIVED from the repo key, never stored on the Task — mirrors

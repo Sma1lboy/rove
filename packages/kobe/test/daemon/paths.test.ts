@@ -9,6 +9,7 @@
  */
 
 import {
+  existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -352,12 +353,24 @@ describe("linkLegacyRuntimePath (the other direction)", () => {
     rmSync(home, { recursive: true, force: true })
   })
 
-  test("points the legacy path at the canonical one, creating its dir", async () => {
+  test("points an EXISTING legacy dir at the canonical path", async () => {
     const canonical = join(home, ".rove", "daemon.sock")
     mkdirSync(join(home, ".rove"), { recursive: true })
+    mkdirSync(join(home, ".kobe"), { recursive: true })
     writeFileSync(canonical, "")
     expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(true)
     expect(readlinkSync(join(home, ".kobe", "daemon.sock"))).toBe(canonical)
+  })
+
+  test("does not CREATE a legacy dir — a fresh install has no ~/.kobe to link into", async () => {
+    // The link only helps a binary predating the rename, and such a binary
+    // would have made `.kobe` itself. Creating it gave every new install a
+    // directory full of dangling links after shutdown.
+    const canonical = join(home, ".rove", "daemon.sock")
+    mkdirSync(join(home, ".rove"), { recursive: true })
+    writeFileSync(canonical, "")
+    expect(await linkLegacyRuntimePath(canonical, legacyDaemonSocketPath(home))).toBe(false)
+    expect(existsSync(join(home, ".kobe"))).toBe(false)
   })
 
   test("never clobbers a REAL file at the legacy path — that is another daemon's socket", async () => {

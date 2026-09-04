@@ -441,6 +441,7 @@ path is honoured only while a pre-rename daemon, PTY host, or plugin registry
 is still live, and after binding on the new paths Rove leaves symlinks at the
 old ones so older binaries still find the running daemon. The first launch
 copies supported legacy state additively and never overwrites canonical files
-— except the plugin tree (`plugins.json`, `plugins/<id>/`), which is *moved*
-with a compatibility symlink left behind. Daemon-owned stores are copied at
+— except the plugin tree (`plugins.json`, `plugins/<id>/`) and the PTY host's
+own data (`pty-exits.json`, `pty-sessions/`), which are *moved* with a
+compatibility symlink left behind: the host moves its two at its next start. Daemon-owned stores are copied at
 new-daemon startup, only after the legacy writer has stopped.
