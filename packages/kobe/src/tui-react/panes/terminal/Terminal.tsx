@@ -428,14 +428,7 @@ export function Terminal(props: TerminalProps) {
             fg={theme.text}
             wrapMode="none"
             selectable={false}
-            // The stable state setter, NOT an inline arrow. A fresh ref-callback
-            // identity makes React detach (`setState(null)`) and reattach
-            // (`setState(el)`) on every render; here that re-ran the paint
-            // effect's imperative content push a second time per PTY frame.
-            // The body box below deliberately keeps its inline arrow — see
-            // `use-terminal-geometry.ts`, whose first measurement depends on
-            // exactly that re-attach.
-            ref={setSnapshotTextEl}
+            ref={(r: TextRenderable | null) => setSnapshotTextEl(r)}
           />
         ) : (
           <box paddingLeft={1} paddingTop={1} flexDirection="column" gap={0}>
