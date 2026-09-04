@@ -7,7 +7,7 @@
 
 import type { SerializedTask } from "@sma1lboy/kobe-daemon/daemon/protocol"
 import { DEFAULT_FEEDBACK_CATEGORY_SLUG, submitFeedback } from "../../lib/feedback.ts"
-import { daemonOf } from "./handler-helpers.ts"
+import { daemonOf, repoFilter } from "./handler-helpers.ts"
 import { taskEngineArgv } from "./tab-snapshot.ts"
 import { ApiError, type VerbContext } from "./types.ts"
 
@@ -22,18 +22,29 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
   const groupFlag = args.str("group")
 
   let taskIds: string[]
+  let unresolvableRepos: readonly string[] = []
   if (idsFlag) {
     taskIds = idsFlag
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean)
   } else if (repoFlag || groupFlag) {
-    const target = repoFlag ? await runtime.resolveRepoRoot(repoFlag) : null
     const { tasks } = await daemon.request<{ tasks: SerializedTask[] }>("task.list")
+    // Throws when `--repo` itself does not resolve, and carries the task
+    // repos it could not resolve into the response — an empty `tasks` list
+    // beside a non-empty `unresolvableRepos` is NOT "nothing is running".
+    const filter = repoFlag
+      ? await repoFilter(
+          runtime,
+          repoFlag,
+          tasks.map((t) => t.repo),
+        )
+      : null
+    unresolvableRepos = filter?.unresolvableRepos ?? []
     taskIds = []
     for (const t of tasks) {
       if (groupFlag && t.groupId !== groupFlag) continue
-      if (target !== null && (await runtime.resolveRepoRoot(t.repo)) !== target) continue
+      if (filter && !filter.matches(t.repo)) continue
       taskIds.push(t.id)
     }
   } else {
@@ -99,7 +110,7 @@ export async function collect(ctx: VerbContext): Promise<unknown> {
       base,
     })
   }
-  return { tasks: out }
+  return { tasks: out, ...(unresolvableRepos.length > 0 ? { unresolvableRepos } : {}) }
 }
 
 export async function feedback(ctx: VerbContext): Promise<unknown> {
