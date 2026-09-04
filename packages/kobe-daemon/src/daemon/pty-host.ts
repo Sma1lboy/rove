@@ -74,9 +74,43 @@ function resolveHumanWriteQuietMs(): number {
   return Number.isFinite(n) && n >= 0 ? n : DEFAULT_HUMAN_WRITE_QUIET_MS
 }
 
-/** Minimum gap between a session's periodic freeze writes (crash-loss bound).
- *  Exits and shutdowns flush immediately; this only throttles the live stream. */
+/** Floor between a session's periodic freeze writes. Exits and shutdowns
+ *  flush immediately; this only rate-limits the live stream. */
 export const FREEZE_INTERVAL_MS = 5_000
+
+/**
+ * Bytes a session must have appended before a periodic freeze is worth its
+ * cost — the gate that makes the write scale with the CHANGE rather than
+ * with the ring.
+ *
+ * A freeze re-encodes and rewrites the whole ring (512KB → ~683KB of
+ * base64), however few bytes moved. Engines repaint their status line at
+ * >=1 Hz while a turn runs, so on the 5s floor alone every working session
+ * rewrote its entire ring twelve times a minute: measured at 683KB per
+ * write against a passively-observed 389-928 B/s of real engine output,
+ * that is a 160x write amplification — 2.3 MB/s and 0.17 TB/day at 18
+ * working sessions, 25.6 MB/s at 200.
+ *
+ * 64KB is an eighth of the ring, so a session producing at least that much
+ * per minute pays ~11x its own output rather than 160x; below that rate
+ * {@link FREEZE_STALE_MS} governs instead, and a session producing nothing
+ * writes nothing. A session emitting 64KB faster than
+ * {@link FREEZE_INTERVAL_MS} — a build log, a `cat` of something big — still
+ * freezes on the 5s floor exactly as before.
+ */
+export const FREEZE_MIN_APPENDED_BYTES = 64 * 1024
+
+/**
+ * How long a session may hold unfrozen output before the byte gate is
+ * overridden. This — not {@link FREEZE_INTERVAL_MS} — is the crash-loss
+ * bound for an ordinary working session: a host that dies (crash, reboot,
+ * SIGKILL) loses at most this much of the ring's tail, where it used to lose
+ * at most 5s. A graceful stop and every exit still flush in full, and the
+ * engine's own `--resume` carries the conversation either way; what a crash
+ * costs is up to a minute of terminal repaint at the very end of the
+ * scrollback.
+ */
+export const FREEZE_STALE_MS = 60_000
 
 export class PtyHost {
   private readonly sessions = new Map<string, PtySessionState>()
@@ -451,10 +485,14 @@ export class PtyHost {
   }
 
   /**
-   * Throttled freeze writer. The write happens at most once per
-   * FREEZE_INTERVAL_MS per session (a host crash loses at most that much
-   * scrollback), immediately on exit, and for every session on shutdown.
-   * Internal keys (the warm spare) never freeze.
+   * Throttled freeze writer. A periodic write happens at most once per
+   * {@link FREEZE_INTERVAL_MS} per session and only once the session has
+   * appended {@link FREEZE_MIN_APPENDED_BYTES} or gone
+   * {@link FREEZE_STALE_MS} without one — the whole ring goes to disk every
+   * time, so the gate is what keeps the cost proportional to what actually
+   * changed. `force` (exit, rename, shutdown) writes regardless: an exit
+   * record is a change the byte counter cannot see. Internal keys (the warm
+   * spare) never freeze.
    */
   private maybeFreeze(session: PtySessionState, force = false): void {
     const freeze = this.opts.freeze
@@ -468,8 +506,15 @@ export class PtyHost {
     // this function owes the same promise.
     if (session.closedByRequest) return
     const now = Date.now()
-    if (!force && now - session.lastFreezeAtMs < FREEZE_INTERVAL_MS) return
+    if (!force) {
+      const appended = session.totalBytes - (session.frozenTotalBytes ?? 0)
+      const since = now - session.lastFreezeAtMs
+      if (appended <= 0) return
+      if (since < FREEZE_INTERVAL_MS) return
+      if (appended < FREEZE_MIN_APPENDED_BYTES && since < FREEZE_STALE_MS) return
+    }
     session.lastFreezeAtMs = now
+    session.frozenTotalBytes = session.totalBytes
     freeze.save(freezeSession(session))
   }
 

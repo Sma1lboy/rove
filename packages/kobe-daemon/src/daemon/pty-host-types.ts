@@ -97,6 +97,10 @@ export interface PtySessionState {
   restored: boolean
   /** Freeze bookkeeping: output/exit drift since the last persisted snapshot. */
   lastFreezeAtMs: number
+  /** `totalBytes` as of the last persisted snapshot — the periodic freeze
+   *  gate spends a whole-ring rewrite only once this much has moved. Optional
+   *  so a record thawed by an older host reads as "nothing frozen yet". */
+  frozenTotalBytes?: number
   /** Epoch ms of the most recent write that originated from an attached
    *  client (a human typing). Zero means "never seen a human write". Used by
    *  the delivery gate to refuse auto-pastes while the user is composing. */
@@ -152,6 +156,7 @@ export function freshSessionState(key: string, spec: PtySpawnSpec, argv: readonl
     exit: null,
     restored: false,
     lastFreezeAtMs: 0,
+    frozenTotalBytes: 0,
     lastHumanWriteMs: 0,
   }
 }
