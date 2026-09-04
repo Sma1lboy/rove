@@ -86,6 +86,7 @@ const height = dimension("--height", 800)
 // captures show what actually bleeds through — a panel forced to alpha-0 is
 // indistinguishable from an opaque one against a flat backdrop.
 const wallpaper = args.find((arg) => arg.startsWith("--wallpaper="))?.slice(12)
+const ready = args.find((arg) => arg.startsWith("--ready="))?.slice(8) ?? "fixture-repo"
 const tokens = args.filter((arg) => !arg.startsWith("--"))
 const runId = `shot-${Date.now()}`
 
@@ -105,11 +106,14 @@ try {
   await harness.waitFor({ timeout: 10_000 })
   // TUI takeover: the fixture project row is the workspace's earliest stable
   // marker (the tree sidebar, default since the worktree tree landed, never
-  // prints the old PROJECTS header this script used to wait for).
+  // prints the old PROJECTS header this script used to wait for). `--ready=`
+  // overrides it for the one state that row cannot mark — a task index with
+  // NO tasks renders no project row, so an empty-workspace capture would sit
+  // here for 45s and then report the TUI as never having come up.
   const buffer = page.getByTestId("opentui-buffer")
   await page.waitForFunction(
-    (el) => el?.textContent?.includes("fixture-repo"),
-    await buffer.elementHandle(),
+    (arg) => arg.el?.textContent?.includes(arg.needle),
+    { el: await buffer.elementHandle(), needle: ready },
     { timeout: 45_000 },
   )
   // Click the sidebar's EMPTY lower area — (24, 24) would land on the tree's
