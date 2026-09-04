@@ -12,9 +12,9 @@
  */
 
 import { describe, expect, it } from "vitest"
+import type { Chunk } from "../../src/tui/panes/terminal/sgr"
 import { findMatches } from "../../src/tui/panes/terminal/terminal-search"
 import { extractSelection } from "../../src/tui/panes/terminal/terminal-selection"
-import type { Chunk } from "../../src/tui/panes/terminal/sgr"
 
 const row = (text: string): readonly Chunk[] => [{ text }]
 
@@ -25,9 +25,7 @@ const WHOLE = { anchor: { row: 0, col: 0 }, head: { row: 1, col: 11 } }
 
 describe("copying a soft-wrapped line", () => {
   it("joins the continuation row with no separator — the path pastes as one", () => {
-    expect(extractSelection(WRAPPED, WHOLE, WRAP_FLAGS)).toBe(
-      "ERROR in /Users/me/src/panes/terminal/search.ts:41:9",
-    )
+    expect(extractSelection(WRAPPED, WHOLE, WRAP_FLAGS)).toBe("ERROR in /Users/me/src/panes/terminal/search.ts:41:9")
     expect(extractSelection(WRAPPED, WHOLE, WRAP_FLAGS)).not.toContain("\n")
   })
 
