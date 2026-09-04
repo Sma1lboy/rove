@@ -172,7 +172,10 @@ test("automations: a failed delete shows an error toast instead of a muted line"
   await settle()
   mockInput.pressEnter()
   await settle(150)
-  await expectErrorToast(await frame(), spans, "daemon refused", "in 1h")
+  // Assert the toast's own prefix, the way the kanban cases above do: the
+  // toast is one truncated line, so a 90-column frame cuts the daemon's
+  // message off the end. The prefix is what tells the user WHICH action died.
+  await expectErrorToast(await frame(), spans, 'Couldn\'t delete "weekday audit"', "in 1h")
 })
 
 test("automations: a failed toggle shows an error toast", async () => {
@@ -195,7 +198,9 @@ test("automations: a failed toggle shows an error toast", async () => {
   await settle(150)
   mockInput.typeText("e")
   await settle(150)
-  await expectErrorToast(await frame(), spans, "daemon refused", "in 1h")
+  // The routine was enabled, so the toast names the state it KEPT — a toggle
+  // that failed must not read as though it half-applied.
+  await expectErrorToast(await frame(), spans, '"weekday audit" stays enabled', "in 1h")
 })
 
 const WORK_ITEM = {

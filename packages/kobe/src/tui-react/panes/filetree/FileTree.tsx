@@ -40,6 +40,7 @@ import {
   computeStatWidths,
   expandOrDescendAction,
   followScrollTop,
+  gitErrorIsRetryable,
   summarizeGitError,
   toggleDir,
   watchWorktree,
@@ -449,9 +450,11 @@ export function FileTree(props: FileTreeProps) {
             <text fg={theme.error} wrapMode="word">
               {summarizeGitError(error, t)}
             </text>
-            <text fg={theme.textMuted} wrapMode="word">
-              {t("files.error.retryHint")}
-            </text>
+            {gitErrorIsRetryable(error) ? (
+              <text fg={theme.textMuted} wrapMode="word">
+                {t("files.error.retryHint")}
+              </text>
+            ) : null}
           </box>
         ) : rows.length === 0 && loaded ? (
           <box paddingTop={1} paddingLeft={1}>

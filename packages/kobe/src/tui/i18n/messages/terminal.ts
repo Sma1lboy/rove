@@ -52,8 +52,14 @@ export const en = {
     unavailable: "this app owns its own scrollback — nothing local to search (esc)",
   },
   unavailable: {
-    shellMissing: "terminal unavailable — configured shell is not available",
-    spawnFailed: "terminal unavailable — shell could not start",
+    // The PTY host resolves its shell from `$SHELL` alone (`resolveLoginShell`
+    // in kobe-daemon) — there is no Settings row for it, so `$SHELL` is the
+    // only place a user can act.
+    shellMissing:
+      "terminal unavailable — the shell named by $SHELL isn't on this machine. Point $SHELL at one that exists, or unset it to fall back to the system default.",
+    // `~/.rove/pty.log` is where session-host startup failures land
+    // (docs/TROUBLESHOOTING.md).
+    spawnFailed: "terminal unavailable — the shell exited immediately. Its error is in ~/.rove/pty.log.",
     // The pane is otherwise a dead end: there is no PTY to key into, so the
     // only way out has to be named on screen.
     retry: "F5 tries again",
@@ -102,8 +108,9 @@ export const zh: typeof en = {
     unavailable: "这个程序自己管理回滚缓冲区 —— 本地没有可搜索的内容（esc）",
   },
   unavailable: {
-    shellMissing: "终端不可用 —— 配置的 shell 不存在",
-    spawnFailed: "终端不可用 —— shell 启动失败",
+    shellMissing:
+      "终端不可用 —— $SHELL 指向的 shell 在这台机器上不存在。请把 $SHELL 指向一个真实存在的 shell，或取消设置以回退到系统默认。",
+    spawnFailed: "终端不可用 —— shell 启动后立即退出。具体错误见 ~/.rove/pty.log。",
     retry: "按 F5 重试",
   },
   reset: {

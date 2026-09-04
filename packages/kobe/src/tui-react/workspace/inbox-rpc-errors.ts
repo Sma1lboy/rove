@@ -1,4 +1,4 @@
-import { errorMessage } from "@/lib/error-message"
+import { userFacingErrorMessage } from "@/lib/error-message"
 import { t } from "../../tui/i18n"
 
 export type InboxRpcAction = "mark read" | "dismiss"
@@ -19,5 +19,5 @@ export function notifyInboxRpcFailure(
   action: InboxRpcAction,
   notifyError: (message: string) => void,
 ): void {
-  void request.catch((err) => notifyError(t(FAILURE_KEY[action], { error: errorMessage(err) })))
+  void request.catch((err) => notifyError(t(FAILURE_KEY[action], { error: userFacingErrorMessage(err) })))
 }

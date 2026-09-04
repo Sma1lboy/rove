@@ -30,11 +30,16 @@ export const en = {
     noChanges: "(no changes — clean worktree)",
   },
   error: {
+    /** Only rendered for the two kinds `r` can actually resolve — see
+     *  {@link gitErrorIsRetryable}. */
     retryHint: "press r to retry",
-    notGitRepo: "not a git repository",
-    pathMissing: "worktree path is missing",
-    permissionDenied: "permission denied",
-    gitNotInstalled: "git is not installed",
+    notGitRepo: "not a git repository — run `git init` here, or open a task in a repo",
+    // Matches `tasks.toast.worktreeGoneBody`, which prescribes the same
+    // recovery for the same condition.
+    pathMissing: "the worktree directory is gone — reopen the task to re-create it",
+    permissionDenied: "permission denied reading the worktree — check the directory's owner and mode",
+    // Wording aligned with `doctor.fix.git` / `doctor.fix.gitAction`.
+    gitNotInstalled: "git is not on PATH — install it with your OS package manager",
     gitFailed: "git command failed",
   },
   toast: {
@@ -72,10 +77,10 @@ export const zh: typeof en = {
   },
   error: {
     retryHint: "按 r 重试",
-    notGitRepo: "不是 git 仓库",
-    pathMissing: "worktree 路径不存在",
-    permissionDenied: "权限不足",
-    gitNotInstalled: "未安装 git",
+    notGitRepo: "不是 git 仓库——在这里执行 `git init`，或改为打开仓库里的任务",
+    pathMissing: "worktree 目录已不存在——重新打开该任务会重建它",
+    permissionDenied: "读取 worktree 时权限不足——请检查该目录的属主和权限",
+    gitNotInstalled: "PATH 上找不到 git——请用系统包管理器安装",
     gitFailed: "git 命令失败",
   },
   toast: {
