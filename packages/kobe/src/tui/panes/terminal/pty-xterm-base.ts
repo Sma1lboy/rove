@@ -4,6 +4,7 @@
 import { Unicode11Addon } from "@xterm/addon-unicode11"
 import { Terminal as XtermHeadless } from "@xterm/headless"
 import { persistedScrollbackRows } from "../../../state/scrollback"
+import { profileSpan, profileTick } from "../../lib/render-profile"
 import { type TerminalInputModes, encodeMouseButton, encodeWheel } from "./keys-pure"
 import { PtyListeners } from "./pty-listeners"
 import {
@@ -349,6 +350,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   private feedInternal(data: string | Uint8Array, muteReplies: boolean): void {
     if (this._killed) return
     if (muteReplies) this.muteReplies = true
+    profileTick("feed")
     this.term.write(data, () => {
       if (muteReplies) this.muteReplies = false
       if (!this.refreshTracker.supported) this.refreshTracker.markAll()
@@ -373,14 +375,16 @@ export abstract class XtermTaskPty implements TaskPtyLike {
 
   private refreshSnapshot(): void {
     if (this._killed) return
-    const result = this.snapshotEngine.refresh(
-      this.term,
-      this.rows,
-      this.scrollbackRows,
-      this.refreshTracker,
-      this.snapshot,
-      this.cursor,
-      this.snapshotWindow,
+    const result = profileSpan("refresh", () =>
+      this.snapshotEngine.refresh(
+        this.term,
+        this.rows,
+        this.scrollbackRows,
+        this.refreshTracker,
+        this.snapshot,
+        this.cursor,
+        this.snapshotWindow,
+      ),
     )
     if (result === null) {
       // Don't snapshot a half-painted frame. Self-reschedule rather than
@@ -397,6 +401,7 @@ export abstract class XtermTaskPty implements TaskPtyLike {
   }
 
   private publishSnapshot(): void {
+    profileTick("publish")
     this.listeners.publishData(this.snapshot, this.cursor, this.snapshotWindow)
   }
 

@@ -408,6 +408,9 @@ export function Terminal(props: TerminalProps) {
         </box>
       ) : null}
 
+      {/* The inline arrow is load-bearing, not an oversight: it re-attaches on
+          every render, which is what re-runs the geometry measurement until
+          Yoga has laid the box out. See `use-terminal-geometry.ts`. */}
       <box ref={(r: BoxRenderable | null) => setBodyEl(r)} onSizeChange={bumpGeomTick} flexGrow={1} overflow="hidden">
         {/* Body */}
         {pty ? (
