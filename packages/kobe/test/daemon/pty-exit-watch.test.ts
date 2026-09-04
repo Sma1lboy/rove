@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { DaemonActivityRegistry, type EngineStatePayload } from "@sma1lboy/kobe-daemon/daemon/activity-registry"
 import { DaemonEventBus } from "@sma1lboy/kobe-daemon/daemon/event-bus"
 import { recordEngineExit, recordPtyExit } from "@sma1lboy/kobe-daemon/daemon/pty-exit-store"
-import { startPtyExitWatch } from "@sma1lboy/kobe-daemon/daemon/pty-exit-watch"
+import { lastErrorLine, startPtyExitWatch } from "@sma1lboy/kobe-daemon/daemon/pty-exit-watch"
 import { afterEach, describe, expect, it } from "vitest"
 
 const dirs: string[] = []
@@ -262,5 +262,33 @@ describe("startPtyExitWatch with engine-layer records", () => {
     } finally {
       stop()
     }
+  })
+})
+
+describe("lastErrorLine", () => {
+  // The keepAlive wrapper `exec`s a login shell after printing its banner, so
+  // the LAST lines of an engine death's tail are that shell's prompt. The
+  // Inbox row and the `dead` badge captioned "your agent died" with a
+  // fragment of a zsh theme (broken Nerd Font surrogate pair included) while
+  // the cause sat two lines above it.
+  const DEATH_TAIL = [
+    "Error: [provider.auth_error] 403 You've reached your 5-hour usage limit.",
+    "zsh: terminated  claude",
+    "",
+    "  ⚠ Engine exited (code 143). Check Settings → Engines and fix the launch command.",
+    "",
+    " 󰊠 jacksonc …/macaque  deathwatch   09:15  ",
+  ]
+
+  it("prefers the wrapper's banner over the shell prompt printed under it", () => {
+    expect(lastErrorLine(DEATH_TAIL)).toContain("Engine exited (code 143)")
+  })
+
+  it("falls back to the last non-blank line where there is no banner", () => {
+    // A pty-layer death: the dying process really did write last.
+    expect(lastErrorLine(["starting", "Error: ENOSPC: no space left on device", "", "  "])).toBe(
+      "Error: ENOSPC: no space left on device",
+    )
+    expect(lastErrorLine([])).toBeUndefined()
   })
 })

@@ -171,7 +171,7 @@ export function startDaemonCollectors(
     ? startActivityObserver(
         activity,
         {
-          ...createActivityObserverIo(options.homeDir, runtime),
+          ...createActivityObserverIo(options.homeDir, runtime, activity),
           onEngineEvidence: createProtocolUpgradeReporter(orch, runtime),
         },
         () => hasSubscribersFor("engine-state"),

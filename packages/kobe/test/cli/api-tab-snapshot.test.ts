@@ -480,4 +480,60 @@ describe("joinTaskTabs", () => {
     expect(rows[0]).toMatchObject({ id: "tab-1", alive: false, exit: record })
     expect(hasLiveEngineTab(snap, "t1", sessions)).toBe(false)
   })
+
+  // The live incident: a worker's engine was SIGTERMed, `inspect` held the
+  // whole record, and `get-task`/`collect` answered `exit: null` for two
+  // hours. Two independent reasons, both gone now — the row only looked for
+  // an exit when the SESSION was dead (an engine-layer record is by
+  // definition the session-alive case), and it looked under the bare key
+  // while engine records live under `<key>#engine`.
+  describe("engine-layer exit on a tab whose session outlived its engine", () => {
+    const engineRecord = {
+      code: 143,
+      signal: null,
+      at: "2026-08-11T00:00:00.000Z",
+      layer: "engine" as const,
+      tail: ["  ⚠ Engine exited (code 143). Check Settings → Engines and fix the launch command."],
+    }
+    const alive = [{ key: "t1::tab-1", alive: true }]
+
+    it("reports the death the store already holds", () => {
+      const rows = joinTaskTabs(
+        oneTabSnap("tab-1"),
+        "t1",
+        alive,
+        { "t1::tab-1#engine": engineRecord },
+        undefined,
+        new Map([["t1::tab-1", false]]),
+      )
+      expect(rows[0]).toMatchObject({ alive: true, engineAlive: false, exit: engineRecord })
+    })
+
+    it("says nothing while an engine is running — a stale record must not caption a live one", () => {
+      // The tab restarted its engine after the death. The record is history.
+      const rows = joinTaskTabs(
+        oneTabSnap("tab-1"),
+        "t1",
+        alive,
+        { "t1::tab-1#engine": engineRecord },
+        undefined,
+        new Map([["t1::tab-1", true]]),
+      )
+      expect(rows[0]).toMatchObject({ engineAlive: true, exit: null })
+    })
+
+    it("says nothing when no walk answered — `null` is not a verdict", () => {
+      const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", alive, { "t1::tab-1#engine": engineRecord })
+      expect(rows[0]).toMatchObject({ engineAlive: null, exit: null })
+    })
+
+    it("a pty-layer death of the session itself wins — the later, larger event", () => {
+      const ptyRecord = { code: 1, signal: null, at: "2026-08-12T00:00:00.000Z" }
+      const rows = joinTaskTabs(oneTabSnap("tab-1"), "t1", [{ key: "t1::tab-1", alive: false }], {
+        "t1::tab-1": ptyRecord,
+        "t1::tab-1#engine": engineRecord,
+      })
+      expect(rows[0]?.exit).toEqual({ ...ptyRecord, layer: "pty" })
+    })
+  })
 })

@@ -22,7 +22,13 @@ instead.
 ![The TUI detaches while the engine process, scrollback ring, and task list stay lit below](assets/detach-survives.png)
 
 The first three rows are the whole point: the TUI is a viewport, and the
-daemon is replaceable. The reboot row is the freeze/restore contract: nothing
+daemon is replaceable. That extends to what the daemon only holds in memory.
+Engine badges are not persisted, so a restarting daemon re-derives them: it
+walks every surviving session once, and a tab that is a bare shell because
+its engine died keeps its `dead` badge instead of coming back as `idle` —
+which is what a tab that never ran an engine looks like, and which typing
+into would run your prompt as shell commands. The same pass records an engine
+that died while no daemon was up at all. The reboot row is the freeze/restore contract: nothing
 keeps processes alive across a reboot, but the PTY host persists every
 session's metadata and bounded scrollback ring to disk. The next host first
 thaws a dead **restored** session, then the first attach replays its old screen
