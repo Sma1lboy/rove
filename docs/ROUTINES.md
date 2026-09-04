@@ -187,12 +187,28 @@ needed:
 | `revived` | Standing session only: its engine had died, so it was respawned in the same worktree. The files carried over, the **conversation did not** |
 | `deferred` | Standing session only: the composer was busy, so the prompt is queued in your Inbox. **Not lost** — release it there |
 | `skipped_precheck` | The precheck said there was nothing to do. **Healthy** |
-| `skipped_missed` | The occurrence was older than the grace window |
-| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which |
-| `dispatch_failed` | The prompt did not reach an engine. Either the task's engine did not start, or a standing session's composer was busy and the deferral could not be filed (its Inbox slot is already taken). **Needs you** |
+| `skipped_missed` | The occurrence was older than the grace window, **or** the sweep never reached it. A busy sweep no longer drops occurrences silently: one row records how many were passed over and when the first was due |
+| `skipped_unavailable` | The dispatch threw before it produced an outcome — the repo or worktree could not be resolved, but a branch collision, a worktree-creation error or a full disk lands here too. The `error` field names which. **Needs you** |
+| `dispatch_failed` | The prompt did not reach an engine. Either the engine process never started, or a standing session's composer was busy and the deferral could not be filed (its Inbox slot is already taken). **Needs you** |
 
 `skipped_precheck` and `dispatch_failed` are opposite signals; they never share
 a label.
+
+`dispatched` means the engine PROCESS was seen running — not that the terminal
+opened. An engine whose launch command points at something that is not there
+exits immediately and leaves the login shell behind it, and the terminal is
+alive either way; a run that ends that way records `dispatch_failed` with the
+engine's own `Engine exited (code 127)` line in `error`. That check costs a
+firing nothing when the engine is fine and a few seconds when it is not.
+
+### You do not have to go looking
+
+The two statuses marked **Needs you** raise an entry in your **Inbox**, and the
+**Routines** page marks the row — `†` an engine that would not start, `!` a
+routine whose target is gone, `✓` a healthy last run, `·` nothing to do — with
+a count of how many need you in its header. One entry per routine, refreshed
+rather than repeated, so a routine failing every minute is one line and not
+1,440; it clears itself when the routine runs cleanly again.
 
 ## One standing session instead of a task per run
 

@@ -60,7 +60,8 @@ export interface RoundOutcome {
 /** Injectable delivery, so the round's own logic is testable without a PTY host. */
 export type RoundDeliver = (rpc: DaemonRpcClient, taskId: string, prompt: string) => Promise<boolean>
 
-const realDeliver: RoundDeliver = (rpc, taskId, prompt) => startTaskSessionWithPromptAdapter(rpc, taskId, prompt)
+const realDeliver: RoundDeliver = async (rpc, taskId, prompt) =>
+  (await startTaskSessionWithPromptAdapter(rpc, taskId, prompt)).started
 
 /**
  * Create `attempts` siblings sharing one `groupId`, then hand each the same

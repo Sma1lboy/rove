@@ -99,7 +99,9 @@ describe("daemon session adapter", () => {
   it("launches an explicit first prompt as a new-task intent (branch-rename coda)", async () => {
     // Both callers (automation runner, work-item start) create the task
     // immediately ahead of this call, so the first prompt is a new-worktree entry.
-    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({ started: true })
+    await expect(startTaskSessionWithPromptAdapter(link(), "task-1", "do the thing")).resolves.toEqual({
+      started: true,
+    })
     expect(mocks.buildLaunch).toHaveBeenCalledWith(
       expect.objectContaining({ promptIntent: { kind: "new-task", prompt: "do the thing" } }),
     )
