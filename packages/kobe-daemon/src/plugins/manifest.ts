@@ -109,6 +109,15 @@ export interface PluginEngine {
   readonly identity?: {
     readonly shortName?: string
   }
+  /**
+   * How this CLI takes a session's FIRST message. Default `"argv"` appends the
+   * prompt as a positional, which is right for most CLIs and fatal for the ones
+   * whose positional slot means something else — a subcommand, or a project
+   * directory. Such an engine declares `"paste"` and the first message is typed
+   * into the running pane instead. Without this key the author's only fix is to
+   * not use the feature.
+   */
+  readonly firstMessageDelivery?: "argv" | "paste"
 }
 
 export interface PluginManifest {
@@ -453,6 +462,14 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
         ...(shortName !== undefined ? { shortName } : {}),
       }
     }
+    let firstMessageDelivery: PluginEngine["firstMessageDelivery"]
+    if (t.first_message_delivery !== undefined) {
+      const raw = asString(t.first_message_delivery, `engines[${i}].first_message_delivery`)
+      // A typo here would otherwise fall back to "argv" and kill the launch on
+      // the engine's own first prompt — the exact failure the key exists to fix.
+      if (raw !== "argv" && raw !== "paste") fail(`engines[${i}].first_message_delivery must be argv | paste`)
+      firstMessageDelivery = raw
+    }
     return {
       id: engineId,
       name: asString(t.name, `engines[${i}].name`),
@@ -462,6 +479,7 @@ function parseCanonicalPluginManifest(text: string): ParsedPluginManifest {
         : { processNames: asCommand(t.process_names, `engines[${i}].process_names`) }),
       rules,
       ...(identity ? { identity } : {}),
+      ...(firstMessageDelivery ? { firstMessageDelivery } : {}),
     }
   })
   const engineSeen = new Set<string>()

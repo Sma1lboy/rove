@@ -174,6 +174,7 @@ id = "aider"                     # VendorId; may not shadow a built-in (claude/c
 name = "Aider"                   # display name in the selector and Settings
 command = ["aider"]              # launch argv; argv[0] is the binary
 # process_names = ["aider-core"] # extra ps basenames (post-launch renames)
+# first_message_delivery = "paste"  # argv (default) | paste — see below
 
 [engines.identity]               # optional product identity for UI labels
 short_name = "Aider"             # falls back to `name`
@@ -192,6 +193,13 @@ any = ["ctrl-c to interrupt"]    # at least one must appear
 `command` is always argv: never a shell, no expansion (panes expand only
 `$ROVE_PLUGIN_ROOT`). Unknown event names are warnings (forward compat);
 invalid types/patterns are install-time errors.
+
+`first_message_delivery` says how the CLI takes a session's first message.
+The default `"argv"` appends the prompt as a positional argument. Declare
+`"paste"` when argv[1] means something else — a subcommand, or a project
+directory — or the launch dies on the prompt text instead of running it
+(`opencode "Run ls -la"` exits with `Failed to change directory to …`).
+With `"paste"` the message is typed into the running pane instead.
 
 The accepted platform tokens are exactly `macos`, `linux`, and `windows`.
 A top-level list applies to the whole plugin; `platforms` on an individual

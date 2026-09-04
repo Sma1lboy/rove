@@ -67,6 +67,22 @@ describe("plugin manifest [[engines]]", () => {
     expect(() => parsePluginManifest(bad)).toThrow(/needs at least one of/)
   })
 
+  it("parses first_message_delivery", () => {
+    const paste = MANIFEST.replace(
+      'command = ["aider", "--no-auto-commits"]',
+      'command = ["aider"]\nfirst_message_delivery = "paste"',
+    )
+    expect(parsePluginManifest(paste).manifest.engines[0]?.firstMessageDelivery).toBe("paste")
+    expect(parsePluginManifest(MANIFEST).manifest.engines[0]?.firstMessageDelivery).toBeUndefined()
+  })
+
+  it("rejects an unknown first_message_delivery rather than falling back to argv", () => {
+    // Silently defaulting would leave the author with the launch failure the
+    // key exists to fix, and no error pointing at the typo.
+    const bad = MANIFEST.replace('name = "Aider"', 'name = "Aider"\nfirst_message_delivery = "stdin"')
+    expect(() => parsePluginManifest(bad)).toThrow(/first_message_delivery must be argv \| paste/)
+  })
+
   it("rejects invalid line_regex", () => {
     const bad = `${MANIFEST}\n[[engines.rules]]\nstate = "working"\nline_regex = ["("]\n`
     expect(() => parsePluginManifest(bad)).toThrow(/not a valid regex/)
