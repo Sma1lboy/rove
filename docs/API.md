@@ -569,7 +569,8 @@ The daemon-owned issue store (backlog; see
 - `issue-set-status --repo PATH --id N --status S`: set an issue's status.
 - `issue-update --repo PATH --id N [--title T] [--body TEXT] [--task ID]`:
   edit title/body and/or link a task (kanban: In progress; `--task none`
-  unlinks).
+  unlinks). All three land in one store write, so a rejected `--task` leaves
+  the title and body unchanged — the error means nothing was applied.
 
 ## workitems
 

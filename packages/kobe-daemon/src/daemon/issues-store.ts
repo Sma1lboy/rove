@@ -61,7 +61,7 @@ interface IssuesStoreFile {
 type IssueOp =
   | { type: "create"; title?: unknown; body?: unknown }
   | { type: "setStatus"; id?: unknown; status?: unknown }
-  | { type: "update"; id?: unknown; title?: unknown; body?: unknown }
+  | { type: "update"; id?: unknown; title?: unknown; body?: unknown; taskId?: unknown }
   | { type: "link"; id?: unknown; taskId?: unknown }
   | { type: "unlink"; id?: unknown }
   | { type: "delete"; id?: unknown }
@@ -307,10 +307,25 @@ export class IssuesStore {
           throw new Error("title must be a non-empty string")
         }
         if (typed.body !== undefined && typeof typed.body !== "string") throw new Error("body must be a string")
+        // The link rides the SAME locked write as title/body: a string links,
+        // `null` unlinks, absent leaves the link alone. `issue-update --title X
+        // --task <bogus>` was two RPCs, so the rename committed and only then
+        // did the link fail — a total-failure error for a half-applied command.
+        // Nothing in this branch reaches disk until the `writeStore` at the
+        // end of `mutate`, and the record it edits was parsed fresh from the
+        // file, so ANY throw here leaves the store byte-for-byte unchanged.
+        if (
+          typed.taskId !== undefined &&
+          typed.taskId !== null &&
+          (typeof typed.taskId !== "string" || typed.taskId.length === 0)
+        ) {
+          throw new Error("taskId must be a non-empty string or null")
+        }
         const issue = record.issues.find((i) => i.id === typed.id)
         if (!issue) throw new Error(`${ISSUE_NOT_FOUND_CODE}: no issue #${typed.id}`)
         if (typeof typed.title === "string") issue.title = typed.title
         if (typeof typed.body === "string") issue.body = typed.body
+        if (typed.taskId !== undefined) issue.taskId = typed.taskId === null ? undefined : (typed.taskId as string)
       } else if (typed.type === "link") {
         if (typeof typed.id !== "number") throw new Error("link requires a numeric id")
         if (typeof typed.taskId !== "string" || typed.taskId.length === 0) {

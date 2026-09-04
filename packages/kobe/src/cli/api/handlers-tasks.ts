@@ -33,17 +33,18 @@ export async function issueUpdate(ctx: VerbContext): Promise<unknown> {
   }
   const repoRoot = ctx.args.requireRepo("repo")
   const id = ctx.args.int("id")
-  let result: unknown
-  if (title !== undefined || body !== undefined) {
-    result = await simpleRpc(ctx, "issue.mutate", { repoRoot, op: { type: "update", id, title, body } })
-  }
-  if (task !== undefined) {
-    // `--task none` unlinks; anything else links. Linking IS the kanban move to
-    // In progress — the board column derives from the link, not a stored column.
-    const op = task === "none" ? { type: "unlink", id } : { type: "link", id, taskId: task }
-    result = await simpleRpc(ctx, "issue.mutate", { repoRoot, op })
-  }
-  return result
+  // ONE mutate, not two. Title/body and the link used to be separate RPCs, so
+  // `--title X --task <bogus>` committed the rename and THEN failed the link —
+  // the caller got exit 1, a typed TASK_NOT_FOUND and a hint saying "retry
+  // with a real id" for a command that had already half-run. The store applies
+  // all three fields under its one lock, and the daemon's task-existence check
+  // runs before that lock is taken, so a rejected link writes nothing.
+  //
+  // `--task none` unlinks (carried as `taskId: null`); anything else links.
+  // Linking IS the kanban move to In progress — the board column derives from
+  // the link, not a stored column.
+  const link = task === undefined ? {} : { taskId: task === "none" ? null : task }
+  return simpleRpc(ctx, "issue.mutate", { repoRoot, op: { type: "update", id, title, body, ...link } })
 }
 
 /**

@@ -264,6 +264,23 @@ describe("daemon handler registry — tasks, issues, worktrees", () => {
       expect(rec.published).toEqual([])
     })
 
+    // The half-apply guard: `issue-update --title X --task <bogus>` is ONE
+    // `update` op now, so the same task check has to see the `taskId` it
+    // carries. Miss it and the store commits the rename under a lock the
+    // caller is then told nothing happened inside.
+    it("issue.mutate refuses an update whose taskId names no task, before writing the title", async () => {
+      const { ctx, rec } = fakeCtx({ getTask: () => undefined })
+      await expect(
+        dispatch(
+          "issue.mutate",
+          { repoRoot: "/repo", op: { type: "update", id: 1, title: "Renamed", taskId: "NOPE" } },
+          ctx,
+        ),
+      ).rejects.toThrow("task not found: NOPE")
+      expect(rec.issueCalls).toEqual([])
+      expect(rec.published).toEqual([])
+    })
+
     it("issue.mutate links to a task that exists", async () => {
       const { ctx, rec } = fakeCtx({ getTask: (id: string) => (id === "t1" ? TASK : undefined) })
       await expect(
