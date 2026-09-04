@@ -328,4 +328,31 @@ describe("resolveBase", () => {
     runGit.mockImplementation(async () => fail("detached, no remote"))
     expect(await resolveBase("/repo")).toBeNull()
   })
+
+  // A repo with no remote used to resolve no base at all, which made Branch
+  // scope unreachable: an attempt that had committed everything showed
+  // `no changes — clean worktree` beside a sidebar row reading `↑1`.
+  test("falls back to a LOCAL default branch when the repo has no remote", async () => {
+    runGit.mockImplementation(async (_cwd, args) => {
+      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
+      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
+      if (args.includes("HEAD")) return ok("aaaaaaa\n")
+      if (args.includes("main")) return ok("bbbbbbb\n")
+      return fail("nope")
+    })
+    expect(await resolveBase("/repo")).toBe("main")
+  })
+
+  // `main...HEAD` is empty by construction when `main` IS this HEAD, so
+  // offering it would move the empty pane behind a toggle rather than say
+  // there is nothing to compare against.
+  test("skips a local default branch that is this worktree's own HEAD", async () => {
+    runGit.mockImplementation(async (_cwd, args) => {
+      if (args.includes("symbolic-ref")) return fail("no origin/HEAD")
+      if (args.includes("origin/main") || args.includes("origin/master")) return fail("no such ref")
+      if (args.includes("HEAD") || args.includes("main")) return ok("samesha\n")
+      return fail("nope")
+    })
+    expect(await resolveBase("/repo")).toBeNull()
+  })
 })

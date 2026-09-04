@@ -17,9 +17,11 @@ import { formatBytes } from "../../lib/format-bytes"
 import { openWithSystemViewer } from "../../lib/open-external"
 import type { DiffReviewApi } from "../../tui/ops/diff-comments"
 import {
+  type PatchNote,
   type PreviewData,
   filetypeOf,
   isCombinedPathspec,
+  isImagePath,
   loadPreviewData,
   unifiedDiffFiles,
 } from "../../tui/ops/preview-core"
@@ -82,7 +84,11 @@ export function PreviewScreen(props: OpsPreviewArgs) {
 
   // System-open (`o`) only makes sense for a LOCAL worktree — the file the
   // OS viewer would open doesn't exist on this machine for a remote one.
-  const canSystemOpen = data?.kind === "binary" && !execHostForWorktreePath(props.worktree).isRemote
+  // A changed binary gets the same hand-off as an unchanged one: the diff is
+  // unreadable in a terminal either way, and the viewer is the way out.
+  const canSystemOpen =
+    (data?.kind === "binary" || (data?.kind === "patch-note" && data.note.kind === "binary")) &&
+    !execHostForWorktreePath(props.worktree).isRemote
 
   // Review overlay (line-anchored notes) — inert unless the host supplied
   // `review` AND the preview is a diff. Owns its own (PROPOSED) chords.
@@ -97,6 +103,14 @@ export function PreviewScreen(props: OpsPreviewArgs) {
     focused: props.focused ?? true,
     diffRef,
   })
+
+  // One vocabulary for a hunk-less patch, shared by the single-file card and
+  // a combined diff's sections — the two used to disagree by rendering
+  // nothing in different shapes.
+  const noteLabel = (note: PatchNote, path: string): string =>
+    note.kind === "mode"
+      ? t("ops.preview.modeChanged", { from: note.from, to: note.to })
+      : t(isImagePath(path) ? "ops.preview.imageChanged" : "ops.preview.binaryChanged")
 
   const onClose = props.onClose ?? (() => process.exit(0))
   useBindings(() => ({
@@ -124,7 +138,17 @@ export function PreviewScreen(props: OpsPreviewArgs) {
 
   return (
     <box flexDirection="column" flexGrow={1} backgroundColor={theme.background}>
-      <box flexDirection="row" gap={1} paddingLeft={1} paddingRight={1}>
+      {/* Opaque background + flexShrink={0}: a diff taller than the pane used
+         to paint straight over this row, so a 6000-line file opened with
+         nothing on screen naming it or saying `q` closes it. */}
+      <box
+        flexDirection="row"
+        gap={1}
+        paddingLeft={1}
+        paddingRight={1}
+        flexShrink={0}
+        backgroundColor={theme.background}
+      >
         <text fg={theme.accent}>{pathspecLabel}</text>
         <text fg={theme.textMuted}>
           {data?.kind === "diff"
@@ -133,14 +157,45 @@ export function PreviewScreen(props: OpsPreviewArgs) {
               : t("ops.preview.diffVsHead")
             : data?.kind === "binary"
               ? t(data.image ? "ops.preview.image" : "ops.preview.binary")
-              : t("ops.preview.file")}
+              : data?.kind === "patch-note"
+                ? noteLabel(data.note, props.relPath)
+                : data?.kind === "error"
+                  ? t("ops.preview.gitFailed")
+                  : t("ops.preview.file")}
         </text>
+        {data?.kind === "diff" && data.origPath != null ? (
+          <text fg={theme.textMuted}>{t("ops.preview.renamedFrom", { origPath: data.origPath })}</text>
+        ) : null}
         <text fg={theme.textMuted}>{t("ops.preview.closeHint")}</text>
         {combined ? <text fg={theme.textMuted}>{t("ops.preview.notesPerFile")}</text> : null}
       </box>
-      <box flexGrow={1}>
+      {/* Clipped: `<diff>` has no intrinsic height and draws every row it
+         has, so without this it overdraws the chrome on both sides of it. */}
+      <box flexGrow={1} overflow="hidden">
         {data == null ? (
           <text fg={theme.textMuted}>{t("ops.preview.loading")}</text>
+        ) : data.kind === "error" ? (
+          // git refused. The Files pane next door already renders its own git
+          // failures rather than swallowing them; this used to be the one
+          // surface that turned a refusal into "no changes".
+          <box flexDirection="column" paddingLeft={1} paddingTop={1} gap={1}>
+            <text fg={theme.error} wrapMode="word">
+              {data.message}
+            </text>
+            <text fg={theme.textMuted}>{t("ops.preview.retryHint")}</text>
+          </box>
+        ) : data.kind === "patch-note" ? (
+          // Same card shape as the image/binary placeholder — a real change
+          // git stated in the preamble, which `<diff>` draws no rows for.
+          <box flexDirection="column" paddingLeft={1} paddingTop={1} gap={1}>
+            <text fg={theme.text}>
+              {noteLabel(data.note, props.relPath)}
+              {/* Size belongs to a binary, whose bytes are the only thing
+                 that changed; on a mode flip it is noise. */}
+              {data.note.kind === "binary" && data.sizeBytes != null ? ` · ${formatBytes(data.sizeBytes)}` : ""}
+            </text>
+            {canSystemOpen ? <text fg={theme.textMuted}>{t("ops.preview.openHint")}</text> : null}
+          </box>
         ) : data.kind === "empty" ? (
           <box paddingLeft={1} paddingTop={1}>
             <text fg={theme.textMuted}>{t("ops.preview.noChanges", { pathspec: pathspecLabel })}</text>
@@ -173,16 +228,25 @@ export function PreviewScreen(props: OpsPreviewArgs) {
                 <text fg={theme.accent} attributes={TextAttributes.BOLD} wrapMode="none">
                   {file.path}
                 </text>
-                <box height={file.lines} flexShrink={0}>
-                  <diff
-                    diff={file.text}
-                    view="unified"
-                    wrapMode="none"
-                    filetype={filetypeOf(file.path)}
-                    syntaxStyle={style}
-                    showLineNumbers={true}
-                  />
-                </box>
+                {file.note ? (
+                  // `lines` counts hunk rows, so a patch with none got
+                  // height={0} — a bare filename over empty space. Three of
+                  // eight sections of a real commit rendered that way.
+                  <text fg={theme.textMuted} wrapMode="none">
+                    {`  ${noteLabel(file.note, file.path)}`}
+                  </text>
+                ) : (
+                  <box height={file.lines} flexShrink={0}>
+                    <diff
+                      diff={file.text}
+                      view="unified"
+                      wrapMode="none"
+                      filetype={filetypeOf(file.path)}
+                      syntaxStyle={style}
+                      showLineNumbers={true}
+                    />
+                  </box>
+                )}
               </box>
             ))}
           </scrollbox>

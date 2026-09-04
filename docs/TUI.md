@@ -210,6 +210,12 @@ is clean and Rove can resolve a base branch, it automatically switches to the
 whole branch-versus-base view so committed agent work does not disappear. Press
 `b` to choose the scope manually; the header always names the active scope.
 
+The base is the task's PR base when it has one, then `origin/HEAD`,
+`origin/main`, or `origin/master`, then a local `main` or `master` — so a repo
+with no remote still gets a branch view instead of an empty pane beside a
+sidebar row reporting commits. When none of those resolve, the scope line names
+that as the reason rather than leaving `b` as a silent no-op.
+
 **Combined diffs.** `d` on a **directory** row opens everything under it as one
 diff in one tab, and the Changes tab's `[D] diff everything` chip does the same
 for the whole worktree — reviewing a twelve-file attempt is one keypress and one
@@ -217,6 +223,14 @@ tab instead of twelve of each. A combined diff is **read-only**: a review note
 anchors to a single path, so a diff spanning files carries none, and its footer
 says so. Per-file notes are unchanged. A directory with nothing changed in the
 active scope says so rather than opening blank.
+
+**What a diff states instead of drawing nothing.** A renamed file's diff shows
+the rename and the same `+N −M` as its list row, not the whole file as added. A
+changed binary and a mode-only change each state what changed — in the
+single-file view and in a combined diff's section — because a patch git wrote
+entirely in its preamble has no hunks to draw. If git itself refuses (a pruned
+remote, a renamed base branch), the pane shows git's own error and `r` retries;
+a failed read is never reported as an absence of changes.
 
 Open a text file with `enter`. Rove uses the configured terminal editor; for a
 changed file it requests that editor's diff mode when Vim or Neovim is

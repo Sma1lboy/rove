@@ -142,11 +142,16 @@ export function FileTreeHeaderView(props: FileTreeHeaderProps) {
          when a base resolved, the `b` toggle affordance. */}
       {props.tab === "changes" ? (
         <box flexDirection="column" paddingBottom={1} flexShrink={0} gap={0}>
-          <text fg={theme.textMuted} wrapMode="none">
+          {/* Wraps: the no-base reason does not fit a narrow pane on one
+             line, and a truncated reason is no better than no reason. */}
+          <text fg={theme.textMuted} wrapMode="word">
             {props.scope === "branch" && props.base != null
               ? t("files.scope.branch", { base: props.base })
               : t("files.scope.working")}
-            {props.base != null ? `  ${t("files.scope.toggleHint")}` : ""}
+            {/* No base means Branch scope cannot be entered at all, so `b` is
+               a no-op. Saying why beats a bare scope line next to a sidebar
+               row reporting commits the pane cannot show. */}
+            {props.base != null ? `  ${t("files.scope.toggleHint")}` : `  ${t("files.scope.noBase")}`}
           </text>
           <text fg={theme.textMuted} wrapMode="none">
             {t("files.legend.changes")}
